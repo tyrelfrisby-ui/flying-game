@@ -267,7 +267,12 @@ def update(path):
     phase2d_update(path)
     from vr_phase2e import update as phase2e_update
     phase2e_update(path)
+    from vr_phase3 import update as phase3_update
+    phase3_update(path)
     return result
 if __name__=='__main__':
     for model in ('pitts-s2b-like','extra-300-like'):
         for path in sorted((MODELS/model).glob('*own*.glb')): update(path)
+
+    from vr_phase3 import update as phase3_update
+    for path in sorted((MODELS/'great-lakes-like').glob('*own*.glb')): phase3_update(path)

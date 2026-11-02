@@ -849,59 +849,6 @@
    }
   },
   {
-   "node": "MagKey_R",
-   "parent": "Instruments_Rear",
-   "param": "magneto",
-   "unit": "OFF/R/L/BOTH/START",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.275,
-    0.262
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1.0,
-     30.0
-    ],
-    [
-     2.0,
-     60.0
-    ],
-    [
-     3.0,
-     90.0
-    ],
-    [
-     4.0,
-     130.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "ignition key OFF, R, L, BOTH, START (spring back to BOTH); detent angles E; modelled at -60 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_detents": [
-     0,
-     1,
-     2,
-     3,
-     4
-    ],
-    "rig_dial_ang0_deg": -60.0
-   }
-  },
-  {
    "node": "Compass_Card_R",
    "parent": "Instruments_Rear",
    "param": "heading_deg",
@@ -934,246 +881,6 @@
    "extra": {
     "rig_map_wrap": 360.0
    }
-  },
-  {
-   "node": "Radio_VolumeKnob_R",
-   "parent": "Instruments_Rear",
-   "param": "com_volume",
-   "unit": "0..1",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.1745,
-    0.2495,
-    -0.234
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1.0,
-     270.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "radio head volume knob (left, on/off + squelch push), 0 = off .. 1 = full over 270 deg (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Radio_TuneOuter_R",
-   "parent": "Instruments_Rear",
-   "param": "com_freq_mhz",
-   "unit": "MHz",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.1745,
-    0.2495,
-    -0.282
-   ],
-   "map": [
-    [
-     118.0,
-     0.0
-    ],
-    [
-     137.0,
-     285.0
-    ]
-   ],
-   "model": 118.0,
-   "desc": "radio head dual-concentric tuning knob, OUTER (MHz): 15 deg detent per MHz (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_map_extrapolate": 1,
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Radio_TuneInner_R",
-   "parent": "Instruments_Rear",
-   "param": "com_freq_mhz",
-   "unit": "MHz",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.1745,
-    0.2495,
-    -0.282
-   ],
-   "map": [
-    [
-     118.0,
-     0.0
-    ],
-    [
-     119.0,
-     600.0
-    ]
-   ],
-   "model": 118.0,
-   "desc": "radio head dual-concentric tuning knob, INNER (kHz): 15 deg detent per 25 kHz channel = 600 deg per MHz (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_map_extrapolate": 1,
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Xpdr_Knob_R",
-   "parent": "Instruments_Rear",
-   "param": "xpdr_knob_clicks",
-   "unit": "clicks",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.1745,
-    0.2045,
-    -0.2805
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1.0,
-     30.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "transponder head rotary knob (squawk / menu entry): 30 deg per click (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_map_extrapolate": 1,
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Switch_Master_R",
-   "parent": "Instruments_Rear",
-   "param": "master",
-   "unit": "0 OFF / 1 ON",
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    -1.0
-   ],
-   "pivot_gltf": [
-    1.165,
-    0.23,
-    0.262
-   ],
-   "map": [
-    [
-     0.0,
-     60.0
-    ],
-    [
-     1.0,
-     0.0
-    ]
-   ],
-   "model": 1.0,
-   "desc": "battery master toggle: modelled ON (up), OFF = 60 deg down (E)",
-   "link": "",
-   "note": "",
-   "extra": {
-    "rig_detents": [
-     0,
-     1
-    ]
-   }
-  },
-  {
-   "node": "Prop_R",
-   "parent": "Instruments_Rear",
-   "param": "prop",
-   "unit": "0..1",
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.18,
-    0.262
-   ],
-   "map": [
-    [
-     0.0,
-     -0.05
-    ],
-    [
-     1.0,
-     0.0
-    ]
-   ],
-   "model": 1.0,
-   "desc": "propeller rpm vernier (black knob, rear panel; constant-speed): modelled IN (1 = full forward / rich), 0 = pulled 50 mm aft (E)",
-   "link": "rear seat only (POH)",
-   "note": "",
-   "extra": {}
-  },
-  {
-   "node": "Mixture_R",
-   "parent": "Instruments_Rear",
-   "param": "mixture",
-   "unit": "0..1",
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.13,
-    0.262
-   ],
-   "map": [
-    [
-     0.0,
-     -0.05
-    ],
-    [
-     1.0,
-     0.0
-    ]
-   ],
-   "model": 1.0,
-   "desc": "mixture vernier (red knob, rear panel): modelled IN (1 = full forward / rich), 0 = pulled 50 mm aft (E)",
-   "link": "rear seat only (POH)",
-   "note": "",
-   "extra": {}
   },
   {
    "node": "StickRoll_F",
@@ -1656,126 +1363,6 @@
    "extra": {}
   },
   {
-   "node": "Trim_R",
-   "parent": "Controls",
-   "param": "trim",
-   "unit": "-1 nose down .. +1 nose up",
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    -1.0
-   ],
-   "pivot_gltf": [
-    1.3,
-    0.1395,
-    -0.34
-   ],
-   "map": [
-    [
-     -1.0,
-     -25.0
-    ],
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1.0,
-     25.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "elevator trim lever on the right ledge (rear seat): +1 nose up = knob aft 25 deg (E)",
-   "link": "no trim tab is modelled on Elevator_L/R (sim-only effect)",
-   "note": "",
-   "extra": {}
-  },
-  {
-   "node": "FuelSel_R",
-   "parent": "Controls",
-   "param": "fuel_selector",
-   "unit": "0 OFF / 1 ACRO+CENTRE / 2 WING",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    -0.04,
-    0.0
-   ],
-   "map": [
-    [
-     0.0,
-     -90.0
-    ],
-    [
-     1.0,
-     0.0
-    ],
-    [
-     2.0,
-     90.0
-    ]
-   ],
-   "model": 1.0,
-   "desc": "fuel selector on the centre stack (rear): modelled at 1 (handle up); 2 = 90 deg clockwise, 0 = 90 deg anticlockwise (E detents)",
-   "link": "front + rear linked",
-   "note": "",
-   "extra": {
-    "rig_detents": [
-     0,
-     1,
-     2
-    ]
-   }
-  },
-  {
-   "node": "FuelSel_F",
-   "parent": "Controls",
-   "param": "fuel_selector",
-   "unit": "0 OFF / 1 ACRO+CENTRE / 2 WING",
-   "kind": "rot",
-   "axis_gltf": [
-    -0.0,
-    -1.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.4,
-    0.198,
-    -0.34
-   ],
-   "map": [
-    [
-     0.0,
-     -90.0
-    ],
-    [
-     1.0,
-     0.0
-    ],
-    [
-     2.0,
-     90.0
-    ]
-   ],
-   "model": 1.0,
-   "desc": "fuel selector on the right ledge (front): modelled at 1 (handle forward); 2 = handle to the right, 0 = to the left (E)",
-   "link": "front + rear linked",
-   "note": "",
-   "extra": {
-    "rig_detents": [
-     0,
-     1,
-     2
-    ]
-   }
-  },
-  {
    "node": "Canopy",
    "parent": "Canopy_Detachable",
    "param": "canopy_open",
@@ -2053,6 +1640,6150 @@
    "link": "Pedal_*",
    "note": "",
    "extra": {}
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
   },
   {
    "node": "Canopy_Latch_Handle_Fwd",
@@ -2885,6 +8616,1438 @@
    "extra": {},
    "link": "",
    "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Magneto",
+   "param": "magneto",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     30
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     90
+    ],
+    [
+     4,
+     130
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Master",
+   "param": "master",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Mixture",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Prop",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_selector",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     180
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume",
+   "param": "com_volume",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     270
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Magneto_Front",
+   "param": "magneto",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     30
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     90
+    ],
+    [
+     4,
+     130
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Master_Front",
+   "param": "master",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Mixture_Front",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Prop_Front",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_selector",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     180
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume_Front",
+   "param": "com_volume",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     270
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
   }
  ],
  "displays": [
@@ -2961,5 +10124,1750 @@
    "note": "static card in an alloy holder with a spring clip and paper stock, centred above the top edge of the rear dash (holder_top_above_dash_m is measured from RearPanel_UpperExtension's top, y 0.308); the picked PDF is drawn onto this node's material at runtime (Bridge/SequenceCard.cs). OWNER DECISION 2026-11-01 (Ty, \"B\"): the Extra carried TWO cards after the sights merge -- this holder and a bare SequenceCard_Slot quad 9 mm nearer the pilot whose surround and backing were welded into Cockpit_Interior. The quad, its surround and its backing are gone (tools/own_models/drop_card_slot.py); this is the only card."
   }
  ],
- "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually."
+ "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.",
+ "controls": [
+  {
+   "node": "Ctl_Rotary_Magneto",
+   "param": "magneto",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.215
+   ],
+   "travel": 130,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    4
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "detent_count": 5,
+   "spring_return": true,
+   "spring_return_from": 4,
+   "spring_return_to": 3,
+   "poke": "Poke_Magneto",
+   "grip": "Grip_Magneto",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Master",
+   "param": "master",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.251
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Master",
+   "grip": "Grip_Master",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.287
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelPump",
+   "grip": "Grip_FuelPump",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    0.32299999999999995
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_NavLights",
+   "grip": "Grip_NavLights",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.215
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Strobe",
+   "grip": "Grip_Strobe",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.251
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_LandingLight",
+   "grip": "Grip_LandingLight",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.287
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Smoke",
+   "grip": "Grip_Smoke",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_Mixture",
+   "param": "mixture",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    0.32299999999999995
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Mixture",
+   "grip": "Grip_Mixture",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_Prop",
+   "param": "prop",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.215
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Prop",
+   "grip": "Grip_Prop",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.251
+   ],
+   "travel": 35,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_AlternateAir",
+   "grip": "Grip_AlternateAir",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.287
+   ],
+   "travel": 300,
+   "travel_unit": "deg",
+   "sim_ends": [
+    -1,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Trim",
+   "grip": "Grip_Trim",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_selector",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    0.32299999999999995
+   ],
+   "travel": 180,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    2
+   ],
+   "detents": [
+    0,
+    1,
+    2
+   ],
+   "detent_count": 3,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector",
+   "grip": "Grip_FuelSelector",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.215
+   ],
+   "travel": 540,
+   "travel_unit": "deg",
+   "sim_ends": [
+    118,
+    136
+   ],
+   "detents": [
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136
+   ],
+   "detent_count": 19,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComOuter",
+   "grip": "Grip_ComOuter",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment",
+   "step": 1,
+   "wrap": [
+    118,
+    136.975
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.251
+   ],
+   "travel": 360,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    0.975
+   ],
+   "detents": [
+    0.0,
+    0.025,
+    0.05,
+    0.07500000000000001,
+    0.1,
+    0.125,
+    0.15000000000000002,
+    0.17500000000000002,
+    0.2,
+    0.225,
+    0.25,
+    0.275,
+    0.30000000000000004,
+    0.325,
+    0.35000000000000003,
+    0.375,
+    0.4,
+    0.42500000000000004,
+    0.45,
+    0.47500000000000003,
+    0.5,
+    0.525,
+    0.55,
+    0.5750000000000001,
+    0.6000000000000001,
+    0.625,
+    0.65,
+    0.675,
+    0.7000000000000001,
+    0.7250000000000001,
+    0.75,
+    0.775,
+    0.8,
+    0.8250000000000001,
+    0.8500000000000001,
+    0.875,
+    0.9,
+    0.925,
+    0.9500000000000001,
+    0.9750000000000001
+   ],
+   "detent_count": 40,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComInner",
+   "grip": "Grip_ComInner",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment_fraction",
+   "step": 0.025,
+   "alternative_step_mhz": 0.008333333333333333,
+   "channel_spacing_requires_owner_choice": true
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume",
+   "param": "com_volume",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.287
+   ],
+   "travel": 270,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComVolume",
+   "grip": "Grip_ComVolume",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.45,
+    -0.32299999999999995
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComSwap",
+   "grip": "Grip_ComSwap",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.215
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit1",
+   "grip": "Grip_XpdrDigit1",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1000,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.251
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit2",
+   "grip": "Grip_XpdrDigit2",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 100,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.287
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit3",
+   "grip": "Grip_XpdrDigit3",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 10,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.45,
+    -0.32299999999999995
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit4",
+   "grip": "Grip_XpdrDigit4",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.215
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    3
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "detent_count": 4,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrMode",
+   "grip": "Grip_XpdrMode",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.45,
+    -0.251
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrIdent",
+   "grip": "Grip_XpdrIdent",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_Magneto_Front",
+   "param": "magneto",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.215
+   ],
+   "travel": 130,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    4
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "detent_count": 5,
+   "spring_return": true,
+   "spring_return_from": 4,
+   "spring_return_to": 3,
+   "poke": "Poke_Magneto_Front",
+   "grip": "Grip_Magneto_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Master_Front",
+   "param": "master",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.251
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Master_Front",
+   "grip": "Grip_Master_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.287
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelPump_Front",
+   "grip": "Grip_FuelPump_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_NavLights_Front",
+   "grip": "Grip_NavLights_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.215
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Strobe_Front",
+   "grip": "Grip_Strobe_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.251
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_LandingLight_Front",
+   "grip": "Grip_LandingLight_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.287
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Smoke_Front",
+   "grip": "Grip_Smoke_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_Mixture_Front",
+   "param": "mixture",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    0.32299999999999995
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Mixture_Front",
+   "grip": "Grip_Mixture_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_Prop_Front",
+   "param": "prop",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.215
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Prop_Front",
+   "grip": "Grip_Prop_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.251
+   ],
+   "travel": 35,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_AlternateAir_Front",
+   "grip": "Grip_AlternateAir_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.287
+   ],
+   "travel": 300,
+   "travel_unit": "deg",
+   "sim_ends": [
+    -1,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Trim_Front",
+   "grip": "Grip_Trim_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_selector",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    0.32299999999999995
+   ],
+   "travel": 180,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    2
+   ],
+   "detents": [
+    0,
+    1,
+    2
+   ],
+   "detent_count": 3,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector_Front",
+   "grip": "Grip_FuelSelector_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.215
+   ],
+   "travel": 540,
+   "travel_unit": "deg",
+   "sim_ends": [
+    118,
+    136
+   ],
+   "detents": [
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136
+   ],
+   "detent_count": 19,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComOuter_Front",
+   "grip": "Grip_ComOuter_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment",
+   "step": 1,
+   "wrap": [
+    118,
+    136.975
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.251
+   ],
+   "travel": 360,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    0.975
+   ],
+   "detents": [
+    0.0,
+    0.025,
+    0.05,
+    0.07500000000000001,
+    0.1,
+    0.125,
+    0.15000000000000002,
+    0.17500000000000002,
+    0.2,
+    0.225,
+    0.25,
+    0.275,
+    0.30000000000000004,
+    0.325,
+    0.35000000000000003,
+    0.375,
+    0.4,
+    0.42500000000000004,
+    0.45,
+    0.47500000000000003,
+    0.5,
+    0.525,
+    0.55,
+    0.5750000000000001,
+    0.6000000000000001,
+    0.625,
+    0.65,
+    0.675,
+    0.7000000000000001,
+    0.7250000000000001,
+    0.75,
+    0.775,
+    0.8,
+    0.8250000000000001,
+    0.8500000000000001,
+    0.875,
+    0.9,
+    0.925,
+    0.9500000000000001,
+    0.9750000000000001
+   ],
+   "detent_count": 40,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComInner_Front",
+   "grip": "Grip_ComInner_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment_fraction",
+   "step": 0.025,
+   "alternative_step_mhz": 0.008333333333333333,
+   "channel_spacing_requires_owner_choice": true
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume_Front",
+   "param": "com_volume",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.287
+   ],
+   "travel": 270,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComVolume_Front",
+   "grip": "Grip_ComVolume_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComSwap_Front",
+   "grip": "Grip_ComSwap_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.215
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit1_Front",
+   "grip": "Grip_XpdrDigit1_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1000,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.251
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit2_Front",
+   "grip": "Grip_XpdrDigit2_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 100,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.287
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit3_Front",
+   "grip": "Grip_XpdrDigit3_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 10,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.45,
+    -0.32299999999999995
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit4_Front",
+   "grip": "Grip_XpdrDigit4_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.215
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    3
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "detent_count": 4,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrMode_Front",
+   "grip": "Grip_XpdrMode_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.45,
+    -0.251
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrIdent_Front",
+   "grip": "Grip_XpdrIdent_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  }
+ ],
+ "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."
 }

@@ -1,0 +1,3856 @@
+[
+ {
+  "file": "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 249.16,
+     "Throttle_sweep": 345.3
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 261.01,
+     "Throttle_sweep": 345.68
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 276.33,
+     "Throttle_sweep": 348.83
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 294.67,
+     "Throttle_sweep": 355.1
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 267.15,
+     "Throttle_sweep": 395.02
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 278.36,
+     "Throttle_sweep": 395.35
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 292.93,
+     "Throttle_sweep": 398.16
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 260.44,
+     "Throttle_sweep": 353.76
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 246.33,
+     "Throttle_sweep": 398.21
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 271.65,
+     "Throttle_sweep": 413.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 320.12,
+     "Throttle_sweep": 451.03
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 336.43,
+     "Throttle_sweep": 456.05
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 249.16,
+     "Throttle_sweep": 530.48
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 261.01,
+     "Throttle_sweep": 557.19
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 276.33,
+     "Throttle_sweep": 584.8
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 290.67,
+     "Throttle_sweep": 609.22
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 267.15,
+     "Throttle_sweep": 565.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 278.36,
+     "Throttle_sweep": 590.87
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 292.93,
+     "Throttle_sweep": 617.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 310.44,
+     "Throttle_sweep": 644.22
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 296.33,
+     "Throttle_sweep": 605.25
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 302.65,
+     "Throttle_sweep": 625.06
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 273.1,
+     "Throttle_sweep": 303.07
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 284.11,
+     "Throttle_sweep": 300.57
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 298.44,
+     "Throttle_sweep": 300.62
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 315.7,
+     "Throttle_sweep": 303.32
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 273.44,
+     "Throttle_sweep": 347.58
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 284.44,
+     "Throttle_sweep": 345.36
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 298.75,
+     "Throttle_sweep": 345.4
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 266.0,
+     "Throttle_sweep": 297.8
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 232.62,
+     "Throttle_sweep": 347.05
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 258.34,
+     "Throttle_sweep": 360.07
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 307.31,
+     "Throttle_sweep": 395.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 324.16,
+     "Throttle_sweep": 397.25
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 273.1,
+     "Throttle_sweep": 535.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 284.11,
+     "Throttle_sweep": 564.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 298.44,
+     "Throttle_sweep": 594.34
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 311.7,
+     "Throttle_sweep": 620.7
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 273.44,
+     "Throttle_sweep": 563.59
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 284.44,
+     "Throttle_sweep": 591.41
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 298.75,
+     "Throttle_sweep": 619.99
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 316.0,
+     "Throttle_sweep": 649.25
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 282.62,
+     "Throttle_sweep": 596.94
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 289.34,
+     "Throttle_sweep": 619.4
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-factory-unmarked.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 249.16,
+     "Throttle_sweep": 345.3
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 261.01,
+     "Throttle_sweep": 345.68
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 276.33,
+     "Throttle_sweep": 348.83
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 294.67,
+     "Throttle_sweep": 355.1
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 267.15,
+     "Throttle_sweep": 395.02
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 278.36,
+     "Throttle_sweep": 395.35
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 292.93,
+     "Throttle_sweep": 398.16
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 260.44,
+     "Throttle_sweep": 353.76
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 246.33,
+     "Throttle_sweep": 398.21
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 271.65,
+     "Throttle_sweep": 413.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 320.12,
+     "Throttle_sweep": 451.03
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 336.43,
+     "Throttle_sweep": 456.05
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 249.16,
+     "Throttle_sweep": 530.48
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 261.01,
+     "Throttle_sweep": 557.19
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 276.33,
+     "Throttle_sweep": 584.8
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 290.67,
+     "Throttle_sweep": 609.22
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 267.15,
+     "Throttle_sweep": 565.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 278.36,
+     "Throttle_sweep": 590.87
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 292.93,
+     "Throttle_sweep": 617.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 310.44,
+     "Throttle_sweep": 644.22
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 296.33,
+     "Throttle_sweep": 605.25
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 302.65,
+     "Throttle_sweep": 625.06
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 273.1,
+     "Throttle_sweep": 303.07
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 284.11,
+     "Throttle_sweep": 300.57
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 298.44,
+     "Throttle_sweep": 300.62
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 315.7,
+     "Throttle_sweep": 303.32
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 273.44,
+     "Throttle_sweep": 347.58
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 284.44,
+     "Throttle_sweep": 345.36
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 298.75,
+     "Throttle_sweep": 345.4
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 266.0,
+     "Throttle_sweep": 297.8
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 232.62,
+     "Throttle_sweep": 347.05
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 258.34,
+     "Throttle_sweep": 360.07
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 307.31,
+     "Throttle_sweep": 395.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 324.16,
+     "Throttle_sweep": 397.25
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 273.1,
+     "Throttle_sweep": 535.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 284.11,
+     "Throttle_sweep": 564.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 298.44,
+     "Throttle_sweep": 594.34
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 311.7,
+     "Throttle_sweep": 620.7
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 273.44,
+     "Throttle_sweep": 563.59
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 284.44,
+     "Throttle_sweep": 591.41
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 298.75,
+     "Throttle_sweep": 619.99
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 316.0,
+     "Throttle_sweep": 649.25
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 282.62,
+     "Throttle_sweep": 596.94
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 289.34,
+     "Throttle_sweep": 619.4
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-n1191.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 249.16,
+     "Throttle_sweep": 345.3
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 261.01,
+     "Throttle_sweep": 345.68
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 276.33,
+     "Throttle_sweep": 348.83
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 294.67,
+     "Throttle_sweep": 355.1
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 267.15,
+     "Throttle_sweep": 395.02
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 278.36,
+     "Throttle_sweep": 395.35
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 292.93,
+     "Throttle_sweep": 398.16
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 260.44,
+     "Throttle_sweep": 353.76
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 246.33,
+     "Throttle_sweep": 398.21
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 271.65,
+     "Throttle_sweep": 413.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 320.12,
+     "Throttle_sweep": 451.03
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 336.43,
+     "Throttle_sweep": 456.05
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 249.16,
+     "Throttle_sweep": 530.48
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 261.01,
+     "Throttle_sweep": 557.19
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 276.33,
+     "Throttle_sweep": 584.8
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 290.67,
+     "Throttle_sweep": 609.22
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 267.15,
+     "Throttle_sweep": 565.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 278.36,
+     "Throttle_sweep": 590.87
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 292.93,
+     "Throttle_sweep": 617.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 310.44,
+     "Throttle_sweep": 644.22
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 296.33,
+     "Throttle_sweep": 605.25
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 302.65,
+     "Throttle_sweep": 625.06
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 273.1,
+     "Throttle_sweep": 303.07
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 284.11,
+     "Throttle_sweep": 300.57
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 298.44,
+     "Throttle_sweep": 300.62
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 315.7,
+     "Throttle_sweep": 303.32
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 273.44,
+     "Throttle_sweep": 347.58
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 284.44,
+     "Throttle_sweep": 345.36
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 298.75,
+     "Throttle_sweep": 345.4
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 266.0,
+     "Throttle_sweep": 297.8
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 232.62,
+     "Throttle_sweep": 347.05
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 258.34,
+     "Throttle_sweep": 360.07
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 307.31,
+     "Throttle_sweep": 395.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 324.16,
+     "Throttle_sweep": 397.25
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 273.1,
+     "Throttle_sweep": 535.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 284.11,
+     "Throttle_sweep": 564.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 298.44,
+     "Throttle_sweep": 594.34
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 311.7,
+     "Throttle_sweep": 620.7
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 273.44,
+     "Throttle_sweep": 563.59
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 284.44,
+     "Throttle_sweep": 591.41
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 298.75,
+     "Throttle_sweep": 619.99
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 316.0,
+     "Throttle_sweep": 649.25
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 282.62,
+     "Throttle_sweep": 596.94
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 289.34,
+     "Throttle_sweep": 619.4
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 249.16,
+     "Throttle_sweep": 345.3
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 261.01,
+     "Throttle_sweep": 345.68
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 276.33,
+     "Throttle_sweep": 348.83
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 294.67,
+     "Throttle_sweep": 355.1
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 267.15,
+     "Throttle_sweep": 395.02
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 278.36,
+     "Throttle_sweep": 395.35
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 292.93,
+     "Throttle_sweep": 398.16
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 260.44,
+     "Throttle_sweep": 353.76
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 246.33,
+     "Throttle_sweep": 398.21
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 271.65,
+     "Throttle_sweep": 413.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 320.12,
+     "Throttle_sweep": 451.03
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 336.43,
+     "Throttle_sweep": 456.05
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 249.16,
+     "Throttle_sweep": 530.48
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 261.01,
+     "Throttle_sweep": 557.19
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 276.33,
+     "Throttle_sweep": 584.8
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 290.67,
+     "Throttle_sweep": 609.22
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 267.15,
+     "Throttle_sweep": 565.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 278.36,
+     "Throttle_sweep": 590.87
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 292.93,
+     "Throttle_sweep": 617.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 310.44,
+     "Throttle_sweep": 644.22
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 296.33,
+     "Throttle_sweep": 605.25
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 302.65,
+     "Throttle_sweep": 625.06
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 273.1,
+     "Throttle_sweep": 303.07
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 284.11,
+     "Throttle_sweep": 300.57
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 298.44,
+     "Throttle_sweep": 300.62
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 315.7,
+     "Throttle_sweep": 303.32
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 273.44,
+     "Throttle_sweep": 347.58
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 284.44,
+     "Throttle_sweep": 345.36
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 298.75,
+     "Throttle_sweep": 345.4
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 266.0,
+     "Throttle_sweep": 297.8
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 232.62,
+     "Throttle_sweep": 347.05
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 258.34,
+     "Throttle_sweep": 360.07
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 307.31,
+     "Throttle_sweep": 395.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 324.16,
+     "Throttle_sweep": 397.25
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 273.1,
+     "Throttle_sweep": 535.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 284.11,
+     "Throttle_sweep": 564.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 298.44,
+     "Throttle_sweep": 594.34
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 311.7,
+     "Throttle_sweep": 620.7
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 273.44,
+     "Throttle_sweep": 563.59
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 284.44,
+     "Throttle_sweep": 591.41
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 298.75,
+     "Throttle_sweep": 619.99
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 316.0,
+     "Throttle_sweep": 649.25
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 282.62,
+     "Throttle_sweep": 596.94
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 289.34,
+     "Throttle_sweep": 619.4
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own-n300uy.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 120.77,
+     "Throttle_sweep": 175.83
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 140.43,
+     "Throttle_sweep": 160.38
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 164.22,
+     "Throttle_sweep": 150.09
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 190.96,
+     "Throttle_sweep": 145.71
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 170.41,
+     "Throttle_sweep": 216.71
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 186.11,
+     "Throttle_sweep": 203.69
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 205.81,
+     "Throttle_sweep": 195.16
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 178.7,
+     "Throttle_sweep": 141.58
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 176.32,
+     "Throttle_sweep": 215.58
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 204.08,
+     "Throttle_sweep": 219.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 255.47,
+     "Throttle_sweep": 247.5
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 274.96,
+     "Throttle_sweep": 244.54
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 120.77,
+     "Throttle_sweep": 523.79
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 140.43,
+     "Throttle_sweep": 557.64
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 164.22,
+     "Throttle_sweep": 591.72
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 186.96,
+     "Throttle_sweep": 622.0
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 170.41,
+     "Throttle_sweep": 541.39
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 186.11,
+     "Throttle_sweep": 574.3
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 205.81,
+     "Throttle_sweep": 607.53
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 228.7,
+     "Throttle_sweep": 641.03
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 226.32,
+     "Throttle_sweep": 565.3
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 235.08,
+     "Throttle_sweep": 593.01
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 90.65
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 64.93
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 45.54
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 168.21,
+     "Throttle_sweep": 36.45
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 119.33
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 98.4
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 83.67
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 118.21,
+     "Throttle_sweep": 27.17
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 37.92,
+     "Throttle_sweep": 113.91
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 76.44,
+     "Throttle_sweep": 112.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 138.77,
+     "Throttle_sweep": 136.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 168.53,
+     "Throttle_sweep": 131.92
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 495.08
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 530.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 566.15
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 164.21,
+     "Throttle_sweep": 597.76
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 503.47
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 538.47
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 573.59
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 168.21,
+     "Throttle_sweep": 608.81
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 87.92,
+     "Throttle_sweep": 519.1
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 107.44,
+     "Throttle_sweep": 549.21
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own-unmarked.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 120.77,
+     "Throttle_sweep": 175.83
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 140.43,
+     "Throttle_sweep": 160.38
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 164.22,
+     "Throttle_sweep": 150.09
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 190.96,
+     "Throttle_sweep": 145.71
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 170.41,
+     "Throttle_sweep": 216.71
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 186.11,
+     "Throttle_sweep": 203.69
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 205.81,
+     "Throttle_sweep": 195.16
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 178.7,
+     "Throttle_sweep": 141.58
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 176.32,
+     "Throttle_sweep": 215.58
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 204.08,
+     "Throttle_sweep": 219.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 255.47,
+     "Throttle_sweep": 247.5
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 274.96,
+     "Throttle_sweep": 244.54
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 120.77,
+     "Throttle_sweep": 523.79
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 140.43,
+     "Throttle_sweep": 557.64
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 164.22,
+     "Throttle_sweep": 591.72
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 186.96,
+     "Throttle_sweep": 622.0
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 170.41,
+     "Throttle_sweep": 541.39
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 186.11,
+     "Throttle_sweep": 574.3
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 205.81,
+     "Throttle_sweep": 607.53
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 228.7,
+     "Throttle_sweep": 641.03
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 226.32,
+     "Throttle_sweep": 565.3
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 235.08,
+     "Throttle_sweep": 593.01
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 90.65
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 64.93
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 45.54
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 168.21,
+     "Throttle_sweep": 36.45
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 119.33
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 98.4
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 83.67
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 118.21,
+     "Throttle_sweep": 27.17
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 37.92,
+     "Throttle_sweep": 113.91
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 76.44,
+     "Throttle_sweep": 112.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 138.77,
+     "Throttle_sweep": 136.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 168.53,
+     "Throttle_sweep": 131.92
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 495.08
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 530.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 566.15
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 164.21,
+     "Throttle_sweep": 597.76
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 503.47
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 538.47
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 573.59
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 168.21,
+     "Throttle_sweep": 608.81
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 87.92,
+     "Throttle_sweep": 519.1
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 107.44,
+     "Throttle_sweep": 549.21
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 120.77,
+     "Throttle_sweep": 175.83
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 140.43,
+     "Throttle_sweep": 160.38
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 164.22,
+     "Throttle_sweep": 150.09
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 190.96,
+     "Throttle_sweep": 145.71
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 170.41,
+     "Throttle_sweep": 216.71
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 186.11,
+     "Throttle_sweep": 203.69
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 205.81,
+     "Throttle_sweep": 195.16
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 178.7,
+     "Throttle_sweep": 141.58
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 176.32,
+     "Throttle_sweep": 215.58
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 204.08,
+     "Throttle_sweep": 219.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 255.47,
+     "Throttle_sweep": 247.5
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 274.96,
+     "Throttle_sweep": 244.54
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 120.77,
+     "Throttle_sweep": 523.79
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 140.43,
+     "Throttle_sweep": 557.64
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 164.22,
+     "Throttle_sweep": 591.72
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 186.96,
+     "Throttle_sweep": 622.0
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 170.41,
+     "Throttle_sweep": 541.39
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 186.11,
+     "Throttle_sweep": 574.3
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 205.81,
+     "Throttle_sweep": 607.53
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 228.7,
+     "Throttle_sweep": 641.03
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 226.32,
+     "Throttle_sweep": 565.3
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 235.08,
+     "Throttle_sweep": 593.01
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 90.65
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 64.93
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 45.54
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 168.21,
+     "Throttle_sweep": 36.45
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 119.33
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 98.4
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 83.67
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 118.21,
+     "Throttle_sweep": 27.17
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 37.92,
+     "Throttle_sweep": 113.91
+    }
+   },
+   {
+    "node": "Ctl_PushPull_AlternateAir_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 76.44,
+     "Throttle_sweep": 112.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 138.77,
+     "Throttle_sweep": 136.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 168.53,
+     "Throttle_sweep": 131.92
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 495.08
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 530.58
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 566.15
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 164.21,
+     "Throttle_sweep": 597.76
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 87.43,
+     "Throttle_sweep": 503.47
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 111.01,
+     "Throttle_sweep": 538.47
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 138.4,
+     "Throttle_sweep": 573.59
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 168.21,
+     "Throttle_sweep": 608.81
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 87.92,
+     "Throttle_sweep": 519.1
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 107.44,
+     "Throttle_sweep": 549.21
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own-red-sunburst.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26
+    }
+   },
+   {
+    "node": "Ctl_PushPull_CarbHeat",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26
+    }
+   },
+   {
+    "node": "Ctl_PushPull_CarbHeat_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own-white-stripes.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26
+    }
+   },
+   {
+    "node": "Ctl_PushPull_CarbHeat",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26
+    }
+   },
+   {
+    "node": "Ctl_PushPull_CarbHeat_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ },
+ {
+  "file": "unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb",
+  "controls": 44,
+  "clearances": [
+   {
+    "node": "Ctl_Rotary_Magneto",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 346.04,
+     "Throttle_sweep": 292.31
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 355.12,
+     "Throttle_sweep": 281.05
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 367.06,
+     "Throttle_sweep": 273.34
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 381.63,
+     "Throttle_sweep": 269.42
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 346.04,
+     "Throttle_sweep": 310.31
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 355.12,
+     "Throttle_sweep": 299.62
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 367.06,
+     "Throttle_sweep": 292.31
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 331.63,
+     "Throttle_sweep": 238.61
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 296.4,
+     "Throttle_sweep": 288.28
+    }
+   },
+   {
+    "node": "Ctl_PushPull_CarbHeat",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 320.47,
+     "Throttle_sweep": 293.36
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 367.4,
+     "Throttle_sweep": 321.61
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 381.96,
+     "Throttle_sweep": 318.2
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 346.04,
+     "Throttle_sweep": 586.84
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 355.12,
+     "Throttle_sweep": 618.12
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 367.06,
+     "Throttle_sweep": 649.84
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 377.63,
+     "Throttle_sweep": 677.96
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 346.04,
+     "Throttle_sweep": 596.79
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 355.12,
+     "Throttle_sweep": 627.61
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 367.06,
+     "Throttle_sweep": 658.92
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 381.63,
+     "Throttle_sweep": 690.65
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 346.4,
+     "Throttle_sweep": 612.92
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 351.47,
+     "Throttle_sweep": 639.04
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Magneto_Front",
+    "clearance_mm": {
+     "knee_L": 427.66,
+     "knee_R": 506.58,
+     "Stick_sweep": 346.04,
+     "Throttle_sweep": 308.71
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Master_Front",
+    "clearance_mm": {
+     "knee_L": 436.24,
+     "knee_R": 526.16,
+     "Stick_sweep": 355.12,
+     "Throttle_sweep": 298.05
+    }
+   },
+   {
+    "node": "Ctl_Toggle_FuelPump_Front",
+    "clearance_mm": {
+     "knee_L": 447.04,
+     "knee_R": 547.14,
+     "Stick_sweep": 367.06,
+     "Throttle_sweep": 290.8
+    }
+   },
+   {
+    "node": "Ctl_Toggle_NavLights_Front",
+    "clearance_mm": {
+     "knee_L": 459.93,
+     "knee_R": 569.4,
+     "Stick_sweep": 381.63,
+     "Throttle_sweep": 287.16
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Strobe_Front",
+    "clearance_mm": {
+     "knee_L": 460.51,
+     "knee_R": 535.39,
+     "Stick_sweep": 346.04,
+     "Throttle_sweep": 324.24
+    }
+   },
+   {
+    "node": "Ctl_Toggle_LandingLight_Front",
+    "clearance_mm": {
+     "knee_L": 468.6,
+     "knee_R": 554.12,
+     "Stick_sweep": 355.12,
+     "Throttle_sweep": 314.03
+    }
+   },
+   {
+    "node": "Ctl_Toggle_Smoke_Front",
+    "clearance_mm": {
+     "knee_L": 478.8,
+     "knee_R": 574.24,
+     "Stick_sweep": 367.06,
+     "Throttle_sweep": 307.09
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Mixture_Front",
+    "clearance_mm": {
+     "knee_L": 441.01,
+     "knee_R": 545.63,
+     "Stick_sweep": 331.63,
+     "Throttle_sweep": 253.63
+    }
+   },
+   {
+    "node": "Ctl_PushPull_Prop_Front",
+    "clearance_mm": {
+     "knee_L": 448.59,
+     "knee_R": 519.26,
+     "Stick_sweep": 296.1,
+     "Throttle_sweep": 299.67
+    }
+   },
+   {
+    "node": "Ctl_PushPull_CarbHeat_Front",
+    "clearance_mm": {
+     "knee_L": 471.18,
+     "knee_R": 552.07,
+     "Stick_sweep": 320.18,
+     "Throttle_sweep": 305.11
+    }
+   },
+   {
+    "node": "Ctl_Rotary_Trim_Front",
+    "clearance_mm": {
+     "knee_L": 515.76,
+     "knee_R": 606.26,
+     "Stick_sweep": 367.12,
+     "Throttle_sweep": 333.64
+    }
+   },
+   {
+    "node": "Ctl_Rotary_FuelSelector_Front",
+    "clearance_mm": {
+     "knee_L": 527.26,
+     "knee_R": 626.72,
+     "Stick_sweep": 381.69,
+     "Throttle_sweep": 330.4
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComOuter_Front",
+    "clearance_mm": {
+     "knee_L": 506.58,
+     "knee_R": 427.66,
+     "Stick_sweep": 346.04,
+     "Throttle_sweep": 595.36
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComInner_Front",
+    "clearance_mm": {
+     "knee_L": 526.16,
+     "knee_R": 436.24,
+     "Stick_sweep": 355.12,
+     "Throttle_sweep": 626.2
+    }
+   },
+   {
+    "node": "Ctl_Rotary_ComVolume_Front",
+    "clearance_mm": {
+     "knee_L": 547.14,
+     "knee_R": 447.04,
+     "Stick_sweep": 367.06,
+     "Throttle_sweep": 657.53
+    }
+   },
+   {
+    "node": "Ctl_PushPull_ComSwap_Front",
+    "clearance_mm": {
+     "knee_L": 565.4,
+     "knee_R": 455.93,
+     "Stick_sweep": 377.63,
+     "Throttle_sweep": 685.27
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit1_Front",
+    "clearance_mm": {
+     "knee_L": 535.39,
+     "knee_R": 460.51,
+     "Stick_sweep": 346.04,
+     "Throttle_sweep": 604.2
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit2_Front",
+    "clearance_mm": {
+     "knee_L": 554.12,
+     "knee_R": 468.6,
+     "Stick_sweep": 355.12,
+     "Throttle_sweep": 634.65
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit3_Front",
+    "clearance_mm": {
+     "knee_L": 574.24,
+     "knee_R": 478.8,
+     "Stick_sweep": 367.06,
+     "Throttle_sweep": 665.61
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrDigit4_Front",
+    "clearance_mm": {
+     "knee_L": 595.63,
+     "knee_R": 491.01,
+     "Stick_sweep": 381.63,
+     "Throttle_sweep": 697.02
+    }
+   },
+   {
+    "node": "Ctl_Rotary_XpdrMode_Front",
+    "clearance_mm": {
+     "knee_L": 569.26,
+     "knee_R": 498.59,
+     "Stick_sweep": 346.1,
+     "Throttle_sweep": 619.2
+    }
+   },
+   {
+    "node": "Ctl_PushPull_XpdrIdent_Front",
+    "clearance_mm": {
+     "knee_L": 583.07,
+     "knee_R": 502.18,
+     "Stick_sweep": 351.18,
+     "Throttle_sweep": 645.0
+    }
+   }
+  ],
+  "scope": "Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval."
+ }
+]
