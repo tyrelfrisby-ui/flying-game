@@ -14,6 +14,12 @@ namespace FlyingGame.FlightTests;
 /// there, so a tune can be made against a number rather than a feeling. Run it with
 /// <c>--filter FullyQualifiedName~PittsRollProbe</c> and read the output.
 /// </summary>
+// FLIES AEROPLANES, so it must not run in PARALLEL with a class that installs a world or sets the
+// weather: Atmosphere.SteadyWind / ActiveTurbulence / Field and WorldTerrain.Active are process-wide,
+// and a thermal arriving under the aeroplane mid-roll changes the rate being measured. Without this
+// every case here passed in isolation and failed in the full suite (2026-11-01), including the three
+// types this work does not touch at all — which is exactly how that bug always looks.
+[Collection("WorldTerrainActive")]
 public sealed class PittsRollProbe
 {
     private readonly ITestOutputHelper _out;
