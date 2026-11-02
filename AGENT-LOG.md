@@ -1,4 +1,24 @@
 ## NEEDS YOU
+- **QUEST: SLOW NEAR THE GROUND, THE AIRCRAFT LIST, YELLOW-ONLY 2-33, A GENTLER STICK + GAMEPAD (Claude, 2026-11-02,
+  lane/claude-vr-quest, commits 159e5f46 · 5d028681 · 1084a620 · eeb12758). Code only: NOT built (`deploy.sh` not
+  run — src/ changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the
+  operator's rebuild:**
+  1. **Slowdown.** Fly the Pitts low (below 60 m) for a few minutes, land, sit on the grass, taxi. Then
+     `adb logcat -s Unity | grep QuestPerf`. Healthy: 72 fps with `sim … 2.8 steps` and `sim capped 0`; the new
+     `top:` field shows where the sim's time goes (`contactPoints` should be a small part of `step`). If it is still
+     slow near the ground, send me five of those lines: `top:` now names the part that is left.
+  2. **Aircraft list.** VR menu → Aircraft must offer exactly **2-33, Extra, Pitts, Great Lakes**. The 2-33 must be
+     YELLOW (our own model) and its front seat in its cockpit, not inside the fuselage. The J-3 is hidden until its
+     own model is wired into the game (see the log entry); the 172 because it is not our own model.
+  3. **Stick.** Is 65 % expo right? VR menu → **Stick expo** `<` `>` (5 % steps), select puts it back. Tell me the
+     number you like and I make it the default.
+  4. **8BitDo.** Pair it in the headset (Settings → Devices → Bluetooth, the pad in Android / X-input mode), start the
+     game, fly with it (left stick flies, right stick rudder + throttle, Start = menu; table in
+     docs/quest-controls.md), then send `adb logcat -s Unity | grep QuestInput` (the `gamepad …` lines with name,
+     layout and VID:PID). Does any button do the wrong thing?
+  5. **Livery commit for the playable lane:** 5d028681 (2-33 yellow only, all platforms) is self-contained for a
+     cherry-pick. On a lane with da5c8f05's 2-33 picker, drop that picker's Options entry while resolving.
+  **Nothing approved.**
 - **QUEST: THE MENU OPENS IN FLIGHT, CHANGE AIRCRAFT WITHOUT A RESTART, THE PITTS' STICK AND PEDALS MOVE (Claude,
   2026-11-02, lane/claude-vr-quest) — Ty's report on build a222bda ("cannot open the menu or options at all … has to
   quit and relaunch to change aircraft"; "in the Pitts the stick and rudder pedals still don't move"). Code only: NOT
@@ -989,6 +1009,50 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · Quest: slow near the ground (measured), the headset's aircraft list, 2-33 yellow only, stick feel + gamepad
+**1. Slowdown — measured on the device (logcat /tmp/questlogs/perf-1410), cause found, fixed, measured on the Mac.**
+- Device: 72 fps / 4.5–8 ms main thread above ~100 m agl; 20 fps / ~48 ms below ~60 m; 8–9 fps / 110–120 ms on the
+  ground at (6188, 5183); `sim capped` every frame when slow. Not memory, GC, heat, recorder or GPU.
+- Cause: `AirframeContact.ClearAboveM` (60 m). Below it all 21 Pitts hard points asked for ground / water / caves /
+  decks / micro-bump surface at each of RK4's 4 stages at 200 Hz; the gear asked at every altitude; and the catch-up
+  cap doubled the steps per frame once frames ran long. Reproduced in `QuestLowAltitudeProbe` with the new
+  `SimProfile` (contactPoints 0 → 5–8 ms/frame on the Mac below 60 m; height evaluations 88 → ~320/frame).
+- Fix (159e5f46): per-step clear test incl. wheels; stage-1-exact / stages-2–4-culled points and wheels with a
+  0.1 m + 11×travel margin; bump lookup skipped above 0.8 m; airborne wheels skip the surface; cave / surface lookups
+  hoisted out of string-keyed JSON. `GroundContactCullTests`: 52 flights bit-identical on / off. Mac, same session,
+  HEAD vs branch: low flight ~half (30 m at (6188, 5183) 2.82 → 1.33 ms/frame; ground 3.04 → 1.69), cruise −40 %.
+- `[QuestPerf]` now ends `sim X ms/frame, N steps | top: … ms/frame | height q / eval`; `gpu app` / `compositor`
+  were ×1000 (they are ms on the Quest: a222bda "6886.8" = VrApi App=6.89ms). docs/quest-performance.md *Slow near
+  the ground*.
+- Not in my lane, flagged: the 60 m shortcut also skips `WorldSolids` (towers, buildings) although its comment says
+  they are checked at every altitude. Kept identical behaviour; a tower taller than 60 m above its ground would not
+  collide. Flight-model call.
+**2. Eye inside geometry / aircraft list (1084a620).** Not seat ids, units, tracking origin or StreamingAssets. Both
+  types drew the PROCEDURAL airframe (2-33: its old "type" livery; J-3: its own GLB has no `OwnSpecs` entry, so it is
+  never placed), a closed tube with no cockpit, and the eyes (measured on our own models) are inside it: 2-33 front
+  0.261 m from the axis of a 0.457 m tube, J-3 rear 0.239 m in 0.409 m. `tools/own_models/check_eye_interiors.py`
+  (engine-free, GLBs placed as `AirframeModels.Place` does, CG-rooted frame): Pitts, Extra, Great Lakes and the own
+  2-33 have no skin within 12 cm of any eye; QUEST LIST PASS. Quest lists 2-33, Extra, Pitts, Great Lakes
+  (`QuestFleet`, tested); everything else hidden in the headset only — J-3: own model not placed by the game yet;
+  172: draws the downloaded model; all others: no approved eye point and no interior of ours. Next step for the J-3:
+  an `OwnSpecs` entry + its rig (docs/models/j3-cub-own-RIG.md), checked in a render.
+**3. 2-33 livery (5d028681, its own commit for the playable lane).** The red-and-white 2-33 was the procedural
+  trainer. `LiveryChoice.Only`: the 2-33 always resolves to `talk-flying` (glider-2-33-like-own-tf.glb); any saved id
+  falls back to it; AERO_LIVERY=type cannot bring the trainer back (=factory still loads the plain yellow GLB for
+  captures). PickOwn always ours; the procedural fallback is yellow; SgsRigCheck no longer sets an ignored livery.
+  Files: LiveryChoice.cs, AirframeModels.cs, AirframeVisual.cs, SgsRigCheck.cs, LiveryPickerTests.cs.
+**4. Stick + gamepad (eeb12758).** Headset default curve 0.35u + 0.65u³ past a 0.05 rescaled dead zone (was 0.10 +
+  each aircraft's 10–30 % expo), via the existing Feel setting with a platform-specific "unset"; VR menu → Stick expo.
+  Gamepad: Input System `Gamepad` → `QuestGamepadMap` → merged into the controllers' frame (flies, menus, same feel);
+  `[QuestInput] gamepad Added: "<name>" layout … VID:PID …`.
+**Checks:** Roslyn 0 errors for Core, Sim, Bridge, Quest on the Android il2cpp (Both), iOS and editor DLLs;
+  EditorTools only the 2 known BuildScript harness lines. Filtered suite (contact / gear / ground / terrain / island /
+  water / landing / tow / glacier …), branch point vs branch, back-to-back: no failing name introduced (the one
+  difference, GroundTowTests.TugReleasesWhenGliderClimbsTooHigh, passes alone on both). New / touched classes green:
+  GroundContactCullTests 52, QuestStickFeelTests, QuestControlsTests, QuestFleetTests, LiveryPickerTests, Quest* and
+  RudderPedal (124 incl. one pre-existing GlacierLandingZoneTests.BrokenIceIsSomethingTheWheelsCanFeel failure that
+  fails identically on the branch point). Full suite not run. No Unity, no build, adb read-only (none needed: the
+  capture was already on disk).
 ### 2026-11-02 — Claude · lane/claude-vr-quest · USB rudder pedals (item 11): Quest over OTG, Mac, editor; mapping + calibration in both menus
 Ty's item 11. Read the rudder and both toe brakes from USB pedals, fed into the one control path.
 **Core** (`src/FlyingGame.Core/RudderPedals.cs`, engine-free):

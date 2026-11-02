@@ -219,3 +219,21 @@ over all the GLB's primitives, so it agreed with the table and proved nothing ab
 model's geometry, check it against the hierarchy glTFast BUILDS (`GetComponentsInChildren<MeshFilter>`), not the
 file's mesh list.
 
+
+### A shortcut with a threshold is a cliff in the frame budget
+`AirframeContact` skipped its hard points only while the airframe was 60 m clear of the ground. Every bench run
+flew above that, so the expensive path — 21 points × 4 RK4 stages × 200 Hz of ground, water, cave and surface
+queries — was never timed, and on the Quest it took the frame from 72 fps to 20 the moment Ty came down to land.
+Then the catch-up cap doubled the steps per frame, which is why it felt like "a crawl". When code has a cheap path
+and an expensive one, time the expensive one on purpose (`QuestLowAltitudeProbe` flies 500 m, 50 m, 30 m and the
+ground at the device's own coordinates), and keep a per-subsystem breakdown in the device log (`SimProfile`, the
+`top:` field of `[QuestPerf]`): a build that cannot be sampled has to say where its time went.
+
+### An eye point is only as good as the model the game draws
+The 2-33 and the J-3 had approved eye points, measured on our own GLBs, and the Quest still put Ty inside the
+fuselage: neither type was drawing our GLB. The 2-33's default livery drew the procedural trainer and the J-3's own
+model is not wired in, and the procedural airframe is a closed tube with the eye buried in it. Before trusting an
+eye (or a sight, or a cockpit part), find out which model `AirframeModels.PickOwn` actually places for that type and
+livery, and measure against that one (`tools/own_models/check_eye_interiors.py`). Also: `AirframeModels.Place` puts
+the model in the CG-rooted frame using the config's datum numbers, and the eyes were measured in that frame — adding
+the CG to the eye "puts" the Great Lakes pilot 7 cm under his own turtle deck.
