@@ -59,7 +59,8 @@ public sealed class CrashWaterProbe : IDisposable
     private void RunAll(AircraftConfig c172)
     {
         BreakUp("LAND break-up", c172, water: false);
-        BreakUp("WATER break-up", c172, water: true);
+        BreakUp("WATER, same arrival (break rule as it is)", c172, water: true);
+        BreakUp("WATER, break-up FORCED at first water contact (nose, tail boom, both wings)", c172, water: true, forceBreak: true);
         Ditch("INTACT ditching", c172, 12, 0.5, 8);
         Ditch("FAST ditching, gear down", c172, 24, 0.8, 6);
         Floatplane("FLOATPLANE undamaged", false);
@@ -91,16 +92,18 @@ public sealed class CrashWaterProbe : IDisposable
         _txt.AppendLine("       t  body                depth      vz   air m3   buoy N   state");
     }
 
-    private void BreakUp(string title, AircraftConfig c, bool water)
+    private void BreakUp(string title, AircraftConfig c, bool water, bool forceBreak = false)
     {
         CrashEvents.ClearForTests();
         FloatHydro.FlatWaterOverride = water ? WaterUp : null;
         double surface = water ? WaterUp : 0.0;
         var impacts = new List<CrashImpact>();
         CrashEvents.Impact += impacts.Add;
-        // 30 m/s (58 kt) along, 12 m/s down, 15 deg nose-down: past every break speed in AirframeContact.
-        var att = Pitch(-15);
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(surface + 2.5)), att, att.Conjugate().Rotate(new Vec3(30, 0, 12)), Vec3.Zero));
+        // A stall-spin style arrival, the same for land and water: 30 m/s (58 kt) along, 20 m/s down, 30 deg nose-down.
+        // (At 12 m/s down and 15 deg the 172 now survives water: wheels and hull added mass take the speed off before the
+        // hard points arrive — the cabin hits at 6.3 m/s against its 8 m/s break.)
+        var att = Pitch(-30);
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(surface + 3.5)), att, att.Conjugate().Rotate(new Vec3(30, 0, 20)), Vec3.Zero));
         var relay = new CrashRelay(ac);
         var loop = new SimLoop(ac);
         double dt = SimLoop.DefaultFixedDtSec, next = 0;
@@ -108,10 +111,19 @@ public sealed class CrashWaterProbe : IDisposable
         var tracks = new Dictionary<int, Track>();
         Track airT = new() { Name = "airframe" };
         double tEnd = 1800;
+        bool forced = false;
         for (int i = 0; ; i++)
         {
             double t = i * dt;
             if (i > 0) { loop.RunFor(dt, ControlInputs.Neutral); relay.Step(dt); }
+            if (forceBreak && !forced && impacts.Any(e => e.PieceId == -1 && e.Surface == ImpactSurface.Water))
+            {
+                // What a load-based water-impact break rule would do here (see NEEDS YOU): the arrival state is real.
+                forced = true;
+                ac.LoseComponent(AirframeComponent.Cabin);
+                ac.LoseComponent(AirframeComponent.WingLeft);
+                ac.LoseComponent(AirframeComponent.WingRight);
+            }
             foreach (WreckPiece p in relay.Wreck.Pieces)
             {
                 if (!tracks.TryGetValue(p.Id, out Track? tr)) tracks[p.Id] = tr = new Track { Name = p.Name };
