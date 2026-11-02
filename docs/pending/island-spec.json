@@ -35848,13 +35848,13 @@
       "item": "summit Chugach",
       "old": "6890 ft",
       "new": "5914.9 ft",
-      "reason": "Claude 2026-11-02 island terrain rebuild: canyon C4's sea-level floor heads 0.95 km away; the summit stands on the ground held up by the L2 lesson headwall (6,950 ft) beside it. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+      "reason": "Claude 2026-11-02 island terrain rebuild: canyon C4's sea-level floor heads 0.95 km away and the A2 airway swath lies 1 km west; the summit stands on the ground the KMEV/L2 benches hold up beside it. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
     },
     {
       "item": "summit Denali-like",
       "old": "8530 ft",
       "new": "2175.9 ft",
-      "reason": "Claude 2026-11-02 island terrain rebuild: the coast is 0.45 km north and PHDH's runway-end surface 1 km south: 8,530 ft there was a 2,000 m needle (before/22); this is what a 55-degree sea cliff and a 42-degree landward face allow. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+      "reason": "Claude 2026-11-02 island terrain rebuild: the coast is 0.45 km north: 8,530 ft there was a 2,000 m needle (before/22); this is what a 55-degree sea-cliff face allows. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
     }
   ],
   "ifr": {

@@ -2,7 +2,7 @@
 namespace FlyingGame.Core;
 public static class IslandData
 {
-    public const string SpecSha256 = "ebf3817967ba1282b6a99952fb27e29cf891d73cd9320dc67ca46d4cd756c8f1";
+    public const string SpecSha256 = "0997425f2bae71ce7a5e32d405d8f1c0b3067ffd58e7d0628380f4f114520bd7";
     public static readonly IslandValue World = N14563();
     private static IslandValue N0() => IslandValue.Map(("origin", IslandValue.Scalar("Frank Church summit")), ("xy_units", IslandValue.Scalar("km")), ("x", IslandValue.Scalar("east")), ("y", IslandValue.Scalar("north")), ("altitude", IslandValue.Scalar("ft MSL unless explicitly suffixed")), ("sim_conversion", IslandValue.Scalar("sim X=1000*y; sim Y=1000*x; sim Z=-0.3048*altitude_ft")), ("headings", IslandValue.Scalar("true clockwise from north; magnetic = (true - 7) mod 360")), ("variation_east_deg", IslandValue.Scalar(7.0)));
     private static IslandValue N1() => IslandValue.Array(IslandValue.Scalar(18.3), IslandValue.Scalar(17.5));

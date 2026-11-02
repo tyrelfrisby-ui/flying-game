@@ -50,6 +50,9 @@ Shader "FlyingGame/IslandTerrain"
             }
             // Fade a noise's contrast to its mean before its features fall under ~4 pixels (no shimmer).
             float filtered(float2 p) { float f = max(length(ddx(p)), length(ddy(p))); return lerp(.5, simplex(p), 1 - smoothstep(.12, .25, f)); }
+            // Same, with the footprint (lattice cells per pixel) supplied: safe inside a branch, where screen-space
+            // derivatives are undefined on Metal.
+            float filteredAt(float2 p, float footprint) { return lerp(.5, simplex(p), 1 - smoothstep(.12, .25, footprint)); }
 
             fixed4 frag (v2f i, float facing : VFACE) : SV_Target
             {
@@ -101,18 +104,22 @@ Shader "FlyingGame/IslandTerrain"
                 float rock = saturate(max(cliff, exposed * (1 - smoothstep(.93, .99, ny) * .6)));
                 rock *= 1 - turf;
                 float3 granite = lerp(float3(.42, .41, .39), float3(.56, .54, .50), broad) * (.88 + fine * .24);
-                float bed = h * .011 + (broad - .5) * .6 + xz.x * .00009;
-                float3 strata = lerp(float3(.62, .36, .22), float3(.80, .66, .48), smoothstep(.3, .7, simplex(float2(bed, 7.3))));
-                strata = lerp(strata, float3(.52, .45, .40), smoothstep(.6, .8, simplex(float2(bed * 3.1, 2.1))) * .5);
-                float3 stone = lerp(granite, strata * (.92 + fine * .16), redrock);
+                float3 stone = granite;
+                if (redrock > .001)   // red-rock country only (coherent across whole regions: cheap to branch)
+                {
+                    float bed = h * .011 + (broad - .5) * .6 + xz.x * .00009;
+                    float3 strata = lerp(float3(.62, .36, .22), float3(.80, .66, .48), smoothstep(.3, .7, simplex(float2(bed, 7.3))));
+                    strata = lerp(strata, float3(.52, .45, .40), smoothstep(.6, .8, simplex(float2(bed * 3.1, 2.1))) * .5);
+                    stone = lerp(granite, strata * (.92 + fine * .16), redrock);
+                }
                 // Near-vertical faces: projected onto the wall itself, vertical joints and sub-horizontal
                 // bedding, so a cliff reads as fractured rock rather than a smooth grey plane.
                 float wall = 1 - smoothstep(.25, .5, ny);
                 if (wall > .001)
                 {
                     float2 face = float2(dot(xz, normalize(float2(-n.z, n.x) + 1e-4)), i.wp.y);
-                    float joints = filtered(face * float2(1.0 / 9, 1.0 / 40));
-                    float beds = filtered(face * float2(1.0 / 60, 1.0 / 7) + 11.3);
+                    float joints = filteredAt(face * float2(1.0 / 9, 1.0 / 40), pixelM / 9);
+                    float beds = filteredAt(face * float2(1.0 / 60, 1.0 / 7) + 11.3, pixelM / 7);
                     stone *= lerp(1, (.78 + .3 * joints) * (.9 + .16 * beds), wall);
                 }
                 // Talus / scree: debris (moraines) and the moderate slopes below cliffs above the treeline.
@@ -143,8 +150,10 @@ Shader "FlyingGame/IslandTerrain"
 
                 // ---- glacier ice --------------------------------------------------------------------------
                 float steepIce = 1 - smoothstep(.85, .95, ny);
-                float crevasse = (1 - smoothstep(.04, .12, abs(filtered(float2(dot(xz, n.xz) * .045, dot(xz, float2(-n.z, n.x)) * .006)) - .5)))
-                                 * steepIce * smoothstep(.5, .8, ice) * (1 - smoothstep(1.5, 5, pixelM));
+                float crevasse = 0;
+                if (ice > .15)        // glaciers only
+                    crevasse = (1 - smoothstep(.04, .12, abs(filteredAt(float2(dot(xz, n.xz) * .045, dot(xz, float2(-n.z, n.x)) * .006), pixelM * .045) - .5)))
+                               * steepIce * smoothstep(.5, .8, ice) * (1 - smoothstep(1.5, 5, pixelM));
                 float3 iceColour = lerp(float3(.86, .91, .95), float3(.78, .86, .93), fine);
                 iceColour = lerp(iceColour, float3(.32, .45, .55), crevasse * .45);
                 iceColour = lerp(iceColour, float3(.36, .35, .33) * (.85 + fine * .3), saturate(debris * 1.3));
