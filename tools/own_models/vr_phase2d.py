@@ -2,7 +2,7 @@
 import json
 import numpy as np
 from vr_cockpit import Glb, Shape, gl, builder, ROOT
-from vr_phase2 import Edit, PANEL_STATIONS, sill, skin_y, pitts_frame
+from vr_phase2 import Edit, PANEL_STATIONS, sill, skin_y, pitts_frame, tube_path
 from drop_card_slot import validate
 
 
@@ -56,7 +56,8 @@ def update(path):
     if kind=='pitts':
         for side,sy in [('L',1),('R',-1)]:
             sh=Shape();pts=[(x,sy*(skin_y(x,sill(x))-.004),sill(x)-.025) for x in np.linspace(-.13,-1.60,65)]
-            for u,v in zip(pts,pts[1:]):sh.tube(u,v,.009,8)
+            pts=tube_path(pts)
+            for u,v in zip(pts,pts[1:]):sh.tube(u,v,.009,10)
             a.node('Canopy_Sill_Airframe_'+side,shape=sh,mat=metal)
     # Surface integration: acrylic 3 mm * 1180 kg/m3; steel tube skin 1 mm * 7850.
     # Remaining moving fittings estimated 0.8 kg, distributed with frame surface.

@@ -4125,3 +4125,64 @@ zsh tools/own_models/rebuild_vr_phase2.sh
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
 /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- renders/phase2d
 ```
+
+## P2e — Quest 3S tube budget, 2026-11-02
+
+No gate approved. No commit, Blender, Unity, xcodebuild or deploy. All P2d
+nodes/transforms/rig extras preserved verbatim on migration, including detachable
+root mass/inertia estimates. Fresh CPU builds recompute those estimates from the
+reduced surfaces as before; they remain provisional estimates, not approval.
+
+Tube centreline simplification uses 0.9 mm maximum distance from dense source
+samples to each replacement chord, retaining endpoints. Panel outlines and glass
+are unchanged. Radial counts: rims 8, white bows 10, moving rails 12 (28 mm OD),
+fixed rails 10 (18 mm OD). Original radial counts were already modest; excess arc
+segments and retained dead buffers caused the bulk of the cost. Extra base frame
+is already 1,187 vertices / 1,660 triangles; unchanged. Its four new socket rings
+now use 8 instead of 16 arc segments (5 mm radius, 0.381 mm chord error), radial 8.
+GLB compaction removes superseded accessors/views and retains live bytes.
+
+Before below is e14b800 (P2d), not 45d2654: P2d already removed the tall end hoops,
+so its moving frame starts at 10,752 vertices rather than 21,504. All four Pitts
+liveries share the following changes. Counts are exported POSITION vertices,
+including flat-normal duplicates, followed by triangles.
+
+| Mesh | Before V / T | After V / T |
+|---|---:|---:|
+| Canopy_Frame | 10,752 / 3,584 | 2,640 / 880 |
+| Panel_Rim_Rear | 13,524 / 4,508 | 2,772 / 924 |
+| Panel_Rim_Front | 13,524 / 4,508 | 2,772 / 924 |
+| Canopy_Bow_F | 11,016 / 3,672 | 2,376 / 792 |
+| Canopy_Bow_R | 11,016 / 3,672 | 2,376 / 792 |
+| Canopy_Bow_F_Front | 6,480 / 2,160 | 1,512 / 504 |
+| Canopy_Bow_R_Front | 6,480 / 2,160 | 1,512 / 504 |
+| Canopy_Sill_Airframe_L | 5,376 / 1,792 | 1,080 / 360 |
+| Canopy_Sill_Airframe_R | 5,376 / 1,792 | 1,080 / 360 |
+| Extra Canopy_Latch_Hole_1/2, rear/front (each) | 1,344 / 448 | 672 / 224 |
+
+| GLB | Before bytes | After bytes |
+|---|---:|---:|
+| extra-300-like-own-n300uy.glb | 5,300,836 | 5,183,584 |
+| extra-300-like-own-unmarked.glb | 4,964,728 | 4,847,476 |
+| extra-300-like-own.glb | 5,591,620 | 5,474,368 |
+| pitts-s2b-like-own-checker-unmarked.glb | 7,207,224 | 3,579,536 |
+| pitts-s2b-like-own-factory-unmarked.glb | 7,183,144 | 3,604,512 |
+| pitts-s2b-like-own-n1191.glb | 7,199,796 | 3,621,164 |
+| pitts-s2b-like-own.glb | 7,156,864 | 3,578,232 |
+
+Full per-mesh Extra audit and per-file totals: `docs/models/vr-cockpit-phase2e-budget.json`.
+`check_vr_phase2.py --write-report` passes all seven repo assets; full checker also
+passes all seven temporary CPU builds from 0a1a7b4. Every fresh output matches
+repo per-node vertex/triangle counts; repeat updates are byte-identical on both
+paths. No Blender/VR visual review performed. CPU entrypoint applies P1/P2c/P2d/P2e.
+
+Exact operator commands, in this worktree (CPU runs already verified):
+```sh
+cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+export PYTHONDONTWRITEBYTECODE=1
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/vr_cockpit.py
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+# Optional full Blender rebuild and visual review; operator only:
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- renders/phase2e
+```

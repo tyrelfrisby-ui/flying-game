@@ -15,6 +15,19 @@ BOW_X=(-.835,-.875)
 BOW_RADIUS=.005
 PANEL_STATIONS={'Rear':-.80,'Front':-.145}
 
+def tube_path(points, tolerance=.0009):
+    """Retain endpoints; every source sample is within 0.9 mm of its chord.
+    Source curves are densely sampled independently of the render tessellation.
+    """
+    p=np.asarray(points,float)
+    if len(p)<=2:return p
+    d=p[-1]-p[0];dd=np.dot(d,d)
+    t=np.clip((p-p[0])@d/dd,0,1) if dd else np.zeros(len(p))
+    errors=np.linalg.norm(p-(p[0]+t[:,None]*d),axis=1)
+    i=int(np.argmax(errors))
+    if errors[i]<=tolerance:return p[[0,-1]]
+    return np.vstack((tube_path(p[:i+1],tolerance)[:-1],tube_path(p[i:],tolerance)))
+
 def panel_curve(x,offset=0):
     """Normal inset of the builder's actual upper skin section; no vertical sides.
     The skin exponent is intentionally inherited, not a separate panel superellipse.
@@ -40,7 +53,7 @@ def pitts_panels(a):
     for seat,x in PANEL_STATIONS.items():
         yz=panel_curve(x);sh=Shape();sh.prism(yz,x,.015 if seat=='Rear' else .012)
         a.node('RearPanel_Rounded' if seat=='Rear' else 'FrontPanel_Arched',shape=sh,mat=white)
-        sh=Shape();pts=[(x-.008,y,z) for y,z in yz];pts.append(pts[0])
+        sh=Shape();pts=list(tube_path([(x-.008,y,z) for y,z in yz]));pts.append(pts[0])
         for u,v in zip(pts,pts[1:]):sh.tube(u,v,.0025,8)
         a.node('Panel_Rim_'+seat,shape=sh,mat=metal)
     # Remove the old front hexagonal plate from the combined Cockpit mesh only.
@@ -55,7 +68,8 @@ def pitts_frame(a):
     sh=Shape()
     for sy in (-1,1):
         pts=[(x,sy*(skin_y(x,sill(x))-.004),sill(x)+.006) for x in np.linspace(-.13,-1.60,65)]
-        for u,v in zip(pts,pts[1:]):sh.tube(u,v,.014,8)
+        pts=tube_path(pts)
+        for u,v in zip(pts,pts[1:]):sh.tube(u,v,.014,12)
     a.node('Canopy_Frame',parent='Canopy',shape=sh,mat=a.g.material('P2c_Frame_Red',(.55,.012,.018)))
 
 def ribbon(points,width=.04445,thick=.003):
@@ -97,7 +111,7 @@ def canopy(a):
     for seat,xp in PANEL_STATIONS.items():
         suffix='' if seat=='Rear' else '_Front'
         for label,dx in (('F',-.035),('R',-.075)):
-            sh=Shape();pts=bow_points(xp+dx,xp)
+            sh=Shape();pts=tube_path(bow_points(xp+dx,xp))
             for p,q in zip(pts,pts[1:]):sh.tube(p,q,BOW_RADIUS,10)
             a.node('Canopy_Bow_'+label+suffix,parent='Canopy',shape=sh,mat=white)
         z=panel_curve(xp,BOW_OFFSET)[:,1].max();x=xp-.055
@@ -143,7 +157,7 @@ def extra_latch(a):
             sh=Shape();sh.tube(q+(0,0,-.012),q+(0,0,.012),.003)
             a.node(n,q,'Canopy',sh,steel);a.rigged(n,'canopy_latch',(0,0,1),[0,1],[0,.018],kind='move',desc='6 mm pin retracts upward 18 mm from airframe socket; simplified linkage estimate')
             sh=Shape();c=q+(0,0,-.006)
-            pts=[c+(.005*math.cos(t),.005*math.sin(t),0) for t in np.linspace(0,2*math.pi,17)]
+            pts=[c+(.005*math.cos(t),.005*math.sin(t),0) for t in np.linspace(0,2*math.pi,9)]
             for u,vv in zip(pts,pts[1:]):sh.tube(u,vv,.0015,8)
             a.node('Canopy_Latch_Hole_'+str(j+1)+suffix,shape=sh,mat=steel)
 
