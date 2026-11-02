@@ -97,13 +97,22 @@ public sealed class StructuralState
     /// <summary>Raised ONCE, on the step the wings separate.</summary>
     public event Action? OnWingsFailed;
 
-    internal StructuralState(LimitsConfig limits)
+    private readonly LimitsConfig _limits;
+    private readonly double _massKg;
+
+    /// <summary>The structure of an aeroplane of this total mass. The thresholds are the active category's limits at or
+    /// below VA with the airbrakes in, scaled down when the non-lifting parts outweigh what the wings were certificated
+    /// to carry (<see cref="LimitsConfig.NonLiftingFactor"/>) -- the wing-root bending that breaks a wing is n times
+    /// that weight, whatever the speed. A type with none of the envelope fields gets exactly its GMax/GMin.</summary>
+    internal StructuralState(LimitsConfig limits, double massKg = 0.0)
     {
+        _limits = limits; _massKg = massKg;
         double ultimate = limits.UltimateFactor > 1.0 ? limits.UltimateFactor : 2.0;
         double groan = limits.GroanFactor > 1.0 ? limits.GroanFactor : 1.5;
         if (groan >= ultimate) groan = 1.0 + (ultimate - 1.0) * 0.5;   // a config that inverts them still gets a band
-        LimitPosG = limits.GMax > 0.0 ? limits.GMax : 10.0;
-        LimitNegG = limits.GMin < 0.0 ? limits.GMin : -10.0;
+        (double pos, double neg) = limits.LimitAt(0.0, 0.0, massKg);
+        LimitPosG = pos > 0.0 ? pos : 10.0;
+        LimitNegG = neg < 0.0 ? neg : -10.0;
         GroanPosG = LimitPosG * groan;
         GroanNegG = LimitNegG * groan;
         UltimatePosG = LimitPosG * ultimate;
@@ -130,6 +139,19 @@ public sealed class StructuralState
     /// <summary>True when the load factor is past the rated limit — an exceedance for scoring, whether or not the
     /// airframe has started to complain yet.</summary>
     public bool OverLimit(double n) => n > LimitPosG || n < LimitNegG;
+
+    /// <summary>The rated limit load factors at this indicated airspeed and airbrake deflection: the manual's envelope
+    /// narrows from VA to VNE and again with the brakes out. What an exceedance is graded against in flight; the
+    /// groan and the wing failure stay on <see cref="LimitPosG"/>/<see cref="LimitNegG"/>, because bending strength
+    /// does not depend on speed.</summary>
+    public (double Pos, double Neg) LimitAt(double iasMs, double spoilerFraction) => _limits.LimitAt(iasMs, spoilerFraction, _massKg);
+
+    /// <summary>Past the rated limit at this speed and airbrake deflection.</summary>
+    public bool OverLimitAt(double n, double iasMs, double spoilerFraction)
+    {
+        (double pos, double neg) = LimitAt(iasMs, spoilerFraction);
+        return n > pos || n < neg;
+    }
 
     internal void RaiseFailed() => OnWingsFailed?.Invoke();
 }
@@ -259,7 +281,7 @@ public sealed class Aircraft
         foreach (GearConfig g in config.Gear) if (g.IsTailwheel && g.IsSteerable) { Tailwheel = new LandingGear.TailwheelState(); break; }
         Guns = FlyingGame.Core.Combat.Armament.For(config);
         foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
-        Structure = new StructuralState(config.Limits);
+        Structure = new StructuralState(config.Limits, config.Mass.MassKg);
 
         ControlDeflections initial = initialDeflections ?? ControlDeflections.Neutral;
         _aileronRad = initial.AileronRad;
