@@ -50,6 +50,10 @@ public sealed class ContactPoint
     public double BreakSpeedMs;           // normal impact speed that snaps the component off (0 = unbreakable)
     public bool Touching;                 // contact state last step (for impact detection)
     public string Name = "";
+    /// <summary>Set on a step's first RK4 stage: how far the point is above the ground or water under it, and how far
+    /// it could close on it before the step ends (<see cref="AirframeContact.StageCullMargin"/>). The later stages skip
+    /// the ground query while the first exceeds the second.</summary>
+    public double StageClearM = double.NegativeInfinity, StageMarginM;
 }
 
 /// <summary>Solid boxes in the world (buildings, bridge decks, landmark legs) that the airframe collides with.
@@ -272,7 +276,19 @@ public static class AirframeContact
     /// four points on its own radius. Returns false whenever anything could be close, so the caller falls back to
     /// the exact per-point test.
     /// </summary>
-    private static bool ClearOfTheGround(List<ContactPoint> points, Vec3 cg, RigidBodyState s)
+    private static bool ClearOfTheGround(List<ContactPoint> points, Vec3 cg, RigidBodyState s) =>
+        ClearOfTheGround(points, null, cg, s, 0.0);
+
+    /// <summary>
+    /// The same five-sample test for a whole step, with the wheels counted (<paramref name="wheels"/>: body positions of
+    /// each wheel's contact point, null for none) and <paramref name="extraM"/> more clearance demanded — the distance the
+    /// airframe can travel before the step ends. True means neither the hard points nor the wheels can reach the ground
+    /// on ANY of the step's four RK4 stages, so the caller skips gear and contact for the whole step
+    /// (<c>Aircraft.StepWithDeflectionTargets</c>). The test itself costs five height samples once a step instead of
+    /// once a stage, and the gear, which had no such test at all, stops asking for the ground under every wheel at
+    /// every stage in cruise.
+    /// </summary>
+    public static bool ClearOfTheGround(List<ContactPoint> points, IReadOnlyList<Vec3>? wheels, Vec3 cg, RigidBodyState s, double extraM)
     {
         double reach = 0, lowestZ = double.MinValue;
         foreach (ContactPoint p in points)
@@ -283,6 +299,16 @@ public static class AirframeContact
             if (horiz > reach) reach = horiz;
             if (w.Z > lowestZ) lowestZ = w.Z;        // z is + DOWN, so the largest z is the lowest point
         }
+        if (wheels != null)
+            foreach (Vec3 b in wheels)
+            {
+                Vec3 rWorld = s.Attitude.Rotate(b - cg);
+                double horiz = System.Math.Sqrt(rWorld.X * rWorld.X + rWorld.Y * rWorld.Y);
+                if (horiz > reach) reach = horiz;
+                double z = s.Position.Z + rWorld.Z;
+                if (z > lowestZ) lowestZ = z;
+            }
+        if (lowestZ == double.MinValue) return false;
         double highestGround = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
         foreach ((double dx, double dy) in new[] { (reach, 0.0), (-reach, 0.0), (0.0, reach), (0.0, -reach) })
         {
@@ -292,8 +318,22 @@ public static class AirframeContact
         // Water counts as ground here: a float or a hull touches it.
         double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
         if (water.HasValue && water.Value > highestGround) highestGround = water.Value;
-        return -lowestZ - highestGround > ClearAboveM;
+        return -lowestZ - highestGround > ClearAboveM + extraM;
     }
+
+    /// <summary>Off only to prove the per-step ground test and the stage cull change nothing: with it off the sim takes
+    /// the paths it took before 2026-11-02, and <c>GroundContactCullTests</c> flies the same flights both ways.</summary>
+    public static bool StageCullEnabled = true;
+
+    /// <summary>
+    /// How much clearance a point must have on a step's first stage for the other three to skip its ground query:
+    /// 0.1 m, plus eleven times the distance it moves in the step (<paramref name="speedMs"/> × <paramref name="dt"/>) —
+    /// once for the point coming down, ten times for the ground coming up under it as it moves sideways, which is any
+    /// slope up to 84°. A point that clear on stage 1 cannot touch the ground on stages 2–4, so skipping the query
+    /// returns the zero it would have returned. Against a wall steeper than that (a cliff face, a cave mouth, a deck
+    /// edge) a contact can begin one step — 5 ms — later than it did; solids are still tested at every stage.
+    /// </summary>
+    public static double StageCullMargin(double speedMs, double dt) => 0.1 + 11.0 * speedMs * dt;
 
     /// <summary>
     /// Contact forces (world) and the components whose points just hit hard enough to break.
@@ -311,13 +351,31 @@ public static class AirframeContact
     /// sampled exactly as before, so no contact behaviour changes.
     /// </summary>
     public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false, bool waterByHydro = false)
+        => Compute(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, -1, 0.0);
+
+    /// <summary>
+    /// <see cref="Compute(List{ContactPoint}, Vec3, RigidBodyState, List{AirframeComponent}?, double, ImpactRecorder?, bool, bool)"/>
+    /// told which RK4 stage this is (0..3; -1 = not part of a step, test every point every time) and the step's
+    /// <paramref name="dt"/>. On stage 0 every point within reach is tested and remembers its clearance; on stages 1–3 a
+    /// point that was clear by more than <see cref="StageCullMargin"/> skips the ground and water queries (solids are
+    /// still tested). Quest 3S, 2026-11-02: these queries, 21 points × 4 stages × 200 Hz, were what took the headset
+    /// from 72 fps to 20 below 60 m and to 8 on the ground (docs/quest-performance.md, *Slow near the ground*).
+    /// </summary>
+    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt)
     {
-        if (points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s))
+        long tClear = SimProfile.Begin();
+        bool clear = points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s);
+        SimProfile.End(SimProfile.Scope.ContactClear, tClear);
+        if (clear)
         {
-            foreach (ContactPoint p in points) p.Touching = false;
+            // No clearance remembered for the later stages: if one of them is not clear, it tests every point.
+            foreach (ContactPoint p in points) { p.Touching = false; if (stage == 0) p.StageClearM = double.NegativeInfinity; }
             return (Vec3.Zero, Vec3.Zero);
         }
-        return ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro);
+        long tPoints = SimProfile.Begin();
+        var result = ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, stage, dt);
+        SimProfile.End(SimProfile.Scope.ContactPoints, tPoints);
+        return result;
     }
 
     /// <summary>
@@ -329,8 +387,12 @@ public static class AirframeContact
     /// point arriving at the water is still an impact and can still break its component — water at 25 m/s is hard —
     /// but the old ditching spring-damper is not applied.</param>
     public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false, bool waterByHydro = false)
+        => ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, -1, 0.0);
+
+    private static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
+        bool cull = StageCullEnabled && stage >= 0;
         foreach (ContactPoint p in points)
         {
             Vec3 rBody = p.Body - cg;
@@ -338,20 +400,37 @@ public static class AirframeContact
             Vec3 w = s.Position + rWorld;
             Vec3 vel = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));   // world velocity of the point
 
-            // Ground (with the wheel-scale bumps) — normal is world up.
-            double groundH = WorldTerrain.WheelGroundHeightAt(w.X, w.Y, -w.Z);
-            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
-            bool onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             Vec3 normal = new(0, 0, -1);   // outward (NED up)
+            double depth;
+            bool onWater = false;
+            double groundH = double.NegativeInfinity;   // the ditching bed below needs it; unset only where onWater stays false
+            if (cull && stage > 0 && p.StageClearM > p.StageMarginM)
+            {
+                depth = double.NegativeInfinity;   // clear of the ground and the water all step (see StageCullMargin)
+            }
+            else
+            {
+            // Ground (with the wheel-scale bumps when the point is low enough to meet them) — normal is world up.
+            groundH = WorldTerrain.HardPointGroundAt(w.X, w.Y, -w.Z);
+            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
+            onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             // On water, a SEAPLANE's hull is FloatHydro's business and this must keep its hands off it. A wheeled
             // aeroplane's is nobody's: every point over water used to return no force at all, so a landplane that
             // ditched sank through the sea, through the bed under it, and went on falling for ever — which is what
             // Ty saw as the Pitts "freezing" about thirty seconds into a flight out of the aerobatic box, the box
             // being over the sea. Water now pushes back on an airframe that cannot float, at a tenth of the ground's
             // stiffness and three times its damping: an arrival, not a trampoline, and not a runway either.
-            double depth = onWater
+            depth = onWater
                 ? (floatsCarryWater ? -1.0 : (w.Z + surfaceOffsetZ) - (-waterH!.Value))
                 : (w.Z + surfaceOffsetZ) - (-groundH);
+            if (cull && stage == 0)
+            {
+                // Clearance over whichever is higher, ground or water: either branch above gives a depth no deeper.
+                double top = waterH.HasValue && waterH.Value > groundH ? waterH.Value : groundH;
+                p.StageClearM = -(w.Z + surfaceOffsetZ) - top;
+                p.StageMarginM = StageCullMargin(vel.Length, dt);
+            }
+            }
             // Solids (buildings etc.): whichever is deeper.
             var solid = WorldSolids.Penetration(w.X, w.Y, -w.Z);
             bool solidWins = solid.HasValue && solid.Value.depth > depth;
