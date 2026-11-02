@@ -1,9 +1,10 @@
 ## NEEDS YOU
-- **GAMEPAD ON THE IPHONE — PLEASE TRY THE 8BITDO (Claude, 2026-11-02, lane/claude-gamepad-ios):** build
-  `2026.1102.1441` is on your iPhone (it was locked, so it did not auto-launch) and the iPad mini. Left stick flies
-  (pull back = nose up), triggers are rudder, RB/LB ramp the throttle, Menu opens OPTIONS. Full table in the Log
-  entry below. Nothing was tested with a real pad in hand — that is yours to confirm. Default expo 0.65 is heavy
-  on purpose and STACKS on each aeroplane's own 0.1–0.3; say if it is too soft.
+- **GAMEPAD, SECOND PASS — NEW MAPPING, PLEASE FLY IT (Claude, 2026-11-02, lane/claude-gamepad-ios):** your
+  mapping now: **right stick = roll and pitch** (pull back = nose up), **left stick X = rudder** (triggers too),
+  **left stick Y = throttle as a rate** — hold up for more power, down for less, let go and it stays. Expo 0.65
+  on roll / pitch / rudder only; none on the throttle. Full table in the Log. A pad that connects or wakes while
+  the game is running is picked up live (the code path is verified below; not tried with your pad in hand).
+  Expo still STACKS on each aeroplane's own 0.1–0.3: say if it is too soft.
 - **EXTRA 300 VISIBLE WING B — TY VISUAL REVIEW (Codex, 2026-11-02, lane/codex-extra-wing-b):**
   Review `renders/extra-wing-b/after-root-end.png` against `before-root-end.png` and `section-overlay.png`:
   look for the fat round nose, thickness peak near 17% chord, and gently concave aft skin. Compare
@@ -816,6 +817,54 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 (later) — Claude · lane/claude-gamepad-ios · gamepad: hot-plug, and the mapping turned round
+**Ty: the 8BitDo works after relaunching with the pad connected; "the mapping is backwards".** The first build
+had been installed while the phone was locked, so his relaunch was very likely the new build's FIRST launch.
+
+**Hot-plug, checked in the code rather than assumed.** UnityFramework itself observes
+`GCControllerDidConnectNotification` / `DidDisconnect` (both strings are in the shipped binary), and the Input
+System 1.20 makes an added pad `Gamepad.current` at once (`InputManager.cs:1483`), hands `current` to the next pad
+of its type when one is removed (`:1632`), and re-enables pads it disabled on focus loss when focus returns
+(`InputManager.LegacyFocusHandling.cs`). So a pad paired while the game runs arrives without a relaunch. The gap
+was ours: `GamepadInput` trusted `Gamepad.current` alone, which is re-pointed only on input / add / remove and
+could be left on a pad that is disabled while another live one sits idle. `GamepadInput.Pad()` now takes
+`current` if it is added and enabled, otherwise the live pad in `Gamepad.all` that spoke most recently, and the
+log reports enable / disable as well as connect / disconnect, with the pad count.
+
+**The mapping (shared code: iOS, Mac, Quest).** `GamepadShaping.Rudder(leftStickX, LT, RT)`,
+`GamepadShaping.ThrottleRate`, `GamepadShaping.Lever` (replaces `Ramp`).
+
+| Pad control | Does |
+|---|---|
+| RIGHT stick X | roll (aileron), right = roll right — expo 0.65 |
+| RIGHT stick Y | pitch: pull back = nose UP, push = nose down (InvertElevator flips it, as for touch) — expo 0.65 |
+| LEFT stick X | rudder — expo 0.65 |
+| RT / LT | right / left rudder (RT − LT), summed with left stick X, clamped ±1 |
+| LEFT stick Y | throttle as a RATE: up = power on, down = power off, centre = holds. Linear, dead zone 0.07, no expo; full stick moves the lever idle→full in 1.5 s; stops at idle |
+| RB / LB (held) | throttle up / down as well, fixed 0.8 lever/s |
+| D-pad up / down (held) | pitch trim nose down / nose up |
+| D-pad right / left | flaps one step down / up (0 / 50 / 100 %) |
+| A (held) | guns (combat aircraft) |
+| B | smoke on / off |
+| X (held) | wheel brakes |
+| Y | change view |
+| Menu (Start, ≡) | open / close OPTIONS |
+| View (Select, ⧉) | REC: start / stop recording |
+
+**Why a rate, not a position, for the throttle.** A gamepad stick springs back to centre the moment the thumb
+lifts. Read as a position, centre would be half power, so every time the pilot let go to press a button the power
+would snap to half, and holding full power would mean holding the stick on its stop for the whole flight. Read
+as a rate, it behaves like a real throttle: it stays where it was set. The left stick's two axes use separate
+per-axis dead zones rather than one radial zone, because they are separate controls (rudder and power), and a
+radial zone would let a big rudder input leak a small throttle change.
+
+**Quest.** The Quest branches (`lane/claude-vr-quest`, `lane/codex-vr-quest`, `lane/vr-cockpit-combined`) add
+`TouchFlightControls` too (SceneBootstrap:75, mobile path), so `GamepadFlight` runs there, but they are on
+`activeInputHandler: 0`, so `ENABLE_INPUT_SYSTEM` is off and `GamepadInput` compiles to its idle stub. They need
+this lane's commits (75b275b and the follow-up), INCLUDING the `activeInputHandler: 2` line. Their Touch
+controllers go through `UnityEngine.XR.InputDevices` and are not `Gamepad`s, so the two do not collide. Not
+built for Quest here.
+
 ### 2026-11-02 — Claude · lane/claude-gamepad-ios · gamepads (8BitDo Pro 2 / MFi) fly the aeroplane on iOS
 **Ty: an 8BitDo Pro 2 paired to the iPhone, "nothing works."**
 
@@ -851,6 +900,8 @@ be new Objective-C to maintain for the same thing.
 - `tools/deploy/deploy.sh`: `set +e` before the install loop. The comment said the installs were not under
   `set -e`, but they were: a locked iPad Air's failing `OUT=$(devicectl …)` killed the script silently and the
   iPhone after it was never tried.
+
+*(Superseded by the later entry above: the right stick flies now.)*
 
 | Pad control | Does |
 |---|---|
