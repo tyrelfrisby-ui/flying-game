@@ -19,6 +19,22 @@ else
   # install itself be the test, which is why the failure branch below has to print devicectl's real reason.
   DEVICES=(${(f)"$(xcrun devicectl list devices 2>/dev/null | awk '/physical/ && (/connected/ || /available \(paired\)/) { for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]+$/) print $i }')"})
 fi
+# PER-LANE LIBRARY CACHES, CAPPED. Each lane's unity/Library is a symlink to its own
+# ~/Library/Application Support/FlyingGame/unity-Library-<lane>, and nothing ever removed one: 165 GB of them on
+# 2026-11-02 with the disk 97% full. So: mark this lane's cache as used (its mtime is the "last used" the pruner
+# sorts by), then keep at most FG_CACHE_KEEP (8) caches and FG_CACHE_MAX_GB (80) GB, oldest first, never this
+# lane's and never one a running Unity/xcodebuild/gradle has open. See tools/deploy/prune-library-caches.sh
+# (it has a --dry-run). A cache the pruner removed comes back here as an empty dir -- a full import, not a broken
+# symlink. `|| true`: a prune must never stop a deploy.
+if [ -L unity/Library ]; then
+  LIB_CACHE=$(readlink unity/Library)
+  if [ ! -d "$LIB_CACHE" ]; then
+    echo "== unity/Library -> $LIB_CACHE is gone (pruned?); recreating it empty -- Unity will re-import everything"
+    mkdir -p "$LIB_CACHE"
+  fi
+  touch "$LIB_CACHE"
+fi
+tools/deploy/prune-library-caches.sh --current unity/Library || true
 rm -rf /private/tmp/flyinggame-ios /private/tmp/flyinggame-dd unity/Library/PlayerDataCache unity/Library/Bee unity/Library/il2cpp_cache unity/Library/BuildPlayerData
 # iCloud conflict copies break the build. This guard has now been wrong twice, in the same way both times:
 # it matched too narrowly and the thing it missed took a build down.
