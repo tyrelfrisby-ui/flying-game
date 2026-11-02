@@ -112,6 +112,16 @@ public class ModelRigTests
         Assert.False(inputs.TryGet("flap", out _));
     }
 
+    [Theory]
+    [InlineData(1.0, 0.0)]
+    [InlineData(0.0, 1.0)]
+    public void CockpitLatchContractIsTheInverseOfExistingLock(double locked, double released)
+    {
+        var inputs = new RigInputs { CanopyLock = locked };
+        Assert.True(inputs.TryGet("canopy_latch", out double got));
+        Assert.Equal(released, got);
+    }
+
     // ---- the 2-33's own table -------------------------------------------------------------------------------
 
     private static ModelRig Sgs233()

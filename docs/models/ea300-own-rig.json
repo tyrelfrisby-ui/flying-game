@@ -1812,43 +1812,6 @@
    }
   },
   {
-   "node": "CanopyLock_F",
-   "parent": "Canopy",
-   "param": "canopy_lock",
-   "unit": "0 unlocked / 1 locked",
-   "kind": "rot",
-   "axis_gltf": [
-    -0.0,
-    -0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.7,
-    0.3215,
-    0.3582
-   ],
-   "map": [
-    [
-     0.0,
-     35.0
-    ],
-    [
-     1.0,
-     0.0
-    ]
-   ],
-   "model": 1.0,
-   "desc": "red canopy lock lever on the left canopy frame (moves with the canopy): modelled locked (lever aft, flat); unlocked = 35 deg up (E)",
-   "link": "front + rear linked",
-   "note": "",
-   "extra": {
-    "rig_detents": [
-     0,
-     1
-    ]
-   }
-  },
-  {
    "node": "CanopyRelease_F",
    "parent": "Cockpit",
    "param": "canopy_jettison",
@@ -1879,43 +1842,6 @@
    "link": "Canopy (rig_jettison_param)",
    "note": "",
    "extra": {}
-  },
-  {
-   "node": "CanopyLock_R",
-   "parent": "Canopy",
-   "param": "canopy_lock",
-   "unit": "0 unlocked / 1 locked",
-   "kind": "rot",
-   "axis_gltf": [
-    -0.0,
-    -0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.55,
-    0.2839,
-    0.3291
-   ],
-   "map": [
-    [
-     0.0,
-     35.0
-    ],
-    [
-     1.0,
-     0.0
-    ]
-   ],
-   "model": 1.0,
-   "desc": "red canopy lock lever on the left canopy frame (moves with the canopy): modelled locked (lever aft, flat); unlocked = 35 deg up (E)",
-   "link": "front + rear linked",
-   "note": "",
-   "extra": {
-    "rig_detents": [
-     0,
-     1
-    ]
-   }
   },
   {
    "node": "CanopyRelease_R",
@@ -2128,6 +2054,134 @@
    "link": "Pedal_*",
    "note": "",
    "extra": {}
+  },
+  {
+   "node": "Canopy_Latch_Handle_L",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.5499999225139618,
+    0.2839193642139435,
+    0.3410773034095764
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     25
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Red and white squeeze paddles on left sill; 25 degrees estimated; both seats linked",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Handle_R",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.5499999225139618,
+    0.2839193642139435,
+    0.2870773034095764
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -25
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Red and white squeeze paddles on left sill; 25 degrees estimated; both seats linked",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Handle_L_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.6999999284744263,
+    0.3215038478374481,
+    0.3702127094268799
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     25
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Red and white squeeze paddles on left sill; 25 degrees estimated; both seats linked",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Handle_R_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.6999999284744263,
+    0.3215038478374481,
+    0.31621270942687985
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -25
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Red and white squeeze paddles on left sill; 25 degrees estimated; both seats linked",
+   "extra": {},
+   "link": "",
+   "note": ""
   }
  ],
  "displays": [

@@ -1,0 +1,494 @@
+{
+ "model": "pitts-s2b-like-own",
+ "rig": [
+  {
+   "node": "Pedal_L_Front",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    -0.535,
+    0.13
+   ],
+   "map": [
+    [
+     -1,
+     15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_R_Front",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    -0.535,
+    -0.13
+   ],
+   "map": [
+    [
+     -1,
+     -15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_L_Rear",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43,
+    -0.535,
+    0.285
+   ],
+   "map": [
+    [
+     -1,
+     15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_R_Rear",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43,
+    -0.535,
+    -0.285
+   ],
+   "map": [
+    [
+     -1,
+     -15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "StickRoll_Front",
+   "param": "aileron",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.17,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -18
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Stick_Front",
+   "param": "elevator",
+   "parent": "StickRoll_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.17,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -12
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Throttle_Front",
+   "param": "throttle",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.4,
+    -0.18,
+    0.2679972883068913
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     50
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "StickRoll_Rear",
+   "param": "aileron",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.93,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -18
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Stick_Rear",
+   "param": "elevator",
+   "parent": "StickRoll_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.93,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -12
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Throttle_Rear",
+   "param": "throttle",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.12,
+    -0.18,
+    0.22354792851489283
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     50
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Slide",
+   "param": "canopy_open",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8,
+    0.16,
+    -0.36
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.2,
+     0.1016
+    ],
+    [
+     1,
+     0.1016
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "S-2B 4 inch estimated aft track; slide first, then hinge",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy",
+   "param": "canopy_open",
+   "parent": "Canopy_Slide",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8,
+    0.16,
+    -0.36
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.2,
+     0
+    ],
+    [
+     1,
+     100
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Right side hinge; estimated 100 degree stop; first 20 percent is aft slide",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Pin",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8,
+    0.183,
+    -0.0381
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0762
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Knob",
+   "param": "canopy_latch",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.85,
+    0.235,
+    -0.0381
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0762
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Black ball: fully right locked, 76.2 mm left unlocked; mechanism dimensions estimated",
+   "extra": {},
+   "link": "",
+   "note": ""
+  }
+ ],
+ "notes": "Original Phase 1 visual rig; estimates require owner review; no input or physics changes"
+}

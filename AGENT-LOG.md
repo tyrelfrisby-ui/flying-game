@@ -1,4 +1,37 @@
 ## NEEDS YOU
+- **VR COCKPIT PHASE 1 — lane/codex-vr-cockpit (Codex, 2026-11-02), UNCOMMITTED / NO GATE APPROVED.**
+  Pitts all four own liveries: connected tube clusters, loft-inset top-wider-than-bottom rails, rounded rear
+  panel with existing dials/card retained, bows/lateral black latch, rear pedals beside front seat, own rig/grips.
+  Extra all three own liveries: paired red/white squeeze paddles, both cockpits. Original skinned body: 49 bones,
+  2,416 tris. Body was built by the numeric offline fallback, NOT a successfully executed Blender export.
+  **Render review BLOCKED:** Blender 5.2.2 exits 139 before Python in Metal GPU detection, both before and after.
+  No before_*.png, after_*.png or contact_phase1.png exists from this lane. Script and exact manifest are ready
+  in tools/own_models/render_vr_phase1.py and the authorised renders/RENDER_STATUS.txt. Before uses 0a1a7b4.
+  When Blender works, Ty must look at and decide:
+  1. pitts_eye / pitts_eye_body: rounded panel silhouette, retained IAC card/dials, seat-eye left/right,
+     throttle reach and believable body size. Baseline had no pilot body; before body view shows its absence.
+  2. pitts_frame: tube joins/skin containment and especially **is the open forward side bay with floor X-bracing
+     the correct S-2B arrangement?** This is estimated topology, not a factory structural drawing.
+  3. pitts_latch_locked / unlocked: black ball right=locked; white channel block and long crown-to-panel pin/link.
+     Are the two bows at X -.76/-.84, the latch linkage length and these stations right? Which forward glass/frame
+     portion is fixed windscreen? Current whole canopy moves aft 101.6 mm then hinges right 100° (estimated).
+     Knob travel 76.2 mm left unlocks; mushroom-button track hardware remains incomplete.
+  4. pitts_pedals: rear plates X -.43, Y ±.285, Z -.465 beside front pan; confirm actual reach/placement,
+     front pedal retention and absent detailed centre torque/linkage tube. Static eye-to-foot reach 1.208 m.
+  5. extra_latch_closed / squeezed: red-and-white paired paddles on left sill, front/rear, estimated 25° pivots;
+     confirm early mid-wing EA300 geometry against Ty's machine (300S egress source establishes action only).
+  6. extra_body: body size, limb/seat/frame clearance and reach. Pose construction succeeds; clearance/render
+     review of Extra is NOT certified. Phase 2/3 visuals were not started; only Phase-2 contract empties added.
+  **Numbers:** 23 frame members / 46 ends, max end-to-other-axis 0.000 mm; ODs 25.4/19.05 mm; minimum sampled tube
+  vertex lateral skin gap 10.17 mm. Upper rail widths .595–.674 m, lower .333–.460 m. Panel .670 W, -.120 bottom,
+  .152 crown; gauge margin 36 mm. Pitts conservative limb clearances: truss 2.61 mm (small!), cockpit/front-seat
+  region 11.68 mm, panel 76.34 mm; torso edges do not intersect checked obstacles, fixed-cockpit vertex gap 26.26 mm.
+  **Accuracy questions:** docs/models/canopy-latches.md audits every own enclosure plus requested SR22/P51/F86/G103
+  gaps. Great Lakes is open cockpit. Other latch geometries are UNVERIFIED; none was modelled in Phase 1.
+  **Checks:** Phase-1 graph/skin/numerical checker passes. IAC checker stops on old 38e8746 buffer invariant;
+  untouched HEAD also fails that invariant; all Phase-1 airframes retain HEAD buffer prefix. .NET test run did
+  not execute: MSBuild pipe SocketException(13); --no-restore retry emitted no tests (no project.assets.json).
+  Unity, Xcode, adb, deploy and ProjectSettings untouched. Details: docs/models/vr-cockpit-phase1-checks.json.
 - **QUEST: REAR SEAT, NO HUD IN THE COCKPIT, A WAY TO THE MENU (Claude, 2026-11-02, lane/claude-vr-quest) — from your
   first Pitts flight ("i chose the back seat and it put me in the front seat. the hud display is not necessary and
   really confusing … i couldn't figure out how to get to options"). Code only: NOT built, NOT on the headset.
@@ -619,6 +652,21 @@
 - **Extra unmarked label (Claude, 2026-10-28):** I named it "Unmarked", not the HANDOFF's "Extra". The AIRCRAFT field right above it already says Extra 300, so "Extra" would repeat it. Easy to rename in `LiveryChoice.Options` and `Livery.UnmarkedExtra` if you prefer something else.
 
 ## HANDOFF
+- **Codex → Claude, VR cockpit Phase 1 (2026-11-02, lane/codex-vr-cockpit):** No CONTRACT names changed.
+  New Pitts rig docs/models/pitts-s2b-own-rig.json, model pitts-s2b-like-own; existing ConfigSync mirrors by model
+  field, no ignored StreamingAssets files created. All 4 Pitts / 3 Extra own GLBs updated. Additive Canopy_Slide
+  parent translates aft in canopy_open 0–.2, Canopy child right-hinges .2–1. Physical interlocking is yours.
+  Params: aileron/elevator (EA names), throttle, rudder, canopy_open, canopy_latch. Sole C# addition is the
+  ModelRig.cs RigInputs.TryGet canopy_latch = 1−CanopyLock alias (existing lock sense unchanged), focused test added.
+  All contract Grip_Stick/Throttle_Front/Rear, Grip_Canopy_Latch/Rail, Pedal_L/R_Front/Rear and Foot_L/R_Front/Rear
+  present. Rear builder grips: stick (-.980,0,-.075), throttle (-1.160,.22355,-.065); feet (-.450,±.285,-.460).
+  Grip local +X points fingers/forward (glTF -X). Phase-2 Harness_Buckle/Headset_Jack_Front/Rear empties present.
+  Extra rear pair uses exact Canopy_Latch_Handle_L/R, front pair adds _Front; front grip Grip_Canopy_Latch_Front.
+  Old CanopyLock_F/R roots retained empty, omitted from rig table; all other Extra rigs retained.
+  Pilot resource Models/pilot-body/pilot-body-own.glb: 49 exact contract bones, default seated Pitts rest pose,
+  open fingers, rigid segment weights; no head, no runtime IK/curl/hand-tracking code. Read pilot provenance.
+  Blender renders and .NET tests blocked; no Unity build/import verification. Review render manifest and tiny
+  2.61 mm static truss clearance before any approval. Factory truss/latch details still questions for Ty.
 - [Claude → Codex] **lane/claude-vr-quest · the Quest seam: rendering quality, lens/comfort and the VR HUD are
   yours.** Branch off my commit. What exists and where:
   - **The XR camera is the main camera.** `QuestRig` (`Bridge/QuestRig.cs`) sits on it beside `ChaseCamera` and

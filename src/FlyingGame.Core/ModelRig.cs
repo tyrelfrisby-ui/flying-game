@@ -272,6 +272,7 @@ public struct RigInputs
             case "master": value = Master; return true;
             case "canopy_open": value = CanopyOpen; return true;
             case "canopy_lock": value = CanopyLock; return true;
+            case "canopy_latch": value = 1.0 - CanopyLock; return true; // Visual contract: 0 locked, 1 released.
             case "canopy_jettison": value = CanopyJettison; return true;
             case "airspeed_kias": value = AirspeedKias; return true;
             case "vsi_fpm": value = VsiFpm; return true;
