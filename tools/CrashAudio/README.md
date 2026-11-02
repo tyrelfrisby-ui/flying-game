@@ -31,7 +31,7 @@ All eleven WAVs are 48 kHz mono PCM16, **10 seconds each** (impact tails followe
 The impact WAVs apply the **same fixed .52 gain and production soft clipper**, without individual
 normalisation; this is a common listening reference, not a capture of the full in-game engine/wind mix.
 The old crash strongly limits at this gain. New land intentionally loses its sustained body loudness;
-listen for adequate crunch audibility over the engine in a later device build. Gurgles use .8 gain.
+listen for adequate crunch audibility over the engine in a later device build. Gurgles use .8 gain. They hold through 2.5 s after first water impact, then smoothstep to exact silence at 3.75 s; continued Flood events cannot restart them. The renders use impact time zero.
 
 `measurements.md` reports FFT-power centroid and band fractions over the delivered PCM; crest uses RMS
 through T99.9 (99.9% of cumulative energy). Duration means T99.9, not the padded 10 s file duration.
@@ -71,7 +71,7 @@ p=101325+9810*depth Pa. Each damped sine lasts ~12 cycles per e-fold, with irreg
 and radii. Packet rate Q/(256*4*pi*R³/3), capped at 80 Hz, groups microscopic bubbles for audibility
 and bounded CPU; this is not one sound per physical bubble. Gain falls with remaining air below
 .01 m³ and with depth (12 m e-fold). Zero flow/air produces no new bubbles. Missing state updates
-expire after .75 audio seconds, then existing rings/gain decay. Flow updates are consumed in blocks.
+expire after .75 audio seconds, then existing rings/gain decay. Flow updates are consumed in blocks. Runtime passes age since each piece’s first water impact; no impact means no gurgle. Aircraft reset clears the impact timestamps.
 
 ## Wiring, rendering budget, and validation
 

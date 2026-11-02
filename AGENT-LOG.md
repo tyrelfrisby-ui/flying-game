@@ -1,4 +1,23 @@
 ## NEEDS YOU
+- **WATER CRASH CAMERA + SHORT GURGLES — TY DEVICE REVIEW (Codex, 2026-11-02, lane/codex-crash-cam):**
+  External water-crash view now gathers the remnant and all live WingDebris/DebrisBody objects each frame
+  into reused lists. Uses sim masses/CGs where bound, rigidbody or stated 15 kg fragment estimate otherwise;
+  mass-weighted centroid → median distance → retain within Ty's 2.5× median → retained weighted centre and
+  enclosing sphere including rendered fragment extents. Fits the narrower horizontal/vertical FOV with 15%
+  breathing room. Keeps maximum requested range for the wreck (no sudden shrink), slowly retreats and rises
+  at a 30° overview angle. Unity SmoothDamp uses a documented 2 s smooth time for focus/range/position to
+  suppress bobbing/membership jumps. Existing local FloatHydro water/terrain floor + 1.524 m is applied after
+  movement, looking at the cluster after a clamp. Cockpit and pilot override paths are preserved; no egress
+  first-person changes. Lists can grow at new scene/debris high-water marks; steady-state traversal reuses
+  their storage. Scene traversal cost and actual iPhone GC/frame time still need measurement.
+  Each piece's first water-impact timestamp now drives gurgle age: full through 2.5 s, smoothstep fade to
+  EXACT silence at 3.75 s. Later Flood/Impact events cannot reset that timestamp; aircraft reset clears it.
+  Splash/impact DSP unchanged. Both gurgle WAVs (and the normal comparison artifacts) re-rendered into
+  `/Users/tyfrisby/Developer/agent-lanes/aero-playground/crash-audio/`; reproduction in tools/CrashAudio/README.md.
+  Verified: CrashAudio headless build 0 errors (2 existing unused-field warnings), 13 runner checks including
+  continuing updates/late flooding silence, 6 spectral assertions, git diff --check. No Unity, xcodebuild,
+  deploy or full dotnet test run. Unity camera compilation/visual fit, egress underwater view, iPhone audio
+  and performance remain UNVERIFIED. No gate approved. Changes left uncommitted for the operator.
 - **CRASH AUDIO + WATER VISUALS — TY LISTEN/LOOK REVIEW (Codex, 2026-11-02, lane/codex-crash-audio):**
   Listen in `/Users/tyfrisby/Developer/agent-lanes/aero-playground/crash-audio/`:
   `crash-land-OLD-{0.3,0.7,1.0}.wav` vs `crash-land-NEW-{0.3,0.7,1.0}.wav`,

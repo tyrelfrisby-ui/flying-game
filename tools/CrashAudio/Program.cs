@@ -45,6 +45,15 @@ static class Program
                 return voice.Next() * .8f;
             }));
         }
+        var fading = new FloodSound(Fs, 456);
+        var faded = Render(i => {
+            if (i % 800 == 0) fading.Set(7, .012f, 1, 0, 1, i / (float)Fs);
+            return fading.Next();
+        });
+        Require(Array.Exists(faded[..(Fs * 2)], x => Math.Abs(x) > .0001f), "flood audible before fade");
+        Require(Array.TrueForAll(faded[(int)(Fs * 3.75f)..], x => x == 0), "flood exactly silent by 3.75s despite continuing updates");
+        fading.Set(8, .012f, 1, 0, 1, 20);
+        Require(fading.Next() == 0, "late first flood cannot restart expired impact");
         var legacy = new FxVoice(Fs, 77); legacy.Start(FxKind.Crash, 0, .7f, 1);
         var shared = new CrashSound(Fs, 77); shared.Start(false, .7f, 800, 10);
         Require(Render(_ => legacy.Active ? legacy.Next() : 0).AsSpan().SequenceEqual(Render(_ => shared.Next())),

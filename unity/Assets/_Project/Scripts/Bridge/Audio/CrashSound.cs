@@ -96,12 +96,16 @@ namespace FlyingGame.Bridge
         private readonly float _fs;
         private readonly Noise _noise;
         private float _rate, _radius, _depth, _target, _gain, _phase, _env, _decay, _hz, _wait, _stale;
+        private int _ageSamples;
+        // Owner's short presentation window: hold 2.5 s, smoothstep to exact silence at 3.75 s.
+        public const float FadeStartSeconds = 2.5f, SilentSeconds = 3.75f;
         public int Id;
         public bool Active => _stale < .75f || _env > .0001f;
         public FloodSound(float fs, uint seed) { _fs = fs; _noise = new Noise(seed); _stale = 10; }
-        public void Set(int id, float flow, float air, float depth, float gain)
+        public void Set(int id, float flow, float air, float depth, float gain, float impactAgeSeconds = -1f)
         {
-            if (Id != id || !Active) { _env = _phase = _wait = _gain = 0; }
+            if (Id != id || !Active) { _env = _phase = _wait = _gain = 0; _ageSamples = 0; }
+            if (impactAgeSeconds >= 0) _ageSamples = (int)(impactAgeSeconds * _fs);
             Id = id; _stale = 0; _depth = Math.Max(depth, 0);
             _radius = CrashScale.BubbleRadius(flow);
             float volume = (float)(4 * Math.PI / 3) * _radius * _radius * _radius;
@@ -112,6 +116,10 @@ namespace FlyingGame.Bridge
         public float Next()
         {
             _stale += 1f / _fs;
+            float age = _ageSamples++ / _fs;
+            if (age >= SilentSeconds) { _env = _gain = 0; return 0; }
+            float fade = Dsp.Clamp01((age - FadeStartSeconds) / (SilentSeconds - FadeStartSeconds));
+            fade = 1f - fade * fade * (3f - 2f * fade);
             float target = _stale < .75f ? _target : 0;
             _gain += (target - _gain) * (1f / (.03f * _fs));
             if (target > 0 && (_wait -= 1f / _fs) <= 0)
@@ -123,14 +131,14 @@ namespace FlyingGame.Bridge
                 _env = _noise.Range(.3f, .8f); _phase = 0;
             }
             _phase = Dsp.Wrap01(_phase + _hz / _fs); _env *= _decay;
-            return Dsp.Sin01(_phase) * _env * _gain * .22f;
+            return Dsp.Sin01(_phase) * _env * _gain * .22f * fade;
         }
     }
 
     // Single producer (sim/main), single consumer (audio), bounded queue. Publication uses acquire/release.
     internal sealed class CrashSoundMixer
     {
-        private struct Command { public bool Flood, Water; public int Id, DelaySamples; public float Severity, Mass, Speed, Flow, Air, Depth, Gain; }
+        private struct Command { public bool Flood, Water; public int Id, DelaySamples; public float Severity, Mass, Speed, Flow, Air, Depth, Gain, Age; }
         private readonly Command[] _queue = new Command[256];
         private int _write, _read;
         private readonly CrashSound[] _hits = new CrashSound[8];
@@ -151,7 +159,7 @@ namespace FlyingGame.Bridge
             _queue[w] = c; Volatile.Write(ref _write, next);
         }
         public void Impact(bool water, float severity, float mass, float speed, float gain, float delay) => Enqueue(new Command { Water = water, Severity = severity, Mass = mass, Speed = speed, Gain = gain, DelaySamples = Math.Max(0, (int)Math.Ceiling(delay * _fs)) });
-        public void Flood(int id, float flow, float air, float depth, float gain) => Enqueue(new Command { Flood = true, Id = id, Flow = flow, Air = air, Depth = depth, Gain = gain });
+        public void Flood(int id, float flow, float air, float depth, float gain, float impactAgeSeconds = -1f) => Enqueue(new Command { Age = impactAgeSeconds, Flood = true, Id = id, Flow = flow, Air = air, Depth = depth, Gain = gain });
         public void Prepare()
         {
             int end = Volatile.Read(ref _write), r = _read;
@@ -163,7 +171,7 @@ namespace FlyingGame.Bridge
                     FloodSound v = null;
                     for (int i = 0; i < _floods.Length; i++) if (_floods[i].Active && _floods[i].Id == c.Id) { v = _floods[i]; break; }
                     if (v == null) for (int i = 0; i < _floods.Length; i++) if (!_floods[i].Active) { v = _floods[i]; break; }
-                    v?.Set(c.Id, c.Flow, c.Air, c.Depth, c.Gain);
+                    v?.Set(c.Id, c.Flow, c.Air, c.Depth, c.Gain, c.Age);
                 }
                 else for (int i = 0; i < _waiting.Length; i++) if (!_waitActive[i]) { _waiting[i] = c; _waitActive[i] = true; break; }
             }

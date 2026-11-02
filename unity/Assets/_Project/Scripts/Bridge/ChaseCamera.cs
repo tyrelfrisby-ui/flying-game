@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 namespace FlyingGame.Bridge
 {
@@ -30,8 +32,38 @@ namespace FlyingGame.Bridge
             && Driver == owner && Target == owner.transform && OverrideTarget == null
             && !SideView && CurrentView == View.Cockpit && !SessionSettings.ReplayActive && !owner.Replaying;
 
+        private bool _waterCrash, _crashStarted;
+        private object _crashAircraft;
+        private Vector3 _crashFocus, _focusVelocity, _crashVelocity, _crashBearing;
+        private float _crashRange, _rangeVelocity, _largestRange;
+        // Two seconds filters bobbing and membership changes without a sudden zoom on a phone.
+        private const float CrashSmoothSeconds = 2f;
+        private readonly List<Renderer> _crashRenderers = new(128);
+        private readonly List<GameObject> _roots = new(256);
+        private readonly List<WingDebris> _wings = new(128);
+        private readonly List<DebrisBody> _bodies = new(128);
+        // Discovery walks every scene object, so it runs every DiscoverySeconds, not every frame; positions are read each frame.
+        private readonly List<WingDebris> _liveWings = new(128);
+        private readonly List<DebrisBody> _liveBodies = new(128);
+        private readonly List<float> _wingRadii = new(128), _bodyRadii = new(128);
+        private float _nextDiscovery;
+        private const float DiscoverySeconds = .5f;   // debris leaves within one physics step; 0.5 s lag is under the 2 s smoothing
+        private readonly List<Vector3> _points = new(256);
+        private readonly List<float> _masses = new(256), _radii = new(256), _distances = new(256);
+        private void OnEnable() => FlyingGame.Core.CrashEvents.Impact += CrashImpact;
+        private void CrashImpact(FlyingGame.Core.CrashImpact hit)
+        {
+            if (hit.Surface != FlyingGame.Core.ImpactSurface.Water || Target == null) return;
+            // Contract is process-wide; piece events belong to the player's wreck, intact events can be remote.
+            if (hit.PieceId == -1 && Vector3.Distance(Target.position, CoordinateMap.ToUnity(hit.Position)) > SpanM + LengthM) return;
+            _waterCrash = true;
+            _crashAircraft = Driver?.Sim?.Aircraft;
+        }
+
         private void OnDisable()
         {
+            FlyingGame.Core.CrashEvents.Impact -= CrashImpact;
+            _waterCrash = _crashStarted = false;
             InCockpit = false;
             SetCockpitExtras(false);
         }
@@ -353,7 +385,7 @@ namespace FlyingGame.Bridge
             Transform tgt = OverrideTarget != null ? OverrideTarget : Target;
             if (tgt != null)
             {
-                Vector3 look = tgt.position - pos;
+                Vector3 look = (_crashStarted && !InCockpit && OverrideTarget == null ? _crashFocus : tgt.position) - pos;
                 if (look.sqrMagnitude > 1e-4f) transform.rotation = Quaternion.LookRotation(look, Vector3.up);
             }
         }
@@ -383,6 +415,8 @@ namespace FlyingGame.Bridge
             InCockpit = cockpit;
             SetCockpitExtras(cockpit);
             if (_cam != null && CurrentView != View.Flyby && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
+            if (_waterCrash && !ReferenceEquals(_crashAircraft, Driver?.Sim?.Aircraft)) _waterCrash = _crashStarted = false;
+            if (_waterCrash && !cockpit && !ovr) { WaterCrashView(); return; }
             if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }
             if (!ovr && !SideView && CurrentView == View.Locked) { LockedView(tgt); return; }   // side-view lessons keep their camera
             if (!ovr && !SideView && CurrentView != View.RelativeWind && CurrentView != View.RelativeWindAhead) { FixedView(tgt); return; }
@@ -423,6 +457,101 @@ namespace FlyingGame.Bridge
             // pilot hangs left of centre with the canopy above him and the aircraft shows clear to the right.
             Vector3 lookAt = tgt.position + (ahead ? -_dir : _dir) * (backdrop ? 12f : 4f) + (ovr ? Vector3.up * OverrideLookUp * (backdrop ? 0.5f : 1f) : Vector3.zero) + side * 0.35f;
             transform.rotation = Quaternion.LookRotation(lookAt - transform.position, up);
+        }
+
+        private float CrashRadius(Transform body, Vector3 centre)
+        {
+            body.GetComponentsInChildren(false, _crashRenderers);
+            float radius = 0;
+            foreach (var renderer in _crashRenderers)
+                if (renderer.enabled) radius = Mathf.Max(radius, Vector3.Distance(centre, renderer.bounds.center) + renderer.bounds.extents.magnitude);
+            return radius;
+        }
+
+        private void AddCrashPoint(Vector3 point, float mass, float radius)
+        {
+            _points.Add(point); _masses.Add(Mathf.Max(.01f, mass)); _radii.Add(radius);
+        }
+
+        private void WaterCrashView()
+        {
+            _points.Clear(); _masses.Clear(); _radii.Clear(); _distances.Clear();
+            AddCrashPoint(Target.position, (float)(Driver?.Sim?.Aircraft?.MassProperties.MassKg ?? 800), CrashRadius(Target, Target.position));
+            if (!_crashStarted || Time.unscaledTime >= _nextDiscovery)
+            {
+                _nextDiscovery = Time.unscaledTime + DiscoverySeconds;
+                _liveWings.Clear(); _liveBodies.Clear(); _wingRadii.Clear(); _bodyRadii.Clear();
+                for (int sceneIndex = 0; sceneIndex < SceneManager.sceneCount; sceneIndex++)
+                {
+                    var scene = SceneManager.GetSceneAt(sceneIndex);
+                    if (!scene.isLoaded) continue;
+                    // Unity allocates an intermediate array unless capacity is strictly greater than rootCount.
+                    if (_roots.Capacity <= scene.rootCount) _roots.Capacity = scene.rootCount + 1;
+                    scene.GetRootGameObjects(_roots);
+                    foreach (var root in _roots)
+                    {
+                        root.GetComponentsInChildren(false, _wings);
+                        foreach (var wing in _wings) if (wing.isActiveAndEnabled)
+                        { _liveWings.Add(wing); _wingRadii.Add(CrashRadius(wing.transform, wing.transform.position)); }
+                        root.GetComponentsInChildren(false, _bodies);
+                        foreach (var body in _bodies) if (body.isActiveAndEnabled) { _liveBodies.Add(body); _bodyRadii.Add(body.RestHeightM); }
+                    }
+                }
+            }
+            for (int i = 0; i < _liveWings.Count; i++)
+            {
+                var wing = _liveWings[i];
+                if (wing == null || !wing.isActiveAndEnabled) continue;
+                var rb = wing.GetComponent<Rigidbody>();
+                // Unbound ballistic fragments have no sim mass: 15 kg matches the canopy estimate.
+                AddCrashPoint(wing.Piece != null ? CoordinateMap.ToUnity(wing.Piece.State.Position) : wing.transform.position,
+                    wing.Piece != null ? (float)wing.Piece.MassKg : rb != null ? rb.mass : 15f, _wingRadii[i]);
+            }
+            for (int i = 0; i < _liveBodies.Count; i++)
+            {
+                var body = _liveBodies[i];
+                if (body != null && body.isActiveAndEnabled) AddCrashPoint(body.transform.position, body.MassKg, _bodyRadii[i]);
+            }
+            Vector3 centre = Vector3.zero; float mass = 0;
+            for (int i = 0; i < _points.Count; i++) { centre += _points[i] * _masses[i]; mass += _masses[i]; }
+            centre /= mass;
+            for (int i = 0; i < _points.Count; i++) _distances.Add(Vector3.Distance(centre, _points[i]));
+            _distances.Sort();
+            int middle = _distances.Count / 2;
+            float median = _distances.Count % 2 == 0 ? (_distances[middle - 1] + _distances[middle]) * .5f : _distances[middle];
+            float cutoff = 2.5f * median; // Ty's robust-cluster rule.
+            Vector3 focus = Vector3.zero; mass = 0;
+            for (int i = 0; i < _points.Count; i++) if (Vector3.Distance(centre, _points[i]) <= cutoff)
+            { focus += _points[i] * _masses[i]; mass += _masses[i]; }
+            focus = mass > 0 ? focus / mass : centre;
+            float radius = 0;
+            for (int i = 0; i < _points.Count; i++) if (Vector3.Distance(centre, _points[i]) <= cutoff)
+                radius = Mathf.Max(radius, Vector3.Distance(focus, _points[i]) + _radii[i]);
+            float dt = Time.unscaledDeltaTime;
+            if (!_crashStarted)
+            {
+                _crashStarted = true;
+                _crashRange = Vector3.Distance(transform.position, Target.position); _largestRange = _crashRange;
+                // Start on the existing sightline, so entering crash view does not snap the aim.
+                _crashFocus = transform.position + transform.forward * _crashRange;
+                _crashBearing = Vector3.ProjectOnPlane(transform.position - _crashFocus, Vector3.up).normalized;
+                if (_crashBearing.sqrMagnitude < .01f) _crashBearing = Vector3.back;
+                _focusVelocity = _crashVelocity = Vector3.zero; _rangeVelocity = 0;
+            }
+            _crashFocus = Vector3.SmoothDamp(_crashFocus, focus, ref _focusVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
+            float half = (_cam != null ? _cam.fieldOfView : 60f) * Mathf.Deg2Rad * .5f;
+            if (_cam != null) half = Mathf.Min(half, Mathf.Atan(Mathf.Tan(half) * _cam.aspect));
+            // 15% breathing room; account for centre smoothing so the fitted sphere stays in frame as it drifts.
+            float fit = (radius + Vector3.Distance(focus, _crashFocus)) * 1.15f / Mathf.Sin(half);
+            // Keep the largest requested range for this wreck: no pumping inward when a piece sinks/disappears.
+            // A minimum 50% retreat makes an intact ditching open into an overview as well.
+            _largestRange = Mathf.Max(_largestRange, Mathf.Max(Distance * 1.5f, fit));
+            _crashRange = Mathf.SmoothDamp(_crashRange, _largestRange, ref _rangeVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
+            // 30 degrees above the horizon exposes the field; increasing range raises and retreats together.
+            Vector3 desired = _crashFocus + (_crashBearing * .8660254f + Vector3.up * .5f) * _crashRange;
+            transform.position = Vector3.SmoothDamp(transform.position, desired, ref _crashVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
+            Vector3 look = _crashFocus - transform.position;
+            if (look.sqrMagnitude > .0001f) transform.rotation = Quaternion.LookRotation(look, Vector3.up);
         }
 
         public void SnapBehind()
