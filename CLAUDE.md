@@ -145,3 +145,13 @@ against the build you made before reasoning about the code.
 `grep -rl "x" --include=*.unity .` dies with `no matches found: --include=*.unity`, and in a `&&` chain the echo
 after it can still print, which reads as a passing check. Quote the pattern (`--include='*.unity'`) and check the
 exit status rather than trusting the next line of output.
+
+### A number attributed to a tool must have come out of the tool
+Building the Grob 103's airbrakes I wrote "XFOIL's edge velocity at 0.42 c runs 1.20-1.30 V" into the builder and
+used 1.25 -- before running XFOIL for it. When I did (`DUMP`, x/c 0.428), the E603's rooftop runs 1.35-1.55 V: the
+plate's dynamic pressure was 29 % low, and it decided whether the brakes hold a 45-degree dive under VNE as the manual
+says. A full suite run was thrown away. If a comment says where a number came from, produce the number from there
+first, and print the reading beside it in the builder.
+
+Related, for anyone running XFOIL from a script: it writes its scratch files (`:00.bl`) into the CURRENT directory.
+Run it with `cwd=` a temp dir, not the worktree.
