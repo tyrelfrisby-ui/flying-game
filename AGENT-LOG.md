@@ -540,6 +540,29 @@
   **Why that is not enough, and what needs you.** In cruise it is still **1.5x slower than real time on a Mac Studio for a single aeroplane**, and on the runway — where every one of your eight start airports begins — it is **1.9x**, because near the ground every point must be tested and each test costs 70 us. No arrangement of Claude-owned code makes contact physics affordable while one height query costs 70 us. **This is a blocking Codex dependency, handed off below.** Per the prompt I have not started the IFR or weather work, which is gated behind the startup repair.
 - **[Claude -> codex] HANDOFF: island height-field query cost makes the simulation unplayable, at `IslandTerrain.Evaluate`/`HeightKm` (src/FlyingGame.Core/IslandTerrain.cs:58-130).** Measured on a Mac Studio: **70.4 us per fresh query** (20,000 random samples inside the ring), 16.9 us when ~90 % of them repeat and hit the memo cache. Every sample evaluates the entire world description, including `Shore()` against both coast polygons, every crest and glacier via polyline distance, and every canyon via a nested double loop over its path segments. The physics needs thousands of fresh queries a second near the ground and cannot batch or repeat them, so the exact-coordinate `[ThreadStatic]` memo at line 60 never helps a moving aeroplane. **Needs:** a bounded-cost height query — a baked height raster with bilinear sampling, or a spatial index so a sample only visits the features whose footprints contain it. Target on the order of 1 us. For scale: at 70 us the 2026-10-30 build ran at 5 fps on an iPad mini (220 ms CPU, 4 ms GPU); the same world at 1 us would leave contact physics at about 6 ms per second of flight. I have not touched any world file.
 - **[Claude -> codex] HANDOFF is not needed for this one, it is mine, logging it so it is not lost:** `configs/atmosphere/regional-atmosphere.json` anchors two air masses to `airport:Bench` and `airport:Mesa`, which the island world does not have — `WorldTerrain.Airports` now comes from `IslandTerrain.World["airports"]` (PHDH, PANC, PATK, KSNA, KMYL, 3U2, KMEV, KPGA). The device log shows `[Atmosphere] regional config not loaded (unknown airport anchor 'airport:Bench') — uniform air`, so the whole regional weather model is silently off. Re-authoring it is Phase 2 weather work on this lane.
+- **UNITY LIBRARY CACHES ARE CAPPED NOW, AND THE QUEST LANES DO NOT SHARE ONE (Claude, 2026-11-02,
+  lane/claude-deploy-cache-cap).** `~/Library/Application Support/FlyingGame/unity-Library-<lane>` was 164 GB
+  (12 caches; the four Android/Quest ones 24.7 GB each) with the disk 97% full. `deploy.sh` now touches its own
+  lane's cache and runs the new `tools/deploy/prune-library-caches.sh` before every build: at most 8 caches
+  (`FG_CACHE_KEEP`) and 80 GB (`FG_CACHE_MAX_GB`), oldest first. Never the current lane's cache, and never one that
+  a running Unity, xcodebuild, bee_backend, gradle, java or Unity dotnet process uses (argv, cwd, the worktree in
+  `-projectPath`, or an open file via lsof). That check runs again right before each removal. When over the size
+  cap it first **trims** build output (PlayerDataCache, Bee, il2cpp_cache, BuildPlayerData), which every deploy
+  `rm -rf`s anyway and which is 20 of an Android cache's 24.7 GB. Only after that does it delete whole caches.
+  `--dry-run` prints the plan. A pruned lane's missing cache is recreated empty by deploy.sh, which means a full
+  re-import, not a broken symlink.
+  Dry run on 2026-11-02 at 10:59 PST, from claude-island-nav, with a Unity/xcodebuild chain running in claude-crash-test (kept: in use):
+  delete inertia-b-deploy, inertia, codex-vr-quest, vr-stereo (47.8 GB); trim claude-vr-cockpit, vr-quest (20.4
+  GB each), codex-crash-audio, claude-crash-water, codex-extra-wing-b (3.6 GB each). That would free 99.3 GB and
+  leave 8 caches at 64.7 GB. With `FG_CACHE_TRIM=0` it would instead have to delete 8 caches, vr-quest among them.
+  **Decision for you: a shared Android cache.** Not done, because it is unsafe here. Unity locks a project with
+  `Temp/UnityLockfile` in the *project* folder, not in Library, so two worktrees whose Library is the same folder
+  are not stopped from opening it at once. The four VR lanes run batch compiles in parallel (serialised only by a
+  `pgrep` check, which can race). One lane would then load the other lane's ScriptAssemblies and import results.
+  Run strictly one at a time, sharing would be correct (Unity re-hashes and re-imports what differs). It would also
+  cost a full re-hash on every lane switch. The trim gets most of the space back without that risk: an idle
+  Android cache drops to ~4 GB. If you still want sharing, it needs a real lock around every Unity launch, not
+  only around deploys.
 
 # Agent log — codex/own-ea300
 
