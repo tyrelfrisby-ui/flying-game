@@ -1,4 +1,46 @@
 ## NEEDS YOU
+- **CRASH IN WATER — PHYSICS LANE (Claude, 2026-11-02, lane/claude-crash-water). Silent until the audio lane merges.**
+  `StructuralDamage` no longer calls `_audio.Crash` at all. Every crash impact now goes out as a `CrashEvents`
+  impact with Land or Water, and lane/codex-crash-audio's FlightAudio is what has to play it. **Merge the two lanes
+  together, or crashes make no sound.** The probe and its numbers are in
+  `~/Developer/agent-lanes/aero-playground/crash-water/probe.txt` (and `.csv`). Decisions for you:
+  1. **Water does not break a 172 that land does.** I used the same arrival for both: 30 m/s along, 20 m/s down,
+     30° nose-down. On land the 172 breaks into 7 pieces. In water it stays in one piece and floats. Each hard
+     point is judged by its closing speed at first touch, and the water's added mass (von Kármán slam) takes the
+     speed off before the cabin points get there: 6–7 m/s against the 8 m/s cabin break. What should break an
+     airframe in water is the slam LOAD. That needs a new break criterion, and I have not invented one. The probe's
+     third case forces the break-up at first water contact so you can see the pieces: nose, tail boom, both wings.
+  2. **The remnant keeps the mass of what it lost.** The rule is yours: `LoseComponent` leaves mass alone, and
+     `AirframeContactTests` pins it. So a cabin that has lost its engine and wings is still 1,043 kg and sinks in
+     0.8 s. Its own parts would float it. I wrote mass shedding, broke that test, and took it out again. Your call
+     whether the rule stands now that every lost piece is simulated as its own body.
+  3. **Unmeasured openings, marked ASSUMED in `Core/Wreck/WaterPhysics.cs`.** Each one is a real dimension:
+     - door-seal gap: 1 mm around two 0.96 m doors, 77 cm² in all
+     - drain holes: 1/4 in, one per 0.4 m rib bay
+     - cowl inlets and exit: 0.06 m² each
+     - fuel vent and feed lines: 3/8 in
+     - engine taken as half aluminium, half steel: 4,100 kg/m³
+
+     Intact ditching time is set almost entirely by the door seals. Measure one 172 door gap and the number
+     becomes real.
+  4. **Fast ditching.** 24 m/s with the gear down: the wheels dig in (existing `WheelHydro`), it noses over to
+     −38° and recovers. It stays intact apart from the prop. I expected a harder flip.
+  5. **Floating bodies bob for a long time.** Wave-radiation damping is not modelled, only drag.
+  - **Probe highlights** (C172 at reference load: 2 × 40 kg fuel, 86 kg pilot).
+    - Pieces. Masses come from Raymer's GA weight buildup, scaled to the config's 877 kg empty mass.
+      - Engine+cowl (240 kg): sinks at once and never resurfaces. Reserve gone at 0.9 s; on a 10 m bed at 7 s.
+      - Each wing (156 kg, sealed tank inside): resurfaces at 1.3 s, floats, sinks at 340 s, on the bed at 351 s.
+      - Tail boom (135 kg): floats, sinks at 312 s.
+      - Gear legs: straight down.
+    - Intact ditching (12 m/s, nose-up 8°): still afloat at 30 min, nose-down 22°, 2.9 m³ of water in, air
+      escaping at 0.1 L/s.
+    - Undamaged floats: 0 kg of water in 15 min.
+    - Left float holed in all four compartments (rock + pump-out cap off): lists −27° at 5 min, capsizes left by
+      20 min. Lessons can do this through `PracticeScenario.FloatDamage`.
+  - **Unity build not run here** (a Unity chain was running), so no compile by Unity itself. I did compile the
+    Bridge offline against Unity 6000.3's iOS managed DLLs (C# 9, netstandard2.1): 0 errors. No gate is marked
+    approved.
+
 - **EXTRA 300 VISIBLE WING B — TY VISUAL REVIEW (Codex, 2026-11-02, lane/codex-extra-wing-b):**
   Review `renders/extra-wing-b/after-root-end.png` against `before-root-end.png` and `section-overlay.png`:
   look for the fat round nose, thickness peak near 17% chord, and gently concave aft skin. Compare
@@ -788,6 +830,19 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 · Claude · lane/claude-crash-water · crash physics in water
+
+New Core/Wreck: HydroElement (envelope, void, openings, series-orifice flooding at Cd 0.61, isothermal trapped
+air), HydroBody (buoyancy and floodwater inside RK4; implicit drag and added mass after it), AirframeHydroModel
+(volumes from config; masses from Raymer Table 15.2 scaled to the empty mass), WreckSim (6-DOF pieces with
+impacts and FloodState), AirframeFlooding (replaces the ditching spring-damper), FloatFlooding (four
+compartments per 14 CFR 23.751). Sim/CrashRelay raises the CrashEvents. The bridge drops `_audio.Crash` and
+binds debris to sim pieces. Added 15 tests, all passing. Suite against the branch point, compared by name: the
+only failures traced to this lane were fixed (a thread-static water override leak in my own tests, buoyancy
+counted as load factor, two IslandStart ditch asserts updated for sinking). The remaining "new" names are
+SpawnSpeed/MultiEngine/Spin/TrimConvergence NaNs at altitude. They change from run to run, and all pass alone and
+alongside the CrashWater class. Commits 948dd72..a0299f0. NEEDS YOU above.
+
 ### 2026-11-02 07:55 PT · codex (Grok Bot committing) · lane/codex-extra-wing-b · Extra 300 visible wing -> airfoil B
 
 Codex: rebuilt Extra 300 visible Wing + Aileron_L/R to B (90d0e85), all three liveries; added exported-section/rig/paint checks, matched CPU review renders, and provenance. Ty visual review pending. Grok Bot: build-only check (Unity iOS export 0 error CS, xcodebuild ** BUILD SUCCEEDED **, 07:59 PT; bundleVersion bump reverted); committed locally, not merged, not deployed.
