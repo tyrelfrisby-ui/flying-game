@@ -1,4 +1,9 @@
 ## NEEDS YOU
+- **GAMEPAD ON THE IPHONE — PLEASE TRY THE 8BITDO (Claude, 2026-11-02, lane/claude-gamepad-ios):** build
+  `2026.1102.1441` is on your iPhone (it was locked, so it did not auto-launch) and the iPad mini. Left stick flies
+  (pull back = nose up), triggers are rudder, RB/LB ramp the throttle, Menu opens OPTIONS. Full table in the Log
+  entry below. Nothing was tested with a real pad in hand — that is yours to confirm. Default expo 0.65 is heavy
+  on purpose and STACKS on each aeroplane's own 0.1–0.3; say if it is too soft.
 - **EXTRA 300 VISIBLE WING B — TY VISUAL REVIEW (Codex, 2026-11-02, lane/codex-extra-wing-b):**
   Review `renders/extra-wing-b/after-root-end.png` against `before-root-end.png` and `section-overlay.png`:
   look for the fat round nose, thickness peak near 17% chord, and gently concave aft skin. Compare
@@ -811,6 +816,68 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-gamepad-ios · gamepads (8BitDo Pro 2 / MFi) fly the aeroplane on iOS
+**Ty: an 8BitDo Pro 2 paired to the iPhone, "nothing works."**
+
+**Root cause.** On iPhone / iPad the ONLY path from any joystick to the controls was
+`TouchFlightControls.MobileJoystick()`, and its first line (`TouchFlightControls.cs:1017` at efdbb52) was
+`if (jp == null || JoystickInput.SetupActive) return;` — no flight axis is read unless a joystick PROFILE exists
+(OPTIONS › JOYSTICK SETUP). A freshly paired pad has none, so sticks, triggers and every flying button did
+nothing. There was no default gamepad mapping anywhere. Behind it: the project was on the old Input Manager only
+(`ProjectSettings activeInputHandler: 0`, no `com.unity.inputsystem` in `Packages/manifest.json`), which sees a
+pad only as numbered axes `WJoy1…8` and `JoystickButton0…19` (`JoystickSetup.cs:70, 98`) with no names for
+"left stick" or "Menu". The only pad code that reached iOS at all was the guns line reading legacy button numbers
+(`TouchFlightControls.cs:517`). No Info.plist key is REQUIRED for iOS to deliver pad input; none was the cause.
+
+**Fix.** Unity Input System 1.20.0 (bundled with the 6000.3.23f1 editor, so no download) with
+`activeInputHandler: 2` (Both), so every existing `Input.*` call — touches, gyro, keys — is unchanged. Chosen over
+a GameController-framework plugin because the Input System already wraps GCController on iOS, names every control
+the same on MFi / Xbox / PlayStation / 8BitDo pads, and handles connect / disconnect itself; a native plugin would
+be new Objective-C to maintain for the same thing.
+- `src/FlyingGame.Core/GamepadShaping.cs` (pure): radial stick dead zone 0.07, trigger dead zone 0.05, cubic expo
+  `(1−e)x + e·x³` with e = 0.65, rescaled so the stops are exactly ±1; rudder = RT − LT plus right-stick X, each
+  shaped then summed and clamped; throttle ramp. Also pre-compensates the aeroplane's own dead zone
+  (`Aircraft.ShapeAxis`, 0.02–0.05), so the pad does not stack two dead zones — the problem the touch pads hit
+  before. The aeroplane's own EXPO (0.1–0.3) still applies on top: deliberate, noted for Ty.
+- `Bridge/GamepadInput.cs`: reads `Gamepad.current` once a frame; disconnected reads as idle, which releases the
+  controls on the next frame; logs `[Gamepad] connected / disconnected`.
+- `TouchFlightControls.GamepadFlight()` runs after touch / keyboard / calibrated joystick: the pad drives a group
+  (stick; rudder) only while it is moving it plus one frame to centre; idle, touch works as before; a finger on a
+  pad always wins that pad's controls. `GamepadMenuButtons()` runs before the menu early-return so Menu can close
+  what it opened. Legacy joystick-button guns only count when no Input System pad is connected (those numbers
+  are RB / Menu / d-pad on iOS). `OptionsPanel.Toggle()` added.
+- `BuildScript.OnPostProcessBuild`: `GCSupportsControllerUserInteraction = true`, `GCSupportedGameControllers =
+  [ExtendedGamepad]`, `GameController.framework` (Unity already weak-links it; confirmed with `otool -L`).
+- `tools/deploy/deploy.sh`: `set +e` before the install loop. The comment said the installs were not under
+  `set -e`, but they were: a locked iPad Air's failing `OUT=$(devicectl …)` killed the script silently and the
+  iPhone after it was never tried.
+
+| Pad control | Does |
+|---|---|
+| Left stick X | roll (aileron), right = roll right |
+| Left stick Y | pitch: pull back / down = nose UP, push = nose down (InvertElevator flips it, as for touch) |
+| RT / LT | right / left rudder (RT − LT) |
+| Right stick X | rudder, summed with the triggers, clamped ±1 |
+| RB / LB (held) | throttle up / down, ramping (~0.8 lever/s); LB stops at idle |
+| D-pad up / down (held) | pitch trim nose down / nose up |
+| D-pad right / left | flaps one step down / up (0 / 50 / 100 %) |
+| A (held) | guns (combat aircraft) |
+| B | smoke on / off |
+| X (held) | wheel brakes |
+| Y | change view |
+| Menu (Start, ≡) | open / close OPTIONS (pauses as the button does) |
+| View (Select, ⧉) | REC: start / stop recording (`ClipRecorder.ToggleRecording`) |
+
+**Tests.** `GamepadShapingTests` 34/34 (dead zone, radial zone, expo literals, full deflection for any e,
+monotonic + odd over the whole travel, sign, rudder sum/clamp, dead-zone pre-compensation, ramp).
+
+**Build.** `zsh tools/deploy/deploy.sh`: Unity export 0 `error CS`, `** BUILD SUCCEEDED **`, bundleVersion
+`2026.1102.1441`. The script then died at the first device (above), so I installed the same .app by hand:
+**Ty's iPhone — installed** (launch refused: "device was not, or could not be, unlocked"); **Ty's iPad mini —
+installed and launched**; **Frisby_801C_EFB (iPad Air) — FAILED**: "The operation failed because the device was
+still locked" (CoreDeviceError 10003). bundleVersion bump reverted; `activeInputHandler: 2` kept. Not verified
+with a pad in hand.
+
 ### 2026-11-02 07:55 PT · codex (Grok Bot committing) · lane/codex-extra-wing-b · Extra 300 visible wing -> airfoil B
 
 Codex: rebuilt Extra 300 visible Wing + Aileron_L/R to B (90d0e85), all three liveries; added exported-section/rig/paint checks, matched CPU review renders, and provenance. Ty visual review pending. Grok Bot: build-only check (Unity iOS export 0 error CS, xcodebuild ** BUILD SUCCEEDED **, 07:59 PT; bundleVersion bump reverted); committed locally, not merged, not deployed.

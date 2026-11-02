@@ -103,6 +103,9 @@ fi
 # both devices moments later; a route that works being reported as unavailable costs more than a failed install.
 # Also name the device, because a bare UDID tells you nothing about which one went missing.
 INSTALLED=0
+# ...and that has to be SAID: `set -e` from the top was still on, so a locked iPad's failing `OUT=$(devicectl ...)`
+# ended the whole script with no message and the iPhone after it was never tried (2026-11-02).
+set +e
 for D in $DEVICES; do
   NAME=$(xcrun devicectl list devices 2>/dev/null | awk -v d="$D" 'index($0, d) { sub(/  +[0-9A-Fa-f]{8}-.*/, ""); print; exit }')
   [ -n "$NAME" ] || NAME=$D

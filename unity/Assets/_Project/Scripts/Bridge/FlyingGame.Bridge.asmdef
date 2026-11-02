@@ -6,7 +6,8 @@
         "FlyingGame.Sim",
         "Klak.Syphon.Runtime",
         "Klak.Ndi.Runtime",
-        "Unity.Newtonsoft.Json"
+        "Unity.Newtonsoft.Json",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
