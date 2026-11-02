@@ -136,7 +136,7 @@ public sealed class CrashWaterProbe : IDisposable
         {
             _txt.AppendLine($"    #{p.Id} {p.Name,-14} {p.MassKg,6:F0} kg  elements: {string.Join(", ", p.Elements.Select(e => $"{e.Name}({e.MassKg:F0} kg, env {e.EnvelopeM3:F3}, void {e.VoidM3:F3} m3, open {e.TotalOpeningM2 * 1e4:F0} cm2)"))}");
             if (water && tracks.TryGetValue(p.Id, out Track? tr))
-                _txt.AppendLine($"       max plunge {tr.MaxDepth:F2} m; resurfaced {Fmt(tr.Resurface)}; reserve<0 (sinking) {Fmt(tr.Sink)}; on the bed {Fmt(tr.Bottom)}");
+                _txt.AppendLine($"       max plunge (first 5 s, off the bed) {tr.MaxDepth:F2} m; resurfaced {Fmt(tr.Resurface)}; reserve<0 (sinking) {Fmt(tr.Sink)}; on the bed {Fmt(tr.Bottom)}");
         }
         if (water) _txt.AppendLine($"    airframe: max depth {airT.MaxDepth:F2} m; resurfaced {Fmt(airT.Resurface)}; sinking {Fmt(airT.Sink)}");
         _txt.AppendLine("  impacts raised:");
@@ -151,7 +151,8 @@ public sealed class CrashWaterProbe : IDisposable
     private static void Follow(Track tr, double t, double depth, double vz, bool bottom, bool sinking)
     {
         if (double.IsNaN(depth)) return;
-        if (depth > tr.MaxDepth && t < 20) tr.MaxDepth = depth;
+        // The plunge: deepest the centre goes in the first 5 s, not counting lying on the bed.
+        if (depth > tr.MaxDepth && t < 5 && !bottom) tr.MaxDepth = depth;
         if (double.IsNaN(tr.FirstUnder) && depth > 0.2) tr.FirstUnder = t;
         if (!double.IsNaN(tr.FirstUnder) && double.IsNaN(tr.Resurface) && depth < 0.05 && vz <= 0 && t > tr.FirstUnder) tr.Resurface = t;
         if (double.IsNaN(tr.Sink) && sinking) tr.Sink = t;
