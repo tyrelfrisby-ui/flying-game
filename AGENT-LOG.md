@@ -1,4 +1,16 @@
 ## NEEDS YOU
+- **2026-11-01 lane/codex-grob103 — GROB OWN MODEL / COCKPIT, VISUAL REVIEW NEEDED (Codex):**
+  Original white and Talk Flying GLBs are in `Resources/Models/glider-grob103-acro-like/`;
+  review `renders/grob103-own/` (both real seat eyes, left/right controls, panels, exterior and full throws).
+  Published span/length/height are met; 66 mm head clearance passes. No gate approved or Unity run.
+  Assumptions: split static canopy from OE-5279 openings; opening hinge direction UNCONFIRMED;
+  panel/seat/handle locations, seat posture, root blending, dihedral, gear fairings and detail plumbing are
+  estimates; simplified E603 interpolation and tails; white/red fictional N103TF and white/navy TALK FLYING
+  are authored liveries. Yellow right-side jettison follows Ty's request, while manual says red BOTH sides.
+  Review canopy/pod depth, tailplane height and root contacts against the manual overlays in ignored
+  `assets-incoming/ref-grob103/review-overlays/` (source pixels never ship). Blender startup crashed;
+  renders use CPU. Datum-relative proposed eyes still need Claude's CG/placement rebase. See provenance
+  for every measurement, known mismatch and check scope; binding is intentionally a handoff below.
 - **GROB G 103 ACRO (TWIN II ACRO) — AEROBATIC GLIDER, IN PROGRESS, REVIEW BEFORE MERGE (Grok Bot, 2026-11-01,
   lane/claude-grob103 + lane/codex-grob103, both off d0986c0):** Ty chose to keep the progression blocked until a
   real aerobatic glider exists and asked for it to be built; the Grob 103 Acro is the pick (two seats, instructor
@@ -3766,3 +3778,44 @@ Restored the matching v13.1 Great Lakes builder integration from local cockpit c
 Rebuilt the requested `great-lakes-like-own.glb` through `build_great_lakes.py --offline-update`, using the immutable v13.1 generated cockpit GLB at the commit above and applying the current sequence-card/sight geometry. Blender 5.2.2 crashes in Metal device detection before Python in this sandbox; no fresh Blender export or Unity runtime validation is claimed. The full Blender builder is restored for subsequent exports. Existing alternate-livery GLBs and their offline base behavior are unchanged; this urgent asset repair targets the explicitly requested default GLB. Existing GLB `.meta` retained; no new Unity asset introduced. Glass Overlay untouched.
 
 Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against the runtime rig table, expected parents and world pivots (0.11 mm tolerance), rig parameters, moving mesh descendants, prop/spinner, eyes, avionics displays, sequence card and sights; all nodes have identity rotation and unit scale, with nose -x, up +y and span z. Offline rebuild repeated with identical SHA-256 `0e556105a076cca100ef014f315a2cbc67a10abe41705ed37b1a35cfdbc7653f`. Python syntax compilation and `git diff --check` pass. Required tracked-file ignore audit printed nothing. Commit attempt blocked at `git add`: sandbox denies creation of `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-greatlakes-rig/index.lock` outside writable roots. Files remain unstaged; no commit, push, merge, deployment, or forced add occurred.
+
+
+## [codex -> claude] HANDOFF — Grob 103 own model and cockpit (2026-11-01)
+
+- Worktree/branch `lane/codex-grob103`, no commit made. No aircraft config, Sim, Unity script or Glass
+  Overlay changes. Original NEEDS YOU entry from 594644f retained. Source `tools/own_models/build_grob103.py`
+  plus cockpit/dials/check/render/overlay helpers; review details in `docs/models/grob103-own-{PROVENANCE,RIG}.md`.
+- Assets: `unity/Assets/_Project/Resources/Models/glider-grob103-acro-like/glider-grob103-acro-like-own.glb`
+  and `...-own-tf.glb`, original importer metadata, LICENSE. Same geometry in both liveries.
+- **Binding still required by your lane:** `AirframeModels.OwnSpecs` currently has NO Grob id; use the
+  SGS convention `new Spec(Vector3.right, Vector3.up, namedSurfaces: true)` and appropriate PickOwn policy.
+  `FlyingGame.Core.LiveryChoice` needs factory/talk-flying options and `-own-tf` suffix routing for this id.
+  `AirframeBuilder.TryPlaceModel` in `AirframeVisual.cs` binds the table using `PlacedOwnName`; a valid own
+  rig then bypasses carving. `ConfigSync` discovers `docs/models/grob103-own-rig.json` automatically by its
+  `model` field `glider-grob103-acro-like-own`. Do not write generated StreamingAssets mirrors by hand.
+  Check automatic span/outer-wing/ground alignment in Place; no successful in-game import is claimed here.
+- **Frame / alignment:** author metres +X forward, +Y port, +Z up; origin wing-root LE datum, NOT CG.
+  GLB = (−author X, author Z, author Y), nose −X / up +Y / port +Z. Wing LE (0,0,+.12 author Z).
+  Nose +2.50, rudder TE −5.68, tips ±8.75; measured 17.500 × 8.180 × 1.550 m span/length/height.
+  Choose your physics CG, then rebase all datum-relative points consistently, including any importer shifts.
+- **Contacts in BODY axes relative to this DATUM** (+X fwd,+Y right,+Z down): nose wheel
+  **(1.65,0,.67)**, main **(−.44,0,.67)**, tail-skid end approximately **(−5.45,0,.10)**.
+  Wheel centers author (1.65,0,−.51), radius .16; (−.44,0,−.45), radius .22. Fixed gear, no retraction.
+  These are modeled visual locations, not independently certified gear dimensions.
+- **Eyes in BODY axes relative to this DATUM:** student/front **(1.15,0,−.40)**, instructor/rear
+  **(−.04,0,−.45)**. Native GLB markers `Pilot_Eye_front` = (−1.15,.40,0), `Pilot_Eye_rear` = (.04,.45,0).
+  Front is proposed primary/solo. Both added to eyepoints.json with explicit NOT APPROVED / CG-rebase status.
+  Exported head-envelope clearance: front 101.06 mm / rear 106.97 mm, threshold 66 mm.
+- **Rig nodes:** `Aileron_L/R`, `Elevator_L/R`, `Rudder`, `Spoiler_L/R` (UPPER paddles translate +.170 m);
+  `Needle_ASI_F/R`, `Needle_Alt100_F/R`, `Needle_Alt1000_F/R`, `Needle_Vario_F/R`, `Compass_Card`;
+  `TorqueTube` (roll) > `Stick_F/R` (pitch) > grips; `Pedal_F_L/R`, `Pedal_R_L/R`,
+  `DiveBrake_Lever_F/R`, `Trim_Lever_F/R`, `TowRelease_F/R`. 29 driven nodes, each with `_HingeAxis` witness;
+  `Airbrake_Cap_L/R` are spoiler children. Full rest pivots/axes/maps are in the rig JSON and RIG.md.
+  Aileron asin(90/208) up / asin(50/208) down; elevator asin(3.82/9.45) / asin(2.99/9.45), rudder ±asin(233/450). No lower spoiler nodes.
+  ASI face reads km/h but drives existing **airspeed_kias**, map conversion 1.852; no new runtime param.
+  Compass wraps and altimeters extrapolate in both GLB extras and rig JSON extras.
+- **Verification:** check script passes both assets (graph/hinges/dimensions/head/BLEND/materialized geometry
+  parity; 2,145 independent cockpit-part pairs and 1,680 exterior-envelope samples each). Deliberate seat/harness/grip contacts and shell/liner
+  interfaces are documented exclusions, not blanket collision certification. Both extrema rendered.
+  No GPS/moving map/position display. Canopies static; hinge direction unconfirmed. Yellow jettison versus
+  manual red is explicitly for Ty's review. Overlay conformance/visual acceptance remains pending.

@@ -145,3 +145,17 @@ against the build you made before reasoning about the code.
 `grep -rl "x" --include=*.unity .` dies with `no matches found: --include=*.unity`, and in a `&&` chain the echo
 after it can still print, which reads as a passing check. Quote the pattern (`--include='*.unity'`) and check the
 exit status rather than trusting the next line of output.
+
+
+### CPU GLB export preserves the winding you supply
+The Grob CPU first pass showed cockpit controls through its opaque exterior: the parametric shell's
+faces were inward, and a single-sided renderer correctly culled them. Fix winding at the source, before
+material splitting, and inspect an exterior as well as a seat-eye render. Whole closed parts can use
+signed volume; an open cockpit shell also needs an explicit outside-view check. Do not hide the error
+by making every opaque material double-sided.
+
+
+### Cockpit pair clearance does not prove containment in the airframe
+The Grob's seat/floor and low trim handle passed instrument/control pair checks but protruded through
+the fuselage. An exterior-envelope check against exported fuselage/glass triangles caught it. Check
+both neighboring parts AND the host shell; leave only deliberate mechanical mount contacts exempt.

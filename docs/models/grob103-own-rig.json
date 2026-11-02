@@ -1,0 +1,1008 @@
+{
+  "model": "glider-grob103-acro-like-own",
+  "livery": "factory",
+  "rig": [
+    {
+      "node": "Aileron_L",
+      "parent": null,
+      "param": "aileron",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        0.11894004384497191,
+        -0.040168432077962266,
+        -0.9920885862837826
+      ],
+      "pivot_gltf": [
+        0.8833333333333333,
+        0.36819207187888386,
+        5.25
+      ],
+      "map": [
+        [
+          -1,
+          -25.638542487044873
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          13.90924177763508
+        ]
+      ],
+      "model": 0.0,
+      "desc": "TCDS travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Aileron_L_HingeAxis"
+    },
+    {
+      "node": "Spoiler_L",
+      "parent": null,
+      "param": "spoiler",
+      "unit": "0..1",
+      "kind": "move",
+      "axis_gltf": [
+        -0.0,
+        1.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        0.58,
+        0.39232740678063566,
+        2.9
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0.17
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Linear travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Spoiler_L_HingeAxis"
+    },
+    {
+      "node": "Elevator_L",
+      "parent": null,
+      "param": "elevator",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "pivot_gltf": [
+        5.35997,
+        0.83,
+        0.02
+      ],
+      "map": [
+        [
+          -1,
+          -18.445479046559875
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          23.84305963916233
+        ]
+      ],
+      "model": 0.0,
+      "desc": "TCDS travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Elevator_L_HingeAxis"
+    },
+    {
+      "node": "Aileron_R",
+      "parent": null,
+      "param": "aileron",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        0.11894004384497191,
+        -0.040168432077962266,
+        0.9920885862837826
+      ],
+      "pivot_gltf": [
+        0.8833333333333333,
+        0.36819207187888386,
+        -5.25
+      ],
+      "map": [
+        [
+          -1,
+          -13.90924177763508
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          25.638542487044873
+        ]
+      ],
+      "model": 0.0,
+      "desc": "TCDS travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Aileron_R_HingeAxis"
+    },
+    {
+      "node": "Spoiler_R",
+      "parent": null,
+      "param": "spoiler",
+      "unit": "0..1",
+      "kind": "move",
+      "axis_gltf": [
+        -0.0,
+        1.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        0.58,
+        0.39232740678063566,
+        -2.9
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0.17
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Linear travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Spoiler_R_HingeAxis"
+    },
+    {
+      "node": "Elevator_R",
+      "parent": null,
+      "param": "elevator",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "pivot_gltf": [
+        5.35997,
+        0.83,
+        -0.02
+      ],
+      "map": [
+        [
+          -1,
+          -18.445479046559875
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          23.84305963916233
+        ]
+      ],
+      "model": 0.0,
+      "desc": "TCDS travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Elevator_R_HingeAxis"
+    },
+    {
+      "node": "Rudder",
+      "parent": null,
+      "param": "rudder",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        1.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        5.23,
+        0.1,
+        0.0
+      ],
+      "map": [
+        [
+          -1,
+          -31.183306925848182
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          31.183306925848182
+        ]
+      ],
+      "model": 0.0,
+      "desc": "TCDS travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Rudder_HingeAxis"
+    },
+    {
+      "node": "Needle_ASI_F",
+      "parent": null,
+      "param": "airspeed_kias",
+      "unit": "kt IAS (art km/h)",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -1.713,
+        0.195,
+        0.145
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          151.18790496760258,
+          320
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Needle_ASI_F_HingeAxis"
+    },
+    {
+      "node": "Needle_Vario_F",
+      "parent": null,
+      "param": "vario_kt",
+      "unit": "kt",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -1.713,
+        0.195,
+        -0.145
+      ],
+      "map": [
+        [
+          -10,
+          -150
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          10,
+          150
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Needle_Vario_F_HingeAxis"
+    },
+    {
+      "node": "Needle_Alt100_F",
+      "parent": null,
+      "param": "altitude_ft",
+      "unit": "ft",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -1.713,
+        0.085,
+        0.0
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1000,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {
+        "rig_map_extrapolate": 1
+      },
+      "axis_marker": "Needle_Alt100_F_HingeAxis"
+    },
+    {
+      "node": "Needle_Alt1000_F",
+      "parent": null,
+      "param": "altitude_ft",
+      "unit": "ft",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -1.71,
+        0.085,
+        0.0
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          10000,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {
+        "rig_map_extrapolate": 1
+      },
+      "axis_marker": "Needle_Alt1000_F_HingeAxis"
+    },
+    {
+      "node": "Compass_Card",
+      "parent": null,
+      "param": "heading_deg",
+      "unit": "deg magnetic",
+      "kind": "rot",
+      "axis_gltf": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -1.716,
+        0.30000000000000004,
+        0.0
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {
+        "rig_map_wrap": 360
+      },
+      "axis_marker": "Compass_Card_HingeAxis"
+    },
+    {
+      "node": "Pedal_F_L",
+      "parent": null,
+      "param": "rudder",
+      "unit": "-1..+1",
+      "kind": "move",
+      "axis_gltf": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -1.83,
+        -0.29,
+        0.135
+      ],
+      "map": [
+        [
+          -1,
+          -0.045
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0.045
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Linear travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Pedal_F_L_HingeAxis"
+    },
+    {
+      "node": "Pedal_F_R",
+      "parent": null,
+      "param": "rudder",
+      "unit": "-1..+1",
+      "kind": "move",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -1.83,
+        -0.29,
+        -0.135
+      ],
+      "map": [
+        [
+          -1,
+          -0.045
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0.045
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Linear travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Pedal_F_R_HingeAxis"
+    },
+    {
+      "node": "DiveBrake_Lever_F",
+      "parent": null,
+      "param": "spoiler",
+      "unit": "0..1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "pivot_gltf": [
+        -1.2,
+        -0.14,
+        0.26
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          32
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "DiveBrake_Lever_F_HingeAxis"
+    },
+    {
+      "node": "Trim_Lever_F",
+      "parent": null,
+      "param": "trim",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "pivot_gltf": [
+        -1.39,
+        -0.24,
+        0.26
+      ],
+      "map": [
+        [
+          -1,
+          -18
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          18
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Trim_Lever_F_HingeAxis"
+    },
+    {
+      "node": "TowRelease_F",
+      "parent": null,
+      "param": "tow_release",
+      "unit": "0..1",
+      "kind": "move",
+      "axis_gltf": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -1.5499999999999998,
+        -0.06,
+        0.21
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0.05
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Linear travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "TowRelease_F_HingeAxis"
+    },
+    {
+      "node": "Needle_ASI_R",
+      "parent": null,
+      "param": "airspeed_kias",
+      "unit": "kt IAS (art km/h)",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -0.513,
+        0.245,
+        0.145
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          151.18790496760258,
+          320
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Needle_ASI_R_HingeAxis"
+    },
+    {
+      "node": "Needle_Vario_R",
+      "parent": null,
+      "param": "vario_kt",
+      "unit": "kt",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -0.513,
+        0.245,
+        -0.145
+      ],
+      "map": [
+        [
+          -10,
+          -150
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          10,
+          150
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Needle_Vario_R_HingeAxis"
+    },
+    {
+      "node": "Needle_Alt100_R",
+      "parent": null,
+      "param": "altitude_ft",
+      "unit": "ft",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -0.513,
+        0.135,
+        0.0
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1000,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {
+        "rig_map_extrapolate": 1
+      },
+      "axis_marker": "Needle_Alt100_R_HingeAxis"
+    },
+    {
+      "node": "Needle_Alt1000_R",
+      "parent": null,
+      "param": "altitude_ft",
+      "unit": "ft",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -0.51,
+        0.135,
+        0.0
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          10000,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {
+        "rig_map_extrapolate": 1
+      },
+      "axis_marker": "Needle_Alt1000_R_HingeAxis"
+    },
+    {
+      "node": "Pedal_R_L",
+      "parent": null,
+      "param": "rudder",
+      "unit": "-1..+1",
+      "kind": "move",
+      "axis_gltf": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -0.63,
+        -0.29,
+        0.135
+      ],
+      "map": [
+        [
+          -1,
+          -0.045
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0.045
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Linear travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Pedal_R_L_HingeAxis"
+    },
+    {
+      "node": "Pedal_R_R",
+      "parent": null,
+      "param": "rudder",
+      "unit": "-1..+1",
+      "kind": "move",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -0.63,
+        -0.29,
+        -0.135
+      ],
+      "map": [
+        [
+          -1,
+          -0.045
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0.045
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Linear travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Pedal_R_R_HingeAxis"
+    },
+    {
+      "node": "DiveBrake_Lever_R",
+      "parent": null,
+      "param": "spoiler",
+      "unit": "0..1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "pivot_gltf": [
+        -0.010000000000000002,
+        -0.14,
+        0.26
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          32
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "DiveBrake_Lever_R_HingeAxis"
+    },
+    {
+      "node": "Trim_Lever_R",
+      "parent": null,
+      "param": "trim",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "pivot_gltf": [
+        -0.19999999999999998,
+        -0.24,
+        0.26
+      ],
+      "map": [
+        [
+          -1,
+          -18
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          18
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Trim_Lever_R_HingeAxis"
+    },
+    {
+      "node": "TowRelease_R",
+      "parent": null,
+      "param": "tow_release",
+      "unit": "0..1",
+      "kind": "move",
+      "axis_gltf": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -0.36000000000000004,
+        -0.06,
+        0.21
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0.05
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Linear travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "TowRelease_R_HingeAxis"
+    },
+    {
+      "node": "TorqueTube",
+      "parent": null,
+      "param": "aileron",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "pivot_gltf": [
+        -0.6,
+        -0.36,
+        0.0
+      ],
+      "map": [
+        [
+          -1,
+          -18
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          18
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "TorqueTube_HingeAxis"
+    },
+    {
+      "node": "Stick_F",
+      "parent": "TorqueTube",
+      "param": "elevator",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "pivot_gltf": [
+        -1.2799999999999998,
+        -0.36,
+        0.0
+      ],
+      "map": [
+        [
+          -1,
+          -15
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          18
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Stick_F_HingeAxis"
+    },
+    {
+      "node": "Stick_R",
+      "parent": "TorqueTube",
+      "param": "elevator",
+      "unit": "-1..+1",
+      "kind": "rot",
+      "axis_gltf": [
+        -0.0,
+        0.0,
+        1.0
+      ],
+      "pivot_gltf": [
+        -0.09,
+        -0.36,
+        0.0
+      ],
+      "map": [
+        [
+          -1,
+          -15
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          18
+        ]
+      ],
+      "model": 0.0,
+      "desc": "Estimated cockpit travel",
+      "link": "",
+      "extra": {},
+      "axis_marker": "Stick_R_HingeAxis"
+    }
+  ]
+}
