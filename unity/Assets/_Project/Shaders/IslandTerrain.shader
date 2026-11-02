@@ -66,7 +66,8 @@ Shader "FlyingGame/IslandTerrain"
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > .001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(.4, .8, -.4));
                 float3 n = normalize(i.n);
                 float h = i.wp.y, ice = i.c.r, debris = i.c.g, wet = i.c.b, forest = i.c.a;
-                float ela = i.a.x, redrock = i.a.y, gravel = i.a.z, turf = i.a.w;
+                // a.y: + red-rock country (Grand Canyon area), - the leeward tropical coast (Dillingham area).
+                float ela = i.a.x, redrock = saturate(i.a.y), tropical = saturate(-i.a.y), gravel = i.a.z, turf = i.a.w;
                 float2 xz = i.wp.xz;
                 float pixelM = length(fwidth(i.wp));
 
@@ -83,18 +84,25 @@ Shader "FlyingGame/IslandTerrain"
                 float treeLine = 1460 - 130 * north + (broad - .5) * 140;
 
                 // ---- vegetation and soil -----------------------------------------------------------------
-                float3 lush = lerp(float3(.25, .37, .17), float3(.33, .40, .20), mid);
-                float3 dryGrass = lerp(float3(.55, .50, .32), float3(.62, .55, .38), mid);
+                // Colours are median surface reflectances of each land-cover class in the six real places
+                // (Sentinel-2 L2A, sRGB-encoded; tools/island/topo/shader_palette.py, palette.json).
+                float3 lush = lerp(float3(.20, .26, .15), float3(.31, .30, .26), mid);       // alder/willow scrub .. meadow (Knik, Sitka, Johnson Creek)
+                float3 dryGrass = lerp(float3(.38, .32, .27), float3(.44, .38, .31), mid);   // dry grass/shrub (Grand Canyon rim, Dillingham)
+                lush = lerp(lush, lerp(float3(.29, .26, .20), float3(.34, .30, .24), mid), tropical); // Mokuleia pasture
                 float3 meadow = lerp(lush, dryGrass, saturate(dry * 1.2 + (1 - wet) * .15));
                 float alpine = smoothstep(treeLine, treeLine + 260, h);  // heath and fellfield above the trees
-                float3 heath = lerp(float3(.38, .40, .27), float3(.47, .46, .33), fine);
+                float3 heath = lerp(float3(.27, .28, .25), float3(.33, .33, .29), fine);     // alpine meadow/heath (Fairweather)
                 float3 albedo = lerp(meadow, heath, alpine);
                 // Riparian strips: wetter, greener valley floors.
                 albedo = lerp(albedo, float3(.22, .34, .16), smoothstep(.55, .9, wet) * (1 - alpine) * .5 * (1 - dry));
                 // Conifer canopy where the forest function puts trees (the same cover the tree streamer uses),
                 // so at altitude, where no trees are drawn, the forest still reads as forest.
                 float canopy = smoothstep(.12, .75, forest);
-                float3 conifer = float3(.10, .19, .12) * (.75 + mid * .45 + (broad - .5) * .2);
+                // Wet coastal spruce-hemlock (Sitka, Fairweather) to dry interior fir/pine (Johnson Creek);
+                // the Mokuleia slopes carry broadleaf (kiawe, koa, guava) instead.
+                float3 conifer = lerp(float3(.12, .17, .11), float3(.21, .23, .18), saturate((ela - 1300) / 900));
+                conifer = lerp(conifer, float3(.18, .25, .15), tropical);
+                conifer *= (.80 + mid * .35 + (broad - .5) * .2);
                 albedo = lerp(albedo, conifer, canopy * .92);
 
                 // ---- rock: steep ground everywhere, and more of it the higher above the treeline ---------
@@ -103,13 +111,15 @@ Shader "FlyingGame/IslandTerrain"
                 float exposed = smoothstep(treeLine + 250, treeLine + 800, h) * smoothstep(.40, .70, mid + broad * .3);
                 float rock = saturate(max(cliff, exposed * (1 - smoothstep(.93, .99, ny) * .6)));
                 rock *= 1 - turf;
-                float3 granite = lerp(float3(.42, .41, .39), float3(.56, .54, .50), broad) * (.88 + fine * .24);
+                float3 granite = lerp(float3(.30, .29, .28), float3(.42, .41, .39), broad) * (.88 + fine * .24); // Fairweather/Knik bare rock p10..p90
                 float3 stone = granite;
                 if (redrock > .001)   // red-rock country only (coherent across whole regions: cheap to branch)
                 {
                     float bed = h * .011 + (broad - .5) * .6 + xz.x * .00009;
-                    float3 strata = lerp(float3(.62, .36, .22), float3(.80, .66, .48), smoothstep(.3, .7, simplex(float2(bed, 7.3))));
-                    strata = lerp(strata, float3(.52, .45, .40), smoothstep(.6, .8, simplex(float2(bed * 3.1, 2.1))) * .5);
+                    // Grand Canyon: red_rock median (.48,.41,.35) with its R/G ratio kept, darkened for the
+                    // Redwall/Supai bands, and the pale Coconino/Kaibab caprock (bare_rock p90).
+                    float3 strata = lerp(float3(.40, .31, .25), float3(.50, .42, .35), smoothstep(.3, .7, simplex(float2(bed, 7.3))));
+                    strata = lerp(strata, float3(.55, .51, .44), smoothstep(.6, .8, simplex(float2(bed * 3.1, 2.1))) * .6);
                     stone = lerp(granite, strata * (.92 + fine * .16), redrock);
                 }
                 // Near-vertical faces: projected onto the wall itself, vertical joints and sub-horizontal
@@ -124,17 +134,17 @@ Shader "FlyingGame/IslandTerrain"
                 }
                 // Talus / scree: debris (moraines) and the moderate slopes below cliffs above the treeline.
                 float scree = saturate(debris + smoothstep(.70, .82, ny) * (1 - smoothstep(.86, .95, ny)) * alpine * .7);
-                float3 screeColour = lerp(float3(.56, .55, .52), float3(.70, .58, .44), redrock) * (.9 + fine * .2);
+                float3 screeColour = lerp(float3(.38, .37, .35), float3(.50, .43, .36), redrock) * (.9 + fine * .2);
                 albedo = lerp(albedo, screeColour, scree * (1 - canopy) * .85);
                 albedo = lerp(albedo, stone, rock * (1 - canopy * .8));
                 // Desert country: sparse grass on bare sandstone soil.
-                albedo = lerp(albedo, lerp(float3(.72, .55, .40), float3(.66, .58, .44), mid), redrock * (1 - rock) * (1 - canopy) * .75);
+                albedo = lerp(albedo, lerp(float3(.44, .36, .29), float3(.49, .43, .36), mid), redrock * (1 - rock) * (1 - canopy) * .75);
 
                 // ---- made and washed surfaces -------------------------------------------------------------
                 float beach = (1 - smoothstep(2.5, 6, h)) * smoothstep(.85, .97, ny) * (1 - canopy);
-                float3 sand = lerp(float3(.66, .60, .47), float3(.80, .73, .57), smoothstep(.6, 2.2, h)) * (.94 + fine * .12);
+                float3 sand = lerp(float3(.55, .51, .45), float3(.64, .60, .53), smoothstep(.6, 2.2, h)) * (.94 + fine * .12); // Mokuleia beach
                 albedo = lerp(albedo, sand, beach);
-                albedo = lerp(albedo, float3(.58, .55, .48) * (.9 + fine * .2), gravel * .9);
+                albedo = lerp(albedo, float3(.40, .39, .37) * (.9 + fine * .2), gravel * .9);   // Knik braid bars
                 albedo = lerp(albedo, lerp(float3(.36, .47, .22), float3(.50, .50, .30), dry), turf * smoothstep(.95, .99, ny));
 
                 // ---- snow: early-summer cover by elevation and aspect, shed by steep ground ---------------
@@ -145,7 +155,7 @@ Shader "FlyingGame/IslandTerrain"
                 float hollow = saturate(wet * 1.6 + max(0, north) * .6 - .35);
                 float patch = smoothstep(snowLine - 420, snowLine - 60, h) * smoothstep(.62, .78, mid * .7 + hollow * .6) * smoothstep(.45, .7, ny);
                 float snow = saturate(max(cover, patch)) * (1 - turf) * (1 - beach);
-                float3 snowColour = float3(.95, .96, .97) * (.97 + fine * .04);
+                float3 snowColour = float3(.90, .92, .92) * (.97 + fine * .04);
                 albedo = lerp(albedo, snowColour, snow);
 
                 // ---- glacier ice --------------------------------------------------------------------------
@@ -154,7 +164,7 @@ Shader "FlyingGame/IslandTerrain"
                 if (ice > .15)        // glaciers only
                     crevasse = (1 - smoothstep(.04, .12, abs(filteredAt(float2(dot(xz, n.xz) * .045, dot(xz, float2(-n.z, n.x)) * .006), pixelM * .045) - .5)))
                                * steepIce * smoothstep(.5, .8, ice) * (1 - smoothstep(1.5, 5, pixelM));
-                float3 iceColour = lerp(float3(.86, .91, .95), float3(.78, .86, .93), fine);
+                float3 iceColour = lerp(float3(.62, .66, .68), float3(.70, .75, .78), fine);   // bare summer ice (Fairweather, Knik)
                 iceColour = lerp(iceColour, float3(.32, .45, .55), crevasse * .45);
                 iceColour = lerp(iceColour, float3(.36, .35, .33) * (.85 + fine * .3), saturate(debris * 1.3));
                 albedo = lerp(albedo, iceColour, smoothstep(.15, .6, ice));

@@ -439,6 +439,21 @@ namespace FlyingGame.EditorTools
                 ("28-catalina", S(3.5, -19, 1300), S(3.5, -14, 300), 50),
                 ("29-drake-hill", S(-4.9, -1.2, 1900), S(-4.9, -4.4, 1500), 50),
                 ("30-north-coast-low", S(-3.5, 10.5, 500), S(-1.0, 6.5, 200), 50),
+                // Real-topography areas (tools/island/topo): one view each, as a pilot meets it.
+                ("32-sitka-coast-from-the-sound", S(-14.5, 2.0, 700), S(-8.0, 2.8, 250), 50),
+                ("33-fairweather-from-the-sea", S(-0.8, 12.5, 1100), S(-0.6, 6.0, 800), 50),
+                ("34-fairweather-icefield-and-outlet", S(-6.5, 8.5, 2300), S(-1.6, 5.2, 900), 50),
+                ("35-grand-canyon-gorge", S(9.0, -2.0, 1750), S(3.5, -2.6, 1050), 50),
+                ("36-dillingham-under-the-ridge", S(6.5, 8.6, 250), S(4.8, 4.4, 300), 50),
+                ("37-knik-valley-to-the-glacier-face", S(-8.6, 0.4, 500), S(-4.2, -0.9, 150), 50),
+                ("38-johnson-creek-strip-valley", S(1.4, -3.6, 1850), S(1.85, -0.3, 1500), 55),
+            };
+            // Straight-down plates of each area's template window (e0, e1, n0, n1 km), north up, from 40 km so
+            // terrain parallax stays under 4%: the island half of each imagery-vs-render comparison plate.
+            (string name, double e0, double e1, double n0, double n1)[] areas =
+            {
+                ("fairweather", -4.4, 1.6, 4.0, 7.9), ("knik", -7.6, -2.6, -2.4, 1.4), ("sitka", -11.6, -5.4, 0.7, 4.7),
+                ("grandcanyon", 3.0, 8.4, -4.9, -0.2), ("dillingham", 2.8, 8.6, 2.4, 6.9), ("johnsoncreek", -0.2, 3.1, -2.7, 1.3),
             };
             var viewStats = new System.Text.StringBuilder();
             foreach (var (name, eye, look, fov) in views)
@@ -455,6 +470,23 @@ namespace FlyingGame.EditorTools
                 Object.DestroyImmediate(tex); Object.DestroyImmediate(forest);
                 viewStats.AppendLine($"{name}\t{TerrainDrawn(world, cam)}");
             }
+            var plates = new System.Text.StringBuilder("area\te0\te1\tn0\tn1\theight_m\tfov_v_deg\twidth_px\theight_px\n");
+            foreach (var (name, e0, e1, n0, n1) in areas)
+            {
+                const double up = 40000; double ce = (e0 + e1) / 2, cn = (n0 + n1) / 2;
+                double spanKm = System.Math.Max(n1 - n0, (e1 - e0) * rt.height / (double)rt.width) * 1.04;
+                cam.fieldOfView = (float)(2 * System.Math.Atan(spanKm * 500 / up) * 180 / System.Math.PI);
+                cam.transform.position = S(ce, cn, up);
+                cam.transform.rotation = Quaternion.LookRotation(S(ce, cn, 0) - S(ce, cn, up), (S(ce, cn + 1, 0) - S(ce, cn, 0)).normalized);
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, "plate-" + name + "-topdown.png"), tex.EncodeToPNG());
+                Object.DestroyImmediate(tex);
+                plates.AppendLine($"{name}\t{e0}\t{e1}\t{n0}\t{n1}\t{up}\t{cam.fieldOfView:F4}\t{rt.width}\t{rt.height}");
+            }
+            File.WriteAllText(Path.Combine(outDir, "plates.txt"), plates.ToString());
             RenderTexture.active = null;
             File.WriteAllText(Path.Combine(outDir, "view-stats.txt"), "view\tterrain draw calls / triangles drawn (frustum-culled; LOD as LODGroup selects it at lodBias " + QualitySettings.lodBias + ")\n" + viewStats);
             var cams = new System.Text.StringBuilder();

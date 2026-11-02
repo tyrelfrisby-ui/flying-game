@@ -23,7 +23,7 @@ namespace FlyingGame.Bridge
     ///  * A skirt hangs from every chunk edge, deeper than that level's error, so neighbours at different
     ///    levels never show a crack.
     ///  * Per-vertex surface channels for FlyingGame/IslandTerrain: colour = (glacier ice, debris, wetness,
-    ///    forest cover), uv0 = (local equilibrium-line altitude m, red-rock country), uv1 = (gravel, managed turf).
+    ///    forest cover), uv0 = (local equilibrium-line altitude m, red-rock country + / tropical coast -), uv1 = (gravel, managed turf).
     ///  * 5 m cells only where a cave mouth needs a hole in the ground (the old builder's PortalHole rule).
     /// </summary>
     public static class IslandTerrainMesh
@@ -133,12 +133,19 @@ namespace FlyingGame.Bridge
             double slope = Math.Sqrt(dx * dx + dy * dy);
             float forest = forestToo && h > Forest.ShoreClearM ? (float)Forest.CoverAt(x, y, h, slope, dx) : 0;
             var surface = h > -1 ? IslandTerrain.SurfaceAt(x, y) : WorldTerrain.Surface.Rough;
-            float redRock = p.E > 2 && p.N < -1 && p.N > -7 ? 1 : 0;
             colour = new Color32(B(ice), B(debris), B(wet), B(forest));
-            uv0 = new Vector2(ela, redRock);
+            uv0 = new Vector2(ela, (float)(Region(p, 2, 99, -7, -1) - Region(p, 2.8, 99, 2.4, 99)));
             uv1 = new Vector2(surface == WorldTerrain.Surface.Gravel ? 1 : 0, surface == WorldTerrain.Surface.Grass || surface == WorldTerrain.Surface.Paved ? 1 : 0);
         }
         static byte B(double v) => (byte)Math.Clamp(Math.Round(v * 255), 0, 255);
+        /// <summary>A material region (km box), feathered over 0.6 km inside its edge so no colour line follows a
+        /// grid line: red-rock country (the Grand Canyon area, + in uv0.y) and the leeward tropical coast (the
+        /// Dillingham/Mokuleia area, - in uv0.y). docs/pending/ISLAND-TERRAIN-CLAUDE.md, real-topo section.</summary>
+        static double Region(IslandPoint p, double e0, double e1, double n0, double n1)
+        {
+            double d = Math.Min(Math.Min(p.E - e0, e1 - p.E), Math.Min(p.N - n0, n1 - p.N));
+            return d <= 0 ? 0 : IslandTerrain.Smooth(Math.Min(1, d / .6));
+        }
 
         static bool NearCave(double x, double y)
         {
