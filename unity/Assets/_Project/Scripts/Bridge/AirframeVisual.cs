@@ -3861,6 +3861,18 @@ namespace FlyingGame.Bridge
                         Canopy = (1.9f, -0.3f, 1.9f, 0.55f, 0.32f), Tail = new TailSpec { StabSpan = 3.6f, StabRoot = 0.7f, StabTip = 0.4f, FinHeight = 1.55f, FinRoot = 1.1f, FinTip = 0.7f, FinSweepDeg = 30, TTail = true },
                         Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.2f, 0.3f, 0.6f),
                     };
+                case "glider-grob103-acro-like":
+                    return new Style
+                    {
+                        // Grob G 103 Twin II Acro (2026-11-01): drawn until the own GLB is in the build. Tandem two-seat
+                        // pod and boom from the flight manual's side and plan views (tools/aircraft_builder/build_grob103.py
+                        // PROFILE, half-widths; depth/width ~1.35 in the cockpit), long two-piece canopy, mid wing, T-tail.
+                        BodyAxisZ = 0.0f, BodyHeightScale = 1.35f,
+                        Body = new[] { (2.32f, 0.02f), (2.0f, 0.20f), (1.6f, 0.30f), (1.17f, 0.35f), (0.75f, 0.36f), (0.3f, 0.36f), (-0.5f, 0.345f), (-1.35f, 0.28f), (-2.2f, 0.215f), (-3.0f, 0.17f), (-3.9f, 0.14f), (-4.7f, 0.115f), (-5.2f, 0.10f) },
+                        Canopy = (0.15f, -0.33f, 2.5f, 0.62f, 0.40f),
+                        Tail = new TailSpec { StabSpan = 3.35f, StabRoot = 0.78f, StabTip = 0.42f, FinHeight = 1.2f, FinRoot = 1.25f, FinTip = 0.85f, FinSweepDeg = 23, TTail = true },
+                        Fuselage = white, Wing = white, TailColor = white, Control = red,
+                    };
                 case "glider-swift-s1-like":
                     return new Style
                     {

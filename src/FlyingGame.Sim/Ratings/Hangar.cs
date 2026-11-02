@@ -25,14 +25,14 @@ public static class Hangar
 {
     public static readonly PlaceholderAircraft[] Placeholders =
     {
-        new() { Id = "glider-grob103-acro-like", Name = "Grob 103 Acro-like (coming soon)", WantedFor = "the aerobatic glider stage" },
         new() { Id = "glider-dg-acro-like", Name = "DG-class aerobatic glider (coming soon)", WantedFor = "the aerobatic glider stage" },
         new() { Id = "beech18-like", Name = "Beech 18-like (coming soon)", WantedFor = "the air-mail job" },
         new() { Id = "boeing-737-200-like", Name = "737-200-like, steam gauges (coming soon)", WantedFor = "the airline track" },
     };
 
-    /// <summary>The aeroplanes the aerobatic glider stage accepts. Both are placeholders today. The Swift S-1
-    /// is an aerobatic glider but it is not a Grob 103 Acro or a DG, so it is deliberately not on this list.</summary>
+    /// <summary>The aeroplanes the aerobatic glider stage accepts. The Grob 103 Twin II Acro is built (2026-11-01,
+    /// configs/aircraft/glider-grob103-acro-like.json), so the stage can be flown; the DG is still a placeholder. The
+    /// Swift S-1 is an aerobatic glider but it is not a Grob 103 Acro or a DG, so it is deliberately not on this list.</summary>
     public static readonly string[] AerobaticGliders = { "glider-grob103-acro-like", "glider-dg-acro-like" };
 
     /// <summary>Kept on disk, hidden from every picker and from the progression.</summary>

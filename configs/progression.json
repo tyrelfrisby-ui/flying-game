@@ -56,7 +56,7 @@
     { "id": "FlightInstructor", "display": "Flight Instructor" }
   ],
 
-  "_stages": "Glider first. Each stage is passed by flying every listed lesson to passScore in ONE of its aircraft; an empty aircraft list means any powered aeroplane that is not retired. 'grants' is the level it gives, or null for a gate. The pilot stage is the player's choice of the Decathlon or the Great Lakes. The aerobatic glider stage cannot be flown on this build: both of its aircraft are placeholders.",
+  "_stages": "Glider first. Each stage is passed by flying every listed lesson to passScore in ONE of its aircraft; an empty aircraft list means any powered aeroplane that is not retired. 'grants' is the level it gives, or null for a gate. The pilot stage is the player's choice of the Decathlon or the Great Lakes. The aerobatic glider stage is flown in the Grob 103 Twin II Acro (built 2026-11-01); its DG alternative is still a placeholder.",
   "stages": [
     { "id": "glider-solo", "aircraft": ["glider-2-33-like"], "lessons": "glider pre-solo", "passScore": 70, "requires": [], "grants": "StudentSolo" },
     { "id": "cub-solo", "aircraft": ["j3-cub-like"], "lessons": "pre-solo", "passScore": 70, "requires": ["glider-solo"], "grants": null },
@@ -68,7 +68,7 @@
   ],
 
   "_placeholderAircraft": "PLACEHOLDERS: aircraft the stages or jobs name that have no config and no model. Data only - nothing loads them and no picker lists them; anything that needs one is shown as coming soon. src/FlyingGame.Sim/Ratings/Hangar.cs.",
-  "placeholderAircraft": ["glider-grob103-acro-like", "glider-dg-acro-like", "beech18-like", "boeing-737-200-like"],
+  "placeholderAircraft": ["glider-dg-acro-like", "beech18-like", "boeing-737-200-like"],
 
   "_retiredAircraft": "RETIRED (owner 2026-11-01): the 737-800 glass cockpit. Its config, model and livery stay on disk; it is off every picker and out of the progression and the points table.",
   "retiredAircraft": ["boeing-737-like"],

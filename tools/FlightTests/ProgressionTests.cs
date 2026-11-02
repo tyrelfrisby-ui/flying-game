@@ -80,7 +80,8 @@ public class ProgressionTests
     [Fact]
     public void APlaceholderHasNoConfigSoNothingCanTryToLoadIt()
     {
-        Assert.Equal(new[] { "glider-grob103-acro-like", "glider-dg-acro-like", "beech18-like", "boeing-737-200-like" },
+        // The Grob 103 Twin II Acro came off this list on 2026-11-01 when its config was built; the DG is still on it.
+        Assert.Equal(new[] { "glider-dg-acro-like", "beech18-like", "boeing-737-200-like" },
                      Hangar.Placeholders.Select(p => p.Id).ToArray());
         foreach (PlaceholderAircraft p in Hangar.Placeholders)
         {
@@ -140,7 +141,7 @@ public class ProgressionTests
         }
         // The fleet still has every type the ladder and the jobs fly.
         string[] fleet = pickers[0].ids;
-        foreach (string id in new[] { "glider-2-33-like", "j3-cub-like", "decathlon-8kcab-like", "great-lakes-like", "dc3-like",
+        foreach (string id in new[] { "glider-2-33-like", "j3-cub-like", "decathlon-8kcab-like", "great-lakes-like", "glider-grob103-acro-like", "dc3-like",
                                       "pa18-bush-like", "dhc2-beaver-floats-like" })
             Assert.Contains(id, fleet);
     }

@@ -317,7 +317,7 @@ namespace FlyingGame.Bridge
         public static readonly (string id, string name)[] Fleet =
         {
             ("paraglider-en-b-like", "Paraglider-like (EN-B)"), ("hang-glider-like", "Hang Glider-like"),
-            ("glider-2-33-like", "2-33-like Glider"), ("glider-eb29r-like", "EB29R-like Open Class"), ("glider-swift-s1-like", "Swift S-1-like"), ("c172-like", "172-like"), ("pa28-archer-like", "Archer-like"), ("cirrus-sr22-like", "SR22-like"), ("pa18-cub-like", "Super Cub-like"),
+            ("glider-2-33-like", "2-33-like Glider"), ("glider-eb29r-like", "EB29R-like Open Class"), ("glider-swift-s1-like", "Swift S-1-like"), ("glider-grob103-acro-like", "Twin II Acro-like"), ("c172-like", "172-like"), ("pa28-archer-like", "Archer-like"), ("cirrus-sr22-like", "SR22-like"), ("pa18-cub-like", "Super Cub-like"),
             ("pa18-bush-like", "Super Cub-like, Bushwheels"), ("pa18-floats-like", "Super Cub-like on Floats"),
             ("j3-cub-like", "J-3 Cub-like, 85 hp"), ("j3-cub-floats-like", "J-3 Cub-like on Floats"), ("dhc2-beaver-like", "Beaver-like"), ("dhc2-beaver-floats-like", "Beaver-like on Floats"), ("pa25-pawnee-like", "Pawnee-like"),
             ("decathlon-8kcab-like", "Decathlon-like"), ("extra-300-like", "Extra 300-like"), ("pitts-s2b-like", "Pitts S-2-like"), ("great-lakes-like", "Great Lakes-like"),
