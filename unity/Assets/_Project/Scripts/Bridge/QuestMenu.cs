@@ -481,6 +481,7 @@ namespace FlyingGame.Bridge
         private void FlyNow()
         {
             SessionSettings.ChallengeId = null;     // free flight: a lesson's OnGUI cards could not be seen in here
+            KeepToHeadsetFleet("FLY");
             // A start that throws must not leave the pilot behind a half-closed menu with no cockpit: say why, and
             // still put him in the seat (the 2026-11-02 Quest build threw here on every FLY — StreamingFiles).
             try { if (Landing != null) Landing.Fly(); }
@@ -641,9 +642,22 @@ namespace FlyingGame.Bridge
             return id;
         }
 
+        /// <summary>The headset's fleet: only the types with our own cockpit and a checked eye (FlyingGame.Core.Vr.QuestFleet).</summary>
+        private static readonly (string id, string name)[] HeadsetFleet = FlyingGame.Core.Vr.QuestFleet.Filter(SessionSettings.Fleet);
+
+        /// <summary>Put the choice on a type the headset lists (a saved J-3 from the phone, say), and say so.</summary>
+        internal static void KeepToHeadsetFleet(string why)
+        {
+            string was = SessionSettings.AircraftId, now = FlyingGame.Core.Vr.QuestFleet.Resolve(was);
+            if (now == was) return;
+            FlyingGame.Core.Vr.QuestFleet.HiddenBecause.TryGetValue(was ?? "", out string reason);
+            Debug.Log($"[Quest] aircraft '{was}' is not offered in a headset ({reason ?? "no cockpit of our own with a checked eye"}): {now} instead ({why})");
+            SessionSettings.AircraftId = now;
+        }
+
         private static void CycleAircraft(int step)
         {
-            var fleet = SessionSettings.Fleet;
+            var fleet = HeadsetFleet;
             int i = System.Array.FindIndex(fleet, f => f.id == SessionSettings.AircraftId);
             SessionSettings.AircraftId = fleet[((i < 0 ? 0 : i) + step + fleet.Length) % fleet.Length].id;
         }

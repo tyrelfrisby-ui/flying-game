@@ -188,6 +188,8 @@ namespace FlyingGame.Bridge
                 if (_gcSliceWas == 0) _gcSliceWas = UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds;
                 UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = GcSliceNs;
             }
+            QuestMenu.KeepToHeadsetFleet("headset started");
+            Debug.Log($"[Quest] aircraft offered in the headset: {string.Join(", ", FlyingGame.Core.Vr.QuestFleet.Listed)}");
             _head.Forget();          // the first head pose recentres
             XrControllers.LogDevices("headset started");
             Debug.Log($"[Quest] XR on — device '{XRSettings.loadedDeviceName}', eye texture {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight}, " +
