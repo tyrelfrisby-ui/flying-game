@@ -1,0 +1,15 @@
+EPPLER 472 (E472) aerobatic aircraft airfoil -- PUBLISHED COORDINATES, copied verbatim (byte-identical).
+Source:     UIUC Airfoil Coordinates Database, via airfoiltools.com (Selig format)
+URL:        http://airfoiltools.com/airfoil/seligdatfile?airfoil=e472-il
+Fetched:    2026-11-02 (by Ty; copied into the repo by lane/claude-inertia run 5c)
+SHA-256:    3d8fc823c477210b82394e97ce68115bd20f422651e7d24a841f58d62e6eda6b
+Stated:     max thickness 12.1 % at 17.5 % chord; symmetric (camber 0). Measured from this file: t/c 12.10 %;
+            the largest data-point thickness is at x = 0.1746, the spline maximum at x = 0.181.
+Use:        modified Eppler stand-in for the Extra's MA 15 S / MA 12 S (Ty, run 5d, 2026-11-02). This file is the
+            TIP section of both candidate wings, UNSCALED (run 5c's 15 % scaling of the root is undone):
+            candidate A uses it as published; candidate B is a geometric reshape of it (lane-owner algorithm
+            ab_sections.py; data/extra300-sections/B.SOURCE.txt). The "modification" is the spanwise blend between
+            E473 and E472 at each strip station. The Extra's own "MA 12 S" (300L Information Manual sec. 1.3.3) has
+            no published coordinates anywhere found.
+            Interpolation, blending and the reshape: tools/aircraft_builder/extra_sections.py;
+            docs/aircraft/extra-300-airfoil-DERIVATION.md section 1.

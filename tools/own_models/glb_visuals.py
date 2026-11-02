@@ -9,7 +9,6 @@ import struct
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 
 
 class Glb:
@@ -110,6 +109,7 @@ class Glb:
         Path(path).write_bytes(raw)
 
     def image(self, texture):
+        from PIL import Image
         im = self.doc['images'][self.doc['textures'][texture]['source']]
         v = self.doc['bufferViews'][im['bufferView']]
         return Image.open(io.BytesIO(self.bin[v.get('byteOffset',0):v.get('byteOffset',0)+v['byteLength']])).convert('RGB')
@@ -117,6 +117,7 @@ class Glb:
 
 def checker_update(path):
     """Same projections as build_pitts_s2b.py; only replace previously plain red undersides."""
+    from PIL import Image
     glb = Glb(path)
     if glb.doc.get('extras',{}).get('iacCheckerUndersides'): return
     q = 1.016 / 4

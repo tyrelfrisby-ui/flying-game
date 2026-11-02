@@ -145,3 +145,11 @@ against the build you made before reasoning about the code.
 `grep -rl "x" --include=*.unity .` dies with `no matches found: --include=*.unity`, and in a `&&` chain the echo
 after it can still print, which reads as a passing check. Quote the pattern (`--include='*.unity'`) and check the
 exit status rather than trusting the next line of output.
+
+### A full procedural rebuild can revive content removed by an offline pass
+The Extra wing-only change initially regenerated an obsolete cockpit card alongside the current card
+(`SequenceCard_Face.001`). HEAD's GLB had been updated offline after the full builder. Compare exported node
+sets and non-target meshes before calling a scoped rebuild complete. `build_ea300.py -- --wing-only` now
+replaces just the three wing meshes in the approved existing GLB. Also keep the paint-placement reference
+on its original chord grid when changing the geometry's sampling grid; mixing them caused an interpolation
+length error on the first B build.
