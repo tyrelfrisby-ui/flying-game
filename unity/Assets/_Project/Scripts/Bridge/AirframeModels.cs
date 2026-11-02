@@ -158,7 +158,7 @@ namespace FlyingGame.Bridge
         /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
             (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like" || modelId == "great-lakes-like"
-                || (modelId == "glider-2-33-like" && (SessionSettings.LiveryFor(modelId) is "factory" or "talk-flying")))
+                || modelId == "glider-2-33-like")   // ours always: yellow, the only 2-33 (LiveryChoice, Ty 2026-11-02)
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
 

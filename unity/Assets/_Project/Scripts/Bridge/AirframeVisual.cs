@@ -3973,11 +3973,15 @@ namespace FlyingGame.Bridge
                         Fuselage = white, Wing = white, TailColor = white, Control = red,
                     };
                 default: // glider-2-33-like (and anything unknown): high-wing strut-braced tandem trainer
+                    // Schweizer yellow all over (255,204,0, the Commons 2-33A 3-view). This was red and cream -- the
+                    // red-and-white 2-33 Ty removed on 2026-11-02; the 2-33 now always draws our own yellow model, and
+                    // if that ever fails to load, this fallback is yellow too.
+                    Color sgsYellow = new(1f, 0.8f, 0f);
                     return new Style
                     {
                         BodyAxisZ = 0.15f, Body = new[] { (2.2f, 0.05f), (1.9f, 0.25f), (1.2f, 0.45f), (0.3f, 0.48f), (-0.8f, 0.38f), (-2.0f, 0.24f), (-3.5f, 0.14f), (-5.0f, 0.09f), (-5.7f, 0.06f) },
                         Canopy = (1.0f, -0.42f, 1.6f, 0.8f, 0.55f), HighWingStruts = true, Tail = null,
-                        Fuselage = red, Wing = cream, TailColor = cream, Control = red,
+                        Fuselage = sgsYellow, Wing = sgsYellow, TailColor = sgsYellow, Control = sgsYellow,
                     };
             }
         }
