@@ -9,6 +9,54 @@
   steam-gauge 737-200). The 737-800 glass cockpit is retired from progression and menus (assets kept). No
   military/fighter path. No-position rule stays absolute. Missing aircraft are placeholders, listed as gaps in the
   lane entry below. Local commits only — **your review is needed before this merges into lane/claude-island-nav.**
+- **2026-11-01 lane/claude-cert-restructure — CERTIFICATES AND PROGRESSION RESTRUCTURED (Claude). Local commits
+  a3589ec, 3ccaa87, 0cda41e; not merged. No gate marked approved.**
+  1. **Levels** (`CertLevel`, numbers moved): None 0, StudentPreSolo 1, StudentSolo 2, **Pilot 3** (was Private),
+     **Instrument 4, shown to the player as "Blind Flying"**, Commercial 5 (was 4), **FlightInstructor 6**; Atp is
+     gone. Badges: STUDENT / SOLO / PILOT / BLIND FLYING / COMMERCIAL / INSTRUCTOR, then the classes rated
+     (GLIDER ASEL ASES AMEL AMES: the class's whole list flown in it at 78 %), e.g. `PILOT · ASEL ASES`. Renamed
+     identifiers: `Course.Private/Atp` -> `Pilot/Airline`, `MultiplayerMode.PrivateRoom` -> `CodeRoom` (same number,
+     label "Room by code"); `RatingResolver.NextStep` -> `Next`, `Resolve` now returns a `PilotStanding`.
+  2. **Progression gates** (`RatingBook.Default`, mirrored in `configs/progression.json`): glider-solo (2-33, glider
+     pre-solo @70, gives Student solo) -> cub-solo (J-3, pre-solo @70) -> pilot (Decathlon **or** Great Lakes,
+     player's choice, full syllabus @78, gives Pilot; the badge page shows which one) -> aerobatic-glider (Grob 103
+     Acro / DG class, glider full @78) -> instrument / Blind Flying (needs glider-solo **and** aerobatic-glider; any
+     powered non-retired type, full @83) -> commercial (@88) -> flight-instructor (@93). Every lesson of a stage must
+     be flown in ONE aeroplane. Flying anything = pre-solo student.
+  3. **Save migration** (`SaveMigration`, run inside `PilotLog.Deserialize` and written straight back by
+     `PilotRecord`). Saves were only ever the lesson log (`ratings.log`, `Class|Lesson=score`), never a level. An old
+     log (no `#v`) is judged under the frozen OLD rules; the highest old level in any class maps: none -> none;
+     pre-solo -> pre-solo; glider solo -> Student solo (glider-solo carried over); powered solo -> Student solo
+     (glider-solo + cub-solo); Private -> **Pilot** (+ pilot); Commercial -> Commercial (+ aerobatic-glider,
+     instrument, commercial); **ATP -> Commercial**. Carried-over stages are stored as `!stage=1` and shown on the
+     badge page. New logs add `@aircraft|Class|Lesson` keys; an older build still reads the class keys. Old badges
+     arriving over the network ("ASEL PVT", "ATP ASEL AMEL") are redrawn in the new words.
+  4. **Job stubs** (`FlyingGame.Sim.Jobs`, data only, nothing flies them): backcountry supply (PA-18 bushwheels,
+     KMYL->3U2), bush mail (Cubs, PATK->PANC), float freight (Beaver floats, PALH->SITX), float hop (Super Cub/J-3
+     floats, PALH->KITE), night air mail (Beech 18, placeholder, Blind Flying), airline DC-3 (KSNA->KMEV, Commercial)
+     then 737-200 (placeholder, after the DC-3). Navigation enum is Pilotage / PaperMap / CompassAndClock /
+     FourCourseRange / Ndb / Vor / Dme only — no position anywhere. No military jobs.
+  5. **737-800 retired**: off the start-menu fleet, the on-screen Aircraft button and keyboard key 0, and out of the
+     points table; a flight in it counts for nothing. Config, model, livery, LICENSE and its render/check tools are
+     untouched. A saved AircraftId of it falls back to the first fleet entry.
+  6. **GAPS (placeholders, data only, no config, never in a picker):** `glider-grob103-acro-like`,
+     `glider-dg-acro-like`, `beech18-like`, `boeing-737-200-like`. **Because the aerobatic glider does not exist,
+     nobody can get past Pilot on this build** (asserted by `OnThisBuildTheLadderStopsAtPilot…`). Also no real
+     instrument (hood / partial-panel / tracking) lessons exist: Blind Flying is the same syllabus at 83 %.
+  7. **Tests.** Branch point 1161db3: 1075 passed / 159 failed / 3 skipped of 1237 (120 unique failing names).
+     After: 1114 / 161 / 3 of 1278 (123 unique). New: SaveMigrationTests 21, ProgressionTests 9, PlayerTextTests 4,
+     BadgeTests reworked to 38 — all pass. Diff: 7 "introduced" (6 StructuralTests, ChallengeTests.HardBankScoresLow,
+     NaN/100-score symptoms) **all pass run alone (41/41)** — coupling, not regressions; 4 fixed by luck of order
+     (ReversibleControl x2, SpawnSpeed, StreamingAssets.NoTrackedFileIsGitignored).
+  8. **Build**: Unity batch 0 `error CS`, `** BUILD SUCCEEDED **` (stamp 2026.1101.1720, bundleVersion bump reverted,
+     nothing installed).
+  9. **Questions for Ty.** (a) Blind Flying is unreachable until a Grob 103 Acro or DG exists — allow the Swift S-1
+     as a stand-in meanwhile (one line in `Hangar.AerobaticGliders`)? (b) Old ATP -> Commercial, or straight to
+     Flight Instructor? (c) Old GLIDER-only Private -> Pilot as you said, though they never flew powered — keep?
+     (d) The Credits screen still says "licence"/"licensed under CC Attribution": that is the legal notice CC BY
+     requires, so I left it and exempted it in the scanner — OK? (e) The Pilot "choice" is whichever of the two you
+     pass it in; no separate menu choice. Want an explicit pick? (f) Instrument/Commercial/Instructor accept any
+     powered type — restrict to particular ones?
 - **GREAT LAKES FRONT PANEL, SECOND PASS — YOUR TWO FAULTS, AND A THIRD UNDER ONE OF THEM (Claude, 2026-11-01,
   lane/claude-gl-dials):**
   1. **The compass is a box with a window in it now.** You were right that the card hung out in the open and
