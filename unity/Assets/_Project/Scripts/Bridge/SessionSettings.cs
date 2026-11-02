@@ -206,9 +206,9 @@ namespace FlyingGame.Bridge
 
         // ---- multiplayer (free play only: challenges/events force Solo) ----
         /// <summary>Lan is appended, never inserted: the chosen mode is kept in PlayerPrefs as its number.</summary>
-        public enum MultiplayerMode { Solo, FreeForAll, PrivateRoom, Lan }
+        public enum MultiplayerMode { Solo, FreeForAll, CodeRoom, Lan }   // CodeRoom was PrivateRoom before 2026-11-01; same number
         public static MultiplayerMode Multiplayer = MultiplayerMode.Solo;
-        public static string RoomCode = "";                // 6 × [A-Z0-9] for PrivateRoom; "ffa" is the well-known free-for-all
+        public static string RoomCode = "";                // 6 × [A-Z0-9] for CodeRoom; "ffa" is the well-known free-for-all
         public static string PilotName = "";               // shown on the name tag over your aircraft
 
         /// <summary>BUSHWHEELS (owner 2026-10-16): any aeroplane can go on big soft tyres — twice the tyre,
@@ -281,7 +281,7 @@ namespace FlyingGame.Bridge
                 return Multiplayer switch
                 {
                     MultiplayerMode.FreeForAll => FfaRoom,
-                    MultiplayerMode.PrivateRoom => IsValidRoomCode(RoomCode) ? RoomCode : null,
+                    MultiplayerMode.CodeRoom => IsValidRoomCode(RoomCode) ? RoomCode : null,
                     // A code splits one network into separate rooms; without one everybody shares "LAN".
                     MultiplayerMode.Lan => LanPrefix + (IsValidRoomCode(RoomCode) ? RoomCode : LanRoom),
                     _ => null,
@@ -308,6 +308,12 @@ namespace FlyingGame.Bridge
 
         public static WorldTerrain.Airport Airport => WorldTerrain.Airports[Mathf.Clamp(AirportIndex, 0, WorldTerrain.Airports.Length - 1)];
 
+        /// <summary>
+        /// Every aeroplane a picker offers. RETIRED types (the 737-800, owner 2026-11-01) and PLACEHOLDERS (types the
+        /// progression names that are not built yet) are deliberately NOT here — see FlyingGame.Sim.Ratings.Hangar —
+        /// and `ProgressionTests` fails if one comes back. Their configs, models and liveries stay on disk. A saved
+        /// AircraftId that is no longer on this list falls back to the first entry when the settings load.
+        /// </summary>
         public static readonly (string id, string name)[] Fleet =
         {
             ("paraglider-en-b-like", "Paraglider-like (EN-B)"), ("hang-glider-like", "Hang Glider-like"),
@@ -316,7 +322,7 @@ namespace FlyingGame.Bridge
             ("j3-cub-like", "J-3 Cub-like, 85 hp"), ("j3-cub-floats-like", "J-3 Cub-like on Floats"), ("dhc2-beaver-like", "Beaver-like"), ("dhc2-beaver-floats-like", "Beaver-like on Floats"), ("pa25-pawnee-like", "Pawnee-like"),
             ("decathlon-8kcab-like", "Decathlon-like"), ("extra-300-like", "Extra 300-like"), ("pitts-s2b-like", "Pitts S-2-like"), ("great-lakes-like", "Great Lakes-like"),
             ("jn4-jenny-like", "JN-4D-like Jenny"), ("stearman-pt17-like", "Stearman-like"), ("p51d-like", "P-51D-like"), ("f86-sabre-like", "F-86-like"),
-            ("seminole-like", "Seminole-like"), ("dc3-like", "DC-3-like"), ("boeing-737-like", "737-like"), ("hughes-h4-like", "H-4-like"),
+            ("seminole-like", "Seminole-like"), ("dc3-like", "DC-3-like"), ("hughes-h4-like", "H-4-like"),
             ("cassutt-f1-like", "Cassutt-like Racer"), ("geebee-r2-like", "Gee Bee R-2-like"), ("glasair3-like", "Glasair III-like"),
             ("aircam-like", "AirCam-like"), ("aircam-amphib-like", "AirCam-like Amphib"),
         };

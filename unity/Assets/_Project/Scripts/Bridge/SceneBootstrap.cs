@@ -255,7 +255,7 @@ namespace FlyingGame.Bridge
         {
             Application.runInBackground = true;
             yield return new WaitForSecondsRealtime(2f);
-            SessionSettings.Multiplayer = room == SessionSettings.FfaRoom ? SessionSettings.MultiplayerMode.FreeForAll : SessionSettings.MultiplayerMode.PrivateRoom;
+            SessionSettings.Multiplayer = room == SessionSettings.FfaRoom ? SessionSettings.MultiplayerMode.FreeForAll : SessionSettings.MultiplayerMode.CodeRoom;
             if (room != SessionSettings.FfaRoom) SessionSettings.RoomCode = room.ToUpperInvariant();
             if (string.IsNullOrEmpty(SessionSettings.PilotName)) SessionSettings.PilotName = "MacTest";
             Debug.Log($"[MpTest] flying in {SessionSettings.EffectiveRoom}");
