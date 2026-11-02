@@ -81,7 +81,9 @@ public static class Generate
         // A summit is held up by its own shoulders (37 deg), so the fixed summit node can never be a spike.
         var negSummit = new double[g.N]; Array.Fill(negSummit, double.PositiveInfinity);
         foreach (int k in summitNodes) negSummit[k] = -c.Fix[k];
-        var cone = Envelope.Compute(g, negSummit, .75);
+        // Only the top 150 m: beyond that the erosion shapes the mountain (a support cone all the way down made
+        // Sierra and Drake Hill perfect cones).
+        var cone = Envelope.ComputeLimited(g, negSummit, .75, 150);
         for (int k = 0; k < g.N; k++) bench2[k] = Math.Min(bench2[k], cone[k]);
         m.Lower = new double[g.N]; m.Conflict = new double[g.N]; int conflicts = 0, hard = 0;
         for (int k = 0; k < g.N; k++)

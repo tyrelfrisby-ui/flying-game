@@ -298,7 +298,7 @@
         -6.64580312858385,
         4.54716566139432
       ],
-      "minimum_height_m": 6.15,
+      "minimum_height_m": 6.2,
       "triangles": 1147,
       "water_surface_penetration_m": 0,
       "water": "Lake Hood",
@@ -413,7 +413,7 @@
         -9.517780767670144,
         -0.9576569445701282
       ],
-      "minimum_height_m": 6.2583,
+      "minimum_height_m": 6.301,
       "triangles": 157,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -445,7 +445,7 @@
         -6.64580312858385,
         4.54716566139432
       ],
-      "minimum_height_m": 29.1619,
+      "minimum_height_m": 31.6575,
       "triangles": 149,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -461,7 +461,7 @@
         -6.0341968714161505,
         5.432834338605679
       ],
-      "minimum_height_m": 20.492,
+      "minimum_height_m": 20.3866,
       "triangles": 153,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -541,7 +541,7 @@
         -0.9676462357321183,
         3.7084041627221147
       ],
-      "minimum_height_m": 1016.6178,
+      "minimum_height_m": 1016.9617,
       "triangles": 146,
       "water_surface_penetration_m": 0,
       "water": "Payette Lake",
@@ -557,7 +557,7 @@
         -0.7923537642678817,
         1.8515958372778853
       ],
-      "minimum_height_m": 1286.2241,
+      "minimum_height_m": 1233.0219,
       "triangles": 155,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -573,7 +573,7 @@
         2.0087808319109333,
         -0.27039060190493075
       ],
-      "minimum_height_m": 1267.8353,
+      "minimum_height_m": 1267.693,
       "triangles": 155,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -589,7 +589,7 @@
         1.6312191680890669,
         -1.2496093980950693
       ],
-      "minimum_height_m": 942.7913,
+      "minimum_height_m": 922.898,
       "triangles": 156,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -605,7 +605,7 @@
         -3.09524,
         -0.6023923999999998
       ],
-      "minimum_height_m": 831.1471,
+      "minimum_height_m": 833.8442,
       "triangles": 161,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -621,7 +621,7 @@
         -3.09524,
         -2.8576076
       ],
-      "minimum_height_m": 856.0107,
+      "minimum_height_m": 857.7526,
       "triangles": 150,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -653,7 +653,7 @@
         -1.7284548363932997,
         -2.5405278888463902
       ],
-      "minimum_height_m": 966.7924,
+      "minimum_height_m": 948.4956,
       "triangles": 161,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -669,7 +669,7 @@
         -2.2150175095255045,
         -1.6339652157141848
       ],
-      "minimum_height_m": 1299.2334,
+      "minimum_height_m": 1258.9231,
       "triangles": 166,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -685,7 +685,7 @@
         -1.8849824904744952,
         -2.1660347842858148
       ],
-      "minimum_height_m": 1209.3918,
+      "minimum_height_m": 1210.0303,
       "triangles": 166,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -701,7 +701,7 @@
         5.7141404758697725,
         -0.15260753772210806
       ],
-      "minimum_height_m": 1074.4843,
+      "minimum_height_m": 1074.6093,
       "triangles": 157,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -717,7 +717,7 @@
         5.865859524130228,
         -1.9673924622778918
       ],
-      "minimum_height_m": 523.7203,
+      "minimum_height_m": 521.7038,
       "triangles": 158,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -733,7 +733,7 @@
         5.64890834621797,
         -0.10318412547564879
       ],
-      "minimum_height_m": 1032.5786,
+      "minimum_height_m": 1037.0138,
       "triangles": 161,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -749,7 +749,7 @@
         6.292953529343495,
         -0.2998712343186431
       ],
-      "minimum_height_m": 174.6996,
+      "minimum_height_m": 177.0375,
       "triangles": 161,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -797,7 +797,7 @@
         -4.9,
         -3.7240192
       ],
-      "minimum_height_m": 819.2911,
+      "minimum_height_m": 819.3392,
       "triangles": 150,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -985,7 +985,7 @@
         -2.02672,
         4.669143999999999
       ],
-      "minimum_height_m": 332.3569,
+      "minimum_height_m": 336.0975,
       "triangles": 150,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1001,7 +1001,7 @@
         -1.17328,
         4.669143999999999
       ],
-      "minimum_height_m": 1118.6165,
+      "minimum_height_m": 1118.1787,
       "triangles": 150,
       "water_surface_penetration_m": 0,
       "water": "Payette Lake",
@@ -1049,7 +1049,7 @@
         -2.034351640559666,
         -3.5293502527629896
       ],
-      "minimum_height_m": 1180.7,
+      "minimum_height_m": 1180.5,
       "triangles": 161,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1065,7 +1065,7 @@
         -1.9656483594403338,
         -4.27064974723701
       ],
-      "minimum_height_m": 517.9513,
+      "minimum_height_m": 518.5143,
       "triangles": 161,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1113,7 +1113,7 @@
         7.3592762802607865,
         2.822039556973221
       ],
-      "minimum_height_m": 24.5572,
+      "minimum_height_m": 30.139,
       "triangles": 162,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1129,7 +1129,7 @@
         7.040723719739214,
         3.177960443026779
       ],
-      "minimum_height_m": 41.158,
+      "minimum_height_m": 43.9346,
       "triangles": 162,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1145,7 +1145,7 @@
         4.837230329974565,
         4.469221846257285
       ],
-      "minimum_height_m": 159.1316,
+      "minimum_height_m": 159.9,
       "triangles": 160,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1156,12 +1156,12 @@
       "pad": "AP6"
     },
     {
-      "maximum_m": -1.053,
+      "maximum_m": -1.0539,
       "location": [
         5.410066951605655,
         4.260726366885957
       ],
-      "minimum_height_m": 78.9843,
+      "minimum_height_m": 70.2404,
       "triangles": 160,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1177,7 +1177,7 @@
         -8.89923428089863,
         1.2902373418883746
       ],
-      "minimum_height_m": 15.9693,
+      "minimum_height_m": 16.0026,
       "triangles": 168,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1193,7 +1193,7 @@
         -8.30076571910137,
         1.1097626581116253
       ],
-      "minimum_height_m": 39.1548,
+      "minimum_height_m": 34.8336,
       "triangles": 168,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1209,7 +1209,7 @@
         -8.316918119739942,
         3.215140046754048
       ],
-      "minimum_height_m": 49.8786,
+      "minimum_height_m": 50.0808,
       "triangles": 159,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1225,7 +1225,7 @@
         -8.220339102478231,
         4.001713021006763
       ],
-      "minimum_height_m": 17.25,
+      "minimum_height_m": 16.0412,
       "triangles": 159,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1241,7 +1241,7 @@
         -7.92,
         3.400000000000001
       ],
-      "minimum_height_m": 53.9136,
+      "minimum_height_m": 53.8578,
       "triangles": 154,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1257,7 +1257,7 @@
         -7.92,
         4.0
       ],
-      "minimum_height_m": 17.915,
+      "minimum_height_m": 15.3,
       "triangles": 154,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1289,7 +1289,7 @@
         -5.446855587701217,
         -5.9874802213316975
       ],
-      "minimum_height_m": 267.7614,
+      "minimum_height_m": 267.9468,
       "triangles": 154,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1305,7 +1305,7 @@
         1.5569945897231465,
         1.1424818582055198
       ],
-      "minimum_height_m": 1293.7721,
+      "minimum_height_m": 1293.7454,
       "triangles": 152,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1321,7 +1321,7 @@
         2.0430054102768533,
         1.8575181417944806
       ],
-      "minimum_height_m": 970.7197,
+      "minimum_height_m": 964.9875,
       "triangles": 152,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1337,7 +1337,7 @@
         -0.3000000000000018,
         4.675000000000001
       ],
-      "minimum_height_m": 740.7729,
+      "minimum_height_m": 740.316,
       "triangles": 165,
       "bake_maximum_m": 87.409,
       "exact_points": 904,
@@ -1372,7 +1372,7 @@
         1.0254752160492373,
         -3.2983518120963446
       ],
-      "minimum_height_m": 604.2401,
+      "minimum_height_m": 600.6746,
       "triangles": 154,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1388,7 +1388,7 @@
         1.7745247839507625,
         -3.1016481879036557
       ],
-      "minimum_height_m": 718.7,
+      "minimum_height_m": 715.0,
       "triangles": 154,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1420,7 +1420,7 @@
         5.522992159553182,
         -4.688302561231118
       ],
-      "minimum_height_m": 785.5133,
+      "minimum_height_m": 781.6797,
       "triangles": 153,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1468,7 +1468,7 @@
         0.4853024428556391,
         -2.3126450613789666
       ],
-      "minimum_height_m": 795.0175,
+      "minimum_height_m": 796.2579,
       "triangles": 150,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1484,7 +1484,7 @@
         0.9146975571443607,
         -1.287354938621034
       ],
-      "minimum_height_m": 1395.05,
+      "minimum_height_m": 1396.7393,
       "triangles": 150,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1500,7 +1500,7 @@
         2.500000000000002,
         -0.895
       ],
-      "minimum_height_m": 840.3,
+      "minimum_height_m": 842.05,
       "triangles": 150,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1516,7 +1516,7 @@
         2.577,
         0.23500000000000007
       ],
-      "minimum_height_m": 1266.4764,
+      "minimum_height_m": 1266.3322,
       "triangles": 150,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1532,7 +1532,7 @@
         3.8063744606396477,
         0.8091656967412578
       ],
-      "minimum_height_m": 1266.4,
+      "minimum_height_m": 1266.25,
       "triangles": 157,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1548,7 +1548,7 @@
         4.9936255393603535,
         0.49083430325874244
       ],
-      "minimum_height_m": 715.1835,
+      "minimum_height_m": 713.9574,
       "triangles": 157,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1580,7 +1580,7 @@
         3.8555608847589777,
         -0.31400273098744974
       ],
-      "minimum_height_m": 1063.5768,
+      "minimum_height_m": 1066.4446,
       "triangles": 155,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1596,7 +1596,7 @@
         3.7956042367859464,
         1.4058781887693625
       ],
-      "minimum_height_m": 1259.95,
+      "minimum_height_m": 1259.9,
       "triangles": 149,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1612,7 +1612,7 @@
         4.204395763214053,
         1.2941218112306374
       ],
-      "minimum_height_m": 973.2966,
+      "minimum_height_m": 975.4964,
       "triangles": 149,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1628,7 +1628,7 @@
         3.0259966078584775,
         0.7787433014353602
       ],
-      "minimum_height_m": 1048.1596,
+      "minimum_height_m": 1048.9072,
       "triangles": 154,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1644,7 +1644,7 @@
         3.1740033921415227,
         0.32125669856463984
       ],
-      "minimum_height_m": 1055.4981,
+      "minimum_height_m": 1060.8,
       "triangles": 154,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1660,7 +1660,7 @@
         -0.637366868219116,
         -2.6880336459147585
       ],
-      "minimum_height_m": 1149.1,
+      "minimum_height_m": 1145.7,
       "triangles": 153,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1676,7 +1676,7 @@
         -0.9626331317808842,
         -2.911966354085241
       ],
-      "minimum_height_m": 922.85,
+      "minimum_height_m": 922.6,
       "triangles": 153,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1692,7 +1692,7 @@
         3.1050241190169934,
         1.5291294727404383
       ],
-      "minimum_height_m": 1266.059,
+      "minimum_height_m": 1265.9541,
       "triangles": 151,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1708,7 +1708,7 @@
         3.894975880983006,
         2.470870527259562
       ],
-      "minimum_height_m": 758.8757,
+      "minimum_height_m": 708.6452,
       "triangles": 151,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1724,7 +1724,7 @@
         5.27735382907248,
         1.1368141571295796
       ],
-      "minimum_height_m": 987.3825,
+      "minimum_height_m": 987.3885,
       "triangles": 161,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -1740,7 +1740,7 @@
         4.9226461709275195,
         1.4631858428704207
       ],
-      "minimum_height_m": 890.4352,
+      "minimum_height_m": 889.5441,
       "triangles": 161,
       "water_surface_penetration_m": 0,
       "water": null,
@@ -2189,12 +2189,12 @@
     },
     {
       "segment": "PERIM-6",
-      "clearance_ft": 3890.27,
-      "terrain_or_solid_top_ft": 2109.73,
+      "clearance_ft": 3844.316,
+      "terrain_or_solid_top_ft": 2155.684,
       "limiting": "terrain",
       "terrain_max_location": [
-        5.748050885628786,
-        4.400000000000002
+        5.766484442341154,
+        4.366484442341152
       ],
       "mea_ft": 6000,
       "triangles": 19234
@@ -2213,8 +2213,8 @@
     },
     {
       "segment": "PERIM-8",
-      "clearance_ft": 8390.521,
-      "terrain_or_solid_top_ft": 2609.479,
+      "clearance_ft": 8313.366,
+      "terrain_or_solid_top_ft": 2686.634,
       "limiting": "terrain",
       "terrain_max_location": [
         -3.5,
