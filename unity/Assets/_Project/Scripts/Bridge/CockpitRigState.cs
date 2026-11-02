@@ -172,6 +172,13 @@ namespace FlyingGame.Bridge
             r.HeadingDeg = _headingDeg;
             r.TurnRateDps = _turnRateDps;
 
+            // Bank and pitch, the ZYX Euler angles of the body in NED: bank from the body's right (y) and down (z)
+            // axes, pitch from the nose's climb. Exact at any pitch (the cos θ cancels in the atan2).
+            var rightAx = ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(0, 1, 0));
+            var downAx = ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(0, 0, 1));
+            r.BankDeg = System.Math.Atan2(rightAx.Z, downAx.Z) * (180.0 / System.Math.PI);
+            r.PitchDeg = System.Math.Asin(System.Math.Clamp(-fwd.Z, -1.0, 1.0)) * (180.0 / System.Math.PI);
+
             // The inclinometer ball. In steady flight the ball IS a sideslip indicator: the side force opposes
             // β, and the ball hangs away from the force, so a relative wind from the right puts it to the
             // right. Full deflection at 10 deg of slip (E — a 2-1/4 in tube is about two ball widths).

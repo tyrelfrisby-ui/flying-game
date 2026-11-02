@@ -53,8 +53,11 @@ namespace FlyingGame.Bridge
         private Vector3 _originPos;
         private Quaternion _originRot = Quaternion.identity;
         private Transform _hudAnchor;
-        private float _perfT, _perfFrames, _perfCpuMs, _perfCpuMax;
-        private int _perfDropped0 = -1;
+        /// <summary>The incremental GC's slice in a headset, ns (see StartRig).</summary>
+        public const ulong GcSliceNs = 1_000_000;
+        private ulong _gcSliceWas;
+        private float _perfT, _perfFrames, _perfCpuMs, _perfCpuMax, _perfFrameMax;
+        private int _perfDropped0 = -1, _perfLong, _perfGc0 = -1, _perfCapped0;
 
         /// <summary>
         /// THE HUD-IN-VR HOOK. A transform at the active seat's eye, oriented with the aeroplane (forward = the nose),
@@ -163,6 +166,17 @@ namespace FlyingGame.Bridge
             // AudioListener is here and it records the head's view.
             if (QuestRecorder.Supported && GetComponent<QuestRecorder>() == null) gameObject.AddComponent<QuestRecorder>();
             ApplySettings();
+            // A flight sim at 200 Hz with a world to the horizon: ask for sustained-high CPU and GPU levels rather
+            // than letting the runtime save power (QuestPerformanceHints, XR_EXT_performance_settings).
+            XrHeadset.PerformanceHinter?.Invoke();
+            _perfGc0 = -1;
+            // The incremental collector's slice: Unity's default (3 ms) is a fifth of a 72 Hz frame, on top of a frame the
+            // sim already fills; 1 ms slices take longer to finish a cycle and never cost a frame. Restored in StopRig.
+            if (UnityEngine.Scripting.GarbageCollector.isIncremental)
+            {
+                if (_gcSliceWas == 0) _gcSliceWas = UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds;
+                UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = GcSliceNs;
+            }
             _head.Forget();          // the first head pose recentres
             Debug.Log($"[Quest] XR on — device '{XRSettings.loadedDeviceName}', eye texture {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight}, " +
                       $"render scale {XRSettings.eyeTextureResolutionScale:F2}, stereo {XRSettings.stereoRenderingMode}, " +
@@ -177,6 +191,7 @@ namespace FlyingGame.Bridge
             SubsystemManager.GetSubsystems(inputs);
             foreach (var s in inputs) s.trackingOriginUpdated -= OnRuntimeRecentre;
             if (_cam != null) XRDevice.DisableAutoXRCameraTracking(_cam, false);
+            if (_gcSliceWas != 0) { UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = _gcSliceWas; _gcSliceWas = 0; }
             QuestRecorder.Instance?.StopRecording(QuestRecorder.StopWaitMs);
             _menu?.Close(force: true);
             Debug.Log("[Quest] XR off.");
@@ -269,12 +284,20 @@ namespace FlyingGame.Bridge
             if (c.Record && !XrHeadset.MenuOpen) QuestRecorder.Toggle();   // in the menu A selects and B closes: use its row
         }
 
-        /// <summary>Log a frame-time line every 10 s so a logcat capture carries real numbers (docs/quest-performance.md).
-        /// Timings only — never where the aeroplane is.</summary>
+        /// <summary>How often the [QuestPerf] line is written, seconds.</summary>
+        public const float PerfEverySec = 5f;
+
+        /// <summary>Log a frame-time line every <see cref="PerfEverySec"/> s so a logcat capture carries real numbers
+        /// (docs/quest-performance.md): the frame rate, the worst frame and how many frames ran long, the CPU / GPU
+        /// times, garbage collections and the managed heap, how often the sim had to give up catching up, and the
+        /// runtime's own performance notices. Timings only — never where the aeroplane is.</summary>
         private void PerfLog()
         {
             float dt = Time.unscaledDeltaTime;
             _perfT += dt; _perfFrames++;
+            if (dt > _perfFrameMax) _perfFrameMax = dt;
+            float hz = XrHeadset.CurrentRefreshHz;
+            if (hz > 1f && dt > 1.5f / hz) _perfLong++;
             if (FrameTimingManager.IsFeatureEnabled())
             {
                 FrameTimingManager.CaptureFrameTimings();
@@ -284,7 +307,8 @@ namespace FlyingGame.Bridge
                     _perfCpuMs += cpu; _perfCpuMax = Mathf.Max(_perfCpuMax, cpu);
                 }
             }
-            if (_perfT < 10f) return;
+            if (_perfGc0 < 0) { _perfGc0 = System.GC.CollectionCount(0); _perfCapped0 = FlightSimDriver.CatchUpCappedFrames; }
+            if (_perfT < PerfEverySec) return;
             XRDisplaySubsystem d = XrHeadset.Display;
             string gpu = d != null && d.TryGetAppGPUTimeLastFrame(out float g) ? $"{g * 1000f:F1}" : "n/a";
             string comp = d != null && d.TryGetCompositorGPUTimeLastFrame(out float cg) ? $"{cg * 1000f:F1}" : "n/a";
@@ -295,9 +319,15 @@ namespace FlyingGame.Bridge
                 _perfDropped0 = df;
             }
             string cpuMain = _perfCpuMs > 0f ? $"{_perfCpuMs / _perfFrames:F1} (max {_perfCpuMax:F1})" : "n/a";
-            Debug.Log($"[QuestPerf] {_perfFrames / _perfT:F1} fps at {XrHeadset.CurrentRefreshHz:F0} Hz | cpu main {cpuMain} ms | " +
-                      $"gpu app {gpu} ms | compositor {comp} ms | dropped {dropped} in {_perfT:F0}s | scale {XRSettings.eyeTextureResolutionScale:F2} fov-level {XrHeadset.FoveationLevel:F2} | {QuestRecorder.PerfTag}");
-            _perfT = 0f; _perfFrames = 0; _perfCpuMs = 0f; _perfCpuMax = 0f;
+            int gcNow = System.GC.CollectionCount(0), capped = FlightSimDriver.CatchUpCappedFrames;
+            long heapMb = System.GC.GetTotalMemory(false) / (1024 * 1024);
+            string notice = XrHeadset.PerformanceNotice.Length > 0 ? XrHeadset.PerformanceNotice : "none";
+            Debug.Log($"[QuestPerf] {_perfFrames / _perfT:F1} fps at {hz:F0} Hz | frame max {_perfFrameMax * 1000f:F1} ms, {_perfLong} long | " +
+                      $"cpu main {cpuMain} ms | gpu app {gpu} ms | compositor {comp} ms | dropped {dropped} in {_perfT:F0}s | " +
+                      $"gc +{gcNow - _perfGc0} heap {heapMb} MB | sim capped {capped - _perfCapped0} | " +
+                      $"scale {XRSettings.eyeTextureResolutionScale:F2} fov-level {XrHeadset.FoveationLevel:F2} | runtime {notice} | {QuestRecorder.PerfTag}");
+            _perfT = 0f; _perfFrames = 0; _perfCpuMs = 0f; _perfCpuMax = 0f; _perfFrameMax = 0f; _perfLong = 0;
+            _perfGc0 = gcNow; _perfCapped0 = capped;
         }
 
         private readonly FrameTiming[] _timing = new FrameTiming[1];

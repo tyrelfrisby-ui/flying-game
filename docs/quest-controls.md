@@ -13,8 +13,8 @@ stick, left pad = rudder + throttle).
 | **Right thumbstick X** | Aileron | Right = roll right. |
 | **Right thumbstick Y** | Elevator | Forward = **push = nose down** (the realistic sense the pads use). `TouchFlightControls.InvertElevator` flips it for both (it is not in Options today). |
 | **Left thumbstick X** | Rudder | Right = right rudder. Springs back. |
-| **Left thumbstick Y** | **Throttle lever, as a rate** | Push to open, pull to close, **let go and it stays**. Idle to full in 2 s. On a glider the same lever is the spoiler handle (forward = stowed, back = out), exactly as the touch pad's upper band. |
-| **Left grip (hold) + move hand** | **Grab the throttle lever** | Squeeze, move your hand forward / back, let go: 20 cm of hand travel is the full lever. Starts from wherever the lever is, so a reset never makes it jump. |
+| **Left thumbstick Y** | **Throttle lever, as a rate** | Push to open, pull to close, **let go and it stays**. Idle to full in 2 s. On a glider the same lever is the spoiler handle (forward = stowed, back = out), exactly as the touch pad's upper band. A **POWER 65 %** card shows low on the left while it moves (see *The cockpit*). |
+| **Left grip (hold) + move hand** | **Grab the throttle lever** | Squeeze, move your hand forward / back, let go: 20 cm of hand travel is the full lever. Starts from wherever the lever is, so a reset never makes it jump. Same POWER card. |
 | **Left trigger** | Wheel brakes (analog) | Rudder biases them left / right, as on the touch pad (toe-brake feel). |
 | **Right trigger** | Guns (held) | Only where the guns are hot (combat zone / dogfight). Otherwise nothing. |
 | **Right grip** | Smoke on / off | One toggle per squeeze. |
@@ -33,6 +33,34 @@ Dead zones: thumbsticks have a 0.10 hardware dead zone (rescaled, so full deflec
 rate 0.25. The aeroplane's own dead zone and expo (`AircraftConfig`) come on top, exactly as for the touch pads.
 One stick carries rudder and throttle, so whichever axis is clearly dominant wins: a bootful of rudder with your
 thumb drifting 0.3 forward does not open the throttle, and easing the power off does not kick the rudder.
+
+## The cockpit
+
+In a headset the flat dials and the HUD stand down, so the aeroplane's own cockpit has to work. What moves, per
+aeroplane (from the sim, every frame, the same numbers the iPhone's dials show):
+
+| Aeroplane | Instruments | Stick, pedals | Throttle lever |
+|---|---|---|---|
+| **Pitts S-2B** | Rear (PIC) panel live: airspeed (mph), altimeter (both hands), g meter with max / min tell-tales, tach, oil (pressure + temperature, one dial), manifold pressure, compass card. The front panel's three small dials are still painted. | Both sticks and all four pedals, cut out of the model's cockpit mesh and hinged at the floor. | **Added**: the model has none. A lever on the left wall of the rear cockpit, 5 cm ahead of the seat, 10 cm below the sill. **Ty: say where it really is and I will move it.** |
+| **Extra 300** | Front panel: the model's own rig (as before). Rear panel: airspeed (kt), altimeter, attitude (bank only), g meter, tach, oil, manifold pressure, fuel, compass card live; fuel pressure and volts stay painted. | The rig (as before). | The rig (as before). |
+| **Great Lakes, 2-33** | The model's own rig. | The rig. | The rig. |
+| **Cub** | Not yet: its needles, sticks and pedals are separate nodes with their rig in the GLB, but there is no rig file for the game to read. | Not yet. | Not yet. |
+| Everything else | The downloaded / generated models have no cockpit that moves. | | |
+
+Signs, so they can be checked from the seat: **stick aft = top comes toward you** (18°, 12° forward), **right
+aileron = top to the right** (18°), **right rudder = right pedal forward, left pedal back** (15°), **throttle
+forward = power** (50° of travel). The table and the signs are in `src/FlyingGame.Core/CockpitLive.cs` and pinned
+by `tools/FlightTests/CockpitLiveTests.cs`; the Unity side is `Bridge/CockpitLiveParts.cs`, which logs
+`[Cockpit] <model>: n of m dials live, cut Stick_R 80, … ` once per aeroplane (a rebuilt model that no longer
+matches says `LEFT STATIC` there instead of carving the wrong triangles).
+
+**The POWER card.** Whenever the throttle moves (stick or grip), a small green **POWER 65 %** card shows low on
+the left, 0.55 m out, by the throttle hand, for 1.5 s after the lever stops (**AIRBRAKE 40 %** on a glider). On
+the first three flights it also says how: *"THROTTLE: left stick forward / back - it stays where you leave it (or
+squeeze the left grip and push your hand)"* for 10 s after FLY. It draws over the cockpit (the menu's shader),
+never over the horizon.
+
+**The sequence card** no longer flickers in the Pitts: see docs/quest-performance.md, *The flickering card*.
 
 ## The VR menu
 

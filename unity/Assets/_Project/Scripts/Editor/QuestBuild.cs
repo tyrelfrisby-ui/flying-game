@@ -78,7 +78,10 @@ namespace FlyingGame.EditorTools
             FeatureHelpers.RefreshFeatures(BuildTargetGroup.Android);
             OpenXRSettings oxr = OpenXRSettings.GetSettingsForBuildTargetGroup(BuildTargetGroup.Android);
             oxr.renderMode = OpenXRSettings.RenderMode.SinglePassInstanced;
-            var wanted = new System.Type[] { typeof(MetaQuestFeature), typeof(OculusTouchControllerProfile), typeof(HandInteractionProfile), typeof(QuestDisplayRateFeature) };
+            // XrPerformanceSettingsFeature: Unity's own XR_EXT_performance_settings, for the sustained-high CPU/GPU hint
+            // and the runtime's thermal notifications (QuestPerformanceHints, docs/quest-performance.md).
+            var wanted = new System.Type[] { typeof(MetaQuestFeature), typeof(OculusTouchControllerProfile), typeof(HandInteractionProfile), typeof(QuestDisplayRateFeature),
+                                             typeof(UnityEngine.XR.OpenXR.Features.Extensions.PerformanceSettings.XrPerformanceSettingsFeature) };
             foreach (var f in oxr.GetFeatures())
             {
                 bool on = wanted.Contains(f.GetType());

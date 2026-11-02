@@ -78,6 +78,9 @@ namespace FlyingGame.Bridge
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen || Chase == null) return;
+            // A Quest never shows OnGUI (the VR menu replaces this toolbar), and building its labels on every Layout
+            // and Repaint event was garbage for the headset's collector every frame of a flight.
+            if (XrHeadset.Active) return;
             if (OpenViewMenuRequest) { _viewMenu = true; OpenViewMenuRequest = false; }
             EnsureStyles();
             _talkRect = default;

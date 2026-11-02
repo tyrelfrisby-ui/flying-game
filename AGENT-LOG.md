@@ -1,4 +1,32 @@
 ## NEEDS YOU
+- **QUEST: FRAME RATE, LIVE COCKPIT, THROTTLE, CARD FLICKER (Claude, 2026-11-02, lane/claude-vr-quest) — your bugs
+  6–10. Code only: NOT built, NOT on the headset (`adb devices` showed the 3S as **unauthorized**: accept "Allow USB
+  debugging" inside the headset and I can read logcat next time). NEEDS YOU after the operator's rebuild:**
+  1. **Stutter.** Fly the Pitts low around the island for 10 minutes, then `adb logcat -s Unity | grep QuestPerf`.
+     Healthy: `fps` at 72, `frame max` under ~20 ms with `0 long`, `gc +` small and `heap` not climbing, `sim capped 0`,
+     `runtime none`. Does it still go slow / catch up? If `sim capped` keeps counting, the physics does not fit the
+     frame and the next step is a lower sim rate in VR (a flight-model decision, not taken). A `runtime: Cpu Thermal
+     Normal->Warning` line means the headset itself throttled. Cause and fixes: docs/quest-performance.md, *The stutter*.
+  2. **Pitts gauges.** Rear panel: airspeed (mph), altimeter, g meter with orange max/min tell-tales, tach, oil
+     (pressure + temperature on one dial), **manifold pressure in the slot rear_panel.py labelled "oil temperature"**,
+     compass card. Do they read right and move the right way? Is MP the right thing in that slot? The front panel's
+     three small dials are still painted. In the **Extra** the rear panel is live too (the old rig needles that floated
+     over it are hidden); the attitude indicator shows bank only.
+  3. **Stick and pedals (Pitts).** Stick aft = top toward you, right aileron = top right, right rudder = right pedal
+     forward. If a sign is wrong, it is one line in `CockpitLive` (src/FlyingGame.Core/CockpitLive.cs).
+  4. **Throttle.** The Pitts model has NO throttle, so there is now a lever on the **left wall of the rear cockpit,
+     5 cm ahead of the seat, 10 cm below the sill**, forward = power. **Tell me where yours really is** (and whether you
+     want prop and mixture beside it) and I will move it. Left stick forward/back or left grip + push both move it; a
+     green **POWER 65 %** card shows low on the left while it moves, and the first three flights start with a
+     how-to line. Too big, too low, in the way?
+  5. **Sequence card.** Does it still flicker in the Pitts? (It sat 0.1 mm in front of its paper; the earlier fix never
+     reached the Pitts. Now 1.2 mm, done in local space, and the paper is not drawn.)
+  **Evidence (bench only):**
+  - Full suite: branch 207 failed / 1153 passed; branch point ef0c47a 168 / 1172, both with other worktrees' suites
+    loading the Mac.
+  - Unique failing names: 127 on the branch, 119 at the base. The 12 only on the branch (MultiEngine, Spin,
+    Structural) all pass alone (47/47), so they are coupling flakes. **No failing name introduced.**
+  - Android, iOS and editor Roslyn: 0 errors in touched code. **Nothing approved.**
 - **QUEST: RECORD WHAT YOU SEE (Claude, 2026-11-02, lane/claude-vr-quest). Code only: NOT built, NOT on the
   headset. NEEDS YOU after the operator's rebuild:**
   1. **In the headset: hold A and B together for a second.** A red "REC 0:00" should appear high on the left of
@@ -896,6 +924,52 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · Quest bugs 6–10: stutter, dead gauges, still stick/pedals, throttle, card flicker
+**Device:** `adb devices -l` showed 340YC10GBK0TYV as **unauthorized** for the whole session, so no logcat, VrApi or
+dumpsys could be read. Every cause below comes from code plus headless measurement. Nothing was built or installed.
+**6 Stutter** (details in docs/quest-performance.md, *The stutter*). Measured on the Mac (`QuestFrameBudgetProbe`,
+Pitts, island, 72 Hz driving, with other suites running): **203–318 ms CPU per sim-second (2.8–4.4 ms per frame) and
+145.9 KiB allocated per sim-second**. The island's ground, water and air queries allocate 0 B per call (measured).
+Found by code reading (a background read-only audit, then each finding checked):
+- per-frame garbage: `GroundShadow` read `.name` per ancestor of every mesh, a `TouchFlightControls` key string,
+  invisible OnGUI toolbars, a JNI poll, LCD strings, a fresh forest batch per chunk;
+- a catch-up loop of up to ten steps after a slow frame.
+Fixed:
+- each of the garbage sources above;
+- catch-up capped at two display periods in XR (`SimLoop.HeadsetCatchUpSec`), with capped frames counted;
+- GC slice set to 1 ms in XR;
+- sustained-high CPU/GPU hints and thermal notices (Unity's `XrPerformanceSettingsFeature`, now enabled by
+  `QuestBuild`);
+- a forest stall guard tied to the display period;
+- a `[QuestPerf]` line every 5 s: frame max and long frames, GC count, heap, sim capped, runtime notice.
+**7 Gauges.** Cause: rear_panel.py's PIC panels are pictures with painted needles. In the Extra they sit in front of
+the rig's needles, which were left floating 1–6 mm over a bare panel (GLB measured). The Pitts has no needles and no
+rig, and the flat `AnalogGauges` hid all this on iPhone. Fix: `CockpitLive` (Core table, tests) plus
+`CockpitLiveParts` (Bridge):
+- live dial faces from the EA/GL art copied into Resources/CockpitDials (`tools/own_models/make_live_dials.py`);
+- needles of our own on the EA rig's maps;
+- turning compass and bank cards;
+- the Extra's orphaned rear needles hidden.
+Also: `RigInputsNow` ran twice a frame, which zeroed the vario and turn needle; it now runs once. Bank and pitch were
+added to `RigInputs`. The Cub has rig data only in its GLB extras and no rig json: not done.
+**8 Stick/pedals.** The Pitts draws them into its static `Cockpit` mesh. They are cut out by geometric volumes,
+checked against all four liveries (80 triangles per stick, 12 per pedal, nothing else caught), and pivoted at the
+floor. A count mismatch logs `LEFT STATIC` instead of carving.
+**9 Throttle.** The input path checks out: no joystick profile or keyboard fights it on the Quest. Two fixes:
+- the Pitts had no lever, so one was added on the left wall (placement provisional);
+- a POWER nn % card shows while the throttle moves, with a how-to line on the first 3 flights.
+**10 Card.** The face is 0.1 mm off its stock in all three models. `SeparateCoplanar` never ran for the Pitts (no rig,
+no eye node), and it nudged in world space, which loses ~0.5 mm a few km out. It now runs for every model, moves
+1.2 mm in the parent frame, and hides the stock.
+**Checks:**
+- Roslyn against the 6000.3.23f1 Android il2cpp and iOS player DLLs: Core, Sim, Bridge 0 errors; Quest assembly
+  0 errors against Library/Bee Unity.XR.OpenXR.dll.
+- Editor: Core, Sim, Bridge, Quest 0 errors. EditorTools: 2 errors in untouched BuildScript lines, which come from
+  the harness (no monolithic UnityEditor.dll).
+- New tests: `CockpitLiveTests` (20) and `QuestFrameBudgetProbe`, green.
+- Full suite: see the NEEDS YOU entry. `ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake` fails
+  identically at ef0c47a.
+
 ### 2026-11-02 — Claude · lane/claude-vr-quest · record what the headset shows: A + B in the headset, quest-record.sh on the Mac
 Ty: a controller shortcut that starts / stops a "what I see" recording without the Meta menu, and a Mac-side recorder.
 **In-app (Android only).** Options weighed: MediaProjection needs a consent dialog every session (a 2D system

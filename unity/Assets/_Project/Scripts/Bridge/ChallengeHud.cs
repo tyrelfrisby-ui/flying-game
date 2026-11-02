@@ -18,6 +18,7 @@ namespace FlyingGame.Bridge
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen) return;   // owner 2026-10-03: no HUD text over the landing page
+            if (XrHeadset.Active) return;           // a Quest never shows OnGUI; challenges are not offered there
             Init();
             // Top-centre, below FlightHud's lines; sized off the short screen edge like the rest of the GUI.
             float lh = _fs * 1.5f;

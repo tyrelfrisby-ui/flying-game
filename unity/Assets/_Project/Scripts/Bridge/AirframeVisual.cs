@@ -85,15 +85,6 @@ namespace FlyingGame.Bridge
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
-            // A model that brought its own rig moves ITS parts — the same control positions, so the drawn
-            // surfaces and the cockpit always agree with the aeroplane the sim is flying.
-            if (_builder.HasOwnRig)
-                _builder.SetRig(RigInputsNow(_driver.Sim.Aircraft,
-                                             DebugDeflect.HasValue
-                                                 ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
-                                                 : d,
-                                             Time.deltaTime),
-                                Time.deltaTime);
             var acp = _driver.Sim.Aircraft;
             float rpm = DebugRpm ?? (acp.EngineStopped ? 0f : (float)acp.EngineRpm);
             _builder.SpinProps(i =>
@@ -104,18 +95,29 @@ namespace FlyingGame.Bridge
             }, Time.deltaTime);
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
             // A model that brought its own rig moves ITS parts — the same control positions the aero model is
-            // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown.
-            if (_builder.HasOwnRig)
+            // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown. A model whose
+            // cockpit was drawn as pictures (the Pitts, the Extra's rear panel) has them made live by CockpitLiveParts
+            // from the same readings. ONCE a frame: this used to run twice, and the second pass saw no time pass, so it
+            // dragged the vario and the turn needle back toward zero every frame.
+            if (_builder.ModelRoot != null && !_live.Bound) _live.Bind(this, AirframeModels.PlacedOwnName(_driver.AircraftId));
+            if (_builder.HasOwnRig || _live.Active)
             {
                 var rd = DebugDeflect.HasValue
                     ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
                     : d;
-                _builder.SetRig(RigInputsNow(acp, rd, Time.deltaTime), Time.deltaTime);
+                FlyingGame.Core.RigInputs rig = RigInputsNow(acp, rd, Time.deltaTime);
+                if (_builder.HasOwnRig) _builder.SetRig(rig, Time.deltaTime);
+                _live.Update(rig);
                 // The red handle, pulled all the way: the canopy is gone the moment the rig says so, whether
                 // the hand on it was the player's or the bailout's.
                 if (Cockpit.CanopyPull01 >= 0.999f && !Cockpit.CanopyGone) JettisonRigPart(_driver.WorldVelocityUnity);
-                // The panel's own glass and paper: the two avionics LCDs, and the sequence card in its holder.
-                _displays.Bind(FindInModel);
+            }
+            if (_builder.ModelRoot != null)
+            {
+                // The panel's own glass and paper: the two avionics LCDs, and the sequence card in its holder — on
+                // every placed model, rigged or not (the Pitts has a card holder and no rig, so its card never got
+                // the anti-flicker separation).
+                _displays.Bind(FindInModel, transform);
                 _displays.Update(_lastRig);
                 Card.Bind(this, _driver.AircraftId);
             }
@@ -130,6 +132,9 @@ namespace FlyingGame.Bridge
         /// <summary>The avionics LCDs and the sequence card holder, where the model has them.</summary>
         private readonly CockpitDisplays _displays = new();
         public readonly SequenceCard Card = new();
+        /// <summary>The painted parts of a cockpit made to move: live dials, cut-out sticks and pedals, an added
+        /// throttle (FlyingGame.Core.CockpitLive says which, per model).</summary>
+        private readonly CockpitLiveParts _live = new();
 
 
         private FlyingGame.Core.RigInputs _lastRig;
@@ -141,6 +146,9 @@ namespace FlyingGame.Bridge
         /// <summary>A named node inside the placed model — the eye points, the display faces, the sequence card.
         /// null for the procedural shell, or where the model has no such node.</summary>
         public Transform FindInModel(string node) => _builder.FindInModel(node);
+
+        /// <summary>The placed model's root, or null where the aeroplane on screen is the procedural shell.</summary>
+        public Transform ModelRoot => _builder.ModelRoot;
 
         private bool _rigPartGone;
 
@@ -484,6 +492,7 @@ namespace FlyingGame.Bridge
             Cockpit.Reset();
             _displays.Forget();
             Card.Forget();
+            _live.Forget();
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
             foreach (var sights in GetComponentsInChildren<CockpitSights>(true)) sights.BindLocal(_driver);
             GetComponent<GroundShadow>()?.Refresh();

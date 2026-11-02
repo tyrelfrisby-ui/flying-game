@@ -187,6 +187,9 @@ public struct RigInputs
     public double GLoad;
     /// <summary>The accelerometer's tell-tales: the running maximum and minimum since they were last reset.</summary>
     public double GMaxSeen, GMinSeen;
+    /// <summary>Attitude, degrees: bank + = right wing down (-180..180), pitch + = nose up (-90..90). What an
+    /// attitude indicator shows.</summary>
+    public double BankDeg, PitchDeg;
 
     /// <summary>COM, MHz: the tuned (active) and the standby frequency.</summary>
     public double ComFreqMhz, ComStandbyMhz;
@@ -286,6 +289,8 @@ public struct RigInputs
             case "g_load": value = GLoad; return true;
             case "g_max_seen": value = GMaxSeen; return true;
             case "g_min_seen": value = GMinSeen; return true;
+            case "bank_deg": value = BankDeg; return true;
+            case "pitch_deg": value = PitchDeg; return true;
             case "com_freq_mhz": value = ComFreqMhz; return true;
             case "com_standby_mhz": value = ComStandbyMhz; return true;
             case "com_volume": value = ComVolume; return true;

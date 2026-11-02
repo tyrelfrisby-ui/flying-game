@@ -342,13 +342,20 @@ namespace FlyingGame.Bridge
             return best ?? nearest;
         }
 
+        /// <summary>Frames on which the sim gave up catching up with real time (the [QuestPerf] line reports the
+        /// increase): a steady count means the frame cannot carry the physics.</summary>
+        public static int CatchUpCappedFrames;
+
         private void Update()
         {
             if (Replaying) return;
             Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors || ForceCapture;
             ControlInputs inputs = InputFilter != null ? InputFilter(Inputs, Time.deltaTime) : Inputs;
             if (AutoFilter != null) inputs = AutoFilter(inputs, Time.deltaTime);
-            Sim.Advance(Time.deltaTime, inputs, ref _accumulator);
+            // In a headset the catch-up is capped at two display periods (SimLoop.HeadsetCatchUpSec): chasing a long
+            // frame with up to ten physics steps made the next frame late as well, and so on.
+            double cap = XrHeadset.Active ? SimLoop.HeadsetCatchUpSec(XrHeadset.CurrentRefreshHz) : SimLoop.MaxCatchUpSec;
+            if (Sim.Advance(Time.deltaTime, inputs, ref _accumulator, cap)) CatchUpCappedFrames++;
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();
             UpdateSpinMetrics(Time.deltaTime);

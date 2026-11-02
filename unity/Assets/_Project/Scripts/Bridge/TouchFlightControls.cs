@@ -173,15 +173,19 @@ namespace FlyingGame.Bridge
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
         }
 
-        private string _layoutKey;
+        private (int, int, bool, bool, bool, bool, bool, bool, float, float, float) _layoutKey;
+        private bool _layoutKeySet;
 
         private void Update()
         {
             // Re-lay out only when something the layout depends on changes (screen, aircraft type, keep-out step) —
             // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
             Rect ko = ScreenLayout.AircraftKeepOut;
-            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
-            if (key != _layoutKey) { _layoutKey = key; LayOut(); }
+            // A value tuple, not a string: this runs every frame, and an interpolated key was ~10 boxed values and a
+            // string of garbage a frame for the collector (docs/quest-performance.md).
+            var key = (Screen.width, Screen.height, StripElevator, StripThrottle, StripBrakes, FireAvailable, HasEjectionSeat,
+                       _driver.Sim?.Aircraft?.Config?.Propulsion == null, ko.yMin, ko.xMin, ko.xMax);
+            if (!_layoutKeySet || !key.Equals(_layoutKey)) { _layoutKey = key; _layoutKeySet = true; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive)

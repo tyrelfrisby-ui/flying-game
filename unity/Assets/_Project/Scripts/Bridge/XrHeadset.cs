@@ -99,6 +99,13 @@ namespace FlyingGame.Bridge
             set { PlayerPrefs.SetInt(PrefTipFlights, value); PlayerPrefs.Save(); }
         }
 
+        /// <summary>Flights that started with the throttle how-to line on the power readout (QuestCockpit.PowerHint).</summary>
+        public static int PowerHintFlights
+        {
+            get => PlayerPrefs.GetInt("quest.powerHintFlights", 0);
+            set { PlayerPrefs.SetInt("quest.powerHintFlights", value); PlayerPrefs.Save(); }
+        }
+
         /// <summary>True once the pilot has opened the menu himself in flight: he has found it, so no more tip.</summary>
         public static bool MenuFound
         {
@@ -113,15 +120,32 @@ namespace FlyingGame.Bridge
         /// </summary>
         public static System.Func<float, bool> RefreshRateRequester;
 
+        /// <summary>
+        /// Set by the FlyingGame.Quest assembly (QuestPerformanceHints) to ask the runtime for SUSTAINED-HIGH CPU and
+        /// GPU levels through XR_EXT_performance_settings. Null where there is no such runtime. Returns whether both
+        /// hints were accepted.
+        /// </summary>
+        public static System.Func<bool> PerformanceHinter;
+
+        /// <summary>The last performance change the runtime reported ("Cpu Thermal Normal->Warning"), "" if none yet:
+        /// the [QuestPerf] line carries it, so a slow patch in a capture says whether the headset was throttling.</summary>
+        public static string PerformanceNotice = "";
+
         /// <summary>The rate the display is actually running at, Hz, or 0 if the runtime will not say.</summary>
         public static float CurrentRefreshHz
         {
             get
             {
+                // Cached per frame: the sim, the forest streamer and the [QuestPerf] line all ask, every frame.
+                if (_hzFrame == Time.frameCount) return _hz;
+                _hzFrame = Time.frameCount;
                 var d = Display;
-                return d != null && d.TryGetDisplayRefreshRate(out float hz) ? hz : 0f;
+                _hz = d != null && d.TryGetDisplayRefreshRate(out float hz) ? hz : 0f;
+                return _hz;
             }
         }
+        private static int _hzFrame = -1;
+        private static float _hz;
 
         // ---- render scale and fixed foveation ----
 

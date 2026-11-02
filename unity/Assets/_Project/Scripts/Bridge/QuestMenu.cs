@@ -69,6 +69,15 @@ namespace FlyingGame.Bridge
         private Material _tipPanelMat;
         private float _tipShownAt = -1f;
 
+        // The power readout: "POWER 65 %" low on the left, by the throttle hand, while the lever moves
+        // (QuestCockpit.PowerOpacity), and with the how-to line on the first flights.
+        private Transform _power;
+        private TextMesh _powerText;
+        private Material _powerPanelMat;
+        private float _powerMovedAt = -100f, _powerHintUntil = -1f;
+        private double _powerLast = double.NaN;
+        private string _powerShown = "";
+
         public bool IsOpen => _open;
 
         private ChaseCamera Chase => _rig != null ? _rig.GetComponent<ChaseCamera>() : null;
@@ -137,6 +146,7 @@ namespace FlyingGame.Bridge
             _rig = rig;
             if (!_open && OnLanding) Open(rig);
             TickTip();
+            TickPower();
             if (!_open) return;
             Refresh();
             if (Time.frameCount != _openedFrame) HandleInput();
@@ -347,6 +357,81 @@ namespace FlyingGame.Bridge
             XrHeadset.Recentre();
             _rig?.ReportAfterFly();
             StartTipIfDue();
+            if (XrHeadset.PowerHintFlights < QuestCockpit.PowerHintFlights)
+            {
+                XrHeadset.PowerHintFlights = XrHeadset.PowerHintFlights + 1;
+                _powerHintUntil = Time.unscaledTime + (float)QuestCockpit.PowerHintSec;
+            }
+        }
+
+        // ---- the power readout ----
+
+        /// <summary>Every frame: show the lever's setting while it moves (and the how-to line on the first flights),
+        /// riding the cockpit like the tip, low on the left where the throttle hand is. In the cockpit view only, and
+        /// not with the menu open.</summary>
+        private void TickPower()
+        {
+            Transform anchor = _rig != null ? _rig.HudAnchor : null;
+            FlyingGame.Sim.Aircraft ac = Driver != null && Driver.Sim != null ? Driver.Sim.Aircraft : null;
+            bool cockpit = !_open && !SessionSettings.MenuOpen && anchor != null && ac != null && ChaseCamera.InCockpit;
+            if (!cockpit)
+            {
+                if (_power != null && _power.gameObject.activeSelf) _power.gameObject.SetActive(false);
+                _powerLast = double.NaN;
+                return;
+            }
+            bool glider = ac.Config.Propulsion == null;
+            double lever = glider ? ac.CurrentDeflections.SpoilerFraction : ac.Throttle01;
+            float now = Time.unscaledTime;
+            if (!double.IsNaN(_powerLast) && QuestCockpit.LeverMoved(_powerLast, lever)) _powerMovedAt = now;
+            _powerLast = lever;
+            bool hint = now < _powerHintUntil;
+            float op = hint ? 1f : (float)QuestCockpit.PowerOpacity(now - _powerMovedAt);
+            if (op <= 0f)
+            {
+                if (_power != null && _power.gameObject.activeSelf) _power.gameObject.SetActive(false);
+                return;
+            }
+            if (_power == null) BuildPower();
+            if (!_power.gameObject.activeSelf) _power.gameObject.SetActive(true);
+            if (_power.parent != anchor) _power.SetParent(anchor, false);
+            // Low and to the left, 0.55 m out: a glance down at the left hand, never over the horizon.
+            var at = new Vector3(-0.2f, -0.3f, 0.55f);
+            _power.localPosition = at;
+            _power.localRotation = Quaternion.LookRotation(at.normalized, Vector3.up);
+            // A new string only when the whole-percent figure changes.
+            string text = QuestCockpit.PowerLabel(lever, glider);
+            if (hint) text += "\n" + QuestCockpit.PowerHint;
+            if (text != _powerShown) { _powerShown = text; _powerText.text = text; }
+            Transform panel = _power.GetChild(0);
+            panel.localScale = new Vector3(hint ? 0.62f : 0.2f, hint ? 0.11f : 0.045f, 1f);
+            Color tc = _powerText.color; tc.a = op; _powerText.color = tc;
+            Color pc = _powerPanelMat.color; pc.a = 0.85f * op; _powerPanelMat.color = pc;
+        }
+
+        private void BuildPower()
+        {
+            if (!_built) { Build(); if (!_open) _root.SetActive(false); }
+            var root = new GameObject("VR Power Readout");
+            _power = root.transform;
+            _powerPanelMat = Solid(_panelMat.shader, new Color(0.05f, 0.08f, 0.12f, 0.85f), 4000);
+            Transform panel = Quad("Panel", _powerPanelMat);
+            panel.SetParent(_power, false);
+            panel.localPosition = new Vector3(0f, 0f, 0.002f);
+            var go = new GameObject("Text");
+            go.transform.SetParent(_power, false);
+            _powerText = go.AddComponent<TextMesh>();
+            _powerText.font = UiFont.Get();
+            _powerText.fontSize = 64;
+            _powerText.characterSize = CharHeight * 0.75f * 10f / _powerText.fontSize;
+            _powerText.anchor = TextAnchor.MiddleCenter;
+            _powerText.alignment = TextAlignment.Center;
+            _powerText.color = new Color(0.55f, 1f, 0.6f, 1f);
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = _textMat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            _powerShown = "";
         }
 
         // ---- the "press MENU" tip ----

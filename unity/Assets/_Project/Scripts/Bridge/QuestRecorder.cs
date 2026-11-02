@@ -171,9 +171,13 @@ namespace FlyingGame.Bridge
 
         // ---- every frame ----
 
+        private float _nextPoll;
+
         private void LateUpdate()
         {
-            PollMessage();
+            // The encoder's messages (saved, failed) matter while it runs; idle, twice a second is plenty, and every
+            // poll is a JNI round trip through AndroidJavaObject that allocates (docs/quest-performance.md).
+            if (_on || Time.unscaledTime >= _nextPoll) { _nextPoll = Time.unscaledTime + 0.5f; PollMessage(); }
             if (_on)
             {
                 double now = Time.realtimeSinceStartupAsDouble;

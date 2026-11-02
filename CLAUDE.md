@@ -169,3 +169,27 @@ aircraft change made it look safe: every index stayed in range. Keep a choice by
 (`SeatChoice`, seat ids are "never renamed once shipped") and resolve it against the list it is applied to, with a
 stated default when the ID is absent; and a menu that offers a choice for "the aeroplane you will fly" must read
 THAT aeroplane, not the one that happens to be loaded.
+
+### When a platform drops an overlay, ask what the overlay was covering for
+The Pitts' and the Extra's rear panels are painted faces with painted needles (`rear_panel.py`: "all static"), and
+in the Extra they sit in front of the rig's real needles. Nobody noticed on an iPhone, because the flat dials
+(`AnalogGauges`) carried the readings; the Quest suppresses every flat overlay, and Ty's first report was "none of
+the cockpit gauges move". Before standing an overlay down on a new platform, find what the pilot was reading from
+it and check that the 3-D cockpit really shows the same thing on the aircraft he will fly.
+
+### A fix that needs an optional node must say when it found nothing
+`CockpitDisplays.SeparateCoplanar` (the 2026-11-01 card-flicker fix) returned silently without `Eye_Rear`, and ran
+only for rigged models. The Pitts has neither an eye node nor a rig, so the fix never reached the aeroplane the
+report came from, and the card "still flickers" a day later. Test a fix on the aircraft named in the report, fall
+back to something every model has (the aeroplane's own axes), and log when a lookup comes back empty.
+
+### A millimetre in world space is not a millimetre
+There is no floating origin: the aeroplane is routinely kilometres from (0, 0, 0), where a float carries about half
+a millimetre, so `t.position += dir * 0.001f` can round to nothing or to double. Separate coplanar surfaces, place
+needles and pivot cut-out parts in the PARENT's local frame from local transforms (`CockpitLiveParts`), never by
+reading and writing world positions.
+
+### `Transform.name` allocates a new string on every read
+`GroundShadow` read two names per ancestor of every airframe mesh, every frame: on the Quest that was the largest
+source of garbage, and a non-generational collector turns steady garbage into a periodic stutter. Resolve anything a
+name decides once (on build / `Refresh`) and keep the answer; never read `.name` in a per-frame loop.
