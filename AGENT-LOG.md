@@ -1,4 +1,14 @@
 ## NEEDS YOU
+- **EXTRA 300 VISIBLE WING B — TY VISUAL REVIEW (Codex, 2026-11-02, lane/codex-extra-wing-b):**
+  Review `renders/extra-wing-b/after-root-end.png` against `before-root-end.png` and `section-overlay.png`:
+  look for the fat round nose, thickness peak near 17% chord, and gently concave aft skin. Compare
+  `after-34.png` / `before-34.png` for the livery and fuselage junction. All three own liveries now use B
+  from 90d0e85; physics/configs untouched. Compromises: existing half-round aileron nose / 3 mm gap retained;
+  centreline carry-through remains trimmed, so section images use exposed root y=.45 m. Max measured skin
+  error .151% chord (inner root); other stations .010–.081%. Hinge transforms, planform bounds, UV projection,
+  paint images and non-wing meshes preserved. `--wing-only` avoids the full builder's pre-existing duplicate
+  sequence-card face. No in-game/Unity confirmation or visual approval claimed. Details: updated provenance
+  and `renders/extra-wing-b/measurements.json`.
 - **GREAT LAKES FRONT PANEL, SECOND PASS — YOUR TWO FAULTS, AND A THIRD UNDER ONE OF THEM (Claude, 2026-11-01,
   lane/claude-gl-dials):**
   1. **The compass is a box with a window in it now.** You were right that the card hung out in the open and
@@ -778,6 +788,9 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 07:55 PT · codex (Grok Bot committing) · lane/codex-extra-wing-b · Extra 300 visible wing -> airfoil B
+
+Codex: rebuilt Extra 300 visible Wing + Aileron_L/R to B (90d0e85), all three liveries; added exported-section/rig/paint checks, matched CPU review renders, and provenance. Ty visual review pending. Grok Bot: build-only check (Unity iOS export 0 error CS, xcodebuild ** BUILD SUCCEEDED **, 07:59 PT; bundleVersion bump reverted); committed locally, not merged, not deployed.
 ### 2026-11-01 — Claude · lane/claude-loading-arms · the published arms, wired
 
 **Branched from lane/claude-island-nav (69089df) and fast-forwarded Codex's table lane (ee088db) in first.**
