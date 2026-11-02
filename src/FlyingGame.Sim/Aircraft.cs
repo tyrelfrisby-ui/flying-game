@@ -228,6 +228,11 @@ public sealed class Aircraft
         return true;
     }
 
+    /// <summary>Extra flat-plate drag area (m²) on top of the airframe's own, set from outside the sim each frame —
+    /// today an OPEN CANOPY in the headset's hands-on bail-out (Core Vr.CanopyDynamics.DragAreaM2). Applied along the
+    /// relative wind at <see cref="ExtraDragPointBody"/> (body axes, the config's frame), so it also yaws and pitches.</summary>
+    public double ExtraDragAreaM2 { get; set; }
+    public Vec3 ExtraDragPointBody { get; set; }
     public double BrakeInput { get; set; }     // 0..1 wheel braking (on ground), both sides
     /// <summary>Differential braking bias -1 (left only) .. +1 (right only): rudder pedal toe-brake feel.
     /// Left/right brake = BrakeInput × (1 ∓ bias) clamped to 0..1.</summary>
@@ -896,6 +901,18 @@ public sealed class Aircraft
                 Vec3 vAir = s.Velocity - windBody;
                 double vA = vAir.Length;
                 if (vA > 1.0) totalF -= vAir * (0.5 * airDensity * vA * Config.GearDragAreaM2 * GearExtension);
+            }
+            if (ExtraDragAreaM2 > 0)
+            {
+                Vec3 vAir = s.Velocity - windBody;
+                double vA = vAir.Length;
+                if (vA > 1.0)
+                {
+                    Vec3 xF = vAir * (-0.5 * airDensity * vA * ExtraDragAreaM2);
+                    ForceDebug.Add(ExtraDragPointBody, xF, Vec3.Zero, "extra-drag");
+                    totalF += xF;
+                    totalM += Vec3.Cross(ExtraDragPointBody - Config.Mass.CgVec(), xF);
+                }
             }
             if (Brs.Out && Config.Brs is not null)
             {

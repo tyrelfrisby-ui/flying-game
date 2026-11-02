@@ -55,6 +55,16 @@ namespace FlyingGame.Bridge
         /// a type with none. Set by VrCockpitHands; reset with the aeroplane; it drives the rig's `canopy_latch` and
         /// <see cref="CanopyLocked"/>. Phase 2's canopy opening asks <see cref="CanopyLocked"/>.</summary>
         public FlyingGame.Core.Vr.ICanopyLatch HandLatch;
+        /// <summary>THE HANDS-ON BAIL-OUT (headset, docs/vr-cockpit.md phase 2), set by VrCockpitHands for a type that has
+        /// them and reset with the aeroplane: the canopy on its hinge in the airload (while set it, not the menu's
+        /// open/shut command, decides <see cref="CanopyOpen01"/>, and its drag goes into the flight model), the seat's
+        /// belts, the headset cord and the climb out.</summary>
+        public FlyingGame.Core.Vr.CanopyDynamics HandCanopy;
+        public FlyingGame.Core.Vr.SeatHarness Harness;
+        public FlyingGame.Core.Vr.HeadsetCord Cord;
+        public readonly FlyingGame.Core.Vr.ClimbOut Climb = new();
+        /// <summary>Where the open canopy's drag acts, the config's body frame (VrCockpitHands sets it).</summary>
+        public FlyingGame.Core.MathTypes.Vec3 CanopyDragPointBody;
 
         /// <summary>How fast the canopy swings when the player asks for it, and how fast the release handle
         /// moves under a hand and springs back after.</summary>
@@ -104,6 +114,10 @@ namespace FlyingGame.Bridge
             CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true;
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
             HandLatch?.Reset();
+            HandCanopy?.Reset();
+            Harness?.Reset();
+            Cord?.Reset();
+            Climb.Reset();
         }
 
         /// <summary>Clear the accelerometer's max / min tell-tales (the knob on a real one).</summary>
@@ -201,6 +215,10 @@ namespace FlyingGame.Bridge
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
             r.CanopyJettison = CanopyPull01;
             r.CanopyLatch = HandLatch != null ? HandLatch.Latch01 : CanopyLocked ? 0.0 : 1.0;
+            r.HarnessLatch = Harness != null ? Harness.Harness01 : 0.0;
+            // An open canopy's drag, into the flight model (Aircraft.ExtraDragAreaM2); nothing unless the hands opened it.
+            ac.ExtraDragAreaM2 = HandCanopy != null && !CanopyGone ? HandCanopy.DragAreaM2 : 0.0;
+            ac.ExtraDragPointBody = CanopyDragPointBody;
         }
 
         /// <summary>The four gauges with no sim behind them (P), from throttle, rpm and ambient pressure. The
@@ -246,7 +264,10 @@ namespace FlyingGame.Bridge
             if (dt <= 0f) return;
             // Speed shuts it: leave it open and accelerate, and it comes down and locks rather than flying off.
             if (_iasKt > CanopyMaxOpenKt && _canopyTarget > 0f) { _canopyTarget = 0f; CanopyLocked = true; }
-            if (!CanopyGone)
+            // A hand on a headset's canopy: its own physics set CanopyOpen01 (it flips open in the airload, which the
+            // 60 kt rule above would contradict), so the menu's command stands down.
+            if (HandCanopy != null) { if (!CanopyGone) CanopyOpen01 = (float)HandCanopy.Open01; }
+            else if (!CanopyGone)
                 CanopyOpen01 = Mathf.MoveTowards(CanopyOpen01, _canopyTarget, dt / CanopySec);
             if (_handOnRelease > 0f)
             {

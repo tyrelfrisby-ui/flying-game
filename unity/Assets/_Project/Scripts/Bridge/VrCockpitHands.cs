@@ -30,10 +30,12 @@ namespace FlyingGame.Bridge
     /// the cockpit is drawn from those deflections, so it trails exactly as the elevator does, and the next grab takes
     /// it from there without a jump.
     ///
-    /// Nothing here moves the camera: grabbing can never move the pilot's head.
+    /// Nothing here moves the camera: grabbing can never move the pilot's head. The one exception is the pilot's OWN
+    /// doing in the bail-out (VrCockpitHands.Bailout.cs): climbing out on the sill raises his seat by what his hand
+    /// pushed, and once out he is the jumper, and the head rig is placed on him.
     /// </summary>
     [DefaultExecutionOrder(10001)]
-    public sealed class VrCockpitHands : MonoBehaviour
+    public sealed partial class VrCockpitHands : MonoBehaviour
     {
         public static VrCockpitHands Current { get; private set; }
 
@@ -84,7 +86,7 @@ namespace FlyingGame.Bridge
             _body.SetVisible(false);
         }
 
-        private void OnDestroy() => _body.Destroy();
+        private void OnDestroy() { _body.Destroy(); DestroyBailout(); }
 
         private void LateUpdate()
         {
@@ -104,6 +106,7 @@ namespace FlyingGame.Bridge
             {
                 if (was) { _grab.ReleaseAll(); (_visual?.Cockpit.HandLatch as PittsCanopyLatch)?.Release(); }
                 _maskRight = false;
+                TickJumper();
                 return;
             }
             Bind();
@@ -113,6 +116,7 @@ namespace FlyingGame.Bridge
             Events(HandSide.Left, _grab.Step(HandSide.Left, _hands[0], blocked));
             Events(HandSide.Right, _grab.Step(HandSide.Right, _hands[1], blocked));
             Drive();
+            DriveBailout();
         }
 
         /// <summary>In the cockpit the LEFT grip is the left hand's (it no longer grabs the throttle from anywhere:
@@ -262,6 +266,7 @@ namespace FlyingGame.Bridge
                       $"(pivot {pivot.y - _eye.y:F2} m below the eye, {len:F2} m, roll ±{roll:F0}°, {aft:F0}° aft / {fwd:F0}° fwd); " +
                       $"throttle {(!_hasThrottle ? "none (no engine)" : thrNode != null ? "on the rig's lever" : "proxy")} ({sweep:F0}°, arm {arm:F2} m); " +
                       $"feet {(_footNodeL != null ? "on the pedals" : "proxy")}; latch {_latchKind}{(_latchKind != CanopyLatchKind.None ? _latchNode != null ? " on its node" : " proxy" : "")}");
+            BindBailout(full);
         }
 
         private void BindFoot(string full, string brief, string side, out Transform node, out Vector3 offset)
@@ -289,7 +294,7 @@ namespace FlyingGame.Bridge
                 _hands[s] = new HandPose
                 {
                     Source = HandSource.Controller,
-                    Position = C(_eye + sp),
+                    Position = C(_eye + Vector3.up * _rise + sp),   // climbing out raises the seat the hands are measured from
                     Rotation = new Quat(sq.x, sq.y, sq.z, sq.w),
                     Grip = left ? f.LeftGrip : f.RightGrip,
                     Pinch = left ? f.LeftTrigger : f.RightTrigger,
@@ -317,6 +322,7 @@ namespace FlyingGame.Bridge
             CockpitRigState cockpit = _visual != null ? _visual.Cockpit : null;
             bool latch = _latchKind != CanopyLatchKind.None && cockpit != null && cockpit.HandLatch != null && !cockpit.CanopyGone;
             _grab.Set(Grabbable.CanopyLatch, latch ? C(LatchPoint(cockpit)) : Vec3.Zero, latch);
+            UpdateBailoutPoints();
         }
 
         private Vector3 LatchPoint(CockpitRigState cockpit)
@@ -344,6 +350,9 @@ namespace FlyingGame.Bridge
                     case Grabbable.Throttle: _lever.Grab(h, _driver.Sim.Aircraft.Throttle01); break;
                     case Grabbable.CanopyLatch:
                         if (_visual.Cockpit.HandLatch is PittsCanopyLatch p) p.Grab(h.X);
+                        break;
+                    default:
+                        GrabBailout(side, _grab.Held(side), _hands[(int)side]);
                         break;
                 }
             }
@@ -398,11 +407,13 @@ namespace FlyingGame.Bridge
         /// </summary>
         private void PoseBody()
         {
+            if (_jumper) { PoseJumper(); return; }
             if (!Active) { _body.SetVisible(false); return; }
             _body.SetVisible(true);
 
-            Vector3 shL = _eye + U(SeatedPilot.ShoulderL), shR = _eye + U(SeatedPilot.ShoulderR);
-            Vector3 hipL = _eye + U(SeatedPilot.HipL), hipR = _eye + U(SeatedPilot.HipR);
+            Vector3 lift = Vector3.up * _rise;   // climbing out: the body rises off the seat with the hand's push
+            Vector3 shL = _eye + lift + U(SeatedPilot.ShoulderL), shR = _eye + lift + U(SeatedPilot.ShoulderR);
+            Vector3 hipL = _eye + lift + U(SeatedPilot.HipL), hipR = _eye + lift + U(SeatedPilot.HipR);
             Vector3 throttleGrip = _hasThrottle ? U(_lever.GripAt(_driver.Sim.Aircraft.Throttle01)) : hipL + new Vector3(0f, 0.08f, 0.35f);
             Vector3 stickGrip = U(_stick.Grip);
 
@@ -424,6 +435,7 @@ namespace FlyingGame.Bridge
             Leg(true, World(hipL), World(ballL), World(ballL + heel), World(_eye + U(SeatedPilot.KneePoleL)));
             Leg(false, World(hipR), World(ballR), World(ballR + heel), World(_eye + U(SeatedPilot.KneePoleR)));
             _body.Apply(_pose);
+            PlaceProps();
         }
 
         /// <summary>Where a hand is drawn: ON the control it holds (the visible hand snaps to the grip), at the
@@ -438,7 +450,8 @@ namespace FlyingGame.Bridge
             {
                 grip = held == Grabbable.Stick ? U(_stick.Grip)
                      : held == Grabbable.Throttle ? U(_lever.GripAt(Throttle01))
-                     : LatchPoint(_visual.Cockpit);
+                     : held == Grabbable.CanopyLatch ? LatchPoint(_visual.Cockpit)
+                     : HeldBailoutPoint(held, h);
                 curl = held == Grabbable.CanopyLatch && _latchKind == CanopyLatchKind.Squeeze ? 0.6f + 0.4f * (float)h.Pinch : 1f;
                 return;
             }

@@ -164,6 +164,8 @@ public struct RigInputs
 
     /// <summary>0..1 canopy, 1 = fully open.</summary>
     public double CanopyOpen;
+    /// <summary>The seat harness (CONTRACT.md phase 2): 0 latched .. 1 released; the straps fall open on it.</summary>
+    public double HarnessLatch;
     /// <summary>0 or 1, 1 = locked.</summary>
     public double CanopyLock;
     /// <summary>0..1 pull of the emergency release.</summary>
@@ -277,6 +279,7 @@ public struct RigInputs
             case "canopy_lock": value = CanopyLock; return true;
             case "canopy_jettison": value = CanopyJettison; return true;
             case "canopy_latch": value = CanopyLatch; return true;
+            case "harness_latch": value = HarnessLatch; return true;
             case "airspeed_kias": value = AirspeedKias; return true;
             case "vsi_fpm": value = VsiFpm; return true;
             case "rpm": value = Rpm; return true;

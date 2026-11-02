@@ -46,11 +46,30 @@ the VR menu is open, and grabbing never moves your head. The design is in [vr-co
 | **Canopy latch, Pitts** | either | Grab the **black ball** on top of the rear panel and slide it **left / right** (3 in). **Fully RIGHT = LOCKED**, with a detent click at the end; pull 1 cm left to come out of it. | Stays where it was left. |
 | **Canopy latch, Extra** | either | Grab the **two red-and-white handles** with one hand and pull the **trigger** to squeeze them together. Squeezed home (85 %) = UNLOCKED (click). | They spring back; with the canopy shut they re-lock (click). |
 
-Opening the canopy itself is Phase 2: today the latch only changes the locked state (the rig's `canopy_latch` and the
-cockpit's lock). The rudder is still the **left thumbstick X**, and your feet ride the pedals.
+Opening the canopy, the belts, the headset plug, the sills and the ripcord: see "Bailing out by hand" below. The rudder is still the **left thumbstick X**, and your feet ride the pedals.
 
 **You see yourself:** arms, gloved hands, legs and boots, posed from the controllers and the pedals. With a controller
 put down, that hand rests on its control. Hidden in outside views.
+
+## Bailing out by hand (cockpit view, Pitts and Extra)
+
+The real way out: every step is yours, in first person, as the Extra's POH and the 300S egress card run it. Nothing
+happens by itself except what the air does. Design and numbers: [vr-cockpit.md, Phase 2](vr-cockpit.md#phase-2-the-bail-out-by-hand).
+
+| # | Do | With | How | What you get |
+|---|---|---|---|---|
+| 0 | Slow down (≈ 100 KIAS), mixture lean | stick, throttle | as you fly | Above ~38 kt an unlatched canopy flips open by itself; above ~74 kt (Extra) / 85 kt (Pitts) no hand can hold it. |
+| 1 | **Unlatch the canopy** | either hand | Pitts: slide the black ball LEFT. Extra: squeeze the red-and-white handles (trigger). | Click; `canopy latch UNLOCKED`. |
+| 2 | **Open the canopy** | either hand | Grab the canopy rail / frame edge (Pitts: the left rail). Pitts: push it AFT 4 in, then up and over to the RIGHT. Extra: up and over to the RIGHT — on the ground keep the handles squeezed with one hand while the other lifts (let go with it shut and it re-latches). | In flight the air takes it: it flips open onto its stop, torn out of your hand if you were holding it back (strong buzz). Its drag slows the aeroplane. |
+| 3 | **Unplug the headset** | either hand | Grab the plug at the jack (right side) and draw it 3 cm straight out. | Click; the plug hangs on its cord from your headset. **Forget it** and the cord goes taut once you are out: a tug on your head (a few cm, short) and a hard buzz, then the plug pulls out. |
+| 4 | **Open the belts** | either hand | Lever: grab and LIFT it (4 cm). Rotary: grab and TWIST your wrist (60°). Extra: two — the TOP one on the RIGHT, the BOTTOM one on the LEFT. | Click per fitting; the straps fall open. While any is fastened you cannot rise from the seat. |
+| 5 | **Climb out** | either hand, on the LEFT sill (or right) | Grab the sill beside you and PUSH DOWN: you rise by what you push. | Strapped in: nothing. Canopy in the way: your head stops at it. Shoulders above the rail at speed: the slipstream pulls you off the sill. Or rise 50 cm and let go: over the side. |
+| 6 | **Fall** | your head | Look around. Right thumbstick forward = track / head down; neutral = stable belly-to-earth. | First person, level, on the heading you left on; the view is never turned for you. ~3 s tumbling, then about 120 mph. A hit on the tail or wing buzzes hard (logged). |
+| 7 | **Pull the ripcord** | either hand (right, normally) | LOOK DOWN: the handle is on your LEFT chest strap. Grab it and pull it 10 cm DOWN toward your feet. | Pilot chute, line stretch, the canopy fills (about 1–3 s); the opening shock buzzes both hands (~7 g from terminal). Then ~6.5 m/s down. |
+| 8 | **Steer and land** | right thumbstick X | as with the menu's bail-out | Turn up to 30°/s; land into the wind; feet and knees together. |
+
+The menu's **Bail out / Deploy BRS / Eject** row stays: it is the timed shortcut (canopy off, over the right side, the
+chute opens by itself), seen from outside. The hands-on sequence above is the real one.
 
 ## The VR menu
 
@@ -76,7 +95,7 @@ horizon; once you have opened the menu yourself in flight it is not shown again 
 | Display | 72 Hz (default) / 90 Hz. Persisted. |
 | Recentre the view | Same as the left stick click. |
 | Reset flight | The touch pad's RESET. |
-| Bail out / Deploy BRS / Eject | Asks twice: the first press arms it for 3 s. |
+| Bail out / Deploy BRS / Eject | Asks twice: the first press arms it for 3 s. The timed SHORTCUT (outside view, automatic chute); the hands-on way is the table above. |
 
 Not in VR yet: the replay / review screen, lessons, challenges, the joystick setup, the full Options panel (all
 OnGUI). The rows above are the settings that matter in a headset.

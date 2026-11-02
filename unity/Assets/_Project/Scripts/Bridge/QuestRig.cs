@@ -225,6 +225,9 @@ namespace FlyingGame.Bridge
             }
             if (_hudAnchor != null && air != null && cockpit != null)
                 _hudAnchor.SetPositionAndRotation(air.TransformPoint(cockpit.EyeLocal), air.rotation);
+            // The hands-on bail-out (VrCockpitHands.Bailout): the seat raised by his own climb, or, once he is out, the
+            // origin on the falling pilot — level, translation only, never a forced rotation.
+            VrCockpitHands.Current?.AdjustOrigin(ref _originPos, ref _originRot);
         }
 
         private void Place()

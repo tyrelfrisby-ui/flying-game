@@ -2,7 +2,7 @@
 
 Phase 1 of three (owner Ty, 2026-11-02: "there should be hands and legs and feet on controls etc so the user sees
 themselves while flying … the user can just 'grab' the stick throttle canopy latch etc and move them"). Phase 2 is the
-bailout: harness, headset cable, canopy, freefall, ripcord. Phase 3 is tracked hands. This document is the design;
+bailout: harness, headset cable, canopy, freefall, ripcord (below). Phase 3 is tracked hands. This document is the design;
 the controls a pilot uses are in [quest-controls.md](quest-controls.md).
 
 Code: the math is engine-free in `src/FlyingGame.Core/Vr/` (`VrHand.cs`, `HandControls.cs`, `CanopyLatch.cs`,
@@ -151,7 +151,189 @@ fold it; both bones keep their lengths exactly.
 no allocation: an estimate of well under 0.1 ms of the 13.9 ms a 72 Hz frame has. Draw cost: 22 small meshes on three
 materials. Unmeasured on the device — the `[QuestPerf]` line every 10 s is the number to read.
 
+## Phase 2: the bail-out, by hand
+
+Ty, 2026-11-02: "i want the first person view to be able to unlatch the canopy and the seatbelts and the headset cables
+and jump out. if they forget to pull the headset cables they get pulled by the plane. the person retains first person
+view while parachuting etc and they need to look down and grab and pull the rip chord for their parachute."
+
+The reference sequence (Extra 300 POH bail-out; Patty Wagstaff's Extra 300S egress card): inform the passenger, slow to
+about 100 KIAS, mixture lean, open the canopy (it flips open), take the headset off, open the seat belt (two quick
+releases: bottom one left, top one right), leave to the LEFT, avoid the wing and the tail, open the parachute.
+
+Code: the physics is engine-free in `src/FlyingGame.Core/Vr/` (`CanopyHinge.cs`, `Harness.cs`, `HeadsetCord.cs`,
+`Egress.cs`, `Ripcord.cs`) and pinned by `tools/FlightTests/VrBailoutTests.cs` (28 cases, every expected value a literal
+worked by hand). The glue is `Bridge/VrCockpitHands.Bailout.cs`. Small additive touch points: `Aircraft.ExtraDragAreaM2`
+(the open canopy's drag), `CockpitRigState.HandCanopy / Harness / Cord / Climb` (reset with the aeroplane),
+`PilotEgress.LeaveByHand / PullRipcord`, `PilotBody.FirstPerson / TumbleSec`, one line in `QuestRig.CaptureOrigin`
+(`VrCockpitHands.AdjustOrigin`), the rig param `harness_latch`, and `Parachute` now runs on Core's `CanopyOpening`.
+
+(E) marks an estimate: a number of mine, not from a source. Every one is a constant with that name in the code.
+
+### 1. The canopy, in the air (`CanopyDynamics`)
+
+Grab `Grip_Canopy_Rail` (the Pitts has it; elsewhere the frame's free edge, abeam the eye) once the latch is off, and
+push. **Pitts:** slides AFT 4 in (0.1016 m, Codex's rig) on its left track, 1:1 with the hand; only then can it swing,
+because the mushroom buttons hold it down; then up and over to the RIGHT about the right-rail hinge to 100° (Codex's rig).
+**Extra:** up and over to the RIGHT about the right-sill hinge to 100°. The rig's `canopy_open`: Extra 0..1 = 0..100°;
+Pitts 0..0.2 = the slide, 0.2..1 = 0..100°.
+
+The canopy is a plate from the hinge (right) to its free edge (left), width w, angle β. With u = (−cos β, sin β, 0) and
+n = (sin β, cos β, 0), a force F at the centroid opens it by M = (w/2)·(F·n).
+
+- **Airload.** NACA RM L50B03 (Huston & Skopinski, 1950, flight and full-scale-tunnel pressures on a sliding canopy):
+  the highest net load on a closed canopy is "in the exploding direction", with the cockpit inside "slightly less than
+  free stream". The report's coefficients are in its figures, not its text; I take the net outward **ΔCp = 0.5 (E)** and
+  hold it constant as the canopy opens (E). **M_aero = (w/2)·ΔCp·q·A**, q = ½ρ₀V_e² (the sim's IAS is equivalent airspeed).
+- **Gravity** (apparent, the load factor in it): **M_g = (w/2)·m·(g_app·n)**, = −(w/2)·m·g·cos β level.
+- **The hand** on the free edge (arm w) is a stiff servo (12 rad/s, critically damped, E) capped at **200 N (E)**:
+  past that the canopy is torn out of the hand (a 1.0 buzz, logged).
+- **I β¨ = M_aero + M_g + M_hand − c β˙**, I = m w²/3, c = 2 N·m·s (E), a stop at 100° with restitution 0.2 (E).
+
+Numbers (E unless said): Extra w 0.75 m, L 2.0 m, A = 0.8·w·L = 1.2 m², 14 kg; Pitts w 0.70 m (Codex's hinge y −0.36 to
+rail y +0.34; measured from the nodes at run time where present), L 1.5 m, A 0.84 m², 9 kg.
+
+| | Extra | Pitts |
+|---|---|---|
+| M_aero / q | 0.225 m³ | 0.147 m³ |
+| M_g, shut, 1 g | 51.5 N·m | 30.9 N·m |
+| **flips open by itself, unlatched, above** | q 229 Pa = **37.6 KEAS** | q 210 Pa = **36.0 KEAS** |
+| a hand can hold it shut up to | q 895 Pa = **74.3 KEAS** | q 1163 Pa = **84.7 KEAS** |
+
+So at the POH's ~100 KIAS it flips open whatever the hand does — what the Extra's POH says it does. **Whether it then
+departs** at high q is not modelled: no hinge-strength figure, so it stays on its stop (NEEDS YOU).
+
+**Drag into the flight model:** ΔCdA = **0.20 m² (E)** · min(1, β/60°) (≈ 1.2 × the canopy's ~0.17 m² frontal arch; the
+Extra's whole airframe is ~0.27 m²), applied along the relative wind at the cockpit through `Aircraft.ExtraDragAreaM2`,
+so it also pitches and yaws the aeroplane (`ForceDebug` "extra-drag"). At 100 KIAS that is 324 N. While a hands-on canopy
+exists, its physics set `CanopyOpen01` and the menu's open/shut command (and its "pulled shut above 60 kt" rule) stands down.
+
+### 2. The belts (`SeatHarness`, `HarnessRelease`)
+
+Every independent restraint is a `HarnessRelease`; the pilot **cannot leave the seat while any is latched** — the climb
+stops at 2 cm of webbing stretch. One-way: refastening in flight is not modelled (NEEDS YOU).
+
+| Fitting | Gesture | Threshold |
+|---|---|---|
+| Lift lever (lever buckle, lap belt) | close the hand on it and LIFT it, up and forward away from the belly | 4 cm along the lift axis (E: ~60° of a 4 cm lever) |
+| Rotary cam-lock (5-point) | close the hand on it and TWIST the wrist about the dial's axis, either way | 60° of twist (E), swing ignored (swing–twist decomposition) |
+
+Let go short of it and it springs back. **Extra:** two, per the 300S card — main (TOP, on the RIGHT) and lap (BOTTOM, on
+the LEFT), both levers (E: the card names them "quick releases", not their type). **Pitts:** one rotary, centred, plus a
+lap lever if Codex models `Grip_Harness_Release_Lap_*`. Rig param `harness_latch` (0 latched .. 1 released) = the main
+fitting's travel. Until Codex's `Harness_*` meshes are in the build, primitive straps (lap belt, two shoulder straps) are
+drawn and vanish as their release opens.
+
+### 3. The headset cord (`HeadsetCord`, `VerletRope`)
+
+Unplug by hand: grab the plug at `Headset_Jack_*` and draw it **3 cm (E, the plug's engaged length)** out along the jack
+axis (from the jack toward the pilot). The cord is drawn as a position-based rope, 20 segments, **1.5 m** (CONTRACT's
+default until Codex's handoff gives a real headset's) and 4 mm, from `Headset_Cable_Root` (proxy: the bottom of the LEFT
+ear cup, E) to the jack; unplugged, the plug end hangs free.
+
+Physics (the load path is straight-line, so it is exact once taut and zero while slack): **T = k·max(0, d − L)**,
+k = 2000 N/m (E). The weakest link lets go at its force: **plug retention 25 N (E)** — no PJ-055/PJ-068 withdrawal figure
+was found; phone-jack datasheets give 3–40 N (e.g. Haoyu PJ-611) — or the **headset pulled off at 40 N (E)** when the plug
+holds harder (a locking LEMO). The pull lasts F/(k·v) ≈ 3 ms at 4 m/s: on 105 kg that is an impulse well under 1 N·s, a
+TUG, not a tow. **What is shown:** a sideways offset of the whole head rig along the cord, T / 1000 N/m (E, the neck's
+give) = **2.5 cm at 25 N, capped at 4 cm**, relaxing with τ = 0.15 s, translation only; a 1.0 buzz for 0.15 s in both
+controllers; the plug pops out and streams on its cord. **Audio:** this game has no radio or intercom audio to cut; once
+out, the mix is already his own wind (FlightAudio's PilotOut). Nothing was faked to stand in for it.
+
+### 4. Climbing out, and the fall (`ClimbOut`, `JumperAero`, `EgressClearance`)
+
+**The gesture:** grab a cockpit SILL (beside you at elbow height, either side) and PUSH DOWN — the seat, and so your view,
+rises by exactly what your hand pushed, the way VR climbing works. The view moves only because your hand moved it.
+
+| Rise | What happens |
+|---|---|
+| ≤ 2 cm | any belt still latched |
+| ≤ 8 cm | the canopy not open past 60° (nor gone): your head is against it |
+| 30 cm | shoulders above the rail: the slipstream pulls **F = q·0.35 m² (E) · exposed fraction** aft |
+| F > 200 N | you are pulled off the sill: out, on the side you held (at first exposure above 52.9 m/s = 103 KEAS) |
+| ≥ 50 cm and let go | over the side |
+
+Let go short of 50 cm and you sit back down. **Leave to the LEFT** (Extra POH; the Pitts' canopy is over on the right).
+
+**Exit velocity** = the aeroplane's velocity at your position (finite-differenced from its pose, so its roll and pitch
+rates are in it: v_cg + ω × r) + a push of 1.0 m/s outboard and 0.5 m/s up (E). His centre starts 0.30 m under his eye,
+so the view does not jump as he goes; the push carries him clear.
+
+**The fall** is the existing `PilotBody` (105 kg = 90 kg pilot + 15 kg kit, ISA density with the day's deviation, the
+sim's wind, implicit quadratic drag): **D = ½ρ·CdA·v²**. CdA: **tumbling 0.7 m² (E)** for the first 3 s (E), then
+belly-to-earth **0.585 m²** = 2·105·9.80665 / (1.225·53.6²), back-solved from the 120 mph every source agrees on
+(`SkydiverAero`). **Terminal v_t = √(2mg/(ρ·CdA))**: belly **53.6 m/s** at sea level, **62.2 m/s** at 3000 m (ρ 0.9093);
+tumbling 49.0 m/s. The right thumbstick forward trades it for speed (track, head down); neutral is the stable arch.
+
+**First person.** The head rig's origin is the falling body (eye 0.30 m above the centre in free fall, 0.75 m hanging or
+standing, E), **level, on the heading he left on**, and never rotated by the game after that: your real head looks
+around. Tumbling is not shown by turning the view (NEEDS YOU). The menu-shortcut figure is not drawn; the VR body is, from
+the same IK, with the hands at the controllers.
+
+**The tail.** For 8 s after the exit the jumper (radius 0.30 m, E) is checked against boxes built from the config's own
+strips (each strip [x − ¾c, x + ¼c], ±½·area/chord of span, ±0.12 m thick): a hit is logged with the surface and the
+relative speed, and buzzes both hands hard. Reported only — no injury model (NEEDS YOU).
+
+### 5. The ripcord and the canopy (`Ripcord`, `CanopyOpening`)
+
+Strong Enterprises Para-Cushion Owner's Manual, Rev. H (11/2000): "The ripcord handle is located near the chest strap on
+the wearer's LEFT front of the harness. The key is to LOOK at the ripcord handle … grab it with both hands (or typically
+with your right hand and left thumb) … push the handle DOWN toward your feet" (back type). So: **look down, grab the handle
+on your left chest strap, pull it 10 cm DOWN** (E: a pin's engaged length plus slack; the manual says pull it right out).
+A real one takes up to **22 lbf (98 N)** — TSO-C23's maximum manual pull force, as quoted by the USPA and APF RAC 502B;
+the TSO text itself was not re-read. A partial pull stays partial. Proxy position: 0.40 below, 0.15 ahead and 0.10 left of
+the eye (E), or Codex's `Grip_Ripcord`. Out of the aeroplane only (the manual: "Get clear of the aircraft, then pull your
+ripcord. In that order. If the parachute begins to open while you're still aboard, the wind may inflate it, dragging you
+out, or into the tail").
+
+**The opening**, shared with the menu's BAIL OUT:
+
+| Stage | Model | Numbers |
+|---|---|---|
+| Pilot chute | spring-launched, decelerates on its own drag; the gap grows by the speed difference | 8 m/s (E), 30 in Cd 0.9 → CdS 0.41 m² (E), 0.25 kg, + 3 kg bag after the 1.5 m bridle (E) |
+| Line stretch | gap = bridle + lines | 1.5 + 7.0 m (E) |
+| Inflation | **t_f = n·D0 / V_ls** (Knacke, NWC TP 6575: filling over a constant distance, n ≈ 8 for solid canopies — quoted, not re-read); **CdS(t) = CdS_pc + (CdS0 − CdS_pc)(t/t_f)²** (E: the quadratic drag-area-time form) | D0 26 ft = 7.925 m (Para-Cushion); Cd0 0.80 (E) → CdS0 39.46 m² |
+| Opening shock | **not put in** — it comes out of m·dv/dt = −½ρv²(CdS + CdA_body) + mg | below |
+| Steady descent | **v = √(2mg / (ρ(CdS0 + 0.5)))** | **6.49 m/s** sea level, 7.16 m/s at 2000 m |
+
+Integrated (`CanopyOpening.Simulate`, 105 kg):
+
+| From | Line stretch | t_f | Peak | Pins → steady | Height lost |
+|---|---|---|---|---|---|
+| 53.6 m/s, sea level (belly terminal) | 0.23 s | 1.22 s | **6.7 g** | 3.2 s | 64 m (210 ft) |
+| 62.2 m/s, 3000 m | 0.21 s | 1.04 s | **8.1 g** | 3.4 s | 73 m |
+| 25 m/s, sea level | 0.44 s | 2.30 s | 2.7 g | 4.2 s | 67 m |
+
+The manual: "opening times are from 2 to 3 seconds and the distance fallen would be from 150 feet to 300 feet". The old
+Parachute's fill-time clamp (1.8–2.5 s) and its 1.3× drag-area "shock" bump are gone. Forward drive is now 2.7 m/s (the
+manual's "about 6 MPH"). The pendulum and steering (right thumbstick X, ≤ 30°/s) are the existing ones.
+
+**Shown:** Codex's `Parachute_Deployed` with `Parachute_Canopy`'s "Inflate" shape key = t/t_f, when the pilot-gear asset
+is in the build (the primitive dome then hides); else the existing gored dome. Haptics: both hands buzz with the load,
+(g − 1)/7, every 50 ms, through the shock. **Landing:** the existing ground/water contact, slope tumble and PLF outcome
+(`PilotPhrases.Outcome` from the hardest impact speed; at a steady 6.5 m/s sink plus the wind's drift) — logged with the
+landing speed, and a 1.0 buzz. No text is drawn in the headset, and nothing anywhere shows where he is.
+
+### 6. After he goes, and the menu
+
+The aeroplane flies on under the sim, unmanned (`PilotEgress.AbandonAircraft`: stick and rudder neutral, trim and throttle
+kept), with the open canopy's drag still on it, until it hits something through the existing crash path.
+
+**The menu's "Bail out / Deploy BRS / Eject" row stays as the shortcut:** the timed sequence (canopy jettisoned at 3 s,
+over the RIGHT side at 5 s, the chute opening by itself 3 s later), seen from outside, as on the iPhone. The hands-on path
+is the real one: every step yours, first person, no automatic opening. Both use the same body, air and canopy model.
+
+### Comfort decisions
+
+- No rotation is ever forced on the view. The one discontinuity: at the exit the origin snaps from the aeroplane's attitude
+  to level on the same heading (an instant snap is gentler than a slow forced roll; at a wings-level exit it is nothing).
+- Translation the pilot did not make himself: the fall itself and the opening shock (real motion, unavoidable), and the
+  cord's tug (≤ 4 cm, 0.15 s). The climb moves the view only by what his own hand pushed.
+- Under the canopy the view does not yaw with a steering turn: you turn your head. The canopy and the risers turn above you.
+
 ## Where Phase 2 and Phase 3 plug in
+
+(Phase 2 is built: the section above. What follows is the plan it was built to; Phase 3 still is.)
 
 - **New grab points** (harness buckle, headset jack, canopy rail, ripcord): add to `Grabbable`, set their positions in
   `VrCockpitHands.UpdatePoints` from the CONTRACT's `Harness_Buckle_*`, `Headset_Jack_*`, `Grip_Canopy_Rail`, and give

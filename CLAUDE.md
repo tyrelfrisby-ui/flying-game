@@ -177,3 +177,9 @@ inside `namespace FlyingGame.Bridge` the Bridge's own type wins over a `using Fl
 see it because it never compiles the Bridge. The same run found `AirframeVisual.ModelRoot`, which is on the
 builder, not the visual. Before naming a new Core type, `grep -rn "class <Name>\b" unity/Assets` (with perl or
 `grep -w`; BSD sed has no `\b`), and run the Unity batch before trusting any Bridge code that calls into it.
+
+### Quote the shipped model's number, not the sketch's
+The parachute's opening shock went into three comments as "≈ 7.4 g" because that is what a quick Python sketch of the
+opening said. The Core model that ships blends the body's drag area differently and gives 6.7 g; the sketch had never
+been the code. Every comment, doc table and NEEDS YOU line had to be found and changed. Sketch to choose the model, then
+run the Core function itself (a throwaway probe test is enough) and copy THOSE numbers into docs and tests.

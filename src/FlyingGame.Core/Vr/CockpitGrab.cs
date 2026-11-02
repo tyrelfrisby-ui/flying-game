@@ -3,9 +3,14 @@ using FlyingGame.Core.MathTypes;
 
 namespace FlyingGame.Core.Vr
 {
-    /// <summary>What a hand can take hold of in Phase 1. Phase 2 adds the harness buckle, the headset jack, the
-    /// canopy rail and the ripcord to this list and nothing else changes.</summary>
-    public enum Grabbable { None = 0, Stick = 1, Throttle = 2, CanopyLatch = 3 }
+    /// <summary>What a hand can take hold of. Phase 1: the stick, the throttle, the canopy latch. Phase 2 (the bail-out):
+    /// the canopy's frame / rail, the harness releases (main and lap), the headset plug, the cockpit sills to climb out
+    /// by, and — out of the aeroplane — the ripcord handle.</summary>
+    public enum Grabbable
+    {
+        None = 0, Stick = 1, Throttle = 2, CanopyLatch = 3,
+        CanopyRail = 4, HarnessMain = 5, HarnessLap = 6, HeadsetPlug = 7, SillLeft = 8, SillRight = 9, Ripcord = 10,
+    }
 
     /// <summary>One frame's events, for haptics and the log.</summary>
     [Flags]
@@ -44,7 +49,10 @@ namespace FlyingGame.Core.Vr
             public bool Enabled;
         }
 
-        public readonly Point[] Points = new Point[4];
+        /// <summary>One slot per <see cref="Grabbable"/> value.</summary>
+        public const int Slots = 11;
+
+        public readonly Point[] Points = new Point[Slots];
 
         private readonly Grabbable[] _held = new Grabbable[2], _hover = new Grabbable[2];
         private readonly bool[] _gripClosed = new bool[2];
