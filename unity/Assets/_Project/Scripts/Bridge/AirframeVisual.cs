@@ -186,6 +186,46 @@ namespace FlyingGame.Bridge
             return true;
         }
 
+        /// <summary>
+        /// THE CANOPY LEAVES ON ITS OWN PHYSICS (the headset's hands-on canopy, Core Vr.CanopyDynamics: torn off its
+        /// hinges above the failure speed, or jettisoned). The part is CONTRACT's `Canopy_Detachable` (the whole moving
+        /// canopy and nothing of the airframe), else the node the rig marks jettisonable, else the Pitts' `Canopy_Slide`
+        /// or the `Canopy`. It is detached with everything under it and flown by <see cref="CanopyFlight"/>, a Core
+        /// <see cref="FlyingGame.Core.Vr.CanopyFreeBody"/> with the canopy's own mass, drag and lift. Torn hinges show
+        /// Codex's `Canopy_Hinge_Broken_*` fittings. Returns the part's centre (world), or null where the model has no
+        /// canopy to lose (the procedural shell gets its stand-in, as the menu's bail-out does).
+        /// </summary>
+        public Vector3? DetachCanopy(FlyingGame.Core.Vr.CanopyDynamics canopy, Vector3 velocityWorld, Vector3 upWorld,
+                                     Vector3 spinWorld, bool hingesBroke)
+        {
+            if (Cockpit.CanopyGone) return null;
+            AirframeRig rig = _builder.Rig;
+            Transform part = FindInModel("Canopy_Detachable");
+            if (part == null && rig != null) part = rig.Jettisonable().T;
+            if (part == null) part = FindInModel("Canopy_Slide") ?? FindInModel("Canopy");
+            Cockpit.CanopyGone = true;
+            _rigPartGone = true;
+            if (part == null)
+            {
+                Transform shell = transform.Find("Canopy");
+                CanopyJettison.Spawn(_driver, shell);
+                if (shell != null && shell.TryGetComponent(out Renderer r)) r.enabled = false;
+                return null;
+            }
+            if (hingesBroke && _builder.ModelRoot != null)
+                foreach (Transform t in _builder.ModelRoot.GetComponentsInChildren<Transform>(true))
+                    if ((t.name.StartsWith("Model:") ? t.name.Substring(6) : t.name).StartsWith("Canopy_Hinge_Broken")) t.gameObject.SetActive(true);
+
+            Bounds b = PartBounds(part);
+            rig?.Release(part);
+            ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
+            part.SetParent(null, true);
+            static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
+            var body = new FlyingGame.Core.Vr.CanopyFreeBody(canopy, C(b.center), C(velocityWorld), C(upWorld), C(transform.forward), C(spinWorld));
+            part.gameObject.AddComponent<CanopyFlight>().Init(body, b.center, Mathf.Max(0.1f, b.extents.y * 0.5f));
+            return b.center;
+        }
+
         /// <summary>World bounds of a part and everything under it, or a canopy-sized box where it has no
         /// renderer of its own.</summary>
         private static Bounds PartBounds(Transform part)

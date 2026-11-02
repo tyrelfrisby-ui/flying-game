@@ -9,7 +9,8 @@ namespace FlyingGame.Core.Vr
         None = 0,
         /// <summary>The Pitts S-2: a black ball on top of the rear panel that slides LEFT / RIGHT; fully right = locked.</summary>
         SlideBall = 1,
-        /// <summary>The Extra 300: two red-and-white handles squeezed TOGETHER to unlock; spring-loaded back to locked.</summary>
+        /// <summary>The Extra 300: a fixed rear handle and a spring-loaded front handle on the canopy frame; squeezing them
+        /// together draws the latch pins (v2, Ty 2026-11-02).</summary>
         Squeeze = 2,
     }
 
@@ -85,44 +86,132 @@ namespace FlyingGame.Core.Vr
         }
     }
 
+    /// <summary>The hands on the Extra's latch this frame. Positions are along the canopy frame's AFT axis, metres, any
+    /// origin (the frame runs fore-aft on the hinge axis, so it is the cockpit's −z whether the canopy is shut or open).
+    /// A controller has no fingers to measure, so "one hand spanning both handles" is the PAIR grab, squeezed with the
+    /// trigger; Phase 3's tracked hands can fill <see cref="PairSqueeze"/> from the pinch instead.</summary>
+    public struct ExtraLatchHands
+    {
+        /// <summary>One hand on the pair (between the handles); <see cref="PairSqueeze"/> 0..1 is its trigger.</summary>
+        public bool PairHeld;
+        public double PairSqueeze;
+        /// <summary>A hand closed on the FRONT handle (the one that moves), and where it is along the frame.</summary>
+        public bool FwdHeld;
+        public double FwdAftM;
+        /// <summary>A hand closed on the REAR handle (fixed to the frame), and where it is along the frame.</summary>
+        public bool AftHeld;
+        public double AftAftM;
+    }
+
     /// <summary>
-    /// THE EXTRA 300 CANOPY LATCH (owner Ty: "the extra has two red and white handles that squeeze together").
-    /// Each handle turns about its own pivot toward the other; squeezing them withdraws the locking pins, and their
-    /// springs push them back out.
+    /// THE EXTRA 300 CANOPY LATCH, v2 (Ty, 2026-11-02 12:29: "The two handles are on the canopy frame, one in front of
+    /// the other. The rear handle is fixed. The front handle is spring-loaded forward. Squeezing them together slides
+    /// the front handle aft toward the rear one, and that motion pulls the latch pins out of their holes in the
+    /// airframe"). Both handles and the pins are on the CANOPY (they open with it); the holes are in the sill.
     ///
-    ///   squeeze per handle 0..1 (1 = touching). One hand on the pair with the trigger squeezes BOTH; two hands
-    ///   each squeeze their own.
-    ///   unlock:  both handles past <see cref="UnlockAt"/> (both pins out) → unlocked
-    ///   release: the handles spring back. With the canopy still SHUT the pins snap back in → LOCKED again; with it
-    ///            lifted off the sill (Phase 2: <c>canopyOpen01</c> &gt; 0) they spring out against nothing → it
-    ///            stays unlocked until it is shut, when it latches by itself (the pins are bevelled, like a door).
-    ///   Latch01 = mean squeeze (what the rig draws the two handles at)
+    ///   s        the front handle's position, 0 forward on its spring stop (pins IN) .. 1 fully aft (pins OUT);
+    ///            the rig's `canopy_latch` = s drives Codex's Fwd handle (35 mm) and the pins (18 mm up).
+    ///   held     the hand is far stiffer than the spring, so a held handle is where the hand puts it:
+    ///              pair + trigger      s = trigger
+    ///              front AND rear      s = s₀ + (separation₀ − separation) / travel   (the hands close together)
+    ///              front only          s = s₀ + (aft travel of that hand) / travel     (it is the moving part)
+    ///              rear only           nothing: that handle is fixed to the frame
+    ///   released a mass on a preloaded spring with Coulomb friction, against the forward stop (no bounce):
+    ///              m ẍ = −(F₀ + k x) − F_f sign(ẋ)
+    ///   pins     retract linearly with s (18 mm over the 35 mm stroke). They are OUT of their holes once they have
+    ///            been drawn the engagement depth plus a clearance: s ≥ <see cref="PinsClearAt"/>. Below that the
+    ///            canopy is still pinned, however hard the handle is squeezed.
+    ///   sill     with the canopy NOT shut the pins cannot engage: lifted off the sill they hang in free air, and in the
+    ///            last <see cref="NearSillDeg"/> before it shuts their bevelled tips ride on the sill, held up at the
+    ///            clear position (so the handle is pushed aft too). Shut and aligned, the spring snaps them in: LOCKED.
+    ///   Locked   = pins engaged = canopy shut AND s &lt; PinsClearAt. <see cref="CanopyDynamics"/> will not move a
+    ///            canopy whose pins are engaged, by hand or by airload.
     ///
-    /// UnlockAt 0.85 (E): near the end of the travel, so a half-hearted squeeze does not open it.
+    /// Numbers. Travel 35 mm, pin stroke 18 mm: Codex's rig (E). Everything else is my estimate for Ty:
+    ///   spring preload 20 N at rest, rate 600 N/m → 41 N at full squeeze (a firm one-hand squeeze, not a fight);
+    ///   moving mass 0.08 kg (handle, push-rods, two pins) and 2 N of friction → it snaps home in about 13 ms;
+    ///   pin engagement 14 mm + 0.5 mm clearance → the pins clear at 14.5 / 18 = 0.806 of the squeeze. NB Codex's drawn
+    ///   sockets show about 6 mm of engagement, which would clear at a third of the squeeze — the contract asks for
+    ///   "pins out only near full squeeze", so the physics uses 14 mm and the drawing is a question (docs).
     /// </summary>
     public sealed class ExtraCanopyLatch : ICanopyLatch
     {
-        public const double UnlockAt = 0.85, RelockBelow = 0.5, ShutBelow = 0.01;
+        public const double TravelM = 0.035, PinStrokeM = 0.018, PinEngagementM = 0.014, PinClearanceM = 0.0005;
+        public const double SpringPreloadN = 20.0, SpringRateNPerM = 600.0, MovingMassKg = 0.08, FrictionN = 2.0;
+        /// <summary>Within this of shut the extended pins' tips are on the sill (E: 14 mm of pin at the 0.73 m free
+        /// edge is 1.1°).</summary>
+        public const double NearSillDeg = 1.5;
+        /// <summary>Handle centres ±45 mm either side of the pair's grip (Codex).</summary>
+        public const double HandleSpacingM = 0.090;
+        /// <summary>s at which the pins are out of their holes: (14 + 0.5) / 18 = 0.80556.</summary>
+        public const double PinsClearAt = (PinEngagementM + PinClearanceM) / PinStrokeM;
 
         public CanopyLatchKind Kind => CanopyLatchKind.Squeeze;
-        public double SqueezeLeft { get; private set; }
-        public double SqueezeRight { get; private set; }
+        /// <summary>The front handle, 0 forward (pins in) .. 1 aft (pins out).</summary>
+        public double S { get; private set; }
+        /// <summary>Its speed, m/s, + aft.</summary>
+        public double SpeedMs { get; private set; }
         public bool Locked { get; private set; } = true;
-        public double Latch01 => 0.5 * (SqueezeLeft + SqueezeRight);
+        /// <summary>The pins' tips are on the sill (canopy all but shut, pins extended).</summary>
+        public bool RidingSill { get; private set; }
+        public double Latch01 => S;
+        public double PinRetractM => S * PinStrokeM;
+        public bool PinsClear => S >= PinsClearAt;
+        /// <summary>Some hand is moving the front handle (pair, or the front handle itself).</summary>
+        public bool Driven { get; private set; }
 
-        public void Reset() { SqueezeLeft = SqueezeRight = 0.0; Locked = true; }
+        private int _set;
+        private double _s0, _fwd0, _sep0;
 
-        /// <summary>One frame. Each squeeze is 0 when no hand holds that handle (it springs back). Returns true on
-        /// the frame the pins come out (unlock click) or snap back in (lock click).</summary>
-        public bool Step(double squeezeLeft, double squeezeRight, double canopyOpen01)
+        public void Reset() { S = 0.0; SpeedMs = 0.0; Locked = true; RidingSill = false; Driven = false; _set = 0; }
+
+        /// <summary>
+        /// One frame. <paramref name="canopyShut"/> / <paramref name="canopyAngleDeg"/>: the canopy's state BEFORE this
+        /// frame's canopy step (CanopyDynamics.Shut, .AngleDeg). Returns true on the frame the pins come out (unlock
+        /// click) or snap in (lock click).
+        /// </summary>
+        public bool Step(double dt, in ExtraLatchHands h, bool canopyShut, double canopyAngleDeg)
         {
-            SqueezeLeft = Math.Clamp(squeezeLeft, 0.0, 1.0);
-            SqueezeRight = Math.Clamp(squeezeRight, 0.0, 1.0);
             bool was = Locked;
-            double both = Math.Min(SqueezeLeft, SqueezeRight);
-            if (Locked && both >= UnlockAt) Locked = false;
-            else if (!Locked && both < RelockBelow && canopyOpen01 < ShutBelow) Locked = true;
+            // Re-take the references whenever the set of hands changes, so a new grip never jumps the handle.
+            int set = (h.PairHeld ? 1 : 0) | (h.FwdHeld ? 2 : 0) | (h.AftHeld ? 4 : 0);
+            if (set != _set) { _set = set; _s0 = S; _fwd0 = h.FwdAftM; _sep0 = h.AftAftM - h.FwdAftM; }
+
+            double want = double.NegativeInfinity;
+            if (h.PairHeld) want = Math.Clamp(h.PairSqueeze, 0.0, 1.0);
+            if (h.FwdHeld && h.AftHeld) want = Math.Max(want, _s0 + (_sep0 - (h.AftAftM - h.FwdAftM)) / TravelM);
+            else if (h.FwdHeld) want = Math.Max(want, _s0 + (h.FwdAftM - _fwd0) / TravelM);
+            Driven = !double.IsNegativeInfinity(want);
+
+            if (Driven) { S = Math.Clamp(want, 0.0, 1.0); SpeedMs = 0.0; }
+            else if (dt > 0.0) Spring(dt);
+
+            // The sill holds the extended pins up while the canopy comes down onto it.
+            RidingSill = !canopyShut && canopyAngleDeg < NearSillDeg && S < PinsClearAt;
+            if (RidingSill) { S = PinsClearAt; SpeedMs = 0.0; }
+
+            Locked = canopyShut && S < PinsClearAt;
             return was != Locked;
+        }
+
+        /// <summary>The front handle on its spring, in 0.5 ms steps (it is a stiff little system: ω = √(k/m) = 87 rad/s).</summary>
+        private void Spring(double dt)
+        {
+            double x = S * TravelM, v = SpeedMs;
+            int n = Math.Max(1, (int)Math.Ceiling(dt / 0.0005));
+            double h = dt / n;
+            for (int i = 0; i < n; i++)
+            {
+                double f = -(SpringPreloadN + SpringRateNPerM * x);
+                if (Math.Abs(v) > 1e-9) f -= FrictionN * Math.Sign(v);
+                else if (Math.Abs(f) <= FrictionN) f = 0.0;   // stuck: the spring cannot beat the friction
+                else f += FrictionN;                          // breaking away forward
+                v += f / MovingMassKg * h;
+                x += v * h;
+                if (x <= 0.0) { x = 0.0; v = 0.0; }          // the forward stop: no bounce
+            }
+            S = x / TravelM;
+            SpeedMs = v;
         }
     }
 }

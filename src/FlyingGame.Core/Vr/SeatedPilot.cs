@@ -84,11 +84,12 @@ namespace FlyingGame.Core.Vr
             string id = aircraftId ?? "";
             CanopyLatchKind latch = LatchFor(id);
             // Pitts: the ball on top of the rear panel, centre-line, fully right = locked (+x = right).
-            // Extra: the pair of handles on the left canopy frame ahead of the pilot, where the rig's red lock
-            // levers are (E: CONTRACT.md does not place Canopy_Latch_Handle_L/R yet).
+            // Extra: midway between the fore-aft pair of handles on the LEFT canopy frame, measured off Codex's P2c rear
+            // pair (Grip_Canopy_Latch_Aft/Fwd at 0.105 / 0.195 m ahead of Eye_Rear, 0.329 left, 0.325 below); the
+            // front cockpit's pair sits within 3 cm of the same offsets from Eye_Front.
             Vec3 latchAt = latch == CanopyLatchKind.SlideBall
                 ? new Vec3(PittsCanopyLatch.TravelM * 0.5, -0.15, 0.55)
-                : new Vec3(-0.20, -0.10, 0.35);
+                : new Vec3(-0.329, -0.325, 0.150);
             return new CockpitProxy(
                 stickPivot: new Vec3(0.0, -1.05, 0.42), stickLengthM: 0.55, rollMaxDeg: 18.0, aftMaxDeg: 18.0, fwdMaxDeg: 12.0,
                 throttlePivot: new Vec3(-0.26, -0.58, 0.20), throttleArmM: 0.20, throttleIdleDeg: -20.0, throttleSweepDeg: 50.0,

@@ -13,99 +13,240 @@ namespace FlyingGame.Core.Vr
     }
 
     /// <summary>
-    /// One canopy's numbers. Every one is an estimate (E) unless the model's own geometry replaces it: the width is the
-    /// distance from the hinge line to the free (left) edge, which the Bridge measures from Codex's nodes where it can.
+    /// One canopy's numbers. The bubble's size is measured off Codex's own models (lane/codex-vr-cockpit 45d2654, the
+    /// `Canopy` subtree's bounds and the hinge-axis marker); the masses, the stop and the fittings are estimates (E).
     /// </summary>
     public readonly struct CanopySpec
     {
         public readonly CanopyMotion Motion;
-        public readonly double MassKg, WidthM, LengthM, SlideM, StopDeg;
-        /// <summary>Plan area the pressure acts on, m². A bubble's plan is about 0.8 of its bounding rectangle (E).</summary>
-        public readonly double AreaM2;
+        /// <summary>Canopy mass, glass and frame (E).</summary>
+        public readonly double MassKg;
+        /// <summary>The bubble: length along the flow, span rim to rim, height above the sill.</summary>
+        public readonly double LengthM, SpanM, HeightM;
+        /// <summary>The hinge line's distance to the RIGHT of the canopy's centre-line (on the right sill).</summary>
+        public readonly double HingeOutboardM;
+        public readonly double SlideM, StopDeg;
+        /// <summary>The hinge fittings and open-stop together fail at this load at the stop lug (calibrated: see
+        /// <see cref="CanopyDynamics"/>).</summary>
+        public readonly double FittingStrengthN;
+        /// <summary>A jettison control the pilot can pull (Pitts knob; Extra emergency release). The Bridge clears it
+        /// when the model provides none.</summary>
+        public readonly bool HasJettison;
 
-        public CanopySpec(CanopyMotion motion, double massKg, double widthM, double lengthM, double slideM, double stopDeg)
+        public CanopySpec(CanopyMotion motion, double massKg, double lengthM, double spanM, double heightM, double hingeOutboardM,
+                          double slideM, double stopDeg, double fittingStrengthN, bool hasJettison)
         {
-            Motion = motion; MassKg = massKg; WidthM = widthM; LengthM = lengthM; SlideM = slideM; StopDeg = stopDeg;
-            AreaM2 = PlanFill * widthM * lengthM;
+            Motion = motion; MassKg = massKg; LengthM = lengthM; SpanM = spanM; HeightM = heightM; HingeOutboardM = hingeOutboardM;
+            SlideM = slideM; StopDeg = stopDeg; FittingStrengthN = fittingStrengthN; HasJettison = hasJettison;
         }
 
-        public const double PlanFill = 0.8;
+        /// <summary>Hinge line to the free (left) edge, where a hand holds it.</summary>
+        public double FreeEdgeM => HingeOutboardM + 0.5 * SpanM;
+
+        public CanopySpec WithJettison(bool has) =>
+            new(Motion, MassKg, LengthM, SpanM, HeightM, HingeOutboardM, SlideM, StopDeg, FittingStrengthN, has);
 
         /// <summary>
-        /// Extra 300 (two-seat): one canopy over both cockpits, 2.0 m long, 0.75 m hinge to free edge, 14 kg (all E);
-        /// 100° stop (the model's rig, itself E). Pitts S-2B: 1.5 m, 0.70 m (Codex's hinge at y −0.36 to the rail grip at
-        /// y +0.34), 9 kg (E), 0.1016 m (4 in) of aft slide and a 100° stop (Codex's rig, both E).
+        /// Extra 300 (one canopy over both seats): 2.12 m long, 0.78 m rim to rim, 0.48 m high, hinge line 0.343 m right
+        /// of the centre-line (Codex's Canopy bounds and Canopy_HingeAxis); 14 kg (E); 100° stop (the rig, E); fittings
+        /// 15,100 N (calibrated to let go at 80 KIAS); emergency release CanopyRelease_F/R (the model's).
+        /// Pitts S-2B: 1.48 × 0.716 × 0.406 m, hinge 0.36 m right (Codex's Canopy origin); 9 kg (E); 4 in of aft slide and
+        /// a 100° stop (Codex's rig, E); fittings 12,000 N (calibrated to 80 mph = 69.5 KIAS); the red jettison knob.
         /// </summary>
         public static CanopySpec For(string aircraftId)
         {
             string id = aircraftId ?? "";
-            if (id.StartsWith("pitts")) return new CanopySpec(CanopyMotion.SlideThenHingeRight, 9.0, 0.70, 1.5, 0.1016, 100.0);
-            return new CanopySpec(CanopyMotion.HingeRight, 14.0, 0.75, 2.0, 0.0, 100.0);
+            if (id.StartsWith("pitts"))
+                return new CanopySpec(CanopyMotion.SlideThenHingeRight, 9.0, 1.48, 0.716, 0.406, 0.36, 0.1016, 100.0, PittsFittingN, true);
+            return new CanopySpec(CanopyMotion.HingeRight, 14.0, 2.12, 0.78, 0.48, 0.343, 0.0, 100.0, ExtraFittingN, true);
+        }
+
+        /// <summary>Fitting strengths, N, from <see cref="CanopyDynamics.PeakStopLoadN"/> at the failure speeds Ty gave
+        /// (80 KIAS Extra; 80 mph = 69.5 KIAS Pitts), rounded to 100 N. Re-derive if any canopy number changes.</summary>
+        public const double ExtraFittingN = 15100.0, PittsFittingN = 12000.0;
+    }
+
+    /// <summary>
+    /// THE BUBBLE IN THE AIRFLOW, from its shape. A canopy is modelled as the top half of an ellipsoid with semi-axes
+    /// a = L/2 along the flow, b = W/2 across it and c = h up, sitting on a flat fuselage top. A flat wall in a flow
+    /// along it is a plane of symmetry, so the attached potential flow over the half-ellipsoid is exactly half of the
+    /// flow over the whole one, and that is a classical result (Lamb, Hydrodynamics §114): the velocity on the surface of
+    /// an ellipsoid in a uniform stream U along a is uniform-in-form,
+    ///
+    ///   V_s = C · U · √(1 − n_a²),   C = 2 / (2 − α₀),   α₀ = a b c ∫₀^∞ dλ / ((a² + λ) √((a²+λ)(b²+λ)(c²+λ)))
+    ///
+    /// where n_a is the surface normal's component along the flow (a sphere has α₀ = 2/3, C = 1.5; a long body C → 1).
+    /// So the outside pressure is Cp(n) = 1 − C²(1 − n_a²): stagnation at the nose and tail, suction everywhere the
+    /// surface runs along the flow, most over the crown. The CURVATURE is all in C: a tall, short bubble (Pitts) has a
+    /// bigger C and more suction than a long, flat one (Extra).
+    ///
+    /// The cockpit inside sits at free-stream static, Cp_in = 0 (assumption: the vents' ram air raises it a little and
+    /// NACA RM L50B03 measured "slightly less than free stream" on a closed canopy; the two are taken to cancel). The net
+    /// outward load is then
+    ///
+    ///   L = q · A_plan · ΔCp,   ΔCp = Cp_in − (1/A_plan) ∫ Cp dA_plan      (each surface element's vertical projection)
+    ///
+    /// and, the distribution being symmetric about the centre-line, it acts on the centre-line: lever = the hinge's
+    /// distance outboard of it. Measured on Codex's models: Extra C = 1.160, ΔCp = 0.227; Pitts C = 1.219, ΔCp = 0.309.
+    /// What it leaves out: the fuselage's own supervelocity (more suction), the windscreen's wake on the Pitts (less),
+    /// and separation over the aft slope (real bubbles do not recover to Cp = 1 at the tail, so the true net suction
+    /// is somewhat LARGER than this — the opening loads here are on the low side).
+    ///
+    /// The same surface, with the canopy's mass spread uniformly over it, gives its centre of mass (height y_c above the
+    /// sill) and its moment of inertia about the hinge line.
+    /// </summary>
+    public sealed class CanopyBubble
+    {
+        public const double CpInside = 0.0;
+        public readonly double Alpha0, SpeedRatio, PlanAreaM2, NetCp, ComHeightM, InertiaKgM2, FrontalAreaM2;
+
+        public CanopyBubble(in CanopySpec s)
+        {
+            double a = 0.5 * s.LengthM, b = 0.5 * s.SpanM, c = s.HeightM;
+            Alpha0 = LambAlpha(a, b, c);
+            SpeedRatio = 2.0 / (2.0 - Alpha0);
+            PlanAreaM2 = Math.PI * a * b;
+            FrontalAreaM2 = 0.5 * Math.PI * b * c;
+
+            const int n = 160;
+            double dx = 2.0 * a / n, dz = 2.0 * b / n, dA = dx * dz, C2 = SpeedRatio * SpeedRatio;
+            double area = 0.0, cpSum = 0.0, surf = 0.0, ySum = 0.0, r2Sum = 0.0;
+            for (int i = 0; i < n; i++)
+            {
+                double x = -a + (i + 0.5) * dx;
+                for (int k = 0; k < n; k++)
+                {
+                    double z = -b + (k + 0.5) * dz;
+                    double r = 1.0 - x * x / (a * a) - z * z / (b * b);
+                    if (r <= 0.0) continue;
+                    double y = c * Math.Sqrt(r);
+                    double gx = x / (a * a), gy = y / (c * c), gz = z / (b * b);
+                    double g = Math.Sqrt(gx * gx + gy * gy + gz * gz);
+                    double na = gx / g, ny = gy / g;
+                    area += dA;
+                    cpSum += (1.0 - C2 * (1.0 - na * na)) * dA;
+                    // The surface element over this plan element: dS = dA / n_y (capped at the rim, where it runs vertical).
+                    double dS = dA / Math.Max(ny, 0.05);
+                    surf += dS;
+                    ySum += y * dS;
+                    double lat = z - s.HingeOutboardM;   // z + right; the hinge is HingeOutboardM to the right
+                    r2Sum += (lat * lat + y * y) * dS;
+                }
+            }
+            NetCp = CpInside - cpSum / area;
+            ComHeightM = ySum / surf;
+            InertiaKgM2 = s.MassKg * r2Sum / surf;
+        }
+
+        /// <summary>Lamb's α₀ for flow along the a axis, by the substitution λ = a² t / (1 − t) and the midpoint rule.</summary>
+        public static double LambAlpha(double a, double b, double c)
+        {
+            const int n = 4000;
+            double sum = 0.0, a2 = a * a, b2 = b * b, c2 = c * c;
+            for (int i = 0; i < n; i++)
+            {
+                double t = (i + 0.5) / n;
+                double lam = a2 * t / (1.0 - t);
+                double dl = a2 / ((1.0 - t) * (1.0 - t)) / n;
+                sum += dl / ((a2 + lam) * Math.Sqrt((a2 + lam) * (b2 + lam) * (c2 + lam)));
+            }
+            return a * b * c * sum;
         }
     }
 
     /// <summary>
-    /// THE CANOPY ON ITS HINGE, IN THE AIR. Cockpit frame (+x right, +y up, +z nose). The canopy is a plate from the hinge
-    /// line on the RIGHT sill to its free LEFT edge, width w; β is its opening angle (0 shut, + = left edge up, over to the
-    /// right). Unit vectors:
+    /// THE CANOPY ON ITS HINGE, IN THE AIR, AND WHEN IT LEAVES. Cockpit frame (+x right, +y up, +z nose). The canopy
+    /// turns about a hinge line on the RIGHT sill, along the flow; β is its opening angle (0 shut, + = left edge up and
+    /// over to the right). Unit vectors in the plane of rotation:
     ///
-    ///   u(β) = (−cos β, sin β, 0)   hinge → free edge          n(β) = (sin β, cos β, 0)   outer-surface normal
+    ///   u(β) = (−cos β, sin β, 0)   hinge → inboard (toward the free edge)     n(β) = (sin β, cos β, 0)   "up" of the canopy
     ///
-    /// A force F at the centroid (w/2 along u) opens it by M = (w/2)·(F·n), since n = du/dβ is the way that point moves.
+    /// with du/dβ = n and dn/dβ = −u. Its centre of mass is d = <see cref="CanopySpec.HingeOutboardM"/> inboard of the
+    /// hinge and y_c up (<see cref="CanopyBubble"/>): r = d·u + y_c·n, so a force F there opens it by F·(d·n − y_c·u).
     ///
-    /// THE AIRLOAD. In flight the outside of a canopy is in suction and the cockpit inside sits near free-stream static,
-    /// so the net load is OUTWARD — NACA RM L50B03 (Huston &amp; Skopinski 1950, flight and full-scale-tunnel pressures on a
-    /// sliding canopy): "the highest net aerodynamic load for the front canopy was in the exploding direction and occurred
-    /// with the front and rear canopies closed", with the internal pressure "slightly less than free stream". The size
-    /// of that net coefficient on OUR canopies is not in the report's text (it is in its figures); I take
+    ///   AIRLOAD   M_a = d · ΔCp(shape) · q · A_plan  (CanopyBubble: potential flow on the bubble, q = ½ρV², the sim's
+    ///             TAS and density; the Bridge passes ½ρ₀·IAS², the same q). Normal to the canopy, so its lever is d.
+    ///             Opened, the canopy stands in the free stream with its convex face still in suction and its concave
+    ///             face near static (E), so ΔCp is held as it opens. The hinge axis is ALONG the flow, so the drag on
+    ///             the open canopy has no moment about it: it loads the fittings and the aeroplane, not the swing.
+    ///   GRAVITY   apparent (load factor included): M_g = m · g_app · (d·n − y_c·u); level and shut, −m g d.
+    ///   HAND      at the free edge (lever d + W/2), up to <see cref="HandForceN"/> (E); beaten, it is torn out of it.
+    ///   SHEDDING  open past <see cref="ExposedDeg"/>, the canopy sheds vortices at St = V f / h = 0.2 and its load
+    ///             fluctuates ±<see cref="SheddingAmp"/> (E): what flaps it against its stop.
+    ///   STOP      the open-stop and hinge fittings are a stiff one-sided spring at the stop angle, K =
+    ///             <see cref="StopStiffnessNmPerRad"/> (E: a 1° give per 175 N·m of canopy frame, limiter and lug) with
+    ///             ζ = <see cref="StopDampingRatio"/> (E, so it bounces back about a third of its speed). The stop lug is
+    ///             <see cref="StopLeverM"/> from the hinge pins, so the FITTING LOAD is F = M_stop / e.
     ///
-    ///   ΔCp = 0.5 (E)   →   M_aero = (w/2) · ΔCp · q · A,   q = ½ρV²
+    ///   I β¨ = M_a + M_g + M_hand − c β˙ + M_stop,   I about the hinge line from the bubble's surface.
     ///
-    /// and hold it constant as the canopy opens (E: the convex outer skin stays in suction; nothing better is known here).
+    /// HINGE FAILURE. Unlatched in flight the suction flings it open; it reaches the stop with E = ∫ (M_a + M_g) dβ of
+    /// kinetic energy and the stop has to take that out in a few degrees: the peak stop moment is about
+    /// M_s + √(M_s² + 2 K E) (M_s the static moment there). Ty's rule — the canopy departs above 80 KIAS (Extra) and
+    /// 80 mph (Pitts) when flung open, and stays on below — fixes the fittings' strength: it is the peak load at the
+    /// stop at exactly that speed (<see cref="PeakStopLoadN"/>, which runs THIS dynamics), rounded:
+    /// Extra 15,100 N, Pitts 12,000 N. A steady load at the stop (flying on faster with it open) breaks it too, at
+    /// the speed where M_a + flutter alone reaches that.
     ///
-    /// GRAVITY (apparent: the aeroplane's load factor included) closes it: M_g = (w/2) · m · (g_app · n).
-    /// THE HAND, holding the frame at the free edge (lever arm w), can apply up to <see cref="HandForceN"/> (E, a seated
-    /// pilot reaching up with one arm). A canopy the hand cannot hold is torn out of it.
+    /// THE PITTS' SLIDE. It must slide 4 in aft before it can hinge (the mushroom buttons hold it in the track). By hand
+    /// the slide follows the hand 1:1; unlatched in flight the canopy's own drag (q · Cd 0.07 · frontal area, E for a
+    /// faired bubble) pushes it aft against the track's friction μ = 0.05 (E, nylon buttons in an aluminium track)
+    /// times the net load on the buttons |lift − weight|. With these numbers it slides and flings at any flying speed
+    /// — a question for Ty (does an unlatched S-2B canopy really run aft by itself?).
     ///
-    ///   I β¨ = M_aero + M_g + M_hand − c β˙,   I = m w² / 3 (a plate about its edge)
+    /// JETTISON. <see cref="ReleaseHingePins"/> pulls the hinge pins. With the latch still LOCKED the canopy is held at
+    /// the latch and stays on (its hinge side would lift by the latch's play; not drawn). Once the latch is open as well
+    /// it is FREE: in the air (q above that of 20 kt) it departs at once at any speed; on the ground it sits loose
+    /// until a hand lifts it 10°.
     ///
-    /// against a stop at <see cref="CanopySpec.StopDeg"/> (restitution 0.2, E). So with the latch off the canopy FLIPS
-    /// OPEN once M_aero beats gravity (and the hand), which is what the Extra's POH says it does. Whether it then
-    /// DEPARTS at high q is a question for Ty: without a hinge-strength figure it stays on its stop here.
-    ///
-    /// THE PITTS' SLIDE. The first <see cref="CanopySpec.SlideM"/> is aft along the left track, driven 1:1 by the hand
-    /// (the airload's aft component on a faired canopy is small against the track's friction under that suction, E);
-    /// it cannot hinge until it is fully aft, because the mushroom buttons hold it down.
-    ///
-    /// DRAG. An open canopy stands in the free stream and opens the cockpit: ΔCdA = <see cref="OpenDragAreaM2"/> ·
-    /// min(1, β / 60°) (E: 1.2 × the canopy's ~0.17 m² frontal arch; the Extra's whole airframe is about 0.27 m²).
+    /// DRAG into the aeroplane (<see cref="DragAreaM2"/>): an open cockpit, <see cref="OpenCockpitCdA"/>, ramping in
+    /// over the first 30° of opening, plus the canopy standing in the stream, Cd 0.4 (E, a hollow half-shell edge-on)
+    /// on its arch's frontal area π b h / 2, ramping in to 45°. Departed: the open cockpit only.
     /// </summary>
     public sealed class CanopyDynamics
     {
-        public const double NetOpeningCp = 0.5;
         public const double HandForceN = 200.0;
-        public const double OpenDragAreaM2 = 0.20;
         public const double DampingNmsPerRad = 2.0;
-        public const double StopRestitution = 0.2;
+        public const double StopStiffnessNmPerRad = 10000.0, StopDampingRatio = 0.3, StopLeverM = 0.10;
+        public const double ExposedDeg = 20.0, Strouhal = 0.2, SheddingAmp = 0.15;
+        public const double ShutCd = 0.07, TrackFriction = 0.05;
+        public const double OpenShellCd = 0.4;
+        /// <summary>Above this q a free (jettisoned and unlatched) canopy leaves by itself: ½ρ₀(20 kt)² = 64.8 Pa.</summary>
+        public const double DepartMinQ = 64.8;
         /// <summary>Angle above which the pilot can climb out past it (E: the frame is clear of his shoulders).</summary>
         public const double ClearToLeaveDeg = 60.0;
+        private const double Rho0 = 1.225, SubstepSec = 0.001;
 
         public readonly CanopySpec Spec;
-        /// <summary>Metres slid aft (Pitts), 0 .. SlideM.</summary>
+        public readonly CanopyBubble Bubble;
+        /// <summary>Metres slid aft (Pitts), 0 .. SlideM, and its speed.</summary>
         public double SlideM { get; private set; }
+        public double SlideSpeedMs { get; private set; }
         public double AngleDeg { get; private set; }
         public double RateDps { get; private set; }
         public bool Held { get; private set; }
+        /// <summary>The jettison has pulled the hinge pins (one-way).</summary>
+        public bool HingePinsOut { get; private set; }
+        public bool Departed { get; private set; }
+        public CanopyDeparture DepartedBy { get; private set; }
+        /// <summary>The largest load the stop lug has seen, N (this flight), and the last contact's.</summary>
+        public double PeakFittingLoadN { get; private set; }
+        public double FittingLoadN { get; private set; }
 
-        private double _grabZ, _grabSlide, _grabAngleOff;
+        private double _grabZ, _grabSlide, _grabAngleOff, _t;
 
-        public CanopyDynamics(CanopySpec spec) { Spec = spec; }
+        public CanopyDynamics(CanopySpec spec) { Spec = spec; Bubble = new CanopyBubble(spec); }
 
-        public void Reset() { SlideM = 0.0; AngleDeg = 0.0; RateDps = 0.0; Held = false; }
+        public void Reset()
+        {
+            SlideM = 0.0; SlideSpeedMs = 0.0; AngleDeg = 0.0; RateDps = 0.0; Held = false;
+            HingePinsOut = false; Departed = false; DepartedBy = CanopyDeparture.None;
+            PeakFittingLoadN = 0.0; FittingLoadN = 0.0; _t = 0.0;
+        }
 
         public bool SlidComplete => Spec.Motion == CanopyMotion.HingeRight || SlideM >= Spec.SlideM - 1e-6;
-        public bool Shut => AngleDeg < 0.5 && SlideM < 1e-3;
-        public bool ClearToLeave => AngleDeg >= ClearToLeaveDeg;
+        public bool Shut => !Departed && AngleDeg < 0.5 && SlideM < 1e-3;
+        public bool ClearToLeave => Departed || AngleDeg >= ClearToLeaveDeg;
 
         /// <summary>The rig's `canopy_open` (CONTRACT / Codex's rigs): Extra 0..1 = 0..stop°; Pitts 0..0.2 = the slide,
         /// 0.2..1 = 0..stop°.</summary>
@@ -113,9 +254,17 @@ namespace FlyingGame.Core.Vr
             ? Math.Clamp(AngleDeg / Spec.StopDeg, 0.0, 1.0)
             : (SlideM < Spec.SlideM - 1e-6 ? 0.2 * SlideM / Spec.SlideM : 0.2 + 0.8 * Math.Clamp(AngleDeg / Spec.StopDeg, 0.0, 1.0));
 
-        public double DragAreaM2 => OpenDragAreaM2 * Math.Min(1.0, AngleDeg / 60.0);
+        /// <summary>Open-cockpit drag area, m² (E): Extra 0.15 (two seats under one opening), Pitts 0.12.</summary>
+        public double OpenCockpitCdA => Spec.Motion == CanopyMotion.HingeRight ? 0.15 : 0.12;
 
-        public double InertiaKgM2 => Spec.MassKg * Spec.WidthM * Spec.WidthM / 3.0;
+        /// <summary>Added drag area, m², into the flight model (Aircraft.ExtraDragAreaM2).</summary>
+        public double DragAreaM2 => Departed
+            ? OpenCockpitCdA
+            : OpenCockpitCdA * Math.Min(1.0, AngleDeg / 30.0) + OpenShellCd * Bubble.FrontalAreaM2 * Math.Min(1.0, AngleDeg / 45.0);
+
+        /// <summary>How open the cockpit is to the airflow, 0 sealed .. 1 no canopy at all (for the wind noise): an
+        /// attached canopy shelters some of it even fully open.</summary>
+        public double Exposure01 => Departed ? 1.0 : 0.8 * Math.Min(1.0, AngleDeg / 30.0);
 
         public static Vec3 Normal(double angleDeg)
         {
@@ -123,19 +272,57 @@ namespace FlyingGame.Core.Vr
             return new Vec3(Math.Sin(b), Math.Cos(b), 0.0);
         }
 
+        public static Vec3 Inboard(double angleDeg)
+        {
+            double b = angleDeg * Math.PI / 180.0;
+            return new Vec3(-Math.Cos(b), Math.Sin(b), 0.0);
+        }
+
+        /// <summary>Where a point fixed to the canopy is now, given where it is with the canopy shut (cockpit frame):
+        /// slid aft by <see cref="SlideM"/>, then turned by β about the hinge line through <paramref name="hinge"/>
+        /// (the hinge's position with the canopy shut). The grips, the latch handles and the jettison knob all ride it.</summary>
+        public Vec3 PointOnCanopy(Vec3 shutPoint, Vec3 hinge) => PointOnCanopy(shutPoint, hinge, SlideM, AngleDeg);
+
+        public static Vec3 PointOnCanopy(Vec3 shutPoint, Vec3 hinge, double slideM, double angleDeg)
+        {
+            Vec3 r = shutPoint - hinge;
+            double inboard = -r.X, up = r.Y;
+            Vec3 p = Inboard(angleDeg) * inboard + Normal(angleDeg) * up;
+            return new Vec3(hinge.X + p.X, hinge.Y + p.Y, shutPoint.Z - slideM);
+        }
+
+        /// <summary>The net outward load of the airflow, N.</summary>
+        public double AeroNormalN(double q) => Bubble.NetCp * q * Bubble.PlanAreaM2;
+
         /// <summary>Opening moment of the airload, N·m (positive opens).</summary>
-        public static double AeroMomentNm(in CanopySpec s, double q) => 0.5 * s.WidthM * NetOpeningCp * q * s.AreaM2;
+        public double AeroMomentNm(double q) => Spec.HingeOutboardM * AeroNormalN(q);
 
-        /// <summary>Opening moment of (apparent) gravity, N·m; level 1 g: −(w/2)·m·g·cos β.</summary>
-        public static double GravityMomentNm(in CanopySpec s, Vec3 gApp, double angleDeg) =>
-            0.5 * s.WidthM * s.MassKg * gApp.Dot(Normal(angleDeg));
+        /// <summary>Opening moment of (apparent) gravity, N·m; level 1 g and shut: −m g d.</summary>
+        public double GravityMomentNm(Vec3 gApp, double angleDeg) =>
+            Spec.MassKg * gApp.Dot(Normal(angleDeg) * Spec.HingeOutboardM - Inboard(angleDeg) * Bubble.ComHeightM);
 
-        /// <summary>Dynamic pressure at which a shut, unlatched canopy flips open against level 1 g and a hand holding
-        /// <paramref name="holdN"/> at its free edge: q = ((w/2)·m·g + w·F) / ((w/2)·ΔCp·A).</summary>
-        public static double FlipOpenQ(in CanopySpec s, double holdN, double g = 9.80665) =>
-            (0.5 * s.WidthM * s.MassKg * g + s.WidthM * holdN) / (0.5 * s.WidthM * NetOpeningCp * s.AreaM2);
+        /// <summary>Dynamic pressure at which a shut, unlatched canopy lifts off against level 1 g and a hand holding
+        /// <paramref name="holdN"/> at its free edge: q = (m g d + F (d + W/2)) / (d ΔCp A).</summary>
+        public double FlipOpenQ(double holdN, double g = 9.80665) =>
+            (Spec.MassKg * g * Spec.HingeOutboardM + holdN * Spec.FreeEdgeM) / AeroMomentNm(1.0);
 
-        /// <summary>The hand closes on the frame. <paramref name="handZ"/> = fore-aft (for the slide); the angle the
+        /// <summary>The canopy's own velocity relative to the aeroplane at its centre of mass, cockpit frame, m/s: the
+        /// swing (and the Pitts' slide). What it leaves with, on top of the aeroplane's velocity there.</summary>
+        public Vec3 ComVelocityLocal()
+        {
+            double w = RateDps * Math.PI / 180.0;
+            Vec3 swing = (Normal(AngleDeg) * Spec.HingeOutboardM - Inboard(AngleDeg) * Bubble.ComHeightM) * w;
+            return swing + new Vec3(0, 0, -SlideSpeedMs);
+        }
+
+        /// <summary>The centre of mass relative to the shut hinge position, cockpit frame.</summary>
+        public Vec3 ComLocal(Vec3 hinge) =>
+            PointOnCanopy(hinge + new Vec3(-Spec.HingeOutboardM, Bubble.ComHeightM, 0.0), hinge);
+
+        /// <summary>The jettison pulls the hinge pins (one-way, until the aeroplane is reset).</summary>
+        public void ReleaseHingePins() => HingePinsOut = true;
+
+        /// <summary>The hand closes on the frame. <paramref name="hand"/>.Z = fore-aft (for the slide); the angle the
         /// hand points the free edge at is kept as an offset, so closing on it never jumps it.</summary>
         public void Grab(Vec3 hand, Vec3 hinge)
         {
@@ -152,69 +339,165 @@ namespace FlyingGame.Core.Vr
             Math.Atan2(hand.Y - hinge.Y, hinge.X - hand.X) * 180.0 / Math.PI;
 
         /// <summary>
-        /// One step. <paramref name="locked"/>: the latch (it holds it shut). <paramref name="hand"/> / <paramref name="hinge"/>
-        /// are used while <see cref="Held"/>. Returns events for haptics and the log.
+        /// One step. <paramref name="locked"/>: the latch holds it shut (Extra: pins engaged; Pitts: the ball home).
+        /// <paramref name="hand"/> / <paramref name="hinge"/> are used while <see cref="Held"/> (the hinge where it is
+        /// NOW, i.e. slid). Runs internally in 1 ms steps (the stop is stiff). Returns events for haptics and the log.
         /// </summary>
         public CanopyEvents Step(double dt, double q, Vec3 gApp, bool locked, Vec3 hand, Vec3 hinge)
         {
             CanopyEvents ev = CanopyEvents.None;
-            if (dt <= 0.0) return ev;
-            if (locked && Shut) { RateDps = 0.0; return ev; }
+            if (dt <= 0.0 || Departed) return ev;
+            if (locked && Shut) { RateDps = 0.0; SlideSpeedMs = 0.0; return ev; }
 
-            // The Pitts' slide: the hand drives it, aft = −z. It stays where it is left.
-            // Only while it is down on the track (β ≈ 0): pushed back forward, it slides shut again.
+            // Jettisoned and unlatched: nothing holds it. It goes in the air, or when a hand lifts it on the ground.
+            if (HingePinsOut && !locked && (q >= DepartMinQ || AngleDeg >= 10.0))
+                return Depart(CanopyDeparture.Jettisoned);
+
+            // The Pitts' slide, while it is down on its track.
             if (Spec.Motion == CanopyMotion.SlideThenHingeRight && AngleDeg < 0.5)
             {
                 bool was = SlidComplete;
                 if (Held && !locked)
-                    SlideM = Math.Clamp(_grabSlide + (_grabZ - hand.Z), 0.0, Spec.SlideM);
+                {
+                    double s = Math.Clamp(_grabSlide + (_grabZ - hand.Z), 0.0, Spec.SlideM);
+                    SlideSpeedMs = (s - SlideM) / dt;
+                    SlideM = s;
+                }
+                else if (!locked) SlideInTheAir(dt, q, gApp);
                 if (!SlidComplete) { AngleDeg = 0.0; RateDps = 0.0; return ev; }
+                SlideSpeedMs = 0.0;
                 // Just reached the end of the track: re-take the hinge offset so the swing starts where the hand is.
                 if (!was && Held) _grabAngleOff = AngleDeg - HandAngle(hand, hinge);
             }
 
-            double I = InertiaKgM2;
-            double m = AeroMomentNm(Spec, q) + GravityMomentNm(Spec, gApp, AngleDeg);
-            double rate = RateDps * Math.PI / 180.0;
-            if (Held)
+            double I = Bubble.InertiaKgM2;
+            double cStop = 2.0 * StopDampingRatio * Math.Sqrt(StopStiffnessNmPerRad * I);
+            double rate = RateDps * Math.PI / 180.0, angle = AngleDeg * Math.PI / 180.0, stop = Spec.StopDeg * Math.PI / 180.0;
+            double vTrue = Math.Sqrt(2.0 * Math.Max(0.0, q) / Rho0);
+            double shedHz = Strouhal * vTrue / Math.Max(0.1, Spec.HeightM);
+            bool wasOpen = AngleDeg >= 0.9 * Spec.StopDeg, inContact = AngleDeg > Spec.StopDeg;
+            int n = Math.Max(1, (int)Math.Ceiling(dt / SubstepSec));
+            double h = dt / n;
+            FittingLoadN = 0.0;
+            for (int i = 0; i < n; i++)
             {
-                // The hand is a stiff, bounded servo on the angle it points the edge at: critically damped at 12 rad/s
-                // (E, an arm's bandwidth), capped at what one arm can push or pull at the free edge.
-                double want = Math.Clamp(HandAngle(hand, hinge) + _grabAngleOff, 0.0, Spec.StopDeg);
-                double err = (want - AngleDeg) * Math.PI / 180.0;
-                const double wn = 12.0;
-                double need = I * (wn * wn * err - 2.0 * wn * rate) - m;
-                double cap = HandForceN * Spec.WidthM;
-                if (Math.Abs(need) > cap)
+                _t += h;
+                double deg = angle * 180.0 / Math.PI;
+                double ma = AeroMomentNm(q);
+                if (deg > ExposedDeg) ma *= 1.0 + SheddingAmp * Math.Sin(2.0 * Math.PI * shedHz * _t);
+                double m = ma + GravityMomentNm(gApp, deg);
+                if (Held)
                 {
-                    Held = false;
-                    ev |= CanopyEvents.TornFromHand;
-                    m += Math.Sign(need) * cap;   // he was still pushing this step
+                    // The hand is a stiff, bounded servo on the angle it points the edge at: critically damped at 12 rad/s
+                    // (E, an arm's bandwidth), capped at what one arm can push or pull at the free edge.
+                    double want = Math.Clamp(HandAngle(hand, hinge) + _grabAngleOff, 0.0, Spec.StopDeg) * Math.PI / 180.0;
+                    const double wn = 12.0;
+                    double need = I * (wn * wn * (want - angle) - 2.0 * wn * rate) - m;
+                    double cap = HandForceN * Spec.FreeEdgeM;
+                    if (Math.Abs(need) > cap)
+                    {
+                        Held = false;
+                        ev |= CanopyEvents.TornFromHand;
+                        m += Math.Sign(need) * cap;   // he was still pushing this step
+                    }
+                    else m += need;
                 }
-                else m += need;
-            }
-            m -= DampingNmsPerRad * rate;
+                m -= DampingNmsPerRad * rate;
 
-            rate += m / I * dt;
-            double angle = AngleDeg + rate * dt * 180.0 / Math.PI;
-            if (angle >= Spec.StopDeg)
-            {
-                angle = Spec.StopDeg;
-                if (rate > 0.0) { if (rate * 180.0 / Math.PI > 20.0) ev |= CanopyEvents.HitStop; rate = -StopRestitution * rate; }
+                // The open-stop: a one-sided spring-damper, and the load it puts through the lug.
+                double over = angle - stop;
+                if (over > 0.0)
+                {
+                    double ms = Math.Max(0.0, StopStiffnessNmPerRad * over + cStop * rate);
+                    m -= ms;
+                    double load = ms / StopLeverM;
+                    if (load > FittingLoadN) FittingLoadN = load;
+                    if (load > PeakFittingLoadN) PeakFittingLoadN = load;
+                    if (!inContact)
+                    {
+                        inContact = true;
+                        if (rate * 180.0 / Math.PI > 20.0) ev |= CanopyEvents.HitStop;
+                    }
+                    if (load > Spec.FittingStrengthN)
+                    {
+                        AngleDeg = angle * 180.0 / Math.PI; RateDps = rate * 180.0 / Math.PI;
+                        return ev | Depart(CanopyDeparture.HingesFailed);
+                    }
+                }
+                else inContact = false;
+
+                rate += m / I * h;
+                angle += rate * h;
+                if (angle <= 0.0)
+                {
+                    angle = 0.0;
+                    if (rate < 0.0) rate = 0.0;
+                }
             }
-            if (angle <= 0.0)
-            {
-                angle = 0.0;
-                if (rate < 0.0) rate = 0.0;
-            }
-            bool wasOpen = AngleDeg >= 0.9 * Spec.StopDeg;
-            AngleDeg = angle;
+            AngleDeg = angle * 180.0 / Math.PI;
             RateDps = rate * 180.0 / Math.PI;
             if (!wasOpen && AngleDeg >= 0.9 * Spec.StopDeg && !Held) ev |= CanopyEvents.FlippedOpen;
             return ev;
         }
+
+        private CanopyEvents Depart(CanopyDeparture why)
+        {
+            Departed = true;
+            DepartedBy = why;
+            Held = false;
+            return CanopyEvents.Departed;
+        }
+
+        /// <summary>The Pitts' canopy on its track in the airload: its drag pushes it aft against the friction of the
+        /// buttons, which are pressed by the net of suction and weight.</summary>
+        private void SlideInTheAir(double dt, double q, Vec3 gApp)
+        {
+            double drive = q * ShutCd * Bubble.FrontalAreaM2;
+            double press = Math.Abs(AeroNormalN(q) + Spec.MassKg * gApp.Y);
+            double friction = TrackFriction * press;
+            double v = SlideSpeedMs;
+            double f = v > 1e-6 ? drive - friction : drive > friction ? drive - friction : 0.0;
+            v = Math.Max(0.0, v + f / Spec.MassKg * dt);
+            double s = SlideM + v * dt;
+            if (s >= Spec.SlideM) { s = Spec.SlideM; v = 0.0; }
+            SlideM = s;
+            SlideSpeedMs = v;
+        }
+
+        /// <summary>
+        /// THE CALIBRATION. Fling a shut, unlatched canopy open at this q (level 1 g, no hand, fittings that never
+        /// break) and return the largest load its stop lug sees, N. The fitting strengths in <see cref="CanopySpec"/>
+        /// are this at Ty's failure speeds.
+        /// </summary>
+        public static double PeakStopLoadN(CanopySpec s, double q)
+        {
+            var strong = new CanopySpec(s.Motion, s.MassKg, s.LengthM, s.SpanM, s.HeightM, s.HingeOutboardM, s.SlideM, s.StopDeg,
+                                        double.MaxValue, s.HasJettison);
+            var c = new CanopyDynamics(strong);
+            var g = new Vec3(0, -9.80665, 0);
+            for (int i = 0; i < 600; i++) c.Step(0.005, q, g, false, Vec3.Zero, Vec3.Zero);   // 3 s: slide, fling, slam, settle
+            return c.PeakFittingLoadN;
+        }
     }
 
+    public enum CanopyDeparture { None = 0, HingesFailed = 1, Jettisoned = 2 }
+
     [Flags]
-    public enum CanopyEvents { None = 0, FlippedOpen = 1, HitStop = 2, TornFromHand = 4 }
+    public enum CanopyEvents { None = 0, FlippedOpen = 1, HitStop = 2, TornFromHand = 4, Departed = 8 }
+
+    /// <summary>
+    /// THE WIND IN THE COCKPIT. The pressure fluctuations of a turbulent flow scale with its dynamic pressure, so the
+    /// noise AMPLITUDE goes as q (+6 dB per doubling of q, +12 dB per doubling of speed); how much of it reaches the
+    /// pilot depends on how open the cockpit is. Relative amplitude, 1 = an open cockpit at 100 KIAS:
+    ///
+    ///   A = (q / q₁₀₀) · (0.12 + 0.88 · exposure)     (0.12 = what a shut canopy lets through: E, ≈ −18 dB)
+    /// </summary>
+    public static class CockpitWind
+    {
+        /// <summary>½ρ₀ (100 kt)² = 1620.8 Pa.</summary>
+        public const double Q100Kt = 1620.8, SealedLeak = 0.12;
+
+        public static double Amplitude(double q, double exposure01) =>
+            Math.Max(0.0, q) / Q100Kt * (SealedLeak + (1.0 - SealedLeak) * Math.Clamp(exposure01, 0.0, 1.0));
+    }
 }

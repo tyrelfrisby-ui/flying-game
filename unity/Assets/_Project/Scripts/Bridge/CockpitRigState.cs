@@ -60,6 +60,10 @@ namespace FlyingGame.Bridge
         /// open/shut command, decides <see cref="CanopyOpen01"/>, and its drag goes into the flight model), the seat's
         /// belts, the headset cord and the climb out.</summary>
         public FlyingGame.Core.Vr.CanopyDynamics HandCanopy;
+        /// <summary>The canopy jettison a headset hand pulls (the Pitts' red knob; the Extra's CanopyRelease where its model
+        /// has one), or null. One-way; reset with the aeroplane. It drives the rig's `canopy_jettison` with the menu's
+        /// red-handle pull, but NOT AirframeVisual's instant jettison: the canopy goes when CanopyDynamics says so.</summary>
+        public FlyingGame.Core.Vr.JettisonPull HandJettison;
         public FlyingGame.Core.Vr.SeatHarness Harness;
         public FlyingGame.Core.Vr.HeadsetCord Cord;
         public readonly FlyingGame.Core.Vr.ClimbOut Climb = new();
@@ -89,6 +93,9 @@ namespace FlyingGame.Bridge
             _canopyTarget = Mathf.Clamp01(open01);
         }
 
+        /// <summary>How open the cockpit is to the airflow, 0 sealed .. 1 no canopy (Core Vr.CockpitWind: the wind noise).</summary>
+        public double CockpitExposure01 => HandCanopy != null ? HandCanopy.Exposure01 : CanopyGone ? 1.0 : 0.8 * CanopyOpen01;
+
         /// <summary>True where the canopy can be worked at all: there is one, and it is not jettisoned.</summary>
         public bool CanopyUsable => !CanopyGone;
 
@@ -115,6 +122,7 @@ namespace FlyingGame.Bridge
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
             HandLatch?.Reset();
             HandCanopy?.Reset();
+            HandJettison?.Reset();
             Harness?.Reset();
             Cord?.Reset();
             Climb.Reset();
@@ -213,11 +221,12 @@ namespace FlyingGame.Bridge
             StepCanopy(dt);
             r.CanopyOpen = CanopyOpen01;
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
-            r.CanopyJettison = CanopyPull01;
+            r.CanopyJettison = System.Math.Max(CanopyPull01, HandJettison?.Pulled01 ?? 0.0);
             r.CanopyLatch = HandLatch != null ? HandLatch.Latch01 : CanopyLocked ? 0.0 : 1.0;
             r.HarnessLatch = Harness != null ? Harness.Harness01 : 0.0;
-            // An open canopy's drag, into the flight model (Aircraft.ExtraDragAreaM2); nothing unless the hands opened it.
-            ac.ExtraDragAreaM2 = HandCanopy != null && !CanopyGone ? HandCanopy.DragAreaM2 : 0.0;
+            // An open canopy's drag, or the open cockpit's once it has gone, into the flight model (Aircraft.ExtraDragAreaM2);
+            // nothing unless the headset's hands-on canopy is in use.
+            ac.ExtraDragAreaM2 = HandCanopy != null ? HandCanopy.DragAreaM2 : 0.0;
             ac.ExtraDragPointBody = CanopyDragPointBody;
         }
 

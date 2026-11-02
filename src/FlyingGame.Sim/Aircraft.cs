@@ -247,7 +247,38 @@ public sealed class Aircraft
     /// <summary>New mass and inertia (live weight &amp; balance — the Aero Widget's loading command). The CG itself is
     /// Config.Mass.Cg, which every force and moment is taken about.</summary>
     public void SetMassProperties(double massKg, double ixx, double iyy, double izz, double ixz) =>
-        MassProperties = new MassProperties(massKg, ixx, iyy, izz, ixz);
+        MassProperties = Shed(new MassProperties(massKg, ixx, iyy, izz, ixz));
+
+    /// <summary>Mass that has LEFT the aeroplane in flight (today: a departed canopy, Core Vr.CanopyDynamics), and the
+    /// first moment of it about the reference CG, kg·m (body frame). Zero unless something has gone.</summary>
+    public double ShedMassKg { get; private set; }
+    private Vec3 _shedMoment;
+
+    /// <summary>The CG of what is left, body frame: Config.Mass.Cg moved by −m·r / (M − m). Forces and moments are still
+    /// taken about Config.Mass.Cg (every geometry in the config is placed relative to it); the shift enters as the
+    /// remaining weight's moment about it (see the force sum), which is exactly what moving the CG does to the
+    /// statics. The dynamics' coupling term m·r×a is neglected (a 14 kg canopy 0.5 m from the CG of an 800 kg aeroplane).</summary>
+    public Vec3 CgShiftBody => MassProperties.MassKg > 1.0 ? _shedMoment * (-1.0 / MassProperties.MassKg) : Vec3.Zero;
+
+    /// <summary>A part of <paramref name="kg"/> at <paramref name="pointBody"/> (the config's body frame) has left:
+    /// the mass drops, the inertia loses its parallel-axis share, and the CG moves away from where it was.</summary>
+    public void ShedMass(double kg, Vec3 pointBody)
+    {
+        if (kg <= 0.0) return;
+        ShedMassKg += kg;
+        _shedMoment += (pointBody - Config.Mass.CgVec()) * kg;
+        MassProperties = Shed(MassProperties, kg, pointBody - Config.Mass.CgVec());
+    }
+
+    private MassProperties Shed(MassProperties p) =>
+        ShedMassKg > 0.0 ? Shed(p, ShedMassKg, _shedMoment * (1.0 / ShedMassKg)) : p;
+
+    private static MassProperties Shed(MassProperties p, double kg, Vec3 d) => new(
+        Math.Max(1.0, p.MassKg - kg),
+        Math.Max(1.0, p.Ixx - kg * (d.Y * d.Y + d.Z * d.Z)),
+        Math.Max(1.0, p.Iyy - kg * (d.X * d.X + d.Z * d.Z)),
+        Math.Max(1.0, p.Izz - kg * (d.X * d.X + d.Y * d.Y)),
+        p.Ixz - kg * d.X * d.Z);
 
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
     {
@@ -309,7 +340,7 @@ public sealed class Aircraft
     /// Ignored once damage owns the tensor.</summary>
     public void ApplyLoad()
     {
-        if (!_massOwnedByDamage) MassProperties = Load.Properties;
+        if (!_massOwnedByDamage) MassProperties = Shed(Load.Properties);
     }
 
     /// <summary>Fuel mass burned per second at the current throttle. Shaft power is MaxPowerW x throttle
@@ -865,6 +896,8 @@ public sealed class Aircraft
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;
             Vec3 totalM = aeroMoment;
+            // Something has left (a departed canopy): what remains balances at a shifted CG, and its weight acts there.
+            if (ShedMassKg > 0.0) totalM += Vec3.Cross(CgShiftBody, gravityBody);
             if (Config.WeightShift is not null)
             {
                 // A flex wing has nothing to deflect: the pilot swings his own mass on the hang strap and the whole

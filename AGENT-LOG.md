@@ -1,4 +1,63 @@
 ## NEEDS YOU
+- **QUEST: THE EXTRA'S REAL LATCH, THE CANOPY FLUNG OPEN AND TORN AWAY IN FLIGHT, THE JETTISON KNOB (Claude, 2026-11-02,
+  lane/claude-vr-cockpit, P2c / P2c-2 / P2c-3) — from your "the rear handle is fixed, the front handle is spring-loaded
+  forward …", "suction … flings it open; above 80 KIAS on the Extra, or 80 MPH on the Pitts, the hinges fail and the canopy
+  tears away" and "the Pitts also has a canopy JETTISON knob". Code only: NOT built, NOT on the headset. NEEDS YOU after the
+  operator's build (cockpit view; table in docs/quest-controls.md, design and every number in docs/vr-cockpit.md):**
+  1. **Extra latch, on the ground.** Left canopy frame, just ahead of you: a fixed REAR handle and a spring-loaded FRONT
+     one. Try all three: one hand on the pair + trigger; one hand on each handle, close them together; the front handle
+     alone, pulled aft. Then grab ONLY the rear one and pull: nothing should happen. Past about 80 % of the squeeze the pins
+     come out (click, `[VrCockpit] canopy latch UNLOCKED`); let go with it shut and they snap back in (click). Your hand on
+     the handles is on the canopy: keep squeezing and push up to open it. Lower it with the handles released: it latches
+     only once it is right down.
+  2. **Extra, in flight, latch released.** At 60–75 KIAS: flung open, slammed onto its stop, flapping, still attached
+     (`canopy slammed onto its stop: … N`). At 85+ KIAS: **torn off its hinges** and gone, falling clear down and to the
+     right (`TORN OFF ITS HINGES`), the cockpit louder, the aeroplane lighter. Below about 54 KIAS it does not lift.
+  3. **Pitts, ball latch only.** Unlatched in flight the canopy runs aft 4 in by itself, then flings: stays on at 60 KIAS,
+     tears away at 75. **Jettison:** the RED knob far right where the bow tubes meet the canopy's lower rail (each
+     cockpit; a red proxy block until Codex's knob lands). Grab, pull toward you, firmly, all the way: it stays out
+     (one-way). With the ball still locked the canopy stays on — slide the ball open and it goes at any speed (try 40, 70
+     and 120 KIAS). Short of the end it springs back and nothing happens.
+  4. **Extra jettison:** the red emergency release on the right sill (the model's CanopyRelease_R / _F), same behaviour.
+  **Judgement calls that are really yours (all estimates, every one a named constant):**
+  (a) **Extra latch numbers:** front-handle spring 20 N preload + 600 N/m (41 N fully squeezed), 0.08 kg moving, 2 N
+  friction; travel 35 mm and pin stroke 18 mm (Codex); **the pins clear their holes at 80.6 % of the squeeze** (14 mm of
+  engagement + 0.5 mm). How hard is the real squeeze, how far does the front handle move, and how far in do the pins go?
+  (Codex's drawn sockets show ~6 mm, which would release at a third of the squeeze — one of us has to change.)
+  (b) **The suction model:** potential flow over a half-ellipsoid the size of each canopy (Codex's models), cockpit
+  inside at free-stream static: **net outward ΔCp 0.227 (Extra), 0.308 (Pitts)** — so an unlatched canopy lifts off at
+  **53.6 KIAS (Extra) / 46.1 (Pitts)**, and one hand (200 N, E) holds it shut to about **108 KIAS**. Masses 14 / 9 kg (E).
+  (c) **Hinge strength, calibrated to your speeds:** the open-stop is a stiff spring (10,000 N·m/rad, lug 0.10 m from the
+  pins, E); flung open at exactly 80 KIAS / 69.5 KIAS the peak stop-lug load is 15,125 / 11,972 N, so **fittings
+  15,100 N (Extra) and 12,000 N (Pitts)**; in the dynamics the Extra holds at 79 and goes at 80, the Pitts holds at 69.5
+  and goes at 70. Consequence: **a canopy that survived the fling stays on if you then speed up** (the steady load on
+  the stop only reaches that strength near 280 KIAS). Is that right, or should an open canopy go above 80 whatever?
+  (d) **Does an unlatched S-2B canopy run aft by itself in flight?** With the slide-then-hinge mechanism it has to, for
+  your 80 mph rule to apply; I let its own drag (Cd 0.07, E) beat the track friction (μ 0.05, E).
+  (e) **Jettison with the latch still locked:** I assumed the knob pulls the hinge pins only and the latch holds the canopy
+  until it too is opened (either order works; whichever is second releases it). Or does your knob release both sides,
+  or does the canopy pivot about the latch side? Knob travel 38 mm (Pitts, E) / 40 mm (Extra, Codex), 8 mm breakout for
+  the ~90 N pull (E), fires at 90 %. **Is the Extra's CanopyRelease really a jettison, same any-speed rule?**
+  (f) **The departed canopy** leaves down and to the right, away from you; in a bench probe it crosses the right wing
+  root within 0.2 s. Strikes are only a `[VrEgress]` WARNING — what should a canopy hitting the wing or tail do?
+  (g) **Open-cockpit drag** 0.15 m² (Extra) / 0.12 (Pitts) and the open canopy's own 0.4 × arch area (fully open and
+  attached 0.268 / 0.211 m²; gone 0.15 / 0.12). Wind noise ∝ q, a shut canopy letting through 12 % of an open cockpit's.
+  **Knob position: CONFIRMED BY TY 2026-11-02 12:40** (far right, bow/sill-rail junction); it rides the canopy frame
+  (bows and sill rail are both canopy) and pulls the right-hand hinge pins. Recorded in docs/vr-cockpit.md; **Codex:
+  please mark it "confirmed by Ty, 2026-11-02" in docs/models/canopy-latches.md** (that file is only on your branch —
+  creating it here would collide at merge).
+  **Codex, nodes I bind (CONTRACT):** `Grip_Canopy_Latch(_Front)`, `Grip_Canopy_Latch_Aft/Fwd(_Front)`,
+  `Grip_Canopy_Jettison_Rear/Front` → `Canopy_Jettison_Knob_Rear/Front` (rig `canopy_jettison` 0..1 = the pull),
+  `Canopy_Detachable` (else the rig's jettisonable node, else `Canopy_Slide` / `Canopy`), `Canopy_Hinge_Broken_*`
+  (shown when the hinges fail), `CanopyRelease_R/_F` (Extra jettison). Missing → proxy + `[VrCockpit] missing node`.
+  **Code:** Core `CanopyLatch.cs` (ExtraCanopyLatch v2, ExtraLatchHands), `CanopyHinge.cs` (CanopyBubble, the airload,
+  stop, failure, slide-in-the-air, jettison gate, drag, CockpitWind), new `CanopyRelease.cs` (JettisonPull,
+  CanopyFreeBody, CanopyTailCheck), `CockpitGrab` (CanopyLatchAft/Fwd, CanopyJettison, Drop), `Aircraft.ShedMass` /
+  `CgShiftBody` (zero unless something has left); Bridge `VrCockpitHands(.Bailout)`, `CockpitRigState.HandJettison`,
+  `AirframeVisual.DetachCanopy`, new `CanopyFlight`, `FlightAudio`/`WindSynth` cockpit air. Also fixed: the Phase-2 drag
+  point and the jumper's tail-strike check used a CG-relative point as a body-frame one (now Cg + offset).
+  **Evidence (bench only):** 30 new or rewritten cases green, run alone: `VrCockpitTests` 7 Extra latch v2 (squeeze, partial below threshold, spring return + re-pin, rear handle alone, two hands, front handle alone, no engagement while open) and `VrBailoutTests` 23 (curvature ΔCp vs an independent Python sketch, q-scaling, lift-off and hand-hold speeds, fling at 60 KIAS, latched never opens by hand or airload, pins in/out with the latch and canopy stepped together, Extra 75 holds / 85 departs, Pitts 65 holds / 75 departs, the fitting calibration re-run, hand torn off at 120, Pitts slide, grips ride the canopy, drag areas, open-canopy drag slows an Aircraft, mass/CG on loss, the free body falls and drags, wind noise vs q and state, leaves outboard, jettison threshold + one-way, jettison departs at 40/70/120, jettison with ball locked, ball only 60 holds / 75 departs, Extra has no jettison without the model's pull). Full suite, frozen 0a1a7b4 copy vs this branch, one at a time with nothing else building: **base 194 failed / 1133 passed (123 unique names), branch 163 failed / 1244 passed (125 unique)**. Five names failed only on the branch — ChallengeTests.HardBankScoresLow, GroundTowTests.TugReleasesWhenGliderClimbsTooHigh, NoseSkidTests.HardBrakingRolloutDoesNotTipOver, TrimConvergenceTests.TrimmedGliderStaysBoundedThroughSimLoop (four of the coupled flakes Phase 2 already listed) and my new VrBailoutTests.OpenCanopyDragSlowsTheAeroplane (NaN in the full run, in the same burst as TrimConvergence) — and **all five pass run alone (5/5)**, so I find no failing name introduced; that new test does inherit the suite's global-state coupling. The one flight-model change (`Aircraft.ShedMass`) is zero unless a canopy has departed. Unity batch, scripts only, final code: **Android 0 error CS, iOS 0 error CS**. No APK, no xcodebuild, nothing installed. One local commit covers P2c, P2c-2 and P2c-3.
+  **Nothing here is approved.**
 - **QUEST: BAIL OUT BY HAND — CANOPY, BELTS, HEADSET CORD, CLIMB OUT, FREE FALL, RIPCORD (Claude, 2026-11-02,
   lane/claude-vr-cockpit, Phase 2 of 3) — from your "unlatch the canopy and the seatbelts and the headset cables and jump
   out … if they forget to pull the headset cables they get pulled by the plane … look down and grab and pull the rip

@@ -204,41 +204,115 @@ public sealed class VrCockpitTests
         Assert.False(b.Follow(0.0725));           // one click only
     }
 
-    // ---- the Extra's squeeze handles ----
+    // ---- the Extra's canopy latch, v2: fixed rear handle, spring-loaded front handle, pins (Ty 2026-11-02) ----
+    // Travel 35 mm, pin stroke 18 mm, engagement 14 mm + 0.5 mm clearance → the pins clear at 14.5 / 18 = 0.80556.
+
+    private static ExtraLatchHands Pair(double squeeze) => new() { PairHeld = true, PairSqueeze = squeeze };
+    private static readonly ExtraLatchHands NoHands = default;
 
     [Fact]
-    public void ExtraNeedsBothHandlesSqueezedHome()
+    public void ExtraSqueezeDrawsThePinsAndUnlocks()
     {
         var x = new ExtraCanopyLatch();
         Assert.True(x.Locked);
-        Assert.False(x.Step(0.5, 0.5, 0.0));
-        Assert.False(x.Step(0.9, 0.8, 0.0));      // one handle short of 0.85
+        Assert.Equal(0.0, x.Latch01, P);
+        Assert.True(x.Step(0.01, Pair(1.0), true, 0.0));   // full squeeze: pins out (click)
+        Assert.False(x.Locked);
+        Assert.Equal(1.0, x.Latch01, P);                   // canopy_latch = s = 1: Fwd handle 35 mm aft
+        Assert.Equal(0.018, x.PinRetractM, P);             // pins up the full 18 mm
+    }
+
+    [Fact]
+    public void ExtraPartialSqueezeBelowTheThresholdKeepsItPinned()
+    {
+        var x = new ExtraCanopyLatch();
+        Assert.False(x.Step(0.01, Pair(0.80), true, 0.0));  // 0.80 × 18 = 14.40 mm drawn: still 0.1 mm short of clear
         Assert.True(x.Locked);
-        Assert.Equal(0.85, x.Latch01, P);         // mean of 0.9 and 0.8
-        Assert.True(x.Step(0.9, 0.9, 0.0));       // both: the pins come out (click)
+        Assert.Equal(0.0144, x.PinRetractM, P);
+        Assert.True(x.Step(0.01, Pair(0.81), true, 0.0));   // 14.58 mm: clear of the holes
         Assert.False(x.Locked);
     }
 
     [Fact]
-    public void ExtraSpringsBackAndRelocksWhenShut()
+    public void ExtraSpringReturnsTheFrontHandleAndRepinsWhenShut()
     {
+        // m ẍ = −(20 + 600 x) − 2 from x = 35 mm: ẍ₀ = −43 / 0.08 = −537.5 m/s², so after 4 ms it has moved only
+        // about ½·537·0.004² ≈ 4.3 mm (s ≈ 0.88) and is home inside about 13 ms.
         var x = new ExtraCanopyLatch();
-        x.Step(1, 1, 0);
-        Assert.False(x.Step(0.6, 0.6, 0.0));      // easing off, above 0.5: still out
+        x.Step(0.01, Pair(1.0), true, 0.0);
+        Assert.False(x.Step(0.004, NoHands, true, 0.0));
+        Assert.InRange(x.Latch01, 0.85, 0.9);
         Assert.False(x.Locked);
-        Assert.True(x.Step(0.0, 0.0, 0.0));       // let go with the canopy shut: pins back in
+        Assert.True(x.Step(0.046, NoHands, true, 0.0));     // pins back in: click
+        Assert.Equal(0.0, x.Latch01, P);
         Assert.True(x.Locked);
     }
 
     [Fact]
-    public void ExtraStaysUnlockedWhileTheCanopyIsOpen()
+    public void ExtraRearHandleAloneDoesNothing()
     {
         var x = new ExtraCanopyLatch();
-        x.Step(1, 1, 0);
-        Assert.False(x.Step(0, 0, 0.3));          // canopy lifted: the pins spring out against nothing
-        Assert.False(x.Locked);
-        Assert.True(x.Step(0, 0, 0.0));           // shut it: it latches by itself
+        var h = new ExtraLatchHands { AftHeld = true, AftAftM = 0.090 };
+        x.Step(0.01, h, true, 0.0);
+        foreach (double m in new[] { 0.06, 0.12, 0.20 })   // pulled forward, pushed aft: it is fixed to the frame
+        {
+            h.AftAftM = m;
+            Assert.False(x.Step(0.01, h, true, 0.0));
+        }
+        Assert.Equal(0.0, x.Latch01, P);
         Assert.True(x.Locked);
+    }
+
+    [Fact]
+    public void ExtraTwoHandsClosingTogetherUnlatch()
+    {
+        // Front hand at 0, rear at 90 mm (aft). Each moves 15 mm toward the other: separation 90 → 60, s = 30 / 35 = 0.857.
+        var x = new ExtraCanopyLatch();
+        var h = new ExtraLatchHands { FwdHeld = true, FwdAftM = 0.0, AftHeld = true, AftAftM = 0.090 };
+        x.Step(0.01, h, true, 0.0);
+        h.FwdAftM = 0.015; h.AftAftM = 0.075;
+        Assert.True(x.Step(0.01, h, true, 0.0));
+        Assert.Equal(0.857143, x.Latch01, 5);
+        Assert.False(x.Locked);
+        // Both hands carried aft together (no squeeze): nothing more.
+        h.FwdAftM = 0.115; h.AftAftM = 0.175;
+        x.Step(0.01, h, true, 0.0);
+        Assert.Equal(0.857143, x.Latch01, 5);
+    }
+
+    [Fact]
+    public void ExtraFrontHandleAlonePulledAftUnlatches()
+    {
+        // It is the moving part: 30 mm of aft hand travel = s 0.857; 20 mm = 0.571 (pins still in).
+        var x = new ExtraCanopyLatch();
+        var h = new ExtraLatchHands { FwdHeld = true, FwdAftM = 1.0 };
+        x.Step(0.01, h, true, 0.0);
+        h.FwdAftM = 1.020;
+        Assert.False(x.Step(0.01, h, true, 0.0));
+        Assert.Equal(0.571429, x.Latch01, 5);
+        h.FwdAftM = 1.030;
+        Assert.True(x.Step(0.01, h, true, 0.0));
+        Assert.False(x.Locked);
+    }
+
+    [Fact]
+    public void ExtraPinsCannotEngageWhileTheCanopyIsOpen()
+    {
+        var x = new ExtraCanopyLatch();
+        x.Step(0.01, Pair(1.0), true, 0.0);
+        // Open 30°, let go: the handle springs home and the pins hang out in free air, engaging nothing.
+        Assert.False(x.Step(0.05, NoHands, false, 30.0));
+        Assert.Equal(0.0, x.Latch01, P);
+        Assert.False(x.Locked);
+        // Coming down, 1° off the sill: the bevelled tips ride on it, held at the clear position.
+        Assert.False(x.Step(0.01, NoHands, false, 1.0));
+        Assert.True(x.RidingSill);
+        Assert.Equal(0.805556, x.Latch01, 5);
+        Assert.False(x.Locked);
+        // Shut and aligned: the spring snaps them in.
+        Assert.True(x.Step(0.05, NoHands, true, 0.0));
+        Assert.True(x.Locked);
+        Assert.Equal(0.0, x.Latch01, P);
     }
 
     // ---- two-bone IK ----

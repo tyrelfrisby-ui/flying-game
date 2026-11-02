@@ -1,9 +1,11 @@
 using System;
 using System.IO;
 using FlyingGame.Core;
+using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
 using FlyingGame.Core.Vr;
+using FlyingGame.Sim;
 using Xunit;
 
 namespace FlyingGame.FlightTests;
@@ -16,36 +18,64 @@ namespace FlyingGame.FlightTests;
 public sealed class VrBailoutTests
 {
     private static readonly Vec3 Level1G = new(0, -9.80665, 0);
-    private static readonly Vec3 Hinge = new(0.375, 0.0, 0.0);   // Extra: right sill, w = 0.75 to the free edge
+    private static readonly Vec3 Hinge = new(0.343, 0.0, 0.0);   // Extra: right sill, 0.733 m to the free edge
     private const double Rho0 = 1.225;
     private static double Q(double kt) { double v = kt * 0.514444; return 0.5 * Rho0 * v * v; }
 
-    // ---- the canopy: moments and the flip-open threshold ----
-
-    // Extra: w 0.75, L 2.0, A = 0.8·0.75·2.0 = 1.2 m², m 14 kg.
-    //   M_aero / q = (w/2)·ΔCp·A = 0.375·0.5·1.2 = 0.225 m³
-    //   M_g (shut, level 1 g) = −(w/2)·m·g = −0.375·14·9.80665 = −51.4849 N·m
-    //   flips open alone at q = 51.4849 / 0.225 = 228.82 Pa (19.33 m/s, 37.6 kt)
-    //   held by one hand (200 N at the edge, 150 N·m): q = 201.4849 / 0.225 = 895.49 Pa (38.24 m/s, 74.3 kt)
+    // ---- the canopy in the airflow: suction from the bubble's own curvature (P2c-2) ----
+    //
+    // Independent check: a Python sketch of the same potential-flow integral (Lamb's α₀ by quadrature, Cp = 1 − C²(1 − n_a²)
+    // averaged over the plan, the surface-mass centroid and inertia on a 400 × 400 grid), copied here by hand:
+    //   Extra (2.12 × 0.78 × 0.48 m, hinge 0.343 m right):  α₀ 0.27571  C 1.15990  ΔCp 0.22721  y_c 0.25065  I 3.57864 (14 kg)
+    //   Pitts (1.48 × 0.716 × 0.406 m, hinge 0.36 m right): α₀ 0.35798  C 1.21801  ΔCp 0.30751  y_c 0.21247  I 2.10843 (9 kg)
+    //   plan areas π a b: Extra π·1.06·0.39 = 1.29873 m²; Pitts π·0.74·0.358 = 0.83227 m².
     [Fact]
-    public void ExtraCanopyMomentsAndFlipOpenThreshold()
+    public void BubbleSuctionComesFromItsCurvature()
     {
-        CanopySpec s = CanopySpec.For("extra-300-like");
-        Assert.Equal(1.2, s.AreaM2, 6);
-        Assert.Equal(0.225 * 1000.0, CanopyDynamics.AeroMomentNm(s, 1000.0), 6);
-        Assert.Equal(-51.4849, CanopyDynamics.GravityMomentNm(s, Level1G, 0.0), 3);
-        Assert.Equal(228.82, CanopyDynamics.FlipOpenQ(s, 0.0), 1);
-        Assert.Equal(895.49, CanopyDynamics.FlipOpenQ(s, 200.0), 1);
+        var x = new CanopyDynamics(CanopySpec.For("extra-300-like")).Bubble;
+        Assert.Equal(0.27571, x.Alpha0, 4);
+        Assert.Equal(1.15990, x.SpeedRatio, 4);
+        Assert.Equal(1.29873, x.PlanAreaM2, 4);
+        Assert.Equal(0.2272, x.NetCp, 3);
+        Assert.Equal(0.2506, x.ComHeightM, 3);
+        Assert.Equal(3.579, x.InertiaKgM2, 2);
+        var p = new CanopyDynamics(CanopySpec.For("pitts-s2b-like")).Bubble;
+        Assert.Equal(0.35798, p.Alpha0, 4);
+        Assert.Equal(1.21801, p.SpeedRatio, 4);
+        Assert.Equal(0.83227, p.PlanAreaM2, 4);
+        Assert.Equal(0.3075, p.NetCp, 3);
+        Assert.Equal(0.2125, p.ComHeightM, 3);
+        Assert.Equal(2.108, p.InertiaKgM2, 2);
+        // Sign: net OUTWARD (suction outside, static inside). Shape: the shorter, taller Pitts bubble sucks harder.
+        Assert.True(x.NetCp > 0.0 && p.NetCp > x.NetCp);
+        // A sphere's classical result: α₀ = 2/3, C = 1.5.
+        Assert.Equal(2.0 / 3.0, CanopyBubble.LambAlpha(1.0, 1.0, 1.0), 3);
     }
 
-    // Pitts: w 0.70, L 1.5, A = 0.84 m², m 9: alone q = 30.8909 / 0.147 = 210.14 Pa; held: 170.8909 / 0.147 = 1162.52 Pa.
     [Fact]
-    public void PittsFlipOpenThreshold()
+    public void AirloadScalesWithDynamicPressure()
     {
-        CanopySpec s = CanopySpec.For("pitts-s2b-like");
-        Assert.Equal(0.84, s.AreaM2, 6);
-        Assert.Equal(210.14, CanopyDynamics.FlipOpenQ(s, 0.0), 1);
-        Assert.Equal(1162.52, CanopyDynamics.FlipOpenQ(s, 200.0), 1);
+        // L = ΔCp q A: Extra 0.22719 × 1.29873 = 0.29506 m² → 295.1 N per kPa; the moment on the 0.343 m lever.
+        var c = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        Assert.Equal(295.1, c.AeroNormalN(1000.0), 0);
+        Assert.Equal(2.0 * c.AeroNormalN(500.0), c.AeroNormalN(1000.0), 9);
+        Assert.Equal(0.343 * 295.06, c.AeroMomentNm(1000.0), 0);
+        Assert.Equal(-47.0915, c.GravityMomentNm(Level1G, 0.0), 3);   // −m g d = −14 · 9.80665 · 0.343
+        // On its back, past 90° the centre of mass is over the hinge's far side: gravity helps open it.
+        Assert.True(c.GravityMomentNm(Level1G, 100.0) > 0.0);
+    }
+
+    [Fact]
+    public void FlipOpenAndHandHoldSpeeds()
+    {
+        // Lifts off alone at q = m g d / (d ΔCp A): Extra 47.0915 / 0.101204 = 465.3 Pa (53.6 kt); Pitts 31.7735 / 0.092133
+        // = 344.9 Pa (46.1 kt). One hand at the free edge (200 N on 0.733 / 0.718 m) holds it to 1913.9 / 1903.5 Pa (108.7 / 108.4 kt).
+        var x = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        Assert.Equal(465.3, x.FlipOpenQ(0.0), 1);
+        Assert.Equal(1913.9, x.FlipOpenQ(200.0), 1);
+        var p = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+        Assert.Equal(344.9, p.FlipOpenQ(0.0), 1);
+        Assert.Equal(1903.5, p.FlipOpenQ(200.0), 1);
     }
 
     private static CanopyEvents Run(CanopyDynamics c, double q, bool locked, double seconds, Vec3 hand = default)
@@ -56,47 +86,114 @@ public sealed class VrBailoutTests
     }
 
     [Fact]
-    public void UnlatchedExtraCanopyFlipsOpenAt100KiasAndStaysShutAt30()
+    public void UnlatchedInFlightItFlingsOpenAndStaysOnBelowTheFailureSpeed()
     {
-        // 100 KIAS: q = 1621 Pa, seven times the 229 Pa it takes. 30 kt: q = 145.9 Pa, under it.
-        var fast = new CanopyDynamics(CanopySpec.For("extra-300-like"));
-        CanopyEvents ev = Run(fast, Q(100), locked: false, 1.0);
-        Assert.Equal(100.0, fast.AngleDeg, 0);
+        // 60 KIAS (q 583.6, above both lift-off q's): flung to the 100° stop, slammed, still on its hinges.
+        var x = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        CanopyEvents ev = Run(x, Q(60), locked: false, 2.0);
+        Assert.True((ev & CanopyEvents.FlippedOpen) != 0 && (ev & CanopyEvents.HitStop) != 0);
+        Assert.False(x.Departed);
+        Assert.InRange(x.AngleDeg, 99.0, 102.0);
+        // The Pitts first runs aft 4 in on its track in the airload, then flings.
+        var p = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+        ev = Run(p, Q(60), locked: false, 2.0);
+        Assert.Equal(0.1016, p.SlideM, 6);
         Assert.True((ev & CanopyEvents.FlippedOpen) != 0);
-        Assert.Equal(1.0, fast.Open01, 6);
-
+        Assert.False(p.Departed);
+        // Below the lift-off speed nothing moves: Extra at 45 kt (q 310 < 465).
         var slow = new CanopyDynamics(CanopySpec.For("extra-300-like"));
-        Run(slow, Q(30), locked: false, 2.0);
+        Run(slow, Q(45), locked: false, 2.0);
         Assert.Equal(0.0, slow.AngleDeg, 6);
     }
 
     [Fact]
-    public void LatchedCanopyNeverMoves()
+    public void LatchedCanopyNeverOpensByHandOrAirload()
     {
         var c = new CanopyDynamics(CanopySpec.For("extra-300-like"));
-        Run(c, Q(200), locked: true, 1.0);
+        var edge = new Vec3(Hinge.X - 0.733, 0.0, 0.0);
+        c.Grab(edge, Hinge);
+        Run(c, Q(200), locked: true, 1.0, new Vec3(edge.X, 0.5, 0.0));   // hand heaving up 0.5 m, 200 kt
         Assert.Equal(0.0, c.AngleDeg, 9);
+        Assert.False(c.Departed);
     }
 
     [Fact]
-    public void AHandHoldsItAt60KtAndLosesItAt100()
+    public void PinsInItStaysShutPinsOutItOpens()
     {
-        // The hand on the free edge, shut: 0.75 m inboard of the hinge, level with it.
-        var edge = new Vec3(Hinge.X - 0.75, 0.0, 0.0);
-        // 60 kt: q = 583.6, M_aero = 131.3 − 51.5 = 79.8 N·m to hold, under the hand's 150.
+        // The latch and the canopy together, as the Bridge steps them: latch first, against the canopy's state.
+        static (ExtraCanopyLatch, CanopyDynamics) Fly(double squeeze, double kt)
+        {
+            var l = new ExtraCanopyLatch();
+            var c = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+            var h = new ExtraLatchHands { PairHeld = true, PairSqueeze = squeeze };
+            for (int i = 0; i < 300; i++)
+            {
+                l.Step(0.005, h, c.Shut, c.AngleDeg);
+                c.Step(0.005, Q(kt), Level1G, l.Locked, Vec3.Zero, Hinge);
+            }
+            return (l, c);
+        }
+        (ExtraCanopyLatch l1, CanopyDynamics c1) = Fly(0.75, 70);   // 13.5 mm drawn: pins still in
+        Assert.True(l1.Locked);
+        Assert.Equal(0.0, c1.AngleDeg, 9);
+        (ExtraCanopyLatch l2, CanopyDynamics c2) = Fly(1.0, 70);    // pins out at 70 KIAS: flung open
+        Assert.False(l2.Locked);
+        Assert.True(c2.AngleDeg > 95.0);
+    }
+
+    [Fact]
+    public void ExtraHoldsAt75KiasAndTearsAwayAt85()
+    {
+        var hold = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        Run(hold, Q(75), locked: false, 3.0);
+        Assert.False(hold.Departed);
+        var go = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        CanopyEvents ev = Run(go, Q(85), locked: false, 3.0);
+        Assert.True(go.Departed);
+        Assert.Equal(CanopyDeparture.HingesFailed, go.DepartedBy);
+        Assert.True((ev & CanopyEvents.Departed) != 0);
+        Assert.True(go.ClearToLeave);
+    }
+
+    [Fact]
+    public void PittsHoldsAt65KiasAndTearsAwayAt75()
+    {
+        var hold = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+        Run(hold, Q(65), locked: false, 3.0);
+        Assert.False(hold.Departed);
+        var go = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+        Run(go, Q(75), locked: false, 3.0);
+        Assert.True(go.Departed);
+        Assert.Equal(CanopyDeparture.HingesFailed, go.DepartedBy);
+    }
+
+    [Fact]
+    public void FittingStrengthIsThePeakStopLoadAtTysSpeeds()
+    {
+        // The calibration, re-run: the peak load at the stop lug when flung open at 80 KIAS (Extra) and 80 mph = 69.5 KIAS
+        // (Pitts) is the strength the fittings were given, to within the 100 N it was rounded to.
+        Assert.Equal(15100.0, CanopySpec.For("extra-300-like").FittingStrengthN, 6);
+        Assert.Equal(12000.0, CanopySpec.For("pitts-s2b-like").FittingStrengthN, 6);
+        Assert.InRange(CanopyDynamics.PeakStopLoadN(CanopySpec.For("extra-300-like"), Q(80)), 15050.0, 15150.0);
+        Assert.InRange(CanopyDynamics.PeakStopLoadN(CanopySpec.For("pitts-s2b-like"), Q(69.5)), 11950.0, 12050.0);
+    }
+
+    [Fact]
+    public void AHandHoldsItShutAt100KtAndIsTornOffItAt120()
+    {
+        // The hand on the free edge, shut. 100 kt: q 1621 < the 1914 one hand can hold. 120 kt: q 2334, torn out of the
+        // hand, flung open, and at 120 kt it does not stop at the stop.
+        var edge = new Vec3(Hinge.X - 0.733, 0.0, 0.0);
         var c = new CanopyDynamics(CanopySpec.For("extra-300-like"));
         c.Grab(edge, Hinge);
-        CanopyEvents ev = Run(c, Q(60), locked: false, 1.0, edge);
+        CanopyEvents ev = Run(c, Q(100), locked: false, 1.0, edge);
         Assert.True(c.Held);
         Assert.True(c.AngleDeg < 2.0, $"held at {c.AngleDeg:F1}°");
-        Assert.True((ev & CanopyEvents.TornFromHand) == 0);
-        // 100 kt: M_aero = 364.7 − 51.5 = 313 N·m, twice what the hand has: it is torn out and flips open.
         var d = new CanopyDynamics(CanopySpec.For("extra-300-like"));
         d.Grab(edge, Hinge);
-        ev = Run(d, Q(100), locked: false, 1.0, edge);
-        Assert.False(d.Held);
+        ev = Run(d, Q(120), locked: false, 2.0, edge);
         Assert.True((ev & CanopyEvents.TornFromHand) != 0);
-        Assert.Equal(100.0, d.AngleDeg, 0);
+        Assert.True(d.Departed);
     }
 
     [Fact]
@@ -104,31 +201,221 @@ public sealed class VrBailoutTests
     {
         var c = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
         var hand = new Vec3(-0.35, 0.0, 0.0);
-        // Unlatched at 100 kt but still forward on its track: the mushroom buttons hold it down.
-        Run(c, Q(100), locked: false, 0.5, hand);
+        // Locked: the ball holds it forward on its track at any speed.
+        Run(c, Q(100), locked: true, 0.5, hand);
+        Assert.Equal(0.0, c.SlideM, 9);
         Assert.Equal(0.0, c.AngleDeg, 9);
-        // Hand on the rail, 5.08 cm aft: half the 10.16 cm slide → canopy_open 0.2·0.5 = 0.1.
+        // Unlatched on the ground, hand on the rail, 5.08 cm aft: half the 10.16 cm slide → canopy_open 0.2·0.5 = 0.1.
         c.Grab(hand, Hinge);
         c.Step(0.005, 0.0, Level1G, false, new Vec3(-0.35, 0.0, -0.0508), Hinge);
         Assert.Equal(0.0508, c.SlideM, 6);
         Assert.Equal(0.1, c.Open01, 6);
-        // All the way aft, let go at 100 kt: now it flips (canopy_open 0.2 + 0.8·100/100 = 1).
+        Assert.Equal(0.0, c.AngleDeg, 9);
         c.Step(0.005, 0.0, Level1G, false, new Vec3(-0.35, 0.0, -0.12), Hinge);
         Assert.True(c.SlidComplete);
-        c.Release();
-        Run(c, Q(100), locked: false, 1.0);
-        Assert.Equal(100.0, c.AngleDeg, 0);
-        Assert.Equal(1.0, c.Open01, 6);
     }
 
     [Fact]
-    public void OpenCanopyDragArea()
+    public void GripsRideTheCanopy()
     {
-        // ΔCdA = 0.20 · min(1, β/60°): 30° → 0.10 m², 90° → 0.20 m²; at 100 kt (1621 Pa) that is 162 N and 324 N.
+        // A grip on the free edge (0.733 m inboard of the hinge, level with it, 0.15 m ahead): at 90° it is straight above
+        // the hinge; at 100°, 0.733·(−cos 100°, sin 100°) = (+0.1273, 0.7219) from it. The Pitts' slide carries it aft.
+        var grip = new Vec3(Hinge.X - 0.733, Hinge.Y, 0.15);
+        Vec3 at90 = CanopyDynamics.PointOnCanopy(grip, Hinge, 0.0, 90.0);
+        Assert.Equal(Hinge.X, at90.X, 6);
+        Assert.Equal(0.733, at90.Y, 6);
+        Assert.Equal(0.15, at90.Z, 9);
+        Vec3 at100 = CanopyDynamics.PointOnCanopy(grip, Hinge, 0.1016, 100.0);
+        Assert.Equal(Hinge.X + 0.12729, at100.X, 4);
+        Assert.Equal(0.72186, at100.Y, 4);
+        Assert.Equal(0.15 - 0.1016, at100.Z, 9);
+        // A point on the shut canopy goes nowhere.
+        Vec3 shut = CanopyDynamics.PointOnCanopy(new Vec3(-0.2, 0.3, 0.4), Hinge, 0.0, 0.0);
+        Assert.Equal(-0.2, shut.X, 9); Assert.Equal(0.3, shut.Y, 9); Assert.Equal(0.4, shut.Z, 9);
+    }
+
+    [Fact]
+    public void OpenCanopyAndOpenCockpitDragAreas()
+    {
+        // Attached and fully open: open cockpit 0.15 + shell 0.4 × π·0.39·0.48/2 (0.29405) = 0.26762 m² (Extra).
+        // Departed: the open cockpit alone, 0.15. Shut: nothing (the faired canopy is in the airframe's drag).
         var c = new CanopyDynamics(CanopySpec.For("extra-300-like"));
         Assert.Equal(0.0, c.DragAreaM2, 9);
-        Run(c, Q(100), locked: false, 1.0);
-        Assert.Equal(0.20, c.DragAreaM2, 6);
+        Run(c, Q(60), locked: false, 2.0);
+        Assert.Equal(0.2676, c.DragAreaM2, 3);
+        var gone = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        Run(gone, Q(90), locked: false, 2.0);
+        Assert.True(gone.Departed);
+        Assert.Equal(0.15, gone.DragAreaM2, 9);
+    }
+
+    [Fact]
+    public void OpenCanopyDragSlowsTheAeroplane()
+    {
+        static Aircraft At()
+        {
+            AircraftConfig cfg = Pitts();
+            return new Aircraft(cfg, new RigidBodyState(new Vec3(0, 0, -1000), Quat.Identity, new Vec3(40, 0, 0), Vec3.Zero),
+                                new ControlDeflections(0, 0, 0, 0));
+        }
+        Aircraft clean = At(), open = At();
+        open.ExtraDragAreaM2 = 0.2113;   // the Pitts' canopy fully open and attached: 0.12 + 0.4 × 0.22831
+        for (int i = 0; i < 50; i++) { clean.StepWithDeflectionTargets(ControlDeflections.Neutral, 0.01); open.StepWithDeflectionTargets(ControlDeflections.Neutral, 0.01); }
+        // ½ρV²·0.2113 at 40 m/s ≈ 207 N on 737 kg ≈ 0.28 m/s² more deceleration: about 0.14 m/s in 0.5 s.
+        double dv = clean.State.Velocity.X - open.State.Velocity.X;
+        Assert.InRange(dv, 0.10, 0.18);
+    }
+
+    [Fact]
+    public void LosingTheCanopyTakesItsMassAndMovesTheCg()
+    {
+        // Pitts 737 kg, CG (0.045, 0, 0.2). A 9 kg canopy at (−0.5, 0, −0.4): r − cg = (−0.545, 0, −0.6).
+        //   mass 728; CG shift = −9·r/728 = (+0.006738, 0, +0.007418); Iyy − 9·(0.545² + 0.6²) = 1121 − 5.9132 = 1115.0868.
+        Aircraft a = new(Pitts(), new RigidBodyState(new Vec3(0, 0, -1000), Quat.Identity, new Vec3(40, 0, 0), Vec3.Zero),
+                         new ControlDeflections(0, 0, 0, 0));
+        Assert.Equal(737.0, a.MassProperties.MassKg, 6);
+        a.ShedMass(9.0, new Vec3(-0.5, 0, -0.4));
+        Assert.Equal(728.0, a.MassProperties.MassKg, 6);
+        Assert.Equal(0.006738, a.CgShiftBody.X, 6);
+        Assert.Equal(0.007418, a.CgShiftBody.Z, 6);
+        Assert.Equal(1115.0868, a.MassProperties.Iyy, 3);
+        // A re-load (fuel burn, the loading page) keeps it gone.
+        a.ApplyLoad();
+        Assert.Equal(728.0, a.MassProperties.MassKg, 6);
+    }
+
+    [Fact]
+    public void ADepartedCanopyFallsAndDrags()
+    {
+        // Let go at 80 KIAS (41.16 m/s) level in still air, crown up, tumbling: it loses speed fast (a broadside shell is
+        // Cd 1.2 on 1.30 m² for 14 kg) and falls.
+        var c = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        var b = new CanopyFreeBody(c, new Vec3(0, 1000, 0), new Vec3(0, 0, 41.16), new Vec3(0, 1, 0), new Vec3(0, 0, 1), new Vec3(3, 0, 0));
+        b.Step(1.0, 1.225, Vec3.Zero, Level1G);
+        Assert.True(b.Velocity.Z < 30.0, $"still {b.Velocity.Z:F1} m/s forward");
+        Assert.True(b.Velocity.Z > 0.0);
+        b.Step(2.0, 1.225, Vec3.Zero, Level1G);
+        Assert.True(b.Position.Y < 995.0, $"at {b.Position.Y:F1} m");
+        Assert.True(b.Velocity.Y < -5.0);
+        // Edge-on vs broadside drag area: 0.4 × 0.29405 = 0.11762 vs 1.2 × 1.29873 = 1.55848 m².
+        var flat = new CanopyFreeBody(c, Vec3.Zero, Vec3.Zero, new Vec3(0, 1, 0), new Vec3(0, 0, 1), Vec3.Zero);
+        Assert.Equal(0.11762, flat.DragAreaM2(new Vec3(0, 0, 1)), 4);
+        Assert.Equal(1.55848, flat.DragAreaM2(new Vec3(0, 1, 0)), 4);
+    }
+
+    [Fact]
+    public void WindNoiseGrowsWithQAndWithTheCockpitOpen()
+    {
+        // A = (q / 1620.8) · (0.12 + 0.88 · exposure): open at 100 kt = 1; shut at 100 kt = 0.12; open at 50 kt = 0.25.
+        Assert.Equal(1.0, CockpitWind.Amplitude(1620.8, 1.0), 9);
+        Assert.Equal(0.12, CockpitWind.Amplitude(1620.8, 0.0), 9);
+        Assert.Equal(0.25, CockpitWind.Amplitude(405.2, 1.0), 9);
+        var c = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        double shut = CockpitWind.Amplitude(Q(70), c.Exposure01);
+        Run(c, Q(70), locked: false, 2.0);
+        double open = CockpitWind.Amplitude(Q(70), c.Exposure01);
+        var gone = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        Run(gone, Q(90), locked: false, 2.0);
+        double none = CockpitWind.Amplitude(Q(70), gone.Exposure01);
+        Assert.True(shut < open && open < none);
+        Assert.Equal(0.8, c.Exposure01, 9);
+        Assert.Equal(1.0, gone.Exposure01, 9);
+    }
+
+    [Fact]
+    public void ATornAwayCanopyLeavesOutboardAwayFromThePilot()
+    {
+        // At the moment the fittings let go it is past 100° and still swinging over: its centre of mass is moving to the
+        // RIGHT (away from the cockpit) and down. The tail check then follows it relative to the aeroplane.
+        var c = new CanopyDynamics(CanopySpec.For("extra-300-like"));
+        Run(c, Q(85), locked: false, 3.0);
+        Assert.True(c.Departed);
+        Vec3 v = c.ComVelocityLocal();
+        Assert.True(v.X > 0.5, $"outboard {v.X:F2} m/s");
+        CanopyTailCheck.Result r = CanopyTailCheck.Predict(c, new Vec3(-0.5, 0.3, -0.9), new Vec3(v.Z, v.X, -v.Y),
+                                                           new Vec3(0, 0.98, 0.17), 85 * 0.514444, 1.225, null);
+        Assert.True(r.AtTail.Y > 0.3, "it passes the tail station to the right of where it left");
+    }
+
+    // ---- the jettison (P2c-3) ----
+
+    [Fact]
+    public void JettisonKnobBelowItsThresholdDoesNothingAndFiringIsOneWay()
+    {
+        // Pitts knob 38 mm; 8 mm breakout; fires at 90 % = 34.2 mm, i.e. 42.2 mm of hand travel.
+        JettisonPull k = JettisonPull.For("pitts-s2b-like", modelHasPull: false)!;
+        var axis = new Vec3(-1, 0, 0);
+        k.Grab(Vec3.Zero, axis);
+        Assert.False(k.Follow(new Vec3(-0.006, 0, 0)));   // inside the breakout: nothing moves
+        Assert.Equal(0.0, k.PositionM, 9);
+        Assert.False(k.Follow(new Vec3(-0.040, 0, 0)));   // 32 mm out: 84 %, short of firing
+        Assert.Equal(0.032, k.PositionM, 9);
+        k.Release();                                       // let go: it springs home
+        Assert.Equal(0.0, k.PositionM, 9);
+        Assert.False(k.Fired);
+        k.Grab(Vec3.Zero, axis);
+        Assert.True(k.Follow(new Vec3(-0.043, 0, 0)));    // 35 mm: fires, snaps to its stop
+        Assert.True(k.Fired);
+        Assert.Equal(1.0, k.Pulled01, 9);
+        k.Release();
+        k.Grab(Vec3.Zero, axis);
+        Assert.False(k.Follow(new Vec3(0.05, 0, 0)));     // pushed back in: it stays out
+        Assert.Equal(1.0, k.Pulled01, 9);
+        Assert.True(k.Fired);
+    }
+
+    [Fact]
+    public void JettisonedAndUnlatchedThePittsCanopyLeavesAtAnySpeed()
+    {
+        foreach (double kt in new[] { 40.0, 70.0, 120.0 })
+        {
+            var c = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+            c.ReleaseHingePins();
+            CanopyEvents ev = Run(c, Q(kt), locked: false, 0.05);
+            Assert.True(c.Departed, $"{kt} kt");
+            Assert.Equal(CanopyDeparture.Jettisoned, c.DepartedBy);
+            Assert.True((ev & CanopyEvents.Departed) != 0);
+        }
+    }
+
+    [Fact]
+    public void JettisonWithTheBallStillLockedKeepsItOnUntilTheBallOpens()
+    {
+        var c = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+        c.ReleaseHingePins();
+        Run(c, Q(120), locked: true, 1.0);
+        Assert.False(c.Departed);
+        Assert.Equal(0.0, c.AngleDeg, 9);
+        Run(c, Q(120), locked: false, 0.05);
+        Assert.True(c.Departed);
+        // On the ground it sits loose until a hand lifts it.
+        var g = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+        g.ReleaseHingePins();
+        Run(g, 0.0, locked: false, 1.0);
+        Assert.False(g.Departed);
+    }
+
+    [Fact]
+    public void PittsBallLatchOnlyHoldsAt60AndDepartsAt75()
+    {
+        var hold = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+        Run(hold, Q(60), locked: false, 3.0);
+        Assert.False(hold.Departed);
+        Assert.True(hold.AngleDeg > 95.0);   // flung open, flapping on its stop
+        var go = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
+        Run(go, Q(75), locked: false, 3.0);
+        Assert.True(go.Departed);
+        Assert.Equal(CanopyDeparture.HingesFailed, go.DepartedBy);
+    }
+
+    [Fact]
+    public void OnlyThePittsAndAnExtraWhoseModelHasThePullHaveAJettison()
+    {
+        Assert.NotNull(JettisonPull.For("pitts-s2b-like", modelHasPull: false));
+        Assert.Null(JettisonPull.For("extra-300-like", modelHasPull: false));
+        Assert.NotNull(JettisonPull.For("extra-300-like", modelHasPull: true));
+        Assert.Equal(0.040, JettisonPull.For("extra-300-like", modelHasPull: true)!.TravelM, 9);
+        Assert.Null(JettisonPull.For("great-lakes-2t1a2-like", modelHasPull: true));
     }
 
     // ---- the harness ----

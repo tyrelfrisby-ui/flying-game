@@ -30,8 +30,12 @@ namespace FlyingGame.Bridge
     public sealed partial class VrCockpitHands
     {
         // ---- the cockpit half ----
-        private Transform _canopyNode, _railNode, _relMainNode, _relLapNode, _jackNode;
-        private Vector3 _hingeProxy, _sillL, _sillR, _relMainProxy, _relLapProxy, _jackProxy;
+        private Transform _canopyNode, _railNode, _relMainNode, _relLapNode, _jackNode, _jettisonNode;
+        private Vector3 _hingeProxy, _sillL, _sillR, _relMainProxy, _relLapProxy, _jackProxy, _jettisonShut;
+        /// <summary>Which hand holds the canopy this frame (the rail, or — Extra — its latch handles, which are on the
+        /// frame), −1 none.</summary>
+        private int _canopyHolder = -1;
+        private bool _slamLogged;
         private float _rise;
         private bool _openCockpit, _modelHarness;
         private EgressClearance _clear;
@@ -87,7 +91,8 @@ namespace FlyingGame.Bridge
             string id = _driver.AircraftId ?? "";
             Aircraft ac = _driver.Sim.Aircraft;
 
-            // The canopy: Pitts and Extra (the two whose latches are built). Width from Codex's hinge and rail nodes.
+            // The canopy: Pitts and Extra (the two whose latches are built). Its bubble's size is Core's, measured off
+            // Codex's models (CanopySpec.For); the hinge is the Canopy node's origin (the rig turns it about that).
             _canopyNode = Node("Canopy");
             _railNode = Node("Grip_Canopy_Rail");
             _openCockpit = _canopyNode == null && _air.Find("Canopy") == null;
@@ -95,18 +100,40 @@ namespace FlyingGame.Bridge
             if (_latchKind != CanopyLatchKind.None)
             {
                 CanopySpec spec = CanopySpec.For(id);
-                if (_canopyNode != null && _railNode != null)
-                {
-                    float w = Mathf.Abs(Local(_railNode.position).x - Local(_canopyNode.position).x);
-                    if (w > 0.4f && w < 1.0f) spec = new CanopySpec(spec.Motion, spec.MassKg, w, spec.LengthM, spec.SlideM, spec.StopDeg);
-                }
-                if (cockpit.HandCanopy == null || cockpit.HandCanopy.Spec.Motion != spec.Motion || System.Math.Abs(cockpit.HandCanopy.Spec.WidthM - spec.WidthM) > 1e-3)
+                if (cockpit.HandCanopy == null || cockpit.HandCanopy.Spec.Motion != spec.Motion || System.Math.Abs(cockpit.HandCanopy.Spec.LengthM - spec.LengthM) > 1e-3)
                     cockpit.HandCanopy = new CanopyDynamics(spec);
                 if (_railNode == null) Contract("Grip_Canopy_Rail");
             }
             else cockpit.HandCanopy = null;
-            _hingeProxy = _eye + new Vector3((float)(cockpit.HandCanopy?.Spec.WidthM ?? 0.75) * 0.5f, -0.15f, 0f);
-            cockpit.CanopyDragPointBody = ToBody(_eye + Vector3.up * 0.25f);
+            // The hinge line on the right sill, 0.29 m below the eye (Codex's Extra: Eye_Rear y 0.55, hinge axis 0.261; E
+            // for the Pitts), HingeOutboardM right of the centre-line the eye is on.
+            _hingeProxy = _eye + new Vector3((float)(cockpit.HandCanopy?.Spec.HingeOutboardM ?? 0.35), -0.29f, 0f);
+            // Body frame = the config's (x fwd, y right, z down, the CG at Mass.Cg); the aeroplane's transform is its CG.
+            cockpit.CanopyDragPointBody = ac.Config.Mass.CgVec() + ToBody(_eye + Vector3.up * 0.25f);
+            _canopyHolder = -1;
+
+            // The jettison (P2c-3). Pitts: the RED knob on the far right where the bow tubes meet the sill rail, per
+            // cockpit (confirmed by Ty 2026-11-02); it is on the canopy frame and pulls the right-hand hinge pins. Its
+            // node, else a proxy at that junction: just inboard of the hinge line, on the rail, at the bows' station (the
+            // ball latch grip's, which rides between the bows), else 0.30 m ahead of the eye (E). Extra: the model's own
+            // right-sill emergency release, CanopyRelease_R / _F, on the airframe; none if the model has none.
+            _jettisonNode = null;
+            bool pitts = _latchKind == CanopyLatchKind.SlideBall;
+            if (pitts && full != null)
+            {
+                _jettisonNode = Contract("Grip_Canopy_Jettison_" + full) ?? Contract("Canopy_Jettison_Knob_" + full);
+                Transform bows = Node(full == "Front" ? "Grip_Canopy_Latch_Front" : "Grip_Canopy_Latch");
+                Vector3 h = HingeShut();
+                _jettisonShut = new Vector3(h.x - 0.015f, h.y + 0.01f, bows != null ? Local(bows.position).z : _eye.z + 0.30f);
+            }
+            else if (_latchKind == CanopyLatchKind.Squeeze)
+            {
+                string b = full == "Front" ? "F" : "R";
+                _jettisonNode = Node("CanopyRelease_" + b);
+            }
+            JettisonPull jp = JettisonPull.For(id, _jettisonNode != null);
+            if (jp == null) cockpit.HandJettison = null;
+            else if (cockpit.HandJettison == null || System.Math.Abs(cockpit.HandJettison.TravelM - jp.TravelM) > 1e-6) cockpit.HandJettison = jp;
 
             // The belts: the type's set (Core SeatHarness.For), plus a lap belt where Codex models one on a single-release type.
             cockpit.Harness ??= SeatHarness.For(id);
@@ -132,7 +159,8 @@ namespace FlyingGame.Bridge
             _prevAirPos = _air.position; _prevAirRot = _air.rotation;
             EnsureProps();
             _rope?.Snap(C(HeadCableRoot()), new Vec3(0, -1, 0));
-            Debug.Log($"[VrEgress] {id}: canopy {(cockpit.HandCanopy == null ? _openCockpit ? "none (open cockpit)" : "not hands-on for this type" : $"{cockpit.HandCanopy.Spec.Motion}, w {cockpit.HandCanopy.Spec.WidthM:F2} m, flips open alone above {Kt(CanopyDynamics.FlipOpenQ(cockpit.HandCanopy.Spec, 0)):F0} kt, held by a hand to {Kt(CanopyDynamics.FlipOpenQ(cockpit.HandCanopy.Spec, CanopyDynamics.HandForceN)):F0} kt")}; " +
+            CanopyDynamics cd = cockpit.HandCanopy;
+            Debug.Log($"[VrEgress] {id}: canopy {(cd == null ? _openCockpit ? "none (open cockpit)" : "not hands-on for this type" : $"{cd.Spec.Motion}, ΔCp {cd.Bubble.NetCp:F3} on {cd.Bubble.PlanAreaM2:F2} m², flings open unlatched above {Kt(cd.FlipOpenQ(0)):F0} KIAS, held shut by a hand to {Kt(cd.FlipOpenQ(CanopyDynamics.HandForceN)):F0}, fittings {cd.Spec.FittingStrengthN:F0} N; jettison {(cockpit.HandJettison == null ? "none" : _jettisonNode != null ? "on its node" : "proxy")}")}; " +
                       $"belts {cockpit.Harness.Releases.Count} ({(_relMainNode != null ? "on the node" : "proxy")}); cord {HeadsetCord.DefaultLengthM:F1} m to the jack ({(_jackNode != null ? "node" : "proxy")})");
         }
 
@@ -150,6 +178,25 @@ namespace FlyingGame.Bridge
             return _hingeProxy - Vector3.forward * (float)(cockpit.HandCanopy?.SlideM ?? 0.0);
         }
 
+        /// <summary>The hinge where it is with the canopy shut (the Pitts' slide taken back out).</summary>
+        private Vector3 HingeShut()
+        {
+            CanopyDynamics c = _visual != null ? _visual.Cockpit.HandCanopy : null;
+            return Hinge() + Vector3.forward * (float)(c?.SlideM ?? 0.0);
+        }
+
+        /// <summary>A proxy fixed to the CANOPY: where it is now, given where it is with the canopy shut (Core
+        /// CanopyDynamics.PointOnCanopy: the slide, then the swing about the hinge line). Model nodes ride the rig.</summary>
+        private Vector3 OnCanopy(Vector3 shut)
+        {
+            CanopyDynamics c = _visual != null ? _visual.Cockpit.HandCanopy : null;
+            if (c == null || c.Departed) return shut;
+            return U(c.PointOnCanopy(C(shut), C(HingeShut())));
+        }
+
+        /// <summary>The jettison knob / release: its node, else (Pitts) the proxy on the canopy.</summary>
+        private Vector3 JettisonPoint() => _jettisonNode != null ? Local(_jettisonNode.position) : OnCanopy(_jettisonShut);
+
         /// <summary>Where the hand closes on the canopy: Codex's rail empty (it rides the rig), else the free edge
         /// abeam the eye, wherever the canopy is.</summary>
         private Vector3 RailPoint()
@@ -158,7 +205,7 @@ namespace FlyingGame.Bridge
             CanopyDynamics c = _visual.Cockpit.HandCanopy;
             Vector3 h = Hinge();
             double b = c.AngleDeg * System.Math.PI / 180.0;
-            float w = (float)c.Spec.WidthM;
+            float w = (float)c.Spec.FreeEdgeM;
             return new Vector3(h.x - w * (float)System.Math.Cos(b), h.y + w * (float)System.Math.Sin(b), _eye.z + 0.20f);
         }
 
@@ -175,6 +222,8 @@ namespace FlyingGame.Bridge
             CanopyDynamics c = cockpit?.HandCanopy;
             bool canopy = c != null && !cockpit.CanopyGone && !cockpit.CanopyLocked;
             _grab.Set(Grabbable.CanopyRail, canopy ? C(RailPoint()) : Vec3.Zero, canopy);
+            bool jettison = cockpit?.HandJettison != null && !cockpit.CanopyGone && !cockpit.HandJettison.Fired;
+            _grab.Set(Grabbable.CanopyJettison, jettison ? C(JettisonPoint()) : Vec3.Zero, jettison);
             int n = on ? cockpit.Harness.Releases.Count : 0;
             _grab.Set(Grabbable.HarnessMain, n > 0 ? C(ReleasePoint(true)) : Vec3.Zero, n > 0 && !cockpit.Harness.Releases[0].Released);
             _grab.Set(Grabbable.HarnessLap, n > 1 ? C(ReleasePoint(false)) : Vec3.Zero, n > 1 && !cockpit.Harness.Releases[1].Released);
@@ -192,6 +241,13 @@ namespace FlyingGame.Bridge
             switch (g)
             {
                 case Grabbable.CanopyRail when cockpit?.HandCanopy != null: return RailPoint();
+                case Grabbable.CanopyJettison:
+                {
+                    // Drawn on the knob, pulled out along its axis toward the pilot.
+                    Vector3 k = JettisonPoint();
+                    double out01 = cockpit?.HandJettison?.PositionM ?? 0.0;
+                    return k + (_eye - k).normalized * (float)out01;
+                }
                 case Grabbable.HarnessMain: return ReleasePoint(true);
                 case Grabbable.HarnessLap: return ReleasePoint(false);
                 case Grabbable.HeadsetPlug: return JackPoint() + (U(h.Position) - JackPoint()) * 0.5f;
@@ -207,7 +263,11 @@ namespace FlyingGame.Bridge
             if (cockpit == null) return;
             switch (g)
             {
-                case Grabbable.CanopyRail: cockpit.HandCanopy?.Grab(h.Position, C(Hinge())); break;
+                case Grabbable.CanopyRail: break;   // DriveBailout hands the canopy to whichever hand holds it
+                case Grabbable.CanopyJettison:
+                    // Pulled toward the pilot (the knob's axis points at him: Codex's Extra pulls are +inboard).
+                    cockpit.HandJettison?.Grab(h.Position, C((_eye - JettisonPoint()).normalized));
+                    break;
                 case Grabbable.HarnessMain: cockpit.Harness.Releases[0].Grab(h.Position, h.Rotation); break;
                 case Grabbable.HarnessLap: cockpit.Harness.Releases[1].Grab(h.Position, h.Rotation); break;
                 case Grabbable.HeadsetPlug:
@@ -240,22 +300,59 @@ namespace FlyingGame.Bridge
             double q = 0.5 * 1.225 * ias * ias;   // IAS is equivalent airspeed here: q = ½ρ₀V_e²
             var gApp = new Vec3(0, -ac.LoadFactorZ * 9.80665, 0);
 
-            // The canopy in the air.
+            // The jettison knob / emergency release: pulled through its breakout to its firing point, it pulls the hinge
+            // pins (one-way). The canopy then goes the moment its latch is open too.
             CanopyDynamics c = cockpit.HandCanopy;
+            JettisonPull jp = cockpit.HandJettison;
+            if (jp != null && c != null && !cockpit.CanopyGone)
+            {
+                if (_grab.IsHeldBy(Grabbable.CanopyJettison, out HandSide js))
+                {
+                    if (jp.Follow(_hands[(int)js].Position))
+                    {
+                        c.ReleaseHingePins();
+                        XrHandInput.Tick(js == HandSide.Left, 1f, 0.06f);
+                        Debug.Log($"[VrEgress] canopy JETTISON pulled ({jp.TravelM * 1000:F0} mm): hinge pins out{(cockpit.CanopyLocked ? " — the latch still holds it: open the latch and it goes" : "")}");
+                        _grab.Drop(js);
+                    }
+                }
+                else if (jp.Held) jp.Release();
+            }
+
+            // The canopy in the air, held by whichever hand has the rail or (Extra) its latch handles, which are on the
+            // frame: squeeze and push up is one movement, and the airload can tear it out of that hand.
             if (c != null && !cockpit.CanopyGone)
             {
-                bool held = _grab.IsHeldBy(Grabbable.CanopyRail, out HandSide cs);
-                if (!held && c.Held) c.Release();
-                Vec3 hand = held ? _hands[(int)cs].Position : Vec3.Zero;
-                CanopyEvents ev = c.Step(dt, q, gApp, cockpit.CanopyLocked, hand, C(Hinge()));
-                if ((ev & CanopyEvents.TornFromHand) != 0)
+                int holder = -1;
+                if (_grab.IsHeldBy(Grabbable.CanopyRail, out HandSide cs)) holder = (int)cs;
+                else if (_latchKind == CanopyLatchKind.Squeeze &&
+                         (_grab.IsHeldBy(Grabbable.CanopyLatch, out cs) || _grab.IsHeldBy(Grabbable.CanopyLatchFwd, out cs) ||
+                          _grab.IsHeldBy(Grabbable.CanopyLatchAft, out cs))) holder = (int)cs;
+                if (holder != _canopyHolder)
                 {
-                    XrHandInput.Tick(cs == HandSide.Left, 1f, 0.12f);
-                    Debug.Log($"[VrEgress] canopy torn out of the {cs} hand at {ias * 1.9438445:F0} KIAS (q {q:F0} Pa): the airload beat {CanopyDynamics.HandForceN:F0} N at the edge");
+                    if (c.Held) c.Release();
+                    _canopyHolder = holder;
+                    if (holder >= 0) c.Grab(_hands[holder].Position, C(Hinge()));
+                }
+                Vec3 hand = holder >= 0 ? _hands[holder].Position : Vec3.Zero;
+                CanopyEvents ev = c.Step(dt, q, gApp, cockpit.CanopyLocked, hand, C(Hinge()));
+                if ((ev & CanopyEvents.TornFromHand) != 0 && holder >= 0)
+                {
+                    XrHandInput.Tick(holder == 0, 1f, 0.12f);
+                    _grab.Drop((HandSide)holder);
+                    _canopyHolder = -1;
+                    Debug.Log($"[VrEgress] canopy torn out of the {(HandSide)holder} hand at {ias * 1.9438445:F0} KIAS (q {q:F0} Pa): the airload beat {CanopyDynamics.HandForceN:F0} N at the edge");
                 }
                 if ((ev & CanopyEvents.FlippedOpen) != 0)
-                    Debug.Log($"[VrEgress] canopy flipped open in the airload at {ias * 1.9438445:F0} KIAS; drag +{c.DragAreaM2:F2} m² into the sim");
-                if ((ev & CanopyEvents.HitStop) != 0) { XrHandInput.Tick(true, 0.5f, 0.05f); XrHandInput.Tick(false, 0.5f, 0.05f); }
+                    Debug.Log($"[VrEgress] canopy flung open by the suction at {ias * 1.9438445:F0} KIAS; drag +{c.DragAreaM2:F2} m² into the sim");
+                if ((ev & CanopyEvents.HitStop) != 0)
+                {
+                    XrHandInput.Tick(true, 0.5f, 0.05f); XrHandInput.Tick(false, 0.5f, 0.05f);
+                    if (!_slamLogged) Debug.Log($"[VrEgress] canopy slammed onto its stop: {c.PeakFittingLoadN:F0} N on the fittings (they hold {c.Spec.FittingStrengthN:F0})");
+                    _slamLogged = true;
+                }
+                if (c.AngleDeg < 50.0) _slamLogged = false;   // shut again: the next slam is news
+                if ((ev & CanopyEvents.Departed) != 0) DepartCanopy(c, ias);
             }
 
             // The belts.
@@ -309,6 +406,47 @@ namespace FlyingGame.Bridge
             StepCord(cord, dt, inCockpit: true);
             if (leave) Leave(climb);
             _prevAirPos = _air.position; _prevAirRot = _air.rotation;
+        }
+
+        /// <summary>
+        /// THE CANOPY HAS GONE (torn off its hinges, or jettisoned): it leaves as a body of its own (AirframeVisual.
+        /// DetachCanopy → CanopyFlight) with the aeroplane's velocity at its centre (rotation included, finite-differenced
+        /// like the climb-out) plus its own swing; the aeroplane loses its mass and its CG moves; the open cockpit's
+        /// drag and wind take over (CockpitRigState.Fill); and its path past the tail is predicted and a strike LOGGED
+        /// (a warning; nothing is damaged).
+        /// </summary>
+        private void DepartCanopy(CanopyDynamics c, double ias)
+        {
+            CockpitRigState cockpit = _visual.Cockpit;
+            Aircraft ac = _driver.Sim.Aircraft;
+            float dt = Mathf.Max(Time.deltaTime, 1e-3f);
+            Vector3 comLocal = U(c.ComLocal(C(HingeShut())));
+            Vector3 vPoint = (World(comLocal) - (_prevAirPos + _prevAirRot * comLocal)) / dt;
+            if (vPoint.sqrMagnitude > 4f * _driver.WorldVelocityUnity.sqrMagnitude + 100f) vPoint = _driver.WorldVelocityUnity;   // a reset between frames
+            Vector3 rel = U(c.ComVelocityLocal());
+            Vector3 vel = vPoint + _air.rotation * rel;
+            Vector3 up = _air.rotation * U(CanopyDynamics.Normal(c.AngleDeg));
+            // The swing about the hinge line (fore-aft; + β is left edge up, over to the right) and the pitch-over.
+            Vector3 spin = -_air.forward * (float)(c.RateDps * Mathf.Deg2Rad) + _air.right * (float)CanopyFreeBody.PitchOverRadS;
+            bool torn = c.DepartedBy == CanopyDeparture.HingesFailed;
+            Vector3? centre = _visual.DetachCanopy(c, vel, up, spin, torn);
+            cockpit.CanopyGone = true;
+            if (centre.HasValue) comLocal = Local(centre.Value);
+            Vec3 comBody = ac.Config.Mass.CgVec() + ToBody(comLocal);
+            ac.ShedMass(c.Spec.MassKg, comBody);
+            _air.GetComponent<FlightAudio>()?.CanopyJettison();
+            XrHandInput.Tick(true, 1f, 0.2f); XrHandInput.Tick(false, 1f, 0.2f);
+            _grab.Set(Grabbable.CanopyRail, Vec3.Zero, false);
+            _canopyHolder = -1;
+
+            CanopyTailCheck.Result tail = CanopyTailCheck.Predict(c, comBody, ToBody(rel), ToBody(U(CanopyDynamics.Normal(c.AngleDeg))),
+                                                                  ac.State.Velocity.Length, EgressAir.Density(_air.position.y), _clear);
+            Debug.Log($"[VrEgress] canopy {(torn ? $"TORN OFF ITS HINGES at {ias * 1.9438445:F0} KIAS ({c.PeakFittingLoadN:F0} N on fittings rated {c.Spec.FittingStrengthN:F0})" : $"JETTISONED at {ias * 1.9438445:F0} KIAS")}: " +
+                      $"{c.Spec.MassKg:F0} kg gone, CG moved ({ac.CgShiftBody.X * 1000:F0}, {ac.CgShiftBody.Y * 1000:F0}, {ac.CgShiftBody.Z * 1000:F0}) mm; open-cockpit drag {c.DragAreaM2:F2} m²");
+            if (tail.Surface != null)
+                Debug.LogWarning($"[VrEgress] the departing canopy would pass through the {tail.Surface} {tail.TimeSec:F2} s after leaving (predicted; no strike is modelled)");
+            else
+                Debug.Log($"[VrEgress] the canopy clears the tail: {tail.AtTail.Y:F1} m right, {-tail.AtTail.Z:F1} m up at the tail station");
         }
 
         /// <summary>Over the side: hand the pilot to PilotEgress as a body with the aeroplane's velocity at that point
@@ -480,7 +618,7 @@ namespace FlyingGame.Bridge
             if (_clear != null && _air != null && _jT < 8f)
             {
                 Vector3 l = Quaternion.Inverse(_air.rotation) * (body - _air.position);
-                string hit = _clear.Hit(ToBody(l));
+                string hit = _clear.Hit(_driver.Sim.Aircraft.Config.Mass.CgVec() + ToBody(l));
                 if (hit != null && _struck.Add(hit))
                 {
                     float rel = (_egress.PilotVelocity - _driver.WorldVelocityUnity).magnitude;
@@ -680,8 +818,50 @@ namespace FlyingGame.Bridge
             }
         }
 
+        // ---- the canopy's proxy hardware, drawn only where the model has no node yet ----
+
+        private GameObject _canopyProps, _knobProxy, _handleAftProxy, _handleFwdProxy;
+
+        /// <summary>A red knob for the Pitts' jettison and the Extra's two red handles, where Codex's nodes are missing, so
+        /// the pilot can see what he is reaching for (sizes: Codex's 14 × 55 × 27 mm handle grips; a 25 mm knob, E). They
+        /// ride the canopy like the grab points they mark. Hidden outside the cockpit and once the canopy has gone.</summary>
+        private void PlaceCanopyProps()
+        {
+            CockpitRigState cockpit = _visual != null ? _visual.Cockpit : null;
+            bool on = Active && !_jumper && cockpit != null && !cockpit.CanopyGone && cockpit.HandCanopy != null;
+            bool knob = on && cockpit.HandJettison != null && _jettisonNode == null;
+            bool handles = on && _latchKind == CanopyLatchKind.Squeeze && cockpit.HandLatch != null;
+            if (!knob && !handles) { if (_canopyProps != null) _canopyProps.SetActive(false); return; }
+            if (_canopyProps == null)
+            {
+                _canopyProps = new GameObject("VR Canopy Props");
+                Material red = EgressAir.Unlit(new Color(0.80f, 0.08f, 0.06f));
+                _knobProxy = EgressAir.Prim(PrimitiveType.Sphere, "Jettison knob (proxy)", _canopyProps.transform, Vector3.zero, Vector3.one * 0.025f, red);
+                _handleAftProxy = EgressAir.Prim(PrimitiveType.Cube, "Latch handle aft (proxy)", _canopyProps.transform, Vector3.zero, new Vector3(0.014f, 0.055f, 0.027f), red);
+                _handleFwdProxy = EgressAir.Prim(PrimitiveType.Cube, "Latch handle fwd (proxy)", _canopyProps.transform, Vector3.zero, new Vector3(0.014f, 0.055f, 0.027f), red);
+            }
+            _canopyProps.SetActive(true);
+            // The canopy's own turn: about the fore-aft hinge line, the left edge going up and over to the right.
+            Quaternion r = _air.rotation * Quaternion.Euler(0f, 0f, -(float)cockpit.HandCanopy.AngleDeg);
+            _knobProxy.SetActive(knob);
+            if (knob)
+            {
+                Vector3 k = JettisonPoint();
+                double pulled = cockpit.HandJettison.PositionM;
+                _knobProxy.transform.SetPositionAndRotation(World(k + (_eye - k).normalized * (float)pulled), r);
+            }
+            _handleAftProxy.SetActive(handles && _latchAftNode == null);
+            _handleFwdProxy.SetActive(handles && _latchFwdNode == null);
+            if (handles)
+            {
+                _handleAftProxy.transform.SetPositionAndRotation(World(LatchHandle(cockpit, fwd: false)), r);
+                _handleFwdProxy.transform.SetPositionAndRotation(World(LatchHandle(cockpit, fwd: true)), r);
+            }
+        }
+
         private void DestroyBailout()
         {
+            if (_canopyProps != null) Object.Destroy(_canopyProps);
             if (_props != null) Object.Destroy(_props);
             if (_plug != null) Object.Destroy(_plug);
             if (_ropeLine != null) Object.Destroy(_ropeLine.gameObject);

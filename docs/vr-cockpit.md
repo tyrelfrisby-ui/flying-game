@@ -110,17 +110,34 @@ order (throttle / prop / mixture, left to right).
 
 `ICanopyLatch` (Core): `Locked`, `Latch01` (the rig's `canopy_latch`, 0 locked .. 1 open / squeezed), `Reset`. The
 latch lives on `CockpitRigState.HandLatch`, is reset with the aeroplane, drives `canopy_latch` into the rig, and sets
-`CockpitRigState.CanopyLocked` when it changes. **Phase 2's canopy opening asks `CanopyLocked`.**
+`CockpitRigState.CanopyLocked` when it changes. **The canopy's dynamics ask `CanopyLocked`: nothing — hand or airload —
+moves a canopy whose latch is engaged.**
 
 - **Pitts S-2 — `PittsCanopyLatch`** (black ball on top of the rear panel, slides left / right): 3 in (0.0762 m) of
   travel, **fully right = locked**, followed 1:1 by the hand's lateral travel. Within 4 mm of the right end it snaps
   home into the detent (click, LOCKED); to leave the detent the hand must pull 10 mm left of it — the detent's
   spring, in hand travel, because a controller cannot measure force. Released, it stays where it was left.
-- **Extra 300 — `ExtraCanopyLatch`** (two red-and-white handles squeezed together): grab the pair with one hand and
-  pull the **trigger** to squeeze both. Both past 0.85 = pins out = UNLOCKED (click). Let go and the springs push
-  them back: with the canopy shut it re-locks (click); with it lifted (Phase 2) it stays unlocked until shut.
-  Two-handed squeezing (one hand per handle) is in the state machine (`Step(left, right, …)`) but not offered by the
-  grab yet.
+- **Extra 300 — `ExtraCanopyLatch` v2** (Ty, 2026-11-02 12:29, superseding the paired L/R paddles): "The two handles
+  are on the canopy frame, one in front of the other. The rear handle is fixed. The front handle is spring-loaded forward.
+  Squeezing them together slides the front handle aft toward the rear one, and that motion pulls the latch pins out of
+  their holes in the airframe." Handles and pins are on the CANOPY (they open with it); the holes are in the sill.
+  - **s** = the front handle, 0 forward (pins in) .. 1 aft (pins out) = the rig's `canopy_latch` (Codex: the Fwd handle
+    35 mm aft, the pins 18 mm up).
+  - **Hands.** One hand on the pair (`Grip_Canopy_Latch`, between the handles) + the **trigger**: s = trigger. A hand on
+    EACH handle (`Grip_Canopy_Latch_Aft` / `_Fwd`): s follows how far they close together along the frame. The front
+    handle alone pulled aft: s follows that hand (it is the moving part). The rear handle alone: nothing (it is fixed).
+    A controller has no fingers to measure, so "one hand spanning both" is the pair + trigger.
+  - **Spring.** Released, the front handle is a mass on a preloaded spring with friction against its forward stop:
+    preload **20 N**, rate **600 N/m** (41 N at full squeeze), moving mass **0.08 kg**, friction **2 N** (all E) — home
+    in about 13 ms.
+  - **Pins.** Linear with s (18 mm over 35 mm). Out of their holes only past **s = 0.806** (14 mm engagement + 0.5 mm
+    clearance, E): a partial squeeze keeps it pinned. NB Codex's drawn sockets show about 6 mm of engagement, which would
+    clear at a third of the squeeze; the contract wants "pins out only near full squeeze", so the physics uses 14 mm.
+  - **Closed/aligned only.** With the canopy lifted the pins hang in free air and engage nothing; in the last 1.5° (E)
+    their bevelled tips ride on the sill (held at the clear position, which pushes the handle aft); shut, the spring
+    snaps them in (click, LOCKED). `Locked` = pins engaged = shut AND s < 0.806.
+  - **The handles are on the frame, so the hand on them holds the CANOPY**: squeeze and push up is one movement, and in
+    flight the airload can tear the canopy out of that hand (which also lets go of the handles).
 - **The rest of the fleet:** the Great Lakes is an open cockpit (no latch). The Cub and the 172 have doors, not a
   canopy. The 2-33's canopy, and every other canopy type, has no latch yet — `CanopyLatchKind.None` — rather than a
   guessed one; see the questions in AGENT-LOG.
@@ -162,7 +179,8 @@ about 100 KIAS, mixture lean, open the canopy (it flips open), take the headset 
 releases: bottom one left, top one right), leave to the LEFT, avoid the wing and the tail, open the parachute.
 
 Code: the physics is engine-free in `src/FlyingGame.Core/Vr/` (`CanopyHinge.cs`, `Harness.cs`, `HeadsetCord.cs`,
-`Egress.cs`, `Ripcord.cs`) and pinned by `tools/FlightTests/VrBailoutTests.cs` (28 cases, every expected value a literal
+`Egress.cs`, `Ripcord.cs`; P2c adds `CanopyRelease.cs`: the jettison pull, the departed canopy's free body and the tail
+check) and pinned by `tools/FlightTests/VrBailoutTests.cs` (44 cases since P2c, every expected value a literal
 worked by hand). The glue is `Bridge/VrCockpitHands.Bailout.cs`. Small additive touch points: `Aircraft.ExtraDragAreaM2`
 (the open canopy's drag), `CockpitRigState.HandCanopy / Harness / Cord / Climb` (reset with the aeroplane),
 `PilotEgress.LeaveByHand / PullRipcord`, `PilotBody.FirstPerson / TumbleSec`, one line in `QuestRig.CaptureOrigin`
@@ -170,43 +188,130 @@ worked by hand). The glue is `Bridge/VrCockpitHands.Bailout.cs`. Small additive 
 
 (E) marks an estimate: a number of mine, not from a source. Every one is a constant with that name in the code.
 
-### 1. The canopy, in the air (`CanopyDynamics`)
+### 1. The canopy, in the air (`CanopyDynamics`, `CanopyBubble`) — revised P2c-2
 
-Grab `Grip_Canopy_Rail` (the Pitts has it; elsewhere the frame's free edge, abeam the eye) once the latch is off, and
-push. **Pitts:** slides AFT 4 in (0.1016 m, Codex's rig) on its left track, 1:1 with the hand; only then can it swing,
-because the mushroom buttons hold it down; then up and over to the RIGHT about the right-rail hinge to 100° (Codex's rig).
-**Extra:** up and over to the RIGHT about the right-sill hinge to 100°. The rig's `canopy_open`: Extra 0..1 = 0..100°;
-Pitts 0..0.2 = the slide, 0.2..1 = 0..100°.
+Grab `Grip_Canopy_Rail` (the Pitts has it; elsewhere the frame's free edge, abeam the eye) — or, on the Extra, its latch
+handles — once the latch is off, and push. **Pitts:** slides AFT 4 in (0.1016 m, Codex's rig) on its left track, then up
+and over to the RIGHT about the right-rail hinge to 100° (Codex's rig). **Extra:** up and over to the RIGHT about the
+right-sill hinge to 100°. The rig's `canopy_open`: Extra 0..1 = 0..100°; Pitts 0..0.2 = the slide, 0.2..1 = 0..100°.
+Every grab point on the canopy (latch handles, the Pitts' ball, the jettison knob) rides it: Codex's nodes ride the rig,
+and the proxies are expressed on the shut canopy and carried by `CanopyDynamics.PointOnCanopy` (slide, then the swing).
 
-The canopy is a plate from the hinge (right) to its free edge (left), width w, angle β. With u = (−cos β, sin β, 0) and
-n = (sin β, cos β, 0), a force F at the centroid opens it by M = (w/2)·(F·n).
+Ty, 2026-11-02 12:37: **"If the latch is released in flight, suction from the low pressure over the curved canopy flings
+it open. Above 80 KIAS on the Extra, or 80 MPH (about 70 kt) on the Pitts, the hinges fail and the canopy tears away and
+falls clear, as a separate piece with its own physics. Below that it flings open and stays on its hinges, flapping in the
+airflow."**
 
-- **Airload.** NACA RM L50B03 (Huston & Skopinski, 1950, flight and full-scale-tunnel pressures on a sliding canopy):
-  the highest net load on a closed canopy is "in the exploding direction", with the cockpit inside "slightly less than
-  free stream". The report's coefficients are in its figures, not its text; I take the net outward **ΔCp = 0.5 (E)** and
-  hold it constant as the canopy opens (E). **M_aero = (w/2)·ΔCp·q·A**, q = ½ρ₀V_e² (the sim's IAS is equivalent airspeed).
-- **Gravity** (apparent, the load factor in it): **M_g = (w/2)·m·(g_app·n)**, = −(w/2)·m·g·cos β level.
-- **The hand** on the free edge (arm w) is a stiff servo (12 rad/s, critically damped, E) capped at **200 N (E)**:
-  past that the canopy is torn out of the hand (a 1.0 buzz, logged).
-- **I β¨ = M_aero + M_g + M_hand − c β˙**, I = m w²/3, c = 2 N·m·s (E), a stop at 100° with restitution 0.2 (E).
-
-Numbers (E unless said): Extra w 0.75 m, L 2.0 m, A = 0.8·w·L = 1.2 m², 14 kg; Pitts w 0.70 m (Codex's hinge y −0.36 to
-rail y +0.34; measured from the nodes at run time where present), L 1.5 m, A 0.84 m², 9 kg.
+**The suction, from the bubble's curvature (`CanopyBubble`).** The canopy is the top half of an ellipsoid (a = L/2 along
+the flow, b = W/2 across, c = h up) on a flat fuselage top; the wall is a symmetry plane, so the attached potential flow is
+half of the classical ellipsoid's (Lamb, *Hydrodynamics* §114): surface speed V = C·U·√(1 − n_a²), C = 2/(2 − α₀), α₀ by
+quadrature, so Cp = 1 − C²(1 − n_a²) — stagnation at nose and tail, suction where the skin runs along the flow, most over
+the crown. Cockpit inside at free-stream static, **Cp_in = 0** (assumption: vent ram air raises it a little, NACA RM
+L50B03 measured "slightly less than free stream"; taken to cancel). Net outward load **L = q·A_plan·ΔCp**, ΔCp = −(mean
+Cp over the plan), acting on the centre-line (symmetric), so its lever is the hinge's distance outboard of it. The same
+surface carries the mass (uniform) for the centre of mass and the inertia about the hinge.
 
 | | Extra | Pitts |
 |---|---|---|
-| M_aero / q | 0.225 m³ | 0.147 m³ |
-| M_g, shut, 1 g | 51.5 N·m | 30.9 N·m |
-| **flips open by itself, unlatched, above** | q 229 Pa = **37.6 KEAS** | q 210 Pa = **36.0 KEAS** |
-| a hand can hold it shut up to | q 895 Pa = **74.3 KEAS** | q 1163 Pa = **84.7 KEAS** |
+| bubble (Codex's `Canopy` bounds, lane/codex-vr-cockpit 45d2654) | 2.12 × 0.78 × 0.48 m | 1.48 × 0.716 × 0.406 m |
+| hinge outboard of the centre-line (Canopy origin / Canopy_HingeAxis) | 0.343 m | 0.36 m |
+| mass (E) | 14 kg | 9 kg |
+| α₀ / C | 0.2757 / 1.160 | 0.3580 / 1.218 |
+| **ΔCp (net outward)** | **0.227** | **0.308** |
+| plan area π a b | 1.299 m² | 0.832 m² |
+| centre of mass above the sill / inertia about the hinge | 0.251 m / 3.58 kg·m² | 0.212 m / 2.11 kg·m² |
+| opening moment per q | 0.1012 m³ | 0.0921 m³ |
+| **lifts off unlatched** (q = m g d / (d ΔCp A)) | q 465 Pa = **53.6 KIAS** | q 345 Pa = **46.1 KIAS** |
+| a hand at the free edge (200 N) holds it shut to | q 1914 Pa = **108.7 KIAS** | q 1903 Pa = **108.4 KIAS** |
 
-So at the POH's ~100 KIAS it flips open whatever the hand does — what the Extra's POH says it does. **Whether it then
-departs** at high q is not modelled: no hinge-strength figure, so it stays on its stop (NEEDS YOU).
+(Shorter and taller = more curvature = more suction: the Pitts sucks harder per m². Left out: the fuselage's own
+supervelocity and aft separation — both make the real suction LARGER, so these opening loads are on the low side — and the
+windscreen's wake on the Pitts, which would make it smaller.) Python sketch and the C# agree to 4 figures; the tests hold
+the sketch's literals.
 
-**Drag into the flight model:** ΔCdA = **0.20 m² (E)** · min(1, β/60°) (≈ 1.2 × the canopy's ~0.17 m² frontal arch; the
-Extra's whole airframe is ~0.27 m²), applied along the relative wind at the cockpit through `Aircraft.ExtraDragAreaM2`,
-so it also pitches and yaws the aeroplane (`ForceDebug` "extra-drag"). At 100 KIAS that is 324 N. While a hands-on canopy
-exists, its physics set `CanopyOpen01` and the menu's open/shut command (and its "pulled shut above 60 kt" rule) stands down.
+**Opening.** I β¨ = M_aero + M_g + M_hand − c β˙ + M_stop, in 1 ms steps. M_aero = d·ΔCp·q·A, held as it opens (E: the
+convex face stays in suction, the concave one near static). **The hinge axis runs along the flow, so drag on the open
+canopy has no moment about it** — it loads the fittings and the aeroplane, not the swing. Gravity (apparent): m·g_app·(d n
+− y_c u) — closing until the centre of mass passes over the hinge, then opening. Open past 20°, the canopy sheds vortices
+at St 0.2 (f = 0.2 V / h: about 15 Hz at 70 kt) and its load fluctuates ±15 % (E): it slams to the stop, bounces back
+about a third, and buzzes against it.
+
+**The Pitts in the airload.** Unlatched, its own drag (q · Cd 0.07 · π b h / 2, E for a faired bubble) runs it aft on the
+track against friction μ 0.05 (E, nylon buttons in aluminium) × |suction − weight| on the buttons: it slides 4 in in about
+half a second, then flings. **Question for Ty:** does an unlatched S-2B canopy really run aft by itself? (It has to, for
+your 80 mph rule to apply to it with this slide-then-hinge mechanism.)
+
+**The stop and the fittings — the calibration.** The open-stop is a stiff one-sided spring at 100°: K = 10,000 N·m/rad
+(E: 1° of give per 175 N·m of frame, limiter and lug), damping ratio 0.3 (E), stop lug **0.10 m** (E) from the hinge pins,
+so the fitting load is F = M_stop / 0.10. Flung open, the canopy arrives with E = ∫(M_a + M_g)dβ (Extra at 80 KIAS: ≈ 137 J)
+and the stop has to take that out in a few degrees; peak moment ≈ M_s + √(M_s² + 2KE). Ty's rule fixes the strength:
+**the fittings' failure load is the peak stop load at exactly his speed**, by running this dynamics
+(`CanopyDynamics.PeakStopLoadN`, level 1 g, from shut):
+
+| peak stop-lug load, flung open from shut (N) | 60 | 65 | 69.5 | 75 | 80 | 85 | 100 KIAS |
+|---|---|---|---|---|---|---|---|
+| Extra | 11,042 | 12,009 | 13,156 | 14,080 | **15,125** | 16,170 | 19,674 |
+| Pitts | 10,012 | 11,088 | **11,972** | 12,778 | 14,073 | 14,639 | 17,918 |
+
+→ **Extra fittings 15,100 N, Pitts 12,000 N** (rounded to 100 N). Run in the dynamics: the Extra holds at 79 and goes at
+80 KIAS; the Pitts holds at 69.5 and goes at 70. (Plausible hardware: two AN3/AN4-bolted steel hinge fittings are in that
+range.) A canopy already on its stop only fails again under a STEADY load of that size: M_a(1 + 15 %) / 0.10 = 15,100 N is
+q ≈ 13 kPa ≈ 280 KIAS — so **an open canopy that survived the fling at 70 kt stays on if you then speed up**. Is that how
+you see it, or should a flapping open canopy go above 80 whatever happened first?
+
+**Departure** (`CanopyEvents.Departed`, `CanopyDeparture.HingesFailed` / `.Jettisoned`). The Bridge
+(`VrCockpitHands.DepartCanopy`) detaches the canopy subtree — CONTRACT's `Canopy_Detachable`, else the node the rig marks
+jettisonable (Extra `Canopy`), else the Pitts' `Canopy_Slide` / `Canopy` — shows `Canopy_Hinge_Broken_*` if the hinges
+failed, and flies it as a Core **`CanopyFreeBody`** (Bridge `CanopyFlight`): its own mass, drag (broadside Cd 1.2 on the
+plan area, edge-on Cd 0.4 on the arch, E), the bubble's own lift (ΔCp q A along its up, for the flow along the shell),
+and a kinematic tumble (its swing rate + a 3 rad/s pitch-over, E); it starts with the aeroplane's velocity at its centre
+(rotation included) plus its own swing. Torn off at the stop it is past 100° and still swinging, so it leaves **down and
+to the RIGHT, away from the pilot**. Its path relative to the aeroplane (flying straight on at that TAS) is swept past the
+tail and wing boxes (`CanopyTailCheck`); a predicted strike is a `[VrEgress]` WARNING only — nothing is damaged. On the
+bench probe (release point guessed 0.9 m above the CG), an Extra canopy torn off at 80–120 KIAS crosses the right wing root within 0.2 s: **what should a canopy strike
+do?** (Same open question as the pilot's tail strike.)
+
+**The aeroplane after.** `Aircraft.ShedMass(m, point)`: the canopy's mass leaves, the inertia loses its parallel-axis
+share, and the CG moves by −m·r/(M − m) (Pitts example: 9 kg from (−0.5, 0, −0.4) moves the CG 6.7 mm forward and 7.4 mm
+down). Forces stay about Config.Mass.Cg (all geometry hangs off it); the shift enters as the remaining weight's moment.
+Fuel burn and the loading page keep it gone.
+
+**Drag into the flight model** (`Aircraft.ExtraDragAreaM2`, at the cockpit, so it pitches and yaws): an open cockpit
+**0.15 m² (Extra, two seats under one opening) / 0.12 m² (Pitts)** (E, Hoerner-type open-cockpit increments) ramping in
+over the first 30°, plus the canopy standing in the stream, Cd 0.4 on its arch's frontal area (Extra 0.29 m², Pitts 0.23
+m²), ramping in to 45°: **fully open and attached 0.268 / 0.211 m²; departed 0.15 / 0.12 m²**. At 80 KIAS (1037 Pa) the
+attached open Extra canopy costs 278 N.
+
+**Wind noise** (`CockpitWind`, into `WindSynth` via `FlightAudio`, cockpit view only): turbulent pressure fluctuations
+scale with q, so the amplitude goes as **q × (0.12 + 0.88 × exposure)**, 1 = an open cockpit at 100 KIAS; exposure 0 shut,
+0.8 open and attached (E: the canopy still shelters some), 1 departed. Only the excess over a shut canopy's is added
+(the existing airframe wind already is the shut cockpit); +6 dB per doubling of q.
+
+### 1a. The jettison (P2c-3; `JettisonPull`)
+
+Ty, 2026-11-02 12:38: **"If the canopy is only unlatched by the black ball latch, the 80 mph hinge-failure rule applies.
+If the jettison knob is pulled, the hinge pins release and the canopy falls away at ANY speed."**
+
+- **Where.** **Pitts: the RED knob on the FAR RIGHT, where the curved parallel canopy bow tubes meet the lower canopy frame
+  tube (sill rail) — confirmed by Ty, 2026-11-02 (12:40 PST)**, one per cockpit that has bows (rear and front). It rides the
+  **canopy frame** (the bows and the sill rail are both canopy) and pulls the right-hand hinge pins that join that rail to
+  the hinge fittings; shut, it sits exactly at that junction. Bound to `Grip_Canopy_Jettison_Rear/Front` →
+  `Canopy_Jettison_Knob_Rear/Front`; missing, a proxy just inboard of the hinge line on the rail at the bows' station
+  (the ball latch grip's z, which rides between the bows), carried by the canopy. **Extra:** Codex's model has right-sill
+  emergency pulls `CanopyRelease_R` (rear) / `_F` (front), on the airframe — treated as the Extra's jettison with the same
+  any-speed behaviour (question for Ty). **No pull in the model, no Extra jettison.** No other type has one.
+- **Pull.** Grab and pull toward yourself: 8 mm of breakout (the safety wire / detent; the ~90 N pull force, E, stood for
+  by hand travel), then the knob follows; at **90 % of its travel** (Pitts 38 mm, E; Extra 40 mm, Codex's rig) it fires —
+  hinge pins out, a hard buzz, the knob stays out. **One-way** (cannot be un-jettisoned in flight). Let go short of 90 %
+  and it springs home: nothing happened. Rig param `canopy_jettison` = the pull.
+- **With the latch still LOCKED (my assumption, question for Ty).** The knob pulls the hinge pins only; the latch (Pitts:
+  the ball's catch at the centre-line; Extra: the squeeze-latch pins on the left) still holds the canopy, so it stays on
+  — its hinge side would lift by the latch's play (not drawn). **Open the latch and it goes at once, at any speed.** So
+  the order does not matter: whichever of the two comes second releases it. I did not model the canopy pivoting about
+  the latch side, nor the Pitts' left track buttons holding it (assumed freed by the jettison).
+- **Free.** Jettisoned and unlatched: in the air (q above 20 kt's) it departs at once through the same separate-body
+  path as the tear-away; on the ground it sits loose until a hand lifts it 10°. Ball latch only (no jettison): the
+  80 mph rule above.
 
 ### 2. The belts (`SeatHarness`, `HarnessRelease`)
 

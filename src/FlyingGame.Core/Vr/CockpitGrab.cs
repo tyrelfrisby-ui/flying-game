@@ -5,11 +5,13 @@ namespace FlyingGame.Core.Vr
 {
     /// <summary>What a hand can take hold of. Phase 1: the stick, the throttle, the canopy latch. Phase 2 (the bail-out):
     /// the canopy's frame / rail, the harness releases (main and lap), the headset plug, the cockpit sills to climb out
-    /// by, and — out of the aeroplane — the ripcord handle.</summary>
+    /// by, and — out of the aeroplane — the ripcord handle. P2c: the Extra's two latch handles one at a time (the
+    /// CanopyLatch slot is then the PAIR, between them), and the canopy jettison knob / emergency release.</summary>
     public enum Grabbable
     {
         None = 0, Stick = 1, Throttle = 2, CanopyLatch = 3,
         CanopyRail = 4, HarnessMain = 5, HarnessLap = 6, HeadsetPlug = 7, SillLeft = 8, SillRight = 9, Ripcord = 10,
+        CanopyLatchAft = 11, CanopyLatchFwd = 12, CanopyJettison = 13,
     }
 
     /// <summary>One frame's events, for haptics and the log.</summary>
@@ -50,7 +52,7 @@ namespace FlyingGame.Core.Vr
         }
 
         /// <summary>One slot per <see cref="Grabbable"/> value.</summary>
-        public const int Slots = 11;
+        public const int Slots = 14;
 
         public readonly Point[] Points = new Point[Slots];
 
@@ -78,6 +80,14 @@ namespace FlyingGame.Core.Vr
         {
             _held[0] = _held[1] = Grabbable.None;
             _hover[0] = _hover[1] = Grabbable.None;
+        }
+
+        /// <summary>Take a control out of one hand without the grip opening (the canopy was torn out of it). The hand
+        /// cannot take hold again until it opens and closes.</summary>
+        public void Drop(HandSide side)
+        {
+            _held[(int)side] = Grabbable.None;
+            _hover[(int)side] = Grabbable.None;
         }
 
         /// <summary>The nearest enabled point within reach of <paramref name="hand"/> that the other hand isn't holding.</summary>
