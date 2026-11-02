@@ -77,6 +77,39 @@ namespace FlyingGame.Bridge
         public static CockpitSeat Seat = CockpitSeat.Rear;
         public static string SeatLabel => Seat == CockpitSeat.Rear ? "REAR (PIC)" : "FRONT";
 
+        // ---- the seat the pilot chose, per aeroplane, by seat ID ----
+        // What CockpitView sits the eye in (and so the Quest's head). Kept by the seat's ID ("rear", "front",
+        // "pilot") per aircraft type, never as an index into whatever aeroplane is loaded: an index chosen on the
+        // landing page's glider became the Pitts' FRONT seat on FLY (owner Ty, 2026-11-02, "i chose the back seat
+        // and it put me in the front seat"). Nothing chosen = the primary seat (SeatChoice). Persisted at once.
+
+        private const string PrefSeatIdFor = "set.seatId.";
+        private static readonly System.Collections.Generic.Dictionary<string, string> _seatIds = new();
+
+        /// <summary>Bumped on every choice, so a CockpitView can follow a choice made from a menu.</summary>
+        public static int SeatChoiceVersion { get; private set; }
+
+        /// <summary>The seat ID chosen for this aircraft type, or null for "its primary seat".</summary>
+        public static string SeatIdFor(string aircraftId)
+        {
+            if (string.IsNullOrEmpty(aircraftId)) return null;
+            if (!_seatIds.TryGetValue(aircraftId, out string id))
+                _seatIds[aircraftId] = id = PlayerPrefs.GetString(PrefSeatIdFor + aircraftId, "");
+            return string.IsNullOrEmpty(id) ? null : id;
+        }
+
+        /// <summary>Choose a seat for this aircraft type (and remember it).</summary>
+        public static void ChooseSeat(string aircraftId, string seatId)
+        {
+            if (string.IsNullOrEmpty(aircraftId)) return;
+            seatId ??= "";
+            if (SeatIdFor(aircraftId) == (seatId.Length == 0 ? null : seatId)) return;
+            _seatIds[aircraftId] = seatId;
+            PlayerPrefs.SetString(PrefSeatIdFor + aircraftId, seatId);
+            PlayerPrefs.Save();
+            SeatChoiceVersion++;
+        }
+
         /// <summary>The paint scheme OVERRIDE (Livery.cs), for every type: AERO_LIVERY at launch, which is how a capture
         /// instance is told to wear Talk Flying for a recorded shot, and the editor renders' -livery. null = none, and
         /// each type wears its own choice (<see cref="LiveryFor"/>).</summary>

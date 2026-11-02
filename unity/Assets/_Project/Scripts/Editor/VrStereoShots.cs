@@ -66,7 +66,7 @@ namespace FlyingGame.EditorTools
                 driver.AdoptSim(new FlyingGame.Sim.SimLoop(
                     new FlyingGame.Sim.Aircraft(cfg, new FlyingGame.Core.RigidBodyState())));
                 new AirframeBuilder().Build(root.transform, cfg);
-                cockpit.SelectSeat(FrontSeat);
+                cockpit.SelectSeat(FrontSeat, remember: false);
 
                 VrLensConfig lens = VrMode.Lens;
                 Debug.Log($"[VRShots] lens: inter-lens {lens.InterLensDistanceM * 1000f:F1} mm, " +

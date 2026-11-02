@@ -144,7 +144,12 @@ namespace FlyingGame.Bridge
                 var seats = new[] { SessionSettings.CockpitSeat.Rear, SessionSettings.CockpitSeat.Front };
                 int sp = PickRow("Cockpit seat", new[] { "Rear (PIC)", "Front" },
                                  System.Array.IndexOf(seats, SessionSettings.Seat), ref y);
-                if (sp >= 0) { SessionSettings.Seat = seats[sp]; SessionSettings.SavePrefs(); }
+                if (sp >= 0)
+                {
+                    SessionSettings.Seat = seats[sp]; SessionSettings.SavePrefs();
+                    // The cockpit view sits in the seat chosen per aircraft by ID; this row is the same choice.
+                    SessionSettings.ChooseSeat(Driver.AircraftId, seats[sp] == SessionSettings.CockpitSeat.Front ? "front" : "rear");
+                }
                 Note("Solo aerobatics is flown from the rear seat", ref y);
             }
 

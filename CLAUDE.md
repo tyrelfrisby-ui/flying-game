@@ -161,3 +161,11 @@ underground, sat on the peak. Ty reported "on top of a mountain looking around";
 because the bench has a real folder. Read StreamingAssets only through `StreamingFiles` (it reads inside the APK);
 `StreamingAssetsTests.RuntimeCodeReadsStreamingAssetsOnlyThroughStreamingFiles` holds runtime code to that. For a
 new platform, ask what its file system looks like before trusting a loader that "works everywhere".
+
+### A choice stored as an index means something else in the next list
+The cockpit seat was a bare index into whatever aeroplane was loaded. On the Quest landing page that was the 2-33
+(front = 0, rear = 1), so "Rear seat" stored 1 and FLY put Ty in the Pitts' seat 1 — its FRONT seat. The clamp on
+aircraft change made it look safe: every index stayed in range. Keep a choice by the thing's own stable ID
+(`SeatChoice`, seat ids are "never renamed once shipped") and resolve it against the list it is applied to, with a
+stated default when the ID is absent; and a menu that offers a choice for "the aeroplane you will fly" must read
+THAT aeroplane, not the one that happens to be loaded.
