@@ -204,6 +204,8 @@ public sealed class QuestControlsTests
         var c1 = m.Step(new QuestControllerFrame { X = true, Menu = true, LeftStickClick = true }, Dt, 0.5);
         var c2 = m.Step(new QuestControllerFrame { X = true, Menu = true, LeftStickClick = true }, Dt, 0.5);
         Assert.True(c1.FlapsDown); Assert.True(c1.Menu); Assert.True(c1.Recentre);
+        Assert.Equal(QuestMenuTrigger.MenuButton, c1.MenuBy);
+        Assert.Equal(QuestMenuTrigger.None, c2.MenuBy);
         Assert.False(c2.FlapsDown); Assert.False(c2.Menu); Assert.False(c2.Recentre);
         var c3 = m.Step(new QuestControllerFrame { Y = true, RightStickClick = true }, Dt, 0.5);
         Assert.True(c3.FlapsUp); Assert.True(c3.Gear);
@@ -234,7 +236,7 @@ public sealed class QuestControlsTests
             Assert.Equal(0.0, c.Aileron);
             Assert.False(c.ThrottleMoved);
             Assert.Equal(0.4, c.Throttle01, 9);
-            if (c.Menu) { menu = true; fired++; if (fired == 1) Assert.InRange(i * Dt, 0.98, 1.02); }
+            if (c.Menu) { menu = true; fired++; if (fired == 1) Assert.InRange(i * Dt, 0.98, 1.02); Assert.Equal(QuestMenuTrigger.LeftPinchHeld, c.MenuBy); }
         }
         Assert.True(menu);
         Assert.Equal(1, fired);

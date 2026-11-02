@@ -48,6 +48,8 @@ namespace FlyingGame.Bridge
         private readonly XrHeadPose _head = new();
         private readonly QuestControlMapper _system = new();
         private QuestMenu _menu;
+        private readonly QuestMenuTabView _tab = new();
+        private float _menuErrorAt = -100f;
         private bool _running, _wasCockpit;
         private int _lastSeat = -1;
         private Vector3 _originPos;
@@ -104,7 +106,10 @@ namespace FlyingGame.Bridge
 
             SystemInput();
             Place();
-            _menu?.Tick(this);
+            // The menu must never take the rig down with it, and an error in it must never be silent (the a222bda
+            // menu threw on every press and nobody could see why): log it, at most every few seconds.
+            try { _menu?.Tick(this); }
+            catch (System.Exception e) { MenuError("tick", e); }
             FlyReport();
             PerfLog();
         }
@@ -178,6 +183,7 @@ namespace FlyingGame.Bridge
                 UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = GcSliceNs;
             }
             _head.Forget();          // the first head pose recentres
+            XrControllers.LogDevices("headset started");
             Debug.Log($"[Quest] XR on — device '{XRSettings.loadedDeviceName}', eye texture {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight}, " +
                       $"render scale {XRSettings.eyeTextureResolutionScale:F2}, stereo {XRSettings.stereoRenderingMode}, " +
                       $"refresh {XrHeadset.CurrentRefreshHz:F0} Hz. Cardboard VR and the device look stand down.");
@@ -280,8 +286,35 @@ namespace FlyingGame.Bridge
             // a menu is open, and these two buttons must.
             QuestFlightCommand c = _system.Step(f, Time.unscaledDeltaTime, 0.0);
             if (c.Recentre) RecentreNow();
-            if (c.Menu) _menu?.Toggle(this);
+            // The MENU tab on the panel: cockpit view, in flight, menu closed (QuestMenuTabView, QuestMenuTab).
+            bool tabShown = !XrHeadset.MenuOpen && !SessionSettings.MenuOpen && ChaseCamera.InCockpit;
+            QuestMenuTrigger tab = _tab.Tick(this, f, tabShown, Time.unscaledDeltaTime);
+            QuestMenuTrigger by = c.Menu ? c.MenuBy : tab;
+            if (by != QuestMenuTrigger.None) ToggleMenu(by);
             if (c.Record && !XrHeadset.MenuOpen) QuestRecorder.Toggle();   // in the menu A selects and B closes: use its row
+        }
+
+        private void ToggleMenu(QuestMenuTrigger by)
+        {
+            string via = by switch
+            {
+                QuestMenuTrigger.MenuButton => $"the left MENU button ({XrControllers.MenuVia})",
+                QuestMenuTrigger.StickClickHeld => "the left stick click held 1 s",
+                QuestMenuTrigger.LeftPinchHeld => "a left pinch held 1 s",
+                QuestMenuTrigger.TabPoked => "a poke on the MENU tab",
+                QuestMenuTrigger.TabPointedTrigger => "the MENU tab, pointed at + trigger",
+                _ => by.ToString(),
+            };
+            Debug.Log($"[QuestInput] menu trigger: {via}");
+            try { _menu?.Toggle(this, via); }
+            catch (System.Exception e) { MenuError("open/close", e); }
+        }
+
+        private void MenuError(string what, System.Exception e)
+        {
+            if (Time.unscaledTime - _menuErrorAt < 5f) return;
+            _menuErrorAt = Time.unscaledTime;
+            Debug.LogError($"[QuestInput] VR menu {what} failed: {e}");
         }
 
         /// <summary>How often the [QuestPerf] line is written, seconds.</summary>

@@ -76,7 +76,10 @@ namespace FlyingGame.Bridge
 
         // ---- the HUD in the cockpit, and the "press MENU" tip (persisted) ----
 
-        private const string PrefHud = "quest.hudInCockpit", PrefTipFlights = "quest.menuTipFlights", PrefMenuFound = "quest.menuFound";
+        // The tip's two keys are the SECOND pair: the first ("quest.menuTipFlights", "quest.menuFound") were spent on
+        // builds whose menu could not open in flight at all (QuestMenu: destroyed with the aeroplane), so the tip had
+        // run its three flights before there was anything for it to point at.
+        private const string PrefHud = "quest.hudInCockpit", PrefTipFlights = "quest.menuTipFlights2", PrefMenuFound = "quest.menuFound2";
 
         /// <summary>The green HUD in the COCKPIT view, in a headset. OFF by default (owner Ty, 2026-11-02: "the hud
         /// display is not necessary and really confusing while in the airplane") — the aeroplane's own instruments

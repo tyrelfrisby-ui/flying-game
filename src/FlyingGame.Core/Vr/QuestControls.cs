@@ -45,6 +45,9 @@ namespace FlyingGame.Core.Vr
         /// <summary>One-shot presses (true on the frame the button goes down).</summary>
         public bool FlapsDown, FlapsUp, Gear, Smoke, Recentre, Menu;
 
+        /// <summary>Which of the menu's controller paths fired <see cref="Menu"/> this frame, for the [QuestInput] log.</summary>
+        public QuestMenuTrigger MenuBy;
+
         /// <summary>A + B held together for a second: start / stop the "what I see" recording (QuestRecordChord).</summary>
         public bool Record;
 
@@ -55,6 +58,10 @@ namespace FlyingGame.Core.Vr
         /// false the stick is "let go" — on a reversible aeroplane the surfaces then trail, as with a lifted thumb.</summary>
         public bool StickHeld, RudderHeld;
     }
+
+    /// <summary>What opened (or closed) the VR menu. The first three come from <see cref="QuestControlMapper"/>; the
+    /// MENU tab's two are <see cref="QuestMenuTab"/>'s.</summary>
+    public enum QuestMenuTrigger { None, MenuButton, StickClickHeld, LeftPinchHeld, TabPoked, TabPointedTrigger }
 
     /// <summary>
     /// THE QUEST CONTROL MAPPING, engine-free so it is tested without a headset (QuestControlsTests).
@@ -148,6 +155,7 @@ namespace FlyingGame.Core.Vr
                 // the menu (left pinch, held) and recentre (right pinch, held). The aeroplane keeps whatever the
                 // controls were left at.
                 c.Menu = PinchHold(f.LeftPinch, dt, ref _leftPinch, ref _leftPinchHeld, ref _leftPinchFired);
+                if (c.Menu) c.MenuBy = QuestMenuTrigger.LeftPinchHeld;
                 c.Recentre = PinchHold(f.RightPinch, dt, ref _rightPinch, ref _rightPinchHeld, ref _rightPinchFired);
                 c.Throttle01 = throttle01;
                 _leverGrabbed = false;
@@ -200,7 +208,9 @@ namespace FlyingGame.Core.Vr
             c.FlapsUp = Down(f.Y, p.Y);
             c.Gear = Down(f.RightStickClick, p.RightStickClick);
             c.Recentre = Down(f.LeftStickClick, p.LeftStickClick);
-            c.Menu = Down(f.Menu, p.Menu) | ClickHold(f.LeftStickClick, dt);
+            bool button = Down(f.Menu, p.Menu), held = ClickHold(f.LeftStickClick, dt);
+            c.Menu = button | held;
+            c.MenuBy = button ? QuestMenuTrigger.MenuButton : held ? QuestMenuTrigger.StickClickHeld : QuestMenuTrigger.None;
             c.Record = _record.Step(f.A, f.B, dt);
             bool rg = _rightGrip ? f.RightGrip > GripOff : f.RightGrip >= GripOn;
             c.Smoke = rg && !_rightGrip;

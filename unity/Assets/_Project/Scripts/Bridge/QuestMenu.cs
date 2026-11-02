@@ -38,6 +38,17 @@ namespace FlyingGame.Bridge
     ///
     /// Drawn with FlyingGame/XrOverlay (force-included), which ignores depth, so the panel shows through the
     /// instrument panel it is floating in front of.
+    ///
+    /// IT RIDES THE SEAT, NOT THE AEROPLANE (<see cref="QuestRig.HudAnchor"/>). Until 2026-11-02 the panel was
+    /// parented to the aeroplane's transform, and every airframe rebuild — every FLY — destroys any child with a
+    /// renderer it did not build itself (AirframeVisual.Clear, "stray child cleared on rebuild"). So the menu
+    /// worked on the landing page and was a destroyed object from the first flight on: ☰ and the held stick click
+    /// both threw a MissingReferenceException inside Open, the menu never appeared, and the only way to another
+    /// aeroplane was to restart the app (Ty, build a222bda). The anchor is a root object of the rig's own, and if
+    /// the panel is ever destroyed anyway it is built again rather than failing.
+    ///
+    /// CHANGE AIRCRAFT in flight goes back to the landing page's rows (FLY, Aircraft, Start, Seat …) without
+    /// restarting anything; FLY there starts the new choice.
     /// </summary>
     public sealed class QuestMenu
     {
@@ -103,34 +114,41 @@ namespace FlyingGame.Bridge
 
         // ---- open / close ----
 
-        /// <summary>The menu button (or the held stick click). Opening it in flight means he has found it: the
-        /// tip is retired for good.</summary>
-        public void Toggle(QuestRig rig)
+        /// <summary>The menu button, the held stick click, a held pinch or the MENU tab (<paramref name="via"/> says
+        /// which, for the log). Opening it in flight means he has found it: the tip is retired for good.</summary>
+        public void Toggle(QuestRig rig, string via = "")
         {
-            if (_open) { Close(force: false); return; }
-            Open(rig);
-            if (!OnLanding) XrHeadset.MenuFound = true;
+            if (_open) { Close(force: false, via); return; }
+            Open(rig, via);
+            if (_open && !OnLanding) XrHeadset.MenuFound = true;
         }
 
-        public void Open(QuestRig rig)
+        public void Open(QuestRig rig, string via = "")
         {
             _rig = rig;
-            if (!_built) Build();
+            EnsureBuilt();
             _open = true;
             _openedFrame = Time.frameCount;
             _root.SetActive(true);
             XrHeadset.MenuOpen = true;
-            if (!OnLanding) { SessionSettings.PanelPause = true; SessionSettings.ApplyTimeScale(); }
+            bool landing = OnLanding;
+            if (!landing) { SessionSettings.PanelPause = true; SessionSettings.ApplyTimeScale(); }
             _sel = 0;
             _pedalPage = false;
             _confirmUntil = 0f;
             EndTip();
             PlaceInFrontOfHead();
+            // Whatever is already held (the trigger that just opened it from the MENU tab) is not a press in here.
+            QuestControllerFrame f = XrControllers.Read(out _);
+            _prevTrig = f.RightTrigger > 0.6 || f.LeftTrigger > 0.6;
+            _prevA = f.A; _prevX = f.X; _prevB = f.B; _prevY = f.Y;
+            _prevPinch = f.HandsOnly && (f.RightPinch > 0.8 || f.LeftPinch > 0.8);
+            Debug.Log($"[QuestInput] menu OPEN{(via.Length > 0 ? $" by {via}" : "")} ({(landing ? "landing page" : "in flight, paused")})");
         }
 
         /// <summary>Close it. On the landing page it cannot be closed except by flying — there is nothing behind it
         /// the pilot could see.</summary>
-        public void Close(bool force)
+        public void Close(bool force, string via = "")
         {
             if (!_open) return;
             if (!force && OnLanding) return;
@@ -138,6 +156,21 @@ namespace FlyingGame.Bridge
             XrHeadset.MenuOpen = false;
             if (_root != null) _root.SetActive(false);
             if (!OnLanding) { SessionSettings.PanelPause = false; SessionSettings.ApplyTimeScale(); }
+            Debug.Log($"[QuestInput] menu closed{(via.Length > 0 ? $" by {via}" : "")}");
+        }
+
+        /// <summary>Build the panel, or build it again if something destroyed it (see the class notes: it used to be
+        /// destroyed with the aeroplane). A menu that cannot open is worse than one rebuilt.</summary>
+        private void EnsureBuilt()
+        {
+            if (_built && _root != null) return;
+            if (_built)
+            {
+                Debug.LogWarning("[QuestInput] the VR menu's objects had been destroyed: building it again");
+                _rows.Clear();
+                _built = false;
+            }
+            Build();
         }
 
         /// <summary>Editor shot tool (QuestMenuShots): build, open and lay the menu out with no headset and no Update.</summary>
@@ -168,8 +201,10 @@ namespace FlyingGame.Bridge
             Vector3 flat = new Vector3(f.x, 0f, f.z);
             flat = flat.sqrMagnitude > 1e-4f ? flat.normalized : Vector3.forward;
             Vector3 pos = head.position + flat * Distance - Vector3.up * 0.05f;
-            Transform air = Chase != null ? Chase.Target : null;
-            _root.transform.SetParent(air, true);
+            // Ride the SEAT (the rig's anchor, a root object that follows the aeroplane), never the aeroplane's own
+            // transform: an airframe rebuild destroys every drawable child it finds there (see the class notes).
+            Transform anchor = _rig.HudAnchor;
+            _root.transform.SetParent(anchor, false);
             _root.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(flat, Vector3.up));
         }
 
@@ -190,8 +225,11 @@ namespace FlyingGame.Bridge
             _root = new GameObject("VR Menu");
             if (Application.isPlaying) Object.DontDestroyOnLoad(_root);
 
-            AddRow(() => OnLanding ? "FLY" : "RESUME", () => { if (OnLanding) FlyNow(); else Close(force: false); });
-            AddRow(() => "RESTART FLIGHT", FlyNow, visible: () => !OnLanding);
+            AddRow(() => OnLanding ? "FLY" : "RESUME", () => { if (OnLanding) FlyNow(); else Close(force: false, "RESUME"); });
+            // In flight: the aircraft row's choice, if it differs from the one flying, starts right here.
+            AddRow(() => !OnLanding && Driver != null && Driver.AircraftId != SessionSettings.AircraftId
+                    ? $"FLY THE {AircraftName(SessionSettings.AircraftId).ToUpperInvariant()} NOW" : "RESTART FLIGHT", FlyNow, visible: () => !OnLanding);
+            AddRow(() => "CHANGE AIRCRAFT  (main menu)   >", GoToLanding, visible: () => !OnLanding && Landing != null);
             AddRow(() => $"Aircraft:  {AircraftName(SessionSettings.AircraftId)}" + (!OnLanding && Driver != null && Driver.AircraftId != SessionSettings.AircraftId ? "   (restart to fly it)" : ""),
                 () => CycleAircraft(1), CycleAircraft);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
@@ -211,7 +249,7 @@ namespace FlyingGame.Bridge
                 if (starting && QuestRecorder.Recording && !OnLanding) Close(force: false);
             }, visible: () => QuestRecorder.Instance != null);
             AddRow(() => "Recentre the view", () => { XrHeadset.Recentre(); });
-            AddRow(() => "Reset flight", () => { Controls?.MenuReset(); Close(force: false); }, visible: () => !OnLanding && Controls != null);
+            AddRow(() => "Reset flight", () => { Controls?.MenuReset(); Close(force: false, "Reset flight"); }, visible: () => !OnLanding && Controls != null);
             AddRow(() => Time.unscaledTime < _confirmUntil ? $"PRESS AGAIN: {HandleName()}" : HandleName(), PullHandle,
                 visible: () => !OnLanding && Controls != null && Controls.MenuHandleAvailable);
 
@@ -336,7 +374,7 @@ namespace FlyingGame.Bridge
             // The font has no ☰, so the button is named in words. On the landing page the line says how to get
             // back here from the air, which is the thing Ty could not find on his first flight.
             string hint = XrHeadset.HandsOnly ? "point and pinch  -  hold a left pinch to close"
-                        : OnLanding ? "trigger / A selects   < > changes   in flight: left MENU button"
+                        : OnLanding ? "trigger / A selects   < > changes   in flight: MENU tab or left MENU button"
                         : "point + trigger / A   stick < > changes   B or MENU closes";
             if (_hint.text != hint) _hint.text = hint;
             Place(_hint, -top + RowHeight * 0.55f);
@@ -385,7 +423,7 @@ namespace FlyingGame.Bridge
 
             if (select && _sel < _shown.Count) _shown[_sel].Activate?.Invoke();
             else if (back && _pedalPage) { _pedalPage = false; _sel = 0; }   // B / Y: up a page first
-            else if (back) Close(force: false);
+            else if (back) Close(force: false, f.B && !f.Y ? "B" : "Y");
         }
 
         private static bool Repeat(bool held, ref float t, float dt)
@@ -427,6 +465,19 @@ namespace FlyingGame.Bridge
 
         // ---- actions ----
 
+        /// <summary>Back to the landing page's rows, in the headset: the flight stops (the landing page pauses it, as on
+        /// every other screen), the panel shows FLY / Aircraft / Start / Seat …, and FLY starts the new choice. No
+        /// restart of the app (Ty, build a222bda: "has to quit and relaunch to change aircraft").</summary>
+        private void GoToLanding()
+        {
+            if (Landing == null) return;
+            Landing.Open();
+            _pedalPage = false;
+            _sel = 0;
+            _confirmUntil = 0f;
+            Debug.Log("[QuestInput] menu: CHANGE AIRCRAFT - back to the landing page");
+        }
+
         private void FlyNow()
         {
             SessionSettings.ChallengeId = null;     // free flight: a lesson's OnGUI cards could not be seen in here
@@ -434,7 +485,8 @@ namespace FlyingGame.Bridge
             // still put him in the seat (the 2026-11-02 Quest build threw here on every FLY — StreamingFiles).
             try { if (Landing != null) Landing.Fly(); }
             catch (System.Exception e) { Debug.LogError($"[Quest] FLY: the flight did not start: {e}"); }
-            Close(force: true);
+            Close(force: true, "FLY");
+            Debug.Log($"[QuestInput] FLY: {SessionSettings.AircraftId}, {StartName()}");
             if (Chase != null) Chase.SetView(ChaseCamera.View.Cockpit);
             XrHeadset.Recentre();
             _rig?.ReportAfterFly();
@@ -549,7 +601,8 @@ namespace FlyingGame.Bridge
             _tip.gameObject.SetActive(show);
             if (!show) return;
             if (_tip.parent != anchor) _tip.SetParent(anchor, false);
-            var at = new Vector3(0f, -0.2f, 0.7f);
+            // A little right of centre, so it never covers the MENU tab it points to (QuestMenuTabView.At, low left).
+            var at = new Vector3(0.10f, -0.2f, 0.7f);
             _tip.localPosition = at;
             _tip.localRotation = Quaternion.LookRotation(at.normalized, Vector3.up);   // square on to the eye
             Color tc = _tipText.color; tc.a = op; _tipText.color = tc;
@@ -565,7 +618,7 @@ namespace FlyingGame.Bridge
             Transform panel = Quad("Panel", _tipPanelMat);
             panel.SetParent(_tip, false);
             panel.localPosition = new Vector3(0f, 0f, 0.002f);
-            panel.localScale = new Vector3(0.56f, 0.085f, 1f);
+            panel.localScale = new Vector3(0.50f, 0.10f, 1f);
             var go = new GameObject("Text");
             go.transform.SetParent(_tip, false);
             _tipText = go.AddComponent<TextMesh>();
@@ -575,7 +628,7 @@ namespace FlyingGame.Bridge
             _tipText.anchor = TextAnchor.MiddleCenter;
             _tipText.alignment = TextAlignment.Center;
             _tipText.color = new Color(0.92f, 0.95f, 1f, 1f);
-            _tipText.text = "MENU / OPTIONS:  press the left MENU button\n(or hold the left stick click)";
+            _tipText.text = QuestCockpit.MenuTip;
             var r = go.GetComponent<MeshRenderer>();
             r.sharedMaterial = _textMat;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
