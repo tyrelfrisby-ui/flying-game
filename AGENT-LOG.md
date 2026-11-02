@@ -26,10 +26,19 @@
   4. **The Pitts still does not land or roll out well** (3 `AerobatGroundHandlingTests`: swings off the runway
      three-point, bounces on a wheel landing, and will not recover at 12 m/s). That is a handling-feel number
      and therefore yours; I did not touch it, and I did not loosen the tolerance to hide it.
-  5. **What I did fix, all of it test-side — no flight-model number, config performance figure or tolerance was
-     changed.** `SoaringTests` was setting the process-wide weather while running in PARALLEL with everything
-     that flies: 81 of the 211 failures, `StructuralTests` 39 of 40 and the whole fleet stalling in
-     `SpawnSpeedTests`, almost all NaN. `LanMeshTests` used fixed UDP port blocks that collide when several
+  5. **The suite now fails 7, not 211** — and all seven are named below, none of them coupling noise. Making
+     it REPEAT that is the bit that matters, because a suite that disagrees with itself cannot show you a
+     regression; a second confirming run was still queued behind six other worktrees' suites when this was
+     written, so take the 7 as one measured run plus a pending repeat, not as proven determinism. It took two
+     goes to get there: with only
+     `SoaringTests` serialised the suite gave 27 failures on one run and **53 on the next from the same tree**.
+     The collection attribute was protecting the classes that WRITE the global ground and weather from each
+     other and leaving their VICTIMS outside it — 24 classes fly an aeroplane, and so read that state through
+     the sim, while declaring no collection at all. All 24 are serialised now. NaN messages across the suite:
+     82 → 1. It also got FASTER, 16m27s against 21m43s, because the parallelism given up was classes fighting
+     over the same statics.
+  6. **The rest of what I fixed, all of it test-side — no flight-model number, config performance figure,
+     tolerance or world file was changed.** `LanMeshTests` used fixed UDP port blocks that collide when several
      worktrees run the suite at once (four were). `j3-cub-like` and `j3-cub-floats-like` shipped own-built
      models with **no LICENSE.txt and no CREDITS.md entry at all** — written now from the provenance doc, with
      nothing invented. `ModelRigTests` installed a world and left it standing for the next class.

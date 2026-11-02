@@ -115,9 +115,23 @@ aeroplanes mid-flight: on 2026-11-01 that was **81 of 211 failures** — `Struct
 whole fleet of `SpawnSpeedTests` stalling, almost all of them NaN. The symptom was written down in that very
 class's own `Dispose` comment ("That is what put the whole fleet into a stall in SpawnSpeedTests while all 34
 passed in isolation") a commit before the cure was finished. If a class touches process-wide state it needs
-BOTH, and the audit is one line: every class that assigns `Atmosphere.*`, `WorldTerrain.Active`,
-`WorldTerrain.SurfaceOverride` or `FloatHydro.FlatWaterOverride` must carry the collection attribute and reset
-in `Dispose`, not in the body of a test that might throw first.
+BOTH, and reset in `Dispose`, not in the body of a test that might throw first.
+
+**And auditing only the writers is the same mistake one level up, which is how this took two goes.** With
+`SoaringTests` serialised the suite still gave **27 failures on one run and 53 on the next from the same tree**
+— `StructuralTests` clean, then 39 of 40 NaN. The collection was protecting the classes that WRITE the globals
+from each other and leaving their VICTIMS outside it: 24 classes fly an aeroplane, and so READ
+`WorldTerrain.Active`, `Atmosphere.*` and `FloatHydro` through the sim, while declaring no collection at all.
+Whether a run went NaN was down to scheduling. So the audit is two lines, not one: a class needs
+`[Collection("WorldTerrainActive")]` if it ASSIGNS any of that state **or if it constructs an `Aircraft` or a
+`SimLoop`**. 211 → 7 once both halves were done, and NaN messages across the suite 82 → 1.
+
+Serialising them made the suite **faster** — 16m27s against 21m43s — because the parallelism being given up was
+parallel classes fighting over the same statics and redoing the work. There is no wall-clock case for leaving
+a reader unprotected.
+
+A suite that disagrees with itself by 26 names cannot report a regression, so prove a fix to nondeterminism
+with TWO runs compared BY NAME, never one.
 
 ### A process check that greps command lines matches the agents doing the checking
 `pgrep -f 'tools/deploy/(deploy|testflight).sh'` reported a running deploy twice on 2026-11-01 when there was
