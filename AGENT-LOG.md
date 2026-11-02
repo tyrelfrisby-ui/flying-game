@@ -1,4 +1,12 @@
 ## NEEDS YOU
+- **ISLAND TERRAIN REBUILT FROM SCRATCH — IN PROGRESS, REVIEW THE RENDERS (Claude, 2026-11-02,
+  lane/claude-island-terrain):** You flew the island in the F-86 and found it crude and blocky, with no snow and
+  no glaciers. I am rebuilding the island's TERRAIN (not its layout: every airport, strip, pad, lake, cave, nav
+  aid, spawn and chart feature stays where it is) on the basis of my earlier plateau-world landscape — erosion
+  drainage, aspect-dependent snowline, glaciers with cirques/icefalls/tongues/moraines, a real treeline,
+  beaches and sea cliffs, smooth per-pixel shading. **You must judge it from the before/after renders** in
+  `~/Developer/agent-lanes/aero-playground/island-terrain-renders/`; results will be added here as they land.
+  No gate is marked approved.
 - **GREAT LAKES FRONT PANEL, SECOND PASS — YOUR TWO FAULTS, AND A THIRD UNDER ONE OF THEM (Claude, 2026-11-01,
   lane/claude-gl-dials):**
   1. **The compass is a box with a window in it now.** You were right that the card hung out in the open and
