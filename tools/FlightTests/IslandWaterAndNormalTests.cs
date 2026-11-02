@@ -137,7 +137,12 @@ public class IslandWaterAndNormalTests : IDisposable
             var stripNormal=WorldTerrain.GroundNormalAt(strip.Centre.X,strip.Centre.Y);
             Assert.InRange(Math.Abs(stripNormal.X/stripNormal.Z-strip.Slope/100*strip.U.N),0,1e-12);
             Assert.InRange(Math.Abs(stripNormal.Y/stripNormal.Z-strip.Slope/100*strip.U.E),0,1e-12);
-            Assert.True(WorldTerrain.IsWallAt(3245,882,30));
+            // A real wall for the predicate's true branch. The old point (3245,882) was the Bighorn Crown bank
+            // standing on a pillar; on the rebuilt terrain (2026-11-02) that bank meets natural ground. Drake's
+            // authored north cliff is a true jump with no finite slope, but its roof blend just behind the cliff
+            // runs at ~65 degrees (dh/dx -2.16 at x -3876.5 m, y -5000 m): a wall at tangent 2, not at 30.
+            Assert.True(WorldTerrain.IsWallAt(-3876.5,-5000,2));
+            Assert.False(WorldTerrain.IsWallAt(-3876.5,-5000,30));
             for(int east=870;east<=900;east++)
             {
                 double reference=IslandTerrain.EvaluateReference(new IslandPoint(east/1000.0,3.245));

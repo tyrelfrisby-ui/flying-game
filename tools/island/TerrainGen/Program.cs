@@ -87,6 +87,16 @@ switch (cmd)
         Console.WriteLine($"mesh vs HeightAt over land: {errs.Count} samples; median {errs[errs.Count / 2]:F2} m, 95% {errs[(int)(errs.Count * .95)]:F2} m, 99% {errs[(int)(errs.Count * .99)]:F2} m, max {errs[^1]:F1} m at ({worst.Item2:F3},{worst.Item3:F3}) km; on runway/strip surfaces ({padSamples} samples) max {worstPad:F3} m");
         break;
     }
+    case "wall":
+    {
+        WorldTerrain.Active = new WorldTerrain();
+        foreach (double x in new[] { -3880.0, -3878, -3877, -3876.5, -3876.4, -3876, -3875, -3874, -3872, -3870 })
+        {
+            double h = IslandTerrain.HeightAndGradientAt(x, -5000, out double dx, out double dy);
+            Console.WriteLine($"x {x} y -5000: h {h:F2} dh/dx {dx:F2} wall30 {WorldTerrain.IsWallAt(x, -5000, 30)}");
+        }
+        break;
+    }
     case "bench":
     {
         WorldTerrain.Active = new WorldTerrain(); IslandGeometry.Build();
