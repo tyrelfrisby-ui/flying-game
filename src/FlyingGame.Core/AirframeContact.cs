@@ -99,8 +99,25 @@ public sealed class ImpactRecorder
 {
     public double MaxClosingMs;
     public string Point = "";
-    public void Reset() { MaxClosingMs = 0; Point = ""; }
-    public void Record(double closing, string point) { if (closing > MaxClosingMs) { MaxClosingMs = closing; Point = point; } }
+    /// <summary>The hardest contact's surface, world point and world velocity (CrashRelay tells land from water by it).</summary>
+    public bool OnWater;
+    public Vec3 PositionWorld, VelocityWorld;
+    public void Reset() { MaxClosingMs = 0; Point = ""; OnWater = false; PositionWorld = Vec3.Zero; VelocityWorld = Vec3.Zero; }
+    public void Record(double closing, string point) { if (closing > MaxClosingMs) { MaxClosingMs = closing; Point = point; OnWater = false; } }
+    public void Record(double closing, string point, bool onWater, Vec3 positionWorld, Vec3 velocityWorld)
+    {
+        if (closing <= MaxClosingMs) return;
+        MaxClosingMs = closing; Point = point; OnWater = onWater; PositionWorld = positionWorld; VelocityWorld = velocityWorld;
+    }
+
+    /// <summary>A snapshot of the hardest contact.</summary>
+    public readonly struct Hit
+    {
+        public readonly double ClosingMs; public readonly string Point; public readonly bool OnWater;
+        public readonly Vec3 PositionWorld, VelocityWorld;
+        public Hit(double closing, string point, bool onWater, Vec3 pos, Vec3 vel) { ClosingMs = closing; Point = point; OnWater = onWater; PositionWorld = pos; VelocityWorld = vel; }
+    }
+    public Hit Last => new(MaxClosingMs, Point, OnWater, PositionWorld, VelocityWorld);
 }
 
 public static class AirframeContact
@@ -293,14 +310,14 @@ public static class AirframeContact
     /// Within that height — which is where landing, taxiing and every contact actually happen — every point is
     /// sampled exactly as before, so no contact behaviour changes.
     /// </summary>
-    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false)
+    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false, bool waterByHydro = false)
     {
         if (points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s))
         {
             foreach (ContactPoint p in points) p.Touching = false;
             return (Vec3.Zero, Vec3.Zero);
         }
-        return ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater);
+        return ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro);
     }
 
     /// <summary>
@@ -308,7 +325,10 @@ public static class AirframeContact
     /// <see cref="Compute"/> did before the shortcut existed, and the regression test holds the two to the same
     /// answer at every altitude — a shortcut that ever skips a real contact is a worse bug than a slow frame.
     /// </summary>
-    public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false)
+    /// <param name="waterByHydro">The airframe's water forces come from its own volumes (Wreck/AirframeFlooding): a hard
+    /// point arriving at the water is still an impact and can still break its component — water at 25 m/s is hard —
+    /// but the old ditching spring-damper is not applied.</param>
+    public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false, bool waterByHydro = false)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         foreach (ContactPoint p in points)
@@ -334,21 +354,31 @@ public static class AirframeContact
                 : (w.Z + surfaceOffsetZ) - (-groundH);
             // Solids (buildings etc.): whichever is deeper.
             var solid = WorldSolids.Penetration(w.X, w.Y, -w.Z);
-            if (solid.HasValue && solid.Value.depth > depth) { normal = solid.Value.normalNed; depth = solid.Value.depth; }
+            bool solidWins = solid.HasValue && solid.Value.depth > depth;
+            if (solidWins) { normal = solid!.Value.normalNed; depth = solid.Value.depth; }
 
             if (depth <= 0.0) { p.Touching = false; continue; }
 
             double closing = -Vec3.Dot(vel, normal);          // + = moving INTO the surface
+            bool ditching = onWater && !floatsCarryWater && !solidWins;
             if (!p.Touching)
             {
                 p.Touching = true;
-                impacts?.Record(closing, p.Name);
+                impacts?.Record(closing, p.Name, ditching, w, vel);
                 if (broken is not null && p.BreakSpeedMs > 0 && closing > p.BreakSpeedMs && !broken.Contains(p.Component))
                 {
                     broken.Add(p.Component);
                 }
             }
-            bool ditching = onWater && !floatsCarryWater;
+            if (ditching && waterByHydro)
+            {
+                // Buoyancy, drag and added mass are AirframeFlooding's. What is left for this point is the BED: a
+                // sunk aeroplane comes to rest on the bottom like on any ground.
+                double bed = (w.Z + surfaceOffsetZ) - (-groundH);
+                if (bed <= 0.0) continue;
+                depth = bed;
+                ditching = false;
+            }
             double spring = (ditching ? WaterSpringNPerM : SpringNPerM) * depth;
             if (closing < 0.0) spring *= ReboundFraction;                        // crumpling, not a trampoline
             double n = spring + (ditching ? WaterDampNsPerM : DampNsPerM) * System.Math.Max(0.0, closing);

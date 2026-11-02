@@ -524,9 +524,31 @@ public sealed class PracticeScenario
         return (roll, pitch, yaw);
     }
 
+    /// <summary>Damage the lesson starts with: punctured float compartments (Core/Wreck/FloatFlooding). Each floods by
+    /// the orifice model from the moment the aircraft is spawned. Empty = an undamaged aeroplane. A type without floats
+    /// ignores it.</summary>
+    public List<FlyingGame.Core.Wreck.FloatPuncture> FloatDamage { get; } = new();
+
+    /// <summary>Apply a lesson's starting damage to an aircraft (the hook <see cref="Spawn"/> uses; public so any
+    /// lesson or scenario that builds its own aircraft can do the same). Returns how many punctures took.</summary>
+    public static int ApplyDamage(Aircraft ac, IEnumerable<FlyingGame.Core.Wreck.FloatPuncture> punctures)
+    {
+        int n = 0;
+        foreach (var p in punctures) if (ac.PunctureFloat(p)) n++;
+        return n;
+    }
+
+    /// <summary>Starting aircraft (<see cref="SpawnIntact"/>) with the lesson's <see cref="FloatDamage"/> applied.</summary>
+    public Aircraft Spawn()
+    {
+        Aircraft ac = SpawnIntact();
+        ApplyDamage(ac, FloatDamage);
+        return ac;
+    }
+
     /// <summary>Starting aircraft: over the threshold at 5 ft and 1.15 Vso (crosswind exercises) or 50 ft, 1.3 Vso on a
     /// 4° path to the threshold (flare exercises), heading along the runway, crabbed for the steady crosswind.</summary>
-    public Aircraft Spawn()
+    private Aircraft SpawnIntact()
     {
         Atmosphere.Field = null;   // the exercise owns its wind: uniform air, whatever the free-flight weather was
         Atmosphere.ActiveTurbulence = null;
