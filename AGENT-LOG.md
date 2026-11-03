@@ -35,6 +35,9 @@
     aeroplane started descending with power on and then pitched up. It now starts level at 75 % on the rig, at the
     speed 75 % holds at that height, with the trim slider on the elevator that holds it and the touch throttle at
     75 %. Gliders start at best glide. The other starts (final, thermal, practice, events) are unchanged.
+  - **ON YOUR iPAD MINI:** build `2026.1102.1749` (island-nav at bf345f42, this merge) installed and launched on Ty's
+    iPad mini. The iPad Air (Frisby_801C_EFB) did NOT take it: devicectl said "the device was still locked" (error
+    10003). Your iPhone was listed "unavailable" and was not offered the build at all.
   - **FLY THIS:** air start in the Great Lakes (then the Pitts and the Cub). Leave the stick and the rudder alone for
     a minute and watch the ball, the heading and the VSI. Then go to full power: it should yaw and roll left.
     Back to 30 %: right. **Expect a slow wander away from 4,000 ft:** the rig is fixed and was set there. The island's
@@ -1056,6 +1059,12 @@ built for Quest here.
   LandingGearTests ×5, NoseSkid, ReversibleControl ×2, SpinTests ×3, TipWheel: suite coupling). Real: GlideTable
   (stale, regenerated in 89cf257e, now passes) and FormationTests P-51 (RMS 27.2 m vs 25 m; diagnosis in NEEDS YOU).
   No longer failing: FloatsOnLandTests.SlidesToAStopOnPavement, TrimConvergenceTests.TrimmedGliderStaysBoundedThroughSimLoop.
+- Merged into lane/claude-island-nav at bf345f42 (AGENT-LOG conflict only: both lanes' entries kept; the superseded
+  first-pass gamepad entry dropped as HEAD had). Merged tree: RigTests + GlideTable + PropEffects 194/194 pass.
+  Lane build (NOINSTALL) ** BUILD SUCCEEDED ** 0 error CS (bundleVersion 2026.1102.1740, reverted); island-nav deploy
+  ** BUILD SUCCEEDED ** 0 error CS, bundleVersion 2026.1102.1749 (reverted): installed + launched on Ty's iPad mini;
+  iPad Air locked (devicectl error 10003); iPhone unavailable, not attempted.
+
 ### 2026-11-02 — Claude · lane/claude-gamepad-ios · gamepads (8BitDo Pro 2 / MFi) fly the aeroplane on iOS
 **Ty: an 8BitDo Pro 2 paired to the iPhone, "nothing works."**
 
