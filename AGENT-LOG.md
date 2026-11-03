@@ -5398,3 +5398,6 @@ NEEDS YOU: Ty, review the placement and ON/OFF renders (gl5_fuel_valve_*) that w
 NEEDS YOU: Ty, approve the renders of the red-with-blue-trim livery once they're made.
 - Ty's favorite is red with blue trim, and it is the default Great Lakes livery.
 - No code changed.
+
+## 2026-11-03 14:35 PST — Great Lakes v7 renders: Ty approved on voice call
+Ty reviewed the gl7 renders (xfer/gl7: side-by-side, photo comparison, rear console) and said he approves v7 (commit 707ae43a). Recorded as Ty's own words; not installed yet.
