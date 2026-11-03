@@ -1,6 +1,6 @@
 ## NEEDS YOU
-- **ISLAND TERRAIN, THIRD PASS: GLACIER AND MOUNTAIN SURFACES (YOUR 2026-11-02 SPEC) — CODE AND TESTS DONE; SUITE,
-  BUILD AND RENDERS PENDING (Claude, 2026-11-03, lane/claude-island-terrain, commits 2b792938..):** Your
+- **ISLAND TERRAIN, THIRD PASS: GLACIER AND MOUNTAIN SURFACES (YOUR 2026-11-02 SPEC) — DONE, REVIEW THE RENDERS
+  (Claude, 2026-11-03, lane/claude-island-terrain, commits 2b792938..6c8d45d0):** Your
   `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md`, written up in `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §12.
   1. **Glacier ground is SNOW or ICE.** 28.4 km² of snow above the early-summer snowline, 10.0 km² of bare ice
      below it. Ice undulates (1.5 m hummocks ~110 m apart, smooth patches never level) and has 1.23 km² of
@@ -32,9 +32,21 @@
      - TerrainGen check: byte-identical.
      - Runtime parity: 1.0e-11 m over 9,542 points.
      - IslandCheck: 554 PASS. Continuity: 53,656 PASS.
-     - Full suite: pending (waiting for a quiet machine).
-     - Build: pending.
-     - Renders: pending.
+     - **Full suite: 1,119 passed / 130 failed / 3 skipped**, against 1,107 / 127 / 3 on the branch point
+       (0df90495). Both suites ran from frozen copies WHILE OTHER LANES' SUITES WERE RUNNING, because six lanes kept
+       the machine busy for over an hour. No build was running at the time.
+       - 9 names newly failing. 8 of them pass alone on both trees (suite coupling).
+       - The 9th was real and is fixed (62a18d6e): `GeneratedGradientSourceTracksTheScalarExpressions`, a stale
+         source hash.
+       - 6 previously failing LandingGearTests now pass.
+     - **`** BUILD SUCCEEDED **`** via `tools/deploy/deploy.sh`, build 2026.1103.0749, 0 error CS. It was run with a
+       placeholder device ID, so **nothing was installed on any device**. The script's exit code 1 is that install.
+       The bundleVersion bump is not committed.
+     - **Renders:** `~/Developer/agent-lanes/aero-playground/island-terrain-renders/after/`, plates 39–55 for this pass
+       (index.md lists them), plus 01–38 re-shot. The previous set is in `after-v2-topo/`.
+       - Visible fault: faint dark dashes along chunk seams near the crevasse fields. Before my mesh fix
+         (6c8d45d0) that was sky showing through the ground.
+       - Plate 49: LD4 has orange gate rings and a grey block in frame. Say if it sits on a course you want kept clear.
   No gate is marked approved.
 - **ISLAND TERRAIN, SECOND PASS: REAL TOPOGRAPHY AND A FAIRWEATHER MASSIF — IN PROGRESS, REVIEW THE RENDERS
   (Claude, 2026-11-02, lane/claude-island-terrain):** Following your direction, six areas of the island are now
