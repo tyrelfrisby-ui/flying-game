@@ -1,28 +1,9 @@
-"""Great Lakes throttle quadrant + single-row labelled switch strip (owner Ty, 2026-11-02).
+"""Great Lakes cockpit hardware, Ty photo revision 2026-11-03.
 
-Ty: "the Great Lakes throttle is a QUADRANT LEVER (not push-pull)". Ty (steering): "arrange the Great Lakes
-switches in a SINGLE ROW along the BOTTOM of the instrument panel, each with a legible placard label".
-
-QUADRANT, each cockpit, on the LEFT sidewall just aft of the panel with the knobs at panel-bottom height, as in
-the 2T-1A front-cockpit photo (ref IMG_1666) and the Ferriere 2T-1A notes: three levers in one gate,
-left-to-right from the seat THROTTLE (black), PROP (blue), MIXTURE (red) -- Ty's order, see gl_cockpit.py and
-check_great_lakes_rig.py. All three rest (rig value 0) 25 deg aft = idle / coarse / lean and swing 50 deg
-forward about the gate's lateral axis (glTF +z, the existing rig axis) to full / fine / rich at param 1.
-  * Throttle_R / Throttle_F are rebuilt as the black lever (same node, same parent, same rig row and param
-    'throttle'); Grip_Throttle_Rear / Grip_Throttle_Front empties at the knob give VrCockpitHands its arm
-    (the Pitts/Extra contract), so the hand drives Throttle01 and the rig draws both levers from it.
-  * Ctl_PushPull_Prop / Ctl_PushPull_Mixture (+_Front) become the blue / red levers: same node names and
-    PanelKind.PushPull (a continuous grabbed control), rig row now kind 'rot' about the gate axis instead of a
-    panel slide, so BindPanel's SlideKnob runs between the lever's idle and full knob points. Their Mount_
-    twins are the gate slots. The old static Prop_/Mixture_ lever meshes become inert empties.
-  * The old hip-height console box and front gate plate (gl_cockpit.py 'ck_quadrant') are removed.
-
-SWITCH ROW, each cockpit: the eight non-radio panel controls on ONE line along the bottom of the panel, on a
-flush black strip under the panel (aft face exactly on the panel face plane, like the Extra subpanel), each with
-a white-on-black placard under it. Rear row gaps around the drop-down sequence card. Radio knobs unchanged.
-Rerunnable: it always starts from the pre-quadrant GLB and rig json at commit BASE (read with git show), so a
-second run gives the same bytes. great-lakes-like-own.glb only (the legacy liveries are not built). It also drops
-the exact-duplicate rig rows an earlier generator appended (each P3a control was listed 9 times, identical).
+Deterministic rebuild from BASE: ignition only on panels; labelled toggles and
+breakers on grey left consoles; black multi-plate quadrants and white braided
+trim cables with fore/aft scales. Fuel valve omitted pending owner location.
+Existing throttle/prop/mixture inputs and linked trim direction are preserved.
 """
 import json,math,struct,zlib,tempfile,sys
 from pathlib import Path
@@ -59,7 +40,8 @@ F={'A':'01110 10001 10001 11111 10001 10001 10001','B':'11110 10001 10001 11110 
  'R':'11110 10001 10001 11110 10100 10010 10001','S':'01111 10000 10000 01110 00001 00001 11110','T':'11111 00100 00100 00100 00100 00100 00100',
  'U':'10001 10001 10001 10001 10001 10001 01110','V':'10001 10001 10001 10001 01010 01010 00100','X':'10001 01010 00100 00100 00100 01010 10001',
  'W':'10001 10001 10001 10101 10101 11011 10001',' ':'00000 00000 00000 00000 00000 00000 00000'}
-CW,CH,SC=38,21,4          # label cell in font pixels (6 chars x 2 lines), image scale
+F['Y']='10001 10001 01010 00100 00100 00100 00100'
+CW,CH,SC=92,21,4          # label cell in font pixels (6 chars x 2 lines), image scale
 def render_cell(text,fg=(245,245,240),bg=(12,12,14)):
  img=np.zeros((CH,CW,3),np.uint8);img[:]=bg;lines=text.split('|');top=(CH-(len(lines)*7+(len(lines)-1)*3))//2
  for li,line in enumerate(lines):
@@ -203,6 +185,7 @@ def build(g,doc):
    nodes[names[c['node']]]['extras']['interaction']=c
    if c['node'] in rigrows:rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
  build_wall_trim(g,doc,controls,rigrows,names)
+ build_photo_console(g,doc,controls,rigrows,names)
  doc['controls']=controls
  g.doc['extras']['vrCockpitPhase3a']['placement_v3']='Ty 2026-11-02: left-sidewall throttle quadrant (T/P/M) + single labelled switch row (gl_quadrant_v3.py)'
 
@@ -247,23 +230,87 @@ def build_wall_trim(g,doc,controls,rigrows,names):
  doc['rig']=[r for r in doc['rig'] if r['node'] not in remove and 'FuelSelector' not in r['node']]
  g.doc['extras']['vrCockpitPhase3a']['placement_v4']='Ty 2026-11-03: eight labelled panel switches, cable trim on left wall, fuel valve omitted'
 
+def build_photo_console(g,doc,controls,rigrows,names):
+ """Ty's 2026-11-03 photos: grey console, outboard laminated quadrant, braided trim."""
+ nodes=g.doc['nodes']
+ g.material('GL_ConsoleGrey',(.28,.29,.30));g.material('GL_RopeWhite',(.91,.90,.83))
+ cells=[(t,t,(245,245,240),(12,12,14)) for t in ['BATTERY|MASTER','ALT OUT','FUEL PUMP','ON','THROTTLE','RPM','MIXTURE','CLOSED','DEC','T']]
+ data,uv=atlas(cells)
+ with tempfile.TemporaryDirectory() as td:
+  path=Path(td)/'photo.png';path.write_bytes(data);g.material('GL_PhotoLabels',(1,1,1),png=path)
+ def put(name,parts,P):
+  if name not in names:
+   nodes.append(dict(name=name));names[name]=len(nodes)-1;g.doc['scenes'][0]['nodes'].append(names[name])
+  set_mesh(g,name,parts,np.array(P));nodes[names[name]]['translation']=gl(P).tolist()
+ for seat,s in SEATS.items():
+  x=s['px'];z=s['ztop']-.025
+  # Long grey box forward of the pilot; quadrant sits on its outboard edge.
+  body=Shape();body.box((x-.04,.236,z-.092),(.32,.118,.184))
+  put('GL_SwitchStrip_'+s['sfx'],[('GL_ConsoleGrey',body,None)],(x,.236,z))
+  labels=Shape();luv=[];metal=Shape();black=Shape()
+  for j,(lab,key) in enumerate([('Master','BATTERY|MASTER'),(None,'ALT OUT'),('FuelPump','FUEL PUMP')]):
+   P=np.array((x+.075,.200+j*.032,z+.004))
+   black.box(P+(0,0,-.002),(.090,.031,.003))
+   metal.tube(P,P+(0,0,.010),.007,12);metal.tube(P+(0,0,.009),P+(.006,0,.029),.0028,10)
+   quad(labels,luv,P+(-.026,0,.001),(0,-1,0),(1,0,0),.030,.025,uv[key])
+   if lab:
+    c=next(c for c in controls if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
+    # Authored toggle mesh and pivot now on the horizontal console top.
+    toggle=Shape();toggle.tube(P,P+(0,0,.025),.0028,10)
+    put(c['node'],[('P3_ControlMetal',toggle,None)],P)
+    nodes[names['Mount_'+c['grip'][5:]]].pop('mesh',None)
+    c.update(pivot_gltf=gl(P).tolist(),placement='Left console top, forward of quadrant',label=key.replace('|',' '))
+    nodes[names[c['node']]]['extras']['interaction']=c
+    if c['node'] in rigrows:rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
+  quad(labels,luv,(x+.111,.232,z+.006),(0,-1,0),(1,0,0),.035,.010,uv['ON'])
+  # Existing auxiliary inputs become breakers on the vertical inboard console face.
+  for j,lab in enumerate(['CarbHeat','Smoke','NavLights','Strobe','LandingLight']):
+   c=next(c for c in controls if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
+   P=np.array((x-.12+j*.045,.174,z-.075));sh=Shape();sh.tube(P,P+(0,-.013,0),.005,10)
+   put(c['node'],[('Cockpit_black',sh,None)],P);nodes[names['Mount_'+c['grip'][5:]]].pop('mesh',None)
+   c.update(pivot_gltf=gl(P).tolist(),placement='Left console breaker face',label=LABEL[lab].replace('|',' '))
+   nodes[names[c['node']]]['extras']['interaction']=c
+   if c['node'] in rigrows:rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
+  for xx in np.linspace(x-.145,x+.09,7):
+   for zz in [z-.075,z-.115]:
+    metal.tube((xx,.174,zz),(xx,.170,zz),.007,12);black.tube((xx,.170,zz),(xx,.158,zz),.004,10)
+  # Distinct black plates with silver spacers, rather than a solid grey gate block.
+  plates=Shape()
+  for y in [.251,.275,.299,.323,.339]:
+   plates.box((x,y,s['zp']+.035),(.142,.003,.125))
+   metal.tube((x-.058,y-.002,s['zp']-.016),(x-.058,y+.004,s['zp']-.016),.004,10)
+  for y,key in [(.312,'THROTTLE'),(.288,'RPM'),(.264,'MIXTURE')]:
+   quad(labels,luv,(x+.030,y,s['ztop']+.002),(1,0,0),(0,1,0),.080,.017,uv[key])
+   quad(labels,luv,(x-.043,y,s['ztop']+.002),(1,0,0),(0,1,0),.050,.013,uv['CLOSED' if key=='THROTTLE' else 'DEC'])
+  # Red star is a fixed friction adjuster on the inboard cheek.
+  star=Shape();C=np.array((x-.018,.244,s['zp']+.050))
+  star.tube(C,C+(0,-.019,0),.014,12)
+  for a in np.linspace(0,2*math.pi,6,endpoint=False):
+   d=np.array((math.cos(a),0,math.sin(a)));star.tube(C+.009*d,C+.024*d+(0,-.008,0),.008,6)
+  put('GL_Quadrant_'+s['sfx'],[('Cockpit_black',plates,None),('P3_ControlMetal',metal,None),('Cockpit_black',black,None),('Cockpit_knob_red',star,None),('GL_PhotoLabels',labels,luv)],(x,.29,z))
+  # White cable below the quadrant, with two interwoven surface strands.
+  c=next(c for c in controls if c['seat']==seat and c['param']=='trim');P=np.array((x-.08,.322,-.285))
+  rope=Shape();rope.tube(P+(-.23,0,0),P+(.23,0,0),.0023,10)
+  for phase in [0,math.pi]:
+   points=[P+np.array((t,.0024*math.cos(t*950+phase),.0024*math.sin(t*950+phase))) for t in np.linspace(-.23,.23,370)]
+   for a,b in zip(points,points[1:]):rope.tube(a,b,.00065,5)
+  put('GL_TrimCable_'+s['sfx'],[('GL_RopeWhite',rope,None)],P)
+  clamp=Shape();clamp.tube(P+(0,-.005,0),P+(0,.005,0),.0045,12)
+  pointer=Shape();pointer.box(P+(0,-.002,.012),(.002,.003,.024))
+  put(c['node'],[('P3_ControlMetal',clamp,None),('Cockpit_knob_red',pointer,None)],P)
+  for ch in nodes[names[c['node']]].get('children',[]):nodes[ch]['translation']=[0,0,0]
+ g.doc['extras']['vrCockpitPhase3a']['placement_v4']='Ty photos 2026-11-03: ignition only on panels; console toggles/breakers; laminated quadrant; braided cable trim; no fuel valve'
+
 def check_row(g):
- """The row positions must pass cockpit_controls_v2's own legality (outline incl. the strip, obstacles, spacing)."""
- spec=cc.PANELS['great-lakes-like']
+ """Photo layout contract: only ignition remains on the instrument panel."""
+ C=g.doc['extras']['vrCockpitPhase3a']['controls']
  for seat,s in SEATS.items():
-  z0,z1=s['strip'];ya,yb=s['strip_y'];spec[seat]['new']={'GL_SwitchStrip_'+s['sfx']:cc.rect(ya,yb,z0,z1)}
- MOUNT=set(cc.MOUNT_OK)|{'GL_Placard_Atlas','P3e_Subpanel'};cc.MOUNT_OK.clear();cc.MOUNT_OK.update(MOUNT)
- for seat,s in SEATS.items():
-  X,outline,obst=cc.seat_geometry(g,'great-lakes-like',seat);out=~outline
-  ok=(cc.boxsum(obst,-.017,.017,-.017,.025)==0)&(cc.boxsum(out,-.016,.016,-.018,.023)==0)
-  obs=cc.obstacles_for(g,'great-lakes-like',seat)
-  for lab_,y in zip(ROW,s['row_y']):
-   i=int((y-cc.Y0)/cc.RES);j=int((s['row_z']-cc.Z0)/cc.RES)
-   cl=cc.clearance(np.array([[X-.001,y,s['row_z']]]),.04,obs)[0]
-   assert ok[i,j],(seat,lab_,y,'slot not legal (outline/obstacle)')
-   assert cl>.003,(seat,lab_,'too close to knee/stick/throttle sweep',cl)
-  ys=sorted(s['row_y']);assert min(np.diff(ys))>=.031,(seat,'spacing')
- print('switch rows legal')
+  for lab in ROW:
+   c=next(c for c in C if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
+   p=builder(np.array(c['pivot_gltf']))
+   if lab=='Magneto':assert abs(p[0]-s['X']+.001)<.0001
+   else:assert p[1]>.15 and p[0]<s['X']-.02,(seat,lab,p)
+ print('photo console placement legal')
 
 if __name__=='__main__':
  import subprocess

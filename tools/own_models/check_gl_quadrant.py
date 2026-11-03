@@ -64,15 +64,8 @@ def main():
      if dd<worst[0]:worst=(dd,(label,ang))
   if worst[0]<.003:fails.append((seat,'lever sweep clearance',worst))
   print(seat,'quadrant min clearance over sweep %.1f mm'%(worst[0]*1000),worst[1])
-  # switch row
-  C=g.doc['extras']['vrCockpitPhase3a']['controls'];zs=[]
-  for lab in q.ROW:
-   c=next(c for c in C if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab);p=builder(np.array(c['pivot_gltf']));zs.append(p[2])
-   if abs(p[0]-(s['X']-.001))>1e-4:fails.append((seat,lab,'not on panel face'))
-   z0,z1=s['strip'];ya,yb=s['strip_y']
-   if not(z0+.016<=p[2]<=z1 and ya+.016<=p[1]<=yb-.016):fails.append((seat,lab,'off the strip',p))
-   if not c.get('label'):fails.append((seat,lab,'no placard label'))
-  if max(zs)-min(zs)>1e-6:fails.append((seat,'switch row not single',zs))
+  C=g.doc['extras']['vrCockpitPhase3a']['controls']
+ q.check_row(g)
  # Wall trim contract: linked translation, ND forward, NU aft; no fuel valve mesh or binding.
  for seat,s in q.SEATS.items():
   c=next(c for c in C if c['seat']==seat and c['param']=='trim');r=rig[c['node']]

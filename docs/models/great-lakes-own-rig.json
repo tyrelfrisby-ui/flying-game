@@ -1681,9 +1681,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    0.093
+    1.688,
+    -0.10899999999999999,
+    0.264
    ],
    "map": [
     [
@@ -1713,9 +1713,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.039
+    1.793,
+    -0.188,
+    0.174
    ],
    "map": [
     [
@@ -1745,9 +1745,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.083
+    1.748,
+    -0.188,
+    0.174
    ],
    "map": [
     [
@@ -1777,9 +1777,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.127
+    1.703,
+    -0.188,
+    0.174
    ],
    "map": [
     [
@@ -1809,9 +1809,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    0.005
+    1.838,
+    -0.188,
+    0.174
    ],
    "map": [
     [
@@ -1841,9 +1841,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    0.049
+    1.883,
+    -0.188,
+    0.174
    ],
    "map": [
     [
@@ -2197,9 +2197,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    0.06
+    1.018,
+    -0.089,
+    0.264
    ],
    "map": [
     [
@@ -2229,9 +2229,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.06
+    1.123,
+    -0.16799999999999998,
+    0.174
    ],
    "map": [
     [
@@ -2261,9 +2261,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.1
+    1.078,
+    -0.16799999999999998,
+    0.174
    ],
    "map": [
     [
@@ -2293,9 +2293,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.14
+    1.0330000000000001,
+    -0.16799999999999998,
+    0.174
    ],
    "map": [
     [
@@ -2325,9 +2325,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.02
+    1.1680000000000001,
+    -0.16799999999999998,
+    0.174
    ],
    "map": [
     [
@@ -2357,9 +2357,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    0.02
+    1.213,
+    -0.16799999999999998,
+    0.174
    ],
    "map": [
     [
@@ -2757,9 +2757,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    0.262
+    1.688,
+    -0.10899999999999999,
+    0.2
    ],
    "map": [
     [
@@ -2929,9 +2929,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    0.1
+    1.018,
+    -0.089,
+    0.2
    ],
    "map": [
     [
@@ -3147,9 +3147,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    0.262
+    1.688,
+    -0.10899999999999999,
+    0.2
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3170,8 +3170,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
-   "label": "MASTER"
+   "placement": "Left console top, forward of quadrant",
+   "label": "BATTERY MASTER"
   },
   {
    "node": "Ctl_Toggle_FuelPump",
@@ -3184,9 +3184,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    0.093
+    1.688,
+    -0.10899999999999999,
+    0.264
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3207,7 +3207,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console top, forward of quadrant",
    "label": "FUEL PUMP"
   },
   {
@@ -3221,9 +3221,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.039
+    1.793,
+    -0.188,
+    0.174
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3244,7 +3244,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "NAV LTS"
   },
   {
@@ -3258,9 +3258,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.083
+    1.748,
+    -0.188,
+    0.174
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3281,7 +3281,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "STROBE"
   },
   {
@@ -3295,9 +3295,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.127
+    1.703,
+    -0.188,
+    0.174
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3318,7 +3318,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "LAND LT"
   },
   {
@@ -3332,9 +3332,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    0.005
+    1.838,
+    -0.188,
+    0.174
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3355,7 +3355,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "SMOKE"
   },
   {
@@ -3435,9 +3435,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    0.049
+    1.883,
+    -0.188,
+    0.174
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -3458,7 +3458,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "CARB HEAT"
   },
   {
@@ -4012,9 +4012,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    0.1
+    1.018,
+    -0.089,
+    0.2
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4035,8 +4035,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
-   "label": "MASTER"
+   "placement": "Left console top, forward of quadrant",
+   "label": "BATTERY MASTER"
   },
   {
    "node": "Ctl_Toggle_FuelPump_Front",
@@ -4049,9 +4049,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    0.06
+    1.018,
+    -0.089,
+    0.264
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4072,7 +4072,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console top, forward of quadrant",
    "label": "FUEL PUMP"
   },
   {
@@ -4086,9 +4086,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.06
+    1.123,
+    -0.16799999999999998,
+    0.174
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4109,7 +4109,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "NAV LTS"
   },
   {
@@ -4123,9 +4123,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.1
+    1.078,
+    -0.16799999999999998,
+    0.174
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4146,7 +4146,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "STROBE"
   },
   {
@@ -4160,9 +4160,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.14
+    1.0330000000000001,
+    -0.16799999999999998,
+    0.174
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4183,7 +4183,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "LAND LT"
   },
   {
@@ -4197,9 +4197,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.02
+    1.1680000000000001,
+    -0.16799999999999998,
+    0.174
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4220,7 +4220,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "SMOKE"
   },
   {
@@ -4300,9 +4300,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    0.02
+    1.213,
+    -0.16799999999999998,
+    0.174
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -4323,7 +4323,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "Left console breaker face",
    "label": "CARB HEAT"
   },
   {
