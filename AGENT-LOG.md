@@ -1,4 +1,12 @@
 ## NEEDS YOU
+- **ISLAND TERRAIN, THIRD PASS: GLACIER AND MOUNTAIN SURFACES (YOUR 2026-11-02 SPEC) — IN PROGRESS (Claude,
+  2026-11-02, lane/claude-island-terrain):** Implementing `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md` (committed
+  with this entry): glacier ground is either SNOW (smooth, landable, steady ski drag) or ICE (undulating, never
+  level; crevasse fields with real collisions), lateral/medial moraines and boulders, small landable snow
+  patches high on the glaciated mountains, ledges on the dry ones — all in the one height source of truth and
+  driving friction/ski drag/bumpiness through the existing surface system, with tests. The Knik and Fairweather
+  ski zones stay SNOW and unchanged. Renders will go to `island-terrain-renders/after/` (v2 moved to
+  `after-v2-topo/`); you decide from them. This entry will be replaced with the results. No gate is marked approved.
 - **ISLAND TERRAIN, SECOND PASS: REAL TOPOGRAPHY AND A FAIRWEATHER MASSIF — IN PROGRESS, REVIEW THE RENDERS
   (Claude, 2026-11-02, lane/claude-island-terrain):** Following your direction, six areas of the island are now
   shaped on real elevation data, compacted by one factor both ways so the slopes are the real ones: **Sitka**
