@@ -1,12 +1,41 @@
 ## NEEDS YOU
-- **ISLAND TERRAIN, THIRD PASS: GLACIER AND MOUNTAIN SURFACES (YOUR 2026-11-02 SPEC) — IN PROGRESS (Claude,
-  2026-11-02, lane/claude-island-terrain):** Implementing `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md` (committed
-  with this entry): glacier ground is either SNOW (smooth, landable, steady ski drag) or ICE (undulating, never
-  level; crevasse fields with real collisions), lateral/medial moraines and boulders, small landable snow
-  patches high on the glaciated mountains, ledges on the dry ones — all in the one height source of truth and
-  driving friction/ski drag/bumpiness through the existing surface system, with tests. The Knik and Fairweather
-  ski zones stay SNOW and unchanged. Renders will go to `island-terrain-renders/after/` (v2 moved to
-  `after-v2-topo/`); you decide from them. This entry will be replaced with the results. No gate is marked approved.
+- **ISLAND TERRAIN, THIRD PASS: GLACIER AND MOUNTAIN SURFACES (YOUR 2026-11-02 SPEC) — CODE AND TESTS DONE; SUITE,
+  BUILD AND RENDERS PENDING (Claude, 2026-11-03, lane/claude-island-terrain, commits 2b792938..):** Your
+  `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md`, written up in `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §12.
+  1. **Glacier ground is SNOW or ICE.** 28.4 km² of snow above the early-summer snowline, 10.0 km² of bare ice
+     below it. Ice undulates (1.5 m hummocks ~110 m apart, smooth patches never level) and has 1.23 km² of
+     crevasse fields: cuts 22–38 m deep with walls to 86°, where a tensile-stress model of the flow says real ice
+     fractures. Lateral and medial moraine stripes (ice-cored ridges to 14 m), 44 giant boulders on the ice.
+  2. **The physics comes from measurements, not tuning.** Every value is held in a test as a literal from its source:
+     - **Bare ice, tyre rolling 0.025.** Ice is rigid under a tyre, so this is the paved value.
+     - **Bare ice, tyre grip 0.106 of dry.** Melting ice is the FAA's "wet ice", braking Nil. Its water film is
+       priced at 0.053 in AC 25-32, against NASA's 0.5 dry.
+     - **Bare ice, keel 0.03** (metal on ice).
+     - **The rattle on bare ice** is derived from measured glacier-ice roughness (Brock 2006: z0 2.24 mm, hummocks
+       1 m apart). The test profiles the relief the way they did and gets 2.22 mm and 0.98 m.
+     - **Snow is unchanged**: ski 0.055 everywhere, smooth.
+     - **Measured result:** a tundra-tyre Cub rolling at 23 kt reads 0.31 g RMS on ice and 0.04 g on snow.
+  3. **The gear and airframe now push along the ground's normal — this touches every slope, please feel it.**
+     Before, the ground always pushed straight up, so a slope could not slow an aeroplane and a crevasse wall threw
+     a Cub 284 m into the air. Now a ski Cub at 31 kt up the 8° patch stops in 62 m (physics says 67). A Cub that
+     lands in a crevasse field breaks on the walls and stops in 7 m. Level ground, decks and cave floors are
+     unchanged. A ski's standstill grip now also holds sideways, so a parked Cub stays on a cross-sloped patch.
+  4. **Landing places: 4 snow patches (1°, 3°, 4°, 8°) and 5 ledges (flat 0° and 1°, sloped 4° and 7°, rounded).**
+     They are FEWER than the first cut's 6 + 6, because those were not true: the edges of every patch were off its
+     plane (SP1's cross slope 1.09° against 0.78°), and one ledge ran into lesson 2's box canyon 10 m off. Each
+     site's landable area is now the exact plane. No clear site exists for a 5°, 7°, 10° or 12° patch within a
+     50 m cut. Positions are in §12.4.
+  5. **Found, not caused — Knik ski zone.** It is flat only to 100 m in every direction (canyon walls from 110 m), not
+     the spec's 450 × 100 m. It is identical on the branch point. Moving it is your call.
+  6. **Checks:**
+     - IslandSurfaceTests 15/15.
+     - TerrainGen check: byte-identical.
+     - Runtime parity: 1.0e-11 m over 9,542 points.
+     - IslandCheck: 554 PASS. Continuity: 53,656 PASS.
+     - Full suite: pending (waiting for a quiet machine).
+     - Build: pending.
+     - Renders: pending.
+  No gate is marked approved.
 - **ISLAND TERRAIN, SECOND PASS: REAL TOPOGRAPHY AND A FAIRWEATHER MASSIF — IN PROGRESS, REVIEW THE RENDERS
   (Claude, 2026-11-02, lane/claude-island-terrain):** Following your direction, six areas of the island are now
   shaped on real elevation data, compacted by one factor both ways so the slopes are the real ones: **Sitka**
