@@ -1284,6 +1284,64 @@ MGP = np.array(MG.P(0, 0, 0))
 print('MAGSWITCH v16: left root-rib wall xd %.3f y %.3f z %.3f (rib face y %.3f, rib lower edge z %.3f, upper %.3f; front spar xd %.3f), plate normal %s' % (MG_X, MG_Y, _mz, SK_Y, float(wsurf(W, SK_Y, (MG_X - LE_D) / CH, False)[2]), float(wsurf(W, SK_Y, (MG_X - LE_D) / CH, True)[2]), LE_D + FS_F * CH, np.round(MG.N, 2)))
 print('CONTROLS v16 (Ty photos + 2026-11-02 changes): throttle plates (left wall) front xd 1.335 rear xd 2.205, top z 0.012 (window sill 0.03), %.3f x %.3f m, ball r 0.0165 at front %s rear %s, linked behind the liner; fuel D plate xd 1.530 z -0.100 (0.150 x 0.088), push-pull red knob face %s; trim plate xd %.3f z -0.220 (%.3f sq), crank handle %s; carb heat D plate (right wall) xd 1.455 z -0.175 (0.130 x 0.080), lever ball %s, no rear knob; %d label text faces' % (
     TW, TH, np.round(THR['front'][1], 3), np.round(THR['rear'][1], 3), np.round(FV, 3), TR_X0 + TR_DX, TS, np.round(TK, 3), np.round(CH_K, 3), NTX))
+# -- water-rudder retract (floats only; Ty 2026-11-02, t278u): "the floatplane j3 has a water rudder hook on the back of
+# the front seat on the left side. the water rudder is springloaded down so when it is down the female side of the cable
+# in the cockpit is simple let go of and sits on the floor vertically left of the stick. make it red and label it water
+# rudder. picking it up and hanging it on the hook raises the water rudder." So: the retract cable comes up through a
+# chrome fairlead in the floor just left of the rear stick and ends in a RED handle (chrome ferrule where the cable goes
+# in, red grip, red ring at the top, red tag lettered WATER / RUDDER in white facing the rear seat). Let go, the spring
+# at the rudder pulls the cable back down and the handle stands on the fairlead. A chrome J-hook on the aft face of the
+# front seat back, left side, takes the ring: hung there the cable is pulled up WR_TRAVEL and the blade is up.
+# The handle moves by pure translation (it hangs vertically on the hook and stands vertically on the floor), so it is
+# one 'move' node (WaterRudder_Handle, param water_rudder_up 0..1). The cable is its own node (WaterRudder_Cable): a
+# steel tube of unit length up local +Z from the fairlead, scaled to nothing as built (the handle is on it); the game
+# (CockpitWaterRudder) and the shot script aim it at the handle's ferrule and stretch it to length. Sizes by eye.
+if VAR == 'floats':
+    WR_HAND_Y = 0.090                                                   # left of the rear stick (y 0), 9 cm to port
+    WR_FX = 2.270                                                       # fairlead: just ahead of the rear stick socket (xd 2.30)
+    WR_FZ = F_BOT(WR_FX) + 0.047                                        # floorboard top there
+    WR_FAIR = B(WR_FX, WR_HAND_Y, WR_FZ)
+    ck('chrome', lambda: cyl(bmc, B(WR_FX, WR_HAND_Y, WR_FZ - 0.002), B(WR_FX, WR_HAND_Y, WR_FZ + 0.004), 0.0135, 20, 0.0110))   # fairlead grommet
+    ck('dark', lambda: cyl(bmc, B(WR_FX, WR_HAND_Y, WR_FZ + 0.0035), B(WR_FX, WR_HAND_Y, WR_FZ + 0.0045), 0.0050, 12))          # its hole
+    # hook: aft face of the front seat back (round_back xc 2.08, th 0.05, lean 0.10 from zb -0.40), left side
+    WR_HKZ, WR_HKY = -0.150, 0.115
+    _sb = lambda z_: 2.08 + 0.025 + 0.10 * (z_ + 0.40)                 # seat-back aft face xd at height z
+    _vv = np.array([-0.10, 0.0, 1.0]); _vv /= np.linalg.norm(_vv)      # up the leaning face (build frame: -x = aft)
+    HKP = Plane(B(_sb(WR_HKZ) + 0.0005, WR_HKY, WR_HKZ), (0.0, -1.0, 0.0), tuple(_vv))
+    assert HKP.N[0] < -0.99, 'hook plate must face aft'
+    HKP.slab('chrome', [(-0.014, -0.022), (0.014, -0.022), (0.014, 0.022), (-0.014, 0.022)], 0.0, 0.0025)
+    for v_ in (-0.015, 0.015): HKP.screw(0.0, v_, 0.0025)
+    HKP.cyl('chrome', (0.0, -0.004, 0.0025), (0.0, -0.004, 0.034), 0.0035, 10)                    # hook arm, straight aft
+    ck('chrome', lambda: tube(bmc, [HKP.P(0.0, -0.004, 0.034), HKP.P(0.0, 0.000, 0.040), HKP.P(0.0, 0.010, 0.041)], 0.0035, n=10))   # turned up at the tip
+    HKP.ball('chrome', (0.0, 0.011, 0.041), 0.0042)
+    WR_CROOK = np.array(HKP.P(0.0, -0.0005, 0.030))                    # where the ring's top rests on the arm (arm top surface)
+    # handle, modelled ON THE FLOOR (water_rudder_up = 0): bottom of the ferrule on the fairlead
+    WR_FER, WR_GRIP, WR_NECK, WR_RR, WR_RT = 0.022, 0.090, 0.008, 0.019, 0.0042   # ferrule, grip, neck lengths; ring radius, ring tube
+    WR_RING_C = WR_FER + WR_GRIP + WR_NECK + WR_RR - WR_RT             # ring centre above the handle bottom
+    WR_HLEN = WR_RING_C + WR_RR + WR_RT
+    _fb = np.array(B(WR_FX, WR_HAND_Y, WR_FZ + 0.004))                 # handle bottom, on the grommet
+    def _hp(dz, dy=0.0, dx_aft=0.0): return tuple(_fb + np.array([-dx_aft, dy, dz]))
+    sub_begin()
+    ck('chrome', lambda: cyl(bmc, _hp(0.0), _hp(WR_FER), 0.0085, 16, 0.0095))                      # ferrule (the cable's female end)
+    ck('red', lambda: cyl(bmc, _hp(WR_FER), _hp(WR_FER + WR_GRIP), 0.0140, 20, 0.0130))           # grip
+    ck('red', lambda: cyl(bmc, _hp(WR_FER + WR_GRIP), _hp(WR_FER + WR_GRIP + WR_NECK), 0.0130, 16, 0.0070))
+    _ring = [_hp(WR_RING_C + WR_RR * math.cos(t_), WR_RR * math.sin(t_)) for t_ in np.linspace(-math.pi / 2, 1.5 * math.pi, 33)]
+    ck('red', lambda: tube(bmc, _ring, WR_RT, n=10, cap=False))       # ring in the y-z plane: the hook arm (along x) goes through it
+    # tag on the grip's aft face, facing the rear seat: red plate, white WATER / RUDDER
+    TG = Plane(_hp(WR_FER + 0.5 * WR_GRIP, 0.0, 0.0138), (0.0, -1.0, 0.0), (0.0, 0.0, 1.0))
+    assert TG.N[0] < -0.99, 'tag must face aft'
+    TG.slab('red', [(-0.027, -0.019), (0.027, -0.019), (0.027, 0.019), (-0.027, 0.019)], 0.0, 0.0030)
+    NTX += TG.text('WATER', 0.0, 0.0085, 0.0118, 0.0034) + TG.text('RUDDER', 0.0, -0.0085, 0.0118, 0.0034)
+    sub_end('WaterRudder_Handle')
+    WR_HOOKED_BOTTOM = WR_CROOK - np.array([0.0, 0.0, WR_RING_C + WR_RR - WR_RT])
+    WR_MOVE = WR_HOOKED_BOTTOM - _fb; WR_TRAVEL = float(np.linalg.norm(WR_MOVE))
+    RIGPTS['WaterRudder_Handle'] = (tuple(_fb), tuple(WR_MOVE / WR_TRAVEL))
+    sub_begin()                                                         # cable: unit length up local +Z, scaled to ~0 as built
+    ck('chrome', lambda: cyl(bmc, WR_FAIR, tuple(np.array(WR_FAIR) + np.array([0, 0, 1.0])), 0.0022, 8))
+    sub_end('WaterRudder_Cable')
+    print('WATER RUDDER v17: fairlead xd %.3f y %.3f z %.3f (rear stick xd 2.30 y 0); handle %.3f m tall (ferrule %.3f, red grip %.3f, ring r %.3f), tag 54 x 38 mm WATER/RUDDER; '
+          'hook on the front seat back aft face xd %.3f y %.3f z %.3f (arm 34 mm aft); hung: handle bottom %s, travel %.3f m (cable pulled up that much)'
+          % (WR_FX, WR_HAND_Y, WR_FZ, WR_HLEN, WR_FER, WR_GRIP, WR_RR, _sb(WR_HKZ), WR_HKY, WR_HKZ, np.round([-WR_HOOKED_BOTTOM[0], WR_HOOKED_BOTTOM[1], WR_HOOKED_BOTTOM[2]], 3), WR_TRAVEL))
 ck_tag = tags_of(bmc); P['Cabin'] = link('Cabin', bmc)
 TAGS = {}
 
@@ -1812,18 +1870,27 @@ if VAR == 'wheels':
 if VAR == 'floats':
     o = origin('WaterRudder_L', w(WR_P)); o['steer_axis_gltf'] = gl_axis((0, 0, 1))
     o['note'] = 'LH water rudder only (60-1320 Fig.1: RH float less water rudder). Steers about steer_axis, linked to the air rudder'
-    b = origin('WaterRudder_Blade_L', w(WR_H), parent=o); b['retract_axis_gltf'] = gl_axis((0, -1, 0)); b['retract_deg'] = 90.0
-    b['note'] = 'rotate about retract_axis by retract_deg to pull the blade up (retracted); 0 = down (water)'
+    # v17 (t278u): retract 140 deg, the bottom swinging AFT then up (the spring pulls it down; the cockpit handle on the
+    # hook holds it up). 140 = the configs' waterRudderRetractRad 2.4435, the smallest 5-deg step at which the sim's drawn
+    # blade (FloatHydro.DrawnWaterRudder) is dry both afloat at rest and taxiing at 5.5 m/s (J3WaterRudderTests).
+    WR_RETRACT = 140.0; _rax = Vector((0, -1, 0))                       # export frame: +x aft, z up; about -y the bottom goes aft
+    b = origin('WaterRudder_Blade_L', w(WR_H), parent=o); b['retract_axis_gltf'] = gl_axis(_rax); b['retract_deg'] = WR_RETRACT
+    b['note'] = 'rotate about retract_axis by retract_deg to pull the blade up (retracted); 0 = down (water). Driven by water_rudder_up (cockpit handle on the hook)'
     vs0 = np.array([v.co[:] for v in b.data.vertices]).mean(0)
-    R = Matrix.Rotation(math.radians(90), 4, Vector((0, -1, 0))); vs1 = np.array([(R @ v.co)[:] for v in b.data.vertices]).mean(0)
-    print('WRUDDER blade centroid rel hinge down %s -> retracted %s' % (np.round(vs0, 3), np.round(vs1, 3)))
+    _vh = (Matrix.Rotation(math.radians(0.5 * WR_RETRACT), 4, _rax) @ Vector(vs0)) - Vector(vs0)
+    assert _vh.x > 0 and _vh.z > 0, 'retract must swing the bottom aft first'
+    R = Matrix.Rotation(math.radians(WR_RETRACT), 4, _rax); vs1 = np.array([(R @ v.co)[:] for v in b.data.vertices]).mean(0)
+    _lo1 = min((R @ v.co).z for v in b.data.vertices)
+    print('WRUDDER blade centroid rel hinge down %s -> retracted %.0f deg %s (lowest point %+.3f rel hinge)' % (np.round(vs0, 3), WR_RETRACT, np.round(vs1, 3), _lo1))
     assert vs1[2] > vs0[2] + 0.05, 'retract must lift the blade'
     # steering: cable-linked to the air rudder pedals; EDO-style water rudder swings ~25 deg each way (judgement: no
     # 60-1320 travel figure in hand), so full rudder (30) gives 25 (link ratio 0.833) and the water rudder stops at 25.
     rig_rot(o, 'rudder', Vector((0, 0, 1)), 25.0, 25.0, lambda d: d.y > 0, 'blade trails to starboard at +1 (right pedal)')
     o['rig_link'] = 'air rudder via cables: water rudder deg = rudder param * 25 (limit +/-25; air rudder 30 at the same pedal)'
     o['rig_limit_deg'] = 25.0
-    rig_rot(b, 'water_rudder_up', Vector((0, -1, 0)), 90.0, 0.0, lambda d: d.z > 0, 'blade swings up/aft at 1 (retracted), 0 = down')
+    rig_rot(b, 'water_rudder_up', _rax, WR_RETRACT, 0.0, lambda d: d.z > 0, 'blade bottom swings aft then up %.0f deg at 1 (retracted), 0 = down' % WR_RETRACT)
+    assert list(b['rig_axis_gltf']) == gl_axis(_rax), 'rig kept the aft-swinging axis'
+    b['rig_link'] = 'WaterRudder_Handle (same param): handle on the floor = down, hung on the front-seat-back hook = up'
     for side in ('L', 'R'): o = origin('Float_' + side, w(B(FLOAT_INFO['step_xd'], (1 if side == 'L' else -1) * 75 * IN / 2, FLOAT_INFO['deck_z'])))
     root = P['Fuselage']
     for k, v in FLOAT_INFO.items():
@@ -1927,6 +1994,17 @@ for nm_ in ('Front', 'Rear'):
         rig2(o, 'rudder', STBD, [-1, 0, 1], [-18, 0, 18], '-1..+1', '%s pedal hinged at the floor: +1 (right rudder) moves its top %s' % (sd_, 'forward' if sd_ == 'R' else 'aft'),
              tv=UP, want=(lambda d: d.x < 0) if sd_ == 'R' else (lambda d: d.x > 0),
              link='Rudder (+/-30), TailWheel_Steer (+/-30, wheels), WaterRudder_L (+/-25, floats); all four pedals linked')
+if VAR == 'floats':
+    pv, mv = RIGPTS['WaterRudder_Handle']; o = origin2('WaterRudder_Handle', pv, CKP)
+    rig2(o, 'water_rudder_up', wd(mv), [0, 1], [0, WR_TRAVEL], '0 down (let go, on the floor) .. 1 up (hung on the hook)',
+         'water-rudder retract handle: straight up and forward %.3f m from the floor fairlead to the front-seat-back hook' % WR_TRAVEL,
+         kind='move', want=lambda d: d.z > 0,
+         link='WaterRudder_Blade_L retract (same param); the cable WaterRudder_Cable runs from the fairlead to this node',
+         extra={'grab': 1, 'hook_gltf': gl_pt(w(tuple(WR_CROOK))), 'hook_snap_m': 0.06})
+    o = origin2('WaterRudder_Cable', WR_FAIR, CKP); o.scale = (1.0, 1.0, 0.001)
+    o['cable_to'] = 'WaterRudder_Handle'
+    o['note'] = ('retract cable: unit length along local +Z (glTF +Y) from the floor fairlead; aim it at the WaterRudder_Handle '
+                 'node origin (the ferrule) and scale local Z (glTF Y) to the distance. Scaled to 0.001 as built (handle on the floor)')
 _lst = [n_ for n_ in RIG]
 print('RIG v15 nodes: %d cockpit/instrument nodes + %d existing surface nodes' % (len(RIG2), len(_lst)))
 if os.environ.get('J3_RIGJSON'):

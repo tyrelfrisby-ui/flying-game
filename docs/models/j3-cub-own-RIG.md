@@ -63,6 +63,7 @@ Cockpit (empty)
 | altitude_ft | ft | altimeter (both hands) |
 | oil_temp_f / oil_psi | °F / psi | oil gauge (two needles) |
 | heading_deg | deg magnetic | compass card |
+| water_rudder_up | 0..1 | floats only: 0 = water rudder DOWN (spring; the red handle let go, on the floor left of the rear stick), 1 = UP (handle hung on the hook on the back of the front seat, left). Sim: Aircraft.WaterRudderUp01 |
 
 ## Cockpit and instrument nodes
 | node | parent | param | type | axis (glTF) | pivot (glTF) | map (param→deg or m) | notes |
@@ -90,6 +91,8 @@ Cockpit (empty)
 | Pedal_Front_R | Controls | rudder | rotate | [-0.0, -0.0, 1.0] | [-0.697, -0.395, -0.13] | -1→-18, 0→0, 1→18 deg | R pedal hinged at the floor: +1 (right rudder) moves its top forward |
 | Pedal_Rear_L | Controls | rudder | rotate | [0.0, 0.0, -1.0] | [0.033, -0.395, 0.13] | -1→-18, 0→0, 1→18 deg | L pedal hinged at the floor: +1 (right rudder) moves its top aft |
 | Pedal_Rear_R | Controls | rudder | rotate | [-0.0, -0.0, 1.0] | [0.033, -0.395, -0.13] | -1→-18, 0→0, 1→18 deg | R pedal hinged at the floor: +1 (right rudder) moves its top forward |
+| WaterRudder_Handle | Cockpit | water_rudder_up | translate | [-0.42437, 0.90031, 0.09671] | [0.453, -0.4008, 0.09] | 0→0, 1→0.258 m | floats only (Ty t278u): red handle, white WATER / RUDDER label, on the cable end. 0 = let go, standing on the floor left of the rear stick at the fairlead; 1 = its ring hung on the chrome hook on the back of the front seat, left (hook point in `extras.hook_gltf`, snap radius `hook_snap_m` 0.06). `grab`=1: the VR hand grabs it (slide) |
+| WaterRudder_Cable | Cockpit | — | aimed | local +Y | fairlead on the floor | stretched each frame | floats only: steel retract cable, unit length up local +Y, built at scale 0.001; the game (CockpitWaterRudder) aims it at the handle origin and scales local Y to the distance |
 
 ## Outside surfaces (v7 rig, unchanged)
 These nodes use the older extras: `rig_deg_pos` for param > 0 and `rig_deg_neg` for param < 0, both linear. The water-rudder retract and the doors use `(p − rig_param_model) * rig_deg_pos`.
@@ -103,7 +106,7 @@ These nodes use the older extras: `rig_deg_pos` for param > 0 and `rig_deg_neg` 
 | Rudder | both | rudder | [0.0, 1.0, -0.0] | [4.438, 0.835, 0.0] | 30 | -30 |
 | TailWheel_Steer | wheels | rudder | [0.0, 1.0, -0.0] | [4.638, 0.095, 0.0] | 30 | -30 |
 | WaterRudder_L | floats | rudder | [0.0, 1.0, -0.0] | [2.3551, -0.9387, 0.9525] | 25 | -25 |
-| WaterRudder_Blade_L | floats | water_rudder_up | [0.0, 0.0, 1.0] | [2.3551, -1.1584, 0.9525] | 90 | -0 |
+| WaterRudder_Blade_L | floats | water_rudder_up | [0.0, 0.0, 1.0] | [2.3551, -1.1584, 0.9525] | 140 | -0 |
 
 - The stabilizer trim is in the cockpit table above (`Stab`, param `trim`). Elevator_L and Elevator_R are children of Stab, so trim and elevator add up.
 - The prop spins about `spin_axis` at 6 deg/s per rpm, clockwise as seen from the cockpit.
