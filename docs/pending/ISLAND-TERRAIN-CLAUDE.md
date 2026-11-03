@@ -46,13 +46,13 @@ rainfall changes 10x within 10 km).
 
 | Quantity | Value | Why |
 |---|---|---|
-| Moist flow | from 280° true | the westerlies; puts the dry shadow over the authored red-rock desert (Page/Powell, SE) |
+| Moist flow | from **310°** true (v1: 280°) | the storm track of the Gulf of Alaska coasts the north-west areas stand for (§11); keeps the dry shadow over the authored red-rock desert (Page/Powell/Grand Canyon, SE) |
 | Background precipitation | 2.2 m/yr at the windward coast | wet temperate coast (Hoquiam 2.0, Hokitika 2.9) |
-| Orographic precipitation | 14 m/yr per unit upslope, carried 4 km downwind; lee evaporation 0.7 of the same; depletion e-folds after 2.6 km of cumulative lift | Smith (2003) linear upslope model reduced to 1-D; gives 5.2 m/yr on the windward face of the central massif, 0.35–0.6 m/yr in the SE desert |
+| Orographic precipitation | **30** m/yr per unit upslope (v1: 14; why in §11.4), carried 4 km downwind; lee evaporation 0.7 of the same; depletion e-folds after 2.6 km of cumulative lift | Smith (2003) linear upslope model reduced to 1-D; v2 gives 7.5 m/yr on the compacted Fairweather, 7–9 m/yr on the windward central massif, 2–2.6 m/yr at Johnson Creek, 0.5–1.3 m/yr in the SE desert |
 | Summer (JJA) mean at sea level | 18 °C | warm maritime summer (Seattle 17.5, Port Angeles 15, Victoria 16 — warmer inland) |
 | Lapse rate | 6.5 K/km | standard |
 | Equilibrium-line altitude | T_JJA(ELA) = 0.6 P / (4 mm/°C/day × 92 days) = 1.63 P | degree-day balance: winter snow (60 % of precipitation) = summer melt |
-| → ELA | 1,470 m at 5.2 m/yr; 2,220 m at 2.2 m/yr; above every summit in the desert | Olympics: 1,600–2,000 m on the wet side |
+| → ELA | v2: ~620 m at 7.5 m/yr (Fairweather, central massif windward), 1,470 m at 5.2, 2,220 m at 2.2; above every summit in the desert | Fairweather Range 900–1,100 m; Westland (Franz Josef) glaciers end in rainforest at 300 m under a ~1,800 m ELA |
 | Treeline | 1,460 m (8.5 °C JJA isotherm), ±130 m with aspect, ±35 m wander | warmest-season isotherm of 8–10 °C (Körner); the 25 km island is 0.2° of latitude, so the legacy "falls going north" lapse is gone |
 | Forest water limit | none below 0.55 m/yr, full above 0.95 m/yr | conifer woodland/steppe boundary |
 | Snow shown | **early summer**: continuous above (local ELA − 220 m), 160 m lower on a steep north face and higher on a south one, patches in wet shaded hollows down to 400 m below that; nothing stays on ~>50° | what a pilot sees in late June over a maritime range (Paradise, Mt Rainier, 1,650 m, is snow-covered into July) |
@@ -198,9 +198,175 @@ triangles a frame at 60 Hz in simple shaders; the aircraft, forest and scenery n
 ≤ 250k and ≤ 150 draw calls (the shipping island used up to 483k and 141). The shader cost and load time on a
 device are the two numbers still to measure on hardware.
 
+**v2 (real topography), same editor measurements** (`after/mesh-stats.txt`, `view-stats.txt`): 143 chunks × 4
+LODs, LOD0 1,324,888 triangles, all levels 1,753,596, 995,882 shared vertices, ~37.2 MiB GPU (unchanged within
+0.01 %: the lattice and the LOD rule are the same); worst view 143 draws / 215k triangles (37, low over the Knik
+valley), all views ≤ 250k; world build 6.6 s in the editor (sampling 3.0 s). Relief data 1.42 MB encoded
+(v1 1.24: the ice/ELA channels carry more structure). Height query (TerrainGen bench, DOTNET_TieredCompilation=0,
+**taken while other lanes' builds were loading the machine**): HeightAt fresh 0.67 µs, HeightAndGradientAt
+1.32 µs, Channels 0.03 µs — query cost depends only on the lattice layout, which v2 did not change; re-measure on
+a quiet machine before quoting. Shader: v2 adds one branch-free lerp chain for the tropical region and no
+texture or noise lookups.
+
 ## 9. Tests, checks, build
 
-(filled at the end)
+**Full FlightTests suite** (in-process xUnit TestRunner, frozen copies, run alone behind the guard):
+
+| Run | Passed | Failed | Skipped |
+|---|---|---|---|
+| Baseline fa1fa15 (shipping island) | 1,024 | 210 | 3 |
+| v2, real topography (d803150) | 1,068 | 166 | 3 |
+
+Unique failing names in v2 that are not in the baseline: 6 —
+`NavigationTests.TwoStationsAllTheWayDownTheCorridor`, `SlopeAndThermalTests.WindStrengthensWithHeightAndSoDoesTheRidgeLift`,
+`ReversibleControlTests.HandsOffHoldsTrimAndReturnsAfterAPull(p51d-like)` and
+`ReversibleControlTests.TailslideSlamsFreeControlsToTheStops(extra-300 / pa18-cub / pitts-s2b)`. Each re-run alone
+(same frozen binaries, guard clear): the four `ReversibleControlTests` cases **pass** (suite coupling, CLAUDE.md);
+**two fail alone and are caused by the new relief**: `TwoStationsAllTheWayDownTheCorridor` ("loses its cross fix
+at y 1000 and 750 m": the legacy VOR corridor along sim x = 400 m now crosses the Johnson Creek/Frank Church
+ridges, which shadow a station at 2,000 ft AGL) and `WindStrengthensWithHeightAndSoDoesTheRidgeLift` (evaluates
+the legacy escarpment's face at sim x = 0, where the island's ground is now the Johnson Creek template, not a
+uniform face). Both assert the **legacy plateau world's** geometry (Navaids.Vors, WorldTerrain.EdgeMeanY) on
+whatever ground is active; they need rewriting for the island, which I have not done — listed, not hidden.
+No test source was changed in v2; no test hard-codes the new summit, glacier or climate values.
+
+**Checks (v2):** `TerrainGen check` byte-identical; `generate_runtime.py --check` matches; `verify_island.py
+--rebuild` regenerates the review rasters byte-identically and then stops at a pre-existing assertion
+("Claude-owned source changed: src/FlyingGame.Core/Orography.cs" — a stale hash; the file is untouched since
+before this lane); `check_parity.py` max error 2.2e-12 m (PASS); `IslandCheck` PASS (554 checks);
+`IslandCheck continuity` PASS (53,656 probes).
+
+**Build (v2):** the editor render at d803150 compiled the Unity sources with 0 `error CS` (build/render-after2.log,
+WorldRender wrote 38 plates). The Unity iOS export + xcodebuild was queued behind the guard for the rest of the
+run; result: BUILD_STATUS
+
+## 11. Real-topo inspiration (v2, follow-up run 2026-11-02)
+
+Ty's direction: shape six areas on real topography, compacted to fit, with real slopes; take the palette and the
+distribution of materials from satellite imagery of the same places; Mount Fairweather replaces the Ruth Glacier.
+The v1 infrastructure (generator, lattice, runtime relief, mesh, shader, render tool, tests) is unchanged in
+kind; what changed is the macro shape in six windows, the climate's storm track and orographic coefficient, the
+ELA channel's range, the palette, and two material regions.
+
+### 11.1 Sources and licences (raw downloads stay in `build/topo-ref/`, git-ignored)
+
+| What | Source | Licence |
+|---|---|---|
+| Elevation | AWS Open Data *Terrain Tiles*, Terrarium PNG, `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png`, zoom 11–13 (~20–40 m); underlying data USGS 3DEP/NED (US incl. Alaska and Hawai'i), SRTM elsewhere | public domain (USGS); attribution "Mapzen, USGS 3DEP" |
+| Imagery | Sentinel-2 L2A (surface reflectance) COGs via the Earth Search STAC API `https://earth-search.aws.element84.com/v1`, one clear summer scene per place: Sitka `S2B_8VMJ_20200913_1_L2A` (2020-09-13, 0 % cloud); Fairweather `S2B_8VLL_20230822_0_L2A` (2023-08-22, 8.9 % scene / 5.8 % window); Grand Canyon `S2A_12S{UE,UF,VE,VF}_20230805_0_L2A` (2023-08-05); Dillingham `S2A_4Q{EJ,EK}_20200930_1_L2A` (2020-09-30); Knik `S2B_{6VUP,6VVP}_20200911_1_L2A` (2020-09-11, window 0 % cloud); Johnson Creek `S2B_11TPK_20200715_1_L2A` (2020-07-15). Item URLs are in `palette.json` | Copernicus Sentinel data, free and open; "Contains modified Copernicus Sentinel data 2020–2023" |
+
+Committed, small, deterministic artefacts (each from a committed script): `tools/island/topo/templates.json` +
+`templates.bin` (108 KB, `dem.py`), `palette.json` (28 KB, `imagery.py`, pinned scene IDs), `distribution.json`
+(`distribution.py`), `fidelity.json` (`fidelity.py`). `shader_palette.py` turns `palette.json` into the shader's
+constants; `plates.py` makes the comparison plates.
+
+### 11.2 How a real place becomes an island area
+
+`dem.py`: island point (e, n) → real point = anchor_real + R(−rot)·(e − e_a, n − n_a)·**c**; template height =
+(z_real − z_ref)/**c** + z_island. One factor c horizontally *and* vertically, so slopes, valley width/depth
+ratios and the hypsometric curve are the real ones (`templates.json` records the real and template slope
+p50/p90: identical by construction). `Topo.cs` makes the template the macro surface inside its window
+(feathered 0.6 km), *under* every authored constraint, and the erosion then only adds texture finer than ~100 m
+(initial roughness ×0.15, restoration σ ≈ 60 m instead of 0.5 km). Authored summits and crests the area does not
+own keep their massif (template fades out within 1.25 km): Frank Church, Sierra, Chugach, Drake Hill, Mokuleia.
+
+| Area | Real anchor → island | c | Rotation | Datum | Why this placement |
+|---|---|---|---|---|---|
+| Sitka (Baranof shore, Verstovia, Indian River) | Sitka town shore 57.053 N 135.335 W → west coast (−10.9, 2.4) | 2.2 | real NE → island E (+45°) | sea level = sea level | the coast between Point Mac and PATK under the A2 airway (ground ≤ 2,975 ft): Sitka's 1,000–1,375 m peaks become 450–625 m |
+| Mount Fairweather | summit 58.906 N 137.526 W → (−0.5, 6.3) | 2.6 | real NW → island SW (−90°) | real 560 m → sea level (the 25 km piedmont foreland is cut out) | the one place near the north coast where ~1,600 m can stand clear of the A2 swath and the PHDH 8 visual surface; the real NW valley-glacier system runs toward the Ruth/Fairweather zone |
+| Knik Glacier / Knik River | terminus 61.415 N 148.575 W → head of canyon C4 (−4.6, −0.9) | 4.0 | −18° (valley down C4) | 40 m → 30 m | the braided valley is C4 (1.2 km floor), the glacier face at its head |
+| Grand Canyon (Bright Angel / Phantom Ranch) | river 36.101 N 112.095 W → (5.0, −2.5) | 5.0 | 180° | South Rim 2,150 m → 1,330 m (the plateau strips, KPGA 4,317 ft) | the red-rock plateau between Bullfrog, KPGA and the Page mesas; a 270 m gorge with its side canyons and buttes |
+| Dillingham / Mokuleia (Oahu) | PHDH runway centre → PHDH (4.99, 5.9) | **1.0** (true scale) | +12° (runway on runway) | sea level | the real runway is 9,007 ft, as the island's is; the ridge behind it at its real distance |
+| Johnson Creek (3U2), Frank Church | 3U2 → 3U2 (1.82, −0.76) | 2.0 | +9° (valley along canyon C1) | 1,504 m → 1,512 m (strip on strip) | the Middle Fork upland; ridges 1,500–2,080 m on the template |
+
+### 11.3 How true the areas stayed (`fidelity.py`, inner window, land only)
+
+| Area | c | Land km² | Slope p50 / p90, real → island (°) | Hypsometric integral real → island | Relief real → island (m) | Within 25 m / 75 m of the template |
+|---|---|---|---|---|---|---|
+| fairweather | 2.6 | 12.6 | 26.9 / 49.0 → 32.8 / 61.1 | 0.494 → 0.57 | 305–1571 → 138–1581 | 21% / 48% |
+| knik | 4.0 | 9.6 | 6.8 / 30.1 → 42.3 / 60.4 | 0.169 → 0.274 | 27–424 → 30–2118 | 14% / 23% |
+| sitka | 2.2 | 13.0 | 28.6 / 49.8 → 13.4 / 42.2 | 0.371 → 0.255 | 0–525 → 1–497 | 40% / 67% |
+| grandcanyon | 5.0 | 14.0 | 21.6 / 40.1 → 21.0 / 56.6 | 0.466 → 0.797 | 1042–1381 → 2–1364 | 40% / 65% |
+| dillingham | 1.0 | 11.9 | 8.1 / 31.5 → 33.9 / 52.3 | 0.246 → 0.325 | 1–518 → 1–1009 | 27% / 42% |
+| johnsoncreek | 2.0 | 5.8 | 23.2 / 33.5 → 15.4 / 57.1 | 0.375 → 0.308 | 1490–2015 → 1040–2430 | 7% / 13% |
+
+Where an area is far from its template it is because an authored constraint holds it: Knik's east half is the
+KMEV plateau (4,724 ft) and the L2 lesson box, which stand where the real glacier tongue lies; Johnson Creek's
+ridges are held ~200 m under the template by the Middle Fork strips' visual surfaces and Frank Church's own
+massif; Dillingham's ridge is the authored Mokuleia crest (2,950 ft) where the real ridge is 400–580 m; Sitka
+and Fairweather are trimmed by the A2 cap (895 m) and, at Fairweather, by the 55° sea-cliff limit. Higher slope
+percentiles on the island (p90 50–60°) are the pad benches and those trims, not the real places.
+
+### 11.4 Climate change for Fairweather, and what it did
+
+With v1's climate the compacted Fairweather received 3.6 m/yr (ELA ≈ 1.87 km, above its 1,581 m summit): no
+ice. Lowering the summer temperature instead (real Sitka/Yakutat summers are 11–12.5 °C) would have put the
+treeline at ~700 m and taken the forest off Johnson Creek and the Grand Canyon rim, so the precipitation had to
+do it, as it does at Fairweather and in Westland: storm track 310° (onshore on the north-west coast, as the Gulf
+of Alaska's is at Sitka, Fairweather and the Knik) and 30 m/yr per unit upslope (§3). Result: **38.2 km² of
+ice** (v1 10.0), 2.50 km³, accumulation-area ratio 0.62, ice from the Fairweather and central-massif icefields
+down to **tidewater on the north coast** (lowest ice 8 m at (0.10, 7.58)) and to the Knik face at the head of C4
+(30 m). The icefield west of the summit is held flat at 895 m by the A2 airway cap (MEA 5,000 ft − 2,025 ft).
+Side effect: the windward central massif is now icefield too; KMYL, Payette, AP1, AP11 and the Bighorn lakes
+are fixed surfaces and stay clear, but the ground round them is ice.
+
+### 11.5 Ski zones
+
+* **Ruth → Fairweather, converted, not moved.** Same centre (−3.9, 4.7), 1,300 ft, 450 × 100 m, still Snow and
+  flat (locked decision 7: 1,000–1,300 ft). Its glacier entry is renamed Fairweather and its path now follows the
+  icefield's south-west outlet, whose lobe ends 0.6 km SSE of the zone at ~1,400 ft. No generated ice is on the
+  zone itself at 1,300 ft: the only ice at 1,000–1,300 ft anywhere is that lobe's snout, too steep and narrow for
+  450 m of runway. Putting the zone on the icefield (2,936 ft) would break decision 7; Ty decides.
+* **Knik unchanged** (−6.2, 0.1), 1,100 ft. The real-looking glacier face is 1.6 km up-valley at the C4 head.
+
+### 11.6 Palette from the imagery (`shader_palette.py`)
+
+Every material colour in `FlyingGame/IslandTerrain` is now the median Sentinel-2 surface reflectance of a
+land-cover class at the real places, sRGB-encoded (the project renders in gamma space and the shader's full-sun
+light is ~1.0, so reflectance 1.0 is white paper). v1's colours were 20–60 % brighter and more saturated
+(e.g. red rock .62/.36/.22 → .48/.41/.35 median, banded .40–.55; glacier ice .86/.91/.95 → bare summer ice
+.62–.70; meadow .25/.37/.17 → .20/.26/.15–.31/.30/.26).
+
+| Shader material | sRGB albedo | Reflectance (R G B) | Class @ areas |
+|---|---|---|---|
+| conifer_wet | `float3(0.13, 0.18, 0.13)` | 0.015 0.027 0.016 | conifer_forest @ sitka,fairweather |
+| conifer_dry | `float3(0.20, 0.23, 0.18)` | 0.034 0.043 0.026 | conifer_forest @ johnsoncreek,knik |
+| broadleaf | `float3(0.18, 0.25, 0.15)` | 0.029 0.050 0.020 | broadleaf_tropical_veg @ dillingham |
+| meadow | `float3(0.31, 0.30, 0.26)` | 0.077 0.073 0.053 | grass_meadow @ sitka,johnsoncreek,knik |
+| dry_grass | `float3(0.40, 0.34, 0.29)` | 0.132 0.095 0.067 | dry_grass_shrub @ grandcanyon,dillingham |
+| heath | `float3(0.30, 0.31, 0.28)` | 0.072 0.079 0.065 | grass_meadow @ fairweather |
+| rock_crystalline | `float3(0.34, 0.33, 0.32)` | 0.095 0.091 0.081 | bare_rock @ fairweather,knik |
+| rock_light | `float3(0.49, 0.45, 0.39)` | 0.205 0.169 0.123 | bare_rock @ grandcanyon |
+| red_rock | `float3(0.48, 0.41, 0.35)` | 0.192 0.137 0.099 | red_rock @ grandcanyon |
+| gravel_bars | `float3(0.34, 0.34, 0.33)` | 0.097 0.097 0.090 | sediment_gravel @ knik,fairweather |
+| sand | `float3(0.58, 0.53, 0.46)` | 0.291 0.243 0.183 | sand @ dillingham |
+| snow | `float3(0.86, 0.88, 0.88)` | 0.707 0.740 0.745 | snow @ fairweather,knik |
+| glacier_ice | `float3(0.62, 0.63, 0.63)` | 0.343 0.357 0.355 | glacier_ice @ fairweather,knik |
+| glacial_water | `float3(0.21, 0.32, 0.33)` | 0.035 0.081 0.086 | water @ fairweather |
+
+Two material regions, feathered over 0.6 km so no colour line follows a grid line: red-rock country (the Grand
+Canyon/Page plateau, as before but no longer a hard box) and the leeward tropical coast (Dillingham/Mokuleia:
+broadleaf canopy, pasture). Conifer runs from wet coastal spruce-hemlock to dry interior fir with the local
+precipitation (ELA channel).
+
+Where the materials sit (`distribution.py`, class map × DEM at 30 m): the real treeline by aspect is
+Fairweather 819 m N / 1,146 m S, Sitka ~830 m, Johnson Creek ~2,350 m (forest to the ridge tops; the island's
+1,460 m treeline leaves its compacted ridges, 1,500–2,080 m, partly open); snow's lower limit at Fairweather
+1,111 m N / 1,331 m S, ice 851 / 1,012 m with the lowest 0.5 % at 16 m (tidewater); bare rock takes 21 % of
+35–50° ground and 39 % above 50° in the glaciated areas, under 3 % at any slope in forested Johnson Creek. The
+shader's rules match these shapes — a north/south shift of the snowline (±160 m here, 220 m at Fairweather),
+rock from ~40° in the alpine and ~50° under vegetation, ice to the sea — at the island's own climate heights.
+
+### 11.7 What moved (v2)
+
+1. **Summit Denali-like → Fairweather**: (0.5, 7.1) 2,176 ft → **(−0.5, 6.3) 5,187 ft** (1.2 km SW; the old
+   point is 0.45 km from the sea and could hold only 2,176 ft). Spec `changes` ledger entry.
+2. **Glacier Ruth → Fairweather** (id and path; ski zone unchanged), spec ledger entry; gameplay-inventory text
+   "Knik/Ruth ski" → "Knik/Fairweather ski".
+3. **Climate**: storm track 280° → 310°, orographic coefficient 14 → 30 m/yr per unit slope.
+4. **ELA channel** range 1,200–3,240 m → 300–3,360 m (12 m steps), `IslandRelief.ElaBaseM/ElaStepM`.
+No airport, runway, strip, pad, lake, water lane, cave, nav aid, spawn/start, lesson box, combat zone,
+aerobatic box, chart feature or IFR datum moved. Every check in §9 re-run.
 
 ## 10. Open questions for Ty
 
@@ -214,4 +380,16 @@ device are the two numbers still to measure on hardware.
 4. **The Bighorn lakes and the L2 box** conflict with approach surfaces and an airway (§7). Lower/move them, or
    accept the cliffs.
 5. **Season.** Snow is drawn as early summer. A later-summer look (less snow) or spring (much more) is one constant.
+6. **(v2) The Fairweather ski zone.** Converted in place at 1,300 ft (locked decision 7). Real Fairweather landings
+   are on the icefield; here that is ~2,900 ft (flat, held by the A2 cap). Move it up there (and relax decision 7)?
+7. **(v2) Wetter windward side.** To ice the compacted Fairweather the storm track and orographic coefficient
+   changed (§11.4); the windward central massif is now icefield too, around KMYL, Payette and the Bighorn lakes.
+   Accept, or keep the ice to the Fairweather massif (that needs a colder north coast, i.e. a second climate)?
+8. **(v2) Colour exposure.** The palette is true surface reflectance and reads dull/grey in the renders; I
+   prepared a one-stop exposure (×1.37 in the gamma-space shader, land mid-tones to photographic key) but could not
+   get a render slot to verify it before the run's cap, so it is NOT in this branch. Recommended next step.
+9. **(v2) Two legacy-world tests** now fail on the new relief (§9): rewrite them for the island?
+10. **(v2) Constraints dominate three areas** (§11.3): Knik (KMEV/L2 plateau), Johnson Creek (strip surfaces) and
+   Dillingham (authored Mokuleia crest) keep only 7–27 % of their template within 25 m. Lowering Mokuleia or moving
+   L2 would let the real shapes through.
 

@@ -12,7 +12,12 @@
   it on the icefield at ~2,900 ft, which breaks locked decision 7). No airport, strip, pad, lake, cave, nav aid,
   spawn, chart or IFR datum moved. Renders: `~/Developer/agent-lanes/aero-playground/island-terrain-renders/`
   (`after/` new, `after-v1-eroded/` the first pass, `before/` shipping) with imagery-vs-render plates per area.
-  Details: `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §11. Results land here as they come. No gate is marked approved.
+  Details: `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §11. **Results:** full suite 1,068 passed / 166 failed (baseline
+  fa1fa15 1,024 / 210); 6 new names, 4 pass alone, **2 legacy-world tests fail on the new relief** (VOR corridor
+  cross-fix, escarpment ridge lift) — not rewritten, listed in §9. All island checkers pass. **The colours read dull**:
+  the palette is true reflectance; a one-stop exposure fix is written up (open question 8) but not in the branch,
+  because no render slot came free to verify it. iOS export/xcodebuild: see §9 (queued behind other lanes' Unity,
+  deploys and suites for most of the run). No gate is marked approved.
   Also: an untracked `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md` (your glacier/ice/ledge surface spec, written
   11:01 by someone else into this worktree) is left untouched for the next run.
   **Process slip, for whoever owned the overlapping runs:** on 2026-11-02 at about 06:30 local my first
