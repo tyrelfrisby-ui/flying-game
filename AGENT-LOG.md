@@ -5581,3 +5581,4 @@ Images still require operator rendering and review; no Blender run here.
 - Checks: check_vr_phase1 (v2) rc 0; `--v3` rc 0 (Pitts truss 7.0 mm, cockpit 11.6 mm); PilotBodyShots v2/v3 PASS, no CS errors;
   dotnet filtered Vr|Pilot|Cockpit|Seat 410/411 (MazeTow branch failure pre-existing).
 - Renders: v2 before / v3 after under /workspace/vr-hands/body/v3/body/ on the box. Awaiting Ty's approval; do not install v3.
+- QuestBuild.BuildQuest on f32ebca5 SUCCEEDED (stamp 2026.1102.2318, 87 s), build/quest/AeroPlayground.apk — NOT installed; ships v2 body; does not contain 62af2690.
