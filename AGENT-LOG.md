@@ -3882,3 +3882,8 @@ line rising to the rear seat, not a dome over the front seat. Its width and fron
 excess is height plus a low rear deck that makes the canopy look even bigger.
 Evidence (not in repo, Grok Bot box): /workspace/aero/grob-cmp/ (README.md table, cmp-*.png) and
 /workspace/aero/grob-ref/ (POH, TCDS, photos with licences). **No code or model changed; the fix waits for Ty.**
+
+## 2026-11-03 10:37 PST: Grob gear (Ty decision)
+NEEDS YOU: Ty, approve the renders of the fixed-gear Twin III Acro fixes once they're made.
+- Ty chose fixed gear, like the real G 103 C Twin III Acro (POH 1.4, EASA A.250). It has main, nose and tail wheels in fillet fairings with only the bottom of each tire showing. It is not retractable.
+- No code changed.
