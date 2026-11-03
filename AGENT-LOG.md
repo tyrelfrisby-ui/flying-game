@@ -377,6 +377,122 @@
   paint images and non-wing meshes preserved. `--wing-only` avoids the full builder's pre-existing duplicate
   sequence-card face. No in-game/Unity confirmation or visual approval claimed. Details: updated provenance
   and `renders/extra-wing-b/measurements.json`.
+- **GLACIER LANDINGS ON PLAIN SNOW, AND GRASS STRIPS / SNOW SITES THAT ARE NOT TABLES (YOUR 2026-11-03 NOTES) — DONE,
+  REVIEW THE RENDERS (Claude, 2026-11-03, lane/claude-island-terrain, b125b6ba, c87ff384):**
+  1. **The "runway on the glacier" was Knik's river bar (F13), 250 m from the ski zone at the glacier's foot.** It had
+     a painted 520 × 52 m tan lane between eight ruled blue braid lines, inside a 700 × 240 m gravel rectangle cut out
+     of the forest. It ran straight up to the zone's stamped 300 m white disc.
+     - The lane paint is gone. The lane itself is still there for wheels.
+     - The braids wander and end on their own.
+     - The bar is an irregular lens.
+     - Both ski zones are now snowfields lying along their glaciers, with soft wandering edges, and no disc.
+     - F14 and F15 keep their lane paint, because they are not at glaciers.
+     - The old Alaska-range shader's painted 800 × 80 m LZ is gone too.
+     - The chunk-seam dashes near crevasses are fixed: skirts are two-sided.
+  2. **Not flat any more, in the physics as well as the picture.** Every grass/turf strip (ten; not Drake's, which
+     runs into the cave), both ski zones and the four snow patches lie as a banana, a crest or hay-field rolls, in turn.
+     - Sizes are 0.3–2.1 m on the strips, about 1 m on the ski zones and 0.35–0.7 m on the patches.
+     - The shape is zero at both ends, so thresholds and TDZEs did not move.
+     - Added grade is at most 1 % (2.6 % on the rolling ones).
+     - Example: from the AP8 threshold you cannot see the far end over its 2 m crest.
+     - A Cub rolling over it keeps its wheels down and follows the ground to 3 cm.
+     - Paved, gravel, dirt and sand strips and the rock ledges are unchanged.
+     - The full list is in `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §12.7.
+  3. **Checks:**
+     - New NaturalSurfaceTests plus all island classes: 27/27.
+     - Height evaluator vs its reference, and the analytic gradient: pass.
+     - Python parity: 1.0e-11 m. IslandCheck: 554 PASS. Continuity: 53,656 PASS. Generator: byte-identical.
+     - **Full suite: 1,059 passed / 194 failed / 3 skipped.** Other lanes' suites were running at the same time.
+       - 74 names newly failing against this lane's previous run: 38 StructuralTests, 34 SpawnSpeedTests,
+         1 TrimConvergenceTests, 1 FrankChurchTests.
+       - The first three classes pass alone (suite coupling).
+       - The FrankChurch one was real (Sulphur Creek is a turf strip that now lies as a banana) and is updated
+         deliberately (c87ff384).
+       - 10 previously failing names now pass.
+     - **`** BUILD SUCCEEDED **`** via `deploy.sh`, build 2026.1103.1055, 0 error CS. It ran with a placeholder
+       device ID, so **nothing was installed**. The bundleVersion bump is not committed.
+  4. **Renders, same cameras, before → after:**
+     - `~/Developer/agent-lanes/aero-playground/island-terrain-renders/glacier-lz-before/` → `glacier-lz-after/`
+     - Knik: 17, 37, 60, 61, plate-knik-topdown. Fairweather: 19, 62, 63, plate-fairweather-topdown.
+       Patches: 46, 47, 55, 64, 65.
+     - After only: strips 70/72/73 from the threshold. Plate 71 is too low to be useful.
+     - Listed in index.md.
+  **Your call:** the bars still read as a river with braids. If you want F13 gone from beside the glacier altogether,
+  say so. No gate is marked approved.
+- **ISLAND TERRAIN, THIRD PASS: GLACIER AND MOUNTAIN SURFACES (YOUR 2026-11-02 SPEC) — DONE, REVIEW THE RENDERS
+  (Claude, 2026-11-03, lane/claude-island-terrain, commits 2b792938..6c8d45d0):** Your
+  `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md`, written up in `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §12.
+  1. **Glacier ground is SNOW or ICE.** 28.4 km² of snow above the early-summer snowline, 10.0 km² of bare ice
+     below it. Ice undulates (1.5 m hummocks ~110 m apart, smooth patches never level) and has 1.23 km² of
+     crevasse fields: cuts 22–38 m deep with walls to 86°, where a tensile-stress model of the flow says real ice
+     fractures. Lateral and medial moraine stripes (ice-cored ridges to 14 m), 44 giant boulders on the ice.
+  2. **The physics comes from measurements, not tuning.** Every value is held in a test as a literal from its source:
+     - **Bare ice, tyre rolling 0.025.** Ice is rigid under a tyre, so this is the paved value.
+     - **Bare ice, tyre grip 0.106 of dry.** Melting ice is the FAA's "wet ice", braking Nil. Its water film is
+       priced at 0.053 in AC 25-32, against NASA's 0.5 dry.
+     - **Bare ice, keel 0.03** (metal on ice).
+     - **The rattle on bare ice** is derived from measured glacier-ice roughness (Brock 2006: z0 2.24 mm, hummocks
+       1 m apart). The test profiles the relief the way they did and gets 2.22 mm and 0.98 m.
+     - **Snow is unchanged**: ski 0.055 everywhere, smooth.
+     - **Measured result:** a tundra-tyre Cub rolling at 23 kt reads 0.31 g RMS on ice and 0.04 g on snow.
+  3. **The gear and airframe now push along the ground's normal — this touches every slope, please feel it.**
+     Before, the ground always pushed straight up, so a slope could not slow an aeroplane and a crevasse wall threw
+     a Cub 284 m into the air. Now a ski Cub at 31 kt up the 8° patch stops in 62 m (physics says 67). A Cub that
+     lands in a crevasse field breaks on the walls and stops in 7 m. Level ground, decks and cave floors are
+     unchanged. A ski's standstill grip now also holds sideways, so a parked Cub stays on a cross-sloped patch.
+  4. **Landing places: 4 snow patches (1°, 3°, 4°, 8°) and 5 ledges (flat 0° and 1°, sloped 4° and 7°, rounded).**
+     They are FEWER than the first cut's 6 + 6, because those were not true: the edges of every patch were off its
+     plane (SP1's cross slope 1.09° against 0.78°), and one ledge ran into lesson 2's box canyon 10 m off. Each
+     site's landable area is now the exact plane. No clear site exists for a 5°, 7°, 10° or 12° patch within a
+     50 m cut. Positions are in §12.4.
+  5. **Found, not caused — Knik ski zone.** It is flat only to 100 m in every direction (canyon walls from 110 m), not
+     the spec's 450 × 100 m. It is identical on the branch point. Moving it is your call.
+  6. **Checks:**
+     - IslandSurfaceTests 15/15.
+     - TerrainGen check: byte-identical.
+     - Runtime parity: 1.0e-11 m over 9,542 points.
+     - IslandCheck: 554 PASS. Continuity: 53,656 PASS.
+     - **Full suite: 1,119 passed / 130 failed / 3 skipped**, against 1,107 / 127 / 3 on the branch point
+       (0df90495). Both suites ran from frozen copies WHILE OTHER LANES' SUITES WERE RUNNING, because six lanes kept
+       the machine busy for over an hour. No build was running at the time.
+       - 9 names newly failing. 8 of them pass alone on both trees (suite coupling).
+       - The 9th was real and is fixed (62a18d6e): `GeneratedGradientSourceTracksTheScalarExpressions`, a stale
+         source hash.
+       - 6 previously failing LandingGearTests now pass.
+     - **`** BUILD SUCCEEDED **`** via `tools/deploy/deploy.sh`, build 2026.1103.0749, 0 error CS. It was run with a
+       placeholder device ID, so **nothing was installed on any device**. The script's exit code 1 is that install.
+       The bundleVersion bump is not committed.
+     - **Renders:** `~/Developer/agent-lanes/aero-playground/island-terrain-renders/after/`, plates 39–55 for this pass
+       (index.md lists them), plus 01–38 re-shot. The previous set is in `after-v2-topo/`.
+       - Visible fault: faint dark dashes along chunk seams near the crevasse fields. Before my mesh fix
+         (6c8d45d0) that was sky showing through the ground.
+       - Plate 49: LD4 has orange gate rings and a grey block in frame. Say if it sits on a course you want kept clear.
+  No gate is marked approved.
+- **ISLAND TERRAIN, SECOND PASS: REAL TOPOGRAPHY AND A FAIRWEATHER MASSIF — IN PROGRESS, REVIEW THE RENDERS
+  (Claude, 2026-11-02, lane/claude-island-terrain):** Following your direction, six areas of the island are now
+  shaped on real elevation data, compacted by one factor both ways so the slopes are the real ones: **Sitka**
+  (west coast, c 2.2), **Mount Fairweather** (north coast, c 2.6, replacing the Ruth feature), **Grand Canyon**
+  (red-rock plateau, c 5), **Dillingham** (PHDH, true scale), **Knik Glacier/River** (canyon C4, c 4) and
+  **Johnson Creek** (3U2, c 2). Colours come from Sentinel-2 surface reflectance of the same places. Fairweather
+  is 5,187 ft, 1.2 km from the sea, and the storm track now feeds it ~7.5 m/yr: 38 km² of ice (v1 10), glaciers
+  to tidewater on the north coast and to a Knik face at the head of C4. **What moved:** the Denali-like summit
+  became Fairweather and moved 1.2 km SW (2,176 → 5,187 ft); the Ruth glacier is renamed Fairweather, **its ski
+  zone did not move** (still 1,300 ft, flat snow; no ice at that height can carry a 450 m strip — say if you want
+  it on the icefield at ~2,900 ft, which breaks locked decision 7). No airport, strip, pad, lake, cave, nav aid,
+  spawn, chart or IFR datum moved. Renders: `~/Developer/agent-lanes/aero-playground/island-terrain-renders/`
+  (`after/` new, `after-v1-eroded/` the first pass, `before/` shipping) with imagery-vs-render plates per area.
+  Details: `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §11. **Results:** full suite 1,068 passed / 166 failed (baseline
+  fa1fa15 1,024 / 210); 6 new names, 4 pass alone, **2 legacy-world tests fail on the new relief** (VOR corridor
+  cross-fix, escarpment ridge lift) — not rewritten, listed in §9. All island checkers pass. **The colours read dull**:
+  the palette is true reflectance; a one-stop exposure fix is written up (open question 8) but not in the branch,
+  because no render slot came free to verify it. **iOS export + xcodebuild NOT run for v2 and still owed**: the
+  guard never cleared long enough (other lanes' Unity, device deploys, suites); last BUILD SUCCEEDED is v1 (08:54). No gate is marked approved.
+  Also: an untracked `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md` (your glacier/ice/ledge surface spec, written
+  11:01 by someone else into this worktree) is left untouched for the next run.
+  **Process slip, for whoever owned the overlapping runs:** on 2026-11-02 at about 06:30 local my first
+  "after" Unity render (lane/claude-island-terrain, its own worktree) ran while another lane's Unity (pid 68104)
+  and `dotnet` runs (pids 64771/64879/68141/68177) were already going — my guard check printed them and I
+  started anyway. Distrust any suite result or timing taken in that window. Every later run waits on the guard.
 - **GREAT LAKES FRONT PANEL, SECOND PASS — YOUR TWO FAULTS, AND A THIRD UNDER ONE OF THEM (Claude, 2026-11-01,
   lane/claude-gl-dials):**
   1. **The compass is a box with a window in it now.** You were right that the card hung out in the open and

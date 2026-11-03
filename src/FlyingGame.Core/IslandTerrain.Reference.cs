@@ -19,9 +19,8 @@ public static partial class IslandTerrain
             if (IslandTerrain.Path(p, c["path"]).d < (c.S("id") == "C3" ? .018 : .010)) { wet = true; break; }
         if (!wet) foreach (string id in new[] { "F13", "F14", "F15" })
         {
-            var c = IslandTerrain.Feature(id)["centre"].Point; var d = p - c;
-            if (Math.Abs(d.E) > .35 || Math.Abs(d.N) > .11 || Math.Abs(d.N) < .030) continue;
-            for (int i = 0; i < 8; i++) if (Math.Abs(d.N - ((i - 3.5) * .025 + .004 * Math.Sin(d.E * 27 + i))) < .004) { wet = true; break; }
+            var c = IslandTerrain.Feature(id)["centre"].Point;
+            if (IslandWater.InBraid(p - c)) { wet = true; break; }
         }
         if (!wet) return false;
         foreach (var f in IslandTerrain.Fields)
@@ -44,19 +43,11 @@ public static partial class IslandTerrain
             if (q.Has("volcano") && (p - q["volcano"]["centre"].Point).Length <= q["volcano"].N("radius_km")) volcanoProtected = true;
         }
         if (d < -.35) return -30;
-        double h = (dc > dm ? 30 : 30 + 4570 * Smooth(dm / 2)) * Feet;
-        foreach (var q in H["regional_overrides"].Items)
-        {
-            var regionalDelta = p - q["centre"].Point; double rx = q["radii_km"][0].Number(), ry = q["radii_km"][1].Number();
-            h = Mix(h, q.N("elevation_ft") * Feet, 1 - Smooth(Math.Sqrt(regionalDelta.E * regionalDelta.E / (rx * rx) + regionalDelta.N * regionalDelta.N / (ry * ry))));
-        }
-        foreach (var q in H["crests"].Items) h = Math.Max(h, Mix(h, q.N("top_ft") * Feet, 1 - Smooth(Path(p, q["path"]).d / q.N("width_km"))));
-        foreach (var q in Peaks) h = Math.Max(h, Mix(h, q.N("top_ft") * Feet, 1 - Smooth((p - q["centre"].Point).Length / q.N("radius_km"))));
+        double h = IslandRelief.Height(p);
         foreach (var q in World["water"].Items) h = Mix(h, Math.Min(h, q.N("elevation_ft") * Feet - q.N("depth_m")), 1 - Smooth((EllipseRadius(p, q) - .85) / .45));
         foreach (var q in World["glaciers"].Items)
         {
-            var (dd, t) = Path(p, q["path"]); double a = (1 - Smooth((dd - q.N("half_width_m") / 1000) / .3)) * Smooth(t / .12);
-            var ski = q["ski_zone"]; h = Mix(h, (q.N("head_ft") * (1 - t) + ski.N("elevation_ft") * t) * Feet, a);
+            var ski = q["ski_zone"];
             h = Mix(h, ski.N("elevation_ft") * Feet, 1 - Smooth(((p - ski["centre"].Point).Length - .15) / .25));
         }
         foreach (var q in World["canyons"].Items)
@@ -121,7 +112,14 @@ public static partial class IslandTerrain
             var (dd, t) = Path(p, q["box_path"]); h = Mix(h, q.N("saddle_ft") * Feet + q.N("box_floor_rise_m") * t, 1 - Smooth((dd - q.N("floor_half_width_m") / 1000) / (q.N("outer_blend_m") / 1000)));
             var wall = q["headwall_geometry"]; h = Math.Max(h, Mix(h, wall.N("top_ft") * Feet, 1 - Smooth(((p - wall["centre"].Point).Length - wall.N("core_radius_m") / 1000) / (wall.N("blend_m") / 1000))));
         }
-        foreach (var q in Peaks) h = Mix(h, q.N("top_ft") * Feet, 1 - Smooth(((p - q["centre"].Point).Length - .12) / .28));
+        foreach (var q in World["glaciers"].Items)
+        {
+            var ski = q["ski_zone"]; var path = q["path"].Items; var ax = path[^1].Point - path[^2].Point; ax = ax * (1 / ax.Length);
+            var dz = p - ski["centre"].Point; double zl = ski.N("length_m"), zw = ski.N("width_m");
+            double al = dz.Dot(ax) * 1000, ac = (dz.E * ax.N - dz.N * ax.E) * 1000;
+            h += IslandHeightIndex.NaturalShape(NaturalShapeParams.SkiZone(q.S("id"), zl, zw), al / zl, ac / (zw / 2), al) * (1 - Smooth((dz.Length - .15) / .25));
+        }
+        foreach (var q in Peaks) h = Mix(h, IslandRelief.Height(p), 1 - Smooth(((p - q["centre"].Point).Length - .12) / .28));
         h = Mix(h, box.N("centre_ground_ft") * Feet, 1 - Smooth((Math.Max(Math.Abs(bd.E), Math.Abs(bd.N)) - .5) / .15));
         var dr = Feature("F1"); var ds = dr["shell_geometry"]; var dp = p - ds["chamber_centre"].Point;
         double dd0 = Math.Sqrt(Math.Pow(Math.Max(0, Math.Abs(dp.N) - .410), 2) + Math.Pow(Math.Max(0, Math.Abs(dp.E) - .210), 2));
@@ -158,7 +156,7 @@ public static partial class IslandTerrain
             var delta = p - c; double ad = delta.Dot(f.U), cr = delta.Dot(f.V);
             double da = Math.Max(0, Math.Abs(ad) - l / 2 - f.EndShoulder / 1000), db = Math.Max(0, Math.Abs(cr) - f.Width / 2000 - f.Shoulder / 1000), dd = Math.Sqrt(da * da + db * db);
             if (dd >= f.Blend / 1000) continue;
-            double a = 1 - Smooth(dd / (f.Blend / 1000)), zz = f.Elevation + Math.Clamp(ad, -l / 2, l / 2) * 1000 * f.Slope / 100 - (f.Surface == "water" ? H.N("water_lane_bed_offset_m") : 0);
+            double a = 1 - Smooth(dd / (f.Blend / 1000)), zz = f.Elevation + Math.Clamp(ad, -l / 2, l / 2) * 1000 * f.Slope / 100 - (f.Surface == "water" ? H.N("water_lane_bed_offset_m") : 0) + IslandHeightIndex.StripShape(f, ad, cr);
             if (dd < nearest || (dd == nearest && a < bestA)) { nearest = dd; bestA = a; bestZ = zz; }
             maxA = Math.Max(maxA, a); if (dd > 0) { double wt = a / (dd * dd); sumW += wt; sumZ += wt * zz; }
         }
@@ -188,8 +186,9 @@ public static partial class IslandTerrain
         else
         {
             var u = e["u"].Point; var dp = p - e["a"].Point; double ad = -dp.Dot(u), cross = Math.Abs(dp.E * u.N - dp.N * u.E), width = .15 + .05 * Math.Max(0, ad);
-            double dd = Math.Max(0, Math.Max(Math.Max(-ad - .25, ad - e.N("length") - .25), cross - width - .25));
-            alpha = 1 - Smooth(dd / e.N("blend")); cap = e.N("elevation_m") + (broad ? Math.Max(0, ad) : ad) * 1000 / e.N("ratio") - (broad ? 30 : 0);
+            double guard = e.N("guard_km", .25), margin = e.N("margin_m", 30);
+            double dd = Math.Max(0, Math.Max(Math.Max(-ad - guard, ad - e.N("length") - guard), cross - width - guard));
+            alpha = 1 - Smooth(dd / e.N("blend")); cap = e.N("elevation_m") + (broad ? Math.Max(0, ad) : ad) * 1000 / e.N("ratio") - (broad ? margin : 0);
         }
         return Mix(h, Math.Min(h, cap), alpha * factor);
     }

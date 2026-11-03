@@ -529,6 +529,17 @@ public static class AirframeContact
                 p.StageClearM = -(w.Z + surfaceOffsetZ) - top;
                 p.StageMarginM = StageCullMargin(vel.Length, dt);
             }
+            // Into the open ground, the ground pushes back along ITS normal, by how far the point is inside it
+            // measured along that normal. With world-up and the vertical depth, a wall was a floor: a point 10 cm
+            // into a 73 deg crevasse wall read as 34 cm deep and was pushed straight UP with 3.4 times the force,
+            // instead of being stopped. Measured along the normal, the depth is the 17 cm it actually is and
+            // the push is horizontal; on level ground the normal is straight up and nothing changes. Decks and
+            // cave floors are level slabs, so they keep world-up.
+            if (!onWater && depth > 0.0)
+            {
+                normal = WorldTerrain.ContactNormalAt(w.X, w.Y, groundH);
+                depth *= -normal.Z;
+            }
             }
             // Solids (buildings etc.): whichever is deeper.
             var solid = nearby.Penetration(w.X, w.Y, -w.Z);

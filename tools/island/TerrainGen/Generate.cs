@@ -1,0 +1,387 @@
+using FlyingGame.Core;
+namespace IslandTerrainGen;
+
+/// <summary>One land mass: its lattice, its constraints, and everything the generator derives on it.</summary>
+public sealed class Mass
+{
+    public string Name = "";
+    public Grid G = null!;
+    public Constraints C = null!;
+    public double[] Upper = null!;      // min(ceiling, slope envelope)
+    public double[] Lower = null!, Conflict = null!;      // max(floor, bench envelope round every anchor)
+    public double[] Macro = null!, H = null!, Rain = null!, Ice = null!, Debris = null!, Wet = null!;
+    /// <summary>Real-topography template height and weight (Topo.cs); weight 0 outside the six areas.</summary>
+    public double[] TopoZ = null!, TopoW = null!;
+    public bool[] Fixed = null!;
+    /// <summary>Glacier state from Glaciers.Apply: ice thickness (m), routed ice flux (m3/yr), surface mass
+    /// balance (m w.e./yr) and the routed-ice field (> 0 where flux reached; the valley fill adds 1e-3).</summary>
+    public double[] Thick = null!, Flux = null!, Balance = null!, IceCore = null!;
+    /// <summary>Surface classes from Surfaces.Apply (0..1 each): glacier SNOW cover, ICE undulation weight,
+    /// CREVASSE intensity, rock LEDGE (and the protection mask they all respect).</summary>
+    public double[] Snow = null!, Rough = null!, Crevasse = null!, Ledge = null!, Protect = null!;
+    public List<string> Log = new();
+}
+
+public static class Generate
+{
+    const double Ft = IslandTerrain.Feet;
+    /// <summary>Sustained mountainside gradient bounding how high ground can stand beside a ceiling: 42 deg.
+    /// Steeper than this over hundreds of metres is a cliff band, which the erosion makes locally, not a slope.</summary>
+    public const double EnvelopeSlope = .9;
+    /// <summary>Sea cliffs may be steeper than a mountainside: 55 deg from the shoreline.</summary>
+    public const double CoastSlope = 1.43;
+    /// <summary>A cliff band: 60 deg. The most any support may climb away from a runtime ceiling.</summary>
+    public const double CliffSlope = 1.73;
+
+    public static Mass Build(string name, Grid g, IslandPoint[] polygon, int seed, Action<string> say)
+    {
+        var m = new Mass { Name = name, G = g };
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        m.C = new Constraints(g, polygon);
+        var c = m.C;
+        say($"{name}: constraints {sw.Elapsed.TotalSeconds:F1}s");
+
+        // ---- how high anything can stand -----------------------------------------------------------
+        var src = new double[g.N];
+        for (int k = 0; k < g.N; k++) src[k] = double.IsFinite(c.Hi[k]) ? c.Hi[k] : double.PositiveInfinity;
+        var envCap = Envelope.Compute(g, src, EnvelopeSlope);
+        // The steepest ground can rise from a ceiling at all: a 60-degree cliff. An anchor's support may beat
+        // the 42-degree hillside envelope, never this; an anchor higher still stands on its own footprint.
+        var envCliff = Envelope.Compute(g, src, CliffSlope);
+        for (int k = 0; k < g.N; k++) src[k] = c.Ocean[k] ? 0 : double.PositiveInfinity;
+        var envCoast = Envelope.Compute(g, src, CoastSlope);
+        m.Upper = new double[g.N];
+        for (int k = 0; k < g.N; k++) m.Upper[k] = Math.Min(c.Hi[k], Math.Min(envCap[k], envCoast[k]));
+
+        // ---- summits: authored where physically possible ------------------------------------------
+        foreach (var (p, top, id) in c.Summits)
+        {
+            int k = g.Nearest(p);
+            double anchor = double.NegativeInfinity;   // the highest hard anchor within 600 m holds a summit up
+            for (int q = 0; q < g.N; q++)
+            {
+                if (q == k) continue; var d = (g.P(q) - p).Length; if (d > .6) continue;
+                if (!double.IsNaN(c.Fix[q])) anchor = Math.Max(anchor, c.Fix[q]);
+                if (double.IsFinite(c.Lo[q])) anchor = Math.Max(anchor, c.Lo[q]);
+            }
+            double z = Math.Min(top, Math.Max(m.Upper[k], anchor + 60));
+            c.Fix[k] = z;
+            m.Log.Add($"summit {id}: authored {top:F0} m ({top / Ft:F0} ft), physical bound {m.Upper[k]:F0} m, anchors {anchor:F0} m -> {z:F0} m ({z / Ft:F0} ft)");
+            // Let the summit be the summit: nothing nearby may stand above it.
+            for (int q = 0; q < g.N; q++) if ((g.P(q) - p).Length < 1.2) m.Upper[q] = Math.Min(m.Upper[q], z - 1);
+        }
+        // ---- the ground round an anchor holds it up ---------------------------------------------------
+        // A strip or a lake stands on a bench, not a column: within ~200 m the ground may fall at most 18%
+        // (about 10 deg), beyond that at the mountainside gradient. L = max over anchors of z - f(d) with
+        // f(d) = max(0.18 d, 0.9 d - 145 m). Where that meets a ceiling the anchor wins (it is authored and the
+        // runtime restores it regardless); those conflict cells are counted and reported.
+        var summitNodes = new HashSet<int>(c.Summits.Select(sm => g.Nearest(sm.p)));
+        // Stage 1: the bench, z - 0.18 d, only within 200 m of an anchor. Stage 2: its edge carried outward at the
+        // mountainside gradient. Both are distance envelopes (Envelope.Compute) on negated heights.
+        var negZ = new double[g.N]; var zero = new double[g.N];
+        for (int k = 0; k < g.N; k++)
+        {
+            bool anchor = !double.IsNaN(c.Fix[k]) && !c.Ocean[k] && !summitNodes.Contains(k);
+            negZ[k] = anchor ? -c.Fix[k] : double.PositiveInfinity; zero[k] = anchor ? 0 : double.PositiveInfinity;
+        }
+        var bench1 = Envelope.ComputeLimited(g, negZ, .18, 200);
+        var bench2 = Envelope.Compute(g, bench1, .9);
+        // A summit is held up by its own shoulders (37 deg), so the fixed summit node can never be a spike.
+        var negSummit = new double[g.N]; Array.Fill(negSummit, double.PositiveInfinity);
+        foreach (int k in summitNodes) negSummit[k] = -c.Fix[k];
+        // Only the top 150 m: beyond that the erosion shapes the mountain (a support cone all the way down made
+        // Sierra and Drake Hill perfect cones).
+        var cone = Envelope.ComputeLimited(g, negSummit, .75, 150);
+        for (int k = 0; k < g.N; k++) bench2[k] = Math.Min(bench2[k], cone[k]);
+        m.Lower = new double[g.N]; m.Conflict = new double[g.N]; int conflicts = 0, hard = 0;
+        for (int k = 0; k < g.N; k++)
+        {
+            double bench = -bench2[k];
+            if (!double.IsNaN(c.TarnRim[k])) bench = Math.Max(bench, c.TarnRim[k]);
+            m.Lower[k] = c.Ocean[k] ? double.NegativeInfinity : Math.Max(c.Lo[k], Math.Min(bench, envCliff[k]));
+            if (m.Lower[k] > m.Upper[k] + .5 && double.IsNaN(c.Fix[k])) { conflicts++; m.Conflict[k] = m.Lower[k] - m.Upper[k]; }
+            if (m.Lower[k] > c.Hi[k] + .5 && double.IsNaN(c.Fix[k])) { hard++; m.Conflict[k] = 1e6; }
+            m.Upper[k] = Math.Max(m.Upper[k], m.Lower[k]);
+            // An anchor may out-rank my plausibility envelope, never a runtime ceiling: the relief itself comes
+            // down to the ceiling (steeply if it must), so the runtime cap has nothing left to cut into a wall.
+            if (double.IsNaN(c.Fix[k]))
+            {
+                double ceiling = Math.Max(c.Hi[k], c.Lo[k]);
+                m.Upper[k] = Math.Min(m.Upper[k], ceiling); m.Lower[k] = Math.Min(m.Lower[k], ceiling);
+            }
+        }
+        // A summit stands at least as high as the ground its neighbouring anchors hold up within 400 m.
+        foreach (var (p, top, id) in c.Summits)
+        {
+            int k0 = g.Nearest(p); double held = double.NegativeInfinity;
+            for (int k = 0; k < g.N; k++) if (k != k0 && (g.P(k) - p).Length < .4) held = Math.Max(held, m.Lower[k]);
+            if (held + 30 > c.Fix[k0] + 1)
+            {
+                double z = Math.Min(top, held + 30); if (z <= c.Fix[k0] + 1) continue;
+                m.Log.Add($"summit {id}: raised from {c.Fix[k0]:F0} m to {z:F0} m ({z / Ft:F0} ft) to stand above the ground held up beside it");
+                c.Fix[k0] = z; m.Lower[k0] = m.Upper[k0] = z;
+            }
+        }
+        m.Log.Add($"anchor benches steeper than the 42-degree envelope on {conflicts * g.CellM * g.CellM / 1e6:F2} km2 (cliffs between authored anchors); above a runtime ceiling on {hard * g.CellM * g.CellM / 1e6:F2} km2 (there the relief yields to the ceiling: the anchor stands on a steep pedestal)");
+        say($"{name}: envelope + summits {sw.Elapsed.TotalSeconds:F1}s");
+
+        // ---- macro shape -----------------------------------------------------------------------------
+        var fixM = (double[])c.Fix.Clone();
+        for (int k = 0; k < g.N; k++) if (c.Ocean[k]) fixM[k] = 0;
+        // A thin plate between a shoreline at 0 and inland anchors can sag below the sea; the land floor rises
+        // from 3 m at the shore (a beach) to 60 m 1.5 km inland, the height of an old raised shoreline.
+        var loM = new double[g.N];
+        for (int k = 0; k < g.N; k++) loM[k] = c.Ocean[k] ? double.NegativeInfinity : Math.Max(m.Lower[k], Math.Min(3 + 57 * IslandTerrain.Smooth(c.Shore[k] / 1.5), m.Upper[k] - 1));
+        // The macro target keeps clear of the hard bound, so ridges may reach a ceiling but slopes do not lie on it.
+        var upperM = new double[g.N];
+        // Margin only below the slope envelopes (a hillside should not lie ON a 45-degree bound); a flat ceiling
+        // such as an approach surface may be approached closely.
+        for (int k = 0; k < g.N; k++) upperM[k] = Math.Max(loM[k], Math.Min(c.Hi[k] - 6, Math.Min(envCap[k], envCoast[k]) - 160));
+        for (int k = 0; k < g.N; k++) if (!double.IsNaN(fixM[k]) && !c.Ocean[k] && double.IsNaN(c.Fix[k])) fixM[k] = Math.Min(fixM[k], upperM[k]);
+        // Summit nodes are not membrane anchors (a membrane through a point is a spike); they become massifs.
+        foreach (var (p, _, _) in c.Summits) fixM[g.Nearest(p)] = double.NaN;
+        var basin = Macro.Solve(g, fixM, loM, upperM);
+        m.Macro = Massifs(m, basin, loM, upperM);
+        // Inside the six real-topography areas the compacted real surface IS the macro shape, under the same bounds.
+        (m.TopoZ, m.TopoW) = Topo.Field(g, Topo.Repo);
+        for (int k = 0; k < g.N; k++)
+        {
+            double w = m.TopoW[k]; if (w <= 0 || c.Ocean[k] || !double.IsNaN(c.Fix[k])) continue;
+            double t = Math.Clamp(m.TopoZ[k], loM[k], Math.Max(loM[k], c.Hi[k] - 6));
+            m.Macro[k] = m.Macro[k] * (1 - w) + t * w;
+        }
+        say($"{name}: macro {sw.Elapsed.TotalSeconds:F1}s");
+
+        m.Fixed = new bool[g.N];
+        for (int k = 0; k < g.N; k++) m.Fixed[k] = c.Ocean[k] || !double.IsNaN(c.Fix[k]);
+        m.Rain = Climate.Precipitation(g, m.Macro);
+        say($"{name}: climate {sw.Elapsed.TotalSeconds:F1}s");
+        if (Environment.GetEnvironmentVariable("CLIMATE_ONLY") != null) { m.H = m.Macro; m.Ice = new double[g.N]; m.Debris = new double[g.N]; m.Wet = new double[g.N]; Surfaces.Empty(m); return m; }
+
+        // Development only: GLACIER_CACHE=dir keeps the (deterministic, ~2 min) state after the glaciers, so the
+        // surfaces step can be iterated on. A cached run writes the same bytes as a full one.
+        string? cache = Environment.GetEnvironmentVariable("GLACIER_CACHE");
+        string cacheFile = cache == null ? "" : Path.Combine(cache, name + ".bin");
+        int logStart = m.Log.Count;
+        if (cache != null && File.Exists(cacheFile)) { Cache(m, cacheFile, false); m.Log.AddRange(File.ReadAllLines(cacheFile + ".log")); say($"{name}: glaciers from cache"); }
+        else
+        {
+            Erode(m, (uint)seed, say);
+            say($"{name}: erosion {sw.Elapsed.TotalSeconds:F1}s");
+            Glaciers.Apply(m, say);
+            if (cache != null) { Directory.CreateDirectory(cache); Cache(m, cacheFile, true); File.WriteAllLines(cacheFile + ".log", m.Log.Skip(logStart)); }
+        }
+        Surfaces.Apply(m, say);
+        Antialias(m);
+        return m;
+    }
+
+    static void Cache(Mass m, string file, bool write)
+    {
+        double[][] Arrays() => new[] { m.H, m.Ice, m.Debris, m.Wet, m.Thick, m.Flux, m.Balance, m.IceCore };
+        if (write)
+        {
+            using var w = new BinaryWriter(File.Create(file));
+            foreach (var a in Arrays()) foreach (var v in a) w.Write(v);
+            foreach (var f in m.Fixed) w.Write(f);
+            return;
+        }
+        using var r = new BinaryReader(File.OpenRead(file)); int n = m.G.N;
+        m.H = new double[n]; m.Ice = new double[n]; m.Debris = new double[n]; m.Wet = new double[n]; m.Thick = new double[n]; m.Flux = new double[n]; m.Balance = new double[n]; m.IceCore = new double[n];
+        foreach (var a in Arrays()) for (int k = 0; k < n; k++) a[k] = r.ReadDouble();
+        for (int k = 0; k < n; k++) m.Fixed[k] = r.ReadBoolean();
+    }
+
+    /// <summary>Erodibility (yr^-1 m^(1-2m)): crystalline core and volcanic flanks share one value; the red-rock
+    /// country (sandstone under resistant caprock benches) is soft except in its cap layers.</summary>
+    static double Erodibility(IslandPoint p, double z)
+    {
+        // Lithology varies: +/-60% erodibility over 1-3 km (joint density, alteration), which is what lets
+        // some valleys capture others instead of every slope cutting the same parallel gullies.
+        double k0 = 2.2e-5 * Math.Exp(.9 * Noise.Fbm(p, 2.2, 3, 77));
+        bool redRock = p.E > 2 && p.N < -1 && p.N > -7;
+        if (!redRock) return k0;
+        // Caprock benches at the two mesa-pad levels and every 120 m between, 18 m thick.
+        double[] caps = { 4475 * Ft, 4075 * Ft };
+        double hard = 0;
+        foreach (var cz in caps) for (int i = -6; i <= 6; i++) hard = Math.Max(hard, 1 - Math.Clamp(Math.Abs(z - (cz + i * 120)) / 9, 0, 1));
+        return k0 * (2.4 - 2.2 * hard);
+    }
+
+    /// <summary>Smooth aprons round every fixed surface: within 250 m of a fixed node the free ground relaxes
+    /// (harmonically, fixed nodes as boundary) towards it, strongest next to it. The runtime pad blend then
+    /// has a gentle surface to blend into instead of a step.</summary>
+    static void Feather(Mass m, double[] h)
+    {
+        var g = m.G; const int band = 10; var dist = new int[g.N]; Array.Fill(dist, int.MaxValue);
+        var queue = new Queue<int>();
+        for (int k = 0; k < g.N; k++) if (m.Fixed[k] && !m.C.Ocean[k]) { dist[k] = 0; queue.Enqueue(k); }
+        while (queue.Count > 0)
+        {
+            int k = queue.Dequeue(); if (dist[k] >= band) continue; int i = k % g.W, j = k / g.W;
+            for (int d = 0; d < 4; d++) { int ni = i + Grid.DI[d], nj = j + Grid.DJ[d]; if (!g.Inside(ni, nj)) continue; int nk = nj * g.W + ni; if (dist[nk] > dist[k] + 1) { dist[nk] = dist[k] + 1; queue.Enqueue(nk); } }
+        }
+        var orig = (double[])h.Clone(); var tmp = (double[])h.Clone();
+        for (int it = 0; it < 60; it++)
+        {
+            for (int j = 1; j < g.H - 1; j++) for (int i = 1; i < g.W - 1; i++)
+            {
+                int k = j * g.W + i; if (m.Fixed[k] || dist[k] > band) continue;
+                double w = 1 - IslandTerrain.Smooth((dist[k] - 1) / (double)band);
+                double avg = (h[k + 1] + h[k - 1] + h[k + g.W] + h[k - g.W]) * .25;
+                tmp[k] = orig[k] + (avg - orig[k]) * w + (h[k] - orig[k]) * w * 0;
+                tmp[k] = w * avg + (1 - w) * orig[k];
+            }
+            Array.Copy(tmp, h, g.N);
+        }
+    }
+
+    /// <summary>
+    /// Mountains on the membrane: each summit lifts a massif whose flank falls off over its own radius
+    /// (smoothstep, so it has a rounded shoulder rather than a cone's point), and each authored crest lifts a
+    /// ridge 1.2 km either side of its line. Heights are what the summit table allows; nothing exceeds the
+    /// macro ceiling, and the hard anchors are put back exactly afterwards.
+    /// </summary>
+    static double[] Massifs(Mass m, double[] basin, double[] lo, double[] up)
+    {
+        var g = m.G; var c = m.C; var z = (double[])basin.Clone();
+        var crestTop = new Dictionary<string, double>();
+        foreach (var (p, top, id) in c.Summits)
+        {
+            int k0 = g.Nearest(p); double lift = c.Fix[k0] - basin[k0]; if (lift <= 0) continue;
+            double r = id == "Frank Church" || id == "Sierra" ? 3.2 : id == "Drake Hill" ? 1.0 : 2.4;
+            for (int k = 0; k < g.N; k++)
+            {
+                double d = (g.P(k) - p).Length; if (d >= r) continue;
+                double s = 1 - IslandTerrain.Smooth(d / r); s = Math.Pow(s, 1.3);
+                z[k] = Math.Max(z[k], basin[k] + lift * s);
+            }
+        }
+        foreach (var q in IslandTerrain.World["height_field"]["crests"].Items)
+        {
+            double top = q.N("top_ft") * Ft; const double r = 1.2;
+            for (int k = 0; k < g.N; k++)
+            {
+                var (d, _) = IslandTerrain.Path(g.P(k), q["path"]); if (d >= r) continue;
+                double s = 1 - IslandTerrain.Smooth(d / r);
+                z[k] = Math.Max(z[k], basin[k] + Math.Max(0, Math.Min(top, up[k]) - basin[k]) * s * .9);
+            }
+        }
+        for (int k = 0; k < g.N; k++) z[k] = Math.Clamp(z[k], lo[k], Math.Max(lo[k], up[k]));
+        foreach (var (p, _, _) in c.Summits) { int k = g.Nearest(p); z[k] = c.Fix[k]; }
+        for (int k = 0; k < g.N; k++) if (!double.IsNaN(c.Fix[k])) z[k] = c.Fix[k];
+        return z;
+    }
+
+    /// <summary>
+    /// Two passes of a [1 2 1] x [1 2 1] / 16 filter on the free nodes: removes relief at the lattice's own
+    /// scale (a one-cell crest or gully is aliasing, not landform), so the Catmull-Rom surface the sim uses and
+    /// the triangulated mesh drawn from the same nodes agree closely. Fixed nodes, bounds and the coast stay.
+    /// </summary>
+    static void Antialias(Mass m)
+    {
+        var g = m.G; var h = m.H;
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var o = (double[])h.Clone();
+            Parallel.For(1, g.H - 1, j =>
+            {
+                for (int i = 1; i < g.W - 1; i++)
+                {
+                    int k = j * g.W + i; if (m.Fixed[k] || m.C.Ocean[k]) continue;
+                    double v = 4 * o[k] + 2 * (o[k - 1] + o[k + 1] + o[k - g.W] + o[k + g.W]) + o[k - g.W - 1] + o[k - g.W + 1] + o[k + g.W - 1] + o[k + g.W + 1];
+                    h[k] = SoftClamp(v / 16, Math.Max(.5, m.Lower[k]), m.Upper[k]);
+                }
+            });
+        }
+    }
+
+    /// <summary>Below a ceiling, ground that would stand higher is compressed smoothly into the last 20 m
+    /// under it instead of being sheared flat, so no plane of the clearance surface shows in the terrain.</summary>
+    static double SoftClamp(double h, double lo, double up)
+    {
+        const double s = 20;
+        if (up <= lo) return lo;
+        double knee = up - s; if (knee < lo) return Math.Clamp(h, lo, up);
+        if (h > knee) h = knee + s * (1 - Math.Exp(-(h - knee) / s));
+        return Math.Max(lo, h);
+    }
+
+    /// <summary>Low ground is not a table: glacial drift and old marine terraces give it 10-60 m of rolling
+    /// relief (hummocks ~0.4-1.5 km across), fading out round fixed surfaces and at the shoreline.</summary>
+    static void Lowland(Mass m, double[] h, uint seed)
+    {
+        var g = m.G; var mb = g.Blur(h, 40);
+        for (int k = 0; k < g.N; k++)
+        {
+            if (m.Fixed[k] || m.C.Ocean[k]) continue;
+            var p = g.P(k); double low = 1 - IslandTerrain.Smooth((mb[k] - 150) / 500);
+            double shore = IslandTerrain.Smooth(m.C.Shore[k] / .6);
+            double n = Noise.Fbm(p, 1.4, 5, seed + 101, .5);
+            h[k] = SoftClamp(h[k] + low * shore * 55 * (n + .25) * (1 - m.TopoW[k]), Math.Max(.5, m.Lower[k]), m.Upper[k]);
+        }
+    }
+
+    static void Erode(Mass m, uint seed, Action<string> say)
+    {
+        var g = m.G; var c = m.C; var h = new double[g.N];
+        var mbs = g.Blur(m.Macro, 8); var macroSlope = new double[g.N];
+        for (int j = 1; j < g.H - 1; j++) for (int i = 1; i < g.W - 1; i++)
+        {
+            int k = j * g.W + i; double dx = (mbs[k + 1] - mbs[k - 1]) / (2 * g.CellM), dy = (mbs[k + g.W] - mbs[k - g.W]) / (2 * g.CellM);
+            macroSlope[k] = Math.Sqrt(dx * dx + dy * dy);
+        }
+        for (int k = 0; k < g.N; k++)
+        {
+            // Initial roughness scales with the macro SLOPE, not its height: a high plateau stays a plateau
+            // (gentle relief the rivers can still find), a mountain flank gets the full 255 m.
+            // Inside a real-topography area the template already carries its valleys and ridges: only fine roughness.
+            var p = g.P(k); double amplitude = (25 + 230 * IslandTerrain.Smooth(macroSlope[k] / .30)) * (1 - .85 * m.TopoW[k]);
+            h[k] = m.Fixed[k] ? (c.Ocean[k] ? -40 : c.Fix[k]) : m.Macro[k] + amplitude * Noise.Fbm(p + new IslandPoint(.8 * Noise.Fbm(p, 4, 2, seed + 7), .8 * Noise.Fbm(p, 4, 2, seed + 9)), 2.6, 8, seed, .55);
+        }
+        var ev = new Evolve(g); var kf = new double[g.N];
+        var mb = g.Blur(m.Macro, 24);
+        const double dt = 2000, mExp = .5; const int steps = 300;
+        var outlet = c.Ocean;
+        for (int t = 0; t < steps; t++)
+        {
+            ev.Route(h, outlet);
+            ev.Accumulate(m.Rain);
+            for (int k = 0; k < g.N; k++) kf[k] = Erodibility(g.P(k), h[k]);
+            ev.Incise(h, m.Fixed, kf, mExp, dt);
+            if (t % 4 == 0)
+            {
+                var hb = g.Blur(h, 24);
+                for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] += (mb[k] - hb[k]) * 4 / 30.0;
+            }
+            ev.Creep(h, m.Fixed, .04, dt);
+            if (t % 2 == 0) ev.Talus(h, m.Fixed, .9, 1);
+            for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k], Math.Max(.5, m.Lower[k]), m.Upper[k]);
+            if (t % 40 == 0) say($"  step {t}");
+        }
+        // The erosion supplies the relief below ~1 km; the anchored macro surface supplies everything above.
+        // Restore the macro exactly at low frequency: h + blur(M - h). Drainage survives because the
+        // correction is smooth (sigma ~0.5 km) and the eroded valleys already follow M's own slopes.
+        var corr = new double[g.N]; for (int k = 0; k < g.N; k++) corr[k] = m.Macro[k] - h[k];
+        // Inside a real-topography area the restoration is fine (sigma ~60 m): the real valley network comes back
+        // at every scale the template resolves (100 m and up), the erosion keeps only what is finer.
+        var fine = g.Blur(corr, 2);
+        corr = g.Blur(corr, 20);
+        for (int k = 0; k < g.N; k++) corr[k] = corr[k] * (1 - m.TopoW[k]) + fine[k] * m.TopoW[k];
+        for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k] + corr[k], Math.Max(.5, m.Lower[k]), m.Upper[k]);
+        Lowland(m, h, seed);
+        // A short second run integrates the lowland relief into the drainage (no closed hollows left).
+        for (int t = 0; t < 30; t++)
+        {
+            ev.Route(h, outlet); ev.Accumulate(m.Rain);
+            for (int k = 0; k < g.N; k++) kf[k] = Erodibility(g.P(k), h[k]);
+            ev.Incise(h, m.Fixed, kf, mExp, 600);
+            for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k], Math.Max(.5, m.Lower[k]), m.Upper[k]);
+        }
+        Feather(m, h);
+        ev.Route(h, outlet); ev.Accumulate(m.Rain);
+        m.H = h;
+        m.Wet = new double[g.N];
+        for (int k = 0; k < g.N; k++) m.Wet[k] = Math.Clamp((Math.Log10(Math.Max(1, ev.Discharge[k])) - 5.0) / 2.5, 0, 1);
+    }
+}

@@ -89,7 +89,8 @@ under=[o for z in m['zone_clearances'] for o in z['airport_overlays']];assert le
 assert {o['airport'] for o in under}=={'KITE','RIME'} and all(o['vertical_clearance_ft']>=2000 for o in under)
 assert all(o['recommended_default'] and len(o['options'])>=(1 if o['id']=='TY2' else 2) for o in s['open_for_ty'])
 import generate_island as author
-assert all(abs(author.height(*q['centre'])/author.FT-q['top_ft'])<.001 for q in w['height_field']['peaks'])
+# The natural relief is stored at 5 cm (IslandRelief), so a summit sits within 2.5 cm = 0.082 ft of its value.
+assert all(abs(author.height(*q['centre'])/author.FT-q['top_ft'])<.09 for q in w['height_field']['peaks'])
 assert all(all(k in c for k in ['item','old','new','reason']) for c in s['changes'])
 for name in ['island-map.svg','island-elevation.svg']:assert ET.parse(P/name).getroot().tag.endswith('svg')
 for name,expected in [('island-map.png',(1800,2100)),('island-elevation.png',(1800,2100)),('island-elevation-base.png',(401,401))]:

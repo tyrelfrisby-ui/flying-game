@@ -1,0 +1,1810 @@
+{
+ "areas": {
+  "dillingham": {
+   "bbox": [
+    -158.3,
+    21.53,
+    -158.12,
+    21.62
+   ],
+   "classes": {
+    "bare_rock": {
+     "albedo_hex": "#4d3829",
+     "frac": 0.006,
+     "refl_p50": [
+      0.0748,
+      0.0391,
+      0.022
+     ],
+     "tci_hex": "#4d2817",
+     "tci_p10": [
+      63,
+      29,
+      14
+     ],
+     "tci_p50": [
+      77,
+      40,
+      23
+     ],
+     "tci_p90": [
+      157,
+      138,
+      112
+     ]
+    },
+    "beach_sand": {
+     "albedo_hex": "#978d7c",
+     "frac": 0.0011,
+     "refl_p50": [
+      0.3082,
+      0.2652,
+      0.2005
+     ],
+     "tci_hex": "#fef6ca",
+     "tci_p10": [
+      207,
+      186,
+      138
+     ],
+     "tci_p50": [
+      254,
+      246,
+      202
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "broadleaf_tropical_veg": {
+     "albedo_hex": "#2f3f27",
+     "frac": 0.121,
+     "refl_p50": [
+      0.0285,
+      0.05,
+      0.0201
+     ],
+     "tci_hex": "#1d3315",
+     "tci_p10": [
+      20,
+      36,
+      14
+     ],
+     "tci_p50": [
+      29,
+      51,
+      21
+     ],
+     "tci_p90": [
+      50,
+      68,
+      31
+     ]
+    },
+    "conifer_forest": {
+     "albedo_hex": "#3d3c2a",
+     "frac": 0.0622,
+     "refl_p50": [
+      0.0472,
+      0.0457,
+      0.0234
+     ],
+     "tci_hex": "#302f18",
+     "tci_p10": [
+      22,
+      31,
+      13
+     ],
+     "tci_p50": [
+      48,
+      47,
+      24
+     ],
+     "tci_p90": [
+      70,
+      63,
+      36
+     ]
+    },
+    "dry_grass_shrub": {
+     "albedo_hex": "#615145",
+     "frac": 0.0706,
+     "refl_p50": [
+      0.1192,
+      0.0832,
+      0.0598
+     ],
+     "tci_hex": "#7a553d",
+     "tci_p10": [
+      93,
+      61,
+      40
+     ],
+     "tci_p50": [
+      122,
+      85,
+      61
+     ],
+     "tci_p90": [
+      158,
+      111,
+      81
+     ]
+    },
+    "glacier_ice": {
+     "albedo_hex": "#829897",
+     "frac": 0.0054,
+     "refl_p50": [
+      0.2233,
+      0.3139,
+      0.3074
+     ],
+     "tci_hex": "#d9fefd",
+     "tci_p10": [
+      156,
+      224,
+      212
+     ],
+     "tci_p50": [
+      217,
+      254,
+      253
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "grass_meadow": {
+     "albedo_hex": "#564c3d",
+     "frac": 0.1403,
+     "refl_p50": [
+      0.0926,
+      0.0727,
+      0.0464
+     ],
+     "tci_hex": "#5f4a30",
+     "tci_p10": [
+      71,
+      55,
+      34
+     ],
+     "tci_p50": [
+      95,
+      74,
+      48
+     ],
+     "tci_p90": [
+      129,
+      99,
+      67
+     ]
+    },
+    "red_rock": {
+     "albedo_hex": "#6e5c50",
+     "frac": 0.0102,
+     "refl_p50": [
+      0.1552,
+      0.1077,
+      0.0799
+     ],
+     "tci_hex": "#9e6e52",
+     "tci_p10": [
+      120,
+      83,
+      59
+     ],
+     "tci_p50": [
+      158,
+      110,
+      82
+     ],
+     "tci_p90": [
+      193,
+      137,
+      105
+     ]
+    },
+    "sand": {
+     "albedo_hex": "#938777",
+     "bbox": [
+      -158.26,
+      21.57,
+      -158.12,
+      21.62
+     ],
+     "frac": 0.0002,
+     "pixels": 81,
+     "refl_p50": [
+      0.2906,
+      0.2431,
+      0.183
+     ],
+     "rule": "<=50 m from ocean, NDVI<0.2, brightness>0.15, SWIR16>0.2, SCL clear",
+     "tci_hex": "#f4e6ba",
+     "tci_p10": [
+      206,
+      165,
+      122
+     ],
+     "tci_p50": [
+      244,
+      230,
+      186
+     ],
+     "tci_p90": [
+      255,
+      255,
+      253
+     ]
+    },
+    "sediment_gravel": {
+     "albedo_hex": "#676a5f",
+     "frac": 0.0034,
+     "refl_p50": [
+      0.1365,
+      0.1447,
+      0.1139
+     ],
+     "tci_hex": "#8b9374",
+     "tci_p10": [
+      74,
+      68,
+      58
+     ],
+     "tci_p50": [
+      139,
+      147,
+      116
+     ],
+     "tci_p90": [
+      246,
+      237,
+      199
+     ]
+    },
+    "snow": {
+     "albedo_hex": "#bed3d8",
+     "frac": 0.0001,
+     "refl_p50": [
+      0.5157,
+      0.6505,
+      0.6863
+     ],
+     "tci_hex": "#ffffff",
+     "tci_p10": [
+      255,
+      255,
+      255
+     ],
+     "tci_p50": [
+      255,
+      255,
+      255
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "water": {
+     "albedo_hex": "#2f343d",
+     "frac": 0.5796,
+     "refl_p50": [
+      0.0288,
+      0.0342,
+      0.0472
+     ],
+     "tci_hex": "#1e2330",
+     "tci_p10": [
+      15,
+      19,
+      33
+     ],
+     "tci_p50": [
+      30,
+      35,
+      48
+     ],
+     "tci_p90": [
+      53,
+      70,
+      74
+     ]
+    }
+   },
+   "cloud_cover": 0.09,
+   "datetime": "2020-09-30T21:19:40.605000Z",
+   "grid": {
+    "crs": "local tmerc at bbox centre",
+    "pixel_m": 10.0,
+    "size": [
+     1866,
+     998
+    ]
+   },
+   "licence": "Copernicus Sentinel data, free and open (Copernicus licence); attribution: Contains modified Copernicus Sentinel data 2020",
+   "platform": "sentinel-2a",
+   "scene_id": [
+    "S2A_4QEJ_20200930_1_L2A",
+    "S2A_4QEK_20200930_1_L2A"
+   ],
+   "source_urls": [
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_4QEJ_20200930_1_L2A",
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_4QEK_20200930_1_L2A",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/4/Q/EJ/2020/9/S2A_4QEJ_20200930_1_L2A/TCI.tif",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/4/Q/EK/2020/9/S2A_4QEK_20200930_1_L2A/TCI.tif"
+   ],
+   "window_excluded_frac": 0.0088
+  },
+  "fairweather": {
+   "bbox": [
+    -137.95,
+    58.7,
+    -137.35,
+    59.0
+   ],
+   "classes": {
+    "bare_rock": {
+     "albedo_hex": "#565550",
+     "frac": 0.1199,
+     "refl_p50": [
+      0.0934,
+      0.0902,
+      0.0804
+     ],
+     "tci_hex": "#5f5c52",
+     "tci_p10": [
+      59,
+      57,
+      47
+     ],
+     "tci_p50": [
+      95,
+      92,
+      82
+     ],
+     "tci_p90": [
+      136,
+      130,
+      121
+     ]
+    },
+    "beach_sand": {
+     "albedo_hex": "#847f78",
+     "frac": 0.0,
+     "refl_p50": [
+      0.2298,
+      0.2105,
+      0.1864
+     ],
+     "tci_hex": "#e2d0ba",
+     "tci_p10": [
+      174,
+      159,
+      138
+     ],
+     "tci_p50": [
+      226,
+      208,
+      186
+     ],
+     "tci_p90": [
+      255,
+      255,
+      253
+     ]
+    },
+    "broadleaf_tropical_veg": {
+     "albedo_hex": "#2d3f30",
+     "frac": 0.1326,
+     "refl_p50": [
+      0.0259,
+      0.0499,
+      0.029
+     ],
+     "tci_hex": "#1b331e",
+     "tci_p10": [
+      18,
+      36,
+      21
+     ],
+     "tci_p50": [
+      27,
+      51,
+      30
+     ],
+     "tci_p90": [
+      49,
+      74,
+      47
+     ]
+    },
+    "conifer_forest": {
+     "albedo_hex": "#233229",
+     "frac": 0.1475,
+     "refl_p50": [
+      0.0172,
+      0.0321,
+      0.0225
+     ],
+     "tci_hex": "#122117",
+     "tci_p10": [
+      12,
+      21,
+      17
+     ],
+     "tci_p50": [
+      18,
+      33,
+      23
+     ],
+     "tci_p90": [
+      39,
+      51,
+      39
+     ]
+    },
+    "dry_grass_shrub": {
+     "albedo_hex": "#4b4c47",
+     "frac": 0.0253,
+     "refl_p50": [
+      0.0712,
+      0.0716,
+      0.0632
+     ],
+     "tci_hex": "#494941",
+     "tci_p10": [
+      37,
+      35,
+      26
+     ],
+     "tci_p50": [
+      73,
+      73,
+      65
+     ],
+     "tci_p90": [
+      106,
+      106,
+      97
+     ]
+    },
+    "glacier_ice": {
+     "albedo_hex": "#9a9d9c",
+     "frac": 0.1486,
+     "refl_p50": [
+      0.3241,
+      0.3389,
+      0.332
+     ],
+     "tci_hex": "#fffffe",
+     "tci_p10": [
+      165,
+      161,
+      145
+     ],
+     "tci_p50": [
+      255,
+      255,
+      254
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "grass_meadow": {
+     "albedo_hex": "#4c4f48",
+     "frac": 0.0255,
+     "refl_p50": [
+      0.0719,
+      0.0789,
+      0.065
+     ],
+     "tci_hex": "#4a5143",
+     "tci_p10": [
+      45,
+      47,
+      36
+     ],
+     "tci_p50": [
+      74,
+      81,
+      67
+     ],
+     "tci_p90": [
+      111,
+      122,
+      108
+     ]
+    },
+    "red_rock": {
+     "albedo_hex": "#5b4f3f",
+     "frac": 0.0041,
+     "refl_p50": [
+      0.1049,
+      0.079,
+      0.0497
+     ],
+     "tci_hex": "#6b5133",
+     "tci_p10": [
+      88,
+      67,
+      36
+     ],
+     "tci_p50": [
+      107,
+      81,
+      51
+     ],
+     "tci_p90": [
+      139,
+      107,
+      75
+     ]
+    },
+    "sediment_gravel": {
+     "albedo_hex": "#51524f",
+     "frac": 0.0318,
+     "refl_p50": [
+      0.0825,
+      0.0834,
+      0.0782
+     ],
+     "tci_hex": "#545550",
+     "tci_p10": [
+      50,
+      52,
+      49
+     ],
+     "tci_p50": [
+      84,
+      85,
+      80
+     ],
+     "tci_p90": [
+      131,
+      134,
+      129
+     ]
+    },
+    "snow": {
+     "albedo_hex": "#e8ebea",
+     "frac": 0.2679,
+     "refl_p50": [
+      0.8082,
+      0.8283,
+      0.8201
+     ],
+     "tci_hex": "#ffffff",
+     "tci_p10": [
+      255,
+      255,
+      255
+     ],
+     "tci_p50": [
+      255,
+      255,
+      255
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "water": {
+     "albedo_hex": "#345153",
+     "frac": 0.0969,
+     "refl_p50": [
+      0.0348,
+      0.0814,
+      0.0865
+     ],
+     "tci_hex": "#245358",
+     "tci_p10": [
+      11,
+      28,
+      35
+     ],
+     "tci_p50": [
+      36,
+      83,
+      88
+     ],
+     "tci_p90": [
+      134,
+      191,
+      187
+     ]
+    }
+   },
+   "cloud_cover": 8.89,
+   "datetime": "2023-08-22T20:38:42.553000Z",
+   "grid": {
+    "crs": "local tmerc at bbox centre",
+    "pixel_m": 10.0,
+    "size": [
+     3480,
+     3346
+    ]
+   },
+   "licence": "Copernicus Sentinel data, free and open (Copernicus licence); attribution: Contains modified Copernicus Sentinel data 2023",
+   "platform": "sentinel-2b",
+   "scene_id": "S2B_8VLL_20230822_0_L2A",
+   "source_urls": [
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2B_8VLL_20230822_0_L2A",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/8/V/LL/2023/8/S2B_8VLL_20230822_0_L2A/TCI.tif"
+   ],
+   "window_excluded_frac": 0.0578
+  },
+  "grandcanyon": {
+   "bbox": [
+    -112.25,
+    36.02,
+    -111.98,
+    36.2
+   ],
+   "classes": {
+    "bare_rock": {
+     "albedo_hex": "#7d7262",
+     "frac": 0.0749,
+     "refl_p50": [
+      0.2047,
+      0.1686,
+      0.1227
+     ],
+     "tci_hex": "#d0ac7d",
+     "tci_p10": [
+      152,
+      125,
+      89
+     ],
+     "tci_p50": [
+      208,
+      172,
+      125
+     ],
+     "tci_p90": [
+      254,
+      239,
+      178
+     ]
+    },
+    "beach_sand": {
+     "albedo_hex": "#7c7160",
+     "frac": 0.0,
+     "refl_p50": [
+      0.2007,
+      0.1642,
+      0.118
+     ],
+     "tci_hex": "#cca879",
+     "tci_p10": [
+      194,
+      158,
+      109
+     ],
+     "tci_p50": [
+      204,
+      168,
+      121
+     ],
+     "tci_p90": [
+      234,
+      195,
+      146
+     ]
+    },
+    "broadleaf_tropical_veg": {
+     "albedo_hex": "#414633",
+     "frac": 0.0029,
+     "refl_p50": [
+      0.0526,
+      0.0607,
+      0.0332
+     ],
+     "tci_hex": "#363e22",
+     "tci_p10": [
+      39,
+      50,
+      25
+     ],
+     "tci_p50": [
+      54,
+      62,
+      34
+     ],
+     "tci_p90": [
+      75,
+      87,
+      48
+     ]
+    },
+    "conifer_forest": {
+     "albedo_hex": "#403f31",
+     "frac": 0.0396,
+     "refl_p50": [
+      0.0507,
+      0.0499,
+      0.0309
+     ],
+     "tci_hex": "#343320",
+     "tci_p10": [
+      36,
+      40,
+      23
+     ],
+     "tci_p50": [
+      52,
+      51,
+      32
+     ],
+     "tci_p90": [
+      66,
+      62,
+      40
+     ]
+    },
+    "dry_grass_shrub": {
+     "albedo_hex": "#6a5c4d",
+     "frac": 0.1761,
+     "refl_p50": [
+      0.1454,
+      0.1064,
+      0.0739
+     ],
+     "tci_hex": "#946d4c",
+     "tci_p10": [
+      104,
+      75,
+      52
+     ],
+     "tci_p50": [
+      148,
+      109,
+      76
+     ],
+     "tci_p90": [
+      208,
+      159,
+      114
+     ]
+    },
+    "glacier_ice": {
+     "albedo_hex": "#7c6d5a",
+     "frac": 0.0003,
+     "refl_p50": [
+      0.2007,
+      0.1522,
+      0.1032
+     ],
+     "tci_hex": "#cc9b69",
+     "tci_p10": [
+      177,
+      128,
+      77
+     ],
+     "tci_p50": [
+      204,
+      155,
+      105
+     ],
+     "tci_p90": [
+      237,
+      188,
+      133
+     ]
+    },
+    "grass_meadow": {
+     "albedo_hex": "#564d3f",
+     "frac": 0.2163,
+     "refl_p50": [
+      0.0936,
+      0.0742,
+      0.05
+     ],
+     "tci_hex": "#604c33",
+     "tci_p10": [
+      69,
+      59,
+      39
+     ],
+     "tci_p50": [
+      96,
+      76,
+      51
+     ],
+     "tci_p90": [
+      140,
+      114,
+      78
+     ]
+    },
+    "red_rock": {
+     "albedo_hex": "#796759",
+     "frac": 0.4858,
+     "refl_p50": [
+      0.1922,
+      0.1368,
+      0.0992
+     ],
+     "tci_hex": "#c48c65",
+     "tci_p10": [
+      153,
+      109,
+      78
+     ],
+     "tci_p50": [
+      196,
+      140,
+      101
+     ],
+     "tci_p90": [
+      253,
+      193,
+      143
+     ]
+    },
+    "sediment_gravel": {
+     "albedo_hex": "#6d6456",
+     "frac": 0.0019,
+     "refl_p50": [
+      0.154,
+      0.1263,
+      0.0935
+     ],
+     "tci_hex": "#9d8160",
+     "tci_p10": [
+      129,
+      106,
+      76
+     ],
+     "tci_p50": [
+      157,
+      129,
+      96
+     ],
+     "tci_p90": [
+      203,
+      166,
+      129
+     ]
+    },
+    "snow": {
+     "frac": 0.0
+    },
+    "water": {
+     "albedo_hex": "#72644f",
+     "frac": 0.0022,
+     "refl_p50": [
+      0.1675,
+      0.1264,
+      0.0775
+     ],
+     "tci_hex": "#ab814f",
+     "tci_p10": [
+      148,
+      115,
+      68
+     ],
+     "tci_p50": [
+      171,
+      129,
+      79
+     ],
+     "tci_p90": [
+      195,
+      154,
+      105
+     ]
+    }
+   },
+   "cloud_cover": 0.01,
+   "datetime": "2023-08-05T18:24:27.697000Z",
+   "grid": {
+    "crs": "local tmerc at bbox centre",
+    "pixel_m": 10.0,
+    "size": [
+     2434,
+     1999
+    ]
+   },
+   "licence": "Copernicus Sentinel data, free and open (Copernicus licence); attribution: Contains modified Copernicus Sentinel data 2023",
+   "platform": "sentinel-2a",
+   "scene_id": [
+    "S2A_12SUE_20230805_0_L2A",
+    "S2A_12SUF_20230805_0_L2A",
+    "S2A_12SVE_20230805_0_L2A",
+    "S2A_12SVF_20230805_0_L2A"
+   ],
+   "source_urls": [
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_12SUE_20230805_0_L2A",
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_12SUF_20230805_0_L2A",
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_12SVE_20230805_0_L2A",
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2A_12SVF_20230805_0_L2A",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/12/S/UE/2023/8/S2A_12SUE_20230805_0_L2A/TCI.tif",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/12/S/UF/2023/8/S2A_12SUF_20230805_0_L2A/TCI.tif",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/12/S/VE/2023/8/S2A_12SVE_20230805_0_L2A/TCI.tif",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/12/S/VF/2023/8/S2A_12SVF_20230805_0_L2A/TCI.tif"
+   ],
+   "window_excluded_frac": 0.0382
+  },
+  "johnsoncreek": {
+   "bbox": [
+    -115.56,
+    44.86,
+    -115.42,
+    44.98
+   ],
+   "classes": {
+    "bare_rock": {
+     "albedo_hex": "#6e685f",
+     "frac": 0.0146,
+     "refl_p50": [
+      0.1544,
+      0.1383,
+      0.1148
+     ],
+     "tci_hex": "#9d8d75",
+     "tci_p10": [
+      122,
+      107,
+      87
+     ],
+     "tci_p50": [
+      157,
+      141,
+      117
+     ],
+     "tci_p90": [
+      216,
+      197,
+      168
+     ]
+    },
+    "beach_sand": {
+     "frac": 0.0
+    },
+    "broadleaf_tropical_veg": {
+     "albedo_hex": "#3b4734",
+     "frac": 0.0766,
+     "refl_p50": [
+      0.0439,
+      0.0623,
+      0.0346
+     ],
+     "tci_hex": "#2d4024",
+     "tci_p10": [
+      28,
+      50,
+      25
+     ],
+     "tci_p50": [
+      45,
+      64,
+      36
+     ],
+     "tci_p90": [
+      59,
+      77,
+      45
+     ]
+    },
+    "conifer_forest": {
+     "albedo_hex": "#373e30",
+     "frac": 0.5466,
+     "refl_p50": [
+      0.0386,
+      0.0485,
+      0.0294
+     ],
+     "tci_hex": "#28321e",
+     "tci_p10": [
+      22,
+      36,
+      20
+     ],
+     "tci_p50": [
+      40,
+      50,
+      30
+     ],
+     "tci_p90": [
+      63,
+      70,
+      47
+     ]
+    },
+    "dry_grass_shrub": {
+     "albedo_hex": "#615a51",
+     "frac": 0.0484,
+     "refl_p50": [
+      0.1187,
+      0.103,
+      0.0823
+     ],
+     "tci_hex": "#796954",
+     "tci_p10": [
+      95,
+      82,
+      66
+     ],
+     "tci_p50": [
+      121,
+      105,
+      84
+     ],
+     "tci_p90": [
+      151,
+      137,
+      111
+     ]
+    },
+    "glacier_ice": {
+     "albedo_hex": "#7c706e",
+     "frac": 0.0,
+     "refl_p50": [
+      0.1999,
+      0.1619,
+      0.1554
+     ],
+     "tci_hex": "#bf9b98",
+     "tci_p10": [
+      151,
+      123,
+      103
+     ],
+     "tci_p50": [
+      191,
+      155,
+      152
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "grass_meadow": {
+     "albedo_hex": "#505044",
+     "frac": 0.3132,
+     "refl_p50": [
+      0.081,
+      0.0802,
+      0.0576
+     ],
+     "tci_hex": "#53523b",
+     "tci_p10": [
+      63,
+      62,
+      44
+     ],
+     "tci_p50": [
+      83,
+      82,
+      59
+     ],
+     "tci_p90": [
+      111,
+      107,
+      80
+     ]
+    },
+    "red_rock": {
+     "albedo_hex": "#75685c",
+     "frac": 0.0005,
+     "refl_p50": [
+      0.179,
+      0.1376,
+      0.1082
+     ],
+     "tci_hex": "#b68c6f",
+     "tci_p10": [
+      131,
+      103,
+      83
+     ],
+     "tci_p50": [
+      182,
+      140,
+      111
+     ],
+     "tci_p90": [
+      255,
+      255,
+      201
+     ]
+    },
+    "sediment_gravel": {
+     "frac": 0.0
+    },
+    "snow": {
+     "frac": 0.0
+    },
+    "water": {
+     "albedo_hex": "#1f2d1e",
+     "frac": 0.0,
+     "refl_p50": [
+      0.0134,
+      0.0266,
+      0.0133
+     ],
+     "tci_hex": "#0e1c0e",
+     "tci_p10": [
+      9,
+      20,
+      10
+     ],
+     "tci_p50": [
+      14,
+      28,
+      14
+     ],
+     "tci_p90": [
+      76,
+      81,
+      55
+     ]
+    }
+   },
+   "cloud_cover": 0.0,
+   "datetime": "2020-07-15T18:51:56.167000Z",
+   "grid": {
+    "crs": "local tmerc at bbox centre",
+    "pixel_m": 10.0,
+    "size": [
+     1108,
+     1335
+    ]
+   },
+   "licence": "Copernicus Sentinel data, free and open (Copernicus licence); attribution: Contains modified Copernicus Sentinel data 2020",
+   "platform": "sentinel-2b",
+   "scene_id": "S2B_11TPK_20200715_1_L2A",
+   "source_urls": [
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2B_11TPK_20200715_1_L2A",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/11/T/PK/2020/7/S2B_11TPK_20200715_1_L2A/TCI.tif"
+   ],
+   "window_excluded_frac": 0.0011
+  },
+  "knik": {
+   "bbox": [
+    -148.8,
+    61.33,
+    -148.3,
+    61.5
+   ],
+   "classes": {
+    "bare_rock": {
+     "albedo_hex": "#585651",
+     "frac": 0.1317,
+     "refl_p50": [
+      0.0969,
+      0.0927,
+      0.0822
+     ],
+     "tci_hex": "#635f54",
+     "tci_p10": [
+      60,
+      57,
+      50
+     ],
+     "tci_p50": [
+      99,
+      95,
+      84
+     ],
+     "tci_p90": [
+      132,
+      130,
+      119
+     ]
+    },
+    "beach_sand": {
+     "albedo_hex": "#77736e",
+     "frac": 0.0002,
+     "refl_p50": [
+      0.184,
+      0.1714,
+      0.1565
+     ],
+     "tci_hex": "#bcaea0",
+     "tci_p10": [
+      168,
+      157,
+      142
+     ],
+     "tci_p50": [
+      188,
+      174,
+      160
+     ],
+     "tci_p90": [
+      230,
+      214,
+      202
+     ]
+    },
+    "broadleaf_tropical_veg": {
+     "albedo_hex": "#2e3b26",
+     "frac": 0.2741,
+     "refl_p50": [
+      0.0275,
+      0.0434,
+      0.0196
+     ],
+     "tci_hex": "#1c2d14",
+     "tci_p10": [
+      18,
+      32,
+      13
+     ],
+     "tci_p50": [
+      28,
+      45,
+      20
+     ],
+     "tci_p90": [
+      55,
+      66,
+      33
+     ]
+    },
+    "conifer_forest": {
+     "albedo_hex": "#303629",
+     "frac": 0.1354,
+     "refl_p50": [
+      0.0299,
+      0.037,
+      0.0224
+     ],
+     "tci_hex": "#1f2617",
+     "tci_p10": [
+      8,
+      16,
+      8
+     ],
+     "tci_p50": [
+      31,
+      38,
+      23
+     ],
+     "tci_p90": [
+      65,
+      62,
+      46
+     ]
+    },
+    "dry_grass_shrub": {
+     "albedo_hex": "#55524d",
+     "frac": 0.0748,
+     "refl_p50": [
+      0.091,
+      0.0852,
+      0.0733
+     ],
+     "tci_hex": "#5d574b",
+     "tci_p10": [
+      55,
+      50,
+      44
+     ],
+     "tci_p50": [
+      93,
+      87,
+      75
+     ],
+     "tci_p90": [
+      123,
+      122,
+      111
+     ]
+    },
+    "glacier_ice": {
+     "albedo_hex": "#a2a5a5",
+     "frac": 0.1315,
+     "refl_p50": [
+      0.3616,
+      0.3755,
+      0.3781
+     ],
+     "tci_hex": "#ffffff",
+     "tci_p10": [
+      212,
+      217,
+      215
+     ],
+     "tci_p50": [
+      255,
+      255,
+      255
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "grass_meadow": {
+     "albedo_hex": "#4f4b41",
+     "frac": 0.1134,
+     "refl_p50": [
+      0.0784,
+      0.0703,
+      0.0524
+     ],
+     "tci_hex": "#504836",
+     "tci_p10": [
+      57,
+      50,
+      32
+     ],
+     "tci_p50": [
+      80,
+      72,
+      54
+     ],
+     "tci_p90": [
+      108,
+      97,
+      79
+     ]
+    },
+    "red_rock": {
+     "albedo_hex": "#594f46",
+     "frac": 0.0001,
+     "refl_p50": [
+      0.1003,
+      0.0775,
+      0.0615
+     ],
+     "tci_hex": "#674f3f",
+     "tci_p10": [
+      82,
+      63,
+      45
+     ],
+     "tci_p50": [
+      103,
+      79,
+      63
+     ],
+     "tci_p90": [
+      140,
+      107,
+      90
+     ]
+    },
+    "sediment_gravel": {
+     "albedo_hex": "#5e5e5a",
+     "frac": 0.0339,
+     "refl_p50": [
+      0.1124,
+      0.1111,
+      0.1028
+     ],
+     "tci_hex": "#737169",
+     "tci_p10": [
+      45,
+      43,
+      41
+     ],
+     "tci_p50": [
+      115,
+      113,
+      105
+     ],
+     "tci_p90": [
+      152,
+      152,
+      146
+     ]
+    },
+    "snow": {
+     "albedo_hex": "#ccd3d6",
+     "frac": 0.0461,
+     "refl_p50": [
+      0.6059,
+      0.6526,
+      0.6702
+     ],
+     "tci_hex": "#ffffff",
+     "tci_p10": [
+      255,
+      255,
+      255
+     ],
+     "tci_p50": [
+      255,
+      255,
+      255
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "water": {
+     "albedo_hex": "#626866",
+     "frac": 0.0587,
+     "refl_p50": [
+      0.1227,
+      0.1373,
+      0.1323
+     ],
+     "tci_hex": "#7d8c87",
+     "tci_p10": [
+      38,
+      35,
+      31
+     ],
+     "tci_p50": [
+      125,
+      140,
+      135
+     ],
+     "tci_p90": [
+      156,
+      172,
+      167
+     ]
+    }
+   },
+   "cloud_cover": 0.43,
+   "datetime": "2020-09-11T21:28:17.791000Z",
+   "grid": {
+    "crs": "local tmerc at bbox centre",
+    "pixel_m": 10.0,
+    "size": [
+     2678,
+     1898
+    ]
+   },
+   "licence": "Copernicus Sentinel data, free and open (Copernicus licence); attribution: Contains modified Copernicus Sentinel data 2020",
+   "platform": "sentinel-2b",
+   "scene_id": [
+    "S2B_6VUP_20200911_1_L2A",
+    "S2B_6VVP_20200911_1_L2A"
+   ],
+   "source_urls": [
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2B_6VUP_20200911_1_L2A",
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2B_6VVP_20200911_1_L2A",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/6/V/UP/2020/9/S2B_6VUP_20200911_1_L2A/TCI.tif",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/6/V/VP/2020/9/S2B_6VVP_20200911_1_L2A/TCI.tif"
+   ],
+   "window_excluded_frac": 0.0851
+  },
+  "sitka": {
+   "bbox": [
+    -135.55,
+    56.98,
+    -135.18,
+    57.12
+   ],
+   "classes": {
+    "bare_rock": {
+     "albedo_hex": "#625f58",
+     "frac": 0.0014,
+     "refl_p50": [
+      0.1224,
+      0.1145,
+      0.0986
+     ],
+     "tci_hex": "#7d7565",
+     "tci_p10": [
+      85,
+      79,
+      66
+     ],
+     "tci_p50": [
+      125,
+      117,
+      101
+     ],
+     "tci_p90": [
+      188,
+      179,
+      165
+     ]
+    },
+    "beach_sand": {
+     "albedo_hex": "#77726e",
+     "frac": 0.0,
+     "refl_p50": [
+      0.1839,
+      0.1679,
+      0.1561
+     ],
+     "tci_hex": "#b9a89e",
+     "tci_p10": [
+      167,
+      155,
+      141
+     ],
+     "tci_p50": [
+      185,
+      168,
+      158
+     ],
+     "tci_p90": [
+      230,
+      221,
+      212
+     ]
+    },
+    "broadleaf_tropical_veg": {
+     "albedo_hex": "#2c3b24",
+     "frac": 0.0735,
+     "refl_p50": [
+      0.0248,
+      0.044,
+      0.0177
+     ],
+     "tci_hex": "#1a2d13",
+     "tci_p10": [
+      16,
+      31,
+      11
+     ],
+     "tci_p50": [
+      26,
+      45,
+      19
+     ],
+     "tci_p90": [
+      51,
+      68,
+      32
+     ]
+    },
+    "conifer_forest": {
+     "albedo_hex": "#1d2918",
+     "frac": 0.3079,
+     "refl_p50": [
+      0.0122,
+      0.0218,
+      0.0089
+     ],
+     "tci_hex": "#0d170a",
+     "tci_p10": [
+      3,
+      9,
+      3
+     ],
+     "tci_p50": [
+      13,
+      23,
+      10
+     ],
+     "tci_p90": [
+      22,
+      35,
+      17
+     ]
+    },
+    "dry_grass_shrub": {
+     "albedo_hex": "#525049",
+     "frac": 0.0045,
+     "refl_p50": [
+      0.0845,
+      0.0793,
+      0.0658
+     ],
+     "tci_hex": "#565143",
+     "tci_p10": [
+      29,
+      32,
+      26
+     ],
+     "tci_p50": [
+      86,
+      81,
+      67
+     ],
+     "tci_p90": [
+      117,
+      110,
+      96
+     ]
+    },
+    "glacier_ice": {
+     "albedo_hex": "#8a8883",
+     "frac": 0.0004,
+     "refl_p50": [
+      0.2539,
+      0.2456,
+      0.2253
+     ],
+     "tci_hex": "#d7d2c4",
+     "tci_p10": [
+      148,
+      138,
+      115
+     ],
+     "tci_p50": [
+      215,
+      210,
+      196
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "grass_meadow": {
+     "albedo_hex": "#4b4b3f",
+     "frac": 0.0145,
+     "refl_p50": [
+      0.071,
+      0.0695,
+      0.0503
+     ],
+     "tci_hex": "#494734",
+     "tci_p10": [
+      21,
+      27,
+      25
+     ],
+     "tci_p50": [
+      73,
+      71,
+      52
+     ],
+     "tci_p90": [
+      106,
+      104,
+      81
+     ]
+    },
+    "red_rock": {
+     "albedo_hex": "#6a544d",
+     "frac": 0.0001,
+     "refl_p50": [
+      0.1437,
+      0.0891,
+      0.0744
+     ],
+     "tci_hex": "#935b4c",
+     "tci_p10": [
+      102,
+      64,
+      54
+     ],
+     "tci_p50": [
+      147,
+      91,
+      76
+     ],
+     "tci_p90": [
+      207,
+      134,
+      110
+     ]
+    },
+    "sediment_gravel": {
+     "albedo_hex": "#5e5d59",
+     "frac": 0.0028,
+     "refl_p50": [
+      0.1121,
+      0.1092,
+      0.0996
+     ],
+     "tci_hex": "#726f66",
+     "tci_p10": [
+      65,
+      64,
+      58
+     ],
+     "tci_p50": [
+      114,
+      111,
+      102
+     ],
+     "tci_p90": [
+      178,
+      175,
+      165
+     ]
+    },
+    "snow": {
+     "albedo_hex": "#d6d9d9",
+     "frac": 0.0001,
+     "refl_p50": [
+      0.6721,
+      0.6929,
+      0.6959
+     ],
+     "tci_hex": "#ffffff",
+     "tci_p10": [
+      255,
+      255,
+      254
+     ],
+     "tci_p50": [
+      255,
+      255,
+      255
+     ],
+     "tci_p90": [
+      255,
+      255,
+      255
+     ]
+    },
+    "water": {
+     "albedo_hex": "#041217",
+     "frac": 0.5947,
+     "refl_p50": [
+      0.0011,
+      0.0059,
+      0.0084
+     ],
+     "tci_hex": "#020609",
+     "tci_p10": [
+      0,
+      4,
+      6
+     ],
+     "tci_p50": [
+      2,
+      6,
+      9
+     ],
+     "tci_p90": [
+      4,
+      9,
+      11
+     ]
+    }
+   },
+   "cloud_cover": 0.0,
+   "datetime": "2020-09-13T20:29:05.849000Z",
+   "grid": {
+    "crs": "local tmerc at bbox centre",
+    "pixel_m": 10.0,
+    "size": [
+     2250,
+     1562
+    ]
+   },
+   "licence": "Copernicus Sentinel data, free and open (Copernicus licence); attribution: Contains modified Copernicus Sentinel data 2020",
+   "platform": "sentinel-2b",
+   "scene_id": "S2B_8VMJ_20200913_1_L2A",
+   "source_urls": [
+    "https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items/S2B_8VMJ_20200913_1_L2A",
+    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/8/V/MJ/2020/9/S2B_8VMJ_20200913_1_L2A/TCI.tif"
+   ],
+   "window_excluded_frac": 0.0034
+  }
+ },
+ "classes": [
+  "water",
+  "glacier_ice",
+  "snow",
+  "bare_rock",
+  "red_rock",
+  "sediment_gravel",
+  "beach_sand",
+  "conifer_forest",
+  "broadleaf_tropical_veg",
+  "grass_meadow",
+  "dry_grass_shrub"
+ ],
+ "collection": "sentinel-2-l2a",
+ "generator": "tools/island/topo/imagery.py",
+ "notes": [
+  "Palette reference only: colours are BOA reflectance from one summer scene per place.",
+  "tci_* are ESA TCI 8-bit (linear, saturating near 0.25 reflectance): bright classes clip.",
+  "albedo_hex = sRGB-encoded median reflectance; start base colours from this.",
+  "Rules are spectral and simple; see the module docstring of imagery.py for thresholds."
+ ],
+ "stac": "https://earth-search.aws.element84.com/v1"
+}

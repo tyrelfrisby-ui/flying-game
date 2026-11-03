@@ -122,8 +122,19 @@ public static class LandingGear
         // A packed, graded zone is the one snow surface a TYRE can do something with — compacted-snow
         // braking coefficients run 0.2–0.3 absolute against 0.6–0.8 dry, so about 0.4 of dry pavement.
         WorldTerrain.Surface.PackedGlacierSnow => 0.40,
+        // Bare glacier ice in summer is melting, which is the FAA's "wet ice" (AC 25-32 6.3.8: "ice that is melting"):
+        // Nil braking, below Ice/Poor's 0.083. The matrix publishes no number for Nil, because nobody operates on it;
+        // what makes wet ice Nil is a water film between tread and ice, the same lubrication the matrix prices at
+        // 0.053 for water above hydroplaning speed — its lowest coefficient. NASA TP-2917 measured the same 737s at
+        // ~0.5 dry, the reference this table is a fraction of.
+        WorldTerrain.Surface.GlacierIce => WetIceWheelBrakingCoefficient / DryWheelBrakingCoefficient,
         _ => 0.55,
     };
+
+    /// <summary>FAA AC 25-32 Table 2: the matrix's water-film wheel braking coefficient, taken for wet (melting) ice.</summary>
+    public const double WetIceWheelBrakingCoefficient = 0.053;
+    /// <summary>NASA TP-2917 (Yager and others 1990): effective braking friction of the test aircraft on dry runways.</summary>
+    public const double DryWheelBrakingCoefficient = 0.5;
 
     // ---- WHEEL-SKIS (owner 2026-10-16) -----------------------------------------------------------------
     /// <summary>Rolling resistance of a ski on snow. Published figures for waxed ski bases on cold snow run
@@ -160,6 +171,16 @@ public static class LandingGear
         double film = System.Math.Clamp(System.Math.Abs(speedMs) / SkiFilmSpeedMs, 0, 1);
         return SkiRolling(s) * (SkiStaticFactor - (SkiStaticFactor - 1) * film);
     }
+
+    /// <summary>
+    /// The static friction a ski base has before its melt film forms, OVER its running value — in whatever direction
+    /// the base is being moved, since the film does not care which way it is dragged. Fore and aft it is already in
+    /// <see cref="SkiRolling(WorldTerrain.Surface, double)"/>; across, it adds to the edge's hold, so an aeroplane
+    /// parked on a cross-sloping snow patch stays put (3 deg of cross slope wants 0.052, more than the edge's 0.05
+    /// alone). Zero once the base is running, so nothing changes at speed.
+    /// </summary>
+    public static double SkiStaticExcess(WorldTerrain.Surface s, double speedMs)
+        => SkiRolling(s, speedMs) - SkiRolling(s);
 
     /// <summary>What a ski has instead of grip. A ski has no tread and no contact patch to speak of — it
     /// holds direction by its length in the snow, and it is a third of a tyre's answer on the same surface.</summary>
@@ -357,7 +378,6 @@ public static class LandingGear
         }
 
         Vec3 cg = config.Mass.CgVec();
-        Vec3 worldDown = new(0, 0, 1); // NED: +z is down
         // Brake capacity per braked wheel (owner 2026-10-07: "make sure brakes are accurately modeled and traction is
         // accurately modeled"): the pedal sets a brake TORQUE — a force the wheel asks of the tyre — sized so full pedal at
         // the static load on dry pavement uses 0.675 of the grip (the owner's 2026-09-13 tune). The tyre gives at most μ·N
@@ -429,12 +449,19 @@ public static class LandingGear
             // Only for a wheel on the ground: it is three dozen region tests, and every wheel in the air used to pay them.
             WorldTerrain.Surface surface = WorldTerrain.SurfaceOverride
                 ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved);
+            // The ground pushes along ITS normal, and the tyre rolls and slides in ITS plane. Taking world-up for both
+            // made a slope a staircase: an aeroplane landing up an 8 deg snow patch was lifted, never slowed (the
+            // force had no component along the slope), and one rolling into a crevasse wall was thrown upward by
+            // the wall's whole vertical depth rather than stopped. On level ground the normal is world-up and
+            // nothing changes; a deck or a cave floor is a level slab and keeps it.
+            Vec3 groundUp = WorldTerrain.ContactNormalAt(wheelWorld.X, wheelWorld.Y, groundH);
+            penetration *= -groundUp.Z;                       // vertical depth -> depth along the normal
 
             // Contact-point velocity (world) = body vel + ω×r, rotated to world.
             Vec3 contactVelWorld = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
             // ... relative to the surface: a moving deck (the carrier) carries the wheels with it.
             if (WorldDecks.All.Count > 0) contactVelWorld -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
-            double compressionRate = contactVelWorld.Z; // vertical closing rate (+ = compressing)
+            double compressionRate = -Vec3.Dot(contactVelWorld, groundUp); // closing rate along the normal (+ = compressing)
             if (touching != null && gi < touching.Length && !touching[gi])
             {
                 // Touchdown on this leg: a hard enough one tears it off (individually — the other legs stay).
@@ -444,11 +471,11 @@ public static class LandingGear
                 if (broken != null && compressionRate > breakSink && !broken.Contains(leg)) broken.Add(leg);
             }
 
-            // Oleo strut reacts along the WORLD VERTICAL (the ground pushes straight up regardless of
-            // aircraft pitch — using the body axis here gives a spurious fore/aft force). Never pulls.
+            // The tyre's reaction is along the GROUND NORMAL whatever the aircraft's pitch (the body axis here gives a
+            // spurious fore/aft force). Never pulls.
             double normalN = g.SpringN * penetration + g.DampNs * System.Math.Max(0, compressionRate);
             normalN = System.Math.Max(0.0, normalN);
-            Vec3 normalForce = worldDown * (-normalN); // straight up
+            Vec3 normalForce = groundUp * normalN;
 
             if (g.GearType == "float-keel")
             {
@@ -456,8 +483,7 @@ public static class LandingGear
                 // its skid strip SLIDES. Kinetic (Coulomb) friction μ_k·N against the contact's ground-plane velocity, in
                 // whatever direction it moves (no tyre cornering), μ_k by surface (KeelSlidingCoefficient). Smoothed below
                 // ~0.1 m/s so it holds still at idle instead of chattering.
-                Vec3 up = new(0, 0, -1);
-                Vec3 vG = contactVelWorld - up * Vec3.Dot(contactVelWorld, up);
+                Vec3 vG = contactVelWorld - groundUp * Vec3.Dot(contactVelWorld, groundUp);
                 double vMag = vG.Length;
                 Vec3 slideF = vMag > 1e-6 ? vG * (-WorldTerrain.KeelSlidingCoefficient(surface) * normalN / (vMag + 0.1)) : Vec3.Zero;
                 Vec3 keelForce = normalForce + slideF;
@@ -468,7 +494,6 @@ public static class LandingGear
 
             // Ground-plane tire frame: forward = aircraft heading projected on ground, right = ×down.
             Vec3 fwdWorld = s.Attitude.Rotate(new Vec3(1, 0, 0));
-            Vec3 groundUp = new(0, 0, -1);
             Vec3 fwdGround = (fwdWorld - groundUp * Vec3.Dot(fwdWorld, groundUp));
             double fwdLen = fwdGround.Length;
             if (fwdLen < 1e-6)
@@ -507,7 +532,7 @@ public static class LandingGear
                                      : System.Math.Max(g.CorneringStiffnessN, cornerPerLoad * normalN);
             double lateralN = -cornering * slip;
             double muLimit = onSki
-                           ? SkiLateralCoefficient(surface) * normalN
+                           ? (SkiLateralCoefficient(surface) + SkiStaticExcess(surface, speed)) * normalN
                            : g.TireMu * (g.IsTailwheel ? TailwheelMuScale : 1.0) * SurfaceGrip(surface) * normalN;
             lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 

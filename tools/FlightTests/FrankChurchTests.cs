@@ -58,22 +58,27 @@ public class FrankChurchTests : IDisposable
     public void EveryStripIsFlatAcrossAndAtItsOwnSlopeAlong()
     {
         // A strip you cannot roll straight down is not a strip. Flat across to the edges, and the slope along
-        // it is the slope it says it has.
+        // it is the slope it says it has — except where Ty asked for the lie of the land (2026-11-03): the turf
+        // strip, Sulphur Creek, is a 1.92 m banana with a 0.38 m cross-sweep (NaturalSurfaceTests), and is held to
+        // those bounds instead.
         foreach (FrankChurch.Strip s in FrankChurch.Strips)
         {
+            double sag = s.Name == "Sulphur Creek" ? 1.92 + .05 : 0, sweep = s.Name == "Sulphur Creek" ? 2 * .38 + .05 : 0;
             double h = s.HeadingDeg * Math.PI / 180;
             for (double f = -0.45; f <= 0.45; f += 0.15)
             {
                 double along = f * s.LengthM;
                 double cx = s.X + Math.Cos(h) * along, cy = s.Y + Math.Sin(h) * along;
                 double mid = _t.HeightAt(cx, cy);
-                Assert.Equal(s.ElevationM + along * s.SlopePercent / 100.0, mid, 1);
+                if (sag > 0) Assert.InRange(mid - (s.ElevationM + along * s.SlopePercent / 100.0), -sag, .05);
+                else Assert.Equal(s.ElevationM + along * s.SlopePercent / 100.0, mid, 1);
                 // Across: the same height at both edges.
                 for (int k = -1; k <= 1; k += 2)
                 {
                     double ex = cx - Math.Sin(h) * k * s.WidthM * 0.45;
                     double ey = cy + Math.Cos(h) * k * s.WidthM * 0.45;
-                    Assert.Equal(mid, _t.HeightAt(ex, ey), 1);
+                    if (sweep > 0) Assert.InRange(_t.HeightAt(ex, ey) - mid, -sweep, sweep);
+                    else Assert.Equal(mid, _t.HeightAt(ex, ey), 1);
                 }
             }
             // And the ends are where the slope says they are.

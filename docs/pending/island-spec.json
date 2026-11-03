@@ -1326,7 +1326,7 @@
             0,
             0
           ],
-          "top_ft": 9020,
+          "top_ft": 8072.2,
           "radius_km": 2.0
         },
         {
@@ -1335,7 +1335,7 @@
             -1.6,
             -0.3
           ],
-          "top_ft": 7550,
+          "top_ft": 7328.7,
           "radius_km": 1.3
         },
         {
@@ -1344,16 +1344,16 @@
             -3.8,
             -1.8
           ],
-          "top_ft": 6890,
+          "top_ft": 5914.9,
           "radius_km": 1.6
         },
         {
-          "id": "Denali-like",
+          "id": "Fairweather",
           "centre": [
-            0.5,
-            7.1
+            -0.5,
+            6.3
           ],
-          "top_ft": 8530,
+          "top_ft": 5187.0,
           "radius_km": 1.5
         },
         {
@@ -1814,22 +1814,22 @@
         "half_width_m": 200
       },
       {
-        "id": "Ruth",
+        "id": "Fairweather",
         "path": [
           [
-            -3.46,
-            5.86
+            -1.2,
+            5.6
           ],
           [
-            -4.1,
-            5.2
+            -3.0,
+            4.15
           ],
           [
             -3.9,
             4.7
           ]
         ],
-        "head_ft": 7300,
+        "head_ft": 5187,
         "ski_zone": {
           "centre": [
             -3.9,
@@ -1878,65 +1878,6 @@
         "floor_ft": [
           4900,
           4900
-        ]
-      },
-      {
-        "id": "C2",
-        "path": [
-          [
-            0.7,
-            -1.8
-          ],
-          [
-            2.5,
-            -0.3
-          ],
-          [
-            3.1,
-            0.55
-          ],
-          [
-            3.5,
-            2
-          ],
-          [
-            4,
-            1.35
-          ],
-          [
-            5.1,
-            1.3
-          ],
-          [
-            3.4,
-            -0.4
-          ],
-          [
-            4.4,
-            0.65
-          ],
-          [
-            -0.8,
-            -2.8
-          ]
-        ],
-        "rim_width_m": [
-          900,
-          600,
-          400
-        ],
-        "floor_width_m": [
-          300,
-          225,
-          150
-        ],
-        "depth_m": [
-          600,
-          600
-        ],
-        "floor_ft": [
-          4400,
-          3450
         ]
       },
       {
@@ -5248,49 +5189,49 @@
       {
         "id": "extra:59",
         "name": "aerotow and tow hookup",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:60",
         "name": "float bases ramps buoy lanes",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:61",
         "name": "glacier ski landings and icebergs",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:62",
         "name": "sloped grass Snoopy swoop training lane",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:63",
         "name": "waterfalls and plunge pools",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:64",
         "name": "river road bridge",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:65",
         "name": "hidden school interior shell and outdoor historic gliders",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
@@ -5313,7 +5254,8 @@
       "Golden Gate",
       "Eiffel-style tower",
       "DC Mall",
-      "F5 waterfall tunnel (do not remove code until later Claude phase)"
+      "F5 waterfall tunnel (do not remove code until later Claude phase)",
+      "C2 Middle Fork strip-connector canyon (Claude 2026-11-02: its path visits every Middle Fork strip in turn with one linear floor 300-1,200 ft below each strip, so water on it runs uphill between strips and its cut stood each strip on a pedestal; the Middle Fork drainage is now the natural relief's own)"
     ],
     "locked_decisions": [
       {
@@ -35883,6 +35825,48 @@
       "old": "inverse-distance squared weighting outside exactpad rectangles, maxinfluence envelope; final/airway exteriorblends capped with30m fade backto eachplane edge",
       "new": "Inverse-distance squared exterior plane weighting; final/airway correction fades tozero at both exactpad edge (30m release) and outerblend boundary (max pad influence); continuous0.12–0.4km peakcore release, never a boolean gate. Airway budget also applies as a continuous global layer after details, with actual2nm core/continuousouterfade, exactpad30m release and peakcore release; no conditional outer-edge cap switch.",
       "reason": "Existing WorldContinuityTests exposed a238m discontinuity at(E-0.3622,N4.45)km where a zero-influence exteriorpad claim abruptly activated a full-strength clearance cut. Fade by pad influence at the outer edge and continuously release peakcore exclusion. Preserve every exact pad datum and summit. Restored the V2 clearance budget as a global continuous layer after details rather than a conditional pad-claim cut; full pads/summits remain exact."
+    },
+    {
+      "item": "C2 canyon",
+      "old": "{\"id\":\"C2\",\"path\":[[0.7,-1.8],[2.5,-0.3],[3.1,0.55],[3.5,2],[4,1.35],[5.1,1.3],[3.4,-0.4],[4.4,0.65],[-0.8,-2.8]],\"rim_width_m\":[900,600,400],\"floor_width_m\":[300,225,150],\"depth_m\":[600,600],\"floor_ft\":[4400,3450]}",
+      "new": "deleted; Middle Fork valleys come from the generated relief (tools/island/TerrainGen)",
+      "reason": "Physically impossible as authored: a single linear floor profile 4,400->3,450 ft along a path that zig-zags through nine strips at 4,400-5,000 ft; see docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+    },
+    {
+      "item": "summit Frank Church",
+      "old": "9020 ft",
+      "new": "8072.2 ft",
+      "reason": "Claude 2026-11-02 island terrain rebuild: its summit stands on the ground the Bighorn Cirque tarn (7,580 ft, 320 m away) holds up; Yellow Pine's (AP10) runway-end surface 0.7 km south-east made 9,020 ft a 1,300 m wall. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+    },
+    {
+      "item": "summit Sierra",
+      "old": "7550 ft",
+      "new": "7328.7 ft",
+      "reason": "Claude 2026-11-02 island terrain rebuild: runway-end surfaces of KMEV/Chamberlain and the AP7 strip within 1.2 km allow this much at a 42-degree mountainside. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+    },
+    {
+      "item": "summit Chugach",
+      "old": "6890 ft",
+      "new": "5914.9 ft",
+      "reason": "Claude 2026-11-02 island terrain rebuild: canyon C4's sea-level floor heads 0.95 km away and the A2 airway swath lies 1 km west; the summit stands on the ground the KMEV/L2 benches hold up beside it. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+    },
+    {
+      "item": "summit Denali-like",
+      "old": "8530 ft",
+      "new": "2175.9 ft",
+      "reason": "Claude 2026-11-02 island terrain rebuild: the coast is 0.45 km north: 8,530 ft there was a 2,000 m needle (before/22); this is what a 55-degree sea-cliff face allows. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+    },
+    {
+      "item": "summit Denali-like -> Fairweather",
+      "old": "Denali-like at [0.5, 7.1] 2175.9 ft",
+      "new": "Fairweather at [-0.5, 6.3] (top from the relief)",
+      "reason": "Claude 2026-11-02 real-topo pass (Ty: the Fairweather area replaces the Ruth feature): the north summit is the compacted Mount Fairweather (tools/island/topo, c = 2.6). It moved 1.2 km SW of the old Denali-like point (0.45 km from the sea, which could hold only 2,176 ft) to the one place near the north coast where ~1,600 m can stand clear of the A2 swath and the PHDH 8 visual surface; docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+    },
+    {
+      "item": "glacier Ruth -> Fairweather",
+      "old": "{\"id\": \"Ruth\", \"path\": [[-3.46, 5.86], [-4.1, 5.2], [-3.9, 4.7]], \"head_ft\": 7300, \"ski_zone\": {\"centre\": [-3.9, 4.7], \"elevation_ft\": 1300, \"length_m\": 450, \"width_m\": 100}, \"half_width_m\": 200}",
+      "new": "{\"id\": \"Fairweather\", \"path\": [[-1.2, 5.6], [-3.0, 4.15], [-3.9, 4.7]], \"head_ft\": 5187, \"ski_zone\": {\"centre\": [-3.9, 4.7], \"elevation_ft\": 1300, \"length_m\": 450, \"width_m\": 100}, \"half_width_m\": 200}",
+      "reason": "Claude 2026-11-02 real-topo pass, Ty: the Fairweather area replaces the Ruth Glacier feature. The ski zone is CONVERTED, not moved: same centre, 1,300 ft, 450 x 100 m, still Snow and flat. Its glacier is now the SW outlet of the Fairweather icefield, whose lobe ends 0.6 km SSE of the zone at ~1,400 ft; the path follows that outlet. Locked decision 7 (ski zones 1,000-1,300 ft) kept. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
     }
   ],
   "ifr": {
@@ -36565,7 +36549,7 @@
     "final_world_delta_count": 421,
     "ledger": "Chronological edits plus one complete baseline-to-final canonical reconciliation; superseded duplicate snapshots removed.",
     "scope": "Approved1A.2 design plus Phase1B world-owned runtime, docs and AGENT-LOG. Stop atG1; no deployments or later phases.",
-    "final_world_sha256": "11d0648bf003dd2a9aea95e6d082aec3955752f2edb0b6e41303289b03416278",
+    "final_world_sha256": "f2b9d7d6a0153c198b2a7e82ad9e1919f2218f89527de889f039a01de00584e1",
     "approved_1a2_world_sha256": "7eb088e256711849be8e637f099dea2b7d44b68541b1f67844920b1125a466fb"
   },
   "approval_1a2": {
