@@ -18,6 +18,61 @@
   3. **Startup.** First launch: `adb logcat -s Unity | grep -E "\[Startup\]|model ready|SLOW FRAME"` and send me the
      three lines. They say where the 7.4 s first frame goes (world build vs the 2-33's model load) so I can fix
      the right one.
+- **J-3 FLOATS: WATER-RUDDER RETRACT — red WATER RUDDER handle, cable and seat-back hook (Claude, 2026-11-02,
+  lane/claude-j3-water-rudder from lane/claude-j3-cockpit b23d2996).** Ty (t278u): "the water rudder is springloaded
+  down so when it is down the female side of the cable in the cockpit is simple let go of and sits on the floor
+  vertically left of the stick. make it red and label it water rudder. picking it up and hanging it on the hook raises
+  the water rudder." BUILD: see the build line in the log entry below. Renders (rear eye + close-ups, both states):
+  box /workspace/j3-cockpit/water-rudder/ (also ~/Developer/flying-game-worktrees/_xfer/water-rudder/). Not on any device.
+  In the headset/phone, VR menu → Aircraft → **J-3 on floats**, rear seat:
+  1. **Let go (start state).** The red handle stands on the floor LEFT of the rear stick, at the cable fairlead, with
+     WATER / RUDDER in white on its aft face. Right spot? Right size (grip 90 mm, ring 38 mm)?
+  2. **Hooked.** Phone/controller: the GEAR button (it reads W.RUDDER DOWN / UP on the floatplane; key L, pad "gear").
+     The handle rises 0.258 m on its taut cable and hangs from the chrome hook on the back of the FRONT seat, left side.
+     Is the hook where yours is? Does the blade on the left float swing up?
+  3. **Taxi feel.** Idle, full pedal 20 s: 111° turned with the rudder down, 97° up (air rudder + float drag alone).
+     Straight-ahead taxi drifts −17.8° in 30 s (was worse before the crossflow fix). Real?
+  OPEN / decisions:
+  - VR GRAB IS ADAPTER-READY, NOT WIRED: lane/claude-vr-hands is not merged (16 commits ahead). The handle node is a
+    rig slide (`grab`=1, `hook_gltf`, `hook_snap_m` 0.06); after that merge, route RigHandle's `water_rudder_up` slide to
+    CockpitWaterRudder.Hold(ac, t) on drag and .Release(ac) on the open hand (hooks if let go within 6 cm of the hook).
+  - PLOWING: hooked, the blade is dry at rest and at a 5.5 m/s taxi, but in the plowing attitude (7.1 m/s, pitch 8.7°)
+    0.0372 m² of the drawn blade is under the drawn waterline — the sim counts that as wet. Real J-3 floats? (A drawn
+    float vs physics float question, not a fudge; left as computed.)
+  - Full-rudder taxi capsize is pre-existing (J3FloatsWaterTests.FullRudderOnATaxiDoesNotCapsizeIt stays skipped).
+  - The 140° retracted blade swings up and aft over the float stern (08-blade-up.png): check it does not read as
+    passing through the float deck.
+  - MERGE DONE ON THIS LANE: lane/claude-j3-cockpit (v17, ab890890) is merged INTO lane/claude-j3-water-rudder, so
+    merging this lane back into the cockpit lane is a fast-forward. The floats GLB was rebuilt from the merged script
+    (`J3_VARIANT=floats blender -b --python tools/own_models/build_j3_cub.py`, TRIS 138723, v17 tank/mag + water
+    rudder), `j3_rig_json.py` re-run and `--check` in step (wheels 26 nodes, floats 28). The wheels GLB rebuilt from the
+    merged script matches v17's node for node (same size, nodes, accessor counts), so v17's is kept. v17's two J-3 tests
+    that counted 26 rig nodes now expect 28 for the floats. J3/Float tests: 44 passed, 1 skipped; the 2 failures
+    (AlaskaTests glacier lake, AlpineRange lakes) also fail at b23d2996. Renders of the merged model:
+    on the box at /workspace/j3-cockpit/water-rudder/merged-v17/.
+  Nothing approved.
+- **J-3 COCKPIT v17: MAG SWITCH AFT, THE NOSE TANK + CLEAR DRAIN HOSE, BLACK FRONT, PANEL ORDER FROM YOUR PHOTO (Claude,
+  2026-11-02, lane/claude-j3-cockpit, 9ca7fdce).** BUILD: `deploy.sh NOINSTALL` reached `** BUILD SUCCEEDED **` (bundle 2026.1102.1948, 0 `error CS`); no install was made, so the phone does not carry it either. NOT on the headset: the coordinator builds the APK.
+  Before/after renders from the approved rear eye, and your two photos beside our renders, are in
+  `docs/pending/j3-cockpit/v17/` (the README lists every image). In the headset, VR menu → Aircraft → **J-3**, then
+  **J-3 on floats**, from the REAR seat:
+  1. **Mag switch.** Up on the LEFT root rib above the left window, now level with the top of the front seat back
+     (0.39 m further aft than v16). It sits on a small black wedge, turned 20° toward you, so BOTH is no longer hidden
+     behind the knob. Right spot? Is the wedge acceptable, or should it sit flat on the rib?
+  2. **Nose tank.** Look down past the front seat, below the panel. You should see the black tank's face with vertical
+     beads, as in your photo, and the brass sump and clear drain hose running to the floor right of the stick.
+     - It is 12 gal (45.5 L as drawn, 46.3 L with the beads), sized to the room because no drawing gives its size.
+     - Its lower aft edge slopes forward so your v16 V tubes run under it.
+     - **In your photo no tube crosses the tank face; in ours the V tubes do.** Are the real tubes behind the tank face?
+  3. **Black front.** The floor, the footwell, the pedals and the walls ahead of the panel are semi-gloss black. The
+     walls turn yellow just aft of the panel on a curve that runs further aft as it goes down. Flat heel plates sit
+     aft of the front pedals. Does the curve match?
+  4. **Panel.** It now reads oil, tach, compass, altimeter, ASI from left to right, as in your photo, and the left
+     knob says PULL for HEAT / FRESH AIR PUSH. Still different from your photo:
+     - the gauge faces (your oil gauge is black, your ASI modern, your compass a box);
+     - the placard wording;
+     - the cap colour (blue in the photo, red here, as you asked in v4).
+     Want any of those?
   **Nothing approved.**
 - **J-3 COCKPIT v16, TY'S SEVEN CHANGES, FROM THE REAR SEAT (Claude, 2026-11-02, lane/claude-j3-cockpit, 2558d73d ·
   439649ba, Codex's lettering merged in 17e1767f).** BUILD: `deploy.sh` reached `** BUILD SUCCEEDED **` (bundle 2026.1102.1816, 0 `error CS`); its phone install then stopped with no devicectl message (exit 1), so the iPhone may still carry an older build. NOT on the headset (no APK, no adb, from
@@ -1498,6 +1553,101 @@ and 88 evaluations per step, with 72 fps in flight just before. No damage line (
   against the branch point ce62f612, back to back: **no failing name introduced** (68 vs 70; the 2 that differ fail
   only on the branch point). Two earlier probe runs were started while another lane's Unity batch ran, against the
   rule; their numbers are not used. No Unity, no build, no adb.
+### 2026-11-02 — Claude · lane/claude-j3-water-rudder · J-3 floats water-rudder retract: handle, cable, hook, physics
+Ty (t278u): red WATER RUDDER handle on the retract cable, let go = on the floor left of the stick (rudder down,
+spring), hung on a hook on the back of the front seat (left) = rudder up.
+- **Physics** (`FloatHydro.DrawnWaterRudder`, `Aircraft` retract state, `FloatsConfig` fields, configs ×2): the drawn
+  blade (left float only) is a low-AR lifting surface: S 0.04403 m², span 0.172 m, AR 0.673, Helmbold
+  a = 2πAR/(2+√(AR²+4)) = 1.028/rad; L = ½ρV²·S_imm·a·α (ρ 1000), induced + 2-D section drag, moment about the CG.
+  Only the immersed part counts (S_imm, span_imm, AR_imm from the drawn blade vs the local water surface), so
+  retracted = no force wherever it is out of the water. Linked to the pedals through the steering (±25°). Default
+  DOWN on every water start. Numbers: wholly under, 3 m/s, 25°: 88.9 N lift, 20.7 N drag, 198 N·m; afloat (50 % wet,
+  S_imm 0.02202 m², AR 0.354, a 0.552): 2 m/s 10.6 N / 23 N·m, 4 m/s 42.4 N / 94 N·m, 6 m/s 95.4 N / 211 N·m; at 4 m/s
+  full left→right pedal changes the yaw moment by 207 N·m down and 0 up. Retract travel 0.8 s, blade 140° (bottom aft).
+  Hull crossflow fix (sideslip drag on the floats) so a straight taxi drifts −17.8°/30 s.
+- **Model** (`build_j3_cub.py`, floats GLB only; wheels unchanged): fairlead grommet in the floor, chrome hook on the
+  front seat back (left), red handle (ferrule, grip, neck, ring) with a white WATER / RUDDER plate, steel cable;
+  rig: WaterRudder_Handle slide 0.258 m on `water_rudder_up` (grab=1, hook point, 6 cm snap), WaterRudder_Cable
+  (aimed/stretched at runtime), WaterRudder_Blade_L 140° on the same param. j3_rig_json.py re-run, `--check` clean.
+  TRIS 123952. Renders: tools/own_models/j3_water_rudder_shots.py → box /workspace/j3-cockpit/water-rudder/.
+- **Game**: ModelRig `water_rudder_up` ← Aircraft.WaterRudderUp01; CockpitWaterRudder (cable aim + Hold/Release grab
+  API, VR adapter pending the vr-hands merge); TouchFlightControls GEAR slot = W.RUDDER UP/DOWN on the floatplane
+  (controller gear button, key L and the "gear" binding route there).
+- **Tests**: J3WaterRudderTests 8/8; all float/water/seaplane tests pass (PA-18, Beaver, H-4, J-3); full suite
+  1342 passed / 163 failed / 4 skipped — failing names compared against b23d2996 (see the build/test line below).
+- **Build**: `zsh tools/deploy/deploy.sh NOINSTALL` → `** BUILD SUCCEEDED **` (20:17 PST), 0 `error CS`; nothing installed;
+  the bundleVersion bump was reverted.
+### 2026-11-02 — Claude · lane/claude-j3-cockpit · J-3 cockpit v17: mag switch aft, the nose tank, black front, panel from Ty's photo
+Ty, verbatim: "the ignition switche is abeam the top of the front seat so much further aft. there is also a fuel tank
+behind the instrument panel with a clear hose that runs to the floor for a drain. the tank sort of looks like a drum with
+vertical striations for stiffening." Then: "match the black paint in the front", corrected to the front area only, with
+the sides turning yellow just aft of the panel on a curve (his photo ty-panel-tank-behind.png). His second photo
+(ty-nose-tank-firewall.png) shows the tank from ahead with the cowling off.
+- **Model** (`build_j3_cub.py`, both GLBs, 9ca7fdce):
+  - **Mag switch:** on the same left root rib, moved from station 1.743 to **2.130**, the top of the front seat back
+    (`FSB_TOP`, taken from the seat code). On a flat mount the rear eye saw the plate 57° off its face and the knob hid
+    BOTH, so the plate now sits on a black wedge turned 20° aft.
+    - Rig pivot glTF (0.313, 0.7122, 0.281), axis (0.342, 0, −0.940). Detents unchanged.
+  - **Nose tank** (new static node `Fuel_Tank`):
+    - Position: stations 0.825 to 1.120 (firewall at 0.800, panel aft face at 1.233), 0.46 m wide.
+    - Top: the crown is at z 0.170, trimmed to stay 1.5 cm inside the cowl and under the dash deck.
+    - Bottom: z −0.265 at the firewall. The lower aft edge is cut parallel to the v16 V tubes, 3.3 cm above them.
+    - Beads: 22 vertical beads, 3.5 mm proud, on the front face, the aft face, the slope and the sides.
+    - Fittings: a brass rim band round the front edge, and a filler neck up to the existing red cap (the float-gauge
+      wire hangs into the tank).
+    - Volume: **45.5 L as drawn, 46.3 L measured from the GLB triangles (12 US gal = 45.4 L)**.
+    - Sources: the AOPA J-3 fact sheet ("located in the fuselage just behind the fire-wall … 12 gallons"); Univair
+      U70723-000 (a 12-gallon J-3 tank); an owner on supercub.org ("J-3 Cub wing tank choices": "the standard 12 gallon
+      tank between the instrument panel and engine firewall"). No dimensioned drawing was found, so the size is
+      judgement. URLs: aopa.org/go-fly/aircraft-and-ownership/aircraft-fact-sheets/piper-j3-cub,
+      univair.com/piper/piper-j-3/view-all/u70723-000-piper-j-3-fuel-tank/,
+      supercub.org/forum/threads/j-3-cub-wing-tank-choices.51748/.
+  - **Drain hose** (`Fuel_Drain_Hose`): a brass hex sump under the tank at (0.865, −0.100), then a clear, slightly
+    yellow hose (12 mm OD, BLEND, alpha 0.5) down past the V tubes' firewall fitting to a black grommet in the floor
+    at station 0.950.
+  - **Black front:** the floor is semi-gloss black (roughness 0.45). The liner forward of a curved line is semi-gloss
+    black and the rest stays the yellow fabric. The line is at station 1.240 above z 0.048 and curves aft to 1.560 at the
+    floor. This is material and UV only: the liner faces the line crosses carry a side-view texture of the two
+    colours, so the parting is a smooth curve. Flat 3 mm metal heel plates sit on the floor aft of the front heel brakes.
+  - **Panel:** oil / tach / compass / altimeter / ASI from left to right, as in the photo (`CELL` maps atlas faces to
+    slots; the atlas itself is unchanged, and the needles moved with their faces). The far-left knob came down beside
+    the oil gauge and is labelled PULL for HEAT / FRESH AIR PUSH in white geometry text.
+- **Bug found by rendering:** a closed tube loop with a repeated point made zero-length segments. Blender exported
+  their vertices at the origin, which showed as a brass rod from the panel to the floor. The loop is fixed and the
+  build now asserts it. The GLB check counts 0 non-finite bounds and 0 stray faces.
+- **Floats:** compared node by node against b23d2996. Float_L/R, Float_Struts, Float_Wires, WaterRudder_L and
+  WaterRudder_Blade_L have identical geometry and material. Float physics and config are untouched (lane/claude-hydro).
+  A clean rebuild of HEAD already differs from the committed GLB in Cabin, the doors and the throttle/carb levers, so
+  those diffs are rebuild noise. The texture indices shifted by one because there is a new texture.
+- **Node graphs** validate (`drop_card_slot.validate`): wheels has 76 nodes (+2), floats 63 (+2). **26 of 26** rigged
+  nodes are driven on each variant. `j3_rig_json.py --check` is in step.
+- **Eye check** (`check_eye_interiors.py`): rear eye on wheels and floats **0.0 % skin within 12 cm, overhead
+  0.159 m**, IN the cabin, airframes COINCIDE. The front eye is 0.0 %.
+- **Tests:** `TheV17CockpitIsWhereTySaid` (wheels + floats), with literals typed in by hand:
+  - mag pivot x 0.313 (station 2.130), y 0.7122, on the rib, and its axis;
+  - the tank between the firewall and 8 cm ahead of the panel, under the cap;
+  - the volume, **measured by the test from the GLB triangles** (rays along x), within 41.6–49.2 L (12 ± 1 gal; see
+    its summary for why);
+  - the hose from the sump to below the floor top, and the hose material BLEND with alpha < 0.9.
+
+  `TheV16…` lost only its mag-position asserts. Results:
+  - J3OwnModelTests + QuestFleetTests + J3FloatsWaterTests + ModelRigTests: 33 passed, 1 skipped (the full-rudder
+    capsize, skipped before), **1 failed: `ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake`**
+    ("rolled NaN m"). It fails alone and fails the same way at b23d2996 in a temporary worktree (since removed), and it
+    reads no file this lane changed, so it is not from this lane. **It is a 2-33 ground-roll NaN for whoever owns the
+    glider.**
+  - The first J-3-only run (22 passed, 1 skipped) overlapped another lane's Unity batch. The rerun above was clean.
+- **Renders:** `docs/pending/j3-cockpit/v17/`, 10 before/after pairs from `j3_cockpit_shots.py`.
+  - Seven are from the exact rear eye (96° wide, close-ups zoomed from the same eye).
+  - Three are cutaways: the footwell, the right side with the skin removed, and from ahead with the cowling and
+    firewall removed, as in Ty's photo.
+  - Ty's two photos are copied in as `ref-*.png`, with side-by-sides against our renders. I looked at every one.
+  - The README lists every difference from the photos. The open ones: no tube crosses the tank face in his photo;
+    his gauge faces and compass type; the placard wording; the cap colour; the heel plates' exact station.
+- **Build:** `zsh tools/deploy/deploy.sh NOINSTALL` → `** BUILD SUCCEEDED **` (Unity export 19:48–19:52, xcodebuild
+  to 19:56, bundle 2026.1102.1948, 0 `error CS` in build/ios.log; both J-3 GLBs and rig tables imported). The script
+  then exited 1 at `== install NOINSTALL`, as expected. The bundleVersion / buildNumber bump was reverted, not
+  committed. No APK and no adb from this lane. Nothing approved.
 ### 2026-11-02 — Claude · lane/claude-j3-cockpit · J-3 cockpit v16: Ty's seven changes, rendered from the rear eye
 Ty: "the cub needs the top tubes moved up about 6 inches just below the clear roof and the mag switch is on the left
 side wing root wall … remove the long rod back for the carb heat … the tubes under the fuel tank go from the tube

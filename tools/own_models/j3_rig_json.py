@@ -34,7 +34,6 @@ STATIC = {
     'fuel_valve': 'the sim has no J-3 fuel shut-off; drawn ON',
     'fuel': 'nose-tank float wire: no per-tank gauge feed for the J-3; drawn FULL',
     'door_open': 'no door control in the sim; drawn closed',
-    'water_rudder_up': 'no water-rudder retract in the sim; drawn down',
     'prop_rpm': 'the propeller is spun by AirframeVisual.BindModelProp, not by the rig',
 }
 # Sim magneto 0 OFF, 1 R, 2 L, 3 BOTH (RigInputs.Magneto) onto the J-3 plate's OFF / L / R / BOTH detent angles.

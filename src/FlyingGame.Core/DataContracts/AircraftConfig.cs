@@ -555,6 +555,33 @@ public sealed class FloatsConfig
     public double AfterbodyKeelDeg { get; set; } = 4.0;  // keel rises toward the stern behind the step
     public double WaterRudderAreaM2 { get; set; } = 0.05;
     public double WaterRudderMaxRad { get; set; } = 0.6;
+    /// <summary>
+    /// The DRAWN water-rudder blade (Ty 2026-11-02, t278u: a hydrodynamic surface from first principles, no fudge).
+    /// When <see cref="WaterRudderChordM"/> is above zero, FloatHydro models the blade as an elliptic flat plate of this
+    /// chord (fore-aft) and span (vertical): its immersed area comes from where the blade really is relative to the
+    /// water, its lift-curve slope from its immersed aspect ratio (Helmbold), and its force is ½ρV²·S·a·α. Zero keeps
+    /// the older lumped model (WaterRudderAreaM2 with its ×2.5 factor) for the seaplanes that have not been drawn.
+    /// </summary>
+    public double WaterRudderChordM { get; set; }
+    public double WaterRudderSpanM { get; set; }
+    /// <summary>The steering post / retract hinge, where the DRAWN one is (the yoke on the drawn float's stern, as the
+    /// game places the model): x forward and z down in the config datum frame like <see cref="BowX"/> and
+    /// <see cref="KeelZ"/>, and y the lateral offset of its float's centreline (always positive; the left float's rudder
+    /// is at −y). Drawn, not on the physics float, because its height above the water is what decides how much of the
+    /// blade is wet: on the J-3 the hinge rides ~10 cm above the water at rest and only the blade's lower part dips.</summary>
+    public double WaterRudderPivotX { get; set; }
+    public double WaterRudderPivotY { get; set; }
+    public double WaterRudderPivotZ { get; set; }
+    /// <summary>The blade's ellipse centre from the pivot with the blade DOWN and straight: metres aft, metres below.</summary>
+    public double WaterRudderBladeAftM { get; set; }
+    public double WaterRudderBladeBelowM { get; set; }
+    /// <summary>Only the LEFT float carries a water rudder (the J-3's Edo 60-1320s, as drawn: one rudder, on the left
+    /// float). False = one on each float, as before.</summary>
+    public bool WaterRudderLeftOnly { get; set; }
+    /// <summary>The pilot can raise it (a cable to the cockpit, spring-loaded down). The retract angle at full pull,
+    /// radians: the blade swings up and aft about its hinge (its bottom goes aft, then up), out of the water.</summary>
+    public bool WaterRudderRetractable { get; set; }
+    public double WaterRudderRetractRad { get; set; } = 1.5707963267948966;
     /// <summary>Shape taper (owner 2026-10-02: displacement must be right). The forebody keeps full beam/depth for this
     /// fraction of its length from the step, then narrows to the bow; the afterbody narrows from the step to the stern.</summary>
     public double ForebodyFullFraction { get; set; } = 0.4;
