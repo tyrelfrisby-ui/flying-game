@@ -1,4 +1,4 @@
-# J-3 Cub own model: animation rig spec (v16)
+# J-3 Cub own model: animation rig spec (v17)
 
 This is for Claude/Aero, for the aircraft configs `j3-cub-like` (wheels) and `j3-cub-floats-like` (floats). Both GLBs carry the same cockpit rig, and every value below is also stored on its node as glTF `extras`, so a config loader can read the rig straight from the file.
 
@@ -18,6 +18,9 @@ This is for Claude/Aero, for the aircraft configs `j3-cub-like` (wheels) and `j3
   - trim crank and stabilizer.
 - v16 (Ty 2026-11-02): the carb heat lever is the ONLY carb heat control. The rear-seat knob and its push-pull rod
   are gone (`CarbHeat_Knob_Rear` no longer exists); from the rear seat it is a lean forward.
+- v17 (Ty 2026-11-02 19:00): the mag switch moved aft to the front seat back's top; the panel order is now oil /
+  tach / compass / altimeter / ASI left to right (Ty's photo), so the tach, ASI and oil needles' pivots moved with
+  their faces. New static (unrigged) nodes `Fuel_Tank` and `Fuel_Drain_Hose`; still 26 of 26 rigged nodes driven.
 - The axis signs were asserted by the build script against probe points on the meshes. The build fails if a sign is wrong.
 - Reference implementation: `tools/own_models/j3_fourview.py` with `J3_POSE="param=value,..."`.
 - **In the game** (2026-11-02): the table the game reads is `docs/models/j3-cub-own-rig.json` (wheels) and
@@ -67,12 +70,12 @@ Cockpit (empty)
 ## Cockpit and instrument nodes
 | node | parent | param | type | axis (glTF) | pivot (glTF) | map (param→deg or m) | notes |
 |---|---|---|---|---|---|---|---|
-| Needle_Tach | Instruments | engine_rpm | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.233, 0.164] | 0→0, 500→5, 3500→275 deg | tach x100 rpm dial 500..3500 over 270 deg (pegged below 500); +deg clockwise from the seat |
-| Needle_Airspeed | Instruments | airspeed_mph | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.233, 0.075] | 0→0, 40→12, 140→312, 150→327 deg | ASI 40..140 mph over 300 deg, rests on its pin below 40; +deg clockwise from the seat |
+| Needle_Tach | Instruments | engine_rpm | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.233, 0.075] | 0→0, 500→5, 3500→275 deg | tach x100 rpm dial 500..3500 over 270 deg (pegged below 500); +deg clockwise from the seat |
+| Needle_Airspeed | Instruments | airspeed_mph | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.233, -0.181] | 0→0, 40→12, 140→312, 150→327 deg | ASI 40..140 mph over 300 deg, rests on its pin below 40; +deg clockwise from the seat |
 | Needle_Alt_100ft | Instruments | altitude_ft | rotate | [-1.0, 0.0, -0.0] | [-0.5792, 0.233, -0.095] | 0→0, 1000→360 deg | altimeter long hand, 1 turn per 1000 ft (unbounded); +deg clockwise from the seat; rig_map_extrapolate=1 |
 | Needle_Alt_1000ft | Instruments | altitude_ft | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.233, -0.095] | 0→0, 10000→360 deg | altimeter short hand, 1 turn per 10000 ft (unbounded); +deg clockwise from the seat; rig_map_extrapolate=1 |
-| Needle_OilTemp | Instruments | oil_temp_f | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.2378, -0.181] | 100→0, 250→120 deg | oil temperature 100..250 F over 120 deg (upper dial); +deg clockwise from the seat |
-| Needle_OilPress | Instruments | oil_psi | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.2089, -0.181] | 0→0, 80→120 deg | oil pressure 0..80 psi over 120 deg (lower dial); +deg clockwise from the seat |
+| Needle_OilTemp | Instruments | oil_temp_f | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.238, 0.164] | 100→0, 250→120 deg | oil temperature 100..250 F over 120 deg (upper dial); +deg clockwise from the seat |
+| Needle_OilPress | Instruments | oil_psi | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.2082, 0.164] | 0→0, 80→120 deg | oil pressure 0..80 psi over 120 deg (lower dial); +deg clockwise from the seat |
 | Compass_Card | Instruments | heading_deg | rotate | [0.0, 1.0, -0.0] | [-0.579, 0.233, -0.011] | 0→0, 360→360 deg | wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing numbers); rig_map_wrap=360.0 |
 | Throttle_Lever_Front | Controls | throttle | rotate | [-0.0, -0.0, 1.0] | [-0.482, 0.065, 0.3056] | 0→0, 1→41.3322 deg | ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip |
 | Throttle_Lever_Rear | Controls | throttle | rotate | [-0.0, -0.0, 1.0] | [0.388, 0.065, 0.3075] | 0→0, 1→41.3322 deg | ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip |
@@ -80,7 +83,7 @@ Cockpit (empty)
 | Trim_Crank | Controls | trim | rotate | [0.0, 0.0, -1.0] | [0.048, -0.087, 0.3071] | -1→-450, 0→0, 1→450 deg | trim crank, 1.25 turns each way from neutral (judgement); +nose-up turns the top of the crank aft (toward UP). v16: plate, scale and crank 0.30 m aft of v15 (beside the front seat) |
 | Stab | None | trim | rotate | [0.0, 0.0, -1.0] | [4.373, 0.485, 0.0] | -1→2.5, 0→0, 1→-4 deg | stabilizer incidence: +1 nose-up trim = LE down 4 deg, -1 = LE up 2.5 deg (TCDS A-691) |
 | CarbHeat_Lever | Controls | carb_heat | rotate | [0.0, -0.0, -1.0] | [-0.358, -0.064, -0.307] | 0→0, 1→35 deg | carb heat lever about its fork pivot; ON swings the forward ball up 35 deg (judgement). v16: the only carb heat control |
-| MagSwitch_Knob | Cockpit | magneto | rotate | [0.0, 0.0, -1.0] | [-0.074, 0.7085, 0.2988] | 0→0, 1→-37, 2→-73, 3→-115 deg | v16: rotary mag switch on the LEFT root-rib wall (the vertical face above the left window, 9.5 cm aft of the front spar), plate facing inboard; detents at the plate labels OFF/L/R/BOTH (clockwise seen from the cabin); rig_detents=['OFF', 'L', 'R', 'BOTH'] |
+| MagSwitch_Knob | Cockpit | magneto | rotate | [0.34202, 0.0, -0.93969] | [0.313, 0.7122, 0.281] | 0→0, 1→-37, 2→-73, 3→-115 deg | v17: rotary mag switch on the LEFT root-rib wall (the vertical face above the left window), ABEAM THE TOP OF THE FRONT SEAT BACK (station 2.130; v16 was 1.743), plate on a wedge facing inboard and 20° aft toward the rear seat; detents at the plate labels OFF/L/R/BOTH (clockwise seen from the cabin); rig_detents=['OFF', 'L', 'R', 'BOTH'] |
 | Primer_Plunger | Instruments | primer | translate | [1.0, 0.0, -0.0] | [-0.57, 0.164, -0.24] | 0→0, 1→0.05 m | primer plunger pulls straight aft 50 mm (judgement) |
 | Stick_Front_Roll | Controls | aileron | rotate | [-1.0, 0.0, -0.0] | [-0.267, -0.4576, -0.0] | -1→-20, 0→0, 1→20 deg | stick roll on the torque tube: +1 = stick top to the right (roll right) |
 | Stick_Front | Stick_Front_Roll | elevator | rotate | [0.0, 0.0, -1.0] | [-0.267, -0.4576, -0.0] | -1→-15, 0→0, 1→20 deg | stick pitch: +1 = stick aft 20 deg, -1 = forward 15 deg (judgement) |
