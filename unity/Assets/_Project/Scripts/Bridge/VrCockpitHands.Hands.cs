@@ -59,10 +59,14 @@ namespace FlyingGame.Bridge
         /// <summary>The middle of a closed fist, from the palm joint toward the palm side.</summary>
         private const float FistOffsetM = 0.025f;
 
+        /// <summary>The frame time the hands are read with, when ≥ 0 (VrHandJointCheck drives frames in edit mode, where
+        /// Time does not advance). Never set in the game.</summary>
+        public static float DeltaTimeForTesting = -1f;
+
         private void ReadAllHands()
         {
             QuestControllerFrame f = XrControllers.Read(out bool any);
-            double dt = Time.unscaledDeltaTime;
+            double dt = DeltaTimeForTesting >= 0f ? DeltaTimeForTesting : Time.unscaledDeltaTime;
             for (int s = 0; s < 2; s++)
             {
                 bool left = s == 0;
