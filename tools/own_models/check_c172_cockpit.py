@@ -16,7 +16,7 @@ def check(path):
   for c in nodes[i].get('children',[]):visit(c,chain|{i})
  for i in g['scenes'][g.get('scene',0)]['nodes']:visit(i,set())
  assert len(reached)==len(nodes),'Orphan nodes'
- rig=json.loads((ROOT/'docs/models/c172-panel-rig.json').read_text())['bindings'];rig_names=[e['node'] for e in rig]
+ rig=json.loads((ROOT/'docs/models/c172-panel-bindings.json').read_text())['bindings'];rig_names=[e['node'] for e in rig]
  assert len(rig_names)==len(set(rig_names))
  for e in rig:
   assert names.count(e['node'])==1,e['node'];n=nodes[names.index(e['node'])]

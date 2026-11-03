@@ -1,4 +1,26 @@
 ## NEEDS YOU
+- **1970s 172 INSTRUMENTS, MODELLED FROM THE MECHANISMS AND BOUND TO CODEX'S PANEL — NOT MERGED, NOT DEPLOYED, waiting on
+  your panel-render approval (Claude, 2026-11-03, lane/claude-172-instruments).** Full write-up: `docs/C172-INSTRUMENTS.md`.
+  Vacuum pump → AI and DG spin up and run down on their own physics (95 % in 2 min; 41 % two minutes after the pump
+  quits); the AI erects to the apparent vertical (after a 180° turn it shows ~2.9° climb and ~0.6° bank the other way)
+  and tumbles past 70° pitch / 110° bank; the DG is not slaved and drifts 3.7° per 15 min at 45° N (10.6 °/h of it is
+  the Earth); the whisky compass's turning and acceleration errors come out of a pendulous float in a 63° dip field;
+  the electric TC survives a vacuum failure; NAV1 VOR/LOC/GS, NAV2 VOR/LOC, ADF and DME are separate units.
+  In game (OPTIONS, when flying the 172): vacuum pump / electrical bus / TC failure switches and the DME source. RADIOS:
+  for the 172 the heading cell is DG + compass, the DG knob, "DG = COMPASS", suction, ADF card.
+  - **Decisions for you:** (1) the panel sits at **45° N** (this world has no latitude) — that sets the DG drift and
+    the compass dip; (2) the pump is sized so the suction **reaches the green at 1,200 rpm** (idle 700 rpm reads 1.9 inHg)
+    — tell me what your 172 shows at idle and I will re-derive it; (3) I put the TC's standard-rate wing at **15°** because
+    Codex's face has no L/R index yet.
+  - **Found, not changed — please look:** (a) the own 172 GLB has its nose at glTF **+X**; every approved own model
+    (Extra, J-3, 2-33, Great Lakes) has it at −X, and `AirframeModels.OwnSpecs["c172-like"]` assumes −X, so with "own
+    models" on the 172 is very probably placed **tail first** (true since 2026-10-25, before Codex's cockpit). (b)
+    `AirframeVisual.LateUpdate` calls `SetRig(RigInputsNow(...))` **twice a frame** for every rigged model (two lanes each
+    added it), so the other types' lagged needles (VSI, vario) run at double rate; the 172 panel guards itself.
+    Confirmed by render: `renders/c172/instruments-v1/exterior-parked.png` (camera aft-right) shows the nose nearest
+    the camera, and Codex's panel box showing through the fuselage side at the wing root.
+    (c) For Codex: TO/FROM needs separate TO and FROM legends, the ADF has no rotating card node, the CDI has 2 dots a
+    side where a VOR head has 5, and the compass card is a flat strip (it needs to be a band to turn).
 - **PITTS SPIRAL DIVE AT LAUNCH, RIGHT THEN LEFT — WHY, AND STICK-FREE NOW OFF WITH A PAD (Grok Bot, 2026-11-02,
   lane/claude-stickfree-launch):** build `2026.1102.1803` predates the spawn fix `b62b67d0`. Its long first frame
   (0.05 s = ten sim steps, before the pad publishes) flew whatever the PREVIOUS flight left in the driver's inputs, plus
@@ -1142,6 +1164,33 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 — Claude · lane/claude-172-instruments (off island-nav e8a40b0a; lane/codex-172-cockpit 8655aadb merged in) · 1970s 172 instruments
+- **Core** `src/FlyingGame.Core/Instruments/`: VacuumSystem (vane pump vs compressible jet flow, 5.0 inHg relief valve,
+  displacement derived from "green at 1,200 rpm"), GyroRotor (impulse-turbine drive, windage derived from rated speed),
+  AttitudeIndicator, DirectionalGyro (non-slaved; Earth rate, unbalance, gimbal friction, leveling, knob), MagneticCompass
+  (pendulous float, dipole field, hard-iron deviation), TurnCoordinator (canted rate gyro, DC-motor rotor, ball),
+  NavReceiver (VOR / tailored LOC / GS from its antenna site), AdfReceiver (loop in the airframe plane), DmeUnit
+  (slant range, closure-rate GS, search/memory, NAV1/NAV2/HOLD), C172Panel + InstrumentFailures. `Aircraft.SpecificForceBody`
+  (read-only addition). 32 new `RigInputs` params (`docs/C172-INSTRUMENTS.md`).
+- **Bridge**: `CockpitRigState.FillC172` for `c172-like`, stepped once per frame; RADIOS heading cell and OPTIONS rows
+  for the 172 (DG knob, DG = COMPASS, ADF card, vacuum / bus / TC failures, DME source).
+- **Binding**: `docs/models/c172-like-own-rig.json` (32 nodes) from `tools/own_models/c172_instrument_rig.py`, pivots
+  read off the GLB, scales off Codex's faces. Codex's handoff `c172-panel-rig.json` renamed **`c172-panel-bindings.json`**
+  (builder, checker and doc updated): ConfigSync requires every `*-rig.json` to be a runtime table and REFUSED the iOS
+  build on it.
+- **Tests**: `C172InstrumentTests` 32/32 (expected values hand-derived, listed in the class comment). Full suite on a
+  machine running ~10 other lanes' suites: 672 pass / 142 fail; base e8a40b0a's full run hung at 09:19 (killed). The
+  families that differed were re-run alone on both trees: **identical**, 97 pass / 8 fail (the 8 = Seaside/Playground/
+  Event terrain tests, failing on base too); every SpawnSpeed/Structural/MultiEngine/Soaring/GroundTow NaN in the full
+  run passes alone (suite coupling). `ModelRigTests.FullAirBrakeStops...` fails alone, as it has since b62b67d0.
+- **Build**: `deploy.sh NO-INSTALL-PLACEHOLDER` → `** BUILD SUCCEEDED **`, 0 `error CS`, installed on no device
+  (deliberately). bundleVersion bump reverted.
+- **Render check** (`OwnRigCheck` RIG_TYPE=c172-like, new 172 pilot-eye shot from Codex's manifest eye):
+  32/32 bound, 0 off pivot, 0 wrong parent (its one error: no `Eye_Rear` node on this model). Known state (bank 20 R,
+  pitch 5, DG 030, TC on R, ball R, 100 mph, 3,500 ft, +500 fpm, NAV1 OBS 090 CDI ½ R GS ½ down TO, NAV2 OBS 270 CDI ½ L
+  FROM, ADF 45 R) read correctly on every instrument, by eye: `renders/c172/instruments-v1/`.
+- Not merged into island-nav, not deployed: waiting for Ty's panel-render approval. No gate approved.
+
 ### 2026-11-02 — Grok Bot · lane/claude-stickfree-launch (off lane/claude-rig-trim b62b67d0) · launch spiral, stick-free with a pad
 Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spiral dive; the next launch went LEFT.
 - **Rig is solved stick FIXED:** `RigSolver.SteadyForces` (src/FlyingGame.Sim/RigSolver.cs:176-185) hands explicit

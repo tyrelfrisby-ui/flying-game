@@ -258,7 +258,7 @@ if static:
 CREATED=[o for o in bpy.context.scene.objects if o.name.startswith('C172_')]
 bpy.ops.object.select_all(action='DESELECT')
 for o in CREATED:o.select_set(True)
-(ROOT/'docs/models/c172-panel-rig.json').write_text(json.dumps(dict(version=1,frame='Blender +X forward +Y left +Z up; exported glTF +X forward +Y up +Z right',bindings=RIG),indent=2)+'\n')
+(ROOT/'docs/models/c172-panel-bindings.json').write_text(json.dumps(dict(version=1,frame='Blender +X forward +Y left +Z up; exported glTF +X forward +Y up +Z right',bindings=RIG),indent=2)+'\n')
 bpy.context.preferences.filepaths.save_version=0
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'c172-interior.blend'))
 bpy.ops.export_scene.gltf(filepath=str(OUT/'c172-interior.glb'),export_format='GLB',use_selection=True,export_extras=True)
