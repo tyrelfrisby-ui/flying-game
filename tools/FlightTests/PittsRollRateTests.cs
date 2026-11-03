@@ -162,19 +162,19 @@ public sealed class PittsRollRateTests
     /// the model disagrees that disagreement is written down rather than tuned away.
     /// </summary>
     [Theory]
-    [InlineData("pitts-s2b-like", 160.0, 218.6, "owner's target 225 (validation only). Was 291.1 before the aileron-section change of 2026-11-02.")]
-    [InlineData("extra-300-like", 160.0, 239.3, "published ~340-400, speed not stated: the model is LOW. 30 deg travel sits deep in the plain-flap fall-off; spades not modelled.")]
-    [InlineData("great-lakes-like", 160.0, 66.8, "lower-wing ailerons only in this config; no owner figure yet")]
-    [InlineData("c172-like", 110.0, 83.7, "owner's typical 60-90")]
-    [InlineData("j3-cub-like", 75.0, 53.6, "owner's typical 40-60")]
-    [InlineData("glider-2-33-like", 60.0, 15.2, "slow, adverse-yaw dominated")]
+    [InlineData("pitts-s2b-like", 160.0, 218.2, "owner's target 225 (validation only). Was 291.1 before the aileron-section change of 2026-11-02.")]
+    [InlineData("extra-300-like", 160.0, 238.8, "published ~340-400, speed not stated: the model is LOW. 30 deg travel sits deep in the plain-flap fall-off; spades not modelled.")]
+    [InlineData("great-lakes-like", 160.0, 66.4, "lower-wing ailerons only in this config; no owner figure yet")]
+    [InlineData("c172-like", 110.0, 83.4, "owner's typical 60-90")]
+    [InlineData("j3-cub-like", 75.0, 53.3, "owner's typical 40-60")]
+    [InlineData("glider-2-33-like", 60.0, 14.5, "slow, adverse-yaw dominated")]
     public void TheSteadyRollRateIsWhatThePhysicsGives(string id, double iasMph, double expectedDps, string note)
     {
         (double steady, double to90, double peak) = PittsRoll.Measure(id, iasMph);
         _out.WriteLine($"{id} at {iasMph:F0} mph: {steady:F1} deg/s (recorded {expectedDps:F1}), peak {peak:F1}, {to90:F2} s to 90 %. {note}");
         // +/- 12 %: looser than any plausible integrator or atmosphere noise, tight enough that losing the
         // coverage scale (Pitts +34 %), the aileron-section treatment (Pitts +38 %) or the finite-span rescale (+7 %)
-        // fails it. Recorded 2026-11-03 on lane/claude-roll-only (no tail wakes) running this class ALONE: ModelRigTests.FullAirBrakeStopsTheGliderSooner... leaves
+        // fails it. Recorded 2026-11-02 on lane/claude-pitts-spin and re-measured identical 2026-11-03 on lane/claude-island-nav after the merge (tail wakes in) running this class ALONE: ModelRigTests.FullAirBrakeStopsTheGliderSooner... leaves
         // WorldTerrain.Active set and every aeroplane flown after it in the same process goes NaN (pre-existing).
         Assert.InRange(steady, expectedDps * 0.88, expectedDps * 1.12);
     }

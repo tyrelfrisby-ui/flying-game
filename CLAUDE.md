@@ -197,8 +197,6 @@ over-saturates its ailerons by 18 % against DATCOM. Fixing that alone would put 
 opposite ways can make a total look right, so say which effects you measured SEPARATELY and never treat a
 matching total as proof that each part is right.
 
- ### Say which build is on the device, don't infer it
- A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 another lane's build, installed over the top. The build stamp is `bundleVersion` (`2026.MMDD.HHMM`); check it

@@ -622,6 +622,8 @@ public sealed class Aircraft
     public bool EngineStopped => _noseLost;
     /// <summary>Strip-level aero mask (AeroModel strip order), null while every component is attached.</summary>
     public bool[]? StripMask => _stripMask;
+    /// <summary>Surfaces flying (null = all): false where a whole surface has gone (FailWings).</summary>
+    public bool[]? SurfaceMask => _surfaceMask;
 
     /// <summary>True when surface index i (into Config.Surfaces) still contributes aero.</summary>
     public bool IsSurfaceActive(int surfaceIndex) =>

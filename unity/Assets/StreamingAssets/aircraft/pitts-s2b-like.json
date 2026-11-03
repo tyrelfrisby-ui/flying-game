@@ -1062,16 +1062,34 @@
     },
     {
       "id": "rudder-vstab",
+      "_comment": "2026-11-02 (lane/claude-pitts-spin): the root strip (area 0.299 at z -0.237, all of it ABOVE the stab at z -0.071) is split at the stab plane. Aviat factory three-view as traced in tools/own_models/build_pitts_s2b.py (RTE, hinge H_T -3.30): the rudder runs from 0.32 m below the stab hinge plane to 0.85 m above it; 0.150 m2 of its 0.485 m2 (31 %) is BELOW the stab, centroid 0.089 m below the body axis (z +0.089), and the band from the stab up to the next strip is 0.133 m2, centroid z -0.198. The strip's authored 0.299 m2 is kept and shared in that 0.150 : 0.133 ratio; leading edge kept at x -3.270.",
       "oswaldE": 0.85,
       "strips": [
         {
           "pos": [
-            -3.3976,
+            -3.3658,
             0.0,
-            -0.2371
+            0.089
           ],
-          "chord": 0.5093,
-          "area": 0.299,
+          "chord": 0.382,
+          "area": 0.1585,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "rudder",
+            "gain": 1.0
+          },
+          "sweepRad": 0.6703
+        },
+        {
+          "pos": [
+            -3.4008,
+            0.0,
+            -0.198
+          ],
+          "chord": 0.522,
+          "area": 0.1405,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "airfoil": "fin-lowAR",
@@ -2012,14 +2030,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.006528,
-    "finOffsetRad": 0.009031,
+    "aileronRad": 0.006414,
+    "finOffsetRad": 0.009078,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 71.685,
-    "alphaRad": 0.034626,
-    "elevatorTrimRad": -0.020483,
-    "bankRad": 0.010353
+    "tasMs": 71.622,
+    "alphaRad": 0.034688,
+    "elevatorTrimRad": -0.021675,
+    "bankRad": 0.01037
   },
   "controls": {
     "aileron": {
@@ -2121,10 +2139,8 @@
     "stripSepTau": 0.15,
     "stripReattachTau": 0.6,
     "wakeGrowTau": 0.25,
-    "wakeDecayTau": 1.0,
-    "wakeSpreadDeg": 6.0
+    "wakeDecayTau": 1.0
   },
-  "wakeBlanketMaxLoss": 0.45,
   "gear": [
     {
       "pos": [
@@ -2184,7 +2200,6 @@
     "gMax": 6.0,
     "gMin": -3.0
   },
-  "verticalBlanketFactor": 0.5,
   "loading": {
     "emptyMassKg": 0.0,
     "emptyCg": [

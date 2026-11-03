@@ -70,47 +70,50 @@ trim the elevator for their own condition.
 
 ## Result (copied into `RigTests.RigTable`)
 
-Re-solved 2026-11-03 on lane/claude-roll-only after the aileron-section change and the biplane induction
-(docs/CONTROL-SURFACES.md, "Roll rate, fleet-wide"), stick fixed at controls neutral, WITHOUT the per-section tail
-wakes of lane/claude-pitts-spin: the aileron rigs grew 8–10 % (Pitts 37 %) because an aileron degree is now worth less;
-fin offsets and elevator trims moved by hundredths of a degree (biplanes most).
+Re-solved 2026-11-03 on lane/claude-island-nav after lane/claude-pitts-spin (run #3) was merged on top of
+lane/claude-roll-only, stick fixed at controls neutral: the aileron-section change and the biplane induction
+(docs/CONTROL-SURFACES.md, "Roll rate, fleet-wide"), the per-section tail wakes and the induced-angle tail tables ("The
+tail's finite-span table past the stall"). The aileron rigs grew 8–10 % (Pitts 35 %) because an aileron degree is now
+worth less, and the elevator trims moved with the tail wake. The merged aero model is the spin lane's, so this re-solve
+reproduced the spin lane's table exactly; roll-only's table (no tail wakes) is superseded (Pitts aileron rig 0.374° →
+0.368°, elevator −1.17° → −1.24°).
 
 Fin + = leading edge left. Aileron + = right-roll deflection. Elevator + = trailing edge down. 4,000 ft ISA.
 
 | aircraft | power | rig speed KTAS / KIAS | α ° | elevator trim ° | aileron rig ° | fin offset ° | bank ° |
 |---|---|---|---|---|---|---|---|
-| AirCam (land) | 75 %, 2 pushers, both CW | 99.4 / 93.7 | −1.93 | +0.20 | +0.271 | +0.239 | +0.48 |
-| AirCam amphib | 75 %, both CW | 97.1 / 91.5 | −0.99 | −0.51 | +0.282 | +0.256 | +0.41 |
-| Boeing 737 | 75 % thrust, jet | 350.2 / 330.0 | −0.05 | +3.88 | 0 | 0 | 0 |
-| Cessna 172 | 75 % | 123.4 / 116.3 | −0.11 | +1.57 | +0.146 | +0.123 | +0.20 |
-| Cassutt F1 | 75 % | 159.2 / 150.0 | +0.65 | +0.45 | +0.321 | +0.115 | +0.29 |
-| Cirrus SR22 | 75 % | 162.5 / 153.1 | −0.21 | +2.07 | +0.215 | +0.095 | +0.18 |
-| DC-3 | 75 %, both CW | 152.5 / 143.7 | −0.83 | +0.43 | +0.140 | +0.079 | +0.11 |
-| Decathlon | 75 % | 107.8 / 101.6 | +0.84 | +2.04 | +0.215 | +0.207 | +0.35 |
-| Beaver floats | 75 % | 114.5 / 107.9 | +0.72 | +0.60 | +0.279 | +0.287 | +0.21 |
-| Beaver | 75 % | 123.3 / 116.2 | −0.48 | +0.72 | +0.240 | +0.242 | +0.21 |
-| Extra 300 | 75 % | 160.0 / 150.8 | +1.90 | −1.07 | +0.203 | +0.170 | +0.41 |
-| F-86 Sabre | 75 % thrust, jet | 320.5 / 302.0 | +2.22 | +2.63 | 0 | 0 | 0 |
-| Gee Bee R-2 | 75 % | 188.1 / 177.3 | −1.29 | −2.03 | +0.717 | +0.311 | +0.42 |
-| Glasair III | 75 % | 235.9 / 222.3 | −0.38 | +0.08 | +0.416 | +0.093 | +0.32 |
-| Great Lakes | 75 % | 108.6 / 102.3 | −2.44 | +0.87 | +0.443 | +0.363 | +0.40 |
-| Hughes H-4 | 75 %, 8 × CW | 150.7 / 142.0 | −0.59 | −0.35 | +0.033 | +0.017 | +0.03 |
-| J-3 Cub floats | 75 % | 55.5 / 52.3 | +4.39 | −1.88 | +0.361 | +0.459 | +0.39 |
-| J-3 Cub | 75 % | 65.5 / 61.8 | +1.21 | −0.10 | +0.251 | +0.327 | +0.35 |
-| JN-4 Jenny | 75 % | 52.5 / 49.5 | +2.39 | +0.33 | +0.451 | +0.591 | +0.26 |
-| P-51D | 75 % | 209.4 / 197.3 | +0.47 | −1.43 | +0.475 | +0.127 | +0.24 |
-| PA-18 bush | 75 % | 92.6 / 87.2 | −0.46 | +0.75 | +0.216 | +0.236 | +0.31 |
-| PA-18 Cub | 75 % | 95.7 / 90.1 | −0.91 | +0.96 | +0.203 | +0.221 | +0.31 |
-| PA-18 floats | 75 % | 88.3 / 83.2 | +0.60 | +0.28 | +0.238 | +0.261 | +0.29 |
-| Pawnee | 75 % | 110.3 / 103.9 | −1.81 | +0.98 | +0.224 | +0.211 | +0.37 |
-| PA-28 Archer | 75 % | 108.9 / 102.6 | +1.21 | +0.59 | +0.266 | +0.187 | +0.22 |
-| Pitts S-2B | 75 % | 139.3 / 131.3 | +1.98 | −1.17 | +0.374 | +0.517 | +0.59 |
-| Seminole | 75 %, counter-rotating | 143.2 / 134.9 | −0.03 | +1.59 | −0.003 | +0.000 | +0.00 |
-| Stearman PT-17 | 75 % | 107.8 / 101.6 | −3.56 | −0.92 | +0.474 | +0.273 | +0.28 |
-| Target drone | 75 % (it has a prop) | 159.2 / 150.0 | +0.65 | +0.45 | +0.321 | +0.115 | +0.29 |
-| SGS 2-33 | glider, best glide | 41.9 / 39.5 | +3.84 | +0.74 | 0 | 0 | 0 |
-| EB29R | glider, best glide | 62.4 / 58.8 | +5.51 | −3.28 | 0 | 0 | 0 |
-| Swift S-1 | glider, best glide | 62.9 / 59.3 | +4.59 | −1.08 | 0 | 0 | 0 |
+| AirCam (land) | 75 %, 2 pushers, both CW | 99.3 / 93.6 | −1.92 | +0.53 | +0.271 | +0.240 | +0.48 |
+| AirCam amphib | 75 %, both CW | 97.0 / 91.4 | −0.98 | −0.19 | +0.282 | +0.259 | +0.41 |
+| Boeing 737 | 75 % thrust, jet | 349.6 / 329.4 | −0.04 | +3.64 | 0 | 0 | 0 |
+| Cessna 172 | 75 % | 123.1 / 116.0 | −0.09 | +1.69 | +0.143 | +0.126 | +0.20 |
+| Cassutt F1 | 75 % | 159.1 / 149.9 | +0.66 | +0.45 | +0.321 | +0.115 | +0.29 |
+| Cirrus SR22 | 75 % | 162.0 / 152.7 | −0.19 | +2.25 | +0.214 | +0.096 | +0.19 |
+| DC-3 | 75 %, both CW | 152.3 / 143.5 | −0.82 | +0.70 | +0.138 | +0.081 | +0.11 |
+| Decathlon | 75 % | 107.6 / 101.4 | +0.85 | +1.93 | +0.212 | +0.211 | +0.35 |
+| Beaver floats | 75 % | 114.4 / 107.8 | +0.73 | +0.71 | +0.278 | +0.290 | +0.21 |
+| Beaver | 75 % | 123.2 / 116.1 | −0.48 | +0.89 | +0.240 | +0.246 | +0.21 |
+| Extra 300 | 75 % | 159.9 / 150.7 | +1.90 | −1.10 | +0.203 | +0.171 | +0.41 |
+| F-86 Sabre | 75 % thrust, jet | 320.2 / 301.7 | +2.22 | +2.06 | 0 | 0 | 0 |
+| Gee Bee R-2 | 75 % | 188.0 / 177.1 | −1.29 | −1.53 | +0.714 | +0.311 | +0.42 |
+| Glasair III | 75 % | 235.2 / 221.6 | −0.36 | +0.26 | +0.416 | +0.094 | +0.32 |
+| Great Lakes | 75 % | 108.5 / 102.2 | −2.44 | +0.99 | +0.441 | +0.365 | +0.40 |
+| Hughes H-4 | 75 %, 8 × CW | 150.7 / 142.0 | −0.59 | −0.31 | +0.033 | +0.017 | +0.03 |
+| J-3 Cub floats | 75 % | 55.5 / 52.3 | +4.41 | −1.81 | +0.353 | +0.462 | +0.39 |
+| J-3 Cub | 75 % | 65.5 / 61.7 | +1.23 | +0.00 | +0.246 | +0.330 | +0.35 |
+| JN-4 Jenny | 75 % | 52.4 / 49.4 | +2.41 | +0.11 | +0.447 | +0.595 | +0.26 |
+| P-51D | 75 % | 209.1 / 197.0 | +0.49 | −1.16 | +0.474 | +0.128 | +0.24 |
+| PA-18 bush | 75 % | 92.5 / 87.1 | −0.45 | +0.90 | +0.212 | +0.240 | +0.31 |
+| PA-18 Cub | 75 % | 95.6 / 90.0 | −0.90 | +1.14 | +0.200 | +0.226 | +0.31 |
+| PA-18 floats | 75 % | 88.2 / 83.2 | +0.61 | +0.43 | +0.234 | +0.264 | +0.29 |
+| Pawnee | 75 % | 110.1 / 103.8 | −1.81 | +1.29 | +0.222 | +0.212 | +0.37 |
+| PA-28 Archer | 75 % | 108.6 / 102.3 | +1.24 | +0.64 | +0.266 | +0.188 | +0.22 |
+| Pitts S-2B | 75 % | 139.2 / 131.2 | +1.99 | −1.24 | +0.368 | +0.520 | +0.59 |
+| Seminole | 75 %, counter-rotating | 142.9 / 134.7 | −0.01 | +1.73 | −0.003 | +0.000 | +0.00 |
+| Stearman PT-17 | 75 % | 107.7 / 101.5 | −3.56 | −0.20 | +0.470 | +0.277 | +0.28 |
+| Target drone | 75 % (it has a prop) | 159.1 / 149.9 | +0.66 | +0.45 | +0.321 | +0.115 | +0.29 |
+| SGS 2-33 | glider, best glide | 41.9 / 39.5 | +3.84 | +0.77 | 0 | 0 | 0 |
+| EB29R | glider, best glide | 62.3 / 58.8 | +5.54 | −3.34 | 0 | 0 | 0 |
+| Swift S-1 | glider, best glide | 62.7 / 59.1 | +4.62 | −1.31 | 0 | 0 | 0 |
 | Hang glider | weight shift, hands-off speed | 21.4 / 20.2 | +8.98 | −15.51 (bar) | — | — | 0 |
 | Paraglider | best glide | 19.7 / 18.6 | −0.49 | +9.53 (brakes) | — | — | 0 |
 

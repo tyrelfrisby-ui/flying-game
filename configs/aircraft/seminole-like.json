@@ -1392,14 +1392,14 @@
     }
   },
   "rig": {
-    "aileronRad": -0.000055,
+    "aileronRad": -0.000061,
     "finOffsetRad": -0.000001,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 73.647,
-    "alphaRad": -0.000483,
-    "elevatorTrimRad": 0.027721,
-    "bankRad": -0.000002
+    "tasMs": 73.511,
+    "alphaRad": -0.000234,
+    "elevatorTrimRad": 0.030197,
+    "bankRad": -0.000003
   },
   "controls": {
     "aileron": {
@@ -1482,11 +1482,8 @@
     "stripSepTau": 0.15,
     "stripReattachTau": 0.6,
     "wakeGrowTau": 0.25,
-    "wakeDecayTau": 1.0,
-    "wakeSpreadDeg": 6.0
+    "wakeDecayTau": 1.0
   },
-  "wakeBlanketMaxLoss": 0.45,
-  "verticalBlanketFactor": 0.5,
   "gear": [
     {
       "pos": [

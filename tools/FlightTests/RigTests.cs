@@ -274,10 +274,12 @@ public class RigTests
 
 /// <summary>
 /// The fleet rig, copied BY HAND from RigTool's output (RIG_PROBE=1) on 2026-11-02 — not read from the configs, so a
-/// changed config has to be a deliberate edit in two places. RE-SOLVED 2026-11-03 on lane/claude-roll-only after the
-/// aileron-section change (PlainFlap: every aileron is weaker per degree, so the rig needs 8–10 % more of it, the Pitts
-/// 37 % more) and the biplane induction, stick fixed at controls neutral, WITHOUT lane/claude-pitts-spin's per-section tail
-/// wakes (so the elevator trims barely move); these rows are that RigTool output transcribed. Degrees and knots. PropSign: +1 clockwise-from-behind
+/// changed config has to be a deliberate edit in two places. RE-SOLVED 2026-11-03 on lane/claude-island-nav after
+/// lane/claude-pitts-spin (run #3) was merged on top of lane/claude-roll-only: the aileron-section change (PlainFlap: every
+/// aileron is weaker per degree, so the rig needs 8–10 % more of it, the Pitts 35 % more), the biplane induction, the
+/// per-section tail wakes (which removed the flat η_t = 0.9 and moved the elevator trims) and the induced-angle tail
+/// tables, stick fixed at controls neutral. The merged AeroModel is the spin lane's, and RIG_WRITE=1 on the merged tree
+/// reproduced the spin lane's rows to every digit; these rows are that RigTool output transcribed. Degrees and knots. PropSign: +1 clockwise-from-behind
 /// prop(s) with a net torque, 0 none (glider, jet, counter-rotating twin).
 /// </summary>
 public static class RigTable
@@ -287,40 +289,40 @@ public static class RigTable
     public static readonly Row[] Rows =
     {
         //  id                         powered prop  aileron°  fin°     elevator°  KTAS
-        new("aircam-amphib-like", true, 1, 0.2822, 0.2558, -0.5094, 97.07),
-        new("aircam-like", true, 1, 0.2710, 0.2393, 0.1977, 99.42),
-        new("boeing-737-like", true, 0, 0.0000, 0.0000, 3.8796, 350.22),
-        new("c172-like", true, 1, 0.1457, 0.1234, 1.5696, 123.43),
-        new("cassutt-f1-like", true, 1, 0.3207, 0.1151, 0.4542, 159.22),
-        new("cirrus-sr22-like", true, 1, 0.2155, 0.0949, 2.0738, 162.51),
-        new("dc3-like", true, 1, 0.1397, 0.0792, 0.4303, 152.52),
-        new("decathlon-8kcab-like", true, 1, 0.2152, 0.2074, 2.0412, 107.77),
-        new("dhc2-beaver-floats-like", true, 1, 0.2789, 0.2869, 0.5993, 114.50),
-        new("dhc2-beaver-like", true, 1, 0.2404, 0.2420, 0.7176, 123.28),
-        new("extra-300-like", true, 1, 0.2033, 0.1697, -1.0710, 160.01),
-        new("f86-sabre-like", true, 0, 0.0000, 0.0000, 2.6314, 320.46),
-        new("geebee-r2-like", true, 1, 0.7167, 0.3107, -2.0343, 188.13),
-        new("glasair3-like", true, 1, 0.4163, 0.0930, 0.0793, 235.86),
-        new("glider-2-33-like", false, 0, 0.0000, 0.0000, 0.7389, 41.93),
-        new("glider-eb29r-like", false, 0, 0.0000, 0.0000, -3.2809, 62.45),
-        new("glider-swift-s1-like", false, 0, 0.0000, 0.0000, -1.0783, 62.89),
-        new("great-lakes-like", true, 1, 0.4426, 0.3627, 0.8661, 108.59),
+        new("aircam-amphib-like", true, 1, 0.2821, 0.2586, -0.1892, 96.98),
+        new("aircam-like", true, 1, 0.2707, 0.2404, 0.5341, 99.32),
+        new("boeing-737-like", true, 0, 0.0000, 0.0000, 3.6398, 349.57),
+        new("c172-like", true, 1, 0.1428, 0.1258, 1.6944, 123.13),
+        new("cassutt-f1-like", true, 1, 0.3205, 0.1153, 0.4541, 159.07),
+        new("cirrus-sr22-like", true, 1, 0.2145, 0.0956, 2.2468, 162.02),
+        new("dc3-like", true, 1, 0.1384, 0.0806, 0.6962, 152.32),
+        new("decathlon-8kcab-like", true, 1, 0.2118, 0.2114, 1.9318, 107.65),
+        new("dhc2-beaver-floats-like", true, 1, 0.2780, 0.2898, 0.7073, 114.44),
+        new("dhc2-beaver-like", true, 1, 0.2397, 0.2462, 0.8854, 123.19),
+        new("extra-300-like", true, 1, 0.2033, 0.1705, -1.0981, 159.94),
+        new("f86-sabre-like", true, 0, 0.0000, 0.0000, 2.0593, 320.17),
+        new("geebee-r2-like", true, 1, 0.7141, 0.3111, -1.5289, 187.96),
+        new("glasair3-like", true, 1, 0.4161, 0.0938, 0.2620, 235.17),
+        new("glider-2-33-like", false, 0, 0.0000, 0.0000, 0.7731, 41.93),
+        new("glider-eb29r-like", false, 0, 0.0000, 0.0000, -3.3359, 62.34),
+        new("glider-swift-s1-like", false, 0, 0.0000, 0.0000, -1.3055, 62.69),
+        new("great-lakes-like", true, 1, 0.4407, 0.3651, 0.9891, 108.47),
         new("hang-glider-like", false, 0, 0.0000, 0.0000, -15.5066, 21.38),
-        new("hughes-h4-like", true, 1, 0.0327, 0.0172, -0.3516, 150.73),
-        new("j3-cub-floats-like", true, 1, 0.3611, 0.4589, -1.8821, 55.53),
-        new("j3-cub-like", true, 1, 0.2510, 0.3274, -0.1014, 65.54),
-        new("jn4-jenny-like", true, 1, 0.4507, 0.5907, 0.3258, 52.47),
-        new("p51d-like", true, 1, 0.4746, 0.1274, -1.4291, 209.41),
-        new("pa18-bush-like", true, 1, 0.2159, 0.2358, 0.7454, 92.55),
-        new("pa18-cub-like", true, 1, 0.2029, 0.2206, 0.9640, 95.66),
-        new("pa18-floats-like", true, 1, 0.2377, 0.2610, 0.2775, 88.32),
-        new("pa25-pawnee-like", true, 1, 0.2240, 0.2114, 0.9820, 110.26),
-        new("pa28-archer-like", true, 1, 0.2659, 0.1872, 0.5881, 108.88),
+        new("hughes-h4-like", true, 1, 0.0325, 0.0172, -0.3059, 150.70),
+        new("j3-cub-floats-like", true, 1, 0.3529, 0.4624, -1.8070, 55.48),
+        new("j3-cub-like", true, 1, 0.2457, 0.3296, 0.0026, 65.46),
+        new("jn4-jenny-like", true, 1, 0.4470, 0.5949, 0.1081, 52.41),
+        new("p51d-like", true, 1, 0.4737, 0.1280, -1.1620, 209.10),
+        new("pa18-bush-like", true, 1, 0.2123, 0.2405, 0.9029, 92.46),
+        new("pa18-cub-like", true, 1, 0.1998, 0.2255, 1.1384, 95.56),
+        new("pa18-floats-like", true, 1, 0.2338, 0.2637, 0.4265, 88.25),
+        new("pa25-pawnee-like", true, 1, 0.2216, 0.2116, 1.2851, 110.14),
+        new("pa28-archer-like", true, 1, 0.2663, 0.1884, 0.6448, 108.59),
         new("paraglider-en-b-like", false, 0, 0.0000, 0.0000, 9.5338, 19.74),
-        new("pitts-s2b-like", true, 1, 0.3740, 0.5174, -1.1736, 139.34),
-        new("seminole-like", true, 0, -0.0032, -0.0001, 1.5883, 143.16),
-        new("stearman-pt17-like", true, 1, 0.4737, 0.2727, -0.9230, 107.78),
-        new("target-drone-like", true, 1, 0.3207, 0.1151, 0.4542, 159.22),
+        new("pitts-s2b-like", true, 1, 0.3675, 0.5201, -1.2419, 139.22),
+        new("seminole-like", true, 0, -0.0035, -0.0001, 1.7302, 142.89),
+        new("stearman-pt17-like", true, 1, 0.4699, 0.2775, -0.1975, 107.74),
+        new("target-drone-like", true, 1, 0.3205, 0.1153, 0.4541, 159.07),
     };
 
     public static Row Get(string id) => Rows.Single(r => r.Id == id);
