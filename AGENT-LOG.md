@@ -5393,3 +5393,8 @@ NEEDS YOU: Ty, confirm after the close-up render which surfaces to remove.
 NEEDS YOU: Ty, review the placement and ON/OFF renders (gl5_fuel_valve_*) that were sent to chat.
 - Ty confirmed that the two right-wall fuel handles work together on one shaft and are fully linked. Moving either handle moves both.
 - No code changed. The placement and ON/OFF visuals are still awaiting his render review.
+
+## 2026-11-03 10:32 PST: Great Lakes paint (Ty decision)
+NEEDS YOU: Ty, approve the renders of the red-with-blue-trim livery once they're made.
+- Ty's favorite is red with blue trim, and it is the default Great Lakes livery.
+- No code changed.
