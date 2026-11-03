@@ -290,3 +290,11 @@ lane/claude-vr-cockpit and lane/codex-vr-cockpit each added `case "canopy_latch"
 apart. git merged them without a conflict and the result was a duplicate case label (and two contracts for one param).
 After any merge, build before reading the conflict list as the list of problems — and grep the merged switch
 statements for a repeated label when two lanes touched the same table.
+
+### Unity writes the keystore password into files you never asked for
+A release Android build with `PlayerSettings.Android.keystorePass` set leaves the password in plain text in the generated
+Gradle project (`launcher/build.gradle`) and in Bee's own copies (`Library/Bee/artifacts/…/build.gradle(.xml)`,
+`Library/Bee/Player*-inputdata.json`); deleting only `Library/Bee/Android` missed three of the four. Pass the password
+through the environment, delete all of `Library/Bee` after a release build, and grep the tree for the password (file
+names only) rather than trusting a list of places (`deploy-quest.sh --release`). Also: assigning `""` to
+`PlayerSettings.Android.keystoreName` serialises as `'{inproject}: '`, so restore signing fields only when you set them.

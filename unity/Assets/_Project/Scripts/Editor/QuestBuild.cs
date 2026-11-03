@@ -41,10 +41,24 @@ namespace FlyingGame.EditorTools
     ///    are read through UnityEngine.XR.InputDevices whichever handler is active), and iOS / the Mac keep Old.
     ///    AERO_QUEST_OLD_INPUT=1 builds with Old as before; the pedals then fall back to the old Input Manager's
     ///    per-joystick axes (PJoy1A1 … PJoy4A12).
+    ///  • STORE RELEASE (Meta Horizon Store, app 1408996628974607): AERO_QUEST_RELEASE=1 signs with the upload keystore
+    ///    named by AERO_QUEST_KEYSTORE (alias AERO_QUEST_KEY_ALIAS, default "upload"), password in
+    ///    AERO_QUEST_KEYSTORE_PASS, and stamps versionCode from AERO_QUEST_VERSION_CODE. `deploy-quest.sh --release
+    ///    --version-code N` fills these from the login keychain; nothing here is saved to ProjectSettings (Unity keeps
+    ///    keystore passwords in memory only, and the keystore name / alias / custom flag are put back in `finally`).
+    ///    A release request missing any of them FAILS the build rather than quietly producing a debug-signed APK.
+    ///    Without AERO_QUEST_RELEASE the APK is debug-signed, as before, for sideloading.
+    ///  • Meta's manifest rules (VRC.Quest.Packaging.1, developers.meta.com/horizon/resources/publish-mobile-manifest):
+    ///    targetSdk 34, installLocation auto, excludeFromRecents on the launcher activity, supportedDevices from
+    ///    Meta's own list (no Quest 1), and no INTERNET permission: nothing a pilot can reach in the headset uses the
+    ///    network (online rooms are chosen only on the OnGUI landing page, which the headset cannot show, and the
+    ///    stored mode defaults to Solo). Give the VR menu an online option and ForceRemoveInternetPermission must go.
     /// </summary>
     public static class QuestBuild
     {
         public const string AppId = "com.tyrelfrisby.aeroplayground.quest";
+        /// <summary>Meta's identifiers for the headsets this app runs on (publish-mobile-manifest, 2026-03). Quest 1 is not one.</summary>
+        public const string SupportedDevices = "quest2|questpro|quest3|quest3s";
         private const string XrSettingsPath = "Assets/XR/XRGeneralSettingsPerBuildTarget.asset";
 
         [MenuItem("FlyingGame/Quest: Configure XR (Android only)")]
@@ -100,6 +114,13 @@ namespace FlyingGame.EditorTools
             }
             foreach (var t in wanted)
                 if (oxr.GetFeature(t) == null) Debug.LogError($"[QuestBuild] OpenXR feature {t.Name} is not available for Android");
+            // Nothing in the headset goes online (see the summary); Unity adds INTERNET for UnityWebRequest, which here
+            // only reads StreamingAssets out of the APK.
+            if (oxr.GetFeature<MetaQuestFeature>() is MetaQuestFeature quest && !quest.ForceRemoveInternetPermission)
+            {
+                quest.ForceRemoveInternetPermission = true;
+                EditorUtility.SetDirty(quest);
+            }
             EditorUtility.SetDirty(oxr);
             EditorUtility.SetDirty(android);
             EditorUtility.SetDirty(perTarget);
@@ -116,7 +137,8 @@ namespace FlyingGame.EditorTools
             PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android, ManagedStrippingLevel.Minimal);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel32;        // the Quest store floor
-            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;  // highest installed
+            PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)34;                  // Meta: 34 for apps created since 2026-03-01
+            PlayerSettings.Android.preferredInstallLocation = AndroidPreferredInstallLocation.Auto;   // Meta: must be auto
             // Vulkan only: OpenXR's multiview, fixed foveation (XR_FB_foveation) and Meta's symmetric-projection /
             // buffer-discard optimisations are Vulkan features on Quest; GLES3 would be a fallback nobody tests.
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
@@ -137,6 +159,9 @@ namespace FlyingGame.EditorTools
             string versionWas = PlayerSettings.bundleVersion;
             int codeWas = PlayerSettings.Android.bundleVersionCode;
             int inputWas = InputHandler();
+            bool keystoreWas = PlayerSettings.Android.useCustomKeystore;
+            string keystoreNameWas = PlayerSettings.Android.keystoreName, aliasWas = PlayerSettings.Android.keyaliasName;
+            bool release = System.Environment.GetEnvironmentVariable("AERO_QUEST_RELEASE") == "1";
             bool ok = false;
             try
             {
@@ -145,8 +170,9 @@ namespace FlyingGame.EditorTools
                 if (System.Environment.GetEnvironmentVariable("AERO_QUEST_OLD_INPUT") != "1") SetInputHandler(2);   // Both: USB pedals
                 Debug.Log($"[QuestBuild] active input handler {InputHandler()} (0 Old, 2 Both; was {inputWas})");
                 string stamp = System.DateTime.Now.ToString("yyyy.MMdd.HHmm");
-                PlayerSettings.bundleVersion = stamp;   // shown on the HUD in the flat game; in the log here
+                PlayerSettings.bundleVersion = stamp;   // shown on the HUD in the flat game; in the log here; the APK's versionName
                 Debug.Log($"[QuestBuild] build stamp {stamp}");
+                if (release && !ConfigureReleaseSigning()) { if (Application.isBatchMode) EditorApplication.Exit(1); return; }
                 BuildScript.EnsureSceneInBuildForTools();
 
                 string outDir = System.Environment.GetEnvironmentVariable("FLYINGGAME_QUEST_OUT");
@@ -171,10 +197,42 @@ namespace FlyingGame.EditorTools
                 PlayerSettings.enableFrameTimingStats = frameStatsWas;
                 PlayerSettings.bundleVersion = versionWas;
                 PlayerSettings.Android.bundleVersionCode = codeWas;
+                if (release)   // only a release touches signing; assigning even "" re-serialises the name as '{inproject}: '
+                {
+                    PlayerSettings.Android.useCustomKeystore = keystoreWas;
+                    PlayerSettings.Android.keystoreName = keystoreNameWas;
+                    PlayerSettings.Android.keyaliasName = aliasWas;
+                    PlayerSettings.Android.keystorePass = "";
+                    PlayerSettings.Android.keyaliasPass = "";
+                }
                 if (InputHandler() != inputWas) SetInputHandler(inputWas);
                 AssetDatabase.SaveAssets();
             }
             if (!ok && Application.isBatchMode) EditorApplication.Exit(1);
+        }
+
+        /// <summary>Store release: upload-key signing and the versionCode, from the environment only. False (and the
+        /// reason logged, never the password) when anything is missing.</summary>
+        private static bool ConfigureReleaseSigning()
+        {
+            string ks = System.Environment.GetEnvironmentVariable("AERO_QUEST_KEYSTORE");
+            string pass = System.Environment.GetEnvironmentVariable("AERO_QUEST_KEYSTORE_PASS");
+            string alias = System.Environment.GetEnvironmentVariable("AERO_QUEST_KEY_ALIAS");
+            if (string.IsNullOrEmpty(alias)) alias = "upload";
+            string code = System.Environment.GetEnvironmentVariable("AERO_QUEST_VERSION_CODE");
+            string why = string.IsNullOrEmpty(ks) || !File.Exists(ks) ? $"keystore not found (AERO_QUEST_KEYSTORE='{ks}')"
+                       : string.IsNullOrEmpty(pass) ? "AERO_QUEST_KEYSTORE_PASS is empty"
+                       : !int.TryParse(code, out int vc) || vc < 1 ? $"AERO_QUEST_VERSION_CODE '{code}' is not a positive integer"
+                       : null;
+            if (why != null) { Debug.LogError("[QuestBuild] RELEASE build refused: " + why); return false; }
+            PlayerSettings.Android.useCustomKeystore = true;
+            PlayerSettings.Android.keystoreName = ks;
+            PlayerSettings.Android.keystorePass = pass;
+            PlayerSettings.Android.keyaliasName = alias;
+            PlayerSettings.Android.keyaliasPass = pass;   // PKCS12: one password for the store and the key
+            PlayerSettings.Android.bundleVersionCode = int.Parse(code);
+            Debug.Log($"[QuestBuild] RELEASE: signed with {Path.GetFileName(ks)} alias {alias}, versionCode {code}");
+            return true;
         }
 
         // ProjectSettings' activeInputHandler (0 Old, 1 Input System, 2 Both) has no PlayerSettings API; the Input
@@ -220,11 +278,35 @@ namespace FlyingGame.EditorTools
             // permission; this only says the app uses a USB host port, and required="false" filters no device out.
             if (!xml.Contains("android.hardware.usb.host"))
                 add += "\n  <uses-feature android:name=\"android.hardware.usb.host\" android:required=\"false\" />";
-            if (add.Length == 0) return;
+            // Meta (VRC.Quest.Packaging.1): the launching activity must stay out of Android's recents list.
+            const string activity = "android:name=\"com.unity3d.player.UnityPlayerGameActivity\"";
+            if (!xml.Contains("android:excludeFromRecents") && xml.Contains(activity))
+                xml = xml.Replace(activity, activity + " android:excludeFromRecents=\"true\"");
+            else if (!xml.Contains("android:excludeFromRecents"))
+                Debug.LogWarning("[QuestBuild] manifest: launcher activity not found, excludeFromRecents NOT set");
             int at = xml.IndexOf("<application", System.StringComparison.Ordinal);
-            if (at < 0) return;
-            File.WriteAllText(manifest, xml.Insert(at, add.TrimStart('\n') + "\n  "));
-            Debug.Log("[QuestBuild] manifest: hand tracking permission + optional features (hand tracking, USB host) added");
+            if (add.Length > 0 && at >= 0) xml = xml.Insert(at, add.TrimStart('\n') + "\n  ");
+            File.WriteAllText(manifest, xml);
+            Debug.Log("[QuestBuild] manifest: hand tracking permission, optional features (hand tracking, USB host), excludeFromRecents");
+            SupportedDevices(path);
+        }
+
+        /// <summary>The OpenXR package writes Unity's device list (quest|quest2|cambria|eureka|quest3s) into its own
+        /// library manifest; Meta's list has no Quest 1 and names the Pro and the 3 questpro and quest3.</summary>
+        private static void SupportedDevices(string path)
+        {
+            var hit = false;
+            foreach (string m in Directory.GetFiles(path, "AndroidManifest.xml", SearchOption.AllDirectories))
+            {
+                if (m.Contains(Path.DirectorySeparatorChar + "build" + Path.DirectorySeparatorChar)) continue;
+                string xml = File.ReadAllText(m);
+                var re = new System.Text.RegularExpressions.Regex("(android:name=\"com\\.oculus\\.supportedDevices\"\\s+android:value=\")[^\"]*\"");
+                if (!re.IsMatch(xml)) continue;
+                File.WriteAllText(m, re.Replace(xml, "${1}" + QuestBuild.SupportedDevices + "\""));
+                hit = true;
+            }
+            if (hit) Debug.Log("[QuestBuild] manifest: supportedDevices " + QuestBuild.SupportedDevices);
+            else Debug.LogWarning("[QuestBuild] manifest: no com.oculus.supportedDevices found to rewrite (the OpenXR package may write it later)");
         }
     }
 #endif

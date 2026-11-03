@@ -1,4 +1,23 @@
 ## NEEDS YOU
+- **QUEST STORE RELEASE APK READY, NOT UPLOADED (Claude, 2026-11-03, lane/claude-vr-hands-fix).** Meta Horizon Store app
+  1408996628974607, package com.tyrelfrisby.aeroplayground.quest. `build/quest/release/AeroPlayground.apk`, versionCode 2,
+  versionName 2026.1103.0920, 200,713,755 bytes, signed with the NEW upload key (cert SHA-256
+  67c96415fb00cd58c656bc0ddad0ae7517780112f33ca416ee495b40493515c4). `tools/deploy/quest-vrc-check.sh`: all 15 rules pass.
+  1. **The app secret.** Put it in the keychain (it prompts, so it never lands in shell history):
+     `security add-generic-password -a "$USER" -s aeroplayground-quest-app-secret -w`
+     then upload (age group is your call: TEENS_AND_ADULTS / MIXED_AGES / CHILDREN; ALPHA is an example channel):
+     `~/Developer/agent-lanes/tools/ovr-platform-util/ovr-platform-util upload-quest-build --app-id 1408996628974607
+     --app-secret "$(security find-generic-password -s aeroplayground-quest-app-secret -w)"
+     --apk build/quest/release/AeroPlayground.apk --channel ALPHA --age-group TEENS_AND_ADULTS --notes "Build 2026.1103.0920"`
+  2. **Back up the upload keystore NOW.** `~/Developer/agent-lanes/keys/aeroplayground-quest.keystore` + the keychain item
+     `aeroplayground-quest-keystore` (its password). Every later update must be signed with this key; lose it and the
+     store listing cannot be updated. Neither is in git.
+  3. **This APK has no INTERNET permission.** Nothing in the headset goes online today (online rooms are only chosen on
+     the OnGUI landing page). If the VR menu ever gets online flying, `ForceRemoveInternetPermission` in
+     `QuestBuild.ConfigureXr` must be turned back off.
+  4. **Sideloading after a store install:** the plain `deploy-quest.sh` build is still debug-signed and will NOT install
+     over the store copy (signature mismatch): `adb uninstall com.tyrelfrisby.aeroplayground.quest` first.
+  Nothing approved.
 - **QUEST: "FLY BY HAND" SETTING + PILOT BODY v3 SHIPPED BEHIND IT (Claude, 2026-11-03, lane/claude-vr-hands-fix).**
   Ty approved the v3 body look and asked for it to be optional ("the user selects fly by hand and the body shows up").
   BUILT: Quest APK **2026.1103.0624** SUCCEEDED (`build/quest/AeroPlayground.apk`), **NOT INSTALLED**: the headset
@@ -1564,6 +1583,33 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 09:31 PST — Claude · lane/claude-vr-hands-fix · Quest store release build (Meta Horizon Store), not uploaded
+- Signing: the Quest APK was signed with Unity's Android Debug key (cert 9c7224d9…3956). New PKCS12 upload keystore
+  OUTSIDE the repo, `~/Developer/agent-lanes/keys/aeroplayground-quest.keystore` (dir 700, file 600), alias `upload`,
+  RSA 4096, valid to 2054, DN "CN=Tyrel Frisby, O=Aero Playground, C=US"; 40-char random password stored only in the
+  login keychain item `aeroplayground-quest-keystore` (added through `security -i` on stdin, never printed or on argv).
+- `deploy-quest.sh --release --version-code N`: reads the password from the keychain into Unity's environment only
+  (AERO_QUEST_RELEASE / _KEYSTORE / _KEYSTORE_PASS / _VERSION_CODE), writes build/quest/release/, implies
+  --build-only, runs `tools/deploy/quest-vrc-check.sh`. `QuestBuild.ConfigureReleaseSigning` refuses (exit 1) rather than
+  falling back to debug signing if anything is missing. Unity writes the password in plain text into the generated
+  Gradle project AND Bee's artifacts/input json (found by grep on the first run): the script now deletes unity/Library/Bee
+  after a release build and greps the project + build/ for the password (filenames only); the second run found none.
+- Meta's manifest rules (publish-mobile-manifest, VRC.Quest.Packaging.1; Android 14 target for apps created since
+  2026-03-01) checked by the new `quest-vrc-check.sh`. FAILED on the old APK and FIXED: targetSdk 36 → 34 (compileSdk
+  now 34 too); installLocation preferExternal → auto; launcher activity had no excludeFromRecents (added in
+  QuestManifest); supportedDevices `quest|quest2|cambria|eureka|quest3s` → `quest2|questpro|quest3|quest3s` (Meta's list;
+  no Quest 1); INTERNET removed (MetaQuestFeature.ForceRemoveInternetPermission; UnityWebRequest only reads StreamingAssets
+  in the headset, NetSession.Join only runs with a non-Solo mode set on the OnGUI landing page, default Solo). Already
+  fine: arm64-v8a only, minSdk 32, headtracking required v1, VR intent category, not debuggable, label.
+- Persisted (Android-only): ProjectSettings AndroidTargetSdkVersion 34, AndroidPreferredInstallLocation 0;
+  OpenXRPackageSettings forceRemoveInternetPermission 1. bundleVersion / versionCode / keystore fields restored.
+- BUILD: release APK 2026.1103.0920 SUCCEEDED (614 s), 0 error CS, `build/quest/release/AeroPlayground.apk`
+  200,713,755 bytes, sha256 0b881572…fbe93, signer SHA-256 67c96415fb00cd58c656bc0ddad0ae7517780112f33ca416ee495b40493515c4.
+  NOT installed, NOT uploaded. iOS deploy.sh not run (no src/ or configs/ change; QuestBuild is editor-only, Android).
+- ovr-platform-util 211.0.0 (built 2026-10-27) in ~/Developer/agent-lanes/tools/ovr-platform-util/, from Meta's
+  oculus.com download_app link (securecdn.oculus.com); universal Mach-O, Developer ID "Facebook Technologies, LLC"
+  (HXH6UQBHD4), sha256 06b56faa…7c32; `version` and `upload-quest-build --help` run. Keychain item
+  aeroplayground-quest-app-secret does not exist yet.
 ### 2026-11-02 22:55 PST — Claude · lane/claude-vr-hands-fix · VrHandJointCheck: Extra canopy-handle grab test
 - New CANOPY-HANDLE cases in unity/.../Editor/VrHandJointCheck.cs for every aircraft with the squeeze latch (the Extra), both
   seats, room yaw 0/90, all 8 grips, modes front / both / rear: the right hand closes on the REAR handle and must hold

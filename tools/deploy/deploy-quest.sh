@@ -9,21 +9,41 @@
 #
 #   --build-only   build the APK and stop: never runs adb (no install, no launch, no logcat), whatever is attached.
 #                  Exit 0 = APK written, 1 = the build failed.
+#   --release --version-code N
+#                  Meta Horizon Store build: signed with the upload keystore (~/Developer/agent-lanes/keys/
+#                  aeroplayground-quest.keystore, password from the login keychain item aeroplayground-quest-keystore,
+#                  handed to Unity in its environment only), versionCode N (must be higher than any upload so far),
+#                  written to build/quest/release/. Implies --build-only (a release-signed APK will not install over a
+#                  debug-signed one), then runs tools/deploy/quest-vrc-check.sh on it. Gradle writes the password into
+#                  its build.gradle, so the Android Gradle project is deleted afterwards.
 set -e
 set -o pipefail
 cd "${0:A:h:h:h}"
 
 BUILD_ONLY=0
-for a in "$@"; do
-  case "$a" in
+RELEASE=0
+VERSION_CODE=""
+while (( $# )); do
+  case "$1" in
     --build-only) BUILD_ONLY=1 ;;
-    *) echo "usage: $0 [--build-only]"; exit 64 ;;
+    --release) RELEASE=1; BUILD_ONLY=1 ;;
+    --version-code) shift; VERSION_CODE="$1" ;;
+    *) echo "usage: $0 [--build-only] [--release --version-code N]"; exit 64 ;;
   esac
+  shift
 done
+if (( RELEASE )); then
+  [[ "$VERSION_CODE" == <1-> ]] || { echo "== --release needs --version-code N (a positive integer above the last upload)"; exit 64; }
+  KEYSTORE="$HOME/Developer/agent-lanes/keys/aeroplayground-quest.keystore"
+  [ -f "$KEYSTORE" ] || { echo "== no upload keystore at $KEYSTORE"; exit 64; }
+  KS_PASS="$(security find-generic-password -s aeroplayground-quest-keystore -w 2>/dev/null)" ||
+    { echo "== keychain item aeroplayground-quest-keystore not found (or access denied)"; exit 64; }
+fi
 
 UNITY=/Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity
 APP_ID=com.tyrelfrisby.aeroplayground.quest
 APK="$PWD/build/quest/AeroPlayground.apk"
+(( RELEASE )) && APK="$PWD/build/quest/release/AeroPlayground.apk"
 
 # adb: the Unity Android module's own first (the version Unity builds against), then Homebrew, then PATH.
 ADB=""
@@ -58,22 +78,41 @@ mkdir -p build/quest
 # The build stamps bundleVersion; QuestBuild puts it back itself, and this is the belt to that braces: whatever the
 # build leaves in ProjectSettings for the version fields is restored from what was there before it ran.
 PS=unity/ProjectSettings/ProjectSettings.asset
-VERSION_WAS=$(grep -E '^  (bundleVersion|AndroidBundleVersionCode):' "$PS")
+# (and the signing fields, which a release build sets and Unity re-serialises as '{inproject}: ' when cleared).
+VERSION_WAS=$(grep -E '^  (bundleVersion|AndroidBundleVersionCode|AndroidKeystoreName|AndroidKeyaliasName|androidUseCustomKeystore):' "$PS")
 echo "== unity android build $(date)"
 BUILD_OK=1
-"$UNITY" -batchmode -quit -nographics -projectPath "$PWD/unity" -buildTarget Android \
-  -executeMethod FlyingGame.EditorTools.QuestBuild.BuildQuest -logFile "$PWD/build/quest.log" || BUILD_OK=0
+if (( RELEASE )); then
+  rm -f "$APK"
+  AERO_QUEST_RELEASE=1 AERO_QUEST_KEYSTORE="$KEYSTORE" AERO_QUEST_KEYSTORE_PASS="$KS_PASS" AERO_QUEST_VERSION_CODE="$VERSION_CODE" \
+  FLYINGGAME_QUEST_OUT="${APK:h}" \
+  "$UNITY" -batchmode -quit -nographics -projectPath "$PWD/unity" -buildTarget Android \
+    -executeMethod FlyingGame.EditorTools.QuestBuild.BuildQuest -logFile "$PWD/build/quest.log" || BUILD_OK=0
+  # The generated Gradle project (and Bee's copies of it and of its inputs) carry the keystore password in plain
+  # text: never leave any of it on disk, then make sure nothing else under the project or build/ holds it.
+  rm -rf unity/Library/Bee
+  if grep -qF -- "$KS_PASS" build/quest.log; then echo "== WARNING: the keystore password appears in build/quest.log; deleting the log"; rm -f build/quest.log; fi
+  LEAKS="$(grep -rlF -- "$KS_PASS" unity/Library unity/Temp unity/ProjectSettings unity/Assets build 2>/dev/null || true)"
+  if [ -n "$LEAKS" ]; then echo "== the keystore password is still in (deleting):"; print -r -- "$LEAKS" | sed 's/^/     /'; print -r -- "$LEAKS" | while IFS= read -r f; do rm -f "$f"; done; fi
+  unset KS_PASS
+else
+  "$UNITY" -batchmode -quit -nographics -projectPath "$PWD/unity" -buildTarget Android \
+    -executeMethod FlyingGame.EditorTools.QuestBuild.BuildQuest -logFile "$PWD/build/quest.log" || BUILD_OK=0
+fi
 echo "== unity done $(date)"
 while IFS= read -r line; do
   key=${${line%%:*}// /}
   sed -i '' -E "s|^  ${key}:.*|${line}|" "$PS"
 done <<< "$VERSION_WAS"
-grep -E 'error CS|\[QuestBuild\]|BuildFailedException|OpenXR Build Failed' build/quest.log | tail -12 || true
+grep -E 'error CS|\[QuestBuild\]|BuildFailedException|OpenXR Build Failed' build/quest.log 2>/dev/null | tail -12 || true
 if (( ! BUILD_OK )) || [ ! -f "$APK" ]; then
   echo "== BUILD FAILED — see build/quest.log"
   exit 1
 fi
 echo "== APK $APK ($(du -h "$APK" | cut -f1))"
+if (( RELEASE )); then
+  zsh tools/deploy/quest-vrc-check.sh "$APK" "$VERSION_CODE" || { echo "== VRC CHECK FAILED: do not upload"; exit 1; }
+fi
 if (( BUILD_ONLY )); then
   echo "== --build-only: not installing (adb not run) $(date)"
   exit 0
