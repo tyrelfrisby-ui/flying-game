@@ -140,9 +140,6 @@ public static class AeroModel
     }
 
     public const double FinEndPlateFactor = 1.55;
-    /// <summary>Tail dynamic-pressure ratio η_t = q_tail / q∞ (DATCOM: 0.85–0.95 for a conventional tail in the wing and
-    /// fuselage wake; the propeller slipstream raises it separately under power).</summary>
-    public const double TailDynamicPressureRatio = 0.9;
 
     /// <summary>Gilruth & White fuselage pitch factor, 57.3·K_f·w²·L (m³): M_y = this · q · ½ sin 2α. K_f against the wing
     /// root quarter-chord's distance from the nose as a fraction of body length (NACA TR 711, fig. 13).</summary>
@@ -297,18 +294,13 @@ public static class AeroModel
         // hysteresis — separated wakes develop fast and wash out slowly). Negative = instantaneous.
         WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg, wakeStalledFracOverride, surfaceMask, stripMask, airfoilTables);
 
-        // NACA TN-1045/1329 stab-wake rudder shielding: in steep/vertical flow the horizontal tail
-        // sheds a wake wedge (60-deg line from its LE, 30-deg from its TE); fin/rudder area inside is
-        // blanked. Precompute stab position/chord for the per-strip test on vertical surfaces.
-        double stabX = 0, stabZ = 0, stabChord = 0; int stabN = 0;
-        foreach (SurfaceConfig sf in config.Surfaces)
-        {
-            if (sf.Id.Contains("hStab", StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (StripConfig st in sf.Strips) { stabX += st.PosVec().X; stabZ += st.PosVec().Z; stabChord += st.Chord; stabN++; }
-            }
-        }
-        if (stabN > 0) { stabX /= stabN; stabZ /= stabN; stabChord /= stabN; }
+        // The downwash the tail flies in (below, per strip) is also the flow the wakes are carried in.
+        double epsTail = (config.StallDynamics.DownwashLagEnabled && flowState is not null
+            ? flowState.DownwashEpsLagged
+            : 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction));
+        epsTail = (epsTail + 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction)) * gePhi;
+        // Every wing and stabiliser section's own wake (TailWake): where it goes, how wide and how deep.
+        TailWake.Field wakes = TailWake.Prepare(config, airfoilTables, bodyVelocity - windBody, bodyRates, cg, flowState, surfaceMask, stripMask, epsTail);
 
         // THE WING'S OWN STALLED FRACTION, area-weighted, accumulated as the strips are flown. It gates the
         // separated-wing rolling moment at the bottom of this method; see ApplyWingSideslipRoll.
@@ -360,6 +352,7 @@ public static class AeroModel
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
                 // The air is not the same across the airframe (regional atmosphere): the strip sees the wind where IT is.
                 if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
+                Vec3 vAirStrip = vLocal;   // the relative wind here before the slipstream: what carries the wakes over this strip
 
                 // Propeller slipstream: tail surfaces inside the (contracted) prop wash see the accelerated
                 // flow — this is why a prop aircraft has elevator and rudder authority at low speed (taxi,
@@ -650,40 +643,11 @@ public static class AeroModel
                     }
                 }
 
-                // Tail blanketing: strips of non-wing surfaces sitting inside the stalled wing's
-                // separated wake lose dynamic pressure. In a spin this is what stops the tail from
-                // producing near-CLmax upload and lets the nose ride high.
-                // Vertical surfaces cross the (horizontal) wake slab edge-on and span beyond it, so they
-                // lose only ~half the dynamic pressure a horizontal surface loses (tunnel-calibrated:
-                // CR-3099 yaw damping stays linear to Om=0.85 — the fin keeps working in the spin).
-                double blanketLoss = isVertical ? config.VerticalBlanketFactor * config.WakeBlanketMaxLoss : config.WakeBlanketMaxLoss;
-                double qFactor = isWing ? 1.0 : (isVertical ? 1.0 : TailDynamicPressureRatio) * wake.DynamicPressureFactor(strip.PosVec(), blanketLoss);
-
-                // Stab-wake shielding of the fin/rudder (NACA spin-recovery geometry). Ramps in as
-                // the tail-region flow steepens (none below 30-deg flow, full by 60-deg — the NACA
-                // construction assumes near-vertical spin flow). A strip ABOVE the stab plane is
-                // inside the wedge unless it lies aft of the 30-deg trailing-edge line; strips
-                // BELOW the stab (the 2-33's low rudder) are never shielded.
-                if (isVertical && stabN > 0)
-                {
-                    double flowSteep = Math.Clamp((Math.Abs(wake.FlowAlpha) - 30.0 * Math.PI / 180.0) / (30.0 * Math.PI / 180.0), 0.0, 1.0);
-                    if (flowSteep > 0)
-                    {
-                        double up = stabZ - strip.PosVec().Z;                   // + when strip is above the stab (z down)
-                        double aftOfTe = (stabX - 0.75 * stabChord) - strip.PosVec().X; // + when strip is aft of stab TE
-                        // The wedge lies DOWNSTREAM of the stab: above it when the flow comes from below (upright spin),
-                        // below it when the flow comes from the canopy side (inverted spin) — an inverted spin's fin, above
-                        // the stab, is upstream of it and unshielded (2026-10-12, rotary-balance audit).
-                        double downstream = wake.FlowAlpha >= 0 ? up : -up;
-                        bool inWedge = downstream > 0 && (aftOfTe < downstream / Math.Tan(30.0 * Math.PI / 180.0));
-                        if (inWedge)
-                        {
-                            // Half the fin's wake loss again (owner 2026-09-08: the rudder kept ~8 % of its power in
-                            // the Extra's spin — the stab wedge on top of the wing wake over-shielded it).
-                            qFactor *= 1.0 - 0.5 * config.VerticalBlanketFactor * config.WakeBlanketMaxLoss * flowSteep;
-                        }
-                    }
-                }
+                // Tail strips fly in whatever wing or stabiliser wake reaches them (TailWake: each section's own wake, NACA
+                // Report 648 width and depth from that section's drag). It replaces the single-wing wake band, its 0.45
+                // maximum loss, the fin's 0.5 of it, the stab wedge's extra half, and the flat η_t = 0.9 (DATCOM's typical
+                // value, which is this same wake averaged over a typical tail).
+                double qFactor = isWing ? 1.0 : TailWake.QFactor(wakes, stripAt, vAirStrip, isVertical);
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
                 if (!isWing && !isVertical && strip.PosVec().X < -1.0 && ForceDebug.Samples is not null)
@@ -746,84 +710,25 @@ public static class AeroModel
     }
 
     /// <summary>
-    /// Geometry of the stalled wing's separated wake (NACA spin-research style). The wake sheds from
-    /// the wing and convects downstream with the flow: in body axes it occupies the angular band
-    /// between the wing chord plane (elevation ~0) and the freestream direction (elevation ~alpha),
-    /// growing with a spread margin. Strength scales with the stalled fraction of wing area.
+    /// The wing's separation state as a whole: the freestream angle of attack and the stalled fraction of wing area (lagged by
+    /// the caller for stall hysteresis). It sets the downwash collapse and the spin-rotation control cuts; where the wakes go
+    /// and what they do to the tail is TailWake's, per section.
     /// </summary>
     private readonly struct WingWake
     {
         private const double StallAlphaRad = 15.0 * Math.PI / 180.0;
-        private readonly double _spreadRad;
-
-        private readonly Vec3 _origin;        // area-weighted wing quarter-chord position
-        private readonly double _flowAlpha;   // wake convection elevation (freestream alpha)
+        private readonly double _flowAlpha;   // freestream alpha
         private readonly double _stalledFrac; // stalled wing area / total wing area
 
-        public WingWake(Vec3 origin, double flowAlpha, double stalledFrac, double spreadRad)
+        public WingWake(double flowAlpha, double stalledFrac)
         {
-            _origin = origin;
             _flowAlpha = flowAlpha;
             _stalledFrac = stalledFrac;
-            _spreadRad = spreadRad;
         }
 
         public static double StallAlpha => StallAlphaRad;
         public double StalledFraction => _stalledFrac;
         public double FlowAlpha => _flowAlpha;
-
-        /// <summary>1 = clean air; down to (1 - maxLoss) fully inside a fully-stalled wing's wake.</summary>
-        public double DynamicPressureFactor(Vec3 stripPos, double maxLoss)
-        {
-            if (_stalledFrac <= 0.0 || maxLoss <= 0.0)
-            {
-                return 1.0;
-            }
-
-            double aft = _origin.X - stripPos.X;   // distance behind the wing (+x forward)
-            if (aft < 0.1)
-            {
-                return 1.0;                        // ahead of / on the wing: no wake
-            }
-
-            // Elevation of the strip above the wing plane, seen from the wake origin (+z is down,
-            // so "up" is -z). The wake band spans elevation [0, flowAlpha] +/- spread.
-            double elevation = Math.Atan2(-(stripPos.Z - _origin.Z), aft);
-            // The separated wake thickens with stall depth: the lower boundary grows below the chord
-            // plane, blanketing the stab (which sits just below the wing plane). Stable ONLY with the
-            // hysteretic (lagged) stalled fraction supplied by Aircraft — with the instantaneous
-            // fraction this band flickers and drives a relaxation limit cycle (owner goal: 200 ft/turn).
-            double lo = Math.Min(0.0, _flowAlpha) - _spreadRad - 0.45 * Math.Abs(_flowAlpha) * _stalledFrac;   // was 0.65 (thinner wake: stab keeps more upload, steeper spin)
-            double hi = Math.Max(0.0, _flowAlpha) + _spreadRad;
-            // HIGH α (flat spin, 2026-10-13, owner: the Extra's flat spin settled nose-HIGH): the band from the chord plane up
-            // to the freestream holds while the separated region still reaches the chord plane behind the trailing edge. With the
-            // flow more and more normal to the chord, both shear layers leave the plate along the freestream (the normal-plate
-            // wake: Hoerner, Fluid-Dynamic Drag ch. 3; Roshko 1954) — the wake rises away along the flow and a tail sitting aft
-            // in the chord plane is in clean air, which is why spin research credits the stab with full nose-down in a flat
-            // spin. So between 45° and 75° the chord-plane edge turns up to the freestream line (same spread and thickening).
-            double aAbs = Math.Abs(_flowAlpha), fPlate = Math.Clamp((aAbs - 45.0 * Math.PI / 180.0) / (30.0 * Math.PI / 180.0), 0.0, 1.0);
-            fPlate = fPlate * fPlate * (3.0 - 2.0 * fPlate);
-            if (fPlate > 0.0)
-            {
-                double thick = 0.45 * aAbs * _stalledFrac;
-                if (_flowAlpha > 0) lo = (1.0 - fPlate) * lo + fPlate * (_flowAlpha - _spreadRad - thick);
-                else hi = (1.0 - fPlate) * hi + fPlate * (_flowAlpha + _spreadRad + thick);
-            }
-
-            // Smooth edge falloff over the spread margin.
-            double inside;
-            if (elevation <= lo || elevation >= hi)
-            {
-                inside = 0.0;
-            }
-            else
-            {
-                double edgeDist = Math.Min(elevation - lo, hi - elevation);
-                inside = Math.Clamp(edgeDist / _spreadRad, 0.0, 1.0);
-            }
-
-            return 1.0 - maxLoss * _stalledFrac * inside;
-        }
     }
 
     /// <summary>Instantaneous stalled fraction of wing area — callers integrate this with an
@@ -842,7 +747,7 @@ public static class AeroModel
             ? Math.Atan2(freestream.Z, freestream.X)
             : 0.0;
 
-        double totalArea = 0.0, stalledArea = 0.0, sumX = 0.0, sumZ = 0.0;
+        double totalArea = 0.0, stalledArea = 0.0;
         for (int si = 0; si < config.Surfaces.Count; si++)
         {
             SurfaceConfig surface = config.Surfaces[si];
@@ -860,8 +765,6 @@ public static class AeroModel
                 Vec3 vLocal = freestream + Vec3.Cross(bodyRates, pos - cg);
                 double localAlpha = Math.Atan2(vLocal.Z, vLocal.X) + strip.IncidenceRad;
                 totalArea += strip.Area;
-                sumX += pos.X * strip.Area;
-                sumZ += pos.Z * strip.Area;
                 // WingWake.StallAlpha is a single calibrated angle, applied to |alpha| so either sign counts.
                 // That is right for a symmetric section but not for a cambered one, which reaches its inverted
                 // stall sooner: a Clark Y wing stalls at -13.0 deg, so a 15 deg threshold meant an inverted
@@ -882,11 +785,11 @@ public static class AeroModel
 
         if (totalArea <= 0.0)
         {
-            return new WingWake(Vec3.Zero, 0.0, 0.0, config.StallDynamics.WakeSpreadDeg * Math.PI / 180.0);
+            return new WingWake(0.0, 0.0);
         }
 
         double frac = stalledFracOverride >= 0.0 ? stalledFracOverride : stalledArea / totalArea;
-        return new WingWake(new Vec3(sumX / totalArea, 0, sumZ / totalArea), flowAlpha, frac, config.StallDynamics.WakeSpreadDeg * Math.PI / 180.0);
+        return new WingWake(flowAlpha, frac);
     }
 
     private static void ApplySpoilerDrag(AircraftConfig config, Vec3 bodyVelocity, double airDensity, ControlDeflections controls, ref Vec3 totalForce, bool[]? surfaceMask = null)

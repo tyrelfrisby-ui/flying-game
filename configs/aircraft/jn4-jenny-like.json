@@ -1694,11 +1694,8 @@
     "stripSepTau": 0.15,
     "stripReattachTau": 0.6,
     "wakeGrowTau": 0.25,
-    "wakeDecayTau": 1.0,
-    "wakeSpreadDeg": 6.0
+    "wakeDecayTau": 1.0
   },
-  "wakeBlanketMaxLoss": 0.45,
-  "verticalBlanketFactor": 0.5,
   "gear": [
     {
       "pos": [

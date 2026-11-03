@@ -1889,15 +1889,12 @@
     "gMax": 5.3,
     "gMin": -2.65
   },
-  "wakeBlanketMaxLoss": 0.65,
   "stallDynamics": {
     "stripSepTau": 0.15,
     "stripReattachTau": 0.6,
     "wakeGrowTau": 0.25,
-    "wakeDecayTau": 1.0,
-    "wakeSpreadDeg": 6.0
+    "wakeDecayTau": 1.0
   },
-  "verticalBlanketFactor": 0.8,
   "towHook": {
     "pos": [
       3.3,

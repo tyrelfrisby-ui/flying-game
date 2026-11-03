@@ -87,17 +87,6 @@ public sealed class AircraftConfig
     /// oscillation damping of the deep spin lives here, not in gains/areas.</summary>
     public StallDynamicsConfig StallDynamics { get; set; } = new();
 
-    /// <summary>
-    /// Max fraction of dynamic pressure the tail loses when fully inside a fully-stalled wing's wake
-    /// (tail blanketing — the mechanism that lets a spin's nose ride high). 0 disables. Optional,
-    /// schema-safe default.
-    /// </summary>
-    public double WakeBlanketMaxLoss { get; set; } = 0.45;
-
-    /// <summary>Fraction of blanket loss applied to VERTICAL surfaces (fin crosses the wake slab
-    /// edge-on; tall fins keep ~half their q per CR-3099 yaw-damping linearity; short fins that sit
-    /// fully in the wake keep 1.0). Data-scoped per aircraft.</summary>
-    public double VerticalBlanketFactor { get; set; } = 0.5;
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
 
@@ -503,7 +492,6 @@ public sealed class StallDynamicsConfig
     public double StripReattachTau { get; set; } = 0.6;  // s, per-strip reattachment
     public double WakeGrowTau { get; set; } = 0.25;      // s, whole-wing wake development
     public double WakeDecayTau { get; set; } = 1.0;      // s, wake washout
-    public double WakeSpreadDeg { get; set; } = 6.0;     // wake band edge softness
 
     /// <summary>Proposal 1: downwash transport lag (Cm-alphadot). Off = instantaneous downwash.</summary>
     public bool DownwashLagEnabled { get; set; }

@@ -1510,10 +1510,8 @@
     "stripSepTau": 0.15,
     "stripReattachTau": 0.6,
     "wakeGrowTau": 0.25,
-    "wakeDecayTau": 1.0,
-    "wakeSpreadDeg": 6.0
+    "wakeDecayTau": 1.0
   },
-  "wakeBlanketMaxLoss": 0.45,
   "gear": [
     {
       "pos": [
@@ -1569,7 +1567,6 @@
     "gMax": 3.8,
     "gMin": -1.52
   },
-  "verticalBlanketFactor": 0.5,
   "loading": {
     "_comment": "Stations in the body reference frame (+x fwd, +y right, +z DOWN), the same frame as gear[].pos. referenceKg is what mass.massKg already contains, so the reference loading reproduces the authored mass, CG and inertia exactly. No maxGrossMassKg or CG limits authored: this airframe's authored massKg implies an 877 kg empty weight, heavier than the real type's, so a real 1111 kg placard would make ordinary loads illegal. Retuning massKg would move every book speed, so the placards wait for authored W&B rather than being invented here. Eye points are Codex's to author. loading.seats[].station, loading.tanks[] and loading.baggage[] are the arms from docs/pending/loading-arm-estimates.md (Codex lane, 2026-11-01): a published TCDS/POH arm where the row is CONFIRMED, converted to this frame through that aircraft's anchor. maxKg is the published placard where the source gives one. referenceKg is UNCHANGED and still follows the 172's convention, so the reference loading reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg includes a pilot or fuel is still the open W&B decision in AGENT-LOG NEEDS YOU.",
     "emptyMassKg": 0,
