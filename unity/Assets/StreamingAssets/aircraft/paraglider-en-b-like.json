@@ -487,8 +487,7 @@
     "stripSepTau": 0.2,
     "stripReattachTau": 0.8,
     "wakeGrowTau": 0.3,
-    "wakeDecayTau": 1.2,
-    "wakeSpreadDeg": 8.0
+    "wakeDecayTau": 1.2
   },
   "limits": {
     "vneMs": 14.0,
