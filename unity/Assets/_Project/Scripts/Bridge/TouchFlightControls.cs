@@ -188,7 +188,7 @@ namespace FlyingGame.Bridge
             // Re-lay out only when something the layout depends on changes (screen, aircraft type, keep-out step) —
             // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
             Rect ko = ScreenLayout.AircraftKeepOut;
-            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
+            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{TouchSticksHidden}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
@@ -305,7 +305,8 @@ namespace FlyingGame.Bridge
             if (ScreenLayout.Portrait)
             {
                 UiLayout.BandMin = 0f; UiLayout.BandMax = w;
-                UiLayout.BottomLimit = h - ScreenLayout.TrayHeightPx;
+                UiLayout.BottomLimit = TouchSticksHidden ? h - (Mathf.Max(_bailRect.yMax, _resetRect.yMax) + Mathf.Min(w, h) * 0.02f)
+                    : h - ScreenLayout.TrayHeightPx;
                 return;
             }
             float gap = Mathf.Min(w, h) * 0.02f;
@@ -344,7 +345,9 @@ namespace FlyingGame.Bridge
             _ailTrimRect = new Rect(_rightCenter.x - _half, barY, 2f * _half, barH);
             // One button row above the pad labels: Reset · Aircraft · Flaps · Tow.
             float bh = w * ScreenLayout.ButtonHeight;
-            float rowY = barY + barH + ScreenLayout.LabelBlockPx + gap;
+            // Gamepad connected: no pads, trim bars or labels under the buttons, so the rows drop to the bottom edge and
+            // leave the (now full-screen) view clear.
+            float rowY = TouchSticksHidden ? margin : barY + barH + ScreenLayout.LabelBlockPx + gap;
             int slots = SmokeAvailable ? 6 : 5;
             float bw = (w - 2f * margin - (slots - 1) * gap) / slots;
             _resetRect = new Rect(margin, rowY, bw, bh);
@@ -812,7 +815,7 @@ namespace FlyingGame.Bridge
 
             // Portrait: opaque tray under the controls. The camera only clears its own (upper) viewport,
             // so this also guarantees the strip below it never shows stale frame contents.
-            if (ScreenLayout.Portrait)
+            if (ScreenLayout.Portrait && !ScreenLayout.FullScreenView)   // (gamepad: no tray, the view fills the screen)
             {
                 GUI.color = new Color(0.07f, 0.09f, 0.12f, 1f);
                 GUI.DrawTexture(ToGui(ScreenLayout.TrayRect), _solidTex);

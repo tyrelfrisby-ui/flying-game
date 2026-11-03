@@ -43,8 +43,17 @@ namespace FlyingGame.Bridge
             }
         }
 
+        /// <summary>
+        /// A gamepad is connected, so the touch sticks are hidden (<see cref="TouchFlightControls.TouchSticksHidden"/>): the
+        /// 3D view fills the WHOLE screen, portrait included, instead of stopping at an empty tray (Ty 2026-11-02: "make the
+        /// whole screen show the outside … and move the airplane to the center"). The tray's buttons float over the view
+        /// at the bottom, as they do in landscape. Re-read every frame, so plugging in or dropping the pad flips it.
+        /// </summary>
+        public static bool FullScreenView => TouchFlightControls.TouchSticksHidden;
+
         /// <summary>The flying area (3D view + HUD) in screen px.</summary>
-        public static Rect ViewRect => new Rect(0f, TrayHeightPx, Screen.width, Screen.height - TrayHeightPx);
+        public static Rect ViewRect => FullScreenView ? new Rect(0f, 0f, Screen.width, Screen.height)
+            : new Rect(0f, TrayHeightPx, Screen.width, Screen.height - TrayHeightPx);
 
         /// <summary>The control tray in screen px (empty in landscape).</summary>
         public static Rect TrayRect => new Rect(0f, 0f, Screen.width, TrayHeightPx);
@@ -106,8 +115,8 @@ namespace FlyingGame.Bridge
         {
             get
             {
-                float f = Screen.height > 0 ? TrayHeightPx / Screen.height : 0f;
-                return new Rect(0f, f, 1f, 1f - f);
+                var (x, y, w, h) = FlyingGame.Core.ChaseFraming.CameraViewport(TrayHeightPx, Screen.height, FullScreenView);
+                return new Rect((float)x, (float)y, (float)w, (float)h);
             }
         }
     }
