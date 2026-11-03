@@ -56,15 +56,47 @@ def main():
    k1=P+q.rot(kc0-P,50)
    if not k1[0]>kc0[0]+.05:fails.append((seat,node,'full is not forward of idle',kc0,k1))
    if not (k1[1]>.2 and kc0[1]>.2):fails.append((seat,node,'not on the LEFT side'))
-   for ang in range(0,51,5):
+   for ang in range(0,51):
     d=q.lever_dir(ang);top=P+L*d;kc=P+q.rot(kc0-P,ang)
     zs=np.linspace(0,1,12);shaft=[P+t*(top-P) for t in zs if (P+t*(top-P))[2]>s['ztop']+.002]
-    for pt,rad in [(x,.0045) for x in shaft]+[(kc,r)]:
+    for pt,rad in [(x,.0045) for x in shaft]+[(kc,.022 if label=='Prop' else .013 if label=='Mixture' else r)]:
      dd=pt_tri(np.asarray(pt),env).min()-rad
      if dd<worst[0]:worst=(dd,(label,ang))
   if worst[0]<.003:fails.append((seat,'lever sweep clearance',worst))
   print(seat,'quadrant min clearance over sweep %.1f mm'%(worst[0]*1000),worst[1])
+  # Exact moving mesh X extrema over the continuous rotation, including paddle/decal.
+  # A separating X plane proves clearance from the box AND all attached hardware.
+  fixed=[]
+  for nm in ['GL_SwitchStrip_'+s['sfx'],'GL_ConsoleHardware_'+s['sfx']]+[c['node'] for c in g.doc['extras']['vrCockpitPhase3a']['controls'] if c['seat']==seat and c['param'] not in ('throttle','prop','mixture','trim','fuel_valve','magneto') and c.get('pivot_gltf') and builder(np.array(c['pivot_gltf']))[1]>.25]:
+   if nm in names and 'mesh' in N[names[nm]]:fixed.append(tris(names[nm]).reshape(-1,3))
+  aftmax=np.concatenate(fixed)[:,0].max();moving_min=9
+  for lv in q.LEVERS:
+   nm='Throttle_'+s['sfx'] if lv[0]=='Throttle' else 'Ctl_PushPull_'+lv[0]+s['ctl']
+   P=np.array((s['px'],lv[1],s['zp']));v=tris(names[nm]).reshape(-1,3)-P
+   for x,y,z in v:
+    angles=[0.,math.radians(50)]
+    base=math.atan2(z,x)
+    angles += [base+k*math.pi for k in range(-2,3) if 0<=base+k*math.pi<=math.radians(50)]
+    moving_min=min(moving_min,min(P[0]+x*math.cos(a)+z*math.sin(a) for a in angles))
+  gap=moving_min-aftmax
+  assert gap>.003,(seat,'console swept mesh separation',gap)
+  print(seat,'continuous full-mesh sweep / console X separation %.1f mm'%(gap*1000))
   C=g.doc['extras']['vrCockpitPhase3a']['controls']
+ # The compact consoles must neither touch the IAC holder nor mask its face from either eye.
+ boxes=[tris(names['GL_SwitchStrip_'+s['sfx']]).reshape(-1,3) for s in q.SEATS.values()]
+ card=tris(names['SequenceCard_Face']).reshape(-1,3)
+ holder=tris(names['SequenceCard_Holder']).reshape(-1,3)
+ for box in boxes:
+  lo,hi=box.min(0),box.max(0)
+  assert np.any((holder.max(0)<lo)|(holder.min(0)>hi)),'console touches card holder bounds'
+  for seat in q.SEATS:
+   eye=builder(W[names['Eye_'+seat]][:3,3])
+   for target in card:
+    delta=target-eye
+    t0=(lo-eye)/np.where(abs(delta)>1e-12,delta,1e-12)
+    t1=(hi-eye)/np.where(abs(delta)>1e-12,delta,1e-12)
+    assert max(0,np.minimum(t0,t1).max())>min(1,np.maximum(t0,t1).min()),(seat,'console occludes card')
+ print('IAC holder bounds and both eye-to-card face sightlines clear of console boxes')
  q.check_row(g)
  # Wall trim contract: linked translation, ND forward, NU aft; no fuel valve mesh or binding.
  for seat,s in q.SEATS.items():
