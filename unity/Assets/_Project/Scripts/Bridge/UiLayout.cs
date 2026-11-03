@@ -73,6 +73,9 @@ namespace FlyingGame.Bridge
         public static float BandLeft => Mathf.Max(Margin, BandMin);
         public static float BandRight => Mathf.Min(Screen.width - Margin, BandMax);
 
+        public static bool EngineRowShown;
+        public static float InstrumentBottom => (float)FlyingGame.Core.HudInstrumentLayout.Bottom(ToolbarBottom, Gap, S, TouchFlightControls.TouchSticksHidden && !ScreenLayout.Portrait, EngineRowShown);
+
         // ---- the text stack ----
         private static int _frame = -1; private static EventType _evt;
         private static float _cursor;
@@ -89,7 +92,7 @@ namespace FlyingGame.Bridge
                 _frame = Time.frameCount; _evt = t;
                 _cursor = ToolbarBottom + Gap * 0.6f;
                 if (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !ChaseCamera.InCockpit && !AeroInsetsShown)
-                    _cursor = ToolbarBottom + Gap + S * 0.174f + S * 0.076f + MinText * 2.8f + Gap;
+                    _cursor = InstrumentBottom + Gap;
             }
         }
 
@@ -133,6 +136,23 @@ namespace FlyingGame.Bridge
                 text = text.Substring(0, text.Length - 2).TrimEnd() + "…";
             GUI.Label(r, text, fit);
         }
-        public static bool Button(Rect r, string text, GUIStyle st) => GUI.Button(r, text, Fit(st, text, r.width - 6f, r.height));
+        public static GUIStyle ButtonFit(GUIStyle st, string text, float width)
+        {
+            var fit = new GUIStyle(st) { wordWrap = false, clipping = TextClipping.Clip };
+            fit.fontSize = Mathf.Max(CaptionText, st.fontSize);
+            while (fit.fontSize > CaptionText && fit.CalcSize(new GUIContent(text)).x > width) fit.fontSize--;
+            fit.wordWrap = fit.CalcSize(new GUIContent(text)).x > width;
+            return fit;
+        }
+        public static void ButtonLabel(Rect r, string text, GUIStyle st)
+        {
+            var fit = ButtonFit(st, text, r.width);
+            GUI.Label(r, text, fit);
+        }
+        public static bool Button(Rect r, string text, GUIStyle st)
+        {
+            var fit = ButtonFit(st, text, r.width - 6f);
+            return GUI.Button(r, text, fit);
+        }
     }
 }

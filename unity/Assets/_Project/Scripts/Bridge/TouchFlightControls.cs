@@ -216,7 +216,7 @@ namespace FlyingGame.Bridge
         private void LayOut()
         {
             float w = Screen.width, h = Screen.height, s = Mathf.Min(w, h);
-            if (ScreenLayout.Portrait) { LayOutPortrait(w); return; }
+            if (ScreenLayout.Portrait) { LayOutPortrait(w); if (TouchSticksHidden) { LayOutControllerButtons(); PublishBand(); } return; }
             float margin = s * 0.035f;
             float gap = s * 0.02f;
             // No-overlap rule: on squarer screens (iPad, 4:3) full-size pads would squeeze the centre band until the dials
@@ -237,7 +237,7 @@ namespace FlyingGame.Bridge
             float clusterRight = _trimRect.x - gap;
             float avail = clusterRight - clusterLeft;
             float bh = _half * 0.26f;
-            float bw = Mathf.Min(_half * 0.9f, (avail - gap) * 0.5f);
+            float bw = (avail - gap) * 0.5f;
             float x0 = (clusterLeft + clusterRight) * 0.5f - (2f * bw + gap) * 0.5f;
             // Three rows of two, from the bottom: [Reset | Flaps] [Aircraft | Gear] [Tow | Bail] (or [Bail | Eject]).
             // RULE: nothing covers the aircraft — if the top row would reach the aircraft's screen rect, the rows shrink.
@@ -256,7 +256,7 @@ namespace FlyingGame.Bridge
             float r3 = margin + 3f * (bh + rowGap);
             _resetRect = new Rect(x0, r0, bw, bh);
             _brakeRect = new Rect(x0 + bw + gap, r0, bw, bh);     // the FLAPS slot
-            _acftRect = new Rect(x0, r1, bw, bh);
+            _acftRect = new Rect(x0, r1, bw, Mathf.Max(bh, UiLayout.CaptionText * 2.4f));
             _gearRect = new Rect(x0 + bw + gap, r1, bw, bh);
             if (HasEjectionSeat)
             {
@@ -287,7 +287,19 @@ namespace FlyingGame.Bridge
             _lookRightRect = new Rect(lookX + 2f * (lookW + lookGap), lookY, lookW, lookH);
             _fireRect = FireRectTopLeft();
             if (StripMode) LayOutStrips(w);
+            if (TouchSticksHidden) LayOutControllerButtons();
             PublishBand();
+        }
+
+        private void LayOutControllerButtons()
+        {
+            float s = UiLayout.S, gap = UiLayout.Gap;
+            float width = s * .48f, height = s * .055f;
+            float x = UiLayout.SafeLeft + UiLayout.Margin, y = UiLayout.SafeBottom + UiLayout.Margin;
+            Rect Slot(int row) => new Rect(x, y + row * (height + gap), width, height);
+            _resetRect = Slot(0); _acftRect = Slot(1); _brakeRect = Slot(2);
+            _gearRect = Slot(3); _towRect = Slot(4); _bailRect = Slot(5);
+            _ejectRect = Slot(6); _smokeRect = Slot(7);
         }
 
         /// <summary>Tell the shared layout (UiLayout) where the controls are, so text and dials keep clear of them.</summary>
@@ -295,6 +307,12 @@ namespace FlyingGame.Bridge
         {
             float w = Screen.width, h = Screen.height;
             if (!DeskMode) UiLayout.LeftBottomLimit = 99999f;
+            if (TouchSticksHidden)
+            {
+                UiLayout.BandMin = UiLayout.SafeLeft; UiLayout.BandMax = w - UiLayout.SafeRight;
+                UiLayout.BottomLimit = h * .4f;
+                return;
+            }
             if (DeskMode)
             {
                 // Mac: no pads; only the small control indicator bottom-left and the centre buttons at the bottom.
@@ -345,21 +363,12 @@ namespace FlyingGame.Bridge
             // One button row above the pad labels: Reset · Aircraft · Flaps · Tow.
             float bh = w * ScreenLayout.ButtonHeight;
             float rowY = barY + barH + ScreenLayout.LabelBlockPx + gap;
-            int slots = SmokeAvailable ? 6 : 5;
-            float bw = (w - 2f * margin - (slots - 1) * gap) / slots;
-            _resetRect = new Rect(margin, rowY, bw, bh);
-            _acftRect = new Rect(margin + (bw + gap), rowY, bw, bh);
-            _brakeRect = new Rect(margin + 2f * (bw + gap), rowY, bw, bh);
-            _gearRect = new Rect(margin + 3f * (bw + gap), rowY, bw, bh);
-            _towRect = new Rect(margin + 4f * (bw + gap), rowY, bw, bh);
-            _smokeRect = SmokeAvailable ? new Rect(margin + 5f * (bw + gap), rowY, bw, bh) : new Rect(0, 0, 0, 0);
-
-            // Second, shorter row above it: BAIL OUT · EJECT (ScreenLayout.TrayHeightPx includes it).
-            float eh = w * ScreenLayout.EgressRowHeight;
-            float rowY2 = rowY + bh + gap;
-            float ew = (w - 2f * margin - gap) * 0.5f;
-            _bailRect = HasEjectionSeat ? new Rect(margin, rowY2, ew, eh) : new Rect(margin, rowY2, w - 2f * margin, eh);
-            _ejectRect = new Rect(margin + ew + gap, rowY2, ew, eh);
+            float bw = (w - 2f * margin - gap) * .5f;
+            Rect Slot(int col, int row) => new Rect(margin + col * (bw + gap), rowY + row * (bh + gap), bw, bh);
+            _resetRect = Slot(0, 0); _acftRect = Slot(1, 0);
+            _brakeRect = Slot(0, 1); _gearRect = Slot(1, 1);
+            _towRect = Slot(0, 2); _bailRect = Slot(1, 2);
+            _ejectRect = Slot(0, 3); _smokeRect = Slot(1, 3);
             _fireRect = FireRectTopLeft();
             if (StripMode) LayOutStrips(w);
             PublishBand();
@@ -477,7 +486,7 @@ namespace FlyingGame.Bridge
                     if (_bailRect.Contains(p.pos) && BailAvailable) { _tapped.Add(Btn.Bail); continue; }
                     if (_resetRect.Contains(p.pos)) { _tapped.Add(Btn.Reset); continue; }
                     if (_acftRect.Contains(p.pos)) { _tapped.Add(Btn.Aircraft); continue; }
-                    if (_brakeRect.Contains(p.pos)) { _flapTapThird = Mathf.Clamp(Mathf.FloorToInt((p.pos.x - _brakeRect.x) / _brakeRect.width * 3f), 0, 2); _tapped.Add(Btn.Flaps); continue; }
+                    if (_brakeRect.Contains(p.pos)) { _flapTapThird = Mathf.Clamp((p.pos.x < _brakeRect.x + _brakeRect.width * .5f ? 0 : p.pos.x < _brakeRect.x + _brakeRect.width * .75f ? 1 : 2), 0, 2); _tapped.Add(Btn.Flaps); continue; }
                     if (_gearRect.Contains(p.pos)) { _tapped.Add(Btn.Gear); continue; }
                     if (SmokeAvailable && _smokeRect.Contains(p.pos)) { _tapped.Add(Btn.Smoke); continue; }
                     if (LookAvailable && _lookCentreRect.Contains(p.pos)) { _tapped.Add(Btn.LookCentre); continue; }
@@ -582,7 +591,7 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Draw a button (the tap is read in ReadPointers, so it works with the pads held).</summary>
-        private void Button(Rect r, string label) { Rect g = ToGui(r); UiLayout.Label(g, label, _btnStyle); }   // shrinks to fit (no-overlap rule)
+        private void Button(Rect r, string label) { Rect g = ToGui(r); UiLayout.ButtonLabel(g, label, _btnStyle); }   // shrinks to fit (no-overlap rule)
 
         private bool NearPad(Vector2 pos, Vector2 center)
         {
@@ -866,7 +875,7 @@ namespace FlyingGame.Bridge
                 GUI.color = _fireFinger != int.MinValue ? new Color(1f, 0.55f, 0.1f, 0.95f) : new Color(0.55f, 0.12f, 0.1f, 0.85f);
                 GUI.DrawTexture(g, _solidTex);
                 GUI.color = Color.white;
-                UiLayout.Label(g, _fireFinger != int.MinValue ? "FIRING" : "FIRE", _ejectStyle);
+                UiLayout.ButtonLabel(g, _fireFinger != int.MinValue ? "FIRING" : "FIRE", _ejectStyle);
             }
             if (EjectAvailable)
             {
@@ -879,7 +888,7 @@ namespace FlyingGame.Bridge
                     GUI.DrawTexture(new Rect(g.x, g.y, g.width * Mathf.Clamp01(_ejectHold / EjectHoldSec), g.height), _solidTex);
                 }
                 GUI.color = Color.white;
-                UiLayout.Label(g, _ejectFinger != int.MinValue ? "EJECT" : "HOLD: EJECT", _ejectStyle);
+                UiLayout.ButtonLabel(g, _ejectFinger != int.MinValue ? "EJECT" : "HOLD: EJECT", _ejectStyle);
             }
 
             Button(_resetRect, "Reset");
@@ -928,16 +937,16 @@ namespace FlyingGame.Bridge
                 // FLAPS 0 | 50 | 100: three buttons in the slot, the current setting lit.
                 var fr = _brakeRect;
                 double f = _driver.Sim.Aircraft.FlapFraction;
-                float third = fr.width / 3f;
+                float third = fr.width / 4f;
                 for (int i = 0; i < 3; i++)
                 {
                     bool on = i == 0 ? f < 0.25 : i == 1 ? (f >= 0.25 && f < 0.75) : f >= 0.75;
-                    var r = new Rect(fr.x + i * third, fr.y, third - 2f, fr.height);
+                    var r = new Rect(fr.x + (i == 0 ? 0 : i + 1) * third, fr.y, (i == 0 ? 2 : 1) * third - 2f, fr.height);
                     Rect g = ToGui(r);
                     GUI.color = on ? new Color(0.2f, 0.62f, 0.35f, 0.95f) : new Color(0.18f, 0.24f, 0.32f, 0.95f);
                     GUI.DrawTexture(g, _solidTex);
                     GUI.color = Color.white;
-                    UiLayout.Label(g, i == 0 ? "FLAP 0" : i == 1 ? "50" : "100", _ejectStyle);
+                    UiLayout.ButtonLabel(g, i == 0 ? "FLAP 0" : i == 1 ? "50" : "100", _ejectStyle);
                 }
             }
             // Glider on the ground: TOW button (aerotow from the runway) above the Aircraft button.

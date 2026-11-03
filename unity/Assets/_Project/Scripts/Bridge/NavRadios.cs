@@ -155,10 +155,10 @@ namespace FlyingGame.Bridge
             double altM = -p.Z;
             double heading = Heading();
 
-            Rect toggle = _expanded
-                ? new Rect(UiLayout.BandLeft, UiLayout.ToolbarBottom, UiLayout.BandRight - UiLayout.BandLeft, _fs * 1.5f)
-                : UiLayout.NextLine(_fs * 1.5f);
-            if (UiLayout.Button(toggle, _expanded ? "CLOSE RADIOS" : "RADIOS · OPEN", _sbtn)) _expanded = !_expanded;
+            float toggleW = UiLayout.S * .19f;
+            Rect toggle = new Rect(Screen.width - UiLayout.SafeRight - UiLayout.Margin - toggleW,
+                UiLayout.ToolbarBottom + UiLayout.Gap, toggleW, UiLayout.ButtonH * .7f);
+            if (UiLayout.Button(toggle, _expanded ? "CLOSE RADIOS" : "RADIOS", _sbtn)) _expanded = !_expanded;
             if (!_expanded) return;
             UiLayout.ModalShown();
             // Explicitly opened navigation panel; two columns preserve readable receiver controls.
