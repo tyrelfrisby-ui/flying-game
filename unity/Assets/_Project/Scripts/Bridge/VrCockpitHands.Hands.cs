@@ -51,6 +51,44 @@ namespace FlyingGame.Bridge
         private readonly bool[] _pinchMode = new bool[2];
         private readonly bool[] _pinchOwned = new bool[2];
         private readonly HandSource[] _logSource = new HandSource[2];
+        // For the [VrHands] line: how each hand was read this frame.
+        private readonly string[] _diagVia = { "-", "-" };
+        private readonly double[] _diagCurl = { double.NaN, double.NaN }, _diagGap = { double.NaN, double.NaN };
+        private float _diagNext;
+
+        /// <summary>The input side's gates on the hands (TouchFlightControls), for the [VrHands] line.</summary>
+        public static int GateRightFinger = int.MinValue, GateLeftFinger = int.MinValue;
+
+        /// <summary>Every 2 s while a tracked hand is in the cockpit, one line per hand: what it is read from (XR Hands
+        /// joints, or the hand-interaction pose with no joints), its curl / pinch gap / grip, pinch or fist mode,
+        /// what it is on and holding, and how far it is from the stick and throttle — so a hand that won't take hold
+        /// can be diagnosed from logcat (adb logcat -s Unity | grep VrHands).</summary>
+        private void DiagLog()
+        {
+            if (Time.unscaledTime < _diagNext) return;
+            if (_hands[0].Source != HandSource.TrackedHand && _hands[1].Source != HandSource.TrackedHand) return;
+            _diagNext = Time.unscaledTime + 2f;
+            var sb = new System.Text.StringBuilder("[VrHands]");
+            for (int s = 0; s < 2; s++)
+            {
+                HandSide side = (HandSide)s;
+                HandPose h = _hands[s];
+                sb.Append(s == 0 ? " L " : " | R ").Append(h.Source).Append(' ').Append(_diagVia[s]);
+                if (!h.Tracked) continue;
+                sb.Append($" curl {_diagCurl[s]:0.00} gap {_diagGap[s] * 100:0.0}cm grip {h.Grip:0.00}{(_det[s].Closed ? " CLOSED" : "")}{(_pinchMode[s] ? " pinchMode" : "")}");
+                sb.Append($" on {_grab.Hover(side)} held {_grab.Held(side)}");
+                for (int g = (int)Grabbable.Stick; g <= (int)Grabbable.Throttle; g++)
+                {
+                    CockpitGrab.Point p = _grab.Points[g];
+                    if (p.Enabled) sb.Append($" →{(Grabbable)g} {System.Math.Sqrt(p.Distance2(h.Position)) * 100:0.0}cm");
+                }
+            }
+            sb.Append($" | joints {XrTrackedHands.Status} | pad owns stick {PadOwnsStick}");
+            sb.Append(" touch R ").Append(GateRightFinger == int.MinValue ? "free" : GateRightFinger.ToString())
+              .Append(" L ").Append(GateLeftFinger == int.MinValue ? "free" : GateLeftFinger.ToString());
+            Debug.Log(sb.ToString());
+        }
+
         /// <summary>This frame's index-finger curl and thumb–index gap per tracked hand (the panel's poke reads them).</summary>
         private readonly double[] _indexCurl = { 1.0, 1.0 }, _gapM = { 0.0, 0.0 };
 
@@ -63,6 +101,9 @@ namespace FlyingGame.Bridge
         /// Time does not advance). Never set in the game.</summary>
         public static float DeltaTimeForTesting = -1f;
 
+        /// <summary>This frame's hand time step (real time: the hands do not pause with the sim).</summary>
+        private static double HandDt => DeltaTimeForTesting >= 0f ? DeltaTimeForTesting : Time.unscaledDeltaTime;
+
         private void ReadAllHands()
         {
             QuestControllerFrame f = XrControllers.Read(out bool any);
@@ -71,11 +112,12 @@ namespace FlyingGame.Bridge
             {
                 bool left = s == 0;
                 _hasJoints[s] = false;
+                _diagVia[s] = "-"; _diagCurl[s] = _diagGap[s] = double.NaN;
                 bool ctl = any && !f.HandsOnly && XrHandInput.TryGripPose(left, out Vector3 cp, out Quaternion cq);
                 bool joints = !ctl && XrTrackedHands.TryRead(left, _jp[s], _jr[s]);
-                float aimPinch = 0f;
+                float aimPinch = 0f, aimGrasp = float.NaN;
                 Vector3 hp = default; Quaternion hq = Quaternion.identity;
-                bool aim = !ctl && !joints && XrControllers.TryTrackedHandPose(left, out hp, out hq, out aimPinch);
+                bool aim = !ctl && !joints && XrControllers.TryTrackedHandPose(left, out hp, out hq, out aimPinch, out aimGrasp);
                 HandSource src = _arb[s].Step(ctl, joints || aim, dt);
                 if (src != _logSource[s])
                 {
@@ -136,7 +178,12 @@ namespace FlyingGame.Bridge
                         if (!_rig.TrackingToSeat(hp, hq, out Vector3 sp, out Quaternion sq)) { _hands[s] = HandPose.None; continue; }
                         point = seat + sp; rot = sq;
                         gap = HandGrabDetector.PinchFullOpenM - aimPinch * 0.05;   // the profile's 0..1 pinch as a gap (1 → 1 cm)
+                        // The profile's grasp as the curl, so a FIST closes too (before: NaN, and only a pinch could
+                        // take hold — a fist round the stick did nothing).
+                        if (!float.IsNaN(aimGrasp)) curl = aimGrasp;
                     }
+                    _diagVia[s] = joints ? "joints" : "aim-pose(no joints" + (float.IsNaN(aimGrasp) ? ", no grasp)" : ")");
+                    _diagCurl[s] = curl; _diagGap[s] = gap;
                     Vec3 filtered = _filt[s].Step(C(point), dt);
                     _hands[s] = _det[s].Step(true, filtered, new Quat(rot.x, rot.y, rot.z, rot.w), gap, curl, dt);
                     continue;

@@ -49,9 +49,10 @@ namespace FlyingGame.EditorTools
         {
             int exit = 1;
             XrTrackedHands.JointReader oldReader = XrTrackedHands.Reader;
-            bool oldModels = SessionSettings.UseAirframeModels, oldOwn = SessionSettings.UseOwnModels;
+            bool oldModels = SessionSettings.UseAirframeModels, oldOwn = SessionSettings.UseOwnModels, oldMenu = SessionSettings.MenuOpen;
             try
             {
+                SessionSettings.MenuOpen = false;   // flying, not the landing page
                 SessionSettings.UseAirframeModels = SessionSettings.UseOwnModels = true;
                 XrTrackedHands.Reader = (left, p, r) =>
                 {
@@ -73,10 +74,37 @@ namespace FlyingGame.EditorTools
                 XrTrackedHands.Reader = oldReader;
                 XrHeadset.ForceActiveForTesting = false;
                 VrCockpitHands.DeltaTimeForTesting = -1f;
-                SessionSettings.UseAirframeModels = oldModels; SessionSettings.UseOwnModels = oldOwn;
+                SessionSettings.UseAirframeModels = oldModels; SessionSettings.UseOwnModels = oldOwn; SessionSettings.MenuOpen = oldMenu;
             }
             EditorApplication.Exit(exit);
         }
+
+        /// <summary>How a real hand closes on a control — the ideal grips and the imperfect ones a tracked hand
+        /// really produces.</summary>
+        private sealed class Grip
+        {
+            public string Name;
+            public bool Pinch;
+            public float Curl = 0.95f;          // the mean curl the fingers reach
+            public Vector3 Shift;               // hand frame (x thumb side, y back of hand, z fingers): palm off the ideal
+            public float EarlyM;                // the fingers finish closing this far short of the control, then move on
+            public float ThumbNear;             // 0..1 thumb towards the index tip while still open
+            public float JitterM;               // per-joint, per-frame tracking noise
+        }
+
+        private static readonly Grip[] Grips =
+        {
+            new() { Name = "fist" },
+            new() { Name = "pinch", Pinch = true },
+            new() { Name = "loose-fist", Curl = 0.62f },
+            new() { Name = "fist-high", Shift = new Vector3(0f, 0.025f, -0.015f) },
+            new() { Name = "fist-low", Shift = new Vector3(0f, -0.015f, 0.02f) },
+            new() { Name = "fist-closed-early", EarlyM = 0.05f },
+            new() { Name = "fist-thumb-near", ThumbNear = 0.75f },
+            new() { Name = "fist-jitter", JitterM = 0.004f },
+        };
+
+        private static readonly System.Random Noise = new(7);
 
         private static void Fail(string m) { _fails++; Debug.LogError("VRJ FAIL " + m); }
         private static void Pass(string m) { _passes++; Debug.Log("VRJ PASS " + m); }
@@ -110,6 +138,7 @@ namespace FlyingGame.EditorTools
             public QuestRig Rig;
             public VrCockpitHands Hands;
             public TouchFlightControls Touch;
+            public AirframeVisual Visual;
             public XrHeadPose Head;     // QuestRig._head
             public Vector3 HeadTrackPos;
             public float RoomYaw;
@@ -131,10 +160,10 @@ namespace FlyingGame.EditorTools
                         string seatId = SeatChoice.IdAt(sc.Cockpit.Seats, seat) ?? seat.ToString();
                         string tag = $"{id} seat {seatId} room {yaw:F0}°";
                         if (yaw == 0f) { Frames(sc, 2); Neighbours(sc, tag); }
-                        foreach (string grip in new[] { "fist", "pinch" })
+                        foreach (Grip grip in Grips)
                         {
-                            Reset(sc); StickCase(sc, $"{tag} STICK {grip}", grip == "pinch");
-                            if (cfg.Propulsion != null) { Reset(sc); ThrottleCase(sc, $"{tag} THROTTLE {grip}", grip == "pinch"); }
+                            Reset(sc); StickCase(sc, $"{tag} STICK {grip.Name}", grip);
+                            if (cfg.Propulsion != null) { Reset(sc); ThrottleCase(sc, $"{tag} THROTTLE {grip.Name}", grip); }
                         }
                     }
                     catch (Exception e) { Fail($"{id} seat {seat}: {e.GetType().Name} {e.Message}"); Debug.LogException(e); }
@@ -159,7 +188,7 @@ namespace FlyingGame.EditorTools
             sc.Root = new GameObject("Aircraft");
             sc.Driver = sc.Root.AddComponent<FlightSimDriver>();
             sc.Touch = sc.Root.AddComponent<TouchFlightControls>();
-            AirframeVisual visual = sc.Root.AddComponent<AirframeVisual>();
+            AirframeVisual visual = sc.Visual = sc.Root.AddComponent<AirframeVisual>();
             sc.Cockpit = sc.Root.AddComponent<CockpitView>();
             sc.Cockpit.Driver = sc.Driver;
             chase.Driver = sc.Driver; chase.Target = sc.Root.transform; chase.Cockpit = sc.Cockpit;
@@ -185,8 +214,9 @@ namespace FlyingGame.EditorTools
         private static void Reset(Scene sc)
         {
             Tracked[0] = Tracked[1] = false;
-            // Fresh hands each case: release whatever was held and let the arbiter re-settle on the tracked hand.
-            Frames(sc, 10);
+            _jitter = 0f;
+            // Fresh hands each case: past the detector's 0.25 s hold-through-loss, so whatever was held is let go.
+            Frames(sc, 30);
         }
 
         // ---- seat ↔ tracking: the inverse of QuestRig.TrackingToSeat (XrHeadPose.ToSeat is a yaw + an offset) ----
@@ -206,11 +236,16 @@ namespace FlyingGame.EditorTools
         }
 
         /// <summary>Seat-frame point (aeroplane local, relative to the eye's seat origin _eye) → what the tracker reports.</summary>
+        private static float _jitter;
+
         private static void PutHand(Scene sc, bool left, Vector3 palmLocal, Quaternion palmRotLocal, float curl, float thumbPinch)
         {
             Vector3 eye = (Vector3)Get(sc.Hands, "_eye");
             int s = left ? 0 : 1;
             SynthHand(left, palmLocal - eye, palmRotLocal, curl, thumbPinch, JointPos[s], JointRot[s]);
+            if (_jitter > 0f)
+                for (int i = 0; i < HandJoint.Count; i++)
+                    JointPos[s][i] += new Vector3((float)Noise.NextDouble() - 0.5f, (float)Noise.NextDouble() - 0.5f, (float)Noise.NextDouble() - 0.5f) * (2f * _jitter);
             Quaternion inv = Quaternion.Inverse(ToSeatRot(sc));
             for (int i = 0; i < HandJoint.Count; i++)
             {
@@ -266,8 +301,9 @@ namespace FlyingGame.EditorTools
             {
                 Set(sc.Hands, "_tickFrame", -12345);
                 // The order of a frame on the device: TouchFlightControls.Update ticks the hands and drives the driver.
-                Call(sc.Touch, "QuestInput");
-                Call(sc.Touch, "PublishToDriver");
+                Call(sc.Touch, "Update");          // ReadPointers, the joystick fallbacks, QuestInput, PublishToDriver
+                Call(sc.Hands, "LateUpdate");      // the body and the panel (Tick already ran this frame)
+                Call(sc.Visual, "LateUpdate");     // the rig follows the driver's controls
             }
         }
 
@@ -290,24 +326,30 @@ namespace FlyingGame.EditorTools
         }
 
         /// <summary>Open hand 15 cm off, reach in over 0.4 s, close over 0.25 s, hold, then move.</summary>
-        private static void Approach(Scene sc, bool left, Vector3 palmAt, Quaternion rot, Vector3 from, bool pinch)
+        private static void Approach(Scene sc, bool left, Vector3 palmAt, Quaternion rot, Vector3 from, Grip g)
         {
+            bool pinch = g.Pinch;
+            _jitter = g.JitterM;
+            Vector3 dir = (palmAt - from).normalized;
+            Vector3 closeAt = palmAt - dir * g.EarlyM;
             for (int i = 0; i <= 30; i++)
             {
-                PutHand(sc, left, Vector3.Lerp(from, palmAt, i / 30f), rot, 0.1f, 0f);
+                PutHand(sc, left, Vector3.Lerp(from, closeAt, i / 30f), rot, 0.1f, g.ThumbNear);
                 Frames(sc, 1);
             }
             for (int i = 0; i <= 18; i++)
             {
                 float t = i / 18f;
-                PutHand(sc, left, palmAt, rot, pinch ? 0.15f + 0.15f * t : 0.1f + 0.85f * t, pinch ? t : 0f);
+                PutHand(sc, left, closeAt, rot, pinch ? 0.15f + 0.15f * t : 0.1f + (g.Curl - 0.1f) * t, pinch ? t : g.ThumbNear * (1f - t));
                 Frames(sc, 1);
             }
+            for (int i = 1; i <= 10 && g.EarlyM > 0f; i++) { PutHand(sc, left, Vector3.Lerp(closeAt, palmAt, i / 10f), rot, g.Curl, 0f); Frames(sc, 1); }
             Frames(sc, 10);
         }
 
-        private static void StickCase(Scene sc, string tag, bool pinch)
+        private static void StickCase(Scene sc, string tag, Grip grip)
         {
+            bool pinch = grip.Pinch;
             CockpitGrab g = Grab(sc);
             if (!sc.Hands.Active) { Fail($"{tag}: VrCockpitHands not active"); return; }
             CockpitGrab.Point sp = g.Points[(int)Grabbable.Stick];
@@ -322,11 +364,12 @@ namespace FlyingGame.EditorTools
             Vector3 palm = pinch
                 ? gripAt - rot * Vector3.forward * 0.09f - rot * Vector3.down * 0.03f    // fingertips at the top of the grip
                 : gripAt - rot * Vector3.forward * 0.03f + rot * Vector3.up * 0.03f;     // the grip in the curled fingers
+            palm += rot * new Vector3(-grip.Shift.x, grip.Shift.y, grip.Shift.z);   // (right hand: thumb side = −x)
             Vector3 from = palm + new Vector3(0.10f, 0.08f, -0.10f);
-            Approach(sc, false, palm, rot, from, pinch);
+            Approach(sc, false, palm, rot, from, grip);
             if (!sc.Hands.StickHeld) { Fail($"{tag}: the hand closed on the stick but did not hold it — {Diag(sc, false)}"); return; }
             ControlInputs c0 = sc.Driver.Inputs;
-            float curl = pinch ? 0.3f : 0.95f, tp = pinch ? 1f : 0f;
+            float curl = pinch ? 0.3f : grip.Curl, tp = pinch ? 1f : 0f;
             for (int i = 1; i <= 20; i++) { PutHand(sc, false, palm + Vector3.right * 0.05f * i / 20f, rot, curl, tp); Frames(sc, 1); }
             ControlInputs c1 = sc.Driver.Inputs;
             for (int i = 1; i <= 20; i++) { PutHand(sc, false, palm + Vector3.right * 0.05f * (1f - i / 20f) - Vector3.forward * 0.05f * i / 20f, rot, curl, tp); Frames(sc, 1); }
@@ -337,8 +380,9 @@ namespace FlyingGame.EditorTools
             else Pass($"{tag}: {res}");
         }
 
-        private static void ThrottleCase(Scene sc, string tag, bool pinch)
+        private static void ThrottleCase(Scene sc, string tag, Grip grip)
         {
+            bool pinch = grip.Pinch;
             CockpitGrab g = Grab(sc);
             CockpitGrab.Point tp = g.Points[(int)Grabbable.Throttle];
             if (!tp.Enabled) { Fail($"{tag}: throttle point disabled"); return; }
@@ -348,11 +392,12 @@ namespace FlyingGame.EditorTools
             Vector3 palm = pinch
                 ? knob - Vector3.forward * 0.09f + Vector3.up * 0.03f
                 : knob - Vector3.forward * 0.03f + Vector3.up * 0.03f;
+            palm += rot * grip.Shift;   // (left hand: thumb side = +x)
             Vector3 from = palm + new Vector3(0.12f, 0.08f, -0.08f);
-            Approach(sc, true, palm, rot, from, pinch);
+            Approach(sc, true, palm, rot, from, grip);
             if (!sc.Hands.ThrottleHeld) { Fail($"{tag}: the hand closed on the throttle but did not hold it — {Diag(sc, true)}"); return; }
             double t0 = sc.Driver.Inputs.ThrottleLever, h0 = sc.Hands.Throttle01;
-            float curl = pinch ? 0.3f : 0.95f, th = pinch ? 1f : 0f;
+            float curl = pinch ? 0.3f : grip.Curl, th = pinch ? 1f : 0f;
             for (int i = 1; i <= 30; i++) { PutHand(sc, true, palm + Vector3.forward * 0.08f * i / 30f, rot, curl, th); Frames(sc, 1); }
             double t1 = sc.Driver.Inputs.ThrottleLever;
             for (int i = 1; i <= 30; i++) { PutHand(sc, true, palm + Vector3.forward * 0.08f * (1f - i / 30f) - Vector3.forward * 0.06f * i / 30f, rot, curl, th); Frames(sc, 1); }

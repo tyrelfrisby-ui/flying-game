@@ -582,7 +582,7 @@ namespace FlyingGame.Bridge
             _grab.Set(Grabbable.Ripcord, C(ringLocal), !_ripcord.Pulled && !_egress.ChuteOut);
             for (int s = 0; s < 2; s++)
             {
-                GrabEvents ev = _grab.Step((HandSide)s, _jHands[s], blocked);
+                GrabEvents ev = _grab.Step((HandSide)s, _jHands[s], blocked, HandDt);
                 if ((ev & GrabEvents.HoverEnter) != 0) XrHandInput.Tick(s == 0, 0.15f, 0.015f);
                 if ((ev & GrabEvents.Grabbed) != 0 && _grab.Held((HandSide)s) == Grabbable.Ripcord)
                 {

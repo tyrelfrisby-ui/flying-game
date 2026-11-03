@@ -42,6 +42,13 @@ namespace FlyingGame.Core.Vr
     ///            far the hand then moves: the control's own geometry decides where it can go
     ///   one each a control is held by one hand at a time; a hand holds one control
     ///   menu     while the VR menu is open nothing can be grabbed, and anything held is let go
+    ///   late     a TRACKED hand (no trigger to squeeze — the fingers ARE the trigger) usually finishes closing a few
+    ///            centimetres before it reaches the grip: a hand that closed less than <see cref="LateGrabS"/> ago and
+    ///            has not yet taken anything still takes the first control it reaches. A fist held closed longer than
+    ///            that and swept past still catches nothing. Controllers keep the strict closing-edge rule, and the
+    ///            harness, headset plug and jettison (<see cref="Deliberate"/>) always need it.
+    ///   priority the stick and throttle win against a nearby harness release / switch unless that is clearly
+    ///            (<see cref="FlightControlBiasM"/>) closer — reaching for the stick must never pop the harness
     ///   hand-off a hand whose SOURCE changes (controller put down, tracked hand takes over, or back) is a new hand:
     ///            what the old one held is let go, and a hand that arrives already closed must open and close again
     ///
@@ -50,6 +57,16 @@ namespace FlyingGame.Core.Vr
     public sealed class CockpitGrab
     {
         public const double ReachM = 0.06;
+
+        /// <summary>How long after a tracked hand closes it may still take the first control it reaches.</summary>
+        public const double LateGrabS = 0.6;
+
+        /// <summary>The stick and throttle are taken as this much nearer than they are when choosing between points.</summary>
+        public const double FlightControlBiasM = 0.025;
+
+        /// <summary>The reach of the <see cref="Deliberate"/> releases: a hand has to be right on the buckle / plug /
+        /// knob (the Great Lakes' harness buckle sits a few centimetres from the stick's foot).</summary>
+        public const double DeliberateReachM = 0.04;
 
         public struct Point
         {
@@ -79,7 +96,8 @@ namespace FlyingGame.Core.Vr
         public readonly Point[] Points = new Point[Slots];
 
         private readonly Grabbable[] _held = new Grabbable[2], _hover = new Grabbable[2];
-        private readonly bool[] _gripClosed = new bool[2];
+        private readonly bool[] _gripClosed = new bool[2], _armed = new bool[2];
+        private readonly double[] _closedAge = new double[2];
         private readonly HandSource[] _source = new HandSource[2];
 
         public Grabbable Held(HandSide h) => _held[(int)h];
@@ -126,26 +144,40 @@ namespace FlyingGame.Core.Vr
         public Grabbable Nearest(Vec3 hand, HandSide side)
         {
             Grabbable best = Grabbable.None;
-            double bestD2 = ReachM * ReachM;
+            double bestScore = double.MaxValue;
             Grabbable other = _held[1 - (int)side];
             for (int i = 1; i < Points.Length; i++)
             {
                 Point p = Points[i];
                 if (!p.Enabled || p.Id == other) continue;
                 double d2 = p.Distance2(hand);
-                if (d2 <= bestD2) { bestD2 = d2; best = p.Id; }
+                double reach = Deliberate(p.Id) ? DeliberateReachM : ReachM;
+                if (d2 > reach * reach) continue;
+                double score = Math.Sqrt(d2) - (p.Id == Grabbable.Stick || p.Id == Grabbable.Throttle ? FlightControlBiasM : 0.0);
+                if (score <= bestScore) { bestScore = score; best = p.Id; }
             }
             return best;
         }
 
-        /// <summary>One hand, one frame. <paramref name="blocked"/>: the menu is open (or the hands are elsewhere).</summary>
-        public GrabEvents Step(HandSide side, in HandPose hand, bool blocked)
+        /// <summary>The releases a late grab never takes — a hand on its way to the stick must not pop the harness,
+        /// pull the headset plug or jettison the canopy; those still take a hand that closes ON them.</summary>
+        public static bool Deliberate(Grabbable g) =>
+            g == Grabbable.HarnessMain || g == Grabbable.HarnessLap || g == Grabbable.HeadsetPlug || g == Grabbable.CanopyJettison;
+
+        /// <summary>One hand, one frame. <paramref name="blocked"/>: the menu is open (or the hands are elsewhere).
+        /// <paramref name="dt"/> (seconds) enables the tracked-hand late grab; negative (the default) keeps the strict
+        /// closing-edge rule for every source.</summary>
+        public GrabEvents Step(HandSide side, in HandPose hand, bool blocked, double dt = -1.0)
         {
             int s = (int)side;
             GrabEvents ev = GrabEvents.None;
             bool wasClosed = _gripClosed[s];
             bool closed = hand.Tracked && (wasClosed ? hand.Grip > QuestControlMapper.GripOff : hand.Grip >= QuestControlMapper.GripOn);
             _gripClosed[s] = closed;
+            if (closed && !wasClosed) { _armed[s] = dt >= 0.0 && hand.Source == HandSource.TrackedHand; _closedAge[s] = 0.0; }
+            else if (closed) _closedAge[s] += Math.Max(dt, 0.0);
+            else _armed[s] = false;
+            if (_closedAge[s] > LateGrabS) _armed[s] = false;
             if (hand.Source != HandSource.None && hand.Source != _source[s])
             {
                 // A different kind of hand from the last one seen on this side (the first one ever is not a change).
@@ -154,12 +186,14 @@ namespace FlyingGame.Core.Vr
                     if (_held[s] != Grabbable.None) ev |= GrabEvents.Released;
                     _held[s] = Grabbable.None;
                     wasClosed = closed;   // arriving closed is not a grab
+                    _armed[s] = false;
                 }
                 _source[s] = hand.Source;
             }
 
             if (blocked || !hand.Tracked)
             {
+                _armed[s] = false;
                 if (_held[s] != Grabbable.None) ev |= GrabEvents.Released;
                 _held[s] = Grabbable.None;
                 _hover[s] = Grabbable.None;
@@ -176,9 +210,10 @@ namespace FlyingGame.Core.Vr
             Grabbable near = Nearest(hand.Position, side);
             if (near != Grabbable.None && near != _hover[s]) ev |= GrabEvents.HoverEnter;
             _hover[s] = near;
-            if (near != Grabbable.None && closed && !wasClosed)
+            if (near != Grabbable.None && closed && (!wasClosed || (_armed[s] && !Deliberate(near))))
             {
                 _held[s] = near;
+                _armed[s] = false;
                 ev |= GrabEvents.Grabbed;
             }
             return ev;

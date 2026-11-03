@@ -404,6 +404,60 @@ public sealed class VrCockpitTests
         Assert.Equal(Grabbable.None, g.Held(HandSide.Right));
     }
 
+    private static HandPose Tracked(double x, double grip) =>
+        new() { Source = HandSource.TrackedHand, Position = new Vec3(x, 0, 0), Rotation = Quat.Identity, Grip = grip };
+
+    [Fact]
+    public void ATrackedHandThatClosedJustShortOfTheStickStillTakesIt()
+    {
+        // Real hands finish curling a few centimetres before they arrive (Ty, 2026-11-02: no stick in any aircraft).
+        var g = Grab();
+        g.Step(HandSide.Right, Tracked(0.15, 0.0), false, 1 / 72.0);
+        g.Step(HandSide.Right, Tracked(0.11, 1.0), false, 1 / 72.0);   // closed, out of reach
+        for (int i = 0; i < 10; i++) g.Step(HandSide.Right, Tracked(0.11 - 0.01 * i, 1.0), false, 1 / 72.0);
+        Assert.Equal(Grabbable.Stick, g.Held(HandSide.Right));
+    }
+
+    [Fact]
+    public void ATrackedFistHeldClosedLongerThanTheWindowStillCatchesNothing()
+    {
+        var g = Grab();
+        g.Step(HandSide.Right, Tracked(1.0, 0.0), false, 1 / 72.0);
+        for (int i = 0; i < 72; i++) g.Step(HandSide.Right, Tracked(1.0, 1.0), false, 1 / 72.0);   // a second closed
+        g.Step(HandSide.Right, Tracked(0.01, 1.0), false, 1 / 72.0);
+        Assert.Equal(Grabbable.None, g.Held(HandSide.Right));
+    }
+
+    [Fact]
+    public void ControllersKeepTheStrictClosingEdge()
+    {
+        var g = Grab();
+        g.Step(HandSide.Right, Hand(0.11, 0.0), false, 1 / 72.0);
+        g.Step(HandSide.Right, Hand(0.11, 1.0), false, 1 / 72.0);
+        g.Step(HandSide.Right, Hand(0.01, 1.0), false, 1 / 72.0);
+        Assert.Equal(Grabbable.None, g.Held(HandSide.Right));
+    }
+
+    [Fact]
+    public void AHandClosedOnTheWayToTheStickPassesTheHarnessRelease()
+    {
+        var g = Grab();
+        g.Set(Grabbable.HarnessMain, new Vec3(0.12, 0, 0), true);
+        g.Step(HandSide.Right, Tracked(0.25, 0.0), false, 1 / 72.0);
+        g.Step(HandSide.Right, Tracked(0.20, 1.0), false, 1 / 72.0);
+        for (int i = 0; i <= 20; i++) g.Step(HandSide.Right, Tracked(0.20 - 0.01 * i, 1.0), false, 1 / 72.0);   // through the release
+        Assert.Equal(Grabbable.Stick, g.Held(HandSide.Right));
+    }
+
+    [Fact]
+    public void TheStickWinsAgainstANearbyHarnessRelease()
+    {
+        var g = Grab();
+        g.Set(Grabbable.HarnessMain, new Vec3(0.06, 0, 0), true);
+        Assert.Equal(Grabbable.Stick, g.Nearest(new Vec3(0.035, 0, 0), HandSide.Right));        // 3.5 cm against 2.5
+        Assert.Equal(Grabbable.HarnessMain, g.Nearest(new Vec3(0.055, 0, 0), HandSide.Right));  // clearly on the release
+    }
+
     [Fact]
     public void NothingIsGrabbedWhileTheMenuIsOpen()
     {

@@ -794,6 +794,7 @@ namespace FlyingGame.Bridge
         private void ApplyCockpitHands(VrCockpitHands hands)
         {
             if (hands == null) return;
+            VrCockpitHands.GateRightFinger = _rightFinger; VrCockpitHands.GateLeftFinger = _leftFinger;   // (the [VrHands] line)
             // A hand on the stick owns pitch and roll unless a thumbstick is pushed past its dead zone
             // (HandPadArbiter); rudder and throttle stay with the pad unless a hand holds the throttle lever.
             if (hands.StickHeld && !hands.PadOwnsStick && _rightFinger == int.MinValue)

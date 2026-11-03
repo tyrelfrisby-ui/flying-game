@@ -1505,6 +1505,23 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 22:05 PST — Claude · lane/claude-vr-hands-fix · tracked hands: the late grab, the harness, the no-joints fist, a [VrHands] line
+- VrHandJointCheck now drives the FULL TouchFlightControls.Update + VrCockpitHands/AirframeVisual LateUpdate (MenuOpen off) and
+  adds the imperfect grips a real hand makes: loose fist (curl 0.62), fist 2.5 cm high / 2 cm low, closed 5 cm SHORT of the
+  control then moved on, thumb near the index while open, ±4 mm joint jitter. 352 cases.
+- Before the fix: every "closed early" case failed in every aircraft (stick and throttle) — CockpitGrab only took a control on
+  the grip's closing EDGE while in reach, and a real hand finishes curling a few cm before it arrives; and the Great Lakes rear
+  stick taken high grabbed HarnessMain instead. Ideal grips passed, which is why the old checks were green.
+- Fix (src/FlyingGame.Core/Vr/CockpitGrab.cs): a TRACKED hand that closed < 0.6 s ago and has taken nothing takes the first
+  control it reaches (controllers keep the strict edge; the harness, headset plug and jettison never late-grab and need the hand
+  within 4 cm); the stick and throttle win against other points unless those are 2.5 cm closer.
+- No joints (hand-interaction pose fallback): the profile's GraspValue is now the curl, so a fist closes there too (it was NaN:
+  only a pinch could take hold — consistent with "the Extra throttle worked, no stick").
+- [VrHands] logcat line every 2 s with a tracked hand: joints vs aim-pose, curl, gap, grip, pinch mode, on/held, distances to
+  stick/throttle, XrTrackedHands.Status, pad-owns-stick and touch-pointer gates; plus "[VrHands] right hand took Stick".
+- Tests: VrCockpitTests +5 (late grab, window expiry, controllers strict, harness passed through, stick vs harness). VRJ OK (352),
+  HANDLE OK, dotnet Vr*/Bailout/Egress/Harness 171 passed.
+
 ### 2026-11-02 — Claude · lane/claude-quest-hands-install · the hands build on Ty's Quest (install approved by Ty, 19:10 PST)
 - **Approval:** Ty explicitly approved installing the hand-tracking build on the Quest (19:10 PST). This overrides the
   "do not install on the Quest" note in the lane/claude-vr-hands brief, for the install only. No gate is marked approved.

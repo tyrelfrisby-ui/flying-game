@@ -44,6 +44,7 @@ namespace FlyingGame.Bridge
         private static readonly List<InputDevice> _devs = new();
 
         private static readonly InputFeatureUsage<float> PinchValue = new("PinchValue");
+        private static readonly InputFeatureUsage<float> GraspValue = new("GraspValue");
         private static readonly InputFeatureUsage<Vector3> PointerPosition = new("PointerPosition");
         private static readonly InputFeatureUsage<Quaternion> PointerRotation = new("PointerRotation");
 
@@ -69,12 +70,18 @@ namespace FlyingGame.Bridge
 
         /// <summary>A tracked hand's grip pose and pinch through the Hand Interaction Profile, tracking space: the
         /// fallback when the XR Hands joints are not there (<see cref="XrTrackedHands"/>).</summary>
-        public static bool TryTrackedHandPose(bool left, out Vector3 pos, out Quaternion rot, out float pinch)
+        public static bool TryTrackedHandPose(bool left, out Vector3 pos, out Quaternion rot, out float pinch) =>
+            TryTrackedHandPose(left, out pos, out rot, out pinch, out _);
+
+        /// <summary>As above, with the profile's GRASP (0 open … 1 a closed fist, NaN where the runtime has none): with
+        /// no joints this is the only way a tracked hand can close round the stick rather than pinch it.</summary>
+        public static bool TryTrackedHandPose(bool left, out Vector3 pos, out Quaternion rot, out float pinch, out float grasp)
         {
-            pos = default; rot = Quaternion.identity; pinch = 0f;
+            pos = default; rot = Quaternion.identity; pinch = 0f; grasp = float.NaN;
             InputDevice d = left ? _leftHand : _rightHand;
             if (!Tracked(d)) return false;
             pinch = Float(d, PinchValue);
+            if (d.TryGetFeatureValue(GraspValue, out float g)) grasp = g;
             return d.TryGetFeatureValue(CommonUsages.devicePosition, out pos) && d.TryGetFeatureValue(CommonUsages.deviceRotation, out rot);
         }
 

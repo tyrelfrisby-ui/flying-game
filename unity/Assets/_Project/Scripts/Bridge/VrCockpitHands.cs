@@ -121,9 +121,11 @@ namespace FlyingGame.Bridge
             ReadHands();
             UpdatePoints();
             bool blocked = XrHeadset.MenuOpen;
-            Events(HandSide.Left, _grab.Step(HandSide.Left, _hands[0], blocked));
-            Events(HandSide.Right, _grab.Step(HandSide.Right, _hands[1], blocked));
+            double gdt = HandDt;
+            Events(HandSide.Left, _grab.Step(HandSide.Left, _hands[0], blocked, gdt));
+            Events(HandSide.Right, _grab.Step(HandSide.Right, _hands[1], blocked, gdt));
             OwnPinches();
+            DiagLog();
             Drive();
             DriveGlider();
             DrivePanel();
@@ -362,6 +364,7 @@ namespace FlyingGame.Bridge
             if ((ev & GrabEvents.Grabbed) != 0)
             {
                 XrHandInput.Tick(left, 0.45f, 0.035f);
+                if (_hands[(int)side].Source == HandSource.TrackedHand) Debug.Log($"[VrHands] {(left ? "left" : "right")} hand took {_grab.Held(side)}");
                 switch (_grab.Held(side))
                 {
                     case Grabbable.Stick: _stick.Grab(h); break;
