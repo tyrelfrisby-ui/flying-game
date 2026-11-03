@@ -492,6 +492,39 @@ brake handle is drawn where the hand has it (the sim's spoiler follows a frame l
 **Assumed, for Ty:** the 33° and the 40° are the modeller's; the wheel brake's 85 % is the strip's (the rig table
 suggests 90 %); the trim's notches are the rig's four; the release fires at 90 % of the pull.
 
+### The switches and knobs (Pitts, Extra, Great Lakes)
+
+Codex's phase 3a controls (`docs/models/vr-cockpit-phase3a.md`, merged from lane/codex-vr-cockpit 147d2682): 22 per
+seat, `Ctl_<Kind>_<Name>[_Front]` with `Grip_` and `Poke_` empties, listed in each rig table's `controls`. One
+data-driven system binds the seat's own 22 (`VrCockpitHands.Panel.cs`, Core `PanelControl`); the hand's point on each
+is its `Grip_` empty, the travel the rig's own (RigHandle).
+
+| Kind | By hand | Let go |
+|---|---|---|
+| **Toggle** (Master, Fuel pump, Nav, Strobe, Landing light, **Smoke**) | **poke** it with a pointing index finger (tracked hand: index straight, thumb away from it): within 1.5 cm it flips, once; it re-arms when the finger is 3 cm away. Or grab it (pinch, fist, controller grip) and move the bat: it flips half way | stays |
+| **Rotary** (Magneto, **Trim**, Fuel selector, COM outer / inner / volume, XPDR digits ×4, XPDR mode) | grab and **twist your wrist**: the knob turns by your hand's roll about its shaft (swing-twist), over its full travel, clicking through its detents | stays in its detent; the magneto's **START springs back to BOTH** |
+| **Push-pull** (Mixture, Prop, Alternate air / Carb heat) | grab and pull / push along the shaft | stays (alternate air / carb heat in one of its two stops) |
+| **Momentary** (COM swap, XPDR IDENT) | poke it in, or grab and push | springs out |
+
+A controller takes them by the grip only (a controller has no fingertip; a poke would fire on every reach for a grip).
+Haptics on the controller: a click per detent, a bump at a stop, a press for a button.
+
+**Into the sim:** the trim knob is the same trim (`PitchTrimLever`) the A / B buttons and the slider move, and follows
+them when you are not holding it; the smoke switch is the `SmokeController` (and follows the right-grip toggle). **Everything
+else is visual only, and says so** (`[VrCockpit] Magneto → 2 by hand (visual only: the sim has no magneto system yet)`):
+this sim has no ignition, electrical, fuel-pump, lighting, mixture, propeller-governor, induction, radio or transponder
+system for them to drive. The four XPDR digits are logged as one code. Each control is drawn at its own value after the
+rig, since the four digit knobs share one `xpdr_squawk` param that cannot draw them separately.
+
+**Rig tables, once each.** The Extra's table has 414 rows for 126 nodes and the Great Lakes' 347 for 91 (Codex's Ctl_*
+rows repeated up to ten times, all identical). `AirframeRig.Parse` keeps the first row of each node and logs
+`[Airframe] rig extra-300-like-own: 414 rows for 126 nodes — 288 duplicate row(s) dropped …`; the files are not edited.
+
+**Measured** (`VrHandleCheck`): every control of all six seats binds with its `Grip_` and `Poke_` under it; every
+toggle's and push-pull's knob moves end to end. Reach (from each seat's eye, warned past 85 cm): the farthest is the
+fuel selector everywhere — Pitts 74 / 64 cm (rear / front), Great Lakes 58 / 49, Extra 86 / 76: **the Extra's rear fuel
+selector is past a comfortable seated reach** (Codex's positions are estimates awaiting Ty's review).
+
 ## Where Phase 2 and Phase 3 plug in
 
 (Phase 2 and the first part of Phase 3 are built: the sections above. What follows is the plan they were built to.)

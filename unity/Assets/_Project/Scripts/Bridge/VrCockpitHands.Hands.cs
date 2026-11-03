@@ -51,6 +51,8 @@ namespace FlyingGame.Bridge
         private readonly bool[] _pinchMode = new bool[2];
         private readonly bool[] _pinchOwned = new bool[2];
         private readonly HandSource[] _logSource = new HandSource[2];
+        /// <summary>This frame's index-finger curl and thumb–index gap per tracked hand (the panel's poke reads them).</summary>
+        private readonly double[] _indexCurl = { 1.0, 1.0 }, _gapM = { 0.0, 0.0 };
 
         /// <summary>Pinch mode while open: thumb and index within 4.5 cm and the fingers not wrapped round anything.</summary>
         private const double PinchModeGapM = 0.045, PinchModeMaxCurl = 0.45;
@@ -114,6 +116,9 @@ namespace FlyingGame.Bridge
                         _hasJoints[s] = true;
                         gap = (_jc[HandJoint.ThumbTip] - _jc[HandJoint.IndexTip]).Length;
                         curl = HandGrabDetector.MeanCurl(_jc);
+                        int im = HandJoint.IndexMetacarpal;
+                        _indexCurl[s] = HandGrabDetector.FingerCurl(_jc[im], _jc[im + 1], _jc[im + 2], _jc[im + 3], _jc[im + 4]);
+                        _gapM[s] = gap;
                         rot = _jr[s][HandJoint.Palm];
                         // The point a hand takes hold with: chosen while open, kept while closed (a switch mid-pull would
                         // move the lever by the distance between the two).

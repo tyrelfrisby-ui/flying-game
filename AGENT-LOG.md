@@ -1,4 +1,21 @@
 ## NEEDS YOU
+- **QUEST M3: THE SWITCHES AND KNOBS BY HAND — PITTS, EXTRA, GREAT LAKES (Claude, 2026-11-02, lane/claude-vr-hands, on
+  Codex's phase 3a controls merged from lane/codex-vr-cockpit 147d2682). APK BUILT, build only, NOT installed (path in the
+  M3 log line). NEEDS YOU when you choose to install it:**
+  1. **Try them.** Poke a toggle with a pointing finger (index straight); grab a knob and twist your wrist; pull the
+     mixture. With a controller: grip and move / twist. Does each go the way the real one goes? `grep VrCockpit` logs
+     every change (`Magneto → 2 by hand (visual only …)`).
+  2. **Only the TRIM knob and the SMOKE switch do anything in the sim** (the same trim and smoke as the buttons). The
+     sim has no ignition, electrical, fuel-pump, lights, mixture, prop-governor, induction, radio or transponder system.
+     **Which should be real first?** (Magnetos OFF / mixture idle-cutoff stopping the engine is the obvious one.)
+  3. **Mixture and prop** start at 1 (rich, fine pitch: what the cockpit has always drawn). Codex's map puts 1 at the
+     end of a 50 mm travel: please look whether the knobs sit pushed IN at the start. If they sit pulled out, the map
+     or the sense is reversed and Codex / I fix it.
+  4. **Reach:** the Extra's REAR fuel selector is 86 cm from your eyes (the bench's comfortable seated reach is 85);
+     everything else in all six seats is within 76 cm. Can you reach it strapped in?
+  5. Codex's own open questions stand (smoke switch position per type, front-seat duplication, tank labels, alternate
+     air on the Pitts / Extra, Great Lakes carb heat vs AEIO, COM spacing, XPDR mode order): docs/models/vr-cockpit-phase3a.md.
+  **Nothing approved.**
 - **QUEST: YOUR OWN HANDS IN THE COCKPIT, AND THE 2-33'S DIVE BRAKES, TRIM AND TOW RELEASE BY HAND (Claude, 2026-11-02,
   lane/claude-vr-hands, from "how long before we can get it to see our hands to operate things like the speed
   brakes?"). APK BUILT (build only, NOT installed, as you asked): see the M1 line in the log for the path. Starts at
@@ -1345,6 +1362,24 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-hands · M3: the switches and knobs by hand (Pitts, Extra, Great Lakes)
+Merged lane/codex-vr-cockpit 147d2682 (Codex's Ctl_* controls, the Extra panel rebuild, the Great Lakes windshields /
+gear / cabane, the pilot body + gear GLBs) as f2f81162; its duplicate `case "canopy_latch"` (a clean git merge that did not
+compile) resolved into one Core rule, `RigInputs.CanopyLatchFor`. **M3 = the commit carrying this entry**: one data-driven
+system over each rig table's `controls` (Core `PanelControl`: toggle by poke or grab-and-flick, rotary by wrist twist with
+detents and the magneto's START → BOTH spring, push-pull, momentary buttons; Bridge `VrCockpitHands.Panel.cs`), each seat's
+22 bound by their Grip_ / Poke_ empties. Into the sim: the trim knob (PitchTrimLever) and the smoke switch
+(SmokeController); everything else visual only and logged as such. Rig rows de-duplicated on load (Extra 414 → 126,
+Great Lakes 347 → 91, all identical; Codex's files not edited). Tracked fingers now also drive the skinned pilot body's
+finger bones (Codex's pilot-body GLB arrives with this merge, so the body is no longer the stand-in).
+**APK (build only, never installed): `build/quest/AeroPlayground.apk`, 190 MB, stamp 2026.1102.1702, built from this
+commit's code.**
+**Checks:** VrPanelTests 12 new; VrHands / VrCockpit / ModelRig green but the known FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake
+(fails on 8e7862eb too); full FlightTests 213 failing names, 45 not seen on the base / merge / M1 runs, all in coupled classes
+(LandingGear, MultiEngine, SpawnSpeed, TipWheel, TrimConvergence): those five alone 50 / 50. `VrHandleCheck` HANDLE OK with
+one WARN (the Extra's rear fuel selector 86 cm from the eye). Unity batch 0 error CS. deploy.sh (iOS) NOT run. Never in a
+headset. **Nothing approved.**
+
 ### 2026-11-02 — Claude · lane/claude-vr-hands · M1 + M2: tracked hands, the 2-33's dive brakes, trim and tow release by hand
 Ty: "i just flew the 2-33 and it was awesome! how long before we can get it to see our hands to operate things like
 the speed brakes?" Branch from lane/claude-vr-quest 8e7862eb; merged lane/claude-vr-cockpit 9f7c0f81 (the grab system)

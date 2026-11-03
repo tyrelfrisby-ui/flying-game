@@ -51,6 +51,7 @@ namespace FlyingGame.EditorTools
                 Lever(builder.Rig, root.transform, "Trim_Lever", eyeF, 40f, wantAft: true);
                 Slide(builder.Rig, root.transform, "TowRelease_F", eyeF, 0.05f);
                 Slide(builder.Rig, root.transform, "TowRelease_R", eyeR, 0.05f);
+                foreach (string t in new[] { "pitts-s2b-like", "extra-300-like", "great-lakes-like" }) Panel(t);
                 exit = _fails == 0 ? 0 : 1;
                 Debug.Log(exit == 0 ? "HANDLE OK" : $"HANDLE PROBLEMS: {_fails} — see the errors above");
             }
@@ -108,6 +109,54 @@ namespace FlyingGame.EditorTools
             if (Mathf.Abs(d.magnitude - wantTravel) > 0.002f) Fail($"{node}: pulls {d.magnitude * 1000:F0} mm, the rig says {wantTravel * 1000:F0}");
             if (d.z > -0.9f * d.magnitude) Fail($"{node}: the pull is not straight aft");
             if ((home - eye).magnitude > ReachM) Fail($"{node}: {(home - eye).magnitude * 100:F0} cm from the eye, out of reach");
+        }
+
+        /// <summary>
+        /// The switches and knobs (Codex's `controls`): for each seat, every control's node bound, its Grip_ and Poke_
+        /// empties found under it, within reach of that seat's eye, and its travel as the rig turns it (a toggle's bat
+        /// and a push-pull's shaft through RigHandle). Reach is a WARN here: Codex's positions are estimates (E) awaiting
+        /// Ty's review, and moving them is the model's job.
+        /// </summary>
+        private static void Panel(string type)
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var root = new GameObject(type);
+            var builder = new AirframeBuilder();
+            AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(type);
+            builder.Build(root.transform, cfg);
+            ModelRig table = builder.Rig?.Table;
+            if (table == null) { Fail($"{type}: no rig bound"); return; }
+            Debug.Log($"HANDLE {type}: rig {table.Model}, {table.Nodes.Count} rows after de-duplication, {table.Controls.Count} controls");
+            foreach (string seat in new[] { "Rear", "Front" })
+            {
+                Vector3 eye = Eye(cfg, seat.ToLowerInvariant());
+                int n = 0, far = 0;
+                float worst = 0f; string worstName = "";
+                foreach (FlyingGame.Core.Vr.PanelControlSpec c in table.Controls)
+                {
+                    if (c.Seat != seat) continue;
+                    n++;
+                    Transform grip = builder.FindInModel(c.Grip), poke = builder.FindInModel(c.Poke);
+                    RigHandle h = RigHandle.Find(builder.Rig, c.Node, grip);
+                    if (h == null) { Fail($"{type} {c.Node} is not bound"); continue; }
+                    if (grip == null) Fail($"{type} {c.Node}: no {c.Grip}");
+                    if (poke == null) Fail($"{type} {c.Node}: no {c.Poke}");
+                    if (grip != null && !grip.IsChildOf(h.T)) Fail($"{type} {c.Grip} does not ride {c.Node}");
+                    Vector3 k = root.transform.InverseTransformPoint(h.KnobWorld(h.V0));
+                    float d = (k - eye).magnitude;
+                    if (d > worst) { worst = d; worstName = c.Short; }
+                    // Codex's panel positions are estimates (E) awaiting Ty's review: reach is reported, not failed.
+                    if (d > ReachM) { far++; Debug.LogWarning($"HANDLE WARN {type} {seat} {c.Short}: {d * 100:F0} cm from the eye, past a comfortable reach ({ReachM * 100:F0} cm)"); }
+                    if (c.Kind != FlyingGame.Core.Vr.PanelKind.Rotary)
+                    {
+                        Vector3 k1 = root.transform.InverseTransformPoint(h.KnobWorld(h.V1));
+                        if ((k1 - k).magnitude < 0.003f) Fail($"{type} {seat} {c.Short}: its knob moves {(k1 - k).magnitude * 1000:F1} mm end to end");
+                    }
+                }
+                Debug.Log($"HANDLE {type} {seat}: {n} controls; farthest {worstName} {worst * 100:F0} cm from the eye; {far} out of reach");
+                if (n != 22) Fail($"{type} {seat}: {n} controls, the inventory says 22");
+            }
+            UnityEngine.Object.DestroyImmediate(root);
         }
 
         private static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);

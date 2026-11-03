@@ -34,6 +34,13 @@ namespace FlyingGame.Bridge
         /// <summary>A lever's hinge direction, world (<c>RestRot · axis</c> in the parent: the axis the rig turns about).</summary>
         public Vector3 HingeWorld => T.parent.TransformDirection(RestRot * Axis);
 
+        /// <summary>Put the node where the rig would draw it at rig value <paramref name="v"/> (degrees or metres).</summary>
+        public void Pose(double v)
+        {
+            if (Slide) T.localPosition = RestPos + Axis * (float)v;
+            else T.localRotation = RestRot * Quaternion.AngleAxis((float)v, Axis);
+        }
+
         /// <summary>The knob, world, with the node at rig value <paramref name="v"/>.</summary>
         public Vector3 KnobWorld(double v)
         {
@@ -44,7 +51,11 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>The bound node by name, or null.</summary>
-        public static RigHandle Find(AirframeRig rig, string node)
+        public static RigHandle Find(AirframeRig rig, string node) => Find(rig, node, null);
+
+        /// <summary>The bound node by name, with the hand's point given by an empty under it (Codex's <c>Grip_*</c>) when
+        /// there is one, rather than worked out from the meshes.</summary>
+        public static RigHandle Find(AirframeRig rig, string node, Transform gripEmpty)
         {
             if (rig == null || string.IsNullOrEmpty(node)) return null;
             foreach (AirframeRig.Bound b in rig.Nodes)
@@ -56,7 +67,7 @@ namespace FlyingGame.Bridge
                     T = b.T, RestPos = b.RestPos, RestRot = b.RestRot, Axis = b.Axis, Name = node, Node = b.Node, Slide = b.Node.Move,
                     P0 = b.Node.MapPoint(0).Param, V0 = b.Node.MapPoint(0).Value,
                     P1 = b.Node.MapPoint(n - 1).Param, V1 = b.Node.MapPoint(n - 1).Value,
-                    KnobLocal = KnobOf(b.T, b.Node.Move),
+                    KnobLocal = gripEmpty != null ? b.T.InverseTransformPoint(gripEmpty.position) : KnobOf(b.T, b.Node.Move),
                 };
             }
             return null;

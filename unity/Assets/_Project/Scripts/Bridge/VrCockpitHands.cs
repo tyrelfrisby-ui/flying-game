@@ -95,6 +95,7 @@ namespace FlyingGame.Bridge
             PoseBody();
             PlaceCanopyProps();
             DrawGliderLevers();
+            DrawPanel();
         }
 
         // ---- 1-5: once a frame, from whoever asks first (TouchFlightControls in Update, else LateUpdate) ----
@@ -121,6 +122,7 @@ namespace FlyingGame.Bridge
             OwnPinches();
             Drive();
             DriveGlider();
+            DrivePanel();
             DriveBailout();
         }
 
@@ -283,6 +285,7 @@ namespace FlyingGame.Bridge
                       $"throttle {(!_hasThrottle ? "none (no engine)" : thrNode != null ? "on the rig's lever" : "proxy")} ({sweep:F0}°, arm {arm:F2} m); " +
                       $"feet {(_footNodeL != null ? "on the pedals" : "proxy")}; latch {_latchKind}{(_latchKind != CanopyLatchKind.None ? _latchNode != null ? " on its node" : " proxy" : "")}");
             BindGlider(brief);
+            BindPanel(full);
             BindBailout(full);
         }
 
@@ -325,6 +328,7 @@ namespace FlyingGame.Bridge
             _grab.Set(Grabbable.CanopyLatchAft, pair ? C(LatchHandle(cockpit, fwd: false)) : Vec3.Zero, pair);
             _grab.Set(Grabbable.CanopyLatchFwd, pair ? C(LatchHandle(cockpit, fwd: true)) : Vec3.Zero, pair);
             UpdateGliderPoints();
+            UpdatePanelPoints();
             UpdateBailoutPoints();
         }
 
@@ -372,7 +376,8 @@ namespace FlyingGame.Bridge
                         if (_visual.Cockpit.HandLatch is PittsCanopyLatch p) p.Grab(h.X);
                         break;
                     default:
-                        if (!GrabGlider(side, _grab.Held(side), h)) GrabBailout(side, _grab.Held(side), _hands[(int)side]);
+                        if (!GrabGlider(side, _grab.Held(side), h) && !GrabPanel(side, _grab.Held(side), h))
+                            GrabBailout(side, _grab.Held(side), _hands[(int)side]);
                         break;
                 }
             }
@@ -485,6 +490,7 @@ namespace FlyingGame.Bridge
                      : held == Grabbable.CanopyLatchAft ? LatchHandle(_visual.Cockpit, fwd: false)
                      : held == Grabbable.CanopyLatchFwd ? LatchHandle(_visual.Cockpit, fwd: true)
                      : held is Grabbable.SpoilerHandle or Grabbable.TrimLever or Grabbable.TowRelease ? HeldGliderPoint(held)
+                     : held >= Grabbable.PanelFirst && held <= Grabbable.PanelLast ? HeldPanelPoint(held)
                      : HeldBailoutPoint(held, h);
                 curl = held == Grabbable.CanopyLatch && _latchKind == CanopyLatchKind.Squeeze ? 0.6f + 0.4f * (float)h.Pinch : 1f;
                 return;

@@ -251,3 +251,16 @@ The parachute's opening shock went into three comments as "≈ 7.4 g" because th
 opening said. The Core model that ships blends the body's drag area differently and gives 6.7 g; the sketch had never
 been the code. Every comment, doc table and NEEDS YOU line had to be found and changed. Sketch to choose the model, then
 run the Core function itself (a throwaway probe test is enough) and copy THOSE numbers into docs and tests.
+
+### Two points on a lever do not give its hinge
+The 2-33's dive-brake knob sits 11 cm along its hinge from the pivot. A lever built from the pivot and the knob at its
+two ends (`r₀ × r₁` as the axis) read a hinge tilted 19° off lateral and a 31° sweep for the rig's 33°, so the hand
+would have needed 6 % more pull than the handle moved and the knob would have been drawn off its own slot. Nothing
+errors; `VrHandleCheck` caught it by printing the sweep. Take the hinge direction from the rig (`RigHandle.HingeWorld`:
+`RestRot · axis` in the parent) and project onto the plane across it; derive only the SENSE from the points.
+
+### A clean merge is not a compiling merge
+lane/claude-vr-cockpit and lane/codex-vr-cockpit each added `case "canopy_latch":` to `RigInputs.TryGet`, a few lines
+apart. git merged them without a conflict and the result was a duplicate case label (and two contracts for one param).
+After any merge, build before reading the conflict list as the list of problems — and grep the merged switch
+statements for a repeated label when two lanes touched the same table.

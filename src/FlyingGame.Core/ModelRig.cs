@@ -319,11 +319,14 @@ public sealed class ModelRig
 {
     public readonly string Model;
     public readonly IReadOnlyList<RigNode> Nodes;
+    /// <summary>The table's `controls`: the switches and knobs a hand works (Codex's Ctl_* nodes), or none.</summary>
+    public readonly IReadOnlyList<FlyingGame.Core.Vr.PanelControlSpec> Controls;
 
-    public ModelRig(string model, IReadOnlyList<RigNode> nodes)
+    public ModelRig(string model, IReadOnlyList<RigNode> nodes, IReadOnlyList<FlyingGame.Core.Vr.PanelControlSpec>? controls = null)
     {
         Model = model ?? "";
         Nodes = nodes ?? Array.Empty<RigNode>();
+        Controls = controls ?? Array.Empty<FlyingGame.Core.Vr.PanelControlSpec>();
     }
 
     public RigNode? Find(string node)

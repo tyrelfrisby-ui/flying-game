@@ -164,12 +164,28 @@ namespace FlyingGame.Bridge
             Limb("R_UpperArm", "R_LowerArm", "R_Hand", p.ShoulderR, p.ElbowR, p.WristR);
             Limb("L_UpperLeg", "L_LowerLeg", "L_Foot", p.HipL, p.KneeL, p.AnkleL);
             Limb("R_UpperLeg", "R_LowerLeg", "R_Foot", p.HipR, p.KneeR, p.AnkleR);
-            Aim(B("L_Hand"), B("L_Middle1"), p.WristL, p.GripL);
-            Aim(B("R_Hand"), B("R_Middle1"), p.WristR, p.GripR);
+            Aim(B("L_Hand"), B("L_Middle1"), p.WristL, p.JointsL != null ? p.JointsL[12] : p.GripL);
+            Aim(B("R_Hand"), B("R_Middle1"), p.WristR, p.JointsR != null ? p.JointsR[12] : p.GripR);
             Aim(B("L_Foot"), B("L_Toes"), p.AnkleL, p.BallL);
             Aim(B("R_Foot"), B("R_Toes"), p.AnkleR, p.BallR);
-            Curl("L_", p.CurlL);
-            Curl("R_", p.CurlR);
+            if (p.JointsL != null) TrackedFingers("L_", p.JointsL); else Curl("L_", p.CurlL);
+            if (p.JointsR != null) TrackedFingers("R_", p.JointsR); else Curl("R_", p.CurlR);
+        }
+
+        /// <summary>A tracked hand on the skinned asset: each finger bone aimed along its own tracked segment
+        /// (Index1 → Index2 along proximal → intermediate joints, and so on; the thumb from its metacarpal). The hand
+        /// itself is aimed at the middle knuckle above; positions stay the asset's, so the glove keeps its proportions.</summary>
+        private void TrackedFingers(string side, Vector3[] j)
+        {
+            for (int f = 1; f < Fingers.Length; f++)
+            {
+                int m = 6 + 5 * (f - 1);   // index, middle, ring, little metacarpals (Core HandJoint order)
+                string n = side + Fingers[f];
+                Aim(B(n + "1"), B(n + "2"), j[m + 1], j[m + 2]);
+                Aim(B(n + "2"), B(n + "3"), j[m + 2], j[m + 3]);
+            }
+            Aim(B(side + "Thumb1"), B(side + "Thumb2"), j[2], j[3]);
+            Aim(B(side + "Thumb2"), B(side + "Thumb3"), j[3], j[4]);
         }
 
         private void Limb(string upper, string lower, string end, Vector3 a, Vector3 b, Vector3 c)

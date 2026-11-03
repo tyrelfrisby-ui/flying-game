@@ -15,6 +15,8 @@ namespace FlyingGame.Core.Vr
         CanopyLatchAft = 11, CanopyLatchFwd = 12, CanopyJettison = 13,
         // Phase 3 (hands): the 2-33's dive-brake handle (whichever cockpit you sit in), its trim lever and tow release.
         SpoilerHandle = 14, TrimLever = 15, TowRelease = 16,
+        // Phase 3 (switches and knobs): the seat's own panel controls, one slot each, PanelFirst + their index.
+        PanelFirst = 32, PanelLast = 79,
     }
 
     /// <summary>One frame's events, for haptics and the log.</summary>
@@ -57,7 +59,7 @@ namespace FlyingGame.Core.Vr
         }
 
         /// <summary>One slot per <see cref="Grabbable"/> value.</summary>
-        public const int Slots = 17;
+        public const int Slots = 80;
 
         public readonly Point[] Points = new Point[Slots];
 
