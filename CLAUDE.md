@@ -237,3 +237,13 @@ eye (or a sight, or a cockpit part), find out which model `AirframeModels.PickOw
 livery, and measure against that one (`tools/own_models/check_eye_interiors.py`). Also: `AirframeModels.Place` puts
 the model in the CG-rooted frame using the config's datum numbers, and the eyes were measured in that frame — adding
 the CG to the eye "puts" the Great Lakes pilot 7 cm under his own turtle deck.
+
+### A second camera inherits nothing it was not given
+The Quest clip recorder renders the scene a second time from the head with its own camera, and two things the
+pilot sees did not come with it. The aerobatic sight is shown only to `Camera.main` in the cockpit
+(`CockpitSights`), so it was missing from every clip. The water's depth tint reads `_CameraDepthTexture`, which
+only the XR camera renders, so the recording sampled another camera's foveated, tiled depth and painted a
+flickering light-blue grid on the sea. Ty reported that grid as z-fighting. When you add a camera, list what
+the scene's shaders and components key on per camera (Camera.main checks, onPreCull hooks, depth / reflection
+textures, layers), and give each one to the new camera explicitly (`CockpitSights.MirrorCamera`,
+`_WaterSceneDepthOff`) or switch it off for that render on purpose.

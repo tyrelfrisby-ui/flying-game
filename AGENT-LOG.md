@@ -1,4 +1,22 @@
 ## NEEDS YOU
+- **QUEST: THE CLIPS — SIGHT AND WATER IN THE RECORDING, 48 kHz SOUND, ADB RECORD, A HITCH LINE (Claude, 2026-11-02,
+  lane/claude-vr-quest). Ty's two a222bda clips + the 677e374 log. Code only: NOT built (`deploy.sh` not run: src/
+  changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the rebuild:**
+  1. **A test clip over adb** (docs/quest-controls.md *Recording*): FLY the Pitts, then
+     `adb shell am broadcast -a com.tyrelfrisby.aeroplayground.quest.RECORD --es cmd start`, fly 30 s, `… --es cmd stop`,
+     `zsh tools/deploy/quest-record.sh --pull`. The clip must show the **wingtip sight**, and low over the sea it must
+     NOT show the light-blue checker. `ffprobe` should list the video as stream 0 and the audio as **AAC 48000 Hz** stream 1.
+  2. **Sound**: `adb logcat -s Unity | grep QuestRec`. At launch: `[QuestRec] audio output … Hz`. If it says `24000 …
+     -> asked 48000: REFUSED`, send me the line. At stop: `peak … dBFS — ok`. Does the clip play with sound in
+     QuickTime, Photos and Slack?
+  3. **Water in the headset**: fly low toward a far shore. The far shallows should no longer flicker light / dark.
+  4. **Any hitch**: `adb logcat -s Unity | grep "QuestPerf] hitch"`. Send me every line; each says what ran in it.
+  **What the clips showed:** (a) the 1:30–1:38 "freeze" was no stall (30 fps throughout, sound clipping at full scale
+  in the dive, not silent): the Great Lakes went nose-first into the sea and sat there windmilling until power
+  came in (the crash-water lane, item e). (b) The grid was the RECORDER's water. (c) The Pitts clip is the wreck
+  floating, engine stopped, so the game was quiet (−44 dBFS). (d) The a222bda log has `7 of 7 dials live` for the
+  Pitts: in flight its gauges move; in the wreck they read a constant. The sun has no shadow map at all; the
+  spiky shadow is the planar projection of the crumpled wreck. Details in the log entry. **Nothing approved.**
 - **QUEST: SLOW NEAR THE GROUND, THE AIRCRAFT LIST, YELLOW-ONLY 2-33, A GENTLER STICK + GAMEPAD (Claude, 2026-11-02,
   lane/claude-vr-quest, commits 159e5f46 · 5d028681 · 1084a620 · eeb12758). Code only: NOT built (`deploy.sh` not
   run — src/ changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the
@@ -1009,6 +1027,44 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · Ty's two clips: the dive "freeze", water grid, clip sound, Pitts gauges + shadow, the sight in recordings
+Evidence: AeroQuest-20261102-131546.mp4 (Pitts), -131749.mp4 (Great Lakes), both from a222bda, read with ffprobe /
+ffmpeg (frames to /tmp/qv, never modified); quest-logs/ty-unity-5517.txt + live.txt (677e374). adb: the headset was
+not connected, so nothing was read from it.
+- **(a) Freeze.** The clip has 30 frames every second from 1:26 to 1:48, and no frame-difference spike. The audio is
+  at full scale (RMS −3 dB, peak 0 dBFS) from 1:30.5 to 1:40.5, then −30 dB, then −16 dB: not silent. The frames show
+  the nose going into the sea at ~1:37, the prop windmilling at POWER 0 %, and the head moving. That is the aeroplane
+  stopped in the water (item e), not the main thread. In the 677e374 log, 3554 ms is the scene's FIRST frame (the
+  landing page, 02.58 → 06.13); the 21 fps after it is the forest's initial 126 chunks. Added
+  `[QuestPerf] hitch` for any frame > 100 ms (agl / alt / speed, menu, sim steps, forest before → after, GC delta,
+  heap, wake / reflection, recorder, and `QuestRig.Note` from an airframe rebuild, a model load, the wake field, FLY
+  and a recording start). PSO prewarm deliberately not done (no evidence; a Vulkan GraphicsStateCollection must be
+  traced on the device).
+- **(b) Water grid.** The recorder's camera has no depth texture, so Water.shader's depth tint read the XR camera's
+  (other projection, foveated, tiled): light-blue blocks where that buffer held something near. Now
+  `_WaterSceneDepthOff` = 1 and `_ReflOn` = 0 only for the recorder's render. In the headset: `_WaterDepthErrK` (QuestRig
+  only; 0 everywhere else) blends the depth term into deep water where a 24-bit buffer with the 5 cm near plane cannot
+  resolve the seabed (≈460 m – 1 km).
+- **(c) Sound.** The ASC is 0x1310 = AAC LC **24 kHz** stereo, so `AudioSettings.outputSampleRate` was 24000
+  (the system's own AudioFlinger tracks run at 48000). Now 48 kHz is asked in a BeforeSceneLoad hook (Android = the Quest build), before
+  anything plays, and logged. The muxer adds video first, then audio (it was audio first). `[QuestRec] start` /
+  `stop` lines give rate, channels, seconds captured, peak dBFS and a verdict. The Pitts clip's −44 dBFS was the
+  game: the whole clip is the wreck, engine stopped.
+- **(d) Pitts.** a222bda logged `pitts-s2b-like-own: 7 of 7 dials live` (sticks and pedals 12 / 0 triangles, LEFT
+  STATIC: what 1ab29ee9 fixed). The clip is all wreck, so the readings are constant. Gauges: no change. Shadows: the
+  sun has `LightShadows.None` (`SceneBootstrap.BuildSun`), so there is no shadow map to tune. The spiky shadow is
+  `GroundShadow`'s planar projection of the crumpled wreck, offset because the wreck floats high. A real shadow map
+  in VR is a whole caster pass, so it is left as Codex's call. The panel and canopy were not touched.
+- **(f) Sight in recordings.** `CockpitSights.Allows` required `camera == Camera.main`, and the recorder's camera
+  is untagged, so the sight was switched off for every recorded frame. Now `CockpitSights.MirrorCamera / MirrorOf`
+  lets the recorder be asked as the main camera, only during its own `Render()`. It is not a compositor layer, so
+  scrcpy's mirror already had it. Added adb start / stop: `am broadcast -a com.tyrelfrisby.aeroplayground.quest.RECORD
+  --es cmd start|stop|toggle`. The receiver is registered with `android.permission.DUMP` (adb shell only) and
+  RECEIVER_EXPORTED, and is read on Unity's thread twice a second (`QuestRecording.AdbCommand`, tested).
+**Checks:** Roslyn (build/agent/check4/run.sh) 0 errors for Core, Sim, Bridge on Android il2cpp (Both), iOS and the
+editor, and for Quest on Android and the editor. javac of QuestRecorder.java against android.jar: 0 errors. Tests
+filtered to QuestRecording / QuestCockpit / QuestControls / CockpitLive: 77 / 77, run after another lane's
+xcodebuild had finished. Full suite not run. No Unity, no build, no install.
 ### 2026-11-02 — Claude · lane/claude-vr-quest · Quest: slow near the ground (measured), the headset's aircraft list, 2-33 yellow only, stick feel + gamepad
 **1. Slowdown — measured on the device (logcat /tmp/questlogs/perf-1410), cause found, fixed, measured on the Mac.**
 - Device: 72 fps / 4.5–8 ms main thread above ~100 m agl; 20 fps / ~48 ms below ~60 m; 8–9 fps / 110–120 ms on the
