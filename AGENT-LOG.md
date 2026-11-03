@@ -4487,3 +4487,9 @@ Final verification: full aircraft 161 nodes / cabin 133 nodes; 104/104 binding p
 
 ## 2026-11-03 14:38 PST - 172 instruments: Ty says they still stick out
 NEEDS YOU: approve re-render. Ty (voice call) reviewed instruments-v1 renders: instruments still protrude from the panel. 172 instruments must be flush-mounted (bezels flush with panel face, nothing sticking out). Codex fixing placement and re-rendering.
+
+## 2026-11-03 14:39 PST - 172 instruments, more Ty feedback (voice call)
+NEEDS YOU: approve v2 re-render.
+1. Instruments protrude about 1 inch; must sit flush with the panel surface, each mounted with four visible screws at the bezel corners.
+2. Attitude indicator miniature airplane reference is crooked; must be level and centered.
+3. DG airplane is just a plus sign; replace with a real top-view airplane silhouette.
