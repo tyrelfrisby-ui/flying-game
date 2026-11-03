@@ -262,7 +262,10 @@ namespace FlyingGame.Bridge
                     // Clockwise seen from above (Unity's front face); diagonal SW-NE.
                     b.T.Add(a0); b.T.Add(a2); b.T.Add(a3); b.T.Add(a0); b.T.Add(a3); b.T.Add(a1);
                 }
-                Skirt(c, b, index, m, s, Math.Max(4f, 2 * c.Error[l] + 2));
+                // Deep enough to close any gap a neighbour can open: the level's own error, and in a chunk with fine
+                // cells the deepest fine detail (a crevasse plus a serac top), which a coarse neighbour does not draw.
+                float detailDepth = c.Fine.Count + c.Stitch.Count > 0 ? (float)(IslandRelief.CrevasseDepthM + IslandRelief.SeracM + 2) : 0f;
+                Skirt(c, b, index, m, s, Math.Max(Math.Max(4f, 2 * c.Error[l] + 2), detailDepth));
                 float relative = l == Steps.Length - 1 ? .002f : Relative(c.Error[l + 1]);
                 if (b.T.Count == 0) { lods[l] = new LOD(relative, new Renderer[0]); continue; }
                 var mesh = new Mesh { name = go.name + "-LOD" + l };
@@ -298,7 +301,17 @@ namespace FlyingGame.Bridge
         static bool DetailNeighbour(ChunkData c, int i, int j)
         {
             if (c.Detail[j * N + i]) return true;
-            return i > 0 && c.Detail[j * N + i - 1] || i < N - 1 && c.Detail[j * N + i + 1] || j > 0 && c.Detail[(j - 1) * N + i] || j < N - 1 && c.Detail[(j + 1) * N + i];
+            return Detailed(c, i - 1, j) || Detailed(c, i + 1, j) || Detailed(c, i, j - 1) || Detailed(c, i, j + 1);
+        }
+
+        /// <summary>Whether cell (i, j) has fine sub-cells — asked of the NEIGHBOURING chunk's ground too when (i, j) is
+        /// outside this one. Inside-only, a fine cell on a chunk's edge left the next chunk's cell unstitched: a
+        /// T-junction along the boundary, and through it the sky, where a crevasse cut 22 m under the straight edge.</summary>
+        static bool Detailed(ChunkData c, int i, int j)
+        {
+            if (i >= 0 && i < N && j >= 0 && j < N) return c.Detail[j * N + i];
+            double x0 = c.X0 + j * CellM, y0 = c.Y0 + i * CellM;
+            return IslandRelief.NeedsFineMesh(y0 / 1000, x0 / 1000, (y0 + CellM) / 1000, (x0 + CellM) / 1000) || NearCave(x0 + .5 * CellM, y0 + .5 * CellM);
         }
 
         /// <summary>One exact sample of the ground (thread-safe Core arithmetic only; Unity types are plain structs).</summary>
