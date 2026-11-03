@@ -159,8 +159,11 @@ namespace FlyingGame.Bridge
 
         private void PresetTrim()
         {
-            // Air start: half power. Ground start: IDLE (owner: "power should start at idle on the ground").
-            _throttle = AxisForFraction(_driver.GroundStart || _driver.IdleStart ? IdleFraction : IdleFraction + (1f - IdleFraction) * 0.5f);
+            // Air start: the RIG power, 75 % (owner 2026-11-02) -- every aeroplane is rigged to fly straight and level hands off
+            // there, and FlightSimDriver starts it trimmed for exactly that. Ground start: IDLE (owner: "power should start at
+            // idle on the ground").
+            _throttle = AxisForFraction(_driver.GroundStart || _driver.IdleStart ? IdleFraction
+                : IdleFraction + (1f - IdleFraction) * (float)FlyingGame.Sim.RigSolver.RigThrottle);
             if (_driver.Sim?.Aircraft?.Config?.Propulsion == null)
             {
                 // Glider: spoilers open on the ground, stowed in the air; on final the knob starts where the spawn's
