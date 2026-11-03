@@ -540,7 +540,11 @@ namespace FlyingGame.Bridge
                         float bodyHalf = cfgM != null ? (float)((cfgM.Fuselage.Crossflow?.BodyRadiusM > 0 ? cfgM.Fuselage.Crossflow.BodyRadiusM : 0.5) + 0.15) : 0.7f;
                         SplitBySide(mf.sharedMesh, mf.transform, root, -1f, bodyHalf, out Mesh lost1, out Mesh kept1);
                         if (lost1 != null) AddPiece(left.transform, mf.name, lost1, mat, localPos, localRot, scale);
-                        if (kept1 != null)
+                        // A mesh lying wholly on the left (an own model's left ailerons and their interconnect strut) has
+                        // nothing to keep: it went with the debris above, so it must leave the airframe too. It used to keep
+                        // its mesh, and the left ailerons stayed on the fuselage while a copy tumbled away with the wing.
+                        if (kept1 == null) mf.sharedMesh = null;
+                        else
                         {
                             SplitBySide(kept1, mf.transform, root, 1f, bodyHalf, out Mesh lost2, out Mesh kept2);
                             if (lost2 != null) AddPiece(right.transform, mf.name, lost2, mat, localPos, localRot, scale);
