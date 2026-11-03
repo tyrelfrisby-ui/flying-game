@@ -1,0 +1,145 @@
+using System.Text.Json;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace FlyingGame.FlightTests;
+
+/// <summary>
+/// Ty 2026-11-02 (build after 2026.1102): "the switches were outside of the great lakes on the sides". Every
+/// interactive cockpit control (each root Ctl_* pivot and its Mount_* twin) of our own Great Lakes, Pitts and
+/// Extra must sit ON a real instrument-panel face inside the cockpit: its pivot just behind that seat's panel
+/// face plane, and a 24 x 24 mm footprint around it wholly on panel-face triangles (the panel sheet, radio /
+/// transponder faceplates, the magneto dial, the Extra's lower switch subpanel), never off the panel's edge,
+/// in a gauge hole or out through the fuselage side. Placement is tools/own_models/cockpit_controls_v2.py.
+///
+/// The two legacy Great Lakes GLBs (-red-sunburst, -white-stripes) are excluded: no code loads them
+/// (great-lakes-like-own.glb is the only Great Lakes the game uses) and their cockpit openings and panels sit
+/// at different stations, while they carry the shared rig.
+/// </summary>
+public class CockpitControlInteriorTests
+{
+    private readonly ITestOutputHelper _o;
+    public CockpitControlInteriorTests(ITestOutputHelper o) { _o = o; }
+
+    /// <summary>Materials that are panel FACE: something a switch, knob or push-pull may be mounted through.</summary>
+    private static readonly HashSet<string> PanelFace = new()
+    {
+        "Cockpit_panel", "Avionics_Face_COM", "Avionics_Face_XPDR", "Cockpit_blank_plug", "Dial_MAG",
+        "P3e_Subpanel", "P3b_Panel", "P2c_Panel_White",
+    };
+
+    // model, file, rear panel face x, front panel face x (builder metres: x forward, y left, z up)
+    public static IEnumerable<object[]> Cases() => new[]
+    {
+        new object[] { "great-lakes-like", "great-lakes-like-own", -1.638, -0.968 },
+        new object[] { "pitts-s2b-like", "pitts-s2b-like-own", -0.808, -0.151 },
+        new object[] { "pitts-s2b-like", "pitts-s2b-like-own-checker-unmarked", -0.808, -0.151 },
+        new object[] { "pitts-s2b-like", "pitts-s2b-like-own-factory-unmarked", -0.808, -0.151 },
+        new object[] { "pitts-s2b-like", "pitts-s2b-like-own-n1191", -0.808, -0.151 },
+        new object[] { "extra-300-like", "extra-300-like-own", -1.172, -0.147 },
+        new object[] { "extra-300-like", "extra-300-like-own-n300uy", -1.172, -0.147 },
+        new object[] { "extra-300-like", "extra-300-like-own-unmarked", -1.172, -0.147 },
+    };
+
+    [Theory]
+    [MemberData(nameof(Cases))]
+    public void Every_control_sits_on_a_panel_face_inside_the_cockpit(string model, string file, double rearFace, double frontFace)
+    {
+        string path = Path.Combine(OwnPittsModelTests.Models, model, file + ".glb");
+        var (j, bin) = OwnPittsModelTests.ReadGlb(path);
+        JsonElement nodes = j.GetProperty("nodes");
+        int count = nodes.GetArrayLength();
+        var parent = new int[count];
+        for (int i = 0; i < count; i++) parent[i] = -1;
+        for (int i = 0; i < count; i++)
+            if (nodes[i].TryGetProperty("children", out JsonElement kids))
+                foreach (JsonElement k in kids.EnumerateArray()) parent[k.GetInt32()] = i;
+
+        var faces = PanelTriangles(j, bin, nodes, parent);
+        Assert.NotEmpty(faces);
+        var failures = new List<string>();
+        int controls = 0;
+        for (int i = 0; i < count; i++)
+        {
+            string name = nodes[i].GetProperty("name").GetString()!;
+            if (!name.StartsWith("Ctl_") && !name.StartsWith("Mount_")) continue;
+            controls++;
+            double[] m = OwnPittsModelTests.World(nodes, parent, i);
+            double x = -m[12], y = m[14], z = m[13];                       // glTF -> builder
+            double face = name.EndsWith("_Front") ? frontFace : rearFace;
+            if (x < face - 0.008 || x > face + 0.003) { failures.Add($"{name}: x {x:F3} not at panel face {face:F3}"); continue; }
+            var local = faces.Where(t => Math.Min(t.a.x, Math.Min(t.b.x, t.c.x)) < face + 0.012
+                                      && Math.Max(t.a.x, Math.Max(t.b.x, t.c.x)) > face - 0.03).ToList();
+            foreach (double dy in new[] { -0.012, 0, 0.012 })
+                foreach (double dz in new[] { -0.012, 0, 0.012 })
+                    if (!local.Any(t => Inside(t, y + dy, z + dz)))
+                    {
+                        failures.Add($"{name}: ({y:F3},{z:F3}) footprint point ({y + dy:F3},{z + dz:F3}) is off the panel face");
+                        goto next;
+                    }
+            next:;
+        }
+        _o.WriteLine($"{file}: {controls} controls, {failures.Count} off-panel");
+        foreach (string f in failures.Take(20)) _o.WriteLine("  " + f);
+        Assert.Equal(88, controls);
+        Assert.Empty(failures);
+    }
+
+    private readonly record struct P(double x, double y, double z);
+    private readonly record struct Tri(P a, P b, P c);
+
+    private static bool Inside(Tri t, double y, double z)
+    {
+        double d1 = (t.b.y - t.a.y) * (z - t.a.z) - (t.b.z - t.a.z) * (y - t.a.y);
+        double d2 = (t.c.y - t.b.y) * (z - t.b.z) - (t.c.z - t.b.z) * (y - t.b.y);
+        double d3 = (t.a.y - t.c.y) * (z - t.c.z) - (t.a.z - t.c.z) * (y - t.c.y);
+        if (Math.Abs(d1) + Math.Abs(d2) + Math.Abs(d3) == 0) return false;
+        return (d1 >= 0 && d2 >= 0 && d3 >= 0) || (d1 <= 0 && d2 <= 0 && d3 <= 0);
+    }
+
+    /// <summary>Every triangle, in builder metres, of every primitive whose material is a panel face.</summary>
+    private static List<Tri> PanelTriangles(JsonElement j, byte[] bin, JsonElement nodes, int[] parent)
+    {
+        JsonElement acc = j.GetProperty("accessors"), views = j.GetProperty("bufferViews"), meshes = j.GetProperty("meshes"), mats = j.GetProperty("materials");
+        var res = new List<Tri>();
+        for (int i = 0; i < nodes.GetArrayLength(); i++)
+        {
+            if (!nodes[i].TryGetProperty("mesh", out JsonElement mi)) continue;
+            double[] m = OwnPittsModelTests.World(nodes, parent, i);
+            foreach (JsonElement prim in meshes[mi.GetInt32()].GetProperty("primitives").EnumerateArray())
+            {
+                if (!prim.TryGetProperty("material", out JsonElement mat) || !PanelFace.Contains(mats[mat.GetInt32()].GetProperty("name").GetString()!)) continue;
+                var pos = Read(acc, views, bin, prim.GetProperty("attributes").GetProperty("POSITION").GetInt32())
+                    .Select(v => { double x = v[0], y = v[1], z = v[2];
+                        return new P(-(m[0] * x + m[4] * y + m[8] * z + m[12]), m[2] * x + m[6] * y + m[10] * z + m[14], m[1] * x + m[5] * y + m[9] * z + m[13]); }).ToArray();
+                int[] ids = prim.TryGetProperty("indices", out JsonElement ix)
+                    ? Read(acc, views, bin, ix.GetInt32()).Select(v => (int)v[0]).ToArray()
+                    : Enumerable.Range(0, pos.Length).ToArray();
+                for (int k = 0; k + 2 < ids.Length; k += 3) res.Add(new Tri(pos[ids[k]], pos[ids[k + 1]], pos[ids[k + 2]]));
+            }
+        }
+        return res;
+    }
+
+    private static List<double[]> Read(JsonElement acc, JsonElement views, byte[] bin, int index)
+    {
+        JsonElement a = acc[index], bv = views[a.GetProperty("bufferView").GetInt32()];
+        int comp = a.GetProperty("componentType").GetInt32();
+        int dim = a.GetProperty("type").GetString() switch { "SCALAR" => 1, "VEC2" => 2, "VEC3" => 3, _ => 4 };
+        int size = comp switch { 5126 or 5125 => 4, 5123 => 2, _ => 1 };
+        int o = (bv.TryGetProperty("byteOffset", out JsonElement bo) ? bo.GetInt32() : 0) + (a.TryGetProperty("byteOffset", out JsonElement ao) ? ao.GetInt32() : 0);
+        int stride = bv.TryGetProperty("byteStride", out JsonElement bs) ? bs.GetInt32() : dim * size;
+        var res = new List<double[]>();
+        for (int k = 0; k < a.GetProperty("count").GetInt32(); k++)
+        {
+            var v = new double[dim];
+            for (int d = 0; d < dim; d++)
+            {
+                int at = o + k * stride + d * size;
+                v[d] = comp switch { 5126 => BitConverter.ToSingle(bin, at), 5125 => BitConverter.ToUInt32(bin, at), 5123 => BitConverter.ToUInt16(bin, at), _ => bin[at] };
+            }
+            res.Add(v);
+        }
+        return res;
+    }
+}
