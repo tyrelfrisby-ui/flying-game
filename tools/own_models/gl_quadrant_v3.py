@@ -28,8 +28,8 @@ ROW=['Magneto','Master','FuelPump','CarbHeat','Smoke','NavLights','Strobe','Land
 LABEL={'Magneto':'MAGS','Master':'MASTER','FuelPump':'FUEL|PUMP','CarbHeat':'CARB|HEAT','Smoke':'SMOKE','Trim':'TRIM',
        'FuelSelector':'FUEL|VALVE','NavLights':'NAV|LTS','Strobe':'STROBE','LandingLight':'LAND|LT'}
 # lever: (rig/ctl label, lateral y, length, knob material, knob radius, knob letter, gate label)
-LEVERS=[('Throttle',.318,.150,'Cockpit_black',.014,'T','THR'),('Prop',.288,.135,'Cockpit_knob_blue',.012,'P','PROP'),
-        ('Mixture',.258,.120,'Cockpit_knob_red',.011,'M','MIX')]
+LEVERS=[('Throttle',.318,.150,'Cockpit_black',.014,'T','THR'),('Prop',.288,.1246,'Cockpit_knob_blue',.012,'P','PROP'),
+        ('Mixture',.258,.0992,'Cockpit_knob_red',.011,'M','MIX')]
 HOUSING_Y=(.252,.338);HOUSING_DX=.065
 
 F={'A':'01110 10001 10001 11111 10001 10001 10001','B':'11110 10001 10001 11110 10001 10001 11110','C':'01111 10000 10000 10000 10000 10000 01111',
@@ -250,7 +250,7 @@ def build_photo_console(g,doc,controls,rigrows,names):
   body=Shape();body.box((bx,by,z-.0375),(.130,.070,.075))
   put('GL_SwitchStrip_'+s['sfx'],[('GL_ConsoleGrey',body,None)],(bx,by,z))
   labels=Shape();luv=[];metal=Shape();black=Shape()
-  # Six fore/aft toggles on the inboard face; six matching breakers on top.
+  # V7: six fore/aft toggles on the lid; six matching breakers on the inboard face.
   # Top row is forward. Across each row reads left to right from the seat.
   import copy
   template=next(c for c in controls if c['seat']==seat and c['param']=='master')
@@ -265,24 +265,25 @@ def build_photo_console(g,doc,controls,rigrows,names):
   for j,(lab,key) in enumerate(layout):
    row,col=divmod(j,3)
    xx=bx-.040+col*.040; yy=by+(.017 if row==0 else -.017)
-   # Buttons occupy a 2 x 3 grid on the horizontal lid.
-   B=np.array((xx,yy,z+.002))
-   metal.tube(B,B+(0,0,.004),.006,16);black.tube(B+(0,0,.004),B+(0,0,.012),.0045,12)
-   quad(labels,luv,B+(0,-.010,.001),(1,0,0),(0,1,0),.036,.009,uv[key])
-   # Toggle stems point inboard and lean aft at OFF; +80 about builder Y = forward ON.
-   P=np.array((bx-.027+col*.027,by-.037,z-.020-row*.034))
-   black.box(P+(0,.001,0),(.026,.003,.031));metal.tube(P,P+(0,-.004,0),.006,12)
+   # Breakers replace the v6 face toggles in exactly the same 2 x 3 positions.
+   B=np.array((bx-.027+col*.027,by-.037,z-.020-row*.034))
+   black.box(B+(0,.001,0),(.026,.003,.031))
+   metal.tube(B,B+(0,-.004,0),.006,16);black.tube(B+(0,-.004,0),B+(0,-.012,0),.0045,12)
+   quad(labels,luv,B+(0,-.004,-.011),(1,0,0),(0,0,1),.026,.009,uv[key])
+   # Top-mounted switch stems lean aft at OFF; +80 about builder Y = forward ON.
+   P=np.array((xx,yy,z+.002))
+   black.box(P+(0,0,-.001),(.038,.030,.002));metal.tube(P,P+(0,0,.004),.006,12)
    c=next(c for c in controls if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
-   toggle=Shape();tip=P+(-.009,-.022,.011);toggle.tube(P,tip,.0028,12);toggle.sphere(tip,.0032,12,8)
+   toggle=Shape();tip=P+(-.009,0,.022);toggle.tube(P,tip,.0028,12);toggle.sphere(tip,.0032,12,8)
    put(c['node'],[('P3_ControlMetal',toggle,None)],P)
    mount='Mount_'+c['grip'][5:]
    if mount in names:nodes[names[mount]].pop('mesh',None)
-   c.update(kind='Toggle',axis_gltf=[0.,0.,1.],pivot_gltf=gl(P).tolist(),travel=80,travel_unit='deg',placement='v6 console 2x3 fore/aft toggles; forward ON',label=key.replace('|',' '))
+   c.update(kind='Toggle',axis_gltf=[0.,0.,1.],pivot_gltf=gl(P).tolist(),travel=80,travel_unit='deg',placement='v7 lid 2x3 fore/aft toggles; forward ON',label=key.replace('|',' '))
    ex=nodes[names[c['node']]].setdefault('extras',{})
    ex.update(rig_param=c['param'],rig_axis_gltf=[0.,0.,1.],rig_map_param=[0.,1.],rig_map_deg=[0.,80.],rig_param_model=0.,interaction=c)
    for ch in nodes[names[c['node']]].get('children',[]):nodes[ch]['translation']=gl(tip-P).tolist()
    rigrows[c['node']].update(kind='rot',axis_gltf=[0.,0.,1.],pivot_gltf=c['pivot_gltf'],map=[[0,0],[1,80]],model=0.,desc=c['placement'])
-   quad(labels,luv,P+(0,-.004,-.011),(1,0,0),(0,0,1),.026,.009,uv[key])
+   quad(labels,luv,P+(0,-.010,.001),(1,0,0),(0,1,0),.036,.009,uv[key])
   # Keep the pre-existing smoke/carb controls as discrete underslung auxiliaries.
   for j,lab in enumerate(['CarbHeat','Smoke']):
    c=next(c for c in controls if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
@@ -292,7 +293,7 @@ def build_photo_console(g,doc,controls,rigrows,names):
    nodes[names[c['node']]]['extras']['interaction']=c
    rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
   put('GL_ConsoleHardware_'+s['sfx'],[('P3_ControlMetal',metal,None),('Cockpit_black',black,None),('GL_PhotoLabels',labels,luv)],(bx,by,z))
-  nodes[names['GL_ConsoleHardware_'+s['sfx']]]['extras']={'switch_order':['master','alternator','fuel_pump','nav_lights','strobe','landing_light'],'breaker_order':['master','alternator','fuel_pump','nav_lights','strobe','landing_light'],'layout':[2,3],'forward_on':True}
+  nodes[names['GL_ConsoleHardware_'+s['sfx']]]['extras']={'switch_order':['master','alternator','fuel_pump','nav_lights','strobe','landing_light'],'breaker_order':['master','alternator','fuel_pump','nav_lights','strobe','landing_light'],'layout':[2,3],'forward_on':True,'switch_surface':'top','breaker_surface':'inboard face'}
   metal=Shape();black=Shape();labels=Shape();luv=[]
   # Distinct black plates with silver spacers, rather than a solid grey gate block.
   plates=Shape()

@@ -1681,9 +1681,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9359999999999997,
-    -0.13299999999999998,
-    0.268
+    1.9229999999999996,
+    -0.11099999999999999,
+    0.322
    ],
    "map": [
     [
@@ -1697,7 +1697,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1713,9 +1713,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9899999999999998,
-    -0.16699999999999998,
-    0.268
+    2.0029999999999997,
+    -0.11099999999999999,
+    0.288
    ],
    "map": [
     [
@@ -1729,7 +1729,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1745,9 +1745,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999999,
-    -0.16699999999999998,
-    0.268
+    1.9629999999999996,
+    -0.11099999999999999,
+    0.288
    ],
    "map": [
     [
@@ -1761,7 +1761,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1777,9 +1777,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9359999999999997,
-    -0.16699999999999998,
-    0.268
+    1.9229999999999996,
+    -0.11099999999999999,
+    0.288
    ],
    "map": [
     [
@@ -1793,7 +1793,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2197,9 +2197,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.2659999999999998,
-    -0.113,
-    0.268
+    1.253,
+    -0.091,
+    0.322
    ],
    "map": [
     [
@@ -2213,7 +2213,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2229,9 +2229,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.3199999999999998,
-    -0.14700000000000002,
-    0.268
+    1.333,
+    -0.091,
+    0.288
    ],
    "map": [
     [
@@ -2245,7 +2245,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2262,8 +2262,8 @@
    ],
    "pivot_gltf": [
     1.293,
-    -0.14700000000000002,
-    0.268
+    -0.091,
+    0.288
    ],
    "map": [
     [
@@ -2277,7 +2277,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2293,9 +2293,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.2659999999999998,
-    -0.14700000000000002,
-    0.268
+    1.253,
+    -0.091,
+    0.288
    ],
    "map": [
     [
@@ -2309,7 +2309,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2757,9 +2757,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9899999999999998,
-    -0.13299999999999998,
-    0.268
+    2.0029999999999997,
+    -0.11099999999999999,
+    0.322
    ],
    "map": [
     [
@@ -2773,7 +2773,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2929,9 +2929,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.3199999999999998,
-    -0.113,
-    0.268
+    1.333,
+    -0.091,
+    0.322
    ],
    "map": [
     [
@@ -2945,7 +2945,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -3057,9 +3057,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999999,
-    -0.13299999999999998,
-    0.268
+    1.9629999999999996,
+    -0.11099999999999999,
+    0.322
    ],
    "map": [
     [
@@ -3073,7 +3073,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -3090,8 +3090,8 @@
    ],
    "pivot_gltf": [
     1.293,
-    -0.113,
-    0.268
+    -0.091,
+    0.322
    ],
    "map": [
     [
@@ -3105,7 +3105,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -3275,9 +3275,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9899999999999998,
-    -0.13299999999999998,
-    0.268
+    2.0029999999999997,
+    -0.11099999999999999,
+    0.322
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -3298,7 +3298,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "MASTER"
   },
   {
@@ -3312,9 +3312,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9359999999999997,
-    -0.13299999999999998,
-    0.268
+    1.9229999999999996,
+    -0.11099999999999999,
+    0.322
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -3335,7 +3335,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "FUEL PUMP"
   },
   {
@@ -3349,9 +3349,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9899999999999998,
-    -0.16699999999999998,
-    0.268
+    2.0029999999999997,
+    -0.11099999999999999,
+    0.288
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -3372,7 +3372,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "NAV"
   },
   {
@@ -3386,9 +3386,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999999,
-    -0.16699999999999998,
-    0.268
+    1.9629999999999996,
+    -0.11099999999999999,
+    0.288
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -3409,7 +3409,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "STROBE"
   },
   {
@@ -3423,9 +3423,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9359999999999997,
-    -0.16699999999999998,
-    0.268
+    1.9229999999999996,
+    -0.11099999999999999,
+    0.288
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -3446,7 +3446,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "LDG"
   },
   {
@@ -4140,9 +4140,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.3199999999999998,
-    -0.113,
-    0.268
+    1.333,
+    -0.091,
+    0.322
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4163,7 +4163,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "MASTER"
   },
   {
@@ -4177,9 +4177,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.2659999999999998,
-    -0.113,
-    0.268
+    1.253,
+    -0.091,
+    0.322
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4200,7 +4200,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "FUEL PUMP"
   },
   {
@@ -4214,9 +4214,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.3199999999999998,
-    -0.14700000000000002,
-    0.268
+    1.333,
+    -0.091,
+    0.288
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4237,7 +4237,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "NAV"
   },
   {
@@ -4252,8 +4252,8 @@
    ],
    "pivot_gltf": [
     1.293,
-    -0.14700000000000002,
-    0.268
+    -0.091,
+    0.288
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4274,7 +4274,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "STROBE"
   },
   {
@@ -4288,9 +4288,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.2659999999999998,
-    -0.14700000000000002,
-    0.268
+    1.253,
+    -0.091,
+    0.288
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4311,7 +4311,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "LDG"
   },
   {
@@ -4965,9 +4965,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999999,
-    -0.13299999999999998,
-    0.268
+    1.9629999999999996,
+    -0.11099999999999999,
+    0.322
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4988,7 +4988,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "ALT"
   },
   {
@@ -5003,8 +5003,8 @@
    ],
    "pivot_gltf": [
     1.293,
-    -0.113,
-    0.268
+    -0.091,
+    0.322
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -5025,7 +5025,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
    "label": "ALT"
   },
   {

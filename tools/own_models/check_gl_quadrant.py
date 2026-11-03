@@ -54,6 +54,7 @@ def main():
    P=builder(W[names[node]][:3,3]);gname='Grip_Throttle_'+s['full'] if label=='Throttle' else 'Grip_'+label+s['ctl']
    if gname not in names:fails.append((seat,gname,'missing grip'));continue
    kc0=builder(W[names[gname]][:3,3])
+   assert abs(np.linalg.norm(kc0-P)-(L+r*.6))<1e-6,(seat,label,'exported lever length')
    k1=P+q.rot(kc0-P,50)
    if not k1[0]>kc0[0]+.05:fails.append((seat,node,'full is not forward of idle',kc0,k1))
    if not (k1[1]>.2 and kc0[1]>.2):fails.append((seat,node,'not on the LEFT side'))
@@ -113,7 +114,7 @@ def main():
     t1=(hi-eye)/np.where(abs(delta)>1e-12,delta,1e-12)
     assert max(0,np.minimum(t0,t1).max())>min(1,np.maximum(t0,t1).min()),(seat,'console occludes card')
  print('IAC holder bounds and both eye-to-card face sightlines clear of console boxes')
- # V6 switch layout and actual grip travel: forward must be ON in both cockpits.
+ # V7 switch layout and actual grip travel: forward must be ON in both cockpits.
  for seat,s in q.SEATS.items():
   order=['master','alternator','fuel_pump','nav_lights','strobe','landing_light']
   hardware=N[names['GL_ConsoleHardware_'+s['sfx']]]['extras']
@@ -127,7 +128,11 @@ def main():
    pivots.append(P)
   assert np.ptp(np.array(pivots[:3])[:,2])<1e-6
   assert np.ptp(np.array(pivots[3:])[:,2])<1e-6
-  assert pivots[0][2]>pivots[3][2]
+  assert pivots[0][1]>pivots[3][1]
+  assert np.ptp(np.array(pivots)[:,2])<1e-6
+  assert hardware['switch_surface']=='top' and hardware['breaker_surface']=='inboard face'
+  assert abs(q.LEVERS[0][2]-q.LEVERS[1][2]-.0254)<1e-9
+  assert abs(q.LEVERS[0][2]-q.LEVERS[2][2]-.0508)<1e-9
   assert pivots[0][0]<pivots[1][0]<pivots[2][0]
   print(seat,'six 2x3 toggles: ON forward; matching breaker order OK')
  q.check_row(g)

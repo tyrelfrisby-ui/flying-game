@@ -5352,3 +5352,23 @@ Final v6 render review: nine 1600 x 1200, 24-sample denoised Cycles views visual
 - `gl6_side_by_side_ty.png`
 
 `gl6_cameras.json` records the final nine camera presets and clearance figures. Images include actual cockpit geometry and default visibility, no cutaway; front cockpit views naturally receive less light than rear views. Detail and comparison views show three plain round knobs, open slots, six top breakers in the same reading order as the six face toggles, and separate trim window/cord. Panel views retain both instrument layouts, IAC card and right fuel handles. Code/model/rig local commit: `9e31f458`. Pre-commit check-ignore output empty; no force-add. Final render commit also audited for empty check-ignore output. No merge, push or deploy.
+
+## 2026-11-03 — Great Lakes v7 switch/breaker swap (Ty)
+
+Both cockpits: exchanged the v6 hardware surfaces. Six fore/aft toggles now sit on the box lid; six breakers occupy the former switch positions on the inboard face. Same 2 x 3 reading order on each surface: MASTER / ALT / FUEL PUMP, then NAV / STROBE / LDG. Switch bindings, pivots and hand grip/poke points follow the lid geometry; forward remains ON with the existing 80-degree map.
+
+Throttle shaft unchanged at 150 mm; blue prop shaft is 124.6 mm, exactly 25.4 mm shorter, and red mixture shaft 99.2 mm, exactly 50.8 mm shorter. Round knobs, slots, 30 mm pitch, travel and colours retained. No other geometry changes requested or made. Existing v4 untracked artifacts preserved. No Glass Overlay work, merge, push or deploy.
+
+Validation: 93/93 rig bindings PASS. Exported grip-to-pivot distances checked against shaft lengths plus existing knob centre offsets; exact 1/2-inch shaft stagger contract checked. Both 2 x 3 switch layouts and actual grip endpoints pass forward-ON checks. Same sweep margins: rear 10.7 mm / front 9.9 mm; continuous console separation 54.1 mm; independent lever lateral separation 4.0 mm. IAC holder and both eye-to-card sightlines clear. Final preservation and render results below.
+
+Preservation: compared every exported node, mesh attribute/index array and material against v6. Only the twelve switch nodes and their hand points, the four prop/mixture nodes and their hand points, and the two console hardware meshes changed. All 325 other nodes/meshes/materials unchanged, including throttle, trim/cord/window, fuel, glass and IAC. Deterministic GLB + rig rebuild byte-for-byte PASS. Runtime rig mirror regenerated locally; ignored and not force-added.
+
+Final v7 review set under `renders/greatlakes/v7/`: five 1600 x 1200, 24-sample denoised Cycles views, all visually inspected, plus an uncropped side-by-side with Ty's photo:
+- `gl7_photo_comparison.png`
+- `gl7_console_rear_detail.png`
+- `gl7_console_front_detail.png`
+- `gl7_quadrant_front_close.png`
+- `gl7_console_rear_on.png` (render-only: six rear switches at param 1 / 80 degrees, forward)
+- `gl7_side_by_side_ty.png`
+
+`gl7_cameras.json` records the five delivered cameras and clearance values. No geometry hidden/cut beyond default visibility metadata. Front cockpit naturally receives less light. No headset/pilot approval claimed. Pre-commit check-ignore audit output empty; never force-add. Local lane commit only, no merge/push/deploy.
