@@ -362,6 +362,7 @@ namespace FlyingGame.Bridge
 
         private void DrawHeading(Rect r, double heading)
         {
+            if (CockpitRigState.LiveC172 != null) { DrawC172Heading(r, CockpitRigState.LiveC172); return; }
             GUI.Label(new Rect(r.x, r.y + _fs * 0.15f, r.width, _fs * 1.2f), "HEADING", _small);
             GUI.Label(new Rect(r.x, r.y + _fs * 1.4f, r.width, _fs * 1.8f), $"{heading:000}°",
                       new GUIStyle(_label) { fontSize = Mathf.RoundToInt(_fs * 1.7f) });
@@ -379,6 +380,30 @@ namespace FlyingGame.Bridge
                     GUI.Label(new Rect(px - _fs * 1.2f, y - _fs * 0.9f, _fs * 2.4f, _fs), $"{mark / 10:00}", _small);
             }
             GUI.Label(new Rect(r.x, r.yMax - _fs * 1.1f, r.width, _fs), "mag = true here", _small);
+        }
+
+        /// <summary>
+        /// The 172 has no true heading to show, and that is the point: what it has is a DG that drifts and a
+        /// compass that lies in turns. So this cell is those two, and the two knobs a pilot reaches for —
+        /// push-and-turn on the DG, and the ADF's card.
+        /// </summary>
+        private void DrawC172Heading(Rect r, FlyingGame.Core.Instruments.C172Panel p)
+        {
+            GUI.Label(new Rect(r.x, r.y + _fs * 0.15f, r.width, _fs * 1.2f),
+                      $"DG {p.Dg.CardDeg:000}°   COMPASS {p.Compass.ReadingDeg:000}°", _small);
+            float pad = _fs * 0.3f, bw = (r.width - pad * 5) / 4f, row = r.y + _fs * 1.5f;
+            string[] dg = { "-5", "-1", "+1", "+5" };
+            double[] by = { -5, -1, 1, 5 };
+            for (int i = 0; i < 4; i++)
+                if (GUI.Button(new Rect(r.x + pad + i * (bw + pad), row, bw, _fs * 1.3f), "DG " + dg[i], _sbtn))
+                    CockpitRigState.PendingDgKnobDeg += by[i];
+            row += _fs * 1.5f;
+            float hw = (r.width - pad * 3) / 2f;
+            if (GUI.Button(new Rect(r.x + pad, row, hw, _fs * 1.3f), "DG = COMPASS", _sbtn)) CockpitRigState.PendingDgToCompass = true;
+            GUI.Label(new Rect(r.x + pad * 2 + hw, row, hw, _fs * 1.3f), $"SUCTION {p.Vacuum.SuctionInHg:0.0}", _small);
+            row += _fs * 1.5f;
+            if (GUI.Button(new Rect(r.x + pad, row, hw, _fs * 1.1f), "ADF CARD -10", _sbtn)) CockpitRigState.PendingAdfCardDeg -= 10;
+            if (GUI.Button(new Rect(r.x + pad * 2 + hw, row, hw, _fs * 1.1f), "ADF CARD +10", _sbtn)) CockpitRigState.PendingAdfCardDeg += 10;
         }
 
         private void DrawClock(Rect r)
