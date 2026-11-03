@@ -197,6 +197,13 @@ namespace FlyingGame.Bridge
             r.CanopyJettison = CanopyPull01;
         }
 
+        /// <summary>Shared cockpit/HUD presentation pressure; the sim has no independent manifold state.</summary>
+        public static double ManifoldPressureInHg(FlyingGame.Sim.Aircraft ac, double altM)
+        {
+            double ambient = Atmosphere.PressureAtAltitude(altM) / 3386.389;
+            return ac.EngineRpm > 50.0 ? ambient * (0.33 + 0.62 * ac.Throttle01) : ambient;
+        }
+
         /// <summary>The four gauges with no sim behind them (P), from throttle, rpm and ambient pressure. The
         /// targets are the middles of the dial markings the model is drawn with (docs/models/ea300-own-RIG.md:
         /// oil 55-95 psi green, 140-210 F green, CHT green to 435 F, MP green 10-25) so the needles sit where a
@@ -208,8 +215,7 @@ namespace FlyingGame.Bridge
 
             // Manifold pressure: ambient, less the throttle plate. Wide open takes about 95 % of ambient; a
             // closed throttle holds about a third of it. inHg = Pa / 3386.389.
-            double ambientInHg = Atmosphere.PressureAtAltitude(altM) / 3386.389;
-            r.ManifoldInHg = running ? ambientInHg * (0.33 + 0.62 * thr) : ambientInHg;
+            r.ManifoldInHg = ManifoldPressureInHg(ac, altM);
 
             // Oil and cylinder-head temperature: first-order, toward what the power setting holds.
             double oilTarget = running ? 150.0 + 60.0 * thr : 100.0;

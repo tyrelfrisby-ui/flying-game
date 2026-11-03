@@ -1,4 +1,11 @@
 ## NEEDS YOU
+- **HUD-MODE ENGINE ROW MERGED, ON YOUR IPHONE AS `2026.1103.0925` (Claude, 2026-11-03, lane/claude-island-nav):**
+  lane/codex-hud-layout (`e0eb27e7`, green HUD engine readouts above the lower control row, approved by Ty) merged
+  into lane/claude-island-nav as a fast-forward from `e8a40b0a`; no conflicts. `deploy.sh` build `2026.1103.0925`
+  `** BUILD SUCCEEDED **`, 0 `error CS`; installed and launched on Ty's iPhone (00008150-001629A83662401C) at 09:32.
+  The build also carries everything already on island-nav (stick-free launch, rig trim, hydro). Check the build stamp
+  on screen before flying. The `ProjectSettings` bundleVersion/build bump was not committed. Small thing in the
+  deploy log: it printed "no assets-incoming in … -- wrong repo?" and then carried on; the build was not affected.
 - **PITTS SPIRAL DIVE AT LAUNCH, RIGHT THEN LEFT — WHY, AND STICK-FREE NOW OFF WITH A PAD (Grok Bot, 2026-11-02,
   lane/claude-stickfree-launch):** build `2026.1102.1803` predates the spawn fix `b62b67d0`. Its long first frame
   (0.05 s = ten sim steps, before the pad publishes) flew whatever the PREVIOUS flight left in the driver's inputs, plus
@@ -4421,3 +4428,36 @@ Restored the matching v13.1 Great Lakes builder integration from local cockpit c
 Rebuilt the requested `great-lakes-like-own.glb` through `build_great_lakes.py --offline-update`, using the immutable v13.1 generated cockpit GLB at the commit above and applying the current sequence-card/sight geometry. Blender 5.2.2 crashes in Metal device detection before Python in this sandbox; no fresh Blender export or Unity runtime validation is claimed. The full Blender builder is restored for subsequent exports. Existing alternate-livery GLBs and their offline base behavior are unchanged; this urgent asset repair targets the explicitly requested default GLB. Existing GLB `.meta` retained; no new Unity asset introduced. Glass Overlay untouched.
 
 Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against the runtime rig table, expected parents and world pivots (0.11 mm tolerance), rig parameters, moving mesh descendants, prop/spinner, eyes, avionics displays, sequence card and sights; all nodes have identity rotation and unit scale, with nose -x, up +y and span z. Offline rebuild repeated with identical SHA-256 `0e556105a076cca100ef014f315a2cbc67a10abe41705ed37b1a35cfdbc7653f`. Python syntax compilation and `git diff --check` pass. Required tracked-file ignore audit printed nothing. Commit attempt blocked at `git add`: sandbox denies creation of `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-greatlakes-rig/index.lock` outside writable roots. Files remain unstaged; no commit, push, merge, deployment, or forced add occurred.
+
+## 2026-11-03 — lane/codex-hud-layout: portrait iPhone lower engine gauges and single button row
+
+Implemented Ty's portrait gauges layout in this lane only. The flight instruments stay at the top. Tach, throttle, fuel flow and fuel now share one centred horizontal row below the airplane, immediately above one horizontal button row. Both simulated-gamepad and touch layouts use the row; touch buttons clear the complete pad/trim label block, and pads/trim/tray now include the bottom safe-area inset. Available flaps/gear/tow/egress controls occupy the same row. Slot weights preserve one-line SMOKE, BAIL OUT, Reset, aircraft name and flap labels on the captured C172. Text allocation also reserves the lower gauge row, and portrait gamepad text uses the actual flight-gauge height.
+
+Extended the existing opt-in `hudshots` self-test with `AERO_HUDSHOTS_DISPLAY` and a requested/actual dimension check. macOS initially clamped tall windows; those rejected/undersized images are excluded from the review folder. A temporary 3000×3000 virtual display allowed genuine 1206×2622 runtime frames; it was removed afterward. The capture player was built as Mac Mono ARM64 with Burst disabled after a separate IL2CPP capture build stalled in Burst packaging. This is a desktop mobile-layout preview, not a physical-device capture. No production build setting or temporary preview editor script is committed.
+
+Visually inspected both final full-size PNGs. Engine values are fully above the opaque touch tray; primary button text and flap 100 remain on one line; the engine/button rows do not intersect the airplane or touch sticks/trim. Insets: top 186 px, bottom 63 px, sides 0. Flight gauges retain their top positions. Glass Overlay code/assets were not touched.
+
+Validation: final normal iOS IL2CPP/Burst export `build/hud-ios-review-v1.log` reports `iOS build SUCCEEDED`, zero `error CS`; final Xcode `build/hud-xcode-review-v1.log` reports `** BUILD SUCCEEDED **`. HUD harness finishes `DONE hudshots`, with actual/requested portrait dimensions both 1206×2622. `git diff --check` passes after restoring generated GraphicsSettings/ProjectSettings (including version stamps). No physics/core changes or .NET test changes; runtime render inspection and iOS compilation validate this layout change. Required tracked-file ignore audit prints nothing before commit; no forced add.
+
+Review artifacts (pending Ty approval):
+- `renders/hud-layout/v1/hud-analog-gamepad-portrait.png`
+- `renders/hud-layout/v1/hud-analog-touch-portrait.png`
+- `renders/hud-layout/v1/README.md` and `render-manifest.json` (capture provenance, reproduction, dimensions and SHA-256 hashes).
+
+Local commit only. No push, merge, installation, deployment, or approval claimed.
+
+## 2026-11-03 — lane/codex-hud-layout addendum: HUD engine numbers
+
+Added Ty's green numerical engine row to HUD mode, reusing the lower engine band immediately above the single button row. Reads actual aircraft RPM, throttle %, fuel flow converted to GPH and fuel quantity in US gallons. Text uses the existing HUD font, green color/alpha and normal/bold label/value treatment, with no new dial faces. Constant-speed propeller aircraft get a fifth MP column in inHg. There is no independent MP equipment flag or simulated manifold state on this lane, so MP uses that equipment rule and shares the cockpit's existing ambient/throttle presentation calculation through `CockpitRigState.ManifoldPressureInHg`; no new engine physics was invented.
+
+HUD strokes and labels stop above the engine/control band. Fixed the HUD's pixel matrix to explicit camera-viewport extents so the portrait touch viewport's strokes use the same coordinate system as their projected labels and the keep-clear edge. Gamepad full-screen extents are unchanged. Readouts are hidden for gliders, cockpit panels, menus, replay and modal cards. The existing HUD screenshot harness can additionally capture an MP-equipped aircraft via `AERO_HUDSHOTS_ENGINE_AIRCRAFT`; the C172 remains the normal four-column example.
+
+Final validation: normal iOS IL2CPP/Burst export `build/hud-addendum-complete-ios.log` reports `iOS build SUCCEEDED`, zero `error CS`; Xcode `build/hud-addendum-complete-xcode.log` reports `** BUILD SUCCEEDED **`. Capture harness `build/hud-addendum-complete.log` finishes `DONE hudshots` and confirms actual/requested 1206×2622 portrait frames. Visually inspected the four final HUD PNGs: C172 and Extra 300, both with touch sticks/trim and without them; lower engine text is clear of the airplane, ladder strokes, buttons and touch controls. Extra MP reads 22.5 inHg at the captured state. Captures are Mac Mono ARM64 mobile-layout previews with simulated iPhone safe areas (186 px top, 63 px bottom), not physical iPhone screenshots. The temporary virtual display and preview editor script were removed. Generated project settings/version stamps restored; `git diff --check` passes. Validation is Unity runtime inspection and iOS compilation; no core/physics changes or .NET test changes.
+
+Added to `renders/hud-layout/v1/`, leaving the original analog PNGs intact:
+- `hud-hud-gamepad-portrait.png`
+- `hud-hud-touch-portrait.png`
+- `hud-hud-gamepad-portrait-mp.png`
+- `hud-hud-touch-portrait-mp.png`
+
+README and manifest include provenance, capture command, hashes and the MP equipment/presentation rule. Glass Overlay untouched. Required tracked-file ignore audit prints nothing before the local commit; no forced add, push, merge, installation, deployment or visual approval claimed. Ty's review remains pending.
