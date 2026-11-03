@@ -271,6 +271,8 @@ def update(path):
     phase3_update(path)
     from vr_phase3b import update as phase3b_update
     phase3b_update(path)
+    from vr_phase3d import update as phase3d_update
+    phase3d_update(path)
     return result
 if __name__=='__main__':
     for model in ('pitts-s2b-like','extra-300-like'):
