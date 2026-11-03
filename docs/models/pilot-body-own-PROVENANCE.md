@@ -3,7 +3,18 @@
 All meshes and the 49-bone skeleton are generated from numbers in `tools/own_models/pilot_body.py`.
 No third-party mesh, rig, texture, scan, human model or training-derived raster asset is imported.
 Flight suit torso stub, shoulders, arms, Nomex-coloured open gloves, five three-bone fingers per
-hand, thighs, shins, boots and toes; no head. 2,416 triangles, below the 15,000 Quest target.
+hand, thighs, shins, boots and toes; no head.
+
+**v2 (2026-11-02, Claude, lane/claude-vr-hands-fix):** the `--offline` build now emits ONE skinned mesh
+`Pilot_Body` from `tools/own_models/pilot_body_smooth.py` instead of 49 rigid flat-shaded boxes/tubes:
+lofted superellipse torso (Hips/Spine/Chest blended), continuous arm and leg lofts that bend at the
+elbow/knee with smoothstep two-bone weights, harness straps, lap belt and buckle, gauntlet gloves with a
+rounded palm and capsule phalanges, lofted boots. Indexed vertices with welded smooth normals, MikkTSpace-
+style tangents from the UVs, and five materials (flight suit, Nomex gloves, boots, harness, buckle) with
+256² normal maps (twill, leather, grain, webbing) generated procedurally from code in the same file.
+**8,080 triangles**, 1 skinned renderer, 5 submeshes, 4 small textures — below the 15,000 Quest target.
+Same 49-bone skeleton, names, rest pose and inverse bind matrices as v1 (v1 was 2,416 triangles).
+Still original: no third-party mesh, texture, scan or training-derived asset.
 
 Anthropometric anchor: National Research Council, *Video Displays, Work, and Vision* (1983),
 [Anthropometry and Biomechanics in VDT Applications](https://www.ncbi.nlm.nih.gov/books/NBK216490/?report=reader),

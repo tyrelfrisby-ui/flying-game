@@ -484,7 +484,7 @@ namespace FlyingGame.Bridge
         {
             HandPose h = _hands[(int)side];
             Grabbable held = _grab.Held(side);
-            rot = h.Tracked ? new Quaternion((float)h.Rotation.X, (float)h.Rotation.Y, (float)h.Rotation.Z, (float)h.Rotation.W) : Quaternion.identity;
+            rot = h.Tracked ? new Quaternion((float)h.Rotation.X, (float)h.Rotation.Y, (float)h.Rotation.Z, (float)h.Rotation.W) : VrPilotBody.RestGripRot(side == HandSide.Left);
             if (held != Grabbable.None)
             {
                 grip = held == Grabbable.Stick ? U(_stick.Grip)

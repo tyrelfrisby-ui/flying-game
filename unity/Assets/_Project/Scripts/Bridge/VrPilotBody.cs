@@ -49,6 +49,21 @@ namespace FlyingGame.Bridge
         // ---- skinned ----
         private readonly Dictionary<string, Transform> _bones = new();
         private readonly Dictionary<Transform, Quaternion> _rest = new();
+        /// <summary>Asset frame -> "facing the nose" (+Z fwd, +Y up, +X right), measured from the asset's own bones.</summary>
+        private Quaternion _toNose = Quaternion.identity;
+        /// <summary>Per finger bone, the local axis that curls it toward the palm (from the rest pose).</summary>
+        private readonly Dictionary<Transform, Vector3> _curlAxis = new();
+        /// <summary>Per hand bone, its palm normal in its own local frame (rest pose).</summary>
+        private Vector3 _palmL = Vector3.down, _palmR = Vector3.down;
+
+        /// <summary>A hand at rest on its control, in the controller grip-pose convention the live hands use (XR grip
+        /// pose: +Z along the grip, +Y up, the RIGHT palm facing -X, the LEFT palm +X): thumb up, palm turned in to the
+        /// centreline — how a stick and a throttle are held. Aeroplane-local; identity, spelled out so the rest pose
+        /// and a tracked controller mean the same thing to <see cref="PalmOf"/>.</summary>
+        public static Quaternion RestGripRot(bool left) => Quaternion.identity;
+
+        /// <summary>Where a grip-pose hand's palm faces.</summary>
+        public static Vector3 PalmOf(Quaternion gripRot, bool left) => gripRot * (left ? Vector3.right : Vector3.left);
 
         private sealed class Hand
         {
@@ -73,8 +88,15 @@ namespace FlyingGame.Bridge
 
         public void Destroy()
         {
-            if (_root != null) Object.Destroy(_root);
+            if (_root != null) Kill(_root);
             _root = null;
+        }
+
+        /// <summary>Destroy at runtime, DestroyImmediate in the editor's batch checks (PilotBodyShots).</summary>
+        private static void Kill(Object o)
+        {
+            if (o == null) return;
+            if (Application.isPlaying) Object.Destroy(o); else Object.DestroyImmediate(o);
         }
 
         private void Build()
@@ -105,21 +127,79 @@ namespace FlyingGame.Bridge
             foreach (string b in Bones) { if (_bones.ContainsKey(b)) found++; else missing.Add(b); }
             if (found < 8)
             {
-                Object.Destroy(_root); _root = null; _bones.Clear();
+                Kill(_root); _root = null; _bones.Clear();
                 return false;
             }
             foreach (Transform t in _bones.Values) _rest[t] = t.localRotation;
+            MeasureFrame();
             foreach (var r in _root.GetComponentsInChildren<Renderer>(true))
             {
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 r.receiveShadows = false;
                 if (r is SkinnedMeshRenderer s) s.updateWhenOffscreen = true;   // it is never "offscreen": it is under the camera
             }
-            foreach (var c in _root.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);
+            foreach (var c in _root.GetComponentsInChildren<Collider>(true)) Kill(c);
             Debug.Log($"[VrCockpit] pilot body: {AssetPath}.glb bound, {found} of {Bones.Length} limb bones" +
                       (missing.Count > 0 ? $"; missing {string.Join(", ", missing)}" : ""));
             _root.SetActive(false);
             return true;
+        }
+
+        /// <summary>
+        /// The asset's own axes, read off its bones in the rest pose, instead of assumed. The GLB is authored with
+        /// the nose along glTF -X and the pilot's LEFT along glTF +Z (vr_cockpit.gl), so after glTFast's import its
+        /// left lies along the prefab's +Z: setting the root's rotation straight to the aeroplane's (the old "faces
+        /// +Z" assumption) turned the pilot a quarter turn to the right, and the LEFT shoulder landed 13 cm in front
+        /// of the eye — the bug Ty saw — with the right one 23 cm behind it. Measuring L_UpperArm - R_UpperArm (the
+        /// pilot's left) and the prefab's up gives the turn whatever the exporter's convention.
+        /// </summary>
+        private void MeasureFrame()
+        {
+            Transform root = _root.transform, la = B("L_UpperArm"), ra = B("R_UpperArm");
+            Vector3 up = Vector3.up;                     // glTF +Y is up for every importer here
+            if (la != null && ra != null)
+            {
+                Vector3 right = Vector3.ProjectOnPlane(root.InverseTransformDirection(ra.position - la.position), up);
+                if (right.sqrMagnitude > 1e-6f)
+                    _toNose = Quaternion.Inverse(Quaternion.LookRotation(Vector3.Cross(right.normalized, up), up));
+            }
+            // Palm normals and finger curl axes from the rest pose: the glove is authored palm-down, fingers out.
+            Vector3 palmWorld = root.TransformDirection(-up);
+            foreach ((string side, bool left) in new[] { ("L_", true), ("R_", false) })
+            {
+                Transform hand = B(side + "Hand");
+                if (hand != null) { if (left) _palmL = hand.InverseTransformDirection(palmWorld); else _palmR = hand.InverseTransformDirection(palmWorld); }
+                foreach (string f in Fingers)
+                    for (int i = 1; i <= 3; i++)
+                    {
+                        Transform t = B(side + f + i);
+                        if (t == null) continue;
+                        Transform next = B(side + f + (i + 1));
+                        Vector3 d = next != null ? next.position - t.position : t.parent != null ? t.position - t.parent.position : Vector3.zero;
+                        Vector3 axis = Vector3.Cross(d, palmWorld);
+                        _curlAxis[t] = axis.sqrMagnitude > 1e-10f ? t.InverseTransformDirection(axis.normalized) : Vector3.right;
+                    }
+            }
+        }
+
+        /// <summary>Roll <paramref name="hand"/> about its own aimed axis so its palm faces <paramref name="palm"/>.</summary>
+        private static void Roll(Transform hand, Transform child, Vector3 palmLocal, Vector3 palm)
+        {
+            if (hand == null || child == null || palm.sqrMagnitude < 1e-8f) return;
+            Vector3 d = child.position - hand.position;
+            if (d.sqrMagnitude < 1e-10f) return;
+            Vector3 have = Vector3.ProjectOnPlane(hand.rotation * palmLocal, d), want = Vector3.ProjectOnPlane(palm, d);
+            if (have.sqrMagnitude < 1e-8f || want.sqrMagnitude < 1e-8f) return;
+            hand.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(have, want, d), d) * hand.rotation;
+        }
+
+        /// <summary>The palm normal a pose asks for: from the tracked joints when there are any (index − little
+        /// knuckle across, palm → middle knuckle along), else the controller grip pose's.</summary>
+        private static Vector3 PalmFor(Vector3[] j, Quaternion handRot, bool left)
+        {
+            if (j == null) return PalmOf(handRot, left);
+            Vector3 n = Vector3.Cross(j[12] - j[0], j[7] - j[22]);
+            return left ? -n : n;
         }
 
         /// <summary>Turn <paramref name="bone"/> so the direction to <paramref name="child"/> lies along the solved
@@ -135,12 +215,12 @@ namespace FlyingGame.Bridge
         private Transform B(string n) => _bones.TryGetValue(n, out Transform t) ? t : null;
 
         /// <summary>SKINNED ONLY, before the IK: back to the rest pose (no drift), the asset's hips on the seat's hip
-        /// midpoint, facing the nose (the asset faces glTF +Z, as every model here does).</summary>
+        /// midpoint, facing the nose: the aeroplane's rotation times the asset's MEASURED frame (<see cref="MeasureFrame"/>).</summary>
         public void PlaceRoot(Vector3 hipMid, Quaternion aeroplane)
         {
             if (!_skinned || _root == null) return;
             foreach (var kv in _rest) kv.Key.localRotation = kv.Value;
-            _root.transform.rotation = aeroplane;
+            _root.transform.rotation = aeroplane * _toNose;
             Transform hips = B("Hips");
             if (hips != null) _root.transform.position += hipMid - hips.position;
         }
@@ -166,6 +246,8 @@ namespace FlyingGame.Bridge
             Limb("R_UpperLeg", "R_LowerLeg", "R_Foot", p.HipR, p.KneeR, p.AnkleR);
             Aim(B("L_Hand"), B("L_Middle1"), p.WristL, p.JointsL != null ? p.JointsL[12] : p.GripL);
             Aim(B("R_Hand"), B("R_Middle1"), p.WristR, p.JointsR != null ? p.JointsR[12] : p.GripR);
+            Roll(B("L_Hand"), B("L_Middle1"), _palmL, PalmFor(p.JointsL, p.HandRotL, true));
+            Roll(B("R_Hand"), B("R_Middle1"), _palmR, PalmFor(p.JointsR, p.HandRotR, false));
             Aim(B("L_Foot"), B("L_Toes"), p.AnkleL, p.BallL);
             Aim(B("R_Foot"), B("R_Toes"), p.AnkleR, p.BallR);
             if (p.JointsL != null) TrackedFingers("L_", p.JointsL); else Curl("L_", p.CurlL);
@@ -206,7 +288,9 @@ namespace FlyingGame.Bridge
                     Transform t = B(side + f + i);
                     if (t == null) continue;
                     float deg = curl * (f == "Thumb" ? 35f : i == 1 ? 70f : 80f);
-                    t.localRotation = _rest[t] * Quaternion.AngleAxis(deg, Vector3.right);
+                    // About the axis that folds THIS bone toward the palm, measured at rest (the asset's bone
+                    // frames are its import frame, so a fixed local +X would spin the finger about itself).
+                    t.localRotation = _rest[t] * Quaternion.AngleAxis(deg, _curlAxis.TryGetValue(t, out Vector3 ax) ? ax : Vector3.right);
                 }
         }
 
@@ -242,7 +326,7 @@ namespace FlyingGame.Bridge
         {
             GameObject go = GameObject.CreatePrimitive(type);
             go.name = name;
-            Object.Destroy(go.GetComponent<Collider>());   // nothing on the pilot may collide with the aeroplane
+            Kill(go.GetComponent<Collider>());   // nothing on the pilot may collide with the aeroplane
             var r = go.GetComponent<MeshRenderer>();
             r.sharedMaterial = m;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -300,12 +384,12 @@ namespace FlyingGame.Bridge
         private static void PoseHand(Hand h, Vector3 wrist, Vector3 grip, Quaternion handRot, float curl, bool left)
         {
             ShowOuter(h, false);
-            // The palm runs from the wrist to the knuckles, past the centre of the fist; its back faces the
-            // controller's up, so turning the wrist turns the hand.
+            // The palm runs from the wrist to the knuckles, past the centre of the fist; it faces the grip pose's
+            // palm side (PalmOf), so turning the wrist turns the hand.
             Vector3 fwd = grip - wrist;
             if (fwd.sqrMagnitude < 1e-8f) fwd = handRot * Vector3.forward;
             fwd.Normalize();
-            Quaternion palm = Quaternion.LookRotation(fwd, handRot * Vector3.up);
+            Quaternion palm = Quaternion.LookRotation(fwd, -PalmOf(handRot, left));   // back of the hand up the stand-in's +Y
             Vector3 knuckles = wrist + fwd * 0.10f;
             h.Palm.SetPositionAndRotation(wrist + fwd * 0.05f, palm);
             h.Palm.localScale = new Vector3(0.085f, 0.028f, 0.10f);

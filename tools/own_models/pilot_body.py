@@ -67,7 +67,21 @@ def definition(kind='pitts'):
     return bones,parts,segments,grips
 
 def offline():
-    bones,parts,segments,grips=definition();g=Glb();materials=[g.material('Pilot_FlightSuit',(.10,.18,.13)),g.material('Pilot_Nomex',(.28,.30,.24)),g.material('Pilot_Boots',(.025,.028,.025))]
+    """One skinned, smooth-shaded, normal-mapped mesh (pilot_body_smooth), the same 49-bone skeleton."""
+    from pilot_body_smooth import body, normal_png
+    bones,parts,segments,grips=definition();g=Glb()
+    samplers=g.doc.setdefault('samplers',[]);samplers.append(dict(magFilter=9729,minFilter=9987,wrapS=10497,wrapT=10497))
+    def material(name,rgb,rough,metal=0.0,normal=None,scale=1.0):
+        m=dict(name=name,doubleSided=False,pbrMetallicRoughness=dict(baseColorFactor=[*rgb,1],metallicFactor=metal,roughnessFactor=rough))
+        if normal:
+            v=g.data(normal_png(normal));images=g.doc.setdefault('images',[]);images.append(dict(name='Pilot_'+normal+'_n',bufferView=v,mimeType='image/png'))
+            tex=g.doc.setdefault('textures',[]);tex.append(dict(source=len(images)-1,sampler=0));m['normalTexture']=dict(index=len(tex)-1,scale=scale)
+        g.doc['materials'].append(m);return len(g.doc['materials'])-1
+    mats=dict(suit=material('Pilot_FlightSuit',(.045,.07,.05),.9,normal='twill',scale=.45),
+              glove=material('Pilot_Nomex',(.16,.13,.085),.7,normal='leather',scale=.3),
+              boot=material('Pilot_Boots',(.025,.028,.025),.42,normal='grain',scale=.4),
+              strap=material('Pilot_Harness',(.035,.04,.05),.8,normal='webbing',scale=.6),
+              metal=material('Pilot_Buckle',(.55,.56,.58),.35,metal=.9))
     # glTF skin in exported model frame, all node rotations identity. Joint translations
     # and inverse bind matrices define the same seated relaxed-open rest pose as Blender.
     roots=g.doc['scenes'][0]['nodes'];lookup={};heads={}
@@ -77,19 +91,23 @@ def offline():
         g.doc['nodes'].append(node)
         if parent:g.doc['nodes'][lookup[parent]].setdefault('children',[]).append(i)
         else:roots.append(i)
-    for n,sh,material in parts:
-        g.mesh('Pilot_'+n,[gl(v) for v in sh.v],sh.t,materials[material]);node=g.doc['nodes'][-1];node['skin']=0
-        prim=g.doc['meshes'][node['mesh']]['primitives'][0];count=g.doc['accessors'][prim['attributes']['POSITION']]['count']
-        prim['attributes']['JOINTS_0']=g.accessor(np.tile((lookup[n],0,0,0),(count,1)),'VEC4',5123)
-        prim['attributes']['WEIGHTS_0']=g.accessor(np.tile((1.,0,0,0),(count,1)),'VEC4')
+    prims=[];tris=0
+    for key,acc in body(bones).items():
+        p,nrm,tan,sign,uv,j,w,t=acc.arrays();tris+=len(t)
+        P=np.array([gl(v) for v in p]);N=np.array([gl(v) for v in nrm]);TA=np.array([gl(v) for v in tan])
+        attrs=dict(POSITION=g.accessor(P,'VEC3'),NORMAL=g.accessor(N,'VEC3'),
+                   TANGENT=g.accessor(np.hstack([TA,sign[:,None]]),'VEC4'),TEXCOORD_0=g.accessor(uv,'VEC2'),
+                   JOINTS_0=g.accessor(j,'VEC4',5123),WEIGHTS_0=g.accessor(w,'VEC4'))
+        prims.append(dict(attributes=attrs,indices=g.accessor(t.reshape(-1),'SCALAR',5125),material=mats[key],mode=4))
+    g.doc['meshes'].append(dict(name='Pilot_Body',primitives=prims))
+    g.doc['nodes'].append(dict(name='Pilot_Body',mesh=0,skin=0));roots.append(len(g.doc['nodes'])-1)
     ib=[]
     for n,a,b,parent in bones:
         m=np.eye(4);m[:3,3]=-gl(a);ib.append(m.T.reshape(-1))
     v=g.data(np.array(ib,dtype='<f4').tobytes());acc=len(g.doc['accessors']);g.doc['accessors'].append(dict(bufferView=v,componentType=5126,count=len(bones),type='MAT4'))
     g.doc['skins']=[dict(name='Pilot_Skeleton',joints=list(range(len(bones))),skeleton=lookup['Hips'],inverseBindMatrices=acc)]
-    tris=sum(len(sh.t) for _,sh,_ in parts)
-    g.doc['extras']=dict(originalGeometry=True,build='CPU fallback, Blender startup unavailable; same numeric source as Blender builder',triangles=tris,bones=len(bones),anthropometry='NRC 1983 civilian male 50th: stature 1.736 m, sitting shoulder .594 m; segment estimates documented in PROVENANCE')
-    OUT.parent.mkdir(parents=True,exist_ok=True);g.save(OUT);print('PILOT',tris,'triangles',len(bones),'bones',OUT)
+    g.doc['extras']=dict(originalGeometry=True,build='CPU builder pilot_body_smooth: one skinned mesh, smooth normals, blended joint weights, procedural normal maps; same numeric skeleton as Blender builder',triangles=tris,bones=len(bones),anthropometry='NRC 1983 civilian male 50th: stature 1.736 m, sitting shoulder .594 m; segment estimates documented in PROVENANCE')
+    OUT.parent.mkdir(parents=True,exist_ok=True);g.save(OUT);print('PILOT',tris,'triangles',len(bones),'bones',len(prims),'materials',OUT)
     return tris
 
 def build(kind='pitts',export=True):
