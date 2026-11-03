@@ -456,20 +456,31 @@ print('V TUBES v13 (meet at the 15 pct front-spar apex): (%.3f, %.3f, %.3f) -> (
 # xd RS_X) forward and inboard to the single front-spar fitting on the centreline above the windshield (15 pct chord),
 # the same point the windshield V tubes meet. A rear-spar carry-through tube crosses the cabin between the two rear
 # attach points, under the greenhouse's aft edge. All yellow 1 in steel tube lying just under the wing lower contour.
+# v16 (Ty 2026-11-02: "the cub needs the top tubes moved up about 6 inches just below the clear roof"): the ceiling tubes,
+# their rear fittings and the carry-through no longer follow the wing's LOWER contour; they follow the skylight's
+# underside, CV_GAP below the clear panel, inside the open wing well (|y| < SK_Y, between the spar faces), so they sit
+# visibly under the glass and never through it or through the root ribs. The windshield V tubes still meet at the
+# front-spar fitting under the wing; the ceiling tubes now start at the top of that spar face.
+CV_GAP = 0.016                                                       # glass underside -> tube top
+def cv_z(x_, y_): return float(wsurf(W, y_, (x_ - LE_D) / CH, True)[2]) - CV_GAP - AP_R
 _bcv = bmesh.new(); _CVE = []
-_cxa = _vx + 0.012
-_zr = wing_low_c(RS_X) - AP_R - 0.002
-_yr = fus_y(RS_X, _zr - 0.01) - AP_R * 1.6
-for sy in (1, -1):
-    pts = []
-    for t_ in np.linspace(0, 1, 32):
-        x_ = _cxa + (RS_X - _cxa) * t_; y_ = sy * (0.020 + (_yr - 0.020) * t_)
-        pts.append(B(x_, y_, wing_low_c(x_) - AP_R - 0.002))
-    tube(_bcv, pts, AP_R, n=14); _CVE.append((RS_X, sy * _yr, _zr))
-    rbox(_bcv, B(RS_X, sy * _yr, wing_low_c(RS_X) - 0.006), (0.05, 0.04, 0.012))         # rear-spar attach fitting
-tube(_bcv, [B(RS_X, y_, _zr) for y_ in np.linspace(-_yr - 0.01, _yr + 0.01, 12)], AP_R, n=14)   # rear-spar carry-through
+_cxa = _vx + AP_R + 0.004                                            # just aft of the front spar face
+_rxa = RS_X - AP_R - 0.004                                           # just ahead of the rear spar face
+_yr = SK_Y - AP_R - 0.012                                            # inside the root ribs
+_zr = cv_z(_rxa, _yr)
+_cvgap = []
+for sy in (1, -1):                                                   # straight steel tube spar to spar (the glass bows up over it)
+    _a, _b = np.array((_cxa, sy * 0.020, cv_z(_cxa, 0.020))), np.array((_rxa, sy * _yr, _zr))
+    pts = [_a + (_b - _a) * t_ for t_ in np.linspace(0, 1, 12)]
+    _cvgap += [float(wsurf(W, q[1], (q[0] - LE_D) / CH, True)[2]) - q[2] - AP_R for q in pts]
+    tube(_bcv, [B(*q) for q in pts], AP_R, n=14); _CVE.append((_rxa, sy * _yr, _zr))
+    rbox(_bcv, B(RS_X - 0.003, sy * _yr, _zr), (0.006, 0.04, 0.05))                    # rear-spar attach fitting (plate on the spar face)
+    rbox(_bcv, B(_vx + 0.003, sy * 0.020, cv_z(_cxa, 0.02)), (0.006, 0.05, 0.05))     # front-spar attach fitting
+tube(_bcv, [B(_rxa, y_, cv_z(_rxa, y_)) for y_ in np.linspace(-_yr - 0.01, _yr + 0.01, 12)], AP_R, n=14)   # rear-spar carry-through
 P['Ceiling_Tubes'] = link('Ceiling_Tubes', _bcv)
-print('CEILING v13: front-spar apex (%.3f, 0, %.3f) = %.0f pct chord -> rear-spar attach (%.3f, +-%.3f, %.3f) = %.1f pct chord; carry-through tube at xd %.3f; r %.4f' % (_cxa, wing_low_c(_cxa) - AP_R - 0.002, FS_F * 100, RS_X, _yr, _zr, RS_F * 100, RS_X, AP_R))
+_cv_up = [cv_z(_cxa, 0.0) - (wing_low_c(_cxa) - AP_R - 0.002), 0.5 * (cv_z(_cxa, 0.0) + _zr) - (wing_low_c(0.5 * (_cxa + _rxa)) - AP_R - 0.002), _zr - (wing_low_c(_rxa) - AP_R - 0.002)]
+print('CEILING v16: front-spar (%.3f, +-0.020, %.3f) -> rear-spar attach (%.3f, +-%.3f, %.3f), straight; carry-through at xd %.3f; tube tops %.3f..%.3f m under the skylight skin; '
+      'raised %s m over v13 (front / mid / rear); r %.4f' % (_cxa, cv_z(_cxa, 0.02), _rxa, _yr, _zr, _rxa, min(_cvgap), max(_cvgap), [round(u_, 3) for u_ in _cv_up], AP_R))
 # ---- v11 skylight: cut the wing centre section, clear panel on top, root ribs + front spar face (yellow) -------------
 _bw = bmesh.new(); _bw.from_mesh(P['Wing'].data); _bw.faces.ensure_lookup_table(); bmesh.ops.recalc_face_normals(_bw, faces=_bw.faces)
 def _wf(c_): return (-c_.x - LE_D) / CH
@@ -488,7 +499,9 @@ if sum(f.normal.z for f in _bsk.faces) < 0: bmesh.ops.reverse_faces(_bsk, faces=
 P['Skylight'] = link('Skylight', _bsk)
 _bsf = bmesh.new()
 def _two(pts):
-    _bsf.faces.new([_bsf.verts.new(tuple(q)) for q in pts]); _bsf.faces.new([_bsf.verts.new(tuple(q)) for q in pts[::-1]])
+    # v16: ONE face. Every J-3 material is doubleSided, so the old front + reversed pair were two coincident faces that
+    # fought (the root ribs read as yellow / dark shards from the rear seat, and the mag switch now sits on one).
+    _bsf.faces.new([_bsf.verts.new(tuple(q)) for q in pts])
 def _strip(f0_, f1_, up_):                                           # yellow skin back to the spar line (both faces)
     fs_ = np.linspace(f0_, f1_, 3)
     for a_, b_ in zip(fs_, fs_[1:]):
@@ -1072,10 +1085,21 @@ for nm_, px in (('Front', 1.12), ('Rear', 1.85)):                       # v15: e
         sub_end('Pedal_%s_%s' % (nm_, sd_)); RIGPTS['Pedal_%s_%s' % (nm_, sd_)] = B(px, sy * 0.13, -0.53)
 # v6 (Ty review): the cabin is fabric-lined throughout (Cabin_Liner / Liner_Stbd) -- no exposed steel tube truss on the
 # sidewalls or in the windows. Only a couple of tubes show, low in the footwell under the fuel tank (behind the panel).
+# v16 (Ty 2026-11-02): "the tubes under the fuel tank go from the tube cluster at the bottom of the windshield and
+# instrument panel on both sides to a point in the middle at the firewall between the rudder pedals on a diagonal and
+# the only horizontal cross bar is the one behind the bottom of the instrument panel out of sight." So: a V seen from
+# above, one diagonal per side from the side cluster (A-pillar foot / panel bottom corner) down and forward to ONE
+# fitting on the firewall centreline at rudder-pedal height, and one cross bar just ahead of the panel's bottom edge.
+UT_X, UT_Z = PX - 0.012, PZB + 0.016                                  # side cluster: just ahead of the panel, at its bottom corner
+UT_FX, UT_FZ = 0.83, -0.43                                           # firewall centre fitting, between the front pedals
+_utw = fus_y(UT_X, UT_Z) - 0.016
 for sy in (1, -1):
-    def wall(x_, z_): return B(x_, sy * (fus_y(x_, z_) - 0.016), z_)
-    ck('tubeY', lambda: tube(bmc, [wall(0.98, -0.06), wall(1.20, -0.40)], 0.010, n=10))          # diagonal under the tank
-ck('tubeY', lambda: tube(bmc, [B(1.04, fus_y(1.04, -0.36) - 0.016, -0.36), B(1.04, -(fus_y(1.04, -0.36) - 0.016), -0.36)], 0.010, n=10))  # cross tube
+    ck('tubeY', lambda: tube(bmc, [B(UT_X, sy * _utw, UT_Z), B(UT_FX, sy * 0.006, UT_FZ)], 0.010, n=10))     # diagonal under the tank
+    ck('tubeY', lambda: bmesh.ops.create_uvsphere(bmc, u_segments=12, v_segments=8, radius=0.016, matrix=Matrix.Translation(B(UT_X, sy * _utw, UT_Z))))                                       # side cluster
+ck('tubeY', lambda: rbox(bmc, B(UT_FX - 0.008, 0, UT_FZ), (0.010, 0.05, 0.05)))                         # firewall fitting
+ck('tubeY', lambda: tube(bmc, [B(UT_X, _utw, UT_Z), B(UT_X, -_utw, UT_Z)], 0.010, n=10))                 # the one cross bar, behind the panel bottom
+print('UNDER-TANK v16: diagonals from the side clusters (xd %.3f, +-%.3f, z %.3f) to the firewall centre (xd %.3f, z %.3f); one cross bar at xd %.3f z %.3f behind the panel (face xd %.3f, bottom z %.3f)'
+      % (UT_X, _utw, UT_Z, UT_FX, UT_FZ, UT_X, UT_Z, PXA, PZB))
 for px in (1.12, 1.85):                                                                     # heel brakes (black pads)
     for sy in (1, -1):
         ck('dark', lambda: bar(bmc, [B(px + 0.11, sy * 0.13, -0.545), B(px + 0.08, sy * 0.13, -0.49)], 0.05, 0.010, up=(1, 0, 0.6)))
@@ -1153,9 +1177,9 @@ for nm, xc_ in (('front', 1.335), ('rear', 2.205)):
     w_ = Wall(1, xc_, 0.012)
     w_.slab('panel', [(-TW / 2, 0), (-TB / 2, -TH), (TB / 2, -TH), (TW / 2, 0)], 0.0, 0.0025)
     w_.slab('face', [(-0.037, -0.009), (-0.037, -0.036), (0.037, -0.036), (0.037, -0.009)], 0.0025, 0.0032)       # label band
-    NTX += w_.text('CLOSED', -0.022, -0.0155, 0.0068, 0.0034, tilt=0.06) + w_.text('OPEN', 0.024, -0.0155, 0.0068, 0.0034, tilt=-0.06)
+    NTX += w_.text('CLOSED', -0.0215, -0.0150, 0.0074, 0.0034, tilt=0.06) + w_.text('OPEN', 0.0240, -0.0150, 0.0076, 0.0034, tilt=-0.06)
     w_.arrow(-0.0045, 0.0055, -0.0150, 0.0034, w=0.0007, head=0.0025)
-    NTX += w_.text('THROTTLE', 0.0, -0.0290, 0.0105, 0.0034)
+    NTX += w_.text('THROTTLE', 0.0, -0.0290, 0.0118, 0.0034)
     w_.screw(0.0, -TH + 0.016, 0.0025)
     st0, st1 = (-TW / 2 + 0.011, -0.002, 0.004), (-TW / 2 + 0.003, 0.024, 0.010)           # short stem out of the aft top corner (closed end)
     sub_begin()                                                         # v15: Throttle_Lever_Front / _Rear node (pivot at the plate tip)
@@ -1172,94 +1196,94 @@ _fw = np.array(B(0.82, fus_y(0.82, -0.10) - 0.012, -0.10))
 _lp = [_lk[1] + (_lk[0] - _lk[1]) * t_ for t_ in np.linspace(0, 1, 40)] + [_lk[0] + (_fw - _lk[0]) * t_ for t_ in np.linspace(0, 1, 20)[1:]]
 for q_ in _lp: q_[1] = fus_y(-q_[0], q_[2]) - 0.003                    # follows the skin inside the 6 mm liner gap, so it stays hidden
 ck('dark', lambda: tube(bmc, [tuple(q_) for q_ in _lp], 0.0015, n=6))
-# -- fuel shut-off D plate (left wall, between the throttles; round side aft, flat side forward, red knob forward top)
-FW_ = Wall(1, 1.530, -0.100); _fo = d_shape(0.150, 0.088, True); _fi = shrink(_fo, 0.86)
-FW_.slab('dark', _fo, 0.0, 0.0015)                                    # recessed pan (fills the D)
-FW_.ring('panel', _fo, _fi, 0.0, 0.0110)                              # raised black bezel -> pan reads recessed ~10 mm
-for u_, v_ in [(_fo[0][0] + 0.006, 0.0), (0.069, 0.038), (0.069, -0.038), (-0.020, 0.040), (-0.020, -0.040)]:
-    FW_.screw(u_ if abs(u_) < 0.07 else u_, v_ * 1.0, 0.0110)
-NTX += FW_.text('FUEL', 0.004, 0.004, 0.0085, 0.0018)
-NTX += FW_.text('OFF', -0.026, -0.019, 0.0105, 0.0018) + FW_.text('ON', 0.030, -0.019, 0.0105, 0.0018)
-FW_.arrow(0.019, -0.010, -0.019, 0.0018, w=0.0011, head=0.0040)      # OFF <- ON
-sub_begin()                                                             # v15: FuelValve_Lever node (pivot boss in the pan)
-FW_.cyl('chrome', (0.016, 0.0, 0.0015), (0.016, 0.0, 0.0060), 0.0045, 12)                         # pivot boss
-FW_.cyl('chrome', (0.016, 0.0, 0.0040), (0.046, 0.020, 0.0040), 0.0022, 8)                        # lever arm
-FW_.cyl('chrome', (0.046, 0.020, 0.0016), (0.046, 0.020, 0.016), 0.0028, 8)
-FW_.ball('red', (0.046, 0.020, 0.020), 0.0075)
-sub_end('FuelValve_Lever'); RIGPTS['FuelValve_Lever'] = (FW_.P(0.016, 0.0, 0.0), wall_n(FW_, 0.016, 0.0), FW_.P(0.046, 0.020, 0.020))
-FV = np.array(FW_.P(0.046, 0.020, 0.020))
-# -- elevator trim: square plate below the fuel plate, tick scale, crank
-TR_ = Wall(1, 1.565, -0.220); TS = 0.088
+# -- fuel shut-off D plate (left wall, between the throttles; round side aft, flat side forward)
+# v16 (Ty 2026-11-02: "make the fuel valve a push pull control with the red knob not a lever"): same D outline, same place
+# (his v14 photo put the shut-off here, on the left wall at the front pilot's left knee, 0.30 m aft of the panel), but the
+# lever is now a push-pull: a round red knob on a chrome shaft through a chrome nut and guide sleeve in the plate's flat
+# (forward) end, labels in the round (aft) end so the knob never hides them from the rear seat; PUSH = ON (modelled),
+# PULL = OFF, 30 mm stroke straight out of the wall. The plate is FLAT now (the v14 recessed pan + 11 mm bezel housed the
+# lever, and from the rear seat its aft rim hid half the lettering); labels larger and pure white.
+FW_ = Wall(1, 1.530, -0.100); _fo = d_shape(0.150, 0.088, True)
+FW_.slab('panel', _fo, 0.0, 0.0025)
+for u_, v_ in [(-0.066, 0.0), (0.067, 0.036), (0.067, -0.036), (-0.008, 0.038), (-0.008, -0.038)]:
+    FW_.screw(u_, v_, 0.0025)
+NTX += FW_.text('FUEL', -0.024, 0.0205, 0.0150, 0.0029)
+NTX += FW_.text('PUSH ON', -0.024, 0.0005, 0.0098, 0.0029) + FW_.text('PULL OFF', -0.024, -0.0190, 0.0098, 0.0029)
+FV_U, FV_STROKE = 0.036, 0.030
+FW_.cyl('chrome', (FV_U, 0.0, 0.0025), (FV_U, 0.0, 0.0060), 0.0090, 16)                           # small round plate (nut) on the plate
+FW_.cyl('chrome', (FV_U, 0.0, 0.0060), (FV_U, 0.0, 0.0262), 0.0050, 12)                           # guide sleeve the shaft slides in
+sub_begin()                                                             # v16: FuelValve_Knob node (push-pull along the wall normal)
+FW_.cyl('chrome', (FV_U, 0.0, -0.0065), (FV_U, 0.0, 0.0300), 0.0030, 10)                          # shaft: in the sleeve when ON, still in it at full pull
+FW_.cyl('red', (FV_U, 0.0, 0.0255), (FV_U, 0.0, 0.0300), 0.0080, 20, r2=0.0135)                   # red knob: flared neck
+FW_.cyl('red', (FV_U, 0.0, 0.0300), (FV_U, 0.0, 0.0400), 0.0135, 20, r2=0.0135)                   #           round body
+FW_.cyl('red', (FV_U, 0.0, 0.0400), (FV_U, 0.0, 0.0440), 0.0135, 20, r2=0.0100)                   #           domed face
+sub_end('FuelValve_Knob'); RIGPTS['FuelValve_Knob'] = (FW_.P(FV_U, 0.0, 0.0), wall_n(FW_, FV_U, 0.0))
+FV = np.array(FW_.P(FV_U, 0.0, 0.0440))
+# -- elevator trim: square plate, tick scale, crank. v16 (Ty 2026-11-02: "move the trim crank back about a foot"): plate,
+# scale and crank 0.30 m aft of the v14 spot (xd 1.565 -> 1.865), same height on the left wall, beside the front seat;
+# plate 88 -> 104 mm and lettering ~40 pct larger, pure white, for the rear seat.
+TR_X0, TR_DX = 1.565, 0.30
+TR_ = Wall(1, TR_X0 + TR_DX, -0.220); TS = 0.104
 TR_.slab('panel', [(-TS / 2, -TS / 2), (TS / 2, -TS / 2), (TS / 2, TS / 2), (-TS / 2, TS / 2)], 0.0, 0.0025)
-for k_, u_ in enumerate(np.linspace(-0.030, 0.030, 13)):
-    hh = 0.0055 if k_ % 6 == 0 else 0.0035
-    TR_.slab('label', [(u_ - 0.0007, 0.035 - hh), (u_ + 0.0007, 0.035 - hh), (u_ + 0.0007, 0.035), (u_ - 0.0007, 0.035)], 0.0025, 0.0029)
-NTX += TR_.text('NOSE', 0.0, 0.019, 0.0078, 0.0028) + TR_.text('UP', -0.031, 0.020, 0.0055, 0.0028) + TR_.text('DOWN', 0.029, 0.020, 0.0055, 0.0028)
-NTX += TR_.text('UP', -0.030, -0.027, 0.0055, 0.0028) + TR_.text('DOWN', 0.028, -0.027, 0.0055, 0.0028)
-for u_, v_ in [(-0.037, 0.037), (0.037, 0.037), (-0.037, -0.037), (0.037, -0.037)]: TR_.screw(u_, v_, 0.0025)
+for k_, u_ in enumerate(np.linspace(-0.036, 0.036, 13)):
+    hh = 0.0070 if k_ % 6 == 0 else 0.0045
+    TR_.slab('label', [(u_ - 0.0009, 0.044 - hh), (u_ + 0.0009, 0.044 - hh), (u_ + 0.0009, 0.044), (u_ - 0.0009, 0.044)], 0.0025, 0.0029)
+NTX += TR_.text('NOSE', 0.0, 0.0255, 0.0110, 0.0028) + TR_.text('UP', -0.037, 0.0255, 0.0085, 0.0028) + TR_.text('DOWN', 0.034, 0.0255, 0.0085, 0.0028)
+NTX += TR_.text('UP', -0.034, -0.035, 0.0085, 0.0028) + TR_.text('DOWN', 0.030, -0.035, 0.0085, 0.0028)
+for u_, v_ in [(-0.046, 0.046), (0.046, 0.046), (-0.046, -0.046), (0.046, -0.046)]: TR_.screw(u_, v_, 0.0025)
 sub_begin()                                                             # v15: Trim_Crank node (turns about the hub)
 TR_.cyl('chrome', (0.0, -0.002, 0.0025), (0.0, -0.002, 0.014), 0.011, 16)                        # crank hub
 ck('chrome', lambda: bar(bmc, [TR_.P(0.0, -0.002, 0.016), TR_.P(-0.034, 0.006, 0.016)], 0.010, 0.005, up=tuple(np.array(TR_.P(0, 0, 1)) - np.array(TR_.P(0, 0, 0)))))
 TR_.cyl('chrome', (-0.034, 0.006, 0.016), (-0.034, 0.006, 0.046), 0.0062, 12)                    # handle
 sub_end('Trim_Crank'); RIGPTS['Trim_Crank'] = (TR_.P(0.0, -0.002, 0.0), wall_n(TR_, 0.0, -0.002), TR_.P(0.0, 0.030, 0.0))
 TK = np.array(TR_.P(-0.034, 0.006, 0.046))
-# -- carb heat D plate (right wall, s = -1: u = +xd = aft; flat side forward, round side aft) + rod to the rear knob
+# -- carb heat D plate (right wall, s = -1: u = +xd = aft; flat side forward, round side aft). v16 (Ty 2026-11-02: "remove
+# the long rod back for the carb heat and make the person actually lean forward to get to it"): the push-pull rod along the
+# lower right wall, its wall clip and the rear-seat red knob (CarbHeat_Knob_Rear) are gone; this lever at the front is the
+# only carb heat control, so from the rear seat it is a lean forward. Lettering larger and pure white (v16).
 CW_ = Wall(-1, 1.455, -0.175); _co = d_shape(0.130, 0.080, False); _ci = shrink(_co, 0.85)
 CW_.slab('dark', _co, 0.0, 0.0015); CW_.ring('panel', _co, _ci, 0.0, 0.0105)
 for u_, v_ in [(0.059, 0.034), (0.059, -0.034), (-0.015, 0.036), (-0.015, -0.036), (-0.059, 0.0)]: CW_.screw(u_, v_, 0.0105)
-NTX += CW_.text('CARB HEAT', 0.008, 0.016, 0.0080, 0.0018) + CW_.text('OFF', -0.014, -0.006, 0.0085, 0.0018) + CW_.text('ON', 0.032, -0.006, 0.0085, 0.0018)
-CW_.arrow(0.024, 0.001, -0.006, 0.0018, w=0.0010, head=0.0035)
+NTX += CW_.text('CARB HEAT', 0.006, 0.0175, 0.0100, 0.0018) + CW_.text('OFF', -0.019, -0.0040, 0.0100, 0.0018) + CW_.text('ON', 0.035, -0.0040, 0.0100, 0.0018)
+CW_.arrow(0.025, -0.002, -0.0040, 0.0018, w=0.0011, head=0.0038)
 sub_begin()                                                             # v15: CarbHeat_Lever node (pivot at the fork)
 CW_.cyl('chrome', (-0.040, -0.024, 0.008), (0.034, -0.024, 0.008), 0.0026, 8)                   # lever rod across the pan
 CW_.cyl('chrome', (0.004, -0.024, 0.003), (0.004, -0.024, 0.013), 0.0045, 10)                   # pivot / fork
 CW_.ball('stick', (-0.043, -0.024, 0.009), 0.0055)                                              # small black ball, forward end
 sub_end('CarbHeat_Lever'); RIGPTS['CarbHeat_Lever'] = (CW_.P(0.004, -0.024, 0.0), wall_n(CW_, 0.004, -0.024), CW_.P(-0.043, -0.024, 0.009))
-_c0 = np.array(CW_.P(0.034, -0.024, 0.012))
-CK2 = Wall(-1, 2.150, -0.262)                                          # rear-seat knob, lower right wall
-_c1 = np.array(CK2.P(0.0, 0.0, 0.016))
-_cr = [tuple(_c0 + (_c1 - _c0) * t_) for t_ in np.linspace(0, 1, 16)]
-ck('stick', lambda: tube(bmc, _cr, 0.0024, n=8))                       # black push-pull rod
-_cm = Wall(-1, 1.80, -0.175 + (-0.262 + 0.175) * (1.455 - 1.80) / (1.455 - 2.150)); _cm.slab('chrome', [(-0.003, -0.011), (0.003, -0.011), (0.003, 0.003), (-0.003, 0.003)], 0.0, 0.0012)   # wall clip
-sub_begin()                                                             # v15: CarbHeat_Knob_Rear node (pulls aft along the rod)
-_cd = (_c1 - _c0) / np.linalg.norm(_c1 - _c0)
-ck('chrome', lambda: cyl(bmc, tuple(_c1 - 0.045 * _cd), tuple(_c1), 0.0017, 8))                # inner wire (hidden in the rod when pushed in)
-CK2.cyl('chrome', (0.0, 0.0, 0.016), (0.012, 0.0, 0.016), 0.0030, 8)                           # shaft into the knob (aft)
-CK2.cyl('red', (0.010, 0.0, 0.016), (0.022, 0.0, 0.016), 0.0055, 16, r2=0.0125)               # red mushroom knob
-CK2.cyl('red', (0.022, 0.0, 0.016), (0.030, 0.0, 0.016), 0.0125, 16, r2=0.0115)
-sub_end('CarbHeat_Knob_Rear'); RIGPTS['CarbHeat_Knob_Rear'] = (tuple(_c1), _cd)
-CH_K = np.array(CK2.P(0.030, 0.0, 0.016))
-# -- magneto switch (Ty photo, v14): black oval plate on the ceiling at the LEFT wing root, the wing's lower skin just
-# inboard of / above the left window near the upper longeron, ahead of the front spar (the greenhouse opens aft of it).
-# 'OFF L R BOTH' round the top, 'AAF TYPE A' along the bottom, maroon rotary knob with a lever handle.
+CH_K = np.array(CW_.P(-0.043, -0.024, 0.009))
+# -- magneto switch (Ty photo, v14): black oval plate, 'OFF L R BOTH' round the top, 'AAF TYPE A' along the bottom, maroon
+# rotary knob with a lever handle. v16 (Ty 2026-11-02: "the mag switch is on the left side wing root wall the vertical wall
+# on the left above the left window"): no longer on the ceiling ahead of the front spar but on the LEFT root rib, the
+# vertical face that closes the wing well on the left above the left window, just aft of the front spar, low on the rib
+# (near the window top) where the front pilot's left hand reaches it. Plate faces inboard; reads upright from the seat.
 class Plane(Wall):
     def __init__(self, o, U, V):
         self.o, self.U, self.V = np.array(o, float), np.array(U, float), np.array(V, float)
         self.N = np.cross(self.U, self.V); self.N /= np.linalg.norm(self.N)
     def P(self, u, v, h=0.0): return tuple(self.o + u * self.U + v * self.V + h * self.N)
-MG_X, MG_Y = 1.560, 0.215
-_mz = wing_low_c(MG_X) - 0.0055
-_sl = (wing_low_c(MG_X + 0.01) - wing_low_c(MG_X - 0.01)) / 0.02              # lower-skin slope dz/dxd
-_Vb = np.array(B(MG_X - 0.01, 0, -_sl * 0.01)) - np.array(B(MG_X, 0, 0)); _Vb /= np.linalg.norm(_Vb)   # plate up = forward
-MG = Plane(B(MG_X, MG_Y, _mz), np.array(B(0, -1, 0)) * (1, 1, 1) - np.array(B(0, 0, 0)), _Vb)        # u = to the right seen from the seat
-if MG.N[2] > 0: MG = Plane(B(MG_X, MG_Y, _mz), -(np.array(B(0, -1, 0)) - np.array(B(0, 0, 0))), _Vb)
-MG = Plane(MG.o, -MG.U, -MG.V)                                         # turn 180 deg: reads upright from the front seat (checked in render)
-_ov = [(0.036 * math.cos(t), 0.027 * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 28, endpoint=False)]
+MG_X = LE_D + FS_F * CH + 0.095                                        # 9.5 cm aft of the front spar face
+_mz = float(wsurf(W, SK_Y, (MG_X - LE_D) / CH, False)[2]) + 0.050      # 5 cm above the rib's lower edge (the window top)
+MG_Y = SK_Y - 0.0012                                                   # 1.2 mm proud of the rib face (no coplanar faces)
+MG = Plane(B(MG_X, MG_Y, _mz), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0))       # u = forward = to the right seen from the seat, v = up
+assert MG.N[1] < -0.99, 'mag plate must face inboard'
+_ov = [(0.041 * math.cos(t), 0.031 * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 28, endpoint=False)]   # v16: 15 pct larger
 MG.slab('panel', _ov, 0.0, 0.0030)
 for su in (-1, 1):                                                     # mounting ears + screws
-    MG.slab('panel', [(su * 0.030, -0.010), (su * 0.043, -0.008), (su * 0.043, 0.008), (su * 0.030, 0.010)][::su], 0.0, 0.0030)
-    MG.screw(su * 0.039, 0.0, 0.0030)
+    MG.slab('panel', [(su * 0.035, -0.011), (su * 0.050, -0.009), (su * 0.050, 0.009), (su * 0.035, 0.011)][::su], 0.0, 0.0030)
+    MG.screw(su * 0.045, 0.0, 0.0030)
 for w_, a_ in (('OFF', 145), ('L', 108), ('R', 72), ('BOTH', 30)):
-    t_ = math.radians(a_); NTX += MG.text(w_, 0.0275 * math.cos(t_), 0.0195 * math.sin(t_), 0.0060, 0.0032, tilt=t_ - math.pi / 2)
-NTX += MG.text('AAF TYPE A', 0.0, -0.0205, 0.0054, 0.0032)
+    t_ = math.radians(a_); NTX += MG.text(w_, 0.0318 * math.cos(t_), 0.0226 * math.sin(t_), 0.0071, 0.0032, tilt=t_ - math.pi / 2)
+NTX += MG.text('AAF TYPE A', 0.0, -0.0238, 0.0060, 0.0032)
 sub_begin()                                                             # v15: MagSwitch_Knob node (rotary, OFF/L/R/BOTH detents)
 MG.cyl('maroon', (0.0, -0.002, 0.003), (0.0, -0.002, 0.016), 0.0150, 20, 0.0130)          # rotary knob
 MG.cyl('maroon', (0.0, -0.002, 0.016), (0.0, -0.002, 0.019), 0.0130, 20, 0.0110)
 ck('maroon', lambda: bar(bmc, [MG.P(-0.004, -0.002, 0.012), MG.P(-0.036, 0.004, 0.010)], 0.009, 0.005, up=tuple(MG.N)))   # lever handle
 sub_end('MagSwitch_Knob'); RIGPTS['MagSwitch_Knob'] = (MG.P(0.0, -0.002, 0.0), tuple(MG.N))
 MGP = np.array(MG.P(0, 0, 0))
-print('MAGSWITCH v14: left wing-root ceiling xd %.3f y %.3f z %.3f (wing lower skin %.3f, front spar xd %.3f), plate normal %s' % (MG_X, MG_Y, _mz, wing_low_c(MG_X), LE_D + FS_F * CH, np.round(MG.N, 2)))
-print('CONTROLS v14 (Ty photos): throttle plates (left wall) front xd 1.335 rear xd 2.205, top z 0.012 (window sill 0.03), %.3f x %.3f m, ball r 0.0165 at front %s rear %s, linked behind the liner; fuel D plate xd 1.530 z -0.100 (0.150 x 0.088), red knob %s; trim plate xd 1.565 z -0.220 (%.3f sq), crank handle %s; carb heat D plate (right wall) xd 1.455 z -0.175 (0.130 x 0.080), rod aft to red knob %s; %d label text faces' % (
-    TW, TH, np.round(THR['front'][1], 3), np.round(THR['rear'][1], 3), np.round(FV, 3), TS, np.round(TK, 3), np.round(CH_K, 3), NTX))
+print('MAGSWITCH v16: left root-rib wall xd %.3f y %.3f z %.3f (rib face y %.3f, rib lower edge z %.3f, upper %.3f; front spar xd %.3f), plate normal %s' % (MG_X, MG_Y, _mz, SK_Y, float(wsurf(W, SK_Y, (MG_X - LE_D) / CH, False)[2]), float(wsurf(W, SK_Y, (MG_X - LE_D) / CH, True)[2]), LE_D + FS_F * CH, np.round(MG.N, 2)))
+print('CONTROLS v16 (Ty photos + 2026-11-02 changes): throttle plates (left wall) front xd 1.335 rear xd 2.205, top z 0.012 (window sill 0.03), %.3f x %.3f m, ball r 0.0165 at front %s rear %s, linked behind the liner; fuel D plate xd 1.530 z -0.100 (0.150 x 0.088), push-pull red knob face %s; trim plate xd %.3f z -0.220 (%.3f sq), crank handle %s; carb heat D plate (right wall) xd 1.455 z -0.175 (0.130 x 0.080), lever ball %s, no rear knob; %d label text faces' % (
+    TW, TH, np.round(THR['front'][1], 3), np.round(THR['rear'][1], 3), np.round(FV, 3), TR_X0 + TR_DX, TS, np.round(TK, 3), np.round(CH_K, 3), NTX))
 ck_tag = tags_of(bmc); P['Cabin'] = link('Cabin', bmc)
 TAGS = {}
 
@@ -1551,7 +1575,7 @@ M.update(en_plug=C('Spark_plug_shield', (170, 170, 175), rough=0.35, metal=1.0),
          en_steel=C('Exhaust_steel', (150, 150, 156), rough=0.30, metal=1.0), en_seam=C('Cowl_panel_gap', (40, 30, 8), rough=0.9),
          en_alu=C('Fuel_cap_red', (196, 28, 24), rough=0.35),
          ck_panel=C('Cabin_panel_black', (20, 20, 22), rough=0.45), ck_gauge=C('Gauge_bezel_black', (14, 14, 16), rough=0.3, metal=0.3),
-         ck_label=C('Placard_text_white', (236, 236, 230), rough=0.5), ck_red=C('Knob_red', (186, 22, 20), rough=0.35), ck_maroon=C('Knob_maroon', (118, 34, 28), rough=0.4),
+         ck_label=C('Placard_text_white', (252, 252, 250), rough=0.75), ck_red=C('Knob_red', (186, 22, 20), rough=0.35), ck_maroon=C('Knob_maroon', (118, 34, 28), rough=0.4),
          ck_chrome=C('Cabin_chrome', (226, 228, 232), rough=0.1, metal=1.0), ck_alu=C('Placard_aluminium', (196, 198, 202), rough=0.3, metal=0.8),
          ck_floor=C('Cabin_floor_black', (30, 29, 28), rough=0.9), ck_dark=C('Cabin_dark', (28, 27, 26), rough=0.9),
          cabin=C('Cabin_fabric_yellow', (176, 138, 36), rough=0.9), door_in=C('Door_inner_yellow', YEL, rough=0.7),   # v7 (Ty): door inner face (upper + lower) is the Cub-yellow paint, not black (v7c 176,138,36 read olive in shade)
@@ -1873,9 +1897,9 @@ for nm_ in ('Front', 'Rear'):
     pv, nb, kb = RIGPTS['Throttle_Lever_' + nm_]; o = origin2('Throttle_Lever_' + nm_, pv, CTL)
     rig2(o, 'throttle', wd(nb), [0, 1], [0, THR_DEG], '0..1', 'ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip',
          tv=w(kb) - w(pv), want=lambda d: d.x < 0, link='front and rear throttles share one push rod (same param)')
-pv, nb, kb = RIGPTS['FuelValve_Lever']; o = origin2('FuelValve_Lever', pv, CTL)
-rig2(o, 'fuel_valve', wd(nb), [0, 1], [90, 0], '0=OFF 1=ON', 'shut-off lever, modelled ON (knob forward); OFF swings the knob up/aft 90 deg',
-     tv=w(kb) - w(pv), want=lambda d: d.x > 0)
+pv, nb = RIGPTS['FuelValve_Knob']; o = origin2('FuelValve_Knob', pv, CTL)
+rig2(o, 'fuel_valve', wd(nb), [0, 1], [FV_STROKE, 0], '0=OFF 1=ON', 'fuel shut-off push-pull, modelled ON (pushed in); OFF pulls the red knob %d mm straight out of the wall' % round(FV_STROKE * 1000),
+     kind='move', want=lambda d: d.y > 0.99)                      # out of the left wall, into the cabin
 pv, nb, kb = RIGPTS['Trim_Crank']; o = origin2('Trim_Crank', pv, CTL)
 rig2(o, 'trim', wd(nb), [-1, 0, 1], [-450, 0, 450], '-1 nose down .. +1 nose up', 'trim crank, 1.25 turns each way from neutral (judgement); +nose-up turns the top of the crank aft (toward UP)',
      tv=w(kb) - w(pv), want=lambda d: d.x > 0, link='drives the Stab jack screw (trim param)')
@@ -1883,12 +1907,9 @@ rig2(P['Stab'], 'trim', Vector(_le), [-1, 0, 1], [2.5, 0, -4.0], '-1 nose down .
      link='Trim_Crank (same param); Elevator_L/R ride on the Stab')
 pv, nb, kb = RIGPTS['CarbHeat_Lever']; o = origin2('CarbHeat_Lever', pv, CTL)
 rig2(o, 'carb_heat', wd(nb), [0, 1], [0, 35], '0=OFF 1=ON', 'carb heat lever about its fork pivot; ON swings the forward ball up 35 deg (judgement)',
-     tv=w(kb) - w(pv), want=lambda d: d.z > 0, link='rear knob CarbHeat_Knob_Rear (same param, push-pull rod)')
-pv, cd = RIGPTS['CarbHeat_Knob_Rear']; o = origin2('CarbHeat_Knob_Rear', pv, CTL)
-rig2(o, 'carb_heat', wd(cd), [0, 1], [0, 0.035], '0=OFF 1=ON', 'rear-seat carb heat knob pulls 35 mm aft along the rod for ON', kind='move', want=lambda d: d.x > 0,
-     link='CarbHeat_Lever (same param)')
+     tv=w(kb) - w(pv), want=lambda d: d.z > 0, note='the only carb heat control (v16: no rear-seat knob; the rear pilot leans forward)')
 pv, nb = RIGPTS['MagSwitch_Knob']; o = origin2('MagSwitch_Knob', pv, CKP)
-rig2(o, 'magneto', wd(nb), [0, 1, 2, 3], [0, -37, -73, -115], '0 OFF 1 L 2 R 3 BOTH (integer detents)', 'rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below)',
+rig2(o, 'magneto', wd(nb), [0, 1, 2, 3], [0, -37, -73, -115], '0 OFF 1 L 2 R 3 BOTH (integer detents)', 'rotary mag switch on the left root-rib wall, detents at the plate labels OFF/L/R/BOTH (clockwise seen from the cabin)',
      extra={'rig_detents': ['OFF', 'L', 'R', 'BOTH']})
 o = origin2('Primer_Plunger', RIGPTS['Primer_Plunger'], INS)
 rig2(o, 'primer', AFT, [0, 1], [0, 0.050], '0 in .. 1 out', 'primer plunger pulls straight aft 50 mm (judgement)', kind='move', want=lambda d: d.x > 0)

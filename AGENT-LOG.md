@@ -12,6 +12,31 @@
      three lines. They say where the 7.4 s first frame goes (world build vs the 2-33's model load) so I can fix
      the right one.
   **Nothing approved.**
+- **J-3 COCKPIT v16, TY'S SEVEN CHANGES, FROM THE REAR SEAT (Claude, 2026-11-02, lane/claude-j3-cockpit, 2558d73d ·
+  439649ba, Codex's lettering merged in 17e1767f).** BUILD: `deploy.sh` reached `** BUILD SUCCEEDED **` (bundle 2026.1102.1816, 0 `error CS`); its phone install then stopped with no devicectl message (exit 1), so the iPhone may still carry an older build. NOT on the headset (no APK, no adb, from
+  this lane). Before/after renders from the approved rear eye: `docs/pending/j3-cockpit/` (README lists each one).
+  In the headset, VR menu → Aircraft → **J-3**, then **J-3 on floats**, from the REAR seat:
+  1. **Top tubes.** Look up into the wing well. The two ceiling tubes and the carry-through should sit just under the
+     clear roof, 1.6–4.5 cm below the glass, not through it. They are up 14–17 cm (~6 in). Right height?
+  2. **Mag switch.** It should be on the LEFT root rib: the vertical yellow wall above the left window, just aft of
+     the front spar, facing you. Right spot, right height? Does OFF / L / R / BOTH still follow the switch?
+  3. **Carb heat.** There is no rear-seat knob and no rod along the right wall now. The only control is the lever on
+     the plate low on the right wall, just aft of the panel. Is that a lean-forward reach, as you wanted?
+  4. **Under the tank.** Look down past the front seat: one tube from each panel bottom corner to a single point on
+     the firewall between the front pedals (a V). The only cross bar is just ahead of the panel's bottom edge, out of
+     sight. Is the meeting point at the right height?
+  5. **Lettering.** Codex's gauge faces (bigger, darker numerals on a lighter cream face) and my white geometry
+     labels (throttle, fuel, trim, carb heat, mag plates). Can you read them from the back seat?
+  6. **Trim crank.** It is 0.30 m (a foot) aft of where it was, beside the front seat on the left wall, with its plate
+     and scale. Does the crank still turn with the trim and the stab?
+  7. **Fuel valve.** It is now a red push-pull knob on a chrome shaft (FUEL / PUSH ON / PULL OFF), drawn ON (pushed
+     in). It is in the same spot as the old lever: a flat D plate on the left wall between the throttles, at the
+     front pilot's left knee. I kept that spot because your v14 photo put the valve there, and the J3C-65 Owner's
+     Manual puts the fuel shut-off on the left side of the cockpit. If it lives somewhere else in your Cub (under the
+     panel?), tell me where. The knob does not move in flight: the sim has no fuel shut-off yet.
+  Also: the front eye now clears every tube (0.0 % within 12 cm, was 5.2 %). Say the word and the headset offers the
+  front seat again. **Nothing approved.**
+- **J-3 panel lettering (Codex, 2026-11-02):** larger, darker gauge lettering needs Ty’s read from the REAR seat in the headset. Nothing approved.
 - **QUEST + ALL PLATFORMS: THE J-3 IS OUR OWN MODEL ON WHEELS AND ON FLOATS, AND IT IS IN THE HEADSET (Claude,
   2026-11-02, lane/claude-vr-quest, a8174695 · 9e5f31ad · e0c4d22c · 541dd6be) — Ty: "get the eye location fixed on
   the j3 and add it to quest too both on wheels and floats". Code only: NOT built (`deploy.sh` not run: src/ changed,
@@ -1452,6 +1477,53 @@ and 88 evaluations per step, with 72 fps in flight just before. No damage line (
   against the branch point ce62f612, back to back: **no failing name introduced** (68 vs 70; the 2 that differ fail
   only on the branch point). Two earlier probe runs were started while another lane's Unity batch ran, against the
   rule; their numbers are not used. No Unity, no build, no adb.
+### 2026-11-02 — Claude · lane/claude-j3-cockpit · J-3 cockpit v16: Ty's seven changes, rendered from the rear eye
+Ty: "the cub needs the top tubes moved up about 6 inches just below the clear roof and the mag switch is on the left
+side wing root wall … remove the long rod back for the carb heat … the tubes under the fuel tank go from the tube
+cluster … to a point in the middle at the firewall … make the lettering … larger … move the trim crank back about a
+foot and make the fuel valve a push pull control with the red knob not a lever."
+- **Model** (`build_j3_cub.py`, both GLBs, 2558d73d):
+  - **Ceiling tubes:** the tubes, their fittings and the carry-through now sit 1.6–4.5 cm under the skylight
+    glass, straight spar to spar, inside the root ribs. They rose 0.14–0.17 m.
+  - **Mag switch:** moved onto the left root rib, 9.5 cm aft of the front spar. The plate faces inboard and its axis
+    is glTF −z; the detents are unchanged.
+  - **Carb heat:** `CarbHeat_Knob_Rear`, its rod and its clip are deleted.
+  - **Under the tank:** a V from the panel's bottom corners to one fitting on the firewall at (xd 0.83, z −0.43). The
+    only cross bar is at xd 1.218, just ahead of the panel's bottom edge.
+  - **Trim crank:** moved from xd 1.565 to 1.865; its plate grew from 88 to 104 mm.
+  - **Fuel valve:** `FuelValve_Lever` became `FuelValve_Knob`, a push-pull (kind move, 30 mm stroke, 0 OFF = out).
+    The plate is flat now.
+  - **Labels:** pure white and larger.
+  - **Skylight frame fix:** the root ribs and spar faces were each two coincident opposite faces. Every material is
+    doubleSided, so the pairs fought (they showed as shards in a render). They are now one face each.
+- **Removing a node, done the CLAUDE.md way.** Blender re-exports the file, so no index was shifted by hand. The node
+  graph validated (`drop_card_slot.validate`): wheels has 74 nodes, floats 61. No C# or tool code named either removed
+  node, because both were `static` in the rig tables. So the game still drives **26 of 26** on each variant (the
+  NEEDS YOU line above still holds). Only the tables' `static` lists changed, and `j3_rig_json.py --check` is in step.
+- **Floats GLB:** diffed node by node against ce62f612. Only the cockpit nodes differ; the floats, struts and wires
+  are byte-identical. No physics was touched (lane/claude-hydro owns that).
+- **Eye check** (`check_eye_interiors.py`, wheels and floats identical): rear 0.0 % skin within 12 cm, overhead 0.159 m,
+  IN the cabin, airframes COINCIDE, QUEST LIST PASS. The front eye went from 5.2 % to 0.0 %, because the raised tubes
+  were what crowded it.
+- **Tests** (439649ba): new `J3OwnModelTests.TheV16CockpitIsWhereTySaid` with hand-typed literals.
+  J3OwnModelTests + QuestFleetTests + J3FloatsWaterTests: 20 passed, 1 skipped (the full-rudder capsize, skipped
+  before this lane), 0 failed. Another lane's xcodebuild and test run were going at the same time; that cannot make
+  a pass false.
+- **Codex** `7f40cbab J-3 panel lettering:` arrived at 18:04 and was merged (17e1767f) before the final rebuild, so
+  both GLBs carry the new atlas.
+- **Renders** (`tools/own_models/j3_cockpit_shots.py`, EEVEE, the exact rear eye at glTF (0.7774, 0.5067, 0), 96° wide
+  shots, zoomed close-ups from the same eye): `docs/pending/j3-cockpit/`, 14 before/after pairs plus a README. I
+  looked at every one. Two fixes came from that:
+  - The fuel knob hid "PULL OFF" from the rear seat, so the knob moved to the plate's forward end and the labels aft.
+  - The v14 recessed bezel hid half the lettering at that grazing angle, so the fuel plate is flat now.
+- **Seen in the renders but not changed here** (listed in the README):
+  - a crinkle in the skylight trim at the left root nose;
+  - the carb heat plate is near edge-on from the rear seat, and its bezel clips CARB HEAT;
+  - the nose tank is not modelled (visible only from the cutaway camera).
+- **Build:** `zsh tools/deploy/deploy.sh` → `** BUILD SUCCEEDED **` (18:22, bundle 2026.1102.1816, 0 `error CS`).
+  The install on Frisby_801C_EFB then stopped right after `== install` with no devicectl output, and the script
+  exited 1: check the build stamp on the phone before trusting it. The bundleVersion bump was not committed.
+  No Quest APK and no adb from this lane.
 ### 2026-11-02 — Claude · lane/claude-vr-quest · the J-3's own model on wheels and floats, its eye, the headset, the water
 Ty 16:04: "get the eye location fixed on the j3 and add it to quest too both on wheels and floats".
 **What was wrong.** The J-3 drew the procedural closed tube: both own GLBs (Codex v15, `j3-cub-like-own.glb`,
@@ -5114,3 +5186,8 @@ Standalone operator-only render_gl_p3c.py accepts OUT and --model FILE for
 any commit, produces five gl3c_ views plus camera manifest. Full before
 3a9e746 / after commands and photo-matching camera positions/lenses in handoff.
 Images still require operator rendering and review; no Blender run here.
+### 2026-11-02 — Codex J-3 rear-seat panel lettering (lane/codex-j3-cockpit)
+- Enlarged gauge text roughly 1.3–1.45x, bold near-black (5,5,5) on lighter cream (245,232,195), thicker major ticks; enlarged/brighter compass drum text. Radial text offsets and captions clear ticks/arcs and the altimeter window; scale values, angles, ranges, arcs, needle zeroes and existing UV cells remain fixed. DejaVu remains first choice, with macOS Arial fallback.
+- Removed the FUEL / PUSH ON / PULL OFF atlas artwork: every gauge cell is mapped as a full disc, so the lower compass face is visible. Cell 2 (x 1024..1536, y 0..512) matches ce62f612 pixel-for-pixel. The fuel label is geometry text owned by lane/claude-j3-cockpit; there is no atlas rect for it. Atlas remains 2560 × 640; enlarged compass drum lettering stays in the separate strip below the gauge cells. Existing solo-flight placard and compass drum rect are retained.
+- Regenerated with `/usr/bin/python3 tools/own_models/j3_textures.py tools/own_models/textures` (default Homebrew python3 lacks numpy; system Python has numpy/Pillow). Generator also writes prop/emblem: restored both to their original tracked bytes, so only panel PNG changes. Prop SHA-256 remains 80d632409a1c8fb3bb0ae9c47abf394ef62799d9bd3d51752beff6c30c0d6110.
+- Inspected full atlas and 72 px gauge approximation; previews: `/tmp/j3-cockpit-codex/atlas-before-after.png` and `/tmp/j3-cockpit-codex/atlas-readability-before-after.png`. This is a downsample approximation, not a headset render. Ty’s rear-seat read remains required; nothing approved. No Unity/Blender/build/deploy/adb run; changes left uncommitted.
