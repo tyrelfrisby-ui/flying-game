@@ -15,8 +15,9 @@ public sealed class GamepadShapingTests
     public void DefaultsAreTheAskedForOnes()
     {
         Assert.Equal(0.65, GamepadShaping.DefaultExpo);
-        Assert.InRange(GamepadShaping.DefaultStickDeadZone, 0.05, 0.08);
-        Assert.InRange(GamepadShaping.DefaultTriggerDeadZone, 0.05, 0.08);
+        Assert.Equal(0.02, GamepadShaping.DefaultStickDeadZone);   // Ty 2026-11-03: was 0.07
+        Assert.Equal(0.05, GamepadShaping.DefaultTriggerDeadZone);  // unchanged
+        Assert.Equal(0.25, GamepadShaping.ThrottleStickDeadZone);   // unchanged: the Quest's
     }
 
     // ---- dead zone ----
@@ -124,9 +125,9 @@ public sealed class GamepadShapingTests
     {
         Assert.Equal(1.0, GamepadShaping.Rudder(1.0, 0.0, 0.0), Tol);
         Assert.Equal(-1.0, GamepadShaping.Rudder(-1.0, 0.0, 0.0), Tol);
-        Assert.Equal(0.0, GamepadShaping.Rudder(0.05, 0.0, 0.0), Tol);    // inside the stick's dead zone
-        // Expo applies: half stick after the 0.07 zone is 0.5, and 0.35·0.5 + 0.65·0.125 = 0.25625.
-        Assert.Equal(0.25625, GamepadShaping.Rudder(0.535, 0.0, 0.0), Tol);
+        Assert.Equal(0.0, GamepadShaping.Rudder(0.015, 0.0, 0.0), Tol);   // inside the stick's 0.02 dead zone
+        // Expo applies: half stick after the 0.02 zone is 0.51 → (0.51 − 0.02) / 0.98 = 0.5, and 0.35·0.5 + 0.65·0.125 = 0.25625.
+        Assert.Equal(0.25625, GamepadShaping.Rudder(0.51, 0.0, 0.0), Tol);
     }
 
     [Fact]
@@ -144,7 +145,7 @@ public sealed class GamepadShapingTests
     {
         Assert.Equal(1.0, GamepadShaping.Rudder(1.0, 0.0, 1.0), Tol);     // both full right: still only full
         Assert.Equal(0.0, GamepadShaping.Rudder(-1.0, 0.0, 1.0), Tol);    // opposed: cancel
-        Assert.Equal(0.5125, GamepadShaping.Rudder(0.535, 0.0, 0.525), Tol);   // 0.25625 + 0.25625 (trigger zone 0.05: 0.475/0.95 = 0.5)
+        Assert.Equal(0.5125, GamepadShaping.Rudder(0.51, 0.0, 0.525), Tol);    // 0.25625 + 0.25625 (stick 0.49/0.98, trigger 0.475/0.95: both 0.5)
     }
 
     // ---- throttle: left stick Y, a rate, linear ----

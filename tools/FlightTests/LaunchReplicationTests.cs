@@ -99,7 +99,9 @@ public sealed class LaunchReplicationTests
         bool started = false;
         while (t < Settle + Window - 1e-9)
         {
-            if (rng != null) pad.Apply(Noise(0.03), Noise(0.03), Noise(0.03), Math.Abs(Noise(0.02)), Math.Abs(Noise(0.02)), c);
+            // A pad at rest: noise INSIDE its dead zones. Sticks ±0.014 per axis (the right stick's radius then stays under the
+            // 0.02 radial zone, Ty 2026-11-03; was ±0.03 inside 0.07), triggers 0…0.02 under their 0.05.
+            if (rng != null) pad.Apply(Noise(0.014), Noise(0.014), Noise(0.014), Math.Abs(Noise(0.02)), Math.Abs(Noise(0.02)), c);
             // With the pad: the game's own path, the player's "Gamepad: stick-free" option going straight into the composition
             // (GamepadShaping.ControlsFree, lane/claude-hydro). Touch always lets go when released, so the touch launch flies
             // stick-free OFF as the surfaces HELD — the same physics the pad's default gives.
@@ -177,7 +179,7 @@ public sealed class LaunchReplicationTests
         Assert.True(moved.RudderFree);
         Assert.Equal(1.0, PilotControls.Compose(0.9, 0, 0, 0.3, 0, 0, 0, false, false).Aileron, 12);
         // A pad at rest inside its dead zone hands over exactly zero, so it lets go like a lifted finger.
-        var (x, y) = GamepadShaping.Stick(0.03, -0.03);
+        var (x, y) = GamepadShaping.Stick(0.012, -0.012);   // |(0.012, −0.012)| = 0.017, inside the 0.02 zone
         Assert.Equal(0.0, x); Assert.Equal(0.0, y);
     }
 
