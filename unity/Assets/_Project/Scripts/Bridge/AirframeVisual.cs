@@ -485,6 +485,7 @@ namespace FlyingGame.Bridge
 
         private void Rebuild()
         {
+            QuestRig.Note($"airframe rebuild {_driver.AircraftId}");
             _builtId = _driver.AircraftId;
             _builtModels = SessionSettings.UseAirframeModels;
             _builtOwn = SessionSettings.UseOwnModels;

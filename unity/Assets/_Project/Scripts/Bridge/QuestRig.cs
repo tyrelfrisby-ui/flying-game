@@ -112,14 +112,34 @@ namespace FlyingGame.Bridge
             try { _menu?.Tick(this); }
             catch (System.Exception e) { MenuError("tick", e); }
             FlyReport();
+            WaterDepthPrecision();
             PerfLog();
+        }
+
+        // ---- the water's depth term in a headset ----
+
+        /// <summary>The Water shader tints the sea by how deep it is, read from the camera's depth texture. With the
+        /// cockpit's 5 cm near plane and a 20 km far plane a 24-bit depth buffer resolves about a metre at 1 km, so
+        /// over a shallow seabed far away the "depth" jumps between 0 and a metre from one frame (and one eye) to the
+        /// next, and the shallow turquoise flickers through the dark blue. <c>_WaterDepthErrK</c> tells the shader
+        /// how big that error is (≈ z² · k metres at distance z) so it lets go of the measurement where it is
+        /// noise. Zero (off) everywhere but here, so the desktop and iPhone look does not change.</summary>
+        private float _depthErrK = -1f;
+        private static readonly int WaterDepthErrKId = Shader.PropertyToID("_WaterDepthErrK");
+
+        private void WaterDepthPrecision()
+        {
+            float k = 1f / (Mathf.Max(0.01f, _cam.nearClipPlane) * 16777216f);
+            if (Mathf.Abs(k - _depthErrK) < 1e-12f) return;
+            _depthErrK = k;
+            Shader.SetGlobalFloat(WaterDepthErrKId, k);
         }
 
         private int _reportAtFrame = -1;
 
         /// <summary>Log where FLY put everything once the head has been placed for it (two frames on: the
         /// ChaseCamera has been into the cockpit and this rig has recentred on the eye).</summary>
-        public void ReportAfterFly() => _reportAtFrame = Time.frameCount + 2;
+        public void ReportAfterFly() { _reportAtFrame = Time.frameCount + 2; Note("FLY"); }
 
         /// <summary>One line logcat can prove a start with: the aeroplane, the ground under it, the head. Positions
         /// are Unity world metres (x east, y up, z north).</summary>
@@ -207,6 +227,8 @@ namespace FlyingGame.Bridge
             if (_cam != null) XRDevice.DisableAutoXRCameraTracking(_cam, false);
             if (_gcSliceWas != 0) { UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = _gcSliceWas; _gcSliceWas = 0; }
             FlyingGame.Core.SimProfile.Enabled = false;
+            Shader.SetGlobalFloat(WaterDepthErrKId, 0f);
+            _depthErrK = -1f;
             QuestRecorder.Instance?.StopRecording(QuestRecorder.StopWaitMs);
             _menu?.Close(force: true);
             Debug.Log("[Quest] XR off.");
@@ -336,6 +358,7 @@ namespace FlyingGame.Bridge
         private void PerfLog()
         {
             float dt = Time.unscaledDeltaTime;
+            HitchWatch(dt);
             _perfT += dt; _perfFrames++;
             if (dt > _perfFrameMax) _perfFrameMax = dt;
             float hz = XrHeadset.CurrentRefreshHz;
@@ -373,6 +396,7 @@ namespace FlyingGame.Bridge
             float steps = (float)FlyingGame.Core.SimProfile.CallsOf(FlyingGame.Core.SimProfile.Scope.Step) / frames;
             string simTop = FlyingGame.Core.SimProfile.Top(5, frames);
             FlyingGame.Core.SimProfile.Reset();
+            _hitchSteps0 = 0;
             Debug.Log($"[QuestPerf] {_perfFrames / _perfT:F1} fps at {hz:F0} Hz | frame max {_perfFrameMax * 1000f:F1} ms, {_perfLong} long | " +
                       $"cpu main {cpuMain} ms | gpu app {gpu} ms | compositor {comp} ms | dropped {dropped} in {_perfT:F0}s | " +
                       $"gc +{gcNow - _perfGc0} heap {heapMb} MB | sim capped {capped - _perfCapped0} | " +
@@ -383,6 +407,71 @@ namespace FlyingGame.Bridge
         }
 
         private readonly FrameTiming[] _timing = new FrameTiming[1];
+
+        // ---- hitches ----
+
+        /// <summary>A frame longer than this gets a [QuestPerf] hitch line of its own.</summary>
+        public const float HitchMs = 100f;
+        public const int MaxHitchLines = 120;
+        private int _hitchLines, _hitchGc0 = -1, _hitchSteps0;
+        private (int live, int queued) _hitchForest0;
+        private ForestStreamer _forest;
+        private float _forestLookAt = -100f;
+
+        private const int NoteSlots = 8;
+        private static readonly string[] Notes = new string[NoteSlots];
+        private static readonly int[] NoteFrames = new int[NoteSlots];
+        private static int _noteNext;
+
+        /// <summary>Heavy one-off work says what it is (an airframe rebuild, a model loaded, a wake field allocated,
+        /// a recording started), so a hitch line can name what ran in the slow frame. Only in a headset; a handful of
+        /// calls a flight, so the string is cheap.</summary>
+        public static void Note(string what)
+        {
+            if (!XrHeadset.Active) return;
+            int k = _noteNext++ % NoteSlots;
+            Notes[k] = what;
+            NoteFrames[k] = Time.frameCount;
+        }
+
+        /// <summary>Every frame over <see cref="HitchMs"/>: how long, where (height above the ground, speed),
+        /// what the streamers and the collector did since the frame before, and what announced itself
+        /// (<see cref="Note"/>) in the last two frames. The 2026-11-02 dive "freeze" left no log at all; the next
+        /// one will. Per frame it costs a GC count, a forest tuple and one comparison.</summary>
+        private void HitchWatch(float dt)
+        {
+            if (_forest == null && Time.unscaledTime - _forestLookAt > 5f)
+            {
+                _forestLookAt = Time.unscaledTime;
+                _forest = Object.FindAnyObjectByType<ForestStreamer>();
+            }
+            int gc = System.GC.CollectionCount(0);
+            int steps = (int)FlyingGame.Core.SimProfile.CallsOf(FlyingGame.Core.SimProfile.Scope.Step);
+            var forest = _forest != null ? _forest.Depth : default;
+            if (_hitchGc0 >= 0 && dt * 1000f > HitchMs && _hitchLines < MaxHitchLines)
+            {
+                _hitchLines++;
+                string where = "no sim";
+                FlightSimDriver drv = _chase != null ? _chase.Driver : null;
+                var ac = drv != null && drv.Sim != null ? drv.Sim.Aircraft : null;
+                if (ac != null)
+                {
+                    var p = ac.State.Position;
+                    double ground = FlyingGame.Core.WorldTerrain.GroundHeightAt(p.X, p.Y);
+                    where = $"agl {-p.Z - ground:F0} m alt {-p.Z:F0} m {ac.State.Velocity.Length:F0} m/s";
+                }
+                int stepsNow = Mathf.Max(0, steps - _hitchSteps0);
+                string trees = _forest != null ? $"forest live {_hitchForest0.live}->{forest.live} queued {_hitchForest0.queued}->{forest.queued} worst {_forest.WorstFrameMs:F1} ms" : "no forest";
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < NoteSlots; i++)
+                    if (Notes[i] != null && NoteFrames[i] >= Time.frameCount - 2) sb.Append(sb.Length > 0 ? "; " : "").Append(Notes[i]);
+                Debug.Log($"[QuestPerf] hitch {dt * 1000f:F0} ms (frame {Time.frameCount}, {Time.timeSinceLevelLoad:F1} s after load) | {where} | " +
+                          $"{(SessionSettings.MenuOpen ? "menu open" : "flying")} | sim {stepsNow} steps | {trees} | gc +{gc - _hitchGc0} heap {System.GC.GetTotalMemory(false) / (1024 * 1024)} MB | " +
+                          $"wake {(Shader.GetGlobalFloat("_WakeOn") > 0.5f ? "on" : "off")} reflection {(Shader.GetGlobalFloat("_ReflOn") > 0.5f ? "on" : "off")} | {QuestRecorder.PerfTag} | " +
+                          $"notes: {(sb.Length > 0 ? sb.ToString() : "none")}");
+            }
+            _hitchGc0 = gc; _hitchSteps0 = steps; _hitchForest0 = forest;
+        }
 
         private static Vec3 ToCore(Vector3 v) => new(v.x, v.y, v.z);
         private static Quat ToCore(Quaternion q) => new(q.x, q.y, q.z, q.w);

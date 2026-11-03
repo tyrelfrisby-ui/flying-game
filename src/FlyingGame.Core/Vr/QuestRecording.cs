@@ -18,6 +18,27 @@ namespace FlyingGame.Core.Vr
         public const int Width = 1280, Height = 720;
         public const int Fps = 30;
         public const int VideoBitrate = 8_000_000, AudioBitrate = 128_000;
+        /// <summary>The game's mixer rate on the headset, and so the clip's: 48 kHz, what the Quest's own audio runs at
+        /// and what every player expects. The first clips came out at 24 kHz (Unity's "system default" chose it).</summary>
+        public const int AudioSampleRate = 48_000;
+
+        /// <summary>The adb command a recording can be started and stopped with, without the controllers:
+        /// <c>adb shell am broadcast -a com.tyrelfrisby.aeroplayground.quest.RECORD --es cmd start</c> (or stop / toggle).
+        /// The sender must hold android.permission.DUMP, which the adb shell has and no ordinary app can get.</summary>
+        public const string AdbAction = "com.tyrelfrisby.aeroplayground.quest.RECORD";
+
+        /// <summary>What an adb "cmd" extra asks for, given whether a recording is running: +1 start, −1 stop, 0 nothing
+        /// (unknown word, or already in that state).</summary>
+        public static int AdbCommand(string cmd, bool recording)
+        {
+            switch ((cmd ?? "").Trim().ToLowerInvariant())
+            {
+                case "start": case "on": return recording ? 0 : 1;
+                case "stop": case "off": return recording ? -1 : 0;
+                case "toggle": case "": return recording ? -1 : 1;
+                default: return 0;
+            }
+        }
         /// <summary>Vertical field of view of the recording camera. 60° tall at 16:9 is about 91° wide, close to
         /// what one eye of a Quest 3S sees without the lens's distorted rim.</summary>
         public const float VerticalFovDeg = 60f;

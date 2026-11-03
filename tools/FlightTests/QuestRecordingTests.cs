@@ -133,4 +133,18 @@ public sealed class QuestRecordingTests
         Assert.Equal("1:02:03", QuestRecording.Clock(3723));
         Assert.Equal(1800.0, QuestRecording.MaxSeconds);
     }
+    [Fact]
+    public void AdbStartStopAndToggle()
+    {
+        Assert.Equal(1, QuestRecording.AdbCommand("start", false));
+        Assert.Equal(0, QuestRecording.AdbCommand("start", true));     // already running: not a second file
+        Assert.Equal(-1, QuestRecording.AdbCommand(" STOP ", true));
+        Assert.Equal(0, QuestRecording.AdbCommand("stop", false));
+        Assert.Equal(1, QuestRecording.AdbCommand("toggle", false));
+        Assert.Equal(-1, QuestRecording.AdbCommand(null, true));        // no --es cmd: a toggle
+        Assert.Equal(0, QuestRecording.AdbCommand("record", false));    // an unknown word does nothing
+        // The action string is the one docs/quest-controls.md tells the operator to send, and the Java plugin's.
+        Assert.Equal("com.tyrelfrisby.aeroplayground.quest.RECORD", QuestRecording.AdbAction);
+        Assert.Equal(48000, QuestRecording.AudioSampleRate);
+    }
 }

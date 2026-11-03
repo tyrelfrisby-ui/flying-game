@@ -209,6 +209,7 @@ namespace FlyingGame.Bridge
             bool ownGear = UsesOwnGear(id);
             id = ModelId(id);
             bool own = PickOwn(id);
+            QuestRig.Note($"model {id}{(own ? " (own)" : "")} loaded");
             var prefab = Resources.Load<GameObject>(own ? $"Models/{id}/{id}{OwnSuffix(id)}" : $"Models/{id}/{id}");
             if (prefab == null || !(own ? OwnSpecs : Specs).TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);

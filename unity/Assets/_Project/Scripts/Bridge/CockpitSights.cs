@@ -67,8 +67,14 @@ namespace FlyingGame.Bridge
             SetVisible(false);
         }
 
+        /// <summary>A camera that shows exactly what another one does: the Quest clip recorder's mono camera at the
+        /// head (<see cref="QuestRecorder"/>). It is not Camera.main, so without this the sight was switched off for
+        /// every recorded frame and never appeared in a clip (Ty, 2026-11-02). Asked as the camera it mirrors.</summary>
+        public static Camera MirrorCamera, MirrorOf;
+
         private bool Allows(Camera camera)
         {
+            if (camera != null && camera == MirrorCamera) camera = MirrorOf;
             if (_owner == null || !transform.IsChildOf(_owner.transform) || camera == null || camera != Camera.main) return false;
             var chase = camera.GetComponent<ChaseCamera>();
             return chase != null && chase.CockpitSightsAllowed(_owner);

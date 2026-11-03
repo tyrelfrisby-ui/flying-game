@@ -73,6 +73,7 @@ namespace FlyingGame.Bridge
         /// <summary>For the [QuestPerf] line.</summary>
         public static string PerfTag => Recording ? $"rec ON ({Instance._sent} sent, {Instance.JavaDropped()} dropped)" : "rec off";
 
+        private static readonly int SceneDepthOffId = Shader.PropertyToID("_WaterSceneDepthOff"), ReflOnId = Shader.PropertyToID("_ReflOn");
         private Camera _main, _rec;
         private RenderTexture _rgb, _yuv;
         private Material _pack;
@@ -85,12 +86,36 @@ namespace FlyingGame.Bridge
         private float _toastUntil;
         private int _seenSeq;
 
+#if QUEST_RECORDER
+        /// <summary>The clips' sound came out at 24 kHz: the AAC track's AudioSpecificConfig (0x1310) says so, which
+        /// means AudioSettings.outputSampleRate was 24000, while the headset's own system tracks run at 48000 (logcat,
+        /// AudioFlinger createTrack). The project asks for "system default". Half the bandwidth (nothing above 12 kHz: the
+        /// wind and the prop's hiss are mostly there), and an odd rate for some players. Ask for 48 kHz before the
+        /// first scene loads, so nothing is playing yet and every synth (FlightAudio, RangeAudio, VoiceComms) builds
+        /// at the rate it will run at. Android here means the Quest build.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void AudioAt48k()
+        {
+            AudioConfiguration c = AudioSettings.GetConfiguration();
+            int was = c.sampleRate, out0 = AudioSettings.outputSampleRate;
+            if (out0 != QuestRecording.AudioSampleRate)
+            {
+                c.sampleRate = QuestRecording.AudioSampleRate;
+                bool ok = AudioSettings.Reset(c);
+                Debug.Log($"[QuestRec] audio output {out0} Hz (config {was}) -> asked {QuestRecording.AudioSampleRate}: {(ok ? "accepted" : "REFUSED")}, now {AudioSettings.outputSampleRate} Hz, {c.speakerMode}");
+            }
+            else Debug.Log($"[QuestRec] audio output {out0} Hz, {c.speakerMode}");
+        }
+#endif
+
         private void Awake()
         {
             Instance = this;
             _main = GetComponent<Camera>();
             _main.cullingMask |= 1 << OverlayLayer;
             _seenSeq = JavaMessageSeq();
+            JavaListen();
+            _seenCmd = JavaCommandSeq();
         }
 
         private void OnDestroy()
@@ -123,7 +148,11 @@ namespace FlyingGame.Bridge
             _sent = 0;
             _t0 = _next = Time.realtimeSinceStartupAsDouble;
             _audioOn = audio;
+            _audioOnAtStart = audio;
             Debug.Log($"[Quest] recording started: {path} ({QuestRecording.Width}x{QuestRecording.Height} @{QuestRecording.Fps}, audio {(audio ? rate + " Hz" : "off")})");
+            Debug.Log($"[QuestRec] start: audio {(audio ? $"{rate} Hz {AudioChannels} ch from the listener's mix" : "OFF (" + (rate <= 0 ? "no output rate" : "no AudioListener on the camera") + ")")}, " +
+                      $"game volume {FlightAudio.MasterVolume:F2}, listener volume {AudioListener.volume:F2}{(AudioListener.pause ? " PAUSED" : "")}");
+            QuestRig.Note("recording started");
         }
 
         /// <summary>Stop and finalise. <paramref name="waitMs"/> &gt; 0 blocks until the file is written (pause,
@@ -136,6 +165,7 @@ namespace FlyingGame.Bridge
             PumpAudio();
             JavaStop(waitMs);
             Debug.Log($"[Quest] recording stopped after {QuestRecording.Clock(Time.realtimeSinceStartupAsDouble - _t0)}, {_sent} frames sent");
+            LogAudio();
         }
 
         private string PrepareGpu()
@@ -177,7 +207,7 @@ namespace FlyingGame.Bridge
         {
             // The encoder's messages (saved, failed) matter while it runs; idle, twice a second is plenty, and every
             // poll is a JNI round trip through AndroidJavaObject that allocates (docs/quest-performance.md).
-            if (_on || Time.unscaledTime >= _nextPoll) { _nextPoll = Time.unscaledTime + 0.5f; PollMessage(); }
+            if (_on || Time.unscaledTime >= _nextPoll) { _nextPoll = Time.unscaledTime + 0.5f; PollMessage(); PollAdb(); }
             if (_on)
             {
                 double now = Time.realtimeSinceStartupAsDouble;
@@ -209,7 +239,24 @@ namespace FlyingGame.Bridge
             _rec.fieldOfView = QuestRecording.VerticalFovDeg;
             _rec.aspect = QuestRecording.Width / (float)QuestRecording.Height;
             _rec.targetTexture = _rgb;
-            _rec.Render();
+            // What the left eye shows, minus the headset-only overlay: the aerobatic sight is drawn only for the
+            // camera that is showing the cockpit (CockpitSights), so this camera is asked as the main one.
+            // The water reads the scene depth to tint the shallows, and this camera has no depth texture of its own
+            // (a depth pass would double the recording's cost): left alone it read the XR camera's (another
+            // projection, foveated, tiled) and painted a flickering light-blue grid over the sea in every clip near
+            // the water. It also reads the planar reflection, which was rendered for the XR camera's projection.
+            // For this camera the water is taken as deep and the reflection falls back to the sky term.
+            float reflOn = Shader.GetGlobalFloat(ReflOnId);
+            CockpitSights.MirrorCamera = _rec; CockpitSights.MirrorOf = _main;
+            Shader.SetGlobalFloat(SceneDepthOffId, 1f);
+            Shader.SetGlobalFloat(ReflOnId, 0f);
+            try { _rec.Render(); }
+            finally
+            {
+                Shader.SetGlobalFloat(SceneDepthOffId, 0f);
+                Shader.SetGlobalFloat(ReflOnId, reflOn);
+                CockpitSights.MirrorCamera = CockpitSights.MirrorOf = null;
+            }
             Graphics.Blit(_rgb, _yuv, _pack);
             long ptsUs = (long)((now - _t0) * 1e6);
             AsyncGPUReadback.Request(_yuv, 0, TextureFormat.R8, req => OnFrame(req, ptsUs));
@@ -230,6 +277,30 @@ namespace FlyingGame.Bridge
         private int _ringWrite, _ringCount;
         private volatile bool _audioOn;
         private long _audioFrames;
+        private volatile float _audioPeak;
+        private volatile int _audioDropped;
+        private int _audioRate;
+        private bool _audioOnAtStart;
+
+        /// <summary>One line at stop that says whether the clip has sound worth hearing: the rate and channels it was
+        /// encoded at, how much was captured, and the loudest sample. The 13:15 Pitts clip peaked at −44 dBFS: the
+        /// whole clip was the wreck in the water, engine stopped and no airspeed, so the game itself was nearly silent.
+        /// A peak at 0 dBFS means the game's own mix was clipping (the Great Lakes' dive at 13:19 did).</summary>
+        private void LogAudio()
+        {
+            if (_audioRate > 0 && _audioOnAtStart)
+            {
+                double sec = _audioFrames / (double)_audioRate;
+                float peak = _audioPeak;
+                string db = peak > 0f ? $"{20f * Mathf.Log10(peak):F1} dBFS" : "-inf dBFS (all zeros)";
+                string verdict = peak <= 0f ? "SILENT: the listener tap heard nothing"
+                    : peak < 0.01f ? "nearly silent: the game itself was quiet (engine off, wreck, volume down?)"
+                    : peak >= 0.999f ? "clipping: the game's mix hit full scale" : "ok";
+                Debug.Log($"[QuestRec] stop: audio {_audioRate} Hz {AudioChannels} ch, {sec:F1} s captured, peak {db} — {verdict}; " +
+                          $"{_audioDropped} samples dropped (main thread behind)");
+            }
+            else Debug.Log("[QuestRec] stop: no audio track (recorded without sound)");
+        }
 
         private void ResetAudio()
         {
@@ -240,6 +311,9 @@ namespace FlyingGame.Bridge
                 _ringWrite = _ringCount = 0;
             }
             _audioFrames = 0;
+            _audioPeak = 0f;
+            _audioDropped = 0;
+            _audioRate = AudioSettings.outputSampleRate;
         }
 
         // Final mix of the AudioListener on this GameObject (audio thread). Read only — the game hears it unchanged.
@@ -247,18 +321,22 @@ namespace FlyingGame.Bridge
         {
             if (!_audioOn || channels <= 0) return;
             int frames = data.Length / channels;
+            float peak = _audioPeak;
             lock (_ringLock)
             {
                 if (_ring == null) return;
                 for (int i = 0; i < frames; i++)
                 {
-                    if (_ringCount + AudioChannels > _ring.Length) return;   // the main thread is behind: drop the rest
+                    if (_ringCount + AudioChannels > _ring.Length) { _audioDropped += frames - i; break; }   // the main thread is behind: drop the rest
                     float l = data[i * channels], r = channels > 1 ? data[i * channels + 1] : l;
+                    float a = Mathf.Max(Mathf.Abs(l), Mathf.Abs(r));
+                    if (a > peak) peak = a;
                     _ring[_ringWrite] = ToPcm(l); _ringWrite = (_ringWrite + 1) % _ring.Length;
                     _ring[_ringWrite] = ToPcm(r); _ringWrite = (_ringWrite + 1) % _ring.Length;
                     _ringCount += AudioChannels;
                 }
             }
+            _audioPeak = peak;
         }
 
         private static short ToPcm(float v) => (short)(Mathf.Clamp(v, -1f, 1f) * 32767f);
@@ -292,6 +370,21 @@ namespace FlyingGame.Bridge
             EnsureOverlay();
             _toast.text = s;
             _toastUntil = Time.unscaledTime + 4f;
+        }
+
+        private int _seenCmd;
+
+        /// <summary>The operator's adb broadcast (<see cref="QuestRecording.AdbAction"/>), read at the poll's pace.</summary>
+        private void PollAdb()
+        {
+            int seq = JavaCommandSeq();
+            if (seq == _seenCmd) return;
+            _seenCmd = seq;
+            string cmd = JavaCommand();
+            int act = QuestRecording.AdbCommand(cmd, _on);
+            Debug.Log($"[QuestRec] adb command '{cmd}' while {(_on ? "recording" : "idle")}: {(act > 0 ? "start" : act < 0 ? "stop" : "nothing to do")}");
+            if (act > 0) StartRecording();
+            else if (act < 0) StopRecording(0);
         }
 
         private void PollMessage()
@@ -471,6 +564,14 @@ namespace FlyingGame.Bridge
         }
 
         private void JavaStop(int waitMs) => Java.CallStatic("stop", waitMs);
+        private int JavaCommandSeq() => Java.CallStatic<int>("commandSeq");
+        private string JavaCommand() => Java.CallStatic<string>("command");
+
+        private void JavaListen()
+        {
+            try { Java.CallStatic("listen"); }
+            catch (Exception e) { Debug.LogWarning($"[QuestRec] adb start/stop not available: {e.Message}"); }
+        }
         private bool JavaRecording() => Java.CallStatic<bool>("isRecording");
         private bool JavaFinishing() => Java.CallStatic<bool>("isFinishing");
         private int JavaDropped() => Java.CallStatic<int>("droppedFrames");
@@ -490,6 +591,9 @@ namespace FlyingGame.Bridge
         private bool JavaVideo(NativeArray<byte> data, long ptsUs) => false;
         private void JavaAudio(short[] pcm, int count, long ptsUs) { }
         private void JavaStop(int waitMs) { }
+        private int JavaCommandSeq() => 0;
+        private string JavaCommand() => null;
+        private void JavaListen() { }
         private bool JavaRecording() => false;
         private bool JavaFinishing() => false;
         private int JavaDropped() => 0;

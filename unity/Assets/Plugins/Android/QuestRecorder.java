@@ -1,10 +1,15 @@
 package com.tyrelfrisby.aeroplayground;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.Image;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.SystemClock;
@@ -37,6 +42,53 @@ public final class QuestRecorder {
     private static volatile int messageSeq;
 
     private QuestRecorder() { }
+
+    // ---- start / stop over adb (no controllers needed) ----------------------------------------------------
+
+    /** The broadcast the operator sends: {@code adb shell am broadcast -a <ACTION> --es cmd start|stop|toggle}. */
+    public static final String ACTION = "com.tyrelfrisby.aeroplayground.quest.RECORD";
+    /** Only a sender holding DUMP may drive it: the adb shell has it, no ordinary app can get it. */
+    private static final String SENDER_PERMISSION = "android.permission.DUMP";
+    private static volatile String command = "";
+    private static volatile int commandSeq;
+    private static BroadcastReceiver receiver;
+
+    /** Register the adb receiver once (Unity calls this at start). The command is only stored here; Unity reads it
+     * on its own thread ({@link #commandSeq()}, {@link #command()}) and starts or stops the recording. The activity is
+     * found here (UnityPlayer.currentActivity) rather than passed in, so the JNI signature has no Activity subclass
+     * in it to mismatch. */
+    public static synchronized void listen() {
+        if (receiver != null) return;
+        Context context;
+        try {
+            context = (Context) Class.forName("com.unity3d.player.UnityPlayer").getField("currentActivity").get(null);
+        } catch (Throwable t) {
+            Log.e(TAG, "no activity to listen for adb commands with", t);
+            return;
+        }
+        if (context == null) { Log.w(TAG, "no activity yet: adb commands not available"); return; }
+        receiver = new BroadcastReceiver() {
+            @Override public void onReceive(Context c, Intent intent) {
+                String cmd = intent.getStringExtra("cmd");
+                command = cmd != null ? cmd : "toggle";
+                commandSeq++;
+                Log.i(TAG, "adb command: " + command);
+            }
+        };
+        IntentFilter filter = new IntentFilter(ACTION);
+        try {
+            Context app = context.getApplicationContext() != null ? context.getApplicationContext() : context;
+            if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(receiver, filter, SENDER_PERMISSION, null, Context.RECEIVER_EXPORTED);
+            else app.registerReceiver(receiver, filter, SENDER_PERMISSION, null);
+            Log.i(TAG, "listening for adb: am broadcast -a " + ACTION + " --es cmd start|stop|toggle");
+        } catch (Throwable t) {
+            Log.e(TAG, "could not listen for adb commands", t);
+            receiver = null;
+        }
+    }
+
+    public static int commandSeq() { return commandSeq; }
+    public static String command() { return command; }
 
     // ---- the API Unity calls -----------------------------------------------------------------------------
 
@@ -112,6 +164,7 @@ public final class QuestRecorder {
         volatile int dropped;
         long lastVideoPts = -1, lastAudioEnd = -1;
         int vTrack = -1, aTrack = -1;
+        MediaFormat vFormat, aFormat;
         boolean muxing, audioGivenUp, vEos, aEos;
         long videoFormatAt;
         long firstPts = -1, lastPts;
@@ -305,7 +358,7 @@ public final class QuestRecorder {
                     if (aenc != null) drain(aenc, false, 0);
                     long now = SystemClock.elapsedRealtime();
                     // No audio format two seconds after the video's: record the video alone rather than nothing.
-                    if (!muxing && vTrack >= 0 && aenc != null && aTrack < 0 && !audioGivenUp && now - videoFormatAt > 2000) {
+                    if (!muxing && vFormat != null && aenc != null && aFormat == null && !audioGivenUp && now - videoFormatAt > 2000) {
                         Log.w(TAG, "no audio arrived: recording video only");
                         audioGivenUp = true;
                         startMuxer();
@@ -353,21 +406,24 @@ public final class QuestRecorder {
                 if (out == MediaCodec.INFO_TRY_AGAIN_LATER) return;
                 if (out == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     if (muxing) { Log.w(TAG, "format changed after the muxer started: ignored"); continue; }
-                    if (video) { vTrack = muxer.addTrack(c.getOutputFormat()); videoFormatAt = SystemClock.elapsedRealtime(); }
-                    else if (!audioGivenUp) aTrack = muxer.addTrack(c.getOutputFormat());
-                    if (vTrack >= 0 && (aenc == null || aTrack >= 0)) startMuxer();
+                    // Tracks are added together, video first, once both formats are known: the first clips had
+                    // the audio as track 1 because its format happened to arrive first, which some players
+                    // (and anything that takes "the first track" as the picture) handle badly.
+                    if (video) { vFormat = c.getOutputFormat(); videoFormatAt = SystemClock.elapsedRealtime(); }
+                    else if (!audioGivenUp) aFormat = c.getOutputFormat();
+                    if (vFormat != null && (aenc == null || aFormat != null)) startMuxer();
                     continue;
                 }
                 if (out < 0) continue;
                 ByteBuffer ob = c.getOutputBuffer(out);
                 boolean eos = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
                 if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) info.size = 0;
-                int track = video ? vTrack : aTrack;
-                if (info.size > 0 && ob != null && track >= 0) {
+                if (info.size > 0 && ob != null && (video || !audioGivenUp)) {
                     ob.position(info.offset);
                     ob.limit(info.offset + info.size);
-                    if (muxing) muxer.writeSampleData(track, ob, info);
-                    else pending.add(new Pending(track, ob, info));
+                    int track = video ? vTrack : aTrack;
+                    if (muxing) { if (track >= 0) muxer.writeSampleData(track, ob, info); }
+                    else pending.add(new Pending(video, ob, info));
                 }
                 c.releaseOutputBuffer(out, false);
                 if (eos) { if (video) vEos = true; else aEos = true; return; }
@@ -376,12 +432,20 @@ public final class QuestRecorder {
 
         private void startMuxer() {
             if (muxing) return;
+            vTrack = muxer.addTrack(vFormat);
+            if (aFormat != null && !audioGivenUp) aTrack = muxer.addTrack(aFormat);
             muxer.start();
             muxing = true;
+            if (aFormat != null) {
+                Log.i(TAG, "audio track: " + aFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE) + " Hz, "
+                        + aFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT) + " ch, " + aFormat.getString(MediaFormat.KEY_MIME));
+            }
             MediaCodec.BufferInfo bi = new MediaCodec.BufferInfo();
             for (Pending p : pending) {
+                int track = p.video ? vTrack : aTrack;
+                if (track < 0) continue;
                 bi.set(0, p.data.length, p.pts, p.flags);
-                muxer.writeSampleData(p.track, ByteBuffer.wrap(p.data), bi);
+                muxer.writeSampleData(track, ByteBuffer.wrap(p.data), bi);
             }
             pending.clear();
         }
@@ -389,11 +453,12 @@ public final class QuestRecorder {
 
     /** Encoded output that arrived before the muxer could start (it needs every track's format first). */
     private static final class Pending {
-        final int track, flags;
+        final boolean video;
+        final int flags;
         final long pts;
         final byte[] data;
-        Pending(int track, ByteBuffer src, MediaCodec.BufferInfo info) {
-            this.track = track; this.pts = info.presentationTimeUs; this.flags = info.flags;
+        Pending(boolean video, ByteBuffer src, MediaCodec.BufferInfo info) {
+            this.video = video; this.pts = info.presentationTimeUs; this.flags = info.flags;
             data = new byte[info.size];
             src.get(data);
         }

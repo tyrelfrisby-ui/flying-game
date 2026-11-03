@@ -208,13 +208,46 @@ in the left of your view while it runs; hold A + B again to stop, and **Saved Ae
 for a few seconds. The indicator and that message are never in the film.
 
 What is recorded is what you see, from your head: 1280 × 720 at 30 fps, H.264, about 60° tall (91° wide), with the
-game's sound (engine, wind, radio). Mono, from between your eyes, and without the lens's distorted edge. The HUD's
-lines are not in it.
+game's sound (engine, wind, radio) as AAC at 48 kHz stereo (the first clips were 24 kHz; see below). Mono, from
+between your eyes, and without the lens's distorted edge. It has everything the left eye has, including the
+aerobatic sight on the wingtip (it used to be missing from every clip), except the REC indicator and its messages.
+
+The water in a clip is drawn as deep water without the lake's mirror image. The recording camera has no depth
+texture of its own (a depth pass would double what recording costs), and the water used to read the headset
+camera's instead. That painted a flickering light-blue grid over the sea in every clip taken near the water.
 
 **Files** go to the game's own folder on the headset, `/sdcard/Android/data/com.tyrelfrisby.aeroplayground.quest/files/Movies/`
 (no storage permission needed), and **reach the Mac with**
 
     zsh tools/deploy/quest-record.sh --pull        # → ~/Movies/AeroQuest/, skips the ones already there
+
+**Over adb, without the controllers** (the operator's way to take a test clip):
+
+    adb shell am broadcast -a com.tyrelfrisby.aeroplayground.quest.RECORD --es cmd start
+    adb shell am broadcast -a com.tyrelfrisby.aeroplayground.quest.RECORD --es cmd stop     # or: toggle
+    zsh tools/deploy/quest-record.sh --pull
+    ffmpeg -ss 5 -i ~/Movies/AeroQuest/AeroQuest-<…>.mp4 -frames:v 1 /tmp/frame.png        # one frame to look at
+
+The game must be running and in the foreground. The command is read twice a second, and nothing happens while the
+app is paused. Taking the headset off pauses it: cover the proximity sensor, or turn it off with
+`adb shell am broadcast -a com.oculus.vrpowermanager.prox_close` (and `…automation_disable` to give it back).
+Only the adb shell can send it: the receiver requires `android.permission.DUMP`, which no ordinary app has. A
+`start` while recording or a `stop` while idle does nothing. Each command logs
+`[QuestRec] adb command 'start' while idle: start`. If that line never appears, look for
+`QuestRecorder: listening for adb` in `adb logcat -s QuestRecorder`. Rule and tests: `QuestRecording.AdbCommand`.
+
+**What the log says** (`adb logcat -s Unity QuestRecorder | grep -E "QuestRec"`):
+
+    [QuestRec] audio output 48000 Hz, Stereo                                  (at launch; or "24000 Hz … -> asked 48000: accepted")
+    [QuestRec] start: audio 48000 Hz 2 ch from the listener's mix, game volume 1.00, listener volume 1.00
+    QuestRecorder: audio track: 48000 Hz, 2 ch, audio/mp4a-latm
+    [QuestRec] stop: audio 48000 Hz 2 ch, 42.1 s captured, peak -6.3 dBFS — ok; 0 samples dropped (main thread behind)
+
+The stop line's verdict is `ok`, `nearly silent` (below −40 dBFS: the game itself was quiet), `SILENT` (the tap
+heard nothing), or `clipping` (the game's mix hit full scale). For the record: Ty's 13:15 Pitts clip peaked at −44 dBFS
+because the whole clip is the wreck in the water, engine stopped and no airspeed. The 13:17 Great Lakes clip has full
+sound: −11 dB on average, and clipping at full scale through the dive at 1:30–1:40. Both are 24 kHz, and both have
+the audio as the first track. The tracks are now written video first.
 
 A recording is only a playable file once it is closed, so it is closed for you when the app is paused (headset
 off, the Meta menu's quit) or quits; it also stops by itself after 30 minutes (about 1.8 GB).
@@ -241,7 +274,9 @@ threads. The cost shows in the `[QuestPerf]` line, which says `rec ON (… sent,
     zsh tools/deploy/quest-record.sh -s SERIAL …    # if more than one device is attached
 
 It uses scrcpy (Homebrew) over the USB cable and records the headset's own mirror of the display: what the
-compositor shows, lens edge and all, at the panel's resolution. The left eye is the left half of `adb shell wm size`;
+compositor shows, lens edge and all, at the panel's resolution. The sight is part of the scene (the model's own
+`Sight_` bars, shown only to the camera in the cockpit by `CockpitSights`), not an OpenXR compositor layer, so the
+mirror has it whenever the left eye does. The left eye is the left half of `adb shell wm size`;
 `--crop W:H:X:Y` sets your own. Sound is the headset's app audio, still playing in the headset (Android 13+; on an
 older system scrcpy records video only and says so). Ctrl-C stops it and scrcpy closes the file. Without scrcpy it
 falls back to `adb shell screenrecord`: no sound, no crop, 3 minutes at most.

@@ -6,6 +6,40 @@ with the recorder running. Everything else in the budget table is still a budget
 Hardware: Snapdragon XR2 Gen 2, 1832 × 1920 per eye, refresh 72 / 90 / 120 Hz. The runtime picks the recommended
 eye-buffer size; `[Quest] XR on` in the log prints it.
 
+## The "freeze" in the dive (Ty's Great Lakes clip AeroQuest-20261102-131749, 1:30–1:38)
+
+**It was not a stalled frame.** The in-app recorder renders on the main thread, so a stalled main thread leaves a
+hole in the clip, and there is none. Its frames arrive at 30 a second through every second from 1:26 to 1:48, and no
+frame differs from the last more than any other frame of the dive does (no "jump" frame after a hold). The sound is not
+silent either: from 1:30.5 to 1:40.5 it is at full scale, clipping (RMS −3 dB, peak 0 dBFS: the wind and the engine
+in the dive). It falls to −30 dB at 1:41 and settles at −16 dB. What the frames show: the dive ends nose-first in
+the sea at about 1:37, the view fills with water, the propeller windmills slowly at POWER 0 %, and the head moves.
+Then power comes in at 1:43 and the aeroplane gets out. That is the aeroplane stopped dead in the water: the
+crash-into-water work is not in this build (it is on its own lane), and a stopped aeroplane with the head still
+moving reads as a freeze.
+
+**What a real stall looked like in the 677e374 log** (Ty, 15:40, `quest-logs/ty-unity-5517.txt`): one `SLOW FRAME
+3554 ms` with `forest live 1 queued 137`. That is the scene's first frame, the landing page being built
+(15:40:02.58 → 06.13; the scene's Awake lines are at 05.25–05.43), not a frame in flight. The forest then built 126
+chunks in the next 1.4 s against its per-frame budget, which is the "21 fps over 5 s". The 16–18 fps on the ground
+from 15:41:40 is the ground-contact cost that 159e5f46 fixed (see the next section).
+
+**So the next one cannot go unexplained:** every frame over 100 ms now writes a line of its own (`QuestRig.HitchWatch`, at most 120 a session):
+
+    [QuestPerf] hitch 3554 ms (frame 212, 0.4 s after load) | agl 437 m alt 461 m 0 m/s | menu open | sim 0 steps | forest live 1->126 queued 137->12 worst 19.5 ms | gc +0 heap 41 MB | wake off reflection off | rec off | notes: model pitts-s2b-like (own) loaded; airframe rebuild pitts-s2b-like
+
+`notes:` is whatever heavy one-off work announced itself in that frame or the two before (`QuestRig.Note`): an
+airframe rebuild, a model loaded from Resources, a wake field allocated, FLY, a recording started. `forest a->b` is
+the streamer before and after the frame; `gc +n` the collections started in it; `sim n steps` the physics steps it ran.
+A hitch with `notes: none`, no forest change and `gc +0` points at something not yet instrumented: a shader
+compiled on first sight on the render thread, an audio clip loaded, or the OS. A new line is the first evidence
+that is worth having.
+
+**Not done, deliberately:** shader / pipeline prewarming. Nothing in a log yet shows a first-sight compile. On
+Vulkan, Unity 6 prewarms pipelines only from a `GraphicsStateCollection` traced on the device itself, which cannot
+be made without a build and a device session. If a hitch line ever shows `notes: none` with `forest` unchanged and
+`gc +0` on the first sight of something (spray, the water close up), trace one.
+
 ## Slow near the ground (Ty, build a222bda, 2026-11-02): "slows to a crawl after a couple of minutes"
 
 **Measured on the device** (logcat, `[Freeze]` + `[QuestPerf]` every 5 s). Not memory (heap steady 37–43 MB), not
@@ -130,6 +164,32 @@ pattern) and `heap` not climbing; `sim capped 0`. A non-zero `sim capped` that k
 cannot carry the physics: that is the case for a lower sim rate in VR, which is the flight model's call. A line
 `[QuestPerf] runtime: Cpu Thermal Normal->Warning` means the headset itself is throttling.
 
+## The water's light-blue grid and the shadows (Ty's clips, build a222bda)
+
+**The grid on the sea in the clips** was the recorder's own camera. The water shader tints the sea by how deep the
+water is (`_CameraDepthTexture` minus the surface). The XR camera has a depth texture (`WaterReflection` asks for it).
+The recording camera does not: a depth pass would double the recording's cost. So the water in the recording read
+the XR camera's depth, which is in another projection and is foveated and tiled, as if it were its own. Wherever
+that buffer held something near (the aeroplane, low over the water) the sea went shallow-turquoise in blocks: the
+light-blue checker that flickers through the dark blue near 1:37 in the Great Lakes clip. The recorder now sets
+`_WaterSceneDepthOff` (deep water) and `_ReflOn = 0` (the mirror image was rendered for the XR camera's projection
+too) just for its own render, and puts them back (`QuestRecorder.Capture`).
+
+**In the headset itself** the same depth term is a precision problem far out. With the cockpit's 5 cm near plane and
+a 20 km far plane a 24-bit depth buffer resolves about 1.2 m at 1 km, so over a shallow seabed in the distance the
+"depth" jumps by a metre between frames and between the eyes. `QuestRig` gives the shader that error
+(`_WaterDepthErrK` = 1 / (near · 2²⁴)), and the shader blends the measurement into deep water from about 460 m to
+1 km. Zero on every other platform, so the desktop and iPhone look is unchanged. The near plane stays 5 cm, because
+the head can come close to the canopy bow.
+
+**Shadows.** The sun casts no shadow map on any platform (`SceneBootstrap.BuildSun` leaves `Light.shadows` at
+None), so there are no cascades, resolution or bias to tune. Medium's "hard shadows to 20 m" draws nothing. Every
+shadow in the clips is `GroundShadow`'s planar projection of the airframe onto the ground or water plane. The
+"blocky, detached shadow of the wreck" in the Pitts clip is that projection of the crumpled wreck (the spiky skin is
+crash damage). It is on the water surface, 8 cm up, and offset from the wreck because the wreck floats high above it
+(expected until the crash-water lane lands, item e). Turning on a real shadow map in the headset would cost a whole
+shadow-caster pass per frame. It was not done; it is a rendering-quality call for Codex.
+
 ## The flickering card (Ty, 2026-11-02: "the IAC card still flickers")
 
 The sequence card's face sits **0.1 mm** in front of its paper stock, over exactly the same area, in the Pitts, the
@@ -229,6 +289,7 @@ compare a 5 s window with it on against one with it off. If it costs too much, t
   Each notice is also its own `[QuestPerf] runtime: …` line when it happens, and the start of the flight logs
   `[Quest] performance level hint sustained-high: CPU accepted, GPU accepted`.
 
+`[QuestPerf] hitch …` lines add every frame over 100 ms with what was going on (see *The "freeze" in the dive*).
 `[Freeze]` lines (FreezeWatch) add the forest streamer's worst chunk and any frame over 300 ms. Capture with:
 
     adb logcat -s Unity | grep -E "\[Quest|\[QuestPerf\]"
