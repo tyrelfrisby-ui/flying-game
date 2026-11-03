@@ -5375,3 +5375,10 @@ Final v7 review set under `renders/greatlakes/v7/`: five 1600 x 1200, 24-sample 
 - `gl7_side_by_side_ty.png`
 
 `gl7_cameras.json` records the five delivered cameras and clearance values. No geometry hidden/cut beyond default visibility metadata. Front cockpit naturally receives less light. No headset/pilot approval claimed. Pre-commit check-ignore audit output empty; never force-add. Local lane commit only, no merge/push/deploy.
+
+## 2026-11-03 10:30 PST: Great Lakes radio interaction (design decision)
+NEEDS YOU: none. Ty has decided; this is logged, not a gate approval.
+- Ty wants no turning knobs on the Great Lakes COM and transponder. You tap the radio itself, a small pop-up keypad appears, and you type the frequency or squawk code.
+- Ty: it doesn't have to be super realistic, because turning knobs is always annoying in games.
+- This is also the default for every radio UI in other aircraft.
+- No code changed.
