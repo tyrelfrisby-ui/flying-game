@@ -21,8 +21,7 @@ namespace FlyingGame.EditorTools
             string output = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/fuel-slick"));
             Directory.CreateDirectory(output);
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            var config = AircraftConfigLoader.LoadFromFile(Path.GetFullPath(Path.Combine(Application.dataPath,
-                "../../configs/aircraft/c172-like.json")));
+            var config = UnityAircraftConfigLoader.LoadFromStreamingAssets("c172-like");
             var load = new AircraftLoad(config);
             foreach (var slot in load.Slots)
                 if (slot.Kind == AircraftLoad.StationKind.Fuel) load.Set(slot.Id, slot.MaxKg);
