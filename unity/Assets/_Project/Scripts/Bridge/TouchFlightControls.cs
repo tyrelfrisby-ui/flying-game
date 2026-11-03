@@ -40,7 +40,7 @@ namespace FlyingGame.Bridge
         /// <summary>Mac app (owner 2026-10-03: "should not have the same touch screen controls — keyboard or joystick"):
         /// no touch pads / trim slider; keyboard (ramped) + joystick drive the controls and a small read-only indicator
         /// shows where they are. The on-screen buttons stay (mouse).</summary>
-        public static bool DeskMode => !Application.isMobilePlatform;
+        public static bool DeskMode => !Application.isMobilePlatform && !UiLayout.ForceTouchLayoutForTest;
         public float TrimAuthority = 0.6f;      // full trim slider = this much elevator (stick units) — enough to trim flaps-down approaches (owner 2026-10-03)
         public float IdleFraction = 0.25f;      // knob height (0 bottom..1 top) where throttle reaches idle
         public float BrakeStartFraction = 0.20f;// braking begins below this (20–25 % is the dead band)
@@ -782,6 +782,7 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            if (UiLayout.HideTouchControlsForTest) return;
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) return;   // the replay bar owns the tray
             EnsureStyles();
 

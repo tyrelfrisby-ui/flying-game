@@ -1,4 +1,10 @@
 ## NEEDS YOU
+- **HUD DECLUTTER — PICK FROM THE RENDERS, NOTHING MERGED (Grok Bot coordinating Codex, 2026-11-02, lane/codex-hud-declutter):**
+  Ty: "a lot of that stuff under the row of buttons is so small I don't even know what it is", and "in ANALOG
+  mode arrange the instruments as a neat row ... flight instruments top row, engine instruments bottom row".
+  Run A (inventory + test-only AERO_SELFTEST=hudshots iPhone-shaped capture harness), then run B (the proposal).
+  Inventory and proposal: docs/pending/HUD-DECLUTTER.md. Before/after renders: see the update below when done.
+  NOT merged, NOT deployed; no gate approved. Ty picks from the renders first.
 - **GAMEPAD, SECOND PASS — NEW MAPPING, PLEASE FLY IT (Claude, 2026-11-02, lane/claude-gamepad-ios):** it is on
   your **iPad mini** (build `2026.1102.1603`, island-nav), **NOT your iPhone** — the iPhone still has
   `2026.1102.1441` with the OLD left-stick-flies mapping until the next deploy to it. The mapping now: **right stick = roll and pitch** (pull back = nose up), **left stick X = rudder** (triggers too),
