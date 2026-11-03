@@ -51,7 +51,11 @@ namespace FlyingGame.EditorTools
             {
                 Directory.CreateDirectory(dir);
                 SessionSettings.UseAirframeModels = SessionSettings.UseOwnModels = true;
-                foreach ((string id, string seat) in Fleet) One(id, seat, tag, dir, render);
+                // Before/after helpers: BODY_ONLY=id[,id] one type; BODY_EYE_UP_M=-0.025 the eye (and the body on it)
+                // that much lower; BODY_HIDE=node[,node] those model nodes off; BODY_LEVEL=1 adds a level look ahead.
+                string only = Environment.GetEnvironmentVariable("BODY_ONLY");
+                foreach ((string id, string seat) in Fleet)
+                    if (string.IsNullOrEmpty(only) || Array.IndexOf(only.Split(','), id) >= 0) One(id, seat, tag, dir, render);
             }
             catch (Exception e) { _fail++; Debug.LogException(e); }
             finally
@@ -72,6 +76,8 @@ namespace FlyingGame.EditorTools
             Transform air = root.transform;
             StationConfig seat = cfg.Loading.Seats.Find(s => s.Id == seatId) ?? cfg.Loading.Seats[0];
             Vector3 eye = CoordinateMap.ToUnity(seat.EyeVec());
+            if (float.TryParse(Environment.GetEnvironmentVariable("BODY_EYE_UP_M"), System.Globalization.NumberStyles.Float,
+                               System.Globalization.CultureInfo.InvariantCulture, out float eyeUp)) eye += Vector3.up * eyeUp;
             CockpitProxy proxy = CockpitProxy.For(id);
 
             VrControlBinding.Stick stick = builder.Rig != null ? VrControlBinding.BindStick(builder.Rig, builder.FindInModel, air, seat.Id) : null;
@@ -118,7 +124,14 @@ namespace FlyingGame.EditorTools
                 Camera cam = camGo.AddComponent<Camera>();
                 cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.55f, 0.70f, 0.88f);
                 cam.nearClipPlane = 0.03f; cam.fieldOfView = 90f;
-                foreach ((string v, float pitch, float yaw) in new[] { ("down", 55f, 0f), ("down-left", 50f, -35f), ("ahead", 20f, 0f) })
+                string hide = Environment.GetEnvironmentVariable("BODY_HIDE");
+                if (!string.IsNullOrEmpty(hide))
+                    foreach (Transform t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                        foreach (string n in hide.Split(','))
+                            if (t.name == n || t.name.EndsWith(":" + n)) { t.gameObject.SetActive(false); Debug.Log($"[PilotBody] hid {t.name}"); }
+                var views = new System.Collections.Generic.List<(string, float, float)> { ("down", 55f, 0f), ("down-left", 50f, -35f), ("ahead", 20f, 0f) };
+                if (Environment.GetEnvironmentVariable("BODY_LEVEL") == "1") views.Add(("level", 0f, 0f));
+                foreach ((string v, float pitch, float yaw) in views)
                 {
                     camGo.transform.SetPositionAndRotation(air.TransformPoint(eye), air.rotation * Quaternion.Euler(pitch, yaw, 0f));
                     Shoot(cam, Path.Combine(dir, $"{tag}-{id}-{seat.Id}-{v}.png"));

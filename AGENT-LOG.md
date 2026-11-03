@@ -5558,3 +5558,13 @@ Images still require operator rendering and review; no Blender run here.
 - New editor check `FlyingGame.EditorTools.VrHandJointCheck.Run`: injects 26 anatomical XR Hands joints (tracking space, room yaw 0/90°) through XrTrackedHands.Reader → VrCockpitHands (arbiter, TrackingToSeat, curl/pinch detector, CockpitGrab) → TouchFlightControls.QuestInput → FlightSimDriver, and asserts the driver's aileron/elevator and throttle move, for every seat of the 2-33, Extra, Pitts, Great Lakes, J-3 and J-3 floats, fist and pinch. 88/88 pass with ideal joints: the pipeline itself is sound; the device failure is in what real hands feed it (next).
 - `VrCockpitHands.DeltaTimeForTesting` (edit-mode frame time; −1 in the game).
 - Neighbour dump: Great Lakes HarnessMain sits 2.2 cm from the front stick grip (7.4 cm rear).
+
+### 2026-11-02 22:58 PST — Claude · lane/claude-vr-hands-fix · 2-33 eye + Extra rear panel-top before/after renders
+- `PilotBodyShots` gains render-only env switches (no runtime change): `BODY_ONLY=id`, `BODY_EYE_UP_M` (eye and body moved
+  that much up), `BODY_HIDE=node,...` (model nodes off for the shot), `BODY_LEVEL=1` (adds a level look ahead).
+- 2-33 eye (b4366b43, front eye 25 mm higher): before = `BODY_EYE_UP_M=-0.025`, after = current config. Box:
+  `/workspace/vr-hands/body/v3/233-eye/{before,after}/`, `sheet.jpg`. Higher eye sees more panel face and over the coaming.
+- Extra rear panel top (5c96a4ff): before = `BODY_HIDE=RearPanel_Top_P3d,RearPanel_Glareshield_P3d`, after = current GLB.
+  Box: `/workspace/vr-hands/body/v3/extra-panel/{before,after}/`, `sheet.jpg`. Before shows the open hole above the rear
+  panel with the front cockpit visible through it; after closes it with the hood and glareshield.
+- Both runs: `[PilotBody] PASS (0 failures)`.
