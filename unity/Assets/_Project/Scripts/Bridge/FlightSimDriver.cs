@@ -343,13 +343,19 @@ namespace FlyingGame.Bridge
             return best ?? nearest;
         }
 
+        /// <summary>Stopwatch ticks spent inside SimLoop.Advance by every driver, summed (the AERO_SELFTEST=perf line reports
+        /// it per frame beside the frame time, with the player's height above the ground).</summary>
+        public static long SimAdvanceTicks;
+
         private void Update()
         {
             if (Replaying) return;
             Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors || ForceCapture;
             ControlInputs inputs = InputFilter != null ? InputFilter(Inputs, Time.deltaTime) : Inputs;
             if (AutoFilter != null) inputs = AutoFilter(inputs, Time.deltaTime);
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
             Sim.Advance(Time.deltaTime, inputs, ref _accumulator);
+            SimAdvanceTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t0;
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();
             UpdateSpinMetrics(Time.deltaTime);

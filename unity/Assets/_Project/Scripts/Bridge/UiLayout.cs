@@ -17,6 +17,13 @@ namespace FlyingGame.Bridge
     /// </summary>
     public static class UiLayout
     {
+        // Inert unless the hudshots self-test explicitly enables them. Insets are physical pixels.
+        public static bool ForceTouchLayoutForTest;
+        public static bool IPhoneSafeAreaForTest;
+        /// <summary>With <see cref="IPhoneSafeAreaForTest"/>: an iPad mini instead (no notch; 20 pt home indicator at 2x).</summary>
+        public static bool IPadSafeAreaForTest;
+        public static int MinText => Mathf.Max(22, Mathf.RoundToInt(S * 33f / 1206f));
+        public static int CaptionText => Mathf.Max(20, Mathf.RoundToInt(S * 30f / 1206f));
         public static float S => Mathf.Min(Screen.width, Screen.height);
         public static float Margin => S * 0.018f;
         public static float Gap => S * 0.012f;
@@ -31,11 +38,11 @@ namespace FlyingGame.Bridge
         // zero and nothing moves.
 
         /// <summary>Pixels of the top edge the Dynamic Island, notch or status bar is sitting in.</summary>
-        public static float SafeTop => Mathf.Max(0f, Screen.height - Screen.safeArea.yMax);
+        public static float SafeTop => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest ? 0f : Screen.height > Screen.width ? 186f : 0f) : Mathf.Max(0f, Screen.height - Screen.safeArea.yMax);
         /// <summary>Pixels of the bottom edge the home indicator is sitting in.</summary>
-        public static float SafeBottom => Mathf.Max(0f, Screen.safeArea.yMin);
-        public static float SafeLeft => Mathf.Max(0f, Screen.safeArea.xMin);
-        public static float SafeRight => Mathf.Max(0f, Screen.width - Screen.safeArea.xMax);
+        public static float SafeBottom => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest ? 40f : 63f) : Mathf.Max(0f, Screen.safeArea.yMin);
+        public static float SafeLeft => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest || Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.safeArea.xMin);
+        public static float SafeRight => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest || Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.width - Screen.safeArea.xMax);
 
         /// <summary>The toolbar's own top edge: the margin, pushed clear of whatever the hardware is sitting in. The
         /// in-flight row had the same defect the owner reported on the launch page — MENU and OPTIONS were under the
@@ -68,6 +75,15 @@ namespace FlyingGame.Bridge
         public static float BandLeft => Mathf.Max(Margin, BandMin);
         public static float BandRight => Mathf.Min(Screen.width - Margin, BandMax);
 
+        /// <summary>The engine row is drawn under the flight row (and the text stack starts below it). False when the
+        /// engine row is below the airplane instead (<see cref="EngineRowRect"/>) or there is no engine.</summary>
+        public static bool EngineRowShown;
+        /// <summary>GUI-space box (top-left origin) for the ENGINE row when it sits below the airplane (owner 2026-11-02:
+        /// "put the engine instruments below the airplane"). Width 0 = the engine row stays under the flight row.
+        /// Published by the touch/controller layout, which knows where its buttons and pads are.</summary>
+        public static Rect EngineRowRect;
+        public static float InstrumentBottom => (float)FlyingGame.Core.HudInstrumentLayout.Bottom(ToolbarBottom, Gap, S, TouchFlightControls.TouchSticksHidden && !ScreenLayout.Portrait, EngineRowShown);
+
         // ---- the text stack ----
         private static int _frame = -1; private static EventType _evt;
         private static float _cursor;
@@ -83,6 +99,8 @@ namespace FlyingGame.Bridge
                 if (Time.frameCount != _frame) { StackBottomLastFrame = Mathf.Max(ToolbarBottom, _stackBottomThisFrame); _stackBottomThisFrame = ToolbarBottom; }
                 _frame = Time.frameCount; _evt = t;
                 _cursor = ToolbarBottom + Gap * 0.6f;
+                if (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !ChaseCamera.InCockpit && !AeroInsetsShown)
+                    _cursor = InstrumentBottom + Gap;
             }
         }
 
@@ -99,31 +117,50 @@ namespace FlyingGame.Bridge
             return r;
         }
 
-        /// <summary>A copy of <paramref name="st"/> whose font shrinks (down to 45 %) until <paramref name="text"/> fits in
-        /// <paramref name="w"/> x <paramref name="h"/> — long labels never spill onto their neighbours.</summary>
+        /// <summary>A copy of <paramref name="st"/> whose font shrinks only to the primary reading floor until <paramref name="text"/> fits in
+        /// <paramref name="w"/> x <paramref name="h"/> — Label abbreviates excess detail at that floor.</summary>
         public static GUIStyle Fit(GUIStyle st, string text, float w, float h)
         {
-            if (st == null || string.IsNullOrEmpty(text)) return st;
-            var c = new GUIContent(text);
-            Vector2 sz = st.CalcSize(c);
-            if (sz.x <= w && sz.y <= h * 1.05f) return st;
+            if (st == null) return st;
             var f = new GUIStyle(st) { wordWrap = false, clipping = TextClipping.Clip };
-            int min = Mathf.Max(6, Mathf.RoundToInt(st.fontSize * 0.45f));
-            for (int fs = st.fontSize - 1; fs >= min; fs--)
-            {
-                f.fontSize = fs;
-                sz = f.CalcSize(c);
-                if (sz.x <= w && sz.y <= h * 1.05f) break;
-            }
+            int minimum = MinText;
+            f.fontSize = Mathf.Max(minimum, st.fontSize);
+            while (f.fontSize > minimum && f.CalcSize(new GUIContent(text)).x > w) f.fontSize--;
             return f;
         }
+
 
         // A modal card (lesson briefing / result) is up: the dials and HUD lines step aside rather than sit under it.
         private static int _modalFrame = -10;
         public static void ModalShown() => _modalFrame = Time.frameCount;
         public static bool Modal => Time.frameCount - _modalFrame <= 1;
 
-        public static void Label(Rect r, string text, GUIStyle st) => GUI.Label(r, text, Fit(st, text, r.width, r.height));
-        public static bool Button(Rect r, string text, GUIStyle st) => GUI.Button(r, text, Fit(st, text, r.width - 6f, r.height));
+        public static void Label(Rect r, string text, GUIStyle st)
+        {
+            var fit = Fit(st, text, r.width, r.height);
+            if (fit == null) return;
+            // Drop trailing detail rather than making the entire line unreadable.
+            while (text.Length > 1 && fit.CalcSize(new GUIContent(text)).x > r.width)
+                text = text.Substring(0, text.Length - 2).TrimEnd() + "…";
+            GUI.Label(r, text, fit);
+        }
+        public static GUIStyle ButtonFit(GUIStyle st, string text, float width)
+        {
+            var fit = new GUIStyle(st) { wordWrap = false, clipping = TextClipping.Clip };
+            fit.fontSize = Mathf.Max(CaptionText, st.fontSize);
+            while (fit.fontSize > CaptionText && fit.CalcSize(new GUIContent(text)).x > width) fit.fontSize--;
+            fit.wordWrap = fit.CalcSize(new GUIContent(text)).x > width;
+            return fit;
+        }
+        public static void ButtonLabel(Rect r, string text, GUIStyle st)
+        {
+            var fit = ButtonFit(st, text, r.width);
+            GUI.Label(r, text, fit);
+        }
+        public static bool Button(Rect r, string text, GUIStyle st)
+        {
+            var fit = ButtonFit(st, text, r.width - 6f);
+            return GUI.Button(r, text, fit);
+        }
     }
 }

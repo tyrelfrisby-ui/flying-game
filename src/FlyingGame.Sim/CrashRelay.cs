@@ -29,8 +29,13 @@ public sealed class CrashRelay
     public WreckSim Wreck { get; }
     /// <summary>A piece has left the airframe (the bridge gives it a visual).</summary>
     public event Action<WreckPiece>? PieceSpawned;
+    /// <summary>One slick per crash; replacing this relay on respawn clears it with the wreck.</summary>
+    public FuelSlick? Slick { get; private set; }
+    public double SlickCreatedSimS { get; private set; }
     private readonly bool _subscribed;
     private bool _wingsHandled;
+    private FuelSlick? _pendingSlick;
+    private double _pendingSlickSimS, _lastWaterImpactSimS = double.NegativeInfinity;
     private double _floodClock, _floodEscaped;
     public double ReportIntervalS { get; set; } = 0.1;
     /// <summary>The last FloodState raised for the airframe (−1), for probes.</summary>
@@ -69,6 +74,13 @@ public sealed class CrashRelay
     {
         ImpactRecorder.Hit hit = Aircraft.LastImpact;
         bool water = hit.OnWater;
+        if (water)
+        {
+            _lastWaterImpactSimS = Atmosphere.SimTimeSec;
+            if (Slick == null && _pendingSlick != null && _pendingSlickSimS == Atmosphere.SimTimeSec)
+            { Slick = _pendingSlick; SlickCreatedSimS = _pendingSlickSimS; }
+        }
+        _pendingSlick = null;
         if (!water && point.StartsWith("Gear")) return false;                       // a wheel on land: the tyre's business
         if (closingMs < (water ? WaterSplashMinMs : LandCrunchMinMs)) return false;
         RaiseAirframe(water ? ImpactSurface.Water : ImpactSurface.Land, hit, closingMs);
@@ -116,6 +128,35 @@ public sealed class CrashRelay
     private WreckPiece Spawn(string name, AirframeComponent c, List<HydroElement> els)
     {
         WreckPiece p = Wreck.Add(name, c, els, Aircraft.Config.Mass.CgVec(), Aircraft.State);
+        // A prop/gear loss alone is an intact ditching, not an airframe break-up. LastImpact is
+        // populated before ComponentLost in Aircraft.Step, so this snapshots the actual fuel now.
+        bool airframeBreak = c is not (AirframeComponent.GearLeft or AirframeComponent.GearRight
+            or AirframeComponent.GearNose or AirframeComponent.GearTail or AirframeComponent.Propeller);
+        ImpactRecorder.Hit hit = Aircraft.LastImpact;
+        bool waterJointFailed = Aircraft.Hydro.Active && Aircraft.Hydro.Model.Joints.Any(j =>
+            j.Component == c && (j.PeakNm > j.UltimateNm ||
+            (j.UltimateAxialN > 0 && j.PeakAxialN > j.UltimateAxialN)));
+        if (_pendingSlick != null && _pendingSlickSimS != Atmosphere.SimTimeSec) _pendingSlick = null;
+        if (Slick == null && _pendingSlick == null && airframeBreak && (hit.OnWater || waterJointFailed))
+        {
+            // A water-loaded joint may fail before any hard point reports contact. In that case
+            // the departing piece's lowest point supplies the water contact, projected to the surface.
+            Vec3 at = hit.OnWater ? hit.PositionWorld : p.LowestPoint();
+            double? surface = Wreck.World.WaterUpAt(at.X, at.Y, -at.Z);
+            if (surface.HasValue)
+            {
+                at = new Vec3(at.X, at.Y, -surface.Value);
+                var candidate = FuelSlick.TryCreate(Aircraft.Config, Aircraft.Load, true, true, at,
+                    FuelSlick.MeanWind10At(at));
+                // HardImpact follows ComponentLost in Aircraft.Step. Confirm the water contact in
+                // this same sim step; LastImpact alone may be stale after an earlier intact ditching.
+                // Hydro joints can fail on the next slam-loaded step after the first hard-point
+                // splash, with no new HardImpact. The joint's measured overload confirms that path.
+                if (waterJointFailed || _lastWaterImpactSimS == Atmosphere.SimTimeSec)
+                { Slick = candidate; SlickCreatedSimS = Atmosphere.SimTimeSec; }
+                else { _pendingSlick = candidate; _pendingSlickSimS = Atmosphere.SimTimeSec; }
+            }
+        }
         PieceSpawned?.Invoke(p);
         return p;
     }

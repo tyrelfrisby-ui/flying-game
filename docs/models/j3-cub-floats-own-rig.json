@@ -1,0 +1,983 @@
+{
+ "model": "j3-cub-floats-like-own",
+ "livery": "talk-flying",
+ "source": "unity/Assets/_Project/Resources/Models/j3-cub-floats-like/j3-cub-floats-like-own.glb node extras (docs/models/j3-cub-own-RIG.md); written by tools/own_models/j3_rig_json.py",
+ "rig": [
+  {
+   "node": "Aileron_L",
+   "parent": null,
+   "param": "aileron",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    -0.02284,
+    -0.99974
+   ],
+   "pivot_gltf": [
+    0.853,
+    0.7975,
+    3.465
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Aileron_R",
+   "parent": null,
+   "param": "aileron",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.02284,
+    0.99974
+   ],
+   "pivot_gltf": [
+    0.853,
+    0.7975,
+    -3.465
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_Front_L",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -0.697,
+    -0.395,
+    0.13
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "L pedal hinged at the floor: +1 (right rudder) moves its top aft",
+   "link": "Rudder (+/-30), TailWheel_Steer (+/-30, wheels), WaterRudder_L (+/-25, floats); all four pedals linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_Front_R",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    -0.697,
+    -0.395,
+    -0.13
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "R pedal hinged at the floor: +1 (right rudder) moves its top forward",
+   "link": "Rudder (+/-30), TailWheel_Steer (+/-30, wheels), WaterRudder_L (+/-25, floats); all four pedals linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_Rear_L",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.033,
+    -0.395,
+    0.13
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "L pedal hinged at the floor: +1 (right rudder) moves its top aft",
+   "link": "Rudder (+/-30), TailWheel_Steer (+/-30, wheels), WaterRudder_L (+/-25, floats); all four pedals linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_Rear_R",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.033,
+    -0.395,
+    -0.13
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "R pedal hinged at the floor: +1 (right rudder) moves its top forward",
+   "link": "Rudder (+/-30), TailWheel_Steer (+/-30, wheels), WaterRudder_L (+/-25, floats); all four pedals linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Stick_Front",
+   "parent": "Stick_Front_Roll",
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -0.267,
+    -0.4576,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -15.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stick pitch: +1 = stick aft 20 deg, -1 = forward 15 deg (judgement)",
+   "link": "Elevator_L/R (+1: TE up 34, -1: TE down 29); front + rear sticks linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Stick_Front_Roll",
+   "parent": "Controls",
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.267,
+    -0.4576,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -20.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stick roll on the torque tube: +1 = stick top to the right (roll right)",
+   "link": "Aileron_L/R (+1: R TE up 18, L TE down 18); front + rear sticks linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Stick_Rear",
+   "parent": "Stick_Rear_Roll",
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.483,
+    -0.4077,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -15.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stick pitch: +1 = stick aft 20 deg, -1 = forward 15 deg (judgement)",
+   "link": "Elevator_L/R (+1: TE up 34, -1: TE down 29); front + rear sticks linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Stick_Rear_Roll",
+   "parent": "Controls",
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.483,
+    -0.4077,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -20.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stick roll on the torque tube: +1 = stick top to the right (roll right)",
+   "link": "Aileron_L/R (+1: R TE up 18, L TE down 18); front + rear sticks linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Throttle_Lever_Front",
+   "parent": "Controls",
+   "param": "throttle",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    -0.482,
+    0.065,
+    0.3056
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     41.33224686190652
+    ]
+   ],
+   "model": 0.0,
+   "desc": "ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip",
+   "link": "front and rear throttles share one push rod (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Throttle_Lever_Rear",
+   "parent": "Controls",
+   "param": "throttle",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.388,
+    0.065,
+    0.3075
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     41.33224686190652
+    ]
+   ],
+   "model": 0.0,
+   "desc": "ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip",
+   "link": "front and rear throttles share one push rod (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Trim_Crank",
+   "parent": "Controls",
+   "param": "trim",
+   "unit": "-1 nose down .. +1 nose up",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -0.252,
+    -0.087,
+    0.3066
+   ],
+   "map": [
+    [
+     -1.0,
+     -450.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     450.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "trim crank, 1.25 turns each way from neutral (judgement); +nose-up turns the top of the crank aft (toward UP)",
+   "link": "drives the Stab jack screw (trim param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Compass_Card",
+   "parent": "Instruments",
+   "param": "heading_deg",
+   "unit": "deg magnetic",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.579,
+    0.233,
+    -0.011
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     360.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing numbers)",
+   "link": "",
+   "note": "",
+   "extra": {
+    "rig_map_wrap": 360.0
+   }
+  },
+  {
+   "node": "Needle_Airspeed",
+   "parent": "Instruments",
+   "param": "airspeed_mph",
+   "unit": "mph",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.58,
+    0.233,
+    0.075
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     40.0,
+     12.0
+    ],
+    [
+     140.0,
+     312.0
+    ],
+    [
+     150.0,
+     327.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "ASI 40..140 mph over 300 deg, rests on its pin below 40; +deg clockwise from the seat",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Needle_Alt_100ft",
+   "parent": "Instruments",
+   "param": "altitude_ft",
+   "unit": "ft",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.5792,
+    0.233,
+    -0.095
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1000.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); +deg clockwise from the seat",
+   "link": "",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1
+   }
+  },
+  {
+   "node": "Needle_Alt_1000ft",
+   "parent": "Instruments",
+   "param": "altitude_ft",
+   "unit": "ft",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.58,
+    0.233,
+    -0.095
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10000.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); +deg clockwise from the seat",
+   "link": "",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1
+   }
+  },
+  {
+   "node": "Needle_OilPress",
+   "parent": "Instruments",
+   "param": "oil_press_psi",
+   "unit": "psi",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.58,
+    0.2089,
+    -0.181
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     80.0,
+     120.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "oil pressure 0..80 psi over 120 deg (lower dial); +deg clockwise from the seat",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Needle_OilTemp",
+   "parent": "Instruments",
+   "param": "oil_temp_f",
+   "unit": "degF",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.58,
+    0.2378,
+    -0.181
+   ],
+   "map": [
+    [
+     100.0,
+     0.0
+    ],
+    [
+     250.0,
+     120.0
+    ]
+   ],
+   "model": 100.0,
+   "desc": "oil temperature 100..250 F over 120 deg (upper dial); +deg clockwise from the seat",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Needle_Tach",
+   "parent": "Instruments",
+   "param": "rpm",
+   "unit": "rpm",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.58,
+    0.233,
+    0.164
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     500.0,
+     5.0
+    ],
+    [
+     3500.0,
+     275.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "tach x100 rpm dial 500..3500 over 270 deg (pegged below 500); +deg clockwise from the seat",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "MagSwitch_Knob",
+   "parent": "Cockpit",
+   "param": "magneto",
+   "unit": "0 OFF 1 L 2 R 3 BOTH (integer detents)",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.08196,
+    -0.99664,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.259,
+    0.6609,
+    0.215
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     -73.0
+    ],
+    [
+     2.0,
+     -37.0
+    ],
+    [
+     3.0,
+     -115.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below)",
+   "link": "",
+   "note": "map re-ordered for the sim (0 OFF, 1 R, 2 L, 3 BOTH) onto the plate OFF / L / R / BOTH",
+   "extra": {
+    "rig_detents": [
+     0.0,
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "node": "Rudder",
+   "parent": null,
+   "param": "rudder",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    4.438,
+    0.835,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -30.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     30.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Elevator_L",
+   "parent": "Stab",
+   "param": "elevator",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    4.373,
+    0.485,
+    0.7
+   ],
+   "map": [
+    [
+     -1.0,
+     -29.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     34.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Elevator_R",
+   "parent": "Stab",
+   "param": "elevator",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    4.373,
+    0.485,
+    -0.7
+   ],
+   "map": [
+    [
+     -1.0,
+     -29.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     34.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Stab",
+   "parent": null,
+   "param": "trim",
+   "unit": "-1 nose down .. +1 nose up",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    4.373,
+    0.485,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     2.5
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     -4.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stabilizer incidence: +1 nose-up trim = LE down 4 deg, -1 = LE up 2.5 deg (TCDS A-691)",
+   "link": "Trim_Crank (same param); Elevator_L/R ride on the Stab",
+   "note": "jack-screw stab trim: rotate about trim_axis (origin on the rear spar / elevator hinge line) by +deg = LE up (nose-down trim), -deg = LE down (nose-up trim); TCDS A-691 stab travel 2.5 up / 4 down. Elevator_L/R are children.",
+   "extra": {}
+  },
+  {
+   "node": "WaterRudder_L",
+   "parent": null,
+   "param": "rudder",
+   "unit": "",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    2.3551,
+    -0.9387,
+    0.9525
+   ],
+   "map": [
+    [
+     -1.0,
+     -25.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     25.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "",
+   "link": "air rudder via cables: water rudder deg = rudder param * 25 (limit +/-25; air rudder 30 at the same pedal)",
+   "note": "LH water rudder only (60-1320 Fig.1: RH float less water rudder). Steers about steer_axis, linked to the air rudder",
+   "extra": {}
+  }
+ ],
+ "static": [
+  {
+   "node": "CarbHeat_Knob_Rear",
+   "param": "carb_heat",
+   "why": "no carburettor heat in the sim"
+  },
+  {
+   "node": "CarbHeat_Lever",
+   "param": "carb_heat",
+   "why": "no carburettor heat in the sim"
+  },
+  {
+   "node": "FuelValve_Lever",
+   "param": "fuel_valve",
+   "why": "the sim has no J-3 fuel shut-off; drawn ON"
+  },
+  {
+   "node": "Primer_Plunger",
+   "param": "primer",
+   "why": "no primer in the sim"
+  },
+  {
+   "node": "DoorLower_R",
+   "param": "door_open",
+   "why": "no door control in the sim; drawn closed"
+  },
+  {
+   "node": "DoorUpper_R",
+   "param": "door_open",
+   "why": "no door control in the sim; drawn closed"
+  },
+  {
+   "node": "FuelGauge_Wire",
+   "param": "fuel",
+   "why": "nose-tank float wire: no per-tank gauge feed for the J-3; drawn FULL"
+  },
+  {
+   "node": "Prop",
+   "param": "prop_rpm",
+   "why": "the propeller is spun by AirframeVisual.BindModelProp, not by the rig"
+  },
+  {
+   "node": "WaterRudder_Blade_L",
+   "param": "water_rudder_up",
+   "why": "no water-rudder retract in the sim; drawn down"
+  }
+ ]
+}

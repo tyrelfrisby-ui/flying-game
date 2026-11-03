@@ -198,7 +198,7 @@ namespace FlyingGame.Bridge
             // --- data boxes: airspeed left, altitude right (framed) ---
             {
                 Vector2 centre = new(vw * 0.5f, vh * 0.52f);
-                float bx = s * 0.30f, bw = u * 11f, bh = u * 4.2f;
+                float bx = s * (TouchFlightControls.TouchSticksHidden ? 0.30f : 0.22f), bw = u * 11f, bh = u * 4.2f;
                 Rect asr = new(centre.x - bx - bw, centre.y - bh * 0.5f, bw, bh);
                 Rect alr = new(centre.x + bx, centre.y - bh * 0.5f, bw, bh);
                 Frame(asr); Frame(alr);
@@ -237,7 +237,7 @@ namespace FlyingGame.Bridge
             {
                 _fs = fs;
                 _text = new GUIStyle { font = UiFont.Get(), fontSize = fs, fontStyle = FontStyle.Bold, normal = { textColor = Green } };
-                _small = new GUIStyle { font = UiFont.Get(), fontSize = Mathf.RoundToInt(fs * 0.7f), normal = { textColor = Green } };
+                _small = new GUIStyle { font = UiFont.Get(), fontSize = UiLayout.MinText, normal = { textColor = Green } };
             }
             // Label positions are viewport-relative; GUI space is whole-screen (or the whole clip image), top-left origin.
             foreach (Sym l in labels)

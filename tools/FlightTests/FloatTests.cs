@@ -39,7 +39,9 @@ public class FloatTests
             var state = new RigidBodyState(new Vec3(0, 0, -(cfg.Floats!.KeelZ - 0.25)), new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
             var ac = new Aircraft(cfg, state, ControlDeflections.Neutral);
             var sim = new SimLoop(ac);
-            for (int i = 0; i < 100; i++)
+            // 30 s: since 2026-11-02 (lane/claude-hydro) the floats carry their added mass (the water they move with
+            // them), which slows the bob after the 0.25 m drop; at 10 s the Beaver was still mid-bob (1.06 W).
+            for (int i = 0; i < 300; i++)
             {
                 sim.RunFor(0.1, new ControlInputs(0, 0, 0, 1.0)); // idle
                 Assert.False(double.IsNaN(ac.State.Position.Z), "NaN while floating");
