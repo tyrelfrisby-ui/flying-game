@@ -5382,3 +5382,9 @@ NEEDS YOU: none. Ty has decided; this is logged, not a gate approval.
 - Ty: it doesn't have to be super realistic, because turning knobs is always annoying in games.
 - This is also the default for every radio UI in other aircraft.
 - No code changed.
+
+## 2026-11-03 10:30 PST: Great Lakes v7 upper ailerons (Ty's position)
+NEEDS YOU: Ty, confirm after the close-up render which surfaces to remove.
+- Ty's position: there are no little ailerons above the top ailerons, which sounds ridiculous, so the upper extra surfaces should likely be removed.
+- Reference note: the real 2T-1A-2 has ailerons on both the upper and lower wings. If the extra parts are additional small surfaces or tabs on the upper wing, remove them but keep the normal upper ailerons.
+- No code changed yet. A close-up render of the upper wing has been requested.
