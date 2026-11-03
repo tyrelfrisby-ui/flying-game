@@ -1549,6 +1549,15 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 22:13 PST — Claude · lane/claude-vr-hands-fix · Quest build 2026.1102.2207 INSTALLED (v2 body + hand-grab fix + Extra + 2-33 eye + b62117a4)
+- Branch at 6ab33878 = fe843d2a (tracked-hand late grab etc.) + 5c96a4ff (Extra rear panel top) + b4366b43 (2-33 eye +25 mm)
+  + d0517239 (Extra rear throttle on the side wall, 127 mm cylinder canopy handles) + the v2 pilot body (fc1eb214, Ty liked it)
+  + lane/claude-quest-hands-install b62117a4 (J-3 v18, water-rudder VR grab; that 2153 build had regressed the body to v1).
+- Gates after the merge: dotnet VrCockpit/J3/Eye/Extra/ModelRig/Pilot 227 passed, 3 failures all pre-existing
+  (PittsNeedsQuickFeet, MazeTow branch, FullAirBrake); VrHandleCheck HANDLE OK; VrHandJointCheck VRJ OK (352).
+- QuestBuild SUCCEEDED (286 s), adb install -r Success, versionName 2026.1102.2207 at 22:12:46. Launch via monkey returned but no
+  Unity log lines appeared (likely queued behind an OS dialog in the headset, as with 2153); prox_close reverted.
+- Body v3 (real feet) is renders only, NOT on the device, until Ty approves.
 ### 2026-11-02 22:05 PST — Claude · lane/claude-vr-hands-fix · Extra rear throttle down the side wall; canopy handles 127 mm cylinders (Ty t289u)
 - New tools/own_models/vr_phase3e.py (chained from vr_cockpit.update after 3d; idempotent via extras.vrCockpitPhase3e),
   applied to all three Extra GLBs + docs/models/ea300-own-rig.json pivots:
