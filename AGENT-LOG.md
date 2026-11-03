@@ -1,4 +1,53 @@
 ## NEEDS YOU
+- **EVERY AEROPLANE IS RIGGED FOR HANDS-OFF LEVEL FLIGHT AT 75 % POWER — PLEASE FLY IT (Claude, 2026-11-02,
+  lane/claude-rig-trim):** method and full table in `docs/RIGGING.md`.
+  - **What a rig is now:** two fixed angles in each config's new `rig` block, built into the airframe: the ailerons'
+    neutral offset (+ = right-roll deflection, like a bent aileron tab) and the fin's incidence, rudder and all (+ =
+    leading edge LEFT). The elevator is not rigged; its hands-off value is the TRIM, and the air start sets the slider
+    there. Nothing runs per frame.
+  - **How they were found:** `RigSolver` solves all six steady equations (three forces, three moments) on the sim's
+    own forces: prop torque, P-factor, spiral slipstream, the slipstream swirl over the stab and the thrust line,
+    lifted out of `Aircraft` so the two cannot differ. Unknowns: airspeed, α, elevator, aileron rig, fin offset and
+    bank, stick and rudder centred, zero sideslip, LEVEL, at 75 % of rated power (the engine model's own definition:
+    power = MaxPowerW × throttle, no altitude lapse), 4,000 ft ISA. Gliders: best glide from the model's own polar.
+    All 34 converge to residual < 2e-12 of the weight. `RigTool` (`RIG_WRITE=1`) wrote them; no fudge factors.
+  - **Rig table (aileron° / fin° LE-left / elevator trim° / KIAS at 4,000 ft):** Pitts S-2B 0.27 / 0.52 / −1.11 / 131 ·
+    Extra 300 0.20 / 0.17 / −1.05 / 151 · **Great Lakes 0.38 / 0.36 / +0.84 / 102** · J-3 0.23 / 0.33 / −0.10 / 62 ·
+    J-3 floats 0.33 / 0.46 / −1.88 / 52 · 172 0.13 / 0.12 / +1.57 / 116 · PA-28 0.24 / 0.19 / +0.59 / 103 ·
+    SR22 0.20 / 0.10 / +2.07 / 153 · Beaver 0.22 / 0.24 / +0.72 / 116 · Beaver floats 0.25 / 0.29 / +0.60 / 108 ·
+    Stearman 0.38 / 0.27 / −0.92 / 102 · P-51D 0.43 / 0.13 / −1.43 / 197 · Decathlon 0.20 / 0.21 / +2.04 / 102 ·
+    PA-18 Cub / bush / floats 0.19 / 0.22, 0.20 / 0.24, 0.22 / 0.26 · Pawnee 0.19 / 0.21 · Cassutt and target drone
+    0.29 / 0.11 · Gee Bee 0.65 / 0.31 · Glasair III 0.38 / 0.09 · Jenny 0.40 / 0.59 · AirCam 0.25 / 0.24 (both props
+    turn the same way as modelled) · DC-3 0.13 / 0.08 (co-rotating) · H-4 0.03 / 0.02 (8 co-rotating) ·
+    **Seminole −0.003 / 0.000** (counter-rotating: it cancels) · **737 and F-86: 0 / 0** (jets, symmetric; trim
+    only; at 75 % thrust the 737 does 330 KIAS at 4,000 ft, above 250 kt and near Vmo, which is what 75 % means there)
+    · gliders 2-33, EB29R, Swift, paraglider: 0 / 0 at best glide (2-33 39.5 KIAS) · hang glider: nothing to rig;
+    trimmed at its 11 m/s hands-off speed, because bar-fixed at the model's 14 m/s best glide it tucks after ~20 s.
+  - **Against published numbers (validation only):** published fin offsets are ~1° (P-51D 1°; Aeronca 11AC fin 3/8 in
+    left). The model asks for a third to a sixth of that (P-51 0.13°, J-3 0.33°). Real offsets are set for the climb,
+    where slipstream yaw is several times the cruise value, and the model's spiral-slipstream yaw is a lumped,
+    never-calibrated term. **If your Great Lakes needs right rudder or rudder trim at 75 % cruise, tell me how much:
+    that is the number that calibrates `slipstreamK`.**
+  - **Power still does what it should:** from the rig point, full power yaws and rolls every clockwise-prop type LEFT
+    (moments and 3 s flown) and 30 % yaws and rolls it RIGHT. The Seminole barely feels it (ΔL 3.8, ΔN 0.0 N·m against
+    −72 / −95 with both props the same way).
+  - **The air start changed:** it used a POWER-OFF glide trim at the spawn speed with the throttle at 50 %, so every
+    aeroplane started descending with power on and then pitched up. It now starts level at 75 % on the rig, at the
+    speed 75 % holds at that height, with the trim slider on the elevator that holds it and the touch throttle at
+    75 %. Gliders start at best glide. The other starts (final, thermal, practice, events) are unchanged.
+  - **FLY THIS:** air start in the Great Lakes (then the Pitts and the Cub). Leave the stick and the rudder alone for
+    a minute and watch the ball, the heading and the VSI. Then go to full power: it should yaw and roll left.
+    Back to 30 %: right. **Expect a slow wander away from 4,000 ft:** the rig is fixed and was set there. The island's
+    coastal starts are at ~1,500 ft, where the same 75 % gives a higher EAS, so it over-corrects and wanders RIGHT
+    (172 ~8°, Cub/PA-28 ~16–20° of heading per 40 s). Inland at ~6,500 ft it wanders LEFT. Spirally divergent types run
+    away: J-3 floats and Jenny ~150° in 40 s, Pitts and Cassutt ~50°, and the **Gee Bee departs within a minute at
+    1,500 ft hands off**. That is the airframe, not the rig, but it is what you will see. If you would rather it were
+    rigged at the coastal height, it is one constant (`RigSolver.RigAltitudeM`) and a re-run of RigTool.
+  - **Red, and why:** `FormationTests` P-51 finger-four: wingman #2 RMS slot error 27.2 m against a 25 m limit (was
+    16.7 m). Measured: rigged wingmen behind an UNRIGGED leader track better than before (15.9 / 8.4 / 8.7 m). It is
+    the rigged leader's drone autopilot (proportional only, no trim) flying a different path at formation power. I did
+    not retune the AI. Full suite against 0d5a3ef: details in the Log entry below.
+
 - **COCKPIT VIEW WAS ALL SKY — FIXED, PLEASE CHECK (Grok Bot, 2026-11-02, lane/claude-cockpit-look):** cause was
   **device look** (Options › "Move the device to look around", ON on your iPhone, gain 4.9) zeroing against the
   gyro's placeholder reading before its first sample — not the gamepad. Now the first REAL sample is straight
@@ -992,6 +1041,21 @@ this lane's commits (75b275b and the follow-up), INCLUDING the `activeInputHandl
 controllers go through `UnityEngine.XR.InputDevices` and are not `Gamepad`s, so the two do not collide. Not
 built for Quest here.
 
+
+### 2026-11-02 lane/claude-rig-trim — fleet rigged for hands-off level flight at 75 % power (Claude)
+- Commits: aba9ac47 rig model + RigSolver (TailSlipstream/PropulsionForces lifted out of Aircraft verbatim; with the rig
+  zeroed the P-51 formation run reproduces the branch point to the decimetre, so the refactor is behaviour-neutral),
+  b7039178 configs + RigTool + RigTests, 2c7b38ff in-air start on the rig at 75 %, 89cf257e glide table regenerated.
+- New tests (RigTests, 190 cases, all pass): EveryConfigIsInTheTable; ConfigRigMatchesTheHandCopiedTable ×34 (hand-copied
+  literals); ModelStillAsksForTheSameRig ×34 (fresh solve vs stored); HandsOffLevelAtRigPower ×29 (after 20 s, over 40 s:
+  rates ≤ 0.04 °/s vs band 0.25, sideslip ≤ 0.007° vs 0.2, altitude within 0.2 m vs 15, heading ≤ 0.42°);
+  HandsOffAtBestGlide ×5; PowerAwayFromTheRigYawsAndRollsTheRightWay ×27; PositiveRigRollsAndYawsRight;
+  CounterRotatingTwinBarelyFeelsPower; RigStillNearlyHandsOffAtTheStartAltitudes ×58 (probe, RIG_PROBE=1).
+- Full suite, 0d5a3ef vs lane (busy Mac, both runs while other lanes built): 115 unique failing names vs 127. Newly
+  failing in the full run: 14. Re-run alone: 12 pass (FormationTests DC-3, GlideTable was stale -> regenerated,
+  LandingGearTests ×5, NoseSkid, ReversibleControl ×2, SpinTests ×3, TipWheel: suite coupling). Real: GlideTable
+  (stale, regenerated in 89cf257e, now passes) and FormationTests P-51 (RMS 27.2 m vs 25 m; diagnosis in NEEDS YOU).
+  No longer failing: FloatsOnLandTests.SlidesToAStopOnPavement, TrimConvergenceTests.TrimmedGliderStaysBoundedThroughSimLoop.
 ### 2026-11-02 — Claude · lane/claude-gamepad-ios · gamepads (8BitDo Pro 2 / MFi) fly the aeroplane on iOS
 **Ty: an 8BitDo Pro 2 paired to the iPhone, "nothing works."**
 
