@@ -1,4 +1,12 @@
 ## NEEDS YOU
+- **GAMEPAD STICK DEAD ZONE 0.07 → 0.02, MERGED; BUILT, NOT ON THE IPHONE (Claude, 2026-11-03, lane/claude-deadzone →
+  island-nav `50dc7e3b`):** expo 0.65 and the radial zone + rescale unchanged; triggers (0.05) and the throttle (0.25,
+  idle to full in 2 s) are separate constants and unchanged. The left stick's X (rudder) shares the stick constant, so
+  it is 0.02 too. `deploy.sh` `2026.1103.1409` `** BUILD SUCCEEDED **`, 0 `error CS`, but **the iPhone would not take
+  it: CoreDeviceError 4016**, and a direct `devicectl install` retry gave the same; devicectl says "Device State:
+  unavailable". Unlock the phone on USB and re-run `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from the
+  island-nav worktree. The build carries roll-only too. One thing to feel for: a pad that rests more than 2 % off
+  centre now gets through as a small input (and stops a released stick going free with stick-free on).
 - **NEW ROLL RATES ARE IN THE PLAYABLE LANE — PLEASE FLY THE PITTS (Claude, 2026-11-03, lane/claude-roll-only → island-nav):**
   the roll physics you approved (aileron sections τ·η_δ fleet-wide + biplane mutual induction) WITHOUT the spin
   lane's per-section tail wakes. Full aileron, steady: **Pitts 218.6 deg/s at 160 mph**, Extra 239.3 (160), Great Lakes
@@ -1156,6 +1164,26 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 — Claude · lane/claude-deadzone (off island-nav e8a40b0a) · gamepad stick dead zone 0.07 → 0.02
+Ty likes the expo, not the dead zone. `GamepadShaping.DefaultStickDeadZone` 0.07 → 0.02 (a93fc332; doc comment says
+which controls it covers and which it does not).
+- **Shares the constant:** right stick (radial zone) and left stick X (rudder). **Does not:** triggers
+  (`DefaultTriggerDeadZone` 0.05), throttle (`ThrottleStickDeadZone` 0.25, `ThrottleIdleToFullS` 2 s). Pinned all three
+  as literals in `DefaultsAreTheAskedForOnes`.
+- **Tests:** rudder cases re-worked by hand for 0.02 (0.51 → 0.5 → 0.25625). `LaunchReplicationTests` "pad at rest"
+  noise was ±0.03 per stick axis, which is OUTSIDE a 0.02 zone, and 30 launch-replication cases went red until it
+  was shrunk to ±0.014 (radius < 0.02). The arithmetic tests that pass 0.07 explicitly were left as they are.
+- **Suite:** targeted gamepad/launch classes 192/192 on the lane and again on the merged tree. Full suite (on a
+  machine at load ~85, then ~7): `IslandDroneProbe(island: True)` hung >20 min (no gamepad code in it), so it was
+  excluded on both sides. Branch 219 failed / base e8a40b0a 134 failed of 1756; the 90 names only on the branch
+  (SpawnSpeed, Structural, LandingGear, MultiEngine, ReversibleControl, NoseSkid, Soaring, TrimConvergence, Challenge,
+  GroundTow) all pass alone: those ten classes 109/109 (2 skipped). No regression found.
+- **Waited for roll-only:** not in island-nav at 07:16 or at the 90 min mark; it was there (5dc1693a) by 11:05, when
+  this session resumed. Merged a93fc332 into island-nav as `50dc7e3b` (Ty approved), no conflicts.
+- **Deploy** from island-nav: `2026.1103.1409` `** BUILD SUCCEEDED **`, 0 `error CS`; iPhone 00008150-001629A83662401C
+  CoreDeviceError 4016, installed on 0 of 1; a direct `devicectl device install` retry gave 4016 too ("Device State:
+  unavailable"). ProjectSettings bundleVersion bump not committed.
+
 ### 2026-11-03 — Claude · lane/claude-roll-only (off island-nav e8a40b0a) · roll physics only, split from the spin work
 Ty approved the new fleet roll rates (Pitts ~206–218 deg/s at 160 mph, "maybe a tad low but ok"); applied now,
 separately from lane/claude-pitts-spin.
