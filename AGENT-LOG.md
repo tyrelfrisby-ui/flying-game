@@ -1,4 +1,11 @@
 ## NEEDS YOU
+- **HUD-MODE ENGINE ROW MERGED, ON YOUR IPHONE AS `2026.1103.0925` (Claude, 2026-11-03, lane/claude-island-nav):**
+  lane/codex-hud-layout (`e0eb27e7`, green HUD engine readouts above the lower control row, approved by Ty) merged
+  into lane/claude-island-nav as a fast-forward from `e8a40b0a`; no conflicts. `deploy.sh` build `2026.1103.0925`
+  `** BUILD SUCCEEDED **`, 0 `error CS`; installed and launched on Ty's iPhone (00008150-001629A83662401C) at 09:32.
+  The build also carries everything already on island-nav (stick-free launch, rig trim, hydro). Check the build stamp
+  on screen before flying. The `ProjectSettings` bundleVersion/build bump was not committed. Small thing in the
+  deploy log: it printed "no assets-incoming in … -- wrong repo?" and then carried on; the build was not affected.
 - **PITTS SPIRAL DIVE AT LAUNCH, RIGHT THEN LEFT — WHY, AND STICK-FREE NOW OFF WITH A PAD (Grok Bot, 2026-11-02,
   lane/claude-stickfree-launch):** build `2026.1102.1803` predates the spawn fix `b62b67d0`. Its long first frame
   (0.05 s = ten sim steps, before the pad publishes) flew whatever the PREVIOUS flight left in the driver's inputs, plus
