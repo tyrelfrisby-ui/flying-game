@@ -1,4 +1,13 @@
 ## NEEDS YOU
+- **ENGINE ROW BELOW THE AIRPLANE + HUD CLEANUP — MERGED, ON iPad mini (2026.1102.1941); iPhone NOT installed (Grok Bot,
+  2026-11-02, lane/claude-island-nav):** lane/codex-hud-declutter 34e420c1 (B4 cleanup + engine row below) merged into
+  island-nav as 665362a3 (conflicts: TouchFlightControls layout key + portrait buttons -> declutter versions, the key
+  keeps TouchSticksHidden and LayOutControllerButtons re-lays gamepad portrait; AGENT-LOG kept both). deploy.sh:
+  ** BUILD SUCCEEDED **, iPad mini installed + launched; iPhone: CoreDeviceError 4016 (locked/asleep), then
+  "unavailable" for 14 more minutes. The .app was wiped by the next lane's deploy (claude-j3-cockpit), so for the
+  iPhone: unlock it, keep it awake, then from this worktree run
+  `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` (same commit, new build number).
+  Open item (pre-existing B4): iPad mini TOUCH layout, the TOP flight row is wider than the band and overlaps.
 - **HUD DECLUTTER APPROVED + ENGINE ROW MOVED BELOW THE AIRPLANE — PLEASE CHECK ON BOTH DEVICES (Grok Bot, 2026-11-02, lane/codex-hud-declutter → lane/claude-island-nav):**
   Ty (approving fe4c7f60): "put the engine instruments below the airplane. otherwise the cleanup looks good go ahead
   and move engine instruments then push to ipad/iphone". Analog mode, chase view, powered aircraft, landscape, phone/
