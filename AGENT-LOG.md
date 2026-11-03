@@ -5388,3 +5388,8 @@ NEEDS YOU: Ty, confirm after the close-up render which surfaces to remove.
 - Ty's position: there are no little ailerons above the top ailerons, which sounds ridiculous, so the upper extra surfaces should likely be removed.
 - Reference note: the real 2T-1A-2 has ailerons on both the upper and lower wings. If the extra parts are additional small surfaces or tabs on the upper wing, remove them but keep the normal upper ailerons.
 - No code changed yet. A close-up render of the upper wing has been requested.
+
+## 2026-11-03 10:31 PST: Great Lakes instructor fuel cut (Ty decision)
+NEEDS YOU: Ty, review the placement and ON/OFF renders (gl5_fuel_valve_*) that were sent to chat.
+- Ty confirmed that the two right-wall fuel handles work together on one shaft and are fully linked. Moving either handle moves both.
+- No code changed. The placement and ON/OFF visuals are still awaiting his render review.
