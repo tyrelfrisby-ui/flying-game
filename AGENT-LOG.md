@@ -1,4 +1,11 @@
 ## NEEDS YOU
+- **NEW ROLL RATES ARE IN THE PLAYABLE LANE — PLEASE FLY THE PITTS (Claude, 2026-11-03, lane/claude-roll-only → island-nav):**
+  the roll physics you approved (aileron sections τ·η_δ fleet-wide + biplane mutual induction) WITHOUT the spin
+  lane's per-section tail wakes. Full aileron, steady: **Pitts 218.6 deg/s at 160 mph**, Extra 239.3 (160), Great Lakes
+  66.8 (160), C172 83.7 (110), J-3 53.6 (75), 2-33 15.2 (60). Rig re-solved for it (Pitts aileron rig 0.272° → 0.374°).
+  **The iPhone did not take the build: CoreDeviceError 4016** ("not able to fulfill the requested usage assertion
+  requirements" — unlock the phone / keep it awake on USB and re-run `zsh tools/deploy/deploy.sh 00008150-001629A83662401C`
+  from the island-nav worktree). See the Log entry for the island-nav install attempt.
 - **HUD-MODE ENGINE ROW MERGED, ON YOUR IPHONE AS `2026.1103.0925` (Claude, 2026-11-03, lane/claude-island-nav):**
   lane/codex-hud-layout (`e0eb27e7`, green HUD engine readouts above the lower control row, approved by Ty) merged
   into lane/claude-island-nav as a fast-forward from `e8a40b0a`; no conflicts. `deploy.sh` build `2026.1103.0925`
@@ -1149,6 +1156,47 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 — Claude · lane/claude-roll-only (off island-nav e8a40b0a) · roll physics only, split from the spin work
+Ty approved the new fleet roll rates (Pitts ~206–218 deg/s at 160 mph, "maybe a tad low but ok"); applied now,
+separately from lane/claude-pitts-spin.
+- **Brought over:** lane/claude-pitts-roll 4e5e1a7a, 836e1b78, fa67667d, 340d6222, ade0aedd (as 51cd477e, 9a2a0598,
+  d04e1436, 1bd625f0, 446c05ba — AGENT-LOG kept as island-nav's; CLAUDE.md gets pitts-roll's three roll lessons;
+  glide table/GLIDE-TABLE.md conflicts taken as island-nav's and regenerated below); pitts-spin 7a8e5dea (biplane
+  mutual induction → 2e30b36a) and 0a290907 (aileron sections τ(E)·η_δ(E,δ)·δ → 1ed4916c). Both applied clean; no
+  TailWake reference anywhere in src/ or tests.
+- **NOT brought over:** TailWake.cs and its config-key removals (d54a06e5, 885bca6a, bec27ba0), the wing-failure
+  change 4e27fede, TyPittsSpinProbe, and 4afa035a (rig mixed with tail wakes). From 4afa035a only
+  RollPhysicsTests.cs (verbatim), the PittsRollRateTests hunk (numbers re-recorded) and the CONTROL-SURFACES
+  "Roll rate, fleet-wide" section (no tail-wake content) were ported.
+- **Rig re-solved here** (1bcfbd06): `RIG_WRITE=1 dotnet test --filter RigTool`, stick fixed at controls neutral
+  (RigSolver.Residual, explicit deflections). Aileron rigs +8–10 % (Pitts 0.2724 → 0.3740°, Great Lakes 0.376 → 0.443,
+  Stearman 0.375 → 0.474); fins move < 0.01°; elevator trims barely move without tail wakes (Pitts −1.113 → −1.174°,
+  Extra −1.048 → −1.071, Great Lakes 0.844 → 0.866; most monoplanes unchanged at 4 dp). RigTests.RigTable and
+  docs/RIGGING.md transcribed from that output; StreamingAssets aircraft mirrored (byte copies of configs/aircraft,
+  as ConfigSync does; the deploy's ConfigSync ran over them). Glide table: REGEN_GLIDE_TABLE=1 (ee1af896), 23 rows move.
+- **Roll rates re-recorded on this branch** (2c89cf70, class run alone, full aileron, steady):
+
+  | aircraft | IAS mph | deg/s | pitts-spin (with tail wakes) |
+  |---|---|---|---|
+  | Pitts S-2B | 160 | **218.6** | 218.2 |
+  | Extra 300 | 160 | 239.3 | 238.8 |
+  | Great Lakes | 160 | 66.8 | 66.4 |
+  | C172 | 110 | 83.7 | 83.4 |
+  | J-3 Cub | 75 | 53.6 | 53.3 |
+  | SGS 2-33 | 60 | 15.2 | 14.5 |
+
+  RollPhysicsTests + PittsRollRateTests: 62/62 alone, and green inside the full run too.
+- **Full suite** (branch 2c89cf70): 1652 passed, 177 failed, 3 skipped, 1 h 38 m — run while SIX other sessions' suites
+  and a Unity batch were on the machine (load average ~196; a global wait for idle never came, so I ran anyway and
+  compared names). Base e8a40b0a in /tmp/ro-base: the full run was killed at the 2 h limit (110 failures so far). 125
+  unique failing names on the branch, 74 not in the partial base list; ALL 74 re-run on base and on branch with the
+  same filter: identical sets (FrankChurch/GlacierLandingZone/Formation: 12 both; the other 62: 62 both, e.g.
+  RegionalAtmosphere, NavProcedure, WaterfallTunnel, MountainRoughness, terrain-data "canyon only 34 m deep").
+  Formation P-51 slot error base 29.4 m, branch 27.2 m. `GlideTableTests.CreditsReachTheUser` (J-3 models have no
+  LICENSE.txt) fails on base too. **No failure introduced by this lane.**
+- **Build:** island-nav (73a6b497, HUD-only Unity changes) merged into roll-only (8697e42a), then
+  `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from roll-only: **`** BUILD SUCCEEDED **`**, 0 `error CS`,
+  build `2026.1103.0950`; iPhone install **CoreDeviceError 4016**, 0 of 1. ProjectSettings bump not committed.
 ### 2026-11-02 — Grok Bot · lane/claude-stickfree-launch (off lane/claude-rig-trim b62b67d0) · launch spiral, stick-free with a pad
 Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spiral dive; the next launch went LEFT.
 - **Rig is solved stick FIXED:** `RigSolver.SteadyForces` (src/FlyingGame.Sim/RigSolver.cs:176-185) hands explicit
