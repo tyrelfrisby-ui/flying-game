@@ -1316,7 +1316,7 @@
    "pivot_gltf": [
     1.093,
     -0.15,
-    0.312
+    0.318
    ],
    "map": [
     [
@@ -1348,7 +1348,7 @@
    "pivot_gltf": [
     1.763,
     -0.17,
-    0.312
+    0.318
    ],
    "map": [
     [
@@ -1681,9 +1681,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9229999999999996,
-    -0.10899999999999999,
-    0.305
+    1.9359999999999997,
+    -0.13299999999999998,
+    0.268
    ],
    "map": [
     [
@@ -1692,12 +1692,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1713,9 +1713,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999996,
-    -0.151,
-    0.269
+    1.9899999999999998,
+    -0.16699999999999998,
+    0.268
    ],
    "map": [
     [
@@ -1724,12 +1724,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1745,9 +1745,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9389999999999996,
-    -0.151,
-    0.269
+    1.9629999999999999,
+    -0.16699999999999998,
+    0.268
    ],
    "map": [
     [
@@ -1756,12 +1756,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1777,9 +1777,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9149999999999996,
-    -0.151,
-    0.269
+    1.9359999999999997,
+    -0.16699999999999998,
+    0.268
    ],
    "map": [
     [
@@ -1788,12 +1788,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1809,9 +1809,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9869999999999997,
-    -0.151,
-    0.269
+    1.918,
+    -0.198,
+    0.268
    ],
    "map": [
     [
@@ -1841,9 +1841,9 @@
     0.0
    ],
    "pivot_gltf": [
-    2.0109999999999997,
-    -0.151,
-    0.269
+    2.008,
+    -0.198,
+    0.268
    ],
    "map": [
     [
@@ -1873,9 +1873,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.843,
-    -0.285,
-    0.322
+    1.9629999999999999,
+    -0.245,
+    0.263
    ],
    "map": [
     [
@@ -2197,9 +2197,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.253,
-    -0.089,
-    0.305
+    1.2659999999999998,
+    -0.113,
+    0.268
    ],
    "map": [
     [
@@ -2208,12 +2208,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2229,9 +2229,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.293,
-    -0.131,
-    0.269
+    1.3199999999999998,
+    -0.14700000000000002,
+    0.268
    ],
    "map": [
     [
@@ -2240,12 +2240,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2261,9 +2261,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.269,
-    -0.131,
-    0.269
+    1.293,
+    -0.14700000000000002,
+    0.268
    ],
    "map": [
     [
@@ -2272,12 +2272,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2293,9 +2293,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.2449999999999999,
-    -0.131,
-    0.269
+    1.2659999999999998,
+    -0.14700000000000002,
+    0.268
    ],
    "map": [
     [
@@ -2304,12 +2304,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2325,9 +2325,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.317,
-    -0.131,
-    0.269
+    1.2479999999999998,
+    -0.178,
+    0.268
    ],
    "map": [
     [
@@ -2357,9 +2357,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.341,
-    -0.131,
-    0.269
+    1.3379999999999999,
+    -0.178,
+    0.268
    ],
    "map": [
     [
@@ -2389,9 +2389,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.173,
-    -0.285,
-    0.322
+    1.293,
+    -0.245,
+    0.263
    ],
    "map": [
     [
@@ -2757,9 +2757,9 @@
     1.0
    ],
    "pivot_gltf": [
-    2.0029999999999997,
-    -0.10899999999999999,
-    0.305
+    1.9899999999999998,
+    -0.13299999999999998,
+    0.268
    ],
    "map": [
     [
@@ -2768,12 +2768,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2791,7 +2791,7 @@
    "pivot_gltf": [
     1.763,
     -0.17,
-    0.264
+    0.258
    ],
    "map": [
     [
@@ -2929,9 +2929,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.333,
-    -0.089,
-    0.305
+    1.3199999999999998,
+    -0.113,
+    0.268
    ],
    "map": [
     [
@@ -2940,12 +2940,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2963,7 +2963,7 @@
    "pivot_gltf": [
     1.093,
     -0.15,
-    0.264
+    0.258
    ],
    "map": [
     [
@@ -3042,6 +3042,70 @@
    "model": 0.0,
    "unit": "0..1",
    "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.9629999999999999,
+    -0.13299999999999998,
+    0.268
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Alternator_Front",
+   "param": "alternator",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.293,
+    -0.113,
+    0.268
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "v6 console 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -3211,11 +3275,11 @@
     1.0
    ],
    "pivot_gltf": [
-    2.0029999999999997,
-    -0.10899999999999999,
-    0.305
+    1.9899999999999998,
+    -0.13299999999999998,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3234,8 +3298,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Compact left-wall console aft of full lever sweep",
-   "label": "BATTERY MASTER"
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "label": "MASTER"
   },
   {
    "node": "Ctl_Toggle_FuelPump",
@@ -3248,11 +3312,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9229999999999996,
-    -0.10899999999999999,
-    0.305
+    1.9359999999999997,
+    -0.13299999999999998,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3271,7 +3335,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Compact left-wall console aft of full lever sweep",
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
    "label": "FUEL PUMP"
   },
   {
@@ -3285,11 +3349,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999996,
-    -0.151,
-    0.269
+    1.9899999999999998,
+    -0.16699999999999998,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3308,8 +3372,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
-   "label": "NAV LTS"
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "label": "NAV"
   },
   {
    "node": "Ctl_Toggle_Strobe",
@@ -3322,11 +3386,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9389999999999996,
-    -0.151,
-    0.269
+    1.9629999999999999,
+    -0.16699999999999998,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3345,7 +3409,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
    "label": "STROBE"
   },
   {
@@ -3359,11 +3423,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9149999999999996,
-    -0.151,
-    0.269
+    1.9359999999999997,
+    -0.16699999999999998,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3382,8 +3446,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
-   "label": "LAND LT"
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "label": "LDG"
   },
   {
    "node": "Ctl_Toggle_Smoke",
@@ -3396,9 +3460,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9869999999999997,
-    -0.151,
-    0.269
+    1.918,
+    -0.198,
+    0.268
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3419,7 +3483,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
+   "placement": "Underslung auxiliary control",
    "label": "SMOKE"
   },
   {
@@ -3435,7 +3499,7 @@
    "pivot_gltf": [
     1.763,
     -0.17,
-    0.264
+    0.258
    ],
    "travel": 50.0,
    "travel_unit": "deg",
@@ -3499,9 +3563,9 @@
     0.0
    ],
    "pivot_gltf": [
-    2.0109999999999997,
-    -0.151,
-    0.269
+    2.008,
+    -0.198,
+    0.268
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -3522,7 +3586,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
+   "placement": "Underslung auxiliary control",
    "label": "CARB HEAT"
   },
   {
@@ -3536,9 +3600,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.843,
-    -0.285,
-    0.322
+    1.9629999999999999,
+    -0.245,
+    0.263
    ],
    "travel": 0.12,
    "travel_unit": "m",
@@ -3556,7 +3620,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left wall cable trim; forward nose down, aft nose up; estimated reach",
+   "placement": "v6 indicator inside window beside console; index at left; cord separate",
    "label": "TRIM / NOSE DOWN forward / NOSE UP aft"
   },
   {
@@ -4076,11 +4140,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.333,
-    -0.089,
-    0.305
+    1.3199999999999998,
+    -0.113,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4099,8 +4163,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Compact left-wall console aft of full lever sweep",
-   "label": "BATTERY MASTER"
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "label": "MASTER"
   },
   {
    "node": "Ctl_Toggle_FuelPump_Front",
@@ -4113,11 +4177,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.253,
-    -0.089,
-    0.305
+    1.2659999999999998,
+    -0.113,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4136,7 +4200,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Compact left-wall console aft of full lever sweep",
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
    "label": "FUEL PUMP"
   },
   {
@@ -4150,11 +4214,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.293,
-    -0.131,
-    0.269
+    1.3199999999999998,
+    -0.14700000000000002,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4173,8 +4237,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
-   "label": "NAV LTS"
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "label": "NAV"
   },
   {
    "node": "Ctl_Toggle_Strobe_Front",
@@ -4187,11 +4251,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.269,
-    -0.131,
-    0.269
+    1.293,
+    -0.14700000000000002,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4210,7 +4274,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
    "label": "STROBE"
   },
   {
@@ -4224,11 +4288,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.2449999999999999,
-    -0.131,
-    0.269
+    1.2659999999999998,
+    -0.14700000000000002,
+    0.268
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4247,8 +4311,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
-   "label": "LAND LT"
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "label": "LDG"
   },
   {
    "node": "Ctl_Toggle_Smoke_Front",
@@ -4261,9 +4325,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.317,
-    -0.131,
-    0.269
+    1.2479999999999998,
+    -0.178,
+    0.268
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4284,7 +4348,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
+   "placement": "Underslung auxiliary control",
    "label": "SMOKE"
   },
   {
@@ -4300,7 +4364,7 @@
    "pivot_gltf": [
     1.093,
     -0.15,
-    0.264
+    0.258
    ],
    "travel": 50.0,
    "travel_unit": "deg",
@@ -4364,9 +4428,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.341,
-    -0.131,
-    0.269
+    1.3379999999999999,
+    -0.178,
+    0.268
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -4387,7 +4451,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left console breaker face",
+   "placement": "Underslung auxiliary control",
    "label": "CARB HEAT"
   },
   {
@@ -4401,9 +4465,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.173,
-    -0.285,
-    0.322
+    1.293,
+    -0.245,
+    0.263
    ],
    "travel": 0.12,
    "travel_unit": "m",
@@ -4421,7 +4485,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Left wall cable trim; forward nose down, aft nose up; estimated reach",
+   "placement": "v6 indicator inside window beside console; index at left; cord separate",
    "label": "TRIM / NOSE DOWN forward / NOSE UP aft"
   },
   {
@@ -4889,6 +4953,80 @@
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
    "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+  },
+  {
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.9629999999999999,
+    -0.13299999999999998,
+    0.268
+   ],
+   "travel": 80,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Alternator",
+   "grip": "Grip_Alternator",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "label": "ALT"
+  },
+  {
+   "node": "Ctl_Toggle_Alternator_Front",
+   "param": "alternator",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.293,
+    -0.113,
+    0.268
+   ],
+   "travel": 80,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Alternator_Front",
+   "grip": "Grip_Alternator_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "v6 console 2x3 fore/aft toggles; forward ON",
+   "label": "ALT"
   },
   {
    "node": "Ctl_Rotary_FuelSelector",

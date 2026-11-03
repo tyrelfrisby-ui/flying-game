@@ -28,8 +28,8 @@ ROW=['Magneto','Master','FuelPump','CarbHeat','Smoke','NavLights','Strobe','Land
 LABEL={'Magneto':'MAGS','Master':'MASTER','FuelPump':'FUEL|PUMP','CarbHeat':'CARB|HEAT','Smoke':'SMOKE','Trim':'TRIM',
        'FuelSelector':'FUEL|VALVE','NavLights':'NAV|LTS','Strobe':'STROBE','LandingLight':'LAND|LT'}
 # lever: (rig/ctl label, lateral y, length, knob material, knob radius, knob letter, gate label)
-LEVERS=[('Throttle',.312,.150,'Cockpit_black',.016,'T','THR'),('Prop',.288,.135,'Cockpit_knob_blue',.013,'P','PROP'),
-        ('Mixture',.264,.105,'Cockpit_black',.009,'M','MIX')]
+LEVERS=[('Throttle',.318,.150,'Cockpit_black',.014,'T','THR'),('Prop',.288,.135,'Cockpit_knob_blue',.012,'P','PROP'),
+        ('Mixture',.258,.120,'Cockpit_knob_red',.011,'M','MIX')]
 HOUSING_Y=(.252,.338);HOUSING_DX=.065
 
 F={'A':'01110 10001 10001 11111 10001 10001 10001','B':'11110 10001 10001 11110 10001 10001 11110','C':'01111 10000 10000 10000 10000 10000 01111',
@@ -94,11 +94,7 @@ def lever_parts(seat,lv):
  s=SEATS[seat];label,y,L,km,r,letter,_=lv;P=np.array((s['px'],y,s['zp']));d=lever_dir(0)
  shaft=Shape();shaft.tube(P,P+L*d,.0045,10);boss=Shape();boss.tube(P+(0,-.009,0),P+(0,.009,0),.011,12)
  k=Shape();kc=knob(seat,lv)
- if label=='Prop':
-  # Flat paddle: broad in lever plane, only 8 mm thick across the gate.
-  k.box(kc,(.026,.008,.034))
- elif label=='Mixture':k.tube(kc-d*.009,kc+d*.009,.009,16)
- else:k.sphere(kc,r,24,14)
+ k.sphere(kc,r,24,14)
  return P,kc,[('P3_ControlMetal',shaft,None),('Cockpit_quadrant',boss,None),(km,k,None)]
 
 def build(g,doc):
@@ -151,9 +147,7 @@ def build(g,doc):
   # ---- levers
   for lv in LEVERS:
    label=lv[0];P,kc,parts=lever_parts(seat,lv)
-   letter=lv[5];d=lever_dir(0);r=lv[4];deco=Shape();duv=[]
-   quad(deco,duv,kc+d*(r+.0006),(0,-1,0),np.cross(d,(0,-1,0)),.014,.0078,(.44,UV['knob'+letter][1],.56,UV['knob'+letter][3]))
-   parts.append(('GL_Placard_Atlas',deco,duv))
+   # Plain round v6 knobs: no floating letter cards.
    if label=='Throttle':
     nm='Throttle_'+s['sfx'];set_mesh(g,nm,parts,P);parent=W[names['Controls']]
     assert np.allclose(parent[:3,:3],np.eye(3))
@@ -241,7 +235,7 @@ def build_photo_console(g,doc,controls,rigrows,names):
  """Ty's 2026-11-03 photos: grey console, outboard laminated quadrant, braided trim."""
  nodes=g.doc['nodes']
  g.material('GL_ConsoleGrey',(.28,.29,.30));g.material('GL_RopeWhite',(.91,.90,.83))
- cells=[(t,t,(245,245,240),(12,12,14)) for t in ['BATTERY|MASTER','ALT OUT','FUEL PUMP','ON','THROTTLE','RPM','MIXTURE','CLOSED','DEC','T']]
+ cells=[(t,t,(245,245,240),(12,12,14)) for t in ['MASTER','ALT','FUEL|PUMP','NAV','STROBE','LDG','ON','THROTTLE','RPM','MIXTURE','CLOSED','DEC','T']]
  data,uv=atlas(cells)
  with tempfile.TemporaryDirectory() as td:
   path=Path(td)/'photo.png';path.write_bytes(data);g.material('GL_PhotoLabels',(1,1,1),png=path)
@@ -256,37 +250,53 @@ def build_photo_console(g,doc,controls,rigrows,names):
   body=Shape();body.box((bx,by,z-.0375),(.130,.070,.075))
   put('GL_SwitchStrip_'+s['sfx'],[('GL_ConsoleGrey',body,None)],(bx,by,z))
   labels=Shape();luv=[];metal=Shape();black=Shape()
-  for j,(lab,key) in enumerate([('Master','BATTERY|MASTER'),(None,'ALT OUT'),('FuelPump','FUEL PUMP')]):
-   P=np.array((bx-.040+j*.040,by,z+.004))
-   black.box(P+(0,0,-.002),(.038,.064,.003))
-   metal.tube(P,P+(0,0,.010),.007,12);metal.tube(P+(0,0,.009),P+(.006,0,.029),.0028,10)
-   quad(labels,luv,P+(0,-.017,.001),(1,0,0),(0,1,0),.036,.021,uv[key])
-   if lab:
-    c=next(c for c in controls if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
-    # Authored toggle mesh and pivot now on the horizontal console top.
-    toggle=Shape();toggle.tube(P,P+(0,0,.025),.0028,10)
-    put(c['node'],[('P3_ControlMetal',toggle,None)],P)
-    nodes[names['Mount_'+c['grip'][5:]]].pop('mesh',None)
-    c.update(pivot_gltf=gl(P).tolist(),placement='Compact left-wall console aft of full lever sweep',label=key.replace('|',' '))
-    nodes[names[c['node']]]['extras']['interaction']=c
-    if c['node'] in rigrows:rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
-  quad(labels,luv,(bx,by+.024,z+.006),(0,-1,0),(1,0,0),.035,.010,uv['ON'])
-  # Existing auxiliary inputs become breakers on the vertical inboard console face.
-  for j,lab in enumerate(['CarbHeat','Smoke','NavLights','Strobe','LandingLight']):
+  # Six fore/aft toggles on the inboard face; six matching breakers on top.
+  # Top row is forward. Across each row reads left to right from the seat.
+  import copy
+  template=next(c for c in controls if c['seat']==seat and c['param']=='master')
+  alt=copy.deepcopy(template);alt.update(node='Ctl_Toggle_Alternator'+s['ctl'],param='alternator',grip='Grip_Alternator'+s['ctl'],poke='Poke_Alternator'+s['ctl'])
+  controls.append(alt)
+  nodes.append(dict(name=alt['node'],extras={}));names[alt['node']]=len(nodes)-1;g.doc['scenes'][0]['nodes'].append(names[alt['node']])
+  for child in [alt['grip'],alt['poke']]:
+   nodes.append(dict(name=child,translation=gl((-.009,-.022,0)).tolist()))
+   nodes[names[alt['node']]].setdefault('children',[]).append(len(nodes)-1)
+  row=copy.deepcopy(rigrows[template['node']]);row.update(node=alt['node'],param='alternator');doc['rig'].append(row);rigrows[alt['node']]=row
+  layout=[('Master','MASTER'),('Alternator','ALT'),('FuelPump','FUEL|PUMP'),('NavLights','NAV'),('Strobe','STROBE'),('LandingLight','LDG')]
+  for j,(lab,key) in enumerate(layout):
+   row,col=divmod(j,3)
+   xx=bx-.040+col*.040; yy=by+(.017 if row==0 else -.017)
+   # Buttons occupy a 2 x 3 grid on the horizontal lid.
+   B=np.array((xx,yy,z+.002))
+   metal.tube(B,B+(0,0,.004),.006,16);black.tube(B+(0,0,.004),B+(0,0,.012),.0045,12)
+   quad(labels,luv,B+(0,-.010,.001),(1,0,0),(0,1,0),.036,.009,uv[key])
+   # Toggle stems point inboard and lean aft at OFF; +80 about builder Y = forward ON.
+   P=np.array((bx-.027+col*.027,by-.037,z-.020-row*.034))
+   black.box(P+(0,.001,0),(.026,.003,.031));metal.tube(P,P+(0,-.004,0),.006,12)
    c=next(c for c in controls if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
-   P=np.array((bx-.048+j*.024,by-.036,z-.038));sh=Shape();sh.tube(P,P+(0,-.013,0),.005,10)
+   toggle=Shape();tip=P+(-.009,-.022,.011);toggle.tube(P,tip,.0028,12);toggle.sphere(tip,.0032,12,8)
+   put(c['node'],[('P3_ControlMetal',toggle,None)],P)
+   mount='Mount_'+c['grip'][5:]
+   if mount in names:nodes[names[mount]].pop('mesh',None)
+   c.update(kind='Toggle',axis_gltf=[0.,0.,1.],pivot_gltf=gl(P).tolist(),travel=80,travel_unit='deg',placement='v6 console 2x3 fore/aft toggles; forward ON',label=key.replace('|',' '))
+   ex=nodes[names[c['node']]].setdefault('extras',{})
+   ex.update(rig_param=c['param'],rig_axis_gltf=[0.,0.,1.],rig_map_param=[0.,1.],rig_map_deg=[0.,80.],rig_param_model=0.,interaction=c)
+   for ch in nodes[names[c['node']]].get('children',[]):nodes[ch]['translation']=gl(tip-P).tolist()
+   rigrows[c['node']].update(kind='rot',axis_gltf=[0.,0.,1.],pivot_gltf=c['pivot_gltf'],map=[[0,0],[1,80]],model=0.,desc=c['placement'])
+   quad(labels,luv,P+(0,-.004,-.011),(1,0,0),(0,0,1),.026,.009,uv[key])
+  # Keep the pre-existing smoke/carb controls as discrete underslung auxiliaries.
+  for j,lab in enumerate(['CarbHeat','Smoke']):
+   c=next(c for c in controls if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
+   P=np.array((bx-.045+j*.09,by-.037,z-.085));sh=Shape();sh.tube(P,P+(0,-.013,0),.004,10)
    put(c['node'],[('Cockpit_black',sh,None)],P);nodes[names['Mount_'+c['grip'][5:]]].pop('mesh',None)
-   c.update(pivot_gltf=gl(P).tolist(),placement='Left console breaker face',label=LABEL[lab].replace('|',' '))
+   c.update(pivot_gltf=gl(P).tolist(),placement='Underslung auxiliary control')
    nodes[names[c['node']]]['extras']['interaction']=c
-   if c['node'] in rigrows:rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
-  for xx in np.linspace(bx-.048,bx+.048,5):
-   for zz in [z-.038,z-.060]:
-    metal.tube((xx,by-.036,zz),(xx,by-.040,zz),.006,12);black.tube((xx,by-.040,zz),(xx,by-.050,zz),.004,10)
+   rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
   put('GL_ConsoleHardware_'+s['sfx'],[('P3_ControlMetal',metal,None),('Cockpit_black',black,None),('GL_PhotoLabels',labels,luv)],(bx,by,z))
+  nodes[names['GL_ConsoleHardware_'+s['sfx']]]['extras']={'switch_order':['master','alternator','fuel_pump','nav_lights','strobe','landing_light'],'breaker_order':['master','alternator','fuel_pump','nav_lights','strobe','landing_light'],'layout':[2,3],'forward_on':True}
   metal=Shape();black=Shape();labels=Shape();luv=[]
   # Distinct black plates with silver spacers, rather than a solid grey gate block.
   plates=Shape()
-  for y in [.251,.275,.299,.323,.339]:
+  for y in [.243,.273,.303,.333]:
    outline=[(x-.071,s['zp']-.027),(x+.071,s['zp']-.027)]+[(x+.071*math.cos(a),s['zp']+.025+.071*math.sin(a)) for a in np.linspace(0,math.pi,25)]
    verts=[(xx,yy,zz) for yy in [y-.0015,y+.0015] for xx,zz in outline];n=len(outline)
    faces=[]
@@ -294,20 +304,26 @@ def build_photo_console(g,doc,controls,rigrows,names):
    for j in range(n):k=(j+1)%n;faces.extend([(j,k,n+k),(j,n+k,n+j)])
    plates.add(verts,faces)
    metal.tube((x-.058,y-.002,s['zp']-.016),(x-.058,y+.004,s['zp']-.016),.004,10)
-  for y,key in [(.312,'THROTTLE'),(.288,'RPM'),(.264,'MIXTURE')]:
-   quad(labels,luv,(x+.030,y,s['ztop']+.002),(1,0,0),(0,1,0),.080,.017,uv[key])
-   quad(labels,luv,(x-.043,y,s['ztop']+.002),(1,0,0),(0,1,0),.050,.013,uv['CLOSED' if key=='THROTTLE' else 'DEC'])
-  # Red star is a fixed friction adjuster on the inboard cheek.
-  star=Shape();C=np.array((x-.018,.244,s['zp']+.050))
-  star.tube(C,C+(0,-.019,0),.014,12)
-  for a in np.linspace(0,2*math.pi,6,endpoint=False):
-   d=np.array((math.cos(a),0,math.sin(a)));star.tube(C+.009*d,C+.024*d+(0,-.008,0),.008,6)
-  put('GL_Quadrant_'+s['sfx'],[('Cockpit_black',plates,None),('P3_ControlMetal',metal,None),('Cockpit_black',black,None),('Cockpit_knob_red',star,None),('GL_PhotoLabels',labels,luv)],(x,.29,z))
-  # White cable below the quadrant, with two interwoven surface strands.
-  c=next(c for c in controls if c['seat']==seat and c['param']=='trim');P=np.array((x-.08,.322,-.285))
-  clamp=Shape();clamp.tube(P+(0,-.005,0),P+(0,.005,0),.0045,12)
-  pointer=Shape();pointer.box(P+(0,-.002,.012),(.002,.003,.024))
-  put(c['node'],[('P3_ControlMetal',clamp,None),('Cockpit_knob_red',pointer,None)],P)
+  for lab in ['Prop','Mixture']:
+   nodes[names['Mount_'+lab+s['ctl']]].pop('mesh',None)  # obsolete push-pull pads filled the quadrant slots
+  # Narrow supported name strips beside each slot; leave the entire shaft sweep open.
+  for y,key in [(.318,'THROTTLE'),(.288,'RPM'),(.258,'MIXTURE')]:
+   black.box((x,y+.0125,s['ztop']),(.120,.004,.003))
+   quad(labels,luv,(x,y+.0125,s['ztop']+.0016),(1,0,0),(0,1,0),.080,.0038,uv[key])
+  put('GL_Quadrant_'+s['sfx'],[('Cockpit_black',plates,None),('P3_ControlMetal',metal,None),('Cockpit_black',black,None),('GL_PhotoLabels',labels,luv)],(x,.29,z))
+  # Window and cord run alongside the compact console, below its inboard edge.
+  c=next(c for c in controls if c['seat']==seat and c['param']=='trim')
+  P=np.array((bx,.263,-.245))
+  frame=Shape();frame.box(P+(0,.006,0),(.160,.008,.034))
+  window=Shape();window.box(P+(0,0,0),(.138,.003,.022))
+  index=Shape();index.box(P+(-.072,-.003,0),(.008,.003,.002))
+  for xx in np.linspace(-.06,.06,9):index.box(P+(xx,-.003,.008),(.001,.002,.004))
+  put('Mount_'+c['grip'][5:],[('Cockpit_quadrant',frame,None),('Cockpit_black',window,None),('P3_ControlMetal',index,None)],P)
+  pointer=Shape();pointer.box(P+(0,-.003,0),(.003,.002,.014))
+  put(c['node'],[('Cockpit_knob_red',pointer,None)],P)
+  c.update(pivot_gltf=gl(P).tolist(),placement='v6 indicator inside window beside console; index at left; cord separate')
+  nodes[names[c['node']]]['extras']['interaction']=c
+  rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
   for ch in nodes[names[c['node']]].get('children',[]):nodes[ch]['translation']=[0,0,0]
  g.doc['extras']['vrCockpitPhase3a']['placement_v4']='Ty photos 2026-11-03: ignition only on panels; console toggles/breakers; laminated quadrant; braided cable trim; no fuel valve'
 
@@ -320,7 +336,7 @@ def build_linkages(g,doc,controls,names):
   set_mesh(g,name,parts,np.array(P));nodes[names[name]]['translation']=gl(P).tolist()
  # Cord stays at the existing indicator height across both cockpits, then follows
  # the narrowing left fuselage toward the tail. Fairleads are open rings.
- route=[(-.79,.322,-.285),(-2.18,.322,-.285),(-2.65,.255,-.26),(-3.25,.175,-.22),(-3.95,.095,-.18),(-4.5,.045,-.15)]
+ route=[(-.79,.253,-.270),(-2.18,.253,-.270),(-2.65,.255,-.26),(-3.25,.175,-.22),(-3.95,.095,-.18),(-4.5,.045,-.15)]
  rope=Shape();guides=Shape()
  for A,B in zip(route,route[1:]):
   A=np.array(A);B=np.array(B);d=B-A;length=np.linalg.norm(d);d/=length
@@ -329,7 +345,7 @@ def build_linkages(g,doc,controls,names):
   for phase in [0,math.pi]:
    pts=[A+t*d+.0024*(math.cos(t*950+phase)*u+math.sin(t*950+phase)*v) for t in np.linspace(0,length,int(length*800)+2)]
    for aa,bb in zip(pts,pts[1:]):rope.tube(aa,bb,.00065,5)
- for x,y,z in [(-.83,.322,-.285),(-1.48,.322,-.285),*route[1:-1]]:
+ for x,y,z in [(-.83,.253,-.270),(-1.48,.253,-.270),*route[1:-1]]:
   C=np.array((x,y,z))
   pts=[C+np.array((0,.008*math.cos(t),.008*math.sin(t))) for t in np.linspace(0,2*math.pi,17)]
   for aa,bb in zip(pts,pts[1:]):guides.tube(aa,bb,.0018,6)

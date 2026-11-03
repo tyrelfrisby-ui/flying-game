@@ -115,3 +115,11 @@ Hierarchy: `Cockpit` (group) > `Instruments_Front`, `Instruments_Rear`, `Control
 - Pitts and Extra: the front seat gets a working ASI, altimeter and G-meter; the rear seat gets the full panel.
 - Aircraft with electrics get their real avionics: the Great Lakes, Pitts and Extra rear panels carry the compact radio + transponder heads (this doc for the GL). The J-3 and 2-33 have no electrics, so no radios.
 - Still none anywhere: intercoms, headsets, tablet mounts, other avionics boxes.
+
+## Cockpit hardware v6 (Ty, 2026-11-03)
+
+The current hardware and binding source is `gl_quadrant_v3.py`, rebuilt from its pinned base. Both seats have three slotted quadrant levers with round black throttle, blue prop and red mixture knobs, staggered 150/135/120 mm shafts. All use 50-degree fore/aft rotation about glTF +Z; 1 is forward.
+
+The compact aft switch box has MASTER / ALT / FUEL PUMP above NAV / STROBE / LDG, plus six corresponding circuit breakers in the same two rows on its lid. `Ctl_Toggle_Alternator[_Front]` adds the `alternator` visual interaction, with its own Grip/Poke nodes. These six switches use glTF +Z and map 0 to 0 degrees, 1 to 80 degrees; their authored OFF stems lean aft and the ON endpoint is forward. Electrical systems remain visual-only through the existing panel control path.
+
+`Ctl_Rotary_Trim[_Front]` retains its translation input and ±60 mm travel but draws only the red slider inside the separate window. The fixed index is on the left; braided cord runs alongside the box without a pointer/clamp. Fuel selector handles and linked rod are unchanged. Updated node positions/maps are authoritative in `great-lakes-own-rig.json`; older tables above describe the original v13 cockpit.

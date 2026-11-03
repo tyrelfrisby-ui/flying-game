@@ -35,6 +35,8 @@ def main():
    ids=g.array(p['indices']).reshape(-1,3) if 'indices' in p else np.arange(len(v)).reshape(-1,3);out.append(v[ids])
   return np.concatenate(out)
  for seat,s in q.SEATS.items():
+  for lab in ['Prop','Mixture']:
+   assert 'mesh' not in N[names['Mount_'+lab+s['ctl']]],(seat,lab,'obsolete mount fills slot')
   own={'Throttle_'+s['sfx'],'GL_Quadrant_'+s['sfx']}
   for lab in ('Prop','Mixture'):own|={'Ctl_PushPull_'+lab+s['ctl'],'Mount_'+lab+s['ctl']}
   lo=np.array((s['px']-.2,.15,s['zp']-.1));hi=np.array((s['px']+.2,.45,s['ztop']+.25));env=[]
@@ -58,7 +60,7 @@ def main():
    for ang in range(0,51):
     d=q.lever_dir(ang);top=P+L*d;kc=P+q.rot(kc0-P,ang)
     zs=np.linspace(0,1,12);shaft=[P+t*(top-P) for t in zs if (P+t*(top-P))[2]>s['ztop']+.002]
-    for pt,rad in [(x,.0045) for x in shaft]+[(kc,.022 if label=='Prop' else .013 if label=='Mixture' else r)]:
+    for pt,rad in [(x,.0045) for x in shaft]+[(kc,r)]:
      dd=pt_tri(np.asarray(pt),env).min()-rad
      if dd<worst[0]:worst=(dd,(label,ang))
   if worst[0]<.003:fails.append((seat,'lever sweep clearance',worst))
@@ -111,12 +113,29 @@ def main():
     t1=(hi-eye)/np.where(abs(delta)>1e-12,delta,1e-12)
     assert max(0,np.minimum(t0,t1).max())>min(1,np.maximum(t0,t1).min()),(seat,'console occludes card')
  print('IAC holder bounds and both eye-to-card face sightlines clear of console boxes')
+ # V6 switch layout and actual grip travel: forward must be ON in both cockpits.
+ for seat,s in q.SEATS.items():
+  order=['master','alternator','fuel_pump','nav_lights','strobe','landing_light']
+  hardware=N[names['GL_ConsoleHardware_'+s['sfx']]]['extras']
+  assert hardware['breaker_order']==order and hardware['layout']==[2,3]
+  pivots=[]
+  for param in order:
+   c=next(c for c in C if c['seat']==seat and c['param']==param)
+   row=rig[c['node']];assert row['axis_gltf']==[0.,0.,1.] and row['map']==[[0,0],[1,80]]
+   P=builder(W[names[c['node']]][:3,3]);tip=builder(W[names[c['grip']]][:3,3]);on=P+q.rot(tip-P,80)
+   assert on[0]>tip[0]+.015,(seat,param,'ON is not forward')
+   pivots.append(P)
+  assert np.ptp(np.array(pivots[:3])[:,2])<1e-6
+  assert np.ptp(np.array(pivots[3:])[:,2])<1e-6
+  assert pivots[0][2]>pivots[3][2]
+  assert pivots[0][0]<pivots[1][0]<pivots[2][0]
+  print(seat,'six 2x3 toggles: ON forward; matching breaker order OK')
  q.check_row(g)
  # Wall trim contract: linked translation, ND forward, NU aft; no fuel valve mesh or binding.
  for seat,s in q.SEATS.items():
   c=next(c for c in C if c['seat']==seat and c['param']=='trim');r=rig[c['node']]
   p=builder(np.array(c['pivot_gltf']))
-  if not(p[1]>.30 and -.35<p[2]<-.20 and r['kind']=='move' and r['map']==[[-1,-.06],[0,0],[1,.06]] and r['axis_gltf']==[1.,0.,0.]):fails.append((seat,'wall trim contract'))
+  if not(p[1]>.25 and -.35<p[2]<-.20 and r['kind']=='move' and r['map']==[[-1,-.06],[0,0],[1,.06]] and r['axis_gltf']==[1.,0.,0.]):fails.append((seat,'wall trim contract'))
   for nm in ('Trim_'+s['sfx'],'FuelValve_'+s['sfx'],'Mount_FuelSelector'+s['ctl']):
    if 'mesh' in N[names[nm]]:fails.append((seat,nm,'obsolete mesh'))
  for seat,s in q.SEATS.items():
