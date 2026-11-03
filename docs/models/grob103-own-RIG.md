@@ -1,3 +1,21 @@
+# Current rig: Blanc Twin III Acro conversion, review pending
+
+The 2026-11-03 Blanc conversion retains all 29 driven node names, parameters,
+travel maps, extra fields and cockpit parent relationships. Surface origins and
+axis markers now follow the extracted source surfaces. The generated
+`grob103-own-rig.json` is authoritative; the historical pivot table below is
+superseded for this asset. No runtime binding or physics station was changed.
+
+Proposed visual eyes in native glTF: front (-1.15, .16, 0), rear (.04, .22, 0).
+These fit the source canopy with the same 200 x 210 x 184 mm head-envelope
+check as the previous asset. They require Ty's approval and do not change the
+application eyepoints. The front panel and its gauge layers moved down .07 m
+together. Glass and frame are separate static nodes; canopy animation is not
+claimed. The two independent canopy outlines retain the source's engraved bow.
+The current conversion is CC BY-SA: see the CREDITS.md beside the GLBs.
+
+---
+
 # Grob G 103A own model rig — review, not approved
 
 Author axes: metres, +X forward, +Y port (pilot LEFT), +Z up. Datum is wing-root LE, not a claimed CG.

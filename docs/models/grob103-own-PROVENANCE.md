@@ -1,3 +1,19 @@
+# Current asset: Florian Blanc Twin III Acro conversion (2026-11-03)
+
+The current two GLBs supersede the historical analytic model documented below.
+They are adaptations of Florian Blanc's CC BY-SA G103c Twin III Acro print plate,
+not original clean-room exterior geometry. See
+[asset CREDITS](../../unity/Assets/_Project/Resources/Models/glider-grob103-acro-like/CREDITS.md)
+for author, source, licence, changes, source hash and reproduction commands.
+`build_grob103_blanc.py` is the current builder; `build_grob103.py` remains the
+legacy analytic generator and supplies only the original cockpit, rig maps and
+fixed gear through a temporary build. Do not run it alone to replace the current
+asset. Geometry checks dispatch by exported source metadata and keep the legacy
+analytic checks available. Current review evidence is `renders/grob103/blanc-v1/`.
+Ty visual approval remains PENDING. The following sections are historical.
+
+---
+
 # Grob G 103A Twin II Acro — original review model
 
 2026-11-01, lane/codex-grob103. Owner: Talk Flying / Ty Frisby. **Visual acceptance pending.**

@@ -8,7 +8,11 @@ from glb_visuals import Glb
 from build_grob103 import ROOT,OUT,ID
 
 def check(path):
- g=Glb(path);nodes=g.doc['nodes'];roots=g.doc['scenes'][0]['nodes'];parents={}
+ g=Glb(path)
+ if g.doc.get('extras',{}).get('sourceModel')=='Florian Blanc G103c Twin III Acro':
+    from check_grob103_blanc import check as check_blanc
+    return check_blanc(path)
+ nodes=g.doc['nodes'];roots=g.doc['scenes'][0]['nodes'];parents={}
  for i,n in enumerate(nodes):
     for c in n.get('children',[]):
         assert 0<=c<len(nodes),(i,c)
@@ -167,4 +171,4 @@ if __name__=='__main__':
         for pa,pb in zip(a.doc['meshes'][na['mesh']]['primitives'],b.doc['meshes'][nb['mesh']]['primitives']):assert np.array_equal(a.array(pa['attributes']['POSITION']),b.array(pb['attributes']['POSITION']))
  for r in results:r['paired_geometry']='IDENTICAL'
 
- p=ROOT/'renders/grob103-own/validation.json';p.parent.mkdir(exist_ok=True,parents=True);p.write_text(json.dumps(results,indent=2)+'\n');print(json.dumps(results,indent=2))
+ p=ROOT/('renders/grob103/blanc-v1/validation.json' if a.doc.get('extras',{}).get('sourceModel') else 'renders/grob103-own/validation.json');p.parent.mkdir(exist_ok=True,parents=True);p.write_text(json.dumps(results,indent=2)+'\n');print(json.dumps(results,indent=2))
