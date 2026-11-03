@@ -1,4 +1,29 @@
 ## NEEDS YOU
+- **QUEST + ALL PLATFORMS: THE J-3 IS OUR OWN MODEL ON WHEELS AND ON FLOATS, AND IT IS IN THE HEADSET (Claude,
+  2026-11-02, lane/claude-vr-quest, a8174695 · 9e5f31ad · e0c4d22c · 541dd6be) — Ty: "get the eye location fixed on
+  the j3 and add it to quest too both on wheels and floats". Code only: NOT built (`deploy.sh` not run: src/ changed,
+  so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the rebuild:**
+  1. **Eye.** VR menu → Aircraft → **J-3**, FLY. You should be in the REAR seat of a yellow J-3 with a cabin round
+     you: the liner about a hand over your head, the side windows at your shoulders, the front seat and the panel
+     ahead. Then **J-3 on floats**: the same seat, the same view, the floats under you. Is the eye height right? (It
+     is the approved v5 rear eye, unchanged, for both.)
+  2. **Front seat.** The headset offers the rear only: the approved front eye has a cabin ceiling tube 9 cm from it.
+     Tell me if the front eye should come down / aft, and I put the front seat back in the headset.
+  3. **Does it move?** Stick, pedals, both throttles, trim crank and stab, the ASI / tach / altimeter / oil /
+     compass, mag switch on BOTH; on floats the water rudder. `adb logcat -s Unity | grep -E "Airframe|Cockpit"` should
+     say `j3-cub-like-own: the model's own rig drives 26 of 26 nodes` and `the hinge carve is skipped`.
+  4. **On the water.** The floats should sit in the water with the decks dry. **Do NOT use full rudder on a taxi**:
+     it capsizes the J-3 (and the Super Cub) in about 4 s, see the log. Half rudder turns fine.
+  5. **The float geometry is two different floats.** Our drawing (Codex, from Piper/EDO dwg 60-S-908A: 4.43 m long,
+     1.905 m track) and the flight model's float block (9e3b5db7, sized to the 1,320 lb rating without dimensions:
+     4.30 m, 2.52 m track) disagree: each drawn float is **0.317 m inboard** of the one the water pushes on, and the
+     physics keel is 16–22 cm below the drawn keel at the bow and stern. On water this barely shows; on a ramp or a
+     beach the J-3 will rest on points outside its floats. Your call: move the flight model to the drawing (a re-tune
+     of the J-3's water handling) or leave it.
+  6. **Paint.** The J-3 now wears only its baked-in paint (yellow, black bolt, the bear on the fin). The Talk Flying
+     wing logos are gone from it: they were laid on the config's wing, which is 5.8 cm inside our wing. Want them
+     baked into the GLB?
+  **Nothing approved.**
 - **QUEST: THE CLIPS — SIGHT AND WATER IN THE RECORDING, 48 kHz SOUND, ADB RECORD, A HITCH LINE (Claude, 2026-11-02,
   lane/claude-vr-quest). Ty's two a222bda clips + the 677e374 log. Code only: NOT built (`deploy.sh` not run: src/
   changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the rebuild:**
@@ -1027,6 +1052,56 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · the J-3's own model on wheels and floats, its eye, the headset, the water
+Ty 16:04: "get the eye location fixed on the j3 and add it to quest too both on wheels and floats".
+**What was wrong.** The J-3 drew the procedural closed tube: both own GLBs (Codex v15, `j3-cub-like-own.glb`,
+  `j3-cub-floats-like-own.glb`) were in Resources with no `OwnSpecs` entry, and its rig lived only in the GLB extras
+  with no `-rig.json`, so even placed it would have been carved by the config's hinges.
+**Wiring (a8174695).** `OwnSpecs` + `PickOwn` always, wheels and floats. `j3_rig_json.py` writes
+  `docs/models/j3-cub-own-rig.json` and `j3-cub-floats-own-rig.json` from the extras (26 nodes each; static: carb heat,
+  primer, fuel valve, fuel wire, doors, water-rudder retract; prop via BindModelProp). `RigInputs.FromDeflections`
+  takes the elevator's up stop (J-3 34 up / 29 down). Talk Flying markings not laid over our J-3.
+**Floats placement.** "Lowest point on the deepest contact" lands the floats GLB's keel on the physics keel
+  (1.494 vs 1.495 below the CG), but that sits the airframe 4.54 cm lower under the CG than the landplane's, and the
+  approved eye (one number for both configs, measured on the landplane) 4.5 cm higher in the cabin: liner 11.4 cm
+  away, skin within 12 cm 2.5 % → FAIL. The aeroplane does not move on its own CG when floats go on, so
+  `Spec.SitHighM` 0.0454 holds the airframe at the landplane's height (checked to 0.0 mm by the checker) and the
+  drawn keel sits 4.7 cm above the physics keel. I did not move the approved eye.
+**Eye (check_eye_interiors.py, 9e5f31ad), as the game places each model.** Primary seat: **rear** (eyepoints.json v5,
+  `primary: true`), eye (-0.840, 0, -0.489) body m, the same in both configs.
+  - J-3 wheels, rear: 0.0 % skin within 12 cm; nearest the cabin liner overhead at **15.9 cm** (then wing 16.2,
+    fuselage 16.5, ceiling tubes 22.9); in the cabin (sides 0.31 m each way, floor 0.73 m below); first solid thing
+    ahead 1.73 m (front seat / panel), 10° over the nose 1.37 m; both sides open through the windows; sky blocked
+    92 % (a high wing).
+  - J-3 floats, rear: identical (the airframes coincide).
+  - Front eye (-0.157, 0, -0.599), both configs: 5.2 % within 12 cm, a ceiling tube at **9.1 cm** → hidden from the
+    headset (QuestFleet.SeatsOnly), kept on phones / Mac. Not moved: it is an approved number.
+  - QUEST LIST: PASS.
+**Quest (e0c4d22c).** Listed: 2-33, J-3, J-3 on floats, Extra, Pitts, Great Lakes (fleet order). The Seat row offers
+  the J-3's rear only; `SeatIdFor` reads a saved "front" as the primary seat in a headset. iOS / Mac already list
+  both J-3s and now draw the same own model.
+**Water (541dd6be, J3FloatsWaterTests, engine-free).** At rest: CG 1.256 m above the water, physics draft at the
+  step 0.232 m (9e3b5db7's 23.3 cm), buoyancy 5783 N against 5785 N; the DRAWN keel 0.19 m under, deck 0.31 m clear.
+  Taxi 10 %: 5.5 m/s; half right rudder turns it 269° in 20 s, |roll| ≤ 1.8°. Takeoff, full power: airborne 25.8 s,
+  403 m, |pitch| ≤ 11.4°. Water landing from a 23 m/s power-off glide: touchdown 20.5 m/s at 0.81 m/s sink, 0.9 g,
+  pitch ≤ 23°, below 3 m/s at 26.9 s, afloat 30 s later at 0.231 m draft, roll 0.0.
+**Found, not fixed (water model, lane/claude-crash-water).** Full rudder on a 10–30 % taxi (5.5–7.3 m/s): turned
+  115–170° in 2 s, speed up to ~10 m/s on the same power, |roll| 180 within 4–6 s. Same for pa18-floats-like, and the
+  same on lane/claude-crash-water a1e97493 (where the wreck then settles). At idle neither seaplane moves (0.00 m/s
+  after 30 s). `FullRudderOnATaxiDoesNotCapsizeIt` is the red test, skipped with that reason.
+**Found, not changed (flight model).** Drawn floats against the physics float block: centre ±0.943 vs ±1.26 m (0.317
+  m), bow +2.045 vs +2.29, transom −2.40 vs −2.01, beam 0.536 vs 0.585, keel at the contact points (bow / step /
+  stern) drawn 1.187 / 1.448 / 1.202 vs physics 1.41 / 1.495 / 1.36.
+**Checks.** Targeted tests: QuestFleet, J3OwnModel, J3FloatsWater (4 pass, 1 skipped as above), ModelRig,
+  CockpitLive, CockpitEye, SeatChoice, Float, Displacement, FloatsOnLand, WheelHydro, AircraftLoad, ControlTravel,
+  ControlPolarity, LiveryPicker, StreamingAssets. Failing: ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake,
+  StreamingAssetsTests.EveryGeneratedPathIsIgnored and .NothingGeneratedIsCommitted, all three failing identically
+  on the branch point bfbbdf10. Full suite not run. Roslyn (build/agent/check4): 0 errors for Core, Sim, Bridge,
+  Quest (editor); Android Bridge + Quest and iOS Bridge 0 errors with the editor's InputSystem / OpenXR DLLs standing
+  in for the player copies missing from Library/Bee. No Unity, no build, no adb.
+**Not checked:** a render. The rig's signs are Codex's (asserted by his build), the floats' look in the water and
+  the cabin from the seat are measured, not seen.
+
 ### 2026-11-02 — Claude · lane/claude-vr-quest · Ty's two clips: the dive "freeze", water grid, clip sound, Pitts gauges + shadow, the sight in recordings
 Evidence: AeroQuest-20261102-131546.mp4 (Pitts), -131749.mp4 (Great Lakes), both from a222bda, read with ffprobe /
 ffmpeg (frames to /tmp/qv, never modified); quest-logs/ty-unity-5517.txt + live.txt (677e374). adb: the headset was

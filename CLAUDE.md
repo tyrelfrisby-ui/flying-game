@@ -247,3 +247,12 @@ flickering light-blue grid on the sea. Ty reported that grid as z-fighting. When
 the scene's shaders and components key on per camera (Camera.main checks, onPreCull hooks, depth / reflection
 textures, layers), and give each one to the new camera explicitly (`CockpitSights.MirrorCamera`,
 `_WaterSceneDepthOff`) or switch it off for that render on purpose.
+
+### One airframe on two undercarriages must sit in one place on its CG
+`AirframeModels.Place` grounds a model by putting its lowest point on the deepest contact point. For the J-3 that
+landed the floats GLB's keel on the physics keel to the millimetre, and moved the whole airframe 4.5 cm down under
+the CG compared with the landplane, so the one approved eye (measured on the landplane, copied into both configs)
+sat 4.5 cm higher in the cabin and failed the 12 cm check. The CG is a point IN the airframe: bolting floats on
+does not move it. When two configs share an airframe and an eye, place the second so its airframe coincides with
+the first (`Spec.SitHighM`), let the new gear be the thing that is off, and gate the coincidence
+(`check_eye_interiors.py` prints `COINCIDE`). Before trusting an eye in a variant, measure it in that variant.
