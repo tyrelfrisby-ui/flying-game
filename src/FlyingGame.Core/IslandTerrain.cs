@@ -64,8 +64,8 @@ public static partial class IslandTerrain
     {
         var cache=heightCache??=new HeightCacheEntry[16384];long e=BitConverter.DoubleToInt64Bits(p.E),n=BitConverter.DoubleToInt64Bits(p.N);
         ulong hash=unchecked((ulong)e*11400714819323198485UL^(ulong)n*14029467366897019727UL);hash^=hash>>33;hash=unchecked(hash*0xff51afd7ed558ccdUL);hash^=hash>>33;
-        int index=(int)(hash&16383);var found=cache[index];if(found.Used&&found.E==e&&found.N==n)return found.Height;
-        double h=Evaluate(p);cache[index]=new HeightCacheEntry{E=e,N=n,Height=h,Used=true};return h;
+        int index=(int)(hash&16383);var found=cache[index];SimProfile.CountHeightQuery();if(found.Used&&found.E==e&&found.N==n)return found.Height;
+        SimProfile.CountHeightEvaluation();double h=Evaluate(p);cache[index]=new HeightCacheEntry{E=e,N=n,Height=h,Used=true};return h;
     }
     /// <summary>Height and analytic branch derivatives (metres per sim metre), evaluated together.
     /// Generated from IslandHeightIndex; no displaced samples. At creases/ties the evaluator's
@@ -104,15 +104,34 @@ public static partial class IslandTerrain
     {
         var p = new IslandPoint(y / 1000, x / 1000);
         foreach (var f in Fields) if (f.Contains(p)) return f.Surface == "asphalt" || f.Surface == "paved" ? WorldTerrain.Surface.Paved : f.Surface.Contains("grass") || f.Surface == "turf" ? WorldTerrain.Surface.Grass : WorldTerrain.Surface.Gravel;
-        foreach (var q in World["glaciers"].Items) if (Path(p, q["path"]).d <= q.N("half_width_m") / 1000 || (p - q["ski_zone"]["centre"].Point).Length < .15) return WorldTerrain.Surface.Snow;
-        foreach(var q in World["mesa_pads"].Items)
+        foreach (var q in SurfaceTables.Glaciers) if (Path(p, q.Path).d <= q.HalfWidthKm || (p - q.SkiCentre).Length < .15) return WorldTerrain.Surface.Snow;
+        foreach(var q in SurfaceTables.MesaPads)
         {
-            var d=p-q["centre"].Point;var u=IslandPoint.Heading(q.N("heading_true_deg"));
-            if(Math.Abs(d.Dot(u))<=q.N("length_m")/2000&&Math.Abs(d.E*u.N-d.N*u.E)<=q.N("width_m")/2000)return WorldTerrain.Surface.Gravel;
+            var d=p-q.Centre;var u=q.U;
+            if(Math.Abs(d.Dot(u))<=q.HalfLengthKm&&Math.Abs(d.E*u.N-d.N*u.E)<=q.HalfWidthKm)return WorldTerrain.Surface.Gravel;
         }
         if (IslandWater.GravelBar(p)) return WorldTerrain.Surface.Gravel;
         return WorldTerrain.Surface.Rough;
     }
+}
+
+/// <summary>The glaciers and mesa pads <see cref="IslandTerrain.SurfaceAt"/> tests, read out of the world description
+/// once instead of by string key on every call (a wheel on the ground asks at every RK4 stage). Same numbers, same
+/// arithmetic: each divisor is applied once here instead of once a call.</summary>
+internal static class SurfaceTables
+{
+    internal readonly struct Glacier
+    {
+        public readonly IslandValue Path; public readonly double HalfWidthKm; public readonly IslandPoint SkiCentre;
+        public Glacier(IslandValue q) { Path = q["path"]; HalfWidthKm = q.N("half_width_m") / 1000; SkiCentre = q["ski_zone"]["centre"].Point; }
+    }
+    internal readonly struct MesaPad
+    {
+        public readonly IslandPoint Centre, U; public readonly double HalfLengthKm, HalfWidthKm;
+        public MesaPad(IslandValue q) { Centre = q["centre"].Point; U = IslandPoint.Heading(q.N("heading_true_deg")); HalfLengthKm = q.N("length_m") / 2000; HalfWidthKm = q.N("width_m") / 2000; }
+    }
+    public static readonly Glacier[] Glaciers = IslandTerrain.World["glaciers"].Items.Select(q => new Glacier(q)).ToArray();
+    public static readonly MesaPad[] MesaPads = IslandTerrain.World["mesa_pads"].Items.Select(q => new MesaPad(q)).ToArray();
 }
 
 public sealed class IslandField

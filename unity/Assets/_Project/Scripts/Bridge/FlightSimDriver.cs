@@ -276,27 +276,44 @@ namespace FlyingGame.Bridge
                 spawnX = authored.Value.X; spawnY = authored.Value.Y; spawnAlt = authored.Value.AltitudeM;
                 spawnHdg = authored.Value.HeadingTrueDeg * System.Math.PI / 180;
             }
-            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, spawnAlt);
-            TrimStick = trim.Converged ? Aircraft.StickForDeflection(trim.ElevatorRad, config.Controls.Elevator) : 0.0;
-            if (!trim.Converged)
+            // Start HANDS OFF at the type's rig condition (owner 2026-11-02): a powered aeroplane level at 75 % power -- the
+            // throttle the air start sets (TouchFlightControls.PresetTrim) -- at the speed that power holds at this height,
+            // with the trim slider on the elevator that holds it; a glider at its best-glide speed (a hang glider at its hands-off speed). RigSolver uses the
+            // airframe's fixed rig, so with the stick and rudder centred it flies straight. If the solve fails, the old
+            // power-off trim at the type's spawn speed stands in.
+            double startTas = SpawnIasMs, startAlpha, startTheta, startBank = 0.0, startElevator;
+            RigSolver.Result rig = config.Propulsion != null
+                ? RigSolver.SolveLevel(config, RigSolver.RigThrottle, spawnAlt)
+                : RigSolver.SolveGlide(config, RigSolver.RigGlideTasAt(config, spawnAlt), spawnAlt);
+            if (rig.Converged)
             {
-                Debug.LogError("Spawn trim failed to converge; starting from level attitude.");
+                startTas = rig.TasMs; startAlpha = rig.AlphaRad; startTheta = rig.ThetaRad; startBank = rig.BankRad; startElevator = rig.ElevatorRad;
             }
+            else
+            {
+                Debug.LogWarning($"Rig trim did not converge for {config.Id} (residual {rig.ResidualNorm:E2}); using the power-off trim.");
+                TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, spawnAlt);
+                if (!trim.Converged) Debug.LogError("Spawn trim failed to converge; starting from level attitude.");
+                startAlpha = trim.AlphaRad; startTheta = trim.ThetaRad; startElevator = trim.Converged ? trim.ElevatorRad : 0.0;
+            }
+            TrimStick = Aircraft.StickForDeflection(startElevator, config.Controls.Elevator);
 
-            double half = trim.ThetaRad / 2.0;
+            // (the bank is the fraction of a degree that carries the fin's side force with the ball centred)
+            double half = startTheta / 2.0, halfBank = startBank / 2.0;
             var pitchQ = new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half));
+            var rollQ = new Quat(System.Math.Sin(halfBank), 0, 0, System.Math.Cos(halfBank));
             var yawQ = new Quat(0, 0, System.Math.Sin(spawnHdg / 2), System.Math.Cos(spawnHdg / 2));
-            var attitude = Quat.Multiply(yawQ, pitchQ);
+            var attitude = Quat.Multiply(yawQ, Quat.Multiply(pitchQ, rollQ));
             // Spawn with the trimmed speed relative to the AIR: ground velocity = air velocity + local wind, so in
             // a crosswind the aircraft starts in a coordinated crab (zero sideslip, camera on the tail) instead of
             // a 12° sideslip that takes seconds to weathervane out.
             var spawnPos = new Vec3(spawnX, spawnY, -spawnAlt);
             var velocityBody = new Vec3(
-                SpawnIasMs * System.Math.Cos(trim.AlphaRad), 0, SpawnIasMs * System.Math.Sin(trim.AlphaRad))
+                startTas * System.Math.Cos(startAlpha), 0, startTas * System.Math.Sin(startAlpha))
                 + attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(spawnPos));
             var airState = new RigidBodyState(spawnPos, attitude, velocityBody, Vec3.Zero);
 
-            var deflections = new ControlDeflections(0, trim.ElevatorRad, 0, 0);
+            var deflections = new ControlDeflections(0, startElevator, 0, 0);
             Sim = new SimLoop(new Aircraft(config, airState, deflections));
             if (config.RetractableGear) Sim.Aircraft.SetGear(false, immediate: true);   // airborne start: wheels up
             ApplyFixedSlats(config);
@@ -342,13 +359,19 @@ namespace FlyingGame.Bridge
             return best ?? nearest;
         }
 
+        /// <summary>Stopwatch ticks spent inside SimLoop.Advance by every driver, summed (the AERO_SELFTEST=perf line reports
+        /// it per frame beside the frame time, with the player's height above the ground).</summary>
+        public static long SimAdvanceTicks;
+
         private void Update()
         {
             if (Replaying) return;
             Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors || ForceCapture;
             ControlInputs inputs = InputFilter != null ? InputFilter(Inputs, Time.deltaTime) : Inputs;
             if (AutoFilter != null) inputs = AutoFilter(inputs, Time.deltaTime);
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
             Sim.Advance(Time.deltaTime, inputs, ref _accumulator);
+            SimAdvanceTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t0;
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();
             UpdateSpinMetrics(Time.deltaTime);
