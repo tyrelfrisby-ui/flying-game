@@ -29,6 +29,7 @@ public sealed class IosLowAltitudeProbe : IDisposable
     public void SimMsPerFrameAgainstHeight()
     {
         WorldTerrain.Active = new WorldTerrain();
+        IslandGeometry.Build();   // the island's ~1,500 solids, as IslandWorldBuilder registers them on the device
         try
         {
             foreach (string type in Types)

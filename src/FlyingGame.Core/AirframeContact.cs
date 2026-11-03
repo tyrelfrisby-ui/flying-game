@@ -90,6 +90,84 @@ public static class WorldSolids
             if (sh.Penetrate(x, y, up, out Vec3 n, out double d)) return (n, d);
         return null;
     }
+
+    /// <summary>A shape that never moves and can say where it is: the broadphase (<see cref="Nearby"/>) skips it unless its
+    /// box overlaps the airframe's. Shapes without bounds (moving ones: the carrier, a tunnel's rocks) are always tested.</summary>
+    public interface IBounded { void Bounds(out double minX, out double minY, out double minUp, out double maxX, out double maxY, out double maxUp); }
+
+    /// <summary>A shape too big to bound (the forest covers the island) that can hand the broadphase a cheaper stand-in
+    /// for one region: same answers for any point inside it.</summary>
+    public interface IRegional { IShape Within(double minX, double minY, double minUp, double maxX, double maxY, double maxUp); }
+
+    /// <summary>Bump after rebuilding the solids in place (same counts), so every <see cref="Nearby"/> re-gathers.</summary>
+    public static int Version;
+
+    /// <summary>
+    /// The broadphase for one airframe (Ty, iOS 2026-11-02, "it still slows down when it gets close to the ground"):
+    /// the island registers ~1,500 solids (1,144 blocks, 297 cables) and <see cref="Penetration"/> tested every one of
+    /// them for every hard point at every RK4 stage — about 89 µs a point on a Mac, the bulk of the sim's time on an
+    /// iPad. This keeps the solids whose bounds come within <see cref="RegionMarginM"/> of the airframe and re-gathers
+    /// only when the airframe leaves that region or the solids change. Same answers as <see cref="Penetration"/>, in the
+    /// same order: a solid whose bounds miss the region cannot contain a point of the airframe.
+    /// </summary>
+    public sealed class Nearby
+    {
+        public const double RegionMarginM = 80.0;
+        private readonly System.Collections.Generic.List<Box> _boxes = new();
+        private readonly System.Collections.Generic.List<IShape> _shapes = new();
+        private double _x0 = 1, _y0 = 1, _u0 = 1, _x1 = 0, _y1 = 0, _u1 = 0;   // empty: the first Update gathers
+        private int _boxCount = -1, _shapeCount = -1, _version = -1;
+        private IShape? _lastShape;
+        /// <summary>How many times the solids were gathered (tests).</summary>
+        public int Gathers { get; private set; }
+
+        public void Update(double minX, double minY, double minUp, double maxX, double maxY, double maxUp)
+        {
+            IShape? last = Shapes.Count > 0 ? Shapes[Shapes.Count - 1] : null;
+            bool inside = minX >= _x0 && maxX <= _x1 && minY >= _y0 && maxY <= _y1 && minUp >= _u0 && maxUp <= _u1;
+            if (inside && Boxes.Count == _boxCount && Shapes.Count == _shapeCount && Version == _version && ReferenceEquals(last, _lastShape)) return;
+            _x0 = minX - RegionMarginM; _y0 = minY - RegionMarginM; _u0 = minUp - RegionMarginM;
+            _x1 = maxX + RegionMarginM; _y1 = maxY + RegionMarginM; _u1 = maxUp + RegionMarginM;
+            _boxCount = Boxes.Count; _shapeCount = Shapes.Count; _version = Version; _lastShape = last;
+            _boxes.Clear(); _shapes.Clear(); Gathers++;
+            foreach (Box b in Boxes)
+                if (b.Cx + b.Hx >= _x0 && b.Cx - b.Hx <= _x1 && b.Cy + b.Hy >= _y0 && b.Cy - b.Hy <= _y1 && b.Top >= _u0 && b.Bottom <= _u1) _boxes.Add(b);
+            foreach (IShape sh in Shapes)
+            {
+                if (sh is IRegional rg) { _shapes.Add(rg.Within(_x0, _y0, _u0, _x1, _y1, _u1)); continue; }
+                if (sh is IBounded bd)
+                {
+                    bd.Bounds(out double ax, out double ay, out double au, out double bx, out double by, out double bu);
+                    if (bx < _x0 || ax > _x1 || by < _y0 || ay > _y1 || bu < _u0 || au > _u1) continue;
+                }
+                _shapes.Add(sh);
+            }
+        }
+
+        /// <summary><see cref="WorldSolids.Penetration"/> over the gathered solids; the point must lie inside the box last
+        /// passed to <see cref="Update"/>.</summary>
+        public (Vec3 normalNed, double depth)? Penetration(double x, double y, double up)
+        {
+            foreach (Box b in _boxes)
+            {
+                double dx = x - b.Cx, dy = y - b.Cy;
+                if (System.Math.Abs(dx) > b.Hx || System.Math.Abs(dy) > b.Hy || up < b.Bottom || up > b.Top) continue;
+                double px = b.Hx - System.Math.Abs(dx), py = b.Hy - System.Math.Abs(dy), pTop = b.Top - up, pBot = up - b.Bottom;
+                double m = System.Math.Min(System.Math.Min(px, py), System.Math.Min(pTop, pBot));
+                if (m == pTop) return (new Vec3(0, 0, -1), pTop);
+                if (m == px) return (new Vec3(System.Math.Sign(dx), 0, 0), px);
+                if (m == py) return (new Vec3(0, System.Math.Sign(dy), 0), py);
+                return (new Vec3(0, 0, 1), pBot);
+            }
+            foreach (IShape sh in _shapes)
+                if (sh.Penetrate(x, y, up, out Vec3 n, out double d)) return (n, d);
+            return null;
+        }
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, Nearby> NearbyByAirframe = new();
+    /// <summary>The broadphase belonging to one airframe (keyed by its contact-point list).</summary>
+    public static Nearby NearbyFor(object airframe) => NearbyByAirframe.GetValue(airframe, _ => new Nearby());
 }
 
 /// <summary>
@@ -408,6 +486,12 @@ public static class AirframeContact
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         bool cull = StageCullEnabled && stage >= 0;
+        // Broadphase: the solids near the airframe's box, gathered once and kept while the airframe stays in their region.
+        double reach = 0;
+        foreach (ContactPoint p in points) { double r = (p.Body - cg).Length; if (r > reach) reach = r; }
+        reach += 0.5;
+        var nearby = WorldSolids.NearbyFor(points);
+        nearby.Update(s.Position.X - reach, s.Position.Y - reach, -s.Position.Z - reach, s.Position.X + reach, s.Position.Y + reach, -s.Position.Z + reach);
         foreach (ContactPoint p in points)
         {
             Vec3 rBody = p.Body - cg;
@@ -447,7 +531,7 @@ public static class AirframeContact
             }
             }
             // Solids (buildings etc.): whichever is deeper.
-            var solid = WorldSolids.Penetration(w.X, w.Y, -w.Z);
+            var solid = nearby.Penetration(w.X, w.Y, -w.Z);
             bool solidWins = solid.HasValue && solid.Value.depth > depth;
             if (solidWins) { normal = solid!.Value.normalNed; depth = solid.Value.depth; }
 
