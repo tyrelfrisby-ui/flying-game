@@ -6,9 +6,20 @@
 # Exit status: 0 = installed and launched; 1 = the build failed; 2 = the APK was built but no authorized Quest is
 # attached (the reason is printed — absent, unauthorized, offline). The APK is built FIRST either way, so a missing
 # headset never costs a build.
+#
+#   --build-only   build the APK and stop: never runs adb (no install, no launch, no logcat), whatever is attached.
+#                  Exit 0 = APK written, 1 = the build failed.
 set -e
 set -o pipefail
 cd "${0:A:h:h:h}"
+
+BUILD_ONLY=0
+for a in "$@"; do
+  case "$a" in
+    --build-only) BUILD_ONLY=1 ;;
+    *) echo "usage: $0 [--build-only]"; exit 64 ;;
+  esac
+done
 
 UNITY=/Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity
 APP_ID=com.tyrelfrisby.aeroplayground.quest
@@ -63,6 +74,10 @@ if (( ! BUILD_OK )) || [ ! -f "$APK" ]; then
   exit 1
 fi
 echo "== APK $APK ($(du -h "$APK" | cut -f1))"
+if (( BUILD_ONLY )); then
+  echo "== --build-only: not installing (adb not run) $(date)"
+  exit 0
+fi
 
 # ---- the headset ----
 if [ -z "$ADB" ]; then

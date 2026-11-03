@@ -385,3 +385,73 @@ import/render remain unverified here. No Tests/ or app logic changes.
 All four own liveries add original mirrored red rod sights, generated from [sights-spec.json](sights-spec.json) by the shared `sights.py` helper invoked by this builder through `sequence_card.blender_add`. Bars are 0.500 m long × 8 mm diameter, vertical and ±45° in body-Y planes, centred laterally from Ty’s accepted sight-reference eye (-1.325,0,-0.300). Measured I-strut attachments body (-0.082181616, ±2.235188945, -0.300); frame centres (-1.325, ±1.850, -0.300). Fittings engage the waist; supports step inboard before extending aft, preserving the importer’s outer-wing alignment. Photos ref2/ref3 were viewed only; no copied photo texture or third-party geometry.
 
 The rear IAC card moves down 50 mm: builder centre (-0.8087,0,0.015) → (-0.8087,0,-0.035), raw GLB (0.8087,-0.035,0). No instruments moved; size, flush contact, centreline, UVs and source artwork remain unchanged. Original round-1 buffers, front-panel triangles, seats and all airframe paint are retained by the native updater. Sight angles, full-aileron-travel clearance bounds and eye visibility pass for all four Pitts liveries; existing IAC checks pass. Full Blender/Unity verification remains external. See [sights-PROVENANCE.md](sights-PROVENANCE.md) for exact data, renders, numerical checks and commands. Ty’s feedback is logged without changing any approval gate or eyepoint status.
+
+
+## VR cockpit Phase 1 — lane/codex-vr-cockpit, 2026-11-02 (UNAPPROVED)
+
+Original procedural additions: `tools/own_models/vr_cockpit.py`, shared by the Blender base
+builder's export tail and the standalone offline path. All four liveries updated. The offline
+path preserves the original HEAD binary buffer prefix, replaces selected old cockpit triangle
+references by geometry (old material labels were mixed), and adds separate named rig nodes.
+No third-party geometry. New numbers below are visual estimates, not factory drawings.
+
+Sources: Ty's verbatim corrections in the task (Pitts S-1S owner, 737 captain/CFI/aerobatic pilot)
+for top-wider-than-bottom framing, rounded rear panel, two parallel bows, black lateral ball
+latch, and rear pedals beside the front seat. Existing fuselage loft ST supplies skin widths.
+The Great Lakes `gl_cockpit.py:panel_plate` supplies the superellipse crown construction idea,
+scaled to the Pitts outline; front panel remains unchanged, absent a reference to change it.
+
+Canopy: orchestrator-supplied S-2 owner extracts from Biplane Forum, **Factory S-2 Canopy -
+Please Explain the Problem**: right-side hinge allows fore/aft travel, left mushroom head/track
+releases at full aft, S-2B/C track about four inches; lateral knob drives a vertical pin into a
+white Delrin channel associated with two curved crossbars. An S-2A owner's fully-right knob
+means locked. These extracts were supplied as task evidence; the full thread URL could not be
+recovered in search, so independent verification is NOT claimed. Do not substitute the Pitts
+Model 12 canopy PDF: it describes a different aircraft/mechanism.
+
+Model: 101.6 mm aft slide in first 20% of canopy_open, then 100° right hinge; knob and pin
+move 76.2 mm LEFT for canopy_latch 0→1. Twin cross bows X -.76/-.84; black ball above rear
+panel, white channel block. Actual hinge pins, mushroom-button guide and latch link shape
+are NOT fully modelled. Pin/link length to crown, exact rail/bow locations, stop angle and
+fixed-windscreen boundary need Ty/reference review. The existing full glass/frame assembly
+moves with Canopy; splitting fixed windscreen is an unresolved accuracy question.
+
+Frame: 23 members, 46 endpoints, max endpoint-to-another-segment-axis distance **0.000 mm**.
+Longerons OD 25.4 mm (1 in); verticals, diagonals and crossmembers OD 19.05 mm (3/4 in),
+plausible 4130 visual sizes, wall thickness and factory tube schedule UNVERIFIED. Loft
+surface-normal inset = tube radius + 10 mm. Minimum round-tube vertex lateral skin gap
+**10.17 mm**. Widths (top / bottom, metres): X -1.59 **.61473 / .33306**;
+X -.98 **.67397 / .38983**; X -.14 **.59498 / .46050**. Rear side bays are triangulated;
+forward footwell side bay stays open for legs, with X bracing between lower longerons below
+the floor. This is an estimated welded visual topology, NOT a structural design or a claim
+that these are S-2B factory bay stations. Ty: is this open bay/floor-bracing arrangement right?
+
+Rear panel X -.800, width .670 m, bottom -.120, rounded crown .152, superellipse exponent
+2.4. Instruments and centred IAC holder unchanged; minimum bezel-to-outline margin **36 mm**.
+The card remains at the existing approved panel location, wholly below the crown.
+
+Rear pedal plate centres **(-.430, ±.285, -.465)**, balls of feet **(-.450, ±.285, -.460)**
+(builder metres). Plate inside edges ±.2475, outside the .200 m front-seat half-width. Rear
+configured eye (-1.325,0,+.300) in UP coordinates gives **1.208 m** slant eye-to-ball reach;
+hip-to-ankle is about .787 m with .420+.430 m leg segments and a .111 m boot ankle-to-ball.
+Front pedal centres stay at X -.220, Y ±.130. No torque tube was present to move; centreline
+stick bases remain separate from side pedal paths. Full linkage hardware remains unverified.
+
+Pilot body provenance and limitations: `pilot-body-own-PROVENANCE.md`. Current Pitts static
+pose capsule clearances: fixed cockpit/front-seat region **11.68 mm**, truss **2.61 mm**,
+rear panel **76.34 mm** (includes 1.5 mm sampling allowance). Torso mesh has zero detected
+intersecting edges; minimum torso vertex gap to fixed cockpit **26.26 mm**. Small truss margin
+requires actual render and motion review. These are static checks, not full-range certification.
+
+Checks: `check_vr_phase1.py --write-report` includes all 7 changed airframe GLB node graphs,
+cycle/orphan/duplicate-parent checks, body weights/bones, numeric geometry and pose evidence.
+`check_iac_assets.py` stops at its old 38e8746 buffer-prefix invariant for Extra N300UY. That
+same invariant FAILS on untouched HEAD 0a1a7b4; Phase 1 preserves HEAD's entire original buffer
+prefix. Earlier card dimensions/UV/hash/occlusion assertions reached before that failure pass.
+The old check also assumes pre-Phase-1 hierarchy, so its total gate is not claimed green.
+
+Blender 5.2.2 segfaults before Python (Metal supports_barycentric_whitelist); before and after
+render attempts both exit 139. No requested PNG or contact sheet was produced, no visual gate
+approved. `render_vr_phase1.py` recovers before GLBs from fixed commit 0a1a7b4; run before,
+then after, then its CPU `--contact <render-dir>` mode when Blender works. Baseline body views
+show absence of a body (there was none), not a fabricated earlier body.

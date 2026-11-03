@@ -164,10 +164,20 @@ public struct RigInputs
 
     /// <summary>0..1 canopy, 1 = fully open.</summary>
     public double CanopyOpen;
+    /// <summary>The seat harness (CONTRACT.md phase 2): 0 latched .. 1 released; the straps fall open on it.</summary>
+    public double HarnessLatch;
     /// <summary>0 or 1, 1 = locked.</summary>
     public double CanopyLock;
     /// <summary>0..1 pull of the emergency release.</summary>
     public double CanopyJettison;
+    /// <summary>The canopy latch, 0 locked .. 1 fully open (the Pitts' ball slid left) / squeezed (the Extra's two
+    /// handles) — CONTRACT.md `canopy_latch`, driven by the hand that holds it (Core/Vr/CanopyLatch.cs).</summary>
+    public double CanopyLatch;
+
+    /// <summary>The `canopy_latch` a cockpit draws: the hand's own latch where there is one (0 pinned .. 1 released), and
+    /// otherwise Codex's visual contract, the inverse of the lock (0 locked, 1 released).</summary>
+    public static double CanopyLatchFor(bool locked, double? handLatch01) =>
+        handLatch01 ?? (locked ? 0.0 : 1.0);
 
     /// <summary>Indicated airspeed in KNOTS (the Extra's ASI is in kt; the 2-33's in mph — both are here
     /// because the dial art is drawn in one or the other and converting in the rig would hide it).</summary>
@@ -283,6 +293,8 @@ public struct RigInputs
             case "canopy_open": value = CanopyOpen; return true;
             case "canopy_lock": value = CanopyLock; return true;
             case "canopy_jettison": value = CanopyJettison; return true;
+            case "canopy_latch": value = CanopyLatch; return true;
+            case "harness_latch": value = HarnessLatch; return true;
             case "airspeed_kias": value = AirspeedKias; return true;
             case "vsi_fpm": value = VsiFpm; return true;
             case "rpm": value = Rpm; return true;
@@ -314,11 +326,14 @@ public sealed class ModelRig
 {
     public readonly string Model;
     public readonly IReadOnlyList<RigNode> Nodes;
+    /// <summary>The table's `controls`: the switches and knobs a hand works (Codex's Ctl_* nodes), or none.</summary>
+    public readonly IReadOnlyList<FlyingGame.Core.Vr.PanelControlSpec> Controls;
 
-    public ModelRig(string model, IReadOnlyList<RigNode> nodes)
+    public ModelRig(string model, IReadOnlyList<RigNode> nodes, IReadOnlyList<FlyingGame.Core.Vr.PanelControlSpec>? controls = null)
     {
         Model = model ?? "";
         Nodes = nodes ?? Array.Empty<RigNode>();
+        Controls = controls ?? Array.Empty<FlyingGame.Core.Vr.PanelControlSpec>();
     }
 
     public RigNode? Find(string node)

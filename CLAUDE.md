@@ -264,3 +264,29 @@ none, and every hard point was asking all of them at every RK4 stage. The probe'
 "fixed" number; the device's 771 were the real one. When a bench number disagrees with the device by a large factor,
 find what the device has that the bench does not before tuning anything. Build the world the game builds
 (`IslandGeometry.Build()`, cleared in `finally`), and count work, not only time (`SimProfile`'s `solids`).
+### A Core type name can be shadowed in the Bridge, and only Unity sees it
+`FlyingGame.Core.Vr.PilotBody` compiled and 32 tests passed in the .NET suite, then gave five `error CS0117` in the
+Unity batch: the Bridge already has an `internal sealed class PilotBody` (the bailout's jumper, `Bridge/Pilot`), and
+inside `namespace FlyingGame.Bridge` the Bridge's own type wins over a `using FlyingGame.Core.Vr`. The suite cannot
+see it because it never compiles the Bridge. The same run found `AirframeVisual.ModelRoot`, which is on the
+builder, not the visual. Before naming a new Core type, `grep -rn "class <Name>\b" unity/Assets` (with perl or
+`grep -w`; BSD sed has no `\b`), and run the Unity batch before trusting any Bridge code that calls into it.
+
+### Quote the shipped model's number, not the sketch's
+The parachute's opening shock went into three comments as "≈ 7.4 g" because that is what a quick Python sketch of the
+opening said. The Core model that ships blends the body's drag area differently and gives 6.7 g; the sketch had never
+been the code. Every comment, doc table and NEEDS YOU line had to be found and changed. Sketch to choose the model, then
+run the Core function itself (a throwaway probe test is enough) and copy THOSE numbers into docs and tests.
+
+### Two points on a lever do not give its hinge
+The 2-33's dive-brake knob sits 11 cm along its hinge from the pivot. A lever built from the pivot and the knob at its
+two ends (`r₀ × r₁` as the axis) read a hinge tilted 19° off lateral and a 31° sweep for the rig's 33°, so the hand
+would have needed 6 % more pull than the handle moved and the knob would have been drawn off its own slot. Nothing
+errors; `VrHandleCheck` caught it by printing the sweep. Take the hinge direction from the rig (`RigHandle.HingeWorld`:
+`RestRot · axis` in the parent) and project onto the plane across it; derive only the SENSE from the points.
+
+### A clean merge is not a compiling merge
+lane/claude-vr-cockpit and lane/codex-vr-cockpit each added `case "canopy_latch":` to `RigInputs.TryGet`, a few lines
+apart. git merged them without a conflict and the result was a duplicate case label (and two contracts for one param).
+After any merge, build before reading the conflict list as the list of problems — and grep the merged switch
+statements for a repeated label when two lanes touched the same table.

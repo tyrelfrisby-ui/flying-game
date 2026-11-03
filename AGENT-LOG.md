@@ -55,6 +55,55 @@
   floating, engine stopped, so the game was quiet (−44 dBFS). (d) The a222bda log has `7 of 7 dials live` for the
   Pitts: in flight its gauges move; in the wreck they read a constant. The sun has no shadow map at all; the
   spiky shadow is the planar projection of the crumpled wreck. Details in the log entry. **Nothing approved.**
+- **QUEST M3: THE SWITCHES AND KNOBS BY HAND — PITTS, EXTRA, GREAT LAKES (Claude, 2026-11-02, lane/claude-vr-hands, on
+  Codex's phase 3a controls merged from lane/codex-vr-cockpit 147d2682). APK BUILT, build only, NOT installed (path in the
+  M3 log line). NEEDS YOU when you choose to install it:**
+  1. **Try them.** Poke a toggle with a pointing finger (index straight); grab a knob and twist your wrist; pull the
+     mixture. With a controller: grip and move / twist. Does each go the way the real one goes? `grep VrCockpit` logs
+     every change (`Magneto → 2 by hand (visual only …)`).
+  2. **Only the TRIM knob and the SMOKE switch do anything in the sim** (the same trim and smoke as the buttons). The
+     sim has no ignition, electrical, fuel-pump, lights, mixture, prop-governor, induction, radio or transponder system.
+     **Which should be real first?** (Magnetos OFF / mixture idle-cutoff stopping the engine is the obvious one.)
+  3. **Mixture and prop** start at 1 (rich, fine pitch: what the cockpit has always drawn). Codex's map puts 1 at the
+     end of a 50 mm travel: please look whether the knobs sit pushed IN at the start. If they sit pulled out, the map
+     or the sense is reversed and Codex / I fix it.
+  4. **Reach:** the Extra's REAR fuel selector is 86 cm from your eyes (the bench's comfortable seated reach is 85);
+     everything else in all six seats is within 76 cm. Can you reach it strapped in?
+  5. Codex's own open questions stand (smoke switch position per type, front-seat duplication, tank labels, alternate
+     air on the Pitts / Extra, Great Lakes carb heat vs AEIO, COM spacing, XPDR mode order): docs/models/vr-cockpit-phase3a.md.
+  **Nothing approved.**
+- **QUEST: YOUR OWN HANDS IN THE COCKPIT, AND THE 2-33'S DIVE BRAKES, TRIM AND TOW RELEASE BY HAND (Claude, 2026-11-02,
+  lane/claude-vr-hands, from "how long before we can get it to see our hands to operate things like the speed
+  brakes?"). APK BUILT (build only, NOT installed, as you asked): see the M1 line in the log for the path. Starts at
+  lane/claude-vr-quest 8e7862eb (your build) + the grab system merged from lane/claude-vr-cockpit 9f7c0f81. NEEDS YOU
+  when you choose to install it:**
+  1. **Hands.** Put the controllers down in the 2-33 cockpit and hold your hands up: you should see gloves with
+     fingers that move with yours. Pick a controller up: that hand is the controller again within a moment.
+     `adb logcat -s Unity | grep -E "QuestHands|VrCockpit"` must show `[QuestHands] XR Hands subsystem running` and
+     `[VrCockpit] left hand: TrackedHand (XR Hands joints)`. If it says `hand interaction pose, no joints`, hand
+     tracking came up without XR Hands: send me that line.
+  2. **Dive brakes.** Reach to the lever on the LEFT wall (knob about 47 cm ahead, 30 cm below and 22 cm left of
+     your eyes in the front seat) and pinch it, or close your hand round it; pull AFT. Spoilers out as you pull; the
+     last 15 % of the pull is the wheel brake (a click in the controller where it starts if you use the grip). Let go:
+     it stays. Then move the left thumbstick: it must carry on from where your hand left it. **Is 33° of handle swing
+     right, and is the wheel brake at the end of the handle's travel (85 %) right on a real 2-33?** (The modeller's
+     table says 33° and suggests 90 % for the brake; the touch strip has always used 85 %.)
+  3. **Trim.** The red ball lower on the left wall: aft = nose up, 40° of swing (the modeller's "judgement 20° each
+     way"). The rig has it in a 4-notch quadrant (−1, −⅓, +⅓, +1): I let the trim move freely and give a click at
+     each notch. **Is the real one notched, how many notches, and should it drop into the nearest when let go?**
+  4. **Tow release.** Get a tow (right stick click on the runway), pull the yellow ball at the bottom of the panel
+     5 cm straight back: the rope must go at the end of the pull, and the knob springs back. The release fires at
+     90 % of the pull: right?
+  5. **Pinches don't leak.** Holding the dive-brake handle with a pinch for several seconds must NOT open the menu or
+     recentre. A left pinch held 1 s in free air still opens the menu.
+  6. **The stick by hand.** Bare hands can now take the stick and throttle too (close on the grip). Is a tracked
+     hand steady enough on the stick to fly, or should hands be kept off the stick?
+  **Evidence (bench only):** VrHandsTests 25 new (pinch / fist hysteresis and chatter, tracking-loss grace, hand ⇄
+  controller hand-off, the hinged lever incl. a knob off its hinge, stops and detents, the spoiler / wheel-brake /
+  knob mapping, the tow knob's travel, spring and trigger, the filter) + VrCockpit / VrBailout / Quest suites, 180 / 180;
+  `VrHandleCheck` (the 2-33 built as the game builds it, the same RigHandle code the headset runs) **HANDLE OK**;
+  Unity batch 0 error CS; the APK built with HandTracking + MetaHandTrackingAim enabled. Never in a headset.
+  **Nothing approved.**
 - **QUEST: SLOW NEAR THE GROUND, THE AIRCRAFT LIST, YELLOW-ONLY 2-33, A GENTLER STICK + GAMEPAD (Claude, 2026-11-02,
   lane/claude-vr-quest, commits 159e5f46 · 5d028681 · 1084a620 · eeb12758). Code only: NOT built (`deploy.sh` not
   run — src/ changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the
@@ -184,6 +233,219 @@
      file must still play.
   5. **From the Mac:** `zsh tools/deploy/quest-record.sh` records the left eye with sound until Ctrl-C
      (`--full` both eyes, `--watch` a live window, `--no-audio`). Is the left-half crop right on your 3S?
+- **QUEST: THE EXTRA'S REAL LATCH, THE CANOPY FLUNG OPEN AND TORN AWAY IN FLIGHT, THE JETTISON KNOB (Claude, 2026-11-02,
+  lane/claude-vr-cockpit, P2c / P2c-2 / P2c-3) — from your "the rear handle is fixed, the front handle is spring-loaded
+  forward …", "suction … flings it open; above 80 KIAS on the Extra, or 80 MPH on the Pitts, the hinges fail and the canopy
+  tears away" and "the Pitts also has a canopy JETTISON knob". Code only: NOT built, NOT on the headset. NEEDS YOU after the
+  operator's build (cockpit view; table in docs/quest-controls.md, design and every number in docs/vr-cockpit.md):**
+  1. **Extra latch, on the ground.** Left canopy frame, just ahead of you: a fixed REAR handle and a spring-loaded FRONT
+     one. Try all three: one hand on the pair + trigger; one hand on each handle, close them together; the front handle
+     alone, pulled aft. Then grab ONLY the rear one and pull: nothing should happen. Past about 80 % of the squeeze the pins
+     come out (click, `[VrCockpit] canopy latch UNLOCKED`); let go with it shut and they snap back in (click). Your hand on
+     the handles is on the canopy: keep squeezing and push up to open it. Lower it with the handles released: it latches
+     only once it is right down.
+  2. **Extra, in flight, latch released.** At 60–75 KIAS: flung open, slammed onto its stop, flapping, still attached
+     (`canopy slammed onto its stop: … N`). At 85+ KIAS: **torn off its hinges** and gone, falling clear down and to the
+     right (`TORN OFF ITS HINGES`), the cockpit louder, the aeroplane lighter. Below about 54 KIAS it does not lift.
+  3. **Pitts, ball latch only.** Unlatched in flight the canopy runs aft 4 in by itself, then flings: stays on at 60 KIAS,
+     tears away at 75. **Jettison:** the RED knob far right where the bow tubes meet the canopy's lower rail (each
+     cockpit; a red proxy block until Codex's knob lands). Grab, pull toward you, firmly, all the way: it stays out
+     (one-way). With the ball still locked the canopy stays on — slide the ball open and it goes at any speed (try 40, 70
+     and 120 KIAS). Short of the end it springs back and nothing happens.
+  4. **Extra jettison:** the red emergency release on the right sill (the model's CanopyRelease_R / _F), same behaviour.
+  **Judgement calls that are really yours (all estimates, every one a named constant):**
+  (a) **Extra latch numbers:** front-handle spring 20 N preload + 600 N/m (41 N fully squeezed), 0.08 kg moving, 2 N
+  friction; travel 35 mm and pin stroke 18 mm (Codex); **the pins clear their holes at 80.6 % of the squeeze** (14 mm of
+  engagement + 0.5 mm). How hard is the real squeeze, how far does the front handle move, and how far in do the pins go?
+  (Codex's drawn sockets show ~6 mm, which would release at a third of the squeeze — one of us has to change.)
+  (b) **The suction model:** potential flow over a half-ellipsoid the size of each canopy (Codex's models), cockpit
+  inside at free-stream static: **net outward ΔCp 0.227 (Extra), 0.308 (Pitts)** — so an unlatched canopy lifts off at
+  **53.6 KIAS (Extra) / 46.1 (Pitts)**, and one hand (200 N, E) holds it shut to about **108 KIAS**. Masses 14 / 9 kg (E).
+  (c) **Hinge strength, calibrated to your speeds:** the open-stop is a stiff spring (10,000 N·m/rad, lug 0.10 m from the
+  pins, E); flung open at exactly 80 KIAS / 69.5 KIAS the peak stop-lug load is 15,125 / 11,972 N, so **fittings
+  15,100 N (Extra) and 12,000 N (Pitts)**; in the dynamics the Extra holds at 79 and goes at 80, the Pitts holds at 69.5
+  and goes at 70. Consequence: **a canopy that survived the fling stays on if you then speed up** (the steady load on
+  the stop only reaches that strength near 280 KIAS). Is that right, or should an open canopy go above 80 whatever?
+  (d) **Does an unlatched S-2B canopy run aft by itself in flight?** With the slide-then-hinge mechanism it has to, for
+  your 80 mph rule to apply; I let its own drag (Cd 0.07, E) beat the track friction (μ 0.05, E).
+  (e) **Jettison with the latch still locked:** I assumed the knob pulls the hinge pins only and the latch holds the canopy
+  until it too is opened (either order works; whichever is second releases it). Or does your knob release both sides,
+  or does the canopy pivot about the latch side? Knob travel 38 mm (Pitts, E) / 40 mm (Extra, Codex), 8 mm breakout for
+  the ~90 N pull (E), fires at 90 %. **Is the Extra's CanopyRelease really a jettison, same any-speed rule?**
+  (f) **The departed canopy** leaves down and to the right, away from you; in a bench probe it crosses the right wing
+  root within 0.2 s. Strikes are only a `[VrEgress]` WARNING — what should a canopy hitting the wing or tail do?
+  (g) **Open-cockpit drag** 0.15 m² (Extra) / 0.12 (Pitts) and the open canopy's own 0.4 × arch area (fully open and
+  attached 0.268 / 0.211 m²; gone 0.15 / 0.12). Wind noise ∝ q, a shut canopy letting through 12 % of an open cockpit's.
+  **Knob position: CONFIRMED BY TY 2026-11-02 12:40** (far right, bow/sill-rail junction); it rides the canopy frame
+  (bows and sill rail are both canopy) and pulls the right-hand hinge pins. Recorded in docs/vr-cockpit.md; **Codex:
+  please mark it "confirmed by Ty, 2026-11-02" in docs/models/canopy-latches.md** (that file is only on your branch —
+  creating it here would collide at merge).
+  **Codex, nodes I bind (CONTRACT):** `Grip_Canopy_Latch(_Front)`, `Grip_Canopy_Latch_Aft/Fwd(_Front)`,
+  `Grip_Canopy_Jettison_Rear/Front` → `Canopy_Jettison_Knob_Rear/Front` (rig `canopy_jettison` 0..1 = the pull),
+  `Canopy_Detachable` (else the rig's jettisonable node, else `Canopy_Slide` / `Canopy`), `Canopy_Hinge_Broken_*`
+  (shown when the hinges fail), `CanopyRelease_R/_F` (Extra jettison). Missing → proxy + `[VrCockpit] missing node`.
+  **Code:** Core `CanopyLatch.cs` (ExtraCanopyLatch v2, ExtraLatchHands), `CanopyHinge.cs` (CanopyBubble, the airload,
+  stop, failure, slide-in-the-air, jettison gate, drag, CockpitWind), new `CanopyRelease.cs` (JettisonPull,
+  CanopyFreeBody, CanopyTailCheck), `CockpitGrab` (CanopyLatchAft/Fwd, CanopyJettison, Drop), `Aircraft.ShedMass` /
+  `CgShiftBody` (zero unless something has left); Bridge `VrCockpitHands(.Bailout)`, `CockpitRigState.HandJettison`,
+  `AirframeVisual.DetachCanopy`, new `CanopyFlight`, `FlightAudio`/`WindSynth` cockpit air. Also fixed: the Phase-2 drag
+  point and the jumper's tail-strike check used a CG-relative point as a body-frame one (now Cg + offset).
+  **Evidence (bench only):** 30 new or rewritten cases green, run alone: `VrCockpitTests` 7 Extra latch v2 (squeeze, partial below threshold, spring return + re-pin, rear handle alone, two hands, front handle alone, no engagement while open) and `VrBailoutTests` 23 (curvature ΔCp vs an independent Python sketch, q-scaling, lift-off and hand-hold speeds, fling at 60 KIAS, latched never opens by hand or airload, pins in/out with the latch and canopy stepped together, Extra 75 holds / 85 departs, Pitts 65 holds / 75 departs, the fitting calibration re-run, hand torn off at 120, Pitts slide, grips ride the canopy, drag areas, open-canopy drag slows an Aircraft, mass/CG on loss, the free body falls and drags, wind noise vs q and state, leaves outboard, jettison threshold + one-way, jettison departs at 40/70/120, jettison with ball locked, ball only 60 holds / 75 departs, Extra has no jettison without the model's pull). Full suite, frozen 0a1a7b4 copy vs this branch, one at a time with nothing else building: **base 194 failed / 1133 passed (123 unique names), branch 163 failed / 1244 passed (125 unique)**. Five names failed only on the branch — ChallengeTests.HardBankScoresLow, GroundTowTests.TugReleasesWhenGliderClimbsTooHigh, NoseSkidTests.HardBrakingRolloutDoesNotTipOver, TrimConvergenceTests.TrimmedGliderStaysBoundedThroughSimLoop (four of the coupled flakes Phase 2 already listed) and my new VrBailoutTests.OpenCanopyDragSlowsTheAeroplane (NaN in the full run, in the same burst as TrimConvergence) — and **all five pass run alone (5/5)**, so I find no failing name introduced; that new test does inherit the suite's global-state coupling. The one flight-model change (`Aircraft.ShedMass`) is zero unless a canopy has departed. Unity batch, scripts only, final code: **Android 0 error CS, iOS 0 error CS**. No APK, no xcodebuild, nothing installed. One local commit covers P2c, P2c-2 and P2c-3.
+  **Nothing here is approved.**
+- **QUEST: BAIL OUT BY HAND — CANOPY, BELTS, HEADSET CORD, CLIMB OUT, FREE FALL, RIPCORD (Claude, 2026-11-02,
+  lane/claude-vr-cockpit, Phase 2 of 3) — from your "unlatch the canopy and the seatbelts and the headset cables and jump
+  out … if they forget to pull the headset cables they get pulled by the plane … look down and grab and pull the rip
+  chord". Code only: NOT built, NOT on the headset. NEEDS YOU after the operator's build (Pitts or Extra, cockpit view;
+  the table is in docs/quest-controls.md "Bailing out by hand"):**
+  1. **Canopy.** Unlatch (Phase 1's ball / handles), then grab the rail (Pitts: the left rail; Extra: the left frame edge)
+     and push. Pitts: AFT 4 in, then up and over to the RIGHT. Extra: up and over to the RIGHT. **In flight it flips open
+     by itself once unlatched above ~38 kt** (a constant net outward ΔCp 0.5 on its plan area against its weight), and
+     no hand holds it above ~74 kt (Extra) / ~85 kt (Pitts) — it is torn out of your hand with a hard buzz. Is that how an
+     unlatched Extra / S-2 canopy behaves? Does yours really go at 38 kt, or does it sit on the latch pins' friction?
+  2. **Belts.** Extra: two releases, the TOP one on your RIGHT and the BOTTOM one on your LEFT (the 300S card); grab and
+     LIFT each 4 cm. Pitts: one rotary in the middle; grab and TWIST 60°. Until every belt is open you cannot rise.
+  3. **Headset.** Grab the plug at the jack (right side, below your shoulder, until Codex's jack is in) and draw it 3 cm
+     out. **Then do it again and forget to**: climb out still plugged in. The cord goes taut at 1.5 m: a tug on your head
+     (2.5 cm, 0.15 s, translation only) and a hard buzz in both hands, and the plug pulls out at 25 N.
+  4. **Climb out.** Grab the LEFT sill beside you (elbow height) and PUSH DOWN: you rise by what your hand pushes. At
+     about 100 KIAS the slipstream pulls you off the sill once your shoulders are out (it takes over above 103 KEAS at
+     first exposure); slow, rise 50 cm and let go. Tell me if the view moving with your own push is comfortable.
+  5. **Fall and pull.** First person, level, on the heading you left on. **Look down: the handle is on your LEFT chest
+     strap** (red block until Codex's gear lands). Grab it and pull 10 cm DOWN toward your feet. Pilot chute, line
+     stretch, the canopy fills (1–3 s), the opening shock in both hands, then about 6.5 m/s down; steer with the right
+     thumbstick X, land.
+  6. **Did you hit the tail?** `[VrEgress] STRUCK the <surface>` in the log. It is detected and reported, nothing more.
+  **Judgement calls that are really yours:** (a) **the canopy's net outward pressure coefficient (0.5)** and its masses
+  (Extra 14 kg, Pitts 9 kg) and the hand's 200 N — the flip-open speeds hang on them. (b) **Does an open canopy depart
+  at high speed?** I have no hinge-strength figure, so it stays on its 100° stop. Give me a speed, or say "never". (c)
+  **Which of your aeroplanes' plugs holds harder: the jack, or the headset on your head?** I let the plug go at 25 N
+  and the headset at 40 N (no PJ-055/068 figure found). A LEMO panel plug would take the headset off you instead —
+  one number. There is **no radio or intercom audio in the game to cut**; once out you hear your own wind. Want an
+  intercom hiss that dies when you unplug? (d) **Belts are one-way** (no refastening in flight). (e) **No forced rotation
+  of the view, ever**: you tumble for 3 s but the view stays level; under the canopy a steering turn does not turn the
+  view (you turn your head). The one snap: at the moment you leave, a banked view snaps level on the same heading. Do
+  you want the tumble shown (I think it will make people sick)? (f) **The ripcord cannot be pulled in the cockpit**
+  (Strong's manual: "Get clear of the aircraft, then pull your ripcord. In that order"). Should a premature pull drag
+  you out, as it would? (g) **Climb gesture**: push down on a sill. Would you rather a button? (h) **A tail strike hurts
+  nobody yet** — what should it do? (i) The canopy is a **26 ft round** (Strong Para-Cushion) — what do you wear?
+  **The menu's Bail out row stays** as the timed shortcut (canopy off, over the right side, chute opens by itself,
+  outside view). Both use the same body and the same canopy model, which changed for both: the opening shock now comes
+  out of the dynamics (6.7 g from 120 mph at sea level) instead of a 1.3× bump, the fill time is no longer clamped, the
+  canopy is 26 ft / Cd 0.80 (was 28 ft / 0.75), drive 2.7 m/s (was 3).
+  **Evidence (bench only):** 28 new `VrBailoutTests` green (moments and flip-open speeds, the hand torn off, the Pitts
+  slide-then-hinge, drag; both belts and the twist; cord tension, plug vs headset, the bounded yank, the rope; terminal
+  53.6 / 49.0 / 62.2 m/s; the exit velocity; the climb blocked, over the side, pulled off; the tail strike; the 10 cm
+  ripcord; fill time, steady 6.49 m/s, the 6–9 g band and Strong's 2–3 s / 150–300 ft); full suite on this branch 214 failed / 1173 passed (140 unique names) vs 165 failed / 1162 passed at 0a1a7b4 (126 unique): 14 names failed only on the branch (Spin ×3, MultiEngine ×3, ReversibleControl ×2, Challenge, GroundTow, NoseSkid, SpawnSpeed, TipWheel, TrimConvergence) and **all 14 pass run alone (58 cases)** — flakes of the globally coupled suite; the one flight-model change (`Aircraft.ExtraDragAreaM2`) is zero unless a hands-on canopy is open, so **no failing name introduced**; Unity batch,
+  scripts only: **Android 0 error CS, iOS 0 error CS** (re-run on the final code). No APK, no xcodebuild, nothing installed. **Nothing here is approved.**
+- **QUEST: HANDS ON THE CONTROLS, A BODY YOU CAN SEE, THE CANOPY LATCHES (Claude, 2026-11-02, lane/claude-vr-cockpit,
+  Phase 1 of 3) — from your "there should be hands and legs and feet on controls … just 'grab' the stick throttle canopy
+  latch etc and move them". Code only: NOT built, NOT on the headset. NEEDS YOU after the operator's build:**
+  1. **Grab the stick.** In the cockpit, reach the right controller to where the stick grip is: a light tick within
+     6 cm, squeeze the grip, a firmer tick, your drawn hand snaps on. Move it: the stick should follow your hand about
+     its own pivot (roll gimbal on the torque tube, pitch on top). Fly a loop and a roll on the stick alone. **Then let
+     go in level flight and in a spin**: the stick is FREE and trails with the elevator's and ailerons' hinge moments
+     (the sim's existing free-control model, the Pitts' own Chα / Chδ) — you should see it move by itself. Tell me if
+     it trails the way a Pitts stick does.
+  2. **Grab the throttle** with the left hand where it is, on the left side, both seats. Forward = power, let go = it
+     stays. The left grip no longer grabs the throttle from anywhere in the cockpit (it still does in outside views),
+     and the left thumbstick Y still works when you are not holding it.
+  3. **Pitts latch.** Rear seat: reach to the top of the rear panel, centre-line, a hand's width below your eye line;
+     grab the ball, slide it LEFT (pull ~1 cm to get out of the detent) to unlock, RIGHT until it clicks to lock. The
+     log says `[VrCockpit] canopy latch UNLOCKED / LOCKED`. **Opening the canopy is Phase 2**; today only the lock moves.
+  4. **Extra latch.** Grab the pair of handles (proxy: left canopy frame, ahead of you) and pull the TRIGGER to squeeze;
+     past 85 % it unlocks with a click, let go and it springs back and re-locks.
+  5. **Your body.** Look down: arms from your shoulders to the controllers, gloved hands that close with the grip,
+     thighs, shins and boots on the pedals, the pedals moving with the left thumbstick X. **Until Codex's skinned body
+     lands it is a crude stand-in made of capsules and boxes** (sage suit, tan gloves, black boots). Hidden in every
+     outside view. Put a controller down and that hand rests on its control.
+  6. **Does any of it fight you?** Tell me which of these is wrong in a real cockpit: the reach (6 cm), having to
+     close the grip to take hold rather than just touching, the stick surface being LINEAR in stick angle (I take the
+     type's expo out for a grabbed stick, because a cable has none), the smoke toggle now only on a right grip in free
+     air.
+  **Assumptions that are really yours:** (a) **where the controls are in the Pitts.** Its model has no stick, throttle
+  or latch nodes yet, so they sit at proxy positions relative to the seat's eye (stick grip 0.50 m below and 0.42 m
+  ahead of the eye on a 0.55 m stick; throttle 0.26 m left; pedals 0.85 m ahead) and the Pitts' **model stick will not
+  move with your hand until Codex's rig lands** — your hand moves, the drawn stick does not. (b) **Pitts stick travel:**
+  I used the Extra's rig numbers, ±18° roll, 18° aft, 12° forward — what are the S-2B's? (c) **The Pitts latch:** 3 in of
+  travel as you said, fully RIGHT = locked per the contract, a 4 mm capture and a 1 cm breakout for the detent (my
+  guesses). Which seat can reach it — is it only the rear pilot's? (d) **The Extra's squeeze handles:** where exactly
+  are they (I placed them on the left canopy frame where the rig's red levers are), and do both have to be squeezed,
+  or does one handle release it? (e) **The rest of the fleet:** Great Lakes open (no latch), Cub and 172 doors. The 2-33
+  canopy and any other canopy have NO latch yet rather than a guessed one — tell me how each one actually latches.
+  (f) **Your body:** 50th-percentile man from ANSUR II (upper arm 0.31, forearm 0.26, thigh 0.42, shin 0.45 m),
+  shoulders fixed to the seat (strapped in). If your arms look too short or long, that is one number.
+  **Evidence (bench only):** 32 new `VrCockpitTests` cases green (stick signs / limits / gimbal order / grab offset,
+  the throttle arc, both latch state machines, two-bone IK reach / clamp / pole, the grab rules incl. the menu gate);
+  full suite on this branch 117 failed / 1242 passed (113 unique names) vs 199 failed / 1128 passed at 0a1a7b4 (128 unique): **no failing name introduced**, the base's extra 15 are flakes of the globally coupled suite (e.g. ModelRigTests.FullAirBrakeStopsTheGliderSooner… fails alone at the base too); Unity batch, scripts only: **Android 0 error CS, iOS 0 error CS** (the first Android run had 7: a name clash with the Bridge's own `PilotBody` and a wrong `ModelRoot`, both fixed — CLAUDE.md lesson). No APK, no xcodebuild, nothing installed. Nothing here is approved.
+- **VR COCKPIT PHASE 2 — lane/codex-vr-cockpit (Codex, 2026-11-02), UNCOMMITTED / NO GATE APPROVED.**
+  Supersedes Phase 1's tall-bow/long-pin interpretation. Seven aircraft GLBs updated by builder-shared CPU path;
+  new original pilot-gear GLB is explicitly CPU fallback. **Blender rebuild/export and all twelve renders PENDING**;
+  Blender was not started here per the task instruction. No C#, Unity, deploy, Glass Overlay or ProjectSettings changes.
+  Operator: `zsh tools/own_models/rebuild_vr_phase2.sh`, then the exact validation/render commands in
+  docs/models/vr-cockpit-phase2.md. That document records sources, estimates and runtime binding details.
+  Ty must inspect these after2 renders and decide (none is approved):
+  1. **pitts_eye:** low rounded panel-top bows, card/dial visibility, body size from the actual rear eye.
+  2. **pitts_bows_closeup:** rail-to-rail bow curve, 40 mm spacing, small bridge, 35 mm pin, Delrin notch.
+     **Question:** do these bracket/channel dimensions and stations match your machine? Exact linkage remains estimated.
+  3. **pitts_latch_unlocked:** black ball moves 76.2 mm pilot-left; pin exits open channel. Right is locked.
+  4. **pitts_canopy_open:** whole assembly slides 101.6 mm aft then hinges right 100° (estimated).
+     **Question:** confirm travel, stop and which forward section must remain a fixed windscreen.
+  5. **pitts_frame:** side x-ray tube topology; no red star. Sight centres are ±1.852 m, wingtips ±3.047 m;
+     sights are intentionally floating cockpit-only references per existing provenance. Red X was a render-only artefact.
+  6. **harness_latched:** five-point primary plus a second independent lap belt. **Question:** your Pitts lever latch
+     or cam-lock, ratchet position, routing, anchors and colours? Geometry does not assert a universal factory fitting.
+  7. **harness_released:** all seven straps fall open; both release fittings visible. Single visual param currently
+     releases both; Claude must retain two independent interaction states before freeing the pilot.
+  8. **extra_harness:** two releases, lower pilot-left / upper pilot-right per Wagstaff 300S card.
+     **Question:** does that fitting/routing match the intended early two-seat Extra? Source establishes directions only.
+  9. **headset_plugged:** H10-13.4-style GA twin PJ-055/PJ-068 plugs, provisional right-side jacks, cord stand-in.
+     **Question:** where exactly are front/rear jack pairs on your Pitts and intended Extra? No primary station found.
+  10. **pilot_lookdown:** separate aircraft belts and parachute straps; reachable left-side open D-ring.
+  11. **parachute_packed:** Mini Softie-style 15 × 23 × 2.25 in pack. **Question:** is this the rig family you want?
+  12. **parachute_deployed:** round/conical 26-ft nominal class, inflated shape and hanging pilot proportions;
+      projected diameter/dome/line geometry are art estimates, not Strong manufacturing measurements.
+  Numbers: bows X −.835/−.875, radius 6.35 mm, crown .218; closed minimum clearances panel 64.65 mm,
+  instruments 104.84, IAC 174.61, estimated helmet sphere 310.56, full-control stick volumes 228.59.
+  Continuous full-sweep bow/panel separating-axis clearance ≥21.15 mm. Intentional pin engagement excluded.
+  Gear 3,780 tris (body + gear 6,196); current entire Pitts 63,198/64,490, Extra 124,866 tris.
+  Seven aircraft + gear graph/name/rig/skin/morph and numeric checks PASS; update idempotence PASS.
+  Existing Phase 1 graph/body/limb checker also PASS after Phase 2.
+  Fresh 0a1a7b4 Pitts/Extra base → current builder postprocess replay PASS (CPU; no Blender claim).
+  Syntax/shell checks and diff whitespace PASS. Blender import/export, render, runtime interaction and Quest performance
+  remain unverified. CONTRACT unchanged. All new required files checked visible with `git status --ignored`.
+- **VR COCKPIT PHASE 1 — lane/codex-vr-cockpit (Codex, 2026-11-02), UNCOMMITTED / NO GATE APPROVED.**
+  Pitts all four own liveries: connected tube clusters, loft-inset top-wider-than-bottom rails, rounded rear
+  panel with existing dials/card retained, bows/lateral black latch, rear pedals beside front seat, own rig/grips.
+  Extra all three own liveries: paired red/white squeeze paddles, both cockpits. Original skinned body: 49 bones,
+  2,416 tris. Body was built by the numeric offline fallback, NOT a successfully executed Blender export.
+  **Render review BLOCKED:** Blender 5.2.2 exits 139 before Python in Metal GPU detection, both before and after.
+  No before_*.png, after_*.png or contact_phase1.png exists from this lane. Script and exact manifest are ready
+  in tools/own_models/render_vr_phase1.py and the authorised renders/RENDER_STATUS.txt. Before uses 0a1a7b4.
+  When Blender works, Ty must look at and decide:
+  1. pitts_eye / pitts_eye_body: rounded panel silhouette, retained IAC card/dials, seat-eye left/right,
+     throttle reach and believable body size. Baseline had no pilot body; before body view shows its absence.
+  2. pitts_frame: tube joins/skin containment and especially **is the open forward side bay with floor X-bracing
+     the correct S-2B arrangement?** This is estimated topology, not a factory structural drawing.
+  3. pitts_latch_locked / unlocked: black ball right=locked; white channel block and long crown-to-panel pin/link.
+     Are the two bows at X -.76/-.84, the latch linkage length and these stations right? Which forward glass/frame
+     portion is fixed windscreen? Current whole canopy moves aft 101.6 mm then hinges right 100° (estimated).
+     Knob travel 76.2 mm left unlocks; mushroom-button track hardware remains incomplete.
+  4. pitts_pedals: rear plates X -.43, Y ±.285, Z -.465 beside front pan; confirm actual reach/placement,
+     front pedal retention and absent detailed centre torque/linkage tube. Static eye-to-foot reach 1.208 m.
+  5. extra_latch_closed / squeezed: red-and-white paired paddles on left sill, front/rear, estimated 25° pivots;
+     confirm early mid-wing EA300 geometry against Ty's machine (300S egress source establishes action only).
+  6. extra_body: body size, limb/seat/frame clearance and reach. Pose construction succeeds; clearance/render
+     review of Extra is NOT certified. Phase 2/3 visuals were not started; only Phase-2 contract empties added.
+  **Numbers:** 23 frame members / 46 ends, max end-to-other-axis 0.000 mm; ODs 25.4/19.05 mm; minimum sampled tube
+  vertex lateral skin gap 10.17 mm. Upper rail widths .595–.674 m, lower .333–.460 m. Panel .670 W, -.120 bottom,
+  .152 crown; gauge margin 36 mm. Pitts conservative limb clearances: truss 2.61 mm (small!), cockpit/front-seat
+  region 11.68 mm, panel 76.34 mm; torso edges do not intersect checked obstacles, fixed-cockpit vertex gap 26.26 mm.
+  **Accuracy questions:** docs/models/canopy-latches.md audits every own enclosure plus requested SR22/P51/F86/G103
+  gaps. Great Lakes is open cockpit. Other latch geometries are UNVERIFIED; none was modelled in Phase 1.
+  **Checks:** Phase-1 graph/skin/numerical checker passes. IAC checker stops on old 38e8746 buffer invariant;
+  untouched HEAD also fails that invariant; all Phase-1 airframes retain HEAD buffer prefix. .NET test run did
+  not execute: MSBuild pipe SocketException(13); --no-restore retry emitted no tests (no project.assets.json).
+  Unity, Xcode, adb, deploy and ProjectSettings untouched. Details: docs/models/vr-cockpit-phase1-checks.json.
 - **QUEST: REAR SEAT, NO HUD IN THE COCKPIT, A WAY TO THE MENU (Claude, 2026-11-02, lane/claude-vr-quest) — from your
   first Pitts flight ("i chose the back seat and it put me in the front seat. the hud display is not necessary and
   really confusing … i couldn't figure out how to get to options"). Code only: NOT built, NOT on the headset.
@@ -827,6 +1089,97 @@
 - **Extra unmarked label (Claude, 2026-10-28):** I named it "Unmarked", not the HANDOFF's "Extra". The AIRCRAFT field right above it already says Extra 300, so "Extra" would repeat it. Easy to rename in `LiveryChoice.Options` and `Livery.UnmarkedExtra` if you prefer something else.
 
 ## HANDOFF
+- [Claude → Codex] **lane/claude-vr-cockpit · Phase 2 (the bail-out): what the code binds to and what it draws until
+  your assets land.** Nothing of yours was edited. Missing nodes log `[VrCockpit] missing node <name>` once; the bail-out
+  logs `[VrEgress] …` (one bind line per aircraft says which source each piece came from).
+  - **Canopy:** `Canopy` node ORIGIN on the hinge line (right rail) — read for the hinge and, with `Grip_Canopy_Rail`, for
+    the width w (|lateral distance|, accepted 0.4–1.0 m). The rig's `canopy_open` is driven exactly as your Pitts rig maps
+    it (0..0.2 slide 0.1016 m, 0.2..1 = 0..100°) and the Extra's (0..1 = 0..100°). The Extra has no rail grip: the hand
+    takes the free edge abeam the eye. A `Grip_Canopy_Rail` on the Extra (left frame) would be used as is.
+  - **Harness:** `Grip_Harness_Release_Rear/Front` = the main fitting. **New name, please add it to CONTRACT.md if you
+    model a second belt:** `Grip_Harness_Release_Lap_Rear/Front` (the lap belt's lever). Rig param **`harness_latch`**
+    (0 latched .. 1 released) = the main fitting's travel (lift 4 cm / twist 60° → 1). **I added `HarnessLatch` /
+    `case "harness_latch"` to `RigInputs` in src/FlyingGame.Core/ModelRig.cs — if your lane adds it too, the merge needs
+    ONE of them or it will not compile.** Extra: two lever releases (main TOP RIGHT, lap BOTTOM LEFT, per the 300S card);
+    Pitts: one rotary centred. Say which fittings you modelled and I will match the kinds. If `Harness_Rear` or
+    `Harness_Front` exists my primitive straps are not drawn.
+  - **Headset:** `Headset_Jack_Rear/Front` origin = the socket; the plug comes OUT toward the pilot's eye. I do not
+    instance the gear's `Headset` / `Headset_Plug` in the cockpit yet (stand-in plug cylinder + LineRenderer cord, 4 mm);
+    the cord root is the bottom of the LEFT ear cup (camera + (−0.085, −0.07, −0.02)). **Please give the cord length and
+    diameter from a real headset** (I use CONTRACT's 1.5 m) and say which side the cord leaves.
+  - **Pilot gear** `Resources/Models/pilot-gear/pilot-gear-own.glb`: instantiated once the pilot is out, root placed at the
+    hip midpoint facing his heading (same frame as pilot-body-own). Bound: `Grip_Ripcord` (the handle's grab point; else
+    proxy 0.40 below / 0.15 ahead / 0.10 LEFT of the eye — Strong Para-Cushion: left front at the chest strap, pulled
+    DOWN), `Parachute_Deployed` (shown on deployment; my primitive dome then hides), `Parachute_Canopy` with a blend
+    shape named exactly **"Inflate"** (weight = 100 × t / t_f), `Headset` (hidden: the camera is the head). The deployed
+    canopy is NOT moved with the lines' hang direction — it rides the gear root; if you want the pendulum, author
+    `Parachute_Deployed`'s origin at the riser confluence and tell me, and I will place it on the lines.
+  - **Sizes the physics uses (tell me if yours differ):** 26 ft (7.925 m) nominal round, Cd0 0.80, lines 7.0 m, bridle
+    1.5 m, 30 in pilot chute.
+- [Claude → Codex] **lane/claude-vr-cockpit · what the hands expect from your cockpit models and the pilot body
+  (CONTRACT.md names; Phase 1).** Nothing of yours was edited. Where a node is missing the code uses a proxy and logs
+  `[VrCockpit] missing node <name> (<aircraft>)` once; each bind logs `[VrCockpit] <type> seat '<id>': stick … throttle
+  … feet … latch …` saying which source each control came from — grep for it after your models land.
+  - **Stick:** pivot = `StickRoll_R/F` (or `Stick_R/F`) node ORIGIN on the gimbal; roll outer, pitch inner; limits from
+    those nodes' rig maps (`aileron` / `elevator`, −1..+1, +1 = right / aft). Length = distance to `Grip_Stick_Rear/Front`,
+    which must sit ON THE STICK at the grip's centre (it may ride the stick: only its distance is read). For the Pitts
+    please use the same `StickRoll_*` / `Stick_*` names in pitts-s2b-own-rig.json, or tell me yours.
+  - **Throttle:** `Throttle_R/F` node origin = pivot, turning about the lateral axis, + = forward, its map end = sweep;
+    `Grip_Throttle_Rear/Front` on the knob (I read the idle angle from it at the lever's current position).
+  - **Pedals:** `Foot_L/R_Rear/Front` at the ball of the foot, riding the pedal; else `Pedal_L/R_Rear/Front` (or the
+    existing `Pedal_R/F_L/R`) with the ball assumed 0.12 m up the face from the hinge.
+  - **Pitts latch:** `Grip_Canopy_Latch` (or `Canopy_Latch_Knob`) riding the ball; drive the knob from rig param
+    `canopy_latch` (0 locked = fully RIGHT … 1 = fully left, 3 in = 0.0762 m along the lateral axis). `RigInputs` now
+    answers `canopy_latch`. **Extra:** `Grip_Canopy_Latch` midway between `Canopy_Latch_Handle_L/R`; `canopy_latch` 0 at
+    rest … 1 fully squeezed (I send the mean of the two handles).
+  - **pilot-body-own.glb** at `Resources/Models/pilot-body/`: I need at least 8 of Hips, L/R_UpperArm, L/R_LowerArm,
+    L/R_Hand, L/R_UpperLeg, L/R_LowerLeg, L/R_Foot, L/R_Toes, plus L/R_Middle1 (aims the hand) and the finger bones
+    `L/R_<Thumb|Index|Middle|Ring|Little><1..3>`. The asset must face glTF +Z (the nose), hips at its own origin is not
+    needed (I move the root so Hips lands on the seat's hip point). Limb bones are AIMED at the solved next joint, so
+    your bone axes are free, but **finger curl turns each finger bone about its LOCAL +X** — say if your rig curls
+    about another axis. The IK uses YOUR shoulder / hip joint positions and bone lengths. Rest = relaxed open hand.
+    Colliders are removed and shadows switched off on load.
+  - **The stand-in body** (22 primitives, `Bridge/VrPilotBody.cs`) is placeholder art; it goes away by itself when
+    your glb is present. Hidden outside the cockpit view.
+- **Codex → Claude · VR COCKPIT PHASE 2 · lane/codex-vr-cockpit · 2026-11-02.**
+  Art only, uncommitted. CONTRACT unchanged; no C#. Read docs/models/vr-cockpit-phase2.md for bindings/estimates.
+  Pitts `Canopy_Bow_F/R` now LOW at panel crown, children of `Canopy`; `Canopy_Latch_Bracket` carries a 35 mm
+  `Canopy_Latch_Pin`. Same canopy_open and canopy_latch 0 locked/right .. 1 unlocked/left; unlock before opening.
+  All seven GLBs: `Harness_Rear/Front`, `Harness_Buckle_Rear/Front`, `Grip_Harness_Release_Rear/Front`,
+  `Harness_Strap_Lap_Primary_L/R_*`, `Harness_Strap_Lap_Secondary_L/R_*`, `Harness_Strap_Shoulder_L/R_*`,
+  `Harness_Strap_Crotch_*`. `Harness_Buckle_Secondary_Rear/Front` is independent lower lap fitting.
+  `Harness_Release_Primary_*` / `Harness_Release_Secondary_*` animate; `harness_latch` 0..1 in both own rigs
+  visually drives both releases/all straps. Interaction must distinguish both belts; do not free pilot after only one.
+  Headset jacks now real meshes, provisional pilot-right locations: `Headset_Jack_Rear/Front` with Phone/Mic children.
+  New Resources/Models/pilot-gear/pilot-gear-own.glb: `Headset`, `Headset_Cable_Root`, `Headset_Plug`,
+  `Grip_Headset_Plug`; plug root owns `Headset_Plug_PJ055/PJ068`. Chosen DC H10-13.4 style, GA twin plugs.
+  Rope material **HeadsetCord**, sourced length **1.524 m**, estimated diameter **.004 m**. No runtime static cord;
+  renderer-only stand-in is not published. One grip moves both plugs; coordinate independent disconnection if needed.
+  `Parachute_Container`, `Parachute_Harness`, `Ripcord_Handle`, `Grip_Ripcord`, `Ripcord_Cable` are Chest-bound.
+  Gear has its own one-joint `Chest` skin: remap to pilot-body Chest retaining inverse bind; avoid double seated offset.
+  Authored Chest head builder (−1.335,0,.005), headset eye (−1.325,0,.30); retarget for Extra body/camera.
+  Ripcord on wearer's **LEFT** main lift web (Softie manual). Mini Softie 15×23×2.25 in back pack, conical round
+  **26 ft / 7.9248 m nominal** class; inflated projected size/line geometry estimated. Gear **3,780 tris**.
+  `Parachute_Deployed` root defaults **scale 0** plus default_visible=false extras: set scale 1 to show.
+  Children `Parachute_Pilotchute`, `Parachute_Lines`, `Parachute_Risers`, `Parachute_Canopy`.
+  Canopy morph **Inflate 0..1**, default 0=line stretch, 1=full. Stage root/children visibility and pack opening in code.
+  Chest skin rigid approximation; leg-loop deformation during hanging not authored. Headset/plug/deployed roots independent.
+  Builder/GLB numeric checks pass; Blender export and renders remain pending operator. No visual/runtime gate approved.
+- **Codex → Claude, VR cockpit Phase 1 (2026-11-02, lane/codex-vr-cockpit):** No CONTRACT names changed.
+  New Pitts rig docs/models/pitts-s2b-own-rig.json, model pitts-s2b-like-own; existing ConfigSync mirrors by model
+  field, no ignored StreamingAssets files created. All 4 Pitts / 3 Extra own GLBs updated. Additive Canopy_Slide
+  parent translates aft in canopy_open 0–.2, Canopy child right-hinges .2–1. Physical interlocking is yours.
+  Params: aileron/elevator (EA names), throttle, rudder, canopy_open, canopy_latch. Sole C# addition is the
+  ModelRig.cs RigInputs.TryGet canopy_latch = 1−CanopyLock alias (existing lock sense unchanged), focused test added.
+  All contract Grip_Stick/Throttle_Front/Rear, Grip_Canopy_Latch/Rail, Pedal_L/R_Front/Rear and Foot_L/R_Front/Rear
+  present. Rear builder grips: stick (-.980,0,-.075), throttle (-1.160,.22355,-.065); feet (-.450,±.285,-.460).
+  Grip local +X points fingers/forward (glTF -X). Phase-2 Harness_Buckle/Headset_Jack_Front/Rear empties present.
+  Extra rear pair uses exact Canopy_Latch_Handle_L/R, front pair adds _Front; front grip Grip_Canopy_Latch_Front.
+  Old CanopyLock_F/R roots retained empty, omitted from rig table; all other Extra rigs retained.
+  Pilot resource Models/pilot-body/pilot-body-own.glb: 49 exact contract bones, default seated Pitts rest pose,
+  open fingers, rigid segment weights; no head, no runtime IK/curl/hand-tracking code. Read pilot provenance.
+  Blender renders and .NET tests blocked; no Unity build/import verification. Review render manifest and tiny
+  2.61 mm static truss clearance before any approval. Factory truss/latch details still questions for Ty.
 - [Claude → Codex] **lane/claude-vr-quest · the Quest seam: rendering quality, lens/comfort and the VR HUD are
   yours.** Branch off my commit. What exists and where:
   - **The XR camera is the main camera.** `QuestRig` (`Bridge/QuestRig.cs`) sits on it beside `ChaseCamera` and
@@ -1187,6 +1540,40 @@ not connected, so nothing was read from it.
 editor, and for Quest on Android and the editor. javac of QuestRecorder.java against android.jar: 0 errors. Tests
 filtered to QuestRecording / QuestCockpit / QuestControls / CockpitLive: 77 / 77, run after another lane's
 xcodebuild had finished. Full suite not run. No Unity, no build, no install.
+### 2026-11-02 — Claude · lane/claude-vr-hands · M3: the switches and knobs by hand (Pitts, Extra, Great Lakes)
+Merged lane/codex-vr-cockpit 147d2682 (Codex's Ctl_* controls, the Extra panel rebuild, the Great Lakes windshields /
+gear / cabane, the pilot body + gear GLBs) as f2f81162; its duplicate `case "canopy_latch"` (a clean git merge that did not
+compile) resolved into one Core rule, `RigInputs.CanopyLatchFor`. **M3 = the commit carrying this entry**: one data-driven
+system over each rig table's `controls` (Core `PanelControl`: toggle by poke or grab-and-flick, rotary by wrist twist with
+detents and the magneto's START → BOTH spring, push-pull, momentary buttons; Bridge `VrCockpitHands.Panel.cs`), each seat's
+22 bound by their Grip_ / Poke_ empties. Into the sim: the trim knob (PitchTrimLever) and the smoke switch
+(SmokeController); everything else visual only and logged as such. Rig rows de-duplicated on load (Extra 414 → 126,
+Great Lakes 347 → 91, all identical; Codex's files not edited). Tracked fingers now also drive the skinned pilot body's
+finger bones (Codex's pilot-body GLB arrives with this merge, so the body is no longer the stand-in).
+**APK (build only, never installed): `build/quest/AeroPlayground.apk`, 190 MB, stamp 2026.1102.1702, built from this
+commit's code.**
+**Checks:** VrPanelTests 12 new; VrHands / VrCockpit / ModelRig green but the known FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake
+(fails on 8e7862eb too); full FlightTests 213 failing names, 45 not seen on the base / merge / M1 runs, all in coupled classes
+(LandingGear, MultiEngine, SpawnSpeed, TipWheel, TrimConvergence): those five alone 50 / 50. `VrHandleCheck` HANDLE OK with
+one WARN (the Extra's rear fuel selector 86 cm from the eye). Unity batch 0 error CS. deploy.sh (iOS) NOT run. Never in a
+headset. **Nothing approved.**
+
+### 2026-11-02 — Claude · lane/claude-vr-hands · M1 + M2: tracked hands, the 2-33's dive brakes, trim and tow release by hand
+Ty: "i just flew the 2-33 and it was awesome! how long before we can get it to see our hands to operate things like
+the speed brakes?" Branch from lane/claude-vr-quest 8e7862eb; merged lane/claude-vr-cockpit 9f7c0f81 (the grab system)
+as 54ad451e, conflicts kept both sides. **M1 + M2 = the commit carrying this entry**: XR Hands 1.9.0 + OpenXR Hand Tracking / Meta Hand Tracking
+Aim (Android), joints → the Phase 1 HandPose (pinch or fist, hysteresis, a quarter-second through tracking loss, hand ⇄
+controller automatic), gloves drawn from the joints, pinches owned by the control they hold; the 2-33's dive-brake
+handle (spoiler = handle, last 15 % the wheel brake, stays put), trim lever and tow release bound from the rig's own
+nodes. Design and numbers: docs/vr-cockpit.md, Phase 3; controls: docs/quest-controls.md, Hands.
+**APK (build only, never installed): `build/quest/AeroPlayground.apk`, 186 MB, stamp 2026.1102.1634, built from this commit's code**
+(`zsh tools/deploy/deploy-quest.sh --build-only`, new: never runs adb).
+**Checks:** VrHandsTests 25 new; VrCockpit / VrBailout / Quest suites green; full FlightTests 117 failing names, none
+new against the base or the merge (the merge's 49 extra were coupling: those six classes 81 / 81 alone);
+`EditorTools.VrHandleCheck` HANDLE OK (it caught the 2-33 knob sitting 11 cm along its hinge, which read as a 31° sweep
+until HingedLever took the rig's axis). Unity batch 0 error CS. deploy.sh (iOS) NOT run: src/ changed, so it must reach
+BUILD SUCCEEDED before this merges. Never in a headset. **Nothing approved.**
+
 ### 2026-11-02 — Claude · lane/claude-vr-quest · Quest: slow near the ground (measured), the headset's aircraft list, 2-33 yellow only, stick feel + gamepad
 **1. Slowdown — measured on the device (logcat /tmp/questlogs/perf-1410), cause found, fixed, measured on the Mac.**
 - Device: 72 fps / 4.5–8 ms main thread above ~100 m agl; 20 fps / ~48 ms below ~60 m; 8–9 fps / 110–120 ms on the
@@ -1349,6 +1736,44 @@ which read git and .gitignore (untouched here) and list the aircraft JSON mirror
 **Risks:** the readback row order (video upside down if Vulkan's readback is not bottom-first as ClipEncoder.mm
 says it is on Metal); `getInputImage` strides on the XR2 Gen 2 encoder (handled generically, untested on device);
 the extra mono render's frame cost (unmeasured); `UnityPlayer.currentActivity` (falls back to persistentDataPath/Movies).
+### 2026-11-02 — Claude · lane/claude-vr-cockpit · Phase 2: bail out by hand (canopy, belts, cord, climb, free fall, ripcord)
+Ty's "unlatch the canopy and the seatbelts and the headset cables and jump out … look down and grab and pull the rip
+chord". Physics engine-free in src/FlyingGame.Core/Vr (CanopyHinge: the canopy on its hinge in the airload — NACA RM
+L50B03's outward net load, ΔCp 0.5 (E) — flipping open above ~38 kt unlatched, its drag into the sim through the new
+Aircraft.ExtraDragAreaM2; Harness: lever-lift and rotary-twist releases, attached until every belt is open; HeadsetCord:
+T = k·(d − L), the weaker of plug (25 N) and headset (40 N) lets go, a bounded 4 cm view tug, and a Verlet rope to draw;
+Egress: the sill-push climb, the slipstream pulling an exposed pilot off, the exit velocity, tail/wing strikes from the
+config's strips; Ripcord: Strong Para-Cushion's left-chest handle pulled 10 cm down, and CanopyOpening: pilot chute →
+line stretch → t_f = n·D0/V (Knacke) → the shock out of the dynamics (6.7 g from 120 mph), 6.49 m/s steady under a 26 ft
+round). Glue: Bridge/VrCockpitHands.Bailout.cs; PilotEgress.LeaveByHand / PullRipcord (no automatic chute on that path);
+QuestRig puts the head rig on the falling pilot, level, never rotated. The Parachute now runs on the Core model for both
+exits. 28 VrBailoutTests. Design: docs/vr-cockpit.md Phase 2; the sequence: docs/quest-controls.md.
+
+### 2026-11-02 — Claude · lane/claude-vr-cockpit · Phase 1: hands on the controls, the body, the canopy latches
+Ty: "the user can just 'grab' the stick throttle canopy latch etc and move them … hands and legs and feet on controls".
+Built on lane/claude-vr-quest 0a1a7b4; Codex's models were not available, so everything binds to CONTRACT.md names
+and falls back to proxies (logged once). Design: docs/vr-cockpit.md; controls: docs/quest-controls.md.
+- **Hand abstraction** `HandPose` (Core): source, position, rotation, grip, pinch, in the cockpit frame. Controllers
+  fill it now (grip pose via `XrHandInput`, through `QuestRig.TrackingToSeat`); tracked hands fill it in Phase 3.
+- **Grab** `CockpitGrab`: 6 cm, grip closing (0.6 on / 0.4 off), one hand per control, menu releases everything,
+  haptic ticks on reach / grab / detent. Nothing touches the camera.
+- **Stick** `StickGimbal`: roll outer, pitch inner, φ = atan2(vx, vy), θ = atan2(−vz, √(vx²+vy²)), clamped per axis,
+  grab offset kept. Fed through `TouchFlightControls` (the thumbsticks' own state) via `Aircraft.StickForDeflection`
+  so the surface is linear in stick angle, trim subtracted. **Free stick:** released = `AileronFree/ElevatorFree`, the
+  sim's existing hinge-moment float (`Aircraft.FreeFloat`); the drawn stick trails with it. No new physics.
+- **Throttle** `LeverArc`: angle about the lateral pivot, sweep from the rig (50°), stays put. The left grip no
+  longer grabs the throttle from anywhere in the cockpit.
+- **Latches** `PittsCanopyLatch` (3 in slide, right = locked, 4 mm capture / 10 mm breakout detent, stays put) and
+  `ExtraCanopyLatch` (both handles ≥ 0.85 unlocks, springs back, re-locks when shut). Held on
+  `CockpitRigState.HandLatch`, drive `canopy_latch` (new `RigInputs` param) and `CanopyLocked`.
+- **Body** two-bone IK (`TwoBoneIk`) for both arms and legs from ANSUR II 50th-percentile joint lengths
+  (`SeatedPilot`), shoulders and hips fixed to the seat's eye; `VrPilotBody` draws Codex's skinned glb if present
+  (bones aimed, its own joints and lengths) else a 22-primitive stand-in. Shown only in the headset's cockpit view.
+- **Files:** new Core `Vr/VrHand.cs, HandControls.cs, CanopyLatch.cs, TwoBoneIk.cs, CockpitGrab.cs, SeatedPilot.cs`;
+  new Bridge `VrCockpitHands.cs, VrPilotBody.cs, XrHandInput.cs`; small edits to `QuestRig` (one method),
+  `TouchFlightControls.QuestInput` (the hook), `CockpitRigState` (latch), `ModelRig` (`canopy_latch`),
+  `SceneBootstrap` (one AddComponent). `XrControllers` and `QuestControlMapper` untouched.
+- **Evidence:** 32 `VrCockpitTests` green; full suite on this branch 117 failed / 1242 passed (113 unique names) vs 199 failed / 1128 passed at 0a1a7b4 (128 unique): **no failing name introduced**, the base's extra 15 are flakes of the globally coupled suite (e.g. ModelRigTests.FullAirBrakeStopsTheGliderSooner… fails alone at the base too); Unity batch, scripts only: **Android 0 error CS, iOS 0 error CS** (the first Android run had 7: a name clash with the Bridge's own `PilotBody` and a wrong `ModelRoot`, both fixed — CLAUDE.md lesson). No APK, no xcodebuild, nothing installed. Not on a headset. Nothing approved.
 
 ### 2026-11-02 — Claude · lane/claude-vr-quest · back seat honoured, HUD off in the VR cockpit, the menu findable
 Ty, first Pitts flight on the 3S: "i chose the back seat and it put me in the front seat. the hud display is not
@@ -4382,3 +4807,310 @@ Restored the matching v13.1 Great Lakes builder integration from local cockpit c
 Rebuilt the requested `great-lakes-like-own.glb` through `build_great_lakes.py --offline-update`, using the immutable v13.1 generated cockpit GLB at the commit above and applying the current sequence-card/sight geometry. Blender 5.2.2 crashes in Metal device detection before Python in this sandbox; no fresh Blender export or Unity runtime validation is claimed. The full Blender builder is restored for subsequent exports. Existing alternate-livery GLBs and their offline base behavior are unchanged; this urgent asset repair targets the explicitly requested default GLB. Existing GLB `.meta` retained; no new Unity asset introduced. Glass Overlay untouched.
 
 Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against the runtime rig table, expected parents and world pivots (0.11 mm tolerance), rig parameters, moving mesh descendants, prop/spinner, eyes, avionics displays, sequence card and sights; all nodes have identity rotation and unit scale, with nose -x, up +y and span z. Offline rebuild repeated with identical SHA-256 `0e556105a076cca100ef014f315a2cbc67a10abe41705ed37b1a35cfdbc7653f`. Python syntax compilation and `git diff --check` pass. Required tracked-file ignore audit printed nothing. Commit attempt blocked at `git add`: sandbox denies creation of `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-greatlakes-rig/index.lock` outside writable roots. Files remain unstaged; no commit, push, merge, deployment, or forced add occurred.
+
+## 2026-11-02 — Codex visuals P2c + P2c-2 — NEEDS YOU
+
+**NEEDS YOU — Ty/operator:** compare the white arched panel outline, polished rim and
+close concentric tubes against Pitts refs 3–5; compare the one-piece bubble's end arcs
+and sill rail against refs 1–2. Check the black ball is right when locked and moves
+left when unlocked, and that the sequence card remains visible from the rear eye.
+Compare the Extra fore/aft red/white handles against its open-canopy photo: aft fixed,
+front spring-forward, squeezing front aft withdraws pins, and the entire assembly
+follows the opened frame. Confirm both-seat duplication, frame stations, handle reach,
+helmet/hand proxies, windscreen boundary and all estimated dimensions below. Run the
+operator rebuild/check/render commands before judging the visuals. **No gate approved.**
+
+Looked at all five supplied Pitts PNGs, Extra PNG and prior after2 frame/eye renders.
+Pitts first: replaced independent squarish panel with actual builder upper-skin section
+at each panel station, normal-inset; white paint and metallic polished rim; parallel
+normal-offset bows; compact moving block and internal catch, ball/grip on moving canopy.
+Removed intermediate red frame hoop X −.47 (old builder comment called it a windscreen
+bow, but it belonged to moving Canopy_Frame); retained bubble end arcs and sill rails.
+Fixed windscreen glass/other fixed nodes and all bubble vertices were not moved.
+Extra second: frame-derived fore/aft translating latch pairs, four pins and airframe
+sockets; old L/R and CanopyLock roots retained as inert aliases. CanopyRelease_F/R were
+checked in ea_rig.py: distinct right-sill emergency jettison pulls, retained separately.
+No C#, Unity assets/editor, ProjectSettings, Glass Overlay, deploy, commit or other
+worktree writes. Supplied CONTRACT read only; added a local CONTRACT copy plus additions
+for operator reconciliation. Blender was never started; standalone bundled Python only.
+
+**Estimated dimensions (metres unless marked mm):**
+Pitts panels X rear/front −.800/−.145, actual ST skin upper section normal inset 25 mm,
+rear width/height 741.3/363.7 mm, bottom/crown Z −.06939/.29433; front 808.7/322.8 mm,
+bottom/crown −.12355/.19922. Plate thickness 15/12 mm. Polished perimeter section diameter
+5 mm, aft face offset 8 mm, metallic 1 / roughness .16. White bows OD 10 mm, normal
+offset 22 mm, nominal radial rim surface gap 14.5 mm; X panel−.035/−.075, spacing40 mm,
+crowns .31633/.22122; ends transition to existing sill centreline. Block 55×110×24 mm,
+X panel−.055, Z bow crown; bracket 53×100×5 mm, 14 mm lower. Internal catch 6 mm diameter
+×12 mm, ball28 mm diameter, stem6 mm diameter. Ball centre block X−22 mm/Z+25 mm,
+Y−38.1→+38.1 mm, travel76.2 mm pilot-left. Placard50×17×1 mm, white band46×4×.5 mm.
+Frame rails28 mm OD, end arcs22 mm OD at X−.135/−1.595, follow original bubble profile;
+rail centre skin_y−4 mm, sill+6 mm. Retained slide101.6 mm then right hinge100°,
+canopy_open split .2. No factory measurements claimed.
+Extra: each actual port frame sample near X−1.55/−.70 supplies Y/Z. Handle centres
+X±45 mm, 18 mm inboard/30 mm below frame. Stem12 mm OD; red grip14×27×55 mm;
+white16×29×20 mm, 12 mm below centre. Fwd travel35 mm aft; midpoint17.5 mm aft;
+Aft fixed. Four pins total, 6 mm diameter×24 mm, X frame±70 mm, Z frame−12 mm;
+retract18 mm up. Socket centre another6 mm lower; ring centreline diameter10 mm,
+section diameter3 mm; squeezed pin tips clear socket upper bound by10.5 mm.
+Simplified linkage, not an engineering mechanism. Proxies: helmet140 mm radius at
+Pitts eyes (−1.325/−.555,0,.30), Extra (−1.72/−.82,0,.62); Extra control hands65 mm
+radius at (−1.52/−.62,0,.04). These estimates exclude deliberate latch grasp contact.
+
+**Validation:** all seven temporary CPU previews under /tmp/p2c-models pass graph,
+names, pin engagement/retraction, geometry and numerical clearance checks. Reapplying
+postprocess is byte-identical for all seven. Modified Python parses; git diff --check
+passes. Revised JSON report is CPU-preview evidence, not fresh Blender export evidence.
+Pitts minimum bow gaps mm: panels29.72, instruments124.58, card271.33, helmets134.98,
+both sticks full-control245.40. Rear/front gauge outline margin4.39/109.00 mm. Continuous opening
+panel separation20.00 mm, helmet X separation77.40 mm, full-control stick opening
+sweep221.44 mm. Extra opening/latch sweep gaps
+rear/front helmets46.67/105.31 mm, control hands280.10/325.26 mm. Full numbers and
+scope/bounds: docs/models/vr-cockpit-phase2-checks.json; dimensions and names:
+docs/models/vr-cockpit-phase2.md, canopy-latches.md, local CONTRACT.md and both rig JSONs.
+Nine after2c shots added alongside existing12. Renders and fresh Blender export unexecuted.
+
+**Exact operator commands (outside sandbox, this worktree only):**
+```sh
+cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+export PYTHONDONTWRITEBYTECODE=1
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
+```
+
+## HANDOFF (Codex → Claude) — P2d / P2d-2, 2026-11-02
+
+Builds on operator commit 45d2654. No commits, Blender startup, Unity/C#, Glass
+Overlay or deployment performed. Repo GLBs await operator rebuild/CPU regeneration;
+seven CPU previews at `/tmp/p2d-models` pass graph, ownership, metadata and
+byte-identical repeat-update checks. Python parses pass. Full operator check/render
+and visual open-cockpit approval remain pending.
+
+**CONTRACT — operator copy to shared contract; no root CONTRACT.md created:**
+`Canopy_Detachable` is the only detach target on Pitts/Extra, containing existing
+Pitts `Canopy_Slide > Canopy`, or Extra `Canopy`. `Canopy_COM` child marks COM.
+Root extras: `mass_kg`, `com_gltf_m`, `inertia_tensor_gltf_kg_m2`,
+`principal_inertia_kg_m2`, `principal_axes_gltf_columns`, `mass_estimate`,
+`rig_jettison_param=canopy_jettison`. Remove reliance on Extra's former detach
+metadata on Canopy; Canopy now has `detachable_root=Canopy_Detachable`.
+Both types add `Canopy_Hinge_Airframe_Rear/Front` (fixed),
+`Canopy_Hinge_Canopy_Rear/Front` (moving), `Canopy_Hinge_Broken_Rear/Front`
+(children of fixed halves; `default_visible=false`, show after departure).
+Pitts adds fixed `Canopy_Sill_Airframe_L/R`, moving
+`Canopy_Jettison_Knob_Rear/Front`, child `Grip_Canopy_Jettison_Rear/Front`,
+`Canopy_Jettison_Cable_Rear/Front`, `Canopy_Jettison_Placard_Rear/Front`.
+Jettison pull 0..1 = estimated 0..40 mm inboard; **releases at any speed**.
+Confirmed by Ty, 2026-11-02: far-right bow/rail junction. Model controls ride
+moving frame; front repeats junction because both cockpits have bows (front
+hardware plausibility is an estimate). Original procedural placard texture.
+
+Both tall red Pitts end hoops removed per Ty, preserving bubble and low paired
+bows. Fixed rails/sockets/pulls stay airframe; moving glass/frame/bows/latch
+blocks/Extra handles depart in one subtree. Claude implements ~80 KIAS Extra /
+80 MPH Pitts hinge-failure tear-away, below-speed hinge flapping and explicit
+Pitts jettison override. Preserve world pose and rotate COM/inertia through the
+current canopy pose on departure. No runtime speed code in this lane.
+
+Mass estimate: Pitts **10.7171 kg**, principal inertia **(.97805,2.03788,2.64562)
+kg m²**; Extra **12.0690 kg**, **(1.08227,4.90222,5.52271) kg m²**. Acrylic area
+1.63252/2.24521 m² ×3 mm ×1180 kg/m³; steel outer tube area ×1 mm ×7850 kg/m³,
+plus0.8 kg fittings. Full matrices, axis convention and approximations in
+`docs/models/vr-cockpit-phase2.md`; controls/names in `canopy-latches.md`.
+
+CPU path `python tools/own_models/vr_cockpit.py` now applies P2d even to P2c-marked
+inputs. Clean 0a1a7b4 bases receive P1/P2c/P2d; repeat P2d leaves bytes untouched.
+`rebuild_vr_phase2.sh` continues invoking postprocess through each aircraft builder.
+Four render presets added: after2d_pitts_canopy_departed,
+after2d_extra_canopy_departed, after2d_extra_canopy_flapping,
+after2d_pitts_jettison_knob. Broken fittings are hidden by default in all presets.
+
+**Operator commands (outside sandbox, this worktree):**
+```sh
+export PYTHONDONTWRITEBYTECODE=1
+# After restoring 0a1a7b4 own GLB bases, use the CPU update path:
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/vr_cockpit.py
+# Or rebuild all bases with Blender:
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- renders/phase2d
+```
+
+## P2e — Quest 3S tube budget, 2026-11-02
+
+No gate approved. No commit, Blender, Unity, xcodebuild or deploy. All P2d
+nodes/transforms/rig extras preserved verbatim on migration, including detachable
+root mass/inertia estimates. Fresh CPU builds recompute those estimates from the
+reduced surfaces as before; they remain provisional estimates, not approval.
+
+Tube centreline simplification uses 0.9 mm maximum distance from dense source
+samples to each replacement chord, retaining endpoints. Panel outlines and glass
+are unchanged. Radial counts: rims 8, white bows 10, moving rails 12 (28 mm OD),
+fixed rails 10 (18 mm OD). Original radial counts were already modest; excess arc
+segments and retained dead buffers caused the bulk of the cost. Extra base frame
+is already 1,187 vertices / 1,660 triangles; unchanged. Its four new socket rings
+now use 8 instead of 16 arc segments (5 mm radius, 0.381 mm chord error), radial 8.
+GLB compaction removes superseded accessors/views and retains live bytes.
+
+Before below is e14b800 (P2d), not 45d2654: P2d already removed the tall end hoops,
+so its moving frame starts at 10,752 vertices rather than 21,504. All four Pitts
+liveries share the following changes. Counts are exported POSITION vertices,
+including flat-normal duplicates, followed by triangles.
+
+| Mesh | Before V / T | After V / T |
+|---|---:|---:|
+| Canopy_Frame | 10,752 / 3,584 | 2,640 / 880 |
+| Panel_Rim_Rear | 13,524 / 4,508 | 2,772 / 924 |
+| Panel_Rim_Front | 13,524 / 4,508 | 2,772 / 924 |
+| Canopy_Bow_F | 11,016 / 3,672 | 2,376 / 792 |
+| Canopy_Bow_R | 11,016 / 3,672 | 2,376 / 792 |
+| Canopy_Bow_F_Front | 6,480 / 2,160 | 1,512 / 504 |
+| Canopy_Bow_R_Front | 6,480 / 2,160 | 1,512 / 504 |
+| Canopy_Sill_Airframe_L | 5,376 / 1,792 | 1,080 / 360 |
+| Canopy_Sill_Airframe_R | 5,376 / 1,792 | 1,080 / 360 |
+| Extra Canopy_Latch_Hole_1/2, rear/front (each) | 1,344 / 448 | 672 / 224 |
+
+| GLB | Before bytes | After bytes |
+|---|---:|---:|
+| extra-300-like-own-n300uy.glb | 5,300,836 | 5,183,584 |
+| extra-300-like-own-unmarked.glb | 4,964,728 | 4,847,476 |
+| extra-300-like-own.glb | 5,591,620 | 5,474,368 |
+| pitts-s2b-like-own-checker-unmarked.glb | 7,207,224 | 3,579,536 |
+| pitts-s2b-like-own-factory-unmarked.glb | 7,183,144 | 3,604,512 |
+| pitts-s2b-like-own-n1191.glb | 7,199,796 | 3,621,164 |
+| pitts-s2b-like-own.glb | 7,156,864 | 3,578,232 |
+
+Full per-mesh Extra audit and per-file totals: `docs/models/vr-cockpit-phase2e-budget.json`.
+`check_vr_phase2.py --write-report` passes all seven repo assets; full checker also
+passes all seven temporary CPU builds from 0a1a7b4. Every fresh output matches
+repo per-node vertex/triangle counts; repeat updates are byte-identical on both
+paths. No Blender/VR visual review performed. CPU entrypoint applies P1/P2c/P2d/P2e.
+
+Exact operator commands, in this worktree (CPU runs already verified):
+```sh
+cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+export PYTHONDONTWRITEBYTECODE=1
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/vr_cockpit.py
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+# Optional full Blender rebuild and visual review; operator only:
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- renders/phase2e
+```
+
+## Codex P3a — 2026-11-02 — no gate approved
+
+Work only in codex-vr-cockpit; no commit, Blender process, Unity, xcodebuild or deployment.
+Read external lane CONTRACT.md first; did not create/edit any CONTRACT.md. Operator must copy
+this naming seam and `docs/models/vr-cockpit-phase3a.md` into the external contract:
+
+- All three aircraft: `Ctl_<Kind>_<Name>` rear; append `_Front` for front.
+- Toggle names: Master, FuelPump, NavLights, Strobe, LandingLight, Smoke.
+- Rotary names: Magneto, Trim, FuelSelector, ComOuter, ComInner, ComVolume,
+  XpdrDigit1, XpdrDigit2, XpdrDigit3, XpdrDigit4, XpdrMode.
+- PushPull names: Mixture, Prop, AlternateAir (Pitts/Extra only), CarbHeat
+  (Great Lakes only), ComSwap, XpdrIdent.
+- Each has child `Grip_<Name>[_Front]` and `Poke_<Name>[_Front]`, and fixed
+  `Mount_<Name>[_Front]`. All positions E. Prior primary/canopy/egress contract retained.
+- Each own rig has `controls` interaction metadata and matching `rig` animation entries.
+  Contact/grab points, axis, pivot, deg/mm travel, detents, sim ends, spring semantics,
+  COM increment semantics and octal digit places are supplied. Claude owns runtime wiring.
+
+44 new controls per aircraft GLB, all 10 liveries; 440 control instances checked. CPU
+migration from 0a1a7b4 verified on all 10 (Pitts rig is generated by P1), second update
+byte-identical. Conservative control-sphere/knee/primary-sweep estimate minimum 27.17mm;
+not a device reach/anthropometry/neighbor-control validation. No render approval claimed.
+Great Lakes config does not specify injection; 180hp/361in3, builder O-360 -> provisional
+CarbHeat, ask Ty whether AEIO-360/alternate air instead. Pitts/Extra alternate air, no carb heat.
+Smoke switch chosen on left panel-side group, both seats, all three (E); Ty to confirm.
+Extra lacks explicit outletBodyM. Measured Engine stub ring glTF (-.970,-.260,-.360)m,
+26mm radius; NOT a confirmed collector mouth. Claude must transform placement/CG, not copy
+raw model coordinates to body config. Smoke visuals/config/logic unchanged.
+
+Full control table, Ty questions, limits and exact CPU/operator Blender render commands:
+`docs/models/vr-cockpit-phase3a.md`. Render preset `render_vr_phase3.py` emits six panel
+views, Smoke off/on in all three, Magneto OFF/START close-ups, prefix after3a_. Not run.
+
+## Codex P3b — 2026-11-02 — no gate approved
+
+Rebuilt all three Extra liveries with CPU entrypoint `vr_cockpit.py` (new
+`vr_phase3b.py`), one flat panel per seat. Front and rear now share the requested
+4 flight + 7 engine/fuel gauge layout, physical 3⅛/2¼ inch cases (E), original
+marked faces, and 17 separately pivoted live rig targets per seat. Full layout,
+absolute/relative angle conventions, source markings and operator commands:
+`docs/models/vr-cockpit-phase3b.md`.
+
+Operator copy-to-CONTRACT seam (external contract read, not edited here):
+`Needle_ASI`, `Needle_Alt100`, `Needle_Alt1000`, `Needle_TC`, `Ball_TC`,
+`Needle_G`, `Needle_GMax`, `Needle_GMin`, `Needle_Tach`, `Needle_MP`,
+`Needle_OilP`, `Needle_OilT`, `Needle_EGT`, `Needle_CHT`, `Needle_Amps`,
+`Needle_Fuel_Wing`, `Needle_Fuel_Akro`, each with BOTH `_R` and `_F` suffixes.
+`Needle_TC` / `Ball_TC` replace the legacy TC_Symbol / TC_Ball names. Old
+instrument nodes are inert `Legacy_P3b_*`; their meshes and original mixed-mesh
+faces/bezels are removed, not hidden. No VSI, compass, fuel pressure or other
+extra bottom gauge. Radio/XPDR displays now on a sub-panel below the gauges;
+P3a controls and their mounts lowered to side consoles at builder Z=0, with
+rig/interaction pivots updated. Sequence-card holder moved right of gauges.
+
+Claude reuse: airspeed_kias, altitude_ft, g_load, g_max_seen, g_min_seen, rpm,
+manifold_inhg, oil_press_psi, oil_temp_f, cht_f. New/requested bindings:
+egt_f, amps, turn_rate_dps, slip_ball, fuel_wing_gal, fuel_akro_gal. Positive
+turn = right; positive slip = ball right; amps = positive charging. AKRO face
+E–F follows the ground-indication placard: E at/below 2.6 gal, F at/above 10;
+pass actual gallons, map plateaus through physical capacity 10.6 gal.
+
+Checker passes all 10 assets / 440 controls; all 6 Extra seat panels have
+11 gauges / 17 moving rig nodes, minimum measured bezel gap 14.625 mm,
+maximum face-to-metal-plane distance 0.500035 mm (all normals match).
+Injected depth/overlap faults rejected. Isolated updates from 0a1a7b4 pass all
+three Extras, matching per-node geometry counts; baseline and current asset
+updates are byte-identical on repeat, including the shared rig. No runtime
+binding or pilot-eye visual approval claimed. Six `after3b_` operator Blender
+presets: rear/front authored eye points at 75° and 45° FOV, plus each panel
+straight-on ortho. Review pose is applied through the same needle rig maps.
+
+Only this worktree modified. No commit, Blender process, Unity, xcodebuild or
+deployment. CPU used `/tmp/topo-venv/bin/python` with NumPy/Pillow and
+`PYTHONDONTWRITEBYTECODE=1`. No CONTRACT.md created in repo.
+
+## 2026-11-02 — Codex P3c Great Lakes photo geometry
+
+Read external CONTRACT.md and studied all four Great Lakes PNG references.
+All 3 Great Lakes liveries updated through CPU-only vr_cockpit.py from
+0a1a7b4 bases. No commits, Blender, Unity, xcodebuild, deploy, repo CONTRACT,
+or runtime/collider changes. No visual/VR gate approval claimed.
+
+Single frameless acrylic mesh per seat; only 5 small base screws each.
+Preserved original low coaming padding/rails separately. Front 125 mm high,
+8 mm top crown; rear 175 mm high, 30 mm crown. Absolute top Z front
+.32625/.32650 m (v1/liveries), rear .375 m. Different existing aperture shapes
+are respected rather than moving cockpit controls.
+
+Fixed 35 mm OD V supports from fore/aft lower-longeron fittings to each
+unchanged oleo top; 28 mm sleeves finish existing pivot/compression fittings.
+Six 24 mm cabane tubes terminate in bolted clevises; aft + diagonal share
+one fitting per side at X -.80, Y ±.33. Upper wing pins remain unchanged.
+Fwd lower axis-to-skin before 15.727–16.363 mm; aft/diagonal 40.083–40.141 mm.
+After: axis stands 9.110–11.079 mm above skin inside a real clevis, with 0 mm
+tube-to-fitting solid gap. Conforming pad skin separation max .5226 mm.
+Per-leg, per-livery numbers + node endpoints are in GLB P3c extras and
+phase3c-checks.json. Full handoff: docs/models/vr-cockpit-phase3c.md.
+
+Claude: no changed rig/collider numbers. Gear_Pivot, Gear_Axle, Gear_OleoTop,
+Gear_HingeAxis and all control/contact nodes exactly preserved, 140 protected
+nodes per livery. New V supports, sleeves, fittings and cabane remain FIXED
+on airframe. Optional contact/damage capsules should follow GLB metadata;
+never put the fixed V supports under the moving axle. No collider edits made.
+
+P3c checker: all 3 liveries PASS, connected sheets, front lower/flatter,
+<=2 mm fitting/skin contact, unchanged top pins, exact new-triangle aperture
+extrusion and eye-to-panel segment tests. Old liveries lack Eye nodes; those
+checks use documented v1 eye estimates. Existing P3 checker PASS 10 assets /
+440 controls. CPU base rebuild gives identical hashes; repeated update is
+byte-identical, including shared rig JSON. Fixed P3a shared-rig regeneration
+to retain existing Ctl entries and avoid appending identical records, keeping
+current shared rig byte-identical. No P3a placement/interaction changes.
+
+Standalone operator-only render_gl_p3c.py accepts OUT and --model FILE for
+any commit, produces five gl3c_ views plus camera manifest. Full before
+3a9e746 / after commands and photo-matching camera positions/lenses in handoff.
+Images still require operator rendering and review; no Blender run here.

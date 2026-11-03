@@ -25,8 +25,9 @@ namespace FlyingGame.EditorTools
     ///  • XR Plug-in Management: the OpenXR loader for Android, initialised at startup. iOS and macOS get NO loader
     ///    (it removes one if it ever appears), so those builds start no XR at all and behave exactly as before.
     ///  • OpenXR for Android: Meta Quest Support (Quest 3S is a target device by default in OpenXR 1.16), the Oculus
-    ///    Touch Controller Profile, the Hand Interaction Profile (pinch for the menu and recentre, without the XR
-    ///    Hands package and the Input System backend it would need), and this project's display-rate feature.
+    ///    Touch Controller Profile, the Hand Interaction Profile (pinch for the menu and recentre), XR Hands' Hand
+    ///    Tracking and Meta Hand Tracking Aim (the joints the cockpit hands grab and are drawn with), and this
+    ///    project's display-rate feature.
     ///    Single-pass instanced = multiview on Quest. Legacy foveation, the only kind the built-in pipeline has.
     ///  • Android player: IL2CPP, ARM64 only, Vulkan only, minSdk 32, target "auto" (highest installed),
     ///    application id com.tyrelfrisby.aeroplayground.quest. All Android-only settings.
@@ -86,8 +87,12 @@ namespace FlyingGame.EditorTools
             oxr.renderMode = OpenXRSettings.RenderMode.SinglePassInstanced;
             // XrPerformanceSettingsFeature: Unity's own XR_EXT_performance_settings, for the sustained-high CPU/GPU hint
             // and the runtime's thermal notifications (QuestPerformanceHints, docs/quest-performance.md).
+            // HandTracking (XR Hands' XR_EXT_hand_tracking): the 26 joints the cockpit hands are drawn from and grab with
+            // (QuestHandTracking, docs/vr-cockpit.md "Hands"); MetaHandTrackingAim (XR_FB_hand_tracking_aim): the
+            // runtime's own pinch and aim pose per hand, which the Hand Interaction Profile's pinch is a fallback for.
             var wanted = new System.Type[] { typeof(MetaQuestFeature), typeof(OculusTouchControllerProfile), typeof(HandInteractionProfile), typeof(QuestDisplayRateFeature),
-                                             typeof(UnityEngine.XR.OpenXR.Features.Extensions.PerformanceSettings.XrPerformanceSettingsFeature) };
+                                             typeof(UnityEngine.XR.OpenXR.Features.Extensions.PerformanceSettings.XrPerformanceSettingsFeature),
+                                             typeof(UnityEngine.XR.Hands.OpenXR.HandTracking), typeof(UnityEngine.XR.Hands.OpenXR.MetaHandTrackingAim) };
             foreach (var f in oxr.GetFeatures())
             {
                 bool on = wanted.Contains(f.GetType());
