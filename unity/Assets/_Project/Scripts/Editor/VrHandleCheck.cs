@@ -2,6 +2,8 @@ using System;
 using FlyingGame.Bridge;
 using FlyingGame.Core;
 using FlyingGame.Core.DataContracts;
+using FlyingGame.Core.MathTypes;
+using FlyingGame.Core.Vr;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -30,6 +32,10 @@ namespace FlyingGame.EditorTools
 
         private static int _fails;
 
+        /// <summary>Every aeroplane the Quest flies with a rig (QuestFleet).</summary>
+        private static readonly string[] Fleet =
+            { "glider-2-33-like", "extra-300-like", "pitts-s2b-like", "great-lakes-like", "j3-cub-like", "j3-cub-floats-like" };
+
         public static void Run()
         {
             int exit = 1;
@@ -52,6 +58,7 @@ namespace FlyingGame.EditorTools
                 Slide(builder.Rig, root.transform, "TowRelease_F", eyeF, 0.05f);
                 Slide(builder.Rig, root.transform, "TowRelease_R", eyeR, 0.05f);
                 foreach (string t in new[] { "pitts-s2b-like", "extra-300-like", "great-lakes-like" }) Panel(t);
+                foreach (string t in Fleet) Controls(t);
                 exit = _fails == 0 ? 0 : 1;
                 Debug.Log(exit == 0 ? "HANDLE OK" : $"HANDLE PROBLEMS: {_fails} — see the errors above");
             }
@@ -83,7 +90,7 @@ namespace FlyingGame.EditorTools
             int verts = RigHandle.VertexCount(h.T);
             Vector3 pivot = air.InverseTransformPoint(h.PivotWorld);
             Vector3 k0 = air.InverseTransformPoint(h.KnobWorld(h.V0)), k1 = air.InverseTransformPoint(h.KnobWorld(h.V1));
-            var lever = new FlyingGame.Core.Vr.HingedLever(C(pivot), C(k0), C(k1), C(air.InverseTransformDirection(h.HingeWorld)));
+            var lever = new HingedLever(C(pivot), C(k0), C(k1), C(air.InverseTransformDirection(h.HingeWorld)));
             Debug.Log($"HANDLE {node}: {verts} vertices; pivot {From(eye, pivot)}; knob at {h.P0:+0.##;-0.##;0} {From(eye, k0)}; " +
                       $"at {h.P1:+0.##;-0.##;0} {From(eye, k1)}; arm {lever.ArmM * 100:F1} cm ({lever.AxialM * 100:F1} cm along the hinge), sweep {lever.SweepDeg:F1}° about ({lever.Axis.X:F2}, {lever.Axis.Y:F2}, {lever.Axis.Z:F2})");
             if (verts == 0) Fail($"{node}: no readable mesh — the knob fell back to the pivot");
@@ -159,6 +166,123 @@ namespace FlyingGame.EditorTools
             UnityEngine.Object.DestroyImmediate(root);
         }
 
-        private static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
+        /// <summary>
+        /// THE STICK AND THE THROTTLE, EVERY QUEST AEROPLANE, EVERY SEAT (Ty 2026-11-02: "verify grab for the stick and
+        /// throttle in every aircraft with an automated test that places a tracked hand at each control and asserts the
+        /// input changes"). Through the binding the headset ships (<see cref="VrControlBinding"/>):
+        ///   - the stick and throttle bind on the rig (not the proxy) for every seat with a node;
+        ///   - 1:1: the gimbal's grip matches the rig's own pose of the stick within 1 cm across its travel;
+        ///   - a TRACKED hand closed on the visible grip (2 cm off it) grabs the stick, and moving it 5 cm right / aft /
+        ///     forward moves aileron right, elevator aft, elevator forward;
+        ///   - a tracked hand closed on the throttle knob grabs the throttle, and pushing it 6 cm forward opens it.
+        /// </summary>
+        private static void Controls(string type)
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var root = new GameObject(type);
+            var builder = new AirframeBuilder();
+            AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(type);
+            builder.Build(root.transform, cfg);
+            Transform air = root.transform;
+            if (builder.Rig == null) { Fail($"{type}: no rig bound"); UnityEngine.Object.DestroyImmediate(root); return; }
+            bool engine = cfg.Propulsion != null;
+            foreach (StationConfig seat in cfg.Loading.Seats)
+            {
+                if (seat.Id != "rear" && seat.Id != "front") continue;
+                string tag = $"{type} {seat.Id}";
+                VrControlBinding.Stick s = VrControlBinding.BindStick(builder.Rig, builder.FindInModel, air, seat.Id);
+                if (s == null) { Fail($"STICK {tag}: not on the rig (no Stick_* elevator node) — the proxy would be used"); }
+                else StickCheck(tag, s, air);
+                if (!engine) { Debug.Log($"THROTTLE {tag}: none (no engine)"); continue; }
+                VrControlBinding.Throttle th = VrControlBinding.BindThrottle(builder.Rig, builder.FindInModel, air, seat.Id);
+                if (th == null) { Fail($"THROTTLE {tag}: not on the rig (no Throttle_* node) — the proxy would be used"); continue; }
+                ThrottleCheck(tag, th, s);
+            }
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        private static HandPose Hand(Vec3 at, double grip) =>
+            new() { Source = HandSource.TrackedHand, Position = at, Rotation = Quat.Identity, Grip = grip };
+
+        private static void StickCheck(string tag, VrControlBinding.Stick s, Transform air)
+        {
+            StickGimbal g = s.Gimbal;
+            RigHandle roll = s.Roll, pitch = s.Pitch;
+            Vec3 g0 = g.GripAt(0, 0), pv = g.Pivot;
+            Debug.Log($"STICK {tag}: {roll?.Name ?? "no roll node"} / {pitch.Name}; grip {s.GripSource}; {g.LengthM * 100:F1} cm; " +
+                      $"grip {(g0.Y - pv.Y) * 100:F1} up / {(g0.Z - pv.Z) * 100:F1} fwd / {(g0.X - pv.X) * 100:F1} right of the pitch pivot; " +
+                      $"roll {g.RollMaxDeg:F0}°, {g.AftMaxDeg:F0}° aft / {g.FwdMaxDeg:F0}° fwd; bind check {s.SenseResidualM * 1000:F1} mm");
+
+            // 1:1 against the rig's own pose (roll outer, pitch inner), at rest and across the travel.
+            Quaternion kp = pitch.T.localRotation, kr = roll != null ? roll.T.localRotation : Quaternion.identity;
+            double worst = 0;
+            try
+            {
+                roll?.Pose(0.0); pitch.Pose(0.0);
+                Vector3 gripInPitch = pitch.T.InverseTransformPoint(air.TransformPoint(U(g0)));
+                foreach ((double a, double e) in new[] { (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0), (0.7, 0.7), (-0.7, -0.7), (0.5, -1.0) })
+                {
+                    double rv = roll != null ? VrControlBinding.Curve(roll.Node).Value(a) : 0, pvv = VrControlBinding.Curve(pitch.Node).Value(e);
+                    roll?.Pose(rv); pitch.Pose(pvv);
+                    Vector3 rig = air.InverseTransformPoint(pitch.T.TransformPoint(gripInPitch));
+                    double err = (g.GripAt(roll != null ? rv : 0, pvv) - C(rig)).Length;
+                    worst = System.Math.Max(worst, err);
+                }
+            }
+            finally { pitch.T.localRotation = kp; if (roll != null) roll.T.localRotation = kr; }
+            if (worst > 0.01) Fail($"STICK {tag}: the gimbal's grip is {worst * 1000:F0} mm from the rig's stick (want 1:1, < 10 mm)");
+
+            // A tracked hand at the visible grip: 2 cm right of it and 4 cm down the stick (a fist round the grip).
+            var grab = new CockpitGrab();
+            (Vec3 a0, Vec3 b0) = VrControlBinding.StickCapsule(g);
+            grab.Set(Grabbable.Stick, a0, b0, true);
+            Vec3 at = g0 - g.Up * 0.04 + new Vec3(0.02, 0, 0);
+            grab.Step(HandSide.Right, Hand(at, 0.0), false);
+            GrabEvents ev = grab.Step(HandSide.Right, Hand(at, 1.0), false);
+            if ((ev & GrabEvents.Grabbed) == 0 || grab.Held(HandSide.Right) != Grabbable.Stick)
+            { Fail($"STICK {tag}: a tracked hand closed {System.Math.Sqrt(grab.Points[(int)Grabbable.Stick].Distance2(at)) * 100:F1} cm from the stick's capsule did not grab it"); return; }
+            g.SetFromControls(0, 0);
+            g.Grab(at);
+            g.Follow(at + new Vec3(0.05, 0, 0)); double ail = g.Aileron;
+            g.Follow(at + new Vec3(0, 0, -0.05)); double aft = g.ElevatorAft;
+            g.Follow(at + new Vec3(0, 0, 0.05)); double fwd = g.ElevatorAft;
+            g.Follow(at); double back = g.Aileron, backE = g.ElevatorAft;
+            Debug.Log($"STICK {tag}: tracked hand grabbed; 5 cm right → aileron {ail:+0.00;-0.00}; 5 cm aft → elevator {aft:+0.00;-0.00} (aft +); 5 cm fwd → {fwd:+0.00;-0.00}; back → {back:+0.00;-0.00} / {backE:+0.00;-0.00}");
+            if (ail < 0.15) Fail($"STICK {tag}: hand 5 cm right gave aileron {ail:F2} (want > +0.15, right)");
+            if (aft < 0.15) Fail($"STICK {tag}: hand 5 cm aft gave elevator {aft:F2} (want > +0.15, aft)");
+            if (fwd > -0.15) Fail($"STICK {tag}: hand 5 cm forward gave elevator {fwd:F2} (want < −0.15, forward)");
+            if (System.Math.Abs(back) > 0.02 || System.Math.Abs(backE) > 0.02) Fail($"STICK {tag}: the hand back where it grabbed did not centre the stick");
+        }
+
+        private static void ThrottleCheck(string tag, VrControlBinding.Throttle th, VrControlBinding.Stick s)
+        {
+            HingedLever l = th.Lever;
+            Vec3 k0 = l.GripAt(0), k1 = l.GripAt(1);
+            Debug.Log($"THROTTLE {tag}: {th.Node.Name}, knob {th.GripSource}; arm {l.ArmM * 100:F1} cm, sweep {l.SweepDeg:F1}°; " +
+                      $"knob idle→full moves ({(k1.X - k0.X) * 100:F1}, {(k1.Y - k0.Y) * 100:F1}, {(k1.Z - k0.Z) * 100:F1}) cm (x right, y up, z fwd)");
+            if (k1.Z - k0.Z < 0.02) Fail($"THROTTLE {tag}: the knob does not move FORWARD from idle to full");
+            var grab = new CockpitGrab();
+            (Vec3 ta, Vec3 tb) = VrControlBinding.ThrottleCapsule(l, 0.0);
+            grab.Set(Grabbable.Throttle, ta, tb, true);
+            if (s != null) { (Vec3 sa, Vec3 sb) = VrControlBinding.StickCapsule(s.Gimbal); grab.Set(Grabbable.Stick, sa, sb, true); }
+            Vec3 at = k0 + new Vec3(-0.015, 0.0, 0.0);
+            grab.Step(HandSide.Left, Hand(at, 0.0), false);
+            GrabEvents ev = grab.Step(HandSide.Left, Hand(at, 1.0), false);
+            if ((ev & GrabEvents.Grabbed) == 0 || grab.Held(HandSide.Left) != Grabbable.Throttle)
+            { Fail($"THROTTLE {tag}: a tracked hand on the knob grabbed {grab.Held(HandSide.Left)}, not the throttle"); return; }
+            l.Grab(at, th.TFor(0.0));
+            double idle = th.ThrottleFor(l.Follow(at));
+            Vec3 fwdDir = (k1 - k0) * (1.0 / (k1 - k0).Length);
+            double pushed = th.ThrottleFor(l.Follow(at + fwdDir * 0.06));
+            double full = th.ThrottleFor(l.Follow(at + fwdDir * 0.6));
+            Debug.Log($"THROTTLE {tag}: tracked hand grabbed; held {idle:F2}; 6 cm along the knob's travel → {pushed:F2}; far past → {full:F2}");
+            if (idle > 0.02) Fail($"THROTTLE {tag}: grabbing at idle moved the throttle to {idle:F2}");
+            if (pushed < 0.2) Fail($"THROTTLE {tag}: pushing the knob 6 cm forward gave throttle {pushed:F2} (want > 0.2)");
+            if (full < 0.98) Fail($"THROTTLE {tag}: pushing far past the stop gave {full:F2} (want full)");
+        }
+
+        private static Vector3 U(Vec3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
+
+        private static Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
     }
 }

@@ -42,6 +42,9 @@ namespace FlyingGame.Bridge
         /// <summary>Headset on, cockpit view, an aeroplane with a sim, the pilot still in it.</summary>
         public bool Active { get; private set; }
         public bool StickHeld => Active && _grab.IsHeld(Grabbable.Stick);
+        /// <summary>Set by TouchFlightControls each frame before <see cref="Tick"/>: a thumbstick (Touch or a pad) is out of
+        /// its dead zone, so it flies pitch and roll even with a hand on the stick (HandPadArbiter).</summary>
+        public bool PadOwnsStick { get; set; }
         public bool ThrottleHeld => Active && _hasThrottle && _grab.IsHeld(Grabbable.Throttle);
         /// <summary>The held stick, as the sim's own inputs (aileron + right, elevator + PUSH), already through the
         /// inverse of the type's dead zone and expo so the surface is LINEAR in stick angle, as a cable is.</summary>
@@ -69,7 +72,8 @@ namespace FlyingGame.Bridge
         private Vector3 _eye;
         private CockpitProxy _proxy;
         private StickGimbal _stick;
-        private LeverArc _lever;
+        private VrControlBinding.Throttle _lever;
+        private VrControlBinding.Stick _stickRig;
         private bool _hasThrottle;
         private Transform _latchNode, _latchAftNode, _latchFwdNode, _footNodeL, _footNodeR;
         private Vector3 _footOffL, _footOffR;
@@ -214,36 +218,24 @@ namespace FlyingGame.Bridge
             string full = seatId == "rear" ? "Rear" : seatId == "front" ? "Front" : null;
             string brief = seatId == "rear" ? "R" : seatId == "front" ? "F" : null;
 
-            // The stick: the rig's gimbal node is the pivot; Grip_Stick_* says how long it is.
-            Transform pivotNode = brief != null ? Node("StickRoll_" + brief) ?? Node("Stick_" + brief) : null;
-            Transform gripNode = full != null ? Contract("Grip_Stick_" + full) : null;
-            Vector3 pivot = pivotNode != null ? Local(pivotNode.position) : _eye + U(_proxy.StickPivot);
-            Vector3 proxyGrip = _eye + U(_proxy.StickPivot) + Vector3.up * (float)_proxy.StickLengthM;
-            double len = gripNode != null ? Vector3.Distance(Local(gripNode.position), pivot)
-                       : Mathf.Clamp(proxyGrip.y - pivot.y, 0.30f, 0.80f);
-            double roll = _proxy.StickRollMaxDeg, aft = _proxy.StickAftMaxDeg, fwd = _proxy.StickFwdMaxDeg;
-            RigNode rr = brief != null ? RigNodeNamed("StickRoll_" + brief) : null;
-            RigNode rp = brief != null ? RigNodeNamed("Stick_" + brief) : null;
-            if (rr != null) { var e = MapEnds(rr); roll = System.Math.Max(System.Math.Abs(e.Min), System.Math.Abs(e.Max)); }
-            if (rp != null) { var e = MapEnds(rp); aft = e.Max; fwd = -e.Min; }
-            _stick = new StickGimbal(C(pivot), len, roll, aft, fwd);
-
-            // The throttle: the rig's lever node is the pivot, its map end the sweep; Grip_Throttle_* gives the arm
-            // and, read at the lever's current position, where idle is.
-            _hasThrottle = ac.Config.Propulsion != null;
-            Transform thrNode = brief != null ? Node("Throttle_" + brief) : null;
-            Transform thrGrip = full != null && _hasThrottle ? Contract("Grip_Throttle_" + full) : null;
-            RigNode thrRig = brief != null ? RigNodeNamed("Throttle_" + brief) : null;
-            double sweep = thrRig != null ? MapEnds(thrRig).Max - MapEnds(thrRig).Min : _proxy.ThrottleSweepDeg;
-            Vector3 tp = thrNode != null ? Local(thrNode.position) : _eye + U(_proxy.ThrottlePivot);
-            double arm = _proxy.ThrottleArmM, idle = _proxy.ThrottleIdleDeg;
-            if (thrGrip != null)
+            // The stick: the rig's own hinges and grip (VrControlBinding: why the old upright rod missed every raked
+            // stick in the fleet), else the proxy.
+            _stickRig = VrControlBinding.BindStick(_visual?.Rig, Node, _air, seatId);
+            Vector3 pivot;
+            if (_stickRig != null) { _stick = _stickRig.Gimbal; pivot = U(_stick.Pivot); }
+            else
             {
-                Vector3 g = Local(thrGrip.position);
-                arm = new Vector2(g.y - tp.y, g.z - tp.z).magnitude;
-                idle = LeverArc.AngleOf(C(tp), C(g)) - ac.Throttle01 * sweep;
+                pivot = _eye + U(_proxy.StickPivot);
+                _stick = new StickGimbal(C(pivot), _proxy.StickLengthM, _proxy.StickRollMaxDeg, _proxy.StickAftMaxDeg, _proxy.StickFwdMaxDeg);
             }
-            _lever = new LeverArc(C(tp), arm, idle, sweep);
+            double len = _stick.LengthM, roll = _stick.RollMaxDeg, aft = _stick.AftMaxDeg, fwd = _stick.FwdMaxDeg;
+            Vector3 grip0 = U(_stick.GripAt(0, 0));
+
+            // The throttle: the rig's lever through the knob it draws at idle and full, else the proxy's arc.
+            _hasThrottle = ac.Config.Propulsion != null;
+            _lever = _hasThrottle ? VrControlBinding.BindThrottle(_visual?.Rig, Node, _air, seatId) : null;
+            _lever ??= VrControlBinding.ProxyThrottle(C(_eye + U(_proxy.ThrottlePivot)), _proxy.ThrottleArmM, _proxy.ThrottleIdleDeg, _proxy.ThrottleSweepDeg);
+            double sweep = _lever.Lever.SweepDeg, arm = _lever.Lever.ArmM;
 
             // The feet: Foot_* empties at the ball of the foot, else the pedal (its hinge is on the floor: the ball
             // is ~0.12 m up its face, fixed in the pedal's own frame so it swings with it), else the proxy.
@@ -280,9 +272,9 @@ namespace FlyingGame.Bridge
             }
             else if (cockpit != null) cockpit.HandLatch = null;
 
-            Debug.Log($"[VrCockpit] {id} seat '{seatId}': stick {(pivotNode != null ? "on the rig's gimbal" : "proxy")} " +
-                      $"(pivot {pivot.y - _eye.y:F2} m below the eye, {len:F2} m, roll ±{roll:F0}°, {aft:F0}° aft / {fwd:F0}° fwd); " +
-                      $"throttle {(!_hasThrottle ? "none (no engine)" : thrNode != null ? "on the rig's lever" : "proxy")} ({sweep:F0}°, arm {arm:F2} m); " +
+            Debug.Log($"[VrCockpit] {id} seat '{seatId}': stick {(_stickRig != null ? $"on the rig ({_stickRig.Roll?.Name ?? "no roll node"} / {_stickRig.Pitch.Name}, grip {_stickRig.GripSource}, rig check {_stickRig.SenseResidualM * 1000:F1} mm)" : "proxy")} " +
+                      $"(pivot {pivot.y - _eye.y:F2} m below the eye, {len:F2} m, grip {grip0.y - pivot.y:F2} up / {grip0.z - pivot.z:F2} fwd / {grip0.x - pivot.x:F2} right of it, roll ±{roll:F0}°, {aft:F0}° aft / {fwd:F0}° fwd); " +
+                      $"throttle {(!_hasThrottle ? "none (no engine)" : _lever.OnRig ? $"on the rig's {_lever.Node.Name} (knob {_lever.GripSource})" : "proxy")} ({sweep:F0}°, arm {arm:F2} m); " +
                       $"feet {(_footNodeL != null ? "on the pedals" : "proxy")}; latch {_latchKind}{(_latchKind != CanopyLatchKind.None ? _latchNode != null ? " on its node" : " proxy" : "")}");
             BindGlider(brief);
             BindPanel(full);
@@ -316,11 +308,13 @@ namespace FlyingGame.Bridge
             static float N(double v, double max) => max > 1e-6 ? Mathf.Clamp((float)(v / max), -1f, 1f) : 0f;
             // Where the AERO MODEL has the controls (the rig draws them from the same numbers).
             _ail = N(d.AileronRad, c.Aileron.MaxDeflRad);
-            _eleAft = N(-d.ElevatorRad, c.Elevator.MaxDeflRad);
+            _eleAft = (float)RigInputs.FromDeflections(0, d.ElevatorRad, 0, 0, 1, c.Elevator.MaxDeflRad, 1, c.Elevator.LimitFor(-1.0)).Elevator;
             _rud = N(d.RudderRad, c.Rudder.MaxDeflRad);
             if (!_grab.IsHeld(Grabbable.Stick)) _stick.SetFromControls(_ail, _eleAft);
-            _grab.Set(Grabbable.Stick, _stick.Grip, true);
-            _grab.Set(Grabbable.Throttle, _lever.GripAt(ac.Throttle01), _hasThrottle);
+            (Vec3 sa, Vec3 sb) = VrControlBinding.StickCapsule(_stick);
+            _grab.Set(Grabbable.Stick, sa, sb, true);
+            (Vec3 ta, Vec3 tb) = VrControlBinding.ThrottleCapsule(_lever.Lever, _lever.TFor(ac.Throttle01));
+            _grab.Set(Grabbable.Throttle, ta, tb, _hasThrottle);
             CockpitRigState cockpit = _visual != null ? _visual.Cockpit : null;
             bool latch = _latchKind != CanopyLatchKind.None && cockpit != null && cockpit.HandLatch != null && !cockpit.CanopyGone;
             _grab.Set(Grabbable.CanopyLatch, latch ? C(LatchPoint(cockpit)) : Vec3.Zero, latch);
@@ -371,7 +365,7 @@ namespace FlyingGame.Bridge
                 switch (_grab.Held(side))
                 {
                     case Grabbable.Stick: _stick.Grab(h); break;
-                    case Grabbable.Throttle: _lever.Grab(h, _driver.Sim.Aircraft.Throttle01); break;
+                    case Grabbable.Throttle: _lever.Lever.Grab(h, _lever.TFor(_driver.Sim.Aircraft.Throttle01)); break;
                     case Grabbable.CanopyLatch:
                         if (_visual.Cockpit.HandLatch is PittsCanopyLatch p) p.Grab(h.X);
                         break;
@@ -391,16 +385,25 @@ namespace FlyingGame.Bridge
         {
             Aircraft ac = _driver.Sim.Aircraft;
             ControlsConfig c = ac.Config.Controls;
-            if (_grab.IsHeldBy(Grabbable.Stick, out HandSide sh))
+            if (_grab.IsHeldBy(Grabbable.Stick, out HandSide sh) && PadOwnsStick)
+            {
+                // The thumbstick is out of its dead zone: it flies, and the hand rides the stick where the pad puts it
+                // (re-gripped every frame, so the hand takes over again from there without a jump).
+                _stick.SetFromControls(_ail, _eleAft);
+                _stick.Grab(_hands[(int)sh].Position);
+            }
+            else if (_grab.IsHeldBy(Grabbable.Stick, out sh))
             {
                 _stick.Follow(_hands[(int)sh].Position);
                 // Stick angle → surface, linear (a cable has no expo): the deflection the drawn stick stands for,
                 // turned back into the input that produces it through this type's own dead zone and expo.
                 AileronInput = (float)Aircraft.StickForDeflection(_stick.Aileron * c.Aileron.MaxDeflRad, c.Aileron);
-                ElevatorInput = (float)Aircraft.StickForDeflection(-_stick.ElevatorAft * c.Elevator.MaxDeflRad, c.Elevator);
+                // The rig's elevator is normalised by the trailing-edge-UP stop on the aft side (RigInputs.FromDeflections).
+                double aftRad = _stick.ElevatorAft * (_stick.ElevatorAft > 0 ? c.Elevator.LimitFor(-1.0) : c.Elevator.MaxDeflRad);
+                ElevatorInput = (float)Aircraft.StickForDeflection(-aftRad, c.Elevator);
             }
             if (_hasThrottle && _grab.IsHeldBy(Grabbable.Throttle, out HandSide th))
-                Throttle01 = (float)_lever.Follow(_hands[(int)th].Position);
+                Throttle01 = (float)_lever.ThrottleFor(_lever.Lever.Follow(_hands[(int)th].Position));
 
             CockpitRigState cockpit = _visual != null ? _visual.Cockpit : null;
             if (cockpit?.HandLatch == null) return;
@@ -447,7 +450,7 @@ namespace FlyingGame.Bridge
             Vector3 lift = Vector3.up * _rise;   // climbing out: the body rises off the seat with the hand's push
             Vector3 shL = _eye + lift + U(SeatedPilot.ShoulderL), shR = _eye + lift + U(SeatedPilot.ShoulderR);
             Vector3 hipL = _eye + lift + U(SeatedPilot.HipL), hipR = _eye + lift + U(SeatedPilot.HipR);
-            Vector3 throttleGrip = _hasThrottle ? U(_lever.GripAt(_driver.Sim.Aircraft.Throttle01)) : hipL + new Vector3(0f, 0.08f, 0.35f);
+            Vector3 throttleGrip = _hasThrottle ? U(_lever.Lever.GripAt(_lever.TFor(_driver.Sim.Aircraft.Throttle01))) : hipL + new Vector3(0f, 0.08f, 0.35f);
             Vector3 stickGrip = U(_stick.Grip);
 
             HandTarget(HandSide.Left, throttleGrip, out Vector3 gripL, out Quaternion rotL, out float curlL);
@@ -485,7 +488,7 @@ namespace FlyingGame.Bridge
             if (held != Grabbable.None)
             {
                 grip = held == Grabbable.Stick ? U(_stick.Grip)
-                     : held == Grabbable.Throttle ? U(_lever.GripAt(Throttle01))
+                     : held == Grabbable.Throttle ? U(_lever.Lever.GripAt(_lever.TFor(Throttle01)))
                      : held == Grabbable.CanopyLatch ? LatchPoint(_visual.Cockpit)
                      : held == Grabbable.CanopyLatchAft ? LatchHandle(_visual.Cockpit, fwd: false)
                      : held == Grabbable.CanopyLatchFwd ? LatchHandle(_visual.Cockpit, fwd: true)

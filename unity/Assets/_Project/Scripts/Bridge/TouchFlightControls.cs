@@ -790,7 +790,9 @@ namespace FlyingGame.Bridge
         private void ApplyCockpitHands(VrCockpitHands hands)
         {
             if (hands == null) return;
-            if (hands.StickHeld && _rightFinger == int.MinValue)
+            // A hand on the stick owns pitch and roll unless a thumbstick is pushed past its dead zone
+            // (HandPadArbiter); rudder and throttle stay with the pad unless a hand holds the throttle lever.
+            if (hands.StickHeld && !hands.PadOwnsStick && _rightFinger == int.MinValue)
             {
                 // The held stick, in the sim's own sense (already linear in stick angle), less the trim this class adds
                 // back in PublishToDriver: the surface goes where the hand put the stick, trimmed or not.
@@ -824,7 +826,7 @@ namespace FlyingGame.Bridge
                 _questFlying = false;
                 // Tracked hands still reach the cockpit's own controls (docs/vr-cockpit.md, "Hands").
                 VrCockpitHands th = VrCockpitHands.Current;
-                if (th != null) { th.Tick(); ApplyCockpitHands(th); }
+                if (th != null) { th.PadOwnsStick = false; th.Tick(); ApplyCockpitHands(th); }
                 return;
             }
             if (_questWaitRelease)
@@ -839,7 +841,7 @@ namespace FlyingGame.Bridge
             // In the cockpit the grips belong to the hands on the aeroplane's own controls (VrCockpitHands): the
             // mapper's grab-anywhere throttle and the smoke toggle only see a grip that isn't closing on a control.
             VrCockpitHands hands = VrCockpitHands.Current;
-            if (hands != null) { hands.Tick(); hands.MaskGrips(ref f); }
+            if (hands != null) { hands.PadOwnsStick = FlyingGame.Core.Vr.HandPadArbiter.PadStickActive(f.RightX, f.RightY); hands.Tick(); hands.MaskGrips(ref f); }
             var c = _quest.Step(f, dt, thr01);
             if (_rightFinger == int.MinValue) { _aileron = (float)c.Aileron; _elevator = (float)c.Elevator; }
             if (_leftFinger == int.MinValue)

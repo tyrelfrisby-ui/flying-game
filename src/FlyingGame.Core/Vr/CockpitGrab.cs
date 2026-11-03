@@ -56,6 +56,21 @@ namespace FlyingGame.Core.Vr
             public Grabbable Id;
             public Vec3 Position;
             public bool Enabled;
+            /// <summary>A CAPSULE rather than a ball: the reach is measured to the segment
+            /// <see cref="Position"/> → <see cref="SegmentEnd"/> (a stick's grip is 10–15 cm of tube, and a fist closed
+            /// anywhere on it holds the stick — not only within 6 cm of one point on its axis).</summary>
+            public bool HasSegment;
+            public Vec3 SegmentEnd;
+
+            /// <summary>Squared distance from <paramref name="hand"/> to the point, or to the segment.</summary>
+            public double Distance2(Vec3 hand)
+            {
+                if (!HasSegment) return (Position - hand).LengthSquared;
+                Vec3 ab = SegmentEnd - Position;
+                double l2 = ab.LengthSquared;
+                double t = l2 > 1e-12 ? Math.Clamp(Vec3.Dot(hand - Position, ab) / l2, 0.0, 1.0) : 0.0;
+                return (Position + ab * t - hand).LengthSquared;
+            }
         }
 
         /// <summary>One slot per <see cref="Grabbable"/> value.</summary>
@@ -83,6 +98,15 @@ namespace FlyingGame.Core.Vr
             Points[i] = new Point { Id = id, Position = position, Enabled = enabled };
         }
 
+        /// <summary>A capsule grabbable: anywhere within <see cref="ReachM"/> of the segment <paramref name="a"/> →
+        /// <paramref name="b"/>.</summary>
+        public void Set(Grabbable id, Vec3 a, Vec3 b, bool enabled)
+        {
+            int i = (int)id;
+            if (i <= 0 || i >= Points.Length) return;
+            Points[i] = new Point { Id = id, Position = a, Enabled = enabled, HasSegment = true, SegmentEnd = b };
+        }
+
         /// <summary>Let go of everything (menu open, outside view, a new aeroplane).</summary>
         public void ReleaseAll()
         {
@@ -108,7 +132,7 @@ namespace FlyingGame.Core.Vr
             {
                 Point p = Points[i];
                 if (!p.Enabled || p.Id == other) continue;
-                double d2 = (p.Position - hand).LengthSquared;
+                double d2 = p.Distance2(hand);
                 if (d2 <= bestD2) { bestD2 = d2; best = p.Id; }
             }
             return best;
