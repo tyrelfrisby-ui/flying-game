@@ -1,4 +1,84 @@
 ## NEEDS YOU
+- **PITTS SPINS: ELEVATOR AT HIGH α FIXED; INVERTED-FLAT ROLL-OUT DIAGNOSED, NOT FIXED — PLEASE READ + ANSWER (Claude,
+  2026-11-03, lane/claude-pitts-spin run #3). Not merged, not installed.**
+  1. **Your build (island-nav) vs this lane, idle, 45 s full aft + full rudder:** left 3.92 → **1.97 s/turn**, right
+     2.39 → **1.47**; α 35/31° → 32/31°; nose 55–58° down on both (in the 50–60° band). PARE (power idle, aileron neutral,
+     opposite rudder, stick to neutral 0.5 s later) 0.16–0.32 → **0.47–0.70 turns**. **In the sim the idle spin is not
+     flat on either build.** If yours looked flat: what power, which direction, and what build number was on screen?
+  2. **Blanketing: you were right for your build.** island-nav's single-wing wake holds the stab at 0.495 of free-stream q
+     from α 30 to 45. This lane's per-section wakes put the lower wing's wake above the stab past ~18°: q 1.00 at 30–75°.
+  3. **"Elevator weak at high α" — found and fixed, fleet-wide (32 tail tables).** The 2-D→3-D tail rescale stretched the
+     whole α axis, so broadside the stab read its section at ~51°: lift 0.95 where a plate has 0, normal force flat at
+     0.83. Elevator authority (full up − full down) at α 45 was **0.00** of its α 0 value; now **0.21**. Each point now
+     moves by its own lift's induced angle (NACA Report 865) — the same as before in the linear range.
+  4. **Inverted, full power, right rudder (+ right aileron): reproduced — it rolls out.** It flattens to −86°, the wings
+     bank, and the propeller's gyroscopic YAW (h·q, which appears as soon as the wings bank) stops the yaw: r 138 → −10
+     deg/s, β → 81°, and it rolls through knife-edge into an upright spin every ~20 s. Same with aileron neutral (15 s)
+     and faster with right aileron (9 s). With the gyro switched off the inverted spin is steady but steep (−32°), so the
+     gyro both MAKES the inverted flat and ENDS it. Gyro formula checked (H×ω), inertia is your 80-lb Hartzell figure.
+     **Not fixed: I have not found the physics that holds a real one there, and I will not tune it in.** Regression test
+     written and SKIPPED as OPEN (`PittsPowerSpinTargetTests`).
+  5. **Your aileron-asymmetry hypothesis: checked, not it.** Whole-aeroplane aileron rolling moment at −α matches +α to
+     5 decimals from 0 to 120° (one section alone: ≤ 0.0001, the 0.37° rig offset). Every term on the path uses |α| or the
+     section's own negative stall. Table in the Log.
+  6. **Aileron power IN spins is down a lot from your build** (run #2's aileron sections): ΔC_l in the developed spin
+     0.03–0.11 → 0.008–0.032 (at α 0: 0.38 → 0.26). Your build's full-power right spin went to α −7 with full left aileron.
+  7. **Your full-power targets are NOT met:** upright LEFT 90° (was 97.6; target ~85 ✓-ish), upright RIGHT **30°**
+     (target 85), inverted right-rudder cycles (target 90–95). The prop's gyro pushes a right spin nose-DOWN; slipstream and
+     gyro switched off in turn still leave it at 11–31°. **Q: does a full-power RIGHT upright spin really sit at 85° with
+     aileron neutral, or is that with out-spin aileron?** And in the inverted flat, how much bank does the real one hold?
+  8. Also: no propeller normal force is modelled (Ribner) — but edgewise at α 85 it is tiny for this prop, so not the
+     answer; the tail slipstream is not skewed by the crossflow at high α (Glauert) — correcting it would make power-on
+     spins STEEPER. Neither changed.
+  **Build:** `zsh tools/deploy/deploy.sh NOINSTALL` → ** BUILD SUCCEEDED **, 0 `error CS`, bundleVersion 2026.1103.1118 (not installed; ProjectSettings bump not committed). Suite: Suite vs branch point 4afa035a, compared by name: the full run on this tree hung at 676/1700 in IslandDroneProbe (island: True; blame hang-dump) — 3 names failed there and not on base (MultiEngineTests ×3), all pass alone on both trees. The flight classes (Glide/Rig/TailWake/Spin/StallAuthority/Roll/AerobatGround/Reversible/ControlTravel/AdverseYaw/…: 330 tests) on both trees: no new failing name; 6 that fail on base pass now (SpinTests.SpinIsMirrorSymmetric, SpinTests.TomRecoveryStopsTheSpin, ReversibleControlTests Tailslide ×3 + HandsOff p51d). Five fail ALONE on both trees, pre-existing (ProSpinDepartsAndSustainsRotation, StallAuthority FullAft (SR22, Jenny), AerobatGroundHandling Pitts ×3); the rest are the known ModelRigTests WorldTerrain coupling and the j3 LICENSE credit. Rig and glide table unchanged by the tail fix (RigTests, GlideTableTests green apart from the credit).. No gate approved.
+- **ROLL RATE, WHOLE FLEET + PITTS SPIN/BREAK-UP — PLEASE FLY (Claude, 2026-11-02, lane/claude-pitts-spin, runs #1 and #2).
+  Not merged, not installed.**
+  1. **Rolls at 160 mph IAS, full aileron, rudder centred.** The Pitts now rolls **~206–218 deg/s** against your
+     225 (−3 to −9 %, depending on whether the speed gained in the roll is counted). Nothing was tuned to reach it.
+     Every aeroplane rolls 15–42 % slower than before. C172 at 110 mph: 73. J-3 at 75 mph: 47. P-51 at 250 mph: 121.
+     Fleet table in the Log. **Fly a few rolls in the Pitts, the 172 and the Cub, and tell me the rate AND how
+     quickly it gets there.**
+  2. **What was wrong** applied to every aeroplane. The hinged aileron row was flown as its own aerofoil at α + δ,
+     so at full travel it was stalled. The roll itself then un-stalled it, so the aileron got 24 % stronger once the
+     roll was under way. Each aileron section now shifts its lift by τ(E)·η_δ(E, δ)·δ:
+     - τ from Glauert, using that section's own measured chord ratio;
+     - η_δ from Torenbeek's sealed-gap plain-flap data (Olson, NASA NTRS 20150006019, Fig. 3a).
+  3. **Biplane interference (Munk/Prandtl) is in, and it does NOT slow the roll.** It is computed for each cellule
+     with a vortex lattice built from that aeroplane's own wing strips. It takes about 15 % out of BOTH the aileron
+     moment and the roll damping, so the Pitts' rate goes +4 %. The Great Lakes and Stearman go +6–11 %, because
+     their ailerons are on one wing only. It is exactly zero on monoplanes.
+  4. **OPEN — the Extra is now LOW: 224–239 deg/s at 160 mph** against your ~340–400. Three possible reasons:
+     - its 30° aileron travel is deep in the plain-flap fall-off (η_δ ≈ 0.50);
+     - its spades add some lift and are not modelled, because there is no geometry source;
+     - the published number's speed is unknown.
+     **At what speed does a 300 do 400 deg/s?**
+  5. **OPEN — hinge gap.** η_δ is SEALED-gap data. In flight, NACA TN 632 (Fairchild 22) found that sealing the gap
+     bought about +20–33 % effectiveness. **Are the Pitts' aileron gaps sealed?** If not, physics says the Pitts is
+     nearer ~170–180, which is Aviat's figure, and that may be where Aviat's ~180 comes from. Nothing has been
+     applied without a measured gap.
+  6. **OPEN — roll onset may be too crisp.** Lifting-surface theory says the model's roll DAMPING is 1.5–2.6 times
+     too high. The steady rate is right to within −8..+3 % on monoplanes; the Pitts is +9 %, which would take it to
+     about 225. Over-damping makes the time to reach the rate too short (Pitts 0.30 s to 90 %). Correcting it
+     fleet-wide is a separate change, and it touches spins. **Does the Pitts reach its rate too abruptly?**
+  7. **OPEN — Great Lakes: does yours have ailerons on all four wings?** The config has lower ailerons only, while
+     the model has had upper ailerons since v11. Lower-only gives 71 deg/s at 160 mph.
+  8. **Spins (run #1's tail wakes; unchanged by run #2), 45 s, full aft, full rudder, Pitts.** Turn time / alpha:
+     | power | rudder | before run #1 | after run #1 | now |
+     |---|---|---|---|---|
+     | idle | left | 3.93 s, α 35° | 2.02 s, α 32° | 2.02 s, α 32° |
+     | idle | right | 2.39 s, α 31° | 1.50 s, α 31° | 1.50 s, α 31° |
+     | ~40 % | left | 2.30 s, α 90° FLAT | 2.16 s, α 90° FLAT | 2.16 s, α 90° FLAT |
+     | ~40 % | right | 1.77 s, α 29° | 1.16 s, α 31° | 1.15 s, α 31° |
+     | full | left | 2.71 s, α 117° FLAT | 3.01 s, α 97° FLAT | 3.01 s, α 97° FLAT |
+     | full | right | 1.12 s, α 30° | 0.91 s, α 30° | 0.91 s, α 30° |
+
+     Idle spins are steep and faster both ways. **Power-on LEFT spins still go flat**: that is the prop's gyroscopic
+     couple (`TailWakeTests` shows they are not flat without it). Is that what a real S-2B does with power left in
+     a left spin?
+  9. **Wing break-up:** the left ailerons and the left aileron strut now leave with the left wing (they used to stay
+     on the fuselage). Check it in a g-overload.
+  10. **Rigs re-solved:** aileron rigs are 8–10 % larger, the Pitts' 35 % larger; the rest is in docs/RIGGING.md.
+  **Built** `zsh tools/deploy/deploy.sh NOINSTALL`: ** BUILD SUCCEEDED **, 0 `error CS`, bundleVersion 2026.1102.2128 (not installed, bump not committed). No gate approved.
 - **HUD DECLUTTER APPROVED + ENGINE ROW MOVED BELOW THE AIRPLANE — PLEASE CHECK ON BOTH DEVICES (Grok Bot, 2026-11-02, lane/codex-hud-declutter → lane/claude-island-nav):**
   Ty (approving fe4c7f60): "put the engine instruments below the airplane. otherwise the cleanup looks good go ahead
   and move engine instruments then push to ipad/iphone". Analog mode, chase view, powered aircraft, landscape, phone/
@@ -1099,6 +1179,158 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-11-03 — Claude · lane/claude-pitts-spin (run #3) · spin flatness, elevator at high α, inverted roll-out, aileron symmetry
+Ty: "the pitts is still spinning too flat … the elevator control is also weak at high aoa"; then full-power targets
+(upright ~85°, inverted 90–95° maybe tail-low), the inverted right-rudder right-aileron full-power roll-out, and "look for
+asymmetries in how aileron power is calculated with positive and negative angle of attack". Probe:
+`SpinBalanceProbe` (SPINBAL=1; parts spin, power, grid, tybug, ailpower, ailsym, rollbudget, table, recover, budget).
+Columns: **nav** = lane/claude-island-nav e8a40b0a (Ty's build); **base** = this lane 4afa035a (before run #3);
+**now** = 453aba6e (tail-table fix). 45 s full aft (or full forward inverted) + full rudder, last 20 s; idle/40 %/full.
+
+| spin | nav α, s/turn | base α, s/turn | now α, s/turn | target |
+|---|---|---|---|---|
+| upright idle L | 34.6, 3.92 | 31.5, 2.02 | 31.8, 1.97 | nose −50..−60 (now −57), 2–2.5 s |
+| upright idle R | 31.1, 2.39 | 30.9, 1.50 | 30.9, 1.47 | same |
+| upright 40 % L | 89.5, 2.30 | 90.3, 2.16 | 92.9, 1.79 | — |
+| upright 40 % R | 29.2, 1.78 | 30.7, 1.14 | 30.8, 1.13 | — |
+| upright full L | 115.5 (75..150), 2.75 | 97.6 (68..122), 3.02 | 90.4 (71..107), 2.85 | ~85 |
+| upright full R | 30.0, 1.12 | 29.8, 0.91 | 29.9, 0.90 | ~85 — **open** |
+| inverted idle L | −29.9, 2.73 | −31.3, 1.65 | −31.0, 1.64 | — |
+| inverted idle R | −35.1, 4.19 | −29.4, 2.26 | −29.4, 2.20 | — |
+| inverted 40 % L | −28.6, 2.10 | −29.6, 1.33 | −29.6, 1.32 | — |
+| inverted 40 % R | −77.8, 2.56 | −32.7, 2.24 | −32.7, 2.19 | — |
+| inverted full L | +94.4 (rolled upright), 3.06 | −28.4, 1.03 | −28.4, 1.03 | — |
+| inverted full R | −10.3 (−86..+87), 3.24 | −42.2 (−85..+25), 2.52 | −25.4 (−86..+87), 2.45 | 90–95, stays — **open** |
+| inv full R + R aileron | −28.4 (−92..+83) | −27.7 (−87..+90) | −22.2 (−86..+89) | 90–95, stays — **open** |
+| PARE turns, stick→neutral L/R | 0.16 / 0.32 | 0.47 / 0.68 | 0.47 / 0.70 | ≤ 1–1.5 |
+
+**Tail and elevator, static, β 0** (now; nav in brackets): stab q-ratio α 30/45/60/75 1.00/1.00/1.00/1.00
+[0.495/0.495/0.728/0.900]; rudder q 0.645/0.537/0.426/0.493 [0.775/0.731/0.699/0.887] (the stab's wake on the 69 % of
+rudder above it, NACA TR 1329); elevator ΔCm full up − full down, × its α 0 value, 0.16/0.21/0.07/0.02
+[0.09/0.00/0.14/0.12]; rudder ΔCn × α 0: 0.51/0.33/0.14/0.02.
+
+**Cause of the dead elevator** (fixed, 453aba6e): `TailSections` built every 2-D tail table as Cl₂D(α·a/a₀), the whole
+α axis stretched. Pitts tail table at 90°: Cl 0.985, Cd 0.842 (CN 0.84, CA −0.99) → now Cl 0, Cd 1.192 (CN 1.19, CA 0).
+`AeroModel.FiniteSpanSection` moves each point by Cl₂D·(1/a − 1/a₀) (NACA Rep. 865); folds past a sharp stall keep the
+attached branch to its furthest angle. Pitts tail stall 27.6° → 24.9°. 32 derived tables fleet-wide, all monotonic.
+docs/CONTROL-SURFACES.md. The idle spin barely moves with it (it sits at α 31, where the tail is just past its stall jump).
+
+**Aileron symmetry (Ty's hypothesis)**, ΔC_l = (L(+δa) − L(−δa))/2/(qSb), static, whole aeroplane, now:
+α 0: 0.1288; 10: 0.0275; 15: −0.0409 (reversal at the stall with no flow memory; 0.0339 with deep-stall memory);
+30: 0.0286; 45: 0.0300; 60: 0.0244; 75: 0.0080; 90: 0.0000; 120: 0.0179 — and the −α column equal to 5 decimals at
+every angle. One aileron section (strips 8+17) differs by ≤ 0.0001 (rig offset). Audited: τ·η_δ (|δ|), chordwise
+factor (V cos α), strip separation memory (|α|, negative band from the section's own Cl-min), StalledFraction (same),
+separated-wing sideslip roll (sense follows the lift's sign: correct), cellule induction, two-branch stall (negative
+branch uses AlphaClMinRad). Nothing signed where it should be |α|.
+
+**Aileron power in developed spins**, ΔC_l at the spin's own state (× α 0 value), nav → now: up idle L 0.051 (0.13) →
+0.031 (0.12); up idle R 0.035 → 0.023; up full L 0.031 → 0.008; **up full R 0.114 (0.30) → 0.014 (0.05)**; inv idle L
+0.030 → 0.032; inv idle R 0.052 → 0.024; inv full L 0.003 → 0.028; inv full R 0.048 → 0.030. α 0 value 0.382 → 0.258.
+
+**The inverted roll-out** (rollbudget, inverted, full R rudder, full power, as flown): roll balance holds (aero
++300..+600 N·m, prop torque −686, inertial +250..+500). Yaw fails: at α −82 the wings start to bank (φ 164 → 106°), q
+grows −44 → −157 deg/s, the gyro's yaw h·q grows −2000 → −7000 N·m against fin+rudder +2400, r 138 → −10, β 9 → 81°,
+knife-edge, upright. On/off at full power (α mean, range): inverted R + R aileron: as modelled −22 (−86..+89); no gyro
+−32 steady; no tail slipstream ends upright +68; neither −30. Upright R: 30 / 31 / 11 / 11. Upright L: 90 / 79 / 71 / 85.
+
+**Tests.** New `TailSectionTests` (5, literals from the config's naca0012-like table), `PittsPowerSpinTargetTests` (Ty's
+power-on targets, **skipped, OPEN**). Suite vs branch point 4afa035a, compared by name: the full run on this tree hung at 676/1700 in IslandDroneProbe (island: True; blame hang-dump) — 3 names failed there and not on base (MultiEngineTests ×3), all pass alone on both trees. The flight classes (Glide/Rig/TailWake/Spin/StallAuthority/Roll/AerobatGround/Reversible/ControlTravel/AdverseYaw/…: 330 tests) on both trees: no new failing name; 6 that fail on base pass now (SpinTests.SpinIsMirrorSymmetric, SpinTests.TomRecoveryStopsTheSpin, ReversibleControlTests Tailslide ×3 + HandsOff p51d). Five fail ALONE on both trees, pre-existing (ProSpinDepartsAndSustainsRotation, StallAuthority FullAft (SR22, Jenny), AerobatGroundHandling Pitts ×3); the rest are the known ModelRigTests WorldTerrain coupling and the j3 LICENSE credit. Rig and glide table unchanged by the tail fix (RigTests, GlideTableTests green apart from the credit).
+**Build:** `zsh tools/deploy/deploy.sh NOINSTALL` → ** BUILD SUCCEEDED **, 0 `error CS`, bundleVersion 2026.1103.1118 (not installed; ProjectSettings bump not committed)
+
+### 2026-11-02 — Claude · lane/claude-pitts-spin (run #2) · roll rate from first principles, fleet-wide; spin re-check
+Ty: "the roll rate is way too high" (Pitts S-2B target 225 deg/s at 160 mph IAS, full aileron), then "they all roll too
+fast, so whatever physics solution you come up with, apply it to all of the airplanes." Merged lane/claude-pitts-roll
+(96294a1c) and lane/claude-island-nav (334f39dd: RigTests, RigSolver) first; both AGENT-LOG entries and CLAUDE.md
+lessons kept.
+
+**Which half was wrong.** `RollDerivativeProbe` splits the balance off AeroModel.Compute. The static ratio predicted
+194 deg/s for the Pitts where it flew 284. The aileron's rolling moment was 0.140 at p = 0 and 0.174 at the steady roll
+(+24 %): the hinged row flew its own table at α + δ, which is stalled at 25°, and the roll's p·y/V un-stalled it.
+
+**Fixes, per-fix (FleetRollProbe: 3 s full aileron, full power, mean over 2–3 s, normalised to the stated IAS).** The
+"after (1)" biplane values used the cellule factors from before the panel re-tiling (Pitts 0.850/0.845 against
+0.848/0.842 now: < 1 deg/s). "Final" is before the rig re-solve; after it the Pitts is 205.9, Extra 223.7, Great Lakes
+70.8, C172 73.3 (≤ 0.4 deg/s). (3) was checks only, so it equals (2). On PittsRoll's own measure (mean 2.5–3 s,
+not normalised for the speed gained) the Pitts is 293.0 → 218.2, Extra 360.7 → 238.8, Great Lakes 78.1 → 66.4, C172
+127.9 → 83.4, J-3 80.5 → 53.3 and 2-33 27.2 → 14.5.
+
+| aircraft | IAS mph | before | after (1) cellule | after (2) aileron section | after (3) / final | change | typical (validation only) |
+|---|---|---|---|---|---|---|---|
+| pitts-s2b | 160 | 283.8 | 295.9 | 205.5 | 205.5 | -28 % | 225 (Ty's target) |
+| extra-300 | 160 | 350.1 | 350.1 | 223.7 | 223.7 | -36 % | ~340–400 (Ty) |
+| great-lakes | 160 | 82.7 | 88.3 | 70.7 | 70.7 | -15 % | — |
+| stearman-pt17 | 100 | 54.5 | 60.5 | 40.5 | 40.5 | -26 % | — |
+| jn4-jenny | 70 | 51.7 | 53.5 | 37.5 | 37.5 | -27 % | — |
+| decathlon-8kcab | 120 | 126.0 | 126.0 | 83.3 | 83.3 | -34 % | — |
+| cassutt-f1 | 150 | 341.5 | 341.5 | 210.6 | 210.6 | -38 % | — |
+| geebee-r2 | 200 | 284.1 | 284.1 | 182.2 | 182.2 | -36 % | — |
+| c172 | 110 | 111.3 | 111.3 | 73.3 | 73.3 | -34 % | 60–90 (Ty) |
+| pa28-archer | 110 | 112.6 | 112.6 | 74.9 | 74.9 | -33 % | — |
+| cirrus-sr22 | 150 | 119.9 | 119.9 | 87.5 | 87.5 | -27 % | — |
+| glasair3 | 180 | 234.2 | 234.2 | 150.7 | 150.7 | -36 % | — |
+| j3-cub | 75 | 69.1 | 69.1 | 47.2 | 47.2 | -32 % | 40–60 (Ty) |
+| j3-cub-floats | 70 | 64.9 | 64.9 | 44.2 | 44.2 | -32 % | — |
+| pa18-cub | 90 | 89.6 | 89.6 | 57.8 | 57.8 | -35 % | — |
+| pa18-bush | 90 | 89.7 | 89.7 | 57.8 | 57.8 | -36 % | — |
+| pa18-floats | 85 | 84.8 | 84.8 | 54.6 | 54.6 | -36 % | — |
+| pa25-pawnee | 100 | 95.3 | 95.3 | 58.9 | 58.9 | -38 % | — |
+| dhc2-beaver | 110 | 79.8 | 79.8 | 52.4 | 52.4 | -34 % | — |
+| dhc2-beaver-floats | 100 | 72.3 | 72.3 | 46.4 | 46.4 | -36 % | — |
+| aircam | 70 | 65.2 | 65.2 | 44.2 | 44.2 | -32 % | — |
+| aircam-amphib | 70 | 64.2 | 64.2 | 44.2 | 44.2 | -31 % | — |
+| seminole | 130 | 113.8 | 113.8 | 75.8 | 75.8 | -33 % | — |
+| dc3 | 150 | 41.5 | 41.5 | 29.5 | 29.5 | -29 % | — |
+| p51d | 250 | 175.4 | 175.4 | 121.2 | 121.2 | -31 % | ~100 (Ty) |
+| f86-sabre | 350 | 226.2 | 226.2 | 179.9 | 179.9 | -20 % | — |
+| boeing-737 | 288 | 30.7 | 30.7 | 25.6 | 25.6 | -17 % | — |
+| hughes-h4 | 150 | 11.7 | 11.7 | 8.3 | 8.3 | -29 % | — |
+| target-drone | 150 | 341.5 | 341.5 | 210.3 | 210.3 | -38 % | — |
+| glider-2-33 | 60 | 25.5 | 25.5 | 14.7 | 14.7 | -42 % | slow (Ty) |
+| glider-eb29r | 80 | 26.0 | 26.0 | 18.7 | 18.7 | -28 % | — |
+| glider-swift-s1 | 120 | 153.1 | 153.1 | 90.9 | 90.9 | -41 % | — |
+| hang-glider | 25 | 14.7 | 14.7 | 14.7 | 14.7 | +0 % | — |
+| paraglider-en-b | 22 | 0.0 | 0.0 | 0.0 | 0.0 | — | — |
+
+- (1) Biplane mutual induction: `BiplaneCellule` horseshoe lattice (Prandtl NACA Rep. 116; Munk Rep. 151) on the
+  rolling loads; the lift-slope factor is reported but not applied (the tables carry the cellule lift). See
+  docs/CONTROL-SURFACES.md.
+- (2) Aileron sections: Δα = τ(E)·η_δ(E, δ)·δ on both rows of every paired aileron section. τ is Glauert's
+  (ARC R&M 1095); η_δ is the sealed plain flap from Olson AIAA 2015-0011 Fig. 3(a), Torenbeek's data, in
+  `PlainFlap.EtaTable`. Hinged-row drag is unchanged; elevators and rudders are unchanged.
+- (3) Checks, nothing applied:
+  - Lifting-surface theory against strip theory: monoplane steady pb/2V −8..+3 %; Pitts +9 %; damping 1.5–2.6× high.
+  - Struts and wires: ~0.25 % of the Pitts' damping.
+  - Hinge gap: NACA TN 632; sealed-gap data used, no gap measured.
+
+**Spin, blanketing, wing break-up (run #1, committed d54a06e5 / 4e27fede).** Pitts stab and rudder q-factor, area
+mean, from free-stream q:
+
+| α | stab before | stab after | elevator after | fin before | fin after | rudder before | rudder after |
+|---|---|---|---|---|---|---|---|
+| 20° | 0.495 | 0.914 | 1.000 | 0.775 | 0.747 | 0.775 | 0.891 |
+| 30° | 0.495 | 1.000 | 1.000 | 0.775 | 0.747 | 0.775 | 0.645 |
+| 45° | 0.495 | 1.000 | 1.000 | 0.731 | 1.000 | 0.731 | 0.537 |
+| 60° | 0.728 | 1.000 | 1.000 | 0.688 | 1.000 | 0.699 | 0.431 |
+| 75° | 0.900 | 1.000 | 1.000 | 0.888 | 0.899 | 0.888 | 0.496 |
+
+The spin table is in NEEDS YOU; this run's changes moved it by ≤ 3 deg/s, because they fade with separation and the
+ailerons are neutral in the spin. Aileron detach: `WingAileronBreakupTests` passes (left ailerons and strut leave
+with the left wing).
+
+**Rig** (RigTool RIG_WRITE=1, RigTests.RigTable, docs/RIGGING.md): aileron rig 8–10 % larger, the Pitts 0.272° →
+0.368°; fin offsets change by < 0.01°; elevator trims move with run #1's wakes (737 +3.88 → +3.64°, Stearman −0.92
+→ −0.20°). StreamingAssets synced; glide table regenerated.
+
+**Tests.** New `RollPhysicsTests` (hand-copied literals: Glauert τ, Olson markers, the chord ratios, the aileron-at-roll
+mechanism, the cellule factors, strip theory against lifting-surface theory); `PittsRollRateTests` re-recorded;
+`RigTests` table re-solved. Roll and physics classes: 62/62 pass ALONE. **Pre-existing coupling, not this lane:**
+`ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake` sets `WorldTerrain.Active` and never clears it.
+It goes NaN itself, and every aeroplane flown after it in the same process goes NaN too. Reproduced identically on
+the merge base 334f39dd. `GlideTableTests.CreditsReachTheUser` fails on the j3 LICENSE.txt (island-nav).
+(Run #2 left its suite comparison unrecorded; run #3 below compares this tree with its branch point.)
+
+**Build:** `zsh tools/deploy/deploy.sh NOINSTALL` → ** BUILD SUCCEEDED **, 0 `error CS` (bundleVersion 2026.1102.2128, not installed, ProjectSettings bump not committed).
 
 ### 2026-11-02 — Grok Bot · lane/claude-ios-fullview · gamepad full-screen, chase ×1.5, ground slowdown, Quest throttle
 Ty (t256u): "it still slows down when it gets close to the ground … when there is a controller make the whole screen
