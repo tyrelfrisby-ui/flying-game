@@ -17,7 +17,7 @@
     "Flaps": 0.5,
     "VsoKt": 43.93,
     "SpeedKt": 57.11,
-    "GlideDeg": 9.328,
+    "GlideDeg": 9.327,
     "GlideRatio": 6.088,
     "SinkFpm": 937.4,
     "AlphaDeg": 4.525,
@@ -342,13 +342,13 @@
     "Flaps": 0,
     "VsoKt": 56.37,
     "SpeedKt": 73.28,
-    "GlideDeg": 9.836,
-    "GlideRatio": 5.768,
-    "SinkFpm": 1267.8,
+    "GlideDeg": 9.838,
+    "GlideRatio": 5.767,
+    "SinkFpm": 1268,
     "AlphaDeg": 8.243,
-    "PitchDeg": -1.593,
-    "ElevatorDeg": -5.166,
-    "TrimStick": -0.2515
+    "PitchDeg": -1.594,
+    "ElevatorDeg": -5.275,
+    "TrimStick": -0.2561
   },
   {
     "Id": "f86-sabre-like",
@@ -490,8 +490,8 @@
     "SinkFpm": 741.8,
     "AlphaDeg": 3.002,
     "PitchDeg": -4.27,
-    "ElevatorDeg": -1.411,
-    "TrimStick": -0.0908
+    "ElevatorDeg": -1.444,
+    "TrimStick": -0.0922
   },
   {
     "Id": "hang-glider-like",
@@ -550,7 +550,7 @@
     "Flaps": 0,
     "VsoKt": 39.07,
     "SpeedKt": 50.79,
-    "GlideDeg": 10.617,
+    "GlideDeg": 10.616,
     "GlideRatio": 5.335,
     "SinkFpm": 947.6,
     "AlphaDeg": 5.324,
@@ -581,8 +581,8 @@
     "SinkFpm": 544.8,
     "AlphaDeg": 5.587,
     "PitchDeg": -1.659,
-    "ElevatorDeg": -1.007,
-    "TrimStick": -0.073
+    "ElevatorDeg": -1.056,
+    "TrimStick": -0.0751
   },
   {
     "Id": "p51d-like",
@@ -593,7 +593,7 @@
     "GlideRatio": 5.808,
     "SinkFpm": 2084.4,
     "AlphaDeg": 7.214,
-    "PitchDeg": -2.556,
+    "PitchDeg": -2.555,
     "ElevatorDeg": -3.036,
     "TrimStick": -0.1397
   },
@@ -604,7 +604,7 @@
     "SpeedKt": 112.45,
     "GlideDeg": 10.238,
     "GlideRatio": 5.537,
-    "SinkFpm": 2024,
+    "SinkFpm": 2024.1,
     "AlphaDeg": 5.663,
     "PitchDeg": -4.575,
     "ElevatorDeg": 1.822,
@@ -617,7 +617,7 @@
     "SpeedKt": 104.87,
     "GlideDeg": 11.149,
     "GlideRatio": 5.074,
-    "SinkFpm": 2053.6,
+    "SinkFpm": 2053.5,
     "AlphaDeg": 4.227,
     "PitchDeg": -6.922,
     "ElevatorDeg": 7.096,
@@ -836,13 +836,13 @@
     "Flaps": 0,
     "VsoKt": 58.32,
     "SpeedKt": 75.81,
-    "GlideDeg": 9.963,
-    "GlideRatio": 5.693,
-    "SinkFpm": 1328.2,
-    "AlphaDeg": 6.189,
-    "PitchDeg": -3.774,
-    "ElevatorDeg": -4.705,
-    "TrimStick": -0.2171
+    "GlideDeg": 9.965,
+    "GlideRatio": 5.691,
+    "SinkFpm": 1328.6,
+    "AlphaDeg": 6.188,
+    "PitchDeg": -3.777,
+    "ElevatorDeg": -4.963,
+    "TrimStick": -0.2272
   },
   {
     "Id": "seminole-like",
@@ -889,7 +889,7 @@
     "VsoKt": 45.68,
     "SpeedKt": 59.38,
     "GlideDeg": 7.613,
-    "GlideRatio": 7.481,
+    "GlideRatio": 7.482,
     "SinkFpm": 796.7,
     "AlphaDeg": 3.234,
     "PitchDeg": -4.38,
