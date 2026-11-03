@@ -64,7 +64,8 @@ namespace FlyingGame.EditorTools
                 };
                 XrHeadset.ForceActiveForTesting = true;
                 VrCockpitHands.DeltaTimeForTesting = Dt;
-                foreach (string id in Fleet) Aircraft(id);
+                string only = Environment.GetEnvironmentVariable("VRJ_ONLY");   // e.g. extra-300-like: one type, for iterating
+                foreach (string id in Fleet) if (string.IsNullOrEmpty(only) || id == only) Aircraft(id);
                 Debug.Log(_fails == 0 ? $"VRJ OK ({_passes} cases)" : $"VRJ PROBLEMS {_fails} ({_passes} passed)");
                 exit = _fails == 0 ? 0 : 1;
             }
@@ -165,6 +166,10 @@ namespace FlyingGame.EditorTools
                             Reset(sc); StickCase(sc, $"{tag} STICK {grip.Name}", grip);
                             if (cfg.Propulsion != null) { Reset(sc); ThrottleCase(sc, $"{tag} THROTTLE {grip.Name}", grip); }
                         }
+                        if ((CanopyLatchKind)Get(sc.Hands, "_latchKind") == CanopyLatchKind.Squeeze)
+                            foreach (Grip grip in Grips)
+                                foreach (string mode in new[] { "front", "both", "rear" })
+                                { Reset(sc); CanopyHandleCase(sc, $"{tag} CANOPY-HANDLE {mode} {grip.Name}", grip, mode); }
                     }
                     catch (Exception e) { Fail($"{id} seat {seat}: {e.GetType().Name} {e.Message}"); Debug.LogException(e); }
                     finally
@@ -309,6 +314,17 @@ namespace FlyingGame.EditorTools
 
         private static CockpitGrab Grab(Scene sc) => (CockpitGrab)Get(sc.Hands, "_grab");
 
+        private static string Dists(Scene sc, bool left)
+        {
+            var hands = (HandPose[])Get(sc.Hands, "_hands");
+            Vec3 p = hands[left ? 0 : 1].Position;
+            CockpitGrab g = Grab(sc);
+            var sb = new System.Text.StringBuilder($"grab point ({p.X:F3},{p.Y:F3},{p.Z:F3})");
+            foreach (Grabbable id in new[] { Grabbable.CanopyLatchAft, Grabbable.CanopyLatchFwd, Grabbable.CanopyLatch, Grabbable.SillLeft, Grabbable.SillRight })
+                if (g.Points[(int)id].Enabled) sb.Append($" {id} {Math.Sqrt(g.Points[(int)id].Distance2(p)) * 1000:F0} mm");
+            return sb.ToString();
+        }
+
         private static string Diag(Scene sc, bool left)
         {
             int s = left ? 0 : 1;
@@ -404,6 +420,95 @@ namespace FlyingGame.EditorTools
             double t2 = sc.Driver.Inputs.ThrottleLever;
             string res = $"held; 8 cm fwd → driver throttle {t0:F2}→{t1:F2}; back 14 cm → {t2:F2} (hands {h0:F2}→{sc.Hands.Throttle01:F2})";
             if (Math.Abs(t1 - t0) < 0.1 && Math.Abs(t2 - t1) < 0.1) Fail($"{tag}: {res} — the lever did not move the throttle; {Diag(sc, true)}");
+            else Pass($"{tag}: {res}");
+        }
+
+        /// <summary>
+        /// THE EXTRA'S CANOPY HANDLES (Ty t289u: two 25 mm × 127 mm lateral cylinders on the canopy frame, the rear one
+        /// fixed, the front one spring-loaded forward; squeezing them together pulls the pins). A tracked hand closes on
+        /// each handle's own grab point and must HOLD that handle (CanopyLatchFwd / CanopyLatchAft, not the pair's
+        /// midpoint), then:
+        ///   front  the left hand alone pulls the front handle 40 mm aft  → pins clear, latch UNLOCKED;
+        ///   both   right hand on the rear, left on the front, the hands close 40 mm together → UNLOCKED;
+        ///   rear   the right hand alone pulls the FIXED rear handle 40 mm aft → still LOCKED.
+        /// Released, no hand holds either handle. (The handle's spring runs on Time.deltaTime, which is 0 in an editor
+        /// batch run, so the spring return and re-lock are checked by stepping the latch itself, shut, for 0.1 s.)
+        /// The hand sits OVER the bar, the bar in the curled fingers (a pinch: finger and thumb tips on it), so the
+        /// handle's own point is nearer than the pair's midpoint 45 mm away.
+        /// </summary>
+        private static void CanopyHandleCase(Scene sc, string tag, Grip grip, string mode)
+        {
+            CockpitGrab g = Grab(sc);
+            CockpitRigState cockpit = sc.Visual.Cockpit;
+            if (cockpit?.HandLatch is not ExtraCanopyLatch latch) { Fail($"{tag}: no Extra canopy latch"); return; }
+            latch.Reset(); cockpit.SetCanopyLock(true); Frames(sc, 2);   // the editor's dt is 0: nothing springs back between cases
+            if (!latch.Locked) { Fail($"{tag}: the latch is not locked at the start"); return; }
+            CockpitGrab.Point fp = g.Points[(int)Grabbable.CanopyLatchFwd], ap = g.Points[(int)Grabbable.CanopyLatchAft];
+            if (!fp.Enabled || !ap.Enabled) { Fail($"{tag}: handle points disabled (fwd {fp.Enabled}, aft {ap.Enabled})"); return; }
+            Quaternion rot = Quaternion.LookRotation(Vector3.forward, Vector3.up);   // over the bar, fingers wrapping forward
+            float curl = grip.Pinch ? 0.3f : grip.Curl, th = grip.Pinch ? 1f : 0f;
+            // A pinch takes hold with the thumb-index midpoint (VrCockpitHands), so put THAT on the bar: the synthetic
+            // hand's own palm→pinch-point offset, per hand (the thumb is on the inboard side of each).
+            Vector3 PinchOffset(bool left)
+            {
+                var pp = new Vector3[HandJoint.Count]; var rr = new Quaternion[HandJoint.Count];
+                SynthHand(left, Vector3.zero, rot, curl, th, pp, rr);
+                return 0.5f * (pp[HandJoint.ThumbTip] + pp[HandJoint.IndexTip]) - pp[HandJoint.Palm];
+            }
+            Vector3 Palm(CockpitGrab.Point p, bool left) => (grip.Pinch ? U(p.Position) - PinchOffset(left)
+                                                                        : U(p.Position) + Vector3.up * 0.03f) + rot * grip.Shift;
+            Vector3 fPalm = Palm(fp, true), aPalm = Palm(ap, false);
+            bool useFwd = mode != "rear", useAft = mode != "front";
+            if (useAft)
+            {
+                Approach(sc, false, aPalm, rot, aPalm + new Vector3(0.10f, 0.08f, -0.10f), grip);
+                if (!g.IsHeldBy(Grabbable.CanopyLatchAft, out HandSide s) || s != HandSide.Right)
+                { Fail($"{tag}: the right hand closed on the REAR handle but does not hold it (hover {g.Hover(HandSide.Right)}, held {g.Held(HandSide.Right)}; {Dists(sc, false)}) — {Diag(sc, false)}"); return; }
+                if (mode == "rear") Debug.Log($"VRJ INFO {tag}: right hand {Dists(sc, false)}");
+            }
+            if (useFwd)
+            {
+                Approach(sc, true, fPalm, rot, fPalm + new Vector3(0.12f, 0.08f, 0.06f), grip);
+                if (!g.IsHeldBy(Grabbable.CanopyLatchFwd, out HandSide s) || s != HandSide.Left)
+                { Fail($"{tag}: the left hand closed on the FRONT handle but does not hold it (hover {g.Hover(HandSide.Left)}, held {g.Held(HandSide.Left)}) — {Diag(sc, true)}"); return; }
+            }
+            bool lock0 = latch.Locked;
+            double maxS = 0;
+            var hp = (HandPose[])Get(sc.Hands, "_hands");
+            double z0L = hp[0].Position.Z, z0R = hp[1].Position.Z;
+            int lostAt = -1;
+            for (int i = 1; i <= 30; i++)
+            {
+                // A pinch closes at a 20 mm thumb-index gap and the fingers go on closing after it has taken hold, so its
+                // grab point drifts ~10-15 mm FORWARD before the pull starts (the latch's reference is the grab moment):
+                // a pinching pilot pulls that much further. The fist's 40 mm is 5 mm past the handle's 35 mm travel.
+                float d = (grip.Pinch ? 0.055f : 0.040f) * i / 30f;
+                if (mode == "both") { PutHand(sc, true, fPalm - Vector3.forward * d * 0.75f, rot, curl, th); PutHand(sc, false, aPalm + Vector3.forward * d * 0.25f, rot, curl, th); }
+                else if (mode == "front") PutHand(sc, true, fPalm - Vector3.forward * d, rot, curl, th);
+                else PutHand(sc, false, aPalm - Vector3.forward * d, rot, curl, th);
+                Frames(sc, 1);
+                maxS = Math.Max(maxS, latch.S);
+                if (lostAt < 0 && ((useFwd && !g.IsHeld(Grabbable.CanopyLatchFwd)) || (useAft && !g.IsHeld(Grabbable.CanopyLatchAft)))) lostAt = i;
+            }
+            hp = (HandPose[])Get(sc.Hands, "_hands");
+            string moved = $"grab points moved L {(hp[0].Position.Z - z0L) * 1000:F0} mm R {(hp[1].Position.Z - z0R) * 1000:F0} mm (z)" + (lostAt > 0 ? $", hold LOST at frame {lostAt}" : "");
+            bool lock1 = latch.Locked, rigLock1 = cockpit.CanopyLocked;
+            // Let go: the hands open and leave.
+            for (int i = 0; i <= 12; i++)
+            {
+                if (useFwd) PutHand(sc, true, fPalm - Vector3.forward * 0.03f + Vector3.up * 0.01f * i, rot, curl * (1f - i / 12f) + 0.1f * i / 12f, 0f);
+                if (useAft) PutHand(sc, false, aPalm + Vector3.up * 0.01f * i, rot, curl * (1f - i / 12f) + 0.1f * i / 12f, 0f);
+                Frames(sc, 1);
+            }
+            Tracked[0] = Tracked[1] = false;
+            Frames(sc, 30);
+            bool stillHeld = g.IsHeld(Grabbable.CanopyLatchFwd) || g.IsHeld(Grabbable.CanopyLatchAft) || g.IsHeld(Grabbable.CanopyLatch);
+            double sRel = latch.S;
+            for (int i = 0; i < 100; i++) latch.Step(0.001, default, true, 0.0);
+            bool lock2 = latch.Locked && !stillHeld;
+            string res = $"locked {lock0} → after {(grip.Pinch ? 55 : 40)} mm {lock1} (rig {rigLock1}, max s {maxS:F2}) → let go (held {stillHeld}, s {sRel:F2}) → spring 0.1 s: locked {latch.Locked} (s {latch.S:F2}); {moved}";
+            bool want = mode == "rear";
+            if (lock1 != want || rigLock1 != want || !lock2) Fail($"{tag}: {res} — expected {(want ? "still locked" : "unlocked")} then relocked; {Diag(sc, true)}");
             else Pass($"{tag}: {res}");
         }
 

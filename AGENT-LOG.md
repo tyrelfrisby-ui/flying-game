@@ -1549,6 +1549,19 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 22:55 PST — Claude · lane/claude-vr-hands-fix · VrHandJointCheck: Extra canopy-handle grab test
+- New CANOPY-HANDLE cases in unity/.../Editor/VrHandJointCheck.cs for every aircraft with the squeeze latch (the Extra), both
+  seats, room yaw 0/90, all 8 grips, modes front / both / rear: the right hand closes on the REAR handle and must hold
+  CanopyLatchAft, the left on the FRONT one and must hold CanopyLatchFwd (not the pair midpoint CanopyLatch, not a sill); pull
+  40 mm (pinch 55 mm) -> front-only and both-together UNLOCK (latch and rig), rear-only stays LOCKED; open the hands -> nothing
+  held, and the spring re-locks it in 0.1 s. Result: VRJ OK (448 cases; was 352), 96 new canopy cases all pass.
+- Also: VRJ_ONLY=<aircraft id> env runs one type (~20 s instead of ~4 min); failures print the grab point's distance to each
+  canopy point / sill.
+- Findings for Ty (runtime NOT changed): (1) a PINCH takes hold at a 20 mm thumb-index gap and the fingers keep closing, so
+  its grab point drifts ~14 mm forward before the pull; the latch's reference is the grab moment, so a pinching hand must pull
+  ~50 mm instead of 35 to open (a fist: 35). (2) The pair midpoint CanopyLatch sits ~45 mm from each handle, inside the 6 cm reach
+  — a hand placed between the handles takes the pair (squeeze mode), not a handle. (3) The editor test steps the release spring
+  directly: ExtraCanopyLatch.Step gets Time.deltaTime (0 in batch mode), not the hands' own dt.
 ### 2026-11-02 22:40 PST — Claude · lane/claude-vr-hands-fix · 2-33 canopy: no yellow band at the front (Ty t295u)
 - Ty: "REMOVE the yellow band across the 2-33 canopy near the front. The real canopy is clear all the way to the fuselage with
   no painted band or frame strip." Fixed at the source, tools/own_models/build_sgs233.py (v11): Canopy_Frame no longer has the
