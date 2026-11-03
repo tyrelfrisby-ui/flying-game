@@ -92,7 +92,9 @@ def ensure_child(g,parent,name,local):
 def lever_parts(seat,lv):
  s=SEATS[seat];label,y,L,km,r,letter,_=lv;P=np.array((s['px'],y,s['zp']));d=lever_dir(0)
  shaft=Shape();shaft.tube(P,P+L*d,.0045,10);boss=Shape();boss.tube(P+(0,-.009,0),P+(0,.009,0),.011,12)
- k=Shape();kc=knob(seat,lv);k.sphere(kc,r,14,8)
+ k=Shape();kc=knob(seat,lv)
+ if label=='Prop':k.tube(kc-d*.016,kc+d*.016,.012,20)
+ else:k.sphere(kc,r,24,14)
  return P,kc,[('P3_ControlMetal',shaft,None),('Cockpit_quadrant',boss,None),(km,k,None)]
 
 def build(g,doc):
@@ -146,7 +148,7 @@ def build(g,doc):
   for lv in LEVERS:
    label=lv[0];P,kc,parts=lever_parts(seat,lv)
    letter=lv[5];d=lever_dir(0);r=lv[4];deco=Shape();duv=[]
-   quad(deco,duv,kc+d*(r+.0006),(0,-1,0),np.cross(d,(0,-1,0)),.014,.0078,UV['knob'+letter])
+   quad(deco,duv,kc+d*(r+.0006),(0,-1,0),np.cross(d,(0,-1,0)),.014,.0078,(.44,UV['knob'+letter][1],.56,UV['knob'+letter][3]))
    parts.append(('GL_Placard_Atlas',deco,duv))
    if label=='Throttle':
     nm='Throttle_'+s['sfx'];set_mesh(g,nm,parts,P);parent=W[names['Controls']]
@@ -245,7 +247,7 @@ def build_photo_console(g,doc,controls,rigrows,names):
  for seat,s in SEATS.items():
   x=s['px'];z=s['ztop']-.025
   # Long grey box forward of the pilot; quadrant sits on its outboard edge.
-  body=Shape();body.box((x-.04,.236,z-.092),(.32,.118,.184))
+  body=Shape();body.box((x-.04,.236,z-.070),(.32,.118,.140))
   put('GL_SwitchStrip_'+s['sfx'],[('GL_ConsoleGrey',body,None)],(x,.236,z))
   labels=Shape();luv=[];metal=Shape();black=Shape()
   for j,(lab,key) in enumerate([('Master','BATTERY|MASTER'),(None,'ALT OUT'),('FuelPump','FUEL PUMP')]):
@@ -277,7 +279,12 @@ def build_photo_console(g,doc,controls,rigrows,names):
   # Distinct black plates with silver spacers, rather than a solid grey gate block.
   plates=Shape()
   for y in [.251,.275,.299,.323,.339]:
-   plates.box((x,y,s['zp']+.035),(.142,.003,.125))
+   outline=[(x-.071,s['zp']-.027),(x+.071,s['zp']-.027)]+[(x+.071*math.cos(a),s['zp']+.025+.071*math.sin(a)) for a in np.linspace(0,math.pi,25)]
+   verts=[(xx,yy,zz) for yy in [y-.0015,y+.0015] for xx,zz in outline];n=len(outline)
+   faces=[]
+   for j in range(1,n-1):faces.extend([(0,j+1,j),(n,n+j,n+j+1)])
+   for j in range(n):k=(j+1)%n;faces.extend([(j,k,n+k),(j,n+k,n+j)])
+   plates.add(verts,faces)
    metal.tube((x-.058,y-.002,s['zp']-.016),(x-.058,y+.004,s['zp']-.016),.004,10)
   for y,key in [(.312,'THROTTLE'),(.288,'RPM'),(.264,'MIXTURE')]:
    quad(labels,luv,(x+.030,y,s['ztop']+.002),(1,0,0),(0,1,0),.080,.017,uv[key])
