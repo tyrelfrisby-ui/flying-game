@@ -497,6 +497,32 @@ It is not 1 for exactly the surfaces rebuilt from their GLB models on 2026-10-28
 | Great Lakes wing-lower | 4.289 | 4.890 | 0.877 |
 | Pitts / Extra / Great Lakes / Jenny elevators | — | — | 0.90–0.96 |
 
+### The tail's finite-span table past the stall (2026-11-03)
+
+The 2026-10-06 rescale built each tail table as Cl₂D(α·a/a₀): the whole α axis stretched by a₀/a. In the linear
+range that is Helmbold. Past the stall it is not anything: on the Pitts (a/a₀ ≈ 0.51) the table's 90° point sat at
+177°, so a stab broadside to the flow read the section at ~51°: Cl 0.95 where a plate has 0, a normal force flat at
+~0.83 from 35° to 90° where the section data rises to 1.19, and an axial force of −0.99 (leading-edge suction on a
+fully separated plate). The elevator moves the tail by changing the normal force, and with CN flat it moved nothing:
+full up against full down was **0.00** of its α 0 pitch authority at α 45 (owner: "the elevator control is also weak
+at high aoa").
+
+`AeroModel.FiniteSpanSection` now moves each table point by its own lift's induced angle,
+α = α₂D + Cl₂D·(1/a − 1/a₀) (nonlinear lifting line, Sivells & Neely, NACA Report 865): exactly the old rescale in
+the linear range, zero where the lift is zero, so the post-stall data — already a finite-AR plate in these tables
+(Cd 1.19 at 90°, Viterna & Corrigan's 1.11 + 0.018·AR) — stays where it was measured. Where the section's lift falls
+faster than the induced angle grows, the mapping folds; the table keeps the attached branch to its furthest angle (the
+finite surface's stall jump). The Pitts tail's stall angle moves 27.6° → 24.9°.
+
+| Pitts, static, β 0 | α 30 | α 45 | α 60 | α 75 |
+|---|---|---|---|---|
+| elevator ΔCm, stretched table (× its α 0 value) | 0.108 (0.17) | 0.003 (0.00) | 0.112 (0.18) | 0.075 (0.12) |
+| elevator ΔCm, induced-angle table | 0.106 (0.16) | 0.135 (0.21) | 0.046 (0.07) | 0.013 (0.02) |
+
+What is left small is physical: broadside, turning a separated section changes its normal force very little. At α 30
+the tail sits just past its own stall jump. `TailSectionTests` pins the broadside values, the linear-range
+equivalence, monotonic tables fleet-wide (32 of them), and the α 45 authority.
+
 ### Wings on 2-D tables: BUILT, MEASURED, and NOT shipped
 
 The 2026-10-06 work rescaled 2-D TAIL tables to the DATCOM/Helmbold finite-span slope and left wings alone
