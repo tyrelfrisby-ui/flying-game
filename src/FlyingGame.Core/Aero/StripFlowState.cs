@@ -40,6 +40,14 @@ public sealed class StripFlowState
     /// <summary>Chordwise flow direction over the hinged strip: +1 normal, 0 crossflow, −1 flow from the trailing edge (tailslide).</summary>
     public double[] HingeFlowDir = System.Array.Empty<double>();
 
+    // Structural damage (WingStructure, Ty 2026-11-03), null while the airframe is whole. Set by Aircraft, never sized
+    // by EnsureSize. DeflectionOverride: a control row's deflection in its AXIS's units, NaN = follow the stick (a slaved
+    // aileron driven through its strut, a disconnected one floating, a row whose aileron has gone at 0). BendRad: extra
+    // dihedral of a bent panel's row; BendOffset: how far the bend has moved the row's load point (body, m).
+    public double[]? DeflectionOverride;
+    public double[]? BendRad;
+    public MathTypes.Vec3[]? BendOffset;
+
     // Downwash transport lag (proposal 1): eps lagged by tail-arm/V (the Cm-alphadot term).
     public double DownwashEpsLagged;
 
