@@ -5307,3 +5307,20 @@ Throttle remains tallest (150 mm shaft), prop next (135 mm), mixture shortened t
 Validation: deterministic GLB + rig rebuild PASS. check_gl_quadrant.py checks environment at one-degree travel increments (rear 14.1 mm / front 13.0 mm minimum sampled margin, conservative paddle bound); continuous analytic X extrema of every moving mesh vertex prove 51.6 mm separation from console enclosure/hardware in each cockpit. IAC holder bounds do not overlap either enclosure; rays from both eye nodes to card face mesh vertices clear both boxes. No Unity/headset or pilot approval claimed. Render-only travel copies show idle plus translucent mid/full positions; no model pose changes. V5 render review recorded in next commit. Local only, no push; never force-add.
 
 Additional v5 validation: independent-input lever travel cannot produce shaft/grip contact: rotation preserves lateral slabs, which remain 3.7 mm apart at all combinations of inputs (shared pivot bosses excluded from the free shaft/grip test). Updated the existing rig checker to expect the chosen black mixture grip; all 91/91 bindings, parents, pivots, moving meshes, axes and scales pass.
+
+V5 review render inventory, all under `renders/greatlakes/v5/`:
+- `gl5_left_console_photo.png`
+- `gl5_front_seat_panel.png`
+- `gl5_rear_seat_panel.png`
+- `gl5_trim_rear_left_wall.png`
+- `gl5_fuel_valve_rear_right.png`
+- `gl5_fuel_valve_front_right.png`
+- `gl5_fuel_valve_off.png`
+- `gl5_trim_run.png`
+- `gl5_quadrant_front_close.png`
+- `gl5_lever_travel_clearance.png`
+- `gl5_lever_travel_clearance_front.png`
+
+Operator renderer `tools/own_models/render_gl_v5.py` preserves the eight delivered v4 cameras and adds front quadrant and both-seat travel views. Camera manifest: `gl5_cameras.json`; travel views use actual moving meshes at 0 degrees (solid), 25 and 50 degrees (translucent green), about builder +Y. No geometry hidden beyond existing default visibility metadata. Final travel cameras sit inside the rim to avoid the rejected obstructed drafts. All images are 1600 × 1200, 24-sample denoised Cycles. Original untracked pre-correction v4 files preserved.
+
+Final visual QA: inspected all eleven delivered images, including both unobstructed final travel cameras, matching console/card view, both panel views, both trim views and all fuel views. Final front close-up confirms staggered black/blue/black handles and the side friction star. All PNGs verified at 1600 × 1200; final manifest reconciled to the eleven completed files and final travel camera settings. Pre-commit tracked-file ignore audit printed nothing for each local commit. No push.
