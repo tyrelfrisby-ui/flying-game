@@ -1,4 +1,13 @@
 ## NEEDS YOU
+- **GREAT LAKES: THROTTLE QUADRANT LEVERS + ONE LABELLED SWITCH ROW (Codex, 2026-11-02, lane/codex-greatlakes-cockpit,
+  7fcd960e · 25c0914f). Ty's answer: the throttle is a QUADRANT LEVER, not push-pull (recorded in TY-DECISIONS.md).**
+  BUILD SUCCEEDED (build-only, bundle 2026.1102.2236, 0 `error CS`, bundleVersion bump reverted). Not merged, not installed.
+  Close-up renders: Grok box /workspace/greatlakes/v2/throttle/ (Mac /tmp/glthr, prefix v3_). In the headset, Great Lakes, from each seat:
+  1. **Quadrant.** On the left sidewall of each cockpit there's a quadrant. From inboard to outboard it holds the black throttle, the blue prop lever and the red mixture lever, and forward is full. The throttle is grabbable as a LeverArc, using the same grab API as the Pitts and Extra. The rear quadrant now sits at panel-bottom height to match IMG_1666, not at hip height as in your earlier photo. Right height? Is the housing too big?
+  2. **Switches.** Each panel now has a single row along its bottom edge, and every switch has a placard: MAGS, MASTER, FUEL PUMP, CARB HEAT, SMOKE, TRIM, FUEL VALVE, NAV LTS, STROBE, LAND LT. All of them pass the interior test. In the rear row, MAGS and MASTER sit left of the sequence card. Do you want them right of it?
+  3. **Front radio remote.** It has 10 COM/XPDR knobs with no labels, just above the switch row. They were there before this work, but they read as a second row. Should they be removed, moved or labelled? The placard font has no digits and no J, Q, Y or Z.
+  4. **Not done.** Prop and mixture slide along the chord of the lever arc, not a true arc. Legacy liveries weren't rebuilt. Stick hand logic is still lane/claude-vr-hands-fix's.
+  **Nothing approved.**
 - **GREAT LAKES v2: SWITCHES ON THE PANEL + NEW WINDSHIELDS (Codex, 2026-11-02, lane/codex-greatlakes-cockpit,
   2576bec6 · 09bc3206). Owner pt281u: "switches were outside … on the sides; windshields not even close".** BUILD SUCCEEDED (build-only deploy copy, no install, 0 `error CS`). Not
   merged, not installed. Renders (before/after, same cameras): Grok box /workspace/greatlakes/v2/, Mac
@@ -1461,6 +1470,7 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+- 2026-11-02 22:41 PST Codex lane/codex-greatlakes-cockpit: GL throttle quadrant (Ty: "quadrant lever") on the left sidewall of each cockpit, throttle/prop/mixture, grabbable (LeverArc via the Throttle_R/F pivot + Grip_Throttle_*); prop/mixture are Ctl_ rot rows. Switches moved to one placarded row along the bottom of each panel (steering t290u). Rig json deduped (347→91 rows: every P3a control was listed 9×, so only the last row's pivot moved). New gl_quadrant_v3.py (deterministic; restores from 4dc7ded5) and check_gl_quadrant.py. Tests: check_gl_quadrant OK, check_great_lakes_rig 91/91, check_gl_p3c PASS, GL+interior NUnit 9/9. The filtered Rig/Cockpit/Vr run had 17 failures, all unrelated (world, Pitts ground, glider airbrake, nav). check_vr_phase3 not run (no PIL on the Mac). Commits 7fcd960e, 25c0914f. BUILD SUCCEEDED 2026.1102.2236, not installed.
 ### 2026-11-02 — Codex · lane/codex-greatlakes-cockpit · Great Lakes v2: controls on the panel faces, frameless windshields
 Owner pt281u (verbatim): "the switches were outside of the great lakes on the sides. the windshields are not even close
 to correct try again.  hand control did not work on the great lakes stick or throttle".
