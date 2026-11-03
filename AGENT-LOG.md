@@ -1,4 +1,19 @@
 ## NEEDS YOU
+- **QUEST: "FLY BY HAND" SETTING + PILOT BODY v3 SHIPPED BEHIND IT (Claude, 2026-11-03, lane/claude-vr-hands-fix).**
+  Ty approved the v3 body look and asked for it to be optional ("the user selects fly by hand and the body shows up").
+  BUILT: Quest APK **2026.1103.0624** SUCCEEDED (`build/quest/AeroPlayground.apk`), **NOT INSTALLED**: the headset
+  (340YC10GBK0TYV) was not on USB at all (`adb devices` empty after `adb reconnect offline`; nothing Quest-like in the
+  Mac's USB tree). To install: plug it in, wake it, then
+  `/Applications/Unity/Hub/Editor/6000.3.23f1/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb -s 340YC10GBK0TYV install -r build/quest/AeroPlayground.apk`
+  (or `zsh tools/deploy/deploy-quest.sh`, which rebuilds). iOS `deploy.sh NOINSTALL`: ** BUILD SUCCEEDED ** (06:23).
+  Not the v19 water rudder (62af2690 is not in this branch). In the headset:
+  1. **Default is OFF.** First flight after the install: no body, no hands; the controllers fly as before the hands
+     (thumbsticks, grab-anywhere throttle, right grip = smoke). Right?
+  2. **VR menu → "Fly by hand: Off" → select → "On (body + hands)".** The v3 body appears at once (feet flat on the
+     pedals, rounder shoulders, gloves, flight suit) and the grips / tracked hands take stick, throttle and handles.
+  3. **Switch it off in flight with a hand on the stick:** the stick is let go, the body vanishes, the pad flies again.
+     On again: grab the stick again. The setting survives a restart.
+  Nothing approved.
 - **J-3 COCKPIT v18: BLACK V TUBES TO THE FLOOR UNDER THE TANK, PANEL TACH-ASI-COMPASS-ALT-OIL, PLUNGER PRIMER, CENTRE
   DRAIN; THE WATER RUDDER MERGED IN (Claude, 2026-11-02, lane/claude-j3-cockpit).** BUILD: `zsh tools/deploy/deploy.sh NOINSTALL` on this tree (configs + GLBs + ModelRig.cs, blade fix included), 2026-11-02 21:25 PST: ** BUILD SUCCEEDED ** (Unity export 21:21–21:22, xcodebuild 21:22–21:25). Not installed on the phone. The deploy cache-prune trimmed Bee/PlayerDataCache in other lanes' Library caches (vr-hands-fix, rig-trim, j3-water-rudder; script behaviour); an earlier v18 run removed unity-Library-pitts-spin.
   Before (v17, ab890890) / after renders: `docs/pending/j3-cockpit/v18/` (README lists every image; box copy
@@ -5582,3 +5597,25 @@ Images still require operator rendering and review; no Blender run here.
   dotnet filtered Vr|Pilot|Cockpit|Seat 410/411 (MazeTow branch failure pre-existing).
 - Renders: v2 before / v3 after under /workspace/vr-hands/body/v3/body/ on the box. Awaiting Ty's approval; do not install v3.
 - QuestBuild.BuildQuest on f32ebca5 SUCCEEDED (stamp 2026.1102.2318, 87 s), build/quest/AeroPlayground.apk — NOT installed; ships v2 body; does not contain 62af2690.
+
+## 2026-11-03 06:45 PST — lane/claude-vr-hands-fix: "Fly by hand" setting; pilot body v3 shipped behind it
+- Setting: `XrHeadset.FlyByHand` (PlayerPrefs `quest.flyByHand`), default `QuestCockpit.FlyByHandDefault` = false; VR
+  menu row "Fly by hand". `VrCockpitHands.Resolve` gates on `QuestCockpit.HandsInCockpit(headset, inCockpit, flyByHand)`:
+  off = never Active, so no grab, no grip masking, no hand latch/bail-out, TouchFlightControls flies alone; the body
+  is built lazily, so off from launch it is never instantiated; switched off later it is deactivated. A jumper who
+  climbed out by hand stays the jumper but is undrawn if the setting goes off. `VrPilotBody.Destroy` now resets its
+  bone caches (a rebuild after Destroy aimed at destroyed transforms); `Built` / `Visible` added.
+- v3 body promoted: `pilot_body.py --offline` now writes v3 to Resources (byte-identical to the f32ebca5 candidate,
+  14,256 tris, 49 joints, 6 materials); `--v2` writes v2 to PilotBodyCandidates/ (outside the build). The candidate
+  copy is removed. `check_vr_phase1.py` checks v3 by default (`--v2` for the old one): rc 0, Pitts truss 7.0 mm,
+  cockpit 11.6 mm. Python with numpy here is `/usr/bin/python3` (Homebrew's has none).
+- Tests: QuestCockpitTests +3 (default off; on only in a headset cockpit; off everywhere) 16/16. VrHandJointCheck:
+  new FLY-BY-HAND case per type and seat (off: inactive, body never built, a fist holds nothing; on: held + drawn; off
+  mid-hold: released, hidden, aileron does not follow the hand; on again: held). Full check with v3 in Resources:
+  **VRJ OK (460 cases)**, 0 `error CS`, v3 binds 15/15 limb bones.
+- Full suite (compare, never count): HEAD 167 failed / 1499 passed; branch point 46a2cd41 203 / 1460 (other lanes'
+  suites were running alongside). 11 names failed only on HEAD (ReversibleControl, Spin, Soaring, TipWheel,
+  TrimConvergence); all 19 cases pass alone. No regression.
+- Builds: iOS `deploy.sh NOINSTALL` ** BUILD SUCCEEDED ** (bundleVersion bump reverted, not committed). Quest
+  `deploy-quest.sh`: build SUCCEEDED, stamp 2026.1103.0624, exit 2 = no Quest attached; NOT installed.
+
