@@ -16,6 +16,15 @@ style tangents from the UVs, and five materials (flight suit, Nomex gloves, boot
 Same 49-bone skeleton, names, rest pose and inverse bind matrices as v1 (v1 was 2,416 triangles).
 Still original: no third-party mesh, texture, scan or training-derived asset.
 
+**v3 (2026-11-03, approved by Ty and shipped; shown only with VR menu → Fly by hand):** `pilot_body.py --offline`
+now builds v3 into Resources (`--offline --v2` rebuilds v2 into `PilotBodyCandidates/`, outside the build, for
+comparisons). Feet flat on the pedal face (sole lean 13°, `L/R_SoleOnPedal` marker nodes drive the foot pose in
+`VrPilotBody.HeelFromBall`), boots with heel / rubber sole / toe box / laces / shaft and collar, deltoid caps and a
+trapezius yoke, knuckled gloves with cuff strap and snap, elbow / knee / waist folds, zip and chest pockets, softer
+normal maps, a lighter suit. **14,256 triangles**, 49 joints (same skeleton and names), 6 materials (new
+`Pilot_BootSole`) — still below the 15,000 Quest target. Byte-identical to the candidate Ty reviewed (f32ebca5).
+Same generator, same rule: no third-party mesh, texture, scan or training-derived asset.
+
 Anthropometric anchor: National Research Council, *Video Displays, Work, and Vision* (1983),
 [Anthropometry and Biomechanics in VDT Applications](https://www.ncbi.nlm.nih.gov/books/NBK216490/?report=reader),
 Civilian males 20–60, 50th percentile: stature **1.736 m**, seated shoulder **0.594 m**,

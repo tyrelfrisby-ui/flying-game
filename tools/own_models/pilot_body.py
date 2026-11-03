@@ -9,9 +9,10 @@ import numpy as np
 from vr_cockpit import Shape, Glb, ROOT, MODELS, gl, builder
 
 OUT=MODELS/'pilot-body/pilot-body-own.glb'
-# v3 candidate (feet flat on the pedal face, shoulders, glove detail, folds): OUTSIDE Resources, so the game keeps
-# shipping v2 until Ty approves; PilotBodyShots renders it with BODY_ASSET. --v3 builds it.
-OUT_V3=MODELS.parent.parent/'PilotBodyCandidates/pilot-body-own-v3.glb'
+# v3 (feet flat on the pedal face, shoulders, glove detail, folds) is what ships: Ty approved it 2026-11-03, shown only
+# with VR menu -> Fly by hand. `--offline` builds it into Resources. `--offline --v2` rebuilds the superseded v2 OUTSIDE
+# Resources (PilotBodyCandidates/), for before/after renders with PilotBodyShots BODY_ASSET.
+OUT_V2=MODELS.parent.parent/'PilotBodyCandidates/pilot-body-own-v2.glb'
 # v3 foot on the pedal: the sole lies on a face leaning SOLE_LEAN top-forward (the fleet's pedal faces measure
 # 12-15 deg, PilotBodyShots BODY_PEDALS); the ankle sits ANKLE_BACK down the sole from the ball and ANKLE_UP off it.
 SOLE_LEAN=math.radians(13);ANKLE_BACK=.13;ANKLE_UP=.085;TOES=.07
@@ -78,10 +79,10 @@ def definition(kind='pitts',v3=False):
         bone(side+'_Toes',ball,ball+(sole_frame()[0]*TOES if v3 else np.array((.075,0,0))),side+'_Foot',.040,2)
     return bones,parts,segments,grips
 
-def offline(v3=False):
+def offline(v3=True):
     """One skinned, smooth-shaded, normal-mapped mesh (pilot_body_smooth), the same 49-bone skeleton."""
     from pilot_body_smooth import body, normal_png
-    bones,parts,segments,grips=definition(v3=v3);g=Glb();out=OUT_V3 if v3 else OUT
+    bones,parts,segments,grips=definition(v3=v3);g=Glb();out=OUT if v3 else OUT_V2
     samplers=g.doc.setdefault('samplers',[]);samplers.append(dict(magFilter=9729,minFilter=9987,wrapS=10497,wrapT=10497))
     def material(name,rgb,rough,metal=0.0,normal=None,scale=1.0):
         m=dict(name=name,doubleSided=False,pbrMetallicRoughness=dict(baseColorFactor=[*rgb,1],metallicFactor=metal,roughnessFactor=rough))
@@ -158,7 +159,7 @@ def build(kind='pitts',export=True):
     return obj
 
 if __name__=='__main__':
-    if '--offline' in sys.argv: offline(v3='--v3' in sys.argv)
+    if '--offline' in sys.argv: offline(v3='--v2' not in sys.argv)
     else:
         import bpy
         bpy.ops.wm.read_factory_settings(use_empty=True);build()
