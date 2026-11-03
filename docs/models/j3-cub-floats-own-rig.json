@@ -511,7 +511,7 @@
    "pivot_gltf": [
     -0.58,
     0.233,
-    -0.181
+    0.075
    ],
    "map": [
     [
@@ -618,8 +618,8 @@
    ],
    "pivot_gltf": [
     -0.58,
-    0.2082,
-    0.164
+    0.2089,
+    -0.181
    ],
    "map": [
     [
@@ -650,8 +650,8 @@
    ],
    "pivot_gltf": [
     -0.58,
-    0.238,
-    0.164
+    0.2378,
+    -0.181
    ],
    "map": [
     [
@@ -683,7 +683,7 @@
    "pivot_gltf": [
     -0.58,
     0.233,
-    0.075
+    0.164
    ],
    "map": [
     [
@@ -701,6 +701,38 @@
    ],
    "model": 0.0,
    "desc": "tach x100 rpm dial 500..3500 over 270 deg (pegged below 500); +deg clockwise from the seat",
+   "link": "",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Primer_Plunger",
+   "parent": "Instruments",
+   "param": "primer",
+   "unit": "0 in .. 1 out",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.56,
+    0.189,
+    -0.244
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.05
+    ]
+   ],
+   "model": 0.0,
+   "desc": "primer plunger pulls straight aft 50 mm (judgement)",
    "link": "",
    "note": "",
    "extra": {}
@@ -955,7 +987,7 @@
     ],
     [
      1.0,
-     140.0
+     90.0
     ]
    ],
    "model": 0.0,
@@ -1013,11 +1045,6 @@
    "why": "the sim has no J-3 fuel shut-off; drawn ON"
   },
   {
-   "node": "Primer_Plunger",
-   "param": "primer",
-   "why": "no primer in the sim"
-  },
-  {
    "node": "DoorLower_R",
    "param": "door_open",
    "why": "no door control in the sim; drawn closed"
@@ -1036,6 +1063,72 @@
    "node": "Prop",
    "param": "prop_rpm",
    "why": "the propeller is spun by AirframeVisual.BindModelProp, not by the rig"
+  }
+ ],
+ "controls": [
+  {
+   "node": "Primer_Plunger",
+   "param": "primer",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.56,
+    0.189,
+    -0.244
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "Grip_Primer",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "WaterRudder_Handle",
+   "param": "water_rudder_up",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -0.42437,
+    0.90031,
+    0.09671
+   ],
+   "pivot_gltf": [
+    0.453,
+    -0.4008,
+    0.09
+   ],
+   "travel": 258,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "Grip_WaterRudder",
+   "position_status": "E",
+   "sweep_radius_m": 0.06,
+   "semantics": "absolute"
   }
  ]
 }

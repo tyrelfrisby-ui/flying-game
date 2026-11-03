@@ -30,7 +30,6 @@ RENAME = {'engine_rpm': 'rpm', 'oil_psi': 'oil_press_psi'}
 # What the sim cannot drive yet, and why the node stays as drawn.
 STATIC = {
     'carb_heat': 'no carburettor heat in the sim',
-    'primer': 'no primer in the sim',
     'fuel_valve': 'the sim has no J-3 fuel shut-off; drawn ON',
     'fuel': 'nose-tank float wire: no per-tank gauge feed for the J-3; drawn FULL',
     'door_open': 'no door control in the sim; drawn closed',
@@ -38,6 +37,20 @@ STATIC = {
 }
 # Sim magneto 0 OFF, 1 R, 2 L, 3 BOTH (RigInputs.Magneto) onto the J-3 plate's OFF / L / R / BOTH detent angles.
 MAGNETO_SIM_ORDER = ['OFF', 'R', 'L', 'BOTH']
+# v18 (Ty 2026-11-02, t284u): the hand-worked switches and knobs (AirframeRig.ParseControls / VrCockpitHands.BindPanel on
+# the Quest hands build; ignored by builds without the hands). Only the primer so far: a push-pull pulled straight aft 50 mm.
+# The sim has no priming system: RigInputs.Primer sits at 0 (in) and the hand moves the knob (visual only, logged).
+CONTROLS = [
+    dict(node='Primer_Plunger', param='primer', kind='PushPull', seat='Rear', travel=50, travel_unit='mm', sim_ends=[0, 1],
+         detents=[], detent_count=0, spring_return=False, spring_return_from=1, spring_return_to=0, poke='', grip='Grip_Primer',
+         position_status='E', sweep_radius_m=0.04, semantics='absolute'),
+    # The floats' water-rudder retract handle (lane/claude-j3-water-rudder): the hand pulls it up its rig slide from the
+    # floor fairlead to the front-seat-back hook. Let go near the hook it hangs there (UP), anywhere else the spring takes
+    # it back to the floor (DOWN): the hands route this param to CockpitWaterRudder.Hold / Release, not to a panel value.
+    dict(node='WaterRudder_Handle', param='water_rudder_up', kind='PushPull', seat='Rear', travel=258, travel_unit='mm',
+         sim_ends=[0, 1], detents=[], detent_count=0, spring_return=False, spring_return_from=1, spring_return_to=0, poke='',
+         grip='Grip_WaterRudder', position_status='E', sweep_radius_m=0.06, semantics='absolute', optional=True),
+]
 
 
 def read_glb(path):
@@ -111,7 +124,20 @@ def table(aircraft):
     return dict(model=f'{aircraft}-own', livery='talk-flying',
                 source=f'unity/Assets/_Project/Resources/Models/{aircraft}/{aircraft}-own.glb node extras '
                        '(docs/models/j3-cub-own-RIG.md); written by tools/own_models/j3_rig_json.py',
-                rig=rows, static=static)
+                rig=rows, static=static, controls=controls(rows))
+
+
+def controls(rows):
+    """The CONTROLS rows whose node is rigged, with the rig row's axis and pivot."""
+    by = {r['node']: r for r in rows}
+    out = []
+    for c in CONTROLS:
+        r = by.get(c['node'])
+        if r is None and c.get('optional'): continue         # e.g. the water rudder: floats only
+        if r is None: raise SystemExit(f"control {c['node']} is not a rigged node")
+        out.append(dict(node=c['node'], param=c['param'], kind=c['kind'], seat=c['seat'], axis_gltf=r['axis_gltf'],
+                        pivot_gltf=r['pivot_gltf'], **{k: v for k, v in c.items() if k not in ('node', 'param', 'kind', 'seat', 'optional')}))
+    return out
 
 
 def main():

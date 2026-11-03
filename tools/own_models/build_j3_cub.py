@@ -905,7 +905,7 @@ for lp in P['Prop'].data.loops:
     co = P['Prop'].data.vertices[lp.vertex_index].co; _uv.data[lp.index].uv = ((co.y + R_P) / (2 * R_P), (co.z + 0.10) / 0.20)
 
 # ---- cabin: floor, two seats in tandem, two sticks, pedals, panel with five gauges + compass, window frame tubes -------
-CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark', 'chrome', 'alu', 'label', 'red', 'maroon', 'heel']
+CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark', 'chrome', 'alu', 'label', 'red', 'maroon', 'heel', 'tubeK', 'brass']   # v18: tubeK = the black under-tank tubes, brass = the primer barrel
 bmc = bmesh.new(); ck_tag = []
 def ck(tag, fn):
     fn(); tag_new(bmc, CK_T.index(tag))
@@ -980,7 +980,10 @@ ZG = PZB + 0.110
 # v17 (Ty photo ty-panel-tank-behind.png, left to right: oil temp / pressure, tach, compass, altimeter, airspeed): CELL
 # says which atlas face (j3_panel_atlas.png: 0 tach, 1 ASI, 2 compass, 3 altimeter, 4 oil) sits in each slot. v5..v16
 # had tach / ASI / compass / altimeter / oil. The chrome-bezelled outer slots now carry the oil gauge and the ASI.
-CELL = [4, 0, 2, 3, 1]
+# v18 (Ty 2026-11-02, t282u then corrected t283u): left to right TACH, AIRSPEED, COMPASS, ALTIMETER, OIL TEMP/PRESSURE,
+# with the airspeed the same size as the altimeter. Slots 1 and 3 are the twin black-bezelled 0.0355 / 0.030 gauges, so
+# the ASI takes slot 1 and the altimeter slot 3; the big chrome outer slots hold the tach (left) and the oil gauge (right).
+CELL = [0, 1, 2, 3, 4]
 def slot_of(cell): return CELL.index(cell)
 GAUGES = [(0.164, 0.043, 'chrome', 0.036), (0.075, 0.0355, 'gauge', 0.030), (-0.011, 0.0355, 'gauge', 0.027),
           (-0.095, 0.0355, 'gauge', 0.030), (-0.181, 0.041, 'chrome', 0.035)]
@@ -999,11 +1002,22 @@ ck('alu', lambda: rbox(bmc, B(PXA + 0.001, 0, PZB + 0.153), (0.002, 0.034, 0.012
 # had it unlabelled at y 0.215 z PZB + 0.140, high on the rolled hood; it comes down beside the oil gauge, as in the photo.
 HK_Y, HK_Z = 0.228, PZB + 0.072
 ck('dark', lambda: cyl(bmc, B(PXA, HK_Y, HK_Z), B(PXA + 0.024, HK_Y, HK_Z), 0.012, 16))             # heat knob, far left
-ck('chrome', lambda: cyl(bmc, B(PXA, -0.240, PZB + 0.041), B(PXA + 0.014, -0.240, PZB + 0.041), 0.007, 12))   # primer barrel
-sub_begin()                                                                                     # v15: Primer_Plunger node (pulls aft)
-ck('chrome', lambda: cyl(bmc, B(PXA - 0.040, -0.240, PZB + 0.041), B(PXA + 0.014, -0.240, PZB + 0.041), 0.0035, 10))  # plunger rod (hidden in the barrel when in)
-ck('chrome', lambda: cyl(bmc, B(PXA + 0.014, -0.240, PZB + 0.041), B(PXA + 0.024, -0.240, PZB + 0.041), 0.012, 16))  # primer knob
-sub_end('Primer_Plunger'); RIGPTS['Primer_Plunger'] = B(PXA + 0.014, -0.240, PZB + 0.041)
+# v18 (Ty 2026-11-02, t284u): "at the far right of the panel, after oil temp/pressure, add a primer: the typical J-3
+# plunger-style push-pull primer, a small round knob on a brass barrel". v15..v17 had a small chrome one low in the right
+# corner (y -0.240, z PZB + 0.041). It moves up beside the oil gauge, as far right as the panel's rolled edge allows (the
+# knee drops toward the panel ends, z 0.094 here), on a brass hex nut and barrel, with a black round knob on a chrome
+# plunger that pulls straight aft 50 mm (the rod stays in the barrel at full pull). Hands: the 'controls' row in
+# j3_rig_json.py (PushPull, rear seat) and the Grip_Primer empty at the knob's centre.
+PR_Y, PR_Z = -0.244, PZB + 0.066
+ck('brass', lambda: cyl(bmc, B(PXA, PR_Y, PR_Z), B(PXA + 0.004, PR_Y, PR_Z), 0.0105, 6))                 # hex panel nut
+ck('brass', lambda: cyl(bmc, B(PXA + 0.004, PR_Y, PR_Z), B(PXA + 0.022, PR_Y, PR_Z), 0.0062, 14))         # barrel
+ck('brass', lambda: cyl(bmc, B(PXA + 0.022, PR_Y, PR_Z), B(PXA + 0.024, PR_Y, PR_Z), 0.0062, 14, r2=0.0045))   # barrel lip
+sub_begin()                                                                                     # Primer_Plunger node (pulls aft)
+ck('chrome', lambda: cyl(bmc, B(PXA - 0.040, PR_Y, PR_Z), B(PXA + 0.028, PR_Y, PR_Z), 0.0030, 10))   # plunger rod (in the barrel when in)
+ck('dark', lambda: cyl(bmc, B(PXA + 0.026, PR_Y, PR_Z), B(PXA + 0.030, PR_Y, PR_Z), 0.0060, 16, r2=0.0110))   # round knob: neck
+ck('dark', lambda: cyl(bmc, B(PXA + 0.030, PR_Y, PR_Z), B(PXA + 0.038, PR_Y, PR_Z), 0.0110, 16))          #             body
+ck('dark', lambda: cyl(bmc, B(PXA + 0.038, PR_Y, PR_Z), B(PXA + 0.042, PR_Y, PR_Z), 0.0110, 16, r2=0.0060))   #             domed end
+sub_end('Primer_Plunger'); RIGPTS['Primer_Plunger'] = B(PXA + 0.024, PR_Y, PR_Z)
 _po = np.array(panel_outline(0.013)); _sl = np.r_[0, np.cumsum(np.linalg.norm(np.diff(np.vstack([_po, _po[:1]]), axis=0), axis=1))]
 for s_ in np.linspace(0, _sl[-1], 16, endpoint=False):                                                # chrome screws
     y_ = np.interp(s_, _sl, np.r_[_po[:, 0], _po[0, 0]]); z_ = np.interp(s_, _sl, np.r_[_po[:, 1], _po[0, 1]])
@@ -1104,14 +1118,20 @@ for nm_, px in (('Front', 1.12), ('Rear', 1.85)):                       # v15: e
 # above, one diagonal per side from the side cluster (A-pillar foot / panel bottom corner) down and forward to ONE
 # fitting on the firewall centreline at rudder-pedal height, and one cross bar just ahead of the panel's bottom edge.
 UT_X, UT_Z = PX - 0.012, PZB + 0.016                                  # side cluster: just ahead of the panel, at its bottom corner
-UT_FX, UT_FZ = 0.83, -0.43                                           # firewall centre fitting, between the front pedals
+UT_FX = 0.83                                                         # firewall centre fitting, between the front pedals
+# v18 (Ty 2026-11-02 20:2x): "Make the diagonal tubes under the tank black and have them come to a point lower almost
+# 'under the floor' and they go under the tank with close clearance." v16/v17 met at z -0.43, 9 cm above the floorboards,
+# and crossed the lower part of the tank's face from the rear eye. They now meet AT floor level (the floorboards' top
+# line, F_BOT + 0.047, carried forward to the firewall), and are black (tubeK) with their side clusters, the firewall
+# fitting and the hidden cross bar behind the panel bottom.
+UT_FZ = F_BOT(UT_FX) + 0.035 + 0.012
 _utw = fus_y(UT_X, UT_Z) - 0.016
 for sy in (1, -1):
-    ck('tubeY', lambda: tube(bmc, [B(UT_X, sy * _utw, UT_Z), B(UT_FX, sy * 0.006, UT_FZ)], 0.010, n=10))     # diagonal under the tank
-    ck('tubeY', lambda: bmesh.ops.create_uvsphere(bmc, u_segments=12, v_segments=8, radius=0.016, matrix=Matrix.Translation(B(UT_X, sy * _utw, UT_Z))))                                       # side cluster
-ck('tubeY', lambda: rbox(bmc, B(UT_FX - 0.008, 0, UT_FZ), (0.010, 0.05, 0.05)))                         # firewall fitting
-ck('tubeY', lambda: tube(bmc, [B(UT_X, _utw, UT_Z), B(UT_X, -_utw, UT_Z)], 0.010, n=10))                 # the one cross bar, behind the panel bottom
-print('UNDER-TANK v16: diagonals from the side clusters (xd %.3f, +-%.3f, z %.3f) to the firewall centre (xd %.3f, z %.3f); one cross bar at xd %.3f z %.3f behind the panel (face xd %.3f, bottom z %.3f)'
+    ck('tubeK', lambda: tube(bmc, [B(UT_X, sy * _utw, UT_Z), B(UT_FX, sy * 0.006, UT_FZ)], 0.010, n=10))     # diagonal under the tank
+    ck('tubeK', lambda: bmesh.ops.create_uvsphere(bmc, u_segments=12, v_segments=8, radius=0.016, matrix=Matrix.Translation(B(UT_X, sy * _utw, UT_Z))))                                       # side cluster
+ck('tubeK', lambda: rbox(bmc, B(UT_FX - 0.008, 0, UT_FZ), (0.010, 0.05, 0.05)))                         # firewall fitting
+ck('tubeK', lambda: tube(bmc, [B(UT_X, _utw, UT_Z), B(UT_X, -_utw, UT_Z)], 0.010, n=10))                 # the one cross bar, behind the panel bottom
+print('UNDER-TANK v18 (black): diagonals from the side clusters (xd %.3f, +-%.3f, z %.3f) to the firewall centre (xd %.3f, z %.3f); one cross bar at xd %.3f z %.3f behind the panel (face xd %.3f, bottom z %.3f)'
       % (UT_X, _utw, UT_Z, UT_FX, UT_FZ, UT_X, UT_Z, PXA, PZB))
 for px in (1.12, 1.85):                                                                     # heel brakes (black pads)
     for sy in (1, -1):
@@ -1147,7 +1167,7 @@ ck('heel', heel_plates)
 #   * the filler neck rises to the v4 red cap (xd 0.85) and the float-gauge wire hangs into the tank through it.
 #   * a clear, slightly tinted fuel drain hose from a brass sump under the tank, down to a grommet in the floorboards.
 TK_X0, TK_X1, TK_HW, TK_ZS, TK_ZC, TK_RC, TK_ZB = 0.825, 1.120, 0.230, 0.040, 0.180, 0.035, -0.265
-TK_G, TK_NB, TK_A, TK_SKIN = 0.065, 22, 0.0035, 0.015
+TK_G, TK_NB, TK_A, TK_SKIN = 0.062, 22, 0.0035, 0.015              # v18: TK_G set for a ~2.5 cm surface gap over the steeper tubes
 _uts = (UT_Z - UT_FZ) / (UT_X - UT_FX)                                # slope of the V tubes in side view
 def tk_line(xd): return UT_FZ + _uts * (xd - UT_FX) + TK_G           # the cut over the V tubes
 def _fits(xd, y, z):                                                  # TK_SKIN inside the skin (and under the dash deck)
@@ -1162,7 +1182,6 @@ def tk_bot(y):
     return TK_ZB + (TK_RC - math.sqrt(max(0.0, TK_RC ** 2 - e ** 2)) if e > 0 else 0.0)
 def tk_bead(y):                                                       # 0 at both side edges (whole number of beads)
     return TK_A * (0.5 - 0.5 * math.cos(2 * math.pi * (y + TK_HW) * TK_NB / (2 * TK_HW))) ** 1.5
-assert tk_line(TK_X1) > TK_ZB + TK_RC, 'the lower aft cut must stay above the bottom corners'
 def tk_loop(y):
     """side-view outline (xd, z, nx, nz, beaded) of the column at y: front up, crown aft, aft face down, slope, bottom"""
     zt, zb = tk_top(y), tk_bot(y); zk = tk_line(TK_X1); xs = UT_FX + (zb - UT_FZ - TK_G) / _uts
@@ -1174,6 +1193,20 @@ def tk_loop(y):
         for k in range(n):
             t = k / n; out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, nrm, bd))
     return out
+def _tk_vol():
+    ys = np.linspace(-TK_HW, TK_HW, 241); A_ = []
+    for y_ in ys:
+        q = np.array([(x_, z_) for x_, z_, _, _ in tk_loop(y_)]); A_.append(0.5 * abs(np.dot(q[:, 0], np.roll(q[:, 1], 1)) - np.dot(q[:, 1], np.roll(q[:, 0], 1))))
+    return float(np.trapezoid(A_, ys)) if hasattr(np, 'trapezoid') else float(np.trapz(A_, ys))
+# v18: the steeper, lower tubes leave more room under the tank's lower aft cut, so the drum would grow past 12 gal; its
+# flat bottom (TK_ZB, v17 -0.265) is raised until the drawn outline holds 12 US gal (45.4 L) again (bisection).
+_lo, _hi = -0.265, -0.150
+for _ in range(40):
+    TK_ZB = 0.5 * (_lo + _hi)
+    if _tk_vol() > 0.04542: _lo = TK_ZB
+    else: _hi = TK_ZB
+TK_ZB = round(TK_ZB, 4)
+assert tk_line(TK_X1) > TK_ZB + TK_RC, 'the lower aft cut must stay above the bottom corners'
 bmt_ = bmesh.new(); TK_COLS = list(np.linspace(-TK_HW, TK_HW, TK_NB * 6 + 1)); _cols = []
 for y_ in TK_COLS:
     h_ = tk_bead(y_)
@@ -1204,24 +1237,20 @@ tag_new(bmt_, 1)
 tube(bmt_, [B(TK_X1 - 0.002, y_, z_) for y_, z_ in [(y_, tk_top(y_) + 0.002) for y_ in TK_COLS[::3]]], 0.004, n=8)   # rolled seam, aft top edge
 tag_new(bmt_, 0)
 cyl(bmt_, B(0.85, 0, tk_top(0.0) - 0.010), B(0.85, 0, ZCAP - 0.004), 0.024, 20)              # filler neck up to the cap
-TK_SX, TK_SY = 0.865, -0.100                                          # sump: low front corner, right of the V tubes' apex
+# v18 (Ty 2026-11-02, t285u): the drain is at the CENTRE of the tank bottom, not the right side, and the hose runs straight
+# down to a floor grommet at the centre, clear of the black V tubes (at xd 0.940 they are +-0.087 m apart, ~7 cm air each side).
+TK_SX, TK_SY = 0.940, 0.0                                             # sump: centre of the flat tank bottom
 cyl(bmt_, B(TK_SX, TK_SY, TK_ZB + 0.004), B(TK_SX, TK_SY, TK_ZB - 0.018), 0.014, 6)               # brass hex sump fitting
 cyl(bmt_, B(TK_SX, TK_SY, TK_ZB - 0.018), B(TK_SX, TK_SY, TK_ZB - 0.030), 0.0065, 12)             # hose barb
 tag_new(bmt_, 2)
 TK_TAG = tags_of(bmt_); P['Fuel_Tank'] = link('Fuel_Tank', bmt_)
 _zfl = lambda xd: F_BOT(xd) + 0.035 + 0.012
-HOSE = [B(TK_SX, TK_SY, TK_ZB - 0.020), B(TK_SX + 0.004, TK_SY - 0.002, TK_ZB - 0.090), B(TK_SX + 0.018, TK_SY - 0.006, -0.430),
-        B(TK_SX + 0.040, TK_SY - 0.010, -0.490), B(0.935, TK_SY - 0.012, _zfl(0.935) + 0.020), B(0.950, TK_SY - 0.012, _zfl(0.950) - 0.004)]
+HOSE = [B(TK_SX, TK_SY, TK_ZB - 0.020), B(TK_SX, TK_SY, _zfl(TK_SX) - 0.004)]       # straight down
 _hp = []
 for a_, b_ in zip(HOSE, HOSE[1:]): _hp += [tuple(np.array(a_) + (np.array(b_) - np.array(a_)) * t_) for t_ in np.linspace(0, 1, 6)[:-1]]
 _hp.append(HOSE[-1])
 _bh = bmesh.new(); tube(_bh, _hp, 0.0055, n=12); P['Fuel_Drain_Hose'] = link('Fuel_Drain_Hose', _bh)
-ck('dark', lambda: cyl(bmc, B(0.950, TK_SY - 0.012, _zfl(0.950) - 0.001), B(0.950, TK_SY - 0.012, _zfl(0.950) + 0.004), 0.011, 14))   # floor grommet
-def _tk_vol():
-    ys = np.linspace(-TK_HW, TK_HW, 241); A_ = []
-    for y_ in ys:
-        q = np.array([(x_, z_) for x_, z_, _, _ in tk_loop(y_)]); A_.append(0.5 * abs(np.dot(q[:, 0], np.roll(q[:, 1], 1)) - np.dot(q[:, 1], np.roll(q[:, 0], 1))))
-    return float(np.trapezoid(A_, ys)) if hasattr(np, 'trapezoid') else float(np.trapz(A_, ys))
+ck('dark', lambda: cyl(bmc, B(TK_SX, TK_SY, _zfl(TK_SX) - 0.001), B(TK_SX, TK_SY, _zfl(TK_SX) + 0.004), 0.011, 14))   # floor grommet
 TK_VOL = _tk_vol()
 def _tube_gap():                                                      # closest approach of each V tube to the tank's lower aft cut
     g_ = []
@@ -1231,11 +1260,11 @@ def _tube_gap():                                                      # closest 
             if TK_X0 <= x_ <= TK_X1 and abs(y_) <= TK_HW: g_.append((tk_line(x_) - z_) * math.cos(math.atan(_uts)) - 0.010)
     return min(g_)
 _skin = min(fus_y(x_, z_) - 0.006 - abs(y_) for x_ in np.linspace(TK_X0, TK_X1, 13) for y_ in TK_COLS[::6] for z_ in (tk_top(y_), TK_ZS, tk_bot(y_)))
-print('FUELTANK v17: xd %.3f..%.3f (firewall 0.800, panel face %.3f, cross bar %.3f), half-width %.3f, crown z %.3f (dash deck %.3f, cap %.3f), '
+print('FUELTANK v18: xd %.3f..%.3f (firewall 0.800, panel face %.3f, cross bar %.3f), half-width %.3f, crown z %.3f (dash deck %.3f, cap %.3f), '
       'shoulder %.3f, bottom %.3f at the firewall, lower aft cut %.3f..%.3f m over the V tubes (surface gap %.3f m), %d beads %.1f mm proud; '
-      'volume %.1f L = %.2f US gal (12 gal = 45.4 L); min gap to the cabin wall %.3f m; sump (%.3f, %.3f, %.3f); hose to the floor at xd 0.950 z %.3f'
+      'volume %.1f L = %.2f US gal (12 gal = 45.4 L); min gap to the cabin wall %.3f m; sump (%.3f, %.3f, %.3f); hose straight down to the floor at xd %.3f z %.3f'
       % (TK_X0, TK_X1, PXA, UT_X, TK_HW, tk_top(0.0), p_arch(0.0), ZCAP, TK_ZS, TK_ZB, tk_line(TK_X1), tk_line(UT_FX + (TK_ZB - UT_FZ - TK_G) / _uts),
-         _tube_gap(), TK_NB, TK_A * 1000, TK_VOL * 1000, TK_VOL * 1000 / 3.78541, _skin, TK_SX, TK_SY, TK_ZB - 0.030, _zfl(0.950)))
+         _tube_gap(), TK_NB, TK_A * 1000, TK_VOL * 1000, TK_VOL * 1000 / 3.78541, _skin, TK_SX, TK_SY, TK_ZB - 0.030, TK_SX, _zfl(TK_SX)))
 # ---- v14 (Ty reference photos, read literally; nothing traced or copied, sizes by eye against the 2.6 in gauges):
 #  throttles: two black inverted-triangle plates high on the left wall just under the window sill, front (just aft of the
 #    panel) and rear (beside the rear seat); black label band 'CLOSED -> OPEN' / 'THROTTLE' in white; black ball knob on a
@@ -1722,15 +1751,29 @@ if VAR == 'floats':
     bar(bm, [B(xh, Y_FL + 0.07, ZD + 0.035), B(xh, Y_FL - 0.07, ZD + 0.035)], 0.03, 0.008)  # steering horn
     rbox(bm, B(xh, Y_FL, fz(3040)), (0.04, 0.03, 0.03))                                     # blade yoke / retract pivot
     P['WaterRudder_L'] = link('WaterRudder_L', bm)
-    bm = bmesh.new()                                                # blade: the rounded paddle drawn on 60-S-908A (~13 x 7 in)
-    blade = [(5598 + 106 * math.cos(t), 3082 + 56 * math.sin(t)) for t in np.linspace(math.radians(-115), math.radians(235), 30)]
-    blade = [(5560, 3035)] + blade + [(5585, 3030)]
+    bm = bmesh.new()
+    # blade: the rounded paddle drawn on 60-S-908A (~13 x 7 in). v18 (Ty t286u): the WHOLE blade sits aft of the round
+    # steering post, in its plane (the float centreline), so swung up 90 deg it stands directly behind the post, lined up
+    # with it in side and top views. Its leading edge and top edge are both WR_CLR (post radius 0.011 + 6 mm) from the
+    # hinge, which sits on the post axis at the post's foot; a strap (the notch to the hinge) carries it. The sim's
+    # elliptic plate (configs waterRudderBladeAftM / BelowM / RetractRad) is the same ellipse.
+    WR_CLR = 0.017 / KPX                                            # drawing units
+    # The chord (aft, down) is sized so that standing up it stays UNDER the post top (0.2305 + WR_CLR = 0.248 m above the
+    # hinge; the post top is 0.255 m), so from behind the post hides it; the span (depth) grew to keep the area (v17
+    # was 13 x 7 in, now 9.1 x 9.7 in, about the same 0.044 m2).
+    WR_SA, WR_SB = 75, 80                                           # semi-chord, semi-span (drawing units)
+    _cx, _cy = 5570 + WR_CLR + WR_SA, 3040 + WR_CLR + WR_SB         # ellipse centre: aft and below the hinge
+    blade = [(_cx + WR_SA * math.cos(t), _cy + WR_SB * math.sin(t)) for t in np.linspace(math.radians(243), math.radians(212 + 360), 34)]
+    blade = blade + [(5570 + 9, 3040 + 9)]                          # the strap corner, in the hinge yoke (14 mm aft: clear of the post)
+    FLOAT_INFO['water_rudder_blade'] = dict(aft_m=round((_cx - 5570) * KPX, 4), below_m=round((_cy - 3040) * KPX, 4),
+                                            chord_m=round(2 * WR_SA * KPX, 4), span_m=round(2 * WR_SB * KPX, 4))
+    print('WRUDDER blade v18: centre %.3f aft, %.3f below the hinge; chord %.4f span %.4f' % ((_cx - 5570) * KPX, (_cy - 3040) * KPX, 2 * WR_SA * KPX, 2 * WR_SB * KPX))
     vf = [bm.verts.new(B(fx(a), Y_FL + 0.004, fz(b))) for a, b in blade]; vb = [bm.verts.new(B(fx(a), Y_FL - 0.004, fz(b))) for a, b in blade]
     bm.faces.new(vf); bm.faces.new(vb[::-1])
     for i in range(len(blade)):
         j = (i + 1) % len(blade); bm.faces.new((vf[i], vb[i], vb[j], vf[j]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['WaterRudder_Blade_L'] = link('WaterRudder_Blade_L', bm)
-    FLOAT_INFO['water_rudder_blade_down_z'] = round(fz(3138), 4)
+    FLOAT_INFO['water_rudder_blade_down_z'] = round(fz(_cy + WR_SB), 4)
 #FLOATS-END#
 
 # ---- paint: Cub yellow everywhere, plain black lightning stripe on both fuselage sides (no logo, no registration) -----
@@ -1778,7 +1821,7 @@ M.update(yellow=C('Paint_cub_yellow', YEL, rough=0.4), black=C('Paint_black', BL
          ck_panel=C('Cabin_panel', (52, 40, 30), rough=0.6), ck_gauge=C('Gauge_bezel', (30, 30, 32), rough=0.4, metal=0.4),
          ck_face=C('Gauge_face', (14, 14, 16), rough=0.2), ck_stick=C('Cabin_stick', (28, 28, 30), rough=0.5),
          ck_dark=C('Cabin_dark', (40, 36, 32), rough=0.9))
-M['ck_tubeY'] = M['yellow']; M['en_steel'] = M['steel']
+M['ck_tubeY'] = M['yellow']; M['ck_tubeK'] = C('Cabin_tube_black', (20, 20, 22), rough=0.45); M['ck_brass'] = C('Primer_brass', (204, 172, 112), rough=0.25, metal=1.0); M['en_steel'] = M['steel']
 # v5 materials: exhaust chrome/steel, cowl gap, black interior (Ty panel photo), panel atlas, varnished prop
 TEXD = os.path.join(HERE, 'textures')
 M.update(en_plug=C('Spark_plug_shield', (170, 170, 175), rough=0.35, metal=1.0), en_wire=C('Ignition_lead_yellow', (214, 170, 30), rough=0.6),
@@ -2056,10 +2099,11 @@ if VAR == 'wheels':
 if VAR == 'floats':
     o = origin('WaterRudder_L', w(WR_P)); o['steer_axis_gltf'] = gl_axis((0, 0, 1))
     o['note'] = 'LH water rudder only (60-1320 Fig.1: RH float less water rudder). Steers about steer_axis, linked to the air rudder'
-    # v17 (t278u): retract 140 deg, the bottom swinging AFT then up (the spring pulls it down; the cockpit handle on the
-    # hook holds it up). 140 = the configs' waterRudderRetractRad 2.4435, the smallest 5-deg step at which the sim's drawn
-    # blade (FloatHydro.DrawnWaterRudder) is dry both afloat at rest and taxiing at 5.5 m/s (J3WaterRudderTests).
-    WR_RETRACT = 140.0; _rax = Vector((0, -1, 0))                       # export frame: +x aft, z up; about -y the bottom goes aft
+    # v18 (t286u): retract 90 deg so the blade stands right behind the post (v17 swung 140 deg, its forward lobe ahead of
+    # the post). v17 (t278u): the bottom swinging AFT then up (the spring pulls it down; the cockpit handle on the
+    # hook holds it up). 90 = the configs' waterRudderRetractRad 1.5708; the sim's drawn blade (FloatHydro.DrawnWaterRudder)
+    # must be dry at it both afloat at rest and taxiing at 5.5 m/s (J3WaterRudderTests).
+    WR_RETRACT = 90.0; _rax = Vector((0, -1, 0))                       # export frame: +x aft, z up; about -y the bottom goes aft
     b = origin('WaterRudder_Blade_L', w(WR_H), parent=o); b['retract_axis_gltf'] = gl_axis(_rax); b['retract_deg'] = WR_RETRACT
     b['note'] = 'rotate about retract_axis by retract_deg to pull the blade up (retracted); 0 = down (water). Driven by water_rudder_up (cockpit handle on the hook)'
     vs0 = np.array([v.co[:] for v in b.data.vertices]).mean(0)
@@ -2069,6 +2113,13 @@ if VAR == 'floats':
     _lo1 = min((R @ v.co).z for v in b.data.vertices)
     print('WRUDDER blade centroid rel hinge down %s -> retracted %.0f deg %s (lowest point %+.3f rel hinge)' % (np.round(vs0, 3), WR_RETRACT, np.round(vs1, 3), _lo1))
     assert vs1[2] > vs0[2] + 0.05, 'retract must lift the blade'
+    _up = [R @ v.co for v in b.data.vertices]
+    _ax = min(v.x for v in _up); _ay = max(abs(v.y) for v in _up)
+    print('WRUDDER retracted: every blade point %.3f+ aft of the post axis (post radius 0.011), within %.3f of its plane' % (_ax, _ay))
+    assert _ax > 0.011 and _ay < 0.006, 'retracted, the blade must sit wholly behind the post, in line with it'
+    _hi1 = max(v.z for v in _up); _post_top = (ZD + 0.035) - fz(3040)
+    print('WRUDDER retracted top %.3f above the hinge, post top %.3f' % (_hi1, _post_top))
+    assert _hi1 < _post_top, 'retracted, the blade must stay under the post top (hidden behind it from aft)'
     # steering: cable-linked to the air rudder pedals; EDO-style water rudder swings ~25 deg each way (judgement: no
     # 60-1320 travel figure in hand), so full rudder (30) gives 25 (link ratio 0.833) and the water rudder stops at 25.
     rig_rot(o, 'rudder', Vector((0, 0, 1)), 25.0, 25.0, lambda d: d.y > 0, 'blade trails to starboard at +1 (right pedal)')
@@ -2166,6 +2217,7 @@ rig2(o, 'magneto', wd(nb), [0, 1, 2, 3], [0, -37, -73, -115], '0 OFF 1 L 2 R 3 B
      extra={'rig_detents': ['OFF', 'L', 'R', 'BOTH']})
 o = origin2('Primer_Plunger', RIGPTS['Primer_Plunger'], INS)
 rig2(o, 'primer', AFT, [0, 1], [0, 0.050], '0 in .. 1 out', 'primer plunger pulls straight aft 50 mm (judgement)', kind='move', want=lambda d: d.x > 0)
+group('Grip_Primer', B(PXA + 0.034, PR_Y, PR_Z), o)                                              # v18: where a hand takes the knob
 # sticks: roll empty on the torque tube (x axis) -> stick node pitches about y. Both sticks share the params (rigid link).
 for nm_ in ('Front', 'Rear'):
     pv = RIGPTS['Stick_' + nm_]; ro = group('Stick_%s_Roll' % nm_, pv, CTL)
@@ -2187,6 +2239,7 @@ if VAR == 'floats':
          kind='move', want=lambda d: d.z > 0,
          link='WaterRudder_Blade_L retract (same param); the cable WaterRudder_Cable runs from the fairlead to this node',
          extra={'grab': 1, 'hook_gltf': gl_pt(w(tuple(WR_CROOK))), 'hook_snap_m': 0.06})
+    group('Grip_WaterRudder', _hp(WR_FER + 0.5 * WR_GRIP), o)                                    # v18: the red grip's middle, where a hand takes it
     o = origin2('WaterRudder_Cable', WR_FAIR, CKP); o.scale = (1.0, 1.0, 0.001)
     o['cable_to'] = 'WaterRudder_Handle'
     o['note'] = ('retract cable: unit length along local +Z (glTF +Y) from the floor fairlead; aim it at the WaterRudder_Handle '

@@ -62,12 +62,23 @@ SHOTS = [  # name, water_rudder_up, camera, target, hfov
     ('06-detail-hook-hooked', 1, D(2.52, 0.30, -0.10), D(2.16, 0.11, -0.26), 34.0),
     ('07-blade-down', 0, bl + Vector((0.25, -1.15, 0.10)), bl + Vector((0.0, 0.0, -0.05)), 30.0),
     ('08-blade-up', 1, bl + Vector((0.25, -1.15, 0.10)), bl + Vector((0.0, 0.0, -0.05)), 30.0),
+    # v18 (Ty t286u): the stern square on, ORTHOGRAPHIC (a negative "fov" is the ortho width in metres), so the blade
+    # can be judged against the round post: side (from outboard), top (camera 0.6 m over the hinge, under the tailplane;
+    # aft to the right) and rear (from aft, looking forward), each blade down and up.
+    ('v18-stern-side-down', 0, bl + Vector((0.12, -1.5, -0.07)), bl + Vector((0.12, 0.0, -0.07)), -1.0),
+    ('v18-stern-side-up', 1, bl + Vector((0.12, -1.5, -0.07)), bl + Vector((0.12, 0.0, -0.07)), -1.0),
+    ('v18-stern-top-down', 0, bl + Vector((0.12, 0.0, 0.60)), (0.0, 0.0, 0.0), -1.0),
+    ('v18-stern-top-up', 1, bl + Vector((0.12, 0.0, 0.60)), (0.0, 0.0, 0.0), -1.0),
+    ('v18-stern-rear-down', 0, bl + Vector((1.5, 0.0, -0.07)), bl + Vector((0.0, 0.0, -0.07)), -1.0),
+    ('v18-stern-rear-up', 1, bl + Vector((1.5, 0.0, -0.07)), bl + Vector((0.0, 0.0, -0.07)), -1.0),
 ]
 for name, up, at, target, fov in SHOTS:
     if only and name not in only: continue
     ln = pose(up)
-    cd.angle = math.radians(fov)
-    cam.location = at; cam.rotation_euler = (target - at).to_track_quat('-Z', 'Y').to_euler()
+    if fov < 0: cd.type = 'ORTHO'; cd.ortho_scale = -fov
+    else: cd.type = 'PERSP'; cd.angle = math.radians(fov)
+    cam.location = at
+    cam.rotation_euler = target if isinstance(target, tuple) else (target - at).to_track_quat('-Z', 'Y').to_euler()
     sc.render.filepath = '%s/%s.png' % (out, name)
     bpy.ops.render.render(write_still=True)
     print('SHOT', name, 'water_rudder_up', up, 'cable %.3f m' % ln, 'handle at', tuple(round(c, 3) for c in H.matrix_world.translation))
