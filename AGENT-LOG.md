@@ -1530,6 +1530,14 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-quest-hands-install · J-3 v18 + water rudder in the hands build, installed on the Quest (22:01 PST)
+- Merged lane/claude-j3-cockpit 29c55998 (v18: black V tubes under the tank to the floor, panel TACH-ASI-COMPASS-ALT-OIL, plunger primer, centre drain; and lane/claude-j3-water-rudder ccde8a48 with the blade wholly behind the post) → 63f016e4. Only AGENT-LOG conflicted (both sides kept).
+- bed98ed3: VrCockpitHands.Panel.cs routes the rig control `water_rudder_up` (WaterRudder_Handle, PushPull, Rear seat) into the sim: grab → CockpitWaterRudder.Hold(ac, value) and follow while held; open hand → CockpitWaterRudder.Release (within 6 cm of the hook it hangs there, blade up; else the spring takes it down) with one `[WaterRudder] handle let go by hand …` line; not held → the knob follows ac.WaterRudderUp01. Panel log now says "into the sim: trim, smoke, water rudder".
+- Tests: the full run under load 18–35 showed TipWheel/MultiEngine/LandingGear/Spin/Soaring/CockpitLive failures that all PASS on a rerun; the 5 SeasideTests fail identically on e4e91953 and 29c55998 (pre-existing).
+- This worktree's Library symlink target (unity-Library-claude-vr-hands) had been deleted by a cache prune; re-created as an APFS clone of unity-Library-hydro-quest (`cp -cR`). Quest build 2026.1102.2153 SUCCEEDED (424 s, hand-tracking manifest added); APK copied to ~/Developer/agent-lanes/aero-playground/AeroPlayground-hands-j3v18-2153.apk; no ProjectSettings bump left behind.
+- adb install -r on 340YC10GBK0TYV: Success, versionName 2026.1102.2153, HAND_TRACKING granted. Launch was QUEUED by Horizon OS ("a Reprojected OS dialog is currently showing"), so no in-app log yet: Ty clears the dialog in the headset and it starts.
+- NOT in this build: lane/claude-vr-hands-fix fc1eb214 (that lane is not merged here).
+
 ### 2026-11-02 — Claude · lane/claude-j3-water-rudder · J-3 floats water-rudder retract: handle, cable, hook, physics
 Ty (t278u): red WATER RUDDER handle on the retract cable, let go = on the floor left of the stick (rudder down,
 spring), hung on a hook on the back of the front seat (left) = rudder up.
