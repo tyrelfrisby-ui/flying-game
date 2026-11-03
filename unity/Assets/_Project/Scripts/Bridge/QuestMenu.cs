@@ -695,17 +695,18 @@ namespace FlyingGame.Bridge
         /// still holds whatever it loaded at start, the 2-33), in flight the one being flown.</summary>
         private string SeatAircraftId => OnLanding || Driver == null ? SessionSettings.AircraftId : Driver.AircraftId;
 
-        /// <summary>That aeroplane's authored seats: the loaded config's when it is the one flying, else read once
-        /// from its config and kept.</summary>
+        /// <summary>That aeroplane's authored seats a headset may use (QuestFleet.SeatsOnly: the J-3 is the rear
+        /// only): the loaded config's when it is the one flying, else read once from its config and kept.</summary>
         private IReadOnlyList<StationConfig> SeatsOf(string id)
         {
             if (string.IsNullOrEmpty(id)) return System.Array.Empty<StationConfig>();
-            if (Driver != null && Driver.AircraftId == id && Driver.Sim != null && Cockpit != null) return Cockpit.Seats;
+            if (Driver != null && Driver.AircraftId == id && Driver.Sim != null && Cockpit != null)
+                return FlyingGame.Core.Vr.QuestFleet.Seats(id, Cockpit.Seats, s => s.Id);
             if (!_seatsByType.TryGetValue(id, out List<StationConfig> seats))
             {
                 try { seats = UnityAircraftConfigLoader.LoadFromStreamingAssets(id)?.Loading?.Seats; }
                 catch (System.Exception e) { Debug.LogWarning($"[Quest] seats of {id} not read: {e.Message}"); }
-                _seatsByType[id] = seats ??= new List<StationConfig>();
+                _seatsByType[id] = seats = FlyingGame.Core.Vr.QuestFleet.Seats(id, seats, s => s.Id);
             }
             return seats;
         }

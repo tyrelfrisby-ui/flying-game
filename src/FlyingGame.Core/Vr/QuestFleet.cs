@@ -16,8 +16,12 @@ namespace FlyingGame.Core.Vr
     /// is procedural too. The procedural airframe is a CLOSED body of revolution with no cockpit cut into it, and both
     /// eyes are inside it: the 2-33's front eye 0.261 m from the axis of a 0.457 m tube, the J-3's rear 0.239 m inside
     /// 0.409 m. The 2-33 now always draws our own yellow model (LiveryChoice, 2026-11-02), whose front eye is clear —
-    /// so it stays. The J-3's own model passes the same check but is not wired into the game; until it is placed and
-    /// its rig is checked in a render, it is hidden here.
+    /// so it stays. The J-3 (Ty 2026-11-02, "get the eye location fixed on the j3 and add it to quest too both on
+    /// wheels and floats") now always draws our own GLB on wheels and on floats (AirframeModels.OwnSpecs / PickOwn),
+    /// driven by its own rig, and its solo REAR eye is clear in both: the nearest structure is the cabin liner
+    /// overhead, 15.9 cm away. Its FRONT eye is not: a ceiling tube of the cabin frame is 9 cm from it in both
+    /// configurations, so in a headset the J-3 is flown from the rear seat only (<see cref="SeatsOnly"/>) until that
+    /// eye or that tube is looked at.
     ///
     /// Headset only: phones and the Mac keep the whole fleet (their flat instruments and outside views do not depend on
     /// the eye being in a cockpit).
@@ -31,12 +35,41 @@ namespace FlyingGame.Core.Vr
             "extra-300-like",     // our own EA300 for every livery, both eyes clear
             "pitts-s2b-like",     // our own S-2B for every livery, both eyes clear
             "great-lakes-like",   // our own 2T-1A-2, both eyes clear (rear lowered behind its screen, Ty 2026-11-01)
+            "j3-cub-like",        // our own J-3C on wheels (j3-cub-like-own.glb), rear eye clear; rear seat only
+            "j3-cub-floats-like", // our own J-3C on EDO 60-1320s (j3-cub-floats-like-own.glb), rear eye clear; rear seat only
         };
+
+        /// <summary>Listed types a headset seats in only some of their seats, by seat id (never by index: SeatChoice).
+        /// A seat left out here is one whose approved eye has the model's structure within 12 cm of it.</summary>
+        public static readonly IReadOnlyDictionary<string, string[]> SeatsOnly = new Dictionary<string, string[]>
+        {
+            ["j3-cub-like"] = new[] { "rear" },
+            ["j3-cub-floats-like"] = new[] { "rear" },
+        };
+
+        /// <summary>Why a seat is left out, for the log.</summary>
+        public const string FrontSeatReason = "J-3 front eye: a cabin ceiling tube is 9 cm from it (check_eye_interiors.py), so the headset seats you in the rear";
+
+        /// <summary>May a headset put the pilot in this seat? A null or empty id is the primary seat, always allowed.</summary>
+        public static bool SeatCleared(string? aircraftId, string? seatId)
+        {
+            if (string.IsNullOrEmpty(seatId) || aircraftId == null || !SeatsOnly.TryGetValue(aircraftId, out string[]? only)) return true;
+            foreach (string s in only) if (string.Equals(s, seatId, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// <summary>The seats a headset offers for this type: <paramref name="seats"/> in their own order, cleared ones only.</summary>
+        public static List<T> Seats<T>(string? aircraftId, IReadOnlyList<T>? seats, Func<T, string?> idOf)
+        {
+            var list = new List<T>();
+            if (seats == null) return list;
+            foreach (T s in seats) if (SeatCleared(aircraftId, idOf(s))) list.Add(s);
+            return list;
+        }
 
         /// <summary>Why a type with an approved eye point is NOT listed (shown in the log, so the reason travels with it).</summary>
         public static readonly IReadOnlyDictionary<string, string> HiddenBecause = new Dictionary<string, string>
         {
-            ["j3-cub-like"] = "own J-3 GLB not placed by the game yet (no OwnSpecs entry): the procedural tube is drawn and the eye is inside it",
             ["c172-like"] = "draws the downloaded 172, not our own interior; its eye has not been checked against that model",
         };
 

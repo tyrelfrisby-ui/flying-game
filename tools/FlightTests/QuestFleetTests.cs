@@ -17,8 +17,8 @@ public sealed class QuestFleetTests
     [Fact]
     public void TheHeadsetListsOurOwnCockpitsOnly()
     {
-        Assert.Equal(new[] { "glider-2-33-like", "extra-300-like", "pitts-s2b-like", "great-lakes-like" }, QuestFleet.Listed);
-        Assert.False(QuestFleet.IsListed("j3-cub-like"));
+        Assert.Equal(new[] { "glider-2-33-like", "extra-300-like", "pitts-s2b-like", "great-lakes-like", "j3-cub-like", "j3-cub-floats-like" },
+                     QuestFleet.Listed);
         Assert.False(QuestFleet.IsListed("c172-like"));
         Assert.False(QuestFleet.IsListed("pa18-cub-like"));
         Assert.False(QuestFleet.IsListed(null));
@@ -28,9 +28,10 @@ public sealed class QuestFleetTests
     [Fact]
     public void FilterKeepsTheFleetsOrderAndNames()
     {
-        var fleet = new[] { ("paraglider-en-b-like", "Para"), ("glider-2-33-like", "2-33"), ("j3-cub-like", "J-3"), ("extra-300-like", "Extra"),
-                            ("pitts-s2b-like", "Pitts"), ("great-lakes-like", "Great Lakes"), ("p51d-like", "P-51") };
-        Assert.Equal(new[] { ("glider-2-33-like", "2-33"), ("extra-300-like", "Extra"), ("pitts-s2b-like", "Pitts"), ("great-lakes-like", "Great Lakes") },
+        var fleet = new[] { ("paraglider-en-b-like", "Para"), ("glider-2-33-like", "2-33"), ("j3-cub-like", "J-3"), ("j3-cub-floats-like", "J-3 floats"),
+                            ("c172-like", "172"), ("extra-300-like", "Extra"), ("pitts-s2b-like", "Pitts"), ("great-lakes-like", "Great Lakes"), ("p51d-like", "P-51") };
+        Assert.Equal(new[] { ("glider-2-33-like", "2-33"), ("j3-cub-like", "J-3"), ("j3-cub-floats-like", "J-3 floats"), ("extra-300-like", "Extra"),
+                             ("pitts-s2b-like", "Pitts"), ("great-lakes-like", "Great Lakes") },
                      QuestFleet.Filter(fleet));
     }
 
@@ -38,7 +39,8 @@ public sealed class QuestFleetTests
     public void ASavedTypeTheHeadsetDoesNotOfferFallsBackToTheDefault()
     {
         Assert.Equal("pitts-s2b-like", QuestFleet.Resolve("pitts-s2b-like"));
-        Assert.Equal("glider-2-33-like", QuestFleet.Resolve("j3-cub-like"));
+        Assert.Equal("j3-cub-floats-like", QuestFleet.Resolve("j3-cub-floats-like"));
+        Assert.Equal("glider-2-33-like", QuestFleet.Resolve("c172-like"));
         Assert.Equal("glider-2-33-like", QuestFleet.Resolve(""));
         Assert.Equal("glider-2-33-like", QuestFleet.Resolve(null));
     }
@@ -56,6 +58,29 @@ public sealed class QuestFleetTests
         }
         foreach (string id in QuestFleet.HiddenBecause.Keys)
             Assert.Contains(Load(id).Loading!.Seats, s => s.HasEye);
+    }
+
+    /// <summary>The J-3, wheels and floats, is flown from the REAR seat only in a headset: its front eye has a cabin
+    /// ceiling tube 9 cm away (check_eye_interiors.py). A saved "front" reads as the primary seat; every other listed
+    /// type keeps all its seats.</summary>
+    [Fact]
+    public void TheJ3IsSeatedInTheRearOnly()
+    {
+        foreach (string id in new[] { "j3-cub-like", "j3-cub-floats-like" })
+        {
+            var seats = Load(id).Loading!.Seats;
+            Assert.Equal(new[] { "rear" }, QuestFleet.Seats(id, seats, s => s.Id).Select(s => s.Id));
+            Assert.False(QuestFleet.SeatCleared(id, "front"));
+            Assert.True(QuestFleet.SeatCleared(id, "rear"));
+            Assert.True(QuestFleet.SeatCleared(id, null));
+            Assert.Equal("rear", seats[0].Id);   // the primary seat a refused choice falls back to
+        }
+        foreach (string id in new[] { "glider-2-33-like", "extra-300-like", "pitts-s2b-like", "great-lakes-like" })
+        {
+            var seats = Load(id).Loading!.Seats;
+            Assert.Equal(seats.Count, QuestFleet.Seats(id, seats, s => s.Id).Count);
+            foreach (var s in seats) Assert.True(QuestFleet.SeatCleared(id, s.Id), $"{id} {s.Id}");
+        }
     }
 
     /// <summary>The 2-33 is listed because it always draws our own yellow model now; if it could still resolve to the

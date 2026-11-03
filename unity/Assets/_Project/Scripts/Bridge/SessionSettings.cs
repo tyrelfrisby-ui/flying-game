@@ -89,13 +89,17 @@ namespace FlyingGame.Bridge
         /// <summary>Bumped on every choice, so a CockpitView can follow a choice made from a menu.</summary>
         public static int SeatChoiceVersion { get; private set; }
 
-        /// <summary>The seat ID chosen for this aircraft type, or null for "its primary seat".</summary>
+        /// <summary>The seat ID chosen for this aircraft type, or null for "its primary seat". In a headset a seat
+        /// QuestFleet does not clear (the J-3's front: a cabin tube 9 cm from the eye) reads as the primary seat, so a
+        /// choice saved before, or made on another screen, cannot put the pilot's head in it.</summary>
         public static string SeatIdFor(string aircraftId)
         {
             if (string.IsNullOrEmpty(aircraftId)) return null;
             if (!_seatIds.TryGetValue(aircraftId, out string id))
                 _seatIds[aircraftId] = id = PlayerPrefs.GetString(PrefSeatIdFor + aircraftId, "");
-            return string.IsNullOrEmpty(id) ? null : id;
+            if (string.IsNullOrEmpty(id)) return null;
+            if (XrHeadset.Active && !FlyingGame.Core.Vr.QuestFleet.SeatCleared(aircraftId, id)) return null;
+            return id;
         }
 
         /// <summary>Choose a seat for this aircraft type (and remember it).</summary>
