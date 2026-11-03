@@ -117,4 +117,11 @@ public static class GamepadShaping
         if (rate == 0.0) return current;
         return Math.Clamp(current + rate * Math.Max(0.0, dt), min, max);
     }
+    /// <summary>
+    /// Whether the on-screen touch STICKS (the two pads, or a lesson's tall strips, and the trim slider / trim bars)
+    /// are shown and grabbable. Owner 2026-11-02: with a gamepad connected they are hidden entirely; with none
+    /// connected (the default) they are there. A desk (Mac) build never has them. Evaluated every frame from the
+    /// live pad state, so plugging in or dropping a controller flips it on the next frame.
+    /// </summary>
+    public static bool TouchSticksShown(bool deskMode, bool gamepadConnected) => !deskMode && !gamepadConnected;
 }

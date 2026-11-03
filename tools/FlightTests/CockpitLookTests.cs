@@ -300,7 +300,10 @@ public sealed class CockpitLookTests
         look.Recentre(Held(0, 0, 0));
         look.FromDevice(Held(40, 0, 0));
         Assert.Equal(40.0, look.YawDeg, 3);
-        look.FromDevice(Quat.Identity);                 // flat on the knee, aimed at the floor
+        // Flat on the knee, aimed at the floor. A REAL flat reading, not the bit-exact identity: that one is the
+        // gyro's "no sample yet" placeholder and is ignored (CockpitLook.IsUnsampled, 2026-11-02). Turning about the
+        // vertical leaves the back pointing straight down, so this is still exactly "aimed at the floor".
+        look.FromDevice(About(0, 0, 1, 0.001));
         Assert.True(double.IsFinite(look.YawDeg) && double.IsFinite(look.PitchDeg));
         Assert.Equal(40.0, look.YawDeg, 3);             // held, not spun
         Assert.Equal(-CockpitLook.MaxPitchDownDeg, look.PitchDeg, 6);

@@ -162,6 +162,13 @@ namespace FlyingGame.Bridge
                 _lockDir = d.sqrMagnitude > 1e-4f ? d.normalized : -transform.forward;
                 _beforeLock = CurrentView;
             }
+            // Entering the cockpit: eye point, looking forward (Ty, 2026-11-02: "all he sees is sky"). Whatever the
+            // look was left at -- a snap over the shoulder, a device offset -- does not carry into a fresh selection.
+            if (v == View.Cockpit && CurrentView != View.Cockpit)
+            {
+                if (Cockpit == null) Cockpit = Driver != null ? Driver.GetComponent<CockpitView>() : null;
+                if (Cockpit != null) Cockpit.OnEnterCockpitView();
+            }
             CurrentView = v;
             _flyValid = false;
         }

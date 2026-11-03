@@ -217,6 +217,11 @@ namespace FlyingGame.Bridge
             if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 1)) x += 1;   // right
             if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 2)) y -= 1;   // down
             if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 3)) x -= 1;   // left
+            // A gamepad's optional look: the d-pad while L3 is held (GamepadInput). R3 recentres. No stick or
+            // trigger is read here -- the right stick FLIES (Ty, 2026-11-02), so it must never also turn the head.
+            var gp = GamepadInput.Now;
+            if (gp.RecentrePressed) Centre();
+            if (x == 0 && y == 0 && gp.LookHeld) { x = gp.LookX; y = gp.LookY; }
             if (x == 0 && y == 0) { x = OnScreenHat.x; y = OnScreenHat.y; }
 
             bool hat = x != 0 || y != 0;
@@ -254,6 +259,10 @@ namespace FlyingGame.Bridge
         /// <summary>RECENTRE: straight ahead is here. With device look on that means re-zeroing against however the
         /// device is being held, not just dropping the hat's offset — otherwise the view would spring back to
         /// wherever the phone points and the button would look broken.</summary>
+        /// <summary>The cockpit view has just been selected: start at the eye point looking straight ahead, the
+        /// device (if device look is on) zeroed wherever it is being held now. Called by ChaseCamera.SetView.</summary>
+        public void OnEnterCockpitView() => Centre();
+
         public void Centre()
         {
             if (DeviceLook && TryDeviceAttitude(out Quaternion q)) Look.Recentre(ToCore(q));
@@ -261,6 +270,10 @@ namespace FlyingGame.Bridge
         }
 
         public void SetDeviceLook(bool on) => DeviceLookEnabled = on;
+
+        // (TryDeviceAttitude may hand Recentre the gyro's placeholder identity in the first frames after it is
+        // switched on; CockpitLook.IsUnsampled makes that leave the zero EMPTY, so the first real sample becomes
+        // straight ahead. Zeroing against the placeholder was the "all sky" bug of 2026-11-02.)
 
         /// <summary>Carry whatever Options currently says into this instance: the gyro on or off, the gain, the
         /// spring. Called at Start and every frame, because the setting can be changed from a menu that has no

@@ -32,6 +32,11 @@ namespace FlyingGame.Bridge
             public float Roll, Pitch, Rudder, Throttle;
             public bool ThrottleUp, ThrottleDown, TrimNoseDown, TrimNoseUp, Brakes, Fire;
             public bool FlapsUpPressed, FlapsDownPressed, SmokePressed, ViewPressed, MenuPressed, RecordPressed;
+            /// <summary>COCKPIT LOOK (Ty, 2026-11-02). No flight axis ever moves the view. The optional look is the
+            /// d-pad while L3 (left stick click) is HELD -- trim and flaps are off for those frames -- and R3 (right
+            /// stick click) recentres. Entering the cockpit view (Y) recentres too.</summary>
+            public bool LookHeld, RecentrePressed;
+            public int LookX, LookY;
         }
 
         private static int _frame = -1;
@@ -89,6 +94,7 @@ namespace FlyingGame.Bridge
         //   RB / LB (held)      throttle up / down too, at a fixed rate
         //   d-pad up / down     pitch trim nose down / nose up (held)    d-pad right / left   flaps down / up a step
         //   A guns (held) · B smoke · X wheel brakes (held) · Y change view · Menu OPTIONS · View REC
+        //   L3 held + d-pad     cockpit look (pan held, snap on a tap)   R3   recentre the cockpit view
         private static Frame Read()
         {
             var f = new Frame();
@@ -102,10 +108,21 @@ namespace FlyingGame.Bridge
             f.Throttle = (float)GamepadShaping.ThrottleRate(l.y);
             f.ThrottleUp = p.rightShoulder.isPressed;
             f.ThrottleDown = p.leftShoulder.isPressed;
-            f.TrimNoseDown = p.dpad.up.isPressed;
-            f.TrimNoseUp = p.dpad.down.isPressed;
-            f.FlapsUpPressed = p.dpad.left.wasPressedThisFrame;
-            f.FlapsDownPressed = p.dpad.right.wasPressedThisFrame;
+            f.LookHeld = p.leftStickButton.isPressed;
+            f.RecentrePressed = p.rightStickButton.wasPressedThisFrame;
+            if (f.LookHeld)
+            {
+                // L3 held: the d-pad looks instead of trimming / flapping (right and up positive, like the hat).
+                f.LookX = (p.dpad.right.isPressed ? 1 : 0) - (p.dpad.left.isPressed ? 1 : 0);
+                f.LookY = (p.dpad.up.isPressed ? 1 : 0) - (p.dpad.down.isPressed ? 1 : 0);
+            }
+            else
+            {
+                f.TrimNoseDown = p.dpad.up.isPressed;
+                f.TrimNoseUp = p.dpad.down.isPressed;
+                f.FlapsUpPressed = p.dpad.left.wasPressedThisFrame;
+                f.FlapsDownPressed = p.dpad.right.wasPressedThisFrame;
+            }
             f.Fire = p.buttonSouth.isPressed;
             f.SmokePressed = p.buttonEast.wasPressedThisFrame;
             f.Brakes = p.buttonWest.isPressed;

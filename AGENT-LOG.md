@@ -1,4 +1,12 @@
 ## NEEDS YOU
+- **COCKPIT VIEW WAS ALL SKY — FIXED, PLEASE CHECK (Grok Bot, 2026-11-02, lane/claude-cockpit-look):** cause was
+  **device look** (Options › "Move the device to look around", ON on your iPhone, gain 4.9) zeroing against the
+  gyro's placeholder reading before its first sample — not the gamepad. Now the first REAL sample is straight
+  ahead, and selecting the cockpit view always starts at the eye point looking forward. Gamepad: **R3 recentres**,
+  **hold L3 + d-pad = look** (trim / flaps off while L3 is held). No stick or trigger moves the view. Details in Log.
+  **Also: with a gamepad connected the touch sticks are gone** — pads (or lesson strips), trim slider and trim bars
+  hidden and take no touches; buttons (Reset, Aircraft, Flaps, Gear, Smoke, Tow, Bail, Fire, Eject, Look) stay.
+  Unplug / switch off the pad and they come back next frame (hot-plug). Please check both on the iPhone.
 - **GAMEPAD, SECOND PASS — NEW MAPPING, PLEASE FLY IT (Claude, 2026-11-02, lane/claude-gamepad-ios):** it is on
   your **iPad mini** (build `2026.1102.1603`, island-nav), **NOT your iPhone** — the iPhone still has
   `2026.1102.1441` with the OLD left-stick-flies mapping until the next deploy to it. The mapping now: **right stick = roll and pitch** (pull back = nose up), **left stick X = rudder** (triggers too),
@@ -897,6 +905,34 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Grok Bot · lane/claude-cockpit-look · cockpit view "all sky" on the iPhone with the 8BitDo
+Report (Ty, iPhone, build `2026.1102.1603`, pad connected): select the cockpit view and all he sees is sky.
+- **Ruled out:** no gamepad axis reaches the look. `GamepadInput` feeds flight only; `CockpitView` read only the
+  legacy hat (`JoystickInput.HatButton0` = 28, and `ButtonHeld` is `b < 20` on iOS, so inert there) and the
+  on-screen look buttons.
+- **Cause:** his prefs (read off the phone, `Library/Preferences`): `view.deviceLook = 1`, `view.deviceGain = 4.92`.
+  `ApplySettings()` at `Start` enables the gyro and immediately `Recentre`s against `Input.gyro.attitude`, which is
+  EXACTLY the identity (phone flat, screen up) until CoreMotion's first sample. With the reference set,
+  `FromDevice` never re-zeroed. A phone held up in landscape = back swung from straight down to level = +90° pitch,
+  ×4.9, clamped at `MaxPitchUpDeg` 75°: parked looking up. Nothing recentred on selecting the cockpit view.
+- **Fix:** `CockpitLook.IsUnsampled(q)` (bit-exact identity, zero-length or non-finite). `Recentre` with one leaves
+  the zero empty so the first real sample becomes straight ahead; `FromDevice` ignores one. `ChaseCamera.SetView`
+  → `CockpitView.OnEnterCockpitView()` recentres (hat and device) every time the cockpit view is entered (Y).
+  Gamepad: R3 recentres; L3 held + d-pad = look (pan held, snap on a tap, same as a stick's hat); trim/flaps are
+  suppressed while L3 is held.
+- **Tests:** `CockpitLookUnsampledTests` (4, Ty's gain 4.9: placeholder zero → still straight ahead; tilt 5° → 24.5°
+  after the real zero; mid-flight placeholder ignored; what counts as unsampled). `APhoneLaidFlat…` now uses a real
+  flat reading instead of the bit-exact placeholder. CockpitLook / CockpitEye / GamepadShaping: 200 pass.
+- Built from the lane at commit `63741982`: `2026.1102.1642`, 0 `error CS`, `** BUILD SUCCEEDED **`, installed and
+  launched on the iPhone and iPad mini (16:46 PST).
+- **Folded in (Ty, t250u): touch sticks hidden while a gamepad is connected.** `GamepadShaping.TouchSticksShown(desk,
+  connected)` (= !desk && !connected); `TouchFlightControls.TouchSticksHidden` asks it every frame from
+  `GamepadInput.Now.Connected` (live `Pad()`, so hot-plug flips it the next frame). Hidden: the two pads / lesson
+  strips (and the strip "your thumb here" briefing pointer), pitch-trim slider, RUD/AIL trim bars — not drawn and
+  `ReadPointers` grabs no touch for them. On a connect with a thumb down, the stick is released (springs back,
+  throttle and trims hold). Buttons and LOOK stay; the layout doesn't move. Logs `[Touch] … hidden/shown`.
+  Tests: `TouchSticksGamepadTests` (4). Filtered suite now 204 pass. Lane build `2026.1102.1649`: 0 `error CS`, `** BUILD SUCCEEDED **`, installed and launched on the iPhone and iPad mini (16:54 PST).
+
 ### 2026-11-02 16:08 — Claude · lane/claude-island-nav · gamepad merged and on the iPad mini (not the iPhone)
 Merged `lane/claude-gamepad-ios` at 01f4c28 (merge `21e41d8`, 15:47); another agent then merged
 `lane/claude-crash-test` on top (`c6080bb`, 15:53). `zsh tools/deploy/deploy.sh 00008130-001230A92678001C` from
