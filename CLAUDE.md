@@ -237,3 +237,17 @@ eye (or a sight, or a cockpit part), find out which model `AirframeModels.PickOw
 livery, and measure against that one (`tools/own_models/check_eye_interiors.py`). Also: `AirframeModels.Place` puts
 the model in the CG-rooted frame using the config's datum numbers, and the eyes were measured in that frame — adding
 the CG to the eye "puts" the Great Lakes pilot 7 cm under his own turtle deck.
+
+### A Core type name can be shadowed in the Bridge, and only Unity sees it
+`FlyingGame.Core.Vr.PilotBody` compiled and 32 tests passed in the .NET suite, then gave five `error CS0117` in the
+Unity batch: the Bridge already has an `internal sealed class PilotBody` (the bailout's jumper, `Bridge/Pilot`), and
+inside `namespace FlyingGame.Bridge` the Bridge's own type wins over a `using FlyingGame.Core.Vr`. The suite cannot
+see it because it never compiles the Bridge. The same run found `AirframeVisual.ModelRoot`, which is on the
+builder, not the visual. Before naming a new Core type, `grep -rn "class <Name>\b" unity/Assets` (with perl or
+`grep -w`; BSD sed has no `\b`), and run the Unity batch before trusting any Bridge code that calls into it.
+
+### Quote the shipped model's number, not the sketch's
+The parachute's opening shock went into three comments as "≈ 7.4 g" because that is what a quick Python sketch of the
+opening said. The Core model that ships blends the body's drag area differently and gives 6.7 g; the sketch had never
+been the code. Every comment, doc table and NEEDS YOU line had to be found and changed. Sketch to choose the model, then
+run the Core function itself (a throwaway probe test is enough) and copy THOSE numbers into docs and tests.

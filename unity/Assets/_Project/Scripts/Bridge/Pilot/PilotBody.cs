@@ -58,6 +58,23 @@ namespace FlyingGame.Bridge
         public const float TumbleRestitution = 0.32f, TumbleFrictionKeep = 0.72f, TumbleLyingHalfM = 0.45f;
         private float _tumbleT, _lastHitT = -1f;
         public Parachute Chute { get; private set; }
+        /// <summary>Seconds of uncontrolled tumble left after a hands-on exit (Core JumperAero): the drag area is
+        /// <see cref="CdATumbling"/> until it runs out, then whatever his body position makes it.</summary>
+        public float TumbleSec;
+        /// <summary>First person (headset, hands-on exit): the camera is his head, so the figure is not drawn. The
+        /// parachute (its own object) still is.</summary>
+        public bool FirstPerson
+        {
+            get => _firstPerson;
+            set
+            {
+                _firstPerson = value;
+                foreach (Renderer r in _root.GetComponentsInChildren<Renderer>(true)) r.forceRenderingOff = value;
+            }
+        }
+        private bool _firstPerson;
+        /// <summary>Non-gravitational acceleration last step (drag, the opening shock), in g.</summary>
+        public float AeroAccelG => _lastAero.magnitude / EgressAir.G;
         public Transform Transform => _root.transform;
         public float AltitudeM => Position.y;
         public float HeightAglM => Position.y - HalfHeightM - EgressAir.SurfaceHeight(Position);
@@ -72,7 +89,6 @@ namespace FlyingGame.Bridge
         private float _rocketT = float.MaxValue;   // < RocketBurn2Sec while the seat rocket burns
         private Vector3 _seatUp = Vector3.up;      // rail direction frozen at ejection
         private Vector3 _hang = Vector3.up, _hangVel;   // pendulum: direction harness → canopy, and its rate
-        private float _airspeedAtDeploy;
         private Vector3 _lastAero;                 // non-gravity acceleration last step (drives the pendulum)
 
         public PilotBody(Vector3 position, Vector3 velocity, Vector3 angularVelocityRad, float headingDeg,
@@ -134,7 +150,6 @@ namespace FlyingGame.Bridge
             if (Chute != null || Landed) return;
             Chute = new Parachute();
             Vector3 vRel = Velocity - EgressAir.Wind(Position);
-            _airspeedAtDeploy = vRel.magnitude;
             // The bag streams straight downstream of the pilot; the pendulum then brings the canopy overhead
             // as the pilot decelerates and the flight path turns vertical.
             _hang = vRel.magnitude > 1f ? -vRel.normalized : Vector3.up;
@@ -181,6 +196,7 @@ namespace FlyingGame.Bridge
             // filling canopy he straightens out and hangs.
             float fill = Chute?.Fill ?? 0f;
             float freeCdA = (float)FlyingGame.Core.SkydiverAero.CdA(_bodyPos);
+            if (TumbleSec > 0f) { TumbleSec -= dt; freeCdA = CdATumbling; }
             float cdA = HasSeat ? CdATumbling + CdASeat
                       : Tumbling ? Mathf.Lerp(CdATumbling, CdAHanging, fill)
                       : Mathf.Lerp(freeCdA, CdAHanging, fill);
@@ -189,7 +205,7 @@ namespace FlyingGame.Bridge
             // Tracking: leaning into the fall turns some of it into forward travel, up to about 0.7 across
             // for 1 down at the best body angle. It is a LIFT, so it acts across the relative wind, in
             // whichever direction he has turned himself -- and it goes away as the canopy takes over.
-            if (!HasSeat && !Tumbling && fill < 0.999f)
+            if (!HasSeat && !Tumbling && TumbleSec <= 0f && fill < 0.999f)
             {
                 float glide = (float)FlyingGame.Core.SkydiverAero.GlideRatio(_bodyPos) * (1f - fill);
                 Vector3 rel = Velocity - wind;
@@ -204,7 +220,7 @@ namespace FlyingGame.Bridge
             // Canopy: deployment model, steering, drive, drag on the drive-relative airflow.
             if (Chute != null)
             {
-                Chute.Tick(dt, _airspeedAtDeploy);
+                Chute.Tick(dt, (Velocity - wind).magnitude, rho);
                 HeadingDeg += Steer * Parachute.TurnRateDegPerSec * fill * dt;
                 Vector3 drive = HeadingDir * (Parachute.DriveMs * fill);
                 Velocity += EgressAir.ImplicitDragDelta(Velocity - wind - drive, rho, Chute.CdS, m, dt);

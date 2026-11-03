@@ -139,6 +139,8 @@ namespace FlyingGame.Bridge
             // And the native-headset rig (Meta Quest through OpenXR): inert unless an XR runtime is up, which only an
             // Android build with the OpenXR loader can start. It makes this same camera the XR camera.
             cam.gameObject.AddComponent<QuestRig>();
+            // The pilot's hands on the aeroplane's own controls, and his visible body: inert unless the headset is on.
+            cam.gameObject.AddComponent<VrCockpitHands>();
             cam.gameObject.AddComponent<AudioListener>();
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();

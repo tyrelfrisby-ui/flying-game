@@ -38,13 +38,18 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Per-block parameter update (audio thread).</summary>
-        public void Prepare(float ias, float alphaDeg, float betaDeg, float turbulence, float windMs, float spoiler, bool powered)
+        /// <param name="cockpitAir">The open cockpit's extra wind (Core Vr.CockpitWind amplitude above a shut canopy's; 1 =
+        /// an open cockpit at 100 KIAS): added to the broadband level, its gusts deepened. 0 with the canopy shut.</param>
+        public void Prepare(float ias, float alphaDeg, float betaDeg, float turbulence, float windMs, float spoiler, bool powered, float cockpitAir = 0f)
         {
             float v = ias < 0f ? 0f : ias;
 
             // broadband: audible from ~10 m/s, glider-cruise presence by 25, full roar past 100
             float lvl = 0.12f * Dsp.SmoothStep(8f, 30f, v) + 0.5f * Dsp.Pow(Dsp.Clamp01((v - 20f) / 100f), 1.3f);
             if (powered) lvl *= 0.65f;   // leave room for the engine
+            // The slipstream in an open cockpit: amplitude ∝ q (CockpitWind), a third of the full-scale roar per unit.
+            float air = Dsp.Clamp(cockpitAir, 0f, 3f);
+            lvl += 0.3f * air;
             _levelT = lvl;
             float cutoff = 150f + 32f * v;
             if (cutoff > 6000f) cutoff = 6000f;
@@ -52,7 +57,7 @@ namespace FlyingGame.Bridge
             _lpR.LowPass(_fs, cutoff * 1.04f, 0.7f);
 
             // gusts: slow random walk, depth from the turbulence setting + steady wind
-            _gustDepth = Dsp.Clamp(0.06f + 0.12f * turbulence + 0.003f * windMs, 0f, 0.6f);
+            _gustDepth = Dsp.Clamp(0.06f + 0.12f * turbulence + 0.003f * windMs + 0.15f * air, 0f, 0.6f);
             _gustT += _nS.Next() * 0.25f - _gustT * 0.06f;
             _gustT = Dsp.Clamp(_gustT, -1f, 1f);
 
