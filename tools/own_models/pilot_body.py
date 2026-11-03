@@ -9,6 +9,16 @@ import numpy as np
 from vr_cockpit import Shape, Glb, ROOT, MODELS, gl, builder
 
 OUT=MODELS/'pilot-body/pilot-body-own.glb'
+# v3 candidate (feet flat on the pedal face, shoulders, glove detail, folds): OUTSIDE Resources, so the game keeps
+# shipping v2 until Ty approves; PilotBodyShots renders it with BODY_ASSET. --v3 builds it.
+OUT_V3=MODELS.parent.parent/'PilotBodyCandidates/pilot-body-own-v3.glb'
+# v3 foot on the pedal: the sole lies on a face leaning SOLE_LEAN top-forward (the fleet's pedal faces measure
+# 12-15 deg, PilotBodyShots BODY_PEDALS); the ankle sits ANKLE_BACK down the sole from the ball and ANKLE_UP off it.
+SOLE_LEAN=math.radians(13);ANKLE_BACK=.13;ANKLE_UP=.085;TOES=.07
+def sole_frame():
+    f=np.array((math.sin(SOLE_LEAN),0,math.cos(SOLE_LEAN)))      # up the pedal face (builder: x nose, z up)
+    n=np.array((-math.cos(SOLE_LEAN),0,math.sin(SOLE_LEAN)))     # out of the face, toward the pilot
+    return f,n
 def ik(a,b,l1,l2,bend):
     a,b=np.array(a),np.array(b);d=b-a;length=np.linalg.norm(d)
     assert abs(l1-l2)<length<l1+l2,(length,l1,l2)
@@ -16,7 +26,7 @@ def ik(a,b,l1,l2,bend):
     x=(l1*l1-l2*l2+length*length)/(2*length)
     return a+x*d+math.sqrt(l1*l1-x*x)*u
 
-def definition(kind='pitts'):
+def definition(kind='pitts',v3=False):
     """Bone heads/tails, parent and radii in the aircraft builder's frame.
     Stature 1.736 m, sitting shoulder 0.594 m: NRC 1983 civilian male median.
     Segment lengths are modelling estimates, NOT independently median body segments.
@@ -58,30 +68,33 @@ def definition(kind='pitts'):
                 end=root+direction*length*frac;n=f'{side}_{finger}{j}'
                 bone(n,root,end,parent,.009 if finger!='Little' else .0075,1);parent=n;root=end
         ball=target('Foot_'+side+'_Rear') if kind=='pitts' else target('Pedal_R_'+side)+np.array((-.045,0,.09))
-        ankle=ball+np.array((-.105,0,-.035));hp=hip+(0,sy*.09,0)
-        knee=ik(hp,ankle,.42,.43,(0,sy*.1,1))
+        if v3: f,n=sole_frame();ankle=ball-f*ANKLE_BACK+n*ANKLE_UP
+        else: ankle=ball+np.array((-.105,0,-.035))
+        hp=hip+(0,sy*.09,0)
+        knee=ik(hp,ankle,.42,.43,(0,sy*(0 if v3 else .1),1))  # v3: knees straight up (rest pose clears the Pitts truss by 7 mm; .1 splay hit it)
         bone(side+'_UpperLeg',hp,knee,'Hips',.060)
         bone(side+'_LowerLeg',knee,ankle,side+'_UpperLeg',.043)
         bone(side+'_Foot',ankle,ball,side+'_LowerLeg',.043,2)
-        bone(side+'_Toes',ball,ball+(.075,0,0),side+'_Foot',.040,2)
+        bone(side+'_Toes',ball,ball+(sole_frame()[0]*TOES if v3 else np.array((.075,0,0))),side+'_Foot',.040,2)
     return bones,parts,segments,grips
 
-def offline():
+def offline(v3=False):
     """One skinned, smooth-shaded, normal-mapped mesh (pilot_body_smooth), the same 49-bone skeleton."""
     from pilot_body_smooth import body, normal_png
-    bones,parts,segments,grips=definition();g=Glb()
+    bones,parts,segments,grips=definition(v3=v3);g=Glb();out=OUT_V3 if v3 else OUT
     samplers=g.doc.setdefault('samplers',[]);samplers.append(dict(magFilter=9729,minFilter=9987,wrapS=10497,wrapT=10497))
     def material(name,rgb,rough,metal=0.0,normal=None,scale=1.0):
         m=dict(name=name,doubleSided=False,pbrMetallicRoughness=dict(baseColorFactor=[*rgb,1],metallicFactor=metal,roughnessFactor=rough))
         if normal:
-            v=g.data(normal_png(normal));images=g.doc.setdefault('images',[]);images.append(dict(name='Pilot_'+normal+'_n',bufferView=v,mimeType='image/png'))
+            v=g.data(normal_png(normal,soft=v3));images=g.doc.setdefault('images',[]);images.append(dict(name='Pilot_'+normal+'_n',bufferView=v,mimeType='image/png'))
             tex=g.doc.setdefault('textures',[]);tex.append(dict(source=len(images)-1,sampler=0));m['normalTexture']=dict(index=len(tex)-1,scale=scale)
         g.doc['materials'].append(m);return len(g.doc['materials'])-1
-    mats=dict(suit=material('Pilot_FlightSuit',(.045,.07,.05),.9,normal='twill',scale=.45),
+    mats=dict(suit=material('Pilot_FlightSuit',(.075,.10,.072) if v3 else (.045,.07,.05),.9,normal='twill',scale=.45),
               glove=material('Pilot_Nomex',(.16,.13,.085),.7,normal='leather',scale=.3),
               boot=material('Pilot_Boots',(.025,.028,.025),.42,normal='grain',scale=.4),
               strap=material('Pilot_Harness',(.035,.04,.05),.8,normal='webbing',scale=.6),
               metal=material('Pilot_Buckle',(.55,.56,.58),.35,metal=.9))
+    if v3: mats['sole']=material('Pilot_BootSole',(.012,.012,.013),.85,normal='grain',scale=.25)
     # glTF skin in exported model frame, all node rotations identity. Joint translations
     # and inverse bind matrices define the same seated relaxed-open rest pose as Blender.
     roots=g.doc['scenes'][0]['nodes'];lookup={};heads={}
@@ -92,7 +105,7 @@ def offline():
         if parent:g.doc['nodes'][lookup[parent]].setdefault('children',[]).append(i)
         else:roots.append(i)
     prims=[];tris=0
-    for key,acc in body(bones).items():
+    for key,acc in body(bones,v3=v3).items():
         p,nrm,tan,sign,uv,j,w,t=acc.arrays();tris+=len(t)
         P=np.array([gl(v) for v in p]);N=np.array([gl(v) for v in nrm]);TA=np.array([gl(v) for v in tan])
         attrs=dict(POSITION=g.accessor(P,'VEC3'),NORMAL=g.accessor(N,'VEC3'),
@@ -101,13 +114,21 @@ def offline():
         prims.append(dict(attributes=attrs,indices=g.accessor(t.reshape(-1),'SCALAR',5125),material=mats[key],mode=4))
     g.doc['meshes'].append(dict(name='Pilot_Body',primitives=prims))
     g.doc['nodes'].append(dict(name='Pilot_Body',mesh=0,skin=0));roots.append(len(g.doc['nodes'])-1)
+    if v3:
+        # Marker (not a joint): this body authors its own foot pose. VrPilotBody then puts the ankle where the rest
+        # pose has it relative to the ball (sole flat on the pedal face) instead of v2's toes-down offset.
+        for side in 'LR':
+            i=len(g.doc['nodes']);_,nn=sole_frame()
+            g.doc['nodes'].append(dict(name=side+'_SoleOnPedal',translation=(gl(dict((b[0],b) for b in bones)[side+'_Toes'][1])-heads[side+'_Foot']).tolist()))
+            g.doc['nodes'][lookup[side+'_Foot']].setdefault('children',[]).append(i)
     ib=[]
     for n,a,b,parent in bones:
         m=np.eye(4);m[:3,3]=-gl(a);ib.append(m.T.reshape(-1))
     v=g.data(np.array(ib,dtype='<f4').tobytes());acc=len(g.doc['accessors']);g.doc['accessors'].append(dict(bufferView=v,componentType=5126,count=len(bones),type='MAT4'))
     g.doc['skins']=[dict(name='Pilot_Skeleton',joints=list(range(len(bones))),skeleton=lookup['Hips'],inverseBindMatrices=acc)]
     g.doc['extras']=dict(originalGeometry=True,build='CPU builder pilot_body_smooth: one skinned mesh, smooth normals, blended joint weights, procedural normal maps; same numeric skeleton as Blender builder',triangles=tris,bones=len(bones),anthropometry='NRC 1983 civilian male 50th: stature 1.736 m, sitting shoulder .594 m; segment estimates documented in PROVENANCE')
-    OUT.parent.mkdir(parents=True,exist_ok=True);g.save(OUT);print('PILOT',tris,'triangles',len(bones),'bones',len(prims),'materials',OUT)
+    if v3: g.doc['extras']['version']='v3 candidate: feet flat on the pedal face (sole lean 13 deg), heel/sole/toe-box boots with laces, deltoid+trapezius shoulders, knuckled gloves with cuff straps, elbow/knee/waist folds, zip and chest pockets, softer normal maps, lighter suit'
+    out.parent.mkdir(parents=True,exist_ok=True);g.save(out);print('PILOT',tris,'triangles',len(bones),'bones',len(prims),'materials',out)
     return tris
 
 def build(kind='pitts',export=True):
@@ -137,7 +158,7 @@ def build(kind='pitts',export=True):
     return obj
 
 if __name__=='__main__':
-    if '--offline' in sys.argv: offline()
+    if '--offline' in sys.argv: offline(v3='--v3' in sys.argv)
     else:
         import bpy
         bpy.ops.wm.read_factory_settings(use_empty=True);build()

@@ -89,16 +89,20 @@ namespace FlyingGame.EditorTools
 
             Vector3 ballL = Foot(builder, seat.Id, "L") ?? eye + U(proxy.FootL);
             Vector3 ballR = Foot(builder, seat.Id, "R") ?? eye + U(proxy.FootR);
-            Vector3 heel = new(0f, (float)SeatedPilot.AnkleToBallDownM, -(float)SeatedPilot.AnkleToBallFwdM);
 
+            // BODY_ASSET=Assets/...glb: render a candidate body (e.g. v3) without replacing the shipped one.
+            string asset = Environment.GetEnvironmentVariable("BODY_ASSET");
+            VrPilotBody.PrefabOverride = string.IsNullOrEmpty(asset) ? null : AssetDatabase.LoadAssetAtPath<GameObject>(asset);
+            if (!string.IsNullOrEmpty(asset) && VrPilotBody.PrefabOverride == null) Fail($"BODY_ASSET {asset} did not load");
             var body = new VrPilotBody();
             body.SetVisible(true);
+            Vector3 heelL = body.HeelFromBall(true), heelR = body.HeelFromBall(false);
             body.PlaceRoot(0.5f * (hipL + hipR), air.rotation);
             var p = new VrPilotBody.Pose { Up = air.up, HandRotL = air.rotation * VrPilotBody.RestGripRot(true), HandRotR = air.rotation * VrPilotBody.RestGripRot(false), CurlL = 1f, CurlR = 1f };
             Arm(body, ref p, true, eye + U(SeatedPilot.ShoulderL), throttleGrip, eye + U(SeatedPilot.ElbowPoleL));
             Arm(body, ref p, false, eye + U(SeatedPilot.ShoulderR), stickGrip, eye + U(SeatedPilot.ElbowPoleR));
-            Leg(body, ref p, true, hipL, ballL, ballL + heel, eye + U(SeatedPilot.KneePoleL));
-            Leg(body, ref p, false, hipR, ballR, ballR + heel, eye + U(SeatedPilot.KneePoleR));
+            Leg(body, ref p, true, hipL, ballL, ballL + heelL, eye + U(SeatedPilot.KneePoleL));
+            Leg(body, ref p, false, hipR, ballR, ballR + heelR, eye + U(SeatedPilot.KneePoleR));
             body.Apply(p);
             if (Environment.GetEnvironmentVariable("BODY_PEDALS") == "1")
                 foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>())
@@ -114,7 +118,7 @@ namespace FlyingGame.EditorTools
                     }
                     Debug.Log($"[PilotBody] {id} pedal mesh {mf.name}: aft-facing normal {n.normalized:F2} (lean {Mathf.Atan2(n.y, -n.z) * Mathf.Rad2Deg:F0}° from vertical, top forward), {area * 1e4f:F0} cm²; bounds {wb.min - eye:F3}..{wb.max - eye:F3} from the eye");
                 }
-            Debug.Log($"[PilotBody] {id}/{seat.Id} feet: ball L {ballL - eye:F3} R {ballR - eye:F3} from the eye; ankle L {p.AnkleL - eye:F3}");
+            Debug.Log($"[PilotBody] {id}/{seat.Id} feet ({(body.FeetOnPedalFace ? "asset foot pose, sole on the pedal face" : "v2 toes-down offset")}): ball L {ballL - eye:F3} R {ballR - eye:F3} from the eye; ankle L {p.AnkleL - eye:F3}");
 
             // The shoulder check: in the aeroplane's frame relative to the eye (+x right, +y up, +z nose).
             Vector3 sl = p.ShoulderL - eye, sr = p.ShoulderR - eye;
@@ -135,6 +139,25 @@ namespace FlyingGame.EditorTools
                 light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
                 RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
                 RenderSettings.ambientLight = new Color(0.45f, 0.47f, 0.50f);
+                // BODY_LIGHT=even: a key from the front-left and a fill from behind-right as well as the sun, sky/ground
+                // ambient, so a before/after of the body is not one side black and the other washed out (both renders
+                // of a comparison use the same switch).
+                GameObject fillGo = null;
+                if (Environment.GetEnvironmentVariable("BODY_LIGHT") == "even")
+                {
+                    light.intensity = 0.55f;
+                    fillGo = new GameObject("Fill");
+                    var key = new GameObject("Key").AddComponent<Light>(); key.transform.SetParent(fillGo.transform);
+                    key.type = LightType.Directional; key.intensity = 0.75f;
+                    key.transform.rotation = air.rotation * Quaternion.Euler(35f, 150f, 0f);   // from ahead-left, above
+                    var back = new GameObject("Back").AddComponent<Light>(); back.transform.SetParent(fillGo.transform);
+                    back.type = LightType.Directional; back.intensity = 0.35f;
+                    back.transform.rotation = air.rotation * Quaternion.Euler(20f, -60f, 0f);
+                    RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+                    RenderSettings.ambientSkyColor = new Color(0.55f, 0.58f, 0.62f);
+                    RenderSettings.ambientEquatorColor = new Color(0.45f, 0.46f, 0.47f);
+                    RenderSettings.ambientGroundColor = new Color(0.33f, 0.32f, 0.30f);
+                }
                 var camGo = new GameObject("Eye");
                 Camera cam = camGo.AddComponent<Camera>();
                 cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.55f, 0.70f, 0.88f);
@@ -198,10 +221,12 @@ namespace FlyingGame.EditorTools
                     root.SetActive(true);
                 }
                 Object.DestroyImmediate(camGo); Object.DestroyImmediate(light.gameObject);
+                if (fillGo != null) Object.DestroyImmediate(fillGo);
             }
             builder.Clear();
             Object.DestroyImmediate(root);
             body.Destroy();
+            VrPilotBody.PrefabOverride = null;
         }
 
         private static Vector3? Foot(AirframeBuilder b, string seatId, string side)

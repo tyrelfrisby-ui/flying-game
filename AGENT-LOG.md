@@ -5568,3 +5568,16 @@ Images still require operator rendering and review; no Blender run here.
   Box: `/workspace/vr-hands/body/v3/extra-panel/{before,after}/`, `sheet.jpg`. Before shows the open hole above the rear
   panel with the front cockpit visible through it; after closes it with the hood and glareshield.
 - Both runs: `[PilotBody] PASS (0 failures)`.
+
+## 2026-11-02 23:30 PST — lane/claude-vr-hands-fix: pilot body v3 candidate (NOT shipped, NOT installed)
+- New `unity/Assets/_Project/PilotBodyCandidates/pilot-body-own-v3.glb` (+ .meta), built by `python3 tools/own_models/pilot_body.py --offline --v3`.
+  Outside Resources: the game still loads v2 (`Models/pilot-body/pilot-body-own.glb`, rebuilt byte-identical, 8,080 tris).
+- v3: 14,256 tris, 49 joints, 6 materials (new Pilot_BootSole). Feet flat on the pedal face (sole lean 13°, ankle .13 down the sole
+  and .085 off it), boots with heel / rubber sole / toe box / laces / shaft + collar; deltoid caps + trapezius yoke; knuckled
+  gloves with cuff strap + snap; elbow/knee/waist folds; zip + chest pockets; softer normal maps, lighter suit. Rest-pose knees straight up.
+- VrPilotBody: `PrefabOverride` (editor renders only) and an asset-driven foot pose when the GLB carries `L/R_SoleOnPedal`
+  markers (`HeelFromBall`); v2 / stand-in keep the SeatedPilot heel constants. VrCockpitHands PoseBody/PoseJumper + PilotBodyShots use it.
+- PilotBodyShots: `BODY_ASSET=Assets/...glb` and `BODY_LIGHT=even`. check_vr_phase1 `--v3` (markers, joints, tris, weights, Pitts clearances).
+- Checks: check_vr_phase1 (v2) rc 0; `--v3` rc 0 (Pitts truss 7.0 mm, cockpit 11.6 mm); PilotBodyShots v2/v3 PASS, no CS errors;
+  dotnet filtered Vr|Pilot|Cockpit|Seat 410/411 (MazeTow branch failure pre-existing).
+- Renders: v2 before / v3 after under /workspace/vr-hands/body/v3/body/ on the box. Awaiting Ty's approval; do not install v3.

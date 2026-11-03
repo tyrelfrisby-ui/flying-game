@@ -1,5 +1,6 @@
 """Numerical Phase 1 evidence. Does not substitute for seat-eye Blender renders.
-python tools/own_models/check_vr_phase1.py [--write-report]
+python tools/own_models/check_vr_phase1.py [--write-report] [--v3]
+--v3 checks the unshipped v3 candidate body (PilotBodyCandidates/) instead of the shipped v2.
 Capsule clearance is a conservative enclosing volume around each limb/finger,
 sampled at <=3 mm. Report subtracts another 1.5 mm for sampling uncertainty.
 """
@@ -7,7 +8,7 @@ import sys,json
 from pathlib import Path
 import numpy as np
 from vr_cockpit import Glb,ROOT,MODELS,builder
-from pilot_body import definition,OUT
+from pilot_body import definition,OUT,OUT_V3
 from drop_card_slot import validate
 
 def point_tri(p,t):
@@ -53,7 +54,8 @@ def main():
     obstacles={n:triangles(g,n) for n in ('Cockpit','Cockpit_Truss','RearPanel_Rounded')}
     # Material labels in the old cockpit are unreliable; geometry determines front seat region.
     old=obstacles['Cockpit'];obstacles['FrontSeat_region']=old[(old[:,:,0].min(1)>-.79)&(old[:,:,0].max(1)<-.25)&(abs(old[:,:,1]).max(1)<.245)&(old[:,:,2].max(1)<.0)]
-    bones,parts,segments,grips=definition();clearances={}
+    V3='--v3' in sys.argv;BODY=OUT_V3 if V3 else OUT
+    bones,parts,segments,grips=definition(v3=V3);clearances={}
     for name,t in obstacles.items():
         best=(float('inf'),'')
         for limb,a,b,r in segments:
@@ -70,16 +72,19 @@ def main():
         hits=sum(edge_hits(tv[a],tv[b],t) for a,b in edges)
         torso_report[name]=dict(mesh_vertex_clearance_mm=min(point_tri(v,t) for v in tv)*1000,intersecting_torso_edges=hits)
     result['pitts_torso_surface']=torso_report
-    body=Glb(OUT);validate(body,OUT)
+    body=Glb(BODY);validate(body,BODY)
     assert len(body.doc['skins'][0]['joints'])==49
     assert body.doc['extras']['triangles']<15000
     for m in body.doc['meshes']:
         for p in m['primitives']:
             j=body.array(p['attributes']['JOINTS_0']);w=body.array(p['attributes']['WEIGHTS_0'])
             assert j.max()<49 and np.allclose(w.sum(1),1)
+    if V3:
+        names={n['name'] for n in body.doc['nodes']}
+        assert {'L_SoleOnPedal','R_SoleOnPedal'}<=names,'v3 sole markers missing'
     result['pilot']=body.doc['extras']
     print(json.dumps(result,indent=1))
-    if '--write-report' in sys.argv:(ROOT/'docs/models/vr-cockpit-phase1-checks.json').write_text(json.dumps(result,indent=1)+'\n')
+    if '--write-report' in sys.argv and not V3:(ROOT/'docs/models/vr-cockpit-phase1-checks.json').write_text(json.dumps(result,indent=1)+'\n')
     # Leave failures explicit. Capsule contact with structure must be resolved, never gate-approved.
     return 0 if all(v['conservative_clearance_mm']>=0 for v in clearances.values()) and all(v['intersecting_torso_edges']==0 for v in torso_report.values()) else 1
 if __name__=='__main__':sys.exit(main())

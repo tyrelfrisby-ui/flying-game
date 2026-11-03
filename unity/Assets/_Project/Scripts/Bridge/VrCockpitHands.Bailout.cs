@@ -682,7 +682,7 @@ namespace FlyingGame.Bridge
             Vector3 shL = U(SeatedPilot.ShoulderL), shR = U(SeatedPilot.ShoulderR);
             Vector3 hipL = U(SeatedPilot.HipL), hipR = U(SeatedPilot.HipR);
             Vector3 ballL = new(-0.13f, -1.48f, 0.12f), ballR = new(0.13f, -1.48f, 0.12f);
-            Vector3 heel = new(0f, (float)SeatedPilot.AnkleToBallDownM, -(float)SeatedPilot.AnkleToBallFwdM);
+            Vector3 heelL = _body.HeelFromBall(true), heelR = _body.HeelFromBall(false);
             _body.PlaceRoot(J(0.5f * (hipL + hipR)), _jRot);
             _pose.Up = _jRot * Vector3.up;
             for (int s = 0; s < 2; s++)
@@ -695,8 +695,8 @@ namespace FlyingGame.Bridge
                 float curl = onRing ? 1f : h.Tracked ? (float)h.Grip : 0.3f;
                 Arm(left, J(left ? shL : shR), J(grip), rot, curl, J(U(left ? SeatedPilot.ElbowPoleL : SeatedPilot.ElbowPoleR)));
             }
-            Leg(true, J(hipL), J(ballL), J(ballL + heel), J(new Vector3(-0.15f, -0.9f, 0.6f)));
-            Leg(false, J(hipR), J(ballR), J(ballR + heel), J(new Vector3(0.15f, -0.9f, 0.6f)));
+            Leg(true, J(hipL), J(ballL), J(ballL + heelL), J(new Vector3(-0.15f, -0.9f, 0.6f)));
+            Leg(false, J(hipR), J(ballR), J(ballR + heelR), J(new Vector3(0.15f, -0.9f, 0.6f)));
             _body.Apply(_pose);
             PlaceProps();
         }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using FlyingGame.Core.Vr;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
@@ -36,6 +37,21 @@ namespace FlyingGame.Bridge
         }
 
         public const string AssetPath = "Models/pilot-body/pilot-body-own";
+
+        /// <summary>EDITOR PREVIEWS ONLY (PilotBodyShots BODY_ASSET): a candidate body drawn instead of the Resources one,
+        /// so a new body can be rendered and compared without replacing what the game ships. Always null in the game.</summary>
+        public static GameObject PrefabOverride;
+
+        /// <summary>The asset authors its own foot pose (v3+: an <c>L_SoleOnPedal</c> marker node): the sole flat on a
+        /// pedal face, ankle above the heel. Then the ankle is put where the asset's rest pose puts it relative to the
+        /// ball, instead of the fixed toes-down offset the v2 body and the stand-in use.</summary>
+        private bool _feetOnFace;
+        private Vector3 _heelL, _heelR;
+        public bool FeetOnPedalFace => _skinned && _feetOnFace;
+
+        /// <summary>Aeroplane-local ankle − ball for this body's feet. v2 / stand-in: the SeatedPilot constants.</summary>
+        public Vector3 HeelFromBall(bool left) => FeetOnPedalFace ? (left ? _heelL : _heelR)
+            : new Vector3(0f, (float)SeatedPilot.AnkleToBallDownM, -(float)SeatedPilot.AnkleToBallFwdM);
 
         private GameObject _root;
         private bool _visible;
@@ -101,7 +117,7 @@ namespace FlyingGame.Bridge
 
         private void Build()
         {
-            var prefab = Resources.Load<GameObject>(AssetPath);
+            var prefab = PrefabOverride != null ? PrefabOverride : Resources.Load<GameObject>(AssetPath);
             if (prefab != null && BuildSkinned(prefab)) { _skinned = true; return; }
             BuildStandIn();
             Debug.Log($"[VrCockpit] pilot body: {AssetPath}.glb {(prefab == null ? "not in the build" : "has none of the contract's bones")} — drawing the primitive stand-in (22 parts).");
@@ -132,6 +148,13 @@ namespace FlyingGame.Bridge
             }
             foreach (Transform t in _bones.Values) _rest[t] = t.localRotation;
             MeasureFrame();
+            _feetOnFace = B("L_SoleOnPedal") != null && B("R_SoleOnPedal") != null && B("L_Toes") != null && B("R_Toes") != null;
+            if (_feetOnFace)
+            {
+                Quaternion inv = Quaternion.Inverse(_root.transform.rotation);
+                _heelL = _toNose * (inv * (B("L_Foot").position - B("L_Toes").position));
+                _heelR = _toNose * (inv * (B("R_Foot").position - B("R_Toes").position));
+            }
             foreach (var r in _root.GetComponentsInChildren<Renderer>(true))
             {
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

@@ -463,7 +463,8 @@ namespace FlyingGame.Bridge
             // else the proxy, right rudder = right pedal forward, left pedal aft.
             Vector3 ballL = _footNodeL != null ? Local(_footNodeL.TransformPoint(_footOffL)) : _eye + U(_proxy.FootL) - Vector3.forward * (float)(_rud * _proxy.PedalTravelM);
             Vector3 ballR = _footNodeR != null ? Local(_footNodeR.TransformPoint(_footOffR)) : _eye + U(_proxy.FootR) + Vector3.forward * (float)(_rud * _proxy.PedalTravelM);
-            Vector3 heel = new Vector3(0f, (float)SeatedPilot.AnkleToBallDownM, -(float)SeatedPilot.AnkleToBallFwdM);
+            // Ankle from the ball: the body's own foot pose (v3: sole on the pedal face), else the v2 toes-down offset.
+            Vector3 heelL = _body.HeelFromBall(true), heelR = _body.HeelFromBall(false);
 
             // Everything to world now; the IK runs there, so a skinned asset's own joints and lengths can be used.
             Quaternion airRot = _air.rotation;
@@ -474,8 +475,8 @@ namespace FlyingGame.Bridge
             _pose.JointsR = TrackedJointsWorld(1);
             Arm(true, World(shL), World(gripL), airRot * rotL, curlL, World(_eye + U(SeatedPilot.ElbowPoleL)), _pose.JointsL);
             Arm(false, World(shR), World(gripR), airRot * rotR, curlR, World(_eye + U(SeatedPilot.ElbowPoleR)), _pose.JointsR);
-            Leg(true, World(hipL), World(ballL), World(ballL + heel), World(_eye + U(SeatedPilot.KneePoleL)));
-            Leg(false, World(hipR), World(ballR), World(ballR + heel), World(_eye + U(SeatedPilot.KneePoleR)));
+            Leg(true, World(hipL), World(ballL), World(ballL + heelL), World(_eye + U(SeatedPilot.KneePoleL)));
+            Leg(false, World(hipR), World(ballR), World(ballR + heelR), World(_eye + U(SeatedPilot.KneePoleR)));
             _body.Apply(_pose);
             PlaceProps();
         }
