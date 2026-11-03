@@ -304,16 +304,50 @@ public static class AeroModel
             double a = 2 * Math.PI * ar / (2 + Math.Sqrt(ar * ar / (kappa * kappa) + 4));
             double scale = a / a0;
             string dKey = $"{baseAf}@{key}-3d";
-            if (!map.Derived.ContainsKey(dKey))
-            {
-                var t = new double[data.AlphaRad.Length];
-                for (int k = 0; k < t.Length; k++) t[k] = data.AlphaRad[k] / scale;   // Cl(α) of the finite surface = Cl₂D(α·a/a₀)
-                map.Derived[dKey] = new AirfoilTableData { AlphaRad = t, Cl = data.Cl, Cd = data.Cd, Cm = data.Cm };
-            }
+            if (!map.Derived.ContainsKey(dKey)) map.Derived[dKey] = FiniteSpanSection(data, a0, a);
             map.Keys[i] = dKey;
         }
         return map;
     });
+
+    /// <summary>
+    /// The finite surface's table from a 2-D section table: each point moves to the geometric angle at which the surface
+    /// makes that section lift, α = α₂D + Cl₂D(α₂D)·(1/a − 1/a₀), the induced angle of its own lift (nonlinear lifting-line,
+    /// Sivells &amp; Neely, NACA Report 865, 1947; Anderson, Fundamentals of Aerodynamics §5.4). In the linear range it is exactly
+    /// the Helmbold rescale α₂D·a₀/a this replaced. The rescale stretched the WHOLE axis, so on the Pitts (a/a₀ 0.51) the
+    /// table's 90° point sat at 177° and a stab broadside to the flow read the section at 51°: Cl 0.95 instead of 0, a
+    /// normal force flat at ~0.83 from 35° to 90° instead of rising to the table's 1.19, and an elevator that moved nothing
+    /// there (owner 2026-11-03: "the elevator control is also weak at high aoa"). The induced angle goes with the lift, so
+    /// broadside it is zero and the post-stall data — already a finite-aspect-ratio plate in these tables (Cd 1.19 at 90°,
+    /// Viterna &amp; Corrigan's 1.11 + 0.018·AR) — stays where it was measured.
+    /// Where the section's lift falls faster than 1/(1/a − 1/a₀) past the stall, the mapping folds back on itself: two
+    /// section states at one geometric angle, which is the finite wing's stall jump. The table keeps the attached branch to
+    /// the furthest angle it reaches and the separated branch from there on.
+    /// </summary>
+    public static AirfoilTableData FiniteSpanSection(AirfoilTableData data, double a0, double a)
+    {
+        double k = 1.0 / a - 1.0 / a0;
+        int n = data.AlphaRad.Length;
+        var geo = new double[n];
+        for (int i = 0; i < n; i++) geo[i] = data.AlphaRad[i] + data.Cl[i] * k;
+        // Outward from the point nearest zero, both ways, keeping only points that advance.
+        int z = 0;
+        for (int i = 1; i < n; i++) if (Math.Abs(data.AlphaRad[i]) < Math.Abs(data.AlphaRad[z])) z = i;
+        var keep = new List<int> { z };
+        for (int i = z + 1; i < n; i++) if (geo[i] > geo[keep[^1]]) keep.Add(i);
+        var neg = new List<int>();
+        double last = geo[z];
+        for (int i = z - 1; i >= 0; i--) if (geo[i] < last) { neg.Add(i); last = geo[i]; }
+        neg.Reverse();
+        neg.AddRange(keep);
+        return new AirfoilTableData
+        {
+            AlphaRad = neg.Select(i => geo[i]).ToArray(),
+            Cl = neg.Select(i => data.Cl[i]).ToArray(),
+            Cd = neg.Select(i => data.Cd[i]).ToArray(),
+            Cm = neg.Select(i => data.Cm[i]).ToArray(),
+        };
+    }
 
     /// <summary>Lift slope of a table about zero alpha (per rad).</summary>
     public static double SectionSlope(AirfoilTableData t)
