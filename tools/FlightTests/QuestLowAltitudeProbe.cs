@@ -80,6 +80,82 @@ public sealed class QuestLowAltitudeProbe : IDisposable
         finally { WorldTerrain.Active = null; }
     }
 
+    /// <summary>Ty on the Quest, build 8e7862eb, 2026-11-02 16:21: the 2-33 came down hard at (5854, 3825) (155 m to 40 m to
+    /// 1 m agl in ten seconds) and sat there at 27-30 fps for minutes: "sim 32.9 ms/frame, 5.0 steps | top: contact 31.9,
+    /// contactPoints 31.7 | height 3857 q 441 eval /frame". This puts the 2-33 and the Pitts on the ground there three
+    /// ways, intact at rest, after a hard arrival, and after a crash that breaks them up, lets each settle for ten
+    /// seconds, and then counts the height work per 200 Hz STEP (the device's 3857 q / 5 steps = 771 a step, 88 of them
+    /// evaluations) and the CPU per 72 Hz frame. Printed, not asserted (GroundContactCullTests holds the budget).</summary>
+    [Fact]
+    public void OnTheGroundAfterAnArrivalIntactAndBrokenUp()
+    {
+        WorldTerrain.Active = new WorldTerrain();
+        try
+        {
+            foreach ((bool world, bool index) in new[] { (false, true), (true, false), (true, true) })
+            {
+                // The game's solids and decks (IslandWorldBuilder calls this): buildings, cables, arches, the cavity
+                // roofs, the carrier and the FOREST. Without them the bench is not the headset. Index off = every solid
+                // and deck asked by every point, as on build 8e7862eb (the forest's cell memo stays on).
+                if (world && WorldSolids.Shapes.Count == 0) IslandGeometry.Build();
+                WorldSolids.IndexEnabled = index;
+                _o.WriteLine(world
+                    ? $"--- with the game's world: {WorldSolids.Boxes.Count} boxes, {WorldSolids.Shapes.Count} shapes, {WorldDecks.All.Count} decks; footprint index {(index ? "ON" : "off")}"
+                    : "--- terrain only (no solids, no decks, no forest)");
+                if (world)
+                    _o.WriteLine("    shapes: " + string.Join(", ", WorldSolids.Shapes.GroupBy(sh => sh.GetType().Name).Select(g => $"{g.Key} {g.Count()}"))
+                               + " | decks: " + string.Join(", ", WorldDecks.All.GroupBy(d => d.GetType().Name).Select(g => $"{g.Key} {g.Count()}")));
+                OnTheGroundAt(5854, 3825);
+            }
+        }
+        finally { WorldSolids.IndexEnabled = true; WorldTerrain.Active = null; WorldSolids.Boxes.Clear(); WorldSolids.Shapes.Clear(); WorldDecks.All.Clear(); }
+    }
+
+    private void OnTheGroundAt(double x, double y)
+    {
+        {
+            double g = WorldTerrain.GroundHeightAt(x, y);
+            double surface = Math.Max(g, FloatHydro.WaterSurfaceAt(x, y) ?? double.NegativeInfinity);
+            _o.WriteLine($"({x},{y}): ground {g:F2} m, surface {surface:F2} m, {WorldTerrain.SurfaceAt(x, y)}");
+            foreach (string id in new[] { "glider-2-33-like", "pitts-s2b-like" })
+            foreach (string kind in new[] { "rest", "hard", "crash" })
+            {
+                var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
+                RigidBodyState s0 = kind switch
+                {
+                    "rest" => LandingGear.RestingState(c, x, y, surface, 0.3),
+                    // Flared too high and dropped in: 6 m/s down, 20 m/s along, level.
+                    "hard" => new RigidBodyState(new Vec3(x, y, -(surface + 3)), new Quat(0, Math.Sin(0.04), 0, Math.Cos(0.04)), new Vec3(20, 0, 6), Vec3.Zero),
+                    // Into the ground diving and rolling, from 40 m: what 155 m -> 40 m -> 1 m in ten seconds looks like.
+                    _ => new RigidBodyState(new Vec3(x, y, -(surface + 40)), new Quat(Math.Sin(0.15), Math.Sin(-0.12), 0, Math.Cos(0.19)).Normalized(), new Vec3(40, 0, 10), new Vec3(0.3, 0, 0.1)),
+                };
+                var ac = new Aircraft(c, s0, ControlDeflections.Neutral);
+                var loop = new SimLoop(ac);
+                var input = new ControlInputs(0, 0, 0, -1.0);
+                double acc = 0;
+                for (int f = 0; f < 72 * 10; f++) loop.Advance(1.0 / 72.0, input, ref acc);
+                const int frames = 72 * 2;
+                // The best of three one-second blocks: other lanes' builds and suites share this Mac.
+                double ms = double.MaxValue;
+                for (int block = 0; block < 3; block++)
+                {
+                    var sw = Stopwatch.StartNew();
+                    for (int f = 0; f < 72; f++) loop.Advance(1.0 / 72.0, input, ref acc);
+                    ms = Math.Min(ms, sw.Elapsed.TotalMilliseconds / 72);
+                }
+                SimProfile.Reset(); SimProfile.Enabled = true;
+                for (int f = 0; f < frames; f++) loop.Advance(1.0 / 72.0, input, ref acc);
+                SimProfile.Enabled = false;
+                double steps = frames * (1.0 / 72.0) / loop.FixedDtSec;
+                int touching = 0; foreach (ContactPoint p in ac.ContactPoints) if (p.Touching) touching++;
+                double agl = -ac.State.Position.Z - WorldTerrain.GroundHeightAt(ac.State.Position.X, ac.State.Position.Y);
+                _o.WriteLine($"{id} {kind,-5}: {ac.ContactPoints.Count} hard points ({touching} touching), lost [{string.Join(" ", ac.LostComponents)}], " +
+                             $"cg agl {agl:F2} m, speed {ac.State.Velocity.Length:F3} m/s | {ms:F2} ms per 72 Hz frame | " +
+                             $"height {SimProfile.HeightQueries / steps:F0} q {SimProfile.HeightEvaluations / steps:F1} eval, solids {SimProfile.SolidTests / steps:F0} per step | {SimProfile.Top(6, frames)}");
+            }
+        }
+    }
+
     /// <summary>The Pitts flown at 500 m, 30 m and sitting on the ground at each logged spot, driven at 72 Hz the way
     /// FlightSimDriver drives it.</summary>
     [Fact]

@@ -46,7 +46,7 @@ public static class SimProfile
     [System.ThreadStatic] private static bool _on;
     private static readonly long[] Ticks = new long[(int)Scope.Count];
     private static readonly int[] Calls = new int[(int)Scope.Count];
-    private static long _heightEvaluations, _heightQueries;
+    private static long _heightEvaluations, _heightQueries, _solidTests;
 
     /// <summary>Records on THIS thread from now on (the host's main thread turns it on).</summary>
     public static bool Enabled { get => _on; set => _on = value; }
@@ -69,19 +69,24 @@ public static class SimProfile
 
     public static double Ms(Scope s) => Ticks[(int)s] * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
     public static int CallsOf(Scope s) => Calls[(int)s];
+    /// <summary>World solids asked "is this point inside you?" (<see cref="WorldSolids.Penetration"/>): 1,475 per hard
+    /// point per RK4 stage before the footprint index, a handful after it.</summary>
+    public static void CountSolidTests(int n) { if (_on) _solidTests += n; }
+
     public static long HeightEvaluations => _heightEvaluations;
+    public static long SolidTests => _solidTests;
     public static long HeightQueries => _heightQueries;
 
     public static void Reset()
     {
         System.Array.Clear(Ticks, 0, Ticks.Length);
         System.Array.Clear(Calls, 0, Calls.Length);
-        _heightEvaluations = 0; _heightQueries = 0;
+        _heightEvaluations = 0; _heightQueries = 0; _solidTests = 0;
     }
 
     /// <summary>The <paramref name="n"/> costliest scopes, as milliseconds PER FRAME over <paramref name="frames"/>
-    /// frames, then the height-field work: "step 31.2, contact 22.0, contactPoints 21.4 ms/frame | height 1890 q
-    /// 1720 eval /frame". Allocates (once per report).</summary>
+    /// frames, then the height-field and solid work: "step 31.2, contact 22.0, contactPoints 21.4 ms/frame | height 1890 q
+    /// 1720 eval, solids 260 /frame". Allocates (once per report).</summary>
     public static string Top(int n, int frames)
     {
         frames = System.Math.Max(1, frames);
@@ -99,7 +104,7 @@ public static class SimProfile
         }
         if (shown == 0) sb.Append("nothing timed");
         sb.Append(" ms/frame | height ").Append(_heightQueries / frames).Append(" q ")
-          .Append(_heightEvaluations / frames).Append(" eval /frame");
+          .Append(_heightEvaluations / frames).Append(" eval, solids ").Append(_solidTests / frames).Append(" /frame");
         return sb.ToString();
     }
 }

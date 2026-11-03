@@ -860,9 +860,12 @@ public sealed class Aircraft
         // wheels found well clear on the first can skip the other three (AirframeContact.StageCullMargin).
         int stage = -1;
         double stepDt = dt;
+        double stepTravel = 11.0 * (State.Velocity.Length + State.Rates.Length * 10.0) * dt, stepClearance = double.PositiveInfinity;
         bool groundClear = AirframeContact.StageCullEnabled && WorldTerrain.Active != null && _contacts.Count > 0
-            && AirframeContact.ClearOfTheGround(_contacts, _wheelBodies, Config.Mass.CgVec(), State,
-                   11.0 * (State.Velocity.Length + State.Rates.Length * 10.0) * dt);
+            && AirframeContact.ClearOfTheGround(_contacts, _wheelBodies, Config.Mass.CgVec(), State, stepTravel, out stepClearance);
+        // Well inside 60 m of the ground (sitting on it, taxiing, landing): no stage can be clear, so the hard points
+        // skip that test at each stage too.
+        bool stagesNotClear = AirframeContact.StageCullEnabled && !groundClear && AirframeContact.StageCannotBeClear(stepClearance, stepTravel);
 
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
@@ -947,7 +950,7 @@ public sealed class Aircraft
                 // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).
                 long tCt = SimProfile.Begin();
                 (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, 0.0, _impacts,
-                    Config.Floats is not null, stage, stepDt);
+                    Config.Floats is not null, stage, stepDt, stagesNotClear);
                 SimProfile.End(SimProfile.Scope.Contact, tCt);
                 totalF += s.Attitude.Conjugate().Rotate(cF);
                 totalM += s.Attitude.Conjugate().Rotate(cM);
