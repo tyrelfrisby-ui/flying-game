@@ -1,6 +1,7 @@
 ## NEEDS YOU
-- **GAMEPAD, SECOND PASS — NEW MAPPING, PLEASE FLY IT (Claude, 2026-11-02, lane/claude-gamepad-ios):** your
-  mapping now: **right stick = roll and pitch** (pull back = nose up), **left stick X = rudder** (triggers too),
+- **GAMEPAD, SECOND PASS — NEW MAPPING, PLEASE FLY IT (Claude, 2026-11-02, lane/claude-gamepad-ios):** it is on
+  your **iPad mini** (build `2026.1102.1603`, island-nav), **NOT your iPhone** — the iPhone still has
+  `2026.1102.1441` with the OLD left-stick-flies mapping until the next deploy to it. The mapping now: **right stick = roll and pitch** (pull back = nose up), **left stick X = rudder** (triggers too),
   **left stick Y = throttle as a rate** — hold up for more power, down for less, let go and it stays. Expo 0.65
   on roll / pitch / rudder only; none on the throttle. Full table in the Log. A pad that connects or wakes while
   the game is running is picked up live (the code path is verified below; not tried with your pad in hand).
@@ -896,6 +897,17 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 16:08 — Claude · lane/claude-island-nav · gamepad merged and on the iPad mini (not the iPhone)
+Merged `lane/claude-gamepad-ios` at 01f4c28 (merge `21e41d8`, 15:47); another agent then merged
+`lane/claude-crash-test` on top (`c6080bb`, 15:53). `zsh tools/deploy/deploy.sh 00008130-001230A92678001C` from
+this worktree, iPad mini ONLY (Ty is away with his iPhone): Unity export 16:02:58–16:04:04, 0 `error CS`,
+`** BUILD SUCCEEDED **`, bundleVersion **`2026.1102.1603`** (built from `c6080bb`: gamepad + crash-test),
+**installed and launched on Ty's iPad mini**, "installed on 1 of 1 device(s)". **Not installed on the iPhone**:
+it still carries `2026.1102.1441` (the first gamepad build, left stick flies). bundleVersion bump and Unity's
+empty Android icon block reverted; `activeInputHandler: 2` kept. The lane build before it
+(`lane/claude-gamepad-ios` 01f4c28, iPad mini only) also reached `** BUILD SUCCEEDED **`, 0 `error CS`, installed
+and launched. Not flown with a pad by me.
+
 ### 2026-11-02 (later) — Claude · lane/claude-gamepad-ios · gamepad: hot-plug, and the mapping turned round
 **Ty: the 8BitDo works after relaunching with the pad connected; "the mapping is backwards".** The first build
 had been installed while the phone was locked, so his relaunch was very likely the new build's FIRST launch.
