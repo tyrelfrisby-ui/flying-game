@@ -1,4 +1,19 @@
 ## NEEDS YOU
+- **NOTHING INSTALLED 14:35 — IPHONE STILL 4016; PITTS SPIN #3 AND ISLAND SURFACES NEED A MERGE BEFORE THEY CAN GO ON (Grok Bot,
+  2026-11-03 14:35 PST, lane/claude-island-nav `66656185`):** Ty's iPhone (00008150-001629A83662401C) is "unavailable" in
+  devicectl; a direct `devicectl device install` of the built `2026.1103.1409` (deadzone 0.02 + roll-only) gave
+  CoreDeviceError 4016 again. **Unlock it on USB, then run `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from
+  this worktree.** The Pitts spin #3 build (`2026.1103.1118`, lane/claude-pitts-spin `8444fddf`) and the island surfaces
+  build (`2026.1103.1055`, lane/claude-island-terrain `b77cc008`) no longer exist: every lane's `deploy.sh` writes to the
+  same `/private/tmp/flyinggame-dd`, and the only `.app` there now is 1409. Both lanes also branched off older
+  island-nav (44 and 112 commits behind), so installing either alone would take deadzone, roll-only and the HUD engine row
+  off the phone. A dry-run `git merge-tree` shows **62 conflicted files for pitts-spin** (every aircraft config and its
+  StreamingAssets copy, the glide table, rig docs, `RigTests`, `PittsRollRateTests`: roll-only re-solved the same rigs)
+  and **4 for island-terrain** (`AirframeContact.cs`, `IslandTerrain.cs`, `LandingGear.cs`, AGENT-LOG). Under today's
+  "install only what is already built" rule, I did not merge, resolve or rebuild either. Ty's choice: (a) an agent merges
+  both into island-nav, re-solves the rigs, re-runs the suites, builds, then installs; or (b) put the old 1118 or 1055 build
+  on the phone alone, which drops the newer island-nav work.
+
 - **GAMEPAD STICK DEAD ZONE 0.07 → 0.02, MERGED; BUILT, NOT ON THE IPHONE (Claude, 2026-11-03, lane/claude-deadzone →
   island-nav `50dc7e3b`):** expo 0.65 and the radial zone + rescale unchanged; triggers (0.05) and the throttle (0.25,
   idle to full in 2 s) are separate constants and unchanged. The left stick's X (rudder) shares the stick constant, so
@@ -1164,6 +1179,20 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 14:35 PST — Grok Bot · lane/claude-island-nav · status sweep and install attempt (nothing installed)
+- **Install:** iPhone unavailable, 4016 on `devicectl install` of `/private/tmp/flyinggame-dd/.../AeroPlayground.app`
+  (CFBundleVersion 202611031409). iPad mini connected but not asked for. No build run, no merge, no ProjectSettings change.
+- **Done:** deadzone (in island-nav, built 1409, not installed); Great Lakes v7 (`707ae43a`, renders, awaiting Ty);
+  HUD ladder (`6e87610f`/`2f02657a`, paused, renders awaiting Ty); Quest store build (lane/claude-vr-hands-fix `e8facf3c`,
+  upload not run, NEEDS YOU); island terrain (`b77cc008`, 1055 built); 172 instruments, Claude side (`bec52994`, build
+  green, awaiting Ty renders); Codex renders glwing, grobfix (`9ccb4bce`), deca-citabria all finished.
+- **Still running:** 2-33 launch + five-airplane list (two claude sessions; branch suite and merged-tree key tests in
+  progress); Super Decathlon physics (claude; branch suite ~31 min in, base suite queued); contact patches (claude;
+  branch suite with 40 min hang timeout, ~73 min in, still writing output).
+- **Suspended (SIGSTOP, state T, not killed):** codex 172 cockpit exec (pid 51712, its Blender child silent since 09:28),
+  claude start-altitude follow-up (39090), claude endo (90534) and its vstest (49089).
+- `git ls-files | git check-ignore --no-index --stdin -v` empty before this commit. Nothing pushed, nothing on main.
+
 ### 2026-11-03 — Claude · lane/claude-deadzone (off island-nav e8a40b0a) · gamepad stick dead zone 0.07 → 0.02
 Ty likes the expo, not the dead zone. `GamepadShaping.DefaultStickDeadZone` 0.07 → 0.02 (a93fc332; doc comment says
 which controls it covers and which it does not).
