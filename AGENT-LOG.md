@@ -5338,3 +5338,17 @@ Validation: 93/93 exported rig bindings, parents, pivots, moving meshes, axes an
 V6 renders and final visual review recorded below. Local lane only; no merge, push or deploy. Pre-existing untracked v4 artifacts left untouched.
 
 Final visual refinements: removed floating knob letter cards; supported narrow gate names beside the shaft paths; removed obsolete prop/mixture push-pull mount pads that filled those slots. Trim window moved to the visible inboard side (Y=.263 m); pointer stays inside the window, left index fixed, cord runs separately below it at Y=.253 m / Z=-.270 m. Breaker rows aligned with switch rows in the same reading direction. Rejected camera drafts and superseded travel previews are outside the final render set.
+
+Final v6 render review: nine 1600 x 1200, 24-sample denoised Cycles views visually inspected, plus `gl6_side_by_side_ty.png` (Ty's full photo beside the full assembly render, neither cropped). All under `renders/greatlakes/v6/`:
+- `gl6_photo_comparison.png`
+- `gl6_left_console_photo.png`
+- `gl6_console_rear_detail.png`
+- `gl6_console_front_detail.png`
+- `gl6_quadrant_front_close.png`
+- `gl6_trim_rear_left_wall.png`
+- `gl6_trim_front_left_wall.png`
+- `gl6_rear_seat_panel.png`
+- `gl6_front_seat_panel.png`
+- `gl6_side_by_side_ty.png`
+
+`gl6_cameras.json` records the final nine camera presets and clearance figures. Images include actual cockpit geometry and default visibility, no cutaway; front cockpit views naturally receive less light than rear views. Detail and comparison views show three plain round knobs, open slots, six top breakers in the same reading order as the six face toggles, and separate trim window/cord. Panel views retain both instrument layouts, IAC card and right fuel handles. Code/model/rig local commit: `9e31f458`. Pre-commit check-ignore output empty; no force-add. Final render commit also audited for empty check-ignore output. No merge, push or deploy.
