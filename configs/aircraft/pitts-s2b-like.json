@@ -2,6 +2,9 @@
   "schemaVersion": 1,
   "id": "pitts-s2b-like",
   "displayName": "Pitts S-2-like Aerobat",
+  "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break stations = the I-strut attach on each wing and the aileron slave struts 10 in (0.254 m) inboard of them: tools/own_models/build_pitts_s2b.py v11/v12 (YI_U 2.28, YI_L 2.18, Y_SL_U/L). Horn arm 0.072 m = the builder's pin offset from the hinge (SL_PIN 0.040 ahead, ~0.060 off the chord line), stood perpendicular to the strut (WingStructure.SlaveLink): the GLB's horns point opposite ways vertically, which with the strut's 24 deg stagger lean would move the uppers at about a fifth of the lowers. The stick drives the LOWER ailerons and the uppers follow through the struts (Ty: with the lower panel gone the upper aileron trails stick free); the builder's comment reads the other way round, the model's geometry is the same either way.",
+  "wingBreakStationY": { "wing-upper": 2.28, "wing-lower": 2.18 },
+  "slaveStrut": { "drivenSurface": "wing-lower-aileron", "slavedSurface": "wing-upper-aileron", "drivenY": 1.926, "slavedY": 2.026, "hornArmM": 0.072 },
   "spawnIasMs": 65,
   "mass": {
     "massKg": 737,

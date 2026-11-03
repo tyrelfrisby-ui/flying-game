@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "j3-cub-floats-like",
   "displayName": "J-3 Cub-like on Floats",
+  "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break station = the lift-strut wing attach, |y| 3.40 (tools/own_models/build_j3_cub.py Y_ST).",
+  "wingBreakStationY": { "wing": 3.40 },
   "spawnIasMs": 26,
   "mass": {
     "massKg": 589.7,

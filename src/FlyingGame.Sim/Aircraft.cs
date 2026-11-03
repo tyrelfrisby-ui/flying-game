@@ -135,7 +135,7 @@ public sealed class StructuralState
     internal void RaiseFailed() => OnWingsFailed?.Invoke();
 }
 
-public sealed class Aircraft
+public sealed partial class Aircraft
 {
     public AircraftConfig Config { get; }
     public MassProperties MassProperties { get; private set; }
@@ -273,6 +273,7 @@ public sealed class Aircraft
         State = initialState;
         _airfoilTables = BuildAirfoilTables(config);
         _contacts = AirframeContact.BuildPoints(config);
+        InitContactDamage();
         _gearTouching = new bool[config.Gear.Count];
         _gearStageClear = new double[2 * config.Gear.Count];
         _wheelBodies = config.Gear.Select(g => g.PosVec()).ToArray();
@@ -556,6 +557,8 @@ public sealed class Aircraft
             for (int i = 0; i < Config.Engines.Count; i++)
                 if ((Config.Engines[i].Pos[1] < 0) == (comp == AirframeComponent.NacelleLeft)) SetEngineThrottleScale(i, 0.0);
         }
+        // Wing panels outboard of their structural station, and what their ailerons and slave struts do (contact damage).
+        OnComponentLostStructure(comp);
         // The volumes it takes with it (CrashRelay turns them into a wreck piece), and their mass with them.
         ShedMass(Hydro.Detach(comp));
         ComponentLost?.Invoke(comp);
@@ -784,26 +787,34 @@ public sealed class Aircraft
                 // Only the HINGED rows (gain ±1) carry hinge moment; the fixed surface ahead also lists the control (gain ~0.45:
                 // the deflection's camber effect on it) but isn't on the hinge.
                 if (st.Control is null || st.Control.Surface != surface || Math.Abs(st.Control.Gain) < 0.9) continue;
+                if (_hingeExcluded is not null && i < _hingeExcluded.Length && _hingeExcluded[i]) continue;   // no longer on this circuit (a disconnected aileron)
                 double sc = st.Area * st.Chord, g = Math.Sign(st.Control.Gain);
                 scRef += sc;
-                if (i >= _flowState.HingeQ.Length) continue;
-                double qsc = _flowState.HingeQ[i] * sc;
-                // Attached flow (to 20°): the linear Chα. Separated (owner 2026-10-12, CFI/Pitts: in a developed spin the air from
-                // below holds the free elevator nearly full aft and the rudder pro-spin): a surface hinged at its leading edge in
-                // separated crossflow trails WITH the local flow, like a vane — its flow term grows to Chδ·α, so the float
-                // goes to −α (against no spring: the stop). Blended from 20° to 40° of local flow.
-                double al = _flowState.HingeAlphaRad[i], att = Math.Clamp(al, -0.35, 0.35);
-                double sep = Math.Clamp((Math.Abs(al) - 0.35) / 0.35, 0.0, 1.0); sep = sep * sep * (3 - 2 * sep);
-                a += g * qsc * ((1 - sep) * axis.HingeChAlpha * att + sep * axis.HingeChDelta * al);
-                // Deflection stiffness follows the flow direction: centering in normal flow, gone in crossflow, and
-                // REVERSED and ~2x stronger when the air comes from the trailing edge (tailslide: the hinge is now
-                // downstream and the load acts near the leading free edge) — the free surface is pushed to its stop.
-                double dir = i < _flowState.HingeFlowDir.Length ? _flowState.HingeFlowDir[i] : 1.0;
-                b += qsc * axis.HingeChDelta * (dir >= 0 ? dir : 2.0 * dir);
+                HingeStrip(i, sc, g, axis, ref a, ref b);
             }
         }
         double vSpring = axis.CenteringSpringKt * 0.514444;
         return (a, b, 0.5 * 1.225 * vSpring * vSpring * scRef * Math.Abs(axis.HingeChDelta));
+    }
+
+    /// <summary>One hinged strip's share of the hinge-moment terms (see <see cref="HingeTerms"/>): flow term into
+    /// <paramref name="a"/>, deflection stiffness into <paramref name="b"/>. <paramref name="g"/> = the sign of its gain.</summary>
+    private void HingeStrip(int i, double sc, double g, ControlAxisConfig axis, ref double a, ref double b)
+    {
+        if (i >= _flowState.HingeQ.Length) return;
+        double qsc = _flowState.HingeQ[i] * sc;
+        // Attached flow (to 20°): the linear Chα. Separated (owner 2026-10-12, CFI/Pitts: in a developed spin the air from
+        // below holds the free elevator nearly full aft and the rudder pro-spin): a surface hinged at its leading edge in
+        // separated crossflow trails WITH the local flow, like a vane — its flow term grows to Chδ·α, so the float
+        // goes to −α (against no spring: the stop). Blended from 20° to 40° of local flow.
+        double al = _flowState.HingeAlphaRad[i], att = Math.Clamp(al, -0.35, 0.35);
+        double sep = Math.Clamp((Math.Abs(al) - 0.35) / 0.35, 0.0, 1.0); sep = sep * sep * (3 - 2 * sep);
+        a += g * qsc * ((1 - sep) * axis.HingeChAlpha * att + sep * axis.HingeChDelta * al);
+        // Deflection stiffness follows the flow direction: centering in normal flow, gone in crossflow, and
+        // REVERSED and ~2x stronger when the air comes from the trailing edge (tailslide: the hinge is now
+        // downstream and the load acts near the leading free edge) — the free surface is pushed to its stop.
+        double dir = i < _flowState.HingeFlowDir.Length ? _flowState.HingeFlowDir[i] : 1.0;
+        b += qsc * axis.HingeChDelta * (dir >= 0 ? dir : 2.0 * dir);
     }
 
     // Trim-tab calibration: δ_tab − trim, per axis, so the free surface floats exactly at the spawn's trimmed deflection.
@@ -889,6 +900,7 @@ public sealed class Aircraft
         _elevatorRad = SlewTo(_elevatorRad, targets.ElevatorRad, Config.Controls.Elevator.RateRadPerSec, dt);
         _rudderRad = SlewTo(_rudderRad, targets.RudderRad, Config.Controls.Rudder.RateRadPerSec, dt);
         _spoilerFraction = Math.Clamp(targets.SpoilerFraction, 0.0, 1.0);
+        UpdateAileronLinkage(dt);
 
         ControlDeflections controls = new(_aileronRad, _elevatorRad, _rudderRad, _spoilerFraction, FlapFraction, SlatFraction);
 
@@ -1031,7 +1043,7 @@ public sealed class Aircraft
                 // Nothing within reach of the ground or the water this step: no height queries, but the hard points
                 // still meet the buildings, the tower and the arch (WorldSolids) at every altitude.
                 long tSo = SimProfile.Begin();
-                (Vec3 sF, Vec3 sM) = AirframeContact.ComputeSolidsOnly(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, _impacts);
+                (Vec3 sF, Vec3 sM) = AirframeContact.ComputeSolidsOnly(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, _impacts, record: stage == 0);
                 SimProfile.End(SimProfile.Scope.Contact, tSo);
                 totalF += s.Attitude.Conjugate().Rotate(sF);
                 totalM += s.Attitude.Conjugate().Rotate(sM);
@@ -1048,7 +1060,7 @@ public sealed class Aircraft
             }
             if (Config.Propulsion is not null)
             {
-                (Vec3 pF, Vec3 pM) = PropulsionForces(Config, _throttle01, s.Velocity, s.Rates, airDensity, _noseLost, _noseBody);
+                (Vec3 pF, Vec3 pM) = PropulsionForces(Config, _throttle01, s.Velocity, s.Rates, airDensity, _noseLost, _noseBody, _propThrustScale);
                 totalF += pF;
                 totalM += pM;
             }
@@ -1092,6 +1104,7 @@ public sealed class Aircraft
         UpdateLoad(dt);
         if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
+        AfterStepContactDamage(dt);
         if (_impacts.MaxClosingMs > 0.0) HardImpact?.Invoke(_impacts.MaxClosingMs, _impacts.Point);
         Damage.Update(dt);
         if (Tailwheel != null && GearExtension > 0.9 && !_lostGear.Contains(AirframeComponent.GearTail))
@@ -1199,20 +1212,23 @@ public sealed class Aircraft
     /// in symmetric flight and survive in engine-out. Static so RigSolver evaluates exactly what the sim flies.
     /// </summary>
     public static (Vec3 Force, Vec3 Moment) PropulsionForces(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
-        bool noseLost = false, Vec3 noseBody = default)
+        bool noseLost = false, Vec3 noseBody = default, double[]? thrustScale = null)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         if (config.Propulsion is null) return (totalF, totalM);
         if (config.Engines.Count == 0 && !noseLost)   // a prop torn off with the nose makes neither thrust nor drag
         {
             (Vec3 pF, Vec3 pM) = PropModel.Compute(config.Propulsion, throttle01, velocity, rates, airDensity);
+            // Blade tips curled by a prop strike (Aircraft.PropStrike): a smaller disc at the same power.
+            if (thrustScale is { Length: > 0 } && thrustScale[0] != 1.0) { pF *= thrustScale[0]; pM *= thrustScale[0]; }
             ForceDebug.Add(noseBody, pF, pM, "thrust");
             if (ForceDebug.Samples != null) ForceDebug.Add(noseBody, Vec3.Zero, PropModel.GyroMoment(config.Propulsion, throttle01, rates), "gyro");   // (already in "thrust"'s moment: a breakdown only)
             return (pF, pM);
         }
         var basePropCfg = config.Propulsion;
-        foreach (EngineMount m in config.Engines)
+        for (int ei = 0; ei < config.Engines.Count; ei++)
         {
+            EngineMount m = config.Engines[ei];
             if (m.Feathered) continue;   // edge-on blades: no thrust, no windmill drag
             var engCfg = new PropulsionConfig
             {
@@ -1224,6 +1240,7 @@ public sealed class Aircraft
                 IdleDragCd = basePropCfg.IdleDragCd, DesignSpeedMs = basePropCfg.DesignSpeedMs
             };
             (Vec3 eF, Vec3 eM) = PropModel.Compute(engCfg, throttle01 * m.ThrottleScale, velocity, rates, airDensity);
+            if (thrustScale is not null && ei < thrustScale.Length && thrustScale[ei] != 1.0) { eF *= thrustScale[ei]; eM *= thrustScale[ei]; }
             ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), eF, eM, "thrust");
             if (ForceDebug.Samples != null) ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), Vec3.Zero, PropModel.GyroMoment(engCfg, throttle01 * m.ThrottleScale, rates), "gyro");
             totalF += eF;
