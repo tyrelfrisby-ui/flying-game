@@ -61,7 +61,9 @@ public class AirframeContactTests : IDisposable
         Assert.InRange(cgHeight, 0.6, 2.0);   // resting on the cabin top / fin, wheels in the air
         Assert.True(ac.State.Velocity.Length < 0.5, "should come to rest");
         _out.WriteLine("lost: " + string.Join(", ", ac.LostComponents));
-        Assert.Empty(ac.LostComponents);        // a gentle settle breaks nothing
+        // A gentle settle breaks no structure. The propeller is another matter (2026-11-03): upside down at rest its
+        // whole disc is on the ground, and at idle the blades stop in it — a prop strike, as it would be.
+        Assert.DoesNotContain(ac.LostComponents, x => x != AirframeComponent.Propeller);
     }
 
     [Fact]
@@ -78,12 +80,13 @@ public class AirframeContactTests : IDisposable
         var sim = new SimLoop(ac);
         for (double t = 0; t < 3 && lost.Count == 0; t += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));
         _out.WriteLine("lost: " + string.Join(", ", lost));
-        // A tip strike takes the OUTER panel only (owner 2026-09-10: two panels per wing); the whole wing stays.
-        Assert.Contains(AirframeComponent.WingRightOuter, lost);
-        Assert.True(ac.IsLost(AirframeComponent.WingRightOuter));
+        // A tip strike takes the panel outboard of the lift-strut attach (Ty 2026-11-03: the panel beyond the wing's
+        // structural station; for a strut-braced wing the lift strut), with its aileron; the inner wing stays.
+        Assert.Contains(AirframeComponent.WingTipRight, lost);
+        Assert.True(ac.IsLost(AirframeComponent.AileronRight));
         Assert.False(ac.IsLost(AirframeComponent.WingRightInner));
         Assert.False(ac.IsLost(AirframeComponent.WingRight));
-        Assert.False(ac.IsLost(AirframeComponent.WingLeftOuter));
+        Assert.False(ac.IsLost(AirframeComponent.WingTipLeft));
         // Aero with the mask: level flight at 30 m/s now rolls hard LEFT (only the left wing lifts) — the
         // remaining half still produces lift (the aircraft can be flown on), mass is untouched.
         var vel = new Vec3(30 * System.Math.Cos(0.07), 0, 30 * System.Math.Sin(0.07));
@@ -93,7 +96,8 @@ public class AirframeContactTests : IDisposable
         // Only the LEFT wing lifts → it rises → the aircraft rolls RIGHT, toward the missing wing (+L in NED).
         Assert.True(mHalf.X > 1500, $"losing the right wing must roll it toward the stub (L = {mHalf.X:F0})");
         Assert.InRange(-fHalf.Z / -fIntact.Z, 0.6, 0.95);   // outer panel only (owner: two panels per wing)
-        Assert.Equal(c.Mass.MassKg, ac.MassProperties.MassKg, 3);
+        // Its mass left with it (WingStructure panel mass, Raymer's buildup): the rest of the aeroplane is lighter.
+        Assert.InRange(c.Mass.MassKg - ac.MassProperties.MassKg, 1.0, 0.1 * c.Mass.MassKg);
     }
 
     [Fact]
@@ -120,18 +124,27 @@ public class AirframeContactTests : IDisposable
     {
         var c = Cub();
         var t = new WorldTerrain(); WorldTerrain.Active = t;
-        var a = WorldTerrain.Airports[0];
+        // On a real island runway (2026-11-03: this used to start at Airports[0].ElevationM, 4.3 m, 500 m short of the
+        // field — 650 m inside the hill there; the closing-speed break rule never noticed a start that deep).
+        WorldTerrain.Airport a = WorldTerrain.Airports.First(ap => IslandRunways.Ends(ap).Count > 0);
+        WorldTerrain.RunwayEnd rw = IslandRunways.Ends(a)[0];
+        double x0 = rw.CentreX - rw.AlongX * 0.25 * rw.LengthM, y0 = rw.CentreY - rw.AlongY * 0.25 * rw.LengthM;
+        double ground = WorldTerrain.GroundHeightAt(x0, y0);
         var mains = c.Gear.FindAll(g => !g.IsTailwheel); var tw = c.Gear.Find(g => g.IsTailwheel)!;
         double pitch = System.Math.Atan((mains[0].Pos[2] - tw.Pos[2]) / (mains[0].Pos[0] - tw.Pos[0]));
-        var att = new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2));
+        var yaw = new Quat(0, 0, System.Math.Sin(rw.HeadingRad / 2), System.Math.Cos(rw.HeadingRad / 2));
+        var att = Quat.Multiply(yaw, new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2)));
         double maxWz = -999; foreach (var g in c.Gear) maxWz = System.Math.Max(maxWz, att.Rotate(g.PosVec() - c.Mass.CgVec()).Z);
         // Three-point touchdown at 15 m/s sinking 1.5 m/s on the runway.
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(a.X - 500, a.Y, -(a.ElevationM + maxWz + 0.3)), att, att.Conjugate().Rotate(new Vec3(15, 0, 1.5)), Vec3.Zero), ControlDeflections.Neutral);
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(x0, y0, -(ground + maxWz + 0.3)), att, att.Conjugate().Rotate(new Vec3(15 * rw.AlongX, 15 * rw.AlongY, 1.5)), Vec3.Zero), ControlDeflections.Neutral);
         var sim = new SimLoop(ac);
+        var events = new List<ContactEvent>(); ac.Contact += events.Add;
         for (double tt = 0; tt < 8; tt += 0.02) sim.RunFor(0.02, new ControlInputs(0, -0.3, 0, 1.0));
+        _out.WriteLine($"{a.Name} runway {rw.Strip.Kind}, ground {ground:F1} m; lost: " + string.Join(", ", ac.LostComponents) + "; events: " + string.Join(" | ", events));
+        double agl = -ac.State.Position.Z - WorldTerrain.GroundHeightAt(ac.State.Position.X, ac.State.Position.Y);
         WorldTerrain.Active = null;
         Assert.Empty(ac.LostComponents);
-        Assert.True(-ac.State.Position.Z - a.ElevationM < 2.0);
+        Assert.True(agl < 2.0);
     }
 
     [Fact]
