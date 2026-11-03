@@ -3,7 +3,12 @@
   Ty: "a lot of that stuff under the row of buttons is so small I don't even know what it is", and "in ANALOG
   mode arrange the instruments as a neat row ... flight instruments top row, engine instruments bottom row".
   Run A (inventory + test-only AERO_SELFTEST=hudshots iPhone-shaped capture harness), then run B (the proposal).
-  Inventory and proposal: docs/pending/HUD-DECLUTTER.md. Before/after renders: see the update below when done.
+  Inventory and proposal: docs/pending/HUD-DECLUTTER.md. Commits: e4ef02e5 (A), 97180276 (merge island-nav 9cb8146f),
+  19d0a37a (B1 harness), 11f91dd5 (B2), 6b9b663a (B3), fe4c7f60 (B4 = the proposal to judge).
+  Renders (iPhone 17 Pro landscape 2622x1206, touch + gamepad-connected, analog/HUD/glider/cockpit):
+  before = 19d0a37a, after = fe4c7f60; Mac copies in ~/Developer/agent-lanes/aero-playground/hud-declutter/renders/
+  (hud-before.tar, hud-after-b4.tar). Known open item: in the gamepad COCKPIT view the button column and LOOK
+  buttons still sit over the panel dials (they did before too). scripts/codex-run.sh is missing from the repo.
   NOT merged, NOT deployed; no gate approved. Ty picks from the renders first.
 - **COCKPIT VIEW WAS ALL SKY — FIXED, PLEASE CHECK (Grok Bot, 2026-11-02, lane/claude-cockpit-look):** cause was
   **device look** (Options › "Move the device to look around", ON on your iPhone, gain 4.9) zeroing against the
