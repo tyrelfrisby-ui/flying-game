@@ -6,12 +6,15 @@ namespace FlyingGame.Core.Vr
     /// <summary>What a hand can take hold of. Phase 1: the stick, the throttle, the canopy latch. Phase 2 (the bail-out):
     /// the canopy's frame / rail, the harness releases (main and lap), the headset plug, the cockpit sills to climb out
     /// by, and — out of the aeroplane — the ripcord handle. P2c: the Extra's two latch handles one at a time (the
-    /// CanopyLatch slot is then the PAIR, between them), and the canopy jettison knob / emergency release.</summary>
+    /// CanopyLatch slot is then the PAIR, between them), and the canopy jettison knob / emergency release. Phase 3:
+    /// the glider's dive-brake handle, trim lever and tow release.</summary>
     public enum Grabbable
     {
         None = 0, Stick = 1, Throttle = 2, CanopyLatch = 3,
         CanopyRail = 4, HarnessMain = 5, HarnessLap = 6, HeadsetPlug = 7, SillLeft = 8, SillRight = 9, Ripcord = 10,
         CanopyLatchAft = 11, CanopyLatchFwd = 12, CanopyJettison = 13,
+        // Phase 3 (hands): the 2-33's dive-brake handle (whichever cockpit you sit in), its trim lever and tow release.
+        SpoilerHandle = 14, TrimLever = 15, TowRelease = 16,
     }
 
     /// <summary>One frame's events, for haptics and the log.</summary>
@@ -37,6 +40,8 @@ namespace FlyingGame.Core.Vr
     ///            far the hand then moves: the control's own geometry decides where it can go
     ///   one each a control is held by one hand at a time; a hand holds one control
     ///   menu     while the VR menu is open nothing can be grabbed, and anything held is let go
+    ///   hand-off a hand whose SOURCE changes (controller put down, tracked hand takes over, or back) is a new hand:
+    ///            what the old one held is let go, and a hand that arrives already closed must open and close again
     ///
     /// Grabbing NEVER moves the head: nothing here, or in the Bridge that drives it, touches the camera.
     /// </summary>
@@ -52,12 +57,13 @@ namespace FlyingGame.Core.Vr
         }
 
         /// <summary>One slot per <see cref="Grabbable"/> value.</summary>
-        public const int Slots = 14;
+        public const int Slots = 17;
 
         public readonly Point[] Points = new Point[Slots];
 
         private readonly Grabbable[] _held = new Grabbable[2], _hover = new Grabbable[2];
         private readonly bool[] _gripClosed = new bool[2];
+        private readonly HandSource[] _source = new HandSource[2];
 
         public Grabbable Held(HandSide h) => _held[(int)h];
         public Grabbable Hover(HandSide h) => _hover[(int)h];
@@ -114,6 +120,17 @@ namespace FlyingGame.Core.Vr
             bool wasClosed = _gripClosed[s];
             bool closed = hand.Tracked && (wasClosed ? hand.Grip > QuestControlMapper.GripOff : hand.Grip >= QuestControlMapper.GripOn);
             _gripClosed[s] = closed;
+            if (hand.Source != HandSource.None && hand.Source != _source[s])
+            {
+                // A different kind of hand from the last one seen on this side (the first one ever is not a change).
+                if (_source[s] != HandSource.None)
+                {
+                    if (_held[s] != Grabbable.None) ev |= GrabEvents.Released;
+                    _held[s] = Grabbable.None;
+                    wasClosed = closed;   // arriving closed is not a grab
+                }
+                _source[s] = hand.Source;
+            }
 
             if (blocked || !hand.Tracked)
             {

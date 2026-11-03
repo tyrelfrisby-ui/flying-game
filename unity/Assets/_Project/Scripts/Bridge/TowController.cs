@@ -59,6 +59,30 @@ namespace FlyingGame.Bridge
             ReleaseFromGlider();
         }
 
+        /// <summary>A HAND on the knob in the headset (VrCockpitHands), every frame while the cockpit's hands are live:
+        /// held, the knob is where the hand has it; let go, it springs home (FlyingGame.Core.Vr.SpringPullKnob). Pulled to
+        /// 90 % of its travel the hook opens — the tow is released if there is one, and either way it is logged.
+        /// Returns true on the frame it fires.</summary>
+        public bool HandPull(bool held, float pull01, float dt)
+        {
+            _handFrame = Time.frameCount;
+            bool fire = _handKnob.Step(held, pull01, dt);
+            if (fire)
+            {
+                if (Towing)
+                {
+                    Debug.Log("[VrCockpit] tow release pulled by hand: RELEASED");
+                    ReleaseFromGlider();
+                }
+                else Debug.Log("[VrCockpit] tow release pulled by hand: nothing on the hook" + (Tow != null ? " (already released)" : ""));
+            }
+            return fire;
+        }
+
+        private readonly FlyingGame.Core.Vr.SpringPullKnob _handKnob = new();
+        private int _handFrame = -10;
+        private float _keyPull01;
+
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.Y) && !Towing)
@@ -70,9 +94,12 @@ namespace FlyingGame.Bridge
                 PullRelease();
             }
             _handOnKnobSec = Mathf.Max(0f, _handOnKnobSec - Time.deltaTime);
-            KnobPull01 = _handOnKnobSec > 0f
-                ? Mathf.MoveTowards(KnobPull01, 1f, Time.deltaTime / PullSec)
-                : Mathf.MoveTowards(KnobPull01, 0f, Time.deltaTime / SpringBackSec);
+            _keyPull01 = _handOnKnobSec > 0f
+                ? Mathf.MoveTowards(_keyPull01, 1f, Time.deltaTime / PullSec)
+                : Mathf.MoveTowards(_keyPull01, 0f, Time.deltaTime / SpringBackSec);
+            // No hand has reported for a frame (out of the headset, another view): the knob still springs home.
+            if (Time.frameCount - _handFrame > 1) _handKnob.Step(false, 0.0, Time.deltaTime);
+            KnobPull01 = Mathf.Max(_keyPull01, (float)_handKnob.Pull01);
 
             if (Tow != null)
             {

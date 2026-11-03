@@ -94,6 +94,7 @@ namespace FlyingGame.Bridge
             Tick();
             PoseBody();
             PlaceCanopyProps();
+            DrawGliderLevers();
         }
 
         // ---- 1-5: once a frame, from whoever asks first (TouchFlightControls in Update, else LateUpdate) ----
@@ -106,7 +107,7 @@ namespace FlyingGame.Bridge
             Active = Resolve();
             if (!Active)
             {
-                if (was) { _grab.ReleaseAll(); (_visual?.Cockpit.HandLatch as PittsCanopyLatch)?.Release(); }
+                if (was) { _grab.ReleaseAll(); (_visual?.Cockpit.HandLatch as PittsCanopyLatch)?.Release(); ReleaseHands(); }
                 _maskRight = false;
                 TickJumper();
                 return;
@@ -117,7 +118,9 @@ namespace FlyingGame.Bridge
             bool blocked = XrHeadset.MenuOpen;
             Events(HandSide.Left, _grab.Step(HandSide.Left, _hands[0], blocked));
             Events(HandSide.Right, _grab.Step(HandSide.Right, _hands[1], blocked));
+            OwnPinches();
             Drive();
+            DriveGlider();
             DriveBailout();
         }
 
@@ -279,6 +282,7 @@ namespace FlyingGame.Bridge
                       $"(pivot {pivot.y - _eye.y:F2} m below the eye, {len:F2} m, roll ±{roll:F0}°, {aft:F0}° aft / {fwd:F0}° fwd); " +
                       $"throttle {(!_hasThrottle ? "none (no engine)" : thrNode != null ? "on the rig's lever" : "proxy")} ({sweep:F0}°, arm {arm:F2} m); " +
                       $"feet {(_footNodeL != null ? "on the pedals" : "proxy")}; latch {_latchKind}{(_latchKind != CanopyLatchKind.None ? _latchNode != null ? " on its node" : " proxy" : "")}");
+            BindGlider(brief);
             BindBailout(full);
         }
 
@@ -294,26 +298,8 @@ namespace FlyingGame.Bridge
 
         // ---- 1: the hands ----
 
-        private void ReadHands()
-        {
-            QuestControllerFrame f = XrControllers.Read(out bool any);
-            for (int s = 0; s < 2; s++)
-            {
-                bool left = s == 0;
-                _hands[s] = HandPose.None;
-                if (!any || f.HandsOnly) continue;   // Phase 3: tracked hands fill this from XR Hands
-                if (!XrHandInput.TryGripPose(left, out Vector3 p, out Quaternion q)) continue;
-                if (!_rig.TrackingToSeat(p, q, out Vector3 sp, out Quaternion sq)) continue;
-                _hands[s] = new HandPose
-                {
-                    Source = HandSource.Controller,
-                    Position = C(_eye + Vector3.up * _rise + sp),   // climbing out raises the seat the hands are measured from
-                    Rotation = new Quat(sq.x, sq.y, sq.z, sq.w),
-                    Grip = left ? f.LeftGrip : f.RightGrip,
-                    Pinch = left ? f.LeftTrigger : f.RightTrigger,
-                };
-            }
-        }
+        /// <summary>A controller's grip pose, or a tracked hand's joints, per side (VrCockpitHands.Hands.cs).</summary>
+        private void ReadHands() => ReadAllHands();
 
         // ---- 2: where each grab point is this frame ----
 
@@ -338,6 +324,7 @@ namespace FlyingGame.Bridge
             bool pair = latch && _latchKind == CanopyLatchKind.Squeeze;
             _grab.Set(Grabbable.CanopyLatchAft, pair ? C(LatchHandle(cockpit, fwd: false)) : Vec3.Zero, pair);
             _grab.Set(Grabbable.CanopyLatchFwd, pair ? C(LatchHandle(cockpit, fwd: true)) : Vec3.Zero, pair);
+            UpdateGliderPoints();
             UpdateBailoutPoints();
         }
 
@@ -385,7 +372,7 @@ namespace FlyingGame.Bridge
                         if (_visual.Cockpit.HandLatch is PittsCanopyLatch p) p.Grab(h.X);
                         break;
                     default:
-                        GrabBailout(side, _grab.Held(side), _hands[(int)side]);
+                        if (!GrabGlider(side, _grab.Held(side), h)) GrabBailout(side, _grab.Held(side), _hands[(int)side]);
                         break;
                 }
             }
@@ -471,8 +458,11 @@ namespace FlyingGame.Bridge
             Quaternion airRot = _air.rotation;
             _body.PlaceRoot(World(0.5f * (hipL + hipR)), airRot);
             _pose.Up = _air.up;
-            Arm(true, World(shL), World(gripL), airRot * rotL, curlL, World(_eye + U(SeatedPilot.ElbowPoleL)));
-            Arm(false, World(shR), World(gripR), airRot * rotR, curlR, World(_eye + U(SeatedPilot.ElbowPoleR)));
+            // A tracked hand is drawn from its own joints, and the forearm runs to its own wrist.
+            _pose.JointsL = TrackedJointsWorld(0);
+            _pose.JointsR = TrackedJointsWorld(1);
+            Arm(true, World(shL), World(gripL), airRot * rotL, curlL, World(_eye + U(SeatedPilot.ElbowPoleL)), _pose.JointsL);
+            Arm(false, World(shR), World(gripR), airRot * rotR, curlR, World(_eye + U(SeatedPilot.ElbowPoleR)), _pose.JointsR);
             Leg(true, World(hipL), World(ballL), World(ballL + heel), World(_eye + U(SeatedPilot.KneePoleL)));
             Leg(false, World(hipR), World(ballR), World(ballR + heel), World(_eye + U(SeatedPilot.KneePoleR)));
             _body.Apply(_pose);
@@ -494,6 +484,7 @@ namespace FlyingGame.Bridge
                      : held == Grabbable.CanopyLatch ? LatchPoint(_visual.Cockpit)
                      : held == Grabbable.CanopyLatchAft ? LatchHandle(_visual.Cockpit, fwd: false)
                      : held == Grabbable.CanopyLatchFwd ? LatchHandle(_visual.Cockpit, fwd: true)
+                     : held is Grabbable.SpoilerHandle or Grabbable.TrimLever or Grabbable.TowRelease ? HeldGliderPoint(held)
                      : HeldBailoutPoint(held, h);
                 curl = held == Grabbable.CanopyLatch && _latchKind == CanopyLatchKind.Squeeze ? 0.6f + 0.4f * (float)h.Pinch : 1f;
                 return;
@@ -503,7 +494,17 @@ namespace FlyingGame.Bridge
             curl = 1f;
         }
 
-        private void Arm(bool left, Vector3 shoulder, Vector3 grip, Quaternion handRot, float curl, Vector3 pole)
+        private readonly Vector3[][] _jointsWorld = { new Vector3[HandJoint.Count], new Vector3[HandJoint.Count] };
+
+        private Vector3[] TrackedJointsWorld(int s)
+        {
+            if (!_hasJoints[s]) return null;
+            Vector3[] w = _jointsWorld[s], l = _jointsLocal[s];
+            for (int i = 0; i < w.Length; i++) w[i] = World(l[i]);
+            return w;
+        }
+
+        private void Arm(bool left, Vector3 shoulder, Vector3 grip, Quaternion handRot, float curl, Vector3 pole, Vector3[] joints = null)
         {
             float upper = (float)SeatedPilot.UpperArmM, lower = (float)SeatedPilot.ForearmM;
             if (_body.TryChain(left ? "L_UpperArm" : "R_UpperArm", left ? "L_LowerArm" : "R_LowerArm", left ? "L_Hand" : "R_Hand",
@@ -511,6 +512,7 @@ namespace FlyingGame.Bridge
             // The wrist sits a fist's depth back from the grip, toward the shoulder: the forearm points at the hand.
             Vector3 toShoulder = shoulder - grip;
             Vector3 wrist = grip + (toShoulder.sqrMagnitude > 1e-8f ? toShoulder.normalized : Vector3.zero) * (float)SeatedPilot.WristToGripM;
+            if (joints != null) { wrist = joints[HandJoint.Wrist]; grip = joints[HandJoint.Palm]; }
             TwoBoneIk.Result r = TwoBoneIk.Solve(C(shoulder), C(wrist), upper, lower, C(pole));
             Vector3 elbow = U(r.Middle), w = U(r.End);
             // An unreachable control leaves the arm straight at it and the hand at the end of the arm, not floating.

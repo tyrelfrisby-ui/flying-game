@@ -125,6 +125,7 @@ the VR menu is open, and grabbing never moves your head. The design is in [vr-co
 
 | Control | Hand | How it moves | Let go |
 |---|---|---|---|
+| **2-33 dive brakes, trim, tow release** | either; a controller's grip or a bare hand | See *The 2-33's handles* under *Hands* below | Dive brakes and trim stay; the tow knob springs back |
 | **Stick** | either (right, normally) | Follows your hand about its real pivot: roll gimbal on the torque tube, pitch yoke on it. Limits from the model's rig (Extra / Great Lakes: ±18° roll, 18° aft, 12° fwd); proxy otherwise. The surfaces are linear in stick angle (no expo on a real stick). The right thumbstick does nothing while you hold it. | **Free stick**: on a reversible type it trails with the surfaces' hinge moments (the sim's free-control model), and you see it move. |
 | **Throttle** | either (left, normally) | On its real arc on the left of the seat, both cockpits: move your hand forward = power. Sideways hand movement does nothing. | Stays where it was left. The left thumbstick Y still works as before when you are not holding it. |
 | **Canopy latch, Pitts** | either | Grab the **black ball** on top of the rear panel and slide it **left / right** (3 in). **Fully RIGHT = LOCKED**, with a detent click at the end; pull 1 cm left to come out of it. | Stays where it was left. |
@@ -134,7 +135,8 @@ the VR menu is open, and grabbing never moves your head. The design is in [vr-co
 Opening the canopy, the belts, the headset plug, the sills and the ripcord: see "Bailing out by hand" below. The rudder is still the **left thumbstick X**, and your feet ride the pedals.
 
 **You see yourself:** arms, gloved hands, legs and boots, posed from the controllers and the pedals. With a controller
-put down, that hand rests on its control. Hidden in outside views.
+put down, that glove is your own tracked hand, fingers and all; a hand the headset is not tracking rests on its
+control. Hidden in outside views.
 
 ## Bailing out by hand (cockpit view, Pitts and Extra)
 
@@ -287,15 +289,28 @@ falls back to `adb shell screenrecord`: no sound, no crop, 3 minutes at most.
 
 ## Hands (no controllers)
 
-Put the controllers down and the Quest switches to hand tracking. **Hands do not fly the aeroplane.** A tracked
-hand cannot hold a stick or a throttle lever with anything like the precision a flight model needs, and a hand
-resting on a knee pinches all the time; what you get is:
+Put the controllers down and the Quest switches to hand tracking; **you see your own hands** (the gloves, drawn from
+the headset's 26 tracked joints per hand, fingers and all), and **they take hold of the cockpit's controls** the way the
+controllers do — reach to the control and either **pinch it** (thumb to index finger) or **close your hand round it**.
+Open your hand to let go. Switching is automatic: pick a controller up and that hand is the controller again, put it
+down and after a moment it is your hand. Design and numbers: [vr-cockpit.md, Phase 3](vr-cockpit.md#phase-3-tracked-hands-and-the-2-33s-own-handles).
 
 | Gesture | Does |
 |---|---|
-| **Left pinch, held 1 s** | Opens the VR menu |
-| **Right pinch, held 1 s** | Recentre |
+| **Pinch or grab a control** | Takes it: the 2-33's dive-brake handle, trim lever and tow release, the stick, the throttle, the latches and everything in *Grabbing* above |
+| **Left pinch, held 1 s** (in free air) | Opens the VR menu |
+| **Right pinch, held 1 s** (in free air) | Recentre |
 | **Point + pinch** (menu open) | Selects a row |
 
-While your hands are tracked the aeroplane keeps whatever the controls were left at (a reversible aeroplane's
-surfaces then trail, exactly as with a thumb lifted off a pad). Pick the controllers up again to fly.
+A pinch on a control is the control's: holding the dive-brake handle with a pinch for a minute never opens the menu
+or recentres. With nothing held the aeroplane keeps whatever the controls were left at (a reversible aeroplane's
+surfaces then trail, exactly as with a thumb lifted off a pad); the rudder and the A / B / X / Y buttons need the
+controllers.
+
+### The 2-33's handles (either hand or a controller's grip)
+
+| Handle | Where (front seat) | Moves | Does |
+|---|---|---|---|
+| **Dive brakes** | the lever on the LEFT wall, knob a hand's span below and ahead of your left shoulder (rear seat: the same, on its own wall) | **pull AFT** to extend, 33° of swing | 0 → 100 % spoiler; the **last 15 %** of the pull is the **wheel brake** (a click in the controller where it starts). It **stays where you leave it**. The thumbstick and the touch strip move the same handle: whichever moved it last, the other carries on from there |
+| **Trim** | the red ball lower on the left wall | aft = **nose up**, 40° | the same trim A / B move; a click at each notch |
+| **Tow release** | the yellow ball at the bottom centre of the front panel (rear: left end of the seat-back tube) | **pull 5 cm straight out** | releases the tow at the end of the pull; springs back when let go. With nothing on the hook it just moves (and the log says so) |

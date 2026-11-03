@@ -30,6 +30,9 @@ namespace FlyingGame.Bridge
             public Vector3 HipL, KneeL, AnkleL, BallL, HipR, KneeR, AnkleR, BallR;
             /// <summary>The aeroplane's up, for the boots' soles and the palms' roll.</summary>
             public Vector3 Up;
+            /// <summary>A tracked hand's 26 joints, world space (Core HandJoint order), or null: then the hand is drawn
+            /// from the grip, the wrist and the curl as for a controller.</summary>
+            public Vector3[] JointsL, JointsR;
         }
 
         public const string AssetPath = "Models/pilot-body/pilot-body-own";
@@ -52,6 +55,10 @@ namespace FlyingGame.Bridge
             public Transform Palm;
             public readonly Transform[] Fingers = new Transform[4];
             public Transform Thumb;
+            /// <summary>The second and third bone of each digit (index, middle, ring, little, thumb), shown only when the
+            /// hand is drawn from tracked joints.</summary>
+            public readonly Transform[] Outer = new Transform[10];
+            public bool OuterShown = true;
         }
 
         public bool Skinned => _skinned;
@@ -210,6 +217,8 @@ namespace FlyingGame.Bridge
             var h = new Hand { Palm = Part(PrimitiveType.Cube, "Palm_" + side, _glove) };
             for (int i = 0; i < 4; i++) h.Fingers[i] = Part(PrimitiveType.Capsule, $"Finger{i}_{side}", _glove);
             h.Thumb = Part(PrimitiveType.Capsule, "Thumb_" + side, _glove);
+            for (int i = 0; i < h.Outer.Length; i++) h.Outer[i] = Part(PrimitiveType.Capsule, $"Digit{i / 2}_{i % 2 + 2}_{side}", _glove);
+            ShowOuter(h, false);
             return h;
         }
 
@@ -235,8 +244,46 @@ namespace FlyingGame.Bridge
             t.localScale = new Vector3(2f * radius, Mathf.Max(len, 2f * radius) * 0.5f, 2f * radius);
         }
 
+        private static void ShowOuter(Hand h, bool on)
+        {
+            if (h.OuterShown == on) return;
+            h.OuterShown = on;
+            foreach (Transform t in h.Outer) t.gameObject.SetActive(on);
+        }
+
+        /// <summary>
+        /// A TRACKED hand, drawn from its joints (Core HandJoint order: 0 wrist, 1 palm, 2–5 thumb, then four fingers of
+        /// five from 6): the palm box from the wrist to the middle finger's knuckle, three capsules per finger
+        /// (proximal, intermediate, distal) and three for the thumb. The same 21 renderers as the controller hand plus
+        /// ten, one material, no shadows: a few dozen vertices each, nothing the frame notices.
+        /// </summary>
+        private static void PoseTrackedHand(Hand h, Vector3[] j)
+        {
+            ShowOuter(h, true);
+            Vector3 wrist = j[0], knuckle = j[12];   // MiddleProximal
+            Vector3 fwd = knuckle - wrist;
+            if (fwd.sqrMagnitude < 1e-8f) fwd = Vector3.forward;
+            Vector3 across = j[7] - j[22];            // IndexProximal − LittleProximal
+            Vector3 up = Vector3.Cross(fwd, across);
+            if (up.sqrMagnitude < 1e-10f) up = Vector3.up;
+            h.Palm.SetPositionAndRotation(0.5f * (wrist + knuckle), Quaternion.LookRotation(fwd.normalized, up.normalized));
+            h.Palm.localScale = new Vector3(Mathf.Clamp(across.magnitude + 0.02f, 0.06f, 0.10f), 0.026f, fwd.magnitude);
+            for (int f = 0; f < 4; f++)
+            {
+                int m = 6 + 5 * f;   // metacarpal; proximal m+1, intermediate m+2, distal m+3, tip m+4
+                float r = f == 3 ? 0.0085f : 0.0095f;
+                Bone(h.Fingers[f], j[m + 1], j[m + 2], r);
+                Bone(h.Outer[2 * f], j[m + 2], j[m + 3], r * 0.95f);
+                Bone(h.Outer[2 * f + 1], j[m + 3], j[m + 4], r * 0.9f);
+            }
+            Bone(h.Thumb, j[2], j[3], 0.011f);
+            Bone(h.Outer[8], j[3], j[4], 0.010f);
+            Bone(h.Outer[9], j[4], j[5], 0.0095f);
+        }
+
         private static void PoseHand(Hand h, Vector3 wrist, Vector3 grip, Quaternion handRot, float curl, bool left)
         {
+            ShowOuter(h, false);
             // The palm runs from the wrist to the knuckles, past the centre of the fist; its back faces the
             // controller's up, so turning the wrist turns the hand.
             Vector3 fwd = grip - wrist;
@@ -282,8 +329,8 @@ namespace FlyingGame.Bridge
             Bone(_thighL, p.HipL, p.KneeL, 0.075f); Bone(_shinL, p.KneeL, p.AnkleL, 0.055f);
             Bone(_thighR, p.HipR, p.KneeR, 0.075f); Bone(_shinR, p.KneeR, p.AnkleR, 0.055f);
             PoseBoot(_bootL, p.AnkleL, p.BallL, p.Up); PoseBoot(_bootR, p.AnkleR, p.BallR, p.Up);
-            PoseHand(_handL, p.WristL, p.GripL, p.HandRotL, p.CurlL, true);
-            PoseHand(_handR, p.WristR, p.GripR, p.HandRotR, p.CurlR, false);
+            if (p.JointsL != null) PoseTrackedHand(_handL, p.JointsL); else PoseHand(_handL, p.WristL, p.GripL, p.HandRotL, p.CurlL, true);
+            if (p.JointsR != null) PoseTrackedHand(_handR, p.JointsR); else PoseHand(_handR, p.WristR, p.GripR, p.HandRotR, p.CurlR, false);
         }
     }
 }

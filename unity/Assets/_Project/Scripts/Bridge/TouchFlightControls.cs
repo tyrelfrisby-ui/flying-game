@@ -169,6 +169,7 @@ namespace FlyingGame.Bridge
                 _throttle = AxisForFraction(k);
             }
             _leftKnob = IdleLeftKnob();
+            _vrHandle = -1f;
             float t = (float)_driver.TrimStick / Mathf.Max(0.01f, TrimAuthority);
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
         }
@@ -586,7 +587,7 @@ namespace FlyingGame.Bridge
             {
                 // Throttle strip: bottom = idle, top = full (lever travel the whole strip height).
                 float t01 = Mathf.Clamp01((pos.y - _thrStrip.y) / Mathf.Max(1f, _thrStrip.height));
-                if (StripBrakes) { _stripBrake01 = 1f - t01; _rudder = 0f; return; }   // brakes / spoiler: top = off, pull DOWN = more
+                if (StripBrakes) { _stripBrake01 = 1f - t01; _rudder = 0f; _vrHandle = -1f; return; }   // brakes / spoiler: top = off, pull DOWN = more
                 _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * t01);
                 _rudder = 0f;
                 return;
@@ -706,6 +707,9 @@ namespace FlyingGame.Bridge
             float brake = Mathf.Max(Mathf.Max(padBrake, _brakeHeld ? 1f : 0f), _questBrake);
             bool poweredNow = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             if (StripMode && StripBrakes) brake = poweredNow ? _stripBrake01 : Mathf.Clamp01((_stripBrake01 - 0.85f) / 0.15f);
+            // A glider's dive-brake handle moved by a hand in the headset (VrCockpitHands): its last 15 % is the wheel
+            // brake, the same band as the strip's. The spoiler itself is already on the knob (SetSpoilerHandle).
+            if (!poweredNow && _vrHandle >= 0f) brake = Mathf.Max(brake, (float)FlyingGame.Core.Vr.SpoilerHandle.WheelBrake(_vrHandle));
             // RUDDER PEDALS (docs/RUDDER-PEDALS.md) join here, so there is still one input path: each wheel gets the
             // harder of its toe brake and the hand's brake (biased by the hand's rudder, as before), carried to the
             // sim as its brake + bias; the rudder below adds the pedals to the hand's. No pedals = exactly as before.
@@ -743,6 +747,64 @@ namespace FlyingGame.Bridge
         private bool _questFlying, _questWaitRelease;
         /// <summary>A headset hand is holding the cockpit's own stick (VrCockpitHands): the stick is held even at neutral.</summary>
         private bool _vrStickHeld;
+        /// <summary>Where a hand in the headset last left a glider's dive-brake handle, 0..1, or −1 when the knob (a
+        /// thumbstick, a pad, a reset) has moved it since. Only its wheel-brake band needs keeping: the spoiler part is
+        /// written into the knob itself, so everything else carries on from there.</summary>
+        private float _vrHandle = -1f;
+
+        /// <summary>The glider's dive-brake handle, 0 stowed .. 1 full aft (the last 15 % the wheel brake): the hand's
+        /// own value while it has one, else where the knob or the strip puts it (<see cref="FlyingGame.Core.Vr.SpoilerHandle"/>).</summary>
+        public float SpoilerHandle01
+        {
+            get
+            {
+                if (_vrHandle >= 0f) return _vrHandle;
+                if (StripMode && StripBrakes) return _stripBrake01;
+                (_, float padBrake) = SplitLeftAxis();
+                return (float)FlyingGame.Core.Vr.SpoilerHandle.FromKnob(SpoilerFraction, padBrake);
+            }
+        }
+
+        /// <summary>A hand moved the dive-brake handle: the knob (and the strip) go to its spoiler, and its wheel-brake
+        /// band is kept until something else moves the knob. Released, it stays: nothing springs it back.</summary>
+        public void SetSpoilerHandle(float handle01)
+        {
+            handle01 = Mathf.Clamp01(handle01);
+            _vrHandle = handle01;
+            _throttle = AxisForFraction((float)FlyingGame.Core.Vr.SpoilerHandle.KnobFor(handle01, IdleFraction));
+            _leftKnob = IdleLeftKnob();
+            _stripBrake01 = handle01;
+        }
+
+        /// <summary>The pitch-trim LEVER, −1 full forward (nose down) .. +1 full aft (nose up): the rig's `trim`, i.e. the
+        /// negative of the elevator bias (AirframeVisual.RigInputsNow). Setting it moves the same trim the slider, the
+        /// keys and the A / B buttons move.</summary>
+        public float PitchTrimLever
+        {
+            get => InvertElevator ? _pitchTrim : -_pitchTrim;
+            set => _pitchTrim = Mathf.Clamp(InvertElevator ? value : -value, -1f, 1f);
+        }
+
+        /// <summary>The hands on the cockpit's own controls, into the same state the thumbsticks feed. Runs with
+        /// controllers or with tracked hands alone.</summary>
+        private void ApplyCockpitHands(VrCockpitHands hands)
+        {
+            if (hands == null) return;
+            if (hands.StickHeld && _rightFinger == int.MinValue)
+            {
+                // The held stick, in the sim's own sense (already linear in stick angle), less the trim this class adds
+                // back in PublishToDriver: the surface goes where the hand put the stick, trimmed or not.
+                _aileron = Mathf.Clamp(hands.AileronInput - TrimAileron, -1f, 1f);
+                _elevator = Mathf.Clamp(hands.ElevatorInput - TrimElevator, -1f, 1f);
+                _vrStickHeld = true;
+            }
+            if (_leftFinger == int.MinValue)
+            {
+                if (hands.ThrottleHeld) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * hands.Throttle01); _leftKnob = IdleLeftKnob(); }
+                if (hands.SpoilerHandleHeld) SetSpoilerHandle(hands.SpoilerHandle01);
+            }
+            if (hands.TrimLeverHeld && _trimFinger == int.MinValue) PitchTrimLever = hands.TrimLever;
+        }
 
         private void QuestInput()
         {
@@ -760,6 +822,9 @@ namespace FlyingGame.Bridge
                 if (_questFlying && _rightFinger == int.MinValue) { _aileron = 0f; _elevator = 0f; }
                 if (_questFlying && _leftFinger == int.MinValue) _rudder = 0f;
                 _questFlying = false;
+                // Tracked hands still reach the cockpit's own controls (docs/vr-cockpit.md, "Hands").
+                VrCockpitHands th = VrCockpitHands.Current;
+                if (th != null) { th.Tick(); ApplyCockpitHands(th); }
                 return;
             }
             if (_questWaitRelease)
@@ -777,22 +842,14 @@ namespace FlyingGame.Bridge
             if (hands != null) { hands.Tick(); hands.MaskGrips(ref f); }
             var c = _quest.Step(f, dt, thr01);
             if (_rightFinger == int.MinValue) { _aileron = (float)c.Aileron; _elevator = (float)c.Elevator; }
-            if (hands != null && hands.StickHeld && _rightFinger == int.MinValue)
-            {
-                // The held stick, in the sim's own sense (already linear in stick angle), less the trim this class adds
-                // back in PublishToDriver: the surface goes where the hand put the stick, trimmed or not.
-                _aileron = Mathf.Clamp(hands.AileronInput - TrimAileron, -1f, 1f);
-                _elevator = Mathf.Clamp(hands.ElevatorInput - TrimElevator, -1f, 1f);
-                _vrStickHeld = true;
-            }
             if (_leftFinger == int.MinValue)
             {
                 _rudder = (float)c.Rudder;
-                if (c.ThrottleMoved) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * (float)c.Throttle01); _leftKnob = IdleLeftKnob(); }
-                if (hands != null && hands.ThrottleHeld) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * hands.Throttle01); _leftKnob = IdleLeftKnob(); }
+                if (c.ThrottleMoved) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * (float)c.Throttle01); _leftKnob = IdleLeftKnob(); _vrHandle = -1f; }
             }
             _questBrake = (float)c.Brake;
             if (c.PitchTrimRate != 0.0) _pitchTrim = Mathf.Clamp(_pitchTrim + (float)c.PitchTrimRate * dt, -1f, 1f);
+            ApplyCockpitHands(hands);
             var ac = _driver.Sim?.Aircraft;
             if ((c.FlapsDown || c.FlapsUp) && ac != null)
             {

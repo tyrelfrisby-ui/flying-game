@@ -3,7 +3,8 @@
     "rootNamespace": "FlyingGame.Quest",
     "references": [
         "FlyingGame.Bridge",
-        "Unity.XR.OpenXR"
+        "Unity.XR.OpenXR",
+        "Unity.XR.Hands"
     ],
     "includePlatforms": [
         "Android",

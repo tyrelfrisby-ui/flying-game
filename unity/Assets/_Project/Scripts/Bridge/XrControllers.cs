@@ -63,6 +63,24 @@ namespace FlyingGame.Bridge
         /// <summary>Which path last saw ☰ down: "legacy XR", "Input System" or "both". For the [QuestInput] line.</summary>
         public static string MenuVia { get; private set; } = "";
 
+        /// <summary>Set by VrCockpitHands while that tracked hand is on or holding a cockpit control, until its pinch
+        /// opens: the menu, the recentre and the MENU tab then see no pinch from it.</summary>
+        public static bool LeftPinchOwned, RightPinchOwned;
+
+        /// <summary>A tracked hand's grip pose and pinch through the Hand Interaction Profile, tracking space: the
+        /// fallback when the XR Hands joints are not there (<see cref="XrTrackedHands"/>).</summary>
+        public static bool TryTrackedHandPose(bool left, out Vector3 pos, out Quaternion rot, out float pinch)
+        {
+            pos = default; rot = Quaternion.identity; pinch = 0f;
+            InputDevice d = left ? _leftHand : _rightHand;
+            if (!Tracked(d)) return false;
+            pinch = Float(d, PinchValue);
+            return d.TryGetFeatureValue(CommonUsages.devicePosition, out pos) && d.TryGetFeatureValue(CommonUsages.deviceRotation, out rot);
+        }
+
+        public static bool LeftHandTracked => Tracked(_leftHand);
+        public static bool RightHandTracked => Tracked(_rightHand);
+
         public static bool LeftControllerTracked => Tracked(_leftCtl);
         public static bool RightControllerTracked => Tracked(_rightCtl);
 
@@ -108,8 +126,10 @@ namespace FlyingGame.Bridge
             f.HandsOnly = !l && !r && (lh || rh);
             if (f.HandsOnly)
             {
-                f.LeftPinch = lh ? Float(_leftHand, PinchValue) : 0.0;
-                f.RightPinch = rh ? Float(_rightHand, PinchValue) : 0.0;
+                // A hand on (or holding) a cockpit control owns its pinch (VrCockpitHands): pinching the dive-brake
+                // handle for a second must not open the menu or recentre.
+                f.LeftPinch = lh && !LeftPinchOwned ? Float(_leftHand, PinchValue) : 0.0;
+                f.RightPinch = rh && !RightPinchOwned ? Float(_rightHand, PinchValue) : 0.0;
             }
             // A Bluetooth gamepad (QuestGamepadMap): one more frame, merged, so it flies and works the menu exactly
             // as the controllers do. Its Start is the menu button.

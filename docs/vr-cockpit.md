@@ -28,10 +28,8 @@ grab, the latches, the IK — reads only this.
 - **Controllers (Phase 1):** `XrHandInput.TryGripPose` reads OpenXR's grip pose (devicePosition / deviceRotation of
   the held-in-hand controller), which sits at the centre of the closed hand, so it needs no offset. Grip = the grip
   trigger, Pinch = the index trigger.
-- **Tracked hands (Phase 3):** the same struct from XR Hands joints — Position = palm joint, Grip = mean finger curl,
-  Pinch = the runtime's pinch strength — set in `VrCockpitHands.ReadHands` where the comment says so. Nothing else
-  changes. (Today, with the controllers put down, `HandsOnly` is set and the hands simply rest on the stick and
-  throttle.)
+- **Tracked hands (Phase 3, built):** the same struct from the XR Hands joints — see *Phase 3* below. Grip = 1 / 0
+  from `HandGrabDetector` (a pinch or a fist, with hysteresis), Pinch = the pinch strength. Nothing downstream changed.
 
 ## The grab
 
@@ -436,9 +434,67 @@ is the real one: every step yours, first person, no automatic opening. Both use 
   cord's tug (≤ 4 cm, 0.15 s). The climb moves the view only by what his own hand pushed.
 - Under the canopy the view does not yaw with a steering turn: you turn your head. The canopy and the risers turn above you.
 
+## Phase 3: tracked hands, and the 2-33's own handles
+
+Ty, 2026-11-02, after flying the 2-33 in the headset: *"how long before we can get it to see our hands to operate things
+like the speed brakes?"* Built on the Phase 1 path, not on the XR Interaction Toolkit: the grab, the levers, the
+latches and the body already take an input-agnostic `HandPose`, so tracked hands are one more way to fill it.
+XRI would have brought a second, competing interaction model (interactors, interactables, its own grab hysteresis
+and haptics), a dependency on its own rig and the Input System's action maps, and still no Core-testable mapping
+into this sim's one input path. The cost of not using it: no XRI hand visuals; ours are drawn from the joints
+(below).
+
+Code: `src/FlyingGame.Core/Vr/TrackedHand.cs` (`HandJoint`, `HandGrabDetector`, `HandSourceArbiter`,
+`OneEuroFilter3`), `src/FlyingGame.Core/Vr/CockpitLevers.cs` (`HingedLever`, `SlideKnob`, `LeverDetents`,
+`SpoilerHandle`, `SpringPullKnob`), tests `tools/FlightTests/VrHandsTests.cs`. Unity: `Quest/QuestHandTracking.cs`
+(XR Hands, Android + editor only), `Bridge/XrTrackedHands.cs` (the hook the Bridge sees), `Bridge/RigHandle.cs`,
+`Bridge/VrCockpitHands.Hands.cs`, and the hooks in `TouchFlightControls` (`SpoilerHandle01`, `SetSpoilerHandle`,
+`PitchTrimLever`, `ApplyCockpitHands`) and `TowController.HandPull`. Bench check: `EditorTools.VrHandleCheck`.
+
+### The hands
+
+| Piece | What | Numbers |
+|---|---|---|
+| Package | `com.unity.xr.hands` 1.9.0; OpenXR **Hand Tracking** (XR_EXT_hand_tracking) and **Meta Hand Tracking Aim** enabled for Android by `QuestBuild.ConfigureXr`; the manifest's `com.oculus.permission.HAND_TRACKING` and `oculus.software.handtracking` (required = false) were already added by `QuestManifest` | |
+| Joints | 26 per hand, tracking space, through the same recentre as a controller (`QuestRig.TrackingToSeat`) into the cockpit frame | |
+| Which source | `HandSourceArbiter`: a tracked controller wins at once; with it put down, a hand takes over after **0.15 s** | a change of source is a new hand: whatever was held is let go, and a hand arriving closed must open and close again |
+| Grab | `HandGrabDetector`: **pinch** thumb tip–index tip < **2.0 cm**, open > **3.5 cm**; or **fist**: mean curl of the four fingers > **0.65**, open < **0.45** (curl = the three knuckle bends summed / 190°) | closed stays closed until BOTH are open, so pinch → wrap round the handle does not drop it; the 1.5 cm band is three times the tracking jitter at arm's length |
+| Tracking loss | the last pose and grip kept for **0.25 s**, then released | a hand behind the panel for three frames does not drop the dive brakes |
+| The point that grabs | pinching: midway between thumb and index tips; otherwise the palm joint 2.5 cm toward the palm (the middle of a fist). Chosen while open, kept while closed | |
+| Smoothing | One-euro filter on that point (min cut-off 1.5 Hz, β 4) | held still: ±5 mm noise → under ±2.5 mm; a 30 cm/s pull lags under 1.5 cm |
+| Pinch gestures | a hand on or holding a control owns its pinch (`XrControllers.Left/RightPinchOwned`) until it opens | a second's pinch on the handle never opens the menu or recentres |
+| Drawn | the stand-in glove from the joints: palm box wrist → middle knuckle, three capsules a digit (10 renderers more than the controller hand, one material, no shadows); the forearm's IK runs to the tracked wrist | |
+| Camera | nothing in it touches the camera | |
+| Without the XR Hands joints | the Hand Interaction Profile's grip pose and pinch value stand in (pinch only, no fingers drawn); `[VrCockpit] left hand: TrackedHand (hand interaction pose, no joints: …)` says so | |
+
+**Hands grab everything a controller grabs**, the stick and throttle included (the Phase 1 view was that a hand
+cannot fly a stick with a flight model's precision; with the filter a hand held still on the stick wanders under
+±0.3°, and nothing moves until the hand closes on the grip). Let go and the stick is free, exactly as with a
+controller. Haptics are controllers only.
+
+### The 2-33
+
+Bound from the rig's own nodes (`RigHandle`): the knob is the farthest vertex of the node's own meshes from its pivot
+(a slide knob: the middle of its meshes), and the ends of travel are worked out with the rig's own rotation, so no
+sign is reasoned out by hand. **`VrHandleCheck` measured them** (build of the yellow 2-33, aeroplane frame, from the
+seat's eye):
+
+| Control | Rig node | Travel (source) | Measured | Into the sim | Feel |
+|---|---|---|---|---|---|
+| **Dive-brake handle** | `DiveBrake_Lever_F` / `_R` (your cockpit's) | **0 → 33°**, aft = extend (rig table: the wall placard + AFM "pull aft to extend"; the angle is the modeller's) | front: knob 47 → 29 cm fwd, 30 cm down, 22 cm left of the eye; 31.9 cm arm, 10.8 cm inboard of the hinge, 33.0° about the lateral axis. Rear the same, 9 cm aft | `TouchFlightControls.SetSpoilerHandle`: spoiler = handle (as the strip has always given it); the **last 15 %** is the wheel brake, `(h − 0.85) / 0.15`, the strip's band. The Quest knob is put at the handle's spoiler, so the thumbstick carries on from where the hand left it; the brake band is kept until the knob moves | a click passing 85 % (wheel brake starts), a bump at each stop. **Stays where it is left: no spring** |
+| **Trim lever** | `Trim_Lever` | **−20° … +20°**, aft = nose up (rig table: "judgement 20 deg each way") | knob 34 → 23 cm fwd, ~52 cm down, 28 cm left of the front eye; 17 cm arm, 40.0° | `TouchFlightControls.PitchTrimLever` — the same trim the slider, the keys and A / B move (full aft = the slider's full nose up) | a click at each of the rig's 4 notches (−1, −⅓, +⅓, +1), **felt, not snapped to**; the lever is drawn at the trim itself, not in the rig's nearest notch |
+| **Tow release** | `TowRelease_F` / `_R` (one cable) | **50 mm** straight aft (rig table: AFM "pull the knob full out") | front: the yellow ball 59 cm fwd, 25 cm down, on the centreline; rear: 47 cm fwd, 14 cm down, 27 cm left; both pull (0, 0, −50) mm | `TowController.HandPull`: the knob follows the hand, springs home in 0.3 s when let go (the G key's own animation time). At **90 %** of the pull the hook opens: `ReleaseFromGlider()` if on tow, else `[VrCockpit] tow release pulled by hand: nothing on the hook`. Re-arms below 30 % | a firm buzz when it fires |
+
+Not held, every handle is drawn by the rig from the sim (the dive brakes from the sim's spoiler, the trim from the
+trim, the knob from `KnobPull01`), so the strip, the thumbstick, the gamepad and the hand always agree. A HELD dive-
+brake handle is drawn where the hand has it (the sim's spoiler follows a frame later).
+
+**Assumed, for Ty:** the 33° and the 40° are the modeller's; the wheel brake's 85 % is the strip's (the rig table
+suggests 90 %); the trim's notches are the rig's four; the release fires at 90 % of the pull.
+
 ## Where Phase 2 and Phase 3 plug in
 
-(Phase 2 is built: the section above. What follows is the plan it was built to; Phase 3 still is.)
+(Phase 2 and the first part of Phase 3 are built: the sections above. What follows is the plan they were built to.)
 
 - **New grab points** (harness buckle, headset jack, canopy rail, ripcord): add to `Grabbable`, set their positions in
   `VrCockpitHands.UpdatePoints` from the CONTRACT's `Harness_Buckle_*`, `Headset_Jack_*`, `Grip_Canopy_Rail`, and give

@@ -1,4 +1,36 @@
 ## NEEDS YOU
+- **QUEST: YOUR OWN HANDS IN THE COCKPIT, AND THE 2-33'S DIVE BRAKES, TRIM AND TOW RELEASE BY HAND (Claude, 2026-11-02,
+  lane/claude-vr-hands, from "how long before we can get it to see our hands to operate things like the speed
+  brakes?"). APK BUILT (build only, NOT installed, as you asked): see the M1 line in the log for the path. Starts at
+  lane/claude-vr-quest 8e7862eb (your build) + the grab system merged from lane/claude-vr-cockpit 9f7c0f81. NEEDS YOU
+  when you choose to install it:**
+  1. **Hands.** Put the controllers down in the 2-33 cockpit and hold your hands up: you should see gloves with
+     fingers that move with yours. Pick a controller up: that hand is the controller again within a moment.
+     `adb logcat -s Unity | grep -E "QuestHands|VrCockpit"` must show `[QuestHands] XR Hands subsystem running` and
+     `[VrCockpit] left hand: TrackedHand (XR Hands joints)`. If it says `hand interaction pose, no joints`, hand
+     tracking came up without XR Hands: send me that line.
+  2. **Dive brakes.** Reach to the lever on the LEFT wall (knob about 47 cm ahead, 30 cm below and 22 cm left of
+     your eyes in the front seat) and pinch it, or close your hand round it; pull AFT. Spoilers out as you pull; the
+     last 15 % of the pull is the wheel brake (a click in the controller where it starts if you use the grip). Let go:
+     it stays. Then move the left thumbstick: it must carry on from where your hand left it. **Is 33° of handle swing
+     right, and is the wheel brake at the end of the handle's travel (85 %) right on a real 2-33?** (The modeller's
+     table says 33° and suggests 90 % for the brake; the touch strip has always used 85 %.)
+  3. **Trim.** The red ball lower on the left wall: aft = nose up, 40° of swing (the modeller's "judgement 20° each
+     way"). The rig has it in a 4-notch quadrant (−1, −⅓, +⅓, +1): I let the trim move freely and give a click at
+     each notch. **Is the real one notched, how many notches, and should it drop into the nearest when let go?**
+  4. **Tow release.** Get a tow (right stick click on the runway), pull the yellow ball at the bottom of the panel
+     5 cm straight back: the rope must go at the end of the pull, and the knob springs back. The release fires at
+     90 % of the pull: right?
+  5. **Pinches don't leak.** Holding the dive-brake handle with a pinch for several seconds must NOT open the menu or
+     recentre. A left pinch held 1 s in free air still opens the menu.
+  6. **The stick by hand.** Bare hands can now take the stick and throttle too (close on the grip). Is a tracked
+     hand steady enough on the stick to fly, or should hands be kept off the stick?
+  **Evidence (bench only):** VrHandsTests 25 new (pinch / fist hysteresis and chatter, tracking-loss grace, hand ⇄
+  controller hand-off, the hinged lever incl. a knob off its hinge, stops and detents, the spoiler / wheel-brake /
+  knob mapping, the tow knob's travel, spring and trigger, the filter) + VrCockpit / VrBailout / Quest suites, 180 / 180;
+  `VrHandleCheck` (the 2-33 built as the game builds it, the same RigHandle code the headset runs) **HANDLE OK**;
+  Unity batch 0 error CS; the APK built with HandTracking + MetaHandTrackingAim enabled. Never in a headset.
+  **Nothing approved.**
 - **QUEST: SLOW NEAR THE GROUND, THE AIRCRAFT LIST, YELLOW-ONLY 2-33, A GENTLER STICK + GAMEPAD (Claude, 2026-11-02,
   lane/claude-vr-quest, commits 159e5f46 · 5d028681 · 1084a620 · eeb12758). Code only: NOT built (`deploy.sh` not
   run — src/ changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the
@@ -1205,6 +1237,22 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-hands · M1 + M2: tracked hands, the 2-33's dive brakes, trim and tow release by hand
+Ty: "i just flew the 2-33 and it was awesome! how long before we can get it to see our hands to operate things like
+the speed brakes?" Branch from lane/claude-vr-quest 8e7862eb; merged lane/claude-vr-cockpit 9f7c0f81 (the grab system)
+as 54ad451e, conflicts kept both sides. **M1 + M2 = the commit carrying this entry**: XR Hands 1.9.0 + OpenXR Hand Tracking / Meta Hand Tracking
+Aim (Android), joints → the Phase 1 HandPose (pinch or fist, hysteresis, a quarter-second through tracking loss, hand ⇄
+controller automatic), gloves drawn from the joints, pinches owned by the control they hold; the 2-33's dive-brake
+handle (spoiler = handle, last 15 % the wheel brake, stays put), trim lever and tow release bound from the rig's own
+nodes. Design and numbers: docs/vr-cockpit.md, Phase 3; controls: docs/quest-controls.md, Hands.
+**APK (build only, never installed): `build/quest/AeroPlayground.apk`, 186 MB, stamp 2026.1102.1634, built from this commit's code**
+(`zsh tools/deploy/deploy-quest.sh --build-only`, new: never runs adb).
+**Checks:** VrHandsTests 25 new; VrCockpit / VrBailout / Quest suites green; full FlightTests 117 failing names, none
+new against the base or the merge (the merge's 49 extra were coupling: those six classes 81 / 81 alone);
+`EditorTools.VrHandleCheck` HANDLE OK (it caught the 2-33 knob sitting 11 cm along its hinge, which read as a 31° sweep
+until HingedLever took the rig's axis). Unity batch 0 error CS. deploy.sh (iOS) NOT run: src/ changed, so it must reach
+BUILD SUCCEEDED before this merges. Never in a headset. **Nothing approved.**
+
 ### 2026-11-02 — Claude · lane/claude-vr-quest · Quest: slow near the ground (measured), the headset's aircraft list, 2-33 yellow only, stick feel + gamepad
 **1. Slowdown — measured on the device (logcat /tmp/questlogs/perf-1410), cause found, fixed, measured on the Mac.**
 - Device: 72 fps / 4.5–8 ms main thread above ~100 m agl; 20 fps / ~48 ms below ~60 m; 8–9 fps / 110–120 ms on the
