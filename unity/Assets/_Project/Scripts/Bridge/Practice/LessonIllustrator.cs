@@ -62,7 +62,7 @@ namespace FlyingGame.Bridge.Practice
             float span = 12f;
             var vis = aircraft.GetComponent<AirframeVisual>();
             var main = Camera.main != null ? Camera.main.GetComponent<ChaseCamera>() : null;
-            if (main != null) span = main.Distance / 1.3f;
+            if (main != null) span = main.Distance / (1.3f * (float)FlyingGame.Core.ChaseFraming.ZoomOut);   // (the chase's 1.5x zoom-out is not the lesson picture's)
             if (topView)
             {
                 cam.transform.position = aircraft.position + Vector3.up * (span * 2.2f) + aircraft.forward * 1.5f;
