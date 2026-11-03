@@ -5280,3 +5280,20 @@ Added the two red right-wall fuel handles opposite the left quadrants on a commo
 Validation: deterministic GLB rebuild SHA-256 match; photo placement and quadrant/trim/fuel linkage checker PASS (14.2 mm rear / 13.0 mm front quadrant sweep clearance). No Unity/headset validation or pilot approval claimed. Four additional v4 review views are being rendered with render_gl_v4.py, including a render-only simultaneous OFF pose; shipped GLB stays ON. Local commits only, no push, no force-add. Pre-commit tracked-file ignore audit required to print nothing.
 
 Fuel input convention checked against VrCockpitHands.Panel.cs: 1 = ON (down), 0 = OFF (inboard); rig model value is 1. OFF review explicitly sets Blender XYZ rotation for both handles.
+
+v4 render inventory (all relative to repository root):
+- `renders/greatlakes/v4/gl4_linkages_fuel_valve_rear_right.png`
+- `renders/greatlakes/v4/gl4_linkages_fuel_valve_front_right.png`
+- `renders/greatlakes/v4/gl4_linkages_fuel_valve_off.png`
+- `renders/greatlakes/v4/gl4_linkages_trim_run.png`
+- `renders/greatlakes/v4/gl4_front_seat_panel.png` (prior v4)
+- `renders/greatlakes/v4/gl4_rear_seat_panel.png` (prior v4)
+- `renders/greatlakes/v4/gl4_left_console_photo.png` (prior v4)
+- `renders/greatlakes/v4/gl4_trim_rear_left_wall.png` (prior v4 short cord)
+- `renders/greatlakes/v4/great-lakes_front_seat_panel.png` (pre-correction, untracked)
+- `renders/greatlakes/v4/great-lakes_rear_seat_panel.png` (pre-correction, untracked)
+- `renders/greatlakes/v4/great-lakes_trim_front_left_wall.png` (pre-correction, untracked)
+- `renders/greatlakes/v4/great-lakes_trim_rear_left_wall.png` (pre-correction, untracked)
+Camera manifests: `gl4_linkages_cameras.json`, `gl4_cameras.json`, and pre-correction untracked `great-lakes_cameras.json` in the same directory.
+
+Final four new 1600×1200 Cycles images visually inspected. Rear/front ON close-ups show down-pointing red handles and rod; OFF close-up shows the inboard handle pose. Trim run is viewed aft from the narrow left-wall corridor, with 2 W local review fill to expose the cable, scale and fairlead; seats/fuselage naturally occlude the enclosed tailward portion. No geometry hidden for these views. Camera manifest covers the four final presets. Rejected obstructed camera drafts were kept outside the repository or replaced before staging. Final model+rig deterministic rebuild PASS. Existing pre-correction untracked artifacts preserved untouched.
