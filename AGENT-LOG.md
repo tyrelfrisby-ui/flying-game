@@ -986,6 +986,12 @@ Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spira
   / free, 10 s hands off; band from MIL-F-8785C Level 1 spiral T2 ≥ 12 s, |Δφ| ≤ 1°·2^(t/12 s) (1.78° at 10 s); all
   launches bit-identical. 68/68 pass, worst |Δφ| 0.005°. `AStaleFirstFrame…` (±1) shows the band catches the 1803
   departure (24.0° / 24.3°, to the stale side). GamepadStickFreeTests 3/3, LaunchReplicationTests 69/69.
+- **Full suite** vs `b62b67d0` (failing NAMES, not counts): 0 newly failing; 89 base failures no longer fail; the
+  122 still failing all fail at base too (mostly world/terrain/nav classes on this base: Alaska, RegionalAtmosphere,
+  NavProcedure, GlacierLandingZone, AlpineRange...), incl. the known P-51 FormationHoldsItsSlotsThroughTurns (27.2 m).
+- **Build:** `deploy.sh NOINSTALL` 21:50 PST: `** BUILD SUCCEEDED **`, 0 `error CS` (bundleVersion bump reverted).
+  Also commits the Unity-generated `AirStart.cs.meta` / `PilotControls.cs.meta` that `b62b67d0` left out (every other
+  src .cs.meta is tracked), so the GUIDs stop changing per worktree.
 ### 2026-11-02 — Grok Bot · lane/claude-cockpit-look · cockpit view "all sky" on the iPhone with the 8BitDo
 Report (Ty, iPhone, build `2026.1102.1603`, pad connected): select the cockpit view and all he sees is sky.
 - **Ruled out:** no gamepad axis reaches the look. `GamepadInput` feeds flight only; `CockpitView` read only the
