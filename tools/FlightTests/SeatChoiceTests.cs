@@ -69,7 +69,7 @@ public sealed class SeatChoiceTests
     [InlineData("j3-cub-like", "front", -0.157, 0.0, -0.599)]
     [InlineData("extra-300-like", "rear", -1.597, 0.0, -0.518)]
     [InlineData("extra-300-like", "front", -0.687, 0.0, -0.529)]
-    [InlineData("glider-2-33-like", "front", 0.971, 0.0, -0.111)]
+    [InlineData("glider-2-33-like", "front", 0.971, 0.0, -0.136)]
     [InlineData("glider-2-33-like", "rear", 0.164, 0.0, -0.060)]
     [InlineData("c172-like", "copilot", -0.346, 0.332, -0.548)]
     public void ASeatIdIsThatSeatInEveryAeroplane(string aircraftId, string seatId, double x, double y, double z) =>
