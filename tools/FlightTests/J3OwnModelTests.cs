@@ -107,6 +107,38 @@ public class J3OwnModelTests
         Assert.Equal(-115.0, mag.Value(3), 3);  // BOTH
     }
 
+    /// <summary>Ty 2026-11-02 (v16 cockpit), with the values typed in by hand from build_j3_cub.py's RIG log and
+    /// docs/models/j3-cub-own-RIG.md: the mag switch sits on the LEFT root rib facing inboard (glTF -z), the trim crank
+    /// moved 0.30 m aft (glTF x -0.252 -> 0.048), the rear-seat carb heat knob is gone and the fuel lever became a
+    /// push-pull knob. The carb heat and fuel valve have no sim value yet, so they are listed static, by their new names,
+    /// and nothing still names a node the GLB no longer has.</summary>
+    [Theory]
+    [InlineData("j3-cub-own-rig.json")]
+    [InlineData("j3-cub-floats-own-rig.json")]
+    public void TheV16CockpitIsWhereTySaid(string file)
+    {
+        ModelRig rig = Rig(file);
+        RigNode mag = rig.Find("MagSwitch_Knob")!;
+        Assert.Equal((0.0, 0.0, -1.0), (Math.Round(mag.Ax, 4), Math.Round(mag.Ay, 4), Math.Round(mag.Az, 4)));
+        Assert.Equal(0.2988, mag.Pz, 3);                        // 1.2 mm inboard of the root rib at 0.300 m
+        Assert.Equal(0.7085, mag.Py, 3);                        // up in the wing well, above the left window
+        RigNode trim = rig.Find("Trim_Crank")!;
+        Assert.Equal(0.048, trim.Px, 3);
+        Assert.Equal(450.0, trim.Value(1), 3);
+        Assert.Equal(26, rig.Nodes.Count);
+
+        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", file);
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        var stat = doc.RootElement.GetProperty("static").EnumerateArray().ToDictionary(e => e.GetProperty("node").GetString()!, e => e.GetProperty("param").GetString()!);
+        Assert.Equal("fuel_valve", stat["FuelValve_Knob"]);
+        Assert.Equal("carb_heat", stat["CarbHeat_Lever"]);
+        foreach (string gone in new[] { "CarbHeat_Knob_Rear", "FuelValve_Lever" })
+        {
+            Assert.False(stat.ContainsKey(gone), $"{file}: {gone} was removed in v16 and must not be listed");
+            Assert.Null(rig.Find(gone));
+        }
+    }
+
     /// <summary>The J-3's elevator goes further up than down (config maxDeflNegRad 0.5934 = 34 deg, maxDeflRad 0.5061 = 29),
     /// so the stick-aft side is normalised by the UP stop: full up draws 34, half up 17, full down 29.</summary>
     [Fact]
