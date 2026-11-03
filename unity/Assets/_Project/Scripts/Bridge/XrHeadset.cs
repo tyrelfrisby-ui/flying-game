@@ -92,6 +92,20 @@ namespace FlyingGame.Bridge
         }
         private static bool? _hud;
 
+        // ---- fly by hand (persisted) ----
+
+        private const string PrefFlyByHand = "quest.flyByHand";
+
+        /// <summary>The pilot's body and his hands on the aeroplane's own controls (VrCockpitHands). OFF by default
+        /// (QuestCockpit.FlyByHandDefault): then nothing of the body exists and the controllers fly as they always
+        /// have. VR menu → Fly by hand. Read every frame, so switching it in flight takes effect at once.</summary>
+        public static bool FlyByHand
+        {
+            get { _flyByHand ??= PlayerPrefs.GetInt(PrefFlyByHand, FlyingGame.Core.Vr.QuestCockpit.FlyByHandDefault ? 1 : 0) == 1; return _flyByHand.Value; }
+            set { if (FlyByHand == value) return; _flyByHand = value; PlayerPrefs.SetInt(PrefFlyByHand, value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+        private static bool? _flyByHand;
+
         /// <summary>Whether the HUD may draw this frame (HudOverlay asks). Always true without a headset.</summary>
         public static bool HudAllowed => !Active || FlyingGame.Core.Vr.QuestCockpit.ShowHud(true, ChaseCamera.InCockpit, HudInCockpit);
 

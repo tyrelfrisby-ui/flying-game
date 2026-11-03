@@ -236,6 +236,9 @@ namespace FlyingGame.Bridge
             AddRow(() => $"Seat:  {SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId))}",
                 () => CycleSeat(1), CycleSeat, () => SeatsOf(SeatAircraftId).Count > 1);
             AddRow(() => $"View:  {(ChaseCamera.InCockpit ? "Cockpit" : "Outside")}", ToggleView, _ => ToggleView());
+            // FLY BY HAND (Ty 2026-11-03): the pilot's body and his hands on the stick, throttle and handles. Off,
+            // the controllers fly as they always have and no body is drawn.
+            AddRow(() => $"Fly by hand:  {(XrHeadset.FlyByHand ? "On  (body + hands)" : "Off")}", ToggleFlyByHand, _ => ToggleFlyByHand());
             AddRow(() => $"HUD in cockpit:  {(XrHeadset.HudInCockpit ? "On" : "Off")}", ToggleHud, _ => ToggleHud());
             AddRow(() => $"Display:  {(XrHeadset.Prefer90Hz ? "90 Hz" : "72 Hz")}" + (XrHeadset.CurrentRefreshHz > 0f ? $"   (running {XrHeadset.CurrentRefreshHz:F0})" : ""),
                 () => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz, _ => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz);
@@ -731,6 +734,12 @@ namespace FlyingGame.Bridge
                 SessionSettings.Instruments = SessionSettings.InstrumentMode.Hud;
                 SessionSettings.SavePrefs();
             }
+        }
+
+        private static void ToggleFlyByHand()
+        {
+            XrHeadset.FlyByHand = !XrHeadset.FlyByHand;
+            Debug.Log($"[QuestMenu] fly by hand {(XrHeadset.FlyByHand ? "ON" : "OFF")}");
         }
 
         private void ToggleView()

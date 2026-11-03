@@ -678,6 +678,8 @@ namespace FlyingGame.Bridge
         /// controllers (or on the handle), the legs hanging a little forward. Nothing here turns the view.</summary>
         private void PoseJumper()
         {
+            // Fly by hand switched off after he climbed out: he stays the jumper (the view is on him), undrawn.
+            if (!XrHeadset.FlyByHand) { _body.SetVisible(false); return; }
             _body.SetVisible(true);
             Vector3 shL = U(SeatedPilot.ShoulderL), shR = U(SeatedPilot.ShoulderR);
             Vector3 hipL = U(SeatedPilot.HipL), hipR = U(SeatedPilot.HipR);

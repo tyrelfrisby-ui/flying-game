@@ -10,7 +10,9 @@ namespace FlyingGame.Bridge
 {
     /// <summary>
     /// THE PILOT'S HANDS ON THE AEROPLANE'S OWN CONTROLS, and his visible body (docs/vr-cockpit.md). Lives on the main
-    /// camera beside <see cref="QuestRig"/>; does nothing unless a headset is on and the view is the cockpit.
+    /// camera beside <see cref="QuestRig"/>; does nothing unless a headset is on, the view is the cockpit and the pilot
+    /// has chosen FLY BY HAND (<see cref="XrHeadset.FlyByHand"/>, off by default). Off, the body is never built (or is
+    /// switched off if it was), nothing is grabbed, and the controllers fly through TouchFlightControls alone.
     ///
     /// Each frame, in the COCKPIT frame (the aeroplane's position and rotation, no scale: +x right, +y up, +z nose):
     ///  1. the hands — the controllers' grip poses through QuestRig's recentre (<see cref="QuestRig.TrackingToSeat"/>),
@@ -39,7 +41,7 @@ namespace FlyingGame.Bridge
     {
         public static VrCockpitHands Current { get; private set; }
 
-        /// <summary>Headset on, cockpit view, an aeroplane with a sim, the pilot still in it.</summary>
+        /// <summary>Headset on, cockpit view, fly by hand on, an aeroplane with a sim, the pilot still in it.</summary>
         public bool Active { get; private set; }
         public bool StickHeld => Active && _grab.IsHeld(Grabbable.Stick);
         /// <summary>Set by TouchFlightControls each frame before <see cref="Tick"/>: a thumbstick (Touch or a pad) is out of
@@ -147,7 +149,7 @@ namespace FlyingGame.Bridge
 
         private bool Resolve()
         {
-            if (!XrHeadset.Active || !ChaseCamera.InCockpit) return false;
+            if (!QuestCockpit.HandsInCockpit(XrHeadset.Active, ChaseCamera.InCockpit, XrHeadset.FlyByHand)) return false;
             if (_chase == null) _chase = GetComponent<ChaseCamera>();
             if (_rig == null) _rig = GetComponent<QuestRig>();
             if (_chase == null || _rig == null || _chase.Target == null || _chase.Cockpit == null) return false;

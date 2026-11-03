@@ -93,6 +93,10 @@ namespace FlyingGame.Bridge
         }
 
         public bool Skinned => _skinned;
+        /// <summary>The body's objects exist (built on first show, never before: fly by hand off costs nothing).</summary>
+        public bool Built => _root != null;
+        /// <summary>Built and switched on, i.e. being drawn.</summary>
+        public bool Visible => _root != null && _visible && _root.activeSelf;
 
         public void SetVisible(bool on)
         {
@@ -106,6 +110,10 @@ namespace FlyingGame.Bridge
         {
             if (_root != null) Kill(_root);
             _root = null;
+            _visible = false;
+            // Everything Build cached points into the destroyed objects: forget it, so the next show builds afresh.
+            _skinned = false;
+            _bones.Clear(); _rest.Clear(); _curlAxis.Clear();
         }
 
         /// <summary>Destroy at runtime, DestroyImmediate in the editor's batch checks (PilotBodyShots).</summary>
