@@ -27,6 +27,32 @@ public sealed class QuestCockpitTests
         Assert.True(QuestCockpit.ShowHud(headset: false, inCockpit: false, hudInCockpitOption: false));
     }
 
+    // ---- fly by hand (Ty 2026-11-03: "the user selects fly by hand and the body shows up") ----
+
+    [Fact]
+    public void FlyByHandIsOffUntilThePilotChoosesIt()
+    {
+        Assert.False(QuestCockpit.FlyByHandDefault);
+        Assert.False(QuestCockpit.HandsInCockpit(headset: true, inCockpit: true, flyByHand: QuestCockpit.FlyByHandDefault));
+    }
+
+    [Fact]
+    public void FlyByHandOnPutsTheHandsInTheHeadsetCockpitOnly()
+    {
+        Assert.True(QuestCockpit.HandsInCockpit(headset: true, inCockpit: true, flyByHand: true));
+        Assert.False(QuestCockpit.HandsInCockpit(headset: true, inCockpit: false, flyByHand: true));   // outside view
+        Assert.False(QuestCockpit.HandsInCockpit(headset: false, inCockpit: true, flyByHand: true));   // phone / flat screen
+        Assert.False(QuestCockpit.HandsInCockpit(headset: false, inCockpit: false, flyByHand: true));
+    }
+
+    [Fact]
+    public void FlyByHandOffTakesTheHandsAwayEverywhere()
+    {
+        foreach (bool headset in new[] { false, true })
+            foreach (bool inCockpit in new[] { false, true })
+                Assert.False(QuestCockpit.HandsInCockpit(headset, inCockpit, flyByHand: false));
+    }
+
     [Fact]
     public void TheTipShowsOnTheFirstThreeFlightsUntilTheMenuIsFound()
     {

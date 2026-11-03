@@ -3,7 +3,7 @@ using System;
 namespace FlyingGame.Core.Vr
 {
     /// <summary>
-    /// Two small rules for the cockpit in a headset, engine-free so they are pinned in QuestCockpitTests.
+    /// Small rules for the cockpit in a headset, engine-free so they are pinned in QuestCockpitTests.
     /// </summary>
     public static class QuestCockpit
     {
@@ -15,6 +15,18 @@ namespace FlyingGame.Core.Vr
         /// </summary>
         public static bool ShowHud(bool headset, bool inCockpit, bool hudInCockpitOption) =>
             !headset || !inCockpit || hudInCockpitOption;
+
+        /// <summary>
+        /// FLY BY HAND (owner Ty, 2026-11-03, approving the v3 pilot body: "the user selects fly by hand and the body
+        /// shows up"). OFF by default: no pilot body, no hands, and the controllers fly exactly as they do without the
+        /// hands (thumbsticks, grab-anywhere throttle, the right grip's smoke). ON: the body is drawn and the hands —
+        /// controllers or tracked — take the aeroplane's own stick, throttle and handles. Only in the cockpit of a
+        /// headset; outside views and flat screens never have the hands.
+        /// </summary>
+        public const bool FlyByHandDefault = false;
+
+        /// <summary>Are the cockpit hands (and so the pilot's body) live this frame?</summary>
+        public static bool HandsInCockpit(bool headset, bool inCockpit, bool flyByHand) => headset && inCockpit && flyByHand;
 
         /// <summary>How many flights the "press MENU" tip is shown on before it is taken as learnt.</summary>
         public const int TipFlights = 3;
