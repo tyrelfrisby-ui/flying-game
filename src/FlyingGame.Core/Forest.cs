@@ -321,7 +321,7 @@ public static class Forest
     /// tallest tree that could stand here there is nothing to test, and that costs one height query — the same
     /// query the contact code has already made every step since the beginning.
     /// </summary>
-    public sealed class Solids : WorldSolids.IShape
+    public sealed class Solids : WorldSolids.IShape, WorldSolids.IRegional
     {
         public bool Penetrate(double x, double y, double up, out Vec3 normalNed, out double depth)
         {
@@ -329,29 +329,85 @@ public static class Forest
             WorldTerrain? t = WorldTerrain.Active;
             if (t is null) return false;
             if (up > t.HeightAt(x, y) + SkyClearM) return false;         // the whole sky, in one query
-            int i0 = CellOf(x - MaxHeightM * 0.4), i1 = CellOf(x + MaxHeightM * 0.4);
-            int j0 = CellOf(y - MaxHeightM * 0.4), j1 = CellOf(y + MaxHeightM * 0.4);
+            int i0 = CellOf(x - ReachM), i1 = CellOf(x + ReachM);
+            int j0 = CellOf(y - ReachM), j1 = CellOf(y + ReachM);
+            double best = 0; Vec3 bestN = Vec3.Zero;
+            for (int i = i0; i <= i1; i++)
+                for (int j = j0; j <= j1; j++)
+                    if (TryTreeInCell(i, j, out Tree tr)) Test(in tr, x, y, up, ref best, ref bestN);
+            if (best <= 0) return false;
+            normalNed = bestN; depth = best;
+            return true;
+        }
+
+        /// <summary>The trees of every cell a point in the region could ask about, worked out once (the broadphase,
+        /// iOS 2026-11-02: each tree costs a height, a slope, cover and the island's clearance cap, and the full shape
+        /// re-derived 25 of them per hard point per RK4 stage). Same answers as <see cref="Penetrate"/>.</summary>
+        public WorldSolids.IShape Within(double minX, double minY, double minUp, double maxX, double maxY, double maxUp) =>
+            new Local(this, CellOf(minX - ReachM), CellOf(maxX + ReachM), CellOf(minY - ReachM), CellOf(maxY + ReachM));
+    }
+
+    private const double ReachM = MaxHeightM * 0.4;
+
+    private static void Test(in Tree tr, double x, double y, double up, ref double best, ref Vec3 bestN)
+    {
+        if (up < tr.GroundM || up > tr.TopM) return;
+        double dx = x - tr.X, dy = y - tr.Y, r = tr.CrownRadiusM;
+        double d = System.Math.Sqrt(dx * dx + dy * dy);
+        if (d > r) return;
+        // Out the side, or off the top if that is nearer — a tree you clip the top of should drop
+        // you onto it, not spit you sideways.
+        double side = r - d, top = tr.TopM - up;
+        if (top < side)
+        {
+            if (top > best) { best = top; bestN = new Vec3(0, 0, -1); }
+        }
+        else if (side > best)
+        {
+            best = side;
+            bestN = d > 1e-6 ? new Vec3(dx / d, dy / d, 0) : new Vec3(1, 0, 0);
+        }
+    }
+
+    /// <summary>The forest over a block of cells, the trees precomputed (see <see cref="Solids.Within"/>).</summary>
+    private sealed class Local : WorldSolids.IShape
+    {
+        private readonly Solids _all;
+        private readonly int _i0, _i1, _j0, _j1;
+        private readonly bool[] _has;
+        private readonly Tree[] _tree;
+        private readonly double _highestTop = double.NegativeInfinity;
+
+        public Local(Solids all, int i0, int i1, int j0, int j1)
+        {
+            _all = all; _i0 = i0; _i1 = i1; _j0 = j0; _j1 = j1;
+            int w = j1 - j0 + 1, n = (i1 - i0 + 1) * w;
+            _has = new bool[n]; _tree = new Tree[n];
+            for (int i = i0; i <= i1; i++)
+                for (int j = j0; j <= j1; j++)
+                {
+                    int k = (i - i0) * w + (j - j0);
+                    if (TryTreeInCell(i, j, out _tree[k])) { _has[k] = true; if (_tree[k].TopM > _highestTop) _highestTop = _tree[k].TopM; }
+                }
+        }
+
+        public bool Penetrate(double x, double y, double up, out Vec3 normalNed, out double depth)
+        {
+            normalNed = Vec3.Zero; depth = 0;
+            int i0 = CellOf(x - ReachM), i1 = CellOf(x + ReachM);
+            int j0 = CellOf(y - ReachM), j1 = CellOf(y + ReachM);
+            if (i0 < _i0 || i1 > _i1 || j0 < _j0 || j1 > _j1) return _all.Penetrate(x, y, up, out normalNed, out depth);   // outside the block
+            if (up > _highestTop) return false;                          // above every tree that could be asked about
+            WorldTerrain? t = WorldTerrain.Active;
+            if (t is null) return false;
+            if (up > t.HeightAt(x, y) + SkyClearM) return false;         // as the full shape does, so the answers match
+            int w = _j1 - _j0 + 1;
             double best = 0; Vec3 bestN = Vec3.Zero;
             for (int i = i0; i <= i1; i++)
                 for (int j = j0; j <= j1; j++)
                 {
-                    if (!TryTreeInCell(i, j, out Tree tr)) continue;
-                    if (up < tr.GroundM || up > tr.TopM) continue;
-                    double dx = x - tr.X, dy = y - tr.Y, r = tr.CrownRadiusM;
-                    double d = System.Math.Sqrt(dx * dx + dy * dy);
-                    if (d > r) continue;
-                    // Out the side, or off the top if that is nearer — a tree you clip the top of should drop
-                    // you onto it, not spit you sideways.
-                    double side = r - d, top = tr.TopM - up;
-                    if (top < side)
-                    {
-                        if (top > best) { best = top; bestN = new Vec3(0, 0, -1); }
-                    }
-                    else if (side > best)
-                    {
-                        best = side;
-                        bestN = d > 1e-6 ? new Vec3(dx / d, dy / d, 0) : new Vec3(1, 0, 0);
-                    }
+                    int k = (i - _i0) * w + (j - _j0);
+                    if (_has[k]) Test(in _tree[k], x, y, up, ref best, ref bestN);
                 }
             if (best <= 0) return false;
             normalNed = bestN; depth = best;

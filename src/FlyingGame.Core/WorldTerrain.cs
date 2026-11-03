@@ -656,6 +656,26 @@ public sealed class WorldTerrain
 
     /// <summary>Ground height under a WHEEL: the height field plus the surface micro-roughness.</summary>
     public static double WheelGroundHeightAt(double x, double y) => GroundHeightAt(x, y) + (Active != null ? MicroBumpAt(x, y) : 0.0);
+    /// <summary>The most <see cref="MicroBumpAt"/> ever adds: crevassed ice, 0.30 + 0.18 + 0.30 m (rough ground 0.22 m).
+    /// <c>WorldTerrainTests</c> holds the bumps to it.</summary>
+    public const double MaxMicroBumpM = 0.8;
+
+    /// <summary>
+    /// <see cref="WheelGroundHeightAt(double, double, double)"/> for a point that only needs the exact ground when it
+    /// could be touching it. A point more than <see cref="MaxMicroBumpM"/> above the bare height field cannot touch the
+    /// bumps on it, so it gets the field plus that ceiling instead — never lower than the real ground, and as negative a
+    /// depth as the real ground would give — and the surface lookup the bumps need (three dozen region tests) is
+    /// skipped. For airframe hard points, of which twenty-odd are tested at every RK4 stage near the ground.
+    /// </summary>
+    public static double HardPointGroundAt(double x, double y, double up)
+    {
+        if (Active != null && IslandCavities.TryFloor(x, y, up, out double floor))
+            return WorldDecks.All.Count > 0 && WorldDecks.DeckUnder(x, y, up, out double topC) && topC > floor ? topC : floor;
+        double bare = GroundHeightAt(x, y);
+        double g = Active == null ? bare : up > bare + MaxMicroBumpM ? bare + MaxMicroBumpM : bare + MicroBumpAt(x, y);
+        return WorldDecks.All.Count > 0 && WorldDecks.DeckUnder(x, y, up, out double top) && top > g ? top : g;
+    }
+
     /// <summary>Ground under a wheel / hard point at height <paramref name="up"/>: the terrain, or a raised deck it is on.</summary>
     public static double WheelGroundHeightAt(double x, double y, double up)
     {

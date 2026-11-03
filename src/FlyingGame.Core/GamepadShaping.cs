@@ -89,7 +89,16 @@ public static class GamepadShaping
     /// lever moves, not a control surface, and a deflection of half should move it at half speed.
     /// Returns −1…1, a fraction of the full rate; the shoulder buttons add a fixed rate of their own.
     /// </summary>
-    public static double ThrottleRate(double leftStickY, double deadZone = DefaultStickDeadZone) => DeadZone(leftStickY, deadZone);
+    public static double ThrottleRate(double leftStickY, double deadZone = ThrottleStickDeadZone) => DeadZone(leftStickY, deadZone);
+
+    /// <summary>The throttle stick's dead zone — the Quest's (<c>QuestControls.ThrottleDeadZone</c>). Ty 2026-11-02: the iOS
+    /// gamepad throttle must match the Quest; a rate needs a wide zone, since a resting stick's drift would creep the power.</summary>
+    public const double ThrottleStickDeadZone = 0.25;
+    /// <summary>Full left stick takes the lever from idle to full in this long — the Quest's (0.5 of the lever a second).</summary>
+    public const double ThrottleIdleToFullS = 2.0;
+
+    /// <summary>The stick's full rate (lever units a second) for a lever whose idle and full ends are given.</summary>
+    public static double StickLeverRatePerSec(double idle, double full) => Math.Abs(full - idle) / ThrottleIdleToFullS;
 
     /// <summary>
     /// Undo a dead zone that will be applied AGAIN downstream. The aeroplane already zones every control once
@@ -124,4 +133,19 @@ public static class GamepadShaping
     /// live pad state, so plugging in or dropping a controller flips it on the next frame.
     /// </summary>
     public static bool TouchSticksShown(bool deskMode, bool gamepadConnected) => !deskMode && !gamepadConnected;
+
+    /// <summary>
+    /// STICK-FREE with a gamepad (Ty 2026-11-02: "the stick free stability thing should be turned off when using a
+    /// controller have it as an option but defaulted off with the controller"). On the touch pads a pad with no finger
+    /// on it lets go of its reversible controls, and the surfaces trail with the air loads (Aircraft.FreeFloat: stick-free
+    /// stability). A thumb stick springs to centre every time the thumb moves to a button, so with a pad that same
+    /// rule kept dropping the controls; with a pad connected the centred stick now HOLDS the surfaces at neutral + trim
+    /// unless the player turns the option on. Touch-only play is unchanged.
+    /// </summary>
+    public const bool DefaultGamepadStickFree = false;
+
+    /// <summary>Whether a released control (no finger, stick at centre) goes free: always on touch; with a gamepad
+    /// connected only when the player has chosen stick-free.</summary>
+    public static bool ControlsFree(bool released, bool gamepadConnected, bool gamepadStickFree) =>
+        released && (!gamepadConnected || gamepadStickFree);
 }

@@ -318,12 +318,39 @@ public static class LandingGear
     /// <param name="broken">receives the leg that just hit harder than its break sink rate</param>
     /// <param name="touching">per-leg contact state (first-contact detection), config.Gear order</param>
     /// <param name="impacts">records the hardest first contact (crash sound)</param>
+    /// <summary>What <see cref="Compute"/> records for gear that is nowhere near the ground: every leg it would have tested
+    /// is not touching. For a step the caller has already found clear of the ground (<see cref="AirframeContact.ClearOfTheGround(List{ContactPoint}, IReadOnlyList{Vec3}?, Vec3, RigidBodyState, double)"/>).</summary>
+    public static void AllInTheAir(AircraftConfig config, bool[]? touching, IReadOnlyCollection<AirframeComponent>? lostLegs, bool wheelsUp)
+    {
+        if (touching == null) return;
+        for (int gi = 0; gi < config.Gear.Count && gi < touching.Length; gi++)
+        {
+            GearConfig g = config.Gear[gi];
+            if (wheelsUp && g.GearType != "float-keel") continue;
+            if (lostLegs != null && lostLegs.Contains(AirframeContact.GearComponent(g))) continue;
+            touching[gi] = false;
+        }
+    }
+
     public static (Vec3 Force, Vec3 Moment) Compute(
         AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0, double brakeBias = 0.0,
         IReadOnlyCollection<AirframeComponent>? lostLegs = null, List<AirframeComponent>? broken = null, bool[]? touching = null, ImpactRecorder? impacts = null,
         TailwheelState? tailwheel = null, bool wheelsUp = false)
+        => Compute(config, s, rudderCmd, brakeCmd, groundZ, brakeBias, lostLegs, broken, touching, impacts, tailwheel, wheelsUp, -1, 0.0, null);
+
+    /// <summary>
+    /// The same, told which RK4 stage of a step this is (0..3; -1 = test every wheel every time) and the step's
+    /// <paramref name="dt"/>, with one slot per wheel in <paramref name="stageClear"/>. On stage 0 each wheel remembers how
+    /// far it is above the ground or water; on stages 1–3 a wheel clear by more than
+    /// <see cref="AirframeContact.StageCullMargin"/> skips its ground queries, which would have found it in the air.
+    /// </summary>
+    public static (Vec3 Force, Vec3 Moment) Compute(
+        AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ, double brakeBias,
+        IReadOnlyCollection<AirframeComponent>? lostLegs, List<AirframeComponent>? broken, bool[]? touching, ImpactRecorder? impacts,
+        TailwheelState? tailwheel, bool wheelsUp, int stage, double dt, double[]? stageClear)
     {
         Vec3 totalForce = Vec3.Zero, totalMoment = Vec3.Zero;
+        bool cull = AirframeContact.StageCullEnabled && stage >= 0 && stageClear != null && stageClear.Length >= 2 * config.Gear.Count;
         if (config.Gear.Count == 0)
         {
             return (Vec3.Zero, Vec3.Zero);
@@ -352,10 +379,25 @@ public static class LandingGear
                               : brakeCmd;
             Vec3 rBody = g.PosVec() - cg;
             Vec3 wheelWorld = s.Position + s.Attitude.Rotate(rBody);
+            if (cull && stage > 0 && stageClear![2 * gi] > stageClear[2 * gi + 1])
+            {
+                // In the air all step: what the queries below would have found (penetration <= 0, no water to touch).
+                if (touching != null && gi < touching.Length) touching[gi] = false;
+                continue;
+            }
             // Ground under THIS wheel: the world height field (plateau airports) — NED z = -height.
             double groundH = WorldTerrain.WheelGroundHeightAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
             double? waterH = FloatHydro.WaterSurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
             bool overWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
+            if (cull && stage == 0)
+            {
+                // Clearance to the ground (penetration's negative) and to the water (from the tyre's bottom, as below).
+                double tyreRc = g.TireRadiusM > 0 ? g.TireRadiusM : 0.22;
+                double clearGround = (groundZ - groundH) - wheelWorld.Z;
+                double clearWater = waterH.HasValue ? -wheelWorld.Z - tyreRc - waterH.Value : double.PositiveInfinity;
+                stageClear![2 * gi] = System.Math.Min(clearGround, clearWater);
+                stageClear[2 * gi + 1] = AirframeContact.StageCullMargin(s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody)).Length, dt);
+            }
             if (overWater && g.GearType == "float-keel") continue;          // a float's hull does the floating
             if (overWater)
             {
@@ -377,8 +419,6 @@ public static class LandingGear
                 // Deep water: the wheel never reaches the bed, so there is no ground contact to add.
                 if (waterH.Value - groundH > tyreR * 2) continue;
             }
-            WorldTerrain.Surface surface = WorldTerrain.SurfaceOverride
-                ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved);
             double localGroundZ = groundZ - groundH;
             double penetration = wheelWorld.Z - localGroundZ; // >0 = wheel below ground surface (compressed)
             if (penetration <= 0.0)
@@ -386,6 +426,9 @@ public static class LandingGear
                 if (touching != null && gi < touching.Length) touching[gi] = false;
                 continue; // wheel in the air
             }
+            // Only for a wheel on the ground: it is three dozen region tests, and every wheel in the air used to pay them.
+            WorldTerrain.Surface surface = WorldTerrain.SurfaceOverride
+                ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved);
 
             // Contact-point velocity (world) = body vel + ω×r, rotated to world.
             Vec3 contactVelWorld = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));

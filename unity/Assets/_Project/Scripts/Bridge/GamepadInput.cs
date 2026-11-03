@@ -39,6 +39,9 @@ namespace FlyingGame.Bridge
             public int LookX, LookY;
         }
 
+        // Inert outside the hudshots self-test; bypass physical input with a neutral connected frame.
+        public static bool SimulateConnectedForTest;
+
         private static int _frame = -1;
         private static Frame _now;
 
@@ -47,6 +50,7 @@ namespace FlyingGame.Bridge
         {
             get
             {
+                if (SimulateConnectedForTest) return new Frame { Connected = true };
                 if (_frame != Time.frameCount) { _frame = Time.frameCount; _now = Read(); }
                 return _now;
             }

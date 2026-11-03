@@ -275,6 +275,7 @@ namespace FlyingGame.Bridge
 
         private void DisplayPage(ref float y)
         {
+            Note($"Build {Application.version}", ref y);
             var modes = new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud, SessionSettings.InstrumentMode.None };
             int im = PickRow("Instruments", new[] { "Dials", "HUD", "None" }, System.Array.IndexOf(modes, SessionSettings.Instruments), ref y);
             if (im >= 0) { SessionSettings.Instruments = modes[im]; SessionSettings.SavePrefs(); }
@@ -355,6 +356,11 @@ namespace FlyingGame.Bridge
                 if (Mathf.Abs(d - dzNow) > 0.002f) { SessionSettings.FeelDeadZone[i] = Mathf.Round(d * 100f) / 100f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
                 y += _lh * 0.95f;
             }
+            // STICK-FREE WITH A GAMEPAD (Ty 2026-11-02): shown always, whether or not a pad is connected right now, so it
+            // can be set before one is. Off by default; touch play is not affected by it.
+            y += _gap * 0.5f;
+            if (Check("Gamepad: stick-free (controls float when the stick is centred)", SessionSettings.GamepadStickFree, ref y))
+                SessionSettings.GamepadStickFree = !SessionSettings.GamepadStickFree;
             // LOOKING AROUND (owner 2026-10-31; moved out of the Audio tab 2026-11-01 after Ty found it there and
             // said it makes no sense in Audio). These are CONTROLS: they decide how the pilot's head is pointed,
             // the same way expo and dead zone decide how his hands reach the stick. The hat on a real stick and the

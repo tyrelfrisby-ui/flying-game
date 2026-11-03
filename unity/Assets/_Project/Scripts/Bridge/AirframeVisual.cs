@@ -222,7 +222,7 @@ namespace FlyingGame.Bridge
             ControlsConfig c = ac.Config.Controls;
             FlyingGame.Core.RigInputs r = FlyingGame.Core.RigInputs.FromDeflections(
                 d.AileronRad, d.ElevatorRad, d.RudderRad, d.SpoilerFraction,
-                c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad);
+                c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad, c.Elevator.LimitFor(-1.0));
 
             // Total-energy variometer: the rate of change of HEIGHT PLUS KINETIC HEIGHT, so a pull-up reads as
             // the trade it is rather than as lift. Lagged about a second, like the capacity bottle on a real one.
@@ -765,7 +765,7 @@ namespace FlyingGame.Bridge
         public void SetRig(in FlyingGame.Core.RigInputs inputs, float dt) => _rig?.Apply(inputs, dt);
 
         // The type's full travel, so a deflection in radians can be put on the rig's -1..+1 scale. Filled by Build.
-        private float _ailMaxRad = 1f, _eleMaxRad = 1f, _rudMaxRad = 1f;
+        private float _ailMaxRad = 1f, _eleMaxRad = 1f, _rudMaxRad = 1f, _eleUpMaxRad = 1f;
 
         /// <summary>Move every hinged surface to the sim's current deflections (radians; spoiler 0..1).</summary>
         public void SetDeflections(float aileronRad, float elevatorRad, float rudderRad, float spoilerFrac)
@@ -786,7 +786,7 @@ namespace FlyingGame.Bridge
             // A model with its own rig moves ITS surfaces on the same deflections — so every caller that poses
             // an aeroplane (a remote player's, the widget's replay, a render) gets them, not only the live one.
             _rig?.SetControls(FlyingGame.Core.RigInputs.FromDeflections(aileronRad, elevatorRad, rudderRad, spoilerFrac,
-                                                                        _ailMaxRad, _eleMaxRad, _rudMaxRad));
+                                                                        _ailMaxRad, _eleMaxRad, _rudMaxRad, _eleUpMaxRad));
         }
 
         // ---- spinning propellers (owner 2026-10-04) ----------------------------------------------------------------
@@ -1795,6 +1795,7 @@ namespace FlyingGame.Bridge
             ControlsConfig cc = cfg.Controls;
             _ailMaxRad = cc != null && cc.Aileron.MaxDeflRad > 1e-6 ? (float)cc.Aileron.MaxDeflRad : 1f;
             _eleMaxRad = cc != null && cc.Elevator.MaxDeflRad > 1e-6 ? (float)cc.Elevator.MaxDeflRad : 1f;
+            _eleUpMaxRad = cc != null ? (float)cc.Elevator.LimitFor(-1.0) : _eleMaxRad;   // the J-3's 34 up against 29 down
             _rudMaxRad = cc != null && cc.Rudder.MaxDeflRad > 1e-6 ? (float)cc.Rudder.MaxDeflRad : 1f;
             // Doped fabric over ribs rather than riveted metal: the Cubs, the Stearman, the Jenny, the Decathlon
             // and the 2-33 are linen aeroplanes, and their wings should scallop between ribs, not carry rivets.
@@ -2102,10 +2103,15 @@ namespace FlyingGame.Bridge
             if (ownGear) foreach (GameObject g in _floatParts) if (g != null) gearSet.Add(g);
             if (ownGear && AirframeModels.GearBoxMesh.TryGetValue(AirframeModels.ModelId(cfg.Id), out var boxes)) foreach (var box in boxes) RemoveModelGear(inst, box.min, box.max);
             bool overlay = System.Environment.GetEnvironmentVariable("SKIN_OVERLAY") != null;   // diagnostics: config surfaces over the model
+            // Our own J-3 has its paint baked in (Cub yellow, the black lightning stripe, the bear on the fin), so the
+            // Talk Flying J-3's laid-on bolt and tail sign would be a second bolt and a board over the bear, and its wing
+            // logos are placed on the CONFIG's wing, 5.8 cm under ours (the 2-33's lesson, Livery.cs): none of them go on.
+            bool bakedPaint = cfg.Id != null && cfg.Id.StartsWith("j3-cub") && AirframeModels.PlacedOwnName(cfg.Id) != null;
             foreach (GameObject p in _parts)
             {
                 if (gearSet.Contains(p)) continue;
                 if (overlay && _controls.Any(c => c.T != null && c.T.gameObject == p)) continue;
+                if (bakedPaint) { foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false; continue; }
                 // LIVERY MARKINGS STAY VISIBLE ON A MODEL. They are placed from the CONFIG's geometry, and a
                 // model is scaled to that same geometry, so the wing lettering and the fin logo land correctly on
                 // the real aeroplane — which is the whole point: the downloaded models look far better than the

@@ -19,6 +19,11 @@ This is for Claude/Aero, for the aircraft configs `j3-cub-like` (wheels) and `j3
   - carb heat lever and the rear carb heat knob.
 - The axis signs were asserted by the build script against probe points on the meshes. The build fails if a sign is wrong.
 - Reference implementation: `tools/own_models/j3_fourview.py` with `J3_POSE="param=value,..."`.
+- **In the game** (2026-11-02): the table the game reads is `docs/models/j3-cub-own-rig.json` (wheels) and
+  `j3-cub-floats-own-rig.json` (floats), written FROM these extras by `tools/own_models/j3_rig_json.py`. Re-run it
+  after a rebuild (`--check` fails when a table is out of step with its GLB). It renames `engine_rpm` -> `rpm` and
+  `oil_psi` -> `oil_press_psi`, re-orders the magneto map for the sim's 0 OFF / 1 R / 2 L / 3 BOTH, and leaves out
+  carb heat, primer, fuel valve, fuel wire, doors and water-rudder retract (no such sim value yet: drawn as modelled).
 
 ## Hierarchy (cockpit)
 ```

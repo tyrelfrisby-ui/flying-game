@@ -20,7 +20,9 @@ namespace FlyingGame.FlightTests;
 ///  • launches 2–5 have a gamepad connected, its sticks and triggers at rest with a different seeded noise every
 ///    launch, inside the pad's dead zones (|noise| ≤ 0.03 per stick axis, radius ≤ 0.042 against the 0.07 radial zone;
 ///    ≤ 0.02 on a trigger against 0.05) — a pad at rest typically reads 1–3 % off centre;
-///  • stick-free ON (hands-off lets the reversible surfaces float, the game's behaviour) and OFF (surfaces held).
+///  • stick-free ON (hands-off lets the reversible surfaces float) and OFF (surfaces held) — for the pad launches
+///    through the "Gamepad: stick-free" option itself (OFF is its default), so the five launches also show that a pad
+///    with the option off flies exactly as held surfaces do, and with it on exactly as a lifted finger does.
 ///
 /// What stays Unity-only and untested here: the order Unity runs the scripts in, the touch pointer handling
 /// (ReadPointers), GamepadInput's device read, and TouchFlightControls.PresetTrim (mirrored below: power at 75 %,
@@ -98,8 +100,12 @@ public sealed class LaunchReplicationTests
         while (t < Settle + Window - 1e-9)
         {
             if (rng != null) pad.Apply(Noise(0.03), Noise(0.03), Noise(0.03), Math.Abs(Noise(0.02)), Math.Abs(Noise(0.02)), c);
-            ControlInputs u = PilotControls.Compose(pad.Aileron, pad.Elevator, pad.Rudder, aileronTrim, pitchTrim, rudderTrim, lever, false, false);
-            if (!stickFree) u = new ControlInputs(u.Aileron, u.Elevator, u.Rudder, u.ThrottleLever);   // surfaces held
+            // With the pad: the game's own path, the player's "Gamepad: stick-free" option going straight into the composition
+            // (GamepadShaping.ControlsFree, lane/claude-hydro). Touch always lets go when released, so the touch launch flies
+            // stick-free OFF as the surfaces HELD — the same physics the pad's default gives.
+            ControlInputs u = PilotControls.Compose(pad.Aileron, pad.Elevator, pad.Rudder, aileronTrim, pitchTrim, rudderTrim, lever, false, false,
+                gamepadConnected: rng != null, gamepadStickFree: stickFree);
+            if (rng == null && !stickFree) u = new ControlInputs(u.Aileron, u.Elevator, u.Rudder, u.ThrottleLever);   // surfaces held
             sim.Advance(FrameDt, u, ref acc);
             t += FrameDt;
             RigidBodyState s = sim.Aircraft.State;
@@ -161,6 +167,11 @@ public sealed class LaunchReplicationTests
         Assert.Equal(0.1, rest.Aileron, 12); Assert.Equal(-0.2, rest.Elevator, 12); Assert.Equal(0.05, rest.Rudder, 12); Assert.Equal(-0.5, rest.ThrottleLever, 12);
         ControlInputs held = PilotControls.Compose(0, 0, 0, 0, 0, 0, 0, true, true);
         Assert.False(held.AileronFree || held.ElevatorFree || held.RudderFree);
+        // A pad connected: released controls go free only with the stick-free option on (default off).
+        ControlInputs padDefault = PilotControls.Compose(0, 0, 0, 0, 0, 0, 0, false, false, gamepadConnected: true);
+        Assert.False(padDefault.AileronFree || padDefault.ElevatorFree || padDefault.RudderFree);
+        ControlInputs padFree = PilotControls.Compose(0, 0, 0, 0, 0, 0, 0, false, false, gamepadConnected: true, gamepadStickFree: true);
+        Assert.True(padFree.AileronFree && padFree.ElevatorFree && padFree.RudderFree);
         ControlInputs moved = PilotControls.Compose(0.01, 0, 0, 0, 0, 0, 0, false, false);
         Assert.False(moved.AileronFree || moved.ElevatorFree);
         Assert.True(moved.RudderFree);

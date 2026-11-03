@@ -49,22 +49,14 @@ public sealed class FloatFlooding
         }
     }
 
-    /// <summary>Full-depth V-section area at a station (the same section FloatHydro integrates its buoyancy over).</summary>
-    public static double SectionArea(FloatsConfig f, double x)
-    {
-        double xStep = f.BowX - f.StepFraction * f.LengthM, xStern = f.BowX - f.LengthM;
-        bool fore = x >= xStep;
-        double u = fore ? (x - xStep) / System.Math.Max(f.BowX - xStep, 1e-6) : (xStep - x) / System.Math.Max(xStep - xStern, 1e-6);
-        (double bF, double dF) = FloatHydro.Taper(f, fore, u);
-        double tanB = System.Math.Tan(f.DeadriseDeg * System.Math.PI / 180);
-        double bL = f.BeamM * bF, chineL = 0.5 * bL * tanB, d = f.DepthM * dF;
-        return d <= chineL ? d * d / tanB : 0.5 * bL * chineL + bL * (d - chineL);
-    }
+    /// <summary>Full section area at a station: the same <see cref="FloatHull"/> section FloatHydro floats on.</summary>
+    public static double SectionArea(FloatsConfig f, double x) => FloatHull.For(f).SectionAreaAt(x);
 
     private static List<HydroElement> Compartments(FloatsConfig f, double yF, int slot)
     {
         const int n = 200;
-        double x0 = f.BowX, dx = f.LengthM / n;
+        FloatHull hull = FloatHull.For(f);
+        double x0 = hull.BowX, dx = (hull.BowX - hull.SternX) / n;
         var cum = new double[n + 1];
         for (int i = 0; i < n; i++) cum[i + 1] = cum[i] + SectionArea(f, x0 - (i + 0.5) * dx) * dx;
         double total = cum[n];
