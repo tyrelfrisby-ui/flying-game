@@ -45,7 +45,7 @@ namespace FlyingGame.Bridge.Practice
             if (Controller == null || !Controller.Active || Controller.Scenario == null || SessionSettings.MenuOpen) return;
             Init();
             PracticeScenario sc = Controller.Scenario;
-            Rect view = ScreenLayout.Portrait ? new Rect(0f, 0f, Screen.width, Screen.height - ScreenLayout.TrayHeightPx) : new Rect(0f, 0f, Screen.width, Screen.height);
+            Rect view = ScreenLayout.Portrait && !ScreenLayout.FullScreenView ? new Rect(0f, 0f, Screen.width, Screen.height - ScreenLayout.TrayHeightPx) : new Rect(0f, 0f, Screen.width, Screen.height);
             // A strips lesson in landscape: the cards and their backdrop keep clear of the elevator / throttle strips, which stay
             // up through the briefing so the thumb knows where to go (owner 2026-10-06).
             if (!ScreenLayout.Portrait && Controller.StripsShown)

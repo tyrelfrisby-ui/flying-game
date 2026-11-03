@@ -149,6 +149,8 @@ public sealed class Aircraft
     private readonly List<AirframeComponent> _pendingBreaks = new();
     private readonly HashSet<AirframeComponent> _lostGear = new();   // legs torn off (LandingGear skips them)
     private bool[] _gearTouching = System.Array.Empty<bool>();       // per-leg contact state, Config.Gear order
+    private double[] _gearStageClear = System.Array.Empty<double>(); // per leg: clearance and margin from a step's first RK4 stage
+    private Vec3[] _wheelBodies = System.Array.Empty<Vec3>();         // each leg's contact point (body), for the step's clear test
     private readonly ImpactRecorder _impacts = new();
     /// <summary>Castoring tailwheel yaw (LandingGear.TailwheelState); null for types without a steerable tailwheel.</summary>
     public LandingGear.TailwheelState? Tailwheel { get; }
@@ -272,6 +274,8 @@ public sealed class Aircraft
         _airfoilTables = BuildAirfoilTables(config);
         _contacts = AirframeContact.BuildPoints(config);
         _gearTouching = new bool[config.Gear.Count];
+        _gearStageClear = new double[2 * config.Gear.Count];
+        _wheelBodies = config.Gear.Select(g => g.PosVec()).ToArray();
         Damage = new FlyingGame.Core.Combat.DamageState(LoseComponent, IsLost);
         foreach (GearConfig g in config.Gear) if (g.IsTailwheel && g.IsSteerable) { Tailwheel = new LandingGear.TailwheelState(); break; }
         Guns = FlyingGame.Core.Combat.Armament.For(config);
@@ -887,6 +891,7 @@ public sealed class Aircraft
 
         ControlDeflections controls = new(_aileronRad, _elevatorRad, _rudderRad, _spoilerFraction, FlapFraction, SlatFraction);
 
+        long tStep = SimProfile.Begin(), tAir = tStep;
         double altitudeM = -State.Position.Z;
         double airDensity;
         Vec3 windBody, meanWindBody;
@@ -901,6 +906,7 @@ public sealed class Aircraft
             meanWindBody = meanWindWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(meanWindWorld) : Vec3.Zero;
         }
         else SampleRegionalAir(out airDensity, out windBody, out meanWindBody, out windGradient);
+        SimProfile.End(SimProfile.Scope.Air, tAir);
         double weightN = MassProperties.MassKg * Atmosphere.GravityMs2;
 
         // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
@@ -916,16 +922,32 @@ public sealed class Aircraft
         // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R.
         (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, State.Velocity, State.Rates, airDensity);
 
+        // Ground contact, once a step instead of at each of RK4's four stages (Quest 3S, 2026-11-02: below 60 m the
+        // contact queries took the headset from 72 fps to 20, and to 8 on the ground). If the airframe and its wheels are
+        // clear of the ground by more than AirframeContact's 60 m plus the distance they can travel in the step, the
+        // gear and the hard points are skipped on every stage; otherwise each stage is numbered so that points and
+        // wheels found well clear on the first can skip the other three (AirframeContact.StageCullMargin).
+        int stage = -1;
+        double stepDt = dt;
+        bool groundClear = AirframeContact.StageCullEnabled && WorldTerrain.Active != null && _contacts.Count > 0
+            && AirframeContact.ClearOfTheGround(_contacts, _wheelBodies, Config.Mass.CgVec(), State,
+                   11.0 * (State.Velocity.Length + State.Rates.Length * 10.0) * dt);
+
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
+            stage++;
             ForceDebug.Samples = CaptureForces ? new List<ForceSample>(160) : null;
             Vec3 waterF = Vec3.Zero;   // buoyancy + floodwater, kept out of the load factor
             // Ground effect: the wing's height over the ground (or the water) under the CG.
+            long tGe = SimProfile.Begin();
             double under = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
             double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
             if (water.HasValue && water.Value > under) under = water.Value;
             double wingAgl = -s.Position.Z - under + AeroModel.WingHeightAboveCg(Config);
+            SimProfile.End(SimProfile.Scope.GroundEffect, tGe);
+            long tAero = SimProfile.Begin();
             (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl, windGradient);
+            SimProfile.End(SimProfile.Scope.Aero, tAero);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;
@@ -945,7 +967,9 @@ public sealed class Aircraft
             if (Config.Floats is not null)
             {
                 double rudderCmdW = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
+                long tFl = SimProfile.Begin();
                 (Vec3 hF, Vec3 hM) = FloatHydro.Compute(Config, s, rudderCmdW);
+                SimProfile.End(SimProfile.Scope.Floats, tFl);
                 totalF += s.Attitude.Conjugate().Rotate(hF);
                 totalM += s.Attitude.Conjugate().Rotate(hM);
                 if (FloatFlood is not null && _hydroArmed)
@@ -969,13 +993,19 @@ public sealed class Aircraft
                 totalM += wM;
             }
             bool amphibUp = Config.Floats != null && GearExtension <= 0.9;   // amphibian, wheels up: the float keels still carry it
-            if (Config.Gear.Count > 0 && (GearExtension > 0.9 || amphibUp))   // retracted gear carries nothing (belly contact does)
+            if (Config.Gear.Count > 0 && (GearExtension > 0.9 || amphibUp) && groundClear)
+            {
+                LandingGear.AllInTheAir(Config, _gearTouching, _lostGear, amphibUp);
+            }
+            else if (Config.Gear.Count > 0 && (GearExtension > 0.9 || amphibUp))   // retracted gear carries nothing (belly contact does)
             {
                 double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
                 // The 2-33's wheel brake is ON the dive-brake handle, at the end of its travel: full air
                 // brake is also full brake, whatever the pilot's own brake input is doing (SpoilerConfig).
                 double wheelBrake = Math.Max(BrakeInput, Config.Controls.Spoiler.BrakeFromHandle(_spoilerFraction));
-                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, wheelBrake, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, wheelsUp: amphibUp);
+                long tGear = SimProfile.Begin();
+                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, wheelBrake, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, amphibUp, stage, stepDt, _gearStageClear);
+                SimProfile.End(SimProfile.Scope.Gear, tGear);
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
             }
@@ -995,10 +1025,23 @@ public sealed class Aircraft
                 totalF += bF;
                 totalM += bM;
             }
+            if (groundClear)
+            {
+                // Nothing within reach of the ground or the water this step: no height queries, but the hard points
+                // still meet the buildings, the tower and the arch (WorldSolids) at every altitude.
+                long tSo = SimProfile.Begin();
+                (Vec3 sF, Vec3 sM) = AirframeContact.ComputeSolidsOnly(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, _impacts);
+                SimProfile.End(SimProfile.Scope.Contact, tSo);
+                totalF += s.Attitude.Conjugate().Rotate(sF);
+                totalM += s.Attitude.Conjugate().Rotate(sM);
+            }
+            else
             {
                 // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).
+                long tCt = SimProfile.Begin();
                 (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, 0.0, _impacts,
-                    floatsCarryWater: Config.Floats is not null, waterByHydro: true);
+                    Config.Floats is not null, waterByHydro: true, stage, stepDt);
+                SimProfile.End(SimProfile.Scope.Contact, tCt);
                 totalF += s.Attitude.Conjugate().Rotate(cF);
                 totalM += s.Attitude.Conjugate().Rotate(cM);
             }
@@ -1025,7 +1068,9 @@ public sealed class Aircraft
 
         PrepareWater(dt);
         RigidBodyState preStep = State;
+        long tForces = SimProfile.Begin();
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
+        SimProfile.End(SimProfile.Scope.Forces, tForces);
         if (_hydroArmed)
         {
             State = Hydro.AfterStep(preStep, State, MassProperties, dt);
@@ -1033,6 +1078,7 @@ public sealed class Aircraft
             foreach (AirframeComponent c in Hydro.TakeBreaks())   // the water break-up rule (AirframeFlooding.CheckJoints)
                 if (!_lost.Contains(c) && !_pendingBreaks.Contains(c)) _pendingBreaks.Add(c);
         }
+        long tAfter = SimProfile.Begin();
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
         UpdateLoad(dt);
@@ -1115,6 +1161,8 @@ public sealed class Aircraft
             double tauSec = target > s0 ? Config.StallDynamics.StripSepTau : Config.StallDynamics.StripReattachTau;
             _flowState.Separation[i] = s0 + (target - s0) * (1.0 - Math.Exp(-dt / tauSec));
         }
+        SimProfile.End(SimProfile.Scope.AfterStep, tAfter);
+        SimProfile.End(SimProfile.Scope.Step, tStep);
     }
 
     /// <summary>

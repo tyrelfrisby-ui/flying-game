@@ -50,6 +50,10 @@ public sealed class ContactPoint
     public double BreakSpeedMs;           // normal impact speed that snaps the component off (0 = unbreakable)
     public bool Touching;                 // contact state last step (for impact detection)
     public string Name = "";
+    /// <summary>Set on a step's first RK4 stage: how far the point is above the ground or water under it, and how far
+    /// it could close on it before the step ends (<see cref="AirframeContact.StageCullMargin"/>). The later stages skip
+    /// the ground query while the first exceeds the second.</summary>
+    public double StageClearM = double.NegativeInfinity, StageMarginM;
 }
 
 /// <summary>Solid boxes in the world (buildings, bridge decks, landmark legs) that the airframe collides with.
@@ -86,6 +90,84 @@ public static class WorldSolids
             if (sh.Penetrate(x, y, up, out Vec3 n, out double d)) return (n, d);
         return null;
     }
+
+    /// <summary>A shape that never moves and can say where it is: the broadphase (<see cref="Nearby"/>) skips it unless its
+    /// box overlaps the airframe's. Shapes without bounds (moving ones: the carrier, a tunnel's rocks) are always tested.</summary>
+    public interface IBounded { void Bounds(out double minX, out double minY, out double minUp, out double maxX, out double maxY, out double maxUp); }
+
+    /// <summary>A shape too big to bound (the forest covers the island) that can hand the broadphase a cheaper stand-in
+    /// for one region: same answers for any point inside it.</summary>
+    public interface IRegional { IShape Within(double minX, double minY, double minUp, double maxX, double maxY, double maxUp); }
+
+    /// <summary>Bump after rebuilding the solids in place (same counts), so every <see cref="Nearby"/> re-gathers.</summary>
+    public static int Version;
+
+    /// <summary>
+    /// The broadphase for one airframe (Ty, iOS 2026-11-02, "it still slows down when it gets close to the ground"):
+    /// the island registers ~1,500 solids (1,144 blocks, 297 cables) and <see cref="Penetration"/> tested every one of
+    /// them for every hard point at every RK4 stage — about 89 µs a point on a Mac, the bulk of the sim's time on an
+    /// iPad. This keeps the solids whose bounds come within <see cref="RegionMarginM"/> of the airframe and re-gathers
+    /// only when the airframe leaves that region or the solids change. Same answers as <see cref="Penetration"/>, in the
+    /// same order: a solid whose bounds miss the region cannot contain a point of the airframe.
+    /// </summary>
+    public sealed class Nearby
+    {
+        public const double RegionMarginM = 80.0;
+        private readonly System.Collections.Generic.List<Box> _boxes = new();
+        private readonly System.Collections.Generic.List<IShape> _shapes = new();
+        private double _x0 = 1, _y0 = 1, _u0 = 1, _x1 = 0, _y1 = 0, _u1 = 0;   // empty: the first Update gathers
+        private int _boxCount = -1, _shapeCount = -1, _version = -1;
+        private IShape? _lastShape;
+        /// <summary>How many times the solids were gathered (tests).</summary>
+        public int Gathers { get; private set; }
+
+        public void Update(double minX, double minY, double minUp, double maxX, double maxY, double maxUp)
+        {
+            IShape? last = Shapes.Count > 0 ? Shapes[Shapes.Count - 1] : null;
+            bool inside = minX >= _x0 && maxX <= _x1 && minY >= _y0 && maxY <= _y1 && minUp >= _u0 && maxUp <= _u1;
+            if (inside && Boxes.Count == _boxCount && Shapes.Count == _shapeCount && Version == _version && ReferenceEquals(last, _lastShape)) return;
+            _x0 = minX - RegionMarginM; _y0 = minY - RegionMarginM; _u0 = minUp - RegionMarginM;
+            _x1 = maxX + RegionMarginM; _y1 = maxY + RegionMarginM; _u1 = maxUp + RegionMarginM;
+            _boxCount = Boxes.Count; _shapeCount = Shapes.Count; _version = Version; _lastShape = last;
+            _boxes.Clear(); _shapes.Clear(); Gathers++;
+            foreach (Box b in Boxes)
+                if (b.Cx + b.Hx >= _x0 && b.Cx - b.Hx <= _x1 && b.Cy + b.Hy >= _y0 && b.Cy - b.Hy <= _y1 && b.Top >= _u0 && b.Bottom <= _u1) _boxes.Add(b);
+            foreach (IShape sh in Shapes)
+            {
+                if (sh is IRegional rg) { _shapes.Add(rg.Within(_x0, _y0, _u0, _x1, _y1, _u1)); continue; }
+                if (sh is IBounded bd)
+                {
+                    bd.Bounds(out double ax, out double ay, out double au, out double bx, out double by, out double bu);
+                    if (bx < _x0 || ax > _x1 || by < _y0 || ay > _y1 || bu < _u0 || au > _u1) continue;
+                }
+                _shapes.Add(sh);
+            }
+        }
+
+        /// <summary><see cref="WorldSolids.Penetration"/> over the gathered solids; the point must lie inside the box last
+        /// passed to <see cref="Update"/>.</summary>
+        public (Vec3 normalNed, double depth)? Penetration(double x, double y, double up)
+        {
+            foreach (Box b in _boxes)
+            {
+                double dx = x - b.Cx, dy = y - b.Cy;
+                if (System.Math.Abs(dx) > b.Hx || System.Math.Abs(dy) > b.Hy || up < b.Bottom || up > b.Top) continue;
+                double px = b.Hx - System.Math.Abs(dx), py = b.Hy - System.Math.Abs(dy), pTop = b.Top - up, pBot = up - b.Bottom;
+                double m = System.Math.Min(System.Math.Min(px, py), System.Math.Min(pTop, pBot));
+                if (m == pTop) return (new Vec3(0, 0, -1), pTop);
+                if (m == px) return (new Vec3(System.Math.Sign(dx), 0, 0), px);
+                if (m == py) return (new Vec3(0, System.Math.Sign(dy), 0), py);
+                return (new Vec3(0, 0, 1), pBot);
+            }
+            foreach (IShape sh in _shapes)
+                if (sh.Penetrate(x, y, up, out Vec3 n, out double d)) return (n, d);
+            return null;
+        }
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, Nearby> NearbyByAirframe = new();
+    /// <summary>The broadphase belonging to one airframe (keyed by its contact-point list).</summary>
+    public static Nearby NearbyFor(object airframe) => NearbyByAirframe.GetValue(airframe, _ => new Nearby());
 }
 
 /// <summary>
@@ -263,7 +345,10 @@ public static class AirframeContact
     /// <summary>
     /// How far above the ground the whole airframe is unambiguously clear of it. Terrain cannot rise by this much
     /// inside the few metres an airframe spans — towers, buildings and bridge decks are <see cref="WorldSolids"/>,
-    /// which is a bounded list test and is still checked at every altitude.
+    /// which is a bounded list test and is still checked at every altitude: when the airframe is clear of the ground
+    /// only the ground and water queries are skipped, every hard point is still tested against the solids
+    /// (<see cref="ComputeSolidsOnly"/>; before 2026-11-02 the shortcut returned nothing at all, so above 60 m agl a
+    /// tower, the arch or a hangar roof could be flown through).
     /// </summary>
     private const double ClearAboveM = 60.0;
 
@@ -272,7 +357,19 @@ public static class AirframeContact
     /// four points on its own radius. Returns false whenever anything could be close, so the caller falls back to
     /// the exact per-point test.
     /// </summary>
-    private static bool ClearOfTheGround(List<ContactPoint> points, Vec3 cg, RigidBodyState s)
+    private static bool ClearOfTheGround(List<ContactPoint> points, Vec3 cg, RigidBodyState s) =>
+        ClearOfTheGround(points, null, cg, s, 0.0);
+
+    /// <summary>
+    /// The same five-sample test for a whole step, with the wheels counted (<paramref name="wheels"/>: body positions of
+    /// each wheel's contact point, null for none) and <paramref name="extraM"/> more clearance demanded — the distance the
+    /// airframe can travel before the step ends. True means neither the hard points nor the wheels can reach the ground
+    /// on ANY of the step's four RK4 stages, so the caller skips gear and contact for the whole step
+    /// (<c>Aircraft.StepWithDeflectionTargets</c>). The test itself costs five height samples once a step instead of
+    /// once a stage, and the gear, which had no such test at all, stops asking for the ground under every wheel at
+    /// every stage in cruise.
+    /// </summary>
+    public static bool ClearOfTheGround(List<ContactPoint> points, IReadOnlyList<Vec3>? wheels, Vec3 cg, RigidBodyState s, double extraM)
     {
         double reach = 0, lowestZ = double.MinValue;
         foreach (ContactPoint p in points)
@@ -283,6 +380,16 @@ public static class AirframeContact
             if (horiz > reach) reach = horiz;
             if (w.Z > lowestZ) lowestZ = w.Z;        // z is + DOWN, so the largest z is the lowest point
         }
+        if (wheels != null)
+            foreach (Vec3 b in wheels)
+            {
+                Vec3 rWorld = s.Attitude.Rotate(b - cg);
+                double horiz = System.Math.Sqrt(rWorld.X * rWorld.X + rWorld.Y * rWorld.Y);
+                if (horiz > reach) reach = horiz;
+                double z = s.Position.Z + rWorld.Z;
+                if (z > lowestZ) lowestZ = z;
+            }
+        if (lowestZ == double.MinValue) return false;
         double highestGround = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
         foreach ((double dx, double dy) in new[] { (reach, 0.0), (-reach, 0.0), (0.0, reach), (0.0, -reach) })
         {
@@ -292,8 +399,22 @@ public static class AirframeContact
         // Water counts as ground here: a float or a hull touches it.
         double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
         if (water.HasValue && water.Value > highestGround) highestGround = water.Value;
-        return -lowestZ - highestGround > ClearAboveM;
+        return -lowestZ - highestGround > ClearAboveM + extraM;
     }
+
+    /// <summary>Off only to prove the per-step ground test and the stage cull change nothing: with it off the sim takes
+    /// the paths it took before 2026-11-02, and <c>GroundContactCullTests</c> flies the same flights both ways.</summary>
+    public static bool StageCullEnabled = true;
+
+    /// <summary>
+    /// How much clearance a point must have on a step's first stage for the other three to skip its ground query:
+    /// 0.1 m, plus eleven times the distance it moves in the step (<paramref name="speedMs"/> × <paramref name="dt"/>) —
+    /// once for the point coming down, ten times for the ground coming up under it as it moves sideways, which is any
+    /// slope up to 84°. A point that clear on stage 1 cannot touch the ground on stages 2–4, so skipping the query
+    /// returns the zero it would have returned. Against a wall steeper than that (a cliff face, a cave mouth, a deck
+    /// edge) a contact can begin one step — 5 ms — later than it did; solids are still tested at every stage.
+    /// </summary>
+    public static double StageCullMargin(double speedMs, double dt) => 0.1 + 11.0 * speedMs * dt;
 
     /// <summary>
     /// Contact forces (world) and the components whose points just hit hard enough to break.
@@ -311,13 +432,34 @@ public static class AirframeContact
     /// sampled exactly as before, so no contact behaviour changes.
     /// </summary>
     public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false, bool waterByHydro = false)
+        => Compute(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, -1, 0.0);
+
+    /// <summary>
+    /// <see cref="Compute(List{ContactPoint}, Vec3, RigidBodyState, List{AirframeComponent}?, double, ImpactRecorder?, bool, bool)"/>
+    /// told which RK4 stage this is (0..3; -1 = not part of a step, test every point every time) and the step's
+    /// <paramref name="dt"/>. On stage 0 every point within reach is tested and remembers its clearance; on stages 1–3 a
+    /// point that was clear by more than <see cref="StageCullMargin"/> skips the ground and water queries (solids are
+    /// still tested). Quest 3S, 2026-11-02: these queries, 21 points × 4 stages × 200 Hz, were what took the headset
+    /// from 72 fps to 20 below 60 m and to 8 on the ground (docs/quest-performance.md, *Slow near the ground*).
+    /// </summary>
+    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt)
     {
-        if (points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s))
+        long tClear = SimProfile.Begin();
+        bool clear = points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s);
+        SimProfile.End(SimProfile.Scope.ContactClear, tClear);
+        if (clear)
         {
-            foreach (ContactPoint p in points) p.Touching = false;
-            return (Vec3.Zero, Vec3.Zero);
+            // No clearance remembered for the later stages: if one of them is not clear, it tests every point.
+            if (stage == 0) foreach (ContactPoint p in points) p.StageClearM = double.NegativeInfinity;
+            long tSolids = SimProfile.Begin();
+            var solidsOnly = ComputeSolidsOnly(points, cg, s, broken, impacts);
+            SimProfile.End(SimProfile.Scope.ContactPoints, tSolids);
+            return solidsOnly;
         }
-        return ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro);
+        long tPoints = SimProfile.Begin();
+        var result = ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, stage, dt, groundClear: false);
+        SimProfile.End(SimProfile.Scope.ContactPoints, tPoints);
+        return result;
     }
 
     /// <summary>
@@ -329,8 +471,27 @@ public static class AirframeContact
     /// point arriving at the water is still an impact and can still break its component — water at 25 m/s is hard —
     /// but the old ditching spring-damper is not applied.</param>
     public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false, bool waterByHydro = false)
+        => ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, -1, 0.0, groundClear: false);
+
+    /// <summary>
+    /// The hard points against <see cref="WorldSolids"/> only, for an airframe already known to be clear of the ground
+    /// and the water (<see cref="ClearOfTheGround(List{ContactPoint}, IReadOnlyList{Vec3}?, Vec3, RigidBodyState, double)"/>):
+    /// no height queries, one box-list test per point. Buildings, the tower, the arch legs and the sea-cave roof stand
+    /// higher than <see cref="ClearAboveM"/> above the ground under them, so this runs at every altitude.
+    /// </summary>
+    public static (Vec3 Force, Vec3 Moment) ComputeSolidsOnly(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, ImpactRecorder? impacts)
+        => ComputeEveryPoint(points, cg, s, broken, 0.0, impacts, false, false, -1, 0.0, groundClear: true);
+
+    private static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt, bool groundClear)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
+        bool cull = StageCullEnabled && stage >= 0;
+        // Broadphase: the solids near the airframe's box, gathered once and kept while the airframe stays in their region.
+        double reach = 0;
+        foreach (ContactPoint p in points) { double r = (p.Body - cg).Length; if (r > reach) reach = r; }
+        reach += 0.5;
+        var nearby = WorldSolids.NearbyFor(points);
+        nearby.Update(s.Position.X - reach, s.Position.Y - reach, -s.Position.Z - reach, s.Position.X + reach, s.Position.Y + reach, -s.Position.Z + reach);
         foreach (ContactPoint p in points)
         {
             Vec3 rBody = p.Body - cg;
@@ -338,22 +499,39 @@ public static class AirframeContact
             Vec3 w = s.Position + rWorld;
             Vec3 vel = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));   // world velocity of the point
 
-            // Ground (with the wheel-scale bumps) — normal is world up.
-            double groundH = WorldTerrain.WheelGroundHeightAt(w.X, w.Y, -w.Z);
-            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
-            bool onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             Vec3 normal = new(0, 0, -1);   // outward (NED up)
+            double depth;
+            bool onWater = false;
+            double groundH = double.NegativeInfinity;   // the ditching bed below needs it; unset only where onWater stays false
+            if (groundClear || (cull && stage > 0 && p.StageClearM > p.StageMarginM))
+            {
+                depth = double.NegativeInfinity;   // clear of the ground and the water all step (see StageCullMargin)
+            }
+            else
+            {
+            // Ground (with the wheel-scale bumps when the point is low enough to meet them) — normal is world up.
+            groundH = WorldTerrain.HardPointGroundAt(w.X, w.Y, -w.Z);
+            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
+            onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             // On water, a SEAPLANE's hull is FloatHydro's business and this must keep its hands off it. A wheeled
             // aeroplane's is nobody's: every point over water used to return no force at all, so a landplane that
             // ditched sank through the sea, through the bed under it, and went on falling for ever — which is what
             // Ty saw as the Pitts "freezing" about thirty seconds into a flight out of the aerobatic box, the box
             // being over the sea. Water now pushes back on an airframe that cannot float, at a tenth of the ground's
             // stiffness and three times its damping: an arrival, not a trampoline, and not a runway either.
-            double depth = onWater
+            depth = onWater
                 ? (floatsCarryWater ? -1.0 : (w.Z + surfaceOffsetZ) - (-waterH!.Value))
                 : (w.Z + surfaceOffsetZ) - (-groundH);
+            if (cull && stage == 0)
+            {
+                // Clearance over whichever is higher, ground or water: either branch above gives a depth no deeper.
+                double top = waterH.HasValue && waterH.Value > groundH ? waterH.Value : groundH;
+                p.StageClearM = -(w.Z + surfaceOffsetZ) - top;
+                p.StageMarginM = StageCullMargin(vel.Length, dt);
+            }
+            }
             // Solids (buildings etc.): whichever is deeper.
-            var solid = WorldSolids.Penetration(w.X, w.Y, -w.Z);
+            var solid = nearby.Penetration(w.X, w.Y, -w.Z);
             bool solidWins = solid.HasValue && solid.Value.depth > depth;
             if (solidWins) { normal = solid!.Value.normalNed; depth = solid.Value.depth; }
 
