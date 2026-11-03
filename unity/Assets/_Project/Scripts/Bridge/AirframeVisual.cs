@@ -414,7 +414,7 @@ namespace FlyingGame.Bridge
                 }
             }
             _builder.Forget(gone);
-            foreach (GameObject g in gone) if (g != null) Object.Destroy(g);
+            foreach (GameObject g in gone) if (g != null) Gone(g);
             Vector3 sideDir = (leftWing || side < 0f) ? -root.right : root.right;
             Vector3 kick = leftWing || rightWing || panel ? sideDir * 4f + root.up * 3f
                 : gearLeg ? -root.forward * 2f - root.up * 1f + (comp == FlyingGame.Core.AirframeComponent.GearLeft ? -root.right : root.right) * 1.5f
@@ -510,12 +510,17 @@ namespace FlyingGame.Bridge
         public (GameObject left, GameObject right) DetachWings(Vector3 worldVelocityUnity)
         {
             if (_wingsDetached) return (null, null);
-            _builder.FreezeRig();
             _wingsDetached = true;
+            return DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity);
+        }
+
+        /// <summary><see cref="DetachWings"/> for any AirframeBuilder-built airframe (the editor's DebrisPaintCheck too).</summary>
+        public static (GameObject left, GameObject right) DetachWingsStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfgM, Vector3 worldVelocityUnity)
+        {
+            _builder.FreezeRig();
             List<GameObject> parts = _builder.TakeWingParts();
             if (parts.Count == 0) return (null, null);
 
-            Transform root = transform;
             GameObject left = new GameObject("WingDebris-L");
             GameObject right = new GameObject("WingDebris-R");
             left.transform.SetPositionAndRotation(root.position, root.rotation);
@@ -536,7 +541,6 @@ namespace FlyingGame.Bridge
                     if (part.name.StartsWith("Model:"))
                     {
                         // One-mesh model: both wings leave outboard of the body; the fuselage stays on the airframe.
-                        var cfgM = _driver?.Sim?.Aircraft?.Config;
                         float bodyHalf = cfgM != null ? (float)((cfgM.Fuselage.Crossflow?.BodyRadiusM > 0 ? cfgM.Fuselage.Crossflow.BodyRadiusM : 0.5) + 0.15) : 0.7f;
                         SplitBySide(mf.sharedMesh, mf.transform, root, -1f, bodyHalf, out Mesh lost1, out Mesh kept1);
                         if (lost1 != null) AddPiece(left.transform, mf.name, lost1, mat, localPos, localRot, scale);
@@ -557,7 +561,7 @@ namespace FlyingGame.Bridge
                     if (rMesh != null) AddPiece(right.transform, mf.name, rMesh, mat, localPos, localRot, scale);
                 }
             }
-            foreach (GameObject part in parts) if (part != null && !part.name.StartsWith("Model:")) Object.Destroy(part);
+            foreach (GameObject part in parts) if (part != null && !part.name.StartsWith("Model:")) Gone(part);
 
             // Ballistic tumble: inherit the aircraft's velocity, kick outward and up, spin about a random axis
             // biased to the span (a freed wing pinwheels), each side its own way.
@@ -567,9 +571,15 @@ namespace FlyingGame.Bridge
             return (l, r);
         }
 
+        /// <summary>Destroy, or DestroyImmediate outside play mode (the editor checks run the break-up in edit mode).</summary>
+        private static void Gone(Object o)
+        {
+            if (Application.isPlaying) Object.Destroy(o); else Object.DestroyImmediate(o);
+        }
+
         private static GameObject LaunchDebris(GameObject go, Vector3 velocity, Vector3 spanAxis, float sign)
         {
-            if (go.transform.childCount == 0) { Object.Destroy(go); return null; }
+            if (go.transform.childCount == 0) { Gone(go); return null; }
             WingDebris d = go.AddComponent<WingDebris>();
             d.Velocity = velocity;
             Vector3 tumble = (spanAxis * 2.5f + Random.onUnitSphere).normalized;
@@ -1723,7 +1733,7 @@ namespace FlyingGame.Bridge
                         }
                         kept.SetTriangles(keep, sm);
                     }
-                    if (lostT.Count == 0) { Object.Destroy(kept); continue; }
+                    if (lostT.Count == 0) { Kill(kept); continue; }
                     var lost = new Mesh { name = src.name + "-leg", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
                     lost.vertices = v; var n = src.normals; if (n != null && n.Length == v.Length) lost.normals = n;
                     var uv = src.uv; if (uv != null && uv.Length == v.Length) lost.uv = uv;
