@@ -3045,6 +3045,70 @@
    "extra": {},
    "link": "",
    "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_valve",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.763,
+    -0.17,
+    -0.322
+   ],
+   "map": [
+    [
+     0,
+     -90
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 1,
+   "unit": "0..1",
+   "desc": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_valve",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.093,
+    -0.17,
+    -0.322
+   ],
+   "map": [
+    [
+     0,
+     -90
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 1,
+   "unit": "0..1",
+   "desc": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
+   "extra": {},
+   "link": "",
+   "note": ""
   }
  ],
  "displays": [
@@ -4825,6 +4889,80 @@
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
    "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_valve",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.763,
+    -0.17,
+    -0.322
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector",
+   "grip": "Grip_FuelSelector",
+   "position_status": "E",
+   "sweep_radius_m": 0.105,
+   "semantics": "absolute",
+   "placement": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
+   "label": "FUEL VALVE"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_valve",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.093,
+    -0.17,
+    -0.322
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector_Front",
+   "grip": "Grip_FuelSelector_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.105,
+   "semantics": "absolute",
+   "placement": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
+   "label": "FUEL VALVE"
   }
  ],
  "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."

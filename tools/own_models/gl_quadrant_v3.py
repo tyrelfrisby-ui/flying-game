@@ -2,7 +2,7 @@
 
 Deterministic rebuild from BASE: ignition only on panels; labelled toggles and
 breakers on grey left consoles; black multi-plate quadrants and white braided
-trim cables with fore/aft scales. Fuel valve omitted pending owner location.
+trim cables with fore/aft scales and linked right-wall fuel handles.
 Existing throttle/prop/mixture inputs and linked trim direction are preserved.
 """
 import json,math,struct,zlib,tempfile,sys
@@ -188,6 +188,7 @@ def build(g,doc):
    if c['node'] in rigrows:rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
  build_wall_trim(g,doc,controls,rigrows,names)
  build_photo_console(g,doc,controls,rigrows,names)
+ build_linkages(g,doc,controls,names)
  doc['controls']=controls
  g.doc['extras']['vrCockpitPhase3a']['placement_v3']='Ty 2026-11-02: left-sidewall throttle quadrant (T/P/M) + single labelled switch row (gl_quadrant_v3.py)'
 
@@ -297,16 +298,64 @@ def build_photo_console(g,doc,controls,rigrows,names):
   put('GL_Quadrant_'+s['sfx'],[('Cockpit_black',plates,None),('P3_ControlMetal',metal,None),('Cockpit_black',black,None),('Cockpit_knob_red',star,None),('GL_PhotoLabels',labels,luv)],(x,.29,z))
   # White cable below the quadrant, with two interwoven surface strands.
   c=next(c for c in controls if c['seat']==seat and c['param']=='trim');P=np.array((x-.08,.322,-.285))
-  rope=Shape();rope.tube(P+(-.23,0,0),P+(.23,0,0),.0023,10)
-  for phase in [0,math.pi]:
-   points=[P+np.array((t,.0024*math.cos(t*950+phase),.0024*math.sin(t*950+phase))) for t in np.linspace(-.23,.23,370)]
-   for a,b in zip(points,points[1:]):rope.tube(a,b,.00065,5)
-  put('GL_TrimCable_'+s['sfx'],[('GL_RopeWhite',rope,None)],P)
   clamp=Shape();clamp.tube(P+(0,-.005,0),P+(0,.005,0),.0045,12)
   pointer=Shape();pointer.box(P+(0,-.002,.012),(.002,.003,.024))
   put(c['node'],[('P3_ControlMetal',clamp,None),('Cockpit_knob_red',pointer,None)],P)
   for ch in nodes[names[c['node']]].get('children',[]):nodes[ch]['translation']=[0,0,0]
  g.doc['extras']['vrCockpitPhase3a']['placement_v4']='Ty photos 2026-11-03: ignition only on panels; console toggles/breakers; laminated quadrant; braided cable trim; no fuel valve'
+
+def build_linkages(g,doc,controls,names):
+ """Continuous trim cord and common fuel-valve torque rod; Ty 2026-11-03."""
+ nodes=g.doc['nodes']
+ def put(name,parts,P):
+  if name not in names:
+   nodes.append(dict(name=name));names[name]=len(nodes)-1;g.doc['scenes'][0]['nodes'].append(names[name])
+  set_mesh(g,name,parts,np.array(P));nodes[names[name]]['translation']=gl(P).tolist()
+ # Cord stays at the existing indicator height across both cockpits, then follows
+ # the narrowing left fuselage toward the tail. Fairleads are open rings.
+ route=[(-.79,.322,-.285),(-2.18,.322,-.285),(-2.65,.255,-.26),(-3.25,.175,-.22),(-3.95,.095,-.18),(-4.5,.045,-.15)]
+ rope=Shape();guides=Shape()
+ for A,B in zip(route,route[1:]):
+  A=np.array(A);B=np.array(B);d=B-A;length=np.linalg.norm(d);d/=length
+  u=np.cross(d,(0,0,1));u/=np.linalg.norm(u);v=np.cross(d,u)
+  rope.tube(A,B,.0023,10)
+  for phase in [0,math.pi]:
+   pts=[A+t*d+.0024*(math.cos(t*950+phase)*u+math.sin(t*950+phase)*v) for t in np.linspace(0,length,int(length*800)+2)]
+   for aa,bb in zip(pts,pts[1:]):rope.tube(aa,bb,.00065,5)
+ for x,y,z in [(-.83,.322,-.285),(-1.48,.322,-.285),*route[1:-1]]:
+  C=np.array((x,y,z))
+  pts=[C+np.array((0,.008*math.cos(t),.008*math.sin(t))) for t in np.linspace(0,2*math.pi,17)]
+  for aa,bb in zip(pts,pts[1:]):guides.tube(aa,bb,.0018,6)
+  guides.box(C+(0,.014,0),(.024,.008,.025))
+ put('GL_TrimCord_Run',[('GL_RopeWhite',rope,None)],route[0])
+ put('GL_TrimCord_Fairleads',[('P3_ControlMetal',guides,None)],route[0])
+ # Both existing interaction nodes use the same fuel_valve input and same axis.
+ # Builder +X rotation takes down (-Z) to inboard (+Y). glTF +X is
+ # builder -X, so -90 degrees produces OFF. Existing fuel input defaults to 1 (ON).
+ import subprocess
+ base_doc=json.loads(subprocess.run(['git','show',BASE+':docs/models/great-lakes-own-rig.json'],cwd=ROOT,check=True,capture_output=True).stdout)
+ rod=Shape();rod.tube((-1.85,-.322,-.170),(-.76,-.322,-.170),.005,12)
+ brackets=Shape()
+ for xx in [-1.83,-1.43,-1.16,-.80]:
+  brackets.tube((xx-.012,-.322,-.170),(xx+.012,-.322,-.170),.010,16)
+  brackets.box((xx,-.340,-.170),(.025,.026,.035))
+ put('GL_FuelValve_SharedRod',[('P3_ControlMetal',rod,None)],(-1.85,-.322,-.170))
+ put('GL_FuelValve_RodGuides',[('Cockpit_quadrant',brackets,None)],(-1.85,-.322,-.170))
+ for seat,s in SEATS.items():
+  nm='Ctl_Rotary_FuelSelector'+s['ctl'];P=np.array((s['px'],-.322,-.170))
+  c=next(dict(c) for c in base_doc['controls'] if c['node']==nm)
+  c.update(pivot_gltf=gl(P).tolist(),axis_gltf=[1.,0.,0.],travel=90,sweep_radius_m=.105,placement='Right wall shared fore/aft rod; ON down, OFF inboard toward knee',label='FUEL VALVE',position_status='E')
+  controls.append(c)
+  red=Shape();red.tube(P+(0,0,-.012),P+(0,0,-.095),.009,12);red.sphere(P+(0,0,-.095),.012,16,10)
+  boss=Shape();boss.tube(P+(-.010,0,0),P+(.010,0,0),.014,16)
+  put(nm,[('Cockpit_knob_red',red,None),('P3_ControlMetal',boss,None)],P)
+  nodes[names[nm]]['extras'].update(rig_axis_gltf=[1.,0.,0.],rig_map_param=[0.,1.],rig_map_deg=[-90.,0.],rig_param_model=1.,interaction=c,mechanically_linked='GL_FuelValve_SharedRod')
+  for ch in nodes[names[nm]].get('children',[]):nodes[ch]['translation']=gl((0,0,-.08)).tolist()
+  row=next(dict(r) for r in base_doc['rig'] if r['node']==nm)
+  row.update(axis_gltf=[1.,0.,0.],pivot_gltf=gl(P).tolist(),map=[[0,-90],[1,0]],model=1,desc=c['placement'])
+  doc['rig'].append(row)
+ g.doc['extras']['vrCockpitPhase3a']['placement_v4']='Ty 2026-11-03: continuous left trim cord through fairleads toward tail; right-wall linked fuel rod and two red handles ON down / OFF inboard'
+
 
 def check_row(g):
  """Photo layout contract: only ignition remains on the instrument panel."""

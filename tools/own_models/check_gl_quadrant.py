@@ -71,9 +71,13 @@ def main():
   c=next(c for c in C if c['seat']==seat and c['param']=='trim');r=rig[c['node']]
   p=builder(np.array(c['pivot_gltf']))
   if not(p[1]>.30 and -.35<p[2]<-.20 and r['kind']=='move' and r['map']==[[-1,-.06],[0,0],[1,.06]] and r['axis_gltf']==[1.,0.,0.]):fails.append((seat,'wall trim contract'))
-  for nm in ('Trim_'+s['sfx'],'FuelValve_'+s['sfx'],'Ctl_Rotary_FuelSelector'+s['ctl'],'Mount_FuelSelector'+s['ctl']):
+  for nm in ('Trim_'+s['sfx'],'FuelValve_'+s['sfx'],'Mount_FuelSelector'+s['ctl']):
    if 'mesh' in N[names[nm]]:fails.append((seat,nm,'obsolete mesh'))
- if any('FuelSelector' in c['node'] for c in C):fails.append('fuel valve interaction remains')
+ for seat,s in q.SEATS.items():
+  nm='Ctl_Rotary_FuelSelector'+s['ctl'];r=rig[nm];p=builder(np.array(r['pivot_gltf']))
+  if not(p[1]<-.30 and abs(p[0]-s['px'])<1e-6 and r['param']=='fuel_valve' and r['map']==[[0,-90],[1,0]] and r['model']==1 and r['axis_gltf']==[1.,0.,0.]):fails.append((seat,'fuel valve linkage'))
+ for nm in ['GL_TrimCord_Run','GL_TrimCord_Fairleads','GL_FuelValve_SharedRod','GL_FuelValve_RodGuides']:
+  if 'mesh' not in N[names[nm]]:fails.append((nm,'missing linkage geometry'))
  print('FAIL' if fails else 'OK',*fails,sep='\n ')
  return not fails
 if __name__=='__main__':sys.exit(0 if main() else 1)
