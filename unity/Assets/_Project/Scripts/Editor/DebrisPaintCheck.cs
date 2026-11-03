@@ -53,7 +53,7 @@ namespace FlyingGame.EditorTools
         {
             _failures = 0;
             string previousOverride = SessionSettings.LiveryOverride;
-            bool previousModels = SessionSettings.UseAirframeModels;
+            bool previousModels = SessionSettings.UseAirframeModels, previousOwn = SessionSettings.UseOwnModels;
             var savedPrefs = new Dictionary<string, string>();
             try
             {
@@ -63,33 +63,51 @@ namespace FlyingGame.EditorTools
                 string only = System.Environment.GetEnvironmentVariable("DEBRIS_TYPES");
                 var types = SessionSettings.Fleet.Select(f => f.id)
                     .Where(id => string.IsNullOrEmpty(only) || only.Split(',').Contains(id)).ToList();
-                foreach (string id in types)
+                // Both model settings (downloaded / ours, SessionSettings.UseOwnModels), and the liveries reached only by the
+                // AERO_LIVERY override that change what is drawn (the 2-33's own GLBs, the Talk Flying 172's repaint). Each
+                // (file placed, livery) pair is broken up once.
+                var overrides = new Dictionary<string, string[]> { { "glider-2-33-like", new[] { "factory", "talk-flying" } }, { "c172-like", new[] { "talk-flying" } } };
+                var done = new HashSet<string>();
+                foreach (bool own in new[] { false, true })
                 {
-                    if (!AirframeModels.Has(id)) { Table.Add($"{id,-24} procedural only (no model placed)"); continue; }
-                    var options = LiveryChoice.For(id).Select(o => o.Id).ToList();
-                    if (options.Count > 0)
+                    SessionSettings.UseOwnModels = own;
+                    foreach (string id in types)
                     {
-                        string key = LiveryChoice.PrefKey(id);
-                        savedPrefs[key] = PlayerPrefs.HasKey(key) ? PlayerPrefs.GetString(key) : null;
-                    }
-                    else options.Add(null);
-                    var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
-                    foreach (string livery in options)
-                    {
-                        if (livery != null) SessionSettings.SetLivery(id, livery);
-                        string tag = $"{id}/{SessionSettings.LiveryFor(id)}";
-                        int before = _failures;
-                        int pieces = 0;
-                        pieces += Scenario(tag, cfg, wings: true, new[] {
-                            AirframeComponent.TailHorizontal, AirframeComponent.TailVertical, AirframeComponent.Nose,
-                            AirframeComponent.GearLeft, AirframeComponent.GearRight });
-                        pieces += Scenario(tag, cfg, wings: false, new[] {
-                            AirframeComponent.AileronRight, AirframeComponent.ElevatorLeft, AirframeComponent.Rudder,
-                            AirframeComponent.WingLeft, AirframeComponent.WingRightOuter, AirframeComponent.TailBoom,
-                            AirframeComponent.GearTail, AirframeComponent.GearNose });
-                        Table.Add($"{tag,-40} glb={AirframeModels.PlacedOwnName(id) != null} pieces={pieces} {(_failures == before ? "PASS" : $"FAIL ({_failures - before})")}");
+                        var options = LiveryChoice.For(id).Select(o => (id: o.Id, over: (string)null)).ToList();
+                        if (options.Count > 0)
+                        {
+                            string key = LiveryChoice.PrefKey(id);
+                            if (!savedPrefs.ContainsKey(key)) savedPrefs[key] = PlayerPrefs.HasKey(key) ? PlayerPrefs.GetString(key) : null;
+                        }
+                        else options.Add((null, null));
+                        if (overrides.TryGetValue(id, out string[] extra)) options.AddRange(extra.Select(o => ((string)null, o)));
+                        var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
+                        foreach (var (livery, over) in options)
+                        {
+                            SessionSettings.LiveryOverride = over;
+                            if (livery != null) SessionSettings.SetLivery(id, livery);
+#if DEBRIS_BASE
+                            string path = AirframeModels.Has(id) ? id + (AirframeModels.PlacedOwnName(id) != null ? "-own" + AirframeModels.OwnSuffix(id) : "") : null;
+#else
+                            string path = AirframeModels.Has(id) ? AirframeModels.PlacedResourcePath(id) : null;
+#endif
+                            string tag = $"{id}/{SessionSettings.LiveryFor(id)}";
+                            if (!done.Add($"{path}|{SessionSettings.LiveryFor(id)}|{id}")) continue;
+                            int before = _failures;
+                            int pieces = 0;
+                            pieces += Scenario(tag, cfg, wings: true, new[] {
+                                AirframeComponent.TailHorizontal, AirframeComponent.TailVertical, AirframeComponent.Nose,
+                                AirframeComponent.GearLeft, AirframeComponent.GearRight });
+                            pieces += Scenario(tag, cfg, wings: false, new[] {
+                                AirframeComponent.AileronRight, AirframeComponent.ElevatorLeft, AirframeComponent.Rudder,
+                                AirframeComponent.WingLeft, AirframeComponent.WingRightOuter, AirframeComponent.TailBoom,
+                                AirframeComponent.GearTail, AirframeComponent.GearNose, AirframeComponent.Nose });
+                            Table.Add($"{tag,-40} {path ?? "procedural",-58} pieces={pieces,4} {(_failures == before ? "PASS" : $"FAIL ({_failures - before})")}");
+                        }
+                        SessionSettings.LiveryOverride = null;
                     }
                 }
+                SessionSettings.UseOwnModels = false;
                 PrebuiltHook();
             }
             catch (System.Exception e) { _failures++; Debug.LogException(e); }
@@ -100,6 +118,7 @@ namespace FlyingGame.EditorTools
                 PlayerPrefs.Save();
                 SessionSettings.LiveryOverride = previousOverride;
                 SessionSettings.UseAirframeModels = previousModels;
+                SessionSettings.UseOwnModels = previousOwn;
                 foreach (string l in Table) Debug.Log("[DebrisCheck] " + l);
                 Debug.Log($"[DebrisCheck] {(_failures == 0 ? "PASS" : "FAIL")} ({_failures} failures)");
                 EditorApplication.Exit(_failures == 0 ? 0 : 1);
@@ -249,7 +268,99 @@ namespace FlyingGame.EditorTools
             if (lost > 0) Fail($"{what}: {lost} renderers left on the aeroplane lost their UVs (e.g. {first})");
         }
 
-        /// <summary>The prebuilt-debris hook, on the Pitts. Filled in with the fix (AirframeBuilder.DebrisPrefabLoader).</summary>
-        private static void PrebuiltHook() { }
+        /// <summary>The prebuilt-debris hook (AirframeBuilder.DebrisPrefabLoader), on the Pitts in every livery, with a
+        /// stand-in set cut from the intact GLB itself (its Stab and elevators renamed Debris.TailHorizontal.*): the only
+        /// path ever asked for is the placed GLB's own plus "-debris"; its pieces are what falls, painted as the intact
+        /// model was; the intact stabiliser leaves the aeroplane; a component the set has nothing for falls back to the
+        /// runtime split; and neither the procedural shell nor a model repainted at run time asks at all.</summary>
+        private static void PrebuiltHook()
+        {
+#if DEBRIS_BASE
+            Debug.Log("[DebrisCheck] prebuilt hook: not in this build (DEBRIS_BASE)");
+#else
+            const string id = "pitts-s2b-like";
+            var asked = new List<string>();
+            GameObject fake = null;
+            AirframeBuilder.DebrisPrefabLoader = p => { asked.Add(p); return fake; };
+            string previousOverride = SessionSettings.LiveryOverride;
+            try
+            {
+                var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
+                foreach (string livery in LiveryChoice.For(id).Select(o => o.Id))
+                {
+                    SessionSettings.SetLivery(id, livery);
+                    // Spelled out here, not read from AirframeModels: the file the game must look for.
+                    string intact = $"Models/{id}/{id}{LiveryChoice.OwnSuffix(id, livery)}";
+                    var prefab = Resources.Load<GameObject>(intact);
+                    if (prefab == null) { Fail($"prebuilt {livery}: no intact GLB at {intact}"); continue; }
+                    fake = Object.Instantiate(prefab);
+                    fake.name = "fake-debris-set";
+                    var renamed = new Dictionary<string, string> { { "Stab", "stab" }, { "Elevator_L", "elevator-l" }, { "Elevator_R", "elevator-r" } };
+                    int named = 0;
+                    foreach (Transform t in fake.GetComponentsInChildren<Transform>(true))
+                        if (renamed.TryGetValue(t.name, out string label)) { t.name = "Debris.TailHorizontal." + label; named++; }
+                    if (named != 3) Fail($"prebuilt {livery}: the stand-in found {named} of Stab/Elevator_L/Elevator_R in the GLB");
+
+                    asked.Clear();
+                    var root = new GameObject(id);
+                    var builder = new AirframeBuilder();
+                    var debris = new List<GameObject>();
+                    try
+                    {
+                        builder.Build(root.transform, cfg);
+                        builder.FreezeRig();
+                        Snapshot snap = Take(root.transform);
+                        GameObject h = AirframeVisual.DetachStatic(builder, root.transform, cfg, AirframeComponent.TailHorizontal, Vector3.zero);
+                        debris.Add(h);
+                        if (asked.Count != 1 || asked[0] != intact + "-debris")
+                            Fail($"prebuilt {livery}: asked for [{string.Join(", ", asked)}], wanted exactly [{intact}-debris]");
+                        var top = h != null ? Enumerable.Range(0, h.transform.childCount).Select(i => h.transform.GetChild(i).name).ToList() : new List<string>();
+                        if (top.Count != 3 || top.Any(n => !n.StartsWith("Debris.TailHorizontal.")))
+                            Fail($"prebuilt {livery}: TailHorizontal dropped [{string.Join(", ", top)}], wanted the set's three Debris.TailHorizontal.* pieces");
+                        Verify($"prebuilt {livery} TailHorizontal", h, snap);
+                        foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
+                        {
+                            string n = mf.name.StartsWith("Model:") ? mf.name.Substring(6) : mf.name;
+                            if ((n.StartsWith("Stab") || n.StartsWith("Elevator")) && mf.sharedMesh != null && mf.GetComponent<Renderer>().enabled)
+                                Fail($"prebuilt {livery}: the intact {n} is still drawn on the aeroplane after its prebuilt pieces fell");
+                        }
+                        GameObject v = AirframeVisual.DetachStatic(builder, root.transform, cfg, AirframeComponent.TailVertical, Vector3.zero);
+                        debris.Add(v);
+                        int vPieces = v != null ? v.GetComponentsInChildren<MeshRenderer>(true).Length : 0;
+                        bool vPre = v != null && v.GetComponentsInChildren<Transform>(true).Any(t => t.name.StartsWith("Debris."));
+                        if (vPieces == 0 || vPre) Fail($"prebuilt {livery}: TailVertical (not in the set) should fall back to the runtime split; got {vPieces} renderers, prebuilt={vPre}");
+                        Verify($"prebuilt {livery} TailVertical (fallback)", v, snap);
+                        if (asked.Count != 1) Fail($"prebuilt {livery}: the set was looked up {asked.Count} times in one build");
+                        Debug.Log($"[DebrisCheck] prebuilt {livery}: asked [{string.Join(", ", asked)}], TailHorizontal [{string.Join(", ", top)}], TailVertical fallback {vPieces} renderers");
+                    }
+                    finally
+                    {
+                        foreach (GameObject d in debris) if (d != null) Object.DestroyImmediate(d);
+                        builder.Clear(); Object.DestroyImmediate(root); Object.DestroyImmediate(fake); fake = null;
+                    }
+                }
+                // No set is ever looked up for the procedural shell, nor for a model whose paint was changed at run time.
+                foreach ((string type, string over) in new[] { ("decathlon-8kcab-like", (string)null), ("c172-like", "talk-flying") })
+                {
+                    SessionSettings.LiveryOverride = over;
+                    asked.Clear();
+                    var c = UnityAircraftConfigLoader.LoadFromStreamingAssets(type);
+                    var root = new GameObject(type); var builder = new AirframeBuilder();
+                    builder.Build(root.transform, c);
+                    GameObject d = AirframeVisual.DetachStatic(builder, root.transform, c, AirframeComponent.TailHorizontal, Vector3.zero);
+                    if (asked.Count != 0) Fail($"prebuilt: {type}{(over != null ? " in " + over : "")} (model={builder.UsedModel}) asked for [{string.Join(", ", asked)}]");
+                    else Debug.Log($"[DebrisCheck] prebuilt: {type}{(over != null ? " in " + over : "")} (model={builder.UsedModel}) asks for no debris set");
+                    if (d != null) Object.DestroyImmediate(d);
+                    builder.Clear(); Object.DestroyImmediate(root);
+                }
+            }
+            finally
+            {
+                AirframeBuilder.DebrisPrefabLoader = null;
+                SessionSettings.LiveryOverride = previousOverride;
+                if (fake != null) Object.DestroyImmediate(fake);
+            }
+#endif
+        }
     }
 }
