@@ -41,7 +41,12 @@
     time), with the 8BitDo (stick-free off, its default now) and without it (touch, stick-free): each one should bank
     gently RIGHT the same way, slower with the pad (held surfaces). Then tick "Gamepad: stick-free" and do it again:
     it should match the touch launches. Then the Great Lakes.
-  - BUILD: lane build `2026.1102.2030` `** BUILD SUCCEEDED **`, 0 `error CS`. INSTALL: see the island-nav entry.
+  - BUILD: lane build `2026.1102.2030` `** BUILD SUCCEEDED **`, 0 `error CS`. Merged into lane/claude-island-nav
+    (fast-forward to d4315fd5, which includes hydro's stick-free option); island-nav build **`2026.1102.2103`**
+    `** BUILD SUCCEEDED **`, 0 `error CS`. **On the iPad mini (installed and launched, 21:13). NOT on your iPhone:**
+    devicectl said "unavailable" and refused every install for 4 minutes (CoreDeviceError 4016, "not able to fulfill
+    the requested usage assertion requirements" — locked or asleep). Your iPhone still has whatever it had before
+    (last known from this lane: 2026.1102.1803). Check the build stamp on screen before flying.
 - **J-3 ON FLOATS: NEW WATER PHYSICS, PHYSICS SPRAY, GAMEPAD STICK-FREE OPTION — PLEASE FEEL-TEST (Claude, 2026-11-02,
   lane/claude-hydro). Nothing approved.** Full write-up: `docs/pending/HYDRO-J3-CLAUDE.md`.
   1. **Water run.** The flight model now floats on the DRAWN EDO 60-1320s (the old physics float was 0.32 m outboard
@@ -1128,6 +1133,18 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 21:20 — Claude · lane/claude-island-nav · rig-trim run 2 merged; iPad mini only
+- Merged lane/claude-rig-trim (d4315fd5: launch-to-launch fix, AirStart/PilotControls, LaunchReplicationTests, composed
+  with hydro's gamepad stick-free option) — fast-forward. First deploy attempt aborted before building (Unity: "another
+  Unity instance is running with this project open"; nothing held the lock a minute later); retried.
+- `zsh tools/deploy/deploy.sh 00008150-001629A83662401C 00008130-001230A92678001C` → `2026.1102.2103`
+  `** BUILD SUCCEEDED **`, 0 `error CS`. iPad mini: installed, launched. iPhone: "unavailable", install refused
+  (CoreDeviceError 4016) at 21:13 and on six retries to 21:18 — NOT installed. bundleVersion and GraphicsSettings
+  re-serialisation reverted.
+- On the merged code (d4315fd5): LaunchReplicationTests + GamepadStickFreeTests 72/72 pass — 5 launches × 34 types ×
+  stick-free ON/OFF (pad launches through hydro's option), spread 0 m / 0 rad, worst rate 0.241 °/s (hang glider
+  pendulum), sideslip ≤ 0.023°, heading change ≤ 0.68° in 40 s, powered |Δh| ≤ 1.0 m.
+
 ### 2026-11-02 run 2 — Claude · lane/claude-rig-trim · launch-to-launch variation (Pitts left one launch, right the next)
 - Merged lane/claude-island-nav (fast-forward to d1bf88d1: cockpit-look's gamepad hot-plug etc.).
 - TASK 0 (Ty 18:24, "was the rig solved stick-fixed?"): yes. `RigSolver.Residual` → `SteadyForces` with
