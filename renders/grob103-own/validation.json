@@ -2,18 +2,19 @@
   {
     "file": "glider-grob103-acro-like-own.glb",
     "dimensions_m": {
-      "span": 17.5,
+      "span": 18.0,
       "length": 8.179999988079071,
-      "height": 1.550000011920929
+      "height": 1.8100000619888306
     },
-    "nodes": 313,
+    "nodes": 315,
     "rig_nodes": 29,
     "head_clearance_m": {
-      "front": 0.10105811830830402,
-      "rear": 0.10696572806484461
+      "front": 0.08372636137878836,
+      "rear": 0.07275388738135063
     },
+    "head_fit": "PASS geometric clearance; proposed eyes require Ty review",
     "instrument_gap_m": {
-      "F": 0.09200274891614851,
+      "F": 0.0920027459277458,
       "R": 0.09200274216160331
     },
     "graph": "PASS",
@@ -67,18 +68,19 @@
   {
     "file": "glider-grob103-acro-like-own-tf.glb",
     "dimensions_m": {
-      "span": 17.5,
+      "span": 18.0,
       "length": 8.179999988079071,
-      "height": 1.550000011920929
+      "height": 1.8100000619888306
     },
-    "nodes": 313,
+    "nodes": 315,
     "rig_nodes": 29,
     "head_clearance_m": {
-      "front": 0.10105811830830402,
-      "rear": 0.10696572806484461
+      "front": 0.08372636137878836,
+      "rear": 0.07275388738135063
     },
+    "head_fit": "PASS geometric clearance; proposed eyes require Ty review",
     "instrument_gap_m": {
-      "F": 0.09200274891614851,
+      "F": 0.0920027459277458,
       "R": 0.09200274216160331
     },
     "graph": "PASS",

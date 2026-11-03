@@ -81,3 +81,11 @@ The binding key is `glider-grob103-acro-like-own` for BOTH liveries. ConfigSync 
 Claude must rebase datum-relative seats, eyes, wings, gear and CG consistently, then verify the importer's
 actual placement/automatic longitudinal and vertical alignment in `AirframeModels.Place` and
 `AirframeBuilder.TryPlaceModel`. The eye entries are proposals, not Ty-approved camera replacements.
+
+### Twin III correction, 2026-11-03
+All 29 driven nodes/maps/hierarchy retained. Outer aileron witnesses now end at
+±9 m span; elevator pivots and markers rise .32 m to author Z=1.15 m. Front
+panel instrument pivots move .10 m aft/.13 m down, front pedals follow its
+station; front tow cable routed clear. Generated rig JSON is authoritative.
+Proposed GLB eyes now (-1.15,.18,0) and (.04,.26,0), pending Ty review; prior
+visual eye coordinates above are superseded. No application eyepoints changed.

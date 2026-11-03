@@ -1,4 +1,4 @@
-"""Original analytic Twin II Acro. CPU GLB generation using shared glb_visuals.
+"""Original analytic G 103 C Twin III Acro. CPU GLB generation using shared glb_visuals.
 Run with a Python containing NumPy/Pillow. See provenance for measured/estimated values.
 Author: nose +X, port +Y, up +Z; export (-X,Z,Y), matching the SGS own convention.
 """
@@ -13,14 +13,22 @@ OUT=ROOT/'unity/Assets/_Project/Resources/Models'/ID
 DOC=ROOT/'docs/models'
 # x, half width, bottom, sill/top. Upper fuselage is omitted over cockpit aperture.
 ST=np.array([(2.50,.008,-.24,-.22),(2.40,.12,-.35,-.14),(2.20,.24,-.43,-.03),(1.95,.32,-.48,.02),(1.70,.36,-.50,.06),(1.35,.375,-.51,.09),(.8,.38,-.51,.12),(.2,.37,-.49,.15),(-.4,.34,-.49,.18),(-.75,.30,-.46,.19),(-1.2,.235,-.34,.18),(-2,.16,-.15,.15),(-3,.105,-.09,.13),(-4,.075,-.06,.13),(-4.9,.055,-.04,.16),(-5.45,.012,.01,.20)])[::-1]
-CAN=np.array([(-.75,.30,.19,.19),(-.55,.26,.175,.56),(-.25,.325,.16,.69),(.2,.35,.14,.72),(.75,.36,.12,.70),(1.3,.35,.095,.61),(1.7,.315,.065,.45),(1.95,.25,.025,.24),(2.10,.27,.0,.0)])
+# POH depths are referenced to the level belly at -0.51 m.
+# Rear deck joins the rear canopy crown without the former step down.
+ST[ST[:,0]==-.75,3]=.475
+ST[ST[:,0]==-1.2,3]=.32
+ST[ST[:,0]==-2,3]=.17
+ST=np.array(sorted([*ST.tolist(),[-.9,.28,-.43,.335],[-1.5,.205,-.27,.315]]))
+CAN=np.array([(-.65,.295,.19,.475),(-.50,.31,.18,.485),(-.25,.325,.16,.48),(.2,.35,.14,.465),(.75,.36,.12,.44),(1.3,.35,.095,.385),(1.5,.335,.08,.31),(1.75,.30,.05,.19),(1.95,.27,.025,.025)])
+CAN_REAR=-.65
+CAN_FRONT=1.95
 # Reduced factual E603 ordinates, UIUC Airfoil Coordinates Database e603.dat.
 # Linear interpolation of these measurements is our authored section approximation.
 E603_U=np.array([(0,0),(.01552,.02753),(.06908,.06474),(.15638,.09762),(.27006,.12026),(.40004,.12786),(.53636,.11544),(.67748,.08372),(.81231,.04956),(.92006,.02231),(.98548,.00366),(1,0)])
 E603_L=np.array([(0,0),(.01949,-.01875),(.08835,-.03814),(.19738,-.05252),(.33427,-.06074),(.43366,-.06209),(.58259,-.05521),(.72446,-.03094),(.86085,-.00417),(.96385,.00340),(1,0)])
 def e603(f,upper):
     a=E603_U if upper else E603_L;return float(np.interp(f,a[:,0],a[:,1]))
-EYES={'front':[1.15,0,.40],'rear':[-.04,0,.45]}
+EYES={'front':[1.15,0,.18],'rear':[-.04,0,.26]}
 def cv(p):return np.asarray(p)[...,[0,2,1]]*[-1,1,1]
 def section(x):return [float(np.interp(x,ST[:,0],ST[:,k])) for k in range(1,4)]
 def canopy(x):return [float(np.interp(x,CAN[:,0],CAN[:,k])) for k in range(1,4)]
@@ -45,7 +53,7 @@ class Builder:
     if pivot is None:pivot=np.zeros(3)
     self.g.mesh(n,cv(v-np.array(pivot)),tri,self.m[mat],uv)
     node=self.g.doc['nodes'][-1];node['translation']=cv(pivot).tolist();self.parts[n]=(v,np.array(tri))
-    if n.startswith(('Fuselage','Wing_','Aileron','Stabilizer','Canopy_Glass')):
+    if n.startswith(('Fuselage','Wing_','Aileron','Stabilizer','Canopy_Glass','Nose_Wheel','Main_Wheel','Tail_Wheel','Nose_Fairing','Main_Fairing','Tail_Fairing')):
         prim=self.g.doc['meshes'][-1]['primitives'][0];pos=self.g.array(prim['attributes']['POSITION'])
         tt=pos.reshape(-1,3,3);nn=np.repeat(np.cross(tt[:,1]-tt[:,0],tt[:,2]-tt[:,0]),3,axis=0)
         _,inv=np.unique(np.round(pos,6),axis=0,return_inverse=True);summed=np.zeros((inv.max()+1,3));np.add.at(summed,inv,nn)
@@ -97,7 +105,7 @@ class Builder:
     rows=[]
     for x in np.linspace(-5.45,2.50,130):
         w,bt,tp=section(x)
-        if -.75<=x<=2.10:
+        if CAN_REAR<=x<=CAN_FRONT:
             w,sill,roof=canopy(x)
             # Opening edges meet the glass, lower half is an original egg section.
             upper=[(x,w*math.cos(t),sill+.03*math.sin(t)) for t in np.linspace(math.pi,0,13)[:-1]]
@@ -110,47 +118,47 @@ class Builder:
     f=[]
     for i in range(len(rows)-1):
         for j in range(48):
-            if -.75<rows[i][0][0]<2.10 and j<12:continue
+            if CAN_REAR<rows[i][0][0]<CAN_FRONT and j<12:continue
             f.append((i*48+j,i*48+(j+1)%48,(i+1)*48+(j+1)%48,(i+1)*48+j))
     f.extend([tuple(range(47,-1,-1)),tuple((len(rows)-1)*48+j for j in range(48))])
     self.mesh('Fuselage_Painted',np.array(rows).reshape(-1,3),f)
     # Interior shell is separate inward-facing geometry, 14mm inside exterior, open at the sills.
     rr=[]
-    for x in np.linspace(-.72,2.08,70):
+    for x in np.linspace(CAN_REAR+.02,CAN_FRONT-.02,70):
         w,sill,roof=canopy(x);bt=section(x)[1];w=max(.01,w-.014);bt+=.014
         rr.append([(x,w*math.cos(t),sill+(sill-bt)*math.sin(t)) for t in np.linspace(0,-math.pi,36)])
     fs=[(i*36+j,(i+1)*36+j,(i+1)*36+j+1,i*36+j+1) for i in range(69) for j in range(35)]
     self.mesh('Cockpit_Liner',np.array(rr).reshape(-1,3),[tuple(reversed(q)) for q in fs],'liner')
     self.g.doc['materials'][self.m['liner']]['doubleSided']=True
-    for end,x in [('Front',2.08),('Rear',-.72)]:
+    for end,x in [('Front',CAN_FRONT-.02),('Rear',CAN_REAR+.02)]:
         w,sill,roof=canopy(x);bt=section(x)[1];w-=.014;bt+=.014;sill-=.008
         pts=[(x,w*math.cos(t),sill+(sill-bt)*math.sin(t)) for t in np.linspace(0,-math.pi,36)]
         self.mesh('Cockpit_Bulkhead_'+end,pts,[tuple(range(36))],'liner')
     # Separate canopy sections at the fixed bow (photo and manual three-view).
-    for name,x0,x1 in [('Front',.54,2.10),('Rear',-.75,.54)]:
+    for name,x0,x1 in [('Front',.54,CAN_FRONT),('Rear',CAN_REAR,.54)]:
         rr=[]
         for x in np.linspace(x0,x1,36):
             w,sill,top=canopy(x);rr.append([(x,w*math.cos(t),sill+(top-sill)*math.sin(t)) for t in np.linspace(0,math.pi,32)])
         fs=[(i*32+j,i*32+j+1,(i+1)*32+j+1,(i+1)*32+j) for i in range(35) for j in range(31)]
         self.mesh('Canopy_Glass_'+name,np.array(rr).reshape(-1,3),fs,'glass')
-    for x in [-.60,.54,1.97]:
+    for x in [-.60,.54,1.90]:
         w,sill,top=canopy(x);pts=[(x,w*math.cos(t),sill+(top-sill)*math.sin(t)) for t in np.linspace(0,math.pi,28)]
         for i,(a,b) in enumerate(zip(pts,pts[1:])):self.tube(f'Canopy_Bow_{x}_{i}',a,b,.006)
     for sg in [-1,1]:
-        pts=[(x,sg*canopy(x)[0],canopy(x)[1]) for x in np.linspace(-.75,2.10,50)]
+        pts=[(x,sg*canopy(x)[0],canopy(x)[1]) for x in np.linspace(CAN_REAR,CAN_FRONT,50)]
         for i,(a,b) in enumerate(zip(pts,pts[1:])):self.tube(f'Canopy_Sill_{sg}_{i}',a,b,.008)
-    le=lambda s:float(np.interp(s,[0,5,8.75],[0,-.05,-.12]))
-    ch=lambda s:float(np.interp(s,[0,5,8.75],[1.3475,1.08,.43]))
+    le=lambda s:float(np.interp(s,[0,5,9.0],[0,-.05,-.12]))
+    ch=lambda s:float(np.interp(s,[0,5,9.0],[1.3475,1.08,.43]))
     z=lambda s:.12+s*math.tan(math.radians(2.5))
     AF=1-.208/ch(5.25)
     aup=math.degrees(math.asin(90/208));adn=math.degrees(math.asin(50/208))
     eup=math.degrees(math.asin(3.82/9.45));edn=math.degrees(math.asin(2.99/9.45))
     for sg,sd in [(1,'L'),(-1,'R')]:
         self.surface('Wing_Inner_'+sd,sg*np.r_[0,np.linspace(.45,5.25,32)],le,ch,z)
-        self.surface('Wing_Outer_'+sd,sg*np.linspace(5.25,8.75,32),le,ch,z,0,AF)
+        self.surface('Wing_Outer_'+sd,sg*np.linspace(5.25,9.0,32),le,ch,z,0,AF)
         p=np.array([le(5.25)-AF*ch(5.25),sg*5.25,z(5.25)+.5*(e603(AF,True)+e603(AF,False))*ch(5.25)])
-        q=np.array([le(8.75)-AF*ch(8.75),sg*8.75,z(8.75)+.5*(e603(AF,True)+e603(AF,False))*ch(8.75)])
-        n='Aileron_'+sd;self.surface(n,sg*np.linspace(5.25,8.75,32),le,ch,z,AF+.004,1,p)
+        q=np.array([le(9.0)-AF*ch(9.0),sg*9.0,z(9.0)+.5*(e603(AF,True)+e603(AF,False))*ch(9.0)])
+        n='Aileron_'+sd;self.surface(n,sg*np.linspace(5.25,9.0,32),le,ch,z,AF+.004,1,p)
         # L axis points starboard, R points port; positive roll lowers L and raises R.
         self.rigpart(n,p,(q-p)*-1,'aileron',[-aup,0,adn] if sd=='L' else [-adn,0,aup],marker=q)
         # Top-surface Schempp-Hirth blades: no lower spoiler.
@@ -158,23 +166,33 @@ class Builder:
         self.box(n,[p[0],p[1],p[2]-.085],[.045,1.25,.17],'red',p)
         self.rigpart(n,p,[0,0,1],'spoiler',[0,.170],kind='move')
         self.box('Airbrake_Cap_'+sd,[p[0],p[1],p[2]],[.08,1.29,.006]);self.attach('Airbrake_Cap_'+sd,n)
-        tle=lambda s:float(np.interp(s,[0,1.6],[-4.68,-4.88]));tch=lambda s:float(np.interp(s,[0,1.6],[.83,.54]));tz=lambda s:.83
+        tle=lambda s:float(np.interp(s,[0,1.6],[-4.68,-4.88]));tch=lambda s:float(np.interp(s,[0,1.6],[.83,.54]));tz=lambda s:1.15
         self.surface('Stabilizer_'+sd,sg*np.linspace(.01,1.6,20),tle,tch,tz,0,lambda y:(tle(abs(y))+5.35997)/tch(abs(y)))
-        p=[-5.35997,sg*.02,.83]
+        p=[-5.35997,sg*.02,1.15]
         # Elevator constant hinge line; trapezoidal trailing edge.
-        rows=[[(p[0],sg*s,.83+.018),(-5.68+.16*s/1.6,sg*s,.83+.008),(-5.68+.16*s/1.6,sg*s,.83-.008),(p[0],sg*s,.83-.018)] for s in np.linspace(.02,1.6,20)]
-        n='Elevator_'+sd;self.loft(n,rows,pivot=p);self.rigpart(n,p,[0,1,0],'elevator',[-edn,0,eup],marker=[p[0],sg*1.6,.83])
-    # Raked fin, T-tail at 0.83; ground at -.67 => total 1.55.
-    self.loft('Fin',[[(-4.55,sg*.055,.10),(-5.23,sg*.055,.10),(-5.23,sg*.018,.88),(-4.91,sg*.018,.88)] for sg in [-1,1]])
+        rows=[[(p[0],sg*s,1.15+.018),(-5.68+.16*s/1.6,sg*s,1.15+.008),(-5.68+.16*s/1.6,sg*s,1.15-.008),(p[0],sg*s,1.15-.018)] for s in np.linspace(.02,1.6,20)]
+        n='Elevator_'+sd;self.loft(n,rows,pivot=p);self.rigpart(n,p,[0,1,0],'elevator',[-edn,0,eup],marker=[p[0],sg*1.6,1.15])
+    # Raked fin crown 1.20: 1.71 m above the level belly; T-tail follows it.
+    self.loft('Fin',[[(-4.55,sg*.055,.10),(-5.23,sg*.055,.10),(-5.23,sg*.018,1.20),(-4.91,sg*.018,1.20)] for sg in [-1,1]])
     p=[-5.23,0,.10];n='Rudder'
-    self.loft(n,[[(-5.23,sg*.018,.10),(-5.68,sg*.01,.10),(-5.55,sg*.01,.86),(-5.23,sg*.018,.88)] for sg in [-1,1]],pivot=p)
-    ru=math.degrees(math.asin(233/450));self.rigpart(n,p,[0,0,1],'rudder',[-ru,0,ru],marker=[-5.23,0,.88])
-    for label,x,r,zc in [('Nose',1.65,.16,-.51),('Main',-.44,.22,-.45)]:
-        self.tube(label+'_Wheel',(x,-.062,zc),(x,.062,zc),r,'tyre')
-        self.tube(label+'_Hub',(x,-.065,zc),(x,.065,zc),r*.40)
-        # Partial fairing only over upper wheel, no black rectangular landing gear.
-        self.box(label+'_Fairing',(x,0,zc+.16),(.43,.18,.10))
-    self.tube('Tail_Skid',(-5.26,0,.035),(-5.45,0,-.10),.018,'metal')
+    self.loft(n,[[(-5.23,sg*.018,.10),(-5.68,sg*.01,.10),(-5.55,sg*.01,1.18),(-5.23,sg*.018,1.20)] for sg in [-1,1]],pivot=p)
+    ru=math.degrees(math.asin(233/450));self.rigpart(n,p,[0,0,1],'rudder',[-ru,0,ru],marker=[-5.23,0,1.20])
+    # Fixed gear: rounded balloon section; skin fillets, never detached pants.
+    for label,aft,r,width,exposed in [('Nose',.80,.130,.085,.10),('Main',2.90,.220,.150,.12),('Tail',7.10,.105,.065,.07)]:
+        x=2.50-aft;keel=section(x)[1];zc=keel+r-exposed
+        # Elliptical rounded tire cross-section around a small central hub.
+        rows=[]
+        for t in np.linspace(-math.pi/2,math.pi/2,25):
+            y=width/2*math.sin(t);radius=r-width/2+width/2*math.cos(t)
+            rows.append([(x+radius*math.cos(q),y,zc+radius*math.sin(q)) for q in np.linspace(0,2*math.pi,64,endpoint=False)])
+        self.loft(label+'_Wheel',rows,'tyre')
+        self.tube(label+'_Hub',(x,-width*.32,zc),(x,width*.32,zc),r*.30)
+        # Lower lip follows the wheel arc at keel; widening upper rings enter host skin.
+        lip=keel-.008;length=math.sqrt(max(0,r*r-(lip-zc)**2))+.018
+        rr=[]
+        for h,ln,wd in [(lip,length,width/2+.012),(keel+.035,length+.045,width/2+.028),(keel+.095,length+.10,width/2+.045)]:
+            rr.append([(x+ln*math.cos(q),wd*math.sin(q),h) for q in np.linspace(0,2*math.pi,64,endpoint=False)])
+        self.loft(label+'_Fairing',rr,caps=False)
     self.tube('Pitot_Fin',(-4.85,0,.68),(-4.58,0,.68),.006)
     for x,n in [(2.44,'Nose_Tow_Hook'),(-.35,'CG_Tow_Hook')]:self.tube(n,(x,-.016,-.33 if x>0 else -.46),(x,.016,-.33 if x>0 else -.46),.009)
     for sg in [-1,1]:self.box('Static_Port_'+str(sg),(.53,sg*.38,-.04),(.018,.005,.018),'metal')

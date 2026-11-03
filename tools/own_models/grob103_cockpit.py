@@ -6,7 +6,7 @@ import numpy as np
 
 def build_cockpit(b):
  from build_grob103 import canopy,section
- for seat,x,zeye,px in [('F',1.15,.40,1.73),('R',-.04,.45,.53)]:
+ for seat,x,zeye,px in [('F',1.15,.18,1.63),('R',-.04,.26,.53)]:
     b.box('Seat_Pan_'+seat,(x-.06,0,-.29),(.35,.40,.065),'seat')
     b.box('Seat_Back_'+seat,(x-.27,0,-.08),(.065,.40,.44),'seat')
     b.box('Headrest_'+seat,(x-.30,0,.21),(.09,.20,.13),'seat')
@@ -15,7 +15,7 @@ def build_cockpit(b):
         b.box(f'Lap_Harness_{seat}_{sg}',(x+.02,sg*.12,-.247),(.055,.22,.012),'belt')
     b.box('Buckle_'+seat,(x+.02,0,-.230),(.065,.060,.022),'metal')
     # Rounded-top panel shield, three primary instruments and separate compass front.
-    z=.13 if seat=='F' else .18
+    z=0.0 if seat=='F' else .18
     outline=[(-.25,z-.15),(.25,z-.15),(.25,z+.08),(.20,z+.17),(.11,z+.20),(-.11,z+.20),(-.20,z+.17),(-.25,z+.08)]
     b.loft('Panel_'+seat,[[(xx,y,zz) for y,zz in outline] for xx in [px,px+.028]],'panel')
     layout=[('ASI',.145,z+.065,'asi'),('Vario',-.145,z+.065,'vario'),('Alt100',0,z-.045,'alt')]
@@ -73,7 +73,7 @@ def build_cockpit(b):
     p=[x+.40,.21,-.06];n='TowRelease_'+seat
     b.tube(n,[p[0],p[1]-.023,p[2]],[p[0],p[1]+.023,p[2]],.021,'yellow',p)
     b.rigpart(n,p,[-1,0,0],'tow_release',[0,.05],'move')
-    b.tube('TowCable_'+seat,p,[p[0]+.14,p[1],p[2]],.004,'metal');b.attach('TowCable_'+seat,n)
+    b.tube('TowCable_'+seat,p,[p[0]+(.04 if seat=='F' else .14),p[1],p[2]-.16 if seat=='F' else p[2]],.004,'metal');b.attach('TowCable_'+seat,n)
     # User requested yellow jettison; manual says RED: documented discrepancy.
     b.box('Canopy_Jettison_'+seat,(x+.12,-.29,.045),(.09,.026,.025),'yellow')
     b.box('Floor_'+seat,(x+.17,0,-.40),(.80,.26,.015),'liner')

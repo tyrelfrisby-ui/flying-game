@@ -34,11 +34,24 @@ def check(path):
         vv.extend(v);tt.extend(v[ids])
     parts[n['name']]=np.array(vv);tris[n['name']]=np.array(tt)
  points=np.concatenate(list(parts.values()));size=np.ptp(points,axis=0)
- assert abs(size[2]/17.50-1)<=.01,size
+ assert abs(size[2]/18.00-1)<=.01,size
  assert abs(size[0]/8.18-1)<=.02,size
- assert abs(size[1]/1.55-1)<=.05,size
+ assert abs(size[1]/1.81-1)<=.05,size
+ # Twin III geometry witnesses independently pinned to the requested dimensions.
+ assert abs(parts['Fin'][:,1].max()+.51-1.71)<1e-5
+ glass=np.concatenate([v for n,v in parts.items() if n.startswith('Canopy_Glass')])
+ assert abs(np.ptp(glass[:,0])-2.60)<1e-5
+ assert .99 < glass[:,1].max()+.51 < 1.001
+ assert 'Tail_Skid' not in parts
+ for label,aft,diam,width,exposed in [('Nose',.80,.26,.085,.10),('Main',2.90,.44,.15,.12),('Tail',7.10,.21,.065,.07)]:
+    v=parts[label+'_Wheel'];centre=(v.min(0)+v.max(0))/2
+    assert abs(centre[0]+2.50-aft)<1e-5
+    assert np.allclose(np.ptp(v,axis=0),[diam,diam,width],atol=1e-5)
+    from build_grob103 import section
+    assert abs(section(-centre[0])[1]-v[:,1].min()-exposed)<1e-5
+    assert label+'_Fairing' in parts
  rig=json.loads((ROOT/'docs/models/grob103-own-rig.json').read_text())['rig']
- pivots={'Aileron_L':None,'Aileron_R':None,'Elevator_L':[5.35997,.83,.02],'Elevator_R':[5.35997,.83,-.02],'Rudder':[5.23,.10,0],'Spoiler_L':None,'Spoiler_R':None}
+ pivots={'Aileron_L':None,'Aileron_R':None,'Elevator_L':[5.35997,1.15,.02],'Elevator_R':[5.35997,1.15,-.02],'Rudder':[5.23,.10,0],'Spoiler_L':None,'Spoiler_R':None}
  for r in rig:
     i=next(i for i,n in enumerate(nodes) if n['name']==r['node']);p=world[i][:3,3];assert np.allclose(p,r['pivot_gltf'],atol=1e-6)
     extra=nodes[i].get('extras',{});assert extra['rig_param']==r['param']
@@ -50,7 +63,7 @@ def check(path):
     assert np.linalg.norm(np.cross(d,a))<1e-5,('axis marker',r['node'])
     if r['node'] in pivots and pivots[r['node']] is not None:assert np.allclose(p,pivots[r['node']],atol=1e-6)
     if r['node'].startswith('Aileron'):
-        s=5.25;le=-.05+(.25/3.75)*(-.07);ch=1.08+(.25/3.75)*(.43-1.08);af=1-.208/ch;cam=.5*(np.interp(af,[.67748,.81231],[.08372,.04956])+np.interp(af,[.72446,.86085],[-.03094,-.00417]));expected=[-(le-af*ch),.12+s*math.tan(math.radians(2.5))+cam*ch,s if r['node'].endswith('L') else -s]
+        s=5.25;le=-.05+(.25/4.0)*(-.07);ch=1.08+(.25/4.0)*(.43-1.08);af=1-.208/ch;cam=.5*(np.interp(af,[.67748,.81231],[.08372,.04956])+np.interp(af,[.72446,.86085],[-.03094,-.00417]));expected=[-(le-af*ch),.12+s*math.tan(math.radians(2.5))+cam*ch,s if r['node'].endswith('L') else -s]
         assert np.allclose(p,expected,atol=1e-6)
  # TCDS deflections independently calculated from the stated linear measurements.
  expected_angles={'Aileron_L':[-math.degrees(math.asin(90/208)),0,math.degrees(math.asin(50/208))], 'Aileron_R':[-math.degrees(math.asin(50/208)),0,math.degrees(math.asin(90/208))], 'Elevator_L':[-math.degrees(math.asin(2.99/9.45)),0,math.degrees(math.asin(3.82/9.45))], 'Elevator_R':[-math.degrees(math.asin(2.99/9.45)),0,math.degrees(math.asin(3.82/9.45))], 'Rudder':[-math.degrees(math.asin(233/450)),0,math.degrees(math.asin(233/450))]}
@@ -133,7 +146,7 @@ def check(path):
     assert ok.any(),('head outside canopy',x,z)
     return np.max((t[:,0,1]+s*(t[:,1,1]-t[:,0,1])+r*(t[:,2,1]-t[:,0,1]))[ok])
  head={}
- for seat,expected in [('front',[-1.15,.40,0]),('rear',[.04,.45,0])]:
+ for seat,expected in [('front',[-1.15,.18,0]),('rear',[.04,.26,0])]:
     i=next(i for i,n in enumerate(nodes) if n['name']=='Pilot_Eye_'+seat);eye=world[i][:3,3];assert np.allclose(eye,expected)
     gaps=[]
     for theta in np.linspace(0,2*math.pi,48):
@@ -144,7 +157,7 @@ def check(path):
  for n in nodes:
     if n['name'].startswith('Canopy_Glass'):
         for p in g.doc['meshes'][n['mesh']]['primitives']:assert g.doc['materials'][p['material']]['alphaMode']=='BLEND'
- return dict(file=path.name,dimensions_m=dict(span=float(size[2]),length=float(size[0]),height=float(size[1])),nodes=len(nodes),rig_nodes=len(rig),head_clearance_m=head,instrument_gap_m=clearances,graph='PASS',hinge_origins='PASS',canopy_alpha='PASS',cockpit_adjacent_instruments_and_colored_controls='PASS',whole_cockpit_collision_audit=dict(independent_pairs=checked_pairs,unintended_intersections=overlaps,intentional_assembly_contacts=intentional,scope='all independent cockpit mesh pairs; shell/liner contacts and coplanar touching excluded'),cockpit_envelope_samples=envelope_samples,cockpit_outside_shell=protrusions,visual_approval='PENDING')
+ return dict(file=path.name,dimensions_m=dict(span=float(size[2]),length=float(size[0]),height=float(size[1])),nodes=len(nodes),rig_nodes=len(rig),head_clearance_m=head,head_fit='PASS geometric clearance; proposed eyes require Ty review',instrument_gap_m=clearances,graph='PASS',hinge_origins='PASS',canopy_alpha='PASS',cockpit_adjacent_instruments_and_colored_controls='PASS',whole_cockpit_collision_audit=dict(independent_pairs=checked_pairs,unintended_intersections=overlaps,intentional_assembly_contacts=intentional,scope='all independent cockpit mesh pairs; shell/liner contacts and coplanar touching excluded'),cockpit_envelope_samples=envelope_samples,cockpit_outside_shell=protrusions,visual_approval='PENDING')
 if __name__=='__main__':
  results=[check(OUT/(ID+'-own'+s+'.glb')) for s in ['', '-tf']]
  a,b=[Glb(OUT/(ID+'-own'+s+'.glb')) for s in ['', '-tf']]

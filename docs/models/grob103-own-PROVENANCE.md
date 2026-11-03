@@ -174,3 +174,41 @@ python tools/own_models/overlay_grob103.py
 Only the model, cockpit, source tools, docs, importer metadata and review renders were changed.
 No Sim, aircraft config, Unity script, deployment, Unity execution, commit or Glass Overlay work occurred.
 Binding remains a documented handoff, not implemented here, per Ty's instruction.
+
+## 2026-11-03 — Twin III Acro correction (supersedes Twin II dimensions above)
+
+Target: G 103 C Twin III Acro, OSB 315-66 stiffened fuselage target per lane log.
+Level author belly datum is Z=-0.51 m. Span 18.00 m; length 8.18 m.
+Canopy glass runs author X=-0.65..1.95 (2.60 m), crown Z=.485 (0.995 m above
+belly), gently rising toward the rear seat. Deck depths at 3.4/4.0 m aft of
+nose are .780/.600 m (station top includes the .015 m crown). Fin top Z=1.20,
+1.71 m above belly. Published 1.55 m is the wheels/rest attitude dimension,
+not this level-axis envelope. Tailplane/elevator and axis witnesses raised .32 m;
+outer wings/ailerons and their witnesses extend to Y=±9.00 m. All 29 driven
+nodes, params, maps, hierarchy and moving meshes remain; pivots follow geometry.
+
+Fixed wheels, author X=2.5 minus aft distance: nose .80 m aft, .260×.085 m;
+main 2.90 m aft, .440×.150 m; tail 7.10 m aft, .210×.065 m. Exposures below
+local keel .100/.120/.070 m respectively. Rounded elliptical tire sections;
+open-lip fillet lofts enter the host skin and cover the shoulders. No skid,
+retraction, wheel doors or detached wheel pants. Hub hardware remains buried.
+
+Cockpit fit required front panel/gauges down .130 m and aft .100 m, with its
+pedals following the panel and the front tow cable shortened/routed downward.
+Proposed visual eyes now author (1.15,0,.18), (-.04,0,.26); native GLB
+(-1.15,.18,0), (.04,.26,0). These supersede earlier visual eye proposals, require
+Ty's review, and do not update application/physics CG-relative eyepoints.json.
+Head-envelope clearances 83.7/72.8 mm. Instrument/colored control separation,
+2145 cockpit-part pairs and shell containment pass in each livery.
+
+Review: `renders/grob/v-fix/` side, three-quarter, front, three gear details,
+side-poh-overlay.png and hash/camera manifest. Reproduce with existing NumPy/Pillow
+Python: `tools/own_models/build_grob103.py`, `check_grob103.py`, then
+`render_grob103_fix.py /path/to/TwinIII-POH.pdf`. CPU GLB views, not Unity validation.
+Overlay uses the actual Twin III POH PDF page 14 (printed 1.6), downloaded from
+https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/grob_g-103-c-twiniii-acro-poh.pdf .
+Uniform 854 pixels per 18 m based on the plan span; side nose registration at
+(762,708) in the 1600-pixel page. No per-axis fitting or contour matching;
+level model axes, reference scan registration approximate. Wings omitted only
+from the overlay to expose the fuselage contour. Raw PDF stays outside git.
+Visual status PENDING; no approval or runtime import claim.

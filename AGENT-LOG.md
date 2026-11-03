@@ -3887,3 +3887,13 @@ Evidence (not in repo, Grok Bot box): /workspace/aero/grob-cmp/ (README.md table
 NEEDS YOU: Ty, approve the renders of the fixed-gear Twin III Acro fixes once they're made.
 - Ty chose fixed gear, like the real G 103 C Twin III Acro (POH 1.4, EASA A.250). It has main, nose and tail wheels in fillet fairings with only the bottom of each tire showing. It is not retractable.
 - No code changed.
+
+## 2026-11-03 — lane/codex-grob103: Twin III geometry and fixed gear correction
+NEEDS YOU: Ty to review the new renders and proposed lowered cockpit eyes; visual acceptance remains PENDING.
+
+- Rebuilt both liveries as G 103 C Twin III Acro: glass 2.60 m, long low ramp rising toward rear seat, crown .995 m above belly; rear deck .780/.600 m deep at 3.4/4.0 m aft of nose; fin top 1.710 m above belly; span 18.000 m. Overall level wheel-to-fin envelope 1.810 m is not the published on-wheels rest-attitude 1.55 m dimension.
+- Fixed rounded nose .260×.085, main .440×.150, tail .210×.065 m tires at .80/2.90/7.10 m aft of nose; .10/.12/.07 m below local keel. Each gets a fillet entering the fuselage skin, only bottom tire showing. Tail skid removed. No wheel pants or retraction.
+- Retained all 29 moving rig nodes/maps/parents, with outer hinge witnesses extended to span and tailplane/elevators raised .32 m with fin. Corrected canopy exposed old front panel protrusion: panel/gauges .13 m down/.10 m aft, pedals follow, front tow cable routed clear. Proposed eyes lowered to author (1.15,0,.18)/(-.04,0,.26), native (-1.15,.18,0)/(.04,.26,0). These require review and consistent future CG/application integration; eyepoints.json untouched.
+- Asset checks pass both liveries: graph, params/pivots/axes, surface directions/travels, pinned dimensions/wheel positions/sizes/exposures, identical paired geometry, 2145 cockpit pairs each, shell containment, head clearance 83.7/72.8 mm (66 mm threshold). Initial collisions/protrusions during adaptation were corrected, not waived. NumPy/Pillow from existing /tmp/airfoil-plot-venv; nothing installed.
+- Images: `renders/grob/v-fix/{side,three-quarter,front,gear-main,gear-nose,gear-tail,side-poh-overlay}.png` plus manifest. Side overlay uses the Twin III POH page 14/printed 1.6, uniform scale from 18 m plan span, approximate nose registration in level axes; wings omitted in overlay only. Earlier overlay used a Twin II manual and is superseded. CPU views, no Unity/device validation. Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grobfix/`.
+- Local commit only. Glass Overlay untouched. No push/merge/deploy/install, no forced add. Required tracked-file ignore audit silent before commit. No approval marked.
