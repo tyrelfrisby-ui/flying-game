@@ -116,17 +116,22 @@ namespace FlyingGame.Bridge
             for (int sec = 0; sec < 60; sec++)
             {
                 int fr = 0; float t1 = Time.realtimeSinceStartup; double cpu = 0, gpu = 0; int nt = 0;
+                long simT0 = FlightSimDriver.SimAdvanceTicks;
                 while (Time.realtimeSinceStartup - t1 < 1f)
                 {
                     yield return null; fr++;
                     UnityEngine.FrameTimingManager.CaptureFrameTimings();
                     if (UnityEngine.FrameTimingManager.GetLatestTimings(1, ft) > 0) { cpu += ft[0].cpuMainThreadFrameTime; gpu += ft[0].gpuFrameTime; nt++; }
                 }
+                double simMs = (FlightSimDriver.SimAdvanceTicks - simT0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency / System.Math.Max(1, fr);
+                var pd = Object.FindAnyObjectByType<FlightSimDriver>();
+                double agl = pd != null && pd.Sim?.Aircraft != null
+                    ? pd.AltitudeM - FlyingGame.Core.WorldTerrain.GroundHeightAt(pd.Sim.Aircraft.State.Position.X, pd.Sim.Aircraft.State.Position.Y) : double.NaN;
                 string power = "";
 #if UNITY_IOS && !UNITY_EDITOR
                 power = UnityEngine.iOS.Device.lowPowerModeEnabled ? "  LOW POWER MODE" : "";
 #endif
-                Debug.Log($"[Perf] t={sec,2}s {fr,3} fps  cpu {(nt > 0 ? cpu / nt : -1),6:F1} ms  gpu {(nt > 0 ? gpu / nt : -1),6:F1} ms  bubbles {Object.FindAnyObjectByType<BubbleField>()?.DrawnCount}  display {Screen.currentResolution.refreshRateRatio.value:F0} Hz{power}");
+                Debug.Log($"[Perf] t={sec,2}s {fr,3} fps  cpu {(nt > 0 ? cpu / nt : -1),6:F1} ms  gpu {(nt > 0 ? gpu / nt : -1),6:F1} ms  sim {simMs,5:F2} ms  agl {agl,6:F0} m  bubbles {Object.FindAnyObjectByType<BubbleField>()?.DrawnCount}  display {Screen.currentResolution.refreshRateRatio.value:F0} Hz{power}");
             }
             var bf = Object.FindAnyObjectByType<BubbleField>();
             foreach ((string tag, bool clip, bool bubbles, bool inst) in new[] { ("all on", true, true, true), ("bubbles OFF", true, false, true), ("bubbles NOT instanced", true, true, false), ("all on again", true, true, true) })
