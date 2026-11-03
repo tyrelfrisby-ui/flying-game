@@ -553,6 +553,10 @@ namespace FlyingGame.Bridge
                         break;
                     case Btn.Gear:
                         if (ac?.Config?.RetractableGear == true) ac.SetGear(!ac.GearDown);
+                        // Floatplanes with a water-rudder retract (the J-3 floats, Ty 2026-11-02 t278u): the same slot
+                        // hangs the red handle on the front-seat hook (rudder UP) or lets it go (spring: DOWN). In VR the
+                        // hand does it on the handle itself (CockpitWaterRudder); this is the phone / controller way.
+                        else if (ac != null && ac.HasWaterRudderRetract && ac.WaterRudderHeldUp01 == null) ac.ToggleWaterRudder();
                         break;
                     case Btn.Smoke:
                         if (SmokeAvailable) _smoke.Toggle();
@@ -1020,6 +1024,13 @@ namespace FlyingGame.Bridge
             {
                 var acg = _driver.Sim.Aircraft;
                 string lbl = acg.GearDown ? (acg.GearExtension < 0.99 ? "GEAR ↓ …" : "GEAR UP") : (acg.GearExtension > 0.01 ? "GEAR ↑ …" : "GEAR DOWN");
+                Button(_gearRect, lbl);
+            }
+            else if (_driver.Sim?.Aircraft is { HasWaterRudderRetract: true } acw)
+            {
+                // Says what a tap will do, like GEAR; the dots while the cable is still travelling.
+                double u = acw.WaterRudderUp01;
+                string lbl = acw.WaterRudderHooked ? (u < 0.99 ? "W.RUDDER ↑ …" : "W.RUDDER DOWN") : (u > 0.01 ? "W.RUDDER ↓ …" : "W.RUDDER UP");
                 Button(_gearRect, lbl);
             }
             // SMOKE (owner 2026-10-31): a full-time button like GEAR, lit while the oil is on. Shown for anything that

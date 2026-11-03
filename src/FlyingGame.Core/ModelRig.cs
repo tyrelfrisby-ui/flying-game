@@ -159,6 +159,9 @@ public struct RigInputs
     public double FuelSelector;
     /// <summary>Ignition key position: 0 OFF, 1 R, 2 L, 3 BOTH, 4 START.</summary>
     public double Magneto;
+    /// <summary>J-3 primer plunger: 0 in and locked .. 1 pulled out 50 mm. No priming system reads it yet; it stays 0
+    /// (in) unless a hand pulls the knob (Ty 2026-11-02, v18).</summary>
+    public double Primer;
     /// <summary>Battery master, 0 or 1.</summary>
     public double Master;
 
@@ -200,6 +203,9 @@ public struct RigInputs
     /// <summary>Attitude, degrees: bank + = right wing down (-180..180), pitch + = nose up (-90..90). What an
     /// attitude indicator shows.</summary>
     public double BankDeg, PitchDeg;
+    /// <summary>Floatplane water-rudder retract, 0 = down (spring; the J-3's red handle let go on the floor) .. 1 = up
+    /// (handle hung on its hook). Aircraft.WaterRudderUp01: the blade's own travel, slewed, not the switch.</summary>
+    public double WaterRudderUp;
 
     /// <summary>COM, MHz: the tuned (active) and the standby frequency.</summary>
     public double ComFreqMhz, ComStandbyMhz;
@@ -289,6 +295,7 @@ public struct RigInputs
             case "mixture": value = Mixture; return true;
             case "fuel_selector": value = FuelSelector; return true;
             case "magneto": value = Magneto; return true;
+            case "primer": value = Primer; return true;
             case "master": value = Master; return true;
             case "canopy_open": value = CanopyOpen; return true;
             case "canopy_lock": value = CanopyLock; return true;
@@ -310,6 +317,7 @@ public struct RigInputs
             case "g_min_seen": value = GMinSeen; return true;
             case "bank_deg": value = BankDeg; return true;
             case "pitch_deg": value = PitchDeg; return true;
+            case "water_rudder_up": value = WaterRudderUp; return true;
             case "com_freq_mhz": value = ComFreqMhz; return true;
             case "com_standby_mhz": value = ComStandbyMhz; return true;
             case "com_volume": value = ComVolume; return true;

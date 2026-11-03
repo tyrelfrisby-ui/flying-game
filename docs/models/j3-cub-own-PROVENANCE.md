@@ -77,7 +77,7 @@ Node origins sit on the hinge lines, axles and pivots. The axes are glTF vectors
 | `DoorUpper_R` / `DoorLower_R` | `hinge_axis_gltf` + `open_deg` (90 / −175; 0 = closed) |
 | `Gear_Pivot_L/_R` (empties `Gear_HingeAxis_*`, `Gear_ShockTop_*`) | `hinge_deg_full` 9.02, `wheel_rise_full_m` 0.10, `strut_len_extended_m` 1.0335, `strut_extension_full_m` 0.0333, `wheel_up_sign_model_frame` |
 | `WaterRudder_L` (floats only) | `steer_axis_gltf` |
-| `WaterRudder_Blade_L` (child; floats only) | `retract_axis_gltf`, `retract_deg` 90 (0 = down in the water) |
+| `WaterRudder_Blade_L` (child; floats only) | `retract_axis_gltf`, `retract_deg` 140 (0 = down in the water; 140 so the hooked blade is clear of the water at rest and taxiing) |
 
 - `Gear_Pivot_L/_R` rotate the legs, wheel and lower strut tube about the Pivot→HingeAxis line.
 - The bungee strut **extends** as the wheel rises, because the cords work in tension.
@@ -241,7 +241,7 @@ Ty's review of v6. References are by eye or from drawings only; no third-party m
   - DoorUpper_R / DoorLower_R (`door_open` 0..1): the upper hinges up 90° to the wing and the lower hinges down 175°. Folded-door clearance to the lift struts is 0.065 m.
   - FuelGauge_Wire (`fuel` 0..1): 10 in of wire shows above the cap at full; it slides 0.221 m down to the hook on the guide at empty.
   - Prop: `prop_rpm`, +6 deg/s per rpm (clockwise from the cockpit).
-  - Floats: WaterRudder_L steers with `rudder` at ±25° (judgement). The link is 25/30, with `rig_limit_deg` 25. WaterRudder_Blade_L retracts on `water_rudder_up` 0..1: 0 is down (as drawn on 60-S-908A) and 1 is swung up 90°.
+  - Floats: WaterRudder_L steers with `rudder` at ±25° (judgement). The link is 25/30, with `rig_limit_deg` 25. WaterRudder_Blade_L retracts on `water_rudder_up` 0..1: 0 is down (as drawn on 60-S-908A) and 1 is swung up 140°, bottom aft (water-rudder lane 2026-11-02: at 140° the hooked blade is dry at rest and at a 5.5 m/s taxi, J3WaterRudderTests). The cockpit handle (WaterRudder_Handle, red, labelled WATER RUDDER) drives the same param.
   - Every pivot's sign is asserted in the build (a centroid-motion test); all pass on both variants.
 
 ## v8 (2026-10-28)

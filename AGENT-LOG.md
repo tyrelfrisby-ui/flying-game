@@ -1,4 +1,62 @@
 ## NEEDS YOU
+- **J-3 COCKPIT v18: BLACK V TUBES TO THE FLOOR UNDER THE TANK, PANEL TACH-ASI-COMPASS-ALT-OIL, PLUNGER PRIMER, CENTRE
+  DRAIN; THE WATER RUDDER MERGED IN (Claude, 2026-11-02, lane/claude-j3-cockpit).** BUILD: `zsh tools/deploy/deploy.sh NOINSTALL` on this tree (configs + GLBs + ModelRig.cs, blade fix included), 2026-11-02 21:25 PST: ** BUILD SUCCEEDED ** (Unity export 21:21–21:22, xcodebuild 21:22–21:25). Not installed on the phone. The deploy cache-prune trimmed Bee/PlayerDataCache in other lanes' Library caches (vr-hands-fix, rig-trim, j3-water-rudder; script behaviour); an earlier v18 run removed unity-Library-pitts-spin.
+  Before (v17, ab890890) / after renders: `docs/pending/j3-cockpit/v18/` (README lists every image; box copy
+  /workspace/j3-cockpit/v18/). In the headset, VR menu → Aircraft → **J-3** (and **J-3 on floats**), REAR seat:
+  1. **Tubes.** Look down under the panel: the two diagonals are black and meet at ONE point on the firewall at floor
+     level (z −0.522, between the pedals; v17 met higher at −0.43). They pass under the tank with 2.7 cm of air. The
+     hidden cross bar behind the panel's bottom edge stays. Close enough to the real clearance?
+  2. **Panel.** Left to right: TACH, AIRSPEED, COMPASS, ALTIMETER, OIL TEMP/PRESSURE. The airspeed is the altimeter's
+     size. Same high-contrast lettering.
+  3. **Primer.** Far right, after the oil gauge, low on the panel: brass nut and barrel, chrome rod, round dark knob.
+     In VR pinch the knob and pull it aft (50 mm) and push it back; it is VISUAL ONLY (no primer system in the sim).
+     From the rear eye it hides behind the right strut; lean right. Right spot?
+  4. **Drain.** The brass sump is now at the CENTRE of the tank bottom; the clear hose runs straight down to a grommet in
+     the floor at the centre, ~7 cm clear of each tube.
+  5. **Tank.** To clear the tubes its bottom rose 4.9 cm; it stays 12 gal (45.4 L).
+  - The floats model also carries lane/claude-j3-water-rudder (ccde8a48, merged here as a fast-forward before v18):
+    red WATER RUDDER handle, the hook on the front seat back. The rig table lists the handle as a rear-seat push-pull
+    (`water_rudder_up`, grip `Grip_WaterRudder`) so the Quest hands can take it (wired on lane/claude-quest-hands-install).
+  6. **Water-rudder blade (t286u, floats).** Hang the handle on the hook and look at the left float's stern: the
+     blade now swings up 90° (was 140°) and stands vertical DIRECTLY BEHIND the round post, on the float centreline,
+     its top just under the post top, so from behind the post hides it. To fit, the blade is 9.1 in long x 9.7 in deep
+     (was 12.8 x 6.8 in, same area); being deeper it steers about twice as hard as v17 in the sim (169 N vs 89 N at
+     3 m/s, full pedal). Stern renders side/top/rear, down/up: `docs/pending/j3-cockpit/v18/water-rudder/` (box
+     /workspace/j3-cockpit/v18/water-rudder/). Steers too hard?
+  Nothing approved.
+- **J-3 FLOATS: WATER-RUDDER RETRACT — red WATER RUDDER handle, cable and seat-back hook (Claude, 2026-11-02,
+  lane/claude-j3-water-rudder from lane/claude-j3-cockpit b23d2996).** Ty (t278u): "the water rudder is springloaded
+  down so when it is down the female side of the cable in the cockpit is simple let go of and sits on the floor
+  vertically left of the stick. make it red and label it water rudder. picking it up and hanging it on the hook raises
+  the water rudder." BUILD: see the build line in the log entry below. Renders (rear eye + close-ups, both states):
+  box /workspace/j3-cockpit/water-rudder/ (also ~/Developer/flying-game-worktrees/_xfer/water-rudder/). Not on any device.
+  In the headset/phone, VR menu → Aircraft → **J-3 on floats**, rear seat:
+  1. **Let go (start state).** The red handle stands on the floor LEFT of the rear stick, at the cable fairlead, with
+     WATER / RUDDER in white on its aft face. Right spot? Right size (grip 90 mm, ring 38 mm)?
+  2. **Hooked.** Phone/controller: the GEAR button (it reads W.RUDDER DOWN / UP on the floatplane; key L, pad "gear").
+     The handle rises 0.258 m on its taut cable and hangs from the chrome hook on the back of the FRONT seat, left side.
+     Is the hook where yours is? Does the blade on the left float swing up?
+  3. **Taxi feel.** Idle, full pedal 20 s: 111° turned with the rudder down, 97° up (air rudder + float drag alone).
+     Straight-ahead taxi drifts −17.8° in 30 s (was worse before the crossflow fix). Real?
+  OPEN / decisions:
+  - VR GRAB IS ADAPTER-READY, NOT WIRED: lane/claude-vr-hands is not merged (16 commits ahead). The handle node is a
+    rig slide (`grab`=1, `hook_gltf`, `hook_snap_m` 0.06); after that merge, route RigHandle's `water_rudder_up` slide to
+    CockpitWaterRudder.Hold(ac, t) on drag and .Release(ac) on the open hand (hooks if let go within 6 cm of the hook).
+  - PLOWING: hooked, the blade is dry at rest and at a 5.5 m/s taxi, but in the plowing attitude (7.1 m/s, pitch 8.7°)
+    0.0372 m² of the drawn blade is under the drawn waterline — the sim counts that as wet. Real J-3 floats? (A drawn
+    float vs physics float question, not a fudge; left as computed.)
+  - Full-rudder taxi capsize is pre-existing (J3FloatsWaterTests.FullRudderOnATaxiDoesNotCapsizeIt stays skipped).
+  - The 140° retracted blade swings up and aft over the float stern (08-blade-up.png): check it does not read as
+    passing through the float deck.
+  - MERGE DONE ON THIS LANE: lane/claude-j3-cockpit (v17, ab890890) is merged INTO lane/claude-j3-water-rudder, so
+    merging this lane back into the cockpit lane is a fast-forward. The floats GLB was rebuilt from the merged script
+    (`J3_VARIANT=floats blender -b --python tools/own_models/build_j3_cub.py`, TRIS 138723, v17 tank/mag + water
+    rudder), `j3_rig_json.py` re-run and `--check` in step (wheels 26 nodes, floats 28). The wheels GLB rebuilt from the
+    merged script matches v17's node for node (same size, nodes, accessor counts), so v17's is kept. v17's two J-3 tests
+    that counted 26 rig nodes now expect 28 for the floats. J3/Float tests: 44 passed, 1 skipped; the 2 failures
+    (AlaskaTests glacier lake, AlpineRange lakes) also fail at b23d2996. Renders of the merged model:
+    on the box at /workspace/j3-cockpit/water-rudder/merged-v17/.
+  Nothing approved.
 - **QUEST: HANDS BUILD FOR THE HEADSET — lane/claude-quest-hands-install (Claude, 2026-11-02 19:10 PST). Ty EXPLICITLY
   APPROVED installing the hand-tracking build on the Quest (19:10 PST); that overrides the "do not install on the
   Quest" note in the lane/claude-vr-hands brief. This approves the INSTALL only: no gate, merge to main or feature is
@@ -1472,6 +1530,62 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-j3-water-rudder · J-3 floats water-rudder retract: handle, cable, hook, physics
+Ty (t278u): red WATER RUDDER handle on the retract cable, let go = on the floor left of the stick (rudder down,
+spring), hung on a hook on the back of the front seat (left) = rudder up.
+- **Physics** (`FloatHydro.DrawnWaterRudder`, `Aircraft` retract state, `FloatsConfig` fields, configs ×2): the drawn
+  blade (left float only) is a low-AR lifting surface: S 0.04403 m², span 0.172 m, AR 0.673, Helmbold
+  a = 2πAR/(2+√(AR²+4)) = 1.028/rad; L = ½ρV²·S_imm·a·α (ρ 1000), induced + 2-D section drag, moment about the CG.
+  Only the immersed part counts (S_imm, span_imm, AR_imm from the drawn blade vs the local water surface), so
+  retracted = no force wherever it is out of the water. Linked to the pedals through the steering (±25°). Default
+  DOWN on every water start. Numbers: wholly under, 3 m/s, 25°: 88.9 N lift, 20.7 N drag, 198 N·m; afloat (50 % wet,
+  S_imm 0.02202 m², AR 0.354, a 0.552): 2 m/s 10.6 N / 23 N·m, 4 m/s 42.4 N / 94 N·m, 6 m/s 95.4 N / 211 N·m; at 4 m/s
+  full left→right pedal changes the yaw moment by 207 N·m down and 0 up. Retract travel 0.8 s, blade 140° (bottom aft).
+  Hull crossflow fix (sideslip drag on the floats) so a straight taxi drifts −17.8°/30 s.
+- **Model** (`build_j3_cub.py`, floats GLB only; wheels unchanged): fairlead grommet in the floor, chrome hook on the
+  front seat back (left), red handle (ferrule, grip, neck, ring) with a white WATER / RUDDER plate, steel cable;
+  rig: WaterRudder_Handle slide 0.258 m on `water_rudder_up` (grab=1, hook point, 6 cm snap), WaterRudder_Cable
+  (aimed/stretched at runtime), WaterRudder_Blade_L 140° on the same param. j3_rig_json.py re-run, `--check` clean.
+  TRIS 123952. Renders: tools/own_models/j3_water_rudder_shots.py → box /workspace/j3-cockpit/water-rudder/.
+- **Game**: ModelRig `water_rudder_up` ← Aircraft.WaterRudderUp01; CockpitWaterRudder (cable aim + Hold/Release grab
+  API, VR adapter pending the vr-hands merge); TouchFlightControls GEAR slot = W.RUDDER UP/DOWN on the floatplane
+  (controller gear button, key L and the "gear" binding route there).
+- **Tests**: J3WaterRudderTests 8/8; all float/water/seaplane tests pass (PA-18, Beaver, H-4, J-3); full suite
+  1342 passed / 163 failed / 4 skipped — failing names compared against b23d2996 (see the build/test line below).
+- **Build**: `zsh tools/deploy/deploy.sh NOINSTALL` → `** BUILD SUCCEEDED **` (20:17 PST), 0 `error CS`; nothing installed;
+  the bundleVersion bump was reverted.
+### 2026-11-02 — Claude · lane/claude-j3-cockpit · J-3 cockpit v18: black V to the floor, panel order, primer, centre drain, water rudder merged
+- Ty t282u–t285u (verbatim in `docs/pending/j3-cockpit/v18/README.md`). Parent: merge lane/claude-j3-water-rudder (ccde8a48).
+- **Merge:** ab890890 → ccde8a48 fast-forward (no v18 commit existed yet). The uncommitted v18 edits were 3-way merged onto
+  it (`git merge-file`) for build_j3_cub.py, j3_rig_json.py, ModelRig.cs (Primer beside WaterRudderUp) and
+  J3OwnModelTests.cs (rig-node counts: wheels 27, floats 29). Both GLBs and both rig tables rebuilt from the merged
+  script (TRIS wheels 138213, floats 138443); `j3_rig_json.py --check` in step.
+- **Model:** `tubeK` black material for the V and cross bar; V apex UT_FX 0.830 / UT_FZ −0.522; tank bottom −0.265 →
+  −0.216 (bisected for 45.4 L, 0.027 m tube-to-tank); drain sump (0.940, 0.000), hose straight down to a centre
+  grommet; CELL order tach/ASI/compass/alt/oil with the ASI at the altimeter's radius; primer (brass nut, barrel, lip,
+  chrome rod, knob = rig node `Primer_Plunger`, param `primer`, 50 mm aft, `Grip_Primer`); `Grip_WaterRudder` added at
+  the handle's grip centre.
+- **Rig table:** CONTROLS `Primer_Plunger` (PushPull, Rear, 50 mm) and `WaterRudder_Handle` (water_rudder_up, PushPull,
+  Rear, 258 mm, sim_ends [0,1], optional: only where the node exists, i.e. floats).
+- **Test:** `J3OwnModelTests.TheV18CockpitIsWhereTySaid` (black tube colour, apex position, tank/tube gap 1–4 cm, hose
+  centred + straight + clear of the tubes, pivot order L→R incl. the primer, ASI radius = altimeter, primer control,
+  water-rudder control on floats only). J3OwnModel|ModelRig|WaterRudder: 34/35, the one failure
+  (ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake) is pre-existing and unrelated. The world-water
+  tests (Waterfall*, AlpineRange, WorldTerrain, Playground mall, Forest) fail on this tree independent of the J-3.
+- **Checks:** check_eye_interiors.py unchanged (rear 0.0 % skin within 12 cm, overhead 0.159); drop_card_slot.validate
+  passes both GLBs (wheels 77 nodes, floats 67).
+- **Renders:** `docs/pending/j3-cockpit/v18/`, 9 before/after pairs from `j3_cockpit_shots.py` (v18-*).
+- **Water-rudder blade (t286u):** blade wholly aft of the post (leading/top edge 17 mm from the hinge, strap to the
+  yoke), retract 140° → 90° about the same lateral axis; retracted every point 14 mm+ aft of the post axis, within 4 mm
+  of its plane, top 0.247 m above the hinge < post top 0.255 (build asserts). Chord 0.3258 → 0.2305, span 0.1721 →
+  0.2459, area 0.0437 → 0.0445; configs (both copies) bladeAft 0.1323, bladeBelow 0.1399, retractRad 1.5708. AR 0.67 →
+  1.36, a 1.03 → 1.93 /rad (lift 89 → 169 N wholly wet, 3 m/s, 25°). New test
+  `J3WaterRudderTests.RetractedItStandsWhollyBehindThePostInLineWithIt`; S/AR/a/lift literals updated. Floats TRIS
+  138455. J3WaterRudder|J3OwnModel|Float: 46 pass, 2 fail (AlaskaTests glacier lake, AlpineRange lake: pre-existing
+  world water). Stern renders (ortho side/top/rear, down/up, before ccde8a48 / after):
+  `docs/pending/j3-cockpit/v18/water-rudder/`; `j3_water_rudder_shots.py` gained the `v18-stern-*` shots.
+- **Build:** `zsh tools/deploy/deploy.sh NOINSTALL` on this tree (configs + GLBs + ModelRig.cs, blade fix included), 2026-11-02 21:25 PST: ** BUILD SUCCEEDED ** (Unity export 21:21–21:22, xcodebuild 21:22–21:25). Not installed on the phone. The deploy cache-prune trimmed Bee/PlayerDataCache in other lanes' Library caches (vr-hands-fix, rig-trim, j3-water-rudder; script behaviour); an earlier v18 run removed unity-Library-pitts-spin.
+
 ### 2026-11-02 — Claude · lane/claude-quest-hands-install · J-3 v17 added to the hands build, installed on the Quest (20:12 PST)
 - **Contents:** the 2026.1102.1913 hands build (a112004a) + lane/claude-j3-cockpit ab890890, J-3 v17 (merge 00083874: mag switch
   abeam the front seat back, 12 gal beaded nose tank with clear drain hose, black front with the curved yellow parting, panel
