@@ -1,4 +1,11 @@
 ## NEEDS YOU
+- **QUEST: HANDS BUILD FOR THE HEADSET — lane/claude-quest-hands-install (Claude, 2026-11-02 19:10 PST). Ty EXPLICITLY
+  APPROVED installing the hand-tracking build on the Quest (19:10 PST); that overrides the "do not install on the
+  Quest" note in the lane/claude-vr-hands brief. This approves the INSTALL only: no gate, merge to main or feature is
+  marked approved.** Branch = lane/claude-vr-quest c599069d + lane/claude-vr-hands b2a53770 (hands, the 2-33's dive
+  brake / trim / tow release, Pitts / Extra / Great Lakes switches and knobs) + lane/claude-j3-cockpit b23d2996 (J-3
+  v16). Conflicts: AGENT-LOG.md and CLAUDE.md only (both sides kept); no code conflicts. Build / install result: see
+  the log entry below.
 - **QUEST: 27–30 FPS SITTING ON THE GROUND — EVERY HARD POINT ASKED ALL 1,475 SOLIDS (Claude, 2026-11-02,
   lane/claude-vr-quest). Ty's 8e7862eb log (2-33, 16:21 at (5854, 3825)). Code only: NOT built (`deploy.sh` not run:
   src/ changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the rebuild:**
