@@ -5401,3 +5401,6 @@ NEEDS YOU: Ty, approve the renders of the red-with-blue-trim livery once they're
 
 ## 2026-11-03 14:35 PST — Great Lakes v7 renders: Ty approved on voice call
 Ty reviewed the gl7 renders (xfer/gl7: side-by-side, photo comparison, rear console) and said he approves v7 (commit 707ae43a). Recorded as Ty's own words; not installed yet.
+
+## 2026-11-03 14:42 PST - Great Lakes wing surfaces: Ty approved (voice call)
+Ty reviewed xfer/glwing close-ups and approved: one aileron per side per wing (4 total), slave struts tying upper to lower, no extra surfaces. Upper-aileron removal question closed.
