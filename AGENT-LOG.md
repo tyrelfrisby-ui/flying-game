@@ -4,8 +4,8 @@
   Quest" note in the lane/claude-vr-hands brief. This approves the INSTALL only: no gate, merge to main or feature is
   marked approved.** Branch = lane/claude-vr-quest c599069d + lane/claude-vr-hands b2a53770 (hands, the 2-33's dive
   brake / trim / tow release, Pitts / Extra / Great Lakes switches and knobs) + lane/claude-j3-cockpit b23d2996 (J-3
-  v16). Conflicts: AGENT-LOG.md and CLAUDE.md only (both sides kept); no code conflicts. BUILT 2026.1102.1913, INSTALLED; see
-  the log entry below.
+  v16). Conflicts: AGENT-LOG.md and CLAUDE.md only (both sides kept); no code conflicts. BUILT 2026.1102.1913, INSTALLED. UPDATED 20:12 PST: now 2026.1102.2002 = the same + J-3 v17
+  (lane/claude-j3-cockpit ab890890), INSTALLED on the Quest; see the log entry below.
 - **QUEST: 27–30 FPS SITTING ON THE GROUND — EVERY HARD POINT ASKED ALL 1,475 SOLIDS (Claude, 2026-11-02,
   lane/claude-vr-quest). Ty's 8e7862eb log (2-33, 16:21 at (5854, 3825)). Code only: NOT built (`deploy.sh` not run:
   src/ changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the rebuild:**
@@ -1472,6 +1472,15 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-quest-hands-install · J-3 v17 added to the hands build, installed on the Quest (20:12 PST)
+- **Contents:** the 2026.1102.1913 hands build (a112004a) + lane/claude-j3-cockpit ab890890, J-3 v17 (merge 00083874: mag switch
+  abeam the front seat back, 12 gal beaded nose tank with clear drain hose, black front with the curved yellow parting, panel
+  order from Ty's photo; all v16 items kept). Conflicts: AGENT-LOG.md only (both sides kept). Hands are still in.
+- **Build:** `tools/deploy/deploy-quest.sh --build-only` → `[QuestBuild] Quest build SUCCEEDED`, stamp **2026.1102.2002**,
+  0 `error CS`, 190 MB, 273 s; XR features still include HandTracking, MetaHandTrackingAim, HandInteractionProfile. Copy:
+  ~/Developer/agent-lanes/aero-playground/AeroPlayground-quest-hands-j3v17-2026.1102.2002-00083874.apk.
+- **Install:** `adb -s 340YC10GBK0TYV install -r`: Success; versionName 2026.1102.1913 → 2026.1102.2002 (20:12 PST); launched
+  via monkey. Install was approved by Ty for this build. No gate approved.
 ### 2026-11-02 — Claude · lane/claude-quest-hands-install · the hands build on Ty's Quest (install approved by Ty, 19:10 PST)
 - **Approval:** Ty explicitly approved installing the hand-tracking build on the Quest (19:10 PST). This overrides the
   "do not install on the Quest" note in the lane/claude-vr-hands brief, for the install only. No gate is marked approved.
