@@ -267,7 +267,10 @@ public static class AirframeContact
     /// <summary>
     /// How far above the ground the whole airframe is unambiguously clear of it. Terrain cannot rise by this much
     /// inside the few metres an airframe spans — towers, buildings and bridge decks are <see cref="WorldSolids"/>,
-    /// which is a bounded list test and is still checked at every altitude.
+    /// which is a bounded list test and is still checked at every altitude: when the airframe is clear of the ground
+    /// only the ground and water queries are skipped, every hard point is still tested against the solids
+    /// (<see cref="ComputeSolidsOnly"/>; before 2026-11-02 the shortcut returned nothing at all, so above 60 m agl a
+    /// tower, the arch or a hangar roof could be flown through).
     /// </summary>
     private const double ClearAboveM = 60.0;
 
@@ -369,11 +372,14 @@ public static class AirframeContact
         if (clear)
         {
             // No clearance remembered for the later stages: if one of them is not clear, it tests every point.
-            foreach (ContactPoint p in points) { p.Touching = false; if (stage == 0) p.StageClearM = double.NegativeInfinity; }
-            return (Vec3.Zero, Vec3.Zero);
+            if (stage == 0) foreach (ContactPoint p in points) p.StageClearM = double.NegativeInfinity;
+            long tSolids = SimProfile.Begin();
+            var solidsOnly = ComputeSolidsOnly(points, cg, s, broken, impacts);
+            SimProfile.End(SimProfile.Scope.ContactPoints, tSolids);
+            return solidsOnly;
         }
         long tPoints = SimProfile.Begin();
-        var result = ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, stage, dt);
+        var result = ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, stage, dt, groundClear: false);
         SimProfile.End(SimProfile.Scope.ContactPoints, tPoints);
         return result;
     }
@@ -387,9 +393,18 @@ public static class AirframeContact
     /// point arriving at the water is still an impact and can still break its component — water at 25 m/s is hard —
     /// but the old ditching spring-damper is not applied.</param>
     public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false, bool waterByHydro = false)
-        => ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, -1, 0.0);
+        => ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, -1, 0.0, groundClear: false);
 
-    private static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt)
+    /// <summary>
+    /// The hard points against <see cref="WorldSolids"/> only, for an airframe already known to be clear of the ground
+    /// and the water (<see cref="ClearOfTheGround(List{ContactPoint}, IReadOnlyList{Vec3}?, Vec3, RigidBodyState, double)"/>):
+    /// no height queries, one box-list test per point. Buildings, the tower, the arch legs and the sea-cave roof stand
+    /// higher than <see cref="ClearAboveM"/> above the ground under them, so this runs at every altitude.
+    /// </summary>
+    public static (Vec3 Force, Vec3 Moment) ComputeSolidsOnly(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, ImpactRecorder? impacts)
+        => ComputeEveryPoint(points, cg, s, broken, 0.0, impacts, false, false, -1, 0.0, groundClear: true);
+
+    private static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt, bool groundClear)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         bool cull = StageCullEnabled && stage >= 0;
@@ -404,7 +419,7 @@ public static class AirframeContact
             double depth;
             bool onWater = false;
             double groundH = double.NegativeInfinity;   // the ditching bed below needs it; unset only where onWater stays false
-            if (cull && stage > 0 && p.StageClearM > p.StageMarginM)
+            if (groundClear || (cull && stage > 0 && p.StageClearM > p.StageMarginM))
             {
                 depth = double.NegativeInfinity;   // clear of the ground and the water all step (see StageCullMargin)
             }

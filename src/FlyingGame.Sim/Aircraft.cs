@@ -1042,9 +1042,13 @@ public sealed class Aircraft
             }
             if (groundClear)
             {
-                // Nothing within reach of the ground this step: what AirframeContact.Compute's own shortcut returns at
-                // each stage (which skips the solids as well, at this height).
-                foreach (ContactPoint p in _contacts) p.Touching = false;
+                // Nothing within reach of the ground or the water this step: no height queries, but the hard points
+                // still meet the buildings, the tower and the arch (WorldSolids) at every altitude.
+                long tSo = SimProfile.Begin();
+                (Vec3 sF, Vec3 sM) = AirframeContact.ComputeSolidsOnly(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, _impacts);
+                SimProfile.End(SimProfile.Scope.Contact, tSo);
+                totalF += s.Attitude.Conjugate().Rotate(sF);
+                totalM += s.Attitude.Conjugate().Rotate(sM);
             }
             else
             {
