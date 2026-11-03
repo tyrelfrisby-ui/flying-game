@@ -751,9 +751,11 @@ namespace FlyingGame.Bridge
             // Aileron / rudder trim (RC-transmitter style): a sticky bias under the stick, like the pitch trim.
             // Reversible controls (owner 2026-10-02): a pad with no finger (and no key) lets go of its controls — on a
             // cable-controlled aircraft those surfaces then trail with the air loads (the axis values are just the trims).
+            // With a gamepad connected a centred thumb stick holds the surfaces unless the player chose stick-free
+            // (OPTIONS › Controls, off by default with a pad; GamepadShaping.ControlsFree). Read every frame: hot-plug flips it.
             // FlyingGame.Sim.PilotControls is the composition (engine-free, so the launch tests fly the same one).
             _driver.Inputs = PilotControls.Compose(_aileron, _elevator, _rudder, _aileronTrim * TrimAuthority, trim, _rudderTrim * TrimAuthority,
-                lever, _rightFinger != int.MinValue, _leftFinger != int.MinValue);
+                lever, _rightFinger != int.MinValue, _leftFinger != int.MinValue, GamepadInput.Now.Connected, SessionSettings.GamepadStickFree);
         }
 
         // ---- shaping helpers -------------------------------------------------
