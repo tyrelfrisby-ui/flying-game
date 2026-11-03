@@ -17,8 +17,11 @@ public sealed class CelluleInductionProbe
     {
         foreach (string f in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "TestData"), "*-like.json"))
         {
-            BiplaneCellule c = BiplaneCellule.For(AircraftConfigLoader.LoadFromFile(f));
+            AircraftConfig cfg = AircraftConfigLoader.LoadFromFile(f);
+            BiplaneCellule c = BiplaneCellule.For(cfg);
             if (c.IsCellule) _out.WriteLine($"CELL {Path.GetFileNameWithoutExtension(f),-24} {c}");
+            var k = BiplaneCellule.LiftingSurfaceOverStrip(cfg);
+            _out.WriteLine($"LL/STRIP {Path.GetFileNameWithoutExtension(f),-24} aileron x{k.Aileron:F3}  damping x{k.Damping:F3}  steady pb/2V x{k.SteadyRate:F3}");
         }
     }
 }
