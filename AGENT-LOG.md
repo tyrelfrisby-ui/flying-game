@@ -1,4 +1,43 @@
 ## NEEDS YOU
+- **WHY THE PITTS WENT LEFT ONE LAUNCH AND RIGHT THE NEXT — FIXED, PLEASE FLY IT AGAIN (Claude, 2026-11-02 run 2,
+  lane/claude-rig-trim):** details in `docs/RIGGING.md` § "Stick-fixed, stick-free".
+  - **The rig was solved stick-FIXED, and still is** (your 18:24 question): `RigSolver.Residual` hands explicit
+    deflections (aileron and rudder 0, elevator at the trim) to `AeroModel.Compute`; no free-float code is in the
+    solver, `RigTool` only calls it, and `RigTests` flies with every free flag false. **No rig angle changed.**
+    Stick-free has the same trim point by construction (`CalibrateTabs` sets the tabs on the first step so a free
+    surface floats at the rig deflection); it changes the stability, not the trim.
+  - **Inside the sim two launches are identical, to the bit** — no random seed, and the sim clock does not enter the
+    start (turbulence is a frozen field). The difference came from the Unity side, and there were two faults:
+    1. **The first frame of a new flight flew the LAST flight's stick and power.** `ResetFlight` rebuilt the
+       aeroplane but left the driver's inputs alone; the controls stop publishing while the menu is open, and
+       nothing orders the two `Update`s, so the long first frame (0.05 s, ten sim steps) flew whatever the stick
+       was doing when you opened the menu (on a cold start: 50 % power, elevator off trim, held). Measured on the
+       Pitts: 0.05 s of full left stick turns a +20.6° RIGHT bank at 60 s into −12.5° LEFT (stick-fixed), −24° (free).
+       **Now every start seeds the inputs on its own hands-off trim.**
+    2. **Aileron and rudder trim carried over** from flight to flight and from one aeroplane to the next — and with
+       the 8BitDo connected their bars are hidden. 5 % of left aileron trim: −50° of bank in 10 s. **Now centred
+       on every new flight**, as the pitch trim already was.
+  - **The gamepad path is not different:** at rest inside its 7 % dead zone the pad hands over exactly zero, so the
+    surfaces float exactly as with a lifted finger. A stick that RESTS past 7 % holds a small deflection (10 %:
+    −28° of bank in 10 s): if a launch still wanders, look at the pad.
+  - **Spiral vs bug:** the Pitts air start (PHDH) is at **1,514 ft**; hands off in still air it banks slowly RIGHT
+    every launch — +1.8° at 10 s, +9° at 40 s, +20.6° at 60 s stick-fixed; +2.0°, +13.3°, +35.2° stick-free. That is
+    the 4,000 ft rig over-correcting lower down plus the spiral, and it is the SAME every launch. A LEFT turn there
+    came from the first moments of the flight. Stick-free makes the spiral much faster (the same 0.05 s nudge at the
+    rig point: 2° stick-fixed, 32° stick-free at 60 s), which is why you felt it was the stick-free model.
+  - **Tests:** `LaunchReplicationTests` flies 5 consecutive launches of all 34 types through the game's own start
+    (`AirStart`) and control composition (`PilotControls`), 60 fps, sim clock running on, launches 2–5 with a gamepad
+    at rest (seeded noise inside its dead zones), stick-free ON and OFF: spread 0 m / 0 rad, and hands-off at 4,000 ft
+    for 40 s after a 20 s settle every type is inside the run-1 bands (worst heading change 0.68° Jenny ON, 0.42°
+    J-3 floats OFF; worst rate 0.241 °/s, the hang glider's pitch pendulum).
+  - **Stick-free OFF with a gamepad** is lane/claude-hydro's milestone (4); not committed there yet (checked
+    `lane/claude-island-nav..lane/claude-hydro`). The seam for it is `PilotControls.Compose`: one `stickFree`
+    argument that ANDs into the two free flags. Both settings are tested here.
+  - Found, not changed: the regional atmosphere never loads on the island (`regional-atmosphere.json` anchors a
+    region to `airport:Bench`, which the island does not have), so free flight flies the uniform menu air.
+  - **FLY THIS:** air start in the Pitts, hands and feet off, three or four launches in a row (MENU → FLY each
+    time), with and without the 8BitDo: each one should bank gently RIGHT the same way. Then the Great Lakes.
+  - BUILD: lane build `2026.1102.2030` `** BUILD SUCCEEDED **`, 0 `error CS`. INSTALL: see the island-nav entry.
 - **EVERY AEROPLANE IS RIGGED FOR HANDS-OFF LEVEL FLIGHT AT 75 % POWER — PLEASE FLY IT (Claude, 2026-11-02,
   lane/claude-rig-trim):** method and full table in `docs/RIGGING.md`.
   - **What a rig is now:** two fixed angles in each config's new `rig` block, built into the airframe: the ailerons'
@@ -957,6 +996,43 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 run 2 — Claude · lane/claude-rig-trim · launch-to-launch variation (Pitts left one launch, right the next)
+- Merged lane/claude-island-nav (fast-forward to d1bf88d1: cockpit-look's gamepad hot-plug etc.).
+- TASK 0 (Ty 18:24, "was the rig solved stick-fixed?"): yes. `RigSolver.Residual` → `SteadyForces` with
+  `ControlDeflections(0, δe, 0, 0)` → `AeroModel.Compute`; no `FreeFloat`/`HingeTerms` in the solver; `RigTool` only calls
+  `SolveRig`; `RigTests.Fly` uses the 4-argument `ControlInputs` (free flags false), so `Aircraft.Step`'s free branch
+  never ran. Nothing re-solved; no rig angle, fin offset or elevator trim changed (table in docs/RIGGING.md stands).
+- Root cause, measured (`LaunchProbe`, LAUNCH_PROBE=1/2/3): the sim is deterministic launch to launch (no seed; the
+  sim clock does not enter the start, turbulence is a frozen field). The variation came from two Unity-side
+  carry-overs: (1) `ResetFlight` left `FlightSimDriver.Inputs` at the previous flight's last published frame (controls
+  stop publishing while the menu is open; no script execution order), so up to 0.05 s (10 steps) of the last
+  flight's stick and power flew the new aeroplane — 0.05 s of full left stick flips the Pitts at the PHDH start from
+  +20.6° to −12.5° of bank at 60 s; (2) `PresetTrim` reset only the pitch trim, so aileron/rudder trim carried over
+  (hidden with a pad). Fixes: `Spawn` seeds `Inputs` on the start's hands-off trim for every start; `PresetTrim` centres
+  aileron and rudder trim. Gamepad: at rest inside its dead zone it hands over exactly 0, the same release as a lifted
+  finger; a stick resting past 7 % holds a deflection (that would still steer).
+- Engine-free extraction: `FlyingGame.Sim.AirStart` (in-air start, verbatim from `Spawn`) and
+  `FlyingGame.Sim.PilotControls.Compose` (verbatim from `PublishToDriver`). Unity-only and untested: script order,
+  pointer handling, `GamepadInput`'s device read, `PresetTrim` itself (mirrored in the test).
+- `LaunchReplicationTests`: 34 types × stick-free ON/OFF × 5 consecutive launches (60 fps `SimLoop.Advance`, a long
+  0.05 s first frame on the seeded inputs, sim clock running on, launches 2–5 with a pad at rest, seeded noise inside
+  its dead zones) — 69/69 pass: spread 0 m / 0 rad; at 4,000 ft, 20 s settle + 40 s window: worst rate 0.241 °/s (hang
+  glider pitch pendulum), worst sideslip 0.023° (ON) / 0.007° (OFF), worst heading change 0.68° (Jenny, ON) / 0.42°
+  (J-3 floats, OFF), powered |Δh| ≤ 1.0 m.
+- Full suite vs d1bf88d1 (exported copy, same machine, load 40–97 throughout, other lanes' suites running): base 125
+  failed / 1,495; branch 211 / 1,567. New names: 86 — SpawnSpeedTests (33) and StructuralTests (39) almost all `NaN`,
+  plus MultiEngine 3, ReversibleControl 5, Spin 3, TipWheel 2, FloatsOnLand 2, ChallengeTests.HardBankScoresLow. All
+  101 tests in those classes pass run alone; they also pass in one run with LaunchReplicationTests (Pitts) and the
+  probes, and with the sim clock pushed to 60,000 s. Not reproduced; treated as the suite's global coupling under load
+  (CLAUDE.md "whole classes going NaN"), not proven. Fixed vs base: NoseSkidTests.HardBrakingRolloutDoesNotTipOver,
+  StreamingAssetsTests.NoTrackedFileIsGitignored.
+- Hydro: `lane/claude-island-nav..lane/claude-hydro` has no stick-free/gamepad toggle commit (62db5aba is its AGENT-LOG
+  entry only); not implemented here. Seam: `PilotControls.Compose` — add `bool stickFree` and AND it into
+  `rightFree`/`leftFree`; TouchFlightControls passes the setting. `LaunchReplicationTests` already flies both.
+- Found, not changed: `regional-atmosphere.json` anchors a region to `airport:Bench`; on the island
+  `AtmosphereField.ResolveAirport` throws, `SessionSettings.RegionalField` falls back to uniform air.
+- Build: `zsh tools/deploy/deploy.sh NOINSTALL` → `2026.1102.2030` `** BUILD SUCCEEDED **`, 0 `error CS`; bundleVersion bump reverted.
+
 ### 2026-11-02 — Grok Bot · lane/claude-cockpit-look · cockpit view "all sky" on the iPhone with the 8BitDo
 Report (Ty, iPhone, build `2026.1102.1603`, pad connected): select the cockpit view and all he sees is sky.
 - **Ruled out:** no gamepad axis reaches the look. `GamepadInput` feeds flight only; `CockpitView` read only the
