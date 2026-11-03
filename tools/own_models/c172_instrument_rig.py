@@ -28,7 +28,7 @@ row('C172_AI_roll','ai_bank_deg','rot',X,[[-180,180],[180,-180]],"AI horizon/rol
 row('C172_AI_pitch','ai_pitch_deg','rot',Z,[[-25,-25],[25,25]],"AI horizon sphere about the lateral axis inside the roll assembly: nose up turns the face DOWN (more sky); 1:1, Codex's +/-25 deg envelope",parent='C172_AI_roll')
 row('C172_DG_card','dg_card_deg','rot',X,[[0,0],[360,-360]],"DG card: drawn N at 12 o'clock, numbers clockwise; the reading sits under the top lubber, so the card turns anticlockwise by it; "+CW,wrap=360)
 row('C172_DG_sync_adjust','dg_knob_deg','rot',X,[[0,0],[360,360]],"DG push-and-turn knob, 1:1 with the card change it made",wrap=360)
-row('C172_TC_airplane','tc_needle','rot',X,[[-2,-30],[2,30]],"TC little aeroplane: 1 rate (standard rate) = 15 deg right wing down (E: the face has no L/R index drawn yet); stops at 2 rates; "+CW)
+row('C172_TC_airplane','tc_needle','rot',X,[[-2,-30],[2,30]],"TC little aeroplane: 1 rate (standard rate) = 15 deg right wing down at the L/R standard-rate index; stops at 2 rates; "+CW)
 row('C172_TC_slip_ball','slip_ball','move',Z,[[-1,-0.015],[1,0.015]],"inclinometer ball, +1 = right end of the tube (12 deg of apparent-gravity lean)")
 for i in (1,2):
     row(f'C172_NAV{i}_CDI',f'nav{i}_cdi','move',Z,[[-1,-0.018],[1,0.018]],f"NAV{i} course needle: +1 = full scale right (course to the right); VOR 10 deg, localizer tailored")
@@ -53,6 +53,9 @@ row('C172_Oil_press_needle','oil_press_psi','rot',X,[[0,35],[100,323]],"oil pres
 row('C172_Oil_temp_needle','oil_temp_f','rot',X,[[75,35],[100,107],[150,179],[200,251],[245,323]],"oil temperature: labels 75/100/150/200/245 F every 72 deg (non-linear face); drawn at -35 deg")
 for s in 'LR':
     row(f'C172_Fuel_{s}_needle','fuel_centre_frac','rot',X,[[0,35],[1,323]],f"fuel {s}: E..F over 288 deg (72 deg per quarter); the sim has one fuel fraction; drawn at -35 deg")
+# Fixed-pitch trainer: two plain plungers, with no rotational or prop-control binding.
+for node,param in [('C172_Throttle','throttle'),('C172_Mixture','mixture')]:
+    row(node,param,'move',X,[[0,0],[1,0.06]],'Plain push-pull plunger: +X pushes into the panel; no twist')
 doc=dict(model='c172-like-own',livery='v1',
   source="Codex's panel (lane/codex-172-cockpit 8655aadb, docs/models/c172-panel-rig.md); bound to FlyingGame.Core.Instruments by lane/claude-172-instruments. Generated from the GLB's own node translations (pivots) by tools/own_models/c172_instrument_rig.py.",
   rig=rows)

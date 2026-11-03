@@ -1,5 +1,5 @@
 """Validate exported cockpit node hierarchy and binding coverage; no graphics device needed."""
-import json, struct, hashlib
+import json, struct, hashlib, os
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 MODEL=ROOT/'unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb'
@@ -40,6 +40,12 @@ def check(path):
  assert 'C172_NAV2_GS' not in names,'NAV2 must be course only'
  for n in ['Seat_base_L','Seat_base_R','Rear_bench_base','Door_L','Door_R','Headliner','Compass_mount','KX170B_1','KX170B_2','KR85_ADF','DME']:
   assert 'C172_'+n in names,n
+ # Cases are behind the physical panel front, rather than stacked on its seat side.
+ for n in nodes:
+  if n.get('name','').startswith('C172_') and n.get('name','').endswith('_case'):
+   for prim in g['meshes'][n['mesh']]['primitives']:
+    a=g['accessors'][prim['attributes']['POSITION']]
+    assert n['translation'][0]+a['min'][0]>=.2974,(n['name'],'case protrudes from panel')
  # 3-1/8 inch primary instruments and two-inch systems instruments must remain separate.
  cases=[]
  for label in ['Airspeed','Attitude','Altimeter','NAV1']:
@@ -52,5 +58,5 @@ def check(path):
  for (x,d),(x2,d2) in zip(cases,cases[1:]):assert abs(x2-x)>(d+d2)/2+.004,'Bezel overlap'
  return dict(model=str(path.relative_to(ROOT)),sha256=hashlib.sha256(raw).hexdigest(),nodes=len(nodes),bindings=len(rig),required_bindings=len(required),graph='unique names, one parent, no cycles, no orphan nodes',result='PASS')
 if __name__=='__main__':
- reports=[check(MODEL),check(ROOT/'renders/c172/v1/c172-interior.glb')]
- (ROOT/'renders/c172/v1/validation.json').write_text(json.dumps(reports,indent=2)+'\n');print(json.dumps(reports,indent=2))
+ reports=[check(MODEL),check(ROOT/os.environ.get('C172_OUT','renders/c172/instruments-v2')/'c172-interior.glb')]
+ (ROOT/os.environ.get('C172_OUT','renders/c172/instruments-v2')/'validation.json').write_text(json.dumps(reports,indent=2)+'\n');print(json.dumps(reports,indent=2))

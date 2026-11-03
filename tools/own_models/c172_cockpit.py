@@ -5,7 +5,7 @@ import bpy, math, json, os, hashlib
 from pathlib import Path
 from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[2]
-OUT=ROOT/'renders/c172/v1'; OUT.mkdir(parents=True,exist_ok=True)
+OUT=ROOT/os.environ.get('C172_OUT','renders/c172/instruments-v2'); OUT.mkdir(parents=True,exist_ok=True)
 RIG=[]; CREATED=[]
 def xyz(p): return (p[1],-p[0],p[2])
 def mat(n,c,metal=0):
@@ -13,6 +13,8 @@ def mat(n,c,metal=0):
  bs=m.node_tree.nodes.get('Principled BSDF');bs.inputs['Base Color'].default_value=(*c,1);bs.inputs['Metallic'].default_value=metal;bs.inputs['Roughness'].default_value=.48 if metal else .76
  return m
 black=mat('charcoal',(.018,.022,.021)); face=mat('instrument_black',(.006,.009,.009)); ivory=mat('warm_ivory',(.73,.65,.48)); white=mat('markings',(.85,.87,.75)); metal=mat('brushed_metal',(.30,.33,.32),.7); tan=mat('saddle_vinyl',(.29,.13,.055)); cloth=mat('woven_ochre',(.48,.31,.14)); carpet=mat('brown_carpet',(.065,.043,.025)); red=mat('mixture_red',(.52,.025,.012)); orange=mat('amber_digits',(.95,.36,.045)); blue=mat('gyro_sky',(.09,.31,.48)); earth=mat('gyro_earth',(.30,.15,.065)); green=mat('normal_arc',(.04,.38,.13)); yellow=mat('caution',(.85,.57,.04))
+tube_glass=mat('inclinometer_glass',(.33,.43,.42),.25)
+tube_glass.node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=.12
 def finish(o,n,m):
  o.name='C172_'+n;o.data.materials.append(m);CREATED.append(o);return o
 def box(n,p,s,m=black,bevel=.004):
@@ -47,14 +49,28 @@ def needle(n,x,z,angle=0,length=.028,m=white,f=.251):
  return rig(o,'rotation','+X forward (Blender)',[-180,180],n)
 def knob(n,x,z,r=.008,f=.265,kind='rotation',signal=None,m=black):
  o=cyl(n,(x,f,z),r,.018,m);rig(o,kind,'+X forward (Blender)',[0,360] if kind=='rotation' else [0,.06],signal or n)
+ if kind=='translation':return o
  stripe=box(n+'_index',(x,f-.010,z+r*.5),(.002,.001,r*.5),white,.0002);parent(stripe,o);return o
 # Width 1.02m, independent 3-1/8 inch instrument cases at 102mm centres.
-box('Panel',(0,.32,.185),(1.04,.045,.405),black,.035)
+panel=box('Panel',(0,.32,.185),(1.04,.045,.405),black,.018)
+DIALS=[]
+def cut_hole(target,x,z,r):
+ cutter=cyl('mount_cut',(x,.32,z),r,.18)
+ bpy.context.view_layer.objects.active=target
+ mod=target.modifiers.new('recess','BOOLEAN');mod.operation='DIFFERENCE';mod.object=cutter
+ bpy.ops.object.modifier_apply(modifier=mod.name)
+ CREATED.remove(cutter);bpy.data.objects.remove(cutter,do_unlink=True)
+def silhouette(n,x,f,z,points,m=white):
+ # Front face points aft (-Blender X); Unity culls the back of these face polygons.
+ if sum(a*d-c*b for (a,b),(c,d) in zip(points,points[1:]+points[:1]))<0:points=list(reversed(points))
+ mesh=bpy.data.meshes.new(n);mesh.from_pydata([xyz((a,0,b)) for a,b in points],[],[tuple(range(len(points)))])
+ o=bpy.data.objects.new(n,mesh);bpy.context.collection.objects.link(o);o.location=xyz((x,f,z));return finish(o,n,m)
 box('LowerPanel',(0,.30,-.025),(1.00,.045,.095),ivory,.012)
 box('Glareshield',(0,.34,.405),(1.08,.25,.036),black,.025)
 for xx in [-.485,-.05,.49]:
  for zz in [.025,.365]:cyl('Panel_screw',(xx,.293,zz),.003,.002,metal)
 def dial(n,x,z,r=.040,labels=None):
+ DIALS.append((n,x,z,r,len(CREATED)))
  cyl(n+'_case',(x,.286,z),r+.004,.018,metal);cyl(n+'_bezel',(x,.274,z),r+.002,.010,black);cyl(n+'_face',(x,.267,z),r,.002,face)
  for i in range(60):
   if n=='Turn_coordinator' or (n=='Attitude' and i not in [0,5,10,50,55]):continue
@@ -63,7 +79,7 @@ def dial(n,x,z,r=.040,labels=None):
  if labels:
   for i,t in enumerate(labels):
    a=math.tau*i/len(labels);text(n+'_numeral',str(t),(x+math.sin(a)*r*.64,.261,z+math.cos(a)*r*.64),r*.20)
- text(n+'_label',n.upper().replace('_',' '),(x,.260,z-r*.38),r*.14)
+ if n!='Turn_coordinator':text(n+'_label',n.upper().replace('_',' '),(x,.260,z-r*.38),r*.14)
  return (x,z)
 # Pilot primary six-pack, clear of the separate nav heads.
 for n,x,z,labels in [('Airspeed',-.423,.323,list(range(0,200,20))),('Attitude',-.321,.323,None),('Altimeter',-.219,.323,list(range(10))),('Turn_coordinator',-.423,.218,None),('DG',-.321,.218,['N',3,6,'E',12,15,'S',21,24,'W',30,33]),('VSI',-.219,.218,[0,5,10,15,20,15,10,5])]:
@@ -78,21 +94,37 @@ for n,x,z,labels in [('Airspeed',-.423,.323,list(range(0,200,20))),('Attitude',-
   rig(q,'rotation','-Y',[-25,25],'attitude.pitch');parent(q,o)
   for zz in [-.016,-.008,0,.008,.016]:
    parent(line('AI_pitch_mark',(x-.009,.234,z+zz),(x+.009,.234,z+zz),.00045,white),q)
-  for side in [-1,1]:box('AI_fixed_airplane',(x+side*.016,.231,z),(.022,.001,.002),orange,.0002)
+  silhouette('AI_fixed_airplane',x,.230,z,[(-.026,.001),(-.006,.001),(-.003,-.002),(.003,-.002),(.006,.001),(.026,.001),(.026,-.001),(.007,-.001),(.004,-.004),(-.004,-.004),(-.007,-.001),(-.026,-.001)],orange)
   knob('AI_cage',x,z-.035,r=.004);text('Vacuum','VAC',(x,.230,z+.022),.005)
  elif n=='DG':
   # The compass rose itself rotates; fixed aircraft remains on the face.
   o=cyl('DG_card',(x,.259,z),.030,.001,face);rig(o,'rotation','+X',[0,360],'heading.nonSlavedDeg')
   for i,t in enumerate(['N',3,6,'E',12,15,'S',21,24,'W',30,33]):
    a=math.tau*i/12;parent(text('DG_card_text',str(t),(x+math.sin(a)*.024,.257,z+math.cos(a)*.024),.006),o)
-  box('DG_aircraft',(x,.254,z),(.022,.001,.002),white,0);box('DG_aircraft_body',(x,.254,z),(.002,.001,.021),white,0)
+  silhouette('DG_aircraft',x,.254,z,[(0,.018),(.002,.014),(.002,.004),(.018,-.003),(.018,-.006),(.002,-.002),(.0015,-.012),(.007,-.015),(.007,-.017),(0,-.015),(-.007,-.017),(-.007,-.015),(-.0015,-.012),(-.002,-.002),(-.018,-.006),(-.018,-.003),(-.002,.004),(-.002,.014)])
   bug=box('DG_heading_bug',(x,.251,z),(.006,.001,.006),orange,.0005)
   for v in bug.data.vertices:v.co.z+=.031
   rig(bug,'rotation','+X',[0,360],'headingBugDeg');knob('DG_sync_adjust',x-.027,z-.030,.005);knob('DG_bug_adjust',x+.027,z-.030,.005)
  elif n=='Turn_coordinator':
-  q=box('TC_airplane',(x,.254,z+.004),(.045,.001,.003),white,0);parent(box('TC_fuselage',(x,.253,z+.004),(.003,.001,.017),white,0),q);rig(q,'rotation','+X',[-30,30],'turn.rate')
-  box('TC_ball_track',(x,.258,z-.020),(.039,.002,.007),ivory,.003)
-  q=cyl('TC_slip_ball',(x,.253,z-.020),.003,.002,black);rig(q,'translation','-Y',[-.015,.015],'slip');text('TC_electric','ELEC   2 MIN',(x,.250,z+.021),.005)
+  # Rear-view aeroplane: straight wings, round fuselage, vertical fin and tailplane.
+  q=silhouette('TC_airplane',x,.251,z+.004,[(-.026,0),(-.004,.001),(-.002,.003),(-.001,.011),(.001,.011),(.002,.003),(.004,.001),(.026,0),(.026,-.002),(.004,-.002),(.002,-.004),(-.002,-.004),(-.004,-.002),(-.026,-.002)])
+  parent(cyl('TC_fuselage',(x,.250,z+.004),.003,.001,white),q);rig(q,'rotation','+X',[-30,30],'turn.rate')
+  for side,label in [(-1,'L'),(1,'R')]:
+   # Wing tips meet these marks at +/-15 degrees (one standard rate).
+   xx=x+side*.026*math.cos(math.radians(15));zz=z+.004-.026*math.sin(math.radians(15))
+   line('TC_rate_mark',(xx-side*.003,.251,zz),(xx+side*.004,.251,zz),.0008,white)
+   text('TC_direction',label,(x+side*.030,.250,z+.009),.006)
+  text('TC_title','TURN COORDINATOR',(x,.250,z+.024),.0036)
+  text('TC_two_min','2 MIN',(x,.250,z-.010),.0045)
+  text('TC_electric','D.C. ELEC.',(x,.250,z-.031),.004)
+  # Glass tube follows a shallow U; black ball lies between two wire references.
+  for i in range(40):
+   a=-.020+i*.001;b=a+.001
+   za=z-.022+12*a*a;zb=z-.022+12*b*b
+   line('TC_glass_tube',(x+a,.253,za),(x+b,.253,zb),.0038,tube_glass)
+   line('TC_glass_highlight',(x+a,.2488,za+.002),(x+b,.2488,zb+.002),.00045,white)
+  for side in [-1,1]:line('TC_reference_wire',(x+side*.0045,.248,z-.026),(x+side*.0045,.248,z-.017),.00045,black)
+  q=cyl('TC_slip_ball',(x,.248,z-.022),.003,.0015,black);rig(q,'translation','-Y',[-.015,.015],'slip')
  else:
   if n=='Airspeed':
    for lo,hi,rr,ma in [(49,100,.030,white),(57,128,.033,green),(128,164,.033,yellow)]:
@@ -116,11 +148,56 @@ for idx,z in [(1,.323),(2,.218)]:
  knob('NAV%d_OBS'%idx,x-.026,z-.030,.005)
  for flag in ['NAV','TO_FROM']+(['GS'] if idx==1 else []):
   q=text('NAV%d_%s_flag'%(idx,flag),flag,(x+.013,.245,z+.012+(['NAV','TO_FROM','GS'].index(flag)*.007)),.0045,red);rig(q,'rotation','+X',[0,90],'nav%d.%s'%(idx,flag))
-x=-.112;z=.111;dial('ADF',x,z,.039,['N',3,6,'E',12,15,'S',21,24,'W',30,33]);needle('ADF_bearing',x,z,35,.028,orange,.252);knob('ADF_card_adjust',x-.026,z-.03,.005)
+x=-.112;z=.111;dial('ADF',x,z,.039,['N',3,6,'E',12,15,'S',21,24,'W',30,33]);adf=needle('ADF_bearing',x,z,35,.028,orange,.252);
+tail=silhouette('ADF_tail',x,.252,z,[(-.001,0),(-.001,-.022),(-.003,-.026),(.003,-.026),(.001,-.022),(.001,0)],orange)
+head=silhouette('ADF_head',x,.251,z,[(0,.030),(-.003,.023),(.003,.023)],orange)
+for detail in [tail,head]:
+ # Rotate around its gauge-centred origin to align head and tail with the needle.
+ detail.rotation_euler.x=-math.radians(35);parent(detail,adf)
+knob('ADF_card_adjust',x-.026,z-.03,.005)
 # Engine/systems cluster on right, grouped as actual separate instruments.
 for n,x,z,r,labs in [('Tach',.303,.314,.042,[0,5,10,15,20,25,30,35]),('Suction',.443,.315,.026,[0,2,4,6,8]),('Oil_press',.264,.213,.026,[0,25,50,75,100]),('Oil_temp',.335,.213,.026,[75,100,150,200,245]),('Fuel_L',.264,.139,.026,['E','1/4','1/2','3/4','F']),('Fuel_R',.335,.139,.026,['E','1/4','1/2','3/4','F']),('Ammeter',.443,.213,.026,[-60,-30,0,30,60]),('EGT',.443,.139,.026,[8,10,12,14,16])]:
  dial(n,x,z,r,labs);needle(n+'_needle',x,z,35,r*.7,f=.251)
  if n=='Tach':text('tach_hours','02483.6',(x,.249,z-.019),.007)
+# Recess cases into the panel; keep the AI sphere round so its pitch mechanism still works.
+# The frontmost art is at the panel plane; cases remain behind it, never stacked on top.
+bpy.context.view_layer.update()
+end=len(CREATED)
+for idx,(n,x,z,r,start) in enumerate(DIALS):
+ stop=DIALS[idx+1][4] if idx+1<len(DIALS) else end
+ group=CREATED[start:stop]
+ # Work in world space so parented horizon/card detail receives the same affine map once.
+ matrices={o:o.matrix_world.copy() for o in group}
+ for o in group:
+  if o.type=='FONT':
+   bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o;bpy.ops.object.convert(target='MESH')
+ for o in group:
+  w=matrices[o];inv=w.inverted()
+  for v in o.data.vertices:
+   p=w@v.co
+   p.x=p.x+.060 if o.name in {'C172_AI_roll','C172_AI_pitch'} else .2975+(p.x-.230)*.10
+   v.co=inv@p
+ # Geometry is mapped above; now move origins without moving geometry, for correct runtime axes.
+ for o in group:
+  w=matrices[o];new=w.copy()
+  new.translation.x=w.translation.x+.060 if o.name in {'C172_AI_roll','C172_AI_pitch'} else .2975+(w.translation.x-.230)*.10
+  o.matrix_world=new
+  delta=w.translation-new.translation
+  for v in o.data.vertices:v.co+=new.to_3x3().inverted()@delta
+ bpy.context.view_layer.update()
+ # The recessed spherical horizon needs an open window through all three case layers.
+ if n=='Attitude':
+  for o in group:
+   if o.name in {'C172_Attitude_case','C172_Attitude_bezel','C172_Attitude_face'}:cut_hole(o,x,z,.030)
+  cyl('AI_backing',(x,.365,z),.10,.002,face)
+ cut_hole(panel,x,z,r+.002)
+ plate=box(n+'_flush_mount',(x,.299,z),(2*(r+.005),.003,2*(r+.005)),black,.002)
+ cut_hole(plate,x,z,r+.001)
+ for sx in [-1,1]:
+  for sz in [-1,1]:
+   xx=x+sx*(r+.001);zz=z+sz*(r+.001)
+   cyl(n+'_corner_screw',(xx,.2974,zz),.002,.0004,metal)
+   box(n+'_screw_slot',(xx,.2971,zz),(.0028,.0002,.0004),black,0)
 # Avionics stack: independent mechanically tuned COM/NAV radios, ADF receiver and DME.
 for n,z,h in [('Audio',.366,.028),('KX170B_1',.307,.075),('KX170B_2',.224,.075),('KR85_ADF',.151,.060),('DME',.094,.042),('KT76',.042,.048)]:
  x=.095;box(n,(x,.280,z),(.177,.036,h),black,.003)
@@ -150,7 +227,9 @@ for i,n in enumerate(['Master_BAT','Master_ALT','Beacon','Landing','Taxi','Nav_l
 knob('Mags_key',-.43,.070,.012,f=.255);text('ignition_label','OFF R L BOTH START',(-.43,.244,.089),.004)
 knob('Primer',-.355,.069,.008,kind='translation',f=.255)
 for n,x,m in [('Carb_heat',-.040,black),('Throttle',.035,black),('Mixture',.112,red)]:
- cyl(n+'_shaft',(x,.215,-.041),.004,.13,metal);knob(n,x,-.041,.013,f=.151,kind='translation',m=m);text(n+'_label',n.upper().replace('_',' '),(x,.253,-.066),.005,black)
+ shaft=cyl(n+'_shaft',(x,.215,-.041),.004,.13,metal)
+ control=knob(n,x,-.041,.013,f=.151,kind='translation',m=m);parent(shaft,control)
+ text(n+'_label',n.upper().replace('_',' '),(x,.253,-.066),.005,black)
 for n,x in [('Cabin_heat',.255),('Cabin_air',.315)]:knob(n,x,-.030,.008,f=.25,kind='translation');text(n+'_label',n.upper().replace('_',' '),(x,.239,-.052),.0045,black)
 rig(box('Flap_switch',(.403,.245,-.020),(.012,.024,.014),ivory,.002),'rotation','-Y',[0,40],'flap.command');text('flap_label','FLAPS  0 10 20 30 40',(.420,.244,-.048),.005,black)
 rig(box('Flap_indicator',(.458,.253,-.016),(.010,.002,.004),white,0),'translation','+Z',[0,.023],'flap.position')
@@ -164,7 +243,7 @@ for side,x in [('L',-.30),('R',.30)]:
  for s in [-1,1]:
   a=line('Yoke_'+side+'_bar',(x,-.030,.066),(x+s*.135,-.030,.045),.012,black);parent(a,yoke)
   a=line('Yoke_'+side+'_grip',(x+s*.135,-.030,.045),(x+s*.135,-.030,.142),.014,black);parent(a,yoke)
- parent(text('Yoke_badge','SKYHAWK',(x,-.050,.088),.009,ivory),yoke)
+ parent(text('Yoke_badge','TRAINER',(x,-.050,.088),.009,ivory),yoke)
  for s,tag in [(-1,'L'),(1,'R')]:
   xx=x+s*.083;o=box('Pedal_'+side+'_'+tag,(xx,.30,-.425),(.125,.042,.075),black,.005);rig(o,'rotation','-Y',[-18,18],'rudder');
   toe=box('Toe_brake_'+side+'_'+tag,(xx,.275,-.399),(.11,.012,.027),metal,.002);rig(toe,'rotation','-Y',[0,15],'brake.'+tag);parent(toe,o)
@@ -224,6 +303,14 @@ for o in CREATED:o.select_set(True)
 # Bake mesh orientations so axes in the rig table are parent-space axes.
 bpy.ops.object.convert(target='MESH')
 bpy.ops.object.transform_apply(location=False,rotation=True,scale=True)
+# Keep the upper panel and glareshield inside the measured rounded fuselage section.
+for o in CREATED:
+ if o.name=='C172_Glareshield':
+  for v in o.data.vertices:v.co.y*=.98/1.08
+ elif o.name=='C172_Panel':
+  for v in o.data.vertices:
+   if abs(v.co.y)>.485:v.co.y=math.copysign(.485+(abs(v.co.y)-.485)*(.025/.035),v.co.y)
+
 bpy.context.view_layer.update()
 for e in RIG:
  o=bpy.data.objects[e['node']]
@@ -275,6 +362,14 @@ if os.environ.get('C172_RENDER')=='1':
  for n,p,power,size in [('Key',(-1,-.7,1.7),160,2),('Fill',(1,-.2,1.1),110,1.4),('Windshield',(0,1,1.2),180,1.2)]:
   bpy.ops.object.light_add(type='AREA',location=xyz(p));o=bpy.context.object;o.name=n;o.data.energy=power;o.data.shape='DISK';o.data.size=size;o.rotation_euler=(Vector(xyz((0,-.3,.05)))-o.location).to_track_quat('-Z','Y').to_euler()
  views=[('full-panel-straight',(0,-.60,.22),(0,.29,.17),26),('pilot-eye',(-.337,-.346,.548),(-.10,.32,.20),22),('cfi-right-seat',(.332,-.346,.548),(-.09,.32,.17),22),('radio-stack',(.095,-.29,.27),(.095,.28,.205),35),('nav-heads',(-.112,-.21,.28),(-.112,.27,.265),55),('cabin-wide',(0,.20,.56),(0,-.95,-.10),18)]
+ if OUT.name=='instruments-v2':
+  views=[('full-panel-pilot-eye',(-.337,-.346,.548),(-.03,.30,.17),19),
+   ('six-pack',(-.321,-.20,.29),(-.321,.30,.27),44),
+   ('attitude',(-.321,.08,.323),(-.321,.30,.323),55),
+   ('directional-gyro',(-.321,.08,.218),(-.321,.30,.218),55),
+   ('turn-coordinator',(-.423,.08,.218),(-.423,.30,.218),55),
+   ('throttle-mixture',(.065,-.15,.065),(.065,.22,-.04),55),
+   ('low-side-flush',(-.10,.05,.19),(-.35,.30,.29),45)]
  cameras=[]
  only=set(filter(None,os.environ.get('C172_RENDER_ONLY','').split(',')))
  for n,e,t,lens in views:

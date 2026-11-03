@@ -1,4 +1,14 @@
 ## NEEDS YOU
+- **172 PANEL V2 — NEEDS YOU: Ty, approve the new panel renders (Codex, 2026-11-03, lane/claude-172-instruments).**
+  Addresses all feedback logged at 14:38–14:41: recessed flush mounts and four slotted corner screws per instrument;
+  level centred AI reference; top-view DG airplane; rear-view TC airplane, L/R standard-rate marks, 2 MIN and D.C. ELEC.;
+  curved inclinometer tube, ball and two wires; fixed-pitch panel with no prop control; plain black throttle/red mixture
+  plungers without white stripes or vernier detail, with translation-only runtime bindings. ADF head/tail and TRAINER
+  yokes retained. Exterior loft winding corrected and panel/glareshield ends fitted inside the fuselage at the wing root.
+  Review `renders/c172/instruments-v2/`; PNG copies in `~/Developer/agent-lanes/xfer/c172v2/`.
+  V1 was the original geometry, captured at 10:20 before this feedback, rather than evidence of the requested changes;
+  no uncommitted earlier attempt was present. Provenance and reproduction: `docs/models/c172-instruments-v2.md`.
+  **Approval remains pending. Local commit only; no push or merge.**
 - **1970s 172 INSTRUMENTS, MODELLED FROM THE MECHANISMS AND BOUND TO CODEX'S PANEL — NOT MERGED, NOT DEPLOYED, waiting on
   your panel-render approval (Claude, 2026-11-03, lane/claude-172-instruments).** Full write-up: `docs/C172-INSTRUMENTS.md`.
   Vacuum pump → AI and DG spin up and run down on their own physics (95 % in 2 min; 41 % two minutes after the pump
@@ -4499,3 +4509,11 @@ NEEDS YOU: approve v2. Ty: turn coordinator still a crude block (needs real TC: 
 
 ## 2026-11-03 14:41 PST - 172 panel: controls (Ty)
 NEEDS YOU: approve v2. (6) 172 is fixed-pitch: no propeller control anywhere on panel/quadrant. (7) Throttle and mixture are push-pull plungers: no white tick marks, no rotation (no vernier twist), they just push in and pull out.
+
+## 2026-11-03 14:59 PST - 172 instruments v2 final review (Codex)
+
+NEEDS YOU: Ty, approve `renders/c172/instruments-v2/`. All seven 14:38–14:41 feedback items addressed; ADF head/tail needle and TRAINER yokes retained. Full-panel pilot-eye, parked/known-state six-pack and pilot views, AI/DG/TC/controls close-ups, low side flushness view and exterior captured from the final own model in Unity/Metal. All 14 PNGs copied and hash-verified in `~/Developer/agent-lanes/xfer/c172v2/`. No fallback: Unity reports RIG OK, 34/34 bound, no off-pivot or wrong-parent nodes, exit 0 and zero compiler errors. Source, scene, model and image hashes/cameras are in the render manifest. Final model SHA256 `d029a49fd2765147065217796442ea0a59f2f8f186c96744e7237b8ba3210d16`.
+
+V1 was captured at 10:20 and matched the unchanged original builder; the checkout began clean. Its original shell faced inward (signed volume -4.840003 m³). V2 corrects the winding, recesses all 17 cases behind the panel plane with 68 visible corner screws, fits the upper panel/glareshield inside the shell, and closes the AI rear case against oblique sky leaks. The low-angle and exterior renders were inspected. Details/reproduction: `docs/models/c172-instruments-v2.md`.
+
+Validation: 32 C172 checks pass; both GLBs pass graph, all 104 authored/45 required bindings, pivots, spacing and flushness. Broader ModelRigTests: 11 pass, one baseline glider airbrake test fails with NaN rollout distances, reproduced in isolation on clean HEAD. Python compilation and diff whitespace checks pass. No src/config changes, device build or deployment claim. ProjectSettings generation discarded. Approval remains pending; local commit only, no push/merge, no forced add.

@@ -140,7 +140,8 @@ namespace FlyingGame.EditorTools
                     else if (required) { Debug.LogError($"RIG the model has no '{node}' — {what} will not work"); fixtures++; }
                     else Debug.Log($"RIG   {what,-22} (none on this model)");
                 }
-                Want("Eye_Rear", "cockpit eye, default", true);
+                // The C172 uses its configured seat eye, as the C172 capture below does.
+                Want("Eye_Rear", "cockpit eye, default", !bound.ContainsKey("C172_AI_roll"));
                 Want("Eye_Front", "cockpit eye, other seat", false);
                 Want("Radio_Display_R", "COM display", false);
                 Want("Xpdr_Display_R", "transponder display", false);
@@ -346,11 +347,32 @@ namespace FlyingGame.EditorTools
                     cam.transform.rotation = Quaternion.LookRotation(Design(-0.10f, 0.32f, 0.20f) - eye, model.up);
                     cam.fieldOfView = 60f;
                     Capture(cam, rt, Path.Combine(dir, $"c172-pilot-eye-{name}.png"));
+                    if (name == "parked")
+                    {
+                        cam.transform.rotation = Quaternion.LookRotation(Design(-.03f,.30f,.17f) - eye, model.up);
+                        cam.fieldOfView = 64f;
+                        Capture(cam, rt, Path.Combine(dir, "full-panel-pilot-eye.png"));
+                    }
                     Vector3 six = Design(-0.321f, -0.10f, 0.27f);
                     cam.transform.position = six;
                     cam.transform.rotation = Quaternion.LookRotation(Design(-0.27f, 0.30f, 0.27f) - six, model.up);
                     cam.fieldOfView = 40f;
                     Capture(cam, rt, Path.Combine(dir, $"c172-sixpack-{name}.png"));
+                    if (name == "parked")
+                    {
+                        foreach (var shot in new[] {
+                            ("attitude", new Vector3(-.321f,.08f,.323f), new Vector3(-.321f,.30f,.323f), 25f),
+                            ("directional-gyro", new Vector3(-.321f,.08f,.218f), new Vector3(-.321f,.30f,.218f), 25f),
+                            ("turn-coordinator", new Vector3(-.423f,.08f,.218f), new Vector3(-.423f,.30f,.218f), 25f),
+                            ("throttle-mixture", new Vector3(.065f,-.15f,.065f), new Vector3(.065f,.22f,-.04f), 27f),
+                            ("low-side-flush", new Vector3(-.10f,.05f,.19f), new Vector3(-.35f,.30f,.29f), 33f) })
+                        {
+                            cam.transform.position = Design(shot.Item2.x, shot.Item2.y, shot.Item2.z);
+                            cam.transform.rotation = Quaternion.LookRotation(Design(shot.Item3.x, shot.Item3.y, shot.Item3.z) - cam.transform.position, model.up);
+                            cam.fieldOfView = shot.Item4;
+                            Capture(cam, rt, Path.Combine(dir, $"c172-{shot.Item1}.png"));
+                        }
+                    }
                 }
             }
 

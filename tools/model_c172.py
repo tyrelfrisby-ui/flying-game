@@ -129,6 +129,7 @@ def mesh_from_loops(name, loops, close_ends=True):
                 bm.faces.new(ring)
             except ValueError:
                 pass
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
     bm.normal_update()
     bm.to_mesh(me)
     bm.free()
@@ -816,7 +817,7 @@ except Exception as exc:
         for poly in ob.data.polygons:
             poly.use_smooth = True
 
-OUT = os.path.join(REPO, "unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb")
+OUT = os.environ.get("C172_MODEL_OUT", os.path.join(REPO, "unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb"))
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True,
                           export_apply=True, export_yup=True, export_extras=True)

@@ -663,6 +663,7 @@ public class C172InstrumentTests
             ["C172_Altimeter_1000"] = "altitude_ft", ["C172_Altimeter_10000"] = "altitude_ft",
             ["C172_VSI_needle"] = "vsi_fpm", ["C172_Tach_needle"] = "rpm", ["C172_Oil_press_needle"] = "oil_press_psi",
             ["C172_Oil_temp_needle"] = "oil_temp_f", ["C172_Fuel_L_needle"] = "fuel_centre_frac", ["C172_Fuel_R_needle"] = "fuel_centre_frac",
+            ["C172_Throttle"] = "throttle", ["C172_Mixture"] = "mixture",
         };
         Assert.Equal(want.Count, rows.Count);
         var r = new RigInputs();
@@ -682,5 +683,14 @@ public class C172InstrumentTests
         Assert.Equal(1.0, rows["C172_NAV1_GS"].GetProperty("axis_gltf")[1].GetDouble());
         Assert.Equal(1.0, rows["C172_Compass_card"].GetProperty("axis_gltf")[1].GetDouble());
         Assert.Equal("C172_AI_roll", rows["C172_AI_pitch"].GetProperty("parent").GetString());
+        // Fixed-pitch trainer plungers push 60 mm into the panel; neither can rotate.
+        foreach (string node in new[] { "C172_Throttle", "C172_Mixture" })
+        {
+            Assert.Equal("move", rows[node].GetProperty("kind").GetString());
+            Assert.Equal(1.0, rows[node].GetProperty("axis_gltf")[0].GetDouble());
+            Assert.Equal(0.0, ValueAt(node, 0));
+            Assert.Equal(0.06, ValueAt(node, 1));
+        }
+        Assert.DoesNotContain(rows.Keys, n => n.Contains("Prop", StringComparison.OrdinalIgnoreCase));
     }
 }
