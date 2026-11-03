@@ -50,8 +50,10 @@ namespace FlyingGame.EditorTools
             int exit = 1;
             XrTrackedHands.JointReader oldReader = XrTrackedHands.Reader;
             bool oldModels = SessionSettings.UseAirframeModels, oldOwn = SessionSettings.UseOwnModels, oldMenu = SessionSettings.MenuOpen;
+            bool oldFlyByHand = XrHeadset.FlyByHand;
             try
             {
+                XrHeadset.FlyByHand = true;   // every case below is fly-by-hand; FlyByHandCase switches it itself
                 SessionSettings.MenuOpen = false;   // flying, not the landing page
                 SessionSettings.UseAirframeModels = SessionSettings.UseOwnModels = true;
                 XrTrackedHands.Reader = (left, p, r) =>
@@ -73,6 +75,7 @@ namespace FlyingGame.EditorTools
             finally
             {
                 XrTrackedHands.Reader = oldReader;
+                XrHeadset.FlyByHand = oldFlyByHand;
                 XrHeadset.ForceActiveForTesting = false;
                 VrCockpitHands.DeltaTimeForTesting = -1f;
                 SessionSettings.UseAirframeModels = oldModels; SessionSettings.UseOwnModels = oldOwn; SessionSettings.MenuOpen = oldMenu;
@@ -161,6 +164,7 @@ namespace FlyingGame.EditorTools
                         string seatId = SeatChoice.IdAt(sc.Cockpit.Seats, seat) ?? seat.ToString();
                         string tag = $"{id} seat {seatId} room {yaw:F0}°";
                         if (yaw == 0f) { Frames(sc, 2); Neighbours(sc, tag); }
+                        if (yaw == 0f) { Reset(sc); FlyByHandCase(sc, $"{tag} FLY-BY-HAND"); }
                         foreach (Grip grip in Grips)
                         {
                             Reset(sc); StickCase(sc, $"{tag} STICK {grip.Name}", grip);
@@ -394,6 +398,74 @@ namespace FlyingGame.EditorTools
             string res = $"held; 5 cm right → driver aileron {c0.Aileron:+0.00;-0.00}→{c1.Aileron:+0.00;-0.00}; 5 cm aft → elevator {c1.Elevator:+0.00;-0.00}→{c2.Elevator:+0.00;-0.00} (hands ail {sc.Hands.AileronInput:+0.00;-0.00} ele {sc.Hands.ElevatorInput:+0.00;-0.00})";
             if (Math.Abs(dAil) < 0.15 || Math.Abs(dEle) < 0.15) Fail($"{tag}: {res} — the stick did not move the controls; {Diag(sc, false)}");
             else Pass($"{tag}: {res}");
+        }
+
+        /// <summary>
+        /// THE FLY-BY-HAND SETTING (Ty 2026-11-03), switched at runtime with a hand on the stick:
+        ///  OFF from the start: hands not active, the body never built, a fist round the stick holds nothing;
+        ///  ON: the same fist takes the stick and the body is drawn;
+        ///  OFF while holding: the stick is let go, the body is switched off, and the driver's aileron stops following
+        ///  the hand; ON again: the hand takes it again.
+        /// The body's objects are a fresh scene's, so "never built" is measured, not assumed.
+        /// </summary>
+        private static void FlyByHandCase(Scene sc, string tag)
+        {
+            var body = (VrPilotBody)Get(sc.Hands, "_body");
+            Grip fist = Grips[0];
+            // Where to put the fist, read while the hands are still on (the grab points are theirs).
+            if (!StickFist(sc, out Vector3 palm, out Quaternion rot)) { Fail($"{tag}: no stick point"); return; }
+            XrHeadset.FlyByHand = false;
+            body.Destroy();                       // this scene has drawn it already; start from nothing
+            try
+            {
+                Frames(sc, 5);
+                if (sc.Hands.Active) { Fail($"{tag}: off, but VrCockpitHands is active"); return; }
+                if (body.Built) { Fail($"{tag}: off, but the pilot body was built"); return; }
+                Approach(sc, false, palm, rot, palm + new Vector3(0.10f, 0.08f, -0.10f), fist);
+                if (sc.Hands.StickHeld || Grab(sc).Held(HandSide.Right) != Grabbable.None) { Fail($"{tag}: off, but the hand took {Grab(sc).Held(HandSide.Right)}"); return; }
+                if (body.Built) { Fail($"{tag}: off, but the pilot body was built after a reach"); return; }
+
+                XrHeadset.FlyByHand = true;       // switched on with the fist still round the stick: open, close again
+                Reset(sc);
+                Approach(sc, false, palm, rot, palm + new Vector3(0.10f, 0.08f, -0.10f), fist);
+                if (!sc.Hands.StickHeld) { Fail($"{tag}: on, but the hand did not take the stick — {Diag(sc, false)}"); return; }
+                if (!body.Visible) { Fail($"{tag}: on, but the pilot body is not drawn"); return; }
+
+                XrHeadset.FlyByHand = false;      // off mid-hold
+                Frames(sc, 2);
+                if (sc.Hands.Active || sc.Hands.StickHeld) { Fail($"{tag}: switched off holding the stick, still held (active {sc.Hands.Active})"); return; }
+                if (body.Visible) { Fail($"{tag}: switched off, the pilot body is still drawn"); return; }
+                Frames(sc, 30);                   // a let-go stick settles to the trim first (the 2-33 front: −0.04 → 0)
+                double a0 = sc.Driver.Inputs.Aileron;
+                for (int i = 1; i <= 20; i++) { PutHand(sc, false, palm + Vector3.right * 0.05f * i / 20f, rot, fist.Curl, 0f); Frames(sc, 1); }
+                double a1 = sc.Driver.Inputs.Aileron;
+                if (Math.Abs(a1 - a0) > 0.02) { Fail($"{tag}: switched off, but moving the hand still moved the aileron {a0:+0.00;-0.00}→{a1:+0.00;-0.00}"); return; }
+
+                XrHeadset.FlyByHand = true;       // and on again
+                Reset(sc);
+                Approach(sc, false, palm, rot, palm + new Vector3(0.10f, 0.08f, -0.10f), fist);
+                if (!sc.Hands.StickHeld || !body.Visible) { Fail($"{tag}: on again, held {sc.Hands.StickHeld} body drawn {body.Visible}"); return; }
+                Pass($"{tag}: off = inactive, no body, no grab; on = held + body; off mid-hold = released, body hidden, aileron still ({a0:+0.00;-0.00}→{a1:+0.00;-0.00}); on again = held");
+            }
+            finally { XrHeadset.FlyByHand = true; Reset(sc); }
+        }
+
+        /// <summary>A right fist round the stick, as StickCase puts it, from the stick's grab point (kept up to date
+        /// only while the hands are active: call with fly by hand on).</summary>
+        private static bool StickFist(Scene sc, out Vector3 palm, out Quaternion rot)
+        {
+            Frames(sc, 1);
+            CockpitGrab.Point sp = Grab(sc).Points[(int)Grabbable.Stick];
+            palm = Vector3.zero; rot = Quaternion.identity;
+            if (!sp.Enabled) return false;
+            Vector3 top = U(sp.HasSegment ? sp.SegmentEnd : sp.Position), bot = U(sp.Position);
+            Vector3 axis = (top - bot).sqrMagnitude > 1e-6f ? (top - bot).normalized : Vector3.up;
+            Vector3 gripAt = Vector3.Lerp(bot, top, 0.6f);
+            Vector3 fwd = Vector3.ProjectOnPlane(Vector3.forward, axis).normalized;
+            rot = Quaternion.LookRotation(fwd, Vector3.Cross(fwd, axis).normalized * -1f);
+            if (Vector3.Dot(rot * Vector3.left, axis) < 0f) rot = Quaternion.LookRotation(fwd, Vector3.Cross(fwd, axis).normalized);
+            palm = gripAt - rot * Vector3.forward * 0.03f + rot * Vector3.up * 0.03f;
+            return true;
         }
 
         private static void ThrottleCase(Scene sc, string tag, Grip grip)

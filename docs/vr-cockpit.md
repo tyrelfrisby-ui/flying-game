@@ -12,6 +12,22 @@ Code: the math is engine-free in `src/FlyingGame.Core/Vr/` (`VrHand.cs`, `HandCo
 the hook in `TouchFlightControls.QuestInput`, `CockpitRigState.HandLatch`, `RigInputs.CanopyLatch`, one line in
 `SceneBootstrap`.
 
+## Fly by hand: the switch for all of it
+
+Everything in this document is OPTIONAL (owner Ty, 2026-11-03, approving the v3 body: "the user selects fly by hand
+and the body shows up"). VR menu → **Fly by hand**, persisted (`XrHeadset.FlyByHand`, PlayerPrefs `quest.flyByHand`),
+**Off** by default (`QuestCockpit.FlyByHandDefault`).
+
+- **Off:** `VrCockpitHands` is never active (`QuestCockpit.HandsInCockpit`), so no grab, no body, no hand-latch or
+  bail-out by hand, and the controllers fly through `TouchFlightControls` exactly as without the hands (thumbsticks,
+  the grab-anywhere throttle, the right grip's smoke). The body is built lazily on first show, so with the setting off
+  from launch its asset is never even instantiated; switched off later, it is deactivated (no renderers drawn, no IK).
+- **On:** the body and hands appear, and controllers or tracked hands take the stick, throttle and handles.
+- **Switched in flight:** read every frame. Off mid-hold lets go of whatever the hands held (the surfaces then trail as
+  for any let-go stick) and hides the body; on again, the next grab takes the control from where it is. A jumper who
+  climbed out by hand stays the jumper (the view is on him) but is no longer drawn.
+- Bench: `VrHandJointCheck` FLY-BY-HAND case per aircraft and seat (off / on / off mid-hold / on again).
+
 ## The frame
 
 Everything is in the **cockpit frame**: the aeroplane's position and rotation, **no scale**, Unity axes (+x right,
