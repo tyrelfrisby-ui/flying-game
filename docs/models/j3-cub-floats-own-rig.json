@@ -439,9 +439,9 @@
     -1.0
    ],
    "pivot_gltf": [
-    -0.252,
+    0.048,
     -0.087,
-    0.3066
+    0.3071
    ],
    "map": [
     [
@@ -712,14 +712,14 @@
    "unit": "0 OFF 1 L 2 R 3 BOTH (integer detents)",
    "kind": "rot",
    "axis_gltf": [
-    -0.08196,
-    -0.99664,
-    -0.0
+    0.0,
+    0.0,
+    -1.0
    ],
    "pivot_gltf": [
-    -0.259,
-    0.6609,
-    0.215
+    -0.074,
+    0.7085,
+    0.2988
    ],
    "map": [
     [
@@ -740,7 +740,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below)",
+   "desc": "rotary mag switch on the left root-rib wall, detents at the plate labels OFF/L/R/BOTH (clockwise seen from the cabin)",
    "link": "",
    "note": "map re-ordered for the sim (0 OFF, 1 R, 2 L, 3 BOTH) onto the plate OFF / L / R / BOTH",
    "extra": {
@@ -935,17 +935,12 @@
  ],
  "static": [
   {
-   "node": "CarbHeat_Knob_Rear",
-   "param": "carb_heat",
-   "why": "no carburettor heat in the sim"
-  },
-  {
    "node": "CarbHeat_Lever",
    "param": "carb_heat",
    "why": "no carburettor heat in the sim"
   },
   {
-   "node": "FuelValve_Lever",
+   "node": "FuelValve_Knob",
    "param": "fuel_valve",
    "why": "the sim has no J-3 fuel shut-off; drawn ON"
   },

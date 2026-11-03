@@ -1,4 +1,4 @@
-# J-3 Cub own model: animation rig spec (v15)
+# J-3 Cub own model: animation rig spec (v16)
 
 This is for Claude/Aero, for the aircraft configs `j3-cub-like` (wheels) and `j3-cub-floats-like` (floats). Both GLBs carry the same cockpit rig, and every value below is also stored on its node as glTF `extras`, so a config loader can read the rig straight from the file.
 
@@ -15,8 +15,9 @@ This is for Claude/Aero, for the aircraft configs `j3-cub-like` (wheels) and `j3
   - both throttles;
   - both sticks;
   - all four pedals with the rudder, the tailwheel and the water rudder;
-  - trim crank and stabilizer;
-  - carb heat lever and the rear carb heat knob.
+  - trim crank and stabilizer.
+- v16 (Ty 2026-11-02): the carb heat lever is the ONLY carb heat control. The rear-seat knob and its push-pull rod
+  are gone (`CarbHeat_Knob_Rear` no longer exists); from the rear seat it is a lean forward.
 - The axis signs were asserted by the build script against probe points on the meshes. The build fails if a sign is wrong.
 - Reference implementation: `tools/own_models/j3_fourview.py` with `J3_POSE="param=value,..."`.
 - **In the game** (2026-11-02): the table the game reads is `docs/models/j3-cub-own-rig.json` (wheels) and
@@ -24,6 +25,8 @@ This is for Claude/Aero, for the aircraft configs `j3-cub-like` (wheels) and `j3
   after a rebuild (`--check` fails when a table is out of step with its GLB). It renames `engine_rpm` -> `rpm` and
   `oil_psi` -> `oil_press_psi`, re-orders the magneto map for the sim's 0 OFF / 1 R / 2 L / 3 BOTH, and leaves out
   carb heat, primer, fuel valve, fuel wire, doors and water-rudder retract (no such sim value yet: drawn as modelled).
+  So v16's renames (`FuelValve_Lever` -> `FuelValve_Knob`, `CarbHeat_Knob_Rear` removed) change only the tables'
+  `static` lists: the game still drives 26 of 26 rigged nodes on each variant.
 
 ## Hierarchy (cockpit)
 ```
@@ -37,7 +40,7 @@ Cockpit (empty)
 │   ├── Stick_Rear_Roll  (empty, roll) ── Stick_Rear  (pitch)
 │   ├── Pedal_Front_L, Pedal_Front_R, Pedal_Rear_L, Pedal_Rear_R
 │   ├── Throttle_Lever_Front, Throttle_Lever_Rear
-│   ├── FuelValve_Lever, Trim_Crank, CarbHeat_Lever, CarbHeat_Knob_Rear
+│   ├── FuelValve_Knob, Trim_Crank, CarbHeat_Lever
 └── MagSwitch_Knob
 ```
 - The static plates, labels, gauge faces, bezels, primer barrel and lubber line stay in `Cabin` and `Panel_Gauges`.
@@ -51,7 +54,7 @@ Cockpit (empty)
 | rudder | −1..+1 | +1 = right pedal |
 | trim | −1..+1 | +1 = full nose-up trim |
 | throttle | 0..1 | 0 = CLOSED, 1 = OPEN |
-| fuel_valve | 0/1 | 1 = ON (modelled), 0 = OFF |
+| fuel_valve | 0/1 | 1 = ON (pushed in, modelled), 0 = OFF (pulled out 30 mm) |
 | carb_heat | 0..1 | 0 = OFF (modelled), 1 = ON |
 | magneto | 0,1,2,3 | integer detents OFF, L, R, BOTH (modelled OFF) |
 | primer | 0..1 | 0 = locked in, 1 = pulled out 50 mm |
@@ -73,12 +76,11 @@ Cockpit (empty)
 | Compass_Card | Instruments | heading_deg | rotate | [0.0, 1.0, -0.0] | [-0.579, 0.233, -0.011] | 0→0, 360→360 deg | wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing numbers); rig_map_wrap=360.0 |
 | Throttle_Lever_Front | Controls | throttle | rotate | [-0.0, -0.0, 1.0] | [-0.482, 0.065, 0.3056] | 0→0, 1→41.3322 deg | ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip |
 | Throttle_Lever_Rear | Controls | throttle | rotate | [-0.0, -0.0, 1.0] | [0.388, 0.065, 0.3075] | 0→0, 1→41.3322 deg | ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip |
-| FuelValve_Lever | Controls | fuel_valve | rotate | [0.0, 0.0, -1.0] | [-0.303, 0.035, 0.3074] | 0→90, 1→0 deg | shut-off lever, modelled ON (knob forward); OFF swings the knob up/aft 90 deg |
-| Trim_Crank | Controls | trim | rotate | [0.0, 0.0, -1.0] | [-0.252, -0.087, 0.3066] | -1→-450, 0→0, 1→450 deg | trim crank, 1.25 turns each way from neutral (judgement); +nose-up turns the top of the crank aft (toward UP) |
+| FuelValve_Knob | Controls | fuel_valve | translate | [0.0, 0.0, -1.0] | [-0.323, 0.035, 0.3074] | 0→0.03, 1→0 m | v16 push-pull: red knob on a chrome shaft through the D plate on the left wall (front pilot's left knee); modelled ON (pushed in); OFF pulls it 30 mm straight out of the wall into the cabin |
+| Trim_Crank | Controls | trim | rotate | [0.0, 0.0, -1.0] | [0.048, -0.087, 0.3071] | -1→-450, 0→0, 1→450 deg | trim crank, 1.25 turns each way from neutral (judgement); +nose-up turns the top of the crank aft (toward UP). v16: plate, scale and crank 0.30 m aft of v15 (beside the front seat) |
 | Stab | None | trim | rotate | [0.0, 0.0, -1.0] | [4.373, 0.485, 0.0] | -1→2.5, 0→0, 1→-4 deg | stabilizer incidence: +1 nose-up trim = LE down 4 deg, -1 = LE up 2.5 deg (TCDS A-691) |
-| CarbHeat_Lever | Controls | carb_heat | rotate | [0.0, -0.0, -1.0] | [-0.358, -0.064, -0.307] | 0→0, 1→35 deg | carb heat lever about its fork pivot; ON swings the forward ball up 35 deg (judgement) |
-| CarbHeat_Knob_Rear | Controls | carb_heat | translate | [0.99546, -0.09488, 0.00701] | [0.333, -0.127, -0.2903] | 0→0, 1→0.035 m | rear-seat carb heat knob pulls 35 mm aft along the rod for ON |
-| MagSwitch_Knob | Cockpit | magneto | rotate | [-0.08196, -0.99664, -0.0] | [-0.259, 0.6609, 0.215] | 0→0, 1→-37, 2→-73, 3→-115 deg | rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below); rig_detents=['OFF', 'L', 'R', 'BOTH'] |
+| CarbHeat_Lever | Controls | carb_heat | rotate | [0.0, -0.0, -1.0] | [-0.358, -0.064, -0.307] | 0→0, 1→35 deg | carb heat lever about its fork pivot; ON swings the forward ball up 35 deg (judgement). v16: the only carb heat control |
+| MagSwitch_Knob | Cockpit | magneto | rotate | [0.0, 0.0, -1.0] | [-0.074, 0.7085, 0.2988] | 0→0, 1→-37, 2→-73, 3→-115 deg | v16: rotary mag switch on the LEFT root-rib wall (the vertical face above the left window, 9.5 cm aft of the front spar), plate facing inboard; detents at the plate labels OFF/L/R/BOTH (clockwise seen from the cabin); rig_detents=['OFF', 'L', 'R', 'BOTH'] |
 | Primer_Plunger | Instruments | primer | translate | [1.0, 0.0, -0.0] | [-0.57, 0.164, -0.24] | 0→0, 1→0.05 m | primer plunger pulls straight aft 50 mm (judgement) |
 | Stick_Front_Roll | Controls | aileron | rotate | [-1.0, 0.0, -0.0] | [-0.267, -0.4576, -0.0] | -1→-20, 0→0, 1→20 deg | stick roll on the torque tube: +1 = stick top to the right (roll right) |
 | Stick_Front | Stick_Front_Roll | elevator | rotate | [0.0, 0.0, -1.0] | [-0.267, -0.4576, -0.0] | -1→-15, 0→0, 1→20 deg | stick pitch: +1 = stick aft 20 deg, -1 = forward 15 deg (judgement) |
@@ -114,7 +116,7 @@ These nodes use the older extras: `rig_deg_pos` for param > 0 and `rig_deg_neg` 
 - **Pedals:** ±18° about the floor hinge (by eye).
 - **Tailwheel steer:** ±30° with the rudder. **Water rudder:** ±25° with the rudder.
 - **Throttle:** 41.3°. That is the arc that takes the ball from the aft (CLOSED) end of the plate to the forward (OPEN) end.
-- **Fuel valve:** 90° quarter-turn. **Carb heat:** lever 35°, rear knob 35 mm pull. **Primer:** 50 mm pull. **Magneto:** detents at the plate label angles 0 / −37 / −73 / −115°.
+- **Fuel valve:** push-pull, 30 mm stroke (v16; was a 90° lever). **Carb heat:** lever 35° (v16: no rear knob). **Primer:** 50 mm pull. **Magneto:** detents at the plate label angles 0 / −37 / −73 / −115°.
 - **Trim crank:** ±450° (1.25 turns each way). This is a judgement for a game-friendly feel. The real J-3 crank takes several turns stop to stop.
 - **Gauges:**
   - ASI 40–140 mph over 300°, resting on its pin below 40;
