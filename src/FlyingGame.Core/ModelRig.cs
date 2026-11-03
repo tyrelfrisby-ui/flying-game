@@ -159,6 +159,9 @@ public struct RigInputs
     public double FuelSelector;
     /// <summary>Ignition key position: 0 OFF, 1 R, 2 L, 3 BOTH, 4 START.</summary>
     public double Magneto;
+    /// <summary>J-3 primer plunger: 0 in and locked .. 1 pulled out 50 mm. No priming system reads it yet; it stays 0
+    /// (in) unless a hand pulls the knob (Ty 2026-11-02, v18).</summary>
+    public double Primer;
     /// <summary>Battery master, 0 or 1.</summary>
     public double Master;
 
@@ -292,6 +295,7 @@ public struct RigInputs
             case "mixture": value = Mixture; return true;
             case "fuel_selector": value = FuelSelector; return true;
             case "magneto": value = Magneto; return true;
+            case "primer": value = Primer; return true;
             case "master": value = Master; return true;
             case "canopy_open": value = CanopyOpen; return true;
             case "canopy_lock": value = CanopyLock; return true;

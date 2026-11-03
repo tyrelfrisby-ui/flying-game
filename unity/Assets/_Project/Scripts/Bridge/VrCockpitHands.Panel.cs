@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using FlyingGame.Core;
 using FlyingGame.Core.MathTypes;
 using FlyingGame.Core.Vr;
+using FlyingGame.Sim;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
@@ -13,7 +14,9 @@ namespace FlyingGame.Bridge
     /// push-pull is grabbed and pulled (a momentary one also poked). The logic is Core's <see cref="PanelControl"/>.
     ///
     /// INTO THE SIM where the sim has the system, through the same state everything else uses: the trim knob is
-    /// <see cref="TouchFlightControls.PitchTrimLever"/>, the smoke switch is <see cref="SmokeController"/>. Everything
+    /// <see cref="TouchFlightControls.PitchTrimLever"/>, the smoke switch is <see cref="SmokeController"/>, the J-3 floats' WATER RUDDER handle is
+    /// <see cref="CockpitWaterRudder"/> (held: the blade follows the hand; let go near the hook it hangs there, else the
+    /// spring takes it down). Everything
     /// else (magnetos, master, fuel pump, lights, mixture, prop, alternate air / carb heat, fuel selector, radio,
     /// transponder) has no system in this sim yet: it moves, clicks, stays where it is left and says so in the log
     /// (`[VrCockpit] … visual only`). Drawn by this class after the rig, so the knob shows the hand's value.
@@ -32,7 +35,7 @@ namespace FlyingGame.Bridge
 
         private readonly List<PanelSlot> _panel = new();
         private SmokeController _smoke;
-        private static readonly HashSet<string> SimParams = new() { "trim", "smoke" };
+        private static readonly HashSet<string> SimParams = new() { "trim", "smoke", "water_rudder_up" };
 
         private void BindPanel(string seatFull)
         {
@@ -74,7 +77,7 @@ namespace FlyingGame.Bridge
             }
             Debug.Log($"[VrCockpit] {_driver.AircraftId} {seatFull} panel: {_panel.Count} controls ({toggles} toggles, {rotaries} knobs, {pulls} push-pull)" +
                       (unbound > 0 || missing.Count > 0 ? $"; MISSING {string.Join(", ", missing)}" : "") +
-                      "; into the sim: trim, smoke; the rest visual only (no system in the sim yet)");
+                      "; into the sim: trim, smoke, water rudder; the rest visual only (no system in the sim yet)");
         }
 
         /// <summary>Where a control starts: the sim's own value for the trim and the smoke, the parked cockpit
@@ -85,6 +88,7 @@ namespace FlyingGame.Bridge
             {
                 case "trim": return _touch != null ? _touch.PitchTrimLever : 0.0;
                 case "smoke": return _smoke != null && _smoke.On ? 1.0 : 0.0;
+                case "water_rudder_up": return _driver.Sim.Aircraft.WaterRudderUp01;
                 case "fuel_valve": return 1.0;
                 case "com_volume": return 0.5;
                 case "xpdr_squawk": return spec.Short switch { "XpdrDigit1" => 1, "XpdrDigit2" => 2, _ => 0 };   // 1200
@@ -100,6 +104,7 @@ namespace FlyingGame.Bridge
                 {
                     if (p.C.Spec.Param == "trim" && _touch != null) p.C.SetFromSim(_touch.PitchTrimLever);
                     else if (p.C.Spec.Param == "smoke" && _smoke != null) p.C.SetFromSim(_smoke.On ? 1.0 : 0.0);
+                    else if (p.C.Spec.Param == "water_rudder_up") p.C.SetFromSim(_driver.Sim.Aircraft.WaterRudderUp01);
                 }
                 _grab.Set(p.Id, C(PanelPoint(p)), true);
             }
@@ -122,6 +127,7 @@ namespace FlyingGame.Bridge
             p.C.Grab(_hands[(int)side].Rotation);
             if (p.Lever != null) p.Lever.Grab(hand, p.C.T);
             if (p.Slide != null) p.Slide.Grab(hand, p.C.T);
+            if (p.C.Spec.Param == "water_rudder_up") CockpitWaterRudder.Hold(_driver.Sim.Aircraft, p.C.Value);
             return true;
         }
 
@@ -141,7 +147,9 @@ namespace FlyingGame.Bridge
                 }
                 else
                 {
-                    ev = p.C.Held ? p.C.Release() : PanelEvent.None;
+                    bool was = p.C.Held;
+                    ev = was ? p.C.Release() : PanelEvent.None;
+                    if (was && p.C.Spec.Param == "water_rudder_up") ReleaseWaterRudder(p);
                     // A poke: the fingertip (a tracked index tip, or the controller) at the Poke_ point.
                     Vector3 at = p.Poke != null ? Local(p.Poke.position) : PanelPoint(p);
                     double d = System.Math.Min(Fingertip(0, at), Fingertip(1, at));
@@ -188,11 +196,25 @@ namespace FlyingGame.Bridge
                     if (_smoke != null && _smoke.On != v > 0.5) _smoke.Toggle();
                     Debug.Log($"[VrCockpit] smoke switch {(v > 0.5 ? "ON" : "OFF")} by hand → SmokeController {(_smoke != null ? (_smoke.On ? "on" : "off") : "MISSING")}");
                     return;
+                case "water_rudder_up":
+                    if (p.C.Held) CockpitWaterRudder.Hold(_driver.Sim.Aircraft, v);
+                    return;   // continuous while held; the one log line is on the release
                 case "com_volume":
                     return;
             }
             string what = s.Param == "xpdr_squawk" ? $"squawk {Squawk()}" : $"{v:0.###}";
             Debug.Log($"[VrCockpit] {s.Short} → {what} by hand (visual only: the sim has no {s.Param} system yet)");
+        }
+
+        /// <summary>The hand opens on the WATER RUDDER handle: near the hook it hangs there (blade up), anywhere else
+        /// the spring takes it back to the floor (blade down). The knob then follows the sim's travel.</summary>
+        private void ReleaseWaterRudder(PanelSlot p)
+        {
+            Aircraft ac = _driver.Sim.Aircraft;
+            double at = p.C.Value;
+            CockpitWaterRudder.Release(ac);
+            Debug.Log($"[WaterRudder] handle let go by hand at {at:0.00} of the travel → " +
+                      (ac.HasWaterRudderRetract ? (ac.WaterRudderHooked ? "ON THE HOOK (blade up)" : "spring takes it DOWN (blade in the water)") : "no retract on this airframe"));
         }
 
         /// <summary>The four transponder digit knobs as one code (thousands, hundreds, tens, units).</summary>

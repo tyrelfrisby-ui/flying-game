@@ -55,6 +55,19 @@ SHOTS = [  # name, camera, target, horizontal fov (deg)
      dict(hide=('Fuselage_Painted', 'Liner_Stbd', 'DoorUpper_R', 'DoorLower_R', 'Window_R', 'Glass'))),
     ('v17-07-tank-cowl-off-front', D(0.20, 0.42, 0.30), D(0.98, 0.0, -0.06), 58.0,
      dict(hide=('Fuselage_Painted', 'Engine', 'Prop', 'Glass', 'Cabin_Liner', 'Liner_Stbd'), cut_firewall=True)),
+    # v18 (Ty 2026-11-02 t282u..t285u): black V tubes meeting at the floor under the tank, panel TACH / AIRSPEED /
+    # COMPASS / ALTIMETER / OIL, the brass push-pull primer at the far right, the drain at the centre of the tank bottom.
+    ('v18-01-panel-rear-seat', EYE, D(1.20, 0.0, -0.10), 52.0),
+    ('v18-02-under-tank-rear-seat', EYE, D(1.00, 0.0, -0.33), QUEST_HFOV),
+    ('v18-closeup-primer', EYE, D(1.24, -0.244, 0.054), 14.0),
+    ('v18-closeup-gauges', EYE, D(1.233, -0.04, 0.10), 34.0),
+    ('v18-closeup-centre-drain', EYE, D(0.95, 0.0, -0.40), 20.0),
+    ('v18-03-tank-footwell-cutaway', D(1.50, 0.0, -0.30), D(0.95, 0.0, -0.22), QUEST_HFOV),
+    ('v18-04-tank-side-cutaway', D(1.02, -0.95, -0.05), D(1.00, 0.0, -0.25), 62.0,
+     dict(hide=('Fuselage_Painted', 'Liner_Stbd', 'DoorUpper_R', 'DoorLower_R', 'Window_R', 'Glass'))),
+    ('v18-05-primer-tank-side-cutaway', D(1.30, -0.90, 0.05), D(1.08, 0.0, -0.15), 72.0,
+     dict(hide=('Fuselage_Painted', 'Liner_Stbd', 'DoorUpper_R', 'DoorLower_R', 'Window_R', 'Glass'))),
+    ('v18-06-tubes-under-tank-low', D(1.45, -0.20, -0.48), D(0.95, 0.0, -0.30), 70.0),
 ]
 FIREWALL_XD = 0.80          # build_j3_cub.py firewall(): the skin section at xd 0.80, two faces in the Cabin mesh
 

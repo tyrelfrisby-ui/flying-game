@@ -13,15 +13,15 @@ namespace FlyingGame.FlightTests;
 /// the hook, and a hydrodynamic surface from first principles: ½·ρ_water·V²·S·a·α on the blade's immersed area, with
 /// the lift-curve slope from its aspect ratio (Helmbold). Effective only when down and in the water; up = no force.
 ///
-/// The literals are the drawn blade (build_j3_cub.py, Edo drawing 60-S-908A at 16.53 px/in): chord 212 px = 0.3258 m,
-/// span 112 px = 0.1721 m, an ellipse of S = π/4·c·b = 0.04403 m², AR = b²/S = 0.6727, a = 2π·AR/(2+√(AR²+4))
-/// = 1.0283 /rad. Max rudder 25° (the rig's WaterRudder_L ±25).
+/// The literals are the drawn blade (build_j3_cub.py, Edo drawing 60-S-908A at 16.53 px/in): chord 150 px = 0.2305 m,
+/// span 160 px = 0.2459 m (v18 t286u: v17's 212 x 112 px stood 8 cm over the post top retracted), an ellipse of
+/// S = π/4·c·b = 0.04452 m², AR = b²/S = 1.3583, a = 2π·AR/(2+√(AR²+4)) = 1.9318 /rad. Max rudder 25° (the rig's WaterRudder_L ±25).
 /// </summary>
 [Collection("WorldTerrainActive")]
 public class J3WaterRudderTests
 {
     private const string Id = "j3-cub-floats-like";
-    private const double S = 0.04403, A = 1.0283, Rho = 1000.0, MaxDelta = 25.0 * System.Math.PI / 180.0;
+    private const double S = 0.04452, A = 1.9318, Rho = 1000.0, MaxDelta = 25.0 * System.Math.PI / 180.0;
     private readonly ITestOutputHelper _out;
     public J3WaterRudderTests(ITestOutputHelper o) { _out = o; }
 
@@ -50,7 +50,7 @@ public class J3WaterRudderTests
         double a = 2 * System.Math.PI * ar / (2 + System.Math.Sqrt(ar * ar + 4));
         _out.WriteLine($"blade: c {f.WaterRudderChordM} m, b {f.WaterRudderSpanM} m, S {s:F5} m², AR {ar:F4}, a {a:F4} /rad; max {f.WaterRudderMaxRad * 57.29578:F1} deg; left float only {f.WaterRudderLeftOnly}");
         Assert.Equal(S, s, 4);
-        Assert.Equal(0.6727, ar, 3);
+        Assert.Equal(1.3583, ar, 3);
         Assert.Equal(A, a, 3);
         Assert.Equal(25.0, f.WaterRudderMaxRad * 180 / System.Math.PI, 1);
         Assert.True(f.WaterRudderLeftOnly);
@@ -91,7 +91,7 @@ public class J3WaterRudderTests
 
     /// <summary>Down and wholly under water (the hull pushed 0.3 m deeper than it floats, so every cell is wet), straight
     /// ahead with full right pedal: no sideslip and no yaw rate, so α = δ = 25° and the lift is exactly ½ρV²·S·a·δ with the
-    /// drawn blade's S and Helmbold a. 3 m/s: ½·1000·9·0.04403·1.0283·0.4363 = 88.9 N.</summary>
+    /// drawn blade's S and Helmbold a. 3 m/s: ½·1000·9·0.04452·1.9318·0.4363 = 168.9 N.</summary>
     [Fact]
     public void WhollyUnderItsLiftIsHalfRhoVSquaredSAAlpha()
     {
@@ -106,10 +106,10 @@ public class J3WaterRudderTests
             FloatHydro.WaterRudderReport r = FloatHydro.LastWaterRudder;
             _out.WriteLine($"wholly under, 3 m/s, 25 deg: S_imm {r.ImmersedAreaM2:F5} m², span {r.ImmersedSpanM:F4} m, AR {r.AspectRatio:F4}, a {r.LiftSlopePerRad:F4}/rad, lift {r.LiftN:F1} N, drag {r.DragN:F2} N, yaw {r.YawMomentNm:F0} N·m");
             Assert.Equal(S, r.ImmersedAreaM2, 4);
-            Assert.Equal(0.1721, r.ImmersedSpanM, 3);
+            Assert.Equal(0.2459, r.ImmersedSpanM, 3);
             Assert.Equal(A, r.LiftSlopePerRad, 2);
             Assert.Equal(-25.0, r.AlphaRad * 180 / System.Math.PI, 1);    // flow onto the blade's left face
-            Assert.Equal(88.9, -r.LiftN, 0);
+            Assert.Equal(168.9, -r.LiftN, 0);
             Assert.True(r.SideForceBodyN < 0, "TE right must push the stern left");
             Assert.True(r.YawMomentNm > 0, "and yaw the nose right");
         }
@@ -229,9 +229,9 @@ public class J3WaterRudderTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    /// <summary>Hooked, the blade has swung 140° up and aft about its hinge, the smallest 5° step that leaves no part of it
-    /// in the water at rest or at a 5.5 m/s taxi, for any pedal (the drawn hinge rides only ~6 cm above the water at
-    /// rest and its forward lobe swings DOWN as the blade goes up: at 90° 12% of it is still wet at rest, 19% taxiing).
+    /// <summary>Hooked, the blade has swung 90° up and aft about its hinge and stands behind the post (v18, t286u; v17's
+    /// blade had a forward lobe ahead of the post that swung DOWN as it went up, so it needed 140°): no part of it in the
+    /// water at rest or at a 5.5 m/s taxi, for any pedal (the drawn hinge rides only ~6 cm above the water at rest).
     /// Plowing through the hump (30% power, ~9° nose-up) the hull's stern squats the hinge itself under, and that is
     /// reported, not hidden.</summary>
     [Fact]
@@ -241,7 +241,7 @@ public class J3WaterRudderTests
         try
         {
             AircraftConfig cfg = Load();
-            Assert.Equal(140.0, cfg.Floats!.WaterRudderRetractRad * 180 / System.Math.PI, 1);
+            Assert.Equal(90.0, cfg.Floats!.WaterRudderRetractRad * 180 / System.Math.PI, 1);
             (Aircraft ac, SimLoop sim) = Afloat(cfg);
             ac.SetWaterRudderHooked(true, immediate: true);
             RigidBodyState rest = ac.State;
@@ -260,6 +260,33 @@ public class J3WaterRudderTests
             _out.WriteLine($"hooked: rest pitch {Pitch(rest):F1} deg and taxi ({taxi.Velocity.X:F1} m/s, pitch {Pitch(taxi):F1}) dry; plowing ({ac.State.Velocity.X:F1} m/s, pitch {Pitch(ac.State):F1}) {FloatHydro.LastWaterRudder.ImmersedAreaM2:F4} m² wet");
         }
         finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
+    /// <summary>Ty, t286u: "the retracted water-rudder blade must sit COMPLETELY BEHIND the vertical round tube (the rudder
+    /// post at the float stern), aligned with it in side and top views." The blade is in the post's own plane (the sim's
+    /// plate turns about the post, so there is no sideways offset to have), and every point of its edge is aft of the
+    /// post's 11 mm radius both down and retracted; retracted, all of it is above the hinge, standing up behind the post.
+    /// The model is held to the same by build_j3_cub.py's assert on the GLB's own vertices.</summary>
+    [Fact]
+    public void RetractedItStandsWhollyBehindThePostInLineWithIt()
+    {
+        FloatsConfig f = Load().Floats!;
+        const double PostR = 0.011;
+        double ct = System.Math.Cos(f.WaterRudderRetractRad), st = System.Math.Sin(f.WaterRudderRetractRad);
+        double minDownAft = double.MaxValue, minUpAft = double.MaxValue, maxUpBelow = double.MinValue;
+        for (int i = 0; i < 360; i++)
+        {
+            double t = i * System.Math.PI / 180;
+            double a0 = f.WaterRudderBladeAftM + 0.5 * f.WaterRudderChordM * System.Math.Cos(t);
+            double d0 = f.WaterRudderBladeBelowM + 0.5 * f.WaterRudderSpanM * System.Math.Sin(t);
+            double a1 = a0 * ct + d0 * st, d1 = d0 * ct - a0 * st;     // FloatHydro.DrawnWaterRudder's swing
+            minDownAft = System.Math.Min(minDownAft, a0); minUpAft = System.Math.Min(minUpAft, a1); maxUpBelow = System.Math.Max(maxUpBelow, d1);
+        }
+        _out.WriteLine($"blade edge aft of the post axis: down {minDownAft:F3} m, up {minUpAft:F3} m; up, its lowest point {-maxUpBelow:F3} m above the hinge");
+        Assert.True(minDownAft > PostR, $"down, the blade reaches {minDownAft:F3} m from the post axis");
+        Assert.True(minUpAft > PostR, $"up, the blade reaches {minUpAft:F3} m from the post axis");
+        Assert.True(maxUpBelow < 0, "up, the whole blade is above the hinge");
+        Assert.InRange(f.WaterRudderRetractRad * 180 / System.Math.PI, 89.9, 90.1);   // standing up behind the post, not leaning
     }
 
     static double Pitch(RigidBodyState s) { Vec3 f = s.Attitude.Rotate(new Vec3(1, 0, 0)); return -System.Math.Asin(f.Z) * 180 / System.Math.PI; }
