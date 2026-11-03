@@ -151,7 +151,11 @@ static class QueryCost
         Console.WriteLine($"analytic index initialization: {initialization.Elapsed.TotalMilliseconds:F1} ms");
         var rng=new Random(771); const int count=100000;
         var ring=Enumerable.Range(0,count).Select(_=> { double r=20*Math.Sqrt(rng.NextDouble()),a=2*Math.PI*rng.NextDouble(); return new IslandPoint(r*Math.Cos(a),r*Math.Sin(a)); }).ToArray();
-        var sets=new[]{("ring",ring),("sea",Moving(new IslandPoint(18,0))),("KSNA",Moving(new IslandPoint(.96,-8.06))),("Drake floor",Moving(IslandCavities.Drake["chamber_centre"].Point)),("Pirate floor",Moving(IslandCavities.Pirate["chamber_centre"].Point))};
+        // Glacier boxes (east/north km; 2026-11-02 surfaces pass): where the ice undulation, crevasses and boulders
+        // are evaluated — an icefall crevasse field, a bare-ice tongue with boulders, the central icefield.
+        IslandPoint[] Box(double e0,double e1,double n0,double n1)=>Enumerable.Range(0,count).Select(_=>new IslandPoint(e0+(e1-e0)*rng.NextDouble(),n0+(n1-n0)*rng.NextDouble())).ToArray();
+        var sets=new[]{("ring",ring),("sea",Moving(new IslandPoint(18,0))),("KSNA",Moving(new IslandPoint(.96,-8.06))),("Drake floor",Moving(IslandCavities.Drake["chamber_centre"].Point)),("Pirate floor",Moving(IslandCavities.Pirate["chamber_centre"].Point)),
+            ("icefall",Box(-5.6,-3.5,-3.7,-2.5)),("ice tongue",Box(-6.4,-4.4,-5.7,-3.6)),("icefield",Box(-2,1,-1,3))};
         foreach(var (name,points) in sets)
         {
             int queryIndex=0;

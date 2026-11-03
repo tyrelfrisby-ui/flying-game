@@ -152,6 +152,11 @@ switch (cmd)
             Preview.Scalar(Path.Combine(outDir, m.Name + "-rain.png"), m.G, m.Rain, 0, 5);
             Preview.Hillshade(Path.Combine(outDir, m.Name + "-topo-areas.png"), m.G, m.H, m.TopoW);
             Preview.Hillshade(Path.Combine(outDir, m.Name + "-macro.png"), m.G, m.Macro);
+            Preview.Hillshade(Path.Combine(outDir, m.Name + "-snow.png"), m.G, m.H, m.Snow);
+            Preview.Hillshade(Path.Combine(outDir, m.Name + "-crevasse.png"), m.G, m.H, m.Crevasse);
+            Preview.Hillshade(Path.Combine(outDir, m.Name + "-bare-ice.png"), m.G, m.H, m.Rough);
+            Preview.Hillshade(Path.Combine(outDir, m.Name + "-debris.png"), m.G, m.H, m.Debris);
+            Preview.Hillshade(Path.Combine(outDir, m.Name + "-protect.png"), m.G, m.H, m.Protect);
             Preview.Hillshade(Path.Combine(outDir, m.Name + "-conflicts.png"), m.G, m.H, m.Conflict.Select(v => v > 1e5 ? 1.0 : v > 0 ? .35 : 0).ToArray());
         }
         break;
@@ -167,6 +172,7 @@ switch (cmd)
         for (double x = -10000; x < 8000; x += 25) for (double y = -12000; y < 9000; y += 25)
         {
             double a = HeightAt(x, y); if (a < 1) continue;
+            if (!baseOnly && IslandRelief.NeedsFineMesh(y / 1000, x / 1000, (y + 25) / 1000, (x + 25) / 1000)) continue; // drawn with 5 m cells, below
             double b = HeightAt(x, y + 25), d = HeightAt(x + 25, y), e = HeightAt(x + 25, y + 25);
             foreach (var (tx, ty) in new[] { (.5, .5), (.25, .75), (.75, .25), (.5, 0.0), (0.0, .5) })
             {
@@ -177,6 +183,25 @@ switch (cmd)
                 foreach (var f in IslandTerrain.Fields) if (f.Field != "DRAKE" && f.Contains(p)) { worstPad = Math.Max(worstPad, err); padSamples++; break; }
             }
         }
+        // The 5 m sub-cells the mesh uses where crevasses and boulders are (IslandRelief.NeedsFineMesh), measured the
+        // same way: each 5 m cell split SW-NE, against HeightAt at its centre and edge midpoints.
+        var fineErrs = new List<double>();
+        if (!baseOnly)
+            for (double x = -10000; x < 8000; x += 25) for (double y = -12000; y < 9000; y += 25)
+            {
+                if (!IslandRelief.NeedsFineMesh(y / 1000, x / 1000, (y + 25) / 1000, (x + 25) / 1000)) continue;
+                for (double fx = 0; fx < 25; fx += 5) for (double fy = 0; fy < 25; fy += 5)
+                {
+                    double a = HeightAt(x + fx, y + fy), b = HeightAt(x + fx, y + fy + 5), d = HeightAt(x + fx + 5, y + fy), e = HeightAt(x + fx + 5, y + fy + 5);
+                    foreach (var (tx, ty) in new[] { (.5, .5), (.25, .75), (.75, .25), (.5, 0.0), (0.0, .5) })
+                    {
+                        double mesh = tx >= ty ? a + (b - a) * tx + (e - b) * ty : a + (e - d) * tx + (d - a) * ty;
+                        fineErrs.Add(Math.Abs(mesh - HeightAt(x + fx + ty * 5, y + fy + tx * 5)));
+                    }
+                }
+            }
+        fineErrs.Sort();
+        if (fineErrs.Count > 0) Console.WriteLine($"fine (5 m) cells: {fineErrs.Count} samples; median {fineErrs[fineErrs.Count / 2]:F2} m, 95% {fineErrs[(int)(fineErrs.Count * .95)]:F2} m, 99% {fineErrs[(int)(fineErrs.Count * .99)]:F2} m, max {fineErrs[^1]:F1} m");
         errs.Sort();
         Console.WriteLine($"mesh vs HeightAt over land: {errs.Count} samples; median {errs[errs.Count / 2]:F2} m, 95% {errs[(int)(errs.Count * .95)]:F2} m, 99% {errs[(int)(errs.Count * .99)]:F2} m, max {errs[^1]:F1} m at ({worst.Item2:F3},{worst.Item3:F3}) km; on runway/strip surfaces ({padSamples} samples) max {worstPad:F3} m");
         break;
@@ -188,6 +213,93 @@ switch (cmd)
         {
             double h = IslandTerrain.HeightAndGradientAt(x, -5000, out double dx, out double dy);
             Console.WriteLine($"x {x} y -5000: h {h:F2} dh/dx {dx:F2} wall30 {WorldTerrain.IsWallAt(x, -5000, 30)}");
+        }
+        break;
+    }
+    case "surfaces":
+    {
+        // Glacier-surface statistics on the runtime height function (Ty's surfaces spec).
+        WorldTerrain.Active = new WorldTerrain();
+        var boulders = IslandRelief.Boulders();
+        Console.WriteLine($"boulders: {boulders.Count}, radius {boulders.Select(b => b.r).DefaultIfEmpty().Min():F1}-{boulders.Select(b => b.r).DefaultIfEmpty().Max():F1} m, height {boulders.Select(b => b.h).DefaultIfEmpty().Min():F1}-{boulders.Select(b => b.h).DefaultIfEmpty().Max():F1} m");
+        foreach (var b in boulders.Take(8)) Console.WriteLine($"  boulder at ({b.e / 1000:F3},{b.n / 1000:F3}) km r {b.r:F1} h {b.h:F1}");
+        int onset = 0, fineCells = 0, iceCells = 0, crevCells = 0, snowCells = 0, ledgeCells = 0; double deepest = 0, undMax = 0;
+        var undul = new List<double>();
+        for (double e = -12; e < 9; e += .025) for (double n = -10.4; n < 8.4; n += .025)
+        {
+            var p = new IslandPoint(e, n); var (ice, _, _, _) = IslandRelief.Channels(p); var (snow, rough, crev, ledge) = IslandRelief.Classes(p);
+            if (ledge > .5) ledgeCells++;
+            if (snow > .5) snowCells++;
+            if (ice > .5 && snow <= .5) iceCells++;
+            if (crev > .5) crevCells++;
+            if (IslandRelief.NeedsFineMesh(e, n, e + .025, n + .025)) fineCells++;
+            if (crev > .05) deepest = Math.Min(deepest, IslandRelief.FineDetail(p));
+            if (crev > IslandRelief.CrevasseOnset) onset++;
+        }
+        double a = .025 * .025;
+        // Analytic gradient against central differences, on detail ground only (skipping crevasse lips and
+        // boulder rims, where the slope is legitimately discontinuous).
+        var rng = new Random(7); int tested = 0; double worstRel = 0; var bad = (0.0, 0.0, 0.0, 0.0);
+        while (tested < 4000)
+        {
+            double x = -10000 + rng.NextDouble() * 18000, y = -12000 + rng.NextDouble() * 21000; var p = new IslandPoint(y / 1000, x / 1000);
+            var (ice, _, _, _) = IslandRelief.Channels(p); if (ice < .3) continue;
+            double h = IslandTerrain.HeightAndGradientAt(x, y, out double gx, out double gy); const double d = .02;
+            double fx = (IslandTerrain.HeightAt(x + d, y) - IslandTerrain.HeightAt(x - d, y)) / (2 * d), fy = (IslandTerrain.HeightAt(x, y + d) - IslandTerrain.HeightAt(x, y - d)) / (2 * d);
+            double fx2 = (IslandTerrain.HeightAt(x + 2 * d, y) - IslandTerrain.HeightAt(x - 2 * d, y)) / (4 * d);
+            double fy2 = (IslandTerrain.HeightAt(x, y + 2 * d) - IslandTerrain.HeightAt(x, y - 2 * d)) / (4 * d);
+            if (Math.Abs(fx2 - fx) > 1e-3 * (1 + Math.Abs(fx)) || Math.Abs(fy2 - fy) > 1e-3 * (1 + Math.Abs(fy))) continue; // a kink inside the stencil
+            double err = Math.Max(Math.Abs(gx - fx), Math.Abs(gy - fy)) / (1 + Math.Max(Math.Abs(fx), Math.Abs(fy)));
+            if (err > worstRel) { worstRel = err; bad = (x, y, gx - fx, gy - fy); }
+            tested++;
+        }
+        Console.WriteLine($"gradient check on ice: {tested} points, worst relative error {worstRel:E2} at x {bad.Item1:F1} y {bad.Item2:F1} (dx err {bad.Item3:E2}, dy err {bad.Item4:E2})");
+        Console.WriteLine($"classes (km2): snow {snowCells * a:F2}, bare ice {iceCells * a:F2}, crevassed {crevCells * a:F2}, ledge {ledgeCells * a:F3}; fine-mesh cells {fineCells} ({fineCells * a:F2} km2), crevasse channel above onset {onset * a:F2} km2; deepest fine detail {deepest:F1} m");
+        break;
+    }
+    case "surfacepoints":
+    {
+        // Candidate literal positions for the surface tests: a 300 m run of bare ice, of glacier snow, a full-
+        // strength crevasse field, and the biggest boulders (sim x north, y east, metres).
+        WorldTerrain.Active = new WorldTerrain();
+        var boulders = IslandRelief.Boulders();
+        bool NearBoulder(double e, double n, double r) => boulders.Any(b => (b.e - e) * (b.e - e) + (b.n - n) * (b.n - n) < r * r);
+        var found = new Dictionary<string, List<string>> { ["ice"] = new(), ["snow"] = new(), ["crevasse"] = new() };
+        for (double x = -10000; x < 8000; x += 50) for (double y = -12000; y < 9000; y += 50)
+        {
+            var p = new IslandPoint(y / 1000, x / 1000); var (ice, _, _, _) = IslandRelief.Channels(p); if (ice < .9) continue;
+            var (snow, rough, crev, _) = IslandRelief.Classes(p);
+            IslandTerrain.HeightAndGradientAt(x, y, out double gx, out double gy); double g = Math.Sqrt(gx * gx + gy * gy); if (g < 1e-4) continue;
+            double ux = -gx / g, uy = -gy / g; // downhill
+            bool All(Func<IslandPoint, bool> ok) { for (double t = -150; t <= 150; t += 10) { var q = new IslandPoint((y + uy * t) / 1000, (x + ux * t) / 1000); if (!ok(q)) return false; } return true; }
+            string where = $"x {x:F0} y {y:F0} downhill {Math.Atan2(uy, ux) * 180 / Math.PI:F0} deg slope {Math.Atan(g) * 180 / Math.PI:F1} deg";
+            if (rough > .6 && crev < .1 && All(q => IslandRelief.Classes(q).rough > .5 && IslandRelief.Classes(q).crevasse < IslandRelief.CrevasseOnset && IslandTerrain.SurfaceAt(q.X, q.Y) == WorldTerrain.Surface.GlacierIce) && !NearBoulder(y, x, 60) && g < .2) found["ice"].Add(where);
+            if (snow > .97 && All(q => IslandRelief.Classes(q).snow > .95 && IslandRelief.Classes(q).crevasse < .01) && g < .12) found["snow"].Add(where);
+            if (crev > .7 && IslandRelief.Classes(p).rough > .5) found["crevasse"].Add(where + $" c {crev:F2}");
+        }
+        foreach (var (k, v) in found) { Console.WriteLine($"{k}: {v.Count} candidates"); foreach (var l in v.Where((_, i) => i % Math.Max(1, v.Count / 6) == 0).Take(6)) Console.WriteLine("  " + l); }
+        foreach (var b in boulders.OrderByDescending(b => b.h).Take(4)) Console.WriteLine($"boulder x {b.n:F1} y {b.e:F1} r {b.r:F1} h {b.h:F1} ground {IslandTerrain.HeightAt(b.n, b.e):F1} ring {IslandTerrain.HeightAt(b.n + b.r + 3, b.e):F1} surface {IslandTerrain.SurfaceAt(b.n, b.e)}");
+        break;
+    }
+    case "icemap":
+    {
+        // ASCII map, 200 m cells, north up: '*' snow, 'i' bare ice, 'C' crevasse field, 'd' debris on ice, 'o' boulder,
+        // 'P' snow patch, 'L' ledge, '~' sea.
+        WorldTerrain.Active = new WorldTerrain();
+        var bs = IslandRelief.Boulders();
+        Console.Write("       "); for (double e = -11.9; e < 9; e += .2) Console.Write(Math.Abs(e - Math.Round(e)) < .05 && ((int)Math.Round(e)) % 2 == 0 ? (Math.Round(e) < 0 ? "-" : "+") : " "); Console.WriteLine();
+        for (double n = 8.3; n > -10.4; n -= .2)
+        {
+            var line = new System.Text.StringBuilder($"{n,6:F1} ");
+            for (double e = -11.9; e < 9; e += .2)
+            {
+                var p = new IslandPoint(e, n); double h = IslandTerrain.HeightKm(p);
+                var (ice, debris, _, _) = IslandRelief.Channels(p); var (snow, rough, crev, ledge) = IslandRelief.Classes(p);
+                bool boulder = bs.Any(b => Math.Abs(b.e / 1000 - e) < .1 && Math.Abs(b.n / 1000 - n) < .1);
+                char c = h < 0 ? '~' : ledge > .5 ? 'L' : snow > .5 && ice < .5 ? 'P' : boulder ? 'o' : ice > .5 ? (crev > IslandRelief.CrevasseOnset ? 'C' : snow > .5 ? '*' : debris > .35 ? 'd' : 'i') : '.';
+                line.Append(c);
+            }
+            Console.WriteLine(line);
         }
         break;
     }

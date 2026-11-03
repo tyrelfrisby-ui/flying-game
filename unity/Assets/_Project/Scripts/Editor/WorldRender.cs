@@ -403,6 +403,8 @@ namespace FlyingGame.EditorTools
             cam.depthTextureMode = DepthTextureMode.Depth; cam.nearClipPlane = 1f; cam.farClipPlane = 80000f;
             var rt = new RenderTexture(1600, 1000, 24) { antiAliasing = 4 }; cam.targetTexture = rt;
             Vector3 S(double e, double n, double up) => WorldBuilder.U(n * 1000, e * 1000, up);
+            // Height above the ground there (the one height function).
+            Vector3 A(double e, double n, double agl) => S(e, n, FlyingGame.Core.WorldTerrain.Active.HeightAt(n * 1000, e * 1000) + agl);
             const double ft = .3048;
             (string name, Vector3 eye, Vector3 look, float fov)[] views =
             {
@@ -447,6 +449,23 @@ namespace FlyingGame.EditorTools
                 ("36-dillingham-under-the-ridge", S(6.5, 8.6, 250), S(4.8, 4.4, 300), 50),
                 ("37-knik-valley-to-the-glacier-face", S(-8.6, 0.4, 500), S(-4.2, -0.9, 150), 50),
                 ("38-johnson-creek-strip-valley", S(1.4, -3.6, 1850), S(1.85, -0.3, 1500), 55),
+                // Ty's surfaces (2026-11-02): glacier SNOW, undulating ICE, crevasse fields, moraines and boulders,
+                // a high snow patch, the dry mountains' ledges, and a ~1,000 ft AGL pass over each ice body.
+                ("39-glacier-snow-closeup", A(-1.0, 3.25, 60), A(-1.25, 3.6, 0), 45),
+                ("40-bare-ice-undulating-closeup", A(-5.75, -4.0, 22), A(-6.15, -4.0, 0), 45),
+                ("41-crevasse-field-closeup", A(-3.97, -3.18, 70), A(-4.15, -3.0, 0), 50),
+                ("42-crevasse-icefall-oblique", A(-3.3, -3.9, 350), A(-4.6, -3.0, 0), 50),
+                ("43-snow-ice-crevasse-central-massif", A(0.0, 0.6, 300), A(-1.0, 1.5, 0), 50),
+                ("44-moraines-lateral-and-medial", A(-3.6, -6.2, 700), A(-5.0, -4.5, 0), 50),
+                ("45-boulders-on-the-ice", A(-4.58, -5.62, 30), A(-4.661, -5.56, 4), 50),
+                ("46-high-snow-patch-SP1", A(-2.888, 6.338, 60), A(-3.1, 6.55, 0), 45),
+                ("47-steep-snow-patch-SP5", A(-5.5, -5.6, 50), A(-5.2, -5.6, 0), 45),
+                ("48-ledge-LD1-red-rock", A(4.9, -0.85, 45), A(4.6, -0.85, 0), 45),
+                ("49-ledge-LD4-sitka-ridge", A(-9.44, 3.70, 55), A(-9.7, 3.85, 0), 45),
+                ("50-1000ft-agl-fairweather-glacier", A(-0.6, 4.2, 305), A(-0.6, 6.4, 0), 60),
+                ("51-1000ft-agl-central-icefield", A(0.3, -1.0, 305), A(-1.0, 1.5, 0), 60),
+                ("52-1000ft-agl-southern-glacier", A(-4.5, -1.6, 305), A(-4.8, -4.5, 0), 60),
+                ("53-1000ft-agl-knik-face", A(-7.2, -0.6, 305), A(-4.6, -1.0, 0), 60),
             };
             // Straight-down plates of each area's template window (e0, e1, n0, n1 km), north up, from 40 km so
             // terrain parallax stays under 4%: the island half of each imagery-vs-render comparison plate.

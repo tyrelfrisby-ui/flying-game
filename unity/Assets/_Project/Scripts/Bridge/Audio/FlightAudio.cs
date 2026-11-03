@@ -239,7 +239,7 @@ namespace FlyingGame.Bridge
                 float gs = (float)System.Math.Sqrt(vW.X * vW.X + vW.Y * vW.Y);
                 var surf = FlyingGame.Core.WorldTerrain.SurfaceAt(st.Position.X, st.Position.Y);
                 if (surf == FlyingGame.Core.WorldTerrain.Surface.Gravel) gravel = gs;
-                else if (surf == FlyingGame.Core.WorldTerrain.Surface.Rough) rough = gs;
+                else if (surf == FlyingGame.Core.WorldTerrain.Surface.Rough || surf == FlyingGame.Core.WorldTerrain.Surface.GlacierIce) rough = gs;
             }
             _tele.GravelSpeed = gravel; _tele.RoughSpeed = rough;
             _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume);

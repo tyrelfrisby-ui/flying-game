@@ -23,8 +23,13 @@ namespace FlyingGame.Bridge
     ///  * A skirt hangs from every chunk edge, deeper than that level's error, so neighbours at different
     ///    levels never show a crack.
     ///  * Per-vertex surface channels for FlyingGame/IslandTerrain: colour = (glacier ice, debris, wetness,
-    ///    forest cover), uv0 = (local equilibrium-line altitude m, red-rock country + / tropical coast -), uv1 = (gravel, managed turf).
-    ///  * 5 m cells only where a cave mouth needs a hole in the ground (the old builder's PortalHole rule).
+    ///    forest cover), uv0 = (local equilibrium-line altitude m, red-rock country + / tropical coast -,
+    ///    gravel + / managed turf -, glacier or patch SNOW + / CREVASSE field -).
+    ///  * 5 m cells where a cave mouth needs a hole in the ground (the old builder's PortalHole rule), and where
+    ///    the ice is crevassed or carries a boulder (IslandRelief.NeedsFineMesh): a 25 m triangle cannot draw a
+    ///    10 m crevasse, and the crevasse is in the height the wheels and the airframe hit. Those sub-cells are
+    ///    sampled in the parallel pass. The coarser levels draw the same ground WITHOUT that sub-lattice detail
+    ///    (IslandRelief.FineDetail): at their distances a crevasse is a few pixels, which the shader paints.
     /// </summary>
     public static class IslandTerrainMesh
     {
@@ -34,16 +39,23 @@ namespace FlyingGame.Bridge
         public const float PixelTolerance = 2.5f, ScreenHeightPx = 1488, FovDeg = 60;
         const int Detail = 5;                          // 5 m sub-cells in a 25 m cell near a cave mouth
 
-        public struct Stats { public int Chunks, Renderers; public long Lod0Triangles, AllTriangles, Vertices; public double BuildS, SampleS; public long GpuBytes; }
+        public struct Stats { public int Chunks, Renderers, FineCells; public long Lod0Triangles, AllTriangles, Vertices; public double BuildS, SampleS; public long GpuBytes; }
         public static Stats Last;
 
         sealed class ChunkData
         {
             public int Ci, Cj; public double X0, Y0; // sim north / east of the chunk's SW corner (m)
             public float[] H, Dx, Dy; public Color32[] C; public Vector2[] Uv0, Uv1;
+            /// <summary>Heights and gradients for the coarser levels: H less the sub-lattice detail (same arrays
+            /// as H where a chunk has none).</summary>
+            public float[] Hc, Dxc, Dyc;
             public bool Any; public float[] Error = new float[4];
             public bool[] Detail; // per LOD0 cell
+            /// <summary>Exact samples for every fine cell ((Detail+1)^2, row-major from its SW corner) and every
+            /// stitch cell (centre, then the ring as StitchCell walks it), taken in the parallel pass.</summary>
+            public Dictionary<int, Vert[]> Fine = new(), Stitch = new();
         }
+        struct Vert { public Vector3 P, N; public Color32 C; public Vector2 A, B; }
 
         public static GameObject Build(Transform parent, Material material)
         {
@@ -63,7 +75,7 @@ namespace FlyingGame.Bridge
             }
             stats.BuildS = clock.Elapsed.TotalSeconds;
             Last = stats;
-            Debug.Log($"Island terrain: {stats.Chunks} chunks, {stats.Renderers} renderers, LOD0 {stats.Lod0Triangles} triangles, all levels {stats.AllTriangles} triangles / {stats.Vertices} vertices, ~{stats.GpuBytes / 1048576.0:F1} MiB GPU; sampled in {sampleS:F2} s, built in {stats.BuildS:F2} s");
+            Debug.Log($"Island terrain: {stats.Chunks} chunks, {stats.Renderers} renderers, {stats.FineCells} fine 25 m cells, LOD0 {stats.Lod0Triangles} triangles, all levels {stats.AllTriangles} triangles / {stats.Vertices} vertices, ~{stats.GpuBytes / 1048576.0:F1} MiB GPU; sampled in {sampleS:F2} s, built in {stats.BuildS:F2} s");
             return root;
         }
 
@@ -107,6 +119,31 @@ namespace FlyingGame.Bridge
                 float a = c.C[j0 * n + i0].a, b = c.C[j0 * n + i1].a, d = c.C[j1 * n + i0].a, e = c.C[j1 * n + i1].a;
                 var col = c.C[j * n + i]; col.a = (byte)Mathf.RoundToInt((a * (1 - tx) + b * tx) * (1 - ty) + (d * (1 - tx) + e * tx) * ty); c.C[j * n + i] = col;
             }
+            c.Detail = new bool[N * N]; bool fine = false;
+            for (int j = 0; j < N; j++) for (int i = 0; i < N; i++)
+            {
+                double x0 = c.X0 + j * CellM, y0 = c.Y0 + i * CellM;
+                bool ice = IslandRelief.NeedsFineMesh(y0 / 1000, x0 / 1000, (y0 + CellM) / 1000, (x0 + CellM) / 1000);
+                fine |= ice;
+                c.Detail[j * N + i] = ice || NearCave(x0 + .5 * CellM, y0 + .5 * CellM);
+            }
+            // The coarse levels' ground: without the crevasses, seracs and boulders.
+            c.Hc = c.H; c.Dxc = c.Dx; c.Dyc = c.Dy;
+            if (fine)
+            {
+                c.Hc = (float[])c.H.Clone(); c.Dxc = (float[])c.Dx.Clone(); c.Dyc = (float[])c.Dy.Clone();
+                for (int j = 0; j < n; j++) for (int i = 0; i < n; i++)
+                {
+                    int k = j * n + i; double f = IslandRelief.FineDetailAndGradientAt(c.X0 + j * CellM, c.Y0 + i * CellM, out double fx, out double fy);
+                    if (f == 0 && fx == 0 && fy == 0) continue;
+                    c.Hc[k] -= (float)f; c.Dxc[k] -= (float)fx; c.Dyc[k] -= (float)fy;
+                }
+            }
+            for (int j = 0; j < N; j++) for (int i = 0; i < N; i++)
+            {
+                if (c.Detail[j * N + i]) c.Fine[j * N + i] = FineSamples(c, i, j);
+                else if (DetailNeighbour(c, i, j)) c.Stitch[j * N + i] = StitchSamples(c, i, j);
+            }
             // Measured error of each coarser level against the 25 m surface (bilinear inside a coarse cell).
             for (int l = 1; l < Steps.Length; l++)
             {
@@ -114,15 +151,13 @@ namespace FlyingGame.Bridge
                 for (int j = 0; j < n; j++) for (int i = 0; i < n; i++)
                 {
                     int i0 = Math.Min(N - s, i / s * s), j0 = Math.Min(N - s, j / s * s); float tx = (i - i0) / (float)s, ty = (j - j0) / (float)s;
-                    float a = c.H[j0 * n + i0], b = c.H[j0 * n + i0 + s], d = c.H[(j0 + s) * n + i0], e = c.H[(j0 + s) * n + i0 + s];
+                    float a = c.Hc[j0 * n + i0], b = c.Hc[j0 * n + i0 + s], d = c.Hc[(j0 + s) * n + i0], e = c.Hc[(j0 + s) * n + i0 + s];
                     // Same diagonal split as the triangles below.
                     float z = tx >= ty ? a + (b - a) * tx + (e - b) * ty : a + (e - d) * tx + (d - a) * ty;
-                    if (c.H[j * n + i] > -25) gaps.Add(Math.Abs(z - c.H[j * n + i]));
+                    if (c.Hc[j * n + i] > -25) gaps.Add(Math.Abs(z - c.Hc[j * n + i]));
                 }
                 gaps.Sort(); c.Error[l] = gaps.Count == 0 ? 0 : gaps[(int)(gaps.Count * .95)];
             }
-            c.Detail = new bool[N * N];
-            for (int j = 0; j < N; j++) for (int i = 0; i < N; i++) c.Detail[j * N + i] = NearCave(c.X0 + (j + .5) * CellM, c.Y0 + (i + .5) * CellM);
             return c;
         }
 
@@ -133,9 +168,14 @@ namespace FlyingGame.Bridge
             double slope = Math.Sqrt(dx * dx + dy * dy);
             float forest = forestToo && h > Forest.ShoreClearM ? (float)Forest.CoverAt(x, y, h, slope, dx) : 0;
             var surface = h > -1 ? IslandTerrain.SurfaceAt(x, y) : WorldTerrain.Surface.Rough;
+            var (snow, _, crevasse, _) = IslandRelief.Classes(p);
             colour = new Color32(B(ice), B(debris), B(wet), B(forest));
             uv0 = new Vector2(ela, (float)(Region(p, 2, 99, -7, -1) - Region(p, 2.8, 99, 2.4, 99)));
-            uv1 = new Vector2(surface == WorldTerrain.Surface.Gravel ? 1 : 0, surface == WorldTerrain.Surface.Grass || surface == WorldTerrain.Surface.Paved ? 1 : 0);
+            float gravel = surface == WorldTerrain.Surface.Gravel ? 1 : 0, turf = surface == WorldTerrain.Surface.Grass || surface == WorldTerrain.Surface.Paved ? 1 : 0;
+            // The crevasse FIELD strength the height uses (none below the onset, full from 0.5): the generator
+            // clears the snow off a crevasse field, so the two never overlap and share one channel.
+            double field = Math.Clamp((crevasse - IslandRelief.CrevasseOnset) / (.5 - IslandRelief.CrevasseOnset), 0, 1);
+            uv1 = new Vector2(gravel - turf, (float)(snow - field * field * (3 - 2 * field)));
         }
         static byte B(double v) => (byte)Math.Clamp(Math.Round(v * 255), 0, 255);
         /// <summary>A material region (km box), feathered over 0.6 km inside its edge so no colour line follows a
@@ -161,8 +201,8 @@ namespace FlyingGame.Bridge
                 && (p - f["interior"]["chamber_centre"].Point).Length > .090 || IslandCavities.Skylight(p);
         }
 
-        /// <summary>28 bytes a vertex: position float3, normal snorm8x4, colour unorm8x4, uv0 half4 (ELA, red rock,
-        /// gravel, turf).</summary>
+        /// <summary>28 bytes a vertex: position float3, normal snorm8x4, colour unorm8x4, uv0 half4 (ELA, red rock /
+        /// tropical, gravel / turf, snow / crevasse field).</summary>
         [StructLayout(LayoutKind.Sequential)]
         struct Packed { public Vector3 P; public sbyte Nx, Ny, Nz, Nw; public Color32 C; public ushort U0, U1, U2, U3; }
         static readonly VertexAttributeDescriptor[] Layout =
@@ -200,11 +240,14 @@ namespace FlyingGame.Bridge
                 int s = Steps[l], m = N / s + 1; var b = new Builder();
                 var index = new int[m * m]; Array.Fill(index, -1);
                 // Vertices are created on first use: sea-floor cells add none.
+                // Level 0 is the exact ground; the coarser levels the ground less its sub-lattice detail (the two
+                // are the same at every node a level-0 regular cell uses: a node with detail has only fine cells round it).
+                var hh = l == 0 ? c.H : c.Hc; var hx = l == 0 ? c.Dx : c.Dxc; var hy = l == 0 ? c.Dy : c.Dyc;
                 int At(int i, int j)
                 {
                     int q = j * m + i; if (index[q] >= 0) return index[q];
                     int k = j * s * n + i * s;
-                    return index[q] = b.Add(Pos(c, i * s, j * s, c.H[k]), Normal(c.Dx[k], c.Dy[k]), c.C[k], c.Uv0[k], c.Uv1[k]);
+                    return index[q] = b.Add(Pos(c, i * s, j * s, hh[k]), Normal(hx[k], hy[k]), c.C[k], c.Uv0[k], c.Uv1[k]);
                 }
                 for (int j = 0; j < m - 1; j++) for (int i = 0; i < m - 1; i++)
                 {
@@ -212,7 +255,7 @@ namespace FlyingGame.Bridge
                     if (c.H[ka] < -25 && c.H[kb] < -25 && c.H[kd] < -25 && c.H[ke] < -25) continue; // deep sea floor: under the ocean plane
                     if (l == 0 && (c.Detail[j * N + i] || DetailNeighbour(c, i, j)))
                     {
-                        if (c.Detail[j * N + i]) DetailCell(c, b, i, j); else StitchCell(c, b, i, j, At(i, j), At(i + 1, j), At(i, j + 1), At(i + 1, j + 1));
+                        if (c.Detail[j * N + i]) { DetailCell(c, b, i, j); stats.FineCells++; } else StitchCell(c, b, i, j, At(i, j), At(i + 1, j), At(i, j + 1), At(i + 1, j + 1));
                         continue;
                     }
                     int a0 = At(i, j), a1 = At(i + 1, j), a2 = At(i, j + 1), a3 = At(i + 1, j + 1);
@@ -258,18 +301,41 @@ namespace FlyingGame.Bridge
             return i > 0 && c.Detail[j * N + i - 1] || i < N - 1 && c.Detail[j * N + i + 1] || j > 0 && c.Detail[(j - 1) * N + i] || j < N - 1 && c.Detail[(j + 1) * N + i];
         }
 
-        static int Exact(ChunkData c, Builder b, double x, double y)
+        /// <summary>One exact sample of the ground (thread-safe Core arithmetic only; Unity types are plain structs).</summary>
+        static Vert Exact(double x, double y)
         {
             double h = IslandTerrain.HeightAndGradientAt(x, y, out double dx, out double dy);
             Attributes(x, y, h, dx, dy, true, out var col, out var a, out var u);
-            return b.Add(WorldBuilder.U(x, y, h), Normal((float)dx, (float)dy), col, a, u);
+            return new Vert { P = WorldBuilder.U(x, y, h), N = Normal((float)dx, (float)dy), C = col, A = a, B = u };
+        }
+        static int Add(Builder b, in Vert v) => b.Add(v.P, v.N, v.C, v.A, v.B);
+
+        static Vert[] FineSamples(ChunkData c, int i, int j)
+        {
+            double x0 = c.X0 + j * CellM, y0 = c.Y0 + i * CellM, d = CellM / Detail;
+            var v = new Vert[(Detail + 1) * (Detail + 1)];
+            for (int q = 0; q <= Detail; q++) for (int r = 0; r <= Detail; r++) v[q * (Detail + 1) + r] = Exact(x0 + q * d, y0 + r * d);
+            return v;
+        }
+
+        /// <summary>Centre, then the perimeter clockwise from the SW corner without the four corners (those are
+        /// the lattice nodes, shared with the regular cells).</summary>
+        static Vert[] StitchSamples(ChunkData c, int i, int j)
+        {
+            double x0 = c.X0 + j * CellM, y0 = c.Y0 + i * CellM, d = CellM / Detail;
+            var v = new List<Vert> { Exact(x0 + CellM / 2, y0 + CellM / 2) };
+            for (int r = 1; r < Detail; r++) v.Add(Exact(x0, y0 + r * d));
+            for (int q = 1; q < Detail; q++) v.Add(Exact(x0 + q * d, y0 + CellM));
+            for (int r = Detail - 1; r > 0; r--) v.Add(Exact(x0 + CellM, y0 + r * d));
+            for (int q = Detail - 1; q > 0; q--) v.Add(Exact(x0 + q * d, y0));
+            return v.ToArray();
         }
 
         static void DetailCell(ChunkData c, Builder b, int i, int j)
         {
             double x0 = c.X0 + j * CellM, y0 = c.Y0 + i * CellM, d = CellM / Detail;
-            var idx = new int[(Detail + 1) * (Detail + 1)];
-            for (int q = 0; q <= Detail; q++) for (int r = 0; r <= Detail; r++) idx[q * (Detail + 1) + r] = Exact(c, b, x0 + q * d, y0 + r * d);
+            var idx = new int[(Detail + 1) * (Detail + 1)]; var fine = c.Fine[j * N + i];
+            for (int q = 0; q < idx.Length; q++) idx[q] = Add(b, fine[q]);
             for (int q = 0; q < Detail; q++) for (int r = 0; r < Detail; r++)
             {
                 var centre = new IslandPoint((y0 + (r + .5) * d) / 1000, (x0 + (q + .5) * d) / 1000);
@@ -283,14 +349,14 @@ namespace FlyingGame.Bridge
         /// it shares each vertex the detailed neighbour has (no T-junction, no crack).</summary>
         static void StitchCell(ChunkData c, Builder b, int i, int j, int sw, int se, int nw, int ne)
         {
-            double x0 = c.X0 + j * CellM, y0 = c.Y0 + i * CellM, d = CellM / Detail;
-            int centre = Exact(c, b, x0 + CellM / 2, y0 + CellM / 2);
+            var v = c.Stitch[j * N + i]; int at = 1;
+            int centre = Add(b, v[0]);
             // Perimeter clockwise seen from above: south edge (W->E), east edge (S->N), north (E->W), west (N->S).
             var ring = new List<int> { sw };
-            for (int r = 1; r < Detail; r++) ring.Add(Exact(c, b, x0, y0 + r * d)); ring.Add(se);
-            for (int q = 1; q < Detail; q++) ring.Add(Exact(c, b, x0 + q * d, y0 + CellM)); ring.Add(ne);
-            for (int r = Detail - 1; r > 0; r--) ring.Add(Exact(c, b, x0 + CellM, y0 + r * d)); ring.Add(nw);
-            for (int q = Detail - 1; q > 0; q--) ring.Add(Exact(c, b, x0 + q * d, y0));
+            for (int r = 1; r < Detail; r++) ring.Add(Add(b, v[at++])); ring.Add(se);
+            for (int q = 1; q < Detail; q++) ring.Add(Add(b, v[at++])); ring.Add(ne);
+            for (int r = Detail - 1; r > 0; r--) ring.Add(Add(b, v[at++])); ring.Add(nw);
+            for (int q = Detail - 1; q > 0; q--) ring.Add(Add(b, v[at++]));
             for (int t = 0; t < ring.Count; t++) { b.T.Add(centre); b.T.Add(ring[(t + 1) % ring.Count]); b.T.Add(ring[t]); }
         }
 

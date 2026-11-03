@@ -755,6 +755,9 @@ public sealed class AtmosphereField
             // sinking as hard as anywhere else on the ice. Without this line it fell to the `_ => 0.4`
             // default and the LZ would have made thermals like a pasture.
             WorldTerrain.Surface.PackedGlacierSnow => -0.5,
+            // Bare ice absorbs more sun than snow but spends it melting: its surface is held at 0 C, so it
+            // heats the air no more than snow does — the same katabatic sink.
+            WorldTerrain.Surface.GlacierIce => -0.5,
             _ => 0.4,
         };
         double cover = Forest.CoverAt(x, y);

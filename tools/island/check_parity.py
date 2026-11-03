@@ -11,6 +11,8 @@ for f in g.FIELDS:
  points += [[f['centre'][k]+a*l*u[k]+c*b*v[k] for k in [0,1]] for a in [-.5,0,.5] for c in [-.5,0,.5]]
 for q in g.W.get('mesa_pads',[]):points += [[q['centre'][0]+e*q['width_m']/2000,q['centre'][1]+n*q['length_m']/2000] for e in [-1,0,1] for n in [-1,0,1]]
 points += [[-.36225,4.45],[-.3622,4.45],[-.36,4.4486],[-.36,4.44865]]
+# Glacier surface detail (2026-11-02): an icefall crevasse field, a bare-ice tongue with boulders, the central icefield.
+for e0,e1,n0,n1 in [(-5.6,-3.5,-3.7,-2.5),(-6.4,-4.4,-5.7,-3.6),(-2,1,-1,3)]:points += [[r.uniform(e0,e1),r.uniform(n0,n1)] for _ in range(500)]
 dotnet=shutil.which('dotnet') or str(Path.home()/'.dotnet/dotnet')
 proc=subprocess.run([dotnet,str(ROOT/'tools/IslandCheck/bin/Debug/net8.0/IslandCheck.dll'),'heights'],input=''.join(json.dumps(p)+'\n' for p in points),text=True,capture_output=True,check=True)
 rows=[json.loads(s) for s in proc.stdout.splitlines()];assert len(rows)==len(points)

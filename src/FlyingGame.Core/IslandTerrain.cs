@@ -89,6 +89,9 @@ public static partial class IslandTerrain
         return dx*dx+dy*dy>slopeTangent*slopeTangent;
     }
     public static string HeightIndexWorkBounds => IslandHeightIndex.WorkBounds;
+    /// <summary>True where an authored height layer (lake basin, canyon, lesson box, cave roof, mesa, ...) reaches the
+    /// ground: the relief generator keeps its landing sites out of them, so the runtime cannot reshape a site.</summary>
+    public static bool AuthoredLayerAt(IslandPoint p) => IslandHeightIndex.AuthoredLayerAt(p);
     /// <summary>Uncached continuous query; useful for fresh-sample performance and parity checks.</summary>
     public static double Evaluate(IslandPoint p) => IslandHeightIndex.Evaluate(p);
     /// <summary>Same typed arithmetic without spatial rejection, for optimization decomposition.</summary>
@@ -104,10 +107,16 @@ public static partial class IslandTerrain
     {
         var p = new IslandPoint(y / 1000, x / 1000);
         foreach (var f in Fields) if (f.Contains(p)) return f.Surface == "asphalt" || f.Surface == "paved" ? WorldTerrain.Surface.Paved : f.Surface.Contains("grass") || f.Surface == "turf" ? WorldTerrain.Surface.Grass : WorldTerrain.Surface.Gravel;
-        // Glacier ice is where the relief generator's mass balance put it (IslandRelief ice channel); the authored
-        // ski landing zones stay snow whatever the ice does.
+        // The authored ski landing zones stay snow whatever the ice does.
         foreach (var q in World["glaciers"].Items) if ((p - q["ski_zone"]["centre"].Point).Length < .15) return WorldTerrain.Surface.Snow;
-        if (IslandRelief.Channels(p).ice > .5f) return WorldTerrain.Surface.Snow;
+        // Ty's surfaces (2026-11-02): the generator's classes. A designated rock ledge is gravel; a designated
+        // snow patch and the glacier above its snowline are SNOW (smooth, steady ski drag); the glacier below it
+        // is bare ICE — undulating and, in places, crevassed in the height itself. A boulder riding the ice is rock
+        // (gravel to a wheel; and not Rough, which is where the forest function may plant trees).
+        var (snow, _, _, ledge) = IslandRelief.Classes(p);
+        if (ledge > .5f) return WorldTerrain.Surface.Gravel;
+        if (snow > .5f) return WorldTerrain.Surface.Snow;
+        if (IslandRelief.Channels(p).ice > .5f) return IslandRelief.OnBoulder(p) ? WorldTerrain.Surface.Gravel : WorldTerrain.Surface.GlacierIce;
         foreach(var q in World["mesa_pads"].Items)
         {
             var d=p-q["centre"].Point;var u=IslandPoint.Heading(q.N("heading_true_deg"));

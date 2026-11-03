@@ -18,7 +18,7 @@ public static class Export
         var o = new List<byte>();
         void V(ulong v) { while (v >= 0x80) { o.Add((byte)(v | 0x80)); v >>= 7; } o.Add((byte)v); }
         void D(double d) => o.AddRange(BitConverter.GetBytes(d));
-        o.AddRange(Encoding.ASCII.GetBytes("IRL1")); V((ulong)masses.Count);
+        o.AddRange(Encoding.ASCII.GetBytes("IRL2")); V((ulong)masses.Count);
         foreach (var m in masses)
         {
             var g = m.G; D(g.E0); D(g.N0); D(g.Cell); V((ulong)g.W); V((ulong)g.H);
@@ -36,15 +36,17 @@ public static class Export
         }
         return o.ToArray();
     }
-    /// <summary>The four byte channels, in format order: ice fraction, debris cover, wetness (log discharge),
-    /// local equilibrium-line altitude (1,200 m + 8 m per step).</summary>
+    /// <summary>The eight byte channels, in format order (IRL2): ice fraction, debris cover, wetness (log
+    /// discharge), local equilibrium-line altitude (IslandRelief.ElaBaseM + ElaStepM per step), then the
+    /// surface classes of Surfaces.Apply: glacier/patch SNOW, ICE undulation weight, CREVASSE intensity, LEDGE.</summary>
     public static byte[][] Channels(Mass m)
     {
-        var g = m.G; var a = new byte[4][]; for (int c = 0; c < 4; c++) a[c] = new byte[g.N];
+        var g = m.G; var a = new byte[8][]; for (int c = 0; c < 8; c++) a[c] = new byte[g.N];
         for (int k = 0; k < g.N; k++)
         {
             a[0][k] = B(m.Ice[k]); a[1][k] = B(m.Debris[k]); a[2][k] = B(m.Wet[k]);
             a[3][k] = (byte)Math.Clamp(Math.Round((Climate.Ela(m.Rain[k]) - FlyingGame.Core.IslandRelief.ElaBaseM) / FlyingGame.Core.IslandRelief.ElaStepM), 0, 255);
+            a[4][k] = B(m.Snow[k]); a[5][k] = B(m.Rough[k]); a[6][k] = B(m.Crevasse[k]); a[7][k] = B(m.Ledge[k]);
         }
         return a;
     }

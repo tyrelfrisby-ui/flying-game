@@ -13,6 +13,12 @@ public sealed class Mass
     /// <summary>Real-topography template height and weight (Topo.cs); weight 0 outside the six areas.</summary>
     public double[] TopoZ = null!, TopoW = null!;
     public bool[] Fixed = null!;
+    /// <summary>Glacier state from Glaciers.Apply: ice thickness (m), routed ice flux (m3/yr), surface mass
+    /// balance (m w.e./yr) and the routed-ice field (> 0 where flux reached; the valley fill adds 1e-3).</summary>
+    public double[] Thick = null!, Flux = null!, Balance = null!, IceCore = null!;
+    /// <summary>Surface classes from Surfaces.Apply (0..1 each): glacier SNOW cover, ICE undulation weight,
+    /// CREVASSE intensity, rock LEDGE (and the protection mask they all respect).</summary>
+    public double[] Snow = null!, Rough = null!, Crevasse = null!, Ledge = null!, Protect = null!;
     public List<string> Log = new();
 }
 
@@ -150,13 +156,40 @@ public static class Generate
         for (int k = 0; k < g.N; k++) m.Fixed[k] = c.Ocean[k] || !double.IsNaN(c.Fix[k]);
         m.Rain = Climate.Precipitation(g, m.Macro);
         say($"{name}: climate {sw.Elapsed.TotalSeconds:F1}s");
-        if (Environment.GetEnvironmentVariable("CLIMATE_ONLY") != null) { m.H = m.Macro; m.Ice = new double[g.N]; m.Debris = new double[g.N]; m.Wet = new double[g.N]; return m; }
+        if (Environment.GetEnvironmentVariable("CLIMATE_ONLY") != null) { m.H = m.Macro; m.Ice = new double[g.N]; m.Debris = new double[g.N]; m.Wet = new double[g.N]; Surfaces.Empty(m); return m; }
 
-        Erode(m, (uint)seed, say);
-        say($"{name}: erosion {sw.Elapsed.TotalSeconds:F1}s");
-        Glaciers.Apply(m, say);
+        // Development only: GLACIER_CACHE=dir keeps the (deterministic, ~2 min) state after the glaciers, so the
+        // surfaces step can be iterated on. A cached run writes the same bytes as a full one.
+        string? cache = Environment.GetEnvironmentVariable("GLACIER_CACHE");
+        string cacheFile = cache == null ? "" : Path.Combine(cache, name + ".bin");
+        int logStart = m.Log.Count;
+        if (cache != null && File.Exists(cacheFile)) { Cache(m, cacheFile, false); m.Log.AddRange(File.ReadAllLines(cacheFile + ".log")); say($"{name}: glaciers from cache"); }
+        else
+        {
+            Erode(m, (uint)seed, say);
+            say($"{name}: erosion {sw.Elapsed.TotalSeconds:F1}s");
+            Glaciers.Apply(m, say);
+            if (cache != null) { Directory.CreateDirectory(cache); Cache(m, cacheFile, true); File.WriteAllLines(cacheFile + ".log", m.Log.Skip(logStart)); }
+        }
+        Surfaces.Apply(m, say);
         Antialias(m);
         return m;
+    }
+
+    static void Cache(Mass m, string file, bool write)
+    {
+        double[][] Arrays() => new[] { m.H, m.Ice, m.Debris, m.Wet, m.Thick, m.Flux, m.Balance, m.IceCore };
+        if (write)
+        {
+            using var w = new BinaryWriter(File.Create(file));
+            foreach (var a in Arrays()) foreach (var v in a) w.Write(v);
+            foreach (var f in m.Fixed) w.Write(f);
+            return;
+        }
+        using var r = new BinaryReader(File.OpenRead(file)); int n = m.G.N;
+        m.H = new double[n]; m.Ice = new double[n]; m.Debris = new double[n]; m.Wet = new double[n]; m.Thick = new double[n]; m.Flux = new double[n]; m.Balance = new double[n]; m.IceCore = new double[n];
+        foreach (var a in Arrays()) for (int k = 0; k < n; k++) a[k] = r.ReadDouble();
+        for (int k = 0; k < n; k++) m.Fixed[k] = r.ReadBoolean();
     }
 
     /// <summary>Erodibility (yr^-1 m^(1-2m)): crystalline core and volcanic flanks share one value; the red-rock

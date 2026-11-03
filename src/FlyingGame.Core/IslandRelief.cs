@@ -12,9 +12,12 @@ namespace FlyingGame.Core;
 /// it shows no facets. Each query reads a fixed 4 x 4 block: bounded, allocation-free, no search.
 ///
 /// Byte channels ride on the same lattice (bilinear): glacier ice fraction, debris/moraine cover, wetness
-/// (log of the discharge the erosion routed through the node) and the local equilibrium-line altitude.
+/// (log of the discharge the erosion routed through the node) and the local equilibrium-line altitude; and
+/// (format IRL2, 2026-11-02 surfaces pass) the surface classes SNOW, ICE (undulation weight), CREVASSE and
+/// LEDGE. The ice undulation, crevasses, seracs and boulders those classes call for are added to the height
+/// here (IslandRelief.Surfaces.cs), so they are in the one height function too.
 /// </summary>
-public static class IslandRelief
+public static partial class IslandRelief
 {
     internal sealed class Lattice
     {
@@ -22,6 +25,10 @@ public static class IslandRelief
         public int W, H;
         public float[] Height = System.Array.Empty<float>();
         public byte[] Ice = System.Array.Empty<byte>(), Debris = System.Array.Empty<byte>(), Wet = System.Array.Empty<byte>(), Ela = System.Array.Empty<byte>();
+        public byte[] Snow = System.Array.Empty<byte>(), Rough = System.Array.Empty<byte>(), Crevasse = System.Array.Empty<byte>(), Ledge = System.Array.Empty<byte>();
+        /// <summary>Per node: 1 where the ice undulates or crevasses, so a cell with none at its corners skips
+        /// the surface detail with four byte reads.</summary>
+        public byte[] Active = System.Array.Empty<byte>();
         public double MaxE => E0 + (W - 1) * Cell;
         public double MaxN => N0 + (H - 1) * Cell;
     }
@@ -36,7 +43,8 @@ public static class IslandRelief
         {
             double x = (p.E - l.E0) * l.InvCell, y = (p.N - l.N0) * l.InvCell;
             if (x < 0 || y < 0 || x > l.W - 1 || y > l.H - 1) continue;
-            return Bicubic(l, x, y, out _, out _);
+            double h = Bicubic(l, x, y, out double gx, out double gy);
+            return h + Detail(l, x, y, h, gx, gy, true, out _, out _);
         }
         return SeaBedM;
     }
@@ -49,6 +57,8 @@ public static class IslandRelief
             double x = (p.E.Value - l.E0) * l.InvCell, y = (p.N.Value - l.N0) * l.InvCell;
             if (x < 0 || y < 0 || x > l.W - 1 || y > l.H - 1) continue;
             double v = Bicubic(l, x, y, out double dx, out double dy);
+            v += Detail(l, x, y, v, dx, dy, true, out double ddx, out double ddy);
+            dx += ddx; dy += ddy;
             dx *= l.InvCell; dy *= l.InvCell; // per lattice step -> per km
             return new TerrainJet(v, dx * p.E.E + dy * p.N.E, dx * p.E.N + dy * p.N.N);
         }
@@ -118,7 +128,8 @@ public static class IslandRelief
         int o = 0;
         ulong V() { ulong v = 0; int s = 0; while (true) { byte b = data[o++]; v |= (ulong)(b & 0x7f) << s; if (b < 0x80) return v; s += 7; } }
         double D() { double d = System.BitConverter.ToDouble(data, o); o += 8; return d; }
-        if (data[0] != 'I' || data[1] != 'R' || data[2] != 'L' || data[3] != '1') throw new System.InvalidOperationException("Island relief data has the wrong format.");
+        if (data[0] != 'I' || data[1] != 'R' || data[2] != 'L' || (data[3] != '1' && data[3] != '2')) throw new System.InvalidOperationException("Island relief data has the wrong format.");
+        bool surfaces = data[3] == '2';
         o = 4; int count = (int)V(); var result = new Lattice[count];
         for (int n = 0; n < count; n++)
         {
@@ -134,6 +145,22 @@ public static class IslandRelief
             for (int k = 0; k < size; k++) l.Height[k] = (float)(q[k] * .05 - 30);
             byte[] Channel() { var c = new byte[size]; int k = 0; while (k < size) { byte v = data[o++]; int run = (int)V(); for (int r = 0; r < run; r++) c[k++] = v; } return c; }
             l.Ice = Channel(); l.Debris = Channel(); l.Wet = Channel(); l.Ela = Channel();
+            if (surfaces) { l.Snow = Channel(); l.Rough = Channel(); l.Crevasse = Channel(); l.Ledge = Channel(); }
+            else { l.Snow = new byte[size]; l.Rough = new byte[size]; l.Crevasse = new byte[size]; l.Ledge = new byte[size]; }
+            // Detail flag, grown by one node so a boulder whose centre is on debris is found from any cell it reaches.
+            var flag = new bool[size];
+            for (int k = 0; k < size; k++) flag[k] = l.Rough[k] > 0 || l.Crevasse[k] > 0 || l.Debris[k] > 0 && l.Ice[k] > 0;
+            l.Active = new byte[size];
+            for (int j = 0; j < l.H; j++) for (int i = 0; i < l.W; i++)
+            {
+                bool any = false;
+                for (int b = -1; b <= 1 && !any; b++) for (int a = -1; a <= 1; a++)
+                {
+                    int ii = i + a, jj = j + b; if (ii < 0 || jj < 0 || ii >= l.W || jj >= l.H) continue;
+                    if (flag[jj * l.W + ii]) { any = true; break; }
+                }
+                l.Active[j * l.W + i] = (byte)(any ? 1 : 0);
+            }
             result[n] = l;
         }
         return result;

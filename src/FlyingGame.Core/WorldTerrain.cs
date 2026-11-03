@@ -31,6 +31,12 @@ public sealed class WorldTerrain
     public static MathTypes.Vec3 GroundNormalAt(double x,double y)
         => Active==null?new MathTypes.Vec3(0,0,-1):IslandTerrain.GroundNormalAt(x,y);
 
+    /// <summary>The outward normal (NED) a contact on the ground at height <paramref name="groundH"/> pushes along:
+    /// the terrain's own normal where that height IS the open terrain (with its wheel-scale bumps), world-up on a
+    /// deck or a cave floor (level slabs) and in the flat test world.</summary>
+    public static MathTypes.Vec3 ContactNormalAt(double x, double y, double groundH)
+        => Active != null && groundH == WheelGroundHeightAt(x, y) ? GroundNormalAt(x, y) : new MathTypes.Vec3(0, 0, -1);
+
     /// <summary>True when the selected ground branch's slope exceeds slopeTangent.</summary>
     public static bool IsWallAt(double x,double y,double slopeTangent)
         => Active!=null&&IslandTerrain.IsWallAt(x,y,slopeTangent);
@@ -496,6 +502,14 @@ public sealed class WorldTerrain
         /// worse off than on gravel because it still breaks through the crust and ploughs.
         /// </summary>
         PackedGlacierSnow,
+        /// <summary>
+        /// Bare glacier ICE below the snowline (Ty's surfaces spec, 2026-11-02). Hard: a tyre rolls on it rather
+        /// than ploughing, a wheel-ski's wheel carries the load (the ski only takes over where the wheel sinks),
+        /// and it is slippery — wet, melting ice under a weathered crust of loose grains. What makes it rough is
+        /// not this enum but the ground: the undulation and the crevasses are in the height function
+        /// (IslandRelief), and the cm-scale sun cups and runnels are in <see cref="MicroBumpAt"/>. APPENDED (6).
+        /// </summary>
+        GlacierIce,
     }
 
     /// <summary>Rolling-resistance coefficient (μ_r = rolling force / wheel load) per surface. Values from
@@ -515,6 +529,12 @@ public sealed class WorldTerrain
         // 0.18 is the floor: see LandingGear.SnowSinkageRolling, where the wheel's own bearing pressure
         // takes it toward 0.35.
         Surface.PackedGlacierSnow => 0.18,
+        // Bare glacier ice is RIGID under a tyre. Ice crushes at 5-25 MPa (Petrovic 2003, J. Mater. Sci. 38) and the summer weathering
+        // crust, porous as it is, is still ice; a tyre presses on it at its inflation pressure, 0.07-0.2 MPa. Nothing
+        // sinks, so the only rolling loss is the tyre's own hysteresis — the hard-surface value, by construction.
+        // The rattle of the melt hummocks is not in this number: it is in the ground (MicroBumpAt), and the energy it
+        // costs is spent in the gear's own damper.
+        Surface.GlacierIce => RollingCoefficient(Surface.Paved),
         _ => 0.15,
     };
 
@@ -530,6 +550,8 @@ public sealed class WorldTerrain
         Surface.Grass => 0.35,
         Surface.Snow => 0.10,          // a keel on snow slides like a ski, because that is what it is
         Surface.PackedGlacierSnow => 0.04,   // and on packed, wind-polished ice it slides very nearly freely
+        // Metal on ice, the same table as above (Engineering ToolBox): steel-ice 0.03, brass-ice 0.02 at 0 C.
+        Surface.GlacierIce => 0.03,
         _ => 0.50,
     };
 
@@ -643,6 +665,9 @@ public sealed class WorldTerrain
             return 0.30 * System.Math.Sin(x / 2.3) * System.Math.Sin(y / 1.9)
                  + 0.18 * System.Math.Sin(x / 0.9 + y / 1.1) + 0.30;
         }
+        // BARE GLACIER ICE (island): the melt hummocks of a summer ablation surface, which a wheel feels as a rattle
+        // and the 25 m mesh cannot show (the 1.5 m undulation and the crevasses are in the height itself).
+        if (s == Surface.GlacierIce) return GlacierIceMicroRelief(x, y);
         if (s == Surface.Rough)
         {
             return 0.10 * System.Math.Sin(x / 1.3) * System.Math.Sin(y / 1.7) + 0.06 * System.Math.Sin(x / 0.7 + y / 0.9) + 0.06;
@@ -652,6 +677,43 @@ public sealed class WorldTerrain
             return 0.012 * System.Math.Sin(x / 0.23) * System.Math.Sin(y / 0.31);
         }
         return 0.0;
+    }
+
+    // ---- bare glacier ice: the micro-relief, from what glaciologists measure -----------------------------------
+    // Nobody surveys glacier ice for wheels; they survey it for the wind. The aerodynamic roughness length z0 of
+    // melting glacier ice is measured from exactly this relief, by Munro's (1989) method: along a profile, the
+    // effective obstacle height h is twice the standard deviation of the elevations about their mean, f is the number
+    // of continuous runs above the mean in a traverse of length X, and Lettau's (1969) z0 = 0.5 h s/S with
+    // s = hX/(2f), S = (X/f)^2 gives z0 = h^2 f / (4 X) = h^2 / (4 L), L = X/f being the spacing of the hummocks.
+    // Brock and others (2006, J. Glaciol. 52(177), Haut Glacier d'Arolla) report a mean ice z0 of 2.24 mm (1 sd range
+    // 0.92-5.47 mm) and hummocks at 1.0 m spacing. Those two numbers fix the relief: h = sqrt(4 z0 L) = 9.5 cm, i.e.
+    // a standard deviation of 4.7 cm about the mean surface.
+    //
+    // The pattern is five plane waves at 36 deg steps, so it has no grain a wheel could run along: the variance along
+    // any heading is N A^2 / 2, and by Rice's formula the waves' wavelength lambda gives runs above the mean every
+    // sqrt(2) lambda along any heading. So lambda = L / sqrt(2) and A = sigma sqrt(2 / N). ZERO MEAN: the height field
+    // is the mean surface, as Munro's method takes it.
+    /// <summary>Brock and others (2006): mean aerodynamic roughness length of melting glacier ice, m.</summary>
+    public const double GlacierIceRoughnessLengthM = 0.00224;
+    /// <summary>Brock and others (2006): spacing of the ablation hummocks on that ice, m.</summary>
+    public const double GlacierIceHummockSpacingM = 1.0;
+    private const int GlacierIceWaves = 5;
+    private static readonly double GlacierIceWaveAmplitudeM =
+        System.Math.Sqrt(4 * GlacierIceRoughnessLengthM * GlacierIceHummockSpacingM) / 2 * System.Math.Sqrt(2.0 / GlacierIceWaves);
+    private static readonly double GlacierIceWaveNumber = 2 * System.Math.PI * System.Math.Sqrt(2.0) / GlacierIceHummockSpacingM;
+    // Phases with no common factor, so no two waves line up at any point.
+    private static readonly double[] GlacierIcePhase = { 0.0, 2.1, 4.4, 1.3, 5.7 };
+
+    /// <summary>The wheel-scale relief of bare glacier ice about its mean surface, m (see the note above).</summary>
+    public static double GlacierIceMicroRelief(double x, double y)
+    {
+        double z = 0;
+        for (int i = 0; i < GlacierIceWaves; i++)
+        {
+            double a = i * System.Math.PI / GlacierIceWaves;
+            z += System.Math.Sin(GlacierIceWaveNumber * (x * System.Math.Cos(a) + y * System.Math.Sin(a)) + GlacierIcePhase[i]);
+        }
+        return GlacierIceWaveAmplitudeM * z;
     }
 
     /// <summary>Ground height under a WHEEL: the height field plus the surface micro-roughness.</summary>

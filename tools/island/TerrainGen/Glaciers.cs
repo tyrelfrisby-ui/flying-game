@@ -116,7 +116,7 @@ public static class Glaciers
             bed[k] = Math.Min(bed[k] + 14 * ridge[k], m.Upper[k]);
             debris[k] = Math.Max(debris[k], ridge[k]);
         }
-        m.Ice = frac; m.Debris = debris;
+        m.Ice = frac; m.Debris = debris; m.Thick = thick; m.Flux = q; m.Balance = balance; m.IceCore = ice;
         // Diagnostics: accumulation-area ratio and terminus heights (sanity against real glaciers: AAR 0.5-0.7).
         int acc = 0, iceCells = 0, lowest = 0; double minZ = double.PositiveInfinity, maxZ = 0;
         for (int k = 0; k < n; k++) if (ice[k] > 0) { iceCells++; if (balance[k] > 0) acc++; if (bed[k] < minZ) { minZ = bed[k]; lowest = k; } maxZ = Math.Max(maxZ, bed[k]); }

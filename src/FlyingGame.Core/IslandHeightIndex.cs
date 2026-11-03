@@ -382,6 +382,15 @@ internal static class IslandHeightIndex
         double e=Math.Abs(f.U.E)*a+Math.Abs(f.V.E)*b+f.Blend/1000,n=Math.Abs(f.U.N)*a+Math.Abs(f.V.N)*b+f.Blend/1000;
         return (new Rect(f.Centre.E-e,f.Centre.E+e,f.Centre.N-n,f.Centre.N+n),f);
     }).ToList());
+    /// <summary>True where an authored layer reaches the ground at p. A layer that does not reach p returns h
+    /// unchanged for ANY h (every blend is Smooth-saturated to exactly zero outside its footprint), so a layer that
+    /// moves either of two absurd heights is one whose footprint p is in.</summary>
+    internal static bool AuthoredLayerAt(IslandPoint p)
+    {
+        foreach(var grid in new[]{BeforeOuter,AfterOuter,AfterBudget})
+            foreach(var layer in grid.At(p)) if(layer(p,-1e4)!=-1e4||layer(p,1e4)!=1e4) return true;
+        return false;
+    }
     private static double Layers(Grid<Layer> grid,IslandPoint p,double h,bool indexed)
     { foreach(var layer in indexed?grid.At(p):grid.All) h=layer(p,h); return h; }
     internal static double Evaluate(IslandPoint p,bool indexed=true)

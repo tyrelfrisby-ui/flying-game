@@ -1,7 +1,8 @@
 // The island's ground (2026-11-02, lane/claude-island-terrain). Every material decision is per pixel, from
 // the world position, the interpolated ANALYTIC normal and the generated surface channels on the vertices:
 //   colour = (glacier ice, debris/moraine, wetness, forest cover)
-//   uv0    = (local ELA m, red-rock country, gravel surface, managed turf)
+//   uv0    = (local ELA m, red-rock country + / tropical coast -, gravel + / managed turf -,
+//             glacier or patch SNOW + / CREVASSE field -)   (Ty's surfaces spec, 2026-11-02)
 // Nothing is a per-cell colour, so there are no facets or colour steps at the 25 m lattice.
 // Climate (docs/pending/ISLAND-TERRAIN-CLAUDE.md): the ELA is the climatic one generated from the orographic
 // precipitation; the snow shown is EARLY SUMMER cover, 220 m below the local ELA, lower on shaded faces
@@ -67,7 +68,9 @@ Shader "FlyingGame/IslandTerrain"
                 float3 n = normalize(i.n);
                 float h = i.wp.y, ice = i.c.r, debris = i.c.g, wet = i.c.b, forest = i.c.a;
                 // a.y: + red-rock country (Grand Canyon area), - the leeward tropical coast (Dillingham area).
-                float ela = i.a.x, redrock = saturate(i.a.y), tropical = saturate(-i.a.y), gravel = i.a.z, turf = i.a.w;
+                float ela = i.a.x, redrock = saturate(i.a.y), tropical = saturate(-i.a.y), gravel = saturate(i.a.z), turf = saturate(-i.a.z);
+                // The generator's surface classes, the same ones the gear feels (IslandTerrain.SurfaceAt).
+                float classSnow = saturate(i.a.w), field = saturate(-i.a.w);
                 float2 xz = i.wp.xz;
                 float pixelM = length(fwidth(i.wp));
 
@@ -144,7 +147,8 @@ Shader "FlyingGame/IslandTerrain"
                 float beach = (1 - smoothstep(2.5, 6, h)) * smoothstep(.85, .97, ny) * (1 - canopy);
                 float3 sand = lerp(float3(.55, .51, .45), float3(.64, .60, .53), smoothstep(.6, 2.2, h)) * (.94 + fine * .12); // Mokuleia beach
                 albedo = lerp(albedo, sand, beach);
-                albedo = lerp(albedo, float3(.40, .39, .37) * (.9 + fine * .2), gravel * .9);   // Knik braid bars
+                // Knik braid bars; rock ledges and boulders take the local rock's colour (red in red-rock country).
+                albedo = lerp(albedo, lerp(float3(.40, .39, .37), float3(.50, .43, .36), redrock) * (.9 + fine * .2), gravel * .9);
                 albedo = lerp(albedo, lerp(float3(.36, .47, .22), float3(.50, .50, .30), dry), turf * smoothstep(.95, .99, ny));
 
                 // ---- snow: early-summer cover by elevation and aspect, shed by steep ground ---------------
@@ -154,21 +158,33 @@ Shader "FlyingGame/IslandTerrain"
                 // Patches below the line: shaded, wet hollows hold drifts longest.
                 float hollow = saturate(wet * 1.6 + max(0, north) * .6 - .35);
                 float patch = smoothstep(snowLine - 420, snowLine - 60, h) * smoothstep(.62, .78, mid * .7 + hollow * .6) * smoothstep(.45, .7, ny);
-                float snow = saturate(max(cover, patch)) * (1 - turf) * (1 - beach);
+                float snow = saturate(max(max(cover, patch), classSnow)) * (1 - turf) * (1 - beach);
                 float3 snowColour = float3(.90, .92, .92) * (.97 + fine * .04);
                 albedo = lerp(albedo, snowColour, snow);
 
-                // ---- glacier ice --------------------------------------------------------------------------
-                float steepIce = 1 - smoothstep(.85, .95, ny);
-                float crevasse = 0;
-                if (ice > .15)        // glaciers only
-                    crevasse = (1 - smoothstep(.04, .12, abs(filteredAt(float2(dot(xz, n.xz) * .045, dot(xz, float2(-n.z, n.x)) * .006), pixelM * .045) - .5)))
-                               * steepIce * smoothstep(.5, .8, ice) * (1 - smoothstep(1.5, 5, pixelM));
+                // ---- glacier: SNOW above its snowline, bare ICE below, crevasse fields, moraines ---------------
+                // Which is which is the generator's (classSnow / field), so the paint and the gear agree.
                 float3 iceColour = lerp(float3(.62, .66, .68), float3(.70, .75, .78), fine);   // bare summer ice (Fairweather, Knik)
-                iceColour = lerp(iceColour, float3(.32, .45, .55), crevasse * .45);
-                iceColour = lerp(iceColour, float3(.36, .35, .33) * (.85 + fine * .3), saturate(debris * 1.3));
-                albedo = lerp(albedo, iceColour, smoothstep(.15, .6, ice));
-                float whiteness = max(snow, smoothstep(.15, .6, ice) * (1 - debris));
+                // A crevasse field: freshly broken ice, cleaner and bluer than the weathered surface, and in
+                // the walls of every crevasse and serac the deep blue of dense, bubble-poor glacier ice.
+                float iceWall = 1 - smoothstep(.35, .75, ny);
+                float3 brokenIce = lerp(float3(.66, .80, .88), float3(.80, .90, .95), fine);
+                brokenIce = lerp(brokenIce, float3(.16, .44, .66) * (.85 + fine * .3), iceWall);
+                iceColour = lerp(iceColour, brokenIce, field);
+                // Beyond the finest mesh level the cuts are not in the geometry: the field's crevasses are painted,
+                // transverse to the fall line, fading in only where the triangles stop drawing them.
+                if (field > .01)
+                {
+                    float far = smoothstep(2, 6, pixelM);
+                    float stripes = 1 - smoothstep(.06, .16, abs(filteredAt(float2(i.wp.y * (1.0 / 9) + broad * .8, dot(xz, float2(-n.z, n.x)) * .004), pixelM / 9) - .5));
+                    iceColour = lerp(iceColour, float3(.10, .30, .48), stripes * far * field * .8);
+                }
+                // Moraines: lateral and medial stripes of rock carried on the ice, darker where thicker.
+                iceColour = lerp(iceColour, float3(.36, .35, .33) * (.85 + fine * .3), saturate(debris * 1.3) * (1 - field));
+                float3 glacier = lerp(iceColour, snowColour, classSnow);
+                float onIce = smoothstep(.15, .6, ice) * (1 - gravel);   // a boulder on the ice is rock (gravel), not ice
+                albedo = lerp(albedo, glacier, onIce);
+                float whiteness = max(snow, onIce * (1 - debris) * (1 - iceWall * field));
 
                 // ---- optical detail: shading-only bumps, fading out with distance --------------------------
                 float detail = (1 - smoothstep(6, 40, pixelM));
