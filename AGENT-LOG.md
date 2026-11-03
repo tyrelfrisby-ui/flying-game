@@ -4493,3 +4493,6 @@ NEEDS YOU: approve v2 re-render.
 1. Instruments protrude about 1 inch; must sit flush with the panel surface, each mounted with four visible screws at the bezel corners.
 2. Attitude indicator miniature airplane reference is crooked; must be level and centered.
 3. DG airplane is just a plus sign; replace with a real top-view airplane silhouette.
+
+## 2026-11-03 14:40 PST - 172 panel: Ty says nothing visibly changed
+NEEDS YOU: approve v2. Ty: turn coordinator still a crude block (needs real TC: rear-view airplane symbol, L/R index marks, 2 MIN text, DC ELEC label); inclinometer still rectangular (must be curved glass tube, ball, two reference wires). Plus earlier items: flush 4-screw mounts, level AI airplane, DG airplane silhouette. Verify the renders actually use the new instrument art (instruments-v1 may be stale).
