@@ -735,7 +735,7 @@ public static class FloatHydro
     /// the earth frame its speed is 2V sin α (α = the root line's angle to the flow). The point's velocity includes the
     /// aircraft's yaw, roll and pitch rates. Mass flux per metre of root: ρ |u_p| δ with Wagner's 2-D jet thickness
     /// δ = (π/4) sin²τ_f · l (Green 1936: the jet's momentum carries the planing plate's ideal drag; τ_f = the flow's
-    /// incidence on the facet, l = the wetted run aft of the root).
+    /// incidence on the facet, l = the section's wetted half-width at the root, its 2-D chord in the 2D+t view).
     /// </summary>
     public static int SprayRoots(AircraftConfig config, RigidBodyState s, SprayRoot[] output)
     {
@@ -784,7 +784,14 @@ public static class FloatHydro
                     // facet: along x (to the next station's crossing) and along the section edge
                     Vec3 tSec = new Vec3(0, pb.Y - pa.Y, pb.Z - pa.Z);
                     Vec3 tRoot = new Vec3(h.X[i + 1] - h.X[i], y2 * pile - ry, z2 - rz);
-                    Vec3 nrm = Vec3.Cross(tRoot, tSec);
+                    // The facet's own longitudinal direction: the SAME polygon edge at the next station (the rings share
+                    // their vertex order), so a root line that crosses from the bottom to the chine between two stations
+                    // does not make a plane across two facets.
+                    var poly2 = h.Poly[i + 1];
+                    Vec3 tLong = poly2.Length == poly.Length
+                        ? new Vec3(h.X[i + 1] - h.X[i], 0.5 * (poly2[e1].Y + poly2[(e1 + 1) % poly2.Length].Y - pa.Y - pb.Y), 0.5 * (poly2[e1].Z + poly2[(e1 + 1) % poly2.Length].Z - pa.Z - pb.Z))
+                        : tRoot;
+                    Vec3 nrm = Vec3.Cross(tLong, tSec);
                     if (nrm.LengthSquared < 1e-12 || tRoot.LengthSquared < 1e-12) continue;
                     nrm = nrm.Normalized();
                     if (nrm.Y * side < 0 && System.Math.Abs(nrm.Y) > 1e-6) nrm = nrm * -1.0;    // outward
@@ -796,13 +803,16 @@ public static class FloatHydro
                     Vec3 up = u - nrm * un;
                     double upm = up.Length;
                     if (upm < 0.3) continue;
-                    Vec3 t = tRoot.Normalized();
+                    Vec3 tIn = tRoot - nrm * tRoot.Dot(nrm);                    // the root line, in the facet's plane
+                    if (tIn.LengthSquared < 1e-12) continue;
+                    Vec3 t = tIn.Normalized();
                     Vec3 jetRel = t * (2 * up.Dot(t)) - up;                    // reflection about the root line
                     Vec3 jetWorld = q.Rotate(vPt + jetRel);
+                    if (jetWorld.Z >= 0) continue;   // water that does not leave the surface upward is wave, not spray
                     double sinTf = -un / u.Length;
-                    double run = System.Math.Max(0, h.X[i] - h.SternX);
-                    if (!h.Aft[i]) run = System.Math.Max(0, h.X[i] - h.StepX);
-                    double delta = System.Math.PI / 4 * sinTf * sinTf * run;
+                    // 2-D chord of the cross-flow section that throws this jet: its wetted half-width at the root
+                    // (Wagner's wedge in the 2D+t view of the hull; the root cannot throw more than its own section).
+                    double delta = System.Math.PI / 4 * sinTf * sinTf * System.Math.Abs(ry);
                     double ds = tRoot.Length;
                     output[count++] = new SprayRoot
                     {
