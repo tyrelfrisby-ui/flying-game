@@ -1,0 +1,979 @@
+{
+  "model": "c172-like-own",
+  "livery": "v1",
+  "source": "Codex's panel (lane/codex-172-cockpit 8655aadb, docs/models/c172-panel-rig.md); bound to FlyingGame.Core.Instruments by lane/claude-172-instruments. Generated from the GLB's own node translations (pivots) by tools/own_models/c172_instrument_rig.py.",
+  "rig": [
+    {
+      "node": "C172_AI_roll",
+      "parent": null,
+      "param": "ai_bank_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.267,
+        0.323,
+        -0.321
+      ],
+      "map": [
+        [
+          -180,
+          180
+        ],
+        [
+          180,
+          -180
+        ]
+      ],
+      "model": 0.0,
+      "desc": "AI horizon/roll assembly: rolls the OPPOSITE way to the indicated bank (right bank = horizon tilts anticlockwise); +deg = clockwise as seen from the seat",
+      "extra": {}
+    },
+    {
+      "node": "C172_AI_pitch",
+      "parent": "C172_AI_roll",
+      "param": "ai_pitch_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        0,
+        0,
+        1
+      ],
+      "pivot_gltf": [
+        0.267,
+        0.323,
+        -0.321
+      ],
+      "map": [
+        [
+          -25,
+          -25
+        ],
+        [
+          25,
+          25
+        ]
+      ],
+      "model": 0.0,
+      "desc": "AI horizon sphere about the lateral axis inside the roll assembly: nose up turns the face DOWN (more sky); 1:1, Codex's +/-25 deg envelope",
+      "extra": {}
+    },
+    {
+      "node": "C172_DG_card",
+      "parent": null,
+      "param": "dg_card_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.259,
+        0.218,
+        -0.321
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          -360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "DG card: drawn N at 12 o'clock, numbers clockwise; the reading sits under the top lubber, so the card turns anticlockwise by it; +deg = clockwise as seen from the seat",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_DG_sync_adjust",
+      "parent": null,
+      "param": "dg_knob_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.265,
+        0.188,
+        -0.348
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "DG push-and-turn knob, 1:1 with the card change it made",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_TC_airplane",
+      "parent": null,
+      "param": "tc_needle",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.254,
+        0.222,
+        -0.423
+      ],
+      "map": [
+        [
+          -2,
+          -30
+        ],
+        [
+          2,
+          30
+        ]
+      ],
+      "model": 0.0,
+      "desc": "TC little aeroplane: 1 rate (standard rate) = 15 deg right wing down (E: the face has no L/R index drawn yet); stops at 2 rates; +deg = clockwise as seen from the seat",
+      "extra": {}
+    },
+    {
+      "node": "C172_TC_slip_ball",
+      "parent": null,
+      "param": "slip_ball",
+      "kind": "move",
+      "axis_gltf": [
+        0,
+        0,
+        1
+      ],
+      "pivot_gltf": [
+        0.253,
+        0.198,
+        -0.423
+      ],
+      "map": [
+        [
+          -1,
+          -0.015
+        ],
+        [
+          1,
+          0.015
+        ]
+      ],
+      "model": 0.0,
+      "desc": "inclinometer ball, +1 = right end of the tube (12 deg of apparent-gravity lean)",
+      "extra": {}
+    },
+    {
+      "node": "C172_NAV1_CDI",
+      "parent": null,
+      "param": "nav1_cdi",
+      "kind": "move",
+      "axis_gltf": [
+        0,
+        0,
+        1
+      ],
+      "pivot_gltf": [
+        0.248,
+        0.323,
+        -0.112
+      ],
+      "map": [
+        [
+          -1,
+          -0.018
+        ],
+        [
+          1,
+          0.018
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV1 course needle: +1 = full scale right (course to the right); VOR 10 deg, localizer tailored",
+      "extra": {}
+    },
+    {
+      "node": "C172_NAV1_OBS_card",
+      "parent": null,
+      "param": "nav1_obs_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.258,
+        0.323,
+        -0.112
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          -360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV1 OBS card: the selected course under the top index, so the card turns anticlockwise by it",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_NAV1_OBS",
+      "parent": null,
+      "param": "nav1_obs_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.265,
+        0.293,
+        -0.138
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV1 OBS knob, 1:1",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_NAV1_NAV_flag",
+      "parent": null,
+      "param": "nav1_flag",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.245,
+        0.335,
+        -0.099
+      ],
+      "map": [
+        [
+          0,
+          90
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV1 warning flag: legend upright (as drawn) when the flag is IN view (1), turned 90 deg out of it when the receiver has a usable signal",
+      "extra": {}
+    },
+    {
+      "node": "C172_NAV1_TO_FROM_flag",
+      "parent": null,
+      "param": "nav1_tofrom",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.245,
+        0.342,
+        -0.099
+      ],
+      "map": [
+        [
+          -1,
+          60
+        ],
+        [
+          0,
+          90
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV1 TO/FROM: TO = legend upright, OFF = turned 90; FROM = 60 deg (PLACEHOLDER: the window has one 'TO_FROM' legend; it needs separate TO and FROM)",
+      "extra": {}
+    },
+    {
+      "node": "C172_NAV2_CDI",
+      "parent": null,
+      "param": "nav2_cdi",
+      "kind": "move",
+      "axis_gltf": [
+        0,
+        0,
+        1
+      ],
+      "pivot_gltf": [
+        0.248,
+        0.218,
+        -0.112
+      ],
+      "map": [
+        [
+          -1,
+          -0.018
+        ],
+        [
+          1,
+          0.018
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV2 course needle: +1 = full scale right (course to the right); VOR 10 deg, localizer tailored",
+      "extra": {}
+    },
+    {
+      "node": "C172_NAV2_OBS_card",
+      "parent": null,
+      "param": "nav2_obs_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.258,
+        0.218,
+        -0.112
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          -360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV2 OBS card: the selected course under the top index, so the card turns anticlockwise by it",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_NAV2_OBS",
+      "parent": null,
+      "param": "nav2_obs_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.265,
+        0.188,
+        -0.138
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV2 OBS knob, 1:1",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_NAV2_NAV_flag",
+      "parent": null,
+      "param": "nav2_flag",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.245,
+        0.23,
+        -0.099
+      ],
+      "map": [
+        [
+          0,
+          90
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV2 warning flag: legend upright (as drawn) when the flag is IN view (1), turned 90 deg out of it when the receiver has a usable signal",
+      "extra": {}
+    },
+    {
+      "node": "C172_NAV2_TO_FROM_flag",
+      "parent": null,
+      "param": "nav2_tofrom",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.245,
+        0.237,
+        -0.099
+      ],
+      "map": [
+        [
+          -1,
+          60
+        ],
+        [
+          0,
+          90
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV2 TO/FROM: TO = legend upright, OFF = turned 90; FROM = 60 deg (PLACEHOLDER: the window has one 'TO_FROM' legend; it needs separate TO and FROM)",
+      "extra": {}
+    },
+    {
+      "node": "C172_NAV1_GS",
+      "parent": null,
+      "param": "nav1_gs",
+      "kind": "move",
+      "axis_gltf": [
+        0,
+        1,
+        0
+      ],
+      "pivot_gltf": [
+        0.246,
+        0.323,
+        -0.112
+      ],
+      "map": [
+        [
+          -1,
+          -0.018
+        ],
+        [
+          1,
+          0.018
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV1 glideslope needle: +1 = full scale UP (fly up), 0.7 deg",
+      "extra": {}
+    },
+    {
+      "node": "C172_NAV1_GS_flag",
+      "parent": null,
+      "param": "nav1_gs_flag",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.245,
+        0.349,
+        -0.099
+      ],
+      "map": [
+        [
+          0,
+          90
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "model": 0.0,
+      "desc": "NAV1 GS flag: upright = in view (no usable glideslope)",
+      "extra": {}
+    },
+    {
+      "node": "C172_ADF_bearing",
+      "parent": null,
+      "param": "adf_needle_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.252,
+        0.111,
+        -0.112
+      ],
+      "map": [
+        [
+          0,
+          35
+        ],
+        [
+          360,
+          395
+        ]
+      ],
+      "model": -35,
+      "desc": "ADF needle: relative bearing clockwise from 12 o'clock; drawn at -35 deg, hence the 35 offset; +deg = clockwise as seen from the seat",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_ADF_card_adjust",
+      "parent": null,
+      "param": "adf_card_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.265,
+        0.081,
+        -0.138
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "ADF card knob, 1:1 with the card (the ADF face's card is drawn fixed; no rotating card node yet)",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_Compass_card",
+      "parent": null,
+      "param": "compass_card_deg",
+      "kind": "rot",
+      "axis_gltf": [
+        0,
+        1,
+        0
+      ],
+      "pivot_gltf": [
+        0.334,
+        0.448,
+        0
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          360,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "whisky compass card about the vertical: relative to the case it turns anticlockwise-from-above by the reading (it holds north while the aeroplane turns); +deg = right-handed about up",
+      "extra": {
+        "rig_map_wrap": 360
+      }
+    },
+    {
+      "node": "C172_Suction_needle",
+      "parent": null,
+      "param": "suction_inhg",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.315,
+        0.443
+      ],
+      "map": [
+        [
+          0,
+          35
+        ],
+        [
+          10,
+          395
+        ]
+      ],
+      "model": -0.9722222222222222,
+      "desc": "suction gauge: face 0-2-4-6-8 every 72 deg = 36 deg/inHg from 12 o'clock; drawn at -35 deg",
+      "extra": {}
+    },
+    {
+      "node": "C172_Airspeed_needle",
+      "parent": null,
+      "param": "airspeed_mph",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.323,
+        -0.423
+      ],
+      "map": [
+        [
+          0,
+          55
+        ],
+        [
+          200,
+          415
+        ]
+      ],
+      "model": -30.555555555555554,
+      "desc": "ASI, MPH face: 1.8 deg/mph from 12 o'clock (labels every 20 mph at 36 deg, arcs at tau*v/200); drawn at -55 deg",
+      "extra": {}
+    },
+    {
+      "node": "C172_Altimeter_needle",
+      "parent": null,
+      "param": "altitude_ft",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.323,
+        -0.219
+      ],
+      "map": [
+        [
+          0,
+          0
+        ],
+        [
+          1000,
+          360
+        ]
+      ],
+      "model": 0.0,
+      "desc": "altimeter long hand, 1 turn per 1,000 ft (unbounded); drawn at 0",
+      "extra": {
+        "rig_map_extrapolate": 1
+      }
+    },
+    {
+      "node": "C172_Altimeter_1000",
+      "parent": null,
+      "param": "altitude_ft",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.323,
+        -0.219
+      ],
+      "map": [
+        [
+          0,
+          20
+        ],
+        [
+          10000,
+          380
+        ]
+      ],
+      "model": 0.0,
+      "desc": "altimeter short hand, 1 turn per 10,000 ft; drawn at -20 deg",
+      "extra": {
+        "rig_map_extrapolate": 1
+      }
+    },
+    {
+      "node": "C172_Altimeter_10000",
+      "parent": null,
+      "param": "altitude_ft",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.323,
+        -0.219
+      ],
+      "map": [
+        [
+          0,
+          5
+        ],
+        [
+          100000,
+          365
+        ]
+      ],
+      "model": 0.0,
+      "desc": "altimeter 10,000 ft pointer, 1 turn per 100,000 ft; drawn at -5 deg",
+      "extra": {
+        "rig_map_extrapolate": 1
+      }
+    },
+    {
+      "node": "C172_VSI_needle",
+      "parent": null,
+      "param": "vsi_fpm",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.218,
+        -0.219
+      ],
+      "map": [
+        [
+          -2000,
+          -180
+        ],
+        [
+          2000,
+          180
+        ]
+      ],
+      "model": 0.0,
+      "desc": "VSI as DRAWN: 0 at 12 o'clock, climb clockwise to 2,000 at 6 o'clock (9 deg per 100 fpm), descent anticlockwise; drawn at 0",
+      "extra": {}
+    },
+    {
+      "node": "C172_Tach_needle",
+      "parent": null,
+      "param": "rpm",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.314,
+        0.303
+      ],
+      "map": [
+        [
+          0,
+          35
+        ],
+        [
+          3500,
+          350
+        ]
+      ],
+      "model": 0.0,
+      "desc": "tachometer: 0-35 hundred rpm every 45 deg = 0.09 deg/rpm; drawn at -35 deg",
+      "extra": {}
+    },
+    {
+      "node": "C172_Oil_press_needle",
+      "parent": null,
+      "param": "oil_press_psi",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.213,
+        0.264
+      ],
+      "map": [
+        [
+          0,
+          35
+        ],
+        [
+          100,
+          323
+        ]
+      ],
+      "model": 0.0,
+      "desc": "oil pressure: 0-100 psi, 72 deg per 25 psi; drawn at -35 deg",
+      "extra": {}
+    },
+    {
+      "node": "C172_Oil_temp_needle",
+      "parent": null,
+      "param": "oil_temp_f",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.213,
+        0.335
+      ],
+      "map": [
+        [
+          75,
+          35
+        ],
+        [
+          100,
+          107
+        ],
+        [
+          150,
+          179
+        ],
+        [
+          200,
+          251
+        ],
+        [
+          245,
+          323
+        ]
+      ],
+      "model": 0.0,
+      "desc": "oil temperature: labels 75/100/150/200/245 F every 72 deg (non-linear face); drawn at -35 deg",
+      "extra": {}
+    },
+    {
+      "node": "C172_Fuel_L_needle",
+      "parent": null,
+      "param": "fuel_centre_frac",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.139,
+        0.264
+      ],
+      "map": [
+        [
+          0,
+          35
+        ],
+        [
+          1,
+          323
+        ]
+      ],
+      "model": 0.0,
+      "desc": "fuel L: E..F over 288 deg (72 deg per quarter); the sim has one fuel fraction; drawn at -35 deg",
+      "extra": {}
+    },
+    {
+      "node": "C172_Fuel_R_needle",
+      "parent": null,
+      "param": "fuel_centre_frac",
+      "kind": "rot",
+      "axis_gltf": [
+        1,
+        0,
+        0
+      ],
+      "pivot_gltf": [
+        0.251,
+        0.139,
+        0.335
+      ],
+      "map": [
+        [
+          0,
+          35
+        ],
+        [
+          1,
+          323
+        ]
+      ],
+      "model": 0.0,
+      "desc": "fuel R: E..F over 288 deg (72 deg per quarter); the sim has one fuel fraction; drawn at -35 deg",
+      "extra": {}
+    }
+  ]
+}

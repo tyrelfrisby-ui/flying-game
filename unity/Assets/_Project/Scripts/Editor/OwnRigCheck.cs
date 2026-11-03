@@ -320,6 +320,40 @@ namespace FlyingGame.EditorTools
                     r.AirspeedKias = 60; r.AltitudeFt = 0; r.Rpm = 800; r.HeadingDeg = 0;
                 })),
             };
+            // The 172 panel (Codex's) has no eye nodes, so its seat comes from the pilot eye in Codex's render
+            // manifest (renders/c172/v1/render-manifest.json, design frame x right / y forward / z up), carried
+            // into the model's OWN imported frame — glTF (y, z, x) of the design point, then x negated by the
+            // importer — so the shot sits in the seat whichever way the model is placed. The state is chosen to
+            // be asymmetric everywhere, so a reversed sign cannot hide: right bank and nose up, a card off north,
+            // the TC on the R mark, needles half right / half down, FROM on NAV2, the ADF needle 45° right.
+            if (bound.ContainsKey("C172_AI_roll"))
+            {
+                Vector3 Design(float x, float y, float z) => model.TransformPoint(new Vector3(-y, z, x));
+                RigInputs c172 = With((ref RigInputs r) =>
+                {
+                    r.AiBankDeg = 20; r.AiPitchDeg = 5; r.DgCardDeg = 30; r.CompassCardDeg = 35; r.TcNeedle = 1;
+                    r.SlipBall = 0.5; r.SuctionInHg = 5; r.AirspeedMph = 100; r.AltitudeFt = 3500; r.VsiFpm = 500;
+                    r.Rpm = 2400; r.OilPressPsi = 75; r.OilTempF = 190; r.FuelCentreFrac = 0.75;
+                    r.Nav1Cdi = 0.5; r.Nav1Gs = -0.5; r.Nav1ToFrom = 1; r.Nav1Flag = 0; r.Nav1GsFlag = 0; r.Nav1ObsDeg = 90;
+                    r.Nav2Cdi = -0.5; r.Nav2ToFrom = -1; r.Nav2Flag = 0; r.Nav2ObsDeg = 270;
+                    r.AdfNeedleDeg = 45; r.AdfCardDeg = 0;
+                });
+                foreach ((string name, RigInputs r) in new[] { ("parked", RigInputs.Parked()), ("c172-known", c172) })
+                {
+                    builder.SetRig(r, 0f);
+                    Vector3 eye = Design(-0.337f, -0.346f, 0.548f);
+                    cam.transform.position = eye;
+                    cam.transform.rotation = Quaternion.LookRotation(Design(-0.10f, 0.32f, 0.20f) - eye, model.up);
+                    cam.fieldOfView = 60f;
+                    Capture(cam, rt, Path.Combine(dir, $"c172-pilot-eye-{name}.png"));
+                    Vector3 six = Design(-0.321f, -0.10f, 0.27f);
+                    cam.transform.position = six;
+                    cam.transform.rotation = Quaternion.LookRotation(Design(-0.27f, 0.30f, 0.27f) - six, model.up);
+                    cam.fieldOfView = 40f;
+                    Capture(cam, rt, Path.Combine(dir, $"c172-sixpack-{name}.png"));
+                }
+            }
+
             foreach ((string name, RigInputs r) in states)
             {
                 builder.SetRig(r, 0f);

@@ -632,4 +632,55 @@ public class C172InstrumentTests
         Assert.True(r.TryGet("suction_inhg", out double suction));
         Assert.Equal(5.0, suction, 3);
     }
+
+    // ---------------------------------------------------------------- the own 172's rig table
+
+    /// <summary>
+    /// docs/models/c172-like-own-rig.json binds Codex's panel to these instruments. The node list and the
+    /// sign-carrying map points are written out here by hand, so a regenerated table that renames a node,
+    /// drops one, or reverses a card has to be changed in two places on purpose.
+    /// </summary>
+    [Fact]
+    public void TheOwn172RigBindsEveryInstrumentNodeToAParamTheSimSupplies()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", "c172-like-own-rig.json");
+        var root = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path)).RootElement;
+        Assert.Equal("c172-like-own", root.GetProperty("model").GetString());
+        var rows = root.GetProperty("rig").EnumerateArray().ToDictionary(r => r.GetProperty("node").GetString()!, r => r);
+        var want = new Dictionary<string, string>
+        {
+            ["C172_AI_roll"] = "ai_bank_deg", ["C172_AI_pitch"] = "ai_pitch_deg",
+            ["C172_DG_card"] = "dg_card_deg", ["C172_DG_sync_adjust"] = "dg_knob_deg",
+            ["C172_TC_airplane"] = "tc_needle", ["C172_TC_slip_ball"] = "slip_ball",
+            ["C172_NAV1_CDI"] = "nav1_cdi", ["C172_NAV1_GS"] = "nav1_gs", ["C172_NAV1_OBS_card"] = "nav1_obs_deg",
+            ["C172_NAV1_OBS"] = "nav1_obs_deg", ["C172_NAV1_NAV_flag"] = "nav1_flag", ["C172_NAV1_TO_FROM_flag"] = "nav1_tofrom",
+            ["C172_NAV1_GS_flag"] = "nav1_gs_flag",
+            ["C172_NAV2_CDI"] = "nav2_cdi", ["C172_NAV2_OBS_card"] = "nav2_obs_deg", ["C172_NAV2_OBS"] = "nav2_obs_deg",
+            ["C172_NAV2_NAV_flag"] = "nav2_flag", ["C172_NAV2_TO_FROM_flag"] = "nav2_tofrom",
+            ["C172_ADF_bearing"] = "adf_needle_deg", ["C172_ADF_card_adjust"] = "adf_card_deg",
+            ["C172_Compass_card"] = "compass_card_deg", ["C172_Suction_needle"] = "suction_inhg",
+            ["C172_Airspeed_needle"] = "airspeed_mph", ["C172_Altimeter_needle"] = "altitude_ft",
+            ["C172_Altimeter_1000"] = "altitude_ft", ["C172_Altimeter_10000"] = "altitude_ft",
+            ["C172_VSI_needle"] = "vsi_fpm", ["C172_Tach_needle"] = "rpm", ["C172_Oil_press_needle"] = "oil_press_psi",
+            ["C172_Oil_temp_needle"] = "oil_temp_f", ["C172_Fuel_L_needle"] = "fuel_centre_frac", ["C172_Fuel_R_needle"] = "fuel_centre_frac",
+        };
+        Assert.Equal(want.Count, rows.Count);
+        var r = new RigInputs();
+        foreach (var (node, param) in want)
+        {
+            Assert.True(rows.ContainsKey(node), node);
+            Assert.Equal(param, rows[node].GetProperty("param").GetString());
+            Assert.True(r.TryGet(param, out _), $"{node}: the sim supplies no '{param}'");
+        }
+        // The signs, from the drawn faces: a card under a top lubber turns AGAINST its reading, the horizon
+        // AGAINST the bank, a needle WITH its value; the CDI slides right (glTF +Z) and the GS needle up (+Y).
+        double ValueAt(string node, int i) => rows[node].GetProperty("map")[i][1].GetDouble();
+        Assert.Equal(-360.0, ValueAt("C172_DG_card", 1));
+        Assert.Equal(-180.0, ValueAt("C172_AI_roll", 1));
+        Assert.Equal(395.0, ValueAt("C172_ADF_bearing", 1));
+        Assert.Equal(1.0, rows["C172_NAV1_CDI"].GetProperty("axis_gltf")[2].GetDouble());
+        Assert.Equal(1.0, rows["C172_NAV1_GS"].GetProperty("axis_gltf")[1].GetDouble());
+        Assert.Equal(1.0, rows["C172_Compass_card"].GetProperty("axis_gltf")[1].GetDouble());
+        Assert.Equal("C172_AI_roll", rows["C172_AI_pitch"].GetProperty("parent").GetString());
+    }
 }
