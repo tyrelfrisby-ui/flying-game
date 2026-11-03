@@ -45,6 +45,40 @@ for a in W['airparks']:
   q=a['float_pond'];FIELDS.append(dict(q,id=q.get('numbers_magnetic','35W/17W'),field=a['id'],key=a['id']+' float pond',start_group=None,elevation_ft=q['elevation_ft'],shore_class=a['shore_class']))
 for a in W['backcountry_strips']+W.get('landable_beaches',[]):FIELDS.append(dict(a,field=a['id'],key=a['id'],start_group=None))
 
+# Natural lie of unbuilt landing surfaces (Ty 2026-11-03), mirrored term for term from NaturalShapeParams and
+# IslandHeightIndex.NaturalShape/StripShape (src/FlyingGame.Core): grass/turf strips and the ski zones.
+def _shape_hash(sid,k):
+ h=2166136261
+ for ch in sid:h=((h^ord(ch))*16777619)&0xffffffff
+ h=((h^k)*2246822519)&0xffffffff;h^=h>>15;return (h&0xffffff)/0xffffff
+def shape_params(sid,length_m,width_m,kind):
+ H=lambda k:_shape_hash(sid,k)
+ if kind==0:amp=min(max(.0018*length_m,.4),2.0)*(.75+.5*H(1))
+ elif kind==1:amp=min(max(.0025*length_m,.6),2.8)*(.8+.4*H(1))
+ else:amp=.3+.2*H(1)
+ return dict(kind=kind,amp=amp,sweep=min(.8,.015*width_m)*(.4+.6*H(2))*(-1 if H(3)<.5 else 1),l1=100+60*H(4),l2=220+120*H(5),ph1=6.283*H(6),ph2=6.283*H(7),skew=(H(8)-.5)*1.2)
+def natural_shape(s,t,u,along_m):
+ if s is None:return 0
+ t=max(-.5,min(.5,t));u=max(-1,min(1,u));e=math.cos(math.pi*t)*math.cos(math.pi*t)
+ if s['kind']==0:return -s['amp']*e+s['sweep']*u*e*math.sin(2*math.pi*t)
+ if s['kind']==1:return s['amp']*e*(1+s['skew']*2*t)
+ return e*(s['amp']*(.6*math.sin(2*math.pi*along_m/s['l1']+s['ph1'])+.4*math.sin(2*math.pi*along_m/s['l2']+s['ph2']))+s['sweep']*.5*u*math.sin(2*math.pi*along_m/s['l2']+s['ph1']))
+_SHAPED=[r['key'] for r in FIELDS if ('grass' in r['surface'] or r['surface']=='turf') and r['field']!='DRAKE']
+def strip_shape(r,along,cross):
+ if r['key'] not in _SHAPED:return 0
+ L=r.get('length_m',r.get('length_ft',0)*FT);Wm=r.get('width_m',r.get('width_ft',0)*FT)
+ s=shape_params(r['key'],L,Wm,_SHAPED.index(r['key'])%3);half=Wm/2000
+ taper=1-smooth((abs(cross)-half)/max(.001,r['pad']['shoulder_m']/1000))
+ return natural_shape(s,along*1000/L,cross/half,along*1000)*taper
+def ski_shape(p):
+ h=0
+ for i,gl in enumerate(W['glaciers']):
+  z=gl['ski_zone'];c=z['centre'];a0,a1=gl['path'][-2],gl['path'][-1];ax=(a1[0]-a0[0],a1[1]-a0[1]);n=math.hypot(*ax);ax=(ax[0]/n,ax[1]/n)
+  d=(p[0]-c[0],p[1]-c[1]);al=(d[0]*ax[0]+d[1]*ax[1])*1000;ac=(d[0]*ax[1]-d[1]*ax[0])*1000
+  s=shape_params('ski:'+gl['id'],z['length_m'],z['width_m'],i%3)
+  h+=natural_shape(s,al/z['length_m'],ac/(z['width_m']/2),al)*(1-smooth((math.hypot(*d)-.15)/.25))
+ return h
+
 def dimensions(r):return r.get('length_m',r.get('length_ft',0)*FT)/1000,r.get('width_m',r.get('width_ft',0)*FT)/1000
 
 def local(p,r):
@@ -150,6 +184,8 @@ def height(x,y):
  for lesson in W['lesson_terrain']:
   dd,t=pathnear(p,lesson['box_path']);a=1-smooth((dd-lesson['floor_half_width_m']/1000)/(lesson['outer_blend_m']/1000));z=lesson['saddle_ft']*FT+lesson['box_floor_rise_m']*t;h=h*(1-a)+z*a
   q=lesson['headwall_geometry'];a=1-smooth((dist(p,q['centre'])-q['core_radius_m']/1000)/(q['blend_m']/1000));h=max(h,h+(q['top_ft']*FT-h)*a)
+ # The ski zones' natural lie, added after the floors that hold them (IslandHeightIndex, after the lessons).
+ h+=ski_shape(p)
  # Preserve all authored peak heights after erosional cuts, with continuous compact influence.
  for q in W['height_field']['peaks']:
   rr=dist(p,q['centre']);a=1-smooth((rr-.12)/.28);h=h*(1-a)+island_relief.height(x,y)*a
@@ -190,7 +226,7 @@ def height(x,y):
    r=dict(r,length_m=drake['exterior_strip_m'],centre=[r['centre'][0]+offset*u[0],r['centre'][1]+offset*u[1]])
   along,cross=local(p,r);l,b=dimensions(r);pad=r['pad'];da=max(0,abs(along)-l/2-pad.get('end_shoulder_m',60)/1000);db=max(0,abs(cross)-b/2-pad['shoulder_m']/1000);dd=math.hypot(da,db);blend=pad['blend_m']/1000
   if dd<blend:
-   z=r['elevation_ft']*FT+max(-l/2,min(l/2,along))*1000*r.get('slope_percent',0)/100-(W['height_field']['water_lane_bed_offset_m'] if r['surface']=='water' else 0)
+   z=r['elevation_ft']*FT+max(-l/2,min(l/2,along))*1000*r.get('slope_percent',0)/100-(W['height_field']['water_lane_bed_offset_m'] if r['surface']=='water' else 0)+strip_shape(r,along,cross)
    claims.append((dd,1-smooth(dd/blend),z,r['key']))
  if claims:
   dd,a,z,_=min(claims)

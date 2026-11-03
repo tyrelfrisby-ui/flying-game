@@ -43,12 +43,13 @@ public class IslandSurfaceTests : IDisposable
     // ---- the designated landing places (generator report, 2026-11-02) ----------------------------------
     // id, sim x (north) m, sim y (east) m, uphill heading deg true, landable length x width m, slope deg,
     // cross slope deg (+ rising to the right of the uphill heading), height at the centre m, shape.
+    // shape: how the snow lies on the plane (generator site log): crest / banana amplitude, rolling amplitude.
     public static readonly (string id, double x, double y, double hdg, double len, double wid, double slope, double cross, double z, string shape)[] Patches =
     {
-        ("SP1", 6550, -3150, 0, 160, 40, 1, 0.1, 875.1, "plane"),
-        ("SP2", 6250, -2800, 0, 130, 35, 3, 1.6, 866.2, "plane"),
-        ("SP3", 7000, -3250, 0, 150, 35, 4, -3.0, 867.6, "plane"),
-        ("SP4", -5600, -5200, 90, 110, 30, 8, -3.0, 1073.7, "plane"),
+        ("SP1", 6550, -3150, 0, 160, 40, 1, 0.1, 875.1, "crest 0.58"),
+        ("SP2", 6250, -2800, 0, 130, 35, 3, 1.6, 866.2, "banana 0.49"),
+        ("SP3", 7000, -3250, 0, 150, 35, 4, -3.0, 867.6, "rolling 0.35"),
+        ("SP4", -5600, -5200, 90, 110, 30, 8, -3.0, 1073.7, "crest 0.71"),
     };
     public static readonly (string id, double x, double y, double hdg, double len, double wid, double slope, double cross, double z, string shape)[] Ledges =
     {
@@ -84,10 +85,14 @@ public class IslandSurfaceTests : IDisposable
             double along = Math.Atan((H(ux, uy) - H(dx, dy)) / (2 * a)) * 180 / Math.PI;
             double cross = Math.Atan((H(rx, ry) - H(lx, ly)) / (2 * b)) * 180 / Math.PI;
             _o.WriteLine($"{s.id}: {H(s.x, s.y):F2} m, along {along:F2} deg, cross {cross:F2} deg");
-            // Heights are stored to 5 cm; the patch is an exact plane under the Catmull-Rom surface.
-            Assert.InRange(H(s.x, s.y), s.z - .3, s.z + .3);
+            // The plane, as cut, plus the way the snow lies on it (zero at the ends; at the centre a crest stands its
+            // amplitude above the plane and a banana sags it below; a rolling patch is within its amplitude and rolls
+            // across a little too). Heights are stored to 5 cm.
+            string kind = s.shape.Split(' ')[0]; double amp = double.Parse(s.shape.Split(' ')[1], System.Globalization.CultureInfo.InvariantCulture);
+            double centre = kind == "crest" ? amp : kind == "banana" ? -amp : 0, give = kind == "rolling" ? amp : 0;
+            Assert.InRange(H(s.x, s.y), s.z + centre - .3 - give, s.z + centre + .3 + give);
             Assert.InRange(along, s.slope - .2, s.slope + .2);
-            Assert.InRange(cross, s.cross - .2, s.cross + .2);
+            Assert.InRange(cross, s.cross - .2 - (kind == "rolling" ? .6 : 0), s.cross + .2 + (kind == "rolling" ? .6 : 0));
         }
     }
 
@@ -151,16 +156,17 @@ public class IslandSurfaceTests : IDisposable
     {
         // Knik (-6.2, 0.1) at 1,100 ft and Fairweather (-3.9, 4.7) at 1,300 ft: unchanged, flat, SNOW, and no
         // crevasse, undulation or boulder within 1.5 km of either (no published heading, so every direction).
-        // Flat to 100 m in every direction: that is what both zones have been since v2 (measured on HEAD 0df90495,
-        // identical) — Knik's canyon walls rise from 110 m, short of the spec's 450 x 100 m. Reported, not changed.
-        foreach (var (name, e, n, ft) in new[] { ("Knik", -6.2, 0.1, 1100.0), ("Fairweather", -3.9, 4.7, 1300.0) })
+        // Within 100 m the snow lies the way Ty asked (2026-11-03, NaturalSurfaceTests): never more than the zone's
+        // shape off its elevation (Knik a 0.97 m banana, Fairweather a 1.15 m crest), never a step. (Knik's canyon
+        // walls rise from 110 m, short of the spec's 450 x 100 m, as since v2: reported, not changed.)
+        // (amp: the shape's amplitude plus its cross-sweep — Knik 0.97 + 0.64 m, Fairweather 1.15 + 0.70 m.)
+        foreach (var (name, e, n, ft, amp) in new[] { ("Knik", -6.2, 0.1, 1100.0, .97 + .64), ("Fairweather", -3.9, 4.7, 1300.0, 1.15 + .70) })
         {
             double cx = n * 1000, cy = e * 1000;
             Assert.Equal(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(cx, cy));
-            Assert.InRange(H(cx, cy), ft * .3048 - .05, ft * .3048 + .05);
             for (double r = 0; r <= 100; r += 25) for (int k = 0; k < 8; k++)
             {
-                double a = k * Math.PI / 4; Assert.InRange(H(cx + r * Math.Cos(a), cy + r * Math.Sin(a)) - ft * .3048, -.05, .05);
+                double a = k * Math.PI / 4; Assert.InRange(H(cx + r * Math.Cos(a), cy + r * Math.Sin(a)) - ft * .3048, -amp - .05, amp + .05);
             }
             for (double r = 0; r <= 1500; r += 50) for (int k = 0; k < 16; k++)
             {

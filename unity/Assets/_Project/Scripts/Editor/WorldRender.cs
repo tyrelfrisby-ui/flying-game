@@ -469,6 +469,19 @@ namespace FlyingGame.EditorTools
                 ("53-1000ft-agl-knik-face", A(-7.2, -0.6, 305), A(-4.6, -1.0, 0), 60),
                 ("54-ledge-LD5-rounded", A(4.75, -2.21, 50), A(4.75, -2.05, 0), 45),
                 ("55-snow-patches-SP1-SP3-fairweather-shoulder", A(-2.4, 5.6, 450), A(-3.15, 6.6, 0), 50),
+                // Every glacier landing site, before/after Ty's 2026-11-03 "glacier landings are just on snow":
+                // a low approach along the landing direction and an overview from the side.
+                ("60-lz-knik-approach-from-west", A(-7.6, 0.2, 120), A(-6.2, 0.1, 0), 45),
+                ("61-lz-knik-overview", A(-6.9, -0.9, 450), A(-6.2, 0.1, 0), 50),
+                ("62-lz-fairweather-approach-from-nw", A(-4.9, 5.3, 150), A(-3.9, 4.7, 0), 45),
+                ("63-lz-fairweather-overview", A(-3.0, 3.6, 500), A(-3.9, 4.7, 0), 50),
+                ("64-lz-SP2-approach", A(-2.8, 5.85, 60), A(-2.8, 6.25, 0), 45),
+                ("65-lz-SP3-approach", A(-3.25, 6.6, 60), A(-3.25, 7.0, 0), 45),
+                // Grass strips lying naturally (Ty 2026-11-03): from a pilot's eye at the threshold, and from the side.
+                ("70-strip-AP8-crest-from-threshold", A(-8.248, 3.207, 2.0), A(-8.152, 3.993, .5), 30),
+                ("71-strip-AP8-crest-from-the-side", A(-7.853, 3.557, 60), A(-8.2, 3.6, 0), 45),
+                ("72-strip-3U2-banana-from-threshold", A(1.928, -0.253, 2.0), A(1.712, -1.267, .5), 30),
+                ("73-strip-AP1-rolling-from-threshold", A(-2.027, 4.600, 2.0), A(-1.173, 4.600, .5), 30),
             };
             // Straight-down plates of each area's template window (e0, e1, n0, n1 km), north up, from 40 km so
             // terrain parallax stays under 4%: the island half of each imagery-vs-render comparison plate.

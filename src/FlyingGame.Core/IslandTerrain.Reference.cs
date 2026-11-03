@@ -19,9 +19,8 @@ public static partial class IslandTerrain
             if (IslandTerrain.Path(p, c["path"]).d < (c.S("id") == "C3" ? .018 : .010)) { wet = true; break; }
         if (!wet) foreach (string id in new[] { "F13", "F14", "F15" })
         {
-            var c = IslandTerrain.Feature(id)["centre"].Point; var d = p - c;
-            if (Math.Abs(d.E) > .35 || Math.Abs(d.N) > .11 || Math.Abs(d.N) < .030) continue;
-            for (int i = 0; i < 8; i++) if (Math.Abs(d.N - ((i - 3.5) * .025 + .004 * Math.Sin(d.E * 27 + i))) < .004) { wet = true; break; }
+            var c = IslandTerrain.Feature(id)["centre"].Point;
+            if (IslandWater.InBraid(p - c)) { wet = true; break; }
         }
         if (!wet) return false;
         foreach (var f in IslandTerrain.Fields)
@@ -113,6 +112,13 @@ public static partial class IslandTerrain
             var (dd, t) = Path(p, q["box_path"]); h = Mix(h, q.N("saddle_ft") * Feet + q.N("box_floor_rise_m") * t, 1 - Smooth((dd - q.N("floor_half_width_m") / 1000) / (q.N("outer_blend_m") / 1000)));
             var wall = q["headwall_geometry"]; h = Math.Max(h, Mix(h, wall.N("top_ft") * Feet, 1 - Smooth(((p - wall["centre"].Point).Length - wall.N("core_radius_m") / 1000) / (wall.N("blend_m") / 1000))));
         }
+        foreach (var q in World["glaciers"].Items)
+        {
+            var ski = q["ski_zone"]; var path = q["path"].Items; var ax = path[^1].Point - path[^2].Point; ax = ax * (1 / ax.Length);
+            var dz = p - ski["centre"].Point; double zl = ski.N("length_m"), zw = ski.N("width_m");
+            double al = dz.Dot(ax) * 1000, ac = (dz.E * ax.N - dz.N * ax.E) * 1000;
+            h += IslandHeightIndex.NaturalShape(NaturalShapeParams.SkiZone(q.S("id"), zl, zw), al / zl, ac / (zw / 2), al) * (1 - Smooth((dz.Length - .15) / .25));
+        }
         foreach (var q in Peaks) h = Mix(h, IslandRelief.Height(p), 1 - Smooth(((p - q["centre"].Point).Length - .12) / .28));
         h = Mix(h, box.N("centre_ground_ft") * Feet, 1 - Smooth((Math.Max(Math.Abs(bd.E), Math.Abs(bd.N)) - .5) / .15));
         var dr = Feature("F1"); var ds = dr["shell_geometry"]; var dp = p - ds["chamber_centre"].Point;
@@ -150,7 +156,7 @@ public static partial class IslandTerrain
             var delta = p - c; double ad = delta.Dot(f.U), cr = delta.Dot(f.V);
             double da = Math.Max(0, Math.Abs(ad) - l / 2 - f.EndShoulder / 1000), db = Math.Max(0, Math.Abs(cr) - f.Width / 2000 - f.Shoulder / 1000), dd = Math.Sqrt(da * da + db * db);
             if (dd >= f.Blend / 1000) continue;
-            double a = 1 - Smooth(dd / (f.Blend / 1000)), zz = f.Elevation + Math.Clamp(ad, -l / 2, l / 2) * 1000 * f.Slope / 100 - (f.Surface == "water" ? H.N("water_lane_bed_offset_m") : 0);
+            double a = 1 - Smooth(dd / (f.Blend / 1000)), zz = f.Elevation + Math.Clamp(ad, -l / 2, l / 2) * 1000 * f.Slope / 100 - (f.Surface == "water" ? H.N("water_lane_bed_offset_m") : 0) + IslandHeightIndex.StripShape(f, ad, cr);
             if (dd < nearest || (dd == nearest && a < bestA)) { nearest = dd; bestA = a; bestZ = zz; }
             maxA = Math.Max(maxA, a); if (dd > 0) { double wt = a / (dd * dd); sumW += wt; sumZ += wt * zz; }
         }

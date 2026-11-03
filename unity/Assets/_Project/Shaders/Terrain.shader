@@ -468,9 +468,8 @@ Shader "FlyingGame/Terrain"
                             float endAA=max(.5,fwidth(headDistance)*.75);
                             float ends=(1-smoothstep(-endAA,endAA,headDistance))
                                 *(1-smoothstep(len-endAA,len+endAA,along));
-                            float clearLz=(1-smoothstep(400,460,abs(along-len*.65)))
-                                *(1-smoothstep(40,100,abs(across)));
-                            float claim=max(edge*ends,clearLz)*(1-alpineMeadow);
+                            // (No painted landing-zone rectangle: Ty 2026-11-03, glacier landings are just on snow.)
+                            float claim=edge*ends*(1-alpineMeadow);
                             // Finite capsule around the actual corridor, not the product of
                             // wide axis rectangles reaching into the neighbouring alpine meadow.
                             float endDistance=max(0,max(-along,along-len));
@@ -516,10 +515,11 @@ Shader "FlyingGame/Terrain"
                             forest*=1-surroundings;
                             if(glacier>.001)
                             {
-                                // One centred 800 x 80 m snow runway per corridor, 65% downstream.
-                                // 60 m safety feather outside the clear rectangle; no actual flattening.
-                                float lz=(1-smoothstep(400,460,abs(iceAlong-iceLength*.65)))
-                                    *(1-smoothstep(40,100,abs(iceAcross)));
+                                // The landing area, 65% downstream, is the glacier's own snow, told apart only by being
+                                // free of cracks (Ty 2026-11-03: "glacier landings are just on snow"). No rectangle: a soft,
+                                // wandering ellipse, and it changes nothing but the cracks.
+                                float lzWander=(filteredMountain(float2(iceAlong*.004,iceAcross*.006)+3.7)-.5)*.5;
+                                float lz=1-smoothstep(.75,1.35,length(float2((iceAlong-iceLength*.65)/460,iceAcross/120))+lzWander);
                                 float normalizedAcross=abs(iceAcross)/iceWidth;
                                 float edgeZone=smoothstep(.65,.88,normalizedAcross);
                                 float upper=1-smoothstep(.22,.35,iceAlong/iceLength);
@@ -570,10 +570,10 @@ Shader "FlyingGame/Terrain"
                                 float lateral=smoothstep(-18-edgeAA,-5+edgeAA,marginDistance)
                                     *(.65+.35*warp);
                                 float debrisGrain=filteredMountain(float2(iceAlong*.09,iceAcross*.12));
-                                float moraine=max(medial,lateral)*(1-lz)*(.85+.15*debrisGrain);
+                                float moraine=max(medial,lateral)*(.85+.15*debrisGrain);
                                 float3 iceColour=lerp(float3(.94,.945,.94),float3(.055,.17,.28),cracks*.94);
                                 iceColour=lerp(iceColour,float3(.23,.24,.24)*( .90+debrisGrain*.2),moraine*.96);
-                                iceColour*=1-(1-smoothstep(0,8+edgeAA,abs(marginDistance)))*.12*(1-lz);
+                                iceColour*=1-(1-smoothstep(0,8+edgeAA,abs(marginDistance)))*.12;
                                 albedo=lerp(albedo,iceColour,glacier);
                                 float opticalIce=-cracks*.8;
                                 float3 iceGradient=(ddx(opticalIce)*r1+ddy(opticalIce)*r2)
@@ -583,7 +583,7 @@ Shader "FlyingGame/Terrain"
                                 // Smooth shading at the centre, exact terrain depth/silhouette retained.
                                 float grade=dot(macroNormal.xz,float2(iceDown.y,iceDown.x));
                                 float3 iceNormal=normalize(float3(iceDown.y*grade,macroNormal.y,iceDown.x*grade));
-                                n=normalize(lerp(n,iceNormal,glacier*(1-edgeZone)*(1-cracks)*lerp(.85,1,lz)));
+                                n=normalize(lerp(n,iceNormal,glacier*(1-edgeZone)*(1-cracks)*.85));
                                 forest*=1-glacier;
                             }
                         }

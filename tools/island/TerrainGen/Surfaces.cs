@@ -114,10 +114,35 @@ public static class Surfaces
         Moraines(m, sm);
 
         // ---- the authored ski zones are snow, whatever the climate does ------------------------------
+        // Not a stamped disc. Ty (2026-11-03): "glacier landings are just on snow" — a landing area on a real
+        // glacier is the glacier's own snow, told apart only by being smoother and free of crevasses. So each zone
+        // is a snowfield lying ALONG its glacier (the authored path's last segment through the zone), sized from
+        // the zone's own length and width and grown by the safety ground round it, with an edge that wanders
+        // (value noise on 90 m and 35 m) and fades over ~100 m instead of a 25 m step. The landing core — the
+        // authored 150 m flat pad that SurfaceAt calls Snow — is always fully inside it.
         foreach (var q in IslandTerrain.World["glaciers"].Items)
         {
-            var c = q["ski_zone"]["centre"].Point;
-            for (int k = 0; k < n; k++) if ((g.P(k) - c).Length < .30) { m.Snow[k] = 1; m.Crevasse[k] = 0; }
+            var z = q["ski_zone"]; var c = z["centre"].Point; var path = q["path"].Items;
+            var axis = path[^1].Point - path[^2].Point; axis = axis * (1 / Math.Max(1e-9, axis.Length));
+            double half = z.N("length_m") / 2000 + .15, wide = z.N("width_m") / 2000 + .18;   // km: zone + safety ground
+            for (int k = 0; k < n; k++)
+            {
+                var d = g.P(k) - c; if (d.Length > half + .3) continue;
+                double along = d.Dot(axis), across = d.E * axis.N - d.N * axis.E;
+                double q2 = Math.Sqrt(along * along / (half * half) + across * across / (wide * wide));
+                double wander = .22 * (ValueNoise(g.P(k), .09, 11) - .5) * 2 + .10 * (ValueNoise(g.P(k), .035, 23) - .5) * 2;
+                double w = 1 - IslandTerrain.Smooth((q2 + wander - .80) / .45);
+                // Not over a river bar's braids (Knik's F13 lies at the glacier's foot): the snow ends at the outwash.
+                foreach (var id in new[] { "F13", "F14", "F15" })
+                {
+                    var b = g.P(k) - IslandTerrain.Feature(id)["centre"].Point;
+                    double outside = Math.Max(Math.Abs(b.E) - .35, Math.Abs(b.N) - .11);
+                    w *= IslandTerrain.Smooth(outside / .06);
+                }
+                w = Math.Max(w, 1 - IslandTerrain.Smooth((d.Length - .17) / .10));   // the flat landing core, always snow
+                if (w <= m.Snow[k]) continue;
+                m.Snow[k] = w; m.Crevasse[k] *= 1 - w;
+            }
         }
         for (int k = 0; k < n; k++) m.Rough[k] = IslandTerrain.Smooth((m.Ice[k] - .15) / .45) * (1 - m.Snow[k]) * (1 - m.Protect[k]);
 
@@ -285,8 +310,27 @@ public static class Surfaces
         m.Log.Add($"moraines on the ice: {area:F2} km2 of supraglacial stripes (lateral and medial), ice-cored ridges up to {top:F1} m");
     }
 
+    /// <summary>Deterministic value noise in [0, 1] on a lattice of <paramref name="cellKm"/>, smooth between nodes.</summary>
+    static double ValueNoise(IslandPoint p, double cellKm, uint seed)
+    {
+        double x = p.E / cellKm, y = p.N / cellKm; int i = (int)Math.Floor(x), j = (int)Math.Floor(y);
+        double tx = IslandTerrain.Smooth(x - i), ty = IslandTerrain.Smooth(y - j);
+        static double Hash(int a, int b, uint s)
+        {
+            uint h = unchecked((uint)a * 0x8da6b343u ^ (uint)b * 0xd8163841u ^ s * 0xcb1ab31fu);
+            h ^= h >> 13; h = unchecked(h * 0x5bd1e995u); h ^= h >> 15; return (h & 0xffffff) / (double)0xffffff;
+        }
+        double a00 = Hash(i, j, seed), a10 = Hash(i + 1, j, seed), a01 = Hash(i, j + 1, seed), a11 = Hash(i + 1, j + 1, seed);
+        return (a00 * (1 - tx) + a10 * tx) * (1 - ty) + (a01 * (1 - tx) + a11 * tx) * ty;
+    }
+
     // ---------------------------------------------------------------------------------------------------
-    sealed record Target(string Kind, string Shape, double SlopeDeg, double L, double W);
+    sealed record Target(string Kind, string Shape, double SlopeDeg, double L, double W, int Order = 0)
+    {
+        /// <summary>A snow patch lies the way snow lies (Ty, 2026-11-03: not perfectly flat): banana, crest or rolling,
+        /// on top of its slope. Ledges are rock and keep their authored flat / sloped / rounded shapes.</summary>
+        public NaturalShapeParams Natural => Kind == "patch" ? NaturalShapeParams.For($"patch:{SlopeDeg}:{L}", L, W, Order) : NaturalShapeParams.Flat;
+    }
     /// <summary>Most cut or fill a site may need: on its shelf (landable area + one cell), and over the whole
     /// Catmull-Rom support. Design limits — a shelf, not a quarry.</summary>
     public const double ShelfCutFillM = 25, SupportCutFillM = 50;
@@ -334,8 +378,9 @@ public static class Surfaces
         });
         var targets = new List<Target>
         {
-            new("patch", "plane", 1, 160, 40), new("patch", "plane", 3, 130, 35), new("patch", "plane", 4, 150, 35), new("patch", "plane", 5, 120, 30),
-            new("patch", "plane", 7, 110, 30), new("patch", "plane", 8, 110, 30), new("patch", "plane", 10, 100, 25), new("patch", "plane", 12, 100, 25),
+            // Order: which natural shape each patch takes (banana, crest, rolling in turn over the ones that are placed).
+            new("patch", "plane", 1, 160, 40, 1), new("patch", "plane", 3, 130, 35, 0), new("patch", "plane", 4, 150, 35, 2), new("patch", "plane", 5, 120, 30, 1),
+            new("patch", "plane", 7, 110, 30, 1), new("patch", "plane", 8, 110, 30, 1), new("patch", "plane", 10, 100, 25, 0), new("patch", "plane", 12, 100, 25, 2),
             new("ledge", "flat", 0, 150, 45), new("ledge", "flat", 1, 130, 40), new("ledge", "sloped", 4, 170, 45), new("ledge", "sloped", 7, 150, 40),
             new("ledge", "rounded", 2, 160, 50), new("ledge", "rounded", 0, 140, 45),
         };
@@ -435,8 +480,12 @@ public static class Surfaces
         }
     }
 
-    static double Shape(Target t, double s, double cs, double a, double b)
-        => s * a + cs * b - (t.Shape == "rounded" ? 4 * 2.5 / (t.L * t.L) * (a * a + b * b) : 0);
+    /// <summary>The site's surface (m, about its centre height): its plane or dome, and — when placing, not when
+    /// choosing — its natural lie. Sites are chosen on the plane alone, so laying the snow's shape on them does not
+    /// move any site.</summary>
+    static double Shape(Target t, double s, double cs, double a, double b, bool natural = false)
+        => s * a + cs * b - (t.Shape == "rounded" ? 4 * 2.5 / (t.L * t.L) * (a * a + b * b) : 0)
+         + (natural ? IslandTerrain.NaturalShape(t.Natural, a / t.L, b / (t.W / 2), a) : 0);
 
     /// <summary>
     /// Half-length and half-width of the nodes a site must fix. The runtime surface is Catmull-Rom (Keys' cubic
@@ -469,7 +518,7 @@ public static class Surfaces
         var (hl, hw) = Support(g, t, u, v); double support = 0;
         foreach (var (k, a, b) in Footprint(g, c, u, v, hl + ring, hw + ring))
         {
-            double z = a0 + Shape(t, s, cs, Math.Clamp(a, -hl, hl), Math.Clamp(b, -hw, hw));
+            double z = a0 + Shape(t, s, cs, Math.Clamp(a, -hl, hl), Math.Clamp(b, -hw, hw), natural: true);
             double out_ = Math.Sqrt(Math.Pow(Math.Max(0, Math.Abs(a) - hl), 2) + Math.Pow(Math.Max(0, Math.Abs(b) - hw), 2));
             if (out_ <= 0) { support = Math.Max(support, Math.Abs(m.H[k] - z)); m.H[k] = z; m.Fixed[k] = true; }
             else if (!m.Fixed[k]) m.H[k] += (z - m.H[k]) * (1 - IslandTerrain.Smooth(out_ / ring));
@@ -479,8 +528,8 @@ public static class Surfaces
             m.Rough[k] *= 1 - m.Protect[k]; m.Crevasse[k] *= 1 - m.Protect[k];
         }
         double lo = a0 + Shape(t, s, 0, -t.L / 2, 0), hi = a0 + Shape(t, s, 0, t.L / 2, 0), crossDeg = Math.Atan(cs) * 180 / Math.PI;
-        var site = new Site(id, t.Kind, t.Shape, c, hd, t.L, t.W, t.SlopeDeg, crossDeg, a0, lo, hi, cut, support);
+        var site = new Site(id, t.Kind, t.Kind == "patch" ? t.Natural.Name : t.Shape, c, hd, t.L, t.W, t.SlopeDeg, crossDeg, a0, lo, hi, cut, support);
         Sites.Add(site);
-        m.Log.Add($"site {id} {t.Kind}/{t.Shape}: centre ({c.E:F3},{c.N:F3}) km = sim x {c.N * 1000:F0} y {c.E * 1000:F0} m, uphill heading {hd} deg true, landable {t.L:F0} x {t.W:F0} m, slope {t.SlopeDeg:F0} deg (cross {crossDeg:+0.0;-0.0} deg, + rising to the right of the uphill heading), centre {a0:F1} m ({a0 / Ft:F0} ft), ends {lo:F1}..{hi:F1} m, worst cut/fill {cut:F1} m on the shelf, {support:F1} m over the whole support");
+        m.Log.Add($"site {id} {t.Kind}/{t.Shape}: centre ({c.E:F3},{c.N:F3}) km = sim x {c.N * 1000:F0} y {c.E * 1000:F0} m, uphill heading {hd} deg true, landable {t.L:F0} x {t.W:F0} m, slope {t.SlopeDeg:F0} deg (cross {crossDeg:+0.0;-0.0} deg, + rising to the right of the uphill heading), centre {a0:F1} m ({a0 / Ft:F0} ft), ends {lo:F1}..{hi:F1} m, worst cut/fill {cut:F1} m on the shelf, {support:F1} m over the whole support; lies {t.Natural.Name} ({t.Natural.Amp:F2} m, sweep {t.Natural.Sweep:F2} m)");
     }
 }

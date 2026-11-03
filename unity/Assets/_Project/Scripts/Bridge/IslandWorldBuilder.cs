@@ -45,11 +45,15 @@ namespace FlyingGame.Bridge
             foreach(string id in new[]{"F13","F14","F15"})
             {
                 var c=IslandTerrain.Feature(id)["centre"].Point;
-                for(int i=0;i<8;i++) for(int j=0;j<70;j++)
+                for(int i=0;i<8;i++)
                 {
-                    double e0=-.35+j*.01,e1=e0+.01;
-                    var a=c+new IslandPoint(e0,(i-3.5)*.025+.004*Math.Sin(e0*27+i));var d=c+new IslandPoint(e1,(i-3.5)*.025+.004*Math.Sin(e1*27+i));
-                    if(Math.Abs((a-c).N)>.030) StreamRibbon(b,a,d,8);
+                    var (lo,hi)=IslandWater.BraidSpanKm(i); int steps=(int)Math.Ceiling((hi-lo)/.01);
+                    for(int j=0;j<steps;j++)
+                    {
+                        double e0=lo+(hi-lo)*j/steps,e1=lo+(hi-lo)*(j+1)/steps;
+                        var a=c+new IslandPoint(e0,IslandWater.BraidOffsetKm(i,e0));var d=c+new IslandPoint(e1,IslandWater.BraidOffsetKm(i,e1));
+                        if(Math.Abs((a-c).N)>.030) StreamRibbon(b,a,d,8);
+                    }
                 }
             }
             b.Build("Ocean-lakes-water-lanes", parent, WorldBuilder.Mat("FlyingGame/Water", new Color(.075f,.30f,.41f,.95f)));
@@ -69,8 +73,21 @@ namespace FlyingGame.Bridge
         private static void SurfaceQuad(B b, IslandField f, double length, double width, double z, Color c, double along = 0, double across = 0)
         {
             var centre = f.Centre + f.U * (along / 1000) + f.V * (across / 1000);
-            Vector3 V(int a, int s) { var p = centre + f.U * (a * length / 2000) + f.V * (s * width / 2000); return P(p, z + (along + a * length / 2) * f.Slope / 100); }
-            b.Quad(V(-1, -1), V(1, -1), V(1, 1), V(-1, 1), c);
+            if (f.Shape.Kind < -.5)
+            {
+                Vector3 V(int a, int s) { var p = centre + f.U * (a * length / 2000) + f.V * (s * width / 2000); return P(p, z + (along + a * length / 2) * f.Slope / 100); }
+                b.Quad(V(-1, -1), V(1, -1), V(1, 1), V(-1, 1), c);
+                return;
+            }
+            // A shaped (grass/turf) strip: the paint lies on the ground's own surface, every 10 m along and every 6 m across,
+            // at the same small offset above it as before.
+            int na = Math.Max(1, (int)Math.Ceiling(length / 10)), nc = Math.Max(1, (int)Math.Ceiling(width / 6));
+            Vector3 W(double fa, double fc) { var p = centre + f.U * (fa * length / 1000) + f.V * (fc * width / 1000); return P(p, f.SurfaceHeight(p) + (z - f.Elevation)); }
+            for (int i = 0; i < na; i++) for (int k = 0; k < nc; k++)
+            {
+                double a0 = -.5 + (double)i / na, a1 = -.5 + (double)(i + 1) / na, c0 = -.5 + (double)k / nc, c1 = -.5 + (double)(k + 1) / nc;
+                b.Quad(W(a0, c0), W(a1, c0), W(a1, c1), W(a0, c1), c);
+            }
         }
         private static void Label(string name, string text, IslandPoint p, double up, Transform parent, double heading = 0, float size = 12)
         {
@@ -98,10 +115,11 @@ namespace FlyingGame.Bridge
                 for (int end = 0; end < (f.Field == "DRAKE" ? 1 : 2); end++)
                 {
                     double a = (end == 0 ? -1 : 1) * (f.Length / 2 - 25); var p = f.Centre + f.U * (a / 1000);
-                    Label(f.Id + ":number", nums[Math.Min(end, nums.Length - 1)], p, f.Plane(p) + .08, parent, f.Heading + (end == 0 ? 0 : 180), (float)Math.Min(12, f.Width * .45));
+                    Label(f.Id + ":number", nums[Math.Min(end, nums.Length - 1)], p, f.SurfaceHeight(p) + .08, parent, f.Heading + (end == 0 ? 0 : 180), (float)Math.Min(12, f.Width * .45));
                     SurfaceQuad(b, f, 3, f.Width - 3, f.Elevation + .07, White, (end == 0 ? -1 : 1) * (f.Length / 2 - 7));
                 }
-                Label(f.Id + ":ident", f.Field, f.Centre + f.V * ((f.Width / 2 + 16) / 1000), f.Elevation + .10, parent, f.Heading, 8);
+                var identAt = f.Centre + f.V * ((f.Width / 2 + 16) / 1000);
+                Label(f.Id + ":ident", f.Field, identAt, Math.Max(f.Elevation, IslandTerrain.HeightKm(identAt)) + .10, parent, f.Heading, 8);
                 if (f.Field == "AP3") for (int i = 0; i < 11; i++) SurfaceQuad(b, f, .7, 8, f.Elevation + .08, i == 0 ? Orange : White, -f.Length / 2 + 150 + i * 25);
             }
             b.Build("Runway-surfaces-markings-buoys", parent, Lit);
@@ -207,10 +225,12 @@ namespace FlyingGame.Bridge
             for (int i = 0; i < 30; i++) Ribbon(b, crop + new IslandPoint(-.30, -.15 + i * .01), crop + new IslandPoint(.30, -.15 + i * .01), 7, i % 2 == 0 ? new Color(.49f, .57f, .21f) : new Color(.35f, .42f, .14f));
             var city = IslandTerrain.Feature("CITY")["centre"].Point;
             for (int i = -3; i <= 3; i++) { Ribbon(b, city + new IslandPoint(i * .18, -1.3), city + new IslandPoint(i * .18, 1.3), 24, new Color(.17f, .18f, .18f)); Ribbon(b, city + new IslandPoint(-.55, i * .46), city + new IslandPoint(.55, i * .46), 24, new Color(.17f, .18f, .18f)); }
-            foreach (var id in new[] { "F13", "F14", "F15" })
+            // Knik's bar (F13) is at the glacier's foot and its clean landing lane is NOT painted: the 520 x 52 m tan
+            // stripe between the braids was the runway Ty saw on the glacier (2026-11-03). The lane is still there
+            // for the gear — the braids keep out of it (IslandWater.BraidOffsetKm) — and reads as the bar itself.
+            foreach (var id in new[] { "F14", "F15" })
             {
                 var c = IslandTerrain.Feature(id)["centre"].Point;
-
                 Ribbon(b, c + new IslandPoint(-.26, 0), c + new IslandPoint(.26, 0), 52, new Color(.64f, .61f, .49f));
             }
             b.Build("Roads-practice-lines-hay-fields-bars", parent, Lit);

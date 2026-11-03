@@ -37,7 +37,8 @@ def body(signature):
 
 for signature in ['public (double d,double t) Distance(', 'public double Shore(',
                   'public double Apply(', 'public double Height(',
-                  'private static double Layers(', 'internal static double Evaluate(']:
+                  'private static double Layers(', 'internal static double Evaluate(',
+                  'internal static double NaturalShape(', 'internal static double StripShape(']:
     body(signature)
 # Every layer closure is another expression of the same scalar evaluator.
 starts = list(re.finditer(r'\(p,h\)=>', s))

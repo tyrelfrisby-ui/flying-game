@@ -375,15 +375,19 @@ namespace FlyingGame.Bridge
 
         static void Skirt(ChunkData c, Builder b, int[] index, int m, int s, float depth)
         {
-            void Edge(Func<int, int> at, bool reverse)
+            void Edge(Func<int, int> at, bool _)
             {
                 for (int t = 0; t < m - 1; t++)
                 {
                     int top0 = at(t), top1 = at(t + 1);
                     if (top0 < 0 || top1 < 0) continue;
                     int bot0 = b.Copy(top0, Vector3.down * depth), bot1 = b.Copy(top1, Vector3.down * depth);
-                    if (reverse) { b.T.Add(top0); b.T.Add(bot1); b.T.Add(bot0); b.T.Add(top0); b.T.Add(top1); b.T.Add(bot1); }
-                    else { b.T.Add(top0); b.T.Add(bot0); b.T.Add(bot1); b.T.Add(top0); b.T.Add(bot1); b.T.Add(top1); }
+                    // BOTH faces. A T-junction gap between a 5 m fine cell and a coarser neighbour can be seen from
+                    // either side of the seam; one-sided, the skirt was culled from the far side and the gap showed as
+                    // a dark dash along the chunk edge near every crevasse field. The copied vertices carry the
+                    // surface's own colour and normal, so either face shades like the ground it hangs from.
+                    b.T.Add(top0); b.T.Add(bot1); b.T.Add(bot0); b.T.Add(top0); b.T.Add(top1); b.T.Add(bot1);
+                    b.T.Add(top0); b.T.Add(bot0); b.T.Add(bot1); b.T.Add(top0); b.T.Add(bot1); b.T.Add(top1);
                 }
             }
             Edge(t => index[t], false);                    // south edge

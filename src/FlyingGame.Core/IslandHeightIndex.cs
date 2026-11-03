@@ -331,6 +331,16 @@ internal static class IslandHeightIndex
                 Add(layers,line.Bounds(width+blend),(p,h)=> { var (d,t)=line.At(p); return Mix(h,saddle+rise*t,1-Smooth((d-width)/blend)); });
                 var wall=q["headwall_geometry"]; Radial(layers,wall["centre"].Point,wall.N("core_radius_m")/1000,wall.N("blend_m")/1000,wall.N("top_ft")*Feet,true);
             }
+            // The ski landing zones lie the way glacier snow lies (NaturalShape, along the glacier's own path through the
+            // zone), ADDED to whatever floor holds the zone flat (its pad, or a lesson box's floor, as at Fairweather),
+            // so the zone keeps its mean elevation and is not a table.
+            foreach(var q in W["glaciers"].Items)
+            {
+                var zone=q["ski_zone"]; var zc=zone["centre"].Point; var path=q["path"].Items; var ax=path[path.Length-1].Point-path[path.Length-2].Point; ax=ax*(1/ax.Length);
+                double zl=zone.N("length_m"),zw=zone.N("width_m"); var shape=NaturalShapeParams.SkiZone(q.S("id"),zl,zw);
+                Add(layers,Rect.Around(zc,.40),(p,h)=> { var d=p-zc; double al=d.Dot(ax)*1000,ac=(d.E*ax.N-d.N*ax.E)*1000;
+                    return h+NaturalShape(shape,al/zl,ac/(zw/2),al)*(1-Smooth((d.Length-.15)/.25)); });
+            }
             // Summit cores: put back the uncut natural summit (the relief's own peak), as the cuts may have
             // taken it. The relief generator kept every clearance surface, so this is normally a no-op.
             foreach(var q in hf["peaks"].Items)
@@ -382,6 +392,25 @@ internal static class IslandHeightIndex
         double e=Math.Abs(f.U.E)*a+Math.Abs(f.V.E)*b+f.Blend/1000,n=Math.Abs(f.U.N)*a+Math.Abs(f.V.N)*b+f.Blend/1000;
         return (new Rect(f.Centre.E-e,f.Centre.E+e,f.Centre.N-n,f.Centre.N+n),f);
     }).ToList());
+    /// <summary>A site's natural shape (NaturalShapeParams), metres, at along-fraction t (-1/2 .. 1/2 end to end),
+    /// across-fraction u (-1 .. 1 edge to edge) and along distance alongM (m). Zero, with zero slope, at both ends.</summary>
+    internal static double NaturalShape(NaturalShapeParams s,double t,double u,double alongM)
+    {
+        if(s.Kind<-.5) return 0;
+        t=Math.Clamp(t,-.5,.5); u=Math.Clamp(u,-1,1);
+        double e=Math.Cos(Math.PI*t)*Math.Cos(Math.PI*t);
+        if(s.Kind<.5) return -s.Amp*e+s.Sweep*u*e*Math.Sin(2*Math.PI*t);
+        if(s.Kind<1.5) return s.Amp*e*(1+s.Skew*2*t);
+        return e*(s.Amp*(.6*Math.Sin(2*Math.PI*alongM/s.L1+s.Ph1)+.4*Math.Sin(2*Math.PI*alongM/s.L2+s.Ph2))+s.Sweep*.5*u*Math.Sin(2*Math.PI*alongM/s.L2+s.Ph1));
+    }
+    /// <summary>A strip's shape at (ad, cr) km from its centre along/across: full on the strip, fading to nothing
+    /// across its shoulders so the pad round it (and any paved runway sharing it) meets it without a step.</summary>
+    internal static double StripShape(IslandField f,double ad,double cr)
+    {
+        if(f.Shape.Kind<-.5) return 0;
+        double half=f.Width/2000,taper=1-Smooth((Math.Abs(cr)-half)/Math.Max(.001,f.Shoulder/1000));
+        return NaturalShape(f.Shape,ad*1000/f.Length,cr/half,ad*1000)*taper;
+    }
     /// <summary>True where an authored layer reaches the ground at p. A layer that does not reach p returns h
     /// unchanged for ANY h (every blend is Smooth-saturated to exactly zero outside its footprint), so a layer that
     /// moves either of two absurd heights is one whose footprint p is in.</summary>
@@ -437,7 +466,7 @@ internal static class IslandHeightIndex
             var delta=p-c; double ad=delta.Dot(f.U),cr=delta.Dot(f.V);
             double da=Math.Max(0,Math.Abs(ad)-l/2-f.EndShoulder/1000),db=Math.Max(0,Math.Abs(cr)-f.Width/2000-f.Shoulder/1000),dd=Math.Sqrt(da*da+db*db);
             if(dd>=f.Blend/1000) continue;
-            double a=1-Smooth(dd/(f.Blend/1000)),zz=f.Elevation+Math.Clamp(ad,-l/2,l/2)*1000*f.Slope/100-(f.Surface=="water"?WaterOffset:0);
+            double a=1-Smooth(dd/(f.Blend/1000)),zz=f.Elevation+Math.Clamp(ad,-l/2,l/2)*1000*f.Slope/100-(f.Surface=="water"?WaterOffset:0)+StripShape(f,ad,cr);
             if(dd<nearest||(dd==nearest&&a<bestA)) { nearest=dd; bestA=a; bestZ=zz; }
             maxA=Math.Max(maxA,a); if(dd>0) { double wt=a/(dd*dd); sumW+=wt; sumZ+=wt*zz; }
         }
