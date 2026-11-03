@@ -1197,6 +1197,10 @@ separately from lane/claude-pitts-spin.
 - **Build:** island-nav (73a6b497, HUD-only Unity changes) merged into roll-only (8697e42a), then
   `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from roll-only: **`** BUILD SUCCEEDED **`**, 0 `error CS`,
   build `2026.1103.0950`; iPhone install **CoreDeviceError 4016**, 0 of 1. ProjectSettings bump not committed.
+- **Merged into lane/claude-island-nav by fast-forward** (73a6b497 → c7125b08; Ty approved this merge), then
+  `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from the island-nav worktree: **`** BUILD SUCCEEDED **`**, 0
+  `error CS`, build `2026.1103.0957`; iPhone again **CoreDeviceError 4016**, installed on 0 of 1. **Not on the phone.**
+  The island-nav worktree already had uncommitted ProjectSettings/GraphicsSettings edits before this deploy; left as found.
 ### 2026-11-02 — Grok Bot · lane/claude-stickfree-launch (off lane/claude-rig-trim b62b67d0) · launch spiral, stick-free with a pad
 Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spiral dive; the next launch went LEFT.
 - **Rig is solved stick FIXED:** `RigSolver.SteadyForces` (src/FlyingGame.Sim/RigSolver.cs:176-185) hands explicit
