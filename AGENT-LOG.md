@@ -1,4 +1,18 @@
 ## NEEDS YOU
+- **2026-11-03 lane/codex-grob103 — GROB TARGET IS NOW THE G 103 C TWIN III ACRO; TY'S CRITIQUE; GEAR CONFLICT, DECISION NEEDED (Grok Bot):**
+  Target changed from Twin II Acro to the **G 103 C TWIN III ACRO, aerobatic category, OSB 315-66 fuselage
+  stiffening done, so full aerobatic limits apply: FAA TCDS G39EU Vne 151 kt, Va 100 kt, max weight 600 kg.**
+  Primary references: POH https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/grob_g-103-c-twiniii-acro-poh.pdf
+  and TCDS https://utahsoaring.org/wp-content/uploads/2024/04/2014-TDSC-G39EU.pdf (POH 1.4: span 18.0 m, length
+  8.18 m, height 1.55 m, 17.5 m², 600 kg). Ty's critique of our model: (1) canopy too bulbous and too big;
+  (2) tires squared off instead of rounded, and no wheel fairing. **Gear conflict:** Ty asked for retractable gear,
+  but POH 1.4 ("non-retractable tandem landing gear", hydraulic disc brake on main, nose wheel steerable from
+  S/N 34171), EASA TCDS A.250 section N ("fixed tandem landing gear") and AAIB 2/2023 G-CFWC ("three
+  non-retractable wheels") all say the Twin III Acro has **FIXED** main + nose + tail wheels, no well or doors.
+  Retractable main gear existed only on the original 1976 G 103 Twin Astir. **Your call: model fixed gear as built
+  (recommended) or retractable anyway?** Ty's glider fairing rule (all gliders) is recorded verbatim in the log
+  section below. No code or model changed; the fix waits for Ty. Details and numbers: section
+  "2026-11-03 — lane/codex-grob103: Twin III Acro target, Ty critique, reference comparison" at the end of this file.
 - **2026-11-01 lane/codex-grob103 — GROB OWN MODEL / COCKPIT, VISUAL REVIEW NEEDED (Codex):**
   Original white and Talk Flying GLBs are in `Resources/Models/glider-grob103-acro-like/`;
   review `renders/grob103-own/` (both real seat eyes, left/right controls, panels, exterior and full throws).
@@ -3819,3 +3833,52 @@ Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against 
   interfaces are documented exclusions, not blanket collision certification. Both extrema rendered.
   No GPS/moving map/position display. Canopies static; hinge direction unconfirmed. Yellow jettison versus
   manual red is explicitly for Ty's review. Overlay conformance/visual acceptance remains pending.
+
+## 2026-11-03 — lane/codex-grob103: Twin III Acro target, Ty critique, reference comparison (Grok Bot)
+**Target change.** The Grob model now targets the **G 103 C TWIN III ACRO** in the aerobatic category with
+**OSB 315-66 fuselage stiffening done**, so full aerobatic limits apply. FAA TCDS G39EU (Rev 9, 2014) section IV:
+**Vne 151 kt, Va 100 kt, max weight 600 kg**. Primary references:
+- POH: https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/grob_g-103-c-twiniii-acro-poh.pdf
+- TCDS: https://utahsoaring.org/wp-content/uploads/2024/04/2014-TDSC-G39EU.pdf
+- Supporting: EASA TCDS A.250 sec N; AAIB Bulletin 2/2023 G-CFWC; navboys.com glider wheel/tyre table.
+POH 1.4: span 18.0 m (our model and provenance used the Twin II 17.5 m), length 8.18 m, height 1.55 m, AR 18.5,
+17.5 m², 600 kg; two canopies open independently to the right.
+
+**Ty's critique (2026-11-03).** 1. The canopy is too bulbous and too big. 2. The tires are squared off instead of
+rounded, and there is no wheel fairing. 3. Gear question: retractable or fixed?
+
+**Gear findings.** Fixed, non-retractable tandem gear (POH 1.4, EASA A.250 N, AAIB): no gear well or doors.
+- Main: Cleveland 40-97A wheel, **6.00-6** tyre (about 0.44 m dia, 0.15 m wide, round balloon section), hydraulic
+  disc brake, 2.5-2.8 bar (36-40 psi). Centre about 2.90 m aft of the nose; about 0.12 m of tyre below the keel.
+- Nose: 4 in wheel 85-20, **260x85** tyre (0.26 m dia, 0.085 m wide), 2.5 bar; steerable from S/N 34171
+  (103SL-5100). Centre about 0.80 m aft of the nose; about 0.10 m below the keel.
+- Tail: Moritz 50-20, **210x65** tyre, 2.5 bar. Centre about 7.1 m aft of the nose; about 0.07 m below the boom.
+- Retractable main gear (5.00-5 tyre) existed only on the original G 103 Twin Astir, not on the Twin II or Twin III.
+
+**Ty's rule for all gliders (verbatim):** "A glider's wheel fairing, on the tail wheel or a fixed main wheel, is
+NOT an airplane wheel pant. It is a fillet that blends from the wheel up into the fuselage skin, with only the
+bottom of the tire exposed. A wheel pant is a separate cover that stands off the fuselage, and that's for
+airplanes only."
+Applied to the Twin III: nose, main and tail wheels each sit in a skin fillet with only the bottom of the tyre
+showing (photos: D-0591 nose fillet and tail wheel). Our model has plain square-edged cylinders hanging below
+the skin, with box "fairings" buried inside the fuselage (invisible), and a tail skid instead of a tail wheel.
+
+**Comparison against the POH three-view and the FlightGear G103 (measured, nothing changed).**
+| item | ours | reference | error |
+|---|---|---|---|
+| keel to canopy crown | 1.21 m | POH 0.99, FG 1.00, cockpit height 1.02 | +20 % (worst) |
+| crown shape | peaks over the front seat at 2.2 m, a bubble | long straight ramp, peak at the rear canopy (3.0-3.2 m) | wrong shape |
+| crown 1.0 / 1.6 m aft of nose | 1.04 / 1.19 | 0.82 / 0.97 | +0.22 m |
+| canopy glass length | 2.85 m | POH about 2.65, FG 2.58 | +8 % |
+| max width | 0.74 | 0.71 brochure, FG 0.735 | ok |
+| rear deck depth at 3.4 / 4.0 m | 0.63 / 0.46 | 0.78 / 0.60 | -20 to -24 % (steps down behind canopy) |
+| fin top above keel | 1.38 | POH 1.71, FG 1.79 | -19 % (1.55 m height is at rest on main + tail wheel, not level) |
+| span | 17.5 | 18.0 | -2.8 % |
+| nose wheel | 0.32 dia, 0.124 wide, 0.17 below keel | 0.26 x 0.085, 0.10 below keel | too big and low |
+| main wheel | 0.44 dia, 0.124 wide, square | 6.00-6 round, 0.15 wide | square profile, narrow |
+| tail wheel | none (skid) | 210x65 | missing |
+**Canopy verdict:** too tall by about 0.2 m and the wrong shape. The real canopy is a long, low, nearly straight
+line rising to the rear seat, not a dome over the front seat. Its width and front cross-section are close; the
+excess is height plus a low rear deck that makes the canopy look even bigger.
+Evidence (not in repo, Grok Bot box): /workspace/aero/grob-cmp/ (README.md table, cmp-*.png) and
+/workspace/aero/grob-ref/ (POH, TCDS, photos with licences). **No code or model changed; the fix waits for Ty.**
