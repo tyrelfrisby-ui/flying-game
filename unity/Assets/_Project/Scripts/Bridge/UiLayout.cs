@@ -82,7 +82,7 @@ namespace FlyingGame.Bridge
         /// "put the engine instruments below the airplane"). Width 0 = the engine row stays under the flight row.
         /// Published by the touch/controller layout, which knows where its buttons and pads are.</summary>
         public static Rect EngineRowRect;
-        public static float InstrumentBottom => (float)FlyingGame.Core.HudInstrumentLayout.Bottom(ToolbarBottom, Gap, S, TouchFlightControls.TouchSticksHidden && !ScreenLayout.Portrait, EngineRowShown);
+        public static float InstrumentBottom => (float)FlyingGame.Core.HudInstrumentLayout.Bottom(ToolbarBottom, Gap, S, TouchFlightControls.TouchSticksHidden, EngineRowShown);
 
         // ---- the text stack ----
         private static int _frame = -1; private static EventType _evt;

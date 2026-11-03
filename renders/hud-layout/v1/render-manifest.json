@@ -1,0 +1,36 @@
+{
+  "approval": "pending Ty review",
+  "branch": "lane/codex-hud-layout",
+  "capture": "Unity Mac Mono ARM64 preview, Burst disabled, forced mobile layout; simulated iPhone safe area",
+  "safeAreaPixels": {
+    "top": 186,
+    "bottom": 63,
+    "left": 0,
+    "right": 0
+  },
+  "renders": [
+    {
+      "path": "renders/hud-layout/v1/hud-analog-gamepad-portrait.png",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "453546e28759a0710ee02e6ae161db4b8cce0ed94091c57665bebfa1738fc73b"
+    },
+    {
+      "path": "renders/hud-layout/v1/hud-analog-touch-portrait.png",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "3ee87c62c741ded4f9900bee49c2c9f7fa3b16ef56a95b75a219700a1127d510"
+    }
+  ],
+  "sourceSha256": {
+    "unity/Assets/_Project/Scripts/Bridge/TouchFlightControls.cs": "93ae41548dd670929cf79394a52f0bfb3de114d7d6681b2a4747cfd1af60a060",
+    "unity/Assets/_Project/Scripts/Bridge/ScreenLayout.cs": "35a12582c15087ad63d6406ce77128ba5e03611242b5ef2c998d29e2b66c9fb2",
+    "unity/Assets/_Project/Scripts/Bridge/UiLayout.cs": "c6ae59402d7ed6f78b42554b391ab7308011859d24a136d24d0044eb04c2d45d",
+    "unity/Assets/_Project/Scripts/Bridge/ClipSelfTest.cs": "ebe209f56b3755c4223c64e2ef3aa590be642105b1043832dfba0a319bb13cea"
+  },
+  "validation": {
+    "iosExport": "build/hud-ios-review-v1.log: iOS build SUCCEEDED; zero error CS",
+    "xcode": "build/hud-xcode-review-v1.log: ** BUILD SUCCEEDED **",
+    "screenshots": "build/hud-review-v1.log: requested/actual 1206x2622; DONE hudshots"
+  }
+}

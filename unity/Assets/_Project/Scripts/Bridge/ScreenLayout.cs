@@ -37,9 +37,10 @@ namespace FlyingGame.Bridge
             {
                 if (!Portrait) return 0f;
                 float w = Screen.width;
-                // margin + pads + labels + gap + button row + gap + egress row (BAIL OUT · EJECT) + gap
-                return w * Margin + 2f * w * PortraitPadHalf + w * TrimBarHeight + w * Gap * 0.5f + LabelBlockPx + w * Gap + w * ButtonHeight + w * Gap
-                       + w * EgressRowHeight + w * Gap;
+                // Safe bottom + pads/trim labels + one horizontal button row + breathing room.
+                return UiLayout.SafeBottom + w * Margin + 2f * w * PortraitPadHalf + w * TrimBarHeight
+                    + w * Gap * 0.5f + LabelBlockPx + w * Gap + w * ButtonHeight + w * Gap;
+
             }
         }
 

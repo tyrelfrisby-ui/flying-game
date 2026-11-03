@@ -1141,6 +1141,16 @@ namespace FlyingGame.Bridge
                 }
                 NavRadios.Shown = true;
                 yield return new WaitForSecondsRealtime(2f);
+                // An optional capture display avoids macOS clamping tall iPhone windows to a small monitor.
+                string captureDisplay = System.Environment.GetEnvironmentVariable("AERO_HUDSHOTS_DISPLAY");
+                if (!string.IsNullOrEmpty(captureDisplay))
+                {
+                    var displays = new System.Collections.Generic.List<DisplayInfo>();
+                    Screen.GetDisplayLayout(displays);
+                    int target = displays.FindIndex(d => d.name == captureDisplay);
+                    if (target < 0) throw new System.InvalidOperationException($"Capture display not found: {captureDisplay}");
+                    yield return Screen.MoveMainWindowTo(displays[target], new Vector2Int(40, 40));
+                }
                 int passes = System.Environment.GetEnvironmentVariable("AERO_HUDSHOTS_PORTRAIT") == "1" ? 2 : 1;
                 for (int pass = 0; pass < passes; pass++)
                 {
@@ -1155,6 +1165,8 @@ namespace FlyingGame.Bridge
                     yield return new WaitForSecondsRealtime(2f);
                     Debug.Log(ipad ? $"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; iPad mini safe L/R 0 top 0 bottom 40 px"
                                    : $"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; safe L/R {(portrait ? 0 : 186)} top {(portrait ? 186 : 0)} bottom 63 px (62pt/21pt at 3x)");
+                    if (Screen.width != w || Screen.height != h)
+                        throw new System.InvalidOperationException($"HUD capture needs {w}x{h}; window was clamped to {Screen.width}x{Screen.height}");
                     foreach (bool gamepad in new[] { false, true })
                     {
                         string layout = gamepad ? "gamepad" : "touch";
