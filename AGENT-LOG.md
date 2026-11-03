@@ -304,6 +304,75 @@
   **Evidence (bench only):** 32 new `VrCockpitTests` cases green (stick signs / limits / gimbal order / grab offset,
   the throttle arc, both latch state machines, two-bone IK reach / clamp / pole, the grab rules incl. the menu gate);
   full suite on this branch 117 failed / 1242 passed (113 unique names) vs 199 failed / 1128 passed at 0a1a7b4 (128 unique): **no failing name introduced**, the base's extra 15 are flakes of the globally coupled suite (e.g. ModelRigTests.FullAirBrakeStopsTheGliderSooner… fails alone at the base too); Unity batch, scripts only: **Android 0 error CS, iOS 0 error CS** (the first Android run had 7: a name clash with the Bridge's own `PilotBody` and a wrong `ModelRoot`, both fixed — CLAUDE.md lesson). No APK, no xcodebuild, nothing installed. Nothing here is approved.
+- **VR COCKPIT PHASE 2 — lane/codex-vr-cockpit (Codex, 2026-11-02), UNCOMMITTED / NO GATE APPROVED.**
+  Supersedes Phase 1's tall-bow/long-pin interpretation. Seven aircraft GLBs updated by builder-shared CPU path;
+  new original pilot-gear GLB is explicitly CPU fallback. **Blender rebuild/export and all twelve renders PENDING**;
+  Blender was not started here per the task instruction. No C#, Unity, deploy, Glass Overlay or ProjectSettings changes.
+  Operator: `zsh tools/own_models/rebuild_vr_phase2.sh`, then the exact validation/render commands in
+  docs/models/vr-cockpit-phase2.md. That document records sources, estimates and runtime binding details.
+  Ty must inspect these after2 renders and decide (none is approved):
+  1. **pitts_eye:** low rounded panel-top bows, card/dial visibility, body size from the actual rear eye.
+  2. **pitts_bows_closeup:** rail-to-rail bow curve, 40 mm spacing, small bridge, 35 mm pin, Delrin notch.
+     **Question:** do these bracket/channel dimensions and stations match your machine? Exact linkage remains estimated.
+  3. **pitts_latch_unlocked:** black ball moves 76.2 mm pilot-left; pin exits open channel. Right is locked.
+  4. **pitts_canopy_open:** whole assembly slides 101.6 mm aft then hinges right 100° (estimated).
+     **Question:** confirm travel, stop and which forward section must remain a fixed windscreen.
+  5. **pitts_frame:** side x-ray tube topology; no red star. Sight centres are ±1.852 m, wingtips ±3.047 m;
+     sights are intentionally floating cockpit-only references per existing provenance. Red X was a render-only artefact.
+  6. **harness_latched:** five-point primary plus a second independent lap belt. **Question:** your Pitts lever latch
+     or cam-lock, ratchet position, routing, anchors and colours? Geometry does not assert a universal factory fitting.
+  7. **harness_released:** all seven straps fall open; both release fittings visible. Single visual param currently
+     releases both; Claude must retain two independent interaction states before freeing the pilot.
+  8. **extra_harness:** two releases, lower pilot-left / upper pilot-right per Wagstaff 300S card.
+     **Question:** does that fitting/routing match the intended early two-seat Extra? Source establishes directions only.
+  9. **headset_plugged:** H10-13.4-style GA twin PJ-055/PJ-068 plugs, provisional right-side jacks, cord stand-in.
+     **Question:** where exactly are front/rear jack pairs on your Pitts and intended Extra? No primary station found.
+  10. **pilot_lookdown:** separate aircraft belts and parachute straps; reachable left-side open D-ring.
+  11. **parachute_packed:** Mini Softie-style 15 × 23 × 2.25 in pack. **Question:** is this the rig family you want?
+  12. **parachute_deployed:** round/conical 26-ft nominal class, inflated shape and hanging pilot proportions;
+      projected diameter/dome/line geometry are art estimates, not Strong manufacturing measurements.
+  Numbers: bows X −.835/−.875, radius 6.35 mm, crown .218; closed minimum clearances panel 64.65 mm,
+  instruments 104.84, IAC 174.61, estimated helmet sphere 310.56, full-control stick volumes 228.59.
+  Continuous full-sweep bow/panel separating-axis clearance ≥21.15 mm. Intentional pin engagement excluded.
+  Gear 3,780 tris (body + gear 6,196); current entire Pitts 63,198/64,490, Extra 124,866 tris.
+  Seven aircraft + gear graph/name/rig/skin/morph and numeric checks PASS; update idempotence PASS.
+  Existing Phase 1 graph/body/limb checker also PASS after Phase 2.
+  Fresh 0a1a7b4 Pitts/Extra base → current builder postprocess replay PASS (CPU; no Blender claim).
+  Syntax/shell checks and diff whitespace PASS. Blender import/export, render, runtime interaction and Quest performance
+  remain unverified. CONTRACT unchanged. All new required files checked visible with `git status --ignored`.
+- **VR COCKPIT PHASE 1 — lane/codex-vr-cockpit (Codex, 2026-11-02), UNCOMMITTED / NO GATE APPROVED.**
+  Pitts all four own liveries: connected tube clusters, loft-inset top-wider-than-bottom rails, rounded rear
+  panel with existing dials/card retained, bows/lateral black latch, rear pedals beside front seat, own rig/grips.
+  Extra all three own liveries: paired red/white squeeze paddles, both cockpits. Original skinned body: 49 bones,
+  2,416 tris. Body was built by the numeric offline fallback, NOT a successfully executed Blender export.
+  **Render review BLOCKED:** Blender 5.2.2 exits 139 before Python in Metal GPU detection, both before and after.
+  No before_*.png, after_*.png or contact_phase1.png exists from this lane. Script and exact manifest are ready
+  in tools/own_models/render_vr_phase1.py and the authorised renders/RENDER_STATUS.txt. Before uses 0a1a7b4.
+  When Blender works, Ty must look at and decide:
+  1. pitts_eye / pitts_eye_body: rounded panel silhouette, retained IAC card/dials, seat-eye left/right,
+     throttle reach and believable body size. Baseline had no pilot body; before body view shows its absence.
+  2. pitts_frame: tube joins/skin containment and especially **is the open forward side bay with floor X-bracing
+     the correct S-2B arrangement?** This is estimated topology, not a factory structural drawing.
+  3. pitts_latch_locked / unlocked: black ball right=locked; white channel block and long crown-to-panel pin/link.
+     Are the two bows at X -.76/-.84, the latch linkage length and these stations right? Which forward glass/frame
+     portion is fixed windscreen? Current whole canopy moves aft 101.6 mm then hinges right 100° (estimated).
+     Knob travel 76.2 mm left unlocks; mushroom-button track hardware remains incomplete.
+  4. pitts_pedals: rear plates X -.43, Y ±.285, Z -.465 beside front pan; confirm actual reach/placement,
+     front pedal retention and absent detailed centre torque/linkage tube. Static eye-to-foot reach 1.208 m.
+  5. extra_latch_closed / squeezed: red-and-white paired paddles on left sill, front/rear, estimated 25° pivots;
+     confirm early mid-wing EA300 geometry against Ty's machine (300S egress source establishes action only).
+  6. extra_body: body size, limb/seat/frame clearance and reach. Pose construction succeeds; clearance/render
+     review of Extra is NOT certified. Phase 2/3 visuals were not started; only Phase-2 contract empties added.
+  **Numbers:** 23 frame members / 46 ends, max end-to-other-axis 0.000 mm; ODs 25.4/19.05 mm; minimum sampled tube
+  vertex lateral skin gap 10.17 mm. Upper rail widths .595–.674 m, lower .333–.460 m. Panel .670 W, -.120 bottom,
+  .152 crown; gauge margin 36 mm. Pitts conservative limb clearances: truss 2.61 mm (small!), cockpit/front-seat
+  region 11.68 mm, panel 76.34 mm; torso edges do not intersect checked obstacles, fixed-cockpit vertex gap 26.26 mm.
+  **Accuracy questions:** docs/models/canopy-latches.md audits every own enclosure plus requested SR22/P51/F86/G103
+  gaps. Great Lakes is open cockpit. Other latch geometries are UNVERIFIED; none was modelled in Phase 1.
+  **Checks:** Phase-1 graph/skin/numerical checker passes. IAC checker stops on old 38e8746 buffer invariant;
+  untouched HEAD also fails that invariant; all Phase-1 airframes retain HEAD buffer prefix. .NET test run did
+  not execute: MSBuild pipe SocketException(13); --no-restore retry emitted no tests (no project.assets.json).
+  Unity, Xcode, adb, deploy and ProjectSettings untouched. Details: docs/models/vr-cockpit-phase1-checks.json.
 - **QUEST: REAR SEAT, NO HUD IN THE COCKPIT, A WAY TO THE MENU (Claude, 2026-11-02, lane/claude-vr-quest) — from your
   first Pitts flight ("i chose the back seat and it put me in the front seat. the hud display is not necessary and
   really confusing … i couldn't figure out how to get to options"). Code only: NOT built, NOT on the headset.
@@ -999,6 +1068,45 @@
     Colliders are removed and shadows switched off on load.
   - **The stand-in body** (22 primitives, `Bridge/VrPilotBody.cs`) is placeholder art; it goes away by itself when
     your glb is present. Hidden outside the cockpit view.
+- **Codex → Claude · VR COCKPIT PHASE 2 · lane/codex-vr-cockpit · 2026-11-02.**
+  Art only, uncommitted. CONTRACT unchanged; no C#. Read docs/models/vr-cockpit-phase2.md for bindings/estimates.
+  Pitts `Canopy_Bow_F/R` now LOW at panel crown, children of `Canopy`; `Canopy_Latch_Bracket` carries a 35 mm
+  `Canopy_Latch_Pin`. Same canopy_open and canopy_latch 0 locked/right .. 1 unlocked/left; unlock before opening.
+  All seven GLBs: `Harness_Rear/Front`, `Harness_Buckle_Rear/Front`, `Grip_Harness_Release_Rear/Front`,
+  `Harness_Strap_Lap_Primary_L/R_*`, `Harness_Strap_Lap_Secondary_L/R_*`, `Harness_Strap_Shoulder_L/R_*`,
+  `Harness_Strap_Crotch_*`. `Harness_Buckle_Secondary_Rear/Front` is independent lower lap fitting.
+  `Harness_Release_Primary_*` / `Harness_Release_Secondary_*` animate; `harness_latch` 0..1 in both own rigs
+  visually drives both releases/all straps. Interaction must distinguish both belts; do not free pilot after only one.
+  Headset jacks now real meshes, provisional pilot-right locations: `Headset_Jack_Rear/Front` with Phone/Mic children.
+  New Resources/Models/pilot-gear/pilot-gear-own.glb: `Headset`, `Headset_Cable_Root`, `Headset_Plug`,
+  `Grip_Headset_Plug`; plug root owns `Headset_Plug_PJ055/PJ068`. Chosen DC H10-13.4 style, GA twin plugs.
+  Rope material **HeadsetCord**, sourced length **1.524 m**, estimated diameter **.004 m**. No runtime static cord;
+  renderer-only stand-in is not published. One grip moves both plugs; coordinate independent disconnection if needed.
+  `Parachute_Container`, `Parachute_Harness`, `Ripcord_Handle`, `Grip_Ripcord`, `Ripcord_Cable` are Chest-bound.
+  Gear has its own one-joint `Chest` skin: remap to pilot-body Chest retaining inverse bind; avoid double seated offset.
+  Authored Chest head builder (−1.335,0,.005), headset eye (−1.325,0,.30); retarget for Extra body/camera.
+  Ripcord on wearer's **LEFT** main lift web (Softie manual). Mini Softie 15×23×2.25 in back pack, conical round
+  **26 ft / 7.9248 m nominal** class; inflated projected size/line geometry estimated. Gear **3,780 tris**.
+  `Parachute_Deployed` root defaults **scale 0** plus default_visible=false extras: set scale 1 to show.
+  Children `Parachute_Pilotchute`, `Parachute_Lines`, `Parachute_Risers`, `Parachute_Canopy`.
+  Canopy morph **Inflate 0..1**, default 0=line stretch, 1=full. Stage root/children visibility and pack opening in code.
+  Chest skin rigid approximation; leg-loop deformation during hanging not authored. Headset/plug/deployed roots independent.
+  Builder/GLB numeric checks pass; Blender export and renders remain pending operator. No visual/runtime gate approved.
+- **Codex → Claude, VR cockpit Phase 1 (2026-11-02, lane/codex-vr-cockpit):** No CONTRACT names changed.
+  New Pitts rig docs/models/pitts-s2b-own-rig.json, model pitts-s2b-like-own; existing ConfigSync mirrors by model
+  field, no ignored StreamingAssets files created. All 4 Pitts / 3 Extra own GLBs updated. Additive Canopy_Slide
+  parent translates aft in canopy_open 0–.2, Canopy child right-hinges .2–1. Physical interlocking is yours.
+  Params: aileron/elevator (EA names), throttle, rudder, canopy_open, canopy_latch. Sole C# addition is the
+  ModelRig.cs RigInputs.TryGet canopy_latch = 1−CanopyLock alias (existing lock sense unchanged), focused test added.
+  All contract Grip_Stick/Throttle_Front/Rear, Grip_Canopy_Latch/Rail, Pedal_L/R_Front/Rear and Foot_L/R_Front/Rear
+  present. Rear builder grips: stick (-.980,0,-.075), throttle (-1.160,.22355,-.065); feet (-.450,±.285,-.460).
+  Grip local +X points fingers/forward (glTF -X). Phase-2 Harness_Buckle/Headset_Jack_Front/Rear empties present.
+  Extra rear pair uses exact Canopy_Latch_Handle_L/R, front pair adds _Front; front grip Grip_Canopy_Latch_Front.
+  Old CanopyLock_F/R roots retained empty, omitted from rig table; all other Extra rigs retained.
+  Pilot resource Models/pilot-body/pilot-body-own.glb: 49 exact contract bones, default seated Pitts rest pose,
+  open fingers, rigid segment weights; no head, no runtime IK/curl/hand-tracking code. Read pilot provenance.
+  Blender renders and .NET tests blocked; no Unity build/import verification. Review render manifest and tiny
+  2.61 mm static truss clearance before any approval. Factory truss/latch details still questions for Ty.
 - [Claude → Codex] **lane/claude-vr-quest · the Quest seam: rendering quality, lens/comfort and the VR HUD are
   yours.** Branch off my commit. What exists and where:
   - **The XR camera is the main camera.** `QuestRig` (`Bridge/QuestRig.cs`) sits on it beside `ChaseCamera` and
@@ -4486,3 +4594,310 @@ Restored the matching v13.1 Great Lakes builder integration from local cockpit c
 Rebuilt the requested `great-lakes-like-own.glb` through `build_great_lakes.py --offline-update`, using the immutable v13.1 generated cockpit GLB at the commit above and applying the current sequence-card/sight geometry. Blender 5.2.2 crashes in Metal device detection before Python in this sandbox; no fresh Blender export or Unity runtime validation is claimed. The full Blender builder is restored for subsequent exports. Existing alternate-livery GLBs and their offline base behavior are unchanged; this urgent asset repair targets the explicitly requested default GLB. Existing GLB `.meta` retained; no new Unity asset introduced. Glass Overlay untouched.
 
 Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against the runtime rig table, expected parents and world pivots (0.11 mm tolerance), rig parameters, moving mesh descendants, prop/spinner, eyes, avionics displays, sequence card and sights; all nodes have identity rotation and unit scale, with nose -x, up +y and span z. Offline rebuild repeated with identical SHA-256 `0e556105a076cca100ef014f315a2cbc67a10abe41705ed37b1a35cfdbc7653f`. Python syntax compilation and `git diff --check` pass. Required tracked-file ignore audit printed nothing. Commit attempt blocked at `git add`: sandbox denies creation of `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-greatlakes-rig/index.lock` outside writable roots. Files remain unstaged; no commit, push, merge, deployment, or forced add occurred.
+
+## 2026-11-02 — Codex visuals P2c + P2c-2 — NEEDS YOU
+
+**NEEDS YOU — Ty/operator:** compare the white arched panel outline, polished rim and
+close concentric tubes against Pitts refs 3–5; compare the one-piece bubble's end arcs
+and sill rail against refs 1–2. Check the black ball is right when locked and moves
+left when unlocked, and that the sequence card remains visible from the rear eye.
+Compare the Extra fore/aft red/white handles against its open-canopy photo: aft fixed,
+front spring-forward, squeezing front aft withdraws pins, and the entire assembly
+follows the opened frame. Confirm both-seat duplication, frame stations, handle reach,
+helmet/hand proxies, windscreen boundary and all estimated dimensions below. Run the
+operator rebuild/check/render commands before judging the visuals. **No gate approved.**
+
+Looked at all five supplied Pitts PNGs, Extra PNG and prior after2 frame/eye renders.
+Pitts first: replaced independent squarish panel with actual builder upper-skin section
+at each panel station, normal-inset; white paint and metallic polished rim; parallel
+normal-offset bows; compact moving block and internal catch, ball/grip on moving canopy.
+Removed intermediate red frame hoop X −.47 (old builder comment called it a windscreen
+bow, but it belonged to moving Canopy_Frame); retained bubble end arcs and sill rails.
+Fixed windscreen glass/other fixed nodes and all bubble vertices were not moved.
+Extra second: frame-derived fore/aft translating latch pairs, four pins and airframe
+sockets; old L/R and CanopyLock roots retained as inert aliases. CanopyRelease_F/R were
+checked in ea_rig.py: distinct right-sill emergency jettison pulls, retained separately.
+No C#, Unity assets/editor, ProjectSettings, Glass Overlay, deploy, commit or other
+worktree writes. Supplied CONTRACT read only; added a local CONTRACT copy plus additions
+for operator reconciliation. Blender was never started; standalone bundled Python only.
+
+**Estimated dimensions (metres unless marked mm):**
+Pitts panels X rear/front −.800/−.145, actual ST skin upper section normal inset 25 mm,
+rear width/height 741.3/363.7 mm, bottom/crown Z −.06939/.29433; front 808.7/322.8 mm,
+bottom/crown −.12355/.19922. Plate thickness 15/12 mm. Polished perimeter section diameter
+5 mm, aft face offset 8 mm, metallic 1 / roughness .16. White bows OD 10 mm, normal
+offset 22 mm, nominal radial rim surface gap 14.5 mm; X panel−.035/−.075, spacing40 mm,
+crowns .31633/.22122; ends transition to existing sill centreline. Block 55×110×24 mm,
+X panel−.055, Z bow crown; bracket 53×100×5 mm, 14 mm lower. Internal catch 6 mm diameter
+×12 mm, ball28 mm diameter, stem6 mm diameter. Ball centre block X−22 mm/Z+25 mm,
+Y−38.1→+38.1 mm, travel76.2 mm pilot-left. Placard50×17×1 mm, white band46×4×.5 mm.
+Frame rails28 mm OD, end arcs22 mm OD at X−.135/−1.595, follow original bubble profile;
+rail centre skin_y−4 mm, sill+6 mm. Retained slide101.6 mm then right hinge100°,
+canopy_open split .2. No factory measurements claimed.
+Extra: each actual port frame sample near X−1.55/−.70 supplies Y/Z. Handle centres
+X±45 mm, 18 mm inboard/30 mm below frame. Stem12 mm OD; red grip14×27×55 mm;
+white16×29×20 mm, 12 mm below centre. Fwd travel35 mm aft; midpoint17.5 mm aft;
+Aft fixed. Four pins total, 6 mm diameter×24 mm, X frame±70 mm, Z frame−12 mm;
+retract18 mm up. Socket centre another6 mm lower; ring centreline diameter10 mm,
+section diameter3 mm; squeezed pin tips clear socket upper bound by10.5 mm.
+Simplified linkage, not an engineering mechanism. Proxies: helmet140 mm radius at
+Pitts eyes (−1.325/−.555,0,.30), Extra (−1.72/−.82,0,.62); Extra control hands65 mm
+radius at (−1.52/−.62,0,.04). These estimates exclude deliberate latch grasp contact.
+
+**Validation:** all seven temporary CPU previews under /tmp/p2c-models pass graph,
+names, pin engagement/retraction, geometry and numerical clearance checks. Reapplying
+postprocess is byte-identical for all seven. Modified Python parses; git diff --check
+passes. Revised JSON report is CPU-preview evidence, not fresh Blender export evidence.
+Pitts minimum bow gaps mm: panels29.72, instruments124.58, card271.33, helmets134.98,
+both sticks full-control245.40. Rear/front gauge outline margin4.39/109.00 mm. Continuous opening
+panel separation20.00 mm, helmet X separation77.40 mm, full-control stick opening
+sweep221.44 mm. Extra opening/latch sweep gaps
+rear/front helmets46.67/105.31 mm, control hands280.10/325.26 mm. Full numbers and
+scope/bounds: docs/models/vr-cockpit-phase2-checks.json; dimensions and names:
+docs/models/vr-cockpit-phase2.md, canopy-latches.md, local CONTRACT.md and both rig JSONs.
+Nine after2c shots added alongside existing12. Renders and fresh Blender export unexecuted.
+
+**Exact operator commands (outside sandbox, this worktree only):**
+```sh
+cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+export PYTHONDONTWRITEBYTECODE=1
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
+```
+
+## HANDOFF (Codex → Claude) — P2d / P2d-2, 2026-11-02
+
+Builds on operator commit 45d2654. No commits, Blender startup, Unity/C#, Glass
+Overlay or deployment performed. Repo GLBs await operator rebuild/CPU regeneration;
+seven CPU previews at `/tmp/p2d-models` pass graph, ownership, metadata and
+byte-identical repeat-update checks. Python parses pass. Full operator check/render
+and visual open-cockpit approval remain pending.
+
+**CONTRACT — operator copy to shared contract; no root CONTRACT.md created:**
+`Canopy_Detachable` is the only detach target on Pitts/Extra, containing existing
+Pitts `Canopy_Slide > Canopy`, or Extra `Canopy`. `Canopy_COM` child marks COM.
+Root extras: `mass_kg`, `com_gltf_m`, `inertia_tensor_gltf_kg_m2`,
+`principal_inertia_kg_m2`, `principal_axes_gltf_columns`, `mass_estimate`,
+`rig_jettison_param=canopy_jettison`. Remove reliance on Extra's former detach
+metadata on Canopy; Canopy now has `detachable_root=Canopy_Detachable`.
+Both types add `Canopy_Hinge_Airframe_Rear/Front` (fixed),
+`Canopy_Hinge_Canopy_Rear/Front` (moving), `Canopy_Hinge_Broken_Rear/Front`
+(children of fixed halves; `default_visible=false`, show after departure).
+Pitts adds fixed `Canopy_Sill_Airframe_L/R`, moving
+`Canopy_Jettison_Knob_Rear/Front`, child `Grip_Canopy_Jettison_Rear/Front`,
+`Canopy_Jettison_Cable_Rear/Front`, `Canopy_Jettison_Placard_Rear/Front`.
+Jettison pull 0..1 = estimated 0..40 mm inboard; **releases at any speed**.
+Confirmed by Ty, 2026-11-02: far-right bow/rail junction. Model controls ride
+moving frame; front repeats junction because both cockpits have bows (front
+hardware plausibility is an estimate). Original procedural placard texture.
+
+Both tall red Pitts end hoops removed per Ty, preserving bubble and low paired
+bows. Fixed rails/sockets/pulls stay airframe; moving glass/frame/bows/latch
+blocks/Extra handles depart in one subtree. Claude implements ~80 KIAS Extra /
+80 MPH Pitts hinge-failure tear-away, below-speed hinge flapping and explicit
+Pitts jettison override. Preserve world pose and rotate COM/inertia through the
+current canopy pose on departure. No runtime speed code in this lane.
+
+Mass estimate: Pitts **10.7171 kg**, principal inertia **(.97805,2.03788,2.64562)
+kg m²**; Extra **12.0690 kg**, **(1.08227,4.90222,5.52271) kg m²**. Acrylic area
+1.63252/2.24521 m² ×3 mm ×1180 kg/m³; steel outer tube area ×1 mm ×7850 kg/m³,
+plus0.8 kg fittings. Full matrices, axis convention and approximations in
+`docs/models/vr-cockpit-phase2.md`; controls/names in `canopy-latches.md`.
+
+CPU path `python tools/own_models/vr_cockpit.py` now applies P2d even to P2c-marked
+inputs. Clean 0a1a7b4 bases receive P1/P2c/P2d; repeat P2d leaves bytes untouched.
+`rebuild_vr_phase2.sh` continues invoking postprocess through each aircraft builder.
+Four render presets added: after2d_pitts_canopy_departed,
+after2d_extra_canopy_departed, after2d_extra_canopy_flapping,
+after2d_pitts_jettison_knob. Broken fittings are hidden by default in all presets.
+
+**Operator commands (outside sandbox, this worktree):**
+```sh
+export PYTHONDONTWRITEBYTECODE=1
+# After restoring 0a1a7b4 own GLB bases, use the CPU update path:
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/vr_cockpit.py
+# Or rebuild all bases with Blender:
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- renders/phase2d
+```
+
+## P2e — Quest 3S tube budget, 2026-11-02
+
+No gate approved. No commit, Blender, Unity, xcodebuild or deploy. All P2d
+nodes/transforms/rig extras preserved verbatim on migration, including detachable
+root mass/inertia estimates. Fresh CPU builds recompute those estimates from the
+reduced surfaces as before; they remain provisional estimates, not approval.
+
+Tube centreline simplification uses 0.9 mm maximum distance from dense source
+samples to each replacement chord, retaining endpoints. Panel outlines and glass
+are unchanged. Radial counts: rims 8, white bows 10, moving rails 12 (28 mm OD),
+fixed rails 10 (18 mm OD). Original radial counts were already modest; excess arc
+segments and retained dead buffers caused the bulk of the cost. Extra base frame
+is already 1,187 vertices / 1,660 triangles; unchanged. Its four new socket rings
+now use 8 instead of 16 arc segments (5 mm radius, 0.381 mm chord error), radial 8.
+GLB compaction removes superseded accessors/views and retains live bytes.
+
+Before below is e14b800 (P2d), not 45d2654: P2d already removed the tall end hoops,
+so its moving frame starts at 10,752 vertices rather than 21,504. All four Pitts
+liveries share the following changes. Counts are exported POSITION vertices,
+including flat-normal duplicates, followed by triangles.
+
+| Mesh | Before V / T | After V / T |
+|---|---:|---:|
+| Canopy_Frame | 10,752 / 3,584 | 2,640 / 880 |
+| Panel_Rim_Rear | 13,524 / 4,508 | 2,772 / 924 |
+| Panel_Rim_Front | 13,524 / 4,508 | 2,772 / 924 |
+| Canopy_Bow_F | 11,016 / 3,672 | 2,376 / 792 |
+| Canopy_Bow_R | 11,016 / 3,672 | 2,376 / 792 |
+| Canopy_Bow_F_Front | 6,480 / 2,160 | 1,512 / 504 |
+| Canopy_Bow_R_Front | 6,480 / 2,160 | 1,512 / 504 |
+| Canopy_Sill_Airframe_L | 5,376 / 1,792 | 1,080 / 360 |
+| Canopy_Sill_Airframe_R | 5,376 / 1,792 | 1,080 / 360 |
+| Extra Canopy_Latch_Hole_1/2, rear/front (each) | 1,344 / 448 | 672 / 224 |
+
+| GLB | Before bytes | After bytes |
+|---|---:|---:|
+| extra-300-like-own-n300uy.glb | 5,300,836 | 5,183,584 |
+| extra-300-like-own-unmarked.glb | 4,964,728 | 4,847,476 |
+| extra-300-like-own.glb | 5,591,620 | 5,474,368 |
+| pitts-s2b-like-own-checker-unmarked.glb | 7,207,224 | 3,579,536 |
+| pitts-s2b-like-own-factory-unmarked.glb | 7,183,144 | 3,604,512 |
+| pitts-s2b-like-own-n1191.glb | 7,199,796 | 3,621,164 |
+| pitts-s2b-like-own.glb | 7,156,864 | 3,578,232 |
+
+Full per-mesh Extra audit and per-file totals: `docs/models/vr-cockpit-phase2e-budget.json`.
+`check_vr_phase2.py --write-report` passes all seven repo assets; full checker also
+passes all seven temporary CPU builds from 0a1a7b4. Every fresh output matches
+repo per-node vertex/triangle counts; repeat updates are byte-identical on both
+paths. No Blender/VR visual review performed. CPU entrypoint applies P1/P2c/P2d/P2e.
+
+Exact operator commands, in this worktree (CPU runs already verified):
+```sh
+cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+export PYTHONDONTWRITEBYTECODE=1
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/vr_cockpit.py
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+# Optional full Blender rebuild and visual review; operator only:
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- renders/phase2e
+```
+
+## Codex P3a — 2026-11-02 — no gate approved
+
+Work only in codex-vr-cockpit; no commit, Blender process, Unity, xcodebuild or deployment.
+Read external lane CONTRACT.md first; did not create/edit any CONTRACT.md. Operator must copy
+this naming seam and `docs/models/vr-cockpit-phase3a.md` into the external contract:
+
+- All three aircraft: `Ctl_<Kind>_<Name>` rear; append `_Front` for front.
+- Toggle names: Master, FuelPump, NavLights, Strobe, LandingLight, Smoke.
+- Rotary names: Magneto, Trim, FuelSelector, ComOuter, ComInner, ComVolume,
+  XpdrDigit1, XpdrDigit2, XpdrDigit3, XpdrDigit4, XpdrMode.
+- PushPull names: Mixture, Prop, AlternateAir (Pitts/Extra only), CarbHeat
+  (Great Lakes only), ComSwap, XpdrIdent.
+- Each has child `Grip_<Name>[_Front]` and `Poke_<Name>[_Front]`, and fixed
+  `Mount_<Name>[_Front]`. All positions E. Prior primary/canopy/egress contract retained.
+- Each own rig has `controls` interaction metadata and matching `rig` animation entries.
+  Contact/grab points, axis, pivot, deg/mm travel, detents, sim ends, spring semantics,
+  COM increment semantics and octal digit places are supplied. Claude owns runtime wiring.
+
+44 new controls per aircraft GLB, all 10 liveries; 440 control instances checked. CPU
+migration from 0a1a7b4 verified on all 10 (Pitts rig is generated by P1), second update
+byte-identical. Conservative control-sphere/knee/primary-sweep estimate minimum 27.17mm;
+not a device reach/anthropometry/neighbor-control validation. No render approval claimed.
+Great Lakes config does not specify injection; 180hp/361in3, builder O-360 -> provisional
+CarbHeat, ask Ty whether AEIO-360/alternate air instead. Pitts/Extra alternate air, no carb heat.
+Smoke switch chosen on left panel-side group, both seats, all three (E); Ty to confirm.
+Extra lacks explicit outletBodyM. Measured Engine stub ring glTF (-.970,-.260,-.360)m,
+26mm radius; NOT a confirmed collector mouth. Claude must transform placement/CG, not copy
+raw model coordinates to body config. Smoke visuals/config/logic unchanged.
+
+Full control table, Ty questions, limits and exact CPU/operator Blender render commands:
+`docs/models/vr-cockpit-phase3a.md`. Render preset `render_vr_phase3.py` emits six panel
+views, Smoke off/on in all three, Magneto OFF/START close-ups, prefix after3a_. Not run.
+
+## Codex P3b — 2026-11-02 — no gate approved
+
+Rebuilt all three Extra liveries with CPU entrypoint `vr_cockpit.py` (new
+`vr_phase3b.py`), one flat panel per seat. Front and rear now share the requested
+4 flight + 7 engine/fuel gauge layout, physical 3⅛/2¼ inch cases (E), original
+marked faces, and 17 separately pivoted live rig targets per seat. Full layout,
+absolute/relative angle conventions, source markings and operator commands:
+`docs/models/vr-cockpit-phase3b.md`.
+
+Operator copy-to-CONTRACT seam (external contract read, not edited here):
+`Needle_ASI`, `Needle_Alt100`, `Needle_Alt1000`, `Needle_TC`, `Ball_TC`,
+`Needle_G`, `Needle_GMax`, `Needle_GMin`, `Needle_Tach`, `Needle_MP`,
+`Needle_OilP`, `Needle_OilT`, `Needle_EGT`, `Needle_CHT`, `Needle_Amps`,
+`Needle_Fuel_Wing`, `Needle_Fuel_Akro`, each with BOTH `_R` and `_F` suffixes.
+`Needle_TC` / `Ball_TC` replace the legacy TC_Symbol / TC_Ball names. Old
+instrument nodes are inert `Legacy_P3b_*`; their meshes and original mixed-mesh
+faces/bezels are removed, not hidden. No VSI, compass, fuel pressure or other
+extra bottom gauge. Radio/XPDR displays now on a sub-panel below the gauges;
+P3a controls and their mounts lowered to side consoles at builder Z=0, with
+rig/interaction pivots updated. Sequence-card holder moved right of gauges.
+
+Claude reuse: airspeed_kias, altitude_ft, g_load, g_max_seen, g_min_seen, rpm,
+manifold_inhg, oil_press_psi, oil_temp_f, cht_f. New/requested bindings:
+egt_f, amps, turn_rate_dps, slip_ball, fuel_wing_gal, fuel_akro_gal. Positive
+turn = right; positive slip = ball right; amps = positive charging. AKRO face
+E–F follows the ground-indication placard: E at/below 2.6 gal, F at/above 10;
+pass actual gallons, map plateaus through physical capacity 10.6 gal.
+
+Checker passes all 10 assets / 440 controls; all 6 Extra seat panels have
+11 gauges / 17 moving rig nodes, minimum measured bezel gap 14.625 mm,
+maximum face-to-metal-plane distance 0.500035 mm (all normals match).
+Injected depth/overlap faults rejected. Isolated updates from 0a1a7b4 pass all
+three Extras, matching per-node geometry counts; baseline and current asset
+updates are byte-identical on repeat, including the shared rig. No runtime
+binding or pilot-eye visual approval claimed. Six `after3b_` operator Blender
+presets: rear/front authored eye points at 75° and 45° FOV, plus each panel
+straight-on ortho. Review pose is applied through the same needle rig maps.
+
+Only this worktree modified. No commit, Blender process, Unity, xcodebuild or
+deployment. CPU used `/tmp/topo-venv/bin/python` with NumPy/Pillow and
+`PYTHONDONTWRITEBYTECODE=1`. No CONTRACT.md created in repo.
+
+## 2026-11-02 — Codex P3c Great Lakes photo geometry
+
+Read external CONTRACT.md and studied all four Great Lakes PNG references.
+All 3 Great Lakes liveries updated through CPU-only vr_cockpit.py from
+0a1a7b4 bases. No commits, Blender, Unity, xcodebuild, deploy, repo CONTRACT,
+or runtime/collider changes. No visual/VR gate approval claimed.
+
+Single frameless acrylic mesh per seat; only 5 small base screws each.
+Preserved original low coaming padding/rails separately. Front 125 mm high,
+8 mm top crown; rear 175 mm high, 30 mm crown. Absolute top Z front
+.32625/.32650 m (v1/liveries), rear .375 m. Different existing aperture shapes
+are respected rather than moving cockpit controls.
+
+Fixed 35 mm OD V supports from fore/aft lower-longeron fittings to each
+unchanged oleo top; 28 mm sleeves finish existing pivot/compression fittings.
+Six 24 mm cabane tubes terminate in bolted clevises; aft + diagonal share
+one fitting per side at X -.80, Y ±.33. Upper wing pins remain unchanged.
+Fwd lower axis-to-skin before 15.727–16.363 mm; aft/diagonal 40.083–40.141 mm.
+After: axis stands 9.110–11.079 mm above skin inside a real clevis, with 0 mm
+tube-to-fitting solid gap. Conforming pad skin separation max .5226 mm.
+Per-leg, per-livery numbers + node endpoints are in GLB P3c extras and
+phase3c-checks.json. Full handoff: docs/models/vr-cockpit-phase3c.md.
+
+Claude: no changed rig/collider numbers. Gear_Pivot, Gear_Axle, Gear_OleoTop,
+Gear_HingeAxis and all control/contact nodes exactly preserved, 140 protected
+nodes per livery. New V supports, sleeves, fittings and cabane remain FIXED
+on airframe. Optional contact/damage capsules should follow GLB metadata;
+never put the fixed V supports under the moving axle. No collider edits made.
+
+P3c checker: all 3 liveries PASS, connected sheets, front lower/flatter,
+<=2 mm fitting/skin contact, unchanged top pins, exact new-triangle aperture
+extrusion and eye-to-panel segment tests. Old liveries lack Eye nodes; those
+checks use documented v1 eye estimates. Existing P3 checker PASS 10 assets /
+440 controls. CPU base rebuild gives identical hashes; repeated update is
+byte-identical, including shared rig JSON. Fixed P3a shared-rig regeneration
+to retain existing Ctl entries and avoid appending identical records, keeping
+current shared rig byte-identical. No P3a placement/interaction changes.
+
+Standalone operator-only render_gl_p3c.py accepts OUT and --model FILE for
+any commit, produces five gl3c_ views plus camera manifest. Full before
+3a9e746 / after commands and photo-matching camera positions/lenses in handoff.
+Images still require operator rendering and review; no Blender run here.

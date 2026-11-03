@@ -174,6 +174,11 @@ public struct RigInputs
     /// handles) — CONTRACT.md `canopy_latch`, driven by the hand that holds it (Core/Vr/CanopyLatch.cs).</summary>
     public double CanopyLatch;
 
+    /// <summary>The `canopy_latch` a cockpit draws: the hand's own latch where there is one (0 pinned .. 1 released), and
+    /// otherwise Codex's visual contract, the inverse of the lock (0 locked, 1 released).</summary>
+    public static double CanopyLatchFor(bool locked, double? handLatch01) =>
+        handLatch01 ?? (locked ? 0.0 : 1.0);
+
     /// <summary>Indicated airspeed in KNOTS (the Extra's ASI is in kt; the 2-33's in mph — both are here
     /// because the dial art is drawn in one or the other and converting in the rig would hide it).</summary>
     public double AirspeedKias;

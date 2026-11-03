@@ -738,3 +738,7 @@ bpy.ops.object.select_all(action='DESELECT')
 for o in list(P.values()) + EXTRA: o.select_set(True)
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_yup=True, export_apply=True, export_extras=True)
 print('WROTE', OUT, os.path.getsize(OUT))
+
+# Phase 1 shared geometry path (also works without Blender after a base export).
+from vr_cockpit import update as vr_phase1_update
+vr_phase1_update(OUT)

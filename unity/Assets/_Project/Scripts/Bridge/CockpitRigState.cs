@@ -229,7 +229,7 @@ namespace FlyingGame.Bridge
             r.CanopyOpen = CanopyOpen01;
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
             r.CanopyJettison = System.Math.Max(CanopyPull01, HandJettison?.Pulled01 ?? 0.0);
-            r.CanopyLatch = HandLatch != null ? HandLatch.Latch01 : CanopyLocked ? 0.0 : 1.0;
+            r.CanopyLatch = FlyingGame.Core.RigInputs.CanopyLatchFor(CanopyLocked, HandLatch != null ? HandLatch.Latch01 : null);
             r.HarnessLatch = Harness != null ? Harness.Harness01 : 0.0;
             // An open canopy's drag, or the open cockpit's once it has gone, into the flight model (Aircraft.ExtraDragAreaM2);
             // nothing unless the headset's hands-on canopy is in use.

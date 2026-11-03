@@ -112,6 +112,19 @@ public class ModelRigTests
         Assert.False(inputs.TryGet("flap", out _));
     }
 
+    [Theory]
+    [InlineData(1.0, 0.0)]
+    [InlineData(0.0, 1.0)]
+    public void CockpitLatchContractIsTheInverseOfExistingLock(double locked, double released)
+    {
+        // With no hand on a latch the cockpit draws `canopy_latch` as the inverse of the lock (Codex's visual contract);
+        // with one, the hand's own latch (lane/claude-vr-cockpit). Merged 2026-11-02: one rule, in Core.
+        var inputs = new RigInputs { CanopyLock = locked, CanopyLatch = RigInputs.CanopyLatchFor(locked >= 0.5, null) };
+        Assert.True(inputs.TryGet("canopy_latch", out double got));
+        Assert.Equal(released, got);
+        Assert.Equal(0.3, RigInputs.CanopyLatchFor(true, 0.3));
+    }
+
     // ---- the 2-33's own table -------------------------------------------------------------------------------
 
     private static ModelRig Sgs233()
