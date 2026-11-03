@@ -1170,6 +1170,9 @@ Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spira
   island-nav's 491a71a1, so they merge clean).
 - **Merged lane/claude-island-nav (1e5047cc) into this lane:** conflicts only PilotControls (took island-nav's) and
   AGENT-LOG (kept both). Net code vs island-nav: just `HandsOffLaunchSpiralTests.cs`; no src/Unity change.
+  On the merged tree: HandsOffLaunchSpiral + LaunchReplication + GamepadStickFree + *RigTests 343/344; the one red,
+  ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake (NaN roll-out), fails alone too and already
+  failed at b62b67d0. Fast-forwarded lane/claude-island-nav to this lane (not deployed).
 ### 2026-11-02 21:20 — Claude · lane/claude-island-nav · rig-trim run 2 merged; iPad mini only
 - Merged lane/claude-rig-trim (d4315fd5: launch-to-launch fix, AirStart/PilotControls, LaunchReplicationTests, composed
   with hydro's gamepad stick-free option) — fast-forward. First deploy attempt aborted before building (Unity: "another
