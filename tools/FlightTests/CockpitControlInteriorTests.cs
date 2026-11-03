@@ -12,6 +12,11 @@ namespace FlyingGame.FlightTests;
 /// transponder faceplates, the magneto dial, the Extra's lower switch subpanel), never off the panel's edge,
 /// in a gauge hole or out through the fuselage side. Placement is tools/own_models/cockpit_controls_v2.py.
 ///
+/// One exception (Ty 2026-11-02, "the Great Lakes throttle is a QUADRANT LEVER (not push-pull)"): the Great
+/// Lakes prop and mixture are levers in the throttle quadrant on the left sidewall, not panel push-pulls, so
+/// their Ctl_/Mount_ nodes must instead lie in that seat's quadrant box, inside the fuselage (see the quadrant
+/// test below and tools/own_models/gl_quadrant_v3.py).
+///
 /// The two legacy Great Lakes GLBs (-red-sunburst, -white-stripes) are excluded: no code loads them
 /// (great-lakes-like-own.glb is the only Great Lakes the game uses) and their cockpit openings and panels sit
 /// at different stations, while they carry the shared rig.
@@ -67,6 +72,11 @@ public class CockpitControlInteriorTests
             double[] m = OwnPittsModelTests.World(nodes, parent, i);
             double x = -m[12], y = m[14], z = m[13];                       // glTF -> builder
             double face = name.EndsWith("_Front") ? frontFace : rearFace;
+            if (model == "great-lakes-like" && (name.Contains("_Prop") || name.Contains("_Mixture")))
+            {
+                if (!InGreatLakesQuadrant(x, y, z, face)) failures.Add($"{name}: ({x:F3},{y:F3},{z:F3}) not in the left-sidewall quadrant");
+                continue;
+            }
             if (x < face - 0.008 || x > face + 0.003) { failures.Add($"{name}: x {x:F3} not at panel face {face:F3}"); continue; }
             var local = faces.Where(t => Math.Min(t.a.x, Math.Min(t.b.x, t.c.x)) < face + 0.012
                                       && Math.Max(t.a.x, Math.Max(t.b.x, t.c.x)) > face - 0.03).ToList();
@@ -83,6 +93,68 @@ public class CockpitControlInteriorTests
         foreach (string f in failures.Take(20)) _o.WriteLine("  " + f);
         Assert.Equal(88, controls);
         Assert.Empty(failures);
+    }
+
+    /// <summary>The Great Lakes quadrant box for a seat, builder metres: on the LEFT sidewall (y .24 to .35, inboard
+    /// of the longerons at ~.36-.40), from 0.20 m aft of the panel face to the face, at panel-bottom height.</summary>
+    private static bool InGreatLakesQuadrant(double x, double y, double z, double face) =>
+        x > face - 0.20 && x < face - 0.02 && y > 0.24 && y < 0.35 && z > -0.20 && z < 0.08;
+
+    /// <summary>
+    /// Ty 2026-11-02: "the Great Lakes throttle is a QUADRANT LEVER (not push-pull)", "hand control did not work on
+    /// the Great Lakes stick or throttle". Each cockpit has a throttle lever Throttle_R / Throttle_F on the left
+    /// sidewall, on the 'throttle' input as a lever (rot about the lateral axis, 50 deg), carrying the
+    /// Grip_Throttle_Rear / _Front empty VrCockpitHands needs for the grabbed LeverArc; full throttle is FORWARD of
+    /// idle; prop and mixture are the blue and red levers beside it, also rot levers.
+    /// </summary>
+    [Fact]
+    public void Great_Lakes_throttle_is_a_grabbable_quadrant_lever_on_the_left_sidewall()
+    {
+        var (j, _) = OwnPittsModelTests.ReadGlb(Path.Combine(OwnPittsModelTests.Models, "great-lakes-like", "great-lakes-like-own.glb"));
+        JsonElement nodes = j.GetProperty("nodes");
+        int count = nodes.GetArrayLength();
+        var parent = new int[count];
+        var index = new Dictionary<string, int>();
+        for (int i = 0; i < count; i++) { parent[i] = -1; index[nodes[i].GetProperty("name").GetString()!] = i; }
+        for (int i = 0; i < count; i++)
+            if (nodes[i].TryGetProperty("children", out JsonElement kids))
+                foreach (JsonElement k in kids.EnumerateArray()) parent[k.GetInt32()] = i;
+        (double x, double y, double z) B(string n) { double[] m = OwnPittsModelTests.World(nodes, parent, index[n]); return (-m[12], m[14], m[13]); }
+
+        using var rigDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", "great-lakes-own-rig.json")));
+        var rig = new Dictionary<string, JsonElement>();
+        foreach (JsonElement r in rigDoc.RootElement.GetProperty("rig").EnumerateArray()) rig.TryAdd(r.GetProperty("node").GetString()!, r);
+
+        foreach (var (brief, full, ctl, face) in new[] { ("R", "Rear", "", -1.638), ("F", "Front", "_Front", -0.968) })
+        {
+            string thr = "Throttle_" + brief, grip = "Grip_Throttle_" + full;
+            Assert.True(index.ContainsKey(thr) && index.ContainsKey(grip), $"{thr} / {grip} missing");
+            Assert.Equal(index[thr], parent[index[grip]]);
+            var g = B(grip);
+            Assert.True(InGreatLakesQuadrant(g.x, g.y, g.z, face), $"{grip} at ({g.x:F3},{g.y:F3},{g.z:F3}) is not on the left sidewall quadrant");
+            var pv = B(thr);
+            JsonElement row = rig[thr];
+            Assert.Equal("throttle", row.GetProperty("param").GetString());
+            Assert.Equal("rot", row.GetProperty("kind").GetString());
+            double[] axis = row.GetProperty("axis_gltf").EnumerateArray().Select(a => a.GetDouble()).ToArray();
+            Assert.Equal(new[] { 0.0, 0.0, 1.0 }, axis);                    // glTF +z = lateral: the lever swings fore-aft
+            var map = row.GetProperty("map").EnumerateArray().Select(e => (v: e[0].GetDouble(), deg: e[1].GetDouble())).ToList();
+            double sweep = map.Max(e => e.deg) - map.Min(e => e.deg);
+            Assert.InRange(sweep, 40, 60);
+            // Rotating the knob by +sweep about glTF +z (builder: X forward, Z up) must carry it FORWARD.
+            double rx = g.x - pv.x, rz = g.z - pv.z, a = sweep * Math.PI / 180;
+            double fx = pv.x + rx * Math.Cos(a) + rz * Math.Sin(a);
+            Assert.True(fx > g.x + 0.05, $"{thr}: full throttle knob x {fx:F3} is not forward of idle {g.x:F3}");
+            foreach (string lever in new[] { "Prop", "Mixture" })
+            {
+                string n = "Ctl_PushPull_" + lever + ctl;
+                Assert.Equal("rot", rig[n].GetProperty("kind").GetString());
+                Assert.Equal(lever.ToLowerInvariant(), rig[n].GetProperty("param").GetString());
+                var q = B("Grip_" + lever + ctl);
+                Assert.True(InGreatLakesQuadrant(q.x, q.y, q.z, face), $"Grip_{lever}{ctl} not in the quadrant");
+                Assert.True(q.y < g.y, $"{lever} is not to the right of the throttle (Ty's order: throttle, prop, mixture)");
+            }
+        }
     }
 
     private readonly record struct P(double x, double y, double z);

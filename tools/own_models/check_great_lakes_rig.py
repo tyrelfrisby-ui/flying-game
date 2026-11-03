@@ -30,7 +30,9 @@ def check(path):
 
     for n in nodes:
         assert n.get('scale', [1, 1, 1]) == [1, 1, 1], (n['name'], 'scale')
-        assert n.get('rotation', [0, 0, 0, 1]) == [0, 0, 0, 1], (n['name'], 'rotation')
+        # Meshless Grip_/Poke_ empties carry the hand's grip orientation (VrCockpitHands); nothing hangs off them.
+        if not ('mesh' not in n and not n.get('children') and n['name'].startswith(('Grip_', 'Poke_'))):
+            assert n.get('rotation', [0, 0, 0, 1]) == [0, 0, 0, 1], (n['name'], 'rotation')
         assert 'matrix' not in n, (n['name'], 'matrix')
     rig = json.loads((ROOT / 'docs/models/great-lakes-own-rig.json').read_text())
     for row in rig['rig']:
@@ -46,10 +48,11 @@ def check(path):
                  'SequenceCard_Face', 'Sight_L_Level', 'Sight_R_Level'):
         assert name in names, name
 
-    # THE QUADRANT, both cockpits (owner Ty, 2026-11-01: "the throttle quadrant lever does not move"). The two
-    # throttles must be on the SAME input so they move together, the prop and mixture levers must be pinned full
-    # forward rather than following an engine that can stop, and the three knobs must be the colours a pilot
-    # reaches for without looking: throttle BLACK, mixture dark RED, prop BLUE.
+    # THE QUADRANT, both cockpits. Owner Ty, 2026-11-02: the Great Lakes throttle is a QUADRANT LEVER on the
+    # left sidewall (not a push-pull). Throttle, prop and mixture are three levers in one gate, each rotating
+    # about the gate's lateral axis, forward = full / fine / rich. The two throttles share the throttle input so
+    # they move together, and the knobs are the colours a pilot reaches for without looking: throttle BLACK,
+    # prop BLUE, mixture dark RED. The throttle carries the Grip_Throttle_* empty the VR hand grabs.
     by_node = {row['node']: row for row in rig['rig']}
     materials = [m.get('name') for m in doc.get('materials', [])]
 
@@ -57,18 +60,24 @@ def check(path):
         i = names[node_name]
         return {materials[p['material']] for p in doc['meshes'][nodes[i]['mesh']]['primitives']}
 
-    for seat in ('F', 'R'):
+    lever_node = {}
+    for seat, ctl, full in (('F', '_Front', 'Front'), ('R', '', 'Rear')):
+        lever_node[seat] = {'Throttle': 'Throttle_%s' % seat,
+                            'Prop': 'Ctl_PushPull_Prop%s' % ctl, 'Mixture': 'Ctl_PushPull_Mixture%s' % ctl}
         throttle = by_node['Throttle_%s' % seat]
         assert throttle['param'] == 'throttle', (seat, 'throttle not on the throttle input')
+        assert throttle.get('kind') == 'rot' and throttle.get('axis_gltf') == [0.0, 0.0, 1.0], (seat, 'throttle not a lever')
         travel = [v for _, v in throttle['map']]
         assert max(travel) - min(travel) > 30, (seat, 'throttle has no travel', throttle['map'])
         assert 'Cockpit_black' in knob_materials('Throttle_%s' % seat), (seat, 'throttle knob is not black')
+        grip = 'Grip_Throttle_%s' % full
+        assert grip in names and parents.get(names[grip]) == names['Throttle_%s' % seat], (seat, 'missing', grip)
         for lever, param, knob in (('Prop', 'prop', 'Cockpit_knob_blue'), ('Mixture', 'mixture', 'Cockpit_knob_red')):
-            row = by_node['%s_%s' % (lever, seat)]
+            row = by_node[lever_node[seat][lever]]
             assert row['param'] == param, (seat, lever, 'parameter')
-            held = {v for _, v in row['map']}
-            assert len(held) == 1 and max(held) == max(travel), (seat, lever, 'not pinned full forward', row['map'])
-            assert knob in knob_materials('%s_%s' % (lever, seat)), (seat, lever, 'knob colour', knob)
+            assert row.get('kind') == 'rot' and row['map'] == throttle['map'], (seat, lever, 'not a quadrant lever', row)
+            assert knob in knob_materials(lever_node[seat][lever]), (seat, lever, 'knob colour', knob)
+            assert '%s_%s' % (lever, seat) not in by_node, (seat, lever, 'old pinned lever still rigged')
 
         # LEFT TO RIGHT FROM THE SEAT: throttle, prop, mixture. Ty flies a real Great Lakes and that is his
         # order; it was reversed on 2026-11-01 from a misread photograph and is asserted here so it cannot be
@@ -84,7 +93,7 @@ def check(path):
                 lo.append(a['min'][2]); hi.append(a['max'][2])
             return (min(lo) + max(hi)) / 2 + position(i)[2]
 
-        across = [lateral('%s_%s' % (l, seat)) for l in ('Throttle', 'Prop', 'Mixture')]
+        across = [lateral(lever_node[seat][l]) for l in ('Throttle', 'Prop', 'Mixture')]
         assert across[0] > across[1] > across[2], (
             seat, 'lever order is not throttle, prop, mixture left to right', across)
     # Export frame: prop ahead of tail along -x, vertical tail above the gear, span along z.

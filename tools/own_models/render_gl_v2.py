@@ -22,6 +22,14 @@ CAMERAS=[
  ('rear_seat_panel',(-1.95,0,.29),(-1.64,0,.03),20,None),
  ('front_seat_panel',(-1.22,0,.27),(-.97,0,.03),20,None),
  ('front_seat_eye',(-1.22,0,.27),(-.5,0,.08),20,None),
+ # throttle quadrant (Ty 2026-11-02) and single-row labelled switches
+ ('quadrant_rear_close',(-1.97,.05,.17),(-1.73,.30,-.06),24,None),
+ ('quadrant_front_close',(-1.30,.05,.17),(-1.06,.30,-.06),24,None),
+ ('quadrant_rear_side',(-1.76,.02,.02),(-1.76,.33,-.08),22,None),
+ ('switchrow_rear',(-1.92,.08,.06),(-1.638,.08,-.11),24,None),
+ ('switchrow_front',(-1.25,0,.04),(-.968,0,-.09),24,None),
+ ('placards_rear_close',(-1.80,-.01,-.07),(-1.638,-.01,-.12),30,None),
+ ('placards_front_close',(-1.13,0,-.05),(-.968,0,-.10),30,None),
 ]
 def frame(v):return Vector((-v[0],-v[1],v[2]))
 for name,pos,aim,lens,ortho in CAMERAS:
