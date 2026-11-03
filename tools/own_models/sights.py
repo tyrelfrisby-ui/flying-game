@@ -29,6 +29,10 @@ def parts(g):
             ids=g.array(p['indices']).reshape(-1,3) if 'indices' in p else np.arange(len(a)).reshape(-1,3)
             yield n['name'],p,a,ids
 
+# AirframeModels.OwnSpecs sitHighM, copied by hand: the model is drawn this much higher than lowest-point-on-the-
+# deepest-contact puts it (the J-3 on floats is held at its landplane's height; check_eye_interiors.py asserts it).
+SIT_HIGH={'j3-cub-floats-like':0.0454}
+
 def placement(g,aircraft):
     """Reproduce readable-vertex AirframeModels.Place for these non-alias own models."""
     a=np.concatenate([a for n,p,a,i in parts(g)])
@@ -40,7 +44,7 @@ def placement(g,aircraft):
     ss=[v for v in strips if .65*half<=abs(v['pos'][1])<=.92*half]
     cmid=(min(v['pos'][0]-.75*v['chord'] for v in ss)+max(v['pos'][0]+.25*v['chord'] for v in ss))/2
     tr=np.array([cmid+scale*(outer[:,0].min()+outer[:,0].max())/2,0,
-                 max(v['pos'][2] for v in cfg['gear'])+scale*a[:,1].min()])
+                 max(v['pos'][2] for v in cfg['gear'])+scale*a[:,1].min()-SIT_HIGH.get(aircraft,0.0)])
     return scale*np.array([[-1,0,0],[0,0,-1],[0,-1,0]]),tr
 
 def ray_hits(tris,origin,direction):
