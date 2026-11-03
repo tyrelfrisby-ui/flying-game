@@ -747,8 +747,11 @@ namespace FlyingGame.Bridge
             float rudder = Mathf.Clamp(_rudder + _rudderTrim * TrimAuthority, -1f, 1f);
             // Reversible controls (owner 2026-10-02): a pad with no finger (and no key) lets go of its controls — on a
             // cable-controlled aircraft those surfaces then trail with the air loads (the values above are just the trims).
-            bool rightFree = _rightFinger == int.MinValue && _aileron == 0f && _elevator == 0f;
-            bool leftFree = _leftFinger == int.MinValue && _rudder == 0f;
+            // With a gamepad connected a centred thumb stick holds the surfaces unless the player chose stick-free
+            // (OPTIONS › Controls, off by default with a pad; GamepadShaping.ControlsFree). Read every frame: hot-plug flips it.
+            bool padOn = GamepadInput.Now.Connected, padFree = SessionSettings.GamepadStickFree;
+            bool rightFree = FlyingGame.Core.GamepadShaping.ControlsFree(_rightFinger == int.MinValue && _aileron == 0f && _elevator == 0f, padOn, padFree);
+            bool leftFree = FlyingGame.Core.GamepadShaping.ControlsFree(_leftFinger == int.MinValue && _rudder == 0f, padOn, padFree);
             _driver.Inputs = new ControlInputs(aileron, elevator, rudder, lever, rightFree, rightFree, leftFree);
         }
 
