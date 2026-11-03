@@ -52,7 +52,7 @@ def check(path):
     # left sidewall (not a push-pull). Throttle, prop and mixture are three levers in one gate, each rotating
     # about the gate's lateral axis, forward = full / fine / rich. The two throttles share the throttle input so
     # they move together, and the knobs are the colours a pilot reaches for without looking: throttle BLACK,
-    # prop BLUE, mixture dark RED. The throttle carries the Grip_Throttle_* empty the VR hand grabs.
+    # prop BLUE, mixture plain BLACK (Ty v5 photo correction, 2026-11-03). The throttle carries the Grip_Throttle_* empty the VR hand grabs.
     by_node = {row['node']: row for row in rig['rig']}
     materials = [m.get('name') for m in doc.get('materials', [])]
 
@@ -72,7 +72,7 @@ def check(path):
         assert 'Cockpit_black' in knob_materials('Throttle_%s' % seat), (seat, 'throttle knob is not black')
         grip = 'Grip_Throttle_%s' % full
         assert grip in names and parents.get(names[grip]) == names['Throttle_%s' % seat], (seat, 'missing', grip)
-        for lever, param, knob in (('Prop', 'prop', 'Cockpit_knob_blue'), ('Mixture', 'mixture', 'Cockpit_knob_red')):
+        for lever, param, knob in (('Prop', 'prop', 'Cockpit_knob_blue'), ('Mixture', 'mixture', 'Cockpit_black')):
             row = by_node[lever_node[seat][lever]]
             assert row['param'] == param, (seat, lever, 'parameter')
             assert row.get('kind') == 'rot' and row['map'] == throttle['map'], (seat, lever, 'not a quadrant lever', row)

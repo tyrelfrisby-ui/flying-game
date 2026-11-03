@@ -1,12 +1,11 @@
-"""Check gl_quadrant_v3's output: the Great Lakes throttle quadrant and the single labelled switch row.
+"""Validate Great Lakes console, lever travel and linkage contracts.
 
-  * Throttle_R/F, Ctl_PushPull_Prop/Mixture(_Front) are quadrant levers on the LEFT sidewall, rig kind rot about
-    glTF +z with 0 -> 0 and 1 -> 50 deg, so param 1 (full / fine / rich) puts the knob FORWARD of param 0.
-  * Grip_Throttle_Rear/Front exist under the throttle levers at the knob (the VrCockpitHands contract).
-  * Over the whole sweep, every lever's shaft and knob stays >= 3 mm from all other cockpit geometry (tubes,
-    sidewall, panel, card, stick, switch row) and inboard of the sidewall.
-  * The eight non-radio controls per seat sit on ONE row (same z), on the switch strip, each with a placard.
-Usage: python3 check_gl_quadrant.py   (Blender's python; no Unity)
+Checks rig direction, one-degree sampled environment clearance, continuous
+full-mesh separation from aft console hardware, independent free shaft/grip
+lateral clearance, IAC sightlines, linked trim and right-wall fuel controls.
+Pivot bosses and the intentional slotted gate are excluded from the free-lever
+clearance test. No runtime or pilot approval is implied.
+Usage: /usr/bin/python3 tools/own_models/check_gl_quadrant.py
 """
 import json,math,sys
 import numpy as np
@@ -78,6 +77,21 @@ def main():
     base=math.atan2(z,x)
     angles += [base+k*math.pi for k in range(-2,3) if 0<=base+k*math.pi<=math.radians(50)]
     moving_min=min(moving_min,min(P[0]+x*math.cos(a)+z*math.sin(a) for a in angles))
+  # Rotation preserves Y: disjoint lateral mesh slabs prove no lever-to-lever
+  # contact even when the three inputs move independently to different values.
+  slabs=[]
+  for lv in q.LEVERS:
+   nm='Throttle_'+s['sfx'] if lv[0]=='Throttle' else 'Ctl_PushPull_'+lv[0]+s['ctl']
+   # Pivot bosses occupy the shared mounting gate; compare free shafts/grips.
+   node=N[names[nm]];ys=[]
+   for prim in g.doc['meshes'][node['mesh']]['primitives']:
+    if g.doc['materials'][prim['material']]['name'] in ('Cockpit_quadrant','GL_Placard_Atlas'):continue
+    v=g.array(prim['attributes']['POSITION'])@W[names[nm]][:3,:3].T+W[names[nm]][:3,3]
+    ys.extend(builder(vv)[1] for vv in v)
+   slabs.append((min(ys),max(ys)))
+  lever_gap=min(slabs[i][0]-slabs[i+1][1] for i in range(2))
+  assert lever_gap>.003,(seat,'independent lever sweep slabs',lever_gap)
+  print(seat,'independent lever full-travel lateral separation %.1f mm'%(lever_gap*1000))
   gap=moving_min-aftmax
   assert gap>.003,(seat,'console swept mesh separation',gap)
   print(seat,'continuous full-mesh sweep / console X separation %.1f mm'%(gap*1000))
