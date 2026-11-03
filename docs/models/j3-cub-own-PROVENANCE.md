@@ -318,3 +318,21 @@ Ty's windshield fix. References are by eye from photos only (refs/j3-cub/cand c3
     cockpit"). The plate is flat now and labelled FUEL / PUSH ON / PULL OFF. The 30 mm stroke is a judgement.
   - Geometry labels are pure white and larger. Codex enlarged the gauge-face lettering in the atlas on
     lane/codex-j3-cockpit.
+- v17 cockpit (Ty 2026-11-02 19:00-19:07, by description, and his two photos ty-nose-tank-firewall.png and
+  ty-panel-tank-behind.png, used for shape, layout and colour ONLY; nothing traced; copies in
+  docs/pending/j3-cockpit/v17/ref-*.png):
+  - Magneto switch moved aft to the station of the top of the front seat back (Ty: "abeam the top of the front seat"),
+    same left root rib, same height; on a small black wedge turning it 20 deg toward the rear seat.
+  - Nose fuel tank, 12 US gal (45.4 L). Location and capacity: AOPA J-3 Cub fact sheet ("located in the fuselage just
+    behind the fire-wall, and has a capacity of 12 gallons"), Univair U70723-000 (12 gal J-3 tank), forum posts
+    placing it "between the instrument panel and engine firewall". No dimensioned drawing was found, so the size is
+    judgement: a drum 0.46 m wide, 0.295 m fore-aft, crown 0.17 m / bottom -0.265 m (thrust-line frame), shaped to
+    the cowl and dash deck, lower aft edge cut parallel to the v16 under-tank tubes; 45.5 L drawn, 46.3 L measured
+    with the beads. Shape and finish from Ty's photos: black drum, rounded top, closely spaced vertical stiffening
+    beads, bright rim band round the front edge, filler neck to the cap. Clear drain hose from a sump to the floor
+    (Ty's words).
+  - Black front: semi-gloss black floorboards, pedals and walls forward of the panel; the walls turn yellow just aft
+    of the panel on a curved parting line (Ty, photo ty-panel-tank-behind.png). Flat metal heel plates aft of the
+    front pedals (same photo). Material / UV change on the liner; no liner geometry moved.
+  - Panel order left to right now oil / tach / compass / altimeter / ASI (photo); the far-left knob is labelled
+    PULL for HEAT / FRESH AIR PUSH (photo). The atlas (j3_textures.py) is unchanged; the faces moved slots.

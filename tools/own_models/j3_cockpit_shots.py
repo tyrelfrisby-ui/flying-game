@@ -39,7 +39,24 @@ SHOTS = [  # name, camera, target, horizontal fov (deg)
     ('closeup-trim-crank', EYE, D(1.865, 0.28, -0.22), 16.0),
     ('closeup-carb-heat', EYE, D(1.455, -0.28, -0.175), 14.0),
     ('closeup-throttle-front', EYE, D(1.335, 0.29, -0.04), 14.0),
+    # v17 (Ty 2026-11-02 19:00-19:07): mag switch abeam the front seat-back top, the nose tank + clear drain hose, the black
+    # front. docs/pending/j3-cockpit/v17/.
+    ('v17-01-mag-switch', EYE, D(2.05, 0.26, 0.45), QUEST_HFOV),
+    ('v17-02-nose-tank', EYE, D(1.05, 0.0, -0.18), QUEST_HFOV),
+    ('v17-03-black-front', EYE, D(1.35, 0.0, -0.22), QUEST_HFOV),
+    ('v17-04-panel-like-photo', EYE, D(1.20, 0.0, -0.10), 52.0),
+    ('v17-closeup-mag-switch', EYE, D(2.13, 0.29, 0.579), 14.0),
+    ('v17-closeup-tank-beads', EYE, D(1.06, 0.0, -0.10), 22.0),
+    ('v17-closeup-drain-hose', EYE, D(0.92, -0.10, -0.42), 18.0),
+    # Not the rear eye: cutaways. Footwell (as 04b); from the right with the right skin, liner and door taken away; and
+    # cowling off from ahead, with the engine, prop, cowl skin and firewall taken away (as in Ty's photo).
+    ('v17-05-tank-footwell-cutaway', D(1.50, 0.0, -0.30), D(0.95, 0.0, -0.17), QUEST_HFOV),
+    ('v17-06-tank-side-cutaway', D(1.02, -0.95, -0.02), D(1.00, 0.0, -0.17), 62.0,
+     dict(hide=('Fuselage_Painted', 'Liner_Stbd', 'DoorUpper_R', 'DoorLower_R', 'Window_R', 'Glass'))),
+    ('v17-07-tank-cowl-off-front', D(0.20, 0.42, 0.30), D(0.98, 0.0, -0.06), 58.0,
+     dict(hide=('Fuselage_Painted', 'Engine', 'Prop', 'Glass', 'Cabin_Liner', 'Liner_Stbd'), cut_firewall=True)),
 ]
+FIREWALL_XD = 0.80          # build_j3_cub.py firewall(): the skin section at xd 0.80, two faces in the Cabin mesh
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=glb)
@@ -58,8 +75,25 @@ else:
     except AttributeError: pass
 sc.render.resolution_x, sc.render.resolution_y = 1200, 900; sc.render.image_settings.color_mode = 'RGB'; sc.render.image_settings.compression = 100; sc.view_settings.view_transform = 'Standard'
 sc.view_settings.exposure = 0.6
-for name, at, target, fov in SHOTS:
+import bmesh
+def _set_hidden(names):
+    for o in bpy.data.objects:
+        if o.type == 'MESH': o.hide_render = any(o.name == n or o.name.startswith(n + '.') for n in names)
+_fw_cut = []
+def _cut_firewall():
+    if _fw_cut: return
+    x0 = FIREWALL_XD - 1.817
+    for o in bpy.data.objects:
+        if o.type != 'MESH' or not o.name.startswith('Cabin'): continue
+        bm = bmesh.new(); bm.from_mesh(o.data)
+        dead = [f for f in bm.faces if all(abs((o.matrix_world @ v.co).x - x0) < 0.002 for v in f.verts)]
+        bmesh.ops.delete(bm, geom=dead, context='FACES'); bm.to_mesh(o.data); bm.free(); _fw_cut.append((o.name, len(dead)))
+    print('FIREWALL cut for the cowling-off shot', _fw_cut)
+for name, at, target, fov, *opt in SHOTS:
     if only and name not in only: continue
+    opt = opt[0] if opt else {}
+    _set_hidden(opt.get('hide', ()))
+    if opt.get('cut_firewall'): _cut_firewall()
     cd.angle = math.radians(fov)
     cam.location = at; cam.rotation_euler = (target - at).to_track_quat('-Z', 'Y').to_euler()
     sc.render.filepath = '%s/%s-%s.png' % (out, name, suffix)
