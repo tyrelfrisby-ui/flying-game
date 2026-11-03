@@ -1,4 +1,100 @@
 ## NEEDS YOU
+- **HUD DECLUTTER APPROVED + ENGINE ROW MOVED BELOW THE AIRPLANE — PLEASE CHECK ON BOTH DEVICES (Grok Bot, 2026-11-02, lane/codex-hud-declutter → lane/claude-island-nav):**
+  Ty (approving fe4c7f60): "put the engine instruments below the airplane. otherwise the cleanup looks good go ahead
+  and move engine instruments then push to ipad/iphone". Analog mode, chase view, powered aircraft, landscape, phone/
+  tablet only: TACH / THR / FLOW / FUEL now sit centred BELOW the aeroplane; the flight row stays at the top.
+  Controller layout: bottom of the screen, centred, pushed right of the button column only if it would touch it.
+  Touch layout: in the band between the pads; iPhone folds the centre cluster into two rows ([SMOKE | BAIL] over
+  [Reset | Aircraft | FLAPS]); iPad mini puts all buttons in ONE row along the bottom under the pads, and the narrow
+  band there puts each unit on a second line (never below MinText). Keep-out rule unchanged (buttons shrink first).
+  Unchanged: cockpit, HUD mode, gliders, portrait, lessons, Mac. Renders (iPhone 2622x1206 + new iPad mini 2266x1488
+  harness option AERO_HUDSHOTS_DEVICE=ipad): Mac ~/agent-tools/engine-below/. Known, pre-existing (B4): on the iPad
+  mini TOUCH layout the TOP flight row is wider than the band and its dials/values overlap — not touched here.
+- **HUD DECLUTTER — PICK FROM THE RENDERS, NOTHING MERGED (Grok Bot coordinating Codex, 2026-11-02, lane/codex-hud-declutter):**
+  Ty: "a lot of that stuff under the row of buttons is so small I don't even know what it is", and "in ANALOG
+  mode arrange the instruments as a neat row ... flight instruments top row, engine instruments bottom row".
+  Run A (inventory + test-only AERO_SELFTEST=hudshots iPhone-shaped capture harness), then run B (the proposal).
+  Inventory and proposal: docs/pending/HUD-DECLUTTER.md. Commits: e4ef02e5 (A), 97180276 (merge island-nav 9cb8146f),
+  19d0a37a (B1 harness), 11f91dd5 (B2), 6b9b663a (B3), fe4c7f60 (B4 = the proposal to judge).
+  Renders (iPhone 17 Pro landscape 2622x1206, touch + gamepad-connected, analog/HUD/glider/cockpit):
+  before = 19d0a37a, after = fe4c7f60; Mac copies in ~/Developer/agent-lanes/aero-playground/hud-declutter/renders/
+  (hud-before.tar, hud-after-b4.tar). Known open item: in the gamepad COCKPIT view the button column and LOOK
+  buttons still sit over the panel dials (they did before too). scripts/codex-run.sh is missing from the repo.
+  NOT merged, NOT deployed; no gate approved. Ty picks from the renders first.
+- **GAMEPAD FULL-SCREEN VIEW, CHASE ×1.5, NO MORE SLOWDOWN NEAR THE GROUND, QUEST THROTTLE — PLEASE FLY IT (Grok Bot,
+  2026-11-02, lane/claude-ios-fullview, build `2026.1102.1842`):** iPad mini installed; iPhone: NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device 00008150-001629A83662401C /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
+  - **Pad connected:** the 3D view fills the whole screen (no black tray where the pads were), the airplane sits in
+    the screen's centre, and the buttons drop to the bottom edge. No pad: unchanged.
+  - **Chase camera 50 % farther back** on every aircraft, with the height kept at the same fraction so the framing
+    stays centred.
+  - **Slowdown near the ground: root cause fixed, buildings and towers still collide at every height** (your decision:
+    no 60 m shortcut). Every hard point at every RK4 stage tested all ~1,475 island solids plus the forest shape (which
+    re-derived 25 trees per query). A per-airframe broadphase now gathers the nearby solids (and the region's trees)
+    once and re-gathers only when you leave the region. The answers are exactly the same (tests). iPad mini, Pitts,
+    OnFinal → touchdown: CPU 4.5–5.1 ms all the way down (was 10.3–16.2 ms near the ground), sim 1.2–1.8 ms (was ~8).
+  - **Gamepad throttle = the Quest's:** left-stick Y is a rate throttle, 0.25 dead zone, idle to full in 2 s
+    (was 0.07 and 1.5 s). The shoulders are unchanged.
+  - **Tell me** if the bigger chase distance is now too far on the small types, or if 2 s feels slow on the go-around.
+- **EVERY AEROPLANE IS RIGGED FOR HANDS-OFF LEVEL FLIGHT AT 75 % POWER — PLEASE FLY IT (Claude, 2026-11-02,
+  lane/claude-rig-trim):** method and full table in `docs/RIGGING.md`.
+  - **What a rig is now:** two fixed angles in each config's new `rig` block, built into the airframe: the ailerons'
+    neutral offset (+ = right-roll deflection, like a bent aileron tab) and the fin's incidence, rudder and all (+ =
+    leading edge LEFT). The elevator is not rigged; its hands-off value is the TRIM, and the air start sets the slider
+    there. Nothing runs per frame.
+  - **How they were found:** `RigSolver` solves all six steady equations (three forces, three moments) on the sim's
+    own forces: prop torque, P-factor, spiral slipstream, the slipstream swirl over the stab and the thrust line,
+    lifted out of `Aircraft` so the two cannot differ. Unknowns: airspeed, α, elevator, aileron rig, fin offset and
+    bank, stick and rudder centred, zero sideslip, LEVEL, at 75 % of rated power (the engine model's own definition:
+    power = MaxPowerW × throttle, no altitude lapse), 4,000 ft ISA. Gliders: best glide from the model's own polar.
+    All 34 converge to residual < 2e-12 of the weight. `RigTool` (`RIG_WRITE=1`) wrote them; no fudge factors.
+  - **Rig table (aileron° / fin° LE-left / elevator trim° / KIAS at 4,000 ft):** Pitts S-2B 0.27 / 0.52 / −1.11 / 131 ·
+    Extra 300 0.20 / 0.17 / −1.05 / 151 · **Great Lakes 0.38 / 0.36 / +0.84 / 102** · J-3 0.23 / 0.33 / −0.10 / 62 ·
+    J-3 floats 0.33 / 0.46 / −1.88 / 52 · 172 0.13 / 0.12 / +1.57 / 116 · PA-28 0.24 / 0.19 / +0.59 / 103 ·
+    SR22 0.20 / 0.10 / +2.07 / 153 · Beaver 0.22 / 0.24 / +0.72 / 116 · Beaver floats 0.25 / 0.29 / +0.60 / 108 ·
+    Stearman 0.38 / 0.27 / −0.92 / 102 · P-51D 0.43 / 0.13 / −1.43 / 197 · Decathlon 0.20 / 0.21 / +2.04 / 102 ·
+    PA-18 Cub / bush / floats 0.19 / 0.22, 0.20 / 0.24, 0.22 / 0.26 · Pawnee 0.19 / 0.21 · Cassutt and target drone
+    0.29 / 0.11 · Gee Bee 0.65 / 0.31 · Glasair III 0.38 / 0.09 · Jenny 0.40 / 0.59 · AirCam 0.25 / 0.24 (both props
+    turn the same way as modelled) · DC-3 0.13 / 0.08 (co-rotating) · H-4 0.03 / 0.02 (8 co-rotating) ·
+    **Seminole −0.003 / 0.000** (counter-rotating: it cancels) · **737 and F-86: 0 / 0** (jets, symmetric; trim
+    only; at 75 % thrust the 737 does 330 KIAS at 4,000 ft, above 250 kt and near Vmo, which is what 75 % means there)
+    · gliders 2-33, EB29R, Swift, paraglider: 0 / 0 at best glide (2-33 39.5 KIAS) · hang glider: nothing to rig;
+    trimmed at its 11 m/s hands-off speed, because bar-fixed at the model's 14 m/s best glide it tucks after ~20 s.
+  - **Against published numbers (validation only):** published fin offsets are ~1° (P-51D 1°; Aeronca 11AC fin 3/8 in
+    left). The model asks for a third to a sixth of that (P-51 0.13°, J-3 0.33°). Real offsets are set for the climb,
+    where slipstream yaw is several times the cruise value, and the model's spiral-slipstream yaw is a lumped,
+    never-calibrated term. **If your Great Lakes needs right rudder or rudder trim at 75 % cruise, tell me how much:
+    that is the number that calibrates `slipstreamK`.**
+  - **Power still does what it should:** from the rig point, full power yaws and rolls every clockwise-prop type LEFT
+    (moments and 3 s flown) and 30 % yaws and rolls it RIGHT. The Seminole barely feels it (ΔL 3.8, ΔN 0.0 N·m against
+    −72 / −95 with both props the same way).
+  - **The air start changed:** it used a POWER-OFF glide trim at the spawn speed with the throttle at 50 %, so every
+    aeroplane started descending with power on and then pitched up. It now starts level at 75 % on the rig, at the
+    speed 75 % holds at that height, with the trim slider on the elevator that holds it and the touch throttle at
+    75 %. Gliders start at best glide. The other starts (final, thermal, practice, events) are unchanged.
+  - **ON YOUR iPAD MINI:** build `2026.1102.1749` (island-nav at bf345f42, this merge) installed and launched on Ty's
+    iPad mini. The iPad Air (Frisby_801C_EFB) did NOT take it: devicectl said "the device was still locked" (error
+    10003). Your iPhone was listed "unavailable" and was not offered the build at all.
+  - **FLY THIS:** air start in the Great Lakes (then the Pitts and the Cub). Leave the stick and the rudder alone for
+    a minute and watch the ball, the heading and the VSI. Then go to full power: it should yaw and roll left.
+    Back to 30 %: right. **Expect a slow wander away from 4,000 ft:** the rig is fixed and was set there. The island's
+    coastal starts are at ~1,500 ft, where the same 75 % gives a higher EAS, so it over-corrects and wanders RIGHT
+    (172 ~8°, Cub/PA-28 ~16–20° of heading per 40 s). Inland at ~6,500 ft it wanders LEFT. Spirally divergent types run
+    away: J-3 floats and Jenny ~150° in 40 s, Pitts and Cassutt ~50°, and the **Gee Bee departs within a minute at
+    1,500 ft hands off**. That is the airframe, not the rig, but it is what you will see. If you would rather it were
+    rigged at the coastal height, it is one constant (`RigSolver.RigAltitudeM`) and a re-run of RigTool.
+  - **Red, and why:** `FormationTests` P-51 finger-four: wingman #2 RMS slot error 27.2 m against a 25 m limit (was
+    16.7 m). Measured: rigged wingmen behind an UNRIGGED leader track better than before (15.9 / 8.4 / 8.7 m). It is
+    the rigged leader's drone autopilot (proportional only, no trim) flying a different path at formation power. I did
+    not retune the AI. Full suite against 0d5a3ef: details in the Log entry below.
+
+- **COCKPIT VIEW WAS ALL SKY — FIXED, PLEASE CHECK (Grok Bot, 2026-11-02, lane/claude-cockpit-look):** cause was
+  **device look** (Options › "Move the device to look around", ON on your iPhone, gain 4.9) zeroing against the
+  gyro's placeholder reading before its first sample — not the gamepad. Now the first REAL sample is straight
+  ahead, and selecting the cockpit view always starts at the eye point looking forward. Gamepad: **R3 recentres**,
+  **hold L3 + d-pad = look** (trim / flaps off while L3 is held). No stick or trigger moves the view. Details in Log.
+  **Also: with a gamepad connected the touch sticks are gone** — pads (or lesson strips), trim slider and trim bars
+  hidden and take no touches; buttons (Reset, Aircraft, Flaps, Gear, Smoke, Tow, Bail, Fire, Eject, Look) stay.
+  Unplug / switch off the pad and they come back next frame (hot-plug). Please check both on the iPhone.
 - **GAMEPAD, SECOND PASS — NEW MAPPING, PLEASE FLY IT (Claude, 2026-11-02, lane/claude-gamepad-ios):** it is on
   your **iPad mini** (build `2026.1102.1603`, island-nav), **NOT your iPhone** — the iPhone still has
   `2026.1102.1441` with the OLD left-stick-flies mapping until the next deploy to it. The mapping now: **right stick = roll and pitch** (pull back = nose up), **left stick X = rudder** (triggers too),
@@ -6,6 +102,46 @@
   on roll / pitch / rudder only; none on the throttle. Full table in the Log. A pad that connects or wakes while
   the game is running is picked up live (the code path is verified below; not tried with your pad in hand).
   Expo still STACKS on each aeroplane's own 0.1–0.3: say if it is too soft.
+- **FUEL SLICK AFTER WATER BREAK-UP — RENDER/DEVICE REVIEW (Codex, 2026-11-02, lane/codex-fuel-slick):**
+  `CrashRelay` snapshots `Aircraft.Load.FuelKg` when a structural wreck piece leaves in a water crash;
+  confirms the same-step hard-point impact or the existing hydro joint's measured ultimate-load exceedance.
+  Prop/gear loss alone, intact ditching, land, gliders/no tanks and empty tanks make no slick. One per relay;
+  respawn/repair replaces the relay and clears its picture. Protected physics files/CrashEvents/Glass Overlay untouched.
+  All fuel volume V=m/720 spreads to A=V/h, R=sqrt(A/pi), with **h=1 µm ASSUMED** (Bonn Agreement
+  rainbow code 2: 0.3–5 µm). Radius grows LINEARLY to R at 300 sim seconds. Horizontal drift is 3% of the
+  atmosphere's mean U10 sampled at break-up (usual spill-trajectory 3% rule; Wagner et al., arXiv:2201.12688).
+  No simulated surface-water current found; shader river flow is cosmetic. No evaporation/weathering model added.
+  Full-tank figures below; tests also print authored and half-fuel kg, litres, radius and area (half fuel gives R/√2).
+
+  | Config | Full fuel kg | Volume L | Final R m | Final area m² | Half-fuel R m |
+  |---|---:|---:|---:|---:|---:|
+  | c172-like | 108.00 | 150.000 | 218.510 | 150000.000 | 154.510 |
+  | pitts-s2b-like | 79.04 | 109.778 | 186.931 | 109777.778 | 132.180 |
+  | great-lakes-like | 74.68 | 103.722 | 181.703 | 103722.222 | 128.483 |
+  | extra-300-like | 123.10 | 170.972 | 233.286 | 170972.222 | 164.958 |
+  | j3-cub-like | 32.71 | 45.431 | 120.254 | 45430.556 | 85.032 |
+  | j3-cub-floats-like | 32.71 | 45.431 | 120.254 | 45430.556 | 85.032 |
+
+  C172 authored load is 80 kg / 111.111 L / 188.063 m / 111111.111 m²; all other tank-equipped powered
+  configs currently author ZERO fuel, so they produce no slick until fuel is loaded. Configs are unchanged.
+  New built-in-pipeline thin-film shader uses n=1.42 over n=1.33 water, Fresnel interference with one phase
+  reversal, spatial 0.2–1.5 µm optical thickness, soft noisy edge, depth bias, no shadows, below-water camera
+  rejection. Included by BuildScript's existing Always Included shader setup. Core is already a local UPM
+  package (`com.flyinggame.simcore`, `file:../../src`); new source + meta needs no DLL copy or registration.
+  Operator render command (from repo root, substitute Unity executable):
+  `"$UNITY" -batchmode -force-metal -projectPath "$PWD/unity" -executeMethod FlyingGame.EditorTools.FuelSlickRenderCheck.Render -quit -logFile "$PWD/build/fuel-slick-render.log"`
+  Writes `build/fuel-slick/slick-{000,005,060,300}s.png` plus `slick-underwater.png`, logs each radius;
+  full C172 tanks, real Water shader, oblique camera at (0,350,-400), 1600×1200. Do NOT use `-nographics`.
+  Validation: all 13 FuelSlick xUnit cases PASS via a direct in-process runner (including real C172 hard-impact
+  and water-joint break-ups, burned fuel snapshots 53.999567180 / 53.996282840 kg from 54 kg, one slick,
+  intact first water contact, land break-up, stale-contact rejection and respawn). Full FlightTests build:
+  0 errors / 10 existing warnings; `git diff --check` passes. Standard requested `dotnet test tools/FlightTests
+  --filter FullyQualifiedName~FuelSlick` was attempted; VSTest cannot bind its local TCP socket in this sandbox
+  (SocketException 13, Permission denied), so standard-runner success is NOT claimed. Final no-build retry
+  fails for the same reason. Operator should rerun that command outside this sandbox. Direct-run log:
+  `/tmp/fuel-slick-direct.log`; build log `/tmp/fuel-slick-build.log`.
+  Unity/render/iOS/deploy unrun by instruction. Operator must inspect sheen visibility/edge/underwater rejection
+  and compile Unity on Metal; no gate approved. Changes are uncommitted.
 - **WATER CRASH CAMERA + SHORT GURGLES — TY DEVICE REVIEW (Codex, 2026-11-02, lane/codex-crash-cam):**
   External water-crash view now gathers the remnant and all live WingDebris/DebrisBody objects (discovered every 0.5 s, positions read each frame)
   into reused lists. Uses sim masses/CGs where bound, rigidbody or stated 15 kg fragment estimate otherwise;
@@ -963,6 +1099,67 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-11-02 — Grok Bot · lane/claude-ios-fullview · gamepad full-screen, chase ×1.5, ground slowdown, Quest throttle
+Ty (t256u): "it still slows down when it gets close to the ground … when there is a controller make the whole screen
+show the outside … move the airplane to the center … zoom out a bit on all airplanes … use 50% more distance". Then
+TY-DECISIONS.md: (a) no 60 m collision shortcut; (b) the iOS pad throttle matches the Quest.
+- **Commits (lane/claude-ios-fullview, merged --no-ff into island-nav as ea283dc7):**
+  693a9875 cherry-pick of Quest 159e5f46 (ground/water contact once a step, not at every RK4 stage; solids still
+  tested at every stage, so it stands under decision (a)) · 31b9e261 solids tested above 60 m too (the shortcut
+  skipped buildings/towers; SolidsAboveTheGroundTests fails on 9cb8146f) + IosLowAltitudeProbe · 19d60989 [Perf]
+  line gains sim ms and AGL · a118b0aa ChaseFraming ×1.5 · 8d4d952e ScreenLayout.FullScreenView with a pad ·
+  e0ce108b throttle (GamepadShaping.ThrottleStickDeadZone 0.25, StickLeverRatePerSec → 0.75 axis/s over iOS's
+  −0.5…1 lever) · 5b7da77b WorldSolids.Nearby broadphase (IBounded Block/Cable, IRegional Forest stand-in,
+  WorldSolids.Version) + SolidsBroadphaseTests (exact equivalence with the full scan, incl. the forest) · 3313b6ed
+  merge of island-nav d1bf88d1.
+- **Cause:** with the island built, WorldSolids.Penetration was a linear scan: 1,144 blocks + 297 cables + the Forest
+  shape (25 TryTreeInCell per query: height, slope, cover, ClearanceCap). Per hard point per RK4 stage. The old Mac
+  probe never called IslandGeometry.Build(), so it under-reported this badly.
+- **Mac probe (Debug, island built, ms of sim per 60 Hz frame, mean of 3 spots; Mac shared with other runs):**
+  `500/100/60/30/10/3/0 m` — Pitts base 1.85/1.62/83.5/66.9/239/131/117 → now 1.34/1.21/1.90/1.89/1.90/3.57/3.27 ·
+  2-33 base 2.07/1.89/57.1/85.8/110/77.0/49.7 → 0.96/0.92/1.48/1.60/1.62/1.80/2.46 · C172 base
+  1.31/1.34/52.4/44.3/63.8/62.6/58.8 → 0.97/0.93/1.43/1.51/1.96/3.53/2.72.
+- **iPad mini (Pitts, [Perf]):** before (2026.1102.1649, 60 m shortcut): OnFinal CPU 4.7–5.0 ms in the air,
+  10.3–16.2 ms near the ground, dips to 57–58 fps; OnTheRunway 60–61 fps, CPU 10.6–11.9 ms. Intermediate
+  (2026.1102.1734, solids at all heights, no broadphase): 60–61 fps, CPU 9.5–11.8 ms, sim 7.6–9.6 ms. **After
+  (2026.1102.1842):** OnFinal 70 m → 5 m 60–61 fps (one 54 sample at 41 m, CPU 4.5 ms: not the sim), CPU 4.5–5.1 ms,
+  sim 1.2–1.8 ms; OnTheRunway 60–61 fps, CPU 4.6–5.1 ms, sim 1.7–2.1 ms.
+- **Quest coordination:** reused the Quest lane's 159e5f46 (cherry-pick, adapted) rather than re-doing it; its
+  worker has exited, and lane/claude-vr-quest is still ce62f612. The broadphase is in FlyingGame.Core, so the Quest
+  gets it on its next merge of island-nav. Its own 60 m shortcut (if any) is now redundant.
+- **Devices:** iPad mini 2026.1102.1842 installed and launched (devicectl verified). iPhone NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device 00008150-001629A83662401C /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
+- **Tests:** SolidsBroadphase/SolidsAboveTheGround/GroundContactCull/GamepadShaping/ChaseFraming/TouchSticks pass.
+  Full suite vs island-nav d1bf88d1: no regressions. The lane-only failures seen in the partial full runs (Alaska, AlpineRange, FrankChurch, GlacierLandingZone, GroundSurface, HighDesert, TipWheel, ReversibleControl, Brs, ApproachSpawn, ChartRaster, CrashWater, Challenge, Event, Formation, TrimConvergence) were re-run class by class on git-archive copies of 3313b6ed and d1bf88d1: identical failure sets (16 of 52 and 28 of 93 on both, empty diff), so they are pre-existing on island-nav. ForestTests ×3 and CarrierTests.TheDeck… fail on the baseline too.
+
+### 2026-11-02 — Grok Bot · lane/claude-cockpit-look · cockpit view "all sky" on the iPhone with the 8BitDo
+Report (Ty, iPhone, build `2026.1102.1603`, pad connected): select the cockpit view and all he sees is sky.
+- **Ruled out:** no gamepad axis reaches the look. `GamepadInput` feeds flight only; `CockpitView` read only the
+  legacy hat (`JoystickInput.HatButton0` = 28, and `ButtonHeld` is `b < 20` on iOS, so inert there) and the
+  on-screen look buttons.
+- **Cause:** his prefs (read off the phone, `Library/Preferences`): `view.deviceLook = 1`, `view.deviceGain = 4.92`.
+  `ApplySettings()` at `Start` enables the gyro and immediately `Recentre`s against `Input.gyro.attitude`, which is
+  EXACTLY the identity (phone flat, screen up) until CoreMotion's first sample. With the reference set,
+  `FromDevice` never re-zeroed. A phone held up in landscape = back swung from straight down to level = +90° pitch,
+  ×4.9, clamped at `MaxPitchUpDeg` 75°: parked looking up. Nothing recentred on selecting the cockpit view.
+- **Fix:** `CockpitLook.IsUnsampled(q)` (bit-exact identity, zero-length or non-finite). `Recentre` with one leaves
+  the zero empty so the first real sample becomes straight ahead; `FromDevice` ignores one. `ChaseCamera.SetView`
+  → `CockpitView.OnEnterCockpitView()` recentres (hat and device) every time the cockpit view is entered (Y).
+  Gamepad: R3 recentres; L3 held + d-pad = look (pan held, snap on a tap, same as a stick's hat); trim/flaps are
+  suppressed while L3 is held.
+- **Tests:** `CockpitLookUnsampledTests` (4, Ty's gain 4.9: placeholder zero → still straight ahead; tilt 5° → 24.5°
+  after the real zero; mid-flight placeholder ignored; what counts as unsampled). `APhoneLaidFlat…` now uses a real
+  flat reading instead of the bit-exact placeholder. CockpitLook / CockpitEye / GamepadShaping: 200 pass.
+- Built from the lane at commit `63741982`: `2026.1102.1642`, 0 `error CS`, `** BUILD SUCCEEDED **`, installed and
+  launched on the iPhone and iPad mini (16:46 PST).
+- **Folded in (Ty, t250u): touch sticks hidden while a gamepad is connected.** `GamepadShaping.TouchSticksShown(desk,
+  connected)` (= !desk && !connected); `TouchFlightControls.TouchSticksHidden` asks it every frame from
+  `GamepadInput.Now.Connected` (live `Pad()`, so hot-plug flips it the next frame). Hidden: the two pads / lesson
+  strips (and the strip "your thumb here" briefing pointer), pitch-trim slider, RUD/AIL trim bars — not drawn and
+  `ReadPointers` grabs no touch for them. On a connect with a thumb down, the stick is released (springs back,
+  throttle and trims hold). Buttons and LOOK stay; the layout doesn't move. Logs `[Touch] … hidden/shown`.
+  Tests: `TouchSticksGamepadTests` (4). Filtered suite now 204 pass. Lane build `2026.1102.1649`: 0 `error CS`, `** BUILD SUCCEEDED **`, installed and launched on the iPhone and iPad mini (16:54 PST).
+
 ### 2026-11-02 16:08 — Claude · lane/claude-island-nav · gamepad merged and on the iPad mini (not the iPhone)
 Merged `lane/claude-gamepad-ios` at 01f4c28 (merge `21e41d8`, 15:47); another agent then merged
 `lane/claude-crash-test` on top (`c6080bb`, 15:53). `zsh tools/deploy/deploy.sh 00008130-001230A92678001C` from
@@ -1021,6 +1218,27 @@ radial zone would let a big rudder input leak a small throttle change.
 this lane's commits (75b275b and the follow-up), INCLUDING the `activeInputHandler: 2` line. Their Touch
 controllers go through `UnityEngine.XR.InputDevices` and are not `Gamepad`s, so the two do not collide. Not
 built for Quest here.
+
+
+### 2026-11-02 lane/claude-rig-trim — fleet rigged for hands-off level flight at 75 % power (Claude)
+- Commits: aba9ac47 rig model + RigSolver (TailSlipstream/PropulsionForces lifted out of Aircraft verbatim; with the rig
+  zeroed the P-51 formation run reproduces the branch point to the decimetre, so the refactor is behaviour-neutral),
+  b7039178 configs + RigTool + RigTests, 2c7b38ff in-air start on the rig at 75 %, 89cf257e glide table regenerated.
+- New tests (RigTests, 190 cases, all pass): EveryConfigIsInTheTable; ConfigRigMatchesTheHandCopiedTable ×34 (hand-copied
+  literals); ModelStillAsksForTheSameRig ×34 (fresh solve vs stored); HandsOffLevelAtRigPower ×29 (after 20 s, over 40 s:
+  rates ≤ 0.04 °/s vs band 0.25, sideslip ≤ 0.007° vs 0.2, altitude within 0.2 m vs 15, heading ≤ 0.42°);
+  HandsOffAtBestGlide ×5; PowerAwayFromTheRigYawsAndRollsTheRightWay ×27; PositiveRigRollsAndYawsRight;
+  CounterRotatingTwinBarelyFeelsPower; RigStillNearlyHandsOffAtTheStartAltitudes ×58 (probe, RIG_PROBE=1).
+- Full suite, 0d5a3ef vs lane (busy Mac, both runs while other lanes built): 115 unique failing names vs 127. Newly
+  failing in the full run: 14. Re-run alone: 12 pass (FormationTests DC-3, GlideTable was stale -> regenerated,
+  LandingGearTests ×5, NoseSkid, ReversibleControl ×2, SpinTests ×3, TipWheel: suite coupling). Real: GlideTable
+  (stale, regenerated in 89cf257e, now passes) and FormationTests P-51 (RMS 27.2 m vs 25 m; diagnosis in NEEDS YOU).
+  No longer failing: FloatsOnLandTests.SlidesToAStopOnPavement, TrimConvergenceTests.TrimmedGliderStaysBoundedThroughSimLoop.
+- Merged into lane/claude-island-nav at bf345f42 (AGENT-LOG conflict only: both lanes' entries kept; the superseded
+  first-pass gamepad entry dropped as HEAD had). Merged tree: RigTests + GlideTable + PropEffects 194/194 pass.
+  Lane build (NOINSTALL) ** BUILD SUCCEEDED ** 0 error CS (bundleVersion 2026.1102.1740, reverted); island-nav deploy
+  ** BUILD SUCCEEDED ** 0 error CS, bundleVersion 2026.1102.1749 (reverted): installed + launched on Ty's iPad mini;
+  iPad Air locked (devicectl error 10003); iPhone unavailable, not attempted.
 
 ### 2026-11-02 — Claude · lane/claude-gamepad-ios · gamepads (8BitDo Pro 2 / MFi) fly the aeroplane on iOS
 **Ty: an 8BitDo Pro 2 paired to the iPhone, "nothing works."**

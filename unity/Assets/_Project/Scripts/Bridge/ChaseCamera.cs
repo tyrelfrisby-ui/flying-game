@@ -142,10 +142,13 @@ namespace FlyingGame.Bridge
             // offset the distance itself carries that (owner: "a little too close" at 0.75 span).
             // Sized by the larger of span and length (owner 2026-10-07: "the H-4 is huge and needs a wider zoom" — the old
             // 66 m cap framed its 98 m span from inside the wing). Small types are unchanged (span governs, ≥ 11 m).
-            float size = Mathf.Max(spanM, LengthM * 1.15f);
-            Distance = Mathf.Clamp(size * 1.3f, 11f, 200f);   // owner 2026-09-10: "zoom out just a little" (was 1.15 span)
-            Height = Distance * 0.22f;
-            OverrideDistance = Mathf.Max(16f, Distance * 1.15f);
+            // Ty 2026-11-02: "zoom out a bit on all airplanes … use 50% more distance" — ChaseFraming.ZoomOut (1.5) on top
+            // of the old fit (owner 2026-09-10: "zoom out just a little", was 1.15 span); height keeps the same fraction, so
+            // the aircraft stays where it was on the screen. The bailed-out pilot's framing keeps the old base distance.
+            float baseDistance = (float)FlyingGame.Core.ChaseFraming.BaseDistanceM(spanM, LengthM);
+            Distance = (float)FlyingGame.Core.ChaseFraming.FollowDistanceM(spanM, LengthM);
+            Height = (float)FlyingGame.Core.ChaseFraming.FollowHeightM(Distance);
+            OverrideDistance = Mathf.Max(16f, baseDistance * 1.15f);
             OverrideHeight = OverrideDistance * 0.19f;   // 16 m / 3 m before
         }
         /// <summary>Airframe length (m), nose to tail.</summary>
@@ -161,6 +164,13 @@ namespace FlyingGame.Bridge
                 Vector3 d = Target != null ? transform.position - Target.position : -transform.forward;
                 _lockDir = d.sqrMagnitude > 1e-4f ? d.normalized : -transform.forward;
                 _beforeLock = CurrentView;
+            }
+            // Entering the cockpit: eye point, looking forward (Ty, 2026-11-02: "all he sees is sky"). Whatever the
+            // look was left at -- a snap over the shoulder, a device offset -- does not carry into a fresh selection.
+            if (v == View.Cockpit && CurrentView != View.Cockpit)
+            {
+                if (Cockpit == null) Cockpit = Driver != null ? Driver.GetComponent<CockpitView>() : null;
+                if (Cockpit != null) Cockpit.OnEnterCockpitView();
             }
             CurrentView = v;
             _flyValid = false;
@@ -392,7 +402,8 @@ namespace FlyingGame.Bridge
 
         private void PlaceCamera()
         {
-            // Portrait: the view is the area above the control tray (ScreenLayout); landscape: full screen.
+            // Portrait: the view is the area above the control tray (ScreenLayout); landscape, or any orientation with a
+            // gamepad connected (the touch sticks hidden, Ty 2026-11-02): full screen.
             // Re-evaluated every frame so an autorotation mid-flight takes effect immediately.
             _cam ??= GetComponent<Camera>();
             if (_cam != null)

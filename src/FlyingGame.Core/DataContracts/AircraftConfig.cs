@@ -53,6 +53,10 @@ public sealed class AircraftConfig
     public List<SurfaceConfig> Surfaces { get; set; } = new();
     public Dictionary<string, AirfoilTableData> AirfoilTables { get; set; } = new();
     public ControlsConfig Controls { get; set; } = new();
+    /// <summary>How the airframe is RIGGED: the aileron neutral offset and the fin offset that make it fly straight hands
+    /// off at the rig condition (owner 2026-11-02: level at 75 % power). Fixed geometry, solved by RigSolver and written
+    /// here by RigTool; absent = an unrigged, symmetric airframe.</summary>
+    public RigConfig Rig { get; set; } = new();
     public FuselageConfig Fuselage { get; set; } = new();
     /// <summary>How the airframe is built, for what a crash in water does to it (Core/Wreck): skin covering and
     /// cockpit openings. Optional; absent means a riveted aluminium skin and an enclosed cabin with a windshield and
@@ -260,6 +264,37 @@ public sealed class AirfoilTableData
     public double[] Cl { get; set; } = System.Array.Empty<double>();
     public double[] Cd { get; set; } = System.Array.Empty<double>();
     public double[] Cm { get; set; } = System.Array.Empty<double>();
+}
+
+/// <summary>
+/// The airframe's RIGGING (owner 2026-11-02: "trim/rig all of the airplanes for hands off level 75% power"). These are
+/// angles the aeroplane is built with, like a real one's — not a control input and not a controller:
+///  - <see cref="AileronRad"/>: where both ailerons sit, relative to the stick, with the stick centred. Same sign as the
+///    aileron deflection (positive = the deflection a positive stick commands). It is what bending the aileron's
+///    fixed tab, or re-rigging the aileron neutral, does on the real aeroplane.
+///  - <see cref="FinOffsetRad"/>: the fin's (and the rudder hinged to it) incidence to the centreline. Positive =
+///    leading edge LEFT, trailing edge RIGHT, which pushes the tail left and yaws the nose RIGHT — the offset a
+///    clockwise-from-behind propeller needs.
+/// Both are solved together with the elevator trim by RigSolver for steady, straight, level flight at
+/// <see cref="ThrottleFraction"/> of rated power at <see cref="AltitudeM"/> ISA, with the stick and rudder centred,
+/// zero sideslip and zero rates; RigTool writes the result here. The remaining fields record that condition and the
+/// solution so a reader can see what the rig was set for; the sim reads only the two angles.
+/// </summary>
+public sealed class RigConfig
+{
+    public double AileronRad { get; set; }
+    public double FinOffsetRad { get; set; }
+
+    /// <summary>Shaft power fraction the rig is set for (PropModel: power = MaxPowerW × throttle; a jet's thrust).</summary>
+    public double ThrottleFraction { get; set; }
+    /// <summary>ISA pressure altitude of the rig condition, m.</summary>
+    public double AltitudeM { get; set; }
+    /// <summary>The solved condition: true airspeed (m/s), angle of attack, elevator, and the bank that balances the
+    /// fin's small side force with zero sideslip (all rad). The elevator here is the hands-off trim at that condition.</summary>
+    public double TasMs { get; set; }
+    public double AlphaRad { get; set; }
+    public double ElevatorTrimRad { get; set; }
+    public double BankRad { get; set; }
 }
 
 public sealed class ControlsConfig

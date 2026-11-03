@@ -157,7 +157,9 @@ public sealed class CockpitLook
     /// happens to be sitting.</summary>
     public void Recentre(Quat deviceAttitude)
     {
-        _reference = deviceAttitude.Normalized();
+        // An attitude the device has not actually measured yet is no zero at all (see IsUnsampled): leave the
+        // reference empty so the FIRST REAL reading becomes straight ahead, instead of "lying flat on a table".
+        _reference = IsUnsampled(deviceAttitude) ? null : deviceAttitude.Normalized();
         _deviceYaw = 0.0;
         _devicePitch = 0.0;
         Centre();
@@ -172,6 +174,23 @@ public sealed class CockpitLook
         _devicePitch = 0.0;
     }
 
+    /// <summary>
+    /// TRUE WHEN THE DEVICE HAS NOT MEASURED ANYTHING YET (Ty, 2026-11-02, iPhone, build 2026.1102.1603: "cockpit view
+    /// is all sky"). Unity's <c>Input.gyro.attitude</c> reads EXACTLY the identity -- the phone lying flat, screen up --
+    /// from the moment the gyro is switched on until CoreMotion delivers its first sample, a frame or more later. The
+    /// view used to zero against that placeholder at start-up, so a phone then held up in landscape read as its back
+    /// having swung from straight down to level: about +90 degrees of pitch, times the gain (Ty's 4.9), clamped at
+    /// <see cref="MaxPitchUpDeg"/> -- the view parked looking up. A real attitude is never bit-exact identity (sensor
+    /// noise alone moves the last digits), and a zero-length or non-finite one is no attitude either.
+    /// </summary>
+    public static bool IsUnsampled(Quat q)
+    {
+        if (!double.IsFinite(q.X) || !double.IsFinite(q.Y) || !double.IsFinite(q.Z) || !double.IsFinite(q.W)) return true;
+        double n = q.X * q.X + q.Y * q.Y + q.Z * q.Z + q.W * q.W;
+        if (n < 1e-12) return true;
+        return q.X == 0.0 && q.Y == 0.0 && q.Z == 0.0;
+    }
+
     /// <summary>True once the device has a zero to measure against.</summary>
     public bool HasReference => _reference.HasValue;
 
@@ -180,6 +199,8 @@ public sealed class CockpitLook
     /// itself rather than swinging the view by however the phone happened to be lying.</summary>
     public void FromDevice(Quat deviceAttitude)
     {
+        // No measurement yet: nothing to follow, and above all nothing to zero against (see IsUnsampled).
+        if (IsUnsampled(deviceAttitude)) return;
         Quat now = deviceAttitude.Normalized();
         if (!_reference.HasValue)
         {

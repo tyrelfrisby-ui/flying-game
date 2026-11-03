@@ -40,6 +40,7 @@ public static class Landmarks
     {
         WorldSolids.Boxes.Clear();
         WorldSolids.Shapes.Clear();
+        WorldSolids.Version++;
         // The cities' low-rise is registered by the visual builder as it draws it (UrbanLowRise), which it
         // does for the plateau cities BEFORE this runs -- so nothing is cleared or staked out here, only
         // hung back on the solids list this method just emptied.

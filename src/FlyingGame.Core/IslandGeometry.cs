@@ -5,7 +5,7 @@ namespace FlyingGame.Core;
 /// Event, scoring, AI, runway selection and weather remain outside this world-owned layer.</summary>
 public static class IslandGeometry
 {
-    public sealed class Block : WorldSolids.IShape, WorldDecks.IDeck
+    public sealed class Block : WorldSolids.IShape, WorldDecks.IDeck, WorldSolids.IBounded
     {
         public readonly string Id, Material;
         public readonly double X, Y, Bottom, Top, Length, Width, Heading;
@@ -27,6 +27,11 @@ public static class IslandGeometry
             normalNed = depth == dt ? new Vec3(0, 0, -1) : depth == db ? new Vec3(0, 0, 1) : depth == da ? new Vec3(Math.Sign(a) * Math.Cos(h), Math.Sign(a) * Math.Sin(h), 0) : new Vec3(-Math.Sign(c) * Math.Sin(h), Math.Sign(c) * Math.Cos(h), 0);
             return true;
         }
+        public void Bounds(out double minX, out double minY, out double minUp, out double maxX, out double maxY, out double maxUp)
+        {
+            double h = Heading * Math.PI / 180, ex = Math.Abs(Math.Cos(h)) * Length / 2 + Math.Abs(Math.Sin(h)) * Width / 2, ey = Math.Abs(Math.Sin(h)) * Length / 2 + Math.Abs(Math.Cos(h)) * Width / 2;
+            minX = X - ex - 0.01; maxX = X + ex + 0.01; minY = Y - ey - 0.01; maxY = Y + ey + 0.01; minUp = Bottom; maxUp = Top;
+        }
     }
     public sealed class Slope : WorldDecks.IDeck, WorldSolids.IShape
     {
@@ -46,7 +51,7 @@ public static class IslandGeometry
             depth=(top-up)/Math.Sqrt(1+Grade*Grade); return true;
         }
     }
-    public sealed class Cable : WorldSolids.IShape
+    public sealed class Cable : WorldSolids.IShape, WorldSolids.IBounded
     {
         public readonly string Id, Material; public readonly Vec3 A, B; public readonly double Radius;
         public Cable(string id, string material, Vec3 a, Vec3 b, double radius) { Id = id; Material = material; A = a; B = b; Radius = radius; }
@@ -54,6 +59,11 @@ public static class IslandGeometry
         {
             var p = new Vec3(x, y, -up); var ab = B - A; double t = Math.Clamp(Vec3.Dot(p - A, ab) / Math.Max(1e-12, Vec3.Dot(ab, ab)), 0, 1); var delta = p - (A + ab * t); double d = delta.Length;
             depth = Radius - d; normalNed = d > 1e-9 ? delta / d : new Vec3(0, 0, -1); return depth >= 0;
+        }
+        public void Bounds(out double minX, out double minY, out double minUp, out double maxX, out double maxY, out double maxUp)
+        {
+            minX = Math.Min(A.X, B.X) - Radius; maxX = Math.Max(A.X, B.X) + Radius; minY = Math.Min(A.Y, B.Y) - Radius; maxY = Math.Max(A.Y, B.Y) + Radius;
+            minUp = Math.Min(-A.Z, -B.Z) - Radius; maxUp = Math.Max(-A.Z, -B.Z) + Radius;
         }
     }
     public readonly struct Ring
@@ -110,7 +120,7 @@ public static class IslandGeometry
         foreach (var c in Cables) WorldSolids.Shapes.Add(c);
         foreach (var a in Arches) WorldSolids.Shapes.Add(new CanyonLake.ArchSolid(a));
         foreach (var r in Rings) WorldSolids.Shapes.Add(new FlyCity.TorusSolid(r.Centre.X, r.Centre.Y, r.Up, r.Radius, 1.4, r.Spinning ? (double?)null : r.Heading * Math.PI / 180));
-        WorldSolids.Shapes.Add(new IslandCavities.Roof()); Carrier.Register(); Forest.RegisterSolids();
+        WorldSolids.Shapes.Add(new IslandCavities.Roof()); Carrier.Register(); Forest.RegisterSolids(); WorldSolids.Version++;
     }
     private static void BuildAirparks()
     {

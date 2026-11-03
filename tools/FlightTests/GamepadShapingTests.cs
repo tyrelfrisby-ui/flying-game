@@ -151,13 +151,24 @@ public sealed class GamepadShapingTests
 
     [Theory]
     [InlineData(0.0, 0.0)]
-    [InlineData(0.06, 0.0)]       // inside the dead zone: the lever holds
-    [InlineData(0.535, 0.5)]      // (0.535 − 0.07) / 0.93, and NO expo on top
-    [InlineData(-0.535, -0.5)]
+    [InlineData(0.24, 0.0)]       // inside the Quest's 0.25 dead zone: the lever holds
+    [InlineData(0.625, 0.5)]      // (0.625 − 0.25) / 0.75, and NO expo on top
+    [InlineData(-0.625, -0.5)]
     [InlineData(1.0, 1.0)]
     [InlineData(-1.0, -1.0)]
     public void ThrottleStickIsLinearWithADeadZone(double y, double expected) =>
         Assert.Equal(expected, GamepadShaping.ThrottleRate(y), Tol);
+
+    [Fact]
+    public void FullStickTakesTheLeverFromIdleToFullInTwoSecondsAsOnTheQuest()
+    {
+        Assert.Equal(0.25, GamepadShaping.ThrottleStickDeadZone);
+        double idle = -0.5, full = 1.0, rate = GamepadShaping.StickLeverRatePerSec(idle, full), lever = idle;
+        int frames = 0;
+        while (lever < full && frames < 1000) { lever = GamepadShaping.Lever(lever, GamepadShaping.ThrottleRate(1.0), false, false, rate, 0.8, 1.0 / 60, idle, full); frames++; }
+        Assert.InRange(frames, 119, 121);   // 2 s at 60 Hz
+        Assert.Equal(0.5, GamepadShaping.StickLeverRatePerSec(0.0, 1.0), Tol);   // the Quest's 0…1 lever: 0.5 a second
+    }
 
     [Fact]
     public void ThrottleRateIsMonotonic()

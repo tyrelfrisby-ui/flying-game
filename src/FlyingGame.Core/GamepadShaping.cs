@@ -89,7 +89,16 @@ public static class GamepadShaping
     /// lever moves, not a control surface, and a deflection of half should move it at half speed.
     /// Returns −1…1, a fraction of the full rate; the shoulder buttons add a fixed rate of their own.
     /// </summary>
-    public static double ThrottleRate(double leftStickY, double deadZone = DefaultStickDeadZone) => DeadZone(leftStickY, deadZone);
+    public static double ThrottleRate(double leftStickY, double deadZone = ThrottleStickDeadZone) => DeadZone(leftStickY, deadZone);
+
+    /// <summary>The throttle stick's dead zone — the Quest's (<c>QuestControls.ThrottleDeadZone</c>). Ty 2026-11-02: the iOS
+    /// gamepad throttle must match the Quest; a rate needs a wide zone, since a resting stick's drift would creep the power.</summary>
+    public const double ThrottleStickDeadZone = 0.25;
+    /// <summary>Full left stick takes the lever from idle to full in this long — the Quest's (0.5 of the lever a second).</summary>
+    public const double ThrottleIdleToFullS = 2.0;
+
+    /// <summary>The stick's full rate (lever units a second) for a lever whose idle and full ends are given.</summary>
+    public static double StickLeverRatePerSec(double idle, double full) => Math.Abs(full - idle) / ThrottleIdleToFullS;
 
     /// <summary>
     /// Undo a dead zone that will be applied AGAIN downstream. The aeroplane already zones every control once
@@ -117,4 +126,11 @@ public static class GamepadShaping
         if (rate == 0.0) return current;
         return Math.Clamp(current + rate * Math.Max(0.0, dt), min, max);
     }
+    /// <summary>
+    /// Whether the on-screen touch STICKS (the two pads, or a lesson's tall strips, and the trim slider / trim bars)
+    /// are shown and grabbable. Owner 2026-11-02: with a gamepad connected they are hidden entirely; with none
+    /// connected (the default) they are there. A desk (Mac) build never has them. Evaluated every frame from the
+    /// live pad state, so plugging in or dropping a controller flips it on the next frame.
+    /// </summary>
+    public static bool TouchSticksShown(bool deskMode, bool gamepadConnected) => !deskMode && !gamepadConnected;
 }

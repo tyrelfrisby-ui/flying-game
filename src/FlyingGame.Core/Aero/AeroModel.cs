@@ -526,6 +526,10 @@ public static class AeroModel
                 }
 
                 double controlDeflRad = strip.Control is null ? 0.0 : controls.GetDeflection(strip.Control.Surface);
+                // RIGGING (RigConfig): the ailerons' neutral sits AileronRad off the stick's, and the whole fin, rudder and
+                // all, is set FinOffsetRad to the centreline. Built into the airframe; zero on an unrigged type.
+                if (strip.Control is not null && strip.Control.Surface == "aileron") controlDeflRad += config.Rig.AileronRad;
+                double stripIncidence = strip.IncidenceRad + (isVertical ? config.Rig.FinOffsetRad : 0.0);
                 string sectionKey = SectionTableKey(config, surfaceIndex) ?? strip.Airfoil;
                 if (!airfoilTables.TryGetValue(sectionKey, out AirfoilTable? table))
                 {
@@ -628,7 +632,7 @@ public static class AeroModel
                     flapStallShift = 0.2 * strip.Flap.MaxDeltaAlphaRad * ff; // stalls ~3° earlier at full flap
                 }
 
-                double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
+                double alpha = alphaBase + stripIncidence + controlDeltaAlpha;
 
                 // WING SWEEP: only the chord-normal flow component makes lift (independence principle).
                 // A swept strip at geometric alpha behaves like a straight strip at a reduced effective
@@ -756,7 +760,7 @@ public static class AeroModel
                     // Reversible controls: the flow a free surface trails in — the fixed surface's local angle (downwash,
                     // slipstream, sideslip, rates all included), sign-reversed in tail-first flow, and its own q. Not capped at the
                     // stall any more (owner 2026-10-12): past it the free surface weathervanes (Aircraft.HingeTerms).
-                    flowState.HingeAlphaRad[idx] = Math.Clamp(alphaBase + strip.IncidenceRad, -0.5 * Math.PI, 0.5 * Math.PI) * chordwiseFactor;
+                    flowState.HingeAlphaRad[idx] = Math.Clamp(alphaBase + stripIncidence, -0.5 * Math.PI, 0.5 * Math.PI) * chordwiseFactor;
                     flowState.HingeQ[idx] = q;
                     flowState.HingeFlowDir[idx] = chordwiseFactor;
                 }
