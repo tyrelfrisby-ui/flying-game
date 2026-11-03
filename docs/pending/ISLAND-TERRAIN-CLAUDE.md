@@ -518,6 +518,50 @@ below, Gravel on boulders; (2) heights on the ice (undulation, crevasses, seracs
 format IRL1 → IRL2 (both still decode); (5) the chart colours bare ice (196, 214, 228). The chart raster reads
 `SurfaceAt`, so it shows the new classes with no other change.
 
+### 12.7 Glacier landings on plain snow; strips and snow sites lie naturally (Ty, 2026-11-03)
+
+**"The runway on the glacier"** was Knik's river bar F13 (−6.7, 0.3), 250 m from the ski zone at the glacier's
+foot: a painted 520 × 52 m tan "clean lane" between eight ruled braid lines 25 m apart, in a 700 × 240 m gravel
+rectangle cut out of the forest, running straight up to the zone's stamped 300 m snow disc. Now:
+
+* **Ski zones** are snowfields lying along their glacier's path (zone length + 150 m, width + 180 m), edge wandering on
+  90 m and 35 m value noise and fading over ~100 m (`Surfaces.cs`); always full snow over the 150 m landing core
+  (physics unchanged: `SurfaceAt` Snow, ski 0.055); the snow ends at a river bar.
+* **F13's lane is not painted** (F14 and F15 keep theirs: not glaciers). The lane is still there for the gear — the
+  braids keep out of it. Braids wander (3.5 m beside the lane, 12 and 18 m outside, ~150 and ~370 m wavelengths) and
+  start and end on their own (`IslandWater.BraidOffsetKm/BraidSpanKm`, one function for physics, reference and
+  mesh); the bar's open gravel is a wandering lens, not a rectangle (`IslandWater.GravelBar`).
+* The legacy `Terrain.shader` (the Alaska-range world, no longer built) loses its painted 800 × 80 m LZ: only a soft,
+  wandering crack-free area remains.
+* **Chunk-seam dashes**: skirts are now two-sided, so a T-junction gap seen from the far side shows the ground's own
+  shading, not the dark beyond.
+
+**Natural lie** ("i don't even want them to be perfectly flat same for grass runways"): one `NaturalShape` in the
+height function (scalar and analytic jet; `TerrainJet` gains Sin/Cos), multiplied by cos² of the along-fraction so it
+is zero, with zero slope, at both ends — thresholds and TDZEs do not move. Kinds in turn: **banana** (a sag of 0.18 %
+of the length, 0.4–2.0 m, and a cross-fall that swings side to side), **crest** (0.25 % of the length, 0.6–2.8 m,
+skewed), **rolling** (0.3–0.5 m on 100–160 m and 220–340 m). Added grade ≤ 1 % (banana, crest), ≤ 2.6 % (rolling).
+
+| Site | Lie |
+|---|---|
+| 3U2 19/1 (turf) | banana 2.09 m |
+| KMEV 13G/31G | crest 1.71 m |
+| AP1 | rolling 0.35 m |
+| AP3 | banana 1.49 m |
+| AP4 | crest 1.25 m |
+| AP5 | rolling 0.35 m |
+| AP6 | banana 1.18 m |
+| AP8 | crest 2.00 m — from 1.8 m above one threshold the far end is hidden by 1.3 m |
+| AP14 | rolling 0.33 m |
+| Sulphur Creek (turf) | banana 1.92 m |
+| Knik ski zone | banana 0.97 m (added after its pad) |
+| Fairweather ski zone | crest 1.15 m (added after lesson 3's box floor, which holds the zone at 1,300 ft) |
+| SP1 / SP2 / SP3 / SP4 | crest 0.58 / banana 0.49 / rolling 0.35 / crest 0.71 m (sites chosen on their planes, unmoved) |
+
+Paved, gravel, dirt and sand strips, Drake's (which runs into the cave) and the rock ledges stay as they were. The
+strip paint, numbers, windsock, AP3 markers and parked aircraft follow the shaped surface. A Cub rolling up AP8's
+crest and along AP1's rolls keeps its mains down and its CG height above the ground to 3 cm.
+
 ## 10. Open questions for Ty
 
 1. **Summit heights.** Frank Church 8,072 ft (was 9,020), Sierra 7,329, Chugach 5,915, Denali-like **2,176**

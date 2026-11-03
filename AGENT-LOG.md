@@ -1,4 +1,46 @@
 ## NEEDS YOU
+- **GLACIER LANDINGS ON PLAIN SNOW, AND GRASS STRIPS / SNOW SITES THAT ARE NOT TABLES (YOUR 2026-11-03 NOTES) — DONE,
+  REVIEW THE RENDERS (Claude, 2026-11-03, lane/claude-island-terrain, b125b6ba, c87ff384):**
+  1. **The "runway on the glacier" was Knik's river bar (F13), 250 m from the ski zone at the glacier's foot.** It had
+     a painted 520 × 52 m tan lane between eight ruled blue braid lines, inside a 700 × 240 m gravel rectangle cut out
+     of the forest. It ran straight up to the zone's stamped 300 m white disc.
+     - The lane paint is gone. The lane itself is still there for wheels.
+     - The braids wander and end on their own.
+     - The bar is an irregular lens.
+     - Both ski zones are now snowfields lying along their glaciers, with soft wandering edges, and no disc.
+     - F14 and F15 keep their lane paint, because they are not at glaciers.
+     - The old Alaska-range shader's painted 800 × 80 m LZ is gone too.
+     - The chunk-seam dashes near crevasses are fixed: skirts are two-sided.
+  2. **Not flat any more, in the physics as well as the picture.** Every grass/turf strip (ten; not Drake's, which
+     runs into the cave), both ski zones and the four snow patches lie as a banana, a crest or hay-field rolls, in turn.
+     - Sizes are 0.3–2.1 m on the strips, about 1 m on the ski zones and 0.35–0.7 m on the patches.
+     - The shape is zero at both ends, so thresholds and TDZEs did not move.
+     - Added grade is at most 1 % (2.6 % on the rolling ones).
+     - Example: from the AP8 threshold you cannot see the far end over its 2 m crest.
+     - A Cub rolling over it keeps its wheels down and follows the ground to 3 cm.
+     - Paved, gravel, dirt and sand strips and the rock ledges are unchanged.
+     - The full list is in `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §12.7.
+  3. **Checks:**
+     - New NaturalSurfaceTests plus all island classes: 27/27.
+     - Height evaluator vs its reference, and the analytic gradient: pass.
+     - Python parity: 1.0e-11 m. IslandCheck: 554 PASS. Continuity: 53,656 PASS. Generator: byte-identical.
+     - **Full suite: 1,059 passed / 194 failed / 3 skipped.** Other lanes' suites were running at the same time.
+       - 74 names newly failing against this lane's previous run: 38 StructuralTests, 34 SpawnSpeedTests,
+         1 TrimConvergenceTests, 1 FrankChurchTests.
+       - The first three classes pass alone (suite coupling).
+       - The FrankChurch one was real (Sulphur Creek is a turf strip that now lies as a banana) and is updated
+         deliberately (c87ff384).
+       - 10 previously failing names now pass.
+     - **`** BUILD SUCCEEDED **`** via `deploy.sh`, build 2026.1103.1055, 0 error CS. It ran with a placeholder
+       device ID, so **nothing was installed**. The bundleVersion bump is not committed.
+  4. **Renders, same cameras, before → after:**
+     - `~/Developer/agent-lanes/aero-playground/island-terrain-renders/glacier-lz-before/` → `glacier-lz-after/`
+     - Knik: 17, 37, 60, 61, plate-knik-topdown. Fairweather: 19, 62, 63, plate-fairweather-topdown.
+       Patches: 46, 47, 55, 64, 65.
+     - After only: strips 70/72/73 from the threshold. Plate 71 is too low to be useful.
+     - Listed in index.md.
+  **Your call:** the bars still read as a river with braids. If you want F13 gone from beside the glacier altogether,
+  say so. No gate is marked approved.
 - **ISLAND TERRAIN, THIRD PASS: GLACIER AND MOUNTAIN SURFACES (YOUR 2026-11-02 SPEC) — DONE, REVIEW THE RENDERS
   (Claude, 2026-11-03, lane/claude-island-terrain, commits 2b792938..6c8d45d0):** Your
   `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md`, written up in `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §12.
