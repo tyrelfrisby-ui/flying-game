@@ -1,4 +1,26 @@
 ## NEEDS YOU
+- **HUD DECLUTTER APPROVED + ENGINE ROW MOVED BELOW THE AIRPLANE — PLEASE CHECK ON BOTH DEVICES (Grok Bot, 2026-11-02, lane/codex-hud-declutter → lane/claude-island-nav):**
+  Ty (approving fe4c7f60): "put the engine instruments below the airplane. otherwise the cleanup looks good go ahead
+  and move engine instruments then push to ipad/iphone". Analog mode, chase view, powered aircraft, landscape, phone/
+  tablet only: TACH / THR / FLOW / FUEL now sit centred BELOW the aeroplane; the flight row stays at the top.
+  Controller layout: bottom of the screen, centred, pushed right of the button column only if it would touch it.
+  Touch layout: in the band between the pads; iPhone folds the centre cluster into two rows ([SMOKE | BAIL] over
+  [Reset | Aircraft | FLAPS]); iPad mini puts all buttons in ONE row along the bottom under the pads, and the narrow
+  band there puts each unit on a second line (never below MinText). Keep-out rule unchanged (buttons shrink first).
+  Unchanged: cockpit, HUD mode, gliders, portrait, lessons, Mac. Renders (iPhone 2622x1206 + new iPad mini 2266x1488
+  harness option AERO_HUDSHOTS_DEVICE=ipad): Mac ~/agent-tools/engine-below/. Known, pre-existing (B4): on the iPad
+  mini TOUCH layout the TOP flight row is wider than the band and its dials/values overlap — not touched here.
+- **HUD DECLUTTER — PICK FROM THE RENDERS, NOTHING MERGED (Grok Bot coordinating Codex, 2026-11-02, lane/codex-hud-declutter):**
+  Ty: "a lot of that stuff under the row of buttons is so small I don't even know what it is", and "in ANALOG
+  mode arrange the instruments as a neat row ... flight instruments top row, engine instruments bottom row".
+  Run A (inventory + test-only AERO_SELFTEST=hudshots iPhone-shaped capture harness), then run B (the proposal).
+  Inventory and proposal: docs/pending/HUD-DECLUTTER.md. Commits: e4ef02e5 (A), 97180276 (merge island-nav 9cb8146f),
+  19d0a37a (B1 harness), 11f91dd5 (B2), 6b9b663a (B3), fe4c7f60 (B4 = the proposal to judge).
+  Renders (iPhone 17 Pro landscape 2622x1206, touch + gamepad-connected, analog/HUD/glider/cockpit):
+  before = 19d0a37a, after = fe4c7f60; Mac copies in ~/Developer/agent-lanes/aero-playground/hud-declutter/renders/
+  (hud-before.tar, hud-after-b4.tar). Known open item: in the gamepad COCKPIT view the button column and LOOK
+  buttons still sit over the panel dials (they did before too). scripts/codex-run.sh is missing from the repo.
+  NOT merged, NOT deployed; no gate approved. Ty picks from the renders first.
 - **GAMEPAD FULL-SCREEN VIEW, CHASE ×1.5, NO MORE SLOWDOWN NEAR THE GROUND, QUEST THROTTLE — PLEASE FLY IT (Grok Bot,
   2026-11-02, lane/claude-ios-fullview, build `2026.1102.1842`):** iPad mini installed; iPhone: NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device 00008150-001629A83662401C /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
   - **Pad connected:** the 3D view fills the whole screen (no black tray where the pads were), the airplane sits in

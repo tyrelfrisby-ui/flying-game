@@ -20,6 +20,7 @@ namespace FlyingGame.Bridge
         private IEnumerator Start()
         {
             string mode = System.Environment.GetEnvironmentVariable("AERO_SELFTEST");
+            if (mode == "hudshots") { yield return HudShotsTest(); yield break; }
             if (mode == "combat") { yield return CombatTest(); yield break; }
             if (mode == "thermal") { yield return ThermalTest(); yield break; }
             if (mode == "dogfight") { yield return DogfightTest(); yield break; }
@@ -1046,6 +1047,163 @@ namespace FlyingGame.Bridge
                 if (i == 7) ScreenCapture.CaptureScreenshot("selftest-dogfight-2.png");
             }
             Debug.Log("[SelfTest] DONE dogfight");
+        }
+
+        /// <summary>Test-only iPhone-sized before renders; never called in a normal player.</summary>
+        private IEnumerator HudShotsTest()
+        {
+            // StartMenu.Start loads saved preferences. Let all Start callbacks finish before snapshotting
+            // or overriding them, independent of Unity's component Start ordering.
+            yield return new WaitForSecondsRealtime(2f);
+            // Fly persists its selections, so preserve both live static state and every preference it writes,
+            // including key absence. No ResetPrefs/SavePrefs restoration (which would create fresh-install keys).
+            var fields = typeof(SessionSettings).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            var values = new System.Collections.Generic.Dictionary<System.Reflection.FieldInfo, object>();
+            foreach (var f in fields) if (!f.IsInitOnly && !f.IsLiteral) values[f] = f.GetValue(null);
+            var aero = Object.FindFirstObjectByType<Widget.GameAeroHost>();
+            var aeroShow = aero != null ? new System.Collections.Generic.Dictionary<string, bool>(aero.Show) : null;
+            var aeroInsets = aero != null ? new System.Collections.Generic.HashSet<string>(aero.Insets) : null;
+            var restorePrefs = new System.Collections.Generic.List<System.Action>();
+            void KeepPref(string key, string type)
+            {
+                bool had = PlayerPrefs.HasKey(key);
+                int i = PlayerPrefs.GetInt(key); float n = PlayerPrefs.GetFloat(key); string t = PlayerPrefs.GetString(key);
+                restorePrefs.Add(() => { if (!had) PlayerPrefs.DeleteKey(key);
+                    else if (type == "Int") PlayerPrefs.SetInt(key, i);
+                    else if (type == "Float") PlayerPrefs.SetFloat(key, n);
+                    else PlayerPrefs.SetString(key, t); });
+            }
+            KeepPref("set.liftMarkers", "Int");
+            KeepPref("set.bubbleStreaks", "Int");
+            KeepPref("set.instruments", "Int");
+            KeepPref("set.seat", "Int");
+            KeepPref("set.aircraft", "String");
+            KeepPref("set.tug", "String");
+            KeepPref("set.startMode", "Int");
+            KeepPref("set.airport", "Int");
+            KeepPref("set.runway", "Int");
+            KeepPref("set.windFrom", "Float");
+            KeepPref("set.windSpeed", "Float");
+            KeepPref("set.turbulence", "Int");
+            KeepPref("set.isaDev", "Float");
+            KeepPref("set.thermalScale", "Float");
+            KeepPref("set.simSpeed", "Float");
+            KeepPref("set.bubbles", "Int");
+            KeepPref("set.bubbleInstancing", "Int");
+            KeepPref("set.flightPath", "Int");
+            KeepPref("set.forceVectors", "Int");
+            KeepPref("set.flightTestData", "Int");
+            KeepPref("set.atmosphereMap", "Int");
+            KeepPref("set.airframeModels", "Int");
+            KeepPref("set.ownModels", "Int");
+            KeepPref("set.otherBadges", "Int");
+            KeepPref("set.ownBadge", "Int");
+            KeepPref("set.pauseOnMenu", "Int");
+            KeepPref("set.navRadios", "Int");
+            KeepPref("set.v", "Int");
+            KeepPref("net.pilotName", "String");
+            KeepPref("net.roomCode", "String");
+            KeepPref("net.mode", "Int");
+            KeepPref("net.lanHint", "String");
+            KeepPref("net.lanNoRouter", "Int");
+            _hudShotsNavShown = NavRadios.Shown;
+            int oldW = Screen.width, oldH = Screen.height; FullScreenMode oldMode = Screen.fullScreenMode;
+            bool oldBackground = Application.runInBackground;
+            bool oldTouch = UiLayout.ForceTouchLayoutForTest, oldGamepad = GamepadInput.SimulateConnectedForTest, oldSafe = UiLayout.IPhoneSafeAreaForTest;
+            var challengeHud = Object.FindFirstObjectByType<ChallengeHud>();
+            bool oldChallenge = challengeHud != null && challengeHud.enabled;
+            string dir = System.Environment.GetEnvironmentVariable("AERO_SHOT_DIR");
+            if (string.IsNullOrEmpty(dir)) dir = Application.persistentDataPath;
+            if (!System.IO.Path.IsPathRooted(dir)) throw new System.ArgumentException("AERO_SHOT_DIR must be absolute");
+            System.IO.Directory.CreateDirectory(dir);
+            try
+            {
+                Application.runInBackground = true;
+                UiLayout.ForceTouchLayoutForTest = UiLayout.IPhoneSafeAreaForTest = true;
+                // ChallengeHud's desktop-only keyboard hint uses Input.touchSupported rather than DeskMode.
+                // No challenge is running; suppress that component to match the phone's empty free-flight state.
+                if (challengeHud != null) challengeHud.enabled = false;
+                SessionSettings.ChallengeId = null; SessionSettings.Multiplayer = SessionSettings.MultiplayerMode.Solo;
+                SessionSettings.StartMode = SessionSettings.Start.InTheAir; SessionSettings.SimSpeed = 1f;
+                SessionSettings.BubblesOn = SessionSettings.ShowForceVectors = SessionSettings.ShowFlightPath = false;
+                SessionSettings.FlightTestData = SessionSettings.ShowAtmosphereMap = false;
+                SessionSettings.LiftMarkers = SessionSettings.Tri.Off;
+                SessionSettings.UseAirframeModels = true; SessionSettings.UseOwnModels = false; SessionSettings.Seat = SessionSettings.CockpitSeat.Rear;
+                SessionSettings.WindFromDeg = 90f; SessionSettings.WindSpeedMs = 5f;
+                SessionSettings.TurbulenceLevel = 0; SessionSettings.IsaDeviationC = 0f; SessionSettings.ThermalScale = 1f;
+                SessionSettings.AirportIndex = FlyingGame.Core.WorldTerrain.DefaultAirportIndex;
+                SessionSettings.Runway = SessionSettings.RunwayPick.Headwind;
+                if (aero != null)
+                {
+                    // Only visibility; no Save(), so parity preferences are never rewritten.
+                    foreach (var key in new System.Collections.Generic.List<string>(aero.Show.Keys)) aero.Show[key] = false;
+                    aero.Insets.Clear();
+                }
+                NavRadios.Shown = true;
+                yield return new WaitForSecondsRealtime(2f);
+                int passes = System.Environment.GetEnvironmentVariable("AERO_HUDSHOTS_PORTRAIT") == "1" ? 2 : 1;
+                for (int pass = 0; pass < passes; pass++)
+                {
+                    bool portrait = pass == 1; string orient = portrait ? "portrait" : "landscape";
+                    // AERO_HUDSHOTS_DEVICE=ipad: iPad mini (2266x1488 at 2x, no notch, 20 pt home indicator) instead of the iPhone.
+                    bool ipad = System.Environment.GetEnvironmentVariable("AERO_HUDSHOTS_DEVICE") == "ipad";
+                    UiLayout.IPadSafeAreaForTest = ipad;
+                    int lo = ipad ? 1488 : 1206, hi = ipad ? 2266 : 2622;
+                    int w = portrait ? lo : hi, h = portrait ? hi : lo;
+                    if (ipad) orient += "-ipad";
+                    Screen.SetResolution(w, h, FullScreenMode.Windowed);
+                    yield return new WaitForSecondsRealtime(2f);
+                    Debug.Log(ipad ? $"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; iPad mini safe L/R 0 top 0 bottom 40 px"
+                                   : $"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; safe L/R {(portrait ? 0 : 186)} top {(portrait ? 186 : 0)} bottom 63 px (62pt/21pt at 3x)");
+                    foreach (bool gamepad in new[] { false, true })
+                    {
+                        string layout = gamepad ? "gamepad" : "touch";
+                        foreach (var mode in new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud })
+                            yield return HudShot("c172-like", mode, gamepad, ChaseCamera.View.RelativeWind,
+                                $"hud-{mode.ToString().ToLowerInvariant()}-{layout}-{orient}.png", dir);
+                        yield return HudShot("glider-2-33-like", SessionSettings.InstrumentMode.Analog, gamepad, ChaseCamera.View.RelativeWind,
+                            $"hud-analog-{layout}-{orient}-glider.png", dir);
+                        yield return HudShot("c172-like", SessionSettings.InstrumentMode.Analog, gamepad, ChaseCamera.View.Cockpit,
+                            $"hud-analog-{layout}-{orient}-cockpit.png", dir);
+                    }
+                }
+            }
+            finally
+            {
+                foreach (var kv in values) kv.Key.SetValue(null, kv.Value);
+                foreach (var restore in restorePrefs) restore(); PlayerPrefs.Save();
+                NavRadios.Shown = _hudShotsNavShown;
+                if (aero != null)
+                {
+                    foreach (var kv in aeroShow) aero.Show[kv.Key] = kv.Value;
+                    aero.Insets.Clear(); foreach (var key in aeroInsets) aero.Insets.Add(key);
+                }
+                UiLayout.ForceTouchLayoutForTest = oldTouch; GamepadInput.SimulateConnectedForTest = oldGamepad; UiLayout.IPhoneSafeAreaForTest = oldSafe; UiLayout.IPadSafeAreaForTest = false;
+                if (challengeHud != null) challengeHud.enabled = oldChallenge;
+                Screen.SetResolution(oldW, oldH, oldMode); Application.runInBackground = oldBackground;
+                SessionSettings.ApplyTimeScale();
+            }
+            Debug.Log("[SelfTest] DONE hudshots");
+            if (System.Environment.GetEnvironmentVariable("AERO_SELFTEST_QUIT") == "1") Application.Quit();
+        }
+
+        private bool _hudShotsNavShown;
+        private IEnumerator HudShot(string aircraft, SessionSettings.InstrumentMode mode, bool gamepad, ChaseCamera.View view, string name, string dir)
+        {
+            SessionSettings.AircraftId = aircraft; SessionSettings.Instruments = mode;
+            GamepadInput.SimulateConnectedForTest = gamepad;
+            Menu.Fly(); Chase.SetView(view);
+            yield return new WaitForSecondsRealtime(4f);
+            yield return new WaitForEndOfFrame();
+            // Synchronous PNG write after the complete IMGUI frame, so DONE/QUIT cannot race CaptureScreenshot.
+            var shot = ScreenCapture.CaptureScreenshotAsTexture();
+            try
+            {
+                string path = System.IO.Path.Combine(dir, name);
+                System.IO.File.WriteAllBytes(path, shot.EncodeToPNG());
+                Debug.Log($"[SelfTest] hudshots wrote {path}");
+            }
+            finally { if (shot != null) Object.Destroy(shot); }
         }
 
         private float _worst;
