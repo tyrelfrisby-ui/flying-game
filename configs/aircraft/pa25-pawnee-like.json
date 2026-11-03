@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "pa25-pawnee-like",
   "displayName": "Pawnee-like Tow Plane",
+  "wingBracing": "strut",
   "spawnIasMs": 45,
   "mass": {
     "massKg": 907,

@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "pa18-bush-like",
   "displayName": "Super Cub-like, Bushwheels",
+  "wingBracing": "strut",
   "spawnIasMs": 32,
   "mass": {
     "massKg": 819,

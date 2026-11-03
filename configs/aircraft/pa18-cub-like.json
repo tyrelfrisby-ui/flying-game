@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "pa18-cub-like",
   "displayName": "Super Cub-like",
+  "wingBracing": "strut",
   "spawnIasMs": 35,
   "mass": {
     "massKg": 794,

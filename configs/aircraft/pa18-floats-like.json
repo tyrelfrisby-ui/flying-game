@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "pa18-floats-like",
   "displayName": "Super Cub-like on Floats",
+  "wingBracing": "strut",
   "spawnIasMs": 33,
   "mass": {
     "massKg": 909,

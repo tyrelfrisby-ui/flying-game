@@ -33,7 +33,7 @@ public class ContactPatchTests : IDisposable
     {
         Quat att = Roll(bankDeg * Deg);
         double low = double.MaxValue;
-        foreach (ContactPoint p in AirframeContact.BuildPoints(c)) low = Math.Min(low, -att.Rotate(p.Body - c.Mass.CgVec()).Z);
+        foreach (ContactPoint p in AirframeContact.BuildPoints(c)) if (!p.PropDisc) low = Math.Min(low, -att.Rotate(p.Body - c.Mass.CgVec()).Z);
         return new Aircraft(c, new RigidBodyState(new Vec3(0, 0, low - 0.02), att, att.Conjugate().Rotate(new Vec3(fwdMs, 0, sinkMs)), Vec3.Zero), ControlDeflections.Neutral);
     }
 
@@ -62,6 +62,18 @@ public class ContactPatchTests : IDisposable
     }
 
     [Fact]
+    public void AFlatStripWingStillRisesAlongItsDihedral()
+    {
+        // The 2-33's strips all sit at z −0.30 with dihedral 0.05 rad in dihedralRad only: its tip (outer strip y 7.722,
+        // chord 0.645, area 0.062 → edge 7.770) is 7.770·tan 0.05 = 0.389 m higher, at z −0.689 — above its tip skid
+        // (gear z −0.44), so the wing rests on the skid, not on its own tip.
+        var pts = AirframeContact.BuildPoints(Load("glider-2-33-like"));
+        ContactPoint le = pts.First(p => p.Name == "tip:wing-LE-R");
+        Assert.Equal(7.770, le.Body.Y, 2);
+        Assert.Equal(-0.689, le.Body.Z, 2);
+    }
+
+    [Fact]
     public void PittsLowerWingtipNoLongerPenetratesTheGround()
     {
         var c = Load("pitts-s2b-like");
@@ -76,8 +88,8 @@ public class ContactPatchTests : IDisposable
         {
             sim.RunFor(0.01, new ControlInputs(0, 0, 0, 1.0));
             if (p.State == PanelState.Broken) break;
-            // The tip as it is now (a bent panel's tip has turned up with it).
-            Vec3 now = p.Bend(tip, p.BendRad);
+            // The tip as it is now: turned up by any set, and flexed up by the load (the series compliance).
+            Vec3 now = p.Bend(tip, p.BendRad + p.ElasticRad);   // flexed up by the load it carries
             Vec3 w = ac.State.Position + ac.State.Attitude.Rotate(now - c.Mass.CgVec());
             deepest = Math.Min(deepest, -w.Z);
             held = t;

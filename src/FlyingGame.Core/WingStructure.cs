@@ -43,13 +43,16 @@ public sealed class WingPanel
     public bool Braced;
     /// <summary>The moment per g the station's spar section was sized for, N·m.</summary>
     public double DesignNm1;
-    /// <summary>The panel's own bending stiffness at its tip, N/m (3EI/L³): in series with the contact spring.</summary>
+    /// <summary>The panel's own bending stiffness at its tip, N/m (3EI/L³), in series with the contact spring.</summary>
     public double TipStiffnessNPerM;
     public bool StrengthKnown;
 
     public PanelState State;
     /// <summary>Signed deflection about the station, rad: + = tip UP. Zero while intact.</summary>
     public double BendRad;
+    /// <summary>The ELASTIC rotation of the panel about its station under the contact force right now, rad (+ = tip up):
+    /// the tip's flex F/k_w, as a cantilever's tip slope 1.5·δ/L. It comes off with the load; <see cref="BendRad"/> stays.</summary>
+    public double ElasticRad;
     /// <summary>Largest contact bending moment the station has carried, N·m (tests / probe).</summary>
     public double PeakContactNm;
 
@@ -107,6 +110,32 @@ public static class WingStructure
         foreach (SurfaceConfig s in c.Surfaces) if (s.Id != baseId && IsWingBase(s.Id) && s.Id.Length > baseId.Length && id.StartsWith(s.Id, System.StringComparison.OrdinalIgnoreCase)) return false;
         return true;
     }
+
+    /// <summary>
+    /// Whether a surface's strip heights already contain its dihedral. The own-model biplanes' lower wings do (the Pitts's
+    /// runs z 0.528 at the root to 0.408 at the tip, as a dihedral of 0.0524 rad says it should); every other config keeps
+    /// the strips at one height and leaves the dihedral to <see cref="StripConfig.DihedralRad"/> alone.
+    /// </summary>
+    public static bool DihedralInPositions(SurfaceConfig sf)
+    {
+        StripConfig? inner = null, outer = null;
+        foreach (StripConfig st in sf.Strips)
+        {
+            if (st.Pos[1] <= 0) continue;
+            if (inner is null || st.Pos[1] < inner.Pos[1]) inner = st;
+            if (outer is null || st.Pos[1] > outer.Pos[1]) outer = st;
+        }
+        if (inner is null || outer is null || inner == outer || System.Math.Abs(outer.DihedralRad) < 1e-4) return false;
+        double expected = (outer.Pos[1] - inner.Pos[1]) * System.Math.Tan(outer.DihedralRad);
+        return System.Math.Abs((inner.Pos[2] - outer.Pos[2]) - expected) < 0.5 * System.Math.Abs(expected);
+    }
+
+    /// <summary>The chord line's height (body z) at span |y| = <paramref name="absY"/>, from strip <paramref name="st"/> of
+    /// <paramref name="sf"/>: its own height carried along its dihedral when the heights include it, otherwise risen
+    /// from the centreline by |y|·tan Γ.</summary>
+    public static double ChordZ(SurfaceConfig sf, StripConfig st, double absY) =>
+        DihedralInPositions(sf) ? st.Pos[2] - (absY - System.Math.Abs(st.Pos[1])) * System.Math.Tan(st.DihedralRad)
+                                : st.Pos[2] - absY * System.Math.Tan(st.DihedralRad);
 
     public static bool IsHingedAileron(StripConfig st) => st.Control is { Surface: "aileron" } && System.Math.Abs(st.Control.Gain) >= 0.9;
     public static double Width(StripConfig st) => st.Chord > 1e-6 ? st.Area / st.Chord : 0.3;
@@ -173,13 +202,13 @@ public static class WingStructure
                 StripConfig near = b.Strips[0];
                 foreach (StripConfig st in b.Strips)
                     if (System.Math.Sign(st.Pos[1]) == side && (System.Math.Sign(near.Pos[1]) != side || System.Math.Abs(System.Math.Abs(st.Pos[1]) - ys) < System.Math.Abs(System.Math.Abs(near.Pos[1]) - ys))) near = st;
-                double zs = near.Pos[2] - (ys - System.Math.Abs(near.Pos[1])) * System.Math.Tan(near.DihedralRad);
+                double zs = ChordZ(b, near, ys);
                 panels.Add(new WingPanel
                 {
                     Component = lower ? (side < 0 ? AirframeComponent.WingTipLowerLeft : AirframeComponent.WingTipLowerRight)
                                       : (side < 0 ? AirframeComponent.WingTipLeft : AirframeComponent.WingTipRight),
                     SurfaceId = b.Id, Side = side, Lower = lower, BreakY = ys, BreakZ = zs, TipY = tip, StationSource = why,
-                    Braced = biplane || why.StartsWith("measured"),
+                    Braced = biplane || why.StartsWith("measured") || !string.IsNullOrEmpty(c.WingBracing),
                     Strips = strips.ToArray(), AileronHinged = hinged.ToArray(), AileronFixed = fixedAil.ToArray(), AreaM2 = area,
                 });
             }

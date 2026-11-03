@@ -69,8 +69,10 @@ public sealed class ContactPoint
     /// <summary>A blade-tip station on the propeller disc. The disc is not a hard point — a turning blade cuts or curls,
     /// it cannot hold the aeroplane up — so it pushes nothing; its penetration is the prop strike (Aircraft).</summary>
     public bool PropDisc;
-    /// <summary>Contact spring and damper multiplier: a point on a flexible part (a wing panel, whose own bending
-    /// stiffness k_w is in series with the contact's k_c) presses with k_w/(k_c + k_w) of a hard point's force.</summary>
+    /// <summary>Contact spring and damper multiplier for a point on a flexible part. A wingtip is a cantilever of tip
+    /// stiffness k_w in series with the contact's k_c: it presses with k_w/(k_c + k_w) of a hard point's force for the
+    /// same approach, and the rest of that approach is the wing bending UP (WingPanel.ElasticRad) — not the ground
+    /// coming through it.</summary>
     public double StiffnessScale = 1.0;
 
     // What this point felt at the last RECORDED evaluation (a step's first RK4 stage), body frame. Zero when clear.
@@ -273,10 +275,12 @@ public static class AirframeContact
 
     /// <summary>
     /// Derive the hard points from the config geometry (Ty 2026-11-03: "the tip of every wing, tail and the prop").
-    /// Strip positions are quarter-chord points with the dihedral ALREADY in them (a Pitts lower wing runs z 0.528 at
-    /// the root to 0.408 at the tip); the tip is the outer strip's outer edge, half a strip width beyond it along the same
-    /// dihedral. Before 2026-11-03 the tip point subtracted |y|·tan Γ a second time and sat 0.15 m INSIDE the Pitts's
-    /// lower wing, at its quarter chord only — so the wing went through the ground before anything touched.
+    /// Strip positions are quarter-chord points. On the own-model biplanes' lower wings their heights ALREADY contain the
+    /// dihedral (a Pitts lower wing runs z 0.528 at the root to 0.408 at the tip); everywhere else they sit at one height
+    /// and the dihedral is only in dihedralRad (<see cref="WingStructure.ChordZ"/> tells them apart). The tip is the outer
+    /// strip's outer edge. Before 2026-11-03 the tip point always subtracted |y|·tan Γ, which on the Pitts counted the
+    /// dihedral twice and put the point 0.15 m INSIDE the lower wing, at its quarter chord only — so the wing went
+    /// through the ground before anything touched.
     /// Each wingtip is a PATCH of five points sharing one ground sample: leading edge, trailing edge, the aileron's outer
     /// trailing corner, and the lower and upper skin at 30 % chord (thickness from the airfoil). Stab tips, the fin top and
     /// the rudder heel are patches too, and the propeller is its whole disc (twelve blade-tip stations at full radius).
@@ -298,16 +302,16 @@ public static class AirframeContact
             foreach (StripConfig st in sf.Strips) if (System.Math.Sign(st.Pos[1]) == side && (o is null || System.Math.Abs(st.Pos[1]) > System.Math.Abs(o.Pos[1]))) o = st;
             return o;
         }
-        (double y, double z) Edge(StripConfig st, int side)
+        (double y, double z) Edge(SurfaceConfig sf, StripConfig st, int side)
         {
-            double hw = 0.5 * WingStructure.Width(st);
-            return (st.Pos[1] + side * hw, st.Pos[2] - hw * System.Math.Tan(st.DihedralRad));
+            double y = st.Pos[1] + side * 0.5 * WingStructure.Width(st);
+            return (y, WingStructure.ChordZ(sf, st, System.Math.Abs(y)));
         }
         void TipPatch(SurfaceConfig baseSf, IEnumerable<SurfaceConfig> controlRows, int side, AirframeComponent comp, int panel, double breakMs, string tag, bool skins)
         {
             StripConfig? tip = Outer(baseSf, side);
             if (tip is null) return;
-            (double ye, double ze) = Edge(tip, side);
+            (double ye, double ze) = Edge(baseSf, tip, side);
             double le = tip.Pos[0] + 0.25 * tip.Chord, te = tip.Pos[0] - 0.75 * tip.Chord;
             var group = new List<ContactPoint>();
             void Add(string what, double x, double y, double z) =>
@@ -318,7 +322,7 @@ public static class AirframeContact
             {
                 StripConfig? o = Outer(row, side);
                 if (o is null) continue;
-                (double yr, double zr) = Edge(o, side);
+                (double yr, double zr) = Edge(row, o, side);
                 double ter = o.Pos[0] - 0.75 * o.Chord;
                 if (ter < te - 0.01) Add("TEcorner", ter, yr, zr);
             }
@@ -359,7 +363,7 @@ public static class AirframeContact
                 {
                     double y = sign * semi * 0.45;
                     StripConfig near = root; foreach (StripConfig st in sf.Strips) if (System.Math.Abs(st.Pos[1] - y) < System.Math.Abs(near.Pos[1] - y)) near = st;
-                    double z = near.Pos[2] - (System.Math.Abs(y) - System.Math.Abs(near.Pos[1])) * System.Math.Tan(near.DihedralRad) + (near.Pos[2] < 0 ? -0.06 * near.Chord : 0.06 * near.Chord);
+                    double z = WingStructure.ChordZ(sf, near, System.Math.Abs(y)) + (near.Pos[2] < 0 ? -0.06 * near.Chord : 0.06 * near.Chord);
                     pts.Add(new ContactPoint { Body = new Vec3(near.Pos[0], y, z), Component = comp, BreakSpeedMs = 7.0, Name = comp + ":" + sf.Id });
                 }
             }
@@ -597,8 +601,13 @@ public static class AirframeContact
         nearby.Update(s.Position.X - reach, s.Position.Y - reach, -s.Position.Z - reach, s.Position.X + reach, s.Position.Y + reach, -s.Position.Z + reach);
         // One ground/water sample per patch (its points are listed together): taken where the first point that needs it is.
         int samplePatch = int.MinValue; double patchGround = 0; double? patchWater = null;
-        foreach (ContactPoint p in points)
+        // A patch is ONE contact: its touching points share one contact stiffness (each takes k/m, c/m of m touching),
+        // or a wingtip lying flat would press five times as hard as a point.
+        int sharePatch = int.MinValue, shareCount = 1, head = 0;
+        for (int idx = 0; idx < points.Count; idx++)
         {
+            ContactPoint p = points[idx];
+            if (idx == 0 || p.Patch != points[idx - 1].Patch) head = idx;
             Vec3 rBody = p.Body - cg;
             Vec3 rWorld = s.Attitude.Rotate(rBody);
             Vec3 w = s.Position + rWorld;
@@ -617,12 +626,16 @@ public static class AirframeContact
             {
             // Ground (with the wheel-scale bumps when the point is low enough to meet them) — normal is world up.
             double? waterH;
-            if (p.Patch >= 0 && p.Patch == samplePatch) { groundH = patchGround; waterH = patchWater; }
+            if (p.Patch >= 0)
+            {
+                // Always where the patch's FIRST point is, whichever point asks first (culled or not, same answer).
+                if (p.Patch != samplePatch) SamplePatch(points, head, cg, s, ref samplePatch, ref patchGround, ref patchWater);
+                groundH = patchGround; waterH = patchWater;
+            }
             else
             {
                 groundH = WorldTerrain.HardPointGroundAt(w.X, w.Y, -w.Z);
                 waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
-                if (p.Patch >= 0) { samplePatch = p.Patch; patchGround = groundH; patchWater = waterH; }
             }
             onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             // On water, a SEAPLANE's hull is FloatHydro's business and this must keep its hands off it. A wheeled
@@ -648,6 +661,20 @@ public static class AirframeContact
             if (solidWins) { normal = solid!.Value.normalNed; depth = solid.Value.depth; }
 
             if (depth <= 0.0) { p.Touching = false; continue; }
+            if (p.Patch >= 0 && p.Patch != sharePatch && !groundClear)
+            {
+                // How many of this patch's points are into the ground or the water (the shared sample; solids aside).
+                sharePatch = p.Patch; shareCount = 0;
+                if (samplePatch != p.Patch) SamplePatch(points, head, cg, s, ref samplePatch, ref patchGround, ref patchWater);
+                for (int j = idx; j < points.Count && points[j].Patch == p.Patch; j++)
+                {
+                    Vec3 wj = s.Position + s.Attitude.Rotate(points[j].Body - cg);
+                    double topJ = patchWater.HasValue && patchWater.Value > patchGround && !floatsCarryWater ? patchWater.Value : patchGround;
+                    if ((wj.Z + surfaceOffsetZ) + topJ > 0.0) shareCount++;
+                }
+                if (shareCount < 1) shareCount = 1;
+            }
+            double share = p.Patch >= 0 && p.Patch == sharePatch ? 1.0 / shareCount : 1.0;
 
             double closing = -Vec3.Dot(vel, normal);          // + = moving INTO the surface
             bool ditching = onWater && !floatsCarryWater && !solidWins;
@@ -673,9 +700,9 @@ public static class AirframeContact
                 depth = bed;
                 ditching = false;
             }
-            double spring = (ditching ? WaterSpringNPerM : SpringNPerM) * depth * p.StiffnessScale;
+            double spring = (ditching ? WaterSpringNPerM : SpringNPerM) * depth * share * p.StiffnessScale;
             if (closing < 0.0) spring *= ReboundFraction;                        // crumpling, not a trampoline
-            double n = spring + (ditching ? WaterDampNsPerM : DampNsPerM) * p.StiffnessScale * System.Math.Max(0.0, closing);
+            double n = spring + (ditching ? WaterDampNsPerM : DampNsPerM) * share * p.StiffnessScale * System.Math.Max(0.0, closing);
             // Coulomb friction against the tangential velocity (regularised at low speed): the surface's own coefficient
             // on the ground, FrictionMu on a building or in the water.
             WorldTerrain.Surface kind = WorldTerrain.Surface.Paved;
@@ -706,5 +733,20 @@ public static class AirframeContact
             Aero.ForceDebug.Add(p.Body, s.Attitude.Conjugate().Rotate(f), Vec3.Zero, "contact");
         }
         return (totalF, totalM);
+    }
+
+    /// <summary>The patch's ground and water, sampled under its first point at the height of its LOWEST point: the
+    /// ground query adds the wheel-scale bumps only for a point near the surface (WorldTerrain.HardPointGroundAt), and a
+    /// patch must see them if any of its points could.</summary>
+    private static void SamplePatch(List<ContactPoint> points, int head, Vec3 cg, RigidBodyState s, ref int samplePatch, ref double ground, ref double? water)
+    {
+        ContactPoint first = points[head];
+        Vec3 w = s.Position + s.Attitude.Rotate(first.Body - cg);
+        double up = -w.Z;
+        for (int j = head + 1; j < points.Count && points[j].Patch == first.Patch; j++)
+            up = System.Math.Min(up, -(s.Position.Z + s.Attitude.Rotate(points[j].Body - cg).Z));
+        ground = WorldTerrain.HardPointGroundAt(w.X, w.Y, up);
+        water = FloatHydro.WaterSurfaceAt(w.X, w.Y, up);
+        samplePatch = first.Patch;
     }
 }

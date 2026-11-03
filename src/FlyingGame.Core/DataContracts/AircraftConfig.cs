@@ -115,6 +115,11 @@ public sealed class AircraftConfig
     /// (the cantilever rule).</summary>
     public Dictionary<string, double>? WingBreakStationY { get; set; }
 
+    /// <summary>How the wing is held up outboard of the cabin: "strut" (lift struts) or "" (a cantilever, or a biplane,
+    /// which is braced by its cellule anyway). A braced spar runs on through its station at the section its inboard bay
+    /// needs (<see cref="FlyingGame.Core.WingStructure.EnsureStrength"/>).</summary>
+    public string WingBracing { get; set; } = "";
+
     /// <summary>The rigid slave strut joining a biplane's upper and lower ailerons on each side (null = none).</summary>
     public SlaveStrutConfig? SlaveStrut { get; set; }
 

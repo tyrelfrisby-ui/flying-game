@@ -63,8 +63,9 @@ public sealed partial class Aircraft
         foreach (ContactPoint p in _contacts) if (p.Panel >= 0) _straightBody[p] = p.Body;
         if (_panels.Count > 0)
         {
-            WingStructure.EnsureStrength(_panels, Config, Hydro.Model.StructureScale);
-            // A wingtip is a flexible cantilever in series with the contact: k_w/(k_c + k_w) of a hard point's push.
+            // The structure scale from a model of its own: building the aeroplane's Hydro here would arm the water
+            // model on every aeroplane from its first step (it is created on first use, near water or on a break).
+            WingStructure.EnsureStrength(_panels, Config, AirframeHydroModel.Build(Config, Load).StructureScale);
             foreach (ContactPoint p in _contacts)
                 if (p.Panel >= 0 && _panels[p.Panel].TipStiffnessNPerM > 0)
                     p.StiffnessScale = _panels[p.Panel].TipStiffnessNPerM / (AirframeContact.SpringNPerM + _panels[p.Panel].TipStiffnessNPerM);
@@ -164,6 +165,7 @@ public sealed partial class Aircraft
         if (!any && !_panels.Any(q => q.State == PanelState.Bent))
         {
             Array.Clear(_panelTouching); Array.Clear(_bentThisStrike);
+            foreach (WingPanel q in _panels) q.ElasticRad = 0.0;
             return;
         }
         WingStructure.EnsureStrength(_panels, Config, Hydro.Model.StructureScale);
@@ -183,6 +185,9 @@ public sealed partial class Aircraft
                 if (p.ForceBody.Length > fMax) { fMax = p.ForceBody.Length; at = p; }
             }
             double up = -w.Side * mx;   // + = bending the tip UP
+            // The flex the contact force puts in it: F/k_w at the tip, as the tip slope of a cantilever.
+            double len = w.TipY - w.BreakY;
+            w.ElasticRad = touched && w.TipStiffnessNPerM > 0 && len > 0 ? 1.5 * (up / len) / w.TipStiffnessNPerM / len : 0.0;
             if (!touched) { _panelTouching[k] = false; _bentThisStrike[k] = false; }
             else
             {
