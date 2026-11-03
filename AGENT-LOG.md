@@ -1,4 +1,44 @@
 ## NEEDS YOU
+- **FUEL SLICK AFTER WATER BREAK-UP — RENDER/DEVICE REVIEW (Codex, 2026-11-02, lane/codex-fuel-slick):**
+  `CrashRelay` snapshots `Aircraft.Load.FuelKg` when a structural wreck piece leaves in a water crash;
+  confirms the same-step hard-point impact or the existing hydro joint's measured ultimate-load exceedance.
+  Prop/gear loss alone, intact ditching, land, gliders/no tanks and empty tanks make no slick. One per relay;
+  respawn/repair replaces the relay and clears its picture. Protected physics files/CrashEvents/Glass Overlay untouched.
+  All fuel volume V=m/720 spreads to A=V/h, R=sqrt(A/pi), with **h=1 µm ASSUMED** (Bonn Agreement
+  rainbow code 2: 0.3–5 µm). Radius grows LINEARLY to R at 300 sim seconds. Horizontal drift is 3% of the
+  atmosphere's mean U10 sampled at break-up (usual spill-trajectory 3% rule; Wagner et al., arXiv:2201.12688).
+  No simulated surface-water current found; shader river flow is cosmetic. No evaporation/weathering model added.
+  Full-tank figures below; tests also print authored and half-fuel kg, litres, radius and area (half fuel gives R/√2).
+
+  | Config | Full fuel kg | Volume L | Final R m | Final area m² | Half-fuel R m |
+  |---|---:|---:|---:|---:|---:|
+  | c172-like | 108.00 | 150.000 | 218.510 | 150000.000 | 154.510 |
+  | pitts-s2b-like | 79.04 | 109.778 | 186.931 | 109777.778 | 132.180 |
+  | great-lakes-like | 74.68 | 103.722 | 181.703 | 103722.222 | 128.483 |
+  | extra-300-like | 123.10 | 170.972 | 233.286 | 170972.222 | 164.958 |
+  | j3-cub-like | 32.71 | 45.431 | 120.254 | 45430.556 | 85.032 |
+  | j3-cub-floats-like | 32.71 | 45.431 | 120.254 | 45430.556 | 85.032 |
+
+  C172 authored load is 80 kg / 111.111 L / 188.063 m / 111111.111 m²; all other tank-equipped powered
+  configs currently author ZERO fuel, so they produce no slick until fuel is loaded. Configs are unchanged.
+  New built-in-pipeline thin-film shader uses n=1.42 over n=1.33 water, Fresnel interference with one phase
+  reversal, spatial 0.2–1.5 µm optical thickness, soft noisy edge, depth bias, no shadows, below-water camera
+  rejection. Included by BuildScript's existing Always Included shader setup. Core is already a local UPM
+  package (`com.flyinggame.simcore`, `file:../../src`); new source + meta needs no DLL copy or registration.
+  Operator render command (from repo root, substitute Unity executable):
+  `"$UNITY" -batchmode -force-metal -projectPath "$PWD/unity" -executeMethod FlyingGame.EditorTools.FuelSlickRenderCheck.Render -quit -logFile "$PWD/build/fuel-slick-render.log"`
+  Writes `build/fuel-slick/slick-{000,005,060,300}s.png` plus `slick-underwater.png`, logs each radius;
+  full C172 tanks, real Water shader, oblique camera at (0,350,-400), 1600×1200. Do NOT use `-nographics`.
+  Validation: all 13 FuelSlick xUnit cases PASS via a direct in-process runner (including real C172 hard-impact
+  and water-joint break-ups, burned fuel snapshots 53.999567180 / 53.996282840 kg from 54 kg, one slick,
+  intact first water contact, land break-up, stale-contact rejection and respawn). Full FlightTests build:
+  0 errors / 10 existing warnings; `git diff --check` passes. Standard requested `dotnet test tools/FlightTests
+  --filter FullyQualifiedName~FuelSlick` was attempted; VSTest cannot bind its local TCP socket in this sandbox
+  (SocketException 13, Permission denied), so standard-runner success is NOT claimed. Final no-build retry
+  fails for the same reason. Operator should rerun that command outside this sandbox. Direct-run log:
+  `/tmp/fuel-slick-direct.log`; build log `/tmp/fuel-slick-build.log`.
+  Unity/render/iOS/deploy unrun by instruction. Operator must inspect sheen visibility/edge/underwater rejection
+  and compile Unity on Metal; no gate approved. Changes are uncommitted.
 - **WATER CRASH CAMERA + SHORT GURGLES — TY DEVICE REVIEW (Codex, 2026-11-02, lane/codex-crash-cam):**
   External water-crash view now gathers the remnant and all live WingDebris/DebrisBody objects each frame
   into reused lists. Uses sim masses/CGs where bound, rigidbody or stated 15 kg fragment estimate otherwise;
