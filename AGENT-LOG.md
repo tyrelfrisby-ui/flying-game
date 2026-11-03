@@ -1,11 +1,22 @@
 ## NEEDS YOU
-- **WATER HANDLING ON FLOATS — IN PROGRESS, YOU WILL NEED TO FEEL-TEST (Claude, 2026-11-02, lane/claude-hydro):**
-  Your request: J-3 float water drag too high; buoyancy and on-the-step planing weak; stick-free stability off by
-  default with a gamepad (kept as an option); water spray made purely physics-based. Doing: bring in the J-3
-  floats work from lane/claude-vr-quest, move the float physics onto the drawn EDO floats, first-principles
-  hydrostatics + Savitsky planing + ITTC friction (no fudge), no capsize at idle/low-power full rudder, new spray
-  from the hull/waterline spray root. **When it lands, please feel-test: water run / hump / step, spray look,
-  and the gamepad stick-free option.** Status updates below this line as milestones land.
+- **J-3 ON FLOATS: NEW WATER PHYSICS, PHYSICS SPRAY, GAMEPAD STICK-FREE OPTION — PLEASE FEEL-TEST (Claude, 2026-11-02,
+  lane/claude-hydro). Nothing approved.** Full write-up: `docs/pending/HYDRO-J3-CLAUDE.md`.
+  1. **Water run.** The flight model now floats on the DRAWN EDO 60-1320s (the old physics float was 0.32 m outboard
+     of the drawing and a different shape). Full power, stick full back until the nose comes down by itself, ease
+     to ~6° and let it fly: hump ~14.5 mph, on the step ~21 mph, unsticks ~48.6 mph after ~19 s / ~750 ft. On-step
+     drag is 25–35 % lower than before. Does the hump, the step and the run feel right?
+  2. **Taxi.** 10 % power plows at ~6 mph (was 12). Full rudder at 10–30 % power no longer flips it (calm or 15 kt);
+     a fast plow turn (~13 mph, 60 % power) in 15 kt with aileron out of the turn still capsizes — real, left in.
+     Idle does not move: `PropModel` gives 0 N of thrust at idle (open question: should 700 rpm creep?).
+  3. **Roll stability is about half what it was** (GM_T 3.8 m on the drawn 1.89 m track vs ~10 m on the old 2.52 m).
+  4. **Spray** now comes off the hull's own waterline: Wagner/Savitsky spray-root jets (sideways and up, ~2V sin α),
+     millimetre drops falling under drag, Kelvin foam at 19.47° when slow. Look at it on the step and in a turn.
+  5. **Gamepad:** OPTIONS › Controls › "Gamepad: stick-free (controls float when the stick is centred)" — OFF by default;
+     with a pad connected a centred stick now holds the surfaces. Touch play unchanged. Quest: see Log.
+  6. **Porpoising**: holding a too-low trim (~2–4° keel) at ~30 mph now porpoises (lower limit); normal planing trim is
+     steady. Push the stick hard on the step and you can porpoise it into the water.
+  7. Open, not fixed here (baseline failures too): AirCam capsizes at rest on the water; CrashWater ditching test;
+     WheelHydro Cub skim test.
 - **QUEST + ALL PLATFORMS: THE J-3 IS OUR OWN MODEL ON WHEELS AND ON FLOATS, AND IT IS IN THE HEADSET (Claude,
   2026-11-02, lane/claude-vr-quest, cherry-picked onto lane/claude-hydro except the Quest-only e0c4d22c, a8174695 · 9e5f31ad · e0c4d22c · 541dd6be) — Ty: "get the eye location fixed on
   the j3 and add it to quest too both on wheels and floats". Code only: NOT built (`deploy.sh` not run: src/ changed,
