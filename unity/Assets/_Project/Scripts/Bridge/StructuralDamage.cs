@@ -83,6 +83,7 @@ namespace FlyingGame.Bridge
             foreach (GameObject g in _wreckVisuals) if (g != null) Destroy(g);
             _wreckVisuals.Clear();
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;
+            if (GetComponent<FuelSlickVisual>() == null) gameObject.AddComponent<FuelSlickVisual>();
             LostLine = null;
             ReadLimits();
         }
