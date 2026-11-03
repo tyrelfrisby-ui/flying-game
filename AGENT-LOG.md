@@ -1,6 +1,6 @@
 ## NEEDS YOU
 - **GREAT LAKES v2: SWITCHES ON THE PANEL + NEW WINDSHIELDS (Codex, 2026-11-02, lane/codex-greatlakes-cockpit,
-  2576bec6 · 09bc3206). Owner pt281u: "switches were outside … on the sides; windshields not even close".** Not
+  2576bec6 · 09bc3206). Owner pt281u: "switches were outside … on the sides; windshields not even close".** BUILD SUCCEEDED (build-only deploy copy, no install, 0 `error CS`). Not
   merged, not installed. Renders (before/after, same cameras): Grok box /workspace/greatlakes/v2/, Mac
   ~/Developer/glv2-renders/. In the headset/phone, Great Lakes, from each seat:
   1. **Switches.** Every switch, knob and lever (88 across the GL, Pitts and Extra GLBs) now sits on a panel face
@@ -1478,6 +1478,8 @@ to correct try again.  hand control did not work on the great lakes stick or thr
   (manifold, one component, thickness, ahead-of-opening, on-deck, rake 45–75°, alpha, ior, trim) and passes on all 3.
 - **Tests.** The full suite has failures in world/terrain/handling classes. Re-run in isolation, the 16 failures in Alaska,
   StreamingAssets, AerobatGroundHandling and AirframeContact are the same names at a112004a (a temporary detached worktree, since removed).
+- **Build.** deploy.sh's Unity export + xcodebuild steps, with no device install and lane-private /private/tmp/glv2-* dirs:
+  `** BUILD SUCCEEDED **`, 0 `error CS` (21:40 PST); the bundleVersion bump was reverted.
 - **Not done / open.** The stick/throttle hand grab is lane/claude-vr-hands-fix (not touched). The legacy GL liveries
   (-red-sunburst, -white-stripes) have different cockpit stations, and nothing references them; they get the new screens but are excluded
   from the interior test. The eye note in great-lakes-like.json was written against the old screen tops. Possible GLB merge conflict
