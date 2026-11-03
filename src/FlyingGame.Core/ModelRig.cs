@@ -205,15 +205,22 @@ public struct RigInputs
     /// readings are the caller's to fill in — a remote aeroplane's panel is nobody's to read.
     ///
     /// The one sign that has to be got right in exactly one place: the sim's elevator deflection is positive
-    /// trailing-edge DOWN (ControlPolarityTests), and the rig's elevator is positive STICK AFT.</summary>
+    /// trailing-edge DOWN (ControlPolarityTests), and the rig's elevator is positive STICK AFT.
+    ///
+    /// <paramref name="elevatorUpMaxRad"/> is the stop on the trailing-edge-UP side (ControlAxisConfig.LimitFor(-1),
+    /// the config's maxDeflNegRad), for an elevator that travels further up than down: the J-3's is 34 up / 29 down
+    /// (TCDS A-691), and its rig maps +1 to 34 and -1 to 29. Normalising both sides by the down stop would draw full
+    /// aft as 29 up and every part-aft stick 17 % too far. 0 = symmetric, as every other type is.</summary>
     public static RigInputs FromDeflections(double aileronRad, double elevatorRad, double rudderRad, double spoilerFraction,
-                                            double aileronMaxRad, double elevatorMaxRad, double rudderMaxRad)
+                                            double aileronMaxRad, double elevatorMaxRad, double rudderMaxRad,
+                                            double elevatorUpMaxRad = 0.0)
     {
         static double N(double v, double max) => max > 1e-6 ? Math.Clamp(v / max, -1.0, 1.0) : 0.0;
+        double aft = -elevatorRad;   // + = trailing edge up = stick aft
         return new RigInputs
         {
             Aileron = N(aileronRad, aileronMaxRad),
-            Elevator = N(-elevatorRad, elevatorMaxRad),
+            Elevator = N(aft, aft > 0.0 && elevatorUpMaxRad > 1e-6 ? elevatorUpMaxRad : elevatorMaxRad),
             Rudder = N(rudderRad, rudderMaxRad),
             Spoiler = Math.Clamp(spoilerFraction, 0.0, 1.0),
         };
