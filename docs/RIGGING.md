@@ -160,3 +160,70 @@ How each kind was handled:
   Cubs and PA-28 ±16–20°, DC-3 ±3°. Spirally divergent types run away: J-3 floats and Jenny ~140–170°, Pitts and
   Cassutt ~50°, and the Gee Bee departs at 1,500 ft within the minute. That is a fixed rig doing what a fixed rig does;
   the island starts at 1,500 and 6,500 ft will show it.
+
+## Stick-fixed, stick-free, and why one launch went left (run 2, 2026-11-02)
+
+**The rig is a stick-fixed rig.** `RigSolver.Residual` (`src/FlyingGame.Sim/RigSolver.cs`) evaluates `SteadyForces` with
+explicit `ControlDeflections(0, δe, 0, 0)` — aileron and rudder at neutral, the elevator at the solved trim — straight
+into `AeroModel.Compute`; nothing in the solver calls `Aircraft.FreeFloat` or `HingeTerms`. `RigTool` only calls the
+solver. `RigTests.Fly` steps with the four-argument `ControlInputs`, whose free flags are all false
+(`ControlInputs.cs`), so the free-float branch in `Aircraft.Step` never runs there. Nothing was re-solved; no rig angle
+changed in run 2.
+
+**Stick-free has the same equilibrium, by construction.** The game flies stick-FREE whenever the pads (or a gamepad at
+rest) are let go: `PilotControls.Compose` sets the free flags, and on a reversible axis the surface trails to its float
+angle. On the first step after spawn `Aircraft.CalibrateTabs` sets each trim tab so that, in the spawn's own flow, the
+free surface floats exactly at the deflection the aircraft was built with — the rig point. So stick-free and
+stick-fixed share the trim; what differs is the STABILITY. A free rudder trails with sideslip (Pitts: Chα −0.2,
+Chδ −0.45, no centring spring, so it floats at ~0.44 of the local flow angle), which takes a large bite out of the
+directional stability, and the spiral mode — already slowly divergent on the Pitts — gets much faster.
+
+**What makes two launches differ (measured, `LaunchProbe`, LAUNCH_PROBE=1/2/3):**
+
+* Inside the sim, nothing: the in-air start is a pure function of the config, the start and the air; the sim clock
+  (`Atmosphere.SimTimeSec`, never reset between flights) does not enter it even with turbulence on (the turbulence
+  is a frozen spatial field); there is no random seed anywhere on the path. Same start, same air: the same launch to
+  the bit. NB the regional atmosphere never loads on the island (`regional-atmosphere.json` anchors a region to
+  `airport:Bench`, which the island does not have, so `AtmosphereField.ResolveAirport` throws and SessionSettings falls
+  back): free flight on the island flies the UNIFORM air — the menu's wind (default 5 m/s from 090), its turbulence
+  step, the thermals and the glacier wind. Reported, not changed here.
+* Outside it, three carry-overs the Unity side had, each of which flips the direction on its own (Pitts, still air;
+  bank after 60 s, stick-fixed / stick-free):
+
+  | first moments of the flight | at the PHDH air start, 1,514 ft | at the rig altitude, 4,000 ft |
+  |---|---|---|
+  | nothing (hands off) | **+20.6° / +35.2°** (slow right: 75 % at 1,514 ft is a higher EAS than the rig's) | +0.57° / +0.54° |
+  | 0.05 s (10 steps) of full LEFT stick | −12.5° / −24.3° | −19.4° / −26.1° |
+  | 0.05 s of the cold-start inputs (`ControlInputs.Neutral`: 50 % power, elevator 0, held) | +22° / (dives by 50 s) | +2.0° / **+32°** |
+  | aileron trim left over at 5 % left | −50° in 10 s | −52° in 10 s |
+  | gamepad stick resting 10 % off centre (just past its 7 % dead zone) | −28° in 10 s | −30° in 10 s |
+
+  1. **The first frame flew the previous flight's inputs.** `FlightSimDriver.ResetFlight` rebuilt the aeroplane but
+     left `Inputs` alone, and `TouchFlightControls.Update` stops publishing while the menu is open, so `Inputs` was
+     whatever the stick, pad and power were doing when the menu opened (on a cold start, `Neutral`). Nothing orders
+     the driver's `Update` before the controls', and the first frame after a respawn is a long one, capped at
+     `SimLoop.MaxCatchUpSec` = 0.05 s: up to ten steps of the last flight's stick on the new one.
+     **Fix:** `FlightSimDriver.Spawn` puts `Inputs` on the start's hands-off trim (stick and rudder centred,
+     elevator on the trim, the start's power; held) for every start.
+  2. **Aileron and rudder trim survived from flight to flight** (and from one aeroplane to the next) —
+     `PresetTrim` reset only the pitch trim, and with a gamepad connected the trim bars are not even drawn.
+     **Fix:** `PresetTrim` centres both.
+  3. **A pad drifting past its dead zone holds the stick off centre.** Not a code fault — a pad at rest inside its
+     7 % zone hands the sim exactly zero, so it lets go exactly like a lifted finger — but a worn stick that rests
+     past 7 % flies a small, held deflection. Watch for it.
+
+  And beyond those, the airframe: a twentieth of a second of stick is enough to choose the spiral's direction for
+  the next minute, stick-fixed, and more so stick-free (the same 0.05 s perturbation at the rig point grows to 2°
+  stick-fixed, 32° stick-free). That is the Pitts, and it is the same every launch.
+
+**Where the Pitts air start is:** the default airport's authored in-air start, PHDH, 461 m = **1,514 ft** MSL
+(437 m above the ground under it). The rig is set at 4,000 ft. Hands-off at 1,514 ft, in still air, the Pitts
+banks slowly right — stick-fixed +1.8° at 10 s, +9.0° at 40 s, +20.6° at 60 s; stick-free +2.0°, +13.3°, +35.2°: the
+fixed rig over-correcting at the lower height plus the spiral. Every launch does that, to the bit. A LEFT turn
+there is not the airframe: it is something the first moments of the flight put in.
+
+**The game path, engine-free:** `FlyingGame.Sim.AirStart` (the in-air start, lifted out of `FlightSimDriver.Spawn`)
+and `FlyingGame.Sim.PilotControls` (the hands → `ControlInputs` composition and free rule, lifted out of
+`TouchFlightControls.PublishToDriver`). `LaunchReplicationTests` flies five consecutive launches of every type
+through them, at 60 fps through `SimLoop.Advance`, the sim clock running on, launches 2–5 with a gamepad at rest
+(seeded noise inside its dead zones), stick-free ON and OFF.

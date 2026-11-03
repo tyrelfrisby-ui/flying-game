@@ -182,6 +182,10 @@ namespace FlyingGame.Bridge
             _leftKnob = IdleLeftKnob();
             float t = (float)_driver.TrimStick / Mathf.Max(0.01f, TrimAuthority);
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
+            // Aileron and rudder trim start centred on every new flight, like the pitch trim starts on the spawn's: the
+            // airframe's own rig is what flies it straight (2026-11-02). Left over from the last flight -- or another
+            // aeroplane -- they were a hidden bias, and with a gamepad connected their bars are not even drawn.
+            _aileronTrim = _rudderTrim = 0f;
         }
 
         private string _layoutKey;
@@ -738,7 +742,6 @@ namespace FlyingGame.Bridge
             _driver.Sim.Aircraft.BrakeBias = brake > 0f ? Mathf.Clamp(_rudder * BrakeRudderBias, -1f, 1f) : 0f;
             // Trim biases the elevator like a real trim tab: hands-off stick still holds the trimmed attitude.
             float trim = (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority;
-            float elevator = Mathf.Clamp(_elevator + trim, -1f, 1f);
             // ThrottleLever: -1 = full forward (full power), +1 = full aft (idle). Powered: lever = 1 - 2·throttle01.
             // Glider: the sim reads max(0, lever) as the speed-brake fraction → lever = SpoilerFraction
             // (stowed above 50 % of the pad, full out at 25 %; the brake band below is the wheel brake).
@@ -746,13 +749,11 @@ namespace FlyingGame.Bridge
             float lever = powered ? 1f - 2f * throttle01 : SpoilerFraction;
             if (StripMode && StripBrakes) lever = powered ? 1f : _stripBrake01;   // powered: idle (the game holds it); glider: the spoiler handle
             // Aileron / rudder trim (RC-transmitter style): a sticky bias under the stick, like the pitch trim.
-            float aileron = Mathf.Clamp(_aileron + _aileronTrim * TrimAuthority, -1f, 1f);
-            float rudder = Mathf.Clamp(_rudder + _rudderTrim * TrimAuthority, -1f, 1f);
             // Reversible controls (owner 2026-10-02): a pad with no finger (and no key) lets go of its controls — on a
-            // cable-controlled aircraft those surfaces then trail with the air loads (the values above are just the trims).
-            bool rightFree = _rightFinger == int.MinValue && _aileron == 0f && _elevator == 0f;
-            bool leftFree = _leftFinger == int.MinValue && _rudder == 0f;
-            _driver.Inputs = new ControlInputs(aileron, elevator, rudder, lever, rightFree, rightFree, leftFree);
+            // cable-controlled aircraft those surfaces then trail with the air loads (the axis values are just the trims).
+            // FlyingGame.Sim.PilotControls is the composition (engine-free, so the launch tests fly the same one).
+            _driver.Inputs = PilotControls.Compose(_aileron, _elevator, _rudder, _aileronTrim * TrimAuthority, trim, _rudderTrim * TrimAuthority,
+                lever, _rightFinger != int.MinValue, _leftFinger != int.MinValue);
         }
 
         // ---- shaping helpers -------------------------------------------------
