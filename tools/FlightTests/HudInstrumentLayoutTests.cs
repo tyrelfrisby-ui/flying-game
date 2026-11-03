@@ -4,40 +4,39 @@ namespace FlyingGame.FlightTests;
 public sealed class HudInstrumentLayoutTests
 {
     [Theory]
-    [InlineData(false, 54, 938)]
-    [InlineData(true, 60, 1963.468)]
-    public void PhoneRowsHaveSeparateFacesValuesAndCaptions(bool controller, double radius, double width)
+    [InlineData(false, 150, 110, 700, .37, 20)]
+    [InlineData(true, 185, 135, 820, .43, 24)]
+    public void PhoneBandMeetsMinimumSizesAndBottomBudget(bool controller, double flight, double engine, double width, double limit, double numeral)
     {
         const double s = 1206, toolbar = 96.48, gap = 14.472;
-        Assert.Equal(radius, HudInstrumentLayout.DialRadius(s, controller), 3);
-        Assert.Equal(width, HudInstrumentLayout.RowWidth(s, controller ? 1963.468 : 938, controller), 3);
+        Assert.Equal(flight, 2 * HudInstrumentLayout.DialRadius(s, controller), 3);
+        Assert.Equal(engine, 2 * HudInstrumentLayout.EngineRadius(s, controller), 3);
+        Assert.Equal(numeral, HudInstrumentLayout.NumeralText(s, controller), 3);
+        Assert.Equal(width, HudInstrumentLayout.RowWidth(s, controller ? 2206 : 938, controller), 3);
         Assert.Equal(12, HudInstrumentLayout.ToolbarGap(s), 3);
-        Assert.Equal(39.6, HudInstrumentLayout.ValueHeight(s), 3);
-        double caption = controller ? 36 : 72;
-        Assert.Equal(caption, HudInstrumentLayout.CaptionHeight(s, controller), 3);
-        double faceTop = toolbar + 12;
-        double valueTop = faceTop + 2 * radius;
-        double captionTop = valueTop + 39.6;
-        double engineTop = HudInstrumentLayout.EngineTop(toolbar, gap, s, controller);
-        Assert.Equal(captionTop + caption + gap, engineTop, 3);
-        Assert.True(width / 4 > radius * 2 + 24);
-        if (controller) Assert.True(engineTop + radius * 1.4 + 39.6 + caption <= 1206 * .4);
+        Assert.Equal(34.65, HudInstrumentLayout.ValueHeight(s), 3);
+        Assert.True(width / 4 >= flight + 20);
+        double engineTop = toolbar + 12 + flight + 34.65 + 6;
+        Assert.Equal(engineTop, HudInstrumentLayout.EngineTop(toolbar, gap, s, controller), 3);
+        Assert.Equal(engineTop + engine + 34.65, HudInstrumentLayout.Bottom(toolbar, gap, s, controller, true), 3);
+        Assert.True(HudInstrumentLayout.Bottom(toolbar, gap, s, controller, true) < s * limit);
+        Assert.Equal(toolbar + 12 + flight + 34.65, HudInstrumentLayout.Bottom(toolbar, gap, s, controller, false), 3);
     }
 
-    [Fact]
-    public void ControllerUsesFreedWidthAndLargerGauges()
+    [Theory]
+    [InlineData(1000)]
+    [InlineData(1206)]
+    [InlineData(1809)]
+    public void FacesAndNumeralsScaleWithShortEdge(double s)
     {
-        Assert.True(HudInstrumentLayout.DialRadius(1206, true) > HudInstrumentLayout.DialRadius(1206));
-        Assert.True(HudInstrumentLayout.RowWidth(1206, 2206, true) > 2 * 938);
-    }
-
-    [Fact]
-    public void GliderReservesOnlyFlightRowAndPortraitScalesFromShortEdge()
-    {
-        Assert.Equal(328.08, HudInstrumentLayout.Bottom(96.48, 14.472, 1206, false, false), 3);
-        Assert.Equal(478.152, HudInstrumentLayout.Bottom(96.48, 14.472, 1206, true, true), 3);
-        Assert.Equal(1206 * .84, HudInstrumentLayout.RowWidth(1206, 1163), 3);
-        Assert.True(HudInstrumentLayout.Bottom(282.48, 14.472, 1206, true, true) < 2622 * .4);
+        foreach (bool controller in new[] { false, true })
+        {
+            Assert.True(2 * HudInstrumentLayout.DialRadius(s, controller) >= s / 1206 * (controller ? 185 : 150));
+            Assert.True(2 * HudInstrumentLayout.EngineRadius(s, controller) >= s / 1206 * (controller ? 135 : 110));
+            Assert.Equal(s / 1206 * (controller ? 24 : 20), HudInstrumentLayout.NumeralText(s, controller), 6);
+            Assert.True(HudInstrumentLayout.Bottom(s * .08, s * .012, s, controller, true) < s * (controller ? .43 : .37));
+            Assert.True(HudInstrumentLayout.Bottom(282.48, 14.472, 1206, controller, true) < 2622 * (controller ? .43 : .37));
+        }
     }
 
     [Fact]

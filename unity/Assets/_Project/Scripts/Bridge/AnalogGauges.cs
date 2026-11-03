@@ -211,16 +211,15 @@ namespace FlyingGame.Bridge
             bool glider = aircraft.Config.Propulsion == null;
             UiLayout.EngineRowShown = !glider;
             Vector2 asi, alt, gc, vc;
-            bool controller = TouchFlightControls.TouchSticksHidden && !ScreenLayout.Portrait;
-            float captionH = (float)FlyingGame.Core.HudInstrumentLayout.CaptionHeight(s, controller);
+            bool controller = TouchFlightControls.TouchSticksHidden;
             float columnWidth = view.width / 5f;
             if (!ChaseCamera.InCockpit)
             {
-                // Four equal columns: no dial ever shrinks below 210 px at the phone reference size.
+                // Fixed face sizes; spare width is not spread across the screen.
                 bool pad = controller;
                 float left = pad ? UiLayout.SafeLeft + UiLayout.Margin : UiLayout.BandLeft;
                 float right = pad ? Screen.width - UiLayout.SafeRight - UiLayout.Margin : UiLayout.BandRight;
-                right = Mathf.Min(right, Screen.width - UiLayout.SafeRight - UiLayout.Margin - s * .19f - UiLayout.Gap);
+                if (!pad) right = Mathf.Min(right, Screen.width - UiLayout.SafeRight - UiLayout.Margin - s * .19f - UiLayout.Gap);
                 float width = (float)FlyingGame.Core.HudInstrumentLayout.RowWidth(s, right - left, pad);
                 float x = (left + right - width) * 0.5f;
                 float step = width / 4f; columnWidth = step;
@@ -231,7 +230,7 @@ namespace FlyingGame.Bridge
                 gc = new Vector2(x + step * 2.5f, y);
                 vc = new Vector2(x + step * 3.5f, y);
                 if (live) { UiLayout.DialsLeft = right; UiLayout.DialsRight = right; UiLayout.DialsFrame = Time.frameCount; }
-                if (!glider) DrawEngineRow(aircraft, x, (float)FlyingGame.Core.HudInstrumentLayout.EngineTop(UiLayout.ToolbarBottom, UiLayout.Gap, s, pad), width, r * 0.7f);
+                if (!glider) DrawEngineRow(aircraft, x, (float)FlyingGame.Core.HudInstrumentLayout.EngineTop(UiLayout.ToolbarBottom, UiLayout.Gap, s, pad), width, (float)FlyingGame.Core.HudInstrumentLayout.EngineRadius(s, pad));
 
             }
             else
@@ -255,11 +254,11 @@ namespace FlyingGame.Bridge
             if (live) { _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g); }
             float nAlpha = Mathf.Min(1f, Alpha + 0.4f);
             // Captions and scale numbers keep their reading floor independently of the face.
-            _num.fontSize = UiLayout.CaptionText;
+            _num.fontSize = Mathf.RoundToInt((float)FlyingGame.Core.HudInstrumentLayout.NumeralText(s, controller));
             _big.fontSize = UiLayout.MinText;
             _dialCap ??= new GUIStyle(_label);
             _dialCap.font = _label.font; _dialCap.normal.textColor = _label.normal.textColor;
-            _dialCap.fontSize = UiLayout.CaptionText;
+            _dialCap.fontSize = Mathf.Min(UiLayout.CaptionText, Mathf.RoundToInt(r * .22f));
             void Label(Vector2 p, string text, GUIStyle st, float w, float h) => GUI.Label(new Rect(p.x - w * 0.5f, p.y - h * 0.5f, w, h), text, st);
             Vector2 OnDial(Vector2 c, float deg, float rad) { float a = deg * Mathf.Deg2Rad; return c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * rad; }
 
@@ -268,18 +267,18 @@ namespace FlyingGame.Bridge
             if (showAsi) {
             GUI.DrawTexture(new Rect(asi.x - r, asi.y - r, 2f * r, 2f * r), _asiFace);
             int ktStep = _asiMaxKt <= 200 ? 20 : _asiMaxKt <= 400 ? 40 : 100;
-            for (int v = 0; v <= _asiMaxKt; v += ktStep * 4) Label(OnDial(asi, DialDeg(v / _asiMaxKt, false), r * 0.55f), v.ToString(), _num, fs * 3f, UiLayout.CaptionText * 1.2f);
-            Label(asi + new Vector2(0, r + readH * 0.5f), $"{kt:F0}", _big, columnWidth, readH);   // under the dial, clear of the scale
-            Label(asi + new Vector2(0, r + readH + captionH * .5f), (controller ? "AIRSPEED KT" : "AIRSPEED\nKT"), _dialCap, columnWidth, captionH);
+            for (int v = 0; v <= _asiMaxKt; v += ktStep * 2) Label(OnDial(asi, DialDeg(v / _asiMaxKt, false), r * 0.55f), v.ToString(), _num, fs * 3f, _num.fontSize * 1.2f);
+            Label(asi + new Vector2(0, r + readH * 0.5f), $"{kt:F0} KT", _big, columnWidth, readH);   // under the dial, clear of the scale
+            Label(asi + new Vector2(0, r * .80f), "ASI", _dialCap, r, r * .25f);
             DrawNeedle(asi, DialDeg(Mathf.Clamp01(kt / _asiMaxKt), false), r * 0.82f, r * 0.11f, nAlpha);
             }
 
             // ---- altimeter
             if (showAlt) {
             GUI.DrawTexture(new Rect(alt.x - r, alt.y - r, 2f * r, 2f * r), _altFace);
-            for (int i = 0; i < 10; i += 5) Label(OnDial(alt, DialDeg(i / 10f, true), r * 0.55f), i.ToString(), _num, fs * 2f, UiLayout.CaptionText * 1.2f);
-            Label(alt + new Vector2(0, r + readH * 0.5f), $"{ft:N0}", _big, columnWidth, readH);
-            Label(alt + new Vector2(0, r + readH + captionH * .5f), (controller ? "ALTITUDE FT" : "ALTITUDE\nFT"), _dialCap, columnWidth, captionH);
+            for (int i = 0; i < 10; i += 2) Label(OnDial(alt, DialDeg(i / 10f, true), r * 0.55f), i.ToString(), _num, fs * 2f, _num.fontSize * 1.2f);
+            Label(alt + new Vector2(0, r + readH * 0.5f), $"{ft:N0} FT", _big, columnWidth, readH);
+            Label(alt + new Vector2(0, r * .80f), "ALT", _dialCap, r, r * .25f);
             DrawNeedle(alt, DialDeg(Mathf.Repeat(ft / 10000f, 1f), true), r * 0.50f, r * 0.16f, nAlpha);   // thousands (short, fat)
             DrawNeedle(alt, DialDeg(Mathf.Repeat(ft / 1000f, 1f), true), r * 0.82f, r * 0.10f, nAlpha);    // hundreds
             }
@@ -289,10 +288,10 @@ namespace FlyingGame.Bridge
             if (showG) {
             GUI.DrawTexture(new Rect(gc.x - gr, gc.y - gr, 2f * gr, 2f * gr), _gFace);
             float G(float v) => DialDeg(Mathf.Clamp01((v - _gLo) / (_gHi - _gLo)), false);
-            int gStep = Mathf.Max(1, Mathf.CeilToInt((_gHi - _gLo) / 2f));
-            for (float v = _gLo; v <= _gHi + 0.01f; v += gStep) Label(OnDial(gc, G(v), gr * 0.55f), v.ToString("0"), _num, fs * 2f, UiLayout.CaptionText * 1.2f);
-            Label(gc + new Vector2(0, gr + readH * 0.5f), $"{g:F1} g", _big, columnWidth, readH);
-            Label(gc + new Vector2(0, gr + readH + captionH * .5f), (controller ? "G LOAD" : "G\nLOAD"), _dialCap, columnWidth, captionH);
+            int gStep = Mathf.Max(1, Mathf.CeilToInt((_gHi - _gLo) / 4f));
+            for (float v = _gLo; v <= _gHi + 0.01f; v += gStep) Label(OnDial(gc, G(v), gr * 0.55f), v.ToString("0"), _num, fs * 2f, _num.fontSize * 1.2f);
+            Label(gc + new Vector2(0, gr + readH * 0.5f), $"{g:F1} G", _big, columnWidth, readH);
+            Label(gc + new Vector2(0, r * .80f), "G", _dialCap, r, r * .25f);
             DrawNeedle(gc, G(_gMaxSeen), gr * 0.78f, gr * 0.06f, Alpha + 0.15f);   // tell-tales hold the extremes
             DrawNeedle(gc, G(_gMinSeen), gr * 0.78f, gr * 0.06f, Alpha + 0.15f);
             DrawNeedle(gc, G(g), gr * 0.82f, gr * 0.12f, nAlpha);
@@ -308,17 +307,15 @@ namespace FlyingGame.Bridge
                 if (glider)
                 {
                     float vzKt = vzMs * 1.9438f;
-                    for (int v = -5; v <= 10; v += 10) Label(OnDial(vc, VarioDeg(v), gr * 0.55f), v == 0 ? "0" : v == 10 ? "10" : (v > 0 ? "+" : "") + v, _num, fs * 2f, UiLayout.CaptionText * 1.2f);   // ±10 share 3 o'clock: one "10"
-                    Label(vc + new Vector2(0, gr + readH * 0.5f), $"{vzMs * 196.85f:+0;-0}", _big, columnWidth, readH);
-                    Label(vc + new Vector2(0, gr + readH + captionH * .5f), (controller ? "VERT SPEED FPM" : "VERT SPEED\nFPM"), _dialCap, columnWidth, captionH);
+                    for (int v = -5; v <= 10; v += 5) Label(OnDial(vc, VarioDeg(v), gr * 0.55f), v == 0 ? "0" : v == 10 ? "10" : (v > 0 ? "+" : "") + v, _num, fs * 2f, _num.fontSize * 1.2f);   // ±10 share 3 o'clock: one "10"
+                    Label(vc + new Vector2(0, gr + readH * 0.5f), $"{vzMs * 196.85f:+0;-0;0} FPM", _big, columnWidth, readH);
                     DrawNeedle(vc, VarioDeg(vzKt), gr * 0.82f, gr * 0.12f, nAlpha);
                 }
                 else
                 {
                     float fpm = vzMs * 196.85f;   // the same face: ±10 ↔ ±2,000 fpm, figures in thousands
-                    for (int v = -5; v <= 10; v += 10) Label(OnDial(vc, VarioDeg(v), gr * 0.55f), v == 0 ? "0" : v == 10 ? "2" : "1", _num, fs * 2f, UiLayout.CaptionText * 1.2f);
-                    Label(vc + new Vector2(0, gr + readH * 0.5f), $"{fpm:+0;-0}", _big, columnWidth, readH);
-                    Label(vc + new Vector2(0, gr + readH + captionH * .5f), (controller ? "VERT SPEED FPM" : "VERT SPEED\nFPM"), _dialCap, columnWidth, captionH);
+                    for (int v = -5; v <= 10; v += 5) Label(OnDial(vc, VarioDeg(v), gr * 0.55f), (v / 5f).ToString("0"), _num, fs * 2f, _num.fontSize * 1.2f);
+                    Label(vc + new Vector2(0, gr + readH * 0.5f), $"{fpm:+0;-0;0} FPM", _big, columnWidth, readH);
                     DrawNeedle(vc, VarioDeg(Mathf.Clamp(fpm / 200f, -10f, 10f)), gr * 0.82f, gr * 0.12f, nAlpha);
                 }
             }
@@ -334,7 +331,7 @@ namespace FlyingGame.Bridge
                 for (int i = 0; i < 4; i++)
                 {
                     var face = NewFace(256);
-                    for (int n = 0; n <= 10; n++) Tick(face, DialDeg(n / 10f, false), .8f, .95f, 2, Ring);
+                    for (int n = 0; n <= 12; n++) Tick(face, DialDeg(n / 12f, false), .8f, .95f, 2, Ring);
                     // RPM has a high-end caution/red band; fuel quantity a low-end warning.
                     if (i == 0 || i == 3)
                     {
@@ -349,11 +346,13 @@ namespace FlyingGame.Bridge
             double rpmMax = System.Math.Max(1, ac.Config.Propulsion.MaxRpm);
             double fuel = FlyingGame.Core.HudInstrumentLayout.FuelGallons(ac.Load.FuelKg);
             double flow = FlyingGame.Core.HudInstrumentLayout.FuelGallons(ac.FuelFlowKgPerSec * 3600);
-            string[] names = { jet ? "TACH RPM %" : "TACH RPM", "THROTTLE %", jet ? "FUEL FLOW KG/H" : "FUEL FLOW GPH", jet ? "FUEL QTY KG" : "FUEL QTY GAL" };
+            string[] names = { "TACH", "THR", "FLOW", "FUEL" };
+            string[] units = { jet ? "% RPM" : " RPM", "% THR", jet ? " KG/H" : " GPH", jet ? " KG" : " GAL" };
             double[] values = { jet ? ac.EngineRpm / rpmMax * 100 : ac.EngineRpm, ac.Throttle01 * 100, jet ? ac.FuelFlowKgPerSec * 3600 : flow, jet ? ac.Load.FuelKg : fuel };
             // Flow/quantity are absolute scales, not invented aircraft limits.
             double[] fractions = { ac.EngineRpm / rpmMax, ac.Throttle01, values[2] / (jet ? 10000 : 100), ac.Load.FuelKg / System.Math.Max(.001, ac.Load.FuelCapacityKg) };
-            var caption = new GUIStyle(_label) { fontSize = UiLayout.CaptionText };
+            var caption = new GUIStyle(_label) { fontSize = Mathf.RoundToInt(radius * .28f) };
+            var numbers = new GUIStyle(_num) { fontSize = Mathf.RoundToInt((float)FlyingGame.Core.HudInstrumentLayout.NumeralText(UiLayout.S, TouchFlightControls.TouchSticksHidden)) };
             var value = new GUIStyle(_big) { fontSize = UiLayout.MinText };
             float cell = width / 4, vh = (float)FlyingGame.Core.HudInstrumentLayout.ValueHeight(UiLayout.S);
             for (int i = 0; i < 4; i++)
@@ -361,9 +360,17 @@ namespace FlyingGame.Bridge
                 Vector2 c = new(x + cell * (i + .5f), y + radius);
                 GUI.color = Color.white;
                 GUI.DrawTexture(new Rect(c.x-radius, y, radius*2, radius*2), _engineFaces[i]);
+                // Four major values; all other marks remain ticks. Labels use the actual scale.
+                double maximum = i == 0 ? (jet ? 100 : rpmMax) : i == 1 ? 100 : i == 2 ? (jet ? 10000 : 100) : ac.Load.FuelCapacityKg / (jet ? 1 : 2.7252);
+                for (int n = 0; n < 4; n++)
+                {
+                    float angle = DialDeg(n / 3f, false) * Mathf.Deg2Rad;
+                    Vector2 p = c + new Vector2(Mathf.Sin(angle), -Mathf.Cos(angle)) * radius * .60f;
+                    GUI.Label(new Rect(p.x - cell/2, p.y - numbers.fontSize*.6f, cell, numbers.fontSize*1.2f), (maximum >= 1000 ? (maximum*n/3000).ToString("0") + "k" : (maximum*n/3).ToString("0")), numbers);
+                }
+                GUI.Label(new Rect(c.x-radius, c.y+radius*.72f, radius*2, radius*.24f), names[i], caption);
                 DrawNeedle(c, DialDeg(Mathf.Clamp01((float)fractions[i]), false), radius*.82f, radius*.12f, 1);
-                GUI.Label(new Rect(x+cell*i, y+radius*2, cell, vh), values[i].ToString(i < 2 ? "0" : "0.0"), value);
-                GUI.Label(new Rect(x+cell*i, y+radius*2+vh, cell, (float)FlyingGame.Core.HudInstrumentLayout.CaptionHeight(UiLayout.S, TouchFlightControls.TouchSticksHidden && !ScreenLayout.Portrait)), TouchFlightControls.TouchSticksHidden && !ScreenLayout.Portrait ? names[i] : names[i].Replace(" RPM", "\nRPM").Replace(" %", "\n%").Replace(" GPH", "\nGPH").Replace(" GAL", "\nGAL").Replace(" KG", "\nKG"), caption);
+                GUI.Label(new Rect(x+cell*i, y+radius*2, cell, vh), values[i].ToString(i < 2 ? "0" : "0.0") + units[i], value);
             }
         }
 

@@ -293,13 +293,18 @@ namespace FlyingGame.Bridge
 
         private void LayOutControllerButtons()
         {
-            float s = UiLayout.S, gap = UiLayout.Gap;
+            float s = UiLayout.S, gap = s * 6f / 1206f;
             float width = s * .48f, height = s * .055f;
             float x = UiLayout.SafeLeft + UiLayout.Margin, y = UiLayout.SafeBottom + UiLayout.Margin;
-            Rect Slot(int row) => new Rect(x, y + row * (height + gap), width, height);
-            _resetRect = Slot(0); _acftRect = Slot(1); _brakeRect = Slot(2);
-            _gearRect = Slot(3); _towRect = Slot(4); _bailRect = Slot(5);
-            _ejectRect = Slot(6); _smokeRect = Slot(7);
+            int row = 0;
+            Rect Slot(bool shown = true) => shown ? new Rect(x, y + row++ * (height + gap), width, height) : Rect.zero;
+            _resetRect = Slot(); _acftRect = Slot();
+            _brakeRect = Slot(_driver.HasFlaps && !Practice.PracticeController.AnyActive);
+            _gearRect = Slot(_driver.Sim?.Aircraft?.Config?.RetractableGear == true);
+            var tow = GetComponent<TowController>();
+            _towRect = Slot(tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null &&
+                (tow.Towing || (_driver.GroundStart && tow.Tow == null)));
+            _bailRect = Slot(BailAvailable); _ejectRect = Slot(EjectAvailable); _smokeRect = Slot(SmokeAvailable);
         }
 
         /// <summary>Tell the shared layout (UiLayout) where the controls are, so text and dials keep clear of them.</summary>

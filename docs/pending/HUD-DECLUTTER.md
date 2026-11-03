@@ -187,6 +187,17 @@ The primary/caption floors remain 33/30 px at 1206. No player position, coordina
 
 Validation: only `dotnet test tools/FlightTests --filter FullyQualifiedName~HudInstrumentLayoutTests --no-restore -m:1` was run. Compilation succeeded, but VSTest aborted before executing tests: sandbox `SocketException (13): Permission denied` binding its local communication socket. Tests cover independent reference dimensions, toolbar gap, separated rows/text bounds, controller scaling/40% limit, glider row omission and avgas conversion. No passing test claim or visual gate approval. Unity, xcodebuild, deploy and git commit were not run. Operator capture must verify actual glyph bounds and all layouts; Bridge files are not compiled by FlightTests.
 
+### Run B4 fixes (dial size)
+
+B3 made the screen clean but shrank the dials to about 90 px (flight) and 60 px (engine) at 1206 px, which made the numerals unreadable. B4 changes:
+
+- Dial diameters at S=1206: touch layout 150 px flight and 110 px engine; controller layout 185 px flight and 135 px engine. Both use two rows, flight on top and engine below, 12 px under the toolbar. See `HudInstrumentLayout.DialRadius/EngineRadius`.
+- Each dial has ONE line of value and unit below it ("101 KT", "1,483 FT", "1.2 G", "+179 FPM", "1822 RPM", "50% THR", "6.7 GPH", "29.3 GAL") at MinText. A short name (ASI/ALT/G/VSI/TACH/THR/FLOW/FUEL) sits in the empty lower half of the dial face.
+- Each dial shows 4 to 6 major numerals, at least 20 px (touch) or 24 px (controller). `HudInstrumentLayout.NumeralText` sets this.
+- The band ends above 37% of screen height (touch) or 43% (controller), so the airplane stays clear. The gap between rows is 6 px; the dials were not shrunk to fit.
+- Controller layout: the bottom-left button column holds only the buttons that are showing, stacked with a constant 6 px gap.
+- HudInstrumentLayoutTests covers the minimum sizes and the band-bottom rule (6 cases pass).
+
 ### Reading contract and geometry
 
 At the reference 3× phone resolution, primary flight text has a floor of **11 pt / 33 px**, dial scales and captions **10 pt / 30 px**. Exterior dial diameter is **70 pt / 210 px** (209.844 before rounding); readouts 21.7 pt / 65 px. Shared `UiLayout.Fit` now floors at 33 px rather than 45% of the requested font; `Label` abbreviates excess trailing text with an ellipsis. Native pixel sizes scale with the screen short edge, with absolute fallback floors of 22/20 px for low-resolution desktop windows. These are font sizes, not a promise of measured glyph height. Toolbar geometry is unchanged. Primary HUD small labels rise 25→33 px; conformal lines, ladder, bank and flight-path symbols remain.
