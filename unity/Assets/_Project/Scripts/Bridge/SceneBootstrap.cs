@@ -26,12 +26,21 @@ namespace FlyingGame.Bridge
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             // The Aero Widget build (owner 2026-10-07): no world, no game — two transparent scenarios for Glass Overlay.
             if (FlyingGame.Bridge.Widget.AeroWidget.IsWidget) { FlyingGame.Bridge.Widget.AeroWidget.Create(); return; }
+            // The first frame on the Quest is one 3.5–7.4 s SLOW FRAME, and the log could only bracket it by the
+            // timestamps of unrelated lines (docs/quest-performance.md, *The startup frame*): say where it goes.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             WorldBuilder.BuildAll();   // terrain (valley + 3 canyon steps), water, 4 airports, ridge lift
+            double tWorld = sw.Elapsed.TotalMilliseconds;
             new GameObject("Soaring").AddComponent<SoaringScenery>();
             BuildCardinalLetters();
             BuildSun();
+            double tScenery = sw.Elapsed.TotalMilliseconds;
             GameObject aircraft = BuildAircraft();
+            double tAircraft = sw.Elapsed.TotalMilliseconds;
             BuildCameraAndHud(aircraft);
+            double tAll = sw.Elapsed.TotalMilliseconds;
+            Debug.Log($"[Startup] scene built in {tAll:F0} ms: world {tWorld:F0}, soaring + sun {tScenery - tWorld:F0}, "
+                    + $"aircraft {tAircraft - tScenery:F0} (its airframe: see [Airframe] … model ready), camera + HUD {tAll - tAircraft:F0}");
         }
 
         private static void BuildCardinalLetters()

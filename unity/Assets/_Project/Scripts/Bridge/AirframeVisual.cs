@@ -2050,8 +2050,13 @@ namespace FlyingGame.Bridge
         private void TryPlaceModel(Transform root, AircraftConfig cfg)
         {
             UsedModel = false;
+            // Timed (Quest, 2026-11-02: 4.2 s between the [Livery] line and the model's [Airframe] line on the first
+            // build of the 2-33's own model, inside the startup SLOW FRAME). Has() is where the first Resources.Load is.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             if (!SessionSettings.UseAirframeModels || Paint.HasValue || !AirframeModels.Has(cfg.Id)) return;
+            double tFound = sw.Elapsed.TotalMilliseconds;
             GameObject inst = AirframeModels.Place(root, cfg.Id, cfg, out _);
+            Debug.Log($"[Airframe] {cfg.Id}: model ready in {sw.Elapsed.TotalMilliseconds:F0} ms (found / loaded {tFound:F0}, placed {sw.Elapsed.TotalMilliseconds - tFound:F0})");
             if (inst == null) return;
             UsedModel = true;
             _modelRoot = inst.transform;
