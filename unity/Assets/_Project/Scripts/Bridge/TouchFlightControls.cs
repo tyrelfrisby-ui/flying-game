@@ -1077,7 +1077,7 @@ namespace FlyingGame.Bridge
         // The pad takes over a group of controls only while it is moving them, and for the one frame after, so a
         // stick let go returns its surfaces to centre; while it rests, the touch pads work exactly as before, and a
         // finger on a pad always wins that pad's controls.
-        private const float GamepadStickThrottleRate = 1.0f;    // lever travel per second at full left-stick: idle to full in 1.5 s
+        // Left stick: idle to full in 2 s at full stick, past a 0.25 dead zone — the Quest's (Ty 2026-11-02), see GamepadShaping.
         private const float GamepadButtonThrottleRate = 0.8f;   // the shoulders: idle to full in just under 2 s
         private bool _gpStickWas, _gpRudderWas;
         private OptionsPanel _options;
@@ -1116,7 +1116,7 @@ namespace FlyingGame.Bridge
             if (_leftFinger == int.MinValue && (gp.Throttle != 0f || gp.ThrottleUp || gp.ThrottleDown))
             {
                 _throttle = (float)FlyingGame.Core.GamepadShaping.Lever(_throttle, gp.Throttle, gp.ThrottleUp, gp.ThrottleDown,
-                    GamepadStickThrottleRate, GamepadButtonThrottleRate, dt, AxisForFraction(IdleFraction), 1f);
+                    (float)FlyingGame.Core.GamepadShaping.StickLeverRatePerSec(AxisForFraction(IdleFraction), 1f), GamepadButtonThrottleRate, dt, AxisForFraction(IdleFraction), 1f);
                 _leftKnob = IdleLeftKnob();
             }
             if (_trimFinger == int.MinValue)
