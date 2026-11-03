@@ -291,7 +291,7 @@ public static class AeroModel
         return (Cl(0.06) - Cl(-0.06)) / 0.12;
     }
 
-    internal static string SystemKey(string id)
+    public static string SystemKey(string id)
     {
         if (id.EndsWith("-aileron", StringComparison.OrdinalIgnoreCase)) return id[..^"-aileron".Length];
         if (id.Equals("elevator", StringComparison.OrdinalIgnoreCase)) return "hStab";
@@ -427,6 +427,12 @@ public static class AeroModel
                 }
             }
 
+            // BIPLANE MUTUAL INDUCTION on the rolling loads (BiplaneCellule.RollDampingInduction / AileronInduction): a
+            // cellule's two wings each fly in the other's induced field, which takes a share of the load a roll rate or an
+            // aileron puts on them. 1 on every monoplane and every surface outside the cellule.
+            BiplaneCellule? cellule = isWing ? BiplaneCellule.For(config) : null;
+            bool inCellule = cellule is not null && cellule.Covers(surface.Id);
+
             foreach (StripConfig strip in surface.Strips)
             {
                 int idx = stripIndex++; // counted for EVERY strip, including low-speed skips
@@ -437,7 +443,12 @@ public static class AeroModel
                 }
                 Vec3 stripAt = LoadPoint(config, idx, strip);   // a hinged section's loads act at the SECTION quarter-chord
                 Vec3 r = stripAt - cg;
-                Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
+                // The induction is a property of ATTACHED circulation (it is the lattice's), so it fades with this strip's
+                // own separation: a stalled, spinning cellule is left exactly as it was.
+                double stripAttached = flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0;
+                Vec3 rollRates = bodyRates;
+                if (inCellule) rollRates = new Vec3(bodyRates.X * (1.0 - (1.0 - cellule!.RollDampingInduction) * stripAttached), bodyRates.Y, bodyRates.Z);
+                Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(rollRates, r);
                 // The air is not the same across the airframe (regional atmosphere): the strip sees the wind where IT is.
                 if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
 
@@ -600,6 +611,8 @@ public static class AeroModel
                 double controlDeltaAlpha = strip.Control is null
                     ? 0.0
                     : strip.Control.Gain * deflEff * chordwiseFactor * controlEff * ControlSpanCoverage(config, idx);
+                if (inCellule && strip.Control is not null && strip.Control.Surface == "aileron")
+                    controlDeltaAlpha *= 1.0 - (1.0 - cellule!.AileronInduction) * stripAttached;
 
                 // AILERONS in separated flow (owner directive): a deflected aileron on a stalled wing
                 // section stops commanding lift but KEEPS its pressure drag — so roll authority fades
