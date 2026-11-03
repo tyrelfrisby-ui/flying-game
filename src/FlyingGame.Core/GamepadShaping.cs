@@ -133,4 +133,19 @@ public static class GamepadShaping
     /// live pad state, so plugging in or dropping a controller flips it on the next frame.
     /// </summary>
     public static bool TouchSticksShown(bool deskMode, bool gamepadConnected) => !deskMode && !gamepadConnected;
+
+    /// <summary>
+    /// STICK-FREE with a gamepad (Ty 2026-11-02: "the stick free stability thing should be turned off when using a
+    /// controller have it as an option but defaulted off with the controller"). On the touch pads a pad with no finger
+    /// on it lets go of its reversible controls, and the surfaces trail with the air loads (Aircraft.FreeFloat: stick-free
+    /// stability). A thumb stick springs to centre every time the thumb moves to a button, so with a pad that same
+    /// rule kept dropping the controls; with a pad connected the centred stick now HOLDS the surfaces at neutral + trim
+    /// unless the player turns the option on. Touch-only play is unchanged.
+    /// </summary>
+    public const bool DefaultGamepadStickFree = false;
+
+    /// <summary>Whether a released control (no finger, stick at centre) goes free: always on touch; with a gamepad
+    /// connected only when the player has chosen stick-free.</summary>
+    public static bool ControlsFree(bool released, bool gamepadConnected, bool gamepadStickFree) =>
+        released && (!gamepadConnected || gamepadStickFree);
 }

@@ -29,7 +29,12 @@ namespace FlyingGame.Bridge
             /// <summary>The model's control surfaces are meshes of their own, named for them (Aileron_UL, Elevator_L, Rudder):
             /// the rig hangs each one whole on its own hinge line instead of carving the airframe by the config's chord fraction.</summary>
             public readonly bool NamedSurfaces;
-            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; }
+            /// <summary>Draw the whole model this much HIGHER than "lowest point on the deepest contact" puts it, with no
+            /// procedural gear under it (unlike <see cref="GroundClearanceM"/>). For a model whose airframe must sit where a
+            /// sibling's does: the J-3 on floats is held at the landplane's height, so its cabin -- and the eye Ty approved
+            /// in it -- is the same in both (see the J-3 entries in OwnSpecs).</summary>
+            public readonly float SitHighM;
+            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false, float sitHighM = 0f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; SitHighM = sitHighM; }
             /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y (then the three-point fix).</summary>
             public Quaternion Rotation => Quaternion.AngleAxis(PitchDownDeg, Vector3.right) * Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
         }
@@ -148,6 +153,22 @@ namespace FlyingGame.Bridge
             // NOTE: the gear is exported EXTENDED (the provenance solves static at 6.19 in of its 9 in stroke), so
             // until the oleo rig is animated the drawn wheels hang about 0.23 m below the config's contact points.
             { "great-lakes-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
+            // tools/own_models/build_j3_cub.py (docs/models/j3-cub-own-PROVENANCE.md, Codex v15): our clean-room J-3C,
+            // one GLB on its wheels and one on EDO 60-1320 floats, same airframe, same convention as the Great Lakes
+            // (nose +x after import, glTF Y-up, origin on the config datum). THE J-3 for both configs (Ty 2026-11-02:
+            // "get the eye location fixed on the j3 and add it to quest too both on wheels and floats") -- see PickOwn.
+            // Until then the type drew the procedural closed tube and the approved eye sat inside it. Its moving parts
+            // are its own nodes, driven by docs/models/j3-cub-own-rig.json / j3-cub-floats-own-rig.json
+            // (tools/own_models/j3_rig_json.py reads them out of the GLB extras), so the carve never runs on it.
+            { "j3-cub-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
+            // The floats GLB's lowest point is its keel at the step, and "lowest point on the deepest contact" lands it
+            // on the deepest float-keel contact point. Until 2026-11-02 that point was the old physics float block's keel
+            // (1.495 m below the CG, 2.52 m track: not our drawing), so the airframe had to be held 4.54 cm up
+            // (SitHighM) to sit where the landplane's does under the CG. The flight model now floats on the DRAWN floats
+            // (configs floats.stations, cut from this GLB by tools/own_models/j3_float_stations.py) and its float-keel
+            // contacts are on the drawn keel, the step one on the GLB's own lowest point (1.4496 m), so the airframe lands
+            // where the landplane's does with no hold-up. check_eye_interiors.py still gates the coincidence.
+            { "j3-cub-floats-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
         };
 
         /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the
@@ -158,7 +179,8 @@ namespace FlyingGame.Bridge
         /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
             (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like" || modelId == "great-lakes-like"
-                || (modelId == "glider-2-33-like" && (SessionSettings.LiveryFor(modelId) is "factory" or "talk-flying")))
+                || (modelId == "glider-2-33-like" && (SessionSettings.LiveryFor(modelId) is "factory" or "talk-flying"))
+                || modelId == "j3-cub-like" || modelId == "j3-cub-floats-like")   // ours always: wheels and floats (Ty 2026-11-02)
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
 
@@ -239,7 +261,7 @@ namespace FlyingGame.Bridge
                 zShift = cfgMid - modelMid;
             }
             else Debug.Log($"[Airframe] {id}: outer wing not found in the model — placed by the length-centre estimate");
-            float yShift = -gearDown - b.min.y + spec.GroundClearanceM;
+            float yShift = -gearDown - b.min.y + spec.GroundClearanceM + spec.SitHighM;
             // A type wearing another's model sits by its WING (the model's wheels aren't its gear): the model's outer-wing
             // height on the config's.
             if (ownGear && OuterWingHeight(inst, parent, HalfSpan(cfg), out float mh) && ConfigOuterWingHeight(cfg, out float ch)) yShift = ch - mh;

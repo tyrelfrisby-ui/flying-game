@@ -604,6 +604,7 @@ public sealed class Aircraft
     // Water: one query at the CG per step while anywhere near a surface; far above one (or over land), only every
     // half second — 100 m of margin is more than any aeroplane closes in that time.
     private bool _hydroArmed;
+    private FloatHydro.AddedMass _floatAddedMass = FloatHydro.AddedMass.None;
     private double _hydroRecheckSec;
     private void PrepareWater(double dt)
     {
@@ -1071,6 +1072,13 @@ public sealed class Aircraft
         long tForces = SimProfile.Begin();
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
         SimProfile.End(SimProfile.Scope.Forces, tForces);
+        if (Config.Floats is not null)
+        {
+            // The water the floats carry (FloatHydro.AddedMassOf): applied implicitly, like the airframe's below.
+            FloatHydro.AddedMass am = FloatHydro.AddedMassOf(Config, State);
+            State = FloatHydro.CorrectForAddedMass(preStep, State, MassProperties, _floatAddedMass, am, dt);
+            _floatAddedMass = am;
+        }
         if (_hydroArmed)
         {
             State = Hydro.AfterStep(preStep, State, MassProperties, dt);
