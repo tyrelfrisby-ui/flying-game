@@ -1,4 +1,18 @@
 ## NEEDS YOU
+- **GAMEPAD FULL-SCREEN VIEW, CHASE ×1.5, NO MORE SLOWDOWN NEAR THE GROUND, QUEST THROTTLE — PLEASE FLY IT (Grok Bot,
+  2026-11-02, lane/claude-ios-fullview, build `2026.1102.1842`):** iPad mini installed; iPhone: NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device 00008150-001629A83662401C /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
+  - **Pad connected:** the 3D view fills the whole screen (no black tray where the pads were), the airplane sits in
+    the screen's centre, and the buttons drop to the bottom edge. No pad: unchanged.
+  - **Chase camera 50 % farther back** on every aircraft, with the height kept at the same fraction so the framing
+    stays centred.
+  - **Slowdown near the ground: root cause fixed, buildings and towers still collide at every height** (your decision:
+    no 60 m shortcut). Every hard point at every RK4 stage tested all ~1,475 island solids plus the forest shape (which
+    re-derived 25 trees per query). A per-airframe broadphase now gathers the nearby solids (and the region's trees)
+    once and re-gathers only when you leave the region. The answers are exactly the same (tests). iPad mini, Pitts,
+    OnFinal → touchdown: CPU 4.5–5.1 ms all the way down (was 10.3–16.2 ms near the ground), sim 1.2–1.8 ms (was ~8).
+  - **Gamepad throttle = the Quest's:** left-stick Y is a rate throttle, 0.25 dead zone, idle to full in 2 s
+    (was 0.07 and 1.5 s). The shoulders are unchanged.
+  - **Tell me** if the bigger chase distance is now too far on the small types, or if 2 s feels slow on the go-around.
 - **EVERY AEROPLANE IS RIGGED FOR HANDS-OFF LEVEL FLIGHT AT 75 % POWER — PLEASE FLY IT (Claude, 2026-11-02,
   lane/claude-rig-trim):** method and full table in `docs/RIGGING.md`.
   - **What a rig is now:** two fixed angles in each config's new `rig` block, built into the airframe: the ailerons'
@@ -997,6 +1011,39 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-11-02 — Grok Bot · lane/claude-ios-fullview · gamepad full-screen, chase ×1.5, ground slowdown, Quest throttle
+Ty (t256u): "it still slows down when it gets close to the ground … when there is a controller make the whole screen
+show the outside … move the airplane to the center … zoom out a bit on all airplanes … use 50% more distance". Then
+TY-DECISIONS.md: (a) no 60 m collision shortcut; (b) the iOS pad throttle matches the Quest.
+- **Commits (lane/claude-ios-fullview, merged --no-ff into island-nav as ea283dc7):**
+  693a9875 cherry-pick of Quest 159e5f46 (ground/water contact once a step, not at every RK4 stage; solids still
+  tested at every stage, so it stands under decision (a)) · 31b9e261 solids tested above 60 m too (the shortcut
+  skipped buildings/towers; SolidsAboveTheGroundTests fails on 9cb8146f) + IosLowAltitudeProbe · 19d60989 [Perf]
+  line gains sim ms and AGL · a118b0aa ChaseFraming ×1.5 · 8d4d952e ScreenLayout.FullScreenView with a pad ·
+  e0ce108b throttle (GamepadShaping.ThrottleStickDeadZone 0.25, StickLeverRatePerSec → 0.75 axis/s over iOS's
+  −0.5…1 lever) · 5b7da77b WorldSolids.Nearby broadphase (IBounded Block/Cable, IRegional Forest stand-in,
+  WorldSolids.Version) + SolidsBroadphaseTests (exact equivalence with the full scan, incl. the forest) · 3313b6ed
+  merge of island-nav d1bf88d1.
+- **Cause:** with the island built, WorldSolids.Penetration was a linear scan: 1,144 blocks + 297 cables + the Forest
+  shape (25 TryTreeInCell per query: height, slope, cover, ClearanceCap). Per hard point per RK4 stage. The old Mac
+  probe never called IslandGeometry.Build(), so it under-reported this badly.
+- **Mac probe (Debug, island built, ms of sim per 60 Hz frame, mean of 3 spots; Mac shared with other runs):**
+  `500/100/60/30/10/3/0 m` — Pitts base 1.85/1.62/83.5/66.9/239/131/117 → now 1.34/1.21/1.90/1.89/1.90/3.57/3.27 ·
+  2-33 base 2.07/1.89/57.1/85.8/110/77.0/49.7 → 0.96/0.92/1.48/1.60/1.62/1.80/2.46 · C172 base
+  1.31/1.34/52.4/44.3/63.8/62.6/58.8 → 0.97/0.93/1.43/1.51/1.96/3.53/2.72.
+- **iPad mini (Pitts, [Perf]):** before (2026.1102.1649, 60 m shortcut): OnFinal CPU 4.7–5.0 ms in the air,
+  10.3–16.2 ms near the ground, dips to 57–58 fps; OnTheRunway 60–61 fps, CPU 10.6–11.9 ms. Intermediate
+  (2026.1102.1734, solids at all heights, no broadphase): 60–61 fps, CPU 9.5–11.8 ms, sim 7.6–9.6 ms. **After
+  (2026.1102.1842):** OnFinal 70 m → 5 m 60–61 fps (one 54 sample at 41 m, CPU 4.5 ms: not the sim), CPU 4.5–5.1 ms,
+  sim 1.2–1.8 ms; OnTheRunway 60–61 fps, CPU 4.6–5.1 ms, sim 1.7–2.1 ms.
+- **Quest coordination:** reused the Quest lane's 159e5f46 (cherry-pick, adapted) rather than re-doing it; its
+  worker has exited, and lane/claude-vr-quest is still ce62f612. The broadphase is in FlyingGame.Core, so the Quest
+  gets it on its next merge of island-nav. Its own 60 m shortcut (if any) is now redundant.
+- **Devices:** iPad mini 2026.1102.1842 installed and launched (devicectl verified). iPhone NOT installed: 60 tries of devicectl over 30 min all failed with CoreDeviceError 4016 (phone locked or asleep). Unlock it, keep it awake and connected, then run `xcrun devicectl device install app --device 00008150-001629A83662401C /private/tmp/isnav-1842.app` (the same 2026.1102.1842 build) or re-run deploy.sh.
+- **Tests:** SolidsBroadphase/SolidsAboveTheGround/GroundContactCull/GamepadShaping/ChaseFraming/TouchSticks pass.
+  Full suite vs island-nav d1bf88d1: no regressions. The lane-only failures seen in the partial full runs (Alaska, AlpineRange, FrankChurch, GlacierLandingZone, GroundSurface, HighDesert, TipWheel, ReversibleControl, Brs, ApproachSpawn, ChartRaster, CrashWater, Challenge, Event, Formation, TrimConvergence) were re-run class by class on git-archive copies of 3313b6ed and d1bf88d1: identical failure sets (16 of 52 and 28 of 93 on both, empty diff), so they are pre-existing on island-nav. ForestTests ×3 and CarrierTests.TheDeck… fail on the baseline too.
+
 ### 2026-11-02 — Grok Bot · lane/claude-cockpit-look · cockpit view "all sky" on the iPhone with the 8BitDo
 Report (Ty, iPhone, build `2026.1102.1603`, pad connected): select the cockpit view and all he sees is sky.
 - **Ruled out:** no gamepad axis reaches the look. `GamepadInput` feeds flight only; `CockpitView` read only the
