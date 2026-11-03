@@ -311,7 +311,7 @@ namespace FlyingGame.Bridge
         /// <summary>Owner 2026-11-02: the analog ENGINE row (tach, throttle, flow, fuel) goes BELOW the airplane, centred,
         /// in touch and controller layouts. Not in the cockpit (panel), lessons' strips or the Mac.</summary>
         private bool EngineBelowWanted => !DeskMode && !StripMode && !ChaseCamera.InCockpit &&
-            SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !SessionSettings.FlightTestData &&
+            (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog || SessionSettings.Instruments == SessionSettings.InstrumentMode.Hud) && !SessionSettings.FlightTestData &&
             _driver != null && _driver.Sim?.Aircraft?.Config?.Propulsion != null;
 
         /// <summary>Touch landscape with the engine row below the airplane. The four-row centre cluster leaves no room

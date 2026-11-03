@@ -32,5 +32,46 @@
     "iosExport": "build/hud-ios-review-v1.log: iOS build SUCCEEDED; zero error CS",
     "xcode": "build/hud-xcode-review-v1.log: ** BUILD SUCCEEDED **",
     "screenshots": "build/hud-review-v1.log: requested/actual 1206x2622; DONE hudshots"
+  },
+  "hudAddendum": {
+    "approval": "pending Ty review",
+    "renders": [
+      {
+        "path": "renders/hud-layout/v1/hud-hud-gamepad-portrait-mp.png",
+        "width": 1206,
+        "height": 2622,
+        "sha256": "c518219b6556b410a516abc3c485704bbe789922da1198eebd68914fc2b24bd5"
+      },
+      {
+        "path": "renders/hud-layout/v1/hud-hud-gamepad-portrait.png",
+        "width": 1206,
+        "height": 2622,
+        "sha256": "7d7d04194ebd7459a9502d914c6f787d8c11c99723e0135fe1b5bf34d7de97d5"
+      },
+      {
+        "path": "renders/hud-layout/v1/hud-hud-touch-portrait-mp.png",
+        "width": 1206,
+        "height": 2622,
+        "sha256": "5a79be9f07d2ab32253a8d86d8827902246f5eb51602984dc86676074b6af7a2"
+      },
+      {
+        "path": "renders/hud-layout/v1/hud-hud-touch-portrait.png",
+        "width": 1206,
+        "height": 2622,
+        "sha256": "d5fd4e86cdc4b39c50e8149cad3e8f4a0c757ab15b2bec9d2f1c092ae957999b"
+      }
+    ],
+    "mpEquipmentRule": "ConstantSpeed and PropDiameterM > 0; existing cockpit presentation MP, inHg",
+    "sourceSha256": {
+      "unity/Assets/_Project/Scripts/Bridge/HudOverlay.cs": "7afc0ae39fe684552942c9910f8f7ef74c0fa5a8b659a68e8190b8c314d0a673",
+      "unity/Assets/_Project/Scripts/Bridge/TouchFlightControls.cs": "7e94c69ba69318577168aefa1bfc97cc731f3d2cade17e7c8f59ea67c4dc4b81",
+      "unity/Assets/_Project/Scripts/Bridge/CockpitRigState.cs": "5387c145a0a5d05c85b1584699eefafe0de7d3004e00648a6eb48dbabcb40c2d",
+      "unity/Assets/_Project/Scripts/Bridge/ClipSelfTest.cs": "c79b7a578553b4a10cace9a624b161da6c8b2bf287ac4da501ac6f2f54f1c46b"
+    },
+    "validation": {
+      "ios": "build/hud-addendum-complete-ios.log: iOS build SUCCEEDED; zero error CS",
+      "xcode": "build/hud-addendum-complete-xcode.log: ** BUILD SUCCEEDED **",
+      "captures": "build/hud-addendum-complete.log: 1206x2622 actual/requested; DONE hudshots"
+    }
   }
 }

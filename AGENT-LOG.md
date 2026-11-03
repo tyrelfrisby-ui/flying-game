@@ -4438,3 +4438,19 @@ Review artifacts (pending Ty approval):
 - `renders/hud-layout/v1/README.md` and `render-manifest.json` (capture provenance, reproduction, dimensions and SHA-256 hashes).
 
 Local commit only. No push, merge, installation, deployment, or approval claimed.
+
+## 2026-11-03 — lane/codex-hud-layout addendum: HUD engine numbers
+
+Added Ty's green numerical engine row to HUD mode, reusing the lower engine band immediately above the single button row. Reads actual aircraft RPM, throttle %, fuel flow converted to GPH and fuel quantity in US gallons. Text uses the existing HUD font, green color/alpha and normal/bold label/value treatment, with no new dial faces. Constant-speed propeller aircraft get a fifth MP column in inHg. There is no independent MP equipment flag or simulated manifold state on this lane, so MP uses that equipment rule and shares the cockpit's existing ambient/throttle presentation calculation through `CockpitRigState.ManifoldPressureInHg`; no new engine physics was invented.
+
+HUD strokes and labels stop above the engine/control band. Fixed the HUD's pixel matrix to explicit camera-viewport extents so the portrait touch viewport's strokes use the same coordinate system as their projected labels and the keep-clear edge. Gamepad full-screen extents are unchanged. Readouts are hidden for gliders, cockpit panels, menus, replay and modal cards. The existing HUD screenshot harness can additionally capture an MP-equipped aircraft via `AERO_HUDSHOTS_ENGINE_AIRCRAFT`; the C172 remains the normal four-column example.
+
+Final validation: normal iOS IL2CPP/Burst export `build/hud-addendum-complete-ios.log` reports `iOS build SUCCEEDED`, zero `error CS`; Xcode `build/hud-addendum-complete-xcode.log` reports `** BUILD SUCCEEDED **`. Capture harness `build/hud-addendum-complete.log` finishes `DONE hudshots` and confirms actual/requested 1206×2622 portrait frames. Visually inspected the four final HUD PNGs: C172 and Extra 300, both with touch sticks/trim and without them; lower engine text is clear of the airplane, ladder strokes, buttons and touch controls. Extra MP reads 22.5 inHg at the captured state. Captures are Mac Mono ARM64 mobile-layout previews with simulated iPhone safe areas (186 px top, 63 px bottom), not physical iPhone screenshots. The temporary virtual display and preview editor script were removed. Generated project settings/version stamps restored; `git diff --check` passes. Validation is Unity runtime inspection and iOS compilation; no core/physics changes or .NET test changes.
+
+Added to `renders/hud-layout/v1/`, leaving the original analog PNGs intact:
+- `hud-hud-gamepad-portrait.png`
+- `hud-hud-touch-portrait.png`
+- `hud-hud-gamepad-portrait-mp.png`
+- `hud-hud-touch-portrait-mp.png`
+
+README and manifest include provenance, capture command, hashes and the MP equipment/presentation rule. Glass Overlay untouched. Required tracked-file ignore audit prints nothing before the local commit; no forced add, push, merge, installation, deployment or visual approval claimed. Ty's review remains pending.

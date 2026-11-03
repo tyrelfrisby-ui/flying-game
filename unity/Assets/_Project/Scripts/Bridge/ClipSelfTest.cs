@@ -1173,6 +1173,10 @@ namespace FlyingGame.Bridge
                         foreach (var mode in new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud })
                             yield return HudShot("c172-like", mode, gamepad, ChaseCamera.View.RelativeWind,
                                 $"hud-{mode.ToString().ToLowerInvariant()}-{layout}-{orient}.png", dir);
+                        string engineAircraft = System.Environment.GetEnvironmentVariable("AERO_HUDSHOTS_ENGINE_AIRCRAFT");
+                        if (!string.IsNullOrEmpty(engineAircraft))
+                            yield return HudShot(engineAircraft, SessionSettings.InstrumentMode.Hud, gamepad, ChaseCamera.View.RelativeWind,
+                                $"hud-hud-{layout}-{orient}-mp.png", dir);
                         yield return HudShot("glider-2-33-like", SessionSettings.InstrumentMode.Analog, gamepad, ChaseCamera.View.RelativeWind,
                             $"hud-analog-{layout}-{orient}-glider.png", dir);
                         yield return HudShot("c172-like", SessionSettings.InstrumentMode.Analog, gamepad, ChaseCamera.View.Cockpit,

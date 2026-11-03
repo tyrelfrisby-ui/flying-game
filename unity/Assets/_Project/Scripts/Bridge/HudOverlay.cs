@@ -22,7 +22,7 @@ namespace FlyingGame.Bridge
 
         private Camera _cam;
         private Material _mat;
-        private GUIStyle _text, _small;
+        private GUIStyle _text, _small, _engineLabel, _engineValue;
         private int _fs;
 
         private struct Sym { public Vector2 Pos; public string Text; public TextAnchor Anchor; public bool Small; }
@@ -58,10 +58,15 @@ namespace FlyingGame.Bridge
 
         // ---- drawing ------------------------------------------------------------------------------
 
-        private float _w; // line width px
+        private float _w, _lineFloor; // line width and reserved lower edge, in viewport pixels
 
         private void Line(Vector2 a, Vector2 b)
         {
+            // Keep conformal ladder strokes out of the live engine/control band.
+            float floor = _lineFloor + _w * .5f;
+            if (a.y < floor && b.y < floor) return;
+            if (a.y < floor) a = Vector2.LerpUnclamped(a, b, (floor - a.y) / (b.y - a.y));
+            if (b.y < floor) b = Vector2.LerpUnclamped(b, a, (floor - b.y) / (a.y - b.y));
             Vector2 d = b - a;
             if (d.sqrMagnitude < 1e-4f) return;
             Vector2 n = new Vector2(-d.y, d.x).normalized * (_w * 0.5f);
@@ -100,6 +105,9 @@ namespace FlyingGame.Bridge
             float vw = _cam.pixelWidth, vh = _cam.pixelHeight;   // the flying area (full screen in landscape)
             float s = Mathf.Min(vw, vh);
             _w = Mathf.Max(1.5f, s * LineWidthFrac);
+            Rect engineBand = UiLayout.EngineRowRect;
+            _lineFloor = _cam.targetTexture == null && engineBand.width > 0f && !ChaseCamera.InCockpit
+                ? Mathf.Max(0f, Screen.height - engineBand.y - _cam.pixelRect.y) : 0f;
             float u = s * 0.01f; // 1 % of the short edge — symbol unit
 
             Vector3 vel = Driver.WorldVelocityUnity;
@@ -116,7 +124,7 @@ namespace FlyingGame.Bridge
 
             _mat.SetPass(0);
             GL.PushMatrix();
-            GL.LoadPixelMatrix();
+            GL.LoadPixelMatrix(0f, vw, 0f, vh);
             GL.Begin(GL.QUADS);
             GL.Color(Green);
 
@@ -227,7 +235,41 @@ namespace FlyingGame.Bridge
             Line(new Vector2(r.x, r.yMax), new Vector2(r.x, r.y));
         }
 
-        private void OnGUI() => DrawLabels(_labels, _cam.pixelRect, Screen.height);
+        private void OnGUI()
+        {
+            DrawLabels(_labels, _cam.pixelRect, Screen.height);
+            DrawEngineReadouts();
+        }
+
+        private void DrawEngineReadouts()
+        {
+            var ac = Driver?.Sim?.Aircraft;
+            Rect band = UiLayout.EngineRowRect;
+            if (ac?.Config?.Propulsion == null || band.width <= 0f || ChaseCamera.InCockpit ||
+                SessionSettings.MenuOpen || SessionSettings.ReplayActive || UiLayout.Modal ||
+                SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud) return;
+
+            _engineLabel ??= new GUIStyle { font = UiFont.Get(), alignment = TextAnchor.MiddleCenter };
+            _engineValue ??= new GUIStyle(_engineLabel) { fontStyle = FontStyle.Bold };
+            _engineLabel.fontSize = UiLayout.MinText;
+            _engineValue.fontSize = Mathf.RoundToInt(UiLayout.S * .030f);
+            _engineLabel.normal.textColor = _engineValue.normal.textColor = Green;
+            bool mp = ac.Config.Propulsion.ConstantSpeed && ac.Config.Propulsion.PropDiameterM > 0;
+            int count = mp ? 5 : 4;
+            float cell = band.width / count, line = UiLayout.MinText * 1.4f;
+            float top = band.yMax - 2f * line;
+            void Readout(int index, string name, string number)
+            {
+                float x = band.x + index * cell;
+                GUI.Label(new Rect(x, top, cell, line), name, _engineLabel);
+                GUI.Label(new Rect(x, top + line, cell, line), number, _engineValue);
+            }
+            Readout(0, "RPM", $"{ac.EngineRpm:F0}");
+            Readout(1, "THR %", $"{ac.Throttle01 * 100:F0}");
+            Readout(2, "GPH", $"{FlyingGame.Core.HudInstrumentLayout.FuelGallons(ac.FuelFlowKgPerSec * 3600):F1}");
+            Readout(3, "FUEL GAL", $"{FlyingGame.Core.HudInstrumentLayout.FuelGallons(ac.Load.FuelKg):F1}");
+            if (mp) Readout(4, "MP inHg", $"{CockpitRigState.ManifoldPressureInHg(ac, Driver.AltitudeM):F1}");
+        }
 
         private void DrawLabels(System.Collections.Generic.List<Sym> labels, Rect vp, float screenH)
         {
@@ -247,7 +289,10 @@ namespace FlyingGame.Bridge
                 float w = fs * 8f, h = fs * 1.6f;
                 float px = l.Pos.x + vp.x, py = l.Pos.y + vp.y;
                 float x = l.Anchor is TextAnchor.MiddleRight ? px - w : l.Anchor is TextAnchor.MiddleCenter ? px - w * 0.5f : px;
-                GUI.Label(new Rect(x, screenH - py - h * 0.5f, w, h), l.Text, st);
+                var rect = new Rect(x, screenH - py - h * 0.5f, w, h);
+                if (ReferenceEquals(labels, _labels) && UiLayout.EngineRowRect.width > 0f && !ChaseCamera.InCockpit &&
+                    rect.yMax > UiLayout.EngineRowRect.y) continue;
+                GUI.Label(rect, l.Text, st);
             }
         }
     }
