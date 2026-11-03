@@ -36,24 +36,25 @@ public static class RigSolver
     /// inland ones (5,800–6,500 ft). The engine model has no altitude lapse, so 75 % is the same power at any height.</summary>
     public const double RigAltitudeM = 1219.2;
 
-    public readonly struct Result
+    /// <summary>(A class with setters, not init-only: Unity's compiler has no IsExternalInit.)</summary>
+    public sealed class Result
     {
-        public bool Converged { get; init; }
-        public int Iterations { get; init; }
-        public double TasMs { get; init; }
-        public double AlphaRad { get; init; }
-        public double ThetaRad { get; init; }
-        public double BankRad { get; init; }
-        public double ElevatorRad { get; init; }
-        public double AileronRigRad { get; init; }
-        public double FinOffsetRad { get; init; }
-        public double Throttle { get; init; }
-        public double AltitudeM { get; init; }
+        public bool Converged { get; set; }
+        public int Iterations { get; set; }
+        public double TasMs { get; set; }
+        public double AlphaRad { get; set; }
+        public double ThetaRad { get; set; }
+        public double BankRad { get; set; }
+        public double ElevatorRad { get; set; }
+        public double AileronRigRad { get; set; }
+        public double FinOffsetRad { get; set; }
+        public double Throttle { get; set; }
+        public double AltitudeM { get; set; }
         /// <summary>Normalised residual [Fx, Fy, Fz]/W and [L, M, N]/(W·1 m) at the solution.</summary>
-        public double[] Residual { get; init; }
-        public bool LateralSolved { get; init; }
+        public double[] Residual { get; set; } = Array.Empty<double>();
+        public bool LateralSolved { get; set; }
         /// <summary>Climb (+) / descent (−) angle of the velocity, rad.</summary>
-        public double GammaRad { get; init; }
+        public double GammaRad { get; set; }
         public double ResidualNorm => Norm(Residual);
     }
 
