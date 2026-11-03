@@ -100,6 +100,21 @@ namespace FlyingGame.EditorTools
             Leg(body, ref p, true, hipL, ballL, ballL + heel, eye + U(SeatedPilot.KneePoleL));
             Leg(body, ref p, false, hipR, ballR, ballR + heel, eye + U(SeatedPilot.KneePoleR));
             body.Apply(p);
+            if (Environment.GetEnvironmentVariable("BODY_PEDALS") == "1")
+                foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>())
+                {
+                    if (mf.sharedMesh == null || !mf.name.Contains("Pedal") && !mf.name.Contains("Foot") && !mf.name.Contains("Rudder_Bar")) continue;
+                    Mesh m = mf.sharedMesh; Vector3[] v = m.vertices; int[] t = m.triangles; Vector3 n = Vector3.zero; float area = 0f;
+                    Bounds wb = new(air.InverseTransformPoint(mf.transform.TransformPoint(v[0])), Vector3.zero);
+                    foreach (Vector3 q in v) wb.Encapsulate(air.InverseTransformPoint(mf.transform.TransformPoint(q)));
+                    for (int k = 0; k < t.Length; k += 3)
+                    {
+                        Vector3 a = air.InverseTransformPoint(mf.transform.TransformPoint(v[t[k]])), b = air.InverseTransformPoint(mf.transform.TransformPoint(v[t[k + 1]])), c = air.InverseTransformPoint(mf.transform.TransformPoint(v[t[k + 2]]));
+                        Vector3 cr = Vector3.Cross(b - a, c - a); if (cr.z < -0.3f * cr.magnitude) { n += cr; area += cr.magnitude * 0.5f; }
+                    }
+                    Debug.Log($"[PilotBody] {id} pedal mesh {mf.name}: aft-facing normal {n.normalized:F2} (lean {Mathf.Atan2(n.y, -n.z) * Mathf.Rad2Deg:F0}° from vertical, top forward), {area * 1e4f:F0} cm²; bounds {wb.min - eye:F3}..{wb.max - eye:F3} from the eye");
+                }
+            Debug.Log($"[PilotBody] {id}/{seat.Id} feet: ball L {ballL - eye:F3} R {ballR - eye:F3} from the eye; ankle L {p.AnkleL - eye:F3}");
 
             // The shoulder check: in the aeroplane's frame relative to the eye (+x right, +y up, +z nose).
             Vector3 sl = p.ShoulderL - eye, sr = p.ShoulderR - eye;
@@ -135,6 +150,52 @@ namespace FlyingGame.EditorTools
                 {
                     camGo.transform.SetPositionAndRotation(air.TransformPoint(eye), air.rotation * Quaternion.Euler(pitch, yaw, 0f));
                     Shoot(cam, Path.Combine(dir, $"{tag}-{id}-{seat.Id}-{v}.png"));
+                }
+                // BODY_SOLO=1: the aeroplane off, the body alone from outside (shoulders, folds, gloves, feet on the pedal points).
+                if (Environment.GetEnvironmentVariable("BODY_SOLO") == "1")
+                {
+                    // The feet on the pedals, the aeroplane still there: from inboard-aft-above the left foot, and from the
+                    // right of the right foot.
+                    // Only the aeroplane's parts near the feet stay (pedals, floor, footwell), so the skins do not hide them.
+                    Vector3 fm = (ballL + ballR) * 0.5f;
+                    var off = new List<Renderer>();
+                    foreach (Renderer r in root.GetComponentsInChildren<Renderer>())
+                    {
+                        Bounds bb = r.bounds;
+                        if (!r.enabled || (bb.SqrDistance(air.TransformPoint(fm)) < 0.30f * 0.30f && bb.size.magnitude < 1.0f)) continue;
+                        r.enabled = false; off.Add(r);
+                    }
+                    foreach ((string v, Vector3 from, Vector3 at) in new[]
+                    {
+                        ("pedals", fm + new Vector3(-0.75f, 0.30f, -0.25f), fm + new Vector3(0f, 0.0f, -0.08f)),
+                        ("pedals-side", fm + new Vector3(-0.90f, 0.02f, -0.12f), fm + new Vector3(0f, 0.0f, -0.12f)),
+                    })
+                    {
+                        cam.fieldOfView = 40f;
+                        Vector3 wf = air.TransformPoint(from), wa = air.TransformPoint(at);
+                        camGo.transform.SetPositionAndRotation(wf, Quaternion.LookRotation(wa - wf, air.up));
+                        Shoot(cam, Path.Combine(dir, $"{tag}-{id}-{seat.Id}-{v}.png"));
+                    }
+                    foreach (Renderer r in off) r.enabled = true;
+                    root.SetActive(false);
+                    cam.fieldOfView = 35f;
+                    Vector3 chest = eye + new Vector3(0f, -0.30f, 0.10f), feet = (ballL + ballR) * 0.5f;
+                    Vector3 handR = p.GripR, handL = p.GripL;
+                    foreach ((string v, Vector3 from, Vector3 at) in new[]
+                    {
+                        ("solo-front3q", chest + new Vector3(-1.1f, 0.35f, 1.9f), chest + new Vector3(0f, -0.15f, 0.30f)),
+                        ("solo-side", chest + new Vector3(-2.4f, 0.10f, 0.35f), chest + new Vector3(0f, -0.20f, 0.35f)),
+                        ("solo-back3q", chest + new Vector3(1.3f, 0.70f, -1.5f), chest + new Vector3(0f, -0.10f, 0.20f)),
+                        ("solo-feet", feet + new Vector3(-0.55f, 0.30f, 0.45f), feet + new Vector3(0f, 0.02f, -0.05f)),
+                        ("solo-handR", handR + new Vector3(0.40f, 0.25f, 0.30f), handR + new Vector3(0f, 0f, -0.04f)),
+                        ("solo-handL", handL + new Vector3(-0.40f, 0.25f, 0.30f), handL + new Vector3(0f, 0f, -0.04f)),
+                    })
+                    {
+                        Vector3 wf = air.TransformPoint(from), wa = air.TransformPoint(at);
+                        camGo.transform.SetPositionAndRotation(wf, Quaternion.LookRotation(wa - wf, air.up));
+                        Shoot(cam, Path.Combine(dir, $"{tag}-{id}-{seat.Id}-{v}.png"));
+                    }
+                    root.SetActive(true);
                 }
                 Object.DestroyImmediate(camGo); Object.DestroyImmediate(light.gameObject);
             }
