@@ -205,12 +205,50 @@ public sealed class BiplaneCellule
     /// </summary>
     private static void Induction(AircraftConfig cfg, BiplaneCellule cell)
     {
+        var panels = Panels(cfg, id => cell.Covers(id), id => id.StartsWith(cell.WingIds[0], StringComparison.OrdinalIgnoreCase));
+        if (panels.Count < 4) return;
+        Func<Panel, double> roll = p => p.Y, aileron = p => Math.Sign(p.Y) * p.Aileron, uniform = p => 1.0;
+        double Ratio(Func<Panel, double> f, bool lift)
+        {
+            double alone = Load(panels, true, false, f, lift) + Load(panels, false, true, f, lift);
+            return Math.Abs(alone) > 1e-12 ? Load(panels, true, true, f, lift) / alone : 1.0;
+        }
+        cell.RollDampingInduction = Ratio(roll, false);
+        cell.AileronInduction = Ratio(aileron, false);
+        cell.LiftSlopeInduction = Ratio(uniform, true);
+        cell.LiftSlopeInductionUpper = Load(panels, true, true, uniform, true, true) / Load(panels, true, false, uniform, true);
+        cell.LiftSlopeInductionLower = Load(panels, true, true, uniform, true, false) / Load(panels, false, true, uniform, true);
+    }
+
+    /// <summary>
+    /// CHECK, not used by the flight model: what lifting-surface theory says about strip theory's roll balance, for ANY
+    /// config (monoplane or cellule). Strip theory — what <see cref="AeroModel.Compute"/> flies — gives each section only
+    /// its own incidence; the lattice adds every wing's induced field, self and mutual. Returns, for full-span unit loads,
+    /// the lattice-over-strip ratio of the aileron moment, of the roll damping, and of the steady pb/2V they balance to
+    /// (= the first over the second). Strip theory here uses the same section slopes the lattice does.
+    /// </summary>
+    public static (double Aileron, double Damping, double SteadyRate) LiftingSurfaceOverStrip(AircraftConfig cfg)
+    {
+        BiplaneCellule cell = For(cfg);
+        var panels = Panels(cfg, id => id.Contains("wing", StringComparison.OrdinalIgnoreCase),
+                            id => !cell.IsCellule || id.StartsWith(cell.WingIds[0], StringComparison.OrdinalIgnoreCase));
+        if (panels.Count < 4) return (1, 1, 1);
+        Func<Panel, double> roll = p => p.Y, aileron = p => Math.Sign(p.Y) * p.Aileron;
+        double Strip(Func<Panel, double> f) { double m = 0; foreach (Panel p in panels) m += p.A0 * f(p) * p.Chord * p.Width * p.Y; return m; }
+        // The lattice's moment is in Γ per unit V; Γ = ½·c·Cl, so the strip moment ½·a0·α·c per unit V compares like for like.
+        double ka = Load(panels, true, true, aileron, false) / (0.5 * Strip(aileron));
+        double kp = Load(panels, true, true, roll, false) / (0.5 * Strip(roll));
+        return (ka, kp, ka / kp);
+    }
+
+    private static List<Panel> Panels(AircraftConfig cfg, Func<string, bool> include, Func<string, bool> isUpper)
+    {
         var panels = new List<Panel>();
         int idx = 0;
         for (int si = 0; si < cfg.Surfaces.Count; si++)
         {
             SurfaceConfig sf = cfg.Surfaces[si];
-            bool inCellule = cell.Covers(sf.Id);
+            bool inCellule = include(sf.Id);
             foreach (StripConfig st in sf.Strips)
             {
                 int i = idx++;
@@ -231,46 +269,69 @@ public sealed class BiplaneCellule
                 double cover = st.Control is not null && st.Control.Surface == "aileron" ? AeroModel.ControlSpanCoverage(cfg, i) : 0.0;
                 double a0 = SectionSlopeOf(cfg, sf);
                 Vec3 at = AeroModel.LoadPoint(cfg, i, st);
-                bool upper = sf.Id.StartsWith(cell.WingIds[0], StringComparison.OrdinalIgnoreCase);
-                panels.Add(new Panel(at.X, at.Y, at.Z, width, st.Chord + hingedChord, a0, cover, upper));
+                panels.Add(new Panel(at.X, at.Y, at.Z, width, st.Chord + hingedChord, a0, cover, isUpper(sf.Id)));
             }
         }
-        if (panels.Count < 4) return;
+        return Tile(panels);
+    }
 
-        double Moment(bool useUpper, bool useLower, Func<Panel, double> alpha, bool lift, bool? onlyUpper = null)
+    /// <summary>
+    /// The strips' own widths (area/chord) come from a rasterised silhouette and on some configs overlap their neighbours
+    /// by ~10 % (the Seminole's sum to 13.1 m on an 11.8 m span), and overlapping horseshoes are not a planform. So each
+    /// wing's panels are re-tiled: neighbours meet at a single edge, split in proportion to their own widths, the tips
+    /// keep their own outer half-width, and a gap wider than the two half-widths (the fuselage) stays a gap. The chord
+    /// becomes area/width, so every panel keeps the area the strip model flies.
+    /// </summary>
+    private static List<Panel> Tile(List<Panel> panels)
+    {
+        var outList = new List<Panel>();
+        foreach (bool up in new[] { true, false })
         {
-            var ps = panels.FindAll(p => p.Upper ? useUpper : useLower);
+            var ps = panels.FindAll(p => p.Upper == up);
+            ps.Sort((a, b) => a.Y.CompareTo(b.Y));
             int n = ps.Count;
-            var a = new double[n, n]; var rhs = new double[n];
+            var lo = new double[n]; var hi = new double[n];
+            for (int i = 0; i < n; i++) { lo[i] = ps[i].Y - 0.5 * ps[i].Width; hi[i] = ps[i].Y + 0.5 * ps[i].Width; }
+            for (int i = 0; i + 1 < n; i++)
+            {
+                double gap = ps[i + 1].Y - ps[i].Y, half = 0.5 * (ps[i].Width + ps[i + 1].Width);
+                if (gap > 1.2 * half) continue;   // the fuselage: leave both own edges
+                double e = ps[i].Y + gap * ps[i].Width / (ps[i].Width + ps[i + 1].Width);
+                hi[i] = e; lo[i + 1] = e;
+            }
             for (int i = 0; i < n; i++)
             {
-                Panel pi = ps[i];
-                // Lattice frame: x DOWNSTREAM, y right, z UP (config is x forward, z down).
-                var cp = new Vec3(-pi.X + pi.A0 * pi.Chord / (4 * Math.PI), pi.Y, -pi.Z);
-                for (int j = 0; j < n; j++) a[i, j] = HorseshoeW(cp, ps[j]);
-                rhs[i] = -alpha(pi);   // tangency: induced w + V·α = 0, per unit V
+                Panel p = ps[i]; double w = hi[i] - lo[i];
+                if (w <= 1e-6) continue;
+                outList.Add(new Panel(p.X, 0.5 * (lo[i] + hi[i]), p.Z, w, p.Chord * p.Width / w, p.A0, p.Aileron, p.Upper));
             }
-            double[] g = Solve(a, rhs);
-            double m = 0;
-            for (int j = 0; j < n; j++)
-            {
-                if (onlyUpper.HasValue && ps[j].Upper != onlyUpper.Value) continue;
-                m += g[j] * ps[j].Width * (lift ? 1.0 : ps[j].Y);   // ρVΓ per unit span: lift, or rolling moment about x
-            }
-            return m;
         }
+        return outList;
+    }
 
-        Func<Panel, double> roll = p => p.Y, aileron = p => Math.Sign(p.Y) * p.Aileron, uniform = p => 1.0;
-        double Ratio(Func<Panel, double> f, bool lift)
+    /// <summary>Solve the lattice on the chosen wings for incidence α(panel) per unit V and return the summed lift (Σ Γ·width)
+    /// or rolling moment (Σ Γ·width·y), optionally only that carried by the upper (true) or lower (false) wing.</summary>
+    private static double Load(List<Panel> panels, bool useUpper, bool useLower, Func<Panel, double> alpha, bool lift, bool? onlyUpper = null)
+    {
+        var ps = panels.FindAll(p => p.Upper ? useUpper : useLower);
+        int n = ps.Count;
+        var a = new double[n, n]; var rhs = new double[n];
+        for (int i = 0; i < n; i++)
         {
-            double alone = Moment(true, false, f, lift) + Moment(false, true, f, lift);
-            return Math.Abs(alone) > 1e-12 ? Moment(true, true, f, lift) / alone : 1.0;
+            Panel pi = ps[i];
+            // Lattice frame: x DOWNSTREAM, y right, z UP (config is x forward, z down).
+            var cp = new Vec3(-pi.X + pi.A0 * pi.Chord / (4 * Math.PI), pi.Y, -pi.Z);
+            for (int j = 0; j < n; j++) a[i, j] = HorseshoeW(cp, ps[j]);
+            rhs[i] = -alpha(pi);   // tangency: induced w + V·α = 0, per unit V
         }
-        cell.RollDampingInduction = Ratio(roll, false);
-        cell.AileronInduction = Ratio(aileron, false);
-        cell.LiftSlopeInduction = Ratio(uniform, true);
-        cell.LiftSlopeInductionUpper = Moment(true, true, uniform, true, true) / Moment(true, false, uniform, true);
-        cell.LiftSlopeInductionLower = Moment(true, true, uniform, true, false) / Moment(false, true, uniform, true);
+        double[] g = Solve(a, rhs);
+        double m = 0;
+        for (int j = 0; j < n; j++)
+        {
+            if (onlyUpper.HasValue && ps[j].Upper != onlyUpper.Value) continue;
+            m += g[j] * ps[j].Width * (lift ? 1.0 : ps[j].Y);   // ρVΓ per unit span: lift, or rolling moment about x
+        }
+        return m;
     }
 
     /// <summary>The 2-D section slope a wing's strips fly: the table's own where it is a 2-D section, otherwise the section

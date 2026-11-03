@@ -212,6 +212,45 @@ public static class AeroModel
         return cov;
     }
 
+    /// <summary>
+    /// The chord ratio E = c_hinged / (c_fixed + c_hinged) of the aileron SECTION a strip belongs to (fixed row or hinged
+    /// row, paired as <see cref="LoadPoint"/> pairs them), or NaN where an aileron strip has no partner — the
+    /// paraglider's brake-line strips, which are not a hinged section and keep the old per-strip treatment.
+    /// </summary>
+    public static double AileronSectionE(AircraftConfig config, int stripIndex)
+    {
+        double[] e = _aileronE.GetValue(config, BuildAileronE);
+        return stripIndex >= 0 && stripIndex < e.Length ? e[stripIndex] : double.NaN;
+    }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _aileronE = new();
+    private static double[] BuildAileronE(AircraftConfig cfg)
+    {
+        var all = new List<(StripConfig st, string key, bool hinged, double width)>();
+        foreach (SurfaceConfig sf in cfg.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+                all.Add((st, SystemKey(sf.Id), st.Control is not null && Math.Abs(st.Control.Gain) >= 0.9,
+                         st.Chord > 1e-9 ? st.Area / st.Chord : 0.0));
+        var e = new double[all.Count];
+        for (int i = 0; i < e.Length; i++) e[i] = double.NaN;
+        for (int i = 0; i < all.Count; i++)
+        {
+            var (st, key, hinged, width) = all[i];
+            if (st.Control is null || st.Control.Surface != "aileron" || width <= 1e-9) continue;
+            int best = -1; double bestD = double.MaxValue;
+            for (int j = 0; j < all.Count; j++)
+            {
+                var o = all[j];
+                if (j == i || o.hinged == hinged || o.key != key || o.st.Control is null || o.st.Control.Surface != "aileron") continue;
+                double d = Math.Abs(o.st.Pos[1] - st.Pos[1]);
+                if (d < 0.6 * Math.Max(width, o.width) && d < bestD) { bestD = d; best = j; }
+            }
+            if (best < 0) continue;
+            double ch = hinged ? st.Chord : all[best].st.Chord, cf = hinged ? all[best].st.Chord : st.Chord;
+            e[i] = ch / (ch + cf);
+        }
+        return e;
+    }
+
     public const double FinEndPlateFactor = 1.55;
     /// <summary>Tail dynamic-pressure ratio η_t = q_tail / q∞ (DATCOM: 0.85–0.95 for a conventional tail in the wing and
     /// fuselage wake; the propeller slipstream raises it separately under power).</summary>
@@ -611,6 +650,26 @@ public static class AeroModel
                 double controlDeltaAlpha = strip.Control is null
                     ? 0.0
                     : strip.Control.Gain * deflEff * chordwiseFactor * controlEff * ControlSpanCoverage(config, idx);
+                // AILERON SECTIONS (owner 2026-11-02, "the roll rate is way too high"; DATCOM 6.1.1.1 / Torenbeek). An
+                // aileron is the aft E of ONE aerofoil, not an aerofoil of its own: the hinged row used to fly its table at
+                // α + δ, which at full travel is past the section's stall (the Pitts at 2° + 25°), and then UN-stalled as the
+                // roll itself unloaded it — 24 % more rolling moment at the steady roll than at the first instant of the
+                // input, which is the opposite of how a plain flap separates (off the hinge knuckle, set by δ, not by the
+                // section's α). The section's lift now moves by Δα = τ(E)·η_δ(E, δ)·δ on BOTH rows: τ the thin-aerofoil flap
+                // effectiveness for the section's own chord ratio, η_δ the empirical plain-flap (sealed gap) lift
+                // effectiveness, which carries the viscous small-δ loss and the large-deflection fall-off together
+                // (PlainFlap). It replaces the authored fixed-row gain (0.45 hand-set across most of the fleet; derived as
+                // 0.85·τ on the Pitts, Extra and Great Lakes) for ailerons only; elevators and rudders are unchanged. The
+                // hinged row's DRAG stays sampled at its geometric α + δ: the deflected surface's pressure drag, the source
+                // of the adverse yaw, is not what this corrects.
+                double sectionE = strip.Control is not null && strip.Control.Surface == "aileron" ? AileronSectionE(config, idx) : double.NaN;
+                double hingedDragDelta = double.NaN;
+                if (!double.IsNaN(sectionE))
+                {
+                    if (Math.Abs(strip.Control!.Gain) >= 0.9) hingedDragDelta = controlDeltaAlpha;
+                    controlDeltaAlpha = Math.Sign(strip.Control.Gain) * PlainFlap.LiftEffectiveness(sectionE, deflEff) * deflEff
+                                        * chordwiseFactor * controlEff * ControlSpanCoverage(config, idx);
+                }
                 if (inCellule && strip.Control is not null && strip.Control.Surface == "aileron")
                     controlDeltaAlpha *= 1.0 - (1.0 - cellule!.AileronInduction) * stripAttached;
 
@@ -629,6 +688,7 @@ public static class AeroModel
                     // momentarily reattaches — kills the inverted reattachment-grab magnitudes.
                     double yawGate = Math.Clamp(Math.Abs(bodyRates.Z) / 1.2, 0.0, 1.0);
                     controlDeltaAlpha *= 1.0 - 0.5 * yawGate * wake.StalledFraction;
+                    if (!double.IsNaN(hingedDragDelta)) hingedDragDelta *= (1.0 - 0.85 * sep) * (1.0 - 0.5 * yawGate * wake.StalledFraction);
                     double deltaGeom = strip.Control!.Gain * controlDeflRad;
                     cdDeflection = 1.2 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * 1.5 * sep; // separated flow ONLY — attached aileron drag stays the induced-drag asymmetry the polar already gives
                 }
@@ -665,6 +725,10 @@ public static class AeroModel
                 }
 
                 AeroCoefficients coeffs = table.Sample(alpha);
+                // The hinged aileron row's drag: its own deflected-surface value, as before (see AILERON SECTIONS above).
+                double hingedCd = double.NaN;
+                if (!double.IsNaN(hingedDragDelta))
+                    hingedCd = table.Sample((alphaBase + stripIncidence + hingedDragDelta) * (cosSweep < 0.9999 ? cosSweep : 1.0)).Cd;
 
                 // Two-branch stall: blend the ATTACHED branch (linear lift carried past the static
                 // stall — capped dynamic overshoot) with the SEPARATED branch (the table's post-stall
@@ -704,6 +768,8 @@ public static class AeroModel
                         coeffs = new AeroCoefficients(cl, cd, cm);
                     }
                 }
+
+                if (!double.IsNaN(hingedCd)) coeffs = new AeroCoefficients(coeffs.Cl, hingedCd, coeffs.Cm);
 
                 // BIPLANE CELLULE (owner 2026-10-28). Two wings one above the other never make what two isolated
                 // wings of the same area would: each flies in the other's field. BiplaneCellule measures the gap,
@@ -1221,3 +1287,50 @@ public readonly struct WindGradient
     public WindGradient(Vec3 perX, Vec3 perY) { PerX = perX; PerY = perY; Active = true; }
 }
 
+/// <summary>
+/// Plain trailing-edge flap (and aileron) lift effectiveness, sealed gap: Δcl = η_δ · τ · cl_α · δ, with τ = 1 − (θf − sin θf)/π,
+/// cos θf = 2E − 1, Glauert's thin-aerofoil result (ARC R&amp;M 1095, 1927), and η_δ the empirical factor that takes the
+/// boundary-layer de-cambering at small δ and the flow separating off the flap at large δ. η_δ is read off Olson,
+/// "Semi-Empirical Prediction of Aircraft Low-Speed Aerodynamic Characteristics", AIAA 2015-0011 (NASA NTRS 20150006019),
+/// Fig. 3(a) "Plain flaps with sealed gap", data from Torenbeek, Synthesis of Subsonic Airplane Design (1982) — the
+/// same plain-flap correction DATCOM 6.1.1.1 builds from its (cl_δ/cl_δ,theory) and K' charts. Digitised 2026-11-02 at
+/// the plotted markers (every 10°) and on the curves between them at 5°, 15° and 25°; read to about ±0.01.
+/// </summary>
+public static class PlainFlap
+{
+    public static readonly double[] ChordRatios = { 0.1, 0.2, 0.3, 0.4 };
+    public static readonly double[] DeflectionsDeg = { 0, 5, 10, 15, 20, 25, 30, 40, 50, 60 };
+    /// <summary>η_δ[chord ratio][deflection], rows as <see cref="ChordRatios"/>, columns as <see cref="DeflectionsDeg"/>.</summary>
+    public static readonly double[][] EtaTable =
+    {
+        new[] { 0.760, 0.760, 0.735, 0.660, 0.570, 0.495, 0.440, 0.385, 0.365, 0.350 },
+        new[] { 0.855, 0.860, 0.833, 0.740, 0.617, 0.535, 0.475, 0.420, 0.385, 0.360 },
+        new[] { 0.905, 0.910, 0.880, 0.775, 0.640, 0.555, 0.500, 0.435, 0.395, 0.370 },
+        new[] { 0.920, 0.920, 0.885, 0.785, 0.650, 0.560, 0.500, 0.435, 0.400, 0.370 },
+    };
+
+    /// <summary>Glauert's thin-aerofoil flap effectiveness τ = ∂α₀/∂δ for chord ratio E.</summary>
+    public static double Tau(double e)
+    {
+        double th = Math.Acos(Math.Clamp(2 * e - 1, -1, 1));
+        return 1 - (th - Math.Sin(th)) / Math.PI;
+    }
+
+    /// <summary>η_δ at chord ratio E and deflection δ (rad, either sign), bilinear in the table, clamped to its edges.</summary>
+    public static double Eta(double e, double deltaRad)
+    {
+        double d = Math.Min(Math.Abs(deltaRad) * 180.0 / Math.PI, DeflectionsDeg[^1]);
+        double ec = Math.Clamp(e, ChordRatios[0], ChordRatios[^1]);
+        int i = 0; while (i < ChordRatios.Length - 2 && ec > ChordRatios[i + 1]) i++;
+        int j = 0; while (j < DeflectionsDeg.Length - 2 && d > DeflectionsDeg[j + 1]) j++;
+        double fe = (ec - ChordRatios[i]) / (ChordRatios[i + 1] - ChordRatios[i]);
+        double fd = (d - DeflectionsDeg[j]) / (DeflectionsDeg[j + 1] - DeflectionsDeg[j]);
+        double a = EtaTable[i][j] + fd * (EtaTable[i][j + 1] - EtaTable[i][j]);
+        double b = EtaTable[i + 1][j] + fd * (EtaTable[i + 1][j + 1] - EtaTable[i + 1][j]);
+        return a + fe * (b - a);
+    }
+
+    /// <summary>∂α₀/∂δ of the section as a secant at this deflection: τ(E)·η_δ(E, δ). The section's lift moves as though its
+    /// incidence moved by this times δ.</summary>
+    public static double LiftEffectiveness(double e, double deltaRad) => Tau(e) * Eta(e, deltaRad);
+}
