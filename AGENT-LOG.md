@@ -1,4 +1,7 @@
 ## NEEDS YOU
+
+## NEEDS YOU — Great Lakes v7 review (Ty, 2026-11-03 10:26 PST)
+- Ty critique: the throttle/prop/mixture quadrant labels overhang ahead of and behind the curved quadrant. Trim the label plates so they end where the quadrant curve begins. Render approval still pending; no code changed.
 - **GREAT LAKES: THROTTLE QUADRANT LEVERS + ONE LABELLED SWITCH ROW (Codex, 2026-11-02, lane/codex-greatlakes-cockpit,
   7fcd960e · 25c0914f). Ty's answer: the throttle is a QUADRANT LEVER, not push-pull (recorded in TY-DECISIONS.md).**
   BUILD SUCCEEDED (build-only, bundle 2026.1102.2236, 0 `error CS`, bundleVersion bump reverted). Not merged, not installed.
