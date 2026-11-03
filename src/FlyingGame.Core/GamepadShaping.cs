@@ -25,8 +25,10 @@ namespace FlyingGame.Core;
 /// </summary>
 public static class GamepadShaping
 {
-    /// <summary>The sticks' dead zone, as a fraction of full travel.</summary>
-    public const double DefaultStickDeadZone = 0.07;
+    /// <summary>The sticks' dead zone, as a fraction of full travel: the right stick's radial zone and the left stick's X
+    /// (rudder). Ty 2026-11-03: liked the expo, not the 0.07 zone — 0.02 now. Not the triggers'
+    /// (<see cref="DefaultTriggerDeadZone"/>) and not the throttle's (<see cref="ThrottleStickDeadZone"/>).</summary>
+    public const double DefaultStickDeadZone = 0.02;
     /// <summary>The triggers' dead zone: they rest at zero and do not drift, so they need less.</summary>
     public const double DefaultTriggerDeadZone = 0.05;
     /// <summary>The expo blend, 0 = linear … 1 = pure cube.</summary>
