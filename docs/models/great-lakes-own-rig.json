@@ -1715,7 +1715,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    -0.067
+    -0.039
    ],
    "map": [
     [
@@ -1747,7 +1747,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    -0.099
+    -0.083
    ],
    "map": [
     [
@@ -1779,7 +1779,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    -0.131
+    -0.127
    ],
    "map": [
     [
@@ -1811,7 +1811,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    0.029
+    0.005
    ],
    "map": [
     [
@@ -1843,7 +1843,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    0.061
+    0.049
    ],
    "map": [
     [
@@ -1866,30 +1866,34 @@
    "node": "Ctl_Rotary_Trim",
    "param": "trim",
    "parent": null,
-   "kind": "rot",
+   "kind": "move",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.003
+    1.843,
+    -0.285,
+    0.322
    ],
    "map": [
     [
      -1,
+     -0.06
+    ],
+    [
+     0,
      0
     ],
     [
      1,
-     300
+     0.06
     ]
    ],
-   "model": -1.0,
+   "model": 0.0,
    "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "Left wall cable trim; forward nose down, aft nose up; estimated reach",
    "extra": {},
    "link": "",
    "note": ""
@@ -2195,7 +2199,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.08
+    0.06
    ],
    "map": [
     [
@@ -2227,7 +2231,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    -0.08
+    -0.06
    ],
    "map": [
     [
@@ -2259,7 +2263,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    -0.112
+    -0.1
    ],
    "map": [
     [
@@ -2291,7 +2295,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    -0.144
+    -0.14
    ],
    "map": [
     [
@@ -2323,7 +2327,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.016
+    -0.02
    ],
    "map": [
     [
@@ -2355,7 +2359,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.048
+    0.02
    ],
    "map": [
     [
@@ -2378,30 +2382,34 @@
    "node": "Ctl_Rotary_Trim_Front",
    "param": "trim",
    "parent": null,
-   "kind": "rot",
+   "kind": "move",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.016
+    1.173,
+    -0.285,
+    0.322
    ],
    "map": [
     [
      -1,
+     -0.06
+    ],
+    [
+     0,
      0
     ],
     [
      1,
-     300
+     0.06
     ]
    ],
-   "model": -1.0,
+   "model": 0.0,
    "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "Left wall cable trim; forward nose down, aft nose up; estimated reach",
    "extra": {},
    "link": "",
    "note": ""
@@ -2835,38 +2843,6 @@
    "note": ""
   },
   {
-   "node": "Ctl_Rotary_FuelSelector",
-   "param": "fuel_valve",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.035
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
    "node": "Ctl_Rotary_ComVolume",
    "param": "com_volume",
    "parent": null,
@@ -2911,7 +2887,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.144
+    0.14
    ],
    "map": [
     [
@@ -2955,7 +2931,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.112
+    0.1
    ],
    "map": [
     [
@@ -3034,38 +3010,6 @@
    "model": 0.0,
    "unit": "0..1",
    "desc": "(E) left-sidewall quadrant lever, Ty 2026-11-02; blue prop",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector_Front",
-   "param": "fuel_valve",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.048
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
    "note": ""
@@ -3279,7 +3223,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    -0.067
+    -0.039
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3316,7 +3260,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    -0.099
+    -0.083
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3353,7 +3297,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    -0.131
+    -0.127
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3390,7 +3334,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    0.029
+    0.005
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3493,7 +3437,7 @@
    "pivot_gltf": [
     1.6389999999999998,
     -0.098,
-    0.061
+    0.049
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -3520,20 +3464,20 @@
   {
    "node": "Ctl_Rotary_Trim",
    "param": "trim",
-   "kind": "Rotary",
+   "kind": "PushPull",
    "seat": "Rear",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.003
+    1.843,
+    -0.285,
+    0.322
    ],
-   "travel": 300,
-   "travel_unit": "deg",
+   "travel": 0.12,
+   "travel_unit": "m",
    "sim_ends": [
     -1,
     1
@@ -3548,45 +3492,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
-   "label": "TRIM"
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector",
-   "param": "fuel_valve",
-   "kind": "Rotary",
-   "seat": "Rear",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.6389999999999998,
-    -0.098,
-    -0.035
-   ],
-   "travel": 90,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_FuelSelector",
-   "grip": "Grip_FuelSelector",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
-   "label": "FUEL VALVE"
+   "placement": "Left wall cable trim; forward nose down, aft nose up; estimated reach",
+   "label": "TRIM / NOSE DOWN forward / NOSE UP aft"
   },
   {
    "node": "Ctl_Rotary_ComOuter",
@@ -4067,7 +3974,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.144
+    0.14
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -4107,7 +4014,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.112
+    0.1
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4144,7 +4051,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.08
+    0.06
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4181,7 +4088,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    -0.08
+    -0.06
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4218,7 +4125,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    -0.112
+    -0.1
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4255,7 +4162,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    -0.144
+    -0.14
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4292,7 +4199,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.016
+    -0.02
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4395,7 +4302,7 @@
    "pivot_gltf": [
     0.969,
     -0.078,
-    0.048
+    0.02
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -4422,20 +4329,20 @@
   {
    "node": "Ctl_Rotary_Trim_Front",
    "param": "trim",
-   "kind": "Rotary",
+   "kind": "PushPull",
    "seat": "Front",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.016
+    1.173,
+    -0.285,
+    0.322
    ],
-   "travel": 300,
-   "travel_unit": "deg",
+   "travel": 0.12,
+   "travel_unit": "m",
    "sim_ends": [
     -1,
     1
@@ -4450,45 +4357,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
-   "label": "TRIM"
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector_Front",
-   "param": "fuel_valve",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.969,
-    -0.078,
-    -0.048
-   ],
-   "travel": 90,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_FuelSelector_Front",
-   "grip": "Grip_FuelSelector_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
-   "label": "FUEL VALVE"
+   "placement": "Left wall cable trim; forward nose down, aft nose up; estimated reach",
+   "label": "TRIM / NOSE DOWN forward / NOSE UP aft"
   },
   {
    "node": "Ctl_Rotary_ComOuter_Front",

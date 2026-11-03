@@ -5,7 +5,7 @@
   * Grip_Throttle_Rear/Front exist under the throttle levers at the knob (the VrCockpitHands contract).
   * Over the whole sweep, every lever's shaft and knob stays >= 3 mm from all other cockpit geometry (tubes,
     sidewall, panel, card, stick, switch row) and inboard of the sidewall.
-  * The ten non-radio controls per seat sit on ONE row (same z), on the switch strip, each with a placard.
+  * The eight non-radio controls per seat sit on ONE row (same z), on the switch strip, each with a placard.
 Usage: python3 check_gl_quadrant.py   (Blender's python; no Unity)
 """
 import json,math,sys
@@ -73,6 +73,14 @@ def main():
    if not(z0+.016<=p[2]<=z1 and ya+.016<=p[1]<=yb-.016):fails.append((seat,lab,'off the strip',p))
    if not c.get('label'):fails.append((seat,lab,'no placard label'))
   if max(zs)-min(zs)>1e-6:fails.append((seat,'switch row not single',zs))
+ # Wall trim contract: linked translation, ND forward, NU aft; no fuel valve mesh or binding.
+ for seat,s in q.SEATS.items():
+  c=next(c for c in C if c['seat']==seat and c['param']=='trim');r=rig[c['node']]
+  p=builder(np.array(c['pivot_gltf']))
+  if not(p[1]>.30 and -.35<p[2]<-.20 and r['kind']=='move' and r['map']==[[-1,-.06],[0,0],[1,.06]] and r['axis_gltf']==[1.,0.,0.]):fails.append((seat,'wall trim contract'))
+  for nm in ('Trim_'+s['sfx'],'FuelValve_'+s['sfx'],'Ctl_Rotary_FuelSelector'+s['ctl'],'Mount_FuelSelector'+s['ctl']):
+   if 'mesh' in N[names[nm]]:fails.append((seat,nm,'obsolete mesh'))
+ if any('FuelSelector' in c['node'] for c in C):fails.append('fuel valve interaction remains')
  print('FAIL' if fails else 'OK',*fails,sep='\n ')
  return not fails
 if __name__=='__main__':sys.exit(0 if main() else 1)

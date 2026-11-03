@@ -17,7 +17,7 @@ forward about the gate's lateral axis (glTF +z, the existing rig axis) to full /
     twins are the gate slots. The old static Prop_/Mixture_ lever meshes become inert empties.
   * The old hip-height console box and front gate plate (gl_cockpit.py 'ck_quadrant') are removed.
 
-SWITCH ROW, each cockpit: the ten non-radio panel controls on ONE line along the bottom of the panel, on a
+SWITCH ROW, each cockpit: the eight non-radio panel controls on ONE line along the bottom of the panel, on a
 flush black strip under the panel (aft face exactly on the panel face plane, like the Extra subpanel), each with
 a white-on-black placard under it. Rear row gaps around the drop-down sequence card. Radio knobs unchanged.
 Rerunnable: it always starts from the pre-quadrant GLB and rig json at commit BASE (read with git show), so a
@@ -39,11 +39,11 @@ PLACARD_DZ=.036   # placard centre below the switch pivot: clear of the rotary a
 # per seat: panel face X, lever pivot x, pivot z, housing top z, strip z range, switch row z, row y slots
 SEATS={
  'Rear': dict(sfx='R',ctl='',full='Rear',X=-1.638,px=-1.763,zp=-.170,ztop=-.088,strip=(-.148,-.076),strip_y=(-.155,.330),row_z=-.098,
-              row_y=[.295,.262,.093,.061,.029,-.003,-.035,-.067,-.099,-.131]),
+              row_y=[.295,.262,.093,.049,.005,-.039,-.083,-.127]),
  'Front':dict(sfx='F',ctl='_Front',full='Front',X=-.968,px=-1.093,zp=-.150,ztop=-.068,strip=(-.128,-.056),strip_y=(-.165,.165),row_z=-.078,
-              row_y=[.144,.112,.080,.048,.016,-.016,-.048,-.080,-.112,-.144]),
+              row_y=[.140,.100,.060,.020,-.020,-.060,-.100,-.140]),
 }
-ROW=['Magneto','Master','FuelPump','CarbHeat','Smoke','Trim','FuelSelector','NavLights','Strobe','LandingLight']
+ROW=['Magneto','Master','FuelPump','CarbHeat','Smoke','NavLights','Strobe','LandingLight']
 LABEL={'Magneto':'MAGS','Master':'MASTER','FuelPump':'FUEL|PUMP','CarbHeat':'CARB|HEAT','Smoke':'SMOKE','Trim':'TRIM',
        'FuelSelector':'FUEL|VALVE','NavLights':'NAV|LTS','Strobe':'STROBE','LandingLight':'LAND|LT'}
 # lever: (rig/ctl label, lateral y, length, knob material, knob radius, knob letter, gate label)
@@ -128,7 +128,7 @@ def build(g,doc):
  with tempfile.TemporaryDirectory() as td:
   pth=Path(td)/'gl-placards.png';pth.write_bytes(data);g.material('GL_Placard_Atlas',(1,1,1),png=pth)
  if 'P3e_Subpanel' not in mats:g.material('P3e_Subpanel',(.03,.03,.035))
- # remove the old console box / gate plate triangles (keep the rope-trim slot at z -.42 and the fuel valve plate)
+ # remove the old console box / gate plate triangles (including obsolete rope-trim slot and fuel valve plate)
  ci=names['Cockpit_Interior'];mesh=g.doc['meshes'][nodes[ci]['mesh']];M=W[ci];matnames=[m['name'] for m in g.doc['materials']]
  for p in mesh['primitives']:
   if matnames[p.get('material',-1)]!='Cockpit_quadrant':continue
@@ -136,7 +136,8 @@ def build(g,doc):
   vb=np.array([builder(q) for q in v@M[:3,:3].T+M[:3,3]]);c=vb[ids].mean(1)
   old=(c[:,1]>.27)&(c[:,2]<-.19)&(c[:,2]>-.47)&(((c[:,0]>-1.86)&(c[:,0]<-1.58))|((c[:,0]>-1.14)&(c[:,0]<-.94)))
   trim=(c[:,2]<-.403)&(c[:,2]>-.437)&(c[:,1]>.36)
-  keep=ids[~(old&~trim)]
+  fuel=(abs(c[:,1]+.20)<.031)&(((abs(c[:,0]+1.635)<.005))|((abs(c[:,0]+.965)<.005)))&(c[:,2]<-.1)
+  keep=ids[~(old|trim|fuel)]
   if len(keep)==len(ids):continue
   p['indices']=g.accessor(keep.reshape(-1).astype(np.uint32),'SCALAR',5125)
  rigrows={r['node']:r for r in doc['rig']}
@@ -201,8 +202,50 @@ def build(g,doc):
    c['placement']='gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)';c['label']=LABEL[lab_].replace('|',' ')
    nodes[names[c['node']]]['extras']['interaction']=c
    if c['node'] in rigrows:rigrows[c['node']]['pivot_gltf']=c['pivot_gltf']
+ build_wall_trim(g,doc,controls,rigrows,names)
  doc['controls']=controls
  g.doc['extras']['vrCockpitPhase3a']['placement_v3']='Ty 2026-11-02: left-sidewall throttle quadrant (T/P/M) + single labelled switch row (gl_quadrant_v3.py)'
+
+def build_wall_trim(g,doc,controls,rigrows,names):
+ """Ty 2026-11-03: cable handle, ND forward, NU aft; no fuel valve pending location."""
+ nodes=g.doc['nodes']
+ remove=set()
+ for seat,s in SEATS.items():
+  suffix=s['ctl']
+  for nm in ('Trim_'+s['sfx'],'FuelValve_'+s['sfx'],'Ctl_Rotary_FuelSelector'+suffix,'Mount_FuelSelector'+suffix):
+   if nm in names:
+    nodes[names[nm]].pop('mesh',None);remove.add(nm)
+  c=next(c for c in controls if c['seat']==seat and c['param']=='trim')
+  nm=c['node'];P=np.array((s['px']-.08,.322,-.285))
+  # A vertical scale on the wall, fore/aft travel 120 mm. Handle projects inboard.
+  fixed=Shape();fixed.box(P+(0,.021,0),(.172,.008,.064))
+  slot=Shape();slot.box(P+(0,.015,0),(.128,.003,.006))
+  ticks=Shape()
+  for x in np.linspace(-.06,.06,9):ticks.box(P+(x,.012,.013),(.0015,.002,.008 if abs(x)>.001 else .014))
+  cells=[('trim','TRIM',(245,245,240),(12,12,14)),('nd','NOSE|DOWN',(245,245,240),(12,12,14)),('nu','NOSE|UP',(245,245,240),(12,12,14))]
+  data,uv=atlas(cells)
+  if seat=='Rear':
+   with tempfile.TemporaryDirectory() as td:
+    path=Path(td)/'trim.png';path.write_bytes(data);g.material('GL_Trim_Scale',(1,1,1),png=path)
+  label=Shape();luv=[]
+  for key,x,z in [('trim',0,.026),('nd',.060,-.021),('nu',-.060,-.021)]:
+   quad(label,luv,P+(x,.010,z),(1,0,0),(0,0,1),.035,.016,uv[key])
+  mount='Mount_'+c['grip'][5:]
+  set_mesh(g,mount,[('Cockpit_quadrant',fixed,None),('Cockpit_black',slot,None),('P3_ControlMetal',ticks,None),('GL_Trim_Scale',label,luv)],P)
+  nodes[names[mount]]['translation']=gl(P).tolist()
+  handle=Shape();handle.tube(P+(0,.012,0),P+(0,-.025,0),.004,10);handle.tube(P+(-.050,.012,0),P+(.050,.012,0),.0015,8)
+  grip=Shape();grip.sphere(P+(0,-.030,0),.012,14,8)
+  pointer=Shape();pointer.box(P+(0,.009,.011),(.003,.004,.018))
+  set_mesh(g,nm,[('P3_ControlMetal',handle,None),('Cockpit_black',grip,None),('Cockpit_knob_red',pointer,None)],P)
+  nodes[names[nm]]['translation']=gl(P).tolist()
+  for ch in nodes[names[nm]].get('children',[]):nodes[ch]['translation']=gl((0,-.030,0)).tolist()
+  c.update(kind='PushPull',axis_gltf=[1.,0.,0.],pivot_gltf=gl(P).tolist(),travel=.12,travel_unit='m',sim_ends=[-1,1],placement='Left wall cable trim; forward nose down, aft nose up; estimated reach',label='TRIM / NOSE DOWN forward / NOSE UP aft')
+  ex=nodes[names[nm]]['extras'];ex.pop('rig_axis_gltf',None);ex.pop('rig_map_deg',None)
+  ex.update(rig_move_axis_gltf=[1.,0.,0.],rig_map_param=[-1.,0.,1.],rig_map_m=[-.06,0.,.06],rig_param_model=0.,interaction=c)
+  rigrows[nm].update(kind='move',axis_gltf=[1.,0.,0.],pivot_gltf=gl(P).tolist(),map=[[-1,-.06],[0,0],[1,.06]],model=0.,desc=c['placement'])
+ controls[:]=[c for c in controls if 'FuelSelector' not in c['node']]
+ doc['rig']=[r for r in doc['rig'] if r['node'] not in remove and 'FuelSelector' not in r['node']]
+ g.doc['extras']['vrCockpitPhase3a']['placement_v4']='Ty 2026-11-03: eight labelled panel switches, cable trim on left wall, fuel valve omitted'
 
 def check_row(g):
  """The row positions must pass cockpit_controls_v2's own legality (outline incl. the strip, obstacles, spacing)."""
