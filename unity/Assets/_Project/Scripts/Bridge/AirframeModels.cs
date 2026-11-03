@@ -162,14 +162,13 @@ namespace FlyingGame.Bridge
             // (tools/own_models/j3_rig_json.py reads them out of the GLB extras), so the carve never runs on it.
             { "j3-cub-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
             // The floats GLB's lowest point is its keel at the step, and "lowest point on the deepest contact" lands it
-            // on the physics keel (1.495 m below the CG) to the millimetre -- which puts the airframe 4.5 cm LOWER
-            // under the CG than the landplane's, and the approved eye (one number for both, measured on the landplane)
-            // 4.5 cm higher in the cabin: 11.4 cm from the liner instead of 15.9. The aeroplane does not move on its
-            // own CG when floats are bolted on, so the airframe is held where the landplane's is and the drawn keel
-            // sits 4.5 cm above the physics keel instead (the physics float block, 2.52 m track and all, is not our
-            // drawing's: AGENT-LOG 2026-11-02). tools/own_models/check_eye_interiors.py fails if the two airframes
-            // stop coinciding, so a rebuilt GLB or a moved float keel cannot leave this number stale.
-            { "j3-cub-floats-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true, sitHighM: 0.0454f) },
+            // on the deepest float-keel contact point. Until 2026-11-02 that point was the old physics float block's keel
+            // (1.495 m below the CG, 2.52 m track: not our drawing), so the airframe had to be held 4.54 cm up
+            // (SitHighM) to sit where the landplane's does under the CG. The flight model now floats on the DRAWN floats
+            // (configs floats.stations, cut from this GLB by tools/own_models/j3_float_stations.py) and its float-keel
+            // contacts are on the drawn keel, the step one on the GLB's own lowest point (1.4496 m), so the airframe lands
+            // where the landplane's does with no hold-up. check_eye_interiors.py still gates the coincidence.
+            { "j3-cub-floats-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
         };
 
         /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the

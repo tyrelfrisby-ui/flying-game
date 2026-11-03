@@ -597,6 +597,21 @@ public sealed class FloatsConfig
     public int Count { get; set; } = 2;
     /// <summary>Flying boats: the small wingtip floats (SpreadM = tip-to-tip spacing). They touch only when the hull heels.</summary>
     public FloatsConfig? TipFloats { get; set; }
+    /// <summary>The DRAWN hull, when there is one (owner 2026-11-02): stations bow first, each [x, y0, z0, y1, z1, …, 0,
+    /// zKeel] — x and z (down) in the config datum frame, the half-section points (y ≥ 0 from the float's own centreline)
+    /// from the deck edge down to the keel. Null = the block float made from the parameters above (FloatHull.Parametric).
+    /// The J-3's are cut out of its own GLB, as placed, by tools/own_models/j3_float_stations.py.</summary>
+    public double[][]? Stations { get; set; }
+    /// <summary>The step's x (datum frame) for <see cref="Stations"/>; null = BowX − StepFraction·LengthM.</summary>
+    public double? StepX { get; set; }
+    /// <summary>Water rudder blade, when down: x of its centre, its span (top to tip) and the tip's z (down), datum frame.
+    /// 0 span = the old default (a blade at the stern keel, area WaterRudderAreaM2, span from √(2·area)).</summary>
+    public double WaterRudderX { get; set; }
+    public double WaterRudderSpanM { get; set; }
+    public double WaterRudderTipZ { get; set; }
+    /// <summary>Which floats carry a water rudder: "both" (default) or "left" / "right" (the J-3's 60-1320 installation:
+    /// the RH float assembly is listed "less water rudder", Kenmore Air Harbor EDO 60-1320 parts list, Figure 1).</summary>
+    public string WaterRudderSides { get; set; } = "both";
 }
 
 public sealed class GearConfig
