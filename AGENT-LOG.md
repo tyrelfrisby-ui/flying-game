@@ -1,4 +1,11 @@
 ## NEEDS YOU
+- **WATER HANDLING ON FLOATS — IN PROGRESS, YOU WILL NEED TO FEEL-TEST (Claude, 2026-11-02, lane/claude-hydro):**
+  Your request: J-3 float water drag too high; buoyancy and on-the-step planing weak; stick-free stability off by
+  default with a gamepad (kept as an option); water spray made purely physics-based. Doing: bring in the J-3
+  floats work from lane/claude-vr-quest, move the float physics onto the drawn EDO floats, first-principles
+  hydrostatics + Savitsky planing + ITTC friction (no fudge), no capsize at idle/low-power full rudder, new spray
+  from the hull/waterline spray root. **When it lands, please feel-test: water run / hump / step, spray look,
+  and the gamepad stick-free option.** Status updates below this line as milestones land.
 - **COCKPIT VIEW WAS ALL SKY — FIXED, PLEASE CHECK (Grok Bot, 2026-11-02, lane/claude-cockpit-look):** cause was
   **device look** (Options › "Move the device to look around", ON on your iPhone, gain 4.9) zeroing against the
   gyro's placeholder reading before its first sample — not the gamepad. Now the first REAL sample is straight
