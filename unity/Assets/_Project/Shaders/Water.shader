@@ -1,6 +1,13 @@
 // Glassy water: directional sky + tiered planar reflection of aircraft and scenery (WaterReflection
 // writes _ReflectionTex), depth absorption, sun glint and ambient ripples. Reflection is valid for the
 // water plane at _ReflPlaneY (the lake under the aircraft); other lakes fall back to the sky term.
+// P2d (headset egress, UnderwaterRender sets the globals; all default 0, so nothing changes unless it does):
+//   _WaterSeeThrough 1 in a headset: the surface is SEMI-TRANSPARENT from above, by Beer-Lambert on the depth of water
+//                    behind it (sigma _UwSigma, the same 6 m visibility as the eye under water), so a sinking cockpit, its
+//                    belt and its latch stay in sight from the surface.
+//   _UwBlend         the eye is under THIS surface (_UwSurfaceY): drawn from below as a real one is — Snell's window
+//                    (48.6 deg half-angle) lets the sky and anything above through at 1 - Fresnel, outside it total internal
+//                    reflection shows the water's own colour (_UwColor), the whole fogged by its distance.
 Shader "FlyingGame/Water"
 {
     Properties
@@ -34,6 +41,7 @@ Shader "FlyingGame/Water"
             float _ReflPlaneY, _ReflOn;
             float _SceneryWater, _RiverFlow, _PowellWater; float4 _FlowDirection;
             float4 _BubbleSunDir;
+            float _WaterSeeThrough, _UwBlend, _UwSurfaceY, _UwSigma; float4 _UwColor;
             // Wake waves (WakeWaves.cs): height field over the active lake, its world rect and texel, and that lake's surface.
             sampler2D _WakeTex, _WakeFoamTex;
             float4 _WakeRect, _WakeTexel;
@@ -57,6 +65,25 @@ Shader "FlyingGame/Water"
 
             fixed4 frag (v2f i) : SV_Target
             {
+                // The eye under this surface: the underside (P2d).
+                if (_UwBlend > 0.001 && _WorldSpaceCameraPos.y < i.wp.y && abs(i.wp.y - _UwSurfaceY) < 2.0)
+                {
+                    float3 up = normalize(i.wp - _WorldSpaceCameraPos);          // the ray, from the eye up to the surface
+                    float cw = saturate(up.y);                                    // cos of the angle to the normal, in water
+                    float sw = sqrt(saturate(1.0 - cw * cw));
+                    float st = 1.333 * sw;                                        // Snell, into air
+                    float R = 1.0;                                                // outside the window: total internal reflection
+                    if (st < 1.0)
+                    {
+                        float ct = sqrt(1.0 - st * st);
+                        R = 0.0204 + 0.9796 * pow(1.0 - ct, 5.0);                 // Schlick on the air side
+                    }
+                    float d = length(i.wp - _WorldSpaceCameraPos);
+                    float fogU = 1.0 - exp(-_UwSigma * d);
+                    float3 under = _UwColor.rgb * lerp(0.8, 1.0, fogU);
+                    float a = saturate(R + (1.0 - R) * fogU);
+                    return fixed4(under, lerp(1.0, a, _UwBlend));
+                }
                 float t = _Time.y;
                 // Faint ripples: two crossing wave trains perturb the normal.
                 float2 p = i.wp.xz;
@@ -215,6 +242,13 @@ Shader "FlyingGame/Water"
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
                 // Sub-metre edge blends the existing mesh into the damp bank rather than a blue cutout.
                 float alpha = scenery > .5 && i.depth.y > .5 ? smoothstep(0,1.2,depth) : 1;
+                // Semi-transparent from above in a headset (P2d): what is behind shows through by e^(-sigma * path).
+                if (_WaterSeeThrough > 0.5 && _UwSigma > 0.0)
+                {
+                    float path = max(0, sceneZ - surfaceZ);
+                    float trans = exp(-_UwSigma * path) * (1.0 - mirror);
+                    alpha = min(alpha, saturate(1.0 - trans));
+                }
                 return fixed4(col, alpha);
             }
             ENDCG

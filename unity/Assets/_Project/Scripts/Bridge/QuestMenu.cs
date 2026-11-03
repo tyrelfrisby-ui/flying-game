@@ -12,7 +12,7 @@ namespace FlyingGame.Bridge
     /// pilot cannot see, paused, with no way out. So a small world-space panel, built from the game's own font,
     /// carries what a pilot needs from inside the cockpit:
     ///
-    ///   FLY / RESUME · RESTART FLIGHT · Aircraft · Start · Seat · View · HUD in cockpit · Display 72 / 90 Hz ·
+    ///   FLY / RESUME · RESTART FLIGHT · Aircraft · Start · Seat · View · HUD in cockpit · Display 72 / 90 Hz · Turn on foot ·
     ///   Recentre · Reset flight · Bail out / Deploy BRS / Eject (asks twice)
     ///
     /// It is deliberately NOT the whole landing page: lessons, challenges, weather and multiplayer have OnGUI
@@ -182,6 +182,7 @@ namespace FlyingGame.Bridge
             AddRow(() => $"HUD in cockpit:  {(XrHeadset.HudInCockpit ? "On" : "Off")}", ToggleHud, _ => ToggleHud());
             AddRow(() => $"Display:  {(XrHeadset.Prefer90Hz ? "90 Hz" : "72 Hz")}" + (XrHeadset.CurrentRefreshHz > 0f ? $"   (running {XrHeadset.CurrentRefreshHz:F0})" : ""),
                 () => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz, _ => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz);
+            AddRow(() => $"Turn on foot:  {TurnLabel(XrHeadset.TurnOnFoot)}", () => CycleTurn(1), CycleTurn);
             AddRow(() => "Recentre the view", () => { XrHeadset.Recentre(); });
             AddRow(() => "Reset flight", () => { Controls?.MenuReset(); Close(force: false); }, visible: () => !OnLanding && Controls != null);
             AddRow(() => Time.unscaledTime < _confirmUntil ? $"PRESS AGAIN: {HandleName()}" : HandleName(), PullHandle,
@@ -463,6 +464,13 @@ namespace FlyingGame.Bridge
 
         /// <summary>The green HUD in the cockpit view (off by default in a headset). Turning it on also selects the
         /// HUD as the instrument display, since the dials are a flat overlay a headset cannot show.</summary>
+        private static string TurnLabel(FlyingGame.Core.Vr.TurnOnFoot t) =>
+            t == FlyingGame.Core.Vr.TurnOnFoot.Snap ? "Snap 30°" : t == FlyingGame.Core.Vr.TurnOnFoot.Smooth ? "Smooth" : "Off";
+
+        /// <summary>Out of the aeroplane, on foot or swimming (P2d): how the right stick turns him.</summary>
+        private static void CycleTurn(int dir) =>
+            XrHeadset.TurnOnFoot = (FlyingGame.Core.Vr.TurnOnFoot)(((int)XrHeadset.TurnOnFoot + (dir >= 0 ? 1 : 2)) % 3);
+
         private static void ToggleHud()
         {
             XrHeadset.HudInCockpit = !XrHeadset.HudInCockpit;

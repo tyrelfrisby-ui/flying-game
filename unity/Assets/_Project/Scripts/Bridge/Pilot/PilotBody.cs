@@ -44,6 +44,16 @@ namespace FlyingGame.Bridge
         /// <summary>At rest on the ground / in the water (after any tumble).</summary>
         public bool Landed { get; private set; }
         public bool LandedOnWater { get; private set; }
+        /// <summary>His velocity the instant he reached the surface (m/s, world) — the rest state zeroes it; the headset's
+        /// water landing (Core PilotSwim) starts its plunge from this.</summary>
+        public Vector3 LandingVelocity { get; private set; }
+        /// <summary>His canopy on the water (Core CanopyOnWater: downwind, floats, sinks as it soaks), or null.</summary>
+        public FlyingGame.Core.Vr.CanopyOnWater ChuteOnWater { get; private set; }
+        private float _landedT;
+        /// <summary>The soaked canopy's pull on his harness, N (once it hangs on taut lines below him).</summary>
+        public float ChuteLoadN => ChuteOnWater != null ? (float)ChuteOnWater.LoadOnPilotN(_landedT, V(Position)) : 0f;
+        private static FlyingGame.Core.MathTypes.Vec3 V(Vector3 v) => new(v.x, v.y, v.z);
+        private static Vector3 U(FlyingGame.Core.MathTypes.Vec3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
         /// <summary>Speed of the FIRST ground contact (m/s).</summary>
         public float LandingSpeedMs { get; private set; }
         /// <summary>Bouncing down a slope steeper than <see cref="TumbleSlopeTan"/>.</summary>
@@ -166,6 +176,8 @@ namespace FlyingGame.Bridge
             if (dt <= 0f) return;
             if (Landed)
             {
+                _landedT += dt;
+                if (ChuteOnWater != null) Chute?.SinkTo((float)ChuteOnWater.DepthM(_landedT, V(Position)));
                 Chute?.TickCollapse(dt, Position + Vector3.up * Parachute.RiserM);
                 TickFigure(dt);
                 return;
@@ -320,12 +332,24 @@ namespace FlyingGame.Bridge
         private void Land(float surf, Vector3 wind)
         {
             LandingSpeedMs = Velocity.magnitude;
+            LandingVelocity = Velocity;
+            _landedT = 0f;
             (Vector3 n, float slopeTan) = SurfaceNormal(Position);
             float impact = Mathf.Max(0f, -Vector3.Dot(Velocity, n));
             MaxImpactMs = Mathf.Max(MaxImpactMs, impact);
             bool water = EgressAir.IsWater(Position);
             if (_flame != null) _flame.SetActive(false);
-            if (Chute != null)
+            if (Chute != null && water)
+            {
+                // On the water (Core CanopyOnWater, Ty 2026-11-02 14:30): unloaded, it falls with the air — downwind by the
+                // wind × its fall time, over his head only in calm air — then floats, then sinks as it soaks.
+                Vector3 feet = new Vector3(Position.x, surf, Position.z);
+                ChuteOnWater = new FlyingGame.Core.Vr.CanopyOnWater(V(feet), V(wind), V(HeadingDir), V(Harness + _hang * Parachute.LineLengthM),
+                                                                     EgressAir.Density(surf));
+                Chute.BeginCollapse(feet, U(ChuteOnWater.LayDir), U(ChuteOnWater.Centre), (float)FlyingGame.Core.Vr.CanopyOnWater.FallSec(EgressAir.Density(surf)));
+                Debug.Log($"[VrEgress] canopy on the water: {ChuteOnWater.DistanceM:F1} m {(wind.magnitude >= FlyingGame.Core.Vr.CanopyOnWater.CalmMs ? "downwind" : "ahead (calm)")}{(ChuteOnWater.CoversPilot ? " — over his head (wind below " + FlyingGame.Core.Vr.CanopyOnWater.CoverWindMs().ToString("F1") + " m/s)" : "")}, settles in {FlyingGame.Core.Vr.CanopyOnWater.FallSec():F1} s, floats {FlyingGame.Core.Vr.CanopyOnWater.SoakSec:F0} s, then sinks");
+            }
+            else if (Chute != null)
             {
                 // The canopy stays where he first hit; on a tumble it is left behind on the slope.
                 Vector3 wh = new Vector3(wind.x, 0f, wind.z);
@@ -407,6 +431,24 @@ namespace FlyingGame.Bridge
             Velocity = Vector3.zero;
             AngularVelocityRad = Vector3.zero;
             _rot = Quaternion.Euler(0f, HeadingDeg, 0f);               // stand the capsule up
+            _root.transform.SetPositionAndRotation(Position, _rot);
+        }
+
+        /// <summary>He left on foot or into the water (headset egress, P2d): at rest where he stands, the figure hidden
+        /// (first person). Moved each frame with <see cref="MoveTo"/>.</summary>
+        public void PlaceOnFoot(Vector3 centre, bool water)
+        {
+            Landed = true; Tumbling = false; LandedOnWater = water;
+            Position = centre; Velocity = Vector3.zero; AngularVelocityRad = Vector3.zero;
+            _rot = Quaternion.Euler(0f, HeadingDeg, 0f);
+            _root.transform.SetPositionAndRotation(Position, _rot);
+        }
+
+        /// <summary>The headset moves him (walking, swimming, treading): his centre, in the water or not.</summary>
+        public void MoveTo(Vector3 centre, bool water)
+        {
+            Position = centre;
+            LandedOnWater = water;
             _root.transform.SetPositionAndRotation(Position, _rot);
         }
 

@@ -142,6 +142,12 @@ namespace FlyingGame.Bridge
             // The pilot's hands on the aeroplane's own controls, and his visible body: inert unless the headset is on.
             cam.gameObject.AddComponent<VrCockpitHands>();
             cam.gameObject.AddComponent<AudioListener>();
+            // Under water (P2d): the eye's fog, caustics and the surface from below; and the pilot's own water sounds
+            // (a light splash, lapping; muffled under) on a child of the listener. Inert unless the eye is in water.
+            cam.gameObject.AddComponent<UnderwaterRender>();
+            var waterSound = new GameObject("Pilot water sound");
+            waterSound.transform.SetParent(cam.transform, false);
+            waterSound.AddComponent<PilotWaterSound>();
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();
             chase.SnapBehind();

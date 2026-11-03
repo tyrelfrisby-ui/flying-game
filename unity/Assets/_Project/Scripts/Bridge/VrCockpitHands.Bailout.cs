@@ -76,6 +76,8 @@ namespace FlyingGame.Bridge
         public void AdjustOrigin(ref Vector3 pos, ref Quaternion rot)
         {
             Tick();
+            // Out on foot / in the water, or the exit's climb carrying his eye (P2d): level, his own heading and turns.
+            if (ExitMovesView) { pos = _pedEye; rot = Quaternion.Euler(0f, _pedYaw, 0f); return; }
             if (_jumper) { pos = _jOrigin + _yank; rot = _jRot; return; }
             if (Active && _air != null) pos += _air.rotation * (Vector3.up * _rise) + _yank;
         }
@@ -253,6 +255,8 @@ namespace FlyingGame.Bridge
                 case Grabbable.HeadsetPlug: return JackPoint() + (U(h.Position) - JackPoint()) * 0.5f;
                 case Grabbable.SillLeft: return _sillL;
                 case Grabbable.SillRight: return _sillR;
+                case Grabbable.DoorHandle:
+                case Grabbable.CanopyRelease: return ExitHandlePoint();
                 default: return U(h.Position);
             }
         }
@@ -328,15 +332,20 @@ namespace FlyingGame.Bridge
                 else if (_latchKind == CanopyLatchKind.Squeeze &&
                          (_grab.IsHeldBy(Grabbable.CanopyLatch, out cs) || _grab.IsHeldBy(Grabbable.CanopyLatchFwd, out cs) ||
                           _grab.IsHeldBy(Grabbable.CanopyLatchAft, out cs))) holder = (int)cs;
+                // No hand on it and the automatic exit wants it open (P2d): the exit's own push, slot 2.
+                if (holder < 0 && _autoCanopy) holder = 2;
+                bool firstAuto = holder == 2 && _canopyHolder != 2;
+                Vec3 autoHand = holder == 2 ? C(AutoCanopyHand(c, dt, firstAuto)) : Vec3.Zero;
                 if (holder != _canopyHolder)
                 {
                     if (c.Held) c.Release();
                     _canopyHolder = holder;
-                    if (holder >= 0) c.Grab(_hands[holder].Position, C(Hinge()));
+                    if (holder >= 0) c.Grab(holder == 2 ? autoHand : _hands[holder].Position, C(Hinge()));
                 }
-                Vec3 hand = holder >= 0 ? _hands[holder].Position : Vec3.Zero;
+                Vec3 hand = holder == 2 ? autoHand : holder >= 0 ? _hands[holder].Position : Vec3.Zero;
                 CanopyEvents ev = c.Step(dt, q, gApp, cockpit.CanopyLocked, hand, C(Hinge()));
-                if ((ev & CanopyEvents.TornFromHand) != 0 && holder >= 0)
+                if ((ev & CanopyEvents.TornFromHand) != 0 && holder == 2) _canopyHolder = -1;   // the airload took it: it flings open anyway
+                if ((ev & CanopyEvents.TornFromHand) != 0 && holder >= 0 && holder < 2)
                 {
                     XrHandInput.Tick(holder == 0, 1f, 0.12f);
                     _grab.Drop((HandSide)holder);
@@ -404,7 +413,7 @@ namespace FlyingGame.Bridge
             _rise = (float)climb.RiseM;
 
             StepCord(cord, dt, inCockpit: true);
-            if (leave) Leave(climb);
+            if (leave) Leave(climb.Side, climb.PulledOut);
             _prevAirPos = _air.position; _prevAirRot = _air.rotation;
         }
 
@@ -450,8 +459,9 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Over the side: hand the pilot to PilotEgress as a body with the aeroplane's velocity at that point
-        /// (finite-differenced from the aeroplane's pose, so its rotation is in it) plus his push.</summary>
-        private void Leave(ClimbOut climb)
+        /// (finite-differenced from the aeroplane's pose, so its rotation is in it) plus his push. By his own hand on the
+        /// sill (P2), or the automatic exit's rise (P2d).</summary>
+        private void Leave(ExitSide side, bool pulled)
         {
             float dt = Mathf.Max(Time.deltaTime, 1e-3f);
             // His eye where it is now (risen); his centre 0.30 m below it, so the view does not jump as he goes (the
@@ -462,10 +472,10 @@ namespace FlyingGame.Bridge
             Vector3 before = _prevAirPos + _prevAirRot * local;
             Vector3 vPoint = (eyeNow - before) / dt;
             if (vPoint.sqrMagnitude > 4f * _driver.WorldVelocityUnity.sqrMagnitude + 100f) vPoint = _driver.WorldVelocityUnity;   // a reset between frames
-            Vec3 v = JumperAero.ExitVelocity(C(vPoint), Vec3.Zero, Vec3.Zero, C(_air.right), C(_air.up), climb.Side);
+            Vec3 v = JumperAero.ExitVelocity(C(vPoint), Vec3.Zero, Vec3.Zero, C(_air.right), C(_air.up), side);
             float yaw = _air.eulerAngles.y;
             if (_egress == null) return;
-            Debug.Log($"[VrEgress] OUT to the {climb.Side}{(climb.PulledOut ? ", pulled off the sill by the slipstream" : "")} at {_driver.IasMs * 1.9438445:F0} KIAS; " +
+            Debug.Log($"[VrEgress] OUT to the {side}{(pulled ? ", pulled off the sill by the slipstream" : "")} at {_driver.IasMs * 1.9438445:F0} KIAS; " +
                       $"exit velocity = aircraft {vPoint.magnitude:F1} m/s + push {JumperAero.PushOutMs:F1} out / {JumperAero.PushUpMs:F1} up");
             _egress.LeaveByHand(now, U(v), yaw);
             // First person from here: level, on the heading he left on (a one-time snap of any bank: see docs, comfort).
@@ -498,6 +508,7 @@ namespace FlyingGame.Bridge
             pos = transform.position; rot = transform.rotation;
             if (_rig == null || !XrControllers.TryHead(out Vector3 p, out Quaternion q)) return false;
             if (!_rig.TrackingToSeat(p, q, out Vector3 sp, out Quaternion sq)) return false;
+            if (ExitMovesView) { Quaternion o = Quaternion.Euler(0f, _pedYaw, 0f); pos = _pedEye + o * sp; rot = o * sq; return true; }
             if (_jumper) { pos = _jOrigin + _yank + _jRot * sp; rot = _jRot * sq; return true; }
             if (_air == null) return false;
             pos = World(_eye + Vector3.up * _rise + sp);
@@ -552,6 +563,13 @@ namespace FlyingGame.Bridge
 
         private void TickJumper()
         {
+            if (_pedestrian)
+            {
+                if (_ropeLine != null && _ropeLine.enabled) { _ropeLine.enabled = false; _plug.SetActive(false); }
+                if (_props != null && _props.activeSelf) _props.SetActive(false);
+                TickPedestrian();
+                return;
+            }
             if (!_jumper)
             {
                 // Outside views, the menu's bail-out, no headset: no cord or belts drawn.
@@ -613,6 +631,8 @@ namespace FlyingGame.Bridge
                 _landedFelt = true;
                 XrHandInput.Tick(true, 1f, 0.2f); XrHandInput.Tick(false, 1f, 0.2f);
             }
+            // Down: in the water he plunges and treads; on land he can walk (P2d).
+            if (_egress.PilotLanded) { JumperLanded(); return; }
 
             // Did he hit the tail or a wing? Checked in the aeroplane's own frame while he is near it.
             if (_clear != null && _air != null && _jT < 8f)

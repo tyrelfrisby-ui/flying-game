@@ -183,3 +183,12 @@ The parachute's opening shock went into three comments as "≈ 7.4 g" because th
 opening said. The Core model that ships blends the body's drag area differently and gives 6.7 g; the sketch had never
 been the code. Every comment, doc table and NEEDS YOU line had to be found and changed. Sketch to choose the model, then
 run the Core function itself (a throwaway probe test is enough) and copy THOSE numbers into docs and tests.
+
+### A pressure difference has two sides, and the air's side is set where the air leaves
+The first underwater door gate took the cabin's air as vented to the atmosphere at any depth, so a cabin fully under
+water held its door shut by the whole depth and, with the inside water capped at the roof, never let go. Air can only
+leave a submerged cabin by bubbling out at its highest gap, so its pressure is the water's THERE, and the door is held
+by the air gap under the roof, not by the depth. Before gating anything on Δp, write down what fixes the pressure on
+each side (`DoorWaterLoad`), and test the fully-submerged case, not just the half-full one. The same run found a
+bisection that started 2 m down, where Boyle has already squeezed the lungs and the body sinks at every level, so it
+reported "no equilibrium" for a pilot who floats: search down from the surface for the first sign change.

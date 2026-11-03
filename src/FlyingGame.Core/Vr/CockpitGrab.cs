@@ -12,6 +12,8 @@ namespace FlyingGame.Core.Vr
         None = 0, Stick = 1, Throttle = 2, CanopyLatch = 3,
         CanopyRail = 4, HarnessMain = 5, HarnessLap = 6, HeadsetPlug = 7, SillLeft = 8, SillRight = 9, Ripcord = 10,
         CanopyLatchAft = 11, CanopyLatchFwd = 12, CanopyJettison = 13,
+        /// <summary>P2d: a cabin door's handle; a canopy's generic release lever (types without a hands-on latch).</summary>
+        DoorHandle = 14, CanopyRelease = 15,
     }
 
     /// <summary>One frame's events, for haptics and the log.</summary>
@@ -52,7 +54,7 @@ namespace FlyingGame.Core.Vr
         }
 
         /// <summary>One slot per <see cref="Grabbable"/> value.</summary>
-        public const int Slots = 14;
+        public const int Slots = 16;
 
         public readonly Point[] Points = new Point[Slots];
 

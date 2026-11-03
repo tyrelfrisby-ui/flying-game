@@ -436,6 +436,160 @@ is the real one: every step yours, first person, no automatic opening. Both use 
   cord's tug (≤ 4 cm, 0.15 s). The climb moves the view only by what his own hand pushed.
 - Under the canopy the view does not yaw with a steering turn: you turn your head. The canopy and the risers turn above you.
 
+## P2d: you can always get out (Ty, 2026-11-02 13:28 / 14:30 / 14:31)
+
+**Release the belt, then work the door handle or the canopy release — whichever the type has — and the exit follows by
+itself, by situation.** Core: `Vr/ExitTable.cs` (the table, `AutoExit`), `Vr/DoorWaterLoad.cs`, `Vr/GroundEgress.cs`
+(`ClimbPath`, `GroundWalker`, `KeepOutBox`), `Vr/PilotSwim.cs` (`SwimmerBody`, `PilotSwim`, `PilotKit`, `CanopyOnWater`),
+`Vr/UnderwaterView.cs` (`UnderwaterViewMode`, `PilotWaterAudio`), `Vr/EgressWater.cs` (the seam). Bridge:
+`VrCockpitHands.Exit.cs`, `UnderwaterRender.cs` + `Shaders/Underwater.shader`, `Water.shader` (see-through, underside),
+`PilotWaterSound.cs`, `PilotEgress.LeaveOnFoot`, `PilotBody` / `Parachute` (the canopy on the water). Tests:
+`VrEgressTests` (19).
+
+| situation (`AutoExit.Classify`) | what happens |
+|---|---|
+| **in flight** (no wheel or airframe on the ground) | the canopy opens (the exit pushes it if the airload does not fling it; a generic canopy is jettisoned), he rises 0.5 m over the sill in 1.2 s (minimum-jerk) and leaves as the P2 jumper: free fall, ripcord by hand, parachute |
+| **on the ground** (stopped: ≤ 1.5 m/s, E) | door swings open (1 s, E) or the canopy is pushed open; the scripted climb (below); then **on foot** |
+| **afloat** (cockpit water phase not Dry) | the same climb, over the sill into the water beside it; he plunges (1 m/s in) and treads water |
+| **under water** (eye under the outside surface, or the cockpit ≥ 90 % full) | the opening waits on the water's load; then out through it (0.8 m outboard, 1.3 s), swim up, tread water at the surface |
+
+Belt latched → nothing, ever. Belt open, control not worked → nothing. Once started it is one-way until the aeroplane is
+reset. The **P2 hand-over-hand climb on the sill stays** as an optional manual path (whichever comes first) — NEEDS YOU
+asks Ty whether to keep it.
+
+### The exit table (`ExitTable.For`; E = estimate, G = the whole entry is a guess for that type)
+
+| type | control | side | grab | step (m above ground) | parachute |
+|---|---|---|---|---|---|
+| Pitts S-2B | canopy: ball latch **or** jettison knob (Ty: the knob counts; the exit then slides the ball itself) | left (canopy hinges right) | P2 latch / jettison grabs | 0.65 lower-wing root (E) | yes |
+| Extra 300 | canopy: squeeze handles **or** CanopyRelease_R/_F | left (300S card) | P2 grabs | 0.80 wing walk (E) | yes |
+| J-3 Cub / PA-18 (all) | door: `DoorUpper_R` / `DoorLower_R` (rig `door_open`, new) | **right only** | `Grip_Door_R`, else proxy 0.40 R / 0.45 below / 0.10 fwd of the eye (E) | 0.35 gear step (E) | no |
+| C172 | door, forward hinge | left (pilot) / right (copilot) | `Grip_Door_L/_R`, else proxy | 0.35 | no |
+| Beaver, Decathlon (right), Pawnee | door | as 172 (G) | proxy | 0.35 | Decathlon yes |
+| PA-28, Seminole | one door, forward hinge | **right**, over the right wing walk, off its trailing edge | `Grip_Door_R`, else proxy | 0.80 | no |
+| SR22 | gull-wing door (top hinge, G) | by seat | proxy | 0.80 | no |
+| Great Lakes | open cockpit: **belt only** | left | — | 0.65 | yes |
+| Stearman, JN-4, AirCam | belt only (G) | left | — | 0.65 | no |
+| 2-33, EB29R, Swift, Cassutt, Glasair, P-51, F-86, GeeBee | generic canopy-release lever (G) | left | `Grip_Canopy_Release` / `CanopyRelease_L`, else proxy left sill 0.30 / 0.30 below / 0.25 fwd (E) | 0 gliders, 0.80 others | yes |
+| 737, DC-3, H-4 | cabin door, left — **placeholder**: a light aeroplane's path, not a stair | left | proxy | 0.35 | no |
+| hang glider, paraglider, target drone | none (a harness is not a seat belt; the drone has nobody) | — | — | — | — |
+
+Missing grab nodes fall back to the proxy with one `[VrCockpit] missing node` line. The door handle is a lift lever pulled
+aft-and-up 4 cm (HarnessRelease's gesture); the generic canopy release is pulled aft 4 cm.
+
+### A jammed exit under water (`DoorWaterLoad`)
+
+Hydrostatics only. Outside, at height z: ρg·max(0, s_o − z). Inside: the air above the inside water at p_air, and below it
+p_air + ρg(s_i − z). The air leaves through the cabin's highest gap, so it is at the pressure there: **vented (p_air = 0)
+while the roof is above the outside surface, ρg(s_o − z_top) once it is under** — so a cabin fully under is held shut by
+the air gap under its roof, not by its depth. The pilot must beat the load's moment about the hinge through the handle,
+with **400 N** (E: two hands or a braced shoulder; the canopy's one-hand figure is 200 N). Head difference (or air gap)
+at which each opening frees:
+
+| opening | size (E) | hinge → handle | frees at Δh |
+|---|---|---|---|
+| C172 door | 0.90 × 1.00 m | forward hinge, handle 0.85 W | **7.7 cm** |
+| PA-28 / Seminole door | 0.85 × 0.90 | forward, 0.85 W | 9.1 cm |
+| Cub lower door | 0.70 × 0.95 | bottom hinge, handle at the top | 12.3 cm |
+| SR22 door | 1.00 × 0.85 | top hinge, 0.80 H | 7.7 cm |
+| Extra canopy | 0.78 × 2.12 plan | hinge 0.343 m right, hand at the free edge 0.733 | 5.3 cm |
+| Pitts canopy | 0.716 × 1.48 | 0.36 / 0.718 | 7.7 cm |
+
+**Assumption, stated: the canopy RELEASE is not gated.** Water presses a canopy DOWN onto its sill, so the latch pins and
+the jettison's hinge pins are unloaded in shear and move as in air; what the water gates is lifting the canopy away, by
+the same rule. The cockpit's filling in this lineage is a **stub** (`LineageCockpitWater`: a first-order rise toward the
+outside level, τ 20 s, E) — crash-water's AirframeFlooding replaces it (below). With the stub a 172 door under 1.7 m of
+water frees 54.9 s after the cockpit started filling (test). There is no breath-hold / drowning model.
+
+### On the ground: the climb and the walk
+
+**Climb** (`ClimbPath`): eye → stand up in the seat (+0.45 m, E) → over the sill (0.40–0.70 m out, by family) → the step
+or wing walk (its height above the ground under it + standing eye 1.641 m, ANSUR II 50th man) → the ground (1.2–1.6 m out,
+0.4–0.9 m aft off a low wing). Each leg minimum-jerk at 0.6 m/s (≥ 0.8 s; E); the step and ground points take their height
+from `WorldTerrain.WheelGroundHeightAt` under them, so it ends standing exactly on the ground whatever the attitude.
+**Comfort:** the climb is a translation; the one rotation is the levelling of a pitched or banked seat frame to the
+horizon as he stands up — once, the same rule the bail-out already uses. The body is hidden while the view moves.
+
+**Walk** (`GroundWalker`): left stick, head-relative (forward is where he looks), walk **1.4 m/s** (E, adults' preferred
+pace), run **3.5 m/s** (E) while the left trigger or left stick click is held; velocity follows the command at 4 m/s² (E,
+no instant starts). Soles on `WheelGroundHeightAt`; a rise over 1 m per metre walked is a wall. **Turning only as the
+player chooses: VR menu → "Turn on foot": Snap 30° (default) / Smooth 90°/s / Off** (persisted, `XrHeadset.TurnOnFoot`).
+**Keep-out:** his capsule (r 0.25 m, 1.75 m tall) is pushed out of the aeroplane's boxes — every lifting surface from the
+config's strips (`EgressClearance`), a fuselage box (0.9 m wide, 0.8 m above to 0.6 m below the CG, tail strips to 1.2 m
+ahead of the wing's leading edge; E) and each propeller disc (config diameter, 0.3 m deep) — horizontally the shortest
+way, and only where the box overlaps him in height (he walks under a high wing). A parked aeroplane is left at idle with
+the brakes on (E). Deep water underfoot (eye < 0.36 m over the surface) → he swims; a bed shallow enough → he wades out.
+
+### In the water (`SwimmerBody`, `PilotSwim`)
+
+One body, Archimedes plus drag, the water's surface and density from the seam:
+
+| quantity | value |
+|---|---|
+| body | 85 kg (E); tissue density 1053 kg/m³ = Siri at 20 % fat (E) → 80.7 L; de Leva segment fractions; heights from the eye (top +0.112, chin −0.115, notch −0.20, crotch −0.80, soles −1.641) |
+| lungs | chest band −0.22…−0.50, Boyle with depth; held breath 5.0 L, breathing while treading 4.0 L (E) |
+| kit | Nomex suit 1.0 kg + **2.0 L trapped air leaking τ 90 s** (E); boots 1.6 kg ρ 1150 (E); opened parachute harness + empty container 3.0 kg ρ 1400 (E); packed parachute 7.0 kg ρ 1250 + 6 L air τ 120 s (E) |
+| drag | upright CdA 0.12 m² (E), limbs spread 0.40 m² (E), added mass 10 % (E) |
+| swim | stroke **50 N** (E) up; tread **60 N** (E) ± 30 % at the kick's 0.8 Hz (the gentle bob), damping c = ½ρ·S·CLα·u = ½·1000·0.15·2·1.5 = **225 N·s/m** (E inputs) |
+
+Results (the shipped Core, cross-checked by an independent sketch to 4 digits):
+
+* **Swim up** from rest, eye 3 m down, suit + boots: **4.13 s**; from 5 m: **6.44 s** (packed parachute, buoyant pack: 3.36 / 5.27 s).
+* **Treading**, parachute landing kit, fresh suit air: eye **0.210 m** clear — the waterline at −0.21 m, just under the
+  suprasternal notch: **the top of the chest**. Once the suit's air has leaked out: eye **0.124 m** clear — the water at the
+  neck, the chin 9 mm out. **Without treading:** eye **0.090 m UNDER** (only the top of the head out), and with the suit
+  drained he sinks. *Mid-chest is not reachable treading: the lungs would be out of the water — that needs a life vest.*
+* Bob: ± 1 cm at 0.8 Hz once settled. Mouth clear → he breathes; under, he holds his breath.
+
+### The parachute water landing
+
+Entry at the canopy's sink (6.49 m/s at sea level, plus the drift) feet first: 0.4 s before the limbs spread and he strokes
+up. **Plunge (deepest eye):** 3.0 m/s 0.51 m, 5.0 m/s 0.81 m, **6.49 m/s 1.01 m**, 8.0 m/s 1.20 m. The eye is under from
+0.36 s to 3.8 s (the underwater view on), then he surfaces and **settles within 3 cm of 0.20 m eye-clear by 5.1 s** after
+the soles touch. No body thud and no grunt in water (PilotEgress); a light splash.
+
+**The canopy on the water (`CanopyOnWater`):** unloaded, it falls from the line length (7.0 + 0.6 m risers) at a collapsing
+canopy's terminal speed √(2·3.6 kg·g / (1.225·12 m²)) = **2.19 m/s** (3.6 kg canopy and lines, CdA 12 m²: both E) → **3.47 s**,
+moving with the air: its centre comes to rest **downwind by wind × 3.47 s + 0.3 m** (what is left of its drive, E), at most
+lines + risers + its flat radius = 11.56 m. **The rule:** it lies over his head only if its centre lands within its own
+flat radius (3.96 m): **wind below 1.14 m/s (≈ 2 kt) — "calm"**; in calm air (< 0.2 m/s) it falls 0.3 m ahead along its
+heading, i.e. on him. It floats 45 s (E) as it wets, then sinks at √(2·4.34 N / (1000·2 m²)) = 0.066 m/s (wet weight of
+nylon ρ 1140; crumpled CdA 2 m², E), and once its lines are taut below him it hangs on his harness (4.34 N, in PilotSwim).
+**Harness release:** the Strong Para-Cushion has **no canopy release** (no Koch / 3-ring: the risers are sewn to the
+harness), so there is nothing hand-operated to add short of unbuckling the harness itself — not modelled.
+
+### The underwater view (`UnderwaterViewMode`, `UnderwaterRender`, `Underwater.shader`, `Water.shader`)
+
+* **Switch** on the EYE (the camera) against the local surface: under below −1 cm, out above +1 cm, blended over 0.25 s (E).
+* **Fog:** Koschmieder, σ = 3.912 / V with **V = 6 m** (E: a clear-ish lake) = 0.652 /m — 72 % of an object's contrast left
+  at 0.5 m. Applied by one camera-centred inverted sphere (0.3 m, queue 2990, ZTest Always) to the **underwater part of each
+  ray only**, from the depth texture WaterReflection already renders (no extra depth pass); the sky goes to the water colour
+  (0.06, 0.20, 0.22, E).
+* **Caustics:** procedural ridges (a handful of sin() per pixel, no texture) on whatever the ray hits under the surface,
+  fading with its depth (e^(−0.35 d), E) and the fog.
+* **The surface from below:** Water.shader, while the eye is under THAT surface: Snell's window (48.6°) shows what is above
+  at 1 − Fresnel (Schlick, air side), total internal reflection outside it, fogged by distance.
+* **Semi-transparent from above, in a headset only** (`_WaterSeeThrough`): alpha ≥ 1 − e^(−σ·path)·(1 − mirror), so a sinking
+  cockpit, its belt and its latch stay visible from the surface. Flat screens keep today's water.
+* **Findable:** a 3 cm pale-yellow marker pulsing 1 Hz (α 0.35–0.7, E) on each exit grab point still to be worked (belt
+  releases, latch, jettison / release, door handle), drawn after the fog and the water.
+* **Muffled:** an AudioLowPassFilter on the listener at **500 Hz** under water (E), log-blended with the view's blend.
+
+### The pilot's water sounds (`PilotWaterAudio`, `PilotWaterSound`)
+
+Only two cues, ever: a **light splash** on entry (gain 0.35 × entry speed / 6.5 m/s, floor 0.15 of that; band-limited noise,
+5 ms attack, 0.25 s decay; E) and **lapping** at the surface (0.25; low noise under two slow swells; E). Under water the
+same lapping at 40 % through the 500 Hz corner. **No bubble or gurgle layer exists**, and `PilotWaterAudioGate` (Core)
+reads 0 for anything else's bubble gain while he is in the water — the seam for lane/codex-crash-audio's gurgle.
+
+### The crash-water seam (CONTRACT.md "Egress ↔ crash-water seam")
+
+`ICockpitWaterState` {Phase, FloodFraction, InteriorWaterUp, SurfaceUpAt, WaterDensity} and `IPilotWater` {SurfaceUpAt,
+GroundUpAt, Density, CurrentAt} — Unity world frame, y up. This lineage fills them with `LivePilotWater` (FloatHydro's
+surface over WorldTerrain) and the `LineageCockpitWater` stub. `Vr/CrashWaterSeam.cs` holds the member-by-member mapping to
+AirframeFlooding / HydroElement / WreckSim and an adapter compiled out behind `FLYINGGAME_CRASH_WATER` until the integration
+branch has both lanes. Nothing of crash-water's lineage was merged or cherry-picked here.
+
 ## Where Phase 2 and Phase 3 plug in
 
 (Phase 2 is built: the section above. What follows is the plan it was built to; Phase 3 still is.)

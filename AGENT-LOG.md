@@ -1,4 +1,41 @@
 ## NEEDS YOU
+- **QUEST: YOU CAN ALWAYS GET OUT — BELT + DOOR / CANOPY RELEASE → OUT BY SITUATION; WALK, SWIM, TREAD WATER; THE PARACHUTE
+  WATER LANDING; THE EYE UNDER WATER (Claude, 2026-11-02, lane/claude-vr-cockpit, P2d) — from your 13:28, 14:30 and 14:31
+  notes. Code only: NOT built, NOT on the headset. Design and every number: docs/vr-cockpit.md "P2d". NEEDS YOU:**
+  1. **Questions for you.** (a) **The P2 hand-over-hand climb on the sill: keep it as an optional manual way out, or remove
+     it?** I KEPT it (whichever comes first wins); the automatic exit is the main path. (b) **Treading water puts the water at
+     the top of your chest only while the suit still holds its air**: physics gives eye 0.21 m clear (waterline just under
+     the notch at the base of the throat) fresh, then 0.12 m (water at the neck, chin just out) after a couple of minutes as
+     the suit's 2 L leak out, with a 60 N tread (E). True mid-chest would need the lungs out of the water — a life vest — or
+     a tread no one sustains. Without treading he floats eyes-under (−0.09 m) and then sinks. Is 60 N right for you, and
+     do you want a life vest option? (c) **The canopy on your head rule**: it lands over you only in wind below 1.1 m/s
+     (≈ 2 kt), derived from its 3.5 s fall; otherwise wind × 3.5 s downwind. OK? (d) **The Para-Cushion has no canopy release**
+     (risers sewn to the harness), so I added none — confirm, or tell me which rig you wear. (e) The exit table guesses
+     (marked G in the docs): every door side except the 172 / PA-28 / Seminole / Cub, the gliders' and warbirds' generic
+     canopy-release lever and its place, airliners (placeholder path). Correct any you know.
+  2. **Ground, in the headset.** Parked, engine at idle: release the belt(s), then unlatch the canopy (Pitts ball / Extra
+     handles, or the jettison) or, in the Cub / 172, take the door handle and pull it aft 4 cm. The canopy opens by itself
+     (or the door swings), your view rises out of the seat, over the sill, onto the wing walk / step and down onto the ground
+     on the type's side (Pitts / Extra / Great Lakes LEFT, Cub / PA-28 / Seminole RIGHT, 172 by seat), ~5–7 s. The view is
+     levelled ONCE as you stand up (the bail-out's rule). Then: left stick walks 1.4 m/s, left trigger or stick click runs
+     3.5 m/s; right stick turns as VR menu → "Turn on foot" says (Snap 30° default / Smooth / Off). You cannot walk through
+     the wings, fuselage or propeller. Does any of that make you feel ill? The levelling is the one I would look at first.
+  3. **In flight.** Belt + canopy release (or the Pitts knob alone — it counts): the canopy flings or is pushed open, you
+     rise out over the side in 1.2 s and are the P2 jumper (pull the ripcord yourself).
+  4. **Water.** Land under the canopy on a lake: you plunge about 1 m (eye) at 6.5 m/s, the view goes green-blue and foggy
+     with moving caustics and muffled sound, you come up in ~3.8 s and settle treading water in ~5 s, bobbing about 1 cm.
+     The canopy deflates and lies downwind, floats ~45 s, then sinks. Only a light splash and soft lapping — no bubbles,
+     no gurgles, ever. Look down at the water from above in the headset: it is now semi-transparent (6 m visibility).
+     A sunk-cockpit exit (door held by the water until the cabin is nearly full: 7.7 cm head difference for a 172 door)
+     exists in code and tests but **cannot happen in this lineage** (the aeroplane never sinks here) until crash-water lands.
+  **Seam:** water through `ICockpitWaterState` / `IPilotWater` only (CONTRACT.md "Egress ↔ crash-water seam"); this
+  lineage's cockpit filling is a stated stub (τ 20 s). The crash-water adapter is written and compiled out
+  (`CrashWaterSeam.cs`, `FLYINGGAME_CRASH_WATER`). crash-water was read only; nothing merged or cherry-picked.
+  **Evidence (bench only):** 19 new `VrEgressTests` green (one or more per path: in-flight belt/canopy/Pitts jettison,
+  ground climb side + ground height, walk/run speeds, turning, airframe keep-out, door Δp gate until flooded, canopy release
+  not gated, swim-up time, tread stability, plunge vs entry speed, settle + chest equilibrium, eye above while treading,
+  camera-mode switch, canopy deflation vs wind, audio cues) — literals from an independent Python sketch, which agrees with
+  the shipped Core to 4 digits. Full suite, frozen 0a1a7b4 copy then this branch, one at a time with nothing else building: **base 233 failed / 1094 passed (145 unique names), branch 120 failed / 1306 passed (116 unique)** — **no failing name only on the branch** (29 only on the base: the coupled suite's flakes). Unity batch, scripts only, final code: **Android 0 error CS, iOS 0 error CS**, both shaders imported clean (device shader compile not exercised: no player build); ProjectSettings untouched. No APK, no xcodebuild, nothing installed. **Nothing here is approved.**
 - **QUEST: THE EXTRA'S REAL LATCH, THE CANOPY FLUNG OPEN AND TORN AWAY IN FLIGHT, THE JETTISON KNOB (Claude, 2026-11-02,
   lane/claude-vr-cockpit, P2c / P2c-2 / P2c-3) — from your "the rear handle is fixed, the front handle is spring-loaded
   forward …", "suction … flings it open; above 80 KIAS on the Extra, or 80 MPH on the Pitts, the hinges fail and the canopy
