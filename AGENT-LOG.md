@@ -1549,6 +1549,21 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 22:40 PST — Claude · lane/claude-vr-hands-fix · 2-33 canopy: no yellow band at the front (Ty t295u)
+- Ty: "REMOVE the yellow band across the 2-33 canopy near the front. The real canopy is clear all the way to the fuselage with
+  no painted band or frame strip." Fixed at the source, tools/own_models/build_sgs233.py (v11): Canopy_Frame no longer has the
+  windscreen-arch bow at the front edge of the glass, nor the two sill rails ahead of the front/rear split (CLEAR_FROM = 6).
+  The mid bow at the split (x ~1.085 builder) and the aft bow stay (they are the door/rear-section frame) — question for Ty
+  whether he wants those gone too. Rebuilt BOTH variants (glider-2-33-like-own.glb, -own-tf.glb via SGS_LIVERY=talk-flying):
+  only Canopy_Frame changed (190 -> 108 verts), node count 97 unchanged; textures re-encoded, no other geometry differs.
+  (The legacy .obj in that folder is a Grob Astir, not a 2-33 — not used for this.)
+- New model check tools/own_models/check_sgs233_canopy.py (both variants): no Canopy_Frame vert ahead of the split, and no opaque
+  node within 15 mm of the front glass more than 30 mm above its lower edge (yaw string / coaming exempt; fittings < 40 mm INFO).
+  New GLBs: SGS233 CANOPY OK. Old GLBs: FAIL (78 frame verts ahead of the split, 39 yellow verts on the glass) — it discriminates.
+- check_eye_interiors unchanged for the 2-33 (front 0.0% skin within 12 cm, sky blocked 16.3%).
+- Renders (Cycles, before/after, both liveries: exterior 3/4, exterior front, front seat, front seat looking up) by
+  tools/own_models/render_233_canopy.py -> /workspace/vr-hands/body/v3/233-canopy/{before,after}/ + sheet_own.jpg, sheet_own-tf.jpg.
+- Goes in the next Quest install with the verified fixes (v2 body still; no v3).
 ### 2026-11-02 22:13 PST — Claude · lane/claude-vr-hands-fix · Quest build 2026.1102.2207 INSTALLED (v2 body + hand-grab fix + Extra + 2-33 eye + b62117a4)
 - Branch at 6ab33878 = fe843d2a (tracked-hand late grab etc.) + 5c96a4ff (Extra rear panel top) + b4366b43 (2-33 eye +25 mm)
   + d0517239 (Extra rear throttle on the side wall, 127 mm cylinder canopy handles) + the v2 pilot body (fc1eb214, Ty liked it)
