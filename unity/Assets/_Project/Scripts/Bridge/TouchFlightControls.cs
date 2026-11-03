@@ -91,6 +91,14 @@ namespace FlyingGame.Bridge
         /// <summary>The brake/spoiler strip's starting point (a glider's spoiler opens half way on the approach).</summary>
         public void PresetStripBrake(float v) => _stripBrake01 = Mathf.Clamp01(v);
         public bool StripMode => StripElevator && !DeskMode;
+
+        /// <summary>
+        /// A gamepad is connected: the touch pads / strips and trim slider / bars are hidden and take no touches
+        /// (owner 2026-11-02). Re-read every frame from <see cref="GamepadInput.Now"/>, so hot-plug flips it.
+        /// The buttons (Reset, Aircraft, Flaps, Gear, Smoke, Tow, Bail, Fire, Eject, Look) stay.
+        /// </summary>
+        public static bool TouchSticksHidden => !DeskMode && !FlyingGame.Core.GamepadShaping.TouchSticksShown(DeskMode, GamepadInput.Now.Connected);
+        private bool _touchSticksWereHidden;
         private Rect _eleStrip, _thrStrip; private float _stripY;
 
         // On-screen button rects (screen px, bottom-left origin) — computed in Update, drawn in OnGUI.
@@ -192,6 +200,7 @@ namespace FlyingGame.Bridge
                 if (_cockpit != null) _cockpit.OnScreenHat = Vector2Int.zero;
                 return;   // landing page owns the screen
             }
+            ApplyTouchSticksHidden();
             ReadPointers();
             if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
             GamepadFlight();
@@ -479,6 +488,7 @@ namespace FlyingGame.Bridge
                     if (_towRect.Contains(p.pos)) { _tapped.Add(Btn.Tow); continue; }
 
                     if (DeskMode) continue;   // Mac: no touch pads / trim sliders to grab
+                    if (TouchSticksHidden) continue;   // a gamepad is connected: the touch sticks are hidden
                     if (_trimRect.Contains(p.pos) && _trimFinger == int.MinValue) _trimFinger = p.id;
                     else if (_ailTrimRect.Contains(p.pos) && _ailTrimFinger == int.MinValue) _ailTrimFinger = p.id;
                     else if (_rudTrimRect.Contains(p.pos) && _rudTrimFinger == int.MinValue) _rudTrimFinger = p.id;
@@ -619,6 +629,21 @@ namespace FlyingGame.Bridge
         {
             float n = (pos.y - _trimRect.center.y) / (_trimRect.height * 0.5f);
             _pitchTrim = Mathf.Clamp(n, -1f, 1f);
+        }
+
+        /// <summary>A pad connected with a thumb on a touch stick: let go of it, so the hidden stick can't hold a deflection.</summary>
+        private void ApplyTouchSticksHidden()
+        {
+            bool hidden = TouchSticksHidden;
+            if (hidden && !_touchSticksWereHidden)
+            {
+                if (_leftFinger != int.MinValue) ReleaseLeft();
+                if (_rightFinger != int.MinValue) ReleaseRight();
+                _trimFinger = _ailTrimFinger = _rudTrimFinger = int.MinValue;   // trims hold where they were left
+            }
+            if (hidden != _touchSticksWereHidden)
+                Debug.Log(hidden ? "[Touch] gamepad connected: touch sticks hidden" : "[Touch] no gamepad: touch sticks shown");
+            _touchSticksWereHidden = hidden;
         }
 
         private void ReleaseLeft()
@@ -796,7 +821,8 @@ namespace FlyingGame.Bridge
             // A lesson card (briefing / debrief) is up: the pads and buttons step aside where they would sit under it — except a
             // lesson's tall STRIPS (owner 2026-10-06: "the elevator control needs to appear before the game launches so the user
             // knows where to put their thumb"): they stay, drawn over the card's backdrop, with a pointer.
-            bool stripBriefing = UiLayout.Modal && StripMode && Practice.PracticeController.AnyActive;
+            bool sticksHidden = TouchSticksHidden;   // a gamepad is connected (hot-plug: re-read every frame)
+            bool stripBriefing = UiLayout.Modal && StripMode && !sticksHidden && Practice.PracticeController.AnyActive;
             if (UiLayout.Modal && (!ScreenLayout.Portrait || DeskMode) && !stripBriefing) return;
             if (stripBriefing)
             {
@@ -816,6 +842,7 @@ namespace FlyingGame.Bridge
             bool pilotOut = _egress != null && _egress.PilotOut;
             (Vector2 freeLeft, Vector2 freeRight) = FreeKnobs(pilotOut);
             if (DeskMode) DrawDeskIndicator(GameLeftKnob(freeLeft), GameRightKnob(freeRight), leftValue);
+            else if (sticksHidden) { }   // gamepad connected: no touch pads, strips or trim slider
             else if (StripMode)
             {
                 DrawStrip(_eleStrip, _stripY, "ELEVATOR", "push = nose down");
@@ -859,7 +886,7 @@ namespace FlyingGame.Bridge
             string an = _driver.AircraftName ?? "";
             int paren = an.IndexOf(" (");
             Button(_acftRect, paren > 0 ? an.Substring(0, paren) : an);   // "Bush Taildragger (PA-18)" → fits the button
-            if (!DeskMode && !StripMode)   // Mac: no touch trim bars — the desk indicator shows trim (=/- keys); strips: elevator / throttle only
+            if (!DeskMode && !StripMode && !sticksHidden)   // Mac / gamepad: no touch trim bars — the desk indicator shows trim (=/- keys); strips: elevator / throttle only
             {
                 DrawTrimBar(_rudTrimRect, _rudderTrim, "RUD TRIM");
                 DrawTrimBar(_ailTrimRect, _aileronTrim, "AIL TRIM");
