@@ -1,4 +1,15 @@
 ## NEEDS YOU
+- **GREAT LAKES v2: SWITCHES ON THE PANEL + NEW WINDSHIELDS (Codex, 2026-11-02, lane/codex-greatlakes-cockpit,
+  2576bec6 · 09bc3206). Owner pt281u: "switches were outside … on the sides; windshields not even close".** Not
+  merged, not installed. Renders (before/after, same cameras): Grok box /workspace/greatlakes/v2/, Mac
+  ~/Developer/glv2-renders/. In the headset/phone, Great Lakes, from each seat:
+  1. **Switches.** Every switch, knob and lever (88 across the GL, Pitts and Extra GLBs) now sits on a panel face
+     inside the cockpit, not out on the fuselage sides. Right spots?
+  2. **Windshields.** One-piece, curved and frameless, standing on the turtle deck ahead of each opening, with only a
+     thin aluminium strip at the base. The front one is lower (top +0.373 m) and flatter on top than the rear one
+     (+0.398 m). Height and rake right? Do you see over the front one from the rear seat?
+  3. **Stick/throttle by hand.** Not this lane: it belongs to lane/claude-vr-hands-fix (untouched here).
+  **Nothing approved.**
 - **QUEST: HANDS BUILD FOR THE HEADSET — lane/claude-quest-hands-install (Claude, 2026-11-02 19:10 PST). Ty EXPLICITLY
   APPROVED installing the hand-tracking build on the Quest (19:10 PST); that overrides the "do not install on the
   Quest" note in the lane/claude-vr-hands brief. This approves the INSTALL only: no gate, merge to main or feature is
@@ -1450,6 +1461,27 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Codex · lane/codex-greatlakes-cockpit · Great Lakes v2: controls on the panel faces, frameless windshields
+Owner pt281u (verbatim): "the switches were outside of the great lakes on the sides. the windshields are not even close
+to correct try again.  hand control did not work on the great lakes stick or throttle".
+- **Controls (2576bec6).** `tools/own_models/cockpit_controls_v2.py` re-seats every `Ctl_*`/`Mount_*` node on real
+  panel-face triangles: GL (rear face x −1.638, front −0.968), Pitts (−0.808/−0.151), Extra (−1.172/−0.147). The rig JSONs
+  were updated to match. New `tools/FlightTests/CockpitControlInteriorTests.cs` checks each control on 8 GLBs (GL main, 4 Pitts,
+  3 Extra; 88 controls): the pivot must be within −8/+3 mm of the face, and a ±12 mm footprint must land on panel-face triangles.
+  The 8 tests pass; a Python prototype of the same test fails 88/88 on the base a112004a GLBs.
+  `check_vr_phase3`: PASS 10 assets, 440 controls, min clearance 25.43 mm. `OwnPittsModelTests.World` → internal.
+- **Windshields (09bc3206).** `tools/own_models/gl_windshield_v2.py` (idempotent) replaces both GL screens with one
+  closed, curved solid each (4.7 mm thick, acrylic, no frame or rim material). Each stands on the deck ahead of its opening,
+  with a superellipse top: the front is lower and flatter (top .373, n=4, rake 58°), the rear taller (top .398, n=2.2, rake 62°).
+  The base trim is a 14 mm aluminium strip with 9 screws, renamed `GL_Windshield_Base_Trim_<Seat>` (a `Windscreen*` name would read as
+  glass in AirframeSurface). Applied to all 3 GL GLBs. Cabane struts and gear legs are untouched. `check_gl_p3c.py` asserts it
+  (manifold, one component, thickness, ahead-of-opening, on-deck, rake 45–75°, alpha, ior, trim) and passes on all 3.
+- **Tests.** The full suite has failures in world/terrain/handling classes. Re-run in isolation, the 16 failures in Alaska,
+  StreamingAssets, AerobatGroundHandling and AirframeContact are the same names at a112004a (a temporary detached worktree, since removed).
+- **Not done / open.** The stick/throttle hand grab is lane/claude-vr-hands-fix (not touched). The legacy GL liveries
+  (-red-sunburst, -white-stripes) have different cockpit stations, and nothing references them; they get the new screens but are excluded
+  from the interior test. The eye note in great-lakes-like.json was written against the old screen tops. Possible GLB merge conflict
+  with 8c88bb74 (floor windows) on Pitts/Extra. The check_great_lakes_rig failure on Grip_Magneto rotation predates this lane.
 ### 2026-11-02 — Claude · lane/claude-quest-hands-install · the hands build on Ty's Quest (install approved by Ty, 19:10 PST)
 - **Approval:** Ty explicitly approved installing the hand-tracking build on the Quest (19:10 PST). This overrides the
   "do not install on the Quest" note in the lane/claude-vr-hands brief, for the install only. No gate is marked approved.
