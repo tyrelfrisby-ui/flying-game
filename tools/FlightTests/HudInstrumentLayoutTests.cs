@@ -46,4 +46,27 @@ public sealed class HudInstrumentLayoutTests
         Assert.Equal(10, HudInstrumentLayout.FuelGallons(27.252), 8);
         Assert.Equal(0, HudInstrumentLayout.FuelGallons(0));
     }
+
+    [Fact]
+    public void EngineBlockIsDialPlusValueLine()
+    {
+        Assert.Equal(2 * HudInstrumentLayout.EngineRadius(1206) + HudInstrumentLayout.ValueHeight(1206), HudInstrumentLayout.EngineBlockHeight(1206), 6);
+        Assert.True(HudInstrumentLayout.EngineBlockHeight(1206, true) > HudInstrumentLayout.EngineBlockHeight(1206));   // controller dials are larger
+    }
+
+    [Fact]
+    public void EngineRowCentresButStaysInsideItsLimits()
+    {
+        Assert.Equal(901, HudInstrumentLayout.CentredRowLeft(1311, 820, 0, 2622), 6);    // centred
+        Assert.Equal(1000, HudInstrumentLayout.CentredRowLeft(1311, 820, 1000, 2622), 6);  // pushed right of a button column
+        Assert.Equal(780, HudInstrumentLayout.CentredRowLeft(1311, 820, 0, 1600), 6);    // pushed left of a pad
+    }
+
+    [Fact]
+    public void NarrowEngineCellsPutTheUnitOnASecondLine()
+    {
+        Assert.Equal(1, HudInstrumentLayout.EngineValueLines(175, 33));   // iPhone touch band: 700/4 px at 33 px text
+        Assert.Equal(2, HudInstrumentLayout.EngineValueLines(146, 41));   // iPad mini touch band
+        Assert.Equal(HudInstrumentLayout.EngineBlockHeight(1488) + HudInstrumentLayout.ValueHeight(1488), HudInstrumentLayout.EngineBlockHeight(1488, false, 2), 6);
+    }
 }

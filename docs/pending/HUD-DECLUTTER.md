@@ -292,3 +292,25 @@ This proposal's minimum applies to ordinary flight instruments, shared fitted la
 Pure strip dimensions live in Core with hand-written phone expectations in `HudInstrumentLayoutTests`; only that test filter was requested. Headless Bridge compile uses `/private/tmp/hudshots-check`, not a player build. No new Unity Assets files, so no new .meta GUIDs. Changes remain uncommitted; AGENT-LOG.md untouched.
 
 B2 checks: final headless Bridge compile passed (0 errors; two existing unused WidgetVectors locals, two NU1900 network-audit warnings). Filtered FlightTests built, but VSTest aborted because the sandbox rejects its local socket; retry with single-node MSBuild reached the same runner restriction. Both new test methods then passed through a temporary direct .NET runner invoking the identical methods with equivalent assertions, without VSTest sockets (`/private/tmp/hud-layout-direct`). No full suite run. `git diff --check` passed. Runtime phone/render verification remains outstanding.
+
+
+## Run C — engine row below the airplane (Grok Bot, 2026-11-02)
+
+Ty approved B4 with one change: "put the engine instruments below the airplane." Applies to analog mode, chase view,
+powered aircraft, landscape, touch and controller layouts, iOS only (`TouchFlightControls.EngineBelowWanted`).
+
+- `TouchFlightControls` owns the placement because it knows where its buttons and pads are; it publishes
+  `UiLayout.EngineRowRect` (GUI space; width 0 = old placement under the flight row). `AnalogGauges` draws the row
+  there and clears `UiLayout.EngineRowShown`, so the text stack only reserves the flight row.
+- Controller: row width/radius as before (`RowWidth`/`EngineRadius`, gamepad sizes), bottom at
+  `h − SafeBottom − Margin`, centred, `CentredRowLeft` pushes it right of the button column if needed (iPad mini).
+- Touch, narrow (iPhone; pads reach the bottom): cluster folds to two rows in the band, engine row on top of it.
+  Touch, wide (iPad; the trim captions end above `margin + button height + gap`): every button in one row along the
+  bottom under the pads; engine row in the band. If the band cell is narrower than 4.8 em of MinText
+  (`EngineValueLines`), the unit goes on a second line instead of overlapping or shrinking.
+- Keep-out: the button heights shrink (floor `_half·0.16`) so `engine top + gap ≤ AircraftKeepOut.yMin`.
+- `_layoutKey` now also includes TouchSticksHidden, EngineBelowWanted, SmokeAvailable, HasFlaps, RetractableGear.
+- Harness: `AERO_HUDSHOTS_DEVICE=ipad` renders 2266x1488 (iPad mini, safe area L/R/top 0, bottom 40 px) with `-ipad`
+  in the filenames. Core tests: `HudInstrumentLayoutTests` (9 pass).
+- Open (pre-existing from B4, visible in the iPad touch render): the top flight row is wider than the iPad touch band
+  (pads are sized by `/2.22`, so the band is ~0.38·S, not the 0.85·S the comment intends); dials and values overlap.

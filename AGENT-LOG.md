@@ -1,4 +1,15 @@
 ## NEEDS YOU
+- **HUD DECLUTTER APPROVED + ENGINE ROW MOVED BELOW THE AIRPLANE — PLEASE CHECK ON BOTH DEVICES (Grok Bot, 2026-11-02, lane/codex-hud-declutter → lane/claude-island-nav):**
+  Ty (approving fe4c7f60): "put the engine instruments below the airplane. otherwise the cleanup looks good go ahead
+  and move engine instruments then push to ipad/iphone". Analog mode, chase view, powered aircraft, landscape, phone/
+  tablet only: TACH / THR / FLOW / FUEL now sit centred BELOW the aeroplane; the flight row stays at the top.
+  Controller layout: bottom of the screen, centred, pushed right of the button column only if it would touch it.
+  Touch layout: in the band between the pads; iPhone folds the centre cluster into two rows ([SMOKE | BAIL] over
+  [Reset | Aircraft | FLAPS]); iPad mini puts all buttons in ONE row along the bottom under the pads, and the narrow
+  band there puts each unit on a second line (never below MinText). Keep-out rule unchanged (buttons shrink first).
+  Unchanged: cockpit, HUD mode, gliders, portrait, lessons, Mac. Renders (iPhone 2622x1206 + new iPad mini 2266x1488
+  harness option AERO_HUDSHOTS_DEVICE=ipad): Mac ~/agent-tools/engine-below/. Known, pre-existing (B4): on the iPad
+  mini TOUCH layout the TOP flight row is wider than the band and its dials/values overlap — not touched here.
 - **HUD DECLUTTER — PICK FROM THE RENDERS, NOTHING MERGED (Grok Bot coordinating Codex, 2026-11-02, lane/codex-hud-declutter):**
   Ty: "a lot of that stuff under the row of buttons is so small I don't even know what it is", and "in ANALOG
   mode arrange the instruments as a neat row ... flight instruments top row, engine instruments bottom row".

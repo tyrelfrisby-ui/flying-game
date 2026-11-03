@@ -1140,10 +1140,16 @@ namespace FlyingGame.Bridge
                 for (int pass = 0; pass < passes; pass++)
                 {
                     bool portrait = pass == 1; string orient = portrait ? "portrait" : "landscape";
-                    int w = portrait ? 1206 : 2622, h = portrait ? 2622 : 1206;
+                    // AERO_HUDSHOTS_DEVICE=ipad: iPad mini (2266x1488 at 2x, no notch, 20 pt home indicator) instead of the iPhone.
+                    bool ipad = System.Environment.GetEnvironmentVariable("AERO_HUDSHOTS_DEVICE") == "ipad";
+                    UiLayout.IPadSafeAreaForTest = ipad;
+                    int lo = ipad ? 1488 : 1206, hi = ipad ? 2266 : 2622;
+                    int w = portrait ? lo : hi, h = portrait ? hi : lo;
+                    if (ipad) orient += "-ipad";
                     Screen.SetResolution(w, h, FullScreenMode.Windowed);
                     yield return new WaitForSecondsRealtime(2f);
-                    Debug.Log($"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; safe L/R {(portrait ? 0 : 186)} top {(portrait ? 186 : 0)} bottom 63 px (62pt/21pt at 3x)");
+                    Debug.Log(ipad ? $"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; iPad mini safe L/R 0 top 0 bottom 40 px"
+                                   : $"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; safe L/R {(portrait ? 0 : 186)} top {(portrait ? 186 : 0)} bottom 63 px (62pt/21pt at 3x)");
                     foreach (bool gamepad in new[] { false, true })
                     {
                         string layout = gamepad ? "gamepad" : "touch";
@@ -1167,7 +1173,7 @@ namespace FlyingGame.Bridge
                     foreach (var kv in aeroShow) aero.Show[kv.Key] = kv.Value;
                     aero.Insets.Clear(); foreach (var key in aeroInsets) aero.Insets.Add(key);
                 }
-                UiLayout.ForceTouchLayoutForTest = oldTouch; GamepadInput.SimulateConnectedForTest = oldGamepad; UiLayout.IPhoneSafeAreaForTest = oldSafe;
+                UiLayout.ForceTouchLayoutForTest = oldTouch; GamepadInput.SimulateConnectedForTest = oldGamepad; UiLayout.IPhoneSafeAreaForTest = oldSafe; UiLayout.IPadSafeAreaForTest = false;
                 if (challengeHud != null) challengeHud.enabled = oldChallenge;
                 Screen.SetResolution(oldW, oldH, oldMode); Application.runInBackground = oldBackground;
                 SessionSettings.ApplyTimeScale();

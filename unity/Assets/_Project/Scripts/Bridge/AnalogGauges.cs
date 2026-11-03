@@ -209,7 +209,10 @@ namespace FlyingGame.Bridge
             Rect view = _cam.pixelRect; float top = Screen.height - view.yMax, bottom = Screen.height - view.y;
             float readH = (float)FlyingGame.Core.HudInstrumentLayout.ValueHeight(s);
             bool glider = aircraft.Config.Propulsion == null;
-            UiLayout.EngineRowShown = !glider;
+            // Owner 2026-11-02: the engine row goes BELOW the airplane where the controls layout published room for it.
+            Rect engineBelow = UiLayout.EngineRowRect;
+            bool belowPlane = !glider && engineBelow.width > 0f && !ChaseCamera.InCockpit;
+            UiLayout.EngineRowShown = !glider && !belowPlane;
             Vector2 asi, alt, gc, vc;
             bool controller = TouchFlightControls.TouchSticksHidden;
             float columnWidth = view.width / 5f;
@@ -230,7 +233,13 @@ namespace FlyingGame.Bridge
                 gc = new Vector2(x + step * 2.5f, y);
                 vc = new Vector2(x + step * 3.5f, y);
                 if (live) { UiLayout.DialsLeft = right; UiLayout.DialsRight = right; UiLayout.DialsFrame = Time.frameCount; }
-                if (!glider) DrawEngineRow(aircraft, x, (float)FlyingGame.Core.HudInstrumentLayout.EngineTop(UiLayout.ToolbarBottom, UiLayout.Gap, s, pad), width, (float)FlyingGame.Core.HudInstrumentLayout.EngineRadius(s, pad));
+                if (belowPlane)
+                {
+                    float er = (float)FlyingGame.Core.HudInstrumentLayout.EngineRadius(s, pad);
+                    DrawEngineRow(aircraft, engineBelow.x, engineBelow.y, engineBelow.width, er,
+                        engineBelow.height > 2f * er + 1.5f * (float)FlyingGame.Core.HudInstrumentLayout.ValueHeight(s));
+                }
+                else if (!glider) DrawEngineRow(aircraft, x, (float)FlyingGame.Core.HudInstrumentLayout.EngineTop(UiLayout.ToolbarBottom, UiLayout.Gap, s, pad), width, (float)FlyingGame.Core.HudInstrumentLayout.EngineRadius(s, pad));
 
             }
             else
@@ -323,7 +332,7 @@ namespace FlyingGame.Bridge
         }
 
         private Texture2D[] _engineFaces;
-        private void DrawEngineRow(FlyingGame.Sim.Aircraft ac, float x, float y, float width, float radius)
+        private void DrawEngineRow(FlyingGame.Sim.Aircraft ac, float x, float y, float width, float radius, bool twoLines = false)
         {
             if (_engineFaces == null)
             {
@@ -355,6 +364,7 @@ namespace FlyingGame.Bridge
             var numbers = new GUIStyle(_num) { fontSize = Mathf.RoundToInt((float)FlyingGame.Core.HudInstrumentLayout.NumeralText(UiLayout.S, TouchFlightControls.TouchSticksHidden)) };
             var value = new GUIStyle(_big) { fontSize = UiLayout.MinText };
             float cell = width / 4, vh = (float)FlyingGame.Core.HudInstrumentLayout.ValueHeight(UiLayout.S);
+            // A narrow row below the airplane (iPad touch band) gets the unit on its own line; the layout reserved it.
             for (int i = 0; i < 4; i++)
             {
                 Vector2 c = new(x + cell * (i + .5f), y + radius);
@@ -370,7 +380,13 @@ namespace FlyingGame.Bridge
                 }
                 GUI.Label(new Rect(c.x-radius, c.y+radius*.72f, radius*2, radius*.24f), names[i], caption);
                 DrawNeedle(c, DialDeg(Mathf.Clamp01((float)fractions[i]), false), radius*.82f, radius*.12f, 1);
-                GUI.Label(new Rect(x+cell*i, y+radius*2, cell, vh), values[i].ToString(i < 2 ? "0" : "0.0") + units[i], value);
+                string number = values[i].ToString(i < 2 ? "0" : "0.0");
+                if (twoLines)
+                {
+                    GUI.Label(new Rect(x+cell*i, y+radius*2, cell, vh), number + (units[i].StartsWith("%") ? "%" : ""), value);
+                    GUI.Label(new Rect(x+cell*i, y+radius*2+vh, cell, vh), units[i].TrimStart('%', ' '), value);
+                }
+                else GUI.Label(new Rect(x+cell*i, y+radius*2, cell, vh), number + units[i], value);
             }
         }
 

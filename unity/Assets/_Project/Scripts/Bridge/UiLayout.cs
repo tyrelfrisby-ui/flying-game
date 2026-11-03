@@ -20,6 +20,8 @@ namespace FlyingGame.Bridge
         // Inert unless the hudshots self-test explicitly enables them. Insets are physical pixels.
         public static bool ForceTouchLayoutForTest;
         public static bool IPhoneSafeAreaForTest;
+        /// <summary>With <see cref="IPhoneSafeAreaForTest"/>: an iPad mini instead (no notch; 20 pt home indicator at 2x).</summary>
+        public static bool IPadSafeAreaForTest;
         public static int MinText => Mathf.Max(22, Mathf.RoundToInt(S * 33f / 1206f));
         public static int CaptionText => Mathf.Max(20, Mathf.RoundToInt(S * 30f / 1206f));
         public static float S => Mathf.Min(Screen.width, Screen.height);
@@ -36,11 +38,11 @@ namespace FlyingGame.Bridge
         // zero and nothing moves.
 
         /// <summary>Pixels of the top edge the Dynamic Island, notch or status bar is sitting in.</summary>
-        public static float SafeTop => IPhoneSafeAreaForTest ? (Screen.height > Screen.width ? 186f : 0f) : Mathf.Max(0f, Screen.height - Screen.safeArea.yMax);
+        public static float SafeTop => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest ? 0f : Screen.height > Screen.width ? 186f : 0f) : Mathf.Max(0f, Screen.height - Screen.safeArea.yMax);
         /// <summary>Pixels of the bottom edge the home indicator is sitting in.</summary>
-        public static float SafeBottom => IPhoneSafeAreaForTest ? 63f : Mathf.Max(0f, Screen.safeArea.yMin);
-        public static float SafeLeft => IPhoneSafeAreaForTest ? (Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.safeArea.xMin);
-        public static float SafeRight => IPhoneSafeAreaForTest ? (Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.width - Screen.safeArea.xMax);
+        public static float SafeBottom => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest ? 40f : 63f) : Mathf.Max(0f, Screen.safeArea.yMin);
+        public static float SafeLeft => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest || Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.safeArea.xMin);
+        public static float SafeRight => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest || Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.width - Screen.safeArea.xMax);
 
         /// <summary>The toolbar's own top edge: the margin, pushed clear of whatever the hardware is sitting in. The
         /// in-flight row had the same defect the owner reported on the launch page — MENU and OPTIONS were under the
@@ -73,7 +75,13 @@ namespace FlyingGame.Bridge
         public static float BandLeft => Mathf.Max(Margin, BandMin);
         public static float BandRight => Mathf.Min(Screen.width - Margin, BandMax);
 
+        /// <summary>The engine row is drawn under the flight row (and the text stack starts below it). False when the
+        /// engine row is below the airplane instead (<see cref="EngineRowRect"/>) or there is no engine.</summary>
         public static bool EngineRowShown;
+        /// <summary>GUI-space box (top-left origin) for the ENGINE row when it sits below the airplane (owner 2026-11-02:
+        /// "put the engine instruments below the airplane"). Width 0 = the engine row stays under the flight row.
+        /// Published by the touch/controller layout, which knows where its buttons and pads are.</summary>
+        public static Rect EngineRowRect;
         public static float InstrumentBottom => (float)FlyingGame.Core.HudInstrumentLayout.Bottom(ToolbarBottom, Gap, S, TouchFlightControls.TouchSticksHidden && !ScreenLayout.Portrait, EngineRowShown);
 
         // ---- the text stack ----

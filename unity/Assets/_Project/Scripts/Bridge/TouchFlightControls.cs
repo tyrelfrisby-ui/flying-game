@@ -188,7 +188,7 @@ namespace FlyingGame.Bridge
             // Re-lay out only when something the layout depends on changes (screen, aircraft type, keep-out step) —
             // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
             Rect ko = ScreenLayout.AircraftKeepOut;
-            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
+            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}|{TouchSticksHidden}|{EngineBelowWanted}|{SmokeAvailable}|{_driver.HasFlaps}|{_driver.Sim?.Aircraft?.Config?.RetractableGear == true}";
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
@@ -216,7 +216,7 @@ namespace FlyingGame.Bridge
         private void LayOut()
         {
             float w = Screen.width, h = Screen.height, s = Mathf.Min(w, h);
-            if (ScreenLayout.Portrait) { LayOutPortrait(w); if (TouchSticksHidden) { LayOutControllerButtons(); PublishBand(); } return; }
+            if (ScreenLayout.Portrait) { _engineRowRect = Rect.zero; LayOutPortrait(w); if (TouchSticksHidden) { LayOutControllerButtons(); PublishBand(); } return; }
             float margin = s * 0.035f;
             float gap = s * 0.02f;
             // No-overlap rule: on squarer screens (iPad, 4:3) full-size pads would squeeze the centre band until the dials
@@ -272,6 +272,8 @@ namespace FlyingGame.Bridge
                 _ejectRect = new Rect(x0 + bw + gap, r2, bw, bh);
             }
             _smokeRect = SmokeAvailable ? new Rect(x0, r3, 2f * bw + gap, bh) : new Rect(0, 0, 0, 0);
+            _engineRowRect = Rect.zero;
+            if (EngineBelowWanted && !TouchSticksHidden) LayOutEngineBelowCluster(s, h, margin, gap, rowGap, clusterLeft, clusterRight);
             // Trim bars: rudder under the left pad, aileron under the right pad (RC transmitter style).
             float barH = s * 0.045f;
             _rudTrimRect = new Rect(_leftCenter.x - _half, _leftCenter.y - _half - gap - barH, 2f * _half, barH);
@@ -287,8 +289,110 @@ namespace FlyingGame.Bridge
             _lookRightRect = new Rect(lookX + 2f * (lookW + lookGap), lookY, lookW, lookH);
             _fireRect = FireRectTopLeft();
             if (StripMode) LayOutStrips(w);
-            if (TouchSticksHidden) LayOutControllerButtons();
+            if (TouchSticksHidden) { LayOutControllerButtons(); LayOutControllerEngineRow(); }
             PublishBand();
+        }
+
+        private Rect _engineRowRect;   // GUI space (top-left origin); width 0 = engine row under the flight row
+        /// <summary>Owner 2026-11-02: the analog ENGINE row (tach, throttle, flow, fuel) goes BELOW the airplane, centred,
+        /// in landscape touch and controller layouts. Not in the cockpit (panel), portrait, lessons' strips or the Mac.</summary>
+        private bool EngineBelowWanted => !DeskMode && !ScreenLayout.Portrait && !StripMode && !ChaseCamera.InCockpit &&
+            SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !SessionSettings.FlightTestData &&
+            _driver != null && _driver.Sim?.Aircraft?.Config?.Propulsion != null;
+
+        /// <summary>Touch landscape with the engine row below the airplane. The four-row centre cluster leaves no room
+        /// between the airplane and the buttons, so the cluster is re-laid and the engine row sits on top of it:
+        /// - WIDE (iPad): the pads end well above the bottom edge, so every button goes in ONE row along the bottom,
+        ///   under the pads, and the engine row has the band between the pads to itself;
+        /// - NARROW (iPhone): the pads reach the bottom, so the buttons fold into TWO rows in the band —
+        ///   [SMOKE | BAIL | (EJECT) | (GEAR)] over [Reset | Aircraft | FLAPS].
+        /// Same keep-out rule as before: if the engine row would reach the airplane, the buttons shrink first.</summary>
+        private void LayOutEngineBelowCluster(float s, float h, float margin, float gap, float rowGap, float clusterLeft, float clusterRight)
+        {
+            float w = Screen.width, avail = clusterRight - clusterLeft;
+            float rowW = (float)FlyingGame.Core.HudInstrumentLayout.RowWidth(s, avail, false);
+            int lines = FlyingGame.Core.HudInstrumentLayout.EngineValueLines(rowW / 4f, UiLayout.MinText);
+            float engineH = (float)FlyingGame.Core.HudInstrumentLayout.EngineBlockHeight(s, false, lines);
+            bool flaps = _driver.HasFlaps && !Practice.PracticeController.AnyActive;
+            bool gear = _driver.Sim?.Aircraft?.Config?.RetractableGear == true;
+            float capH = UiLayout.CaptionText * 2.4f;   // the aircraft name may need two lines
+            // Bottom of the trim bars' captions (DrawTrimBar: label lh = 1.5 fs below a bar of s*0.045 under each pad).
+            float fs = Mathf.Round(s * ScreenLayout.FontFrac);
+            float padsFloor = h * 0.5f - _half - gap - s * 0.045f - fs * 1.5f - 2f;
+            float bh = _half * 0.26f;
+            float wideH = Mathf.Max(bh, UiLayout.CaptionText * 1.3f);   // one-line aircraft name: the row is wide
+            bool wide = margin + wideH + gap <= padsFloor;
+            float clusterTop;   // screen px, bottom-left origin
+            _towRect = Rect.zero;   // powered only: never a tow button
+            if (wide)
+            {
+                if (ScreenLayout.HasAircraftKeepOut)
+                {
+                    float fit = ScreenLayout.AircraftKeepOut.yMin - gap - engineH - gap - margin;
+                    if (fit < wideH) wideH = Mathf.Max(_half * 0.16f, fit);
+                }
+                // Units: Reset 1, Aircraft 1.5, Flaps 1.5 (three segments), the switches 1.2 each.
+                float units = 1f + 1.5f + (flaps ? 1.5f : 0f) + (SmokeAvailable ? 1.2f : 0f) + 1.2f + (HasEjectionSeat ? 1.2f : 0f) + (gear ? 1.2f : 0f);
+                int n = 3 + (flaps ? 1 : 0) + (SmokeAvailable ? 1 : 0) + (HasEjectionSeat ? 1 : 0) + (gear ? 1 : 0);   // Reset, Aircraft, Bail + options
+                float span = w - UiLayout.SafeLeft - UiLayout.SafeRight - 2f * margin;
+                float u = Mathf.Min(s * 0.16f, (span - (n - 1) * gap) / units);
+                float x = w * 0.5f - (u * units + (n - 1) * gap) * 0.5f;
+                Rect Take(float k) { var r = new Rect(x, margin, u * k, wideH); x += u * k + gap; return r; }
+                _resetRect = Take(1f);
+                _acftRect = Take(1.5f);
+                _brakeRect = flaps ? Take(1.5f) : Rect.zero;
+                _smokeRect = SmokeAvailable ? Take(1.2f) : Rect.zero;
+                _bailRect = Take(1.2f);
+                _ejectRect = HasEjectionSeat ? Take(1.2f) : Rect.zero;
+                _gearRect = gear ? Take(1.2f) : Rect.zero;
+                clusterTop = margin + wideH;
+            }
+            else
+            {
+                if (ScreenLayout.HasAircraftKeepOut)
+                {
+                    float maxTop = ScreenLayout.AircraftKeepOut.yMin - gap - engineH - gap;
+                    float fit = (maxTop - margin - rowGap) / 2f;
+                    if (fit < bh) bh = Mathf.Max(_half * 0.16f, fit);
+                }
+                float hLow = Mathf.Max(bh, capH);
+                float rowLow = margin, rowHigh = margin + hLow + rowGap;
+                float unit = (avail - 2f * gap) / 4f;
+                float lowW = flaps ? 4f * unit + 2f * gap : 2.5f * unit + gap;
+                float lx = (clusterLeft + clusterRight - lowW) * 0.5f;
+                _resetRect = new Rect(lx, rowLow, unit, hLow);
+                _acftRect = new Rect(lx + unit + gap, rowLow, 1.5f * unit, hLow);
+                _brakeRect = flaps ? new Rect(lx + 2.5f * unit + 2f * gap, rowLow, 1.5f * unit, hLow) : Rect.zero;
+                int n = (SmokeAvailable ? 1 : 0) + 1 + (HasEjectionSeat ? 1 : 0) + (gear ? 1 : 0);
+                float tw = Mathf.Min(1.5f * unit, (avail - (n - 1) * gap) / n);
+                float tx = (clusterLeft + clusterRight - (n * tw + (n - 1) * gap)) * 0.5f;
+                int k = 0;
+                Rect Next() => new Rect(tx + k++ * (tw + gap), rowHigh, tw, bh);
+                _smokeRect = SmokeAvailable ? Next() : Rect.zero;
+                _bailRect = Next();
+                _ejectRect = HasEjectionSeat ? Next() : Rect.zero;
+                _gearRect = gear ? Next() : Rect.zero;
+                clusterTop = rowHigh + bh;
+            }
+            float left = (float)FlyingGame.Core.HudInstrumentLayout.CentredRowLeft(w * 0.5f, rowW, clusterLeft, clusterRight);
+            float bottomGui = h - clusterTop - gap;
+            _engineRowRect = new Rect(left, bottomGui - engineH, rowW, engineH);
+        }
+
+        /// <summary>Controller (no pads, full screen): the engine row sits at the bottom of the screen, centred, beside the
+        /// bottom-left button column (pushed right only when the column would be underneath it).</summary>
+        private void LayOutControllerEngineRow()
+        {
+            _engineRowRect = Rect.zero;
+            if (!EngineBelowWanted) return;
+            float w = Screen.width, h = Screen.height, s = UiLayout.S;
+            float minX = UiLayout.SafeLeft + UiLayout.Margin, maxX = w - UiLayout.SafeRight - UiLayout.Margin;
+            float rowW = (float)FlyingGame.Core.HudInstrumentLayout.RowWidth(s, maxX - minX, true);
+            float engineH = (float)FlyingGame.Core.HudInstrumentLayout.EngineBlockHeight(s, true);
+            float columnRight = Mathf.Max(_resetRect.xMax, Mathf.Max(_acftRect.xMax, _smokeRect.xMax)) + UiLayout.Gap;
+            float left = (float)FlyingGame.Core.HudInstrumentLayout.CentredRowLeft(w * 0.5f, rowW, Mathf.Max(minX, columnRight), maxX);
+            float bottomGui = h - UiLayout.SafeBottom - UiLayout.Margin;
+            _engineRowRect = new Rect(left, bottomGui - engineH, rowW, engineH);
         }
 
         private void LayOutControllerButtons()
@@ -312,6 +416,7 @@ namespace FlyingGame.Bridge
         {
             float w = Screen.width, h = Screen.height;
             if (!DeskMode) UiLayout.LeftBottomLimit = 99999f;
+            UiLayout.EngineRowRect = DeskMode ? Rect.zero : _engineRowRect;
             if (TouchSticksHidden)
             {
                 UiLayout.BandMin = UiLayout.SafeLeft; UiLayout.BandMax = w - UiLayout.SafeRight;
@@ -344,6 +449,7 @@ namespace FlyingGame.Bridge
             UiLayout.BandMax = Mathf.Min(_trimRect.x, _rightCenter.x - _half) - gap;
             float clusterTop = Mathf.Max(_bailRect.yMax, Mathf.Max(_acftRect.yMax, _towRect.yMax));   // screen px, bottom-left origin
             UiLayout.BottomLimit = h - clusterTop - gap;
+            if (_engineRowRect.width > 0f) UiLayout.BottomLimit = _engineRowRect.y - gap;   // text keeps clear of the engine row
         }
 
         private void LayOutPortrait(float w)
