@@ -1,4 +1,31 @@
 ## NEEDS YOU
+- **J-3 FLOATS: WATER-RUDDER RETRACT — red WATER RUDDER handle, cable and seat-back hook (Claude, 2026-11-02,
+  lane/claude-j3-water-rudder from lane/claude-j3-cockpit b23d2996).** Ty (t278u): "the water rudder is springloaded
+  down so when it is down the female side of the cable in the cockpit is simple let go of and sits on the floor
+  vertically left of the stick. make it red and label it water rudder. picking it up and hanging it on the hook raises
+  the water rudder." BUILD: see the build line in the log entry below. Renders (rear eye + close-ups, both states):
+  box /workspace/j3-cockpit/water-rudder/ (also ~/Developer/flying-game-worktrees/_xfer/water-rudder/). Not on any device.
+  In the headset/phone, VR menu → Aircraft → **J-3 on floats**, rear seat:
+  1. **Let go (start state).** The red handle stands on the floor LEFT of the rear stick, at the cable fairlead, with
+     WATER / RUDDER in white on its aft face. Right spot? Right size (grip 90 mm, ring 38 mm)?
+  2. **Hooked.** Phone/controller: the GEAR button (it reads W.RUDDER DOWN / UP on the floatplane; key L, pad "gear").
+     The handle rises 0.258 m on its taut cable and hangs from the chrome hook on the back of the FRONT seat, left side.
+     Is the hook where yours is? Does the blade on the left float swing up?
+  3. **Taxi feel.** Idle, full pedal 20 s: 111° turned with the rudder down, 97° up (air rudder + float drag alone).
+     Straight-ahead taxi drifts −17.8° in 30 s (was worse before the crossflow fix). Real?
+  OPEN / decisions:
+  - VR GRAB IS ADAPTER-READY, NOT WIRED: lane/claude-vr-hands is not merged (16 commits ahead). The handle node is a
+    rig slide (`grab`=1, `hook_gltf`, `hook_snap_m` 0.06); after that merge, route RigHandle's `water_rudder_up` slide to
+    CockpitWaterRudder.Hold(ac, t) on drag and .Release(ac) on the open hand (hooks if let go within 6 cm of the hook).
+  - PLOWING: hooked, the blade is dry at rest and at a 5.5 m/s taxi, but in the plowing attitude (7.1 m/s, pitch 8.7°)
+    0.0372 m² of the drawn blade is under the drawn waterline — the sim counts that as wet. Real J-3 floats? (A drawn
+    float vs physics float question, not a fudge; left as computed.)
+  - Full-rudder taxi capsize is pre-existing (J3FloatsWaterTests.FullRudderOnATaxiDoesNotCapsizeIt stays skipped).
+  - The 140° retracted blade swings up and aft over the float stern (08-blade-up.png): check it does not read as
+    passing through the float deck.
+  - MERGE: the floats GLB is a binary that the cockpit v17 work also rebuilds — after merging, re-run
+    `J3_VARIANT=floats python3 build_j3_cub.py` and `j3_rig_json.py` rather than picking either GLB.
+  Nothing approved.
 - **J-3 COCKPIT v16, TY'S SEVEN CHANGES, FROM THE REAR SEAT (Claude, 2026-11-02, lane/claude-j3-cockpit, 2558d73d ·
   439649ba, Codex's lettering merged in 17e1767f).** BUILD: `deploy.sh` reached `** BUILD SUCCEEDED **` (bundle 2026.1102.1816, 0 `error CS`); its phone install then stopped with no devicectl message (exit 1), so the iPhone may still carry an older build. NOT on the headset (no APK, no adb, from
   this lane). Before/after renders from the approved rear eye: `docs/pending/j3-cockpit/` (README lists each one).
@@ -1077,6 +1104,30 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-j3-water-rudder · J-3 floats water-rudder retract: handle, cable, hook, physics
+Ty (t278u): red WATER RUDDER handle on the retract cable, let go = on the floor left of the stick (rudder down,
+spring), hung on a hook on the back of the front seat (left) = rudder up.
+- **Physics** (`FloatHydro.DrawnWaterRudder`, `Aircraft` retract state, `FloatsConfig` fields, configs ×2): the drawn
+  blade (left float only) is a low-AR lifting surface: S 0.04403 m², span 0.172 m, AR 0.673, Helmbold
+  a = 2πAR/(2+√(AR²+4)) = 1.028/rad; L = ½ρV²·S_imm·a·α (ρ 1000), induced + 2-D section drag, moment about the CG.
+  Only the immersed part counts (S_imm, span_imm, AR_imm from the drawn blade vs the local water surface), so
+  retracted = no force wherever it is out of the water. Linked to the pedals through the steering (±25°). Default
+  DOWN on every water start. Numbers: wholly under, 3 m/s, 25°: 88.9 N lift, 20.7 N drag, 198 N·m; afloat (50 % wet,
+  S_imm 0.02202 m², AR 0.354, a 0.552): 2 m/s 10.6 N / 23 N·m, 4 m/s 42.4 N / 94 N·m, 6 m/s 95.4 N / 211 N·m; at 4 m/s
+  full left→right pedal changes the yaw moment by 207 N·m down and 0 up. Retract travel 0.8 s, blade 140° (bottom aft).
+  Hull crossflow fix (sideslip drag on the floats) so a straight taxi drifts −17.8°/30 s.
+- **Model** (`build_j3_cub.py`, floats GLB only; wheels unchanged): fairlead grommet in the floor, chrome hook on the
+  front seat back (left), red handle (ferrule, grip, neck, ring) with a white WATER / RUDDER plate, steel cable;
+  rig: WaterRudder_Handle slide 0.258 m on `water_rudder_up` (grab=1, hook point, 6 cm snap), WaterRudder_Cable
+  (aimed/stretched at runtime), WaterRudder_Blade_L 140° on the same param. j3_rig_json.py re-run, `--check` clean.
+  TRIS 123952. Renders: tools/own_models/j3_water_rudder_shots.py → box /workspace/j3-cockpit/water-rudder/.
+- **Game**: ModelRig `water_rudder_up` ← Aircraft.WaterRudderUp01; CockpitWaterRudder (cable aim + Hold/Release grab
+  API, VR adapter pending the vr-hands merge); TouchFlightControls GEAR slot = W.RUDDER UP/DOWN on the floatplane
+  (controller gear button, key L and the "gear" binding route there).
+- **Tests**: J3WaterRudderTests 8/8; all float/water/seaplane tests pass (PA-18, Beaver, H-4, J-3); full suite
+  1342 passed / 163 failed / 4 skipped — failing names compared against b23d2996 (see the build/test line below).
+- **Build**: `zsh tools/deploy/deploy.sh NOINSTALL` → `** BUILD SUCCEEDED **` (20:17 PST), 0 `error CS`; nothing installed;
+  the bundleVersion bump was reverted.
 ### 2026-11-02 — Claude · lane/claude-j3-cockpit · J-3 cockpit v16: Ty's seven changes, rendered from the rear eye
 Ty: "the cub needs the top tubes moved up about 6 inches just below the clear roof and the mag switch is on the left
 side wing root wall … remove the long rod back for the carb heat … the tubes under the fuel tank go from the tube

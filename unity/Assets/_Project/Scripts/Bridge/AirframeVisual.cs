@@ -111,6 +111,9 @@ namespace FlyingGame.Bridge
                 // The red handle, pulled all the way: the canopy is gone the moment the rig says so, whether
                 // the hand on it was the player's or the bailout's.
                 if (Cockpit.CanopyPull01 >= 0.999f && !Cockpit.CanopyGone) JettisonRigPart(_driver.WorldVelocityUnity);
+                // The water-rudder cable follows the handle the rig just placed (floats J-3 only; nothing elsewhere).
+                if (_builder.HasOwnRig && !_waterRudder.Bound) _waterRudder.Bind(_builder.ModelRoot);
+                _waterRudder.LateUpdate();
             }
             if (_builder.ModelRoot != null)
             {
@@ -135,6 +138,7 @@ namespace FlyingGame.Bridge
         /// <summary>The painted parts of a cockpit made to move: live dials, cut-out sticks and pedals, an added
         /// throttle (FlyingGame.Core.CockpitLive says which, per model).</summary>
         private readonly CockpitLiveParts _live = new();
+        private readonly CockpitWaterRudder _waterRudder = new();     // the J-3 floats' red retract handle's cable
 
 
         private FlyingGame.Core.RigInputs _lastRig;
@@ -269,6 +273,7 @@ namespace FlyingGame.Bridge
             // stayed at idle however the player flew; the prop and mixture levers sat full AFT; and every needle
             // the rig drives from an engine reading pointed at zero.
             Cockpit.Fill(ref r, _driver, ac, d, dt);
+            r.WaterRudderUp = ac.WaterRudderUp01;    // the blade's slewed travel (Aircraft.Step); 0 on anything without a retract
             _lastRig = r;      // what the avionics displays and the sequence card read, one frame's state
             return r;
         }
@@ -497,6 +502,7 @@ namespace FlyingGame.Bridge
             _displays.Forget();
             Card.Forget();
             _live.Forget();
+            _waterRudder.Forget();
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
             foreach (var sights in GetComponentsInChildren<CockpitSights>(true)) sights.BindLocal(_driver);
             GetComponent<GroundShadow>()?.Refresh();
