@@ -1,7 +1,99 @@
-**Status: MEASURED on the headset once (build a222bda, 2026-11-02, logcat in /tmp/questlogs/perf-1410), and the
-cause of the slowdown found from it — see *Slow near the ground*. The fix is measured on the Mac only.** Above 100 m
-that build ran 72 fps with the main thread at 4.5–8 ms and the GPU (app) at 6.7–7 ms (VrApi's own `App=`), 10–11 ms
-with the recorder running. Everything else in the budget table is still a budget.
+**Status: MEASURED on the headset twice (build a222bda, logcat in /tmp/questlogs/perf-1410; build 8e7862eb,
+quest-logs/ty-unity-13095-8e78.txt, both 2026-11-02). The second run found what 159e5f46 left: sitting on the ground,
+every hard point asked every one of the island's 1,475 solids about itself at every RK4 stage — see *On the ground
+after a hard arrival*. That fix is measured on the Mac only.** In flight both builds ran 72 fps with the main thread
+at 4–8 ms and the GPU (app) at 6.3–9.6 ms (VrApi's own `App=`), sim ~1.1 ms per frame. Everything else in the budget
+table is still a budget.
+
+## On the ground after a hard arrival (Ty, build 8e7862eb, 2026-11-02 16:21): 27–30 fps for minutes
+
+**Measured on the device.** The 2-33 came down from 155 m to 40 m to 1 m agl in about ten seconds at (5854, 3825)
+(alt 5 m, a rough field) and sat there. In flight just before: 72 fps, `sim 1.2 ms/frame, 2.8 steps`. On the ground:
+
+    [QuestPerf] 27.6 fps | cpu main 36.1 ms | sim capped 138 | sim 32.9 ms/frame, 5.0 steps | top: step 32.8, forces 32.5, contact 31.9, contactPoints 31.7, aero 0.5 ms/frame | height 3857 q 441 eval /frame
+
+That is 6.4 ms per 200 Hz step, nearly all of it in `contactPoints` (the airframe's hard points), with **771 height
+queries and 88 evaluations per step**. The log has no breakup or damage line (this build logs none). The probe puts
+the 2-33 intact on its wheel and skid there, 0 of its 14 hard points touching, and that reproduces the device's
+numbers. It was not the gear (0.9 ms/frame), not the height field (88 evaluations a step is what it makes anywhere
+near the ground), and not a wreck.
+
+**The cause: the world's solids, asked by every hard point at every RK4 stage.** `AirframeContact` tests each point
+against `WorldSolids.Penetration` at every stage, including the stages where the point's ground query was skipped
+(159e5f46 skipped only the ground). In the game `IslandGeometry.Build()` registers **1,475 solids** (1,144 buildings,
+297 cables, 21 rings, 7 arches, 3 slopes, the cavity roof, the carrier, the forest) and **128 decks**, and
+`Penetration` walked the whole list: 14 points × 4 stages × 1,475 = **82,600 `Penetrate` calls per step**, almost all of
+them for buildings kilometres away. Every wheel and point also walked all 128 decks (`WorldDecks.DeckUnder`). And the
+forest's solid, which is near any point near the ground, worked out the four to nine trees round the point from
+scratch every time: five height queries for its slope, the cover and tree-line sums, and six lookups by name into the
+island description, per cell. Those are the extra height queries (memo hits, hence 771 q against 88 eval). Above 60 m
+`ClearOfTheGround` skips all of it, which is why flight was fine. Every low pass, takeoff run and landing paid it too.
+
+The bench missed it because the unit-test world has no solids: `QuestLowAltitudeProbe` never called
+`IslandGeometry.Build()`. On bare terrain the same 2-33 at rest made 94 queries a step, the "fixed" number.
+
+**The fix (no physics change; `WorldIndexTests` holds every answer to the old one bit for bit):**
+
+| Change | Where |
+|---|---|
+| Solids and decks filed in a 128 m grid by footprint. A cell lists the solids that can answer there, **in list order**, so "the first that answers" is the same solid. Solids that move or have no simple extent (forest, carrier, cavity roof) are in every cell. The lists count their own changes, so no builder has to tell the index. | `FootprintIndex<T>`, `TrackedList<T>` (WorldIndex.cs), `WorldSolids.IFootprint` on `Block`, `Slope`, `Cable`, `TorusSolid`, `CanyonLake.ArchSolid`, `SpireSolid`, `WorldDecks.Circle` |
+| Each forest cell's tree remembered (a pure function of the cell), per thread like the height memo | `Forest.TryTreeInCell` / `TreeInCellUncached` |
+| The forest's "above every tree here" test (one height at the point) asked last, only of a point a tree actually holds: the same answer, without an evaluation at a fresh coordinate per point per stage | `Forest.Solids.Penetrate` |
+| When the step's own clear-of-the-ground test shows the airframe within 60 m − its travel, no stage can be clear, so the per-stage test (5 evaluations a stage) is not asked: the same bound that lets a clear step skip its stages | `AirframeContact.StageCannotBeClear`, `Aircraft.StepWithDeflectionTargets` |
+| `ClearOfTheGround` no longer allocates an array a call | `AirframeContact.Around` |
+| `[QuestPerf]` and the probe count the solids asked: `… eval, solids N /frame` | `SimProfile.CountSolidTests` |
+
+**Per 200 Hz step, the probe at (5854, 3825) with the game's world built (deterministic counts):**
+
+| Case (state after 10 s on the ground) | before: branch point ce62f612, height q / eval / solids | after |
+|---|---|---|
+| 2-33 at rest, intact | 606 / 90 / 82,600 | 70 / 36 / 168 |
+| 2-33 after a 6 m/s arrival (rolling, 16.6 m/s) | 648 / 90 / 82,600 | 88 / 45 / 168 |
+| 2-33 into the ground from 40 m (still sliding) | 521 / 92 / ~103,000 | 110 / 56 / 210 |
+| Pitts at rest (lost a wing tip and the prop settling on the rough field) | 825 / 98 / 106,200 | 81 / 41 / 216 |
+| Pitts after a hard arrival, both mains gone | 935 / 109 / 129,800 | 91 / 46 / 264 |
+| Pitts broken up (17 parts lost, 10 points left; earlier probe run) | 428 / 64 / 59,000 | 52 / 27 / 120 |
+| device, 2-33 on the ground (log) | 771 / 88 / — | — |
+
+"Before" height counts come from the branch point's own code. The solids column is this tree with the index switched
+off (`WorldSolids.IndexEnabled = false`), which asks exactly the solids the old code asked. On bare terrain (no world
+built) the same cases made 94–115 q / 48–58 eval per step before and 70–91 q / 36–46 eval after (the per-stage clear
+test skipped).
+
+**CPU per 72 Hz frame on the Mac, sim only, best of three 1 s blocks.** Other lanes' builds and suites ran on the
+Mac throughout (load average 40–88; each run waited for no Unity / xcodebuild), so read the ranges as orders of
+magnitude. 2-33 at rest among the solids: **19–61 ms before, 1.3–3.3 ms after**; the Pitts after a hard arrival
+**41–85 ms before, 1.5–2.1 ms after**; on bare terrain both ~1.0–1.2 ms. The device ran the old code at 6.4 ms a step
+where this Mac ran it at 7–20 ms a step under load, so the Mac is no faster here. On the ground the headset should
+now spend roughly what this Mac does: **≈ 1–3 ms per frame, inside the 3 ms target, NOT measured on the headset.**
+
+**Not done, deliberately:** a body at rest is not put to sleep, and touching points still sample the ground at every
+stage. Both would change the physics. With the solids out of the way, the ground costs about what it does on bare
+terrain, which was not the problem.
+
+**Reading it on the next run:** on the ground the `[QuestPerf]` line should say `sim ~2–3 ms/frame, 2.8 steps`,
+`sim capped 0`, and end `height ~200 q ~100 eval, solids ~500 /frame`. Solids in the tens of thousands per frame
+mean the index is not being used (a solid list replaced rather than cleared and refilled?).
+
+## The startup frame (every launch: `SLOW FRAME 7430 ms`, "forest live 1 queued 137")
+
+From the 8e7862eb log's timestamps (no timing line existed): the frame runs 16:18:11.8 → 19.2. Before 14.13 is
+`WorldBuilder.BuildAll` (terrain meshes, water, the island geometry): ~2.4 s. 14.13–14.23 the aircraft config. **14.23 →
+18.47 (4.2 s) is the airframe's first build, between its `[Livery]` line and the model's `[Airframe] … aligned` line:
+loading and placing the 2-33's own model.** On build 677e374 the 2-33 drew the procedural airframe, that step took
+0.08 s, and the whole frame was 3.5 s. So about 4 s of the 7.4 s arrived with the 2-33's own model, most likely its first
+`Resources.Load` (inside `AirframeModels.Has` → `PickOwn`) or the instantiate. The log cannot say which. The forest is
+not it: it is 1 chunk live and 137 queued *because* nothing has run yet, and it builds afterwards against its per-frame
+budget.
+
+**Not changed:** nothing was moved or made asynchronous on a guess. The next run says where the time goes:
+
+    [Startup] scene built in 6900 ms: world 2400, soaring + sun 10, aircraft 4300 (its airframe: see [Airframe] … model ready), camera + HUD 40
+    [Airframe] glider-2-33-like: model ready in 4200 ms (found / loaded 4000, placed 200)
+
+If "found / loaded" is the bulk, the fix is to start `Resources.LoadAsync` for the default aircraft's model while the
+world builds, or to show the landing page before the airframe is built. If "placed" is, it is the mesh reads in
+`OuterWingMid` / `LocalBounds`, which can be computed once per model and cached. Neither is worth doing blind.
 
 Hardware: Snapdragon XR2 Gen 2, 1832 × 1920 per eye, refresh 72 / 90 / 120 Hz. The runtime picks the recommended
 eye-buffer size; `[Quest] XR on` in the log prints it.
@@ -99,13 +191,14 @@ rate there is still low near the ground, the new `top:` field says which part is
 
 **Reading it on the next run** (`adb logcat -s Unity | grep QuestPerf`): the line now ends
 
-    … | sim 3.1 ms/frame, 2.8 steps | top: step 3.0, forces 2.9, aero 1.4, contact 0.9, contactPoints 0.7 ms/frame | height 160 q 85 eval /frame
+    … | sim 3.1 ms/frame, 2.8 steps | top: step 3.0, forces 2.9, aero 1.4, contact 0.9, contactPoints 0.7 ms/frame | height 160 q 85 eval, solids 400 /frame
 
 `sim` is the wall time inside `SimLoop.Advance` per frame and the steps it ran (2.8 at 72 Hz; 5–6 means the cap is
 biting); `top:` the five costliest `SimProfile` scopes per frame (inclusive: `step` ⊃ `forces` ⊃ `aero`, `gear`,
 `contact` ⊃ `contactClear`, `contactPoints`; `air` is the regional field's samples, `afterStep` the bookkeeping);
-`height` the island height queries and the evaluations that missed the memo, per frame. Healthy near the ground:
-`steps` ≈ 2.8 and `contactPoints` a small fraction of `step`.
+`height` the island height queries and the evaluations that missed the memo, per frame; `solids` the world solids
+asked whether a point is inside them (since 2026-11-02: tens of thousands a frame meant every solid was asked). Healthy
+near the ground: `steps` ≈ 2.8 and `contactPoints` a small fraction of `step`.
 
 Also fixed on that line: `gpu app` and `compositor` printed thousands of ms at 72 fps. The OpenXR display subsystem
 returns them in **milliseconds** on the Quest and the code multiplied by 1000 (a222bda's "gpu app 6886.8" was VrApi's
@@ -276,7 +369,7 @@ compare a 5 s window with it on against one with it off. If it costs too much, t
 
 `QuestRig` logs, every 5 s:
 
-    [QuestPerf] 71.9 fps at 72 Hz | frame max 15.1 ms, 0 long | cpu main 7.8 (max 11.2) ms | gpu app 9.4 ms | compositor 0.90 ms | dropped 0 in 5s | gc +1 heap 41 MB | sim capped 0 | scale 1.00 fov-level 0.50 | runtime none | rec off | sim 1.9 ms/frame, 2.8 steps | top: step 1.8, forces 1.7, aero 1.0, contact 0.3, gear 0.2 ms/frame | height 60 q 32 eval /frame
+    [QuestPerf] 71.9 fps at 72 Hz | frame max 15.1 ms, 0 long | cpu main 7.8 (max 11.2) ms | gpu app 9.4 ms | compositor 0.90 ms | dropped 0 in 5s | gc +1 heap 41 MB | sim capped 0 | scale 1.00 fov-level 0.50 | runtime none | rec off | sim 1.9 ms/frame, 2.8 steps | top: step 1.8, forces 1.7, aero 1.0, contact 0.3, gear 0.2 ms/frame | height 60 q 32 eval, solids 0 /frame
 
 - `frame max` — the longest frame in the window; `long` — frames over 1.5 display periods.
 - `cpu main` from `FrameTimingManager` (the Quest build switches it on); `gpu app`, `compositor`, `dropped` from

@@ -1,4 +1,17 @@
 ## NEEDS YOU
+- **QUEST: 27–30 FPS SITTING ON THE GROUND — EVERY HARD POINT ASKED ALL 1,475 SOLIDS (Claude, 2026-11-02,
+  lane/claude-vr-quest). Ty's 8e7862eb log (2-33, 16:21 at (5854, 3825)). Code only: NOT built (`deploy.sh` not run:
+  src/ changed, so it must reach BUILD SUCCEEDED before merging), NOT on the headset. NEEDS YOU after the rebuild:**
+  1. **Sit on the ground.** Land (or arrive hard) anywhere off a runway, among trees if you can, and sit there a
+     minute. Then `adb logcat -s Unity | grep QuestPerf`. Healthy: `72 fps`, `sim capped 0`, `sim ~2–3 ms/frame, 2.8
+     steps`, and the line ends `height ~200 q ~100 eval, solids ~500 /frame` (the old build would have been
+     ~3,800 q and ~230,000 solids). Send me five lines whatever they say.
+  2. **Taxi and take off** from grass near buildings: same check. Nothing should feel different (the physics is
+     bit-identical on the bench); if a wing tip, a tree or a hangar wall behaves differently from before, say so.
+  3. **Startup.** First launch: `adb logcat -s Unity | grep -E "\[Startup\]|model ready|SLOW FRAME"` and send me the
+     three lines. They say where the 7.4 s first frame goes (world build vs the 2-33's model load) so I can fix
+     the right one.
+  **Nothing approved.**
 - **QUEST + ALL PLATFORMS: THE J-3 IS OUR OWN MODEL ON WHEELS AND ON FLOATS, AND IT IS IN THE HEADSET (Claude,
   2026-11-02, lane/claude-vr-quest, a8174695 · 9e5f31ad · e0c4d22c · 541dd6be) — Ty: "get the eye location fixed on
   the j3 and add it to quest too both on wheels and floats". Code only: NOT built (`deploy.sh` not run: src/ changed,
@@ -1052,6 +1065,40 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · Quest: 27–30 fps on the ground after a hard arrival (measured), the startup frame
+**Measured on the device** (Ty, build 8e7862eb, 16:21, quest-logs/ty-unity-13095-8e78.txt): 2-33 at (5854, 3825),
+agl 1, `sim 32.9 ms/frame, 5.0 steps | contactPoints 31.7 | height 3857 q 441 eval /frame`. That is 6.4 ms, 771 queries
+and 88 evaluations per step, with 72 fps in flight just before. No damage line (this build logs none).
+- **Cause:** the world's SOLIDS, not the ground. `WorldSolids.Penetration` walked all 1,475 solids that
+  `IslandGeometry.Build()` registers (1,144 buildings, 297 cables, 21 rings, 7 arches, 3 slopes, roof, carrier, forest)
+  for every hard point at every RK4 stage below 60 m (159e5f46 culled only the ground query): 82,600 `Penetrate` calls a
+  step for the 2-33. Wheels and points also walked all 128 decks. The forest's solid rebuilt the 4–9 trees round each
+  point from scratch every time (5 height queries, cover sums, 6 lookups by name into the island description), which
+  accounts for the memo-hit queries. The bench never saw it: the probe's world had no solids.
+- **Fix, bit-identical** (`WorldIndexTests`): `FootprintIndex<T>` over `TrackedList<T>` (128 m grid, candidates in list
+  order, so "first hit" is unchanged; solids that move or have no simple extent are in every cell); `IFootprint` on
+  Block / Slope / Cable / TorusSolid / CanyonLake arch / SpireSolid / deck Circle; forest trees memoised per cell
+  (per thread); forest "above the trees" height read only when a tree holds the point; the per-stage clear-of-the-ground
+  test skipped when the step proves no stage can be clear (`StageCannotBeClear`, the same bound 159e5f46 uses the other
+  way); no array per clear test. `[QuestPerf]` now ends `… eval, solids N /frame`.
+- **Probe** (`QuestLowAltitudeProbe.OnTheGroundAfterAnArrivalIntactAndBrokenUp`, 2-33 and Pitts, at rest / hard
+  arrival / into the ground, terrain only and with the game's world): 2-33 at rest **606 q / 90 eval / 82,600 solids
+  per step → 70 / 36 / 168**; Pitts after a hard arrival 935 / 109 / 129,800 → 91 / 46 / 264. Mac sim per 72 Hz frame
+  (loaded Mac, best of 3): 19–61 ms → 1.3–3.3 ms. Not measured on the headset. Table in docs/quest-performance.md
+  *On the ground after a hard arrival*.
+- **Startup SLOW FRAME 7.4 s:** from timestamps, ~2.4 s world build, 4.2 s the 2-33's own model on its first build (the
+  procedural 2-33 took 0.08 s on 677e374, whose frame was 3.5 s). Not moved blind: `[Startup] scene built in … world …,
+  aircraft …` and `[Airframe] <id>: model ready in … (found / loaded …, placed …)` now say which part it is.
+- Seen, not touched: the Pitts placed at rest by `LandingGear.RestingState` on that rough field loses its left outer
+  wing, aileron and prop while settling (on the branch point too). And as before, `WorldSolids` are skipped above the
+  60 m clear-of-the-ground shortcut.
+**Checks:** Roslyn 0 errors for Core, Sim, Bridge, Quest on the Android il2cpp, iOS and editor DLLs.
+  `WorldIndexTests` 10/10 (index vs full walk on 20,000+ points, footprints vs their shapes, cached vs fresh trees, six
+  flights on/off bit-identical); `GroundContactCullTests` 52/52 bit-identical. Filtered suite (contact / gear / ground /
+  terrain / island / water / forest / solid / deck / carrier / crash / float / city / arch / glider / pitts …, 392 tests)
+  against the branch point ce62f612, back to back: **no failing name introduced** (68 vs 70; the 2 that differ fail
+  only on the branch point). Two earlier probe runs were started while another lane's Unity batch ran, against the
+  rule; their numbers are not used. No Unity, no build, no adb.
 ### 2026-11-02 — Claude · lane/claude-vr-quest · the J-3's own model on wheels and floats, its eye, the headset, the water
 Ty 16:04: "get the eye location fixed on the j3 and add it to quest too both on wheels and floats".
 **What was wrong.** The J-3 drew the procedural closed tube: both own GLBs (Codex v15, `j3-cub-like-own.glb`,
