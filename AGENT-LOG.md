@@ -1,4 +1,13 @@
 ## NEEDS YOU
+- **PITTS SPIRAL DIVE AT LAUNCH, RIGHT THEN LEFT — WHY, AND STICK-FREE NOW OFF WITH A PAD (Grok Bot, 2026-11-02,
+  lane/claude-stickfree-launch):** build `2026.1102.1803` predates the spawn fix `b62b67d0`. Its long first frame
+  (0.05 s = ten sim steps, before the pad publishes) flew whatever the PREVIOUS flight left in the driver's inputs, plus
+  any aileron/rudder trim left over, so the side was whatever you last held. Stick-free then amplified that kick ~3x
+  (a released surface returns on its 0.12 s float lag, not the 3 rad/s servo slew): 24° of bank in 10 s, versus ~7°
+  stick fixed. No stick-free sign or uninitialised-state bug in the sim. With `b62b67d0` every launch is the same
+  launch to the bit, and hands off at the rig it holds wings level within 0.005° for 10 s, stick fixed or free, in
+  every aeroplane. **With a gamepad connected stick-free is now OFF by default** (OPTIONS › Controls › "Gamepad:
+  stick-free", saved). Please fly: 10 launches of the Pitts with the 8BitDo, hands off.
 - **EVERY AEROPLANE IS RIGGED FOR HANDS-OFF LEVEL FLIGHT AT 75 % POWER — PLEASE FLY IT (Claude, 2026-11-02,
   lane/claude-rig-trim):** method and full table in `docs/RIGGING.md`.
   - **What a rig is now:** two fixed angles in each config's new `rig` block, built into the airframe: the ailerons'
@@ -957,6 +966,26 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Grok Bot · lane/claude-stickfree-launch (off lane/claude-rig-trim b62b67d0) · launch spiral, stick-free with a pad
+Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spiral dive; the next launch went LEFT.
+- **Rig is solved stick FIXED:** `RigSolver.SteadyForces` (src/FlyingGame.Sim/RigSolver.cs:176-185) hands explicit
+  deflections to `AeroModel.Compute`, never `Aircraft.FreeFloat`; the Newton residual (line 219) flies
+  `ControlDeflections(0, elevator, 0, 0)`, aileron rig and fin offset as unknowns, at `RigAltitudeM = 1219.2`
+  (4,000 ft ISA, line 37) and `RigThrottle = 0.75` (line 34). Pitts row unchanged (0.2724 / 0.5167 / −1.1127).
+- **Cause:** 1803 is before `b62b67d0`, which seeds `FlightSimDriver.Inputs` at spawn. Without it the first long frame
+  (SimLoop.MaxCatchUpSec 0.05 s = 10 steps at 1/200) ran on the previous flight's held stick/pedals and leftover
+  aileron/rudder trim: a different side each launch. Stick-free amplified it ≈3× (release transient: the surface goes
+  back on the first-order FreeTauS 0.12 s, against the 3 rad/s slew when held): probe, full aileron for one frame,
+  bank at 1 s 7.2° fixed vs 22.4° free; replayed in the new test, 24° in 10 s, each side. Ruled out: tab calibration
+  (first-frame tab offsets move ≤0.008°), sign errors, uninitialised hinge state (empty HingeQ → surface holds).
+- **Fix:** `b62b67d0` (rig-trim's, the spawn seeding + trims centred) plus the gamepad default: hydro's `c23253d6`
+  cherry-picked as `a7a6d170`, the gating moved into `PilotControls.Compose(…, gamepadConnected, gamepadStickFree)`
+  so the game and the tests fly one composition. Hydro: your lane still has c23253d6 written against the old
+  PublishToDriver; take this resolution when you merge.
+- **Test** `HandsOffLaunchSpiralTests` (`65406760`): 10 consecutive launches × 34 RigTable aeroplanes × stick fixed
+  / free, 10 s hands off; band from MIL-F-8785C Level 1 spiral T2 ≥ 12 s, |Δφ| ≤ 1°·2^(t/12 s) (1.78° at 10 s); all
+  launches bit-identical. 68/68 pass, worst |Δφ| 0.005°. `AStaleFirstFrame…` (±1) shows the band catches the 1803
+  departure (24.0° / 24.3°, to the stale side). GamepadStickFreeTests 3/3, LaunchReplicationTests 69/69.
 ### 2026-11-02 — Grok Bot · lane/claude-cockpit-look · cockpit view "all sky" on the iPhone with the 8BitDo
 Report (Ty, iPhone, build `2026.1102.1603`, pad connected): select the cockpit view and all he sees is sky.
 - **Ruled out:** no gamepad axis reaches the look. `GamepadInput` feeds flight only; `CockpitView` read only the
