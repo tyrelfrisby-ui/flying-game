@@ -4496,3 +4496,6 @@ NEEDS YOU: approve v2 re-render.
 
 ## 2026-11-03 14:40 PST - 172 panel: Ty says nothing visibly changed
 NEEDS YOU: approve v2. Ty: turn coordinator still a crude block (needs real TC: rear-view airplane symbol, L/R index marks, 2 MIN text, DC ELEC label); inclinometer still rectangular (must be curved glass tube, ball, two reference wires). Plus earlier items: flush 4-screw mounts, level AI airplane, DG airplane silhouette. Verify the renders actually use the new instrument art (instruments-v1 may be stale).
+
+## 2026-11-03 14:41 PST - 172 panel: controls (Ty)
+NEEDS YOU: approve v2. (6) 172 is fixed-pitch: no propeller control anywhere on panel/quadrant. (7) Throttle and mixture are push-pull plungers: no white tick marks, no rotation (no vernier twist), they just push in and pull out.
