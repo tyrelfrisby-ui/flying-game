@@ -4,7 +4,7 @@
   Quest" note in the lane/claude-vr-hands brief. This approves the INSTALL only: no gate, merge to main or feature is
   marked approved.** Branch = lane/claude-vr-quest c599069d + lane/claude-vr-hands b2a53770 (hands, the 2-33's dive
   brake / trim / tow release, Pitts / Extra / Great Lakes switches and knobs) + lane/claude-j3-cockpit b23d2996 (J-3
-  v16). Conflicts: AGENT-LOG.md and CLAUDE.md only (both sides kept); no code conflicts. Build / install result: see
+  v16). Conflicts: AGENT-LOG.md and CLAUDE.md only (both sides kept); no code conflicts. BUILT 2026.1102.1913, INSTALLED; see
   the log entry below.
 - **QUEST: 27–30 FPS SITTING ON THE GROUND — EVERY HARD POINT ASKED ALL 1,475 SOLIDS (Claude, 2026-11-02,
   lane/claude-vr-quest). Ty's 8e7862eb log (2-33, 16:21 at (5854, 3825)). Code only: NOT built (`deploy.sh` not run:
@@ -1450,6 +1450,20 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-quest-hands-install · the hands build on Ty's Quest (install approved by Ty, 19:10 PST)
+- **Approval:** Ty explicitly approved installing the hand-tracking build on the Quest (19:10 PST). This overrides the
+  "do not install on the Quest" note in the lane/claude-vr-hands brief, for the install only. No gate is marked approved.
+- **Contents:** lane/claude-vr-quest c599069d (base) + lane/claude-vr-hands b2a53770 (merge e5bd05ef) + lane/claude-j3-cockpit
+  b23d2996, J-3 v16 (merge 31c1c64e). Conflicts: AGENT-LOG.md and CLAUDE.md only (both sides kept: additive NEEDS YOU / log
+  entries and lessons). Every code file merged cleanly (QuestRig, SceneBootstrap, AirframeVisual, ModelRig, Aircraft, quest-controls.md).
+  The J-3 v17 work (mag switch, nose tank, black paint) and lane/claude-floor-windows were uncommitted and are NOT in this build.
+- **Build:** `tools/deploy/deploy-quest.sh --build-only`, Library cloned (APFS clone) from claude-vr-hands. `[QuestBuild] Quest
+  build SUCCEEDED`, stamp **2026.1102.1913**, 0 `error CS`, 190 MB, 337 s. XR features include HandTracking, MetaHandTrackingAim
+  and HandInteractionProfile; the manifest has the hand-tracking permission. Copy:
+  ~/Developer/agent-lanes/aero-playground/AeroPlayground-quest-hands-2026.1102.1913-65e18350.apk.
+- **Install:** `adb -s 340YC10GBK0TYV install -r`: Success; the package's versionName went from 2026.1102.1832 to 2026.1102.1913
+  (19:19:53 PST). Launch: the Quest OS deferred it ("Launch is blocked because: a Reprojected OS dialog is currently
+  showing. Caching launch"). The headset was asleep, so the app opens once the dialog on the headset is dismissed.
 ### 2026-11-02 — Claude · lane/claude-vr-quest · Quest: 27–30 fps on the ground after a hard arrival (measured), the startup frame
 **Measured on the device** (Ty, build 8e7862eb, 16:21, quest-logs/ty-unity-13095-8e78.txt): 2-33 at (5854, 3825),
 agl 1, `sim 32.9 ms/frame, 5.0 steps | contactPoints 31.7 | height 3857 q 441 eval /frame`. That is 6.4 ms, 771 queries
