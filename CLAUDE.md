@@ -256,3 +256,11 @@ sat 4.5 cm higher in the cabin and failed the 12 cm check. The CG is a point IN 
 does not move it. When two configs share an airframe and an eye, place the second so its airframe coincides with
 the first (`Spec.SitHighM`), let the new gear be the thing that is off, and gate the coincidence
 (`check_eye_interiors.py` prints `COINCIDE`). Before trusting an eye in a variant, measure it in that variant.
+
+### A bench world without the game's world measures a different game
+`QuestLowAltitudeProbe` timed contact on the island's terrain and called the slowdown fixed, while the headset still
+sat at 27 fps on the ground: the game's `IslandGeometry.Build()` registers 1,475 solids and 128 decks, the probe built
+none, and every hard point was asking all of them at every RK4 stage. The probe's 94 height queries a step were the
+"fixed" number; the device's 771 were the real one. When a bench number disagrees with the device by a large factor,
+find what the device has that the bench does not before tuning anything. Build the world the game builds
+(`IslandGeometry.Build()`, cleared in `finally`), and count work, not only time (`SimProfile`'s `solids`).
