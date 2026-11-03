@@ -190,6 +190,9 @@ public struct RigInputs
     /// <summary>Attitude, degrees: bank + = right wing down (-180..180), pitch + = nose up (-90..90). What an
     /// attitude indicator shows.</summary>
     public double BankDeg, PitchDeg;
+    /// <summary>Floatplane water-rudder retract, 0 = down (spring; the J-3's red handle let go on the floor) .. 1 = up
+    /// (handle hung on its hook). Aircraft.WaterRudderUp01: the blade's own travel, slewed, not the switch.</summary>
+    public double WaterRudderUp;
 
     /// <summary>COM, MHz: the tuned (active) and the standby frequency.</summary>
     public double ComFreqMhz, ComStandbyMhz;
@@ -298,6 +301,7 @@ public struct RigInputs
             case "g_min_seen": value = GMinSeen; return true;
             case "bank_deg": value = BankDeg; return true;
             case "pitch_deg": value = PitchDeg; return true;
+            case "water_rudder_up": value = WaterRudderUp; return true;
             case "com_freq_mhz": value = ComFreqMhz; return true;
             case "com_standby_mhz": value = ComStandbyMhz; return true;
             case "com_volume": value = ComVolume; return true;

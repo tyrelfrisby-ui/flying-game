@@ -207,6 +207,31 @@ public sealed class Aircraft
         GearDown = down;
         if (immediate) GearExtension = down ? 1.0 : 0.0;
     }
+    /// <summary>
+    /// The water-rudder retract (Ty 2026-11-02, t278u; floatplanes whose config draws a retractable blade). The blade
+    /// is spring-loaded DOWN: with the cockpit handle let go of it lies on the floor and the rudder is down, which is
+    /// how every aircraft starts (a new Aircraft is a water start with the rudder down). Hanging the handle on its hook
+    /// raises it. 0 = down .. 1 = up (on the hook).
+    /// </summary>
+    public bool HasWaterRudderRetract => Config.Floats is { WaterRudderRetractable: true, WaterRudderChordM: > 0 };
+    /// <summary>The handle is on the hook (target: up). False = let go of (target: down, the spring).</summary>
+    public bool WaterRudderHooked { get; private set; }
+    /// <summary>Where the blade is, 0 = down .. 1 = up.</summary>
+    public double WaterRudderUp01 { get; private set; }
+    /// <summary>A hand holding the handle (VR) sets the cable pull directly, 0..1 (the fraction of the way from the floor
+    /// to the hook); null = nobody is holding it, so the hook or the spring decides.</summary>
+    public double? WaterRudderHeldUp01 { get; set; }
+    /// <summary>Hand time to lift the handle from the floor onto the hook (or unhook it and let the spring take it):
+    /// a judgement of the reach and the hang, not a measured number. The blade follows the cable.</summary>
+    public const double WaterRudderTravelSec = 0.8;
+    public void SetWaterRudderHooked(bool hooked, bool immediate = false)
+    {
+        if (!HasWaterRudderRetract) { WaterRudderHooked = false; WaterRudderUp01 = 0; return; }
+        WaterRudderHooked = hooked;
+        if (immediate) WaterRudderUp01 = hooked ? 1.0 : 0.0;
+    }
+    /// <summary>The phone / controller toggle: hang the handle on the hook, or take it off.</summary>
+    public void ToggleWaterRudder() => SetWaterRudderHooked(!WaterRudderHooked);
     public void SetEngineThrottleScale(int idx, double scale) { if (idx>=0 && idx<Config.Engines.Count) Config.Engines[idx].ThrottleScale = System.Math.Clamp(scale,0,1); }
     public double SlatFraction { get; set; }   // 0..1 (auto or manual)
     /// <summary>The whole-aircraft parachute, on types that carry one (owner 2026-10-16). Always present as
@@ -898,7 +923,7 @@ public sealed class Aircraft
             {
                 double rudderCmdW = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
                 long tFl = SimProfile.Begin();
-                (Vec3 hF, Vec3 hM) = FloatHydro.Compute(Config, s, rudderCmdW);
+                (Vec3 hF, Vec3 hM) = FloatHydro.Compute(Config, s, rudderCmdW, WaterRudderUp01);
                 SimProfile.End(SimProfile.Scope.Floats, tFl);
                 totalF += s.Attitude.Conjugate().Rotate(hF);
                 totalM += s.Attitude.Conjugate().Rotate(hM);
@@ -1016,6 +1041,15 @@ public sealed class Aircraft
         {
             double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
             LandingGear.UpdateTailwheel(Config, State, Tailwheel, rudderCmd, dt);
+        }
+        if (HasWaterRudderRetract)
+        {
+            if (WaterRudderHeldUp01 is double held) WaterRudderUp01 = Math.Clamp(held, 0.0, 1.0);
+            else
+            {
+                double target = WaterRudderHooked ? 1.0 : 0.0, step = dt / WaterRudderTravelSec;
+                WaterRudderUp01 = WaterRudderUp01 < target ? Math.Min(target, WaterRudderUp01 + step) : Math.Max(target, WaterRudderUp01 - step);
+            }
         }
         if (Config.RetractableGear)
         {

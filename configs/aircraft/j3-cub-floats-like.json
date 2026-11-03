@@ -1576,8 +1576,18 @@
     "keelZ": 1.495,
     "forebodyKeelDeg": 2.5,
     "afterbodyKeelDeg": 4.0,
-    "waterRudderAreaM2": 0.038,
-    "waterRudderMaxRad": 0.6
+    "waterRudderAreaM2": 0.0437,
+    "waterRudderMaxRad": 0.4363,
+    "waterRudderChordM": 0.3258,
+    "waterRudderSpanM": 0.1721,
+    "waterRudderPivotX": -2.453,
+    "waterRudderPivotY": 0.943,
+    "waterRudderPivotZ": 1.160,
+    "waterRudderBladeAftM": 0.043,
+    "waterRudderBladeBelowM": 0.0645,
+    "waterRudderLeftOnly": true,
+    "waterRudderRetractable": true,
+    "waterRudderRetractRad": 2.4435
   },
   "loading": {
     "seats": [
