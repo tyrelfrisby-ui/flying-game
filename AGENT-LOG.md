@@ -16,8 +16,8 @@
   fa1fa15 1,024 / 210); 6 new names, 4 pass alone, **2 legacy-world tests fail on the new relief** (VOR corridor
   cross-fix, escarpment ridge lift) — not rewritten, listed in §9. All island checkers pass. **The colours read dull**:
   the palette is true reflectance; a one-stop exposure fix is written up (open question 8) but not in the branch,
-  because no render slot came free to verify it. iOS export/xcodebuild: see §9 (queued behind other lanes' Unity,
-  deploys and suites for most of the run). No gate is marked approved.
+  because no render slot came free to verify it. **iOS export + xcodebuild NOT run for v2 and still owed**: the
+  guard never cleared long enough (other lanes' Unity, device deploys, suites); last BUILD SUCCEEDED is v1 (08:54). No gate is marked approved.
   Also: an untracked `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md` (your glacier/ice/ledge surface spec, written
   11:01 by someone else into this worktree) is left untouched for the next run.
   **Process slip, for whoever owned the overlapping runs:** on 2026-11-02 at about 06:30 local my first

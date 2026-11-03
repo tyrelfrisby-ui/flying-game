@@ -238,7 +238,11 @@ before this lane); `check_parity.py` max error 2.2e-12 m (PASS); `IslandCheck` P
 
 **Build (v2):** the editor render at d803150 compiled the Unity sources with 0 `error CS` (build/render-after2.log,
 WorldRender wrote 38 plates). The Unity iOS export + xcodebuild was queued behind the guard for the rest of the
-run; result: BUILD_STATUS
+run; result: **NOT RUN.** From 15:15 to 16:29 the guard never cleared for long
+enough (other lanes' Unity builds, two device deploys and back-to-back `dotnet test` runs); I stopped the job at
+16:29 rather than leave an export half-done when the run ended. The last `** BUILD SUCCEEDED **` on this lane is
+the 08:54 export (v1). **A fresh Unity export + xcodebuild is still owed for v2** (src/ changed: IslandRelief,
+generated data; unity/: IslandTerrainMesh, the shader, WorldRender).
 
 ## 11. Real-topo inspiration (v2, follow-up run 2026-11-02)
 
