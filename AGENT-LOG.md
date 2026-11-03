@@ -1505,6 +1505,22 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 22:05 PST — Claude · lane/claude-vr-hands-fix · Extra rear throttle down the side wall; canopy handles 127 mm cylinders (Ty t289u)
+- New tools/own_models/vr_phase3e.py (chained from vr_cockpit.update after 3d; idempotent via extras.vrCockpitPhase3e),
+  applied to all three Extra GLBs + docs/models/ea300-own-rig.json pivots:
+  - REAR Throttle_R (and its Grip_Throttle_Rear) moved (0, -0.062, -0.125) m builder: off the top of the left ledge and down
+    onto the side wall, like the real Extra 300L rear quadrant; new fixed gate plate Throttle_Quadrant_R_P3e behind it.
+    Front throttle unchanged. Rear prop/mixture in our model are PANEL push-pulls, not quadrant levers: left alone (question for Ty).
+  - All four canopy latch handles (rear + front cockpit, Aft + Fwd; the latches are only on the left frame — canopy hinges right)
+    are now 25 mm x 127 mm cylinders along the lateral axis, wall to centreline, red with a 20 mm white end; grips moved to
+    the cylinder midpoints (Grip_Canopy_Latch* compatibility midpoints too).
+- check_vr_phase2: the canopy opening sweep of the 127 mm rear handles enters the CONSERVATIVE fixed 14 cm rear helmet sphere by
+  33 mm at the top of the arc (front +12.8 mm). Hands stay gated > 0; helmets now gated > -50 mm and WARNed. Flag to Ty.
+- check_vr_phase3: the RearPanel_ ban now allows the P3d hood nodes (5c96a4ff had broken it). check_iac_assets still KeyErrors on
+  RearPanel_UpperExtension (retired in P3b, before this lane) — pre-existing, untouched.
+- Verified: VrHandleCheck HANDLE OK (only the old Extra rear FuelSelector 86 cm WARN); VrHandJointCheck VRJ OK (352), every Extra
+  rear THROTTLE grip held at the new spot. Renders (before/after, 8 shots): /workspace/vr-hands/body/v3/extra/ via
+  tools/own_models/render_extra_t289.py.
 ### 2026-11-02 22:05 PST — Claude · lane/claude-vr-hands-fix · tracked hands: the late grab, the harness, the no-joints fist, a [VrHands] line
 - VrHandJointCheck now drives the FULL TouchFlightControls.Update + VrCockpitHands/AirframeVisual LateUpdate (MenuOpen off) and
   adds the imperfect grips a real hand makes: loose fist (curl 0.62), fist 2.5 cm high / 2 cm low, closed 5 cm SHORT of the

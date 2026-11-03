@@ -57,7 +57,8 @@ def check_panels(g,path):
   return np.array([builder(q) for q in v@m[:3,:3].T+m[:3,3]])
  for name in meta['retired_nodes']:
   assert 'mesh' not in nodes['Legacy_P3b_'+name][1],name
- assert not any(n.startswith('RearPanel_') for n in nodes)
+ # P3d (Ty 2026-11-02) restored the hood as RearPanel_Top_P3d / RearPanel_Glareshield_P3d; no OLD RearPanel_ node may return.
+ assert not any(n.startswith('RearPanel_') and not n.endswith('_P3d') for n in nodes)
  for panel in meta['panels']:
   rows=panel['gauges'];assert [r['gauge'] for r in rows]==[r[0] for r in LAYOUT]
   circles=[];maxerr=0;count=0

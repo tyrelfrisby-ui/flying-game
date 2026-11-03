@@ -1641,7 +1641,7 @@
      "knee_L": 163.75,
      "knee_R": 298.14,
      "Stick_sweep": 278.98,
-     "Throttle_sweep": 229.96
+     "Throttle_sweep": 116.14
     }
    },
    {
@@ -1650,7 +1650,7 @@
      "knee_L": 180.38,
      "knee_R": 327.27,
      "Stick_sweep": 289.81,
-     "Throttle_sweep": 217.56
+     "Throttle_sweep": 108.75
     }
    },
    {
@@ -1659,7 +1659,7 @@
      "knee_L": 200.37,
      "knee_R": 357.37,
      "Stick_sweep": 303.91,
-     "Throttle_sweep": 209.48
+     "Throttle_sweep": 107.88
     }
    },
    {
@@ -1668,7 +1668,7 @@
      "knee_L": 223.1,
      "knee_R": 388.26,
      "Stick_sweep": 320.92,
-     "Throttle_sweep": 206.09
+     "Throttle_sweep": 111.54
     }
    },
    {
@@ -1677,7 +1677,7 @@
      "knee_L": 224.09,
      "knee_R": 340.65,
      "Stick_sweep": 307.75,
-     "Throttle_sweep": 264.04
+     "Throttle_sweep": 168.09
     }
    },
    {
@@ -1686,7 +1686,7 @@
      "knee_L": 237.81,
      "knee_R": 367.16,
      "Stick_sweep": 317.75,
-     "Throttle_sweep": 253.01
+     "Throttle_sweep": 162.45
     }
    },
    {
@@ -1695,7 +1695,7 @@
      "knee_L": 254.62,
      "knee_R": 394.86,
      "Stick_sweep": 330.84,
-     "Throttle_sweep": 245.86
+     "Throttle_sweep": 161.79
     }
    },
    {
@@ -1704,7 +1704,7 @@
      "knee_L": 224.11,
      "knee_R": 373.57,
      "Stick_sweep": 296.72,
-     "Throttle_sweep": 192.89
+     "Throttle_sweep": 114.56
     }
    },
    {
@@ -1713,7 +1713,7 @@
      "knee_L": 235.93,
      "knee_R": 338.08,
      "Stick_sweep": 295.04,
-     "Throttle_sweep": 256.62
+     "Throttle_sweep": 175.47
     }
    },
    {
@@ -1722,7 +1722,7 @@
      "knee_L": 262.54,
      "knee_R": 377.17,
      "Stick_sweep": 319.13,
-     "Throttle_sweep": 261.92
+     "Throttle_sweep": 185.99
     }
    },
    {
@@ -1731,7 +1731,7 @@
      "knee_L": 311.95,
      "knee_R": 437.58,
      "Stick_sweep": 366.1,
-     "Throttle_sweep": 290.67
+     "Throttle_sweep": 220.47
     }
    },
    {
@@ -1740,7 +1740,7 @@
      "knee_L": 328.88,
      "knee_R": 464.13,
      "Stick_sweep": 380.7,
-     "Throttle_sweep": 288.08
+     "Throttle_sweep": 222.66
     }
    },
    {
@@ -1749,7 +1749,7 @@
      "knee_L": 298.14,
      "knee_R": 163.75,
      "Stick_sweep": 278.98,
-     "Throttle_sweep": 547.57
+     "Throttle_sweep": 452.69
     }
    },
    {
@@ -1758,7 +1758,7 @@
      "knee_L": 327.27,
      "knee_R": 180.38,
      "Stick_sweep": 289.81,
-     "Throttle_sweep": 580.17
+     "Throttle_sweep": 486.87
     }
    },
    {
@@ -1767,7 +1767,7 @@
      "knee_L": 357.37,
      "knee_R": 200.37,
      "Stick_sweep": 303.91,
-     "Throttle_sweep": 613.11
+     "Throttle_sweep": 521.26
     }
    },
    {
@@ -1776,7 +1776,7 @@
      "knee_L": 384.26,
      "knee_R": 219.1,
      "Stick_sweep": 316.92,
-     "Throttle_sweep": 642.35
+     "Throttle_sweep": 551.84
     }
    },
    {
@@ -1785,7 +1785,7 @@
      "knee_L": 340.65,
      "knee_R": 224.09,
      "Stick_sweep": 307.75,
-     "Throttle_sweep": 564.5
+     "Throttle_sweep": 472.66
     }
    },
    {
@@ -1794,7 +1794,7 @@
      "knee_L": 367.16,
      "knee_R": 237.81,
      "Stick_sweep": 317.75,
-     "Throttle_sweep": 596.25
+     "Throttle_sweep": 505.62
     }
    },
    {
@@ -1803,7 +1803,7 @@
      "knee_L": 394.86,
      "knee_R": 254.62,
      "Stick_sweep": 330.84,
-     "Throttle_sweep": 628.42
+     "Throttle_sweep": 538.94
     }
    },
    {
@@ -1812,7 +1812,7 @@
      "knee_L": 423.57,
      "knee_R": 274.11,
      "Stick_sweep": 346.72,
-     "Throttle_sweep": 660.95
+     "Throttle_sweep": 572.55
     }
    },
    {
@@ -1821,7 +1821,7 @@
      "knee_L": 388.08,
      "knee_R": 285.93,
      "Stick_sweep": 345.04,
-     "Throttle_sweep": 587.56
+     "Throttle_sweep": 499.53
     }
    },
    {
@@ -1830,7 +1830,7 @@
      "knee_L": 408.17,
      "knee_R": 293.54,
      "Stick_sweep": 350.13,
-     "Throttle_sweep": 614.23
+     "Throttle_sweep": 526.99
     }
    },
    {
@@ -2060,7 +2060,7 @@
      "knee_L": 163.75,
      "knee_R": 298.14,
      "Stick_sweep": 278.98,
-     "Throttle_sweep": 229.96
+     "Throttle_sweep": 116.14
     }
    },
    {
@@ -2069,7 +2069,7 @@
      "knee_L": 180.38,
      "knee_R": 327.27,
      "Stick_sweep": 289.81,
-     "Throttle_sweep": 217.56
+     "Throttle_sweep": 108.75
     }
    },
    {
@@ -2078,7 +2078,7 @@
      "knee_L": 200.37,
      "knee_R": 357.37,
      "Stick_sweep": 303.91,
-     "Throttle_sweep": 209.48
+     "Throttle_sweep": 107.88
     }
    },
    {
@@ -2087,7 +2087,7 @@
      "knee_L": 223.1,
      "knee_R": 388.26,
      "Stick_sweep": 320.92,
-     "Throttle_sweep": 206.09
+     "Throttle_sweep": 111.54
     }
    },
    {
@@ -2096,7 +2096,7 @@
      "knee_L": 224.09,
      "knee_R": 340.65,
      "Stick_sweep": 307.75,
-     "Throttle_sweep": 264.04
+     "Throttle_sweep": 168.09
     }
    },
    {
@@ -2105,7 +2105,7 @@
      "knee_L": 237.81,
      "knee_R": 367.16,
      "Stick_sweep": 317.75,
-     "Throttle_sweep": 253.01
+     "Throttle_sweep": 162.45
     }
    },
    {
@@ -2114,7 +2114,7 @@
      "knee_L": 254.62,
      "knee_R": 394.86,
      "Stick_sweep": 330.84,
-     "Throttle_sweep": 245.86
+     "Throttle_sweep": 161.79
     }
    },
    {
@@ -2123,7 +2123,7 @@
      "knee_L": 224.11,
      "knee_R": 373.57,
      "Stick_sweep": 296.72,
-     "Throttle_sweep": 192.89
+     "Throttle_sweep": 114.56
     }
    },
    {
@@ -2132,7 +2132,7 @@
      "knee_L": 235.93,
      "knee_R": 338.08,
      "Stick_sweep": 295.04,
-     "Throttle_sweep": 256.62
+     "Throttle_sweep": 175.47
     }
    },
    {
@@ -2141,7 +2141,7 @@
      "knee_L": 262.54,
      "knee_R": 377.17,
      "Stick_sweep": 319.13,
-     "Throttle_sweep": 261.92
+     "Throttle_sweep": 185.99
     }
    },
    {
@@ -2150,7 +2150,7 @@
      "knee_L": 311.95,
      "knee_R": 437.58,
      "Stick_sweep": 366.1,
-     "Throttle_sweep": 290.67
+     "Throttle_sweep": 220.47
     }
    },
    {
@@ -2159,7 +2159,7 @@
      "knee_L": 328.88,
      "knee_R": 464.13,
      "Stick_sweep": 380.7,
-     "Throttle_sweep": 288.08
+     "Throttle_sweep": 222.66
     }
    },
    {
@@ -2168,7 +2168,7 @@
      "knee_L": 298.14,
      "knee_R": 163.75,
      "Stick_sweep": 278.98,
-     "Throttle_sweep": 547.57
+     "Throttle_sweep": 452.69
     }
    },
    {
@@ -2177,7 +2177,7 @@
      "knee_L": 327.27,
      "knee_R": 180.38,
      "Stick_sweep": 289.81,
-     "Throttle_sweep": 580.17
+     "Throttle_sweep": 486.87
     }
    },
    {
@@ -2186,7 +2186,7 @@
      "knee_L": 357.37,
      "knee_R": 200.37,
      "Stick_sweep": 303.91,
-     "Throttle_sweep": 613.11
+     "Throttle_sweep": 521.26
     }
    },
    {
@@ -2195,7 +2195,7 @@
      "knee_L": 384.26,
      "knee_R": 219.1,
      "Stick_sweep": 316.92,
-     "Throttle_sweep": 642.35
+     "Throttle_sweep": 551.84
     }
    },
    {
@@ -2204,7 +2204,7 @@
      "knee_L": 340.65,
      "knee_R": 224.09,
      "Stick_sweep": 307.75,
-     "Throttle_sweep": 564.5
+     "Throttle_sweep": 472.66
     }
    },
    {
@@ -2213,7 +2213,7 @@
      "knee_L": 367.16,
      "knee_R": 237.81,
      "Stick_sweep": 317.75,
-     "Throttle_sweep": 596.25
+     "Throttle_sweep": 505.62
     }
    },
    {
@@ -2222,7 +2222,7 @@
      "knee_L": 394.86,
      "knee_R": 254.62,
      "Stick_sweep": 330.84,
-     "Throttle_sweep": 628.42
+     "Throttle_sweep": 538.94
     }
    },
    {
@@ -2231,7 +2231,7 @@
      "knee_L": 423.57,
      "knee_R": 274.11,
      "Stick_sweep": 346.72,
-     "Throttle_sweep": 660.95
+     "Throttle_sweep": 572.55
     }
    },
    {
@@ -2240,7 +2240,7 @@
      "knee_L": 388.08,
      "knee_R": 285.93,
      "Stick_sweep": 345.04,
-     "Throttle_sweep": 587.56
+     "Throttle_sweep": 499.53
     }
    },
    {
@@ -2249,7 +2249,7 @@
      "knee_L": 408.17,
      "knee_R": 293.54,
      "Stick_sweep": 350.13,
-     "Throttle_sweep": 614.23
+     "Throttle_sweep": 526.99
     }
    },
    {
@@ -2479,7 +2479,7 @@
      "knee_L": 163.75,
      "knee_R": 298.14,
      "Stick_sweep": 278.98,
-     "Throttle_sweep": 229.96
+     "Throttle_sweep": 116.14
     }
    },
    {
@@ -2488,7 +2488,7 @@
      "knee_L": 180.38,
      "knee_R": 327.27,
      "Stick_sweep": 289.81,
-     "Throttle_sweep": 217.56
+     "Throttle_sweep": 108.75
     }
    },
    {
@@ -2497,7 +2497,7 @@
      "knee_L": 200.37,
      "knee_R": 357.37,
      "Stick_sweep": 303.91,
-     "Throttle_sweep": 209.48
+     "Throttle_sweep": 107.88
     }
    },
    {
@@ -2506,7 +2506,7 @@
      "knee_L": 223.1,
      "knee_R": 388.26,
      "Stick_sweep": 320.92,
-     "Throttle_sweep": 206.09
+     "Throttle_sweep": 111.54
     }
    },
    {
@@ -2515,7 +2515,7 @@
      "knee_L": 224.09,
      "knee_R": 340.65,
      "Stick_sweep": 307.75,
-     "Throttle_sweep": 264.04
+     "Throttle_sweep": 168.09
     }
    },
    {
@@ -2524,7 +2524,7 @@
      "knee_L": 237.81,
      "knee_R": 367.16,
      "Stick_sweep": 317.75,
-     "Throttle_sweep": 253.01
+     "Throttle_sweep": 162.45
     }
    },
    {
@@ -2533,7 +2533,7 @@
      "knee_L": 254.62,
      "knee_R": 394.86,
      "Stick_sweep": 330.84,
-     "Throttle_sweep": 245.86
+     "Throttle_sweep": 161.79
     }
    },
    {
@@ -2542,7 +2542,7 @@
      "knee_L": 224.11,
      "knee_R": 373.57,
      "Stick_sweep": 296.72,
-     "Throttle_sweep": 192.89
+     "Throttle_sweep": 114.56
     }
    },
    {
@@ -2551,7 +2551,7 @@
      "knee_L": 235.93,
      "knee_R": 338.08,
      "Stick_sweep": 295.04,
-     "Throttle_sweep": 256.62
+     "Throttle_sweep": 175.47
     }
    },
    {
@@ -2560,7 +2560,7 @@
      "knee_L": 262.54,
      "knee_R": 377.17,
      "Stick_sweep": 319.13,
-     "Throttle_sweep": 261.92
+     "Throttle_sweep": 185.99
     }
    },
    {
@@ -2569,7 +2569,7 @@
      "knee_L": 311.95,
      "knee_R": 437.58,
      "Stick_sweep": 366.1,
-     "Throttle_sweep": 290.67
+     "Throttle_sweep": 220.47
     }
    },
    {
@@ -2578,7 +2578,7 @@
      "knee_L": 328.88,
      "knee_R": 464.13,
      "Stick_sweep": 380.7,
-     "Throttle_sweep": 288.08
+     "Throttle_sweep": 222.66
     }
    },
    {
@@ -2587,7 +2587,7 @@
      "knee_L": 298.14,
      "knee_R": 163.75,
      "Stick_sweep": 278.98,
-     "Throttle_sweep": 547.57
+     "Throttle_sweep": 452.69
     }
    },
    {
@@ -2596,7 +2596,7 @@
      "knee_L": 327.27,
      "knee_R": 180.38,
      "Stick_sweep": 289.81,
-     "Throttle_sweep": 580.17
+     "Throttle_sweep": 486.87
     }
    },
    {
@@ -2605,7 +2605,7 @@
      "knee_L": 357.37,
      "knee_R": 200.37,
      "Stick_sweep": 303.91,
-     "Throttle_sweep": 613.11
+     "Throttle_sweep": 521.26
     }
    },
    {
@@ -2614,7 +2614,7 @@
      "knee_L": 384.26,
      "knee_R": 219.1,
      "Stick_sweep": 316.92,
-     "Throttle_sweep": 642.35
+     "Throttle_sweep": 551.84
     }
    },
    {
@@ -2623,7 +2623,7 @@
      "knee_L": 340.65,
      "knee_R": 224.09,
      "Stick_sweep": 307.75,
-     "Throttle_sweep": 564.5
+     "Throttle_sweep": 472.66
     }
    },
    {
@@ -2632,7 +2632,7 @@
      "knee_L": 367.16,
      "knee_R": 237.81,
      "Stick_sweep": 317.75,
-     "Throttle_sweep": 596.25
+     "Throttle_sweep": 505.62
     }
    },
    {
@@ -2641,7 +2641,7 @@
      "knee_L": 394.86,
      "knee_R": 254.62,
      "Stick_sweep": 330.84,
-     "Throttle_sweep": 628.42
+     "Throttle_sweep": 538.94
     }
    },
    {
@@ -2650,7 +2650,7 @@
      "knee_L": 423.57,
      "knee_R": 274.11,
      "Stick_sweep": 346.72,
-     "Throttle_sweep": 660.95
+     "Throttle_sweep": 572.55
     }
    },
    {
@@ -2659,7 +2659,7 @@
      "knee_L": 388.08,
      "knee_R": 285.93,
      "Stick_sweep": 345.04,
-     "Throttle_sweep": 587.56
+     "Throttle_sweep": 499.53
     }
    },
    {
@@ -2668,7 +2668,7 @@
      "knee_L": 408.17,
      "knee_R": 293.54,
      "Stick_sweep": 350.13,
-     "Throttle_sweep": 614.23
+     "Throttle_sweep": 526.99
     }
    },
    {
