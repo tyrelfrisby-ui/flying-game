@@ -807,7 +807,6 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
-            if (UiLayout.HideTouchControlsForTest) return;
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) return;   // the replay bar owns the tray
             EnsureStyles();
 

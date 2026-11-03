@@ -19,7 +19,6 @@ namespace FlyingGame.Bridge
     {
         // Inert unless the hudshots self-test explicitly enables them. Insets are physical pixels.
         public static bool ForceTouchLayoutForTest;
-        public static bool HideTouchControlsForTest;
         public static bool IPhoneSafeAreaForTest;
         public static float S => Mathf.Min(Screen.width, Screen.height);
         public static float Margin => S * 0.018f;
@@ -61,18 +60,16 @@ namespace FlyingGame.Bridge
 
         // ---- centre band (set by the controls layout each time it changes) ----
         public static float BandMin = 0f, BandMax = 99999f;      // GUI x range clear of the pads (landscape)
-        private static float _BottomLimit = 99999f;
-        public static float BottomLimit { get => HideTouchControlsForTest ? Screen.height - SafeBottom - Margin : _BottomLimit; set => _BottomLimit = value; }               // GUI y above which the dials must stay (buttons / tray below)
+        public static float BottomLimit = 99999f;               // GUI y above which the dials must stay (buttons / tray below)
         /// <summary>GUI y the LEFT dial column must stay above (the Mac's control indicator and its THR/trim label).</summary>
-        private static float _LeftBottomLimit = 99999f;
-        public static float LeftBottomLimit { get => HideTouchControlsForTest ? Screen.height - SafeBottom - Margin : _LeftBottomLimit; set => _LeftBottomLimit = value; }
+        public static float LeftBottomLimit = 99999f;
         /// <summary>GUI x range between the analog dial columns (valid while <see cref="DialsShown"/>).</summary>
         public static float DialsLeft, DialsRight; public static int DialsFrame = -10;
         /// <summary>The AERO panel's insets are on (outside views): they use the dials' space.</summary>
         public static bool AeroInsetsShown;
         public static bool DialsShown => Time.frameCount - DialsFrame <= 2;
-        public static float BandLeft => Mathf.Max(Margin, HideTouchControlsForTest ? 0f : BandMin);
-        public static float BandRight => Mathf.Min(Screen.width - Margin, HideTouchControlsForTest ? Screen.width : BandMax);
+        public static float BandLeft => Mathf.Max(Margin, BandMin);
+        public static float BandRight => Mathf.Min(Screen.width - Margin, BandMax);
 
         // ---- the text stack ----
         private static int _frame = -1; private static EventType _evt;

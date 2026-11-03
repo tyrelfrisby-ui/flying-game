@@ -140,18 +140,18 @@ AERO_SELFTEST=hudshots AERO_SELFTEST_QUIT=1 AERO_HUDSHOTS_PORTRAIT=1 \
 
 Omit `AERO_HUDSHOTS_PORTRAIT=1` for landscape only. `AERO_SHOT_DIR` must be absolute; omitted/empty uses Application.persistentDataPath. Do not combine with AERO_PARITY or another self-test. Use a clean player profile for strict new-player livery/loading comparison (the harness preserves saved aircraft loads/liveries and external input/device settings).
 
-Expected files per orientation (`landscape`, optional `portrait`):
+Expected files per orientation (`landscape`, optional `portrait`), eight total:
 
-- `hud-analog-pads-<orient>.png`
-- `hud-analog-nopads-<orient>.png`
-- `hud-hud-pads-<orient>.png`
-- `hud-hud-nopads-<orient>.png`
-- `hud-analog-pads-<orient>-glider.png`
-- `hud-analog-pads-<orient>-cockpit.png`
+- `hud-analog-touch-<orient>.png` / `hud-analog-gamepad-<orient>.png`
+- `hud-hud-touch-<orient>.png` / `hud-hud-gamepad-<orient>.png`
+- `hud-analog-touch-<orient>-glider.png` / `hud-analog-gamepad-<orient>-glider.png`
+- `hud-analog-touch-<orient>-cockpit.png` / `hud-analog-gamepad-<orient>-cockpit.png`
 
 C172 shots use InTheAir, free flight, Solo, RelativeWind; glider uses2-33; cockpit comparison uses C172. Each starts fresh through Menu.Fly(), waits4 realtime seconds, then captures the complete end-of-frame including IMGUI, encodes/writes synchronously. Verify `[SelfTest] hudshots wrote <absolute path>` per PNG, then `[SelfTest] DONE hudshots`; quit only for AERO_SELFTEST_QUIT=1. Requested and actual Screen dimensions are logged for each pass; a macOS window/display may cap the requested native pixel size. Inspect PNG dimensions and actual-screen log before accepting a “2622×1206” comparison.
 
-Simulation: UiLayout's test-only safe-area flag supplies186/63 px insets; ForceTouchLayoutForTest makes DeskMode false in a single expression. HideTouchControlsForTest is a single early return in TouchFlightControls.OnGUI and test branches in UiLayout's band/bottom accessors; it does not add gamepad detection, change input or alter connected-pad visibility. The default ChallengeHud is disabled only during capture to suppress its Mac-only keyboard hint. Optional AERO visibility is cleared temporarily so saved insets do not replace the analog dials. No chart is opened and all direct position/debug overlays are off.
+Simulation: both layouts use UiLayout's test-only iPhone safe area (186/63 px insets) and ForceTouchLayoutForTest (DeskMode false). Disconnect physical gamepads for capture: `touch` uses normal disconnected input; `gamepad` sets GamepadInput.SimulateConnectedForTest, making Now return Connected=true with every axis/button neutral, before Menu.Fly(). This bypasses physical pad input and works with or without ENABLE_INPUT_SYSTEM. The real TouchSticksHidden path handles visibility and touch exclusion; GamepadShaping and hide logic are unchanged. Run A's HideTouchControlsForTest and its artificial band/bottom overrides are removed. Only the touch-platform and safe-area overrides remain necessary on the Mac. The default ChallengeHud is disabled only during capture to suppress its Mac-only keyboard hint. Optional AERO visibility is cleared temporarily so saved insets do not replace the analog dials. No chart is opened and all direct position/debug overlays are off.
+
+Gamepad inventory (current branch, before the separate full-screen/centred-airplane change): touch pads or lesson strips, pitch-trim slider and trim bars disappear and do not accept touches. Buttons remain. Landscape reveals the existing camera scene behind the removed controls; portrait retains the opaque tray, leaving empty tray space. Nothing automatically expands into those spaces: PublishBand does not branch on TouchSticksHidden. In normal landscape BandMin remains leftCenter.x + half + gap, BandMax remains min(trimRect.x, rightCenter.x − half) − gap, BottomLimit remains h − max(bailRect.yMax, acftRect.yMax, towRect.yMax) − gap; gap = min(w,h) × .02. Lesson strips retain their own band: BandMin = (throttle/brake strip present ? thrStrip.xMax : 0) + gap, BandMax = trimRect.x − gap, with the same button-based BottomLimit. Portrait keeps BandMin=0, BandMax=w and BottomLimit=h−TrayHeightPx. LeftBottomLimit resets to99999 on mobile. Thus hidden controls still reserve the existing dial/text bounds; no full-width override is applied for screenshots.
 
 Restoration uses try/finally: all mutable public SessionSettings fields, nav visibility, AERO visibility/insets, test flags, challenge component state, window resolution/mode, run-in-background and every PlayerPrefs key written by Fly/SavePrefs (including missing keys). No settings reset or migration. Abrupt process termination during capture cannot execute finally; let DONE/QUIT complete. Normal launches never enter this coroutine and all override flags default false.
 
@@ -160,3 +160,9 @@ Restoration uses try/finally: all mutable public SessionSettings fields, nav vis
 Only ClipSelfTest.cs, UiLayout.cs, TouchFlightControls.cs and this document are owned by this run. No assets added under Assets, so no new meta GUID is required. AGENT-LOG.md had a pre-existing modification and was left untouched. No commit made. Unity runtime screenshots and actual phone appearance remain operator verification; no visual gate is approved.
 
 Headless validation: temporary netstandard2.1/C#9 Bridge compile using Unity 6000.3 managed assemblies and this worktree’s Core/Sim sources passed with 0 errors. Two existing WidgetVectors unused-local warnings; NuGet vulnerability audit could not reach nuget.org (NU1900). Compile harness lives only under `/private/tmp/hudshots-check`; this is not a Unity player build. `git diff --check` passed.
+
+## Run B1 harness update
+
+Only ClipSelfTest.cs, GamepadInput.cs (inert test flag), UiLayout.cs / TouchFlightControls.cs (Run A hook removal), and this document changed. Normal-player layout behavior is unchanged. The simulation flag is restored alongside the other test flags in finally. No Glass Overlay or position display changes. Changes remain uncommitted; Unity, xcodebuild and deploy scripts were not run. Screenshots remain operator verification.
+
+B1 validation: reused `/private/tmp/hudshots-check` for the headless netstandard2.1/C#9 Bridge compile: 0 errors, two existing WidgetVectors unused-local warnings and two NU1900 audit-network warnings. This compile does not define ENABLE_INPUT_SYSTEM; the test override is outside that conditional. `git diff --check` passed. No runtime renders were captured.

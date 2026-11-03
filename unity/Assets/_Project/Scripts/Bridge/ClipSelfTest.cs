@@ -1104,7 +1104,7 @@ namespace FlyingGame.Bridge
             _hudShotsNavShown = NavRadios.Shown;
             int oldW = Screen.width, oldH = Screen.height; FullScreenMode oldMode = Screen.fullScreenMode;
             bool oldBackground = Application.runInBackground;
-            bool oldTouch = UiLayout.ForceTouchLayoutForTest, oldHide = UiLayout.HideTouchControlsForTest, oldSafe = UiLayout.IPhoneSafeAreaForTest;
+            bool oldTouch = UiLayout.ForceTouchLayoutForTest, oldGamepad = GamepadInput.SimulateConnectedForTest, oldSafe = UiLayout.IPhoneSafeAreaForTest;
             var challengeHud = Object.FindFirstObjectByType<ChallengeHud>();
             bool oldChallenge = challengeHud != null && challengeHud.enabled;
             string dir = System.Environment.GetEnvironmentVariable("AERO_SHOT_DIR");
@@ -1144,14 +1144,17 @@ namespace FlyingGame.Bridge
                     Screen.SetResolution(w, h, FullScreenMode.Windowed);
                     yield return new WaitForSecondsRealtime(2f);
                     Debug.Log($"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; safe L/R {(portrait ? 0 : 186)} top {(portrait ? 186 : 0)} bottom 63 px (62pt/21pt at 3x)");
-                    foreach (var mode in new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud })
-                        foreach (bool hidden in new[] { false, true })
-                            yield return HudShot("c172-like", mode, hidden, ChaseCamera.View.RelativeWind,
-                                $"hud-{mode.ToString().ToLowerInvariant()}-{(hidden ? "nopads" : "pads")}-{orient}.png", dir);
-                    yield return HudShot("glider-2-33-like", SessionSettings.InstrumentMode.Analog, false, ChaseCamera.View.RelativeWind,
-                        $"hud-analog-pads-{orient}-glider.png", dir);
-                    yield return HudShot("c172-like", SessionSettings.InstrumentMode.Analog, false, ChaseCamera.View.Cockpit,
-                        $"hud-analog-pads-{orient}-cockpit.png", dir);
+                    foreach (bool gamepad in new[] { false, true })
+                    {
+                        string layout = gamepad ? "gamepad" : "touch";
+                        foreach (var mode in new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud })
+                            yield return HudShot("c172-like", mode, gamepad, ChaseCamera.View.RelativeWind,
+                                $"hud-{mode.ToString().ToLowerInvariant()}-{layout}-{orient}.png", dir);
+                        yield return HudShot("glider-2-33-like", SessionSettings.InstrumentMode.Analog, gamepad, ChaseCamera.View.RelativeWind,
+                            $"hud-analog-{layout}-{orient}-glider.png", dir);
+                        yield return HudShot("c172-like", SessionSettings.InstrumentMode.Analog, gamepad, ChaseCamera.View.Cockpit,
+                            $"hud-analog-{layout}-{orient}-cockpit.png", dir);
+                    }
                 }
             }
             finally
@@ -1164,7 +1167,7 @@ namespace FlyingGame.Bridge
                     foreach (var kv in aeroShow) aero.Show[kv.Key] = kv.Value;
                     aero.Insets.Clear(); foreach (var key in aeroInsets) aero.Insets.Add(key);
                 }
-                UiLayout.ForceTouchLayoutForTest = oldTouch; UiLayout.HideTouchControlsForTest = oldHide; UiLayout.IPhoneSafeAreaForTest = oldSafe;
+                UiLayout.ForceTouchLayoutForTest = oldTouch; GamepadInput.SimulateConnectedForTest = oldGamepad; UiLayout.IPhoneSafeAreaForTest = oldSafe;
                 if (challengeHud != null) challengeHud.enabled = oldChallenge;
                 Screen.SetResolution(oldW, oldH, oldMode); Application.runInBackground = oldBackground;
                 SessionSettings.ApplyTimeScale();
@@ -1174,10 +1177,10 @@ namespace FlyingGame.Bridge
         }
 
         private bool _hudShotsNavShown;
-        private IEnumerator HudShot(string aircraft, SessionSettings.InstrumentMode mode, bool hidePads, ChaseCamera.View view, string name, string dir)
+        private IEnumerator HudShot(string aircraft, SessionSettings.InstrumentMode mode, bool gamepad, ChaseCamera.View view, string name, string dir)
         {
             SessionSettings.AircraftId = aircraft; SessionSettings.Instruments = mode;
-            UiLayout.HideTouchControlsForTest = hidePads;
+            GamepadInput.SimulateConnectedForTest = gamepad;
             Menu.Fly(); Chase.SetView(view);
             yield return new WaitForSecondsRealtime(4f);
             yield return new WaitForEndOfFrame();
