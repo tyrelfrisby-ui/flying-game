@@ -1404,7 +1404,7 @@ namespace FlyingGame.Bridge
             _ejectStyle = new GUIStyle(_btnStyle) { normal = { textColor = Color.white, background = null } };
             _labelStyle = new GUIStyle
             {
-                fontSize = Mathf.RoundToInt(fs * 0.8f),
+                fontSize = Mathf.Max(UiLayout.MinText, Mathf.RoundToInt(fs * 0.8f)),
                 alignment = TextAnchor.MiddleCenter,
                 font = UiFont.Get(),
                 normal = { textColor = new Color(1f, 1f, 1f, 0.6f) },

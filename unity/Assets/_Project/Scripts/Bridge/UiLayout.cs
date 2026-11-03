@@ -20,6 +20,8 @@ namespace FlyingGame.Bridge
         // Inert unless the hudshots self-test explicitly enables them. Insets are physical pixels.
         public static bool ForceTouchLayoutForTest;
         public static bool IPhoneSafeAreaForTest;
+        public static int MinText => Mathf.Max(22, Mathf.RoundToInt(S * 33f / 1206f));
+        public static int CaptionText => Mathf.Max(20, Mathf.RoundToInt(S * 30f / 1206f));
         public static float S => Mathf.Min(Screen.width, Screen.height);
         public static float Margin => S * 0.018f;
         public static float Gap => S * 0.012f;
@@ -86,6 +88,8 @@ namespace FlyingGame.Bridge
                 if (Time.frameCount != _frame) { StackBottomLastFrame = Mathf.Max(ToolbarBottom, _stackBottomThisFrame); _stackBottomThisFrame = ToolbarBottom; }
                 _frame = Time.frameCount; _evt = t;
                 _cursor = ToolbarBottom + Gap * 0.6f;
+                if (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !ChaseCamera.InCockpit && !AeroInsetsShown)
+                    _cursor = ToolbarBottom + Gap + S * 0.174f + S * 0.076f + MinText * 2.8f + Gap;
             }
         }
 
@@ -102,31 +106,33 @@ namespace FlyingGame.Bridge
             return r;
         }
 
-        /// <summary>A copy of <paramref name="st"/> whose font shrinks (down to 45 %) until <paramref name="text"/> fits in
-        /// <paramref name="w"/> x <paramref name="h"/> — long labels never spill onto their neighbours.</summary>
+        /// <summary>A copy of <paramref name="st"/> whose font shrinks only to the primary reading floor until <paramref name="text"/> fits in
+        /// <paramref name="w"/> x <paramref name="h"/> — Label abbreviates excess detail at that floor.</summary>
         public static GUIStyle Fit(GUIStyle st, string text, float w, float h)
         {
-            if (st == null || string.IsNullOrEmpty(text)) return st;
-            var c = new GUIContent(text);
-            Vector2 sz = st.CalcSize(c);
-            if (sz.x <= w && sz.y <= h * 1.05f) return st;
+            if (st == null) return st;
             var f = new GUIStyle(st) { wordWrap = false, clipping = TextClipping.Clip };
-            int min = Mathf.Max(6, Mathf.RoundToInt(st.fontSize * 0.45f));
-            for (int fs = st.fontSize - 1; fs >= min; fs--)
-            {
-                f.fontSize = fs;
-                sz = f.CalcSize(c);
-                if (sz.x <= w && sz.y <= h * 1.05f) break;
-            }
+            int minimum = MinText;
+            f.fontSize = Mathf.Max(minimum, st.fontSize);
+            while (f.fontSize > minimum && f.CalcSize(new GUIContent(text)).x > w) f.fontSize--;
             return f;
         }
+
 
         // A modal card (lesson briefing / result) is up: the dials and HUD lines step aside rather than sit under it.
         private static int _modalFrame = -10;
         public static void ModalShown() => _modalFrame = Time.frameCount;
         public static bool Modal => Time.frameCount - _modalFrame <= 1;
 
-        public static void Label(Rect r, string text, GUIStyle st) => GUI.Label(r, text, Fit(st, text, r.width, r.height));
+        public static void Label(Rect r, string text, GUIStyle st)
+        {
+            var fit = Fit(st, text, r.width, r.height);
+            if (fit == null) return;
+            // Drop trailing detail rather than making the entire line unreadable.
+            while (text.Length > 1 && fit.CalcSize(new GUIContent(text)).x > r.width)
+                text = text.Substring(0, text.Length - 2).TrimEnd() + "…";
+            GUI.Label(r, text, fit);
+        }
         public static bool Button(Rect r, string text, GUIStyle st) => GUI.Button(r, text, Fit(st, text, r.width - 6f, r.height));
     }
 }

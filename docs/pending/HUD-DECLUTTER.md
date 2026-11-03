@@ -166,3 +166,102 @@ Headless validation: temporary netstandard2.1/C#9 Bridge compile using Unity 600
 Only ClipSelfTest.cs, GamepadInput.cs (inert test flag), UiLayout.cs / TouchFlightControls.cs (Run A hook removal), and this document changed. Normal-player layout behavior is unchanged. The simulation flag is restored alongside the other test flags in finally. No Glass Overlay or position display changes. Changes remain uncommitted; Unity, xcodebuild and deploy scripts were not run. Screenshots remain operator verification.
 
 B1 validation: reused `/private/tmp/hudshots-check` for the headless netstandard2.1/C#9 Bridge compile: 0 errors, two existing WidgetVectors unused-local warnings and two NU1900 audit-network warnings. This compile does not define ENABLE_INPUT_SYSTEM; the test override is outside that conditional. `git diff --check` passed. No runtime renders were captured.
+
+## Proposal (run B2)
+
+The proposal removes the permanent aircraft/build/β row and collapses six navigation cards into one RADIOS button. Analog has four equal flight columns directly below the toolbar and a second, compact engine readout row. A second row of round engine dials would need another ~300 px and would cover the aircraft or touch controls; rectangular readouts preserve the useful data in 92 px. No attitude dial is added: the airplane and conformal HUD already provide attitude. The order is airspeed, altitude, g, vertical speed, preserving the relative classic-pack order of the available instruments.
+
+### Reading contract and geometry
+
+At the reference 3× phone resolution, primary flight text has a floor of **11 pt / 33 px**, dial scales and captions **10 pt / 30 px**. Exterior dial diameter is **70 pt / 210 px** (209.844 before rounding); readouts 21.7 pt / 65 px. Shared `UiLayout.Fit` now floors at 33 px rather than 45% of the requested font; `Label` abbreviates excess trailing text with an ellipsis. Native pixel sizes scale with the screen short edge, with absolute fallback floors of 22/20 px for low-resolution desktop windows. These are font sizes, not a promise of measured glyph height. Toolbar geometry is unchanged. Primary HUD small labels rise 25→33 px; conformal lines, ladder, bank and flight-path symbols remain.
+
+| Orientation / controls | Strip width and columns | Flight row bounds (px) | Engine row (px) | Airplane keepout |
+|---|---|---|---|---|
+| Landscape touch, 2622×1206 | Band ~938 wide, 234.5 pitch | y≈111..321; four 210 px dials; readouts end≈410 | y≈412..504, four 234.5×92 cells | Between pads, above their centre and bottom button cluster |
+| Landscape gamepad | Centred in safe width; capped1013, pitch253 | Same y and diameter | Same y, four253×92 cells | All ordinary instruments above y504; screen centre y603 clear |
+| Portrait touch, 1206×2622 | Centred1013 wide, pitch253 | y≈297..507; same diameter, readouts end≈596 | y≈598..690 | Above tray/pads; upper camera centre≈795 clear |
+| Portrait gamepad | Same1013 width and dimensions | Same as portrait touch | Same as portrait touch | No dependency on forthcoming camera/full-screen lane |
+
+Numbers are code-derived nominal geometry, not measured after renders. Safe-area override and pixel dimensions must match before/after. Engine captions: RPM (jet RPM %), THROTTLE %, FUEL KG/H, FUEL KG. Throttle is labelled as the control percentage, not measured shaft power. RPM follows the sim's existing speed law; jets normalise by MaxRpm. Fuel comes from actual burn rate and `Load.FuelKg`. No oil/CHT/manifold proxies or fixed mixture/prop poses are promoted to measured instruments. Gliders have only the flight row. Cockpit retains its bottom panel and gets the same larger scale text, without an added floating engine strip.
+
+The shared text stack starts below the exterior instrument strip, so event lines and the radio button cannot allocate space on the dials. Explicitly opened radios temporarily take a two-column panel; closing restores the normal display. Existing nav visibility preferences are retained; the expanded state is transient and defaults closed even when the saved visibility preference is true. No new saved keys, reset or migration. Aircraft identification remains on the existing aircraft selection button. Structural thresholds remain encoded in the g dial's coloured marks; no flight behaviour changes.
+
+### Inventory disposition (every Run A item)
+
+Before sizes below are the original inventory, not measurements. KEEP retains conditional visibility and existing specialised geometry; shared fitted labels inherit the new floor.
+
+| Inventory item | Decision / destination | Before → after |
+|---|---|---|
+| Aircraft/build/sideslip status | MOVE / MERGE | 29, Fit down to 13; B×43.5 stack row → 0 px / no permanent row. Aircraft remains on aircraft button; build in OPTIONS › Display; β in HUD / AERO. |
+| Multiplayer status | KEEP | 29 Fit; B×43.5 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Event/tow/combat/damage status | KEEP | 29 Fit; B×43.5 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Spin data | KEEP | 29 Fit; B×43.5 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| NAV 1 receiver | MOVE | strip min(B,1518)×128.8; each of six cells ≈156×129; primary 23, small 19; course row 30 high; no Fit → RADIOS · OPEN, collapsed each launch; panel 2 columns ×3 rows, 33 px minimum. Heading no longer duplicates HUD during ordinary flight. |
+| NAV 2 receiver | MOVE | Same → RADIOS · OPEN, collapsed each launch; panel 2 columns ×3 rows, 33 px minimum. Heading no longer duplicates HUD during ordinary flight. |
+| ADF receiver | MOVE | 19/23; ≈156×129; card radius29.9 → RADIOS · OPEN, collapsed each launch; panel 2 columns ×3 rows, 33 px minimum. Heading no longer duplicates HUD during ordinary flight. |
+| Four-course range receiver | MOVE | 19/23, big41; ≈156×129 → RADIOS · OPEN, collapsed each launch; panel 2 columns ×3 rows, 33 px minimum. Heading no longer duplicates HUD during ordinary flight. |
+| Heading card | MOVE | 19; big39; ≈156×129 → RADIOS · OPEN, collapsed each launch; panel 2 columns ×3 rows, 33 px minimum. Heading no longer duplicates HUD during ordinary flight. |
+| Leg clock | MOVE | 19; big39; ≈156×129; buttons≈67×32 → RADIOS · OPEN, collapsed each launch; panel 2 columns ×3 rows, 33 px minimum. Heading no longer duplicates HUD during ordinary flight. |
+| Airspeed analog dial | ENLARGE | base fs48; readout65 in240×86; face nominal241 diameter, shrinks to region; scale≤30 and caption≤24 scale with dial → Exterior diameter 210 px; scales/captions 30 px, readout 65 px. Flight row: airspeed, altitude, g, vertical speed. |
+| Altimeter analog dial | ENLARGE | readout65 in288×86; face as above → Exterior diameter 210 px; scales/captions 30 px, readout 65 px. Flight row: airspeed, altitude, g, vertical speed. |
+| G-meter analog dial | ENLARGE | readout65 in240×86; face as above → Exterior diameter 210 px; scales/captions 30 px, readout 65 px. Flight row: airspeed, altitude, g, vertical speed. |
+| G structural limits | MERGE | 24 in432×48, direct label (no Fit) → 0 px text; existing yellow limit / red ultimate dial marks retained (same numeric thresholds). |
+| Vertical-speed analog dial | ENLARGE | 65 in240×86; scale/caption scale with radius → Exterior diameter 210 px; scales/captions 30 px, readout 65 px. Flight row: airspeed, altitude, g, vertical speed. |
+| HUD pitch/horizon | ENLARGE | line2.65 px; small25, labels288×57.6 → Small text 25→33 px; main readouts 36 px; conformal geometry retained. |
+| HUD bank scale | KEEP | arc radius434; tick lengths14.5/26.5 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| HUD nose/waterline and flight-path marker | KEEP | marker radius16.9, wings span≈88; W width94 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| HUD airspeed / altitude boxes | ENLARGE | boxes132.7×50.7, centres ±428 from centre; font36 / small25; label allocation288×57.6 → Small text 25→33 px; main readouts 36 px; conformal geometry retained. |
+| HUD α / β / heading | ENLARGE | 25/36; each288×57.6 → Small text 25→33 px; main readouts 36 px; conformal geometry retained. |
+| Left touchpad | ENLARGE | pad724×724; labels34 (value27), rows724×51; Fit → Value text 27→33 px; pad/axis labels 34 px. No input or visibility changes. |
+| Right touchpad | KEEP | pad724×724; label34,724×51 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Pitch trim | KEEP | 80×724; label34 in239×51 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Rudder / aileron trim | KEEP | each724×54; label34 in724×51, Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Reset / aircraft buttons | KEEP | each≤326×94; height may shrink to58 for aircraft keepout; font34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Flaps buttons | KEEP | thirds of≈326×94,≈107×58..94;34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Gear button | KEEP | ≈326×58..94;34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Smoke button | KEEP | double-width≈675×58..94;34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Tow / release | KEEP | ≈326×58..94;34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Bail/BRS | KEEP | ≈326 or675×58..94;34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Ejection | KEEP | ≈326×58..94;34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Fire control | KEEP | 289×157 at x24, y109;34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Touch look buttons | KEEP | each224×87, gaps19;34 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Cockpit look pad | KEEP | cell78.5; cross235.5²; extra rows235.5×74.8;31 Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Clip/record toast | KEEP | 31 Fit in min(B,844)×58.9 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Radio talk control | KEEP | 31 in338×104.7 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Radio status / mic problem | KEEP | 31 Fit; B×43.4 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Rooftop race progress | KEEP | 31 Fit, B×46.5 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Combat target | KEEP | 34 Fit B×51; ring724 diameter, dot54 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Gunsight / ballistic range | KEEP | pipper121 diameter; range34 in241×47.6; FP radius21.7 → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Pilot egress status | KEEP | 37 in2202×70; no Fit → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Cloud / tunnel obscuration | KEEP | 2622×1206; no font → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Analog flight-test block | ENLARGE / REMOVE | See original inventory → 23→33 px; 14 rows ×2 cells, replaces exterior dials while selected. AGL removed, RPM in its cell; OPTIONS selects flight-test data. |
+| Regional atmosphere map + data | KEEP | See original inventory → Existing optional specialised renderer, same sizes as inventory; outside ordinary flight proposal (see limits below). |
+| Force vectors | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Flight path / lift markers / bubbles | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| AERO vectors and insets | KEEP | See original inventory → Existing optional specialised renderer, same sizes as inventory; outside ordinary flight proposal (see limits below). |
+| AERO no-room line | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Autopilot FMA | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Altitude lock annunciation | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Four-forces coaching | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Open AERO / OPTIONS / view / chart panels | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Replay tray | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Graded challenge callout/timer/tolerance/results | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Timed race/STOL/dust/tow status | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Dust steering LEDs, XTK, radio height | KEEP | See original inventory → Existing optional specialised renderer, same sizes as inventory; outside ordinary flight proposal (see limits below). |
+| Practice briefing / lesson pages / countdown / score orb / instruction / debrief | KEEP | See original inventory → Existing optional specialised renderer, same sizes as inventory; outside ordinary flight proposal (see limits below). |
+| Lesson force/airflow/wheel overlays and 2D practice view | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+| Lesson control strips | KEEP | See original inventory → Existing geometry; shared fitted text now ≥33 px, trailing detail abbreviated. |
+
+### Position audit
+
+No coordinates, GPS, own-ship map symbol, terrain-database AGL or position-derived instrument is added. The optional flight-test block loses its terrain query and AGL readout altogether; RPM replaces that cell. Geometric MSL altitude and inertial vertical speed remain. Existing explicit navigation aids retain their original station bearings/radials/DME, available only after opening radios; no new fix source is introduced. Existing ALT LOCK AGL configuration/annunciation, crop-dust RA/XTK, pilot-egress AGL, atmosphere regional map and practice debrief track remain flagged from Run A. They are existing specialised modes, not new normal-flight position displays. Chart still has no own-ship. Glass Overlay is untouched.
+
+### Validation and limits
+
+`AERO_SELFTEST=hudshots` and all filenames/aircraft/layout/orientation cases are unchanged. Operator capture uses the identical command with `AERO_SHOT_DIR=/private/tmp/aero-hudshots-after`. Neither Unity nor xcodebuild nor deployment was run here; there are no after images from this run and no visual approval is claimed.
+
+This proposal's minimum applies to ordinary flight instruments, shared fitted labels, touch values and the radios. Specialised direct-drawing AERO insets, atmosphere diagnostics, practice pages and crop-dust LEDs retain their audited fonts; they do **not** yet satisfy a global 33 px minimum. Multi-event stack overflow and long-text ellipsis still require visual review; ellipsis can discard secondary status detail. The fixed dial strip targets the requested phone dimensions; narrower devices need further omission/paging rather than scale-down. These limits must be judged alongside the after renders, not assumed green from compilation.
+
+Pure strip dimensions live in Core with hand-written phone expectations in `HudInstrumentLayoutTests`; only that test filter was requested. Headless Bridge compile uses `/private/tmp/hudshots-check`, not a player build. No new Unity Assets files, so no new .meta GUIDs. Changes remain uncommitted; AGENT-LOG.md untouched.
+
+B2 checks: final headless Bridge compile passed (0 errors; two existing unused WidgetVectors locals, two NU1900 network-audit warnings). Filtered FlightTests built, but VSTest aborted because the sandbox rejects its local socket; retry with single-node MSBuild reached the same runner restriction. Both new test methods then passed through a temporary direct .NET runner invoking the identical methods with equivalent assertions, without VSTest sockets (`/private/tmp/hud-layout-direct`). No full suite run. `git diff --check` passed. Runtime phone/render verification remains outstanding.

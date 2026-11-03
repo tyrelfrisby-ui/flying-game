@@ -237,7 +237,7 @@ namespace FlyingGame.Bridge
             {
                 _fs = fs;
                 _text = new GUIStyle { font = UiFont.Get(), fontSize = fs, fontStyle = FontStyle.Bold, normal = { textColor = Green } };
-                _small = new GUIStyle { font = UiFont.Get(), fontSize = Mathf.RoundToInt(fs * 0.7f), normal = { textColor = Green } };
+                _small = new GUIStyle { font = UiFont.Get(), fontSize = UiLayout.MinText, normal = { textColor = Green } };
             }
             // Label positions are viewport-relative; GUI space is whole-screen (or the whole clip image), top-left origin.
             foreach (Sym l in labels)
