@@ -35,11 +35,12 @@ GLB=MODELS/'great-lakes-like/great-lakes-like-own.glb'
 RIG=ROOT/'docs/models/great-lakes-own-rig.json'
 BASE='4dc7ded5'   # last commit before this script
 A0,SWEEP=25.0,50.0
+PLACARD_DZ=.036   # placard centre below the switch pivot: clear of the rotary and push-pull knob bodies
 # per seat: panel face X, lever pivot x, pivot z, housing top z, strip z range, switch row z, row y slots
 SEATS={
- 'Rear': dict(sfx='R',ctl='',full='Rear',X=-1.638,px=-1.763,zp=-.170,ztop=-.088,strip=(-.148,-.076),strip_y=(-.155,.330),row_z=-.102,
+ 'Rear': dict(sfx='R',ctl='',full='Rear',X=-1.638,px=-1.763,zp=-.170,ztop=-.088,strip=(-.148,-.076),strip_y=(-.155,.330),row_z=-.098,
               row_y=[.295,.262,.093,.061,.029,-.003,-.035,-.067,-.099,-.131]),
- 'Front':dict(sfx='F',ctl='_Front',full='Front',X=-.968,px=-1.093,zp=-.150,ztop=-.068,strip=(-.128,-.056),strip_y=(-.165,.165),row_z=-.082,
+ 'Front':dict(sfx='F',ctl='_Front',full='Front',X=-.968,px=-1.093,zp=-.150,ztop=-.068,strip=(-.128,-.056),strip_y=(-.165,.165),row_z=-.078,
               row_y=[.144,.112,.080,.048,.016,-.016,-.048,-.080,-.112,-.144]),
 }
 ROW=['Magneto','Master','FuelPump','CarbHeat','Smoke','Trim','FuelSelector','NavLights','Strobe','LandingLight']
@@ -191,7 +192,7 @@ def build(g,doc):
   if sn not in names:nodes.append(dict(name=sn));g.doc['scenes'][0]['nodes'].append(len(nodes)-1);names[sn]=len(nodes)-1
   pl=Shape();puv=[]
   for lab_,y in zip(ROW,s['row_y']):
-   quad(pl,puv,(X-.0006,y,s['row_z']-.0285),(0,-1,0),(0,0,1),.0295,.0163,UV[seat+lab_])
+   quad(pl,puv,(X-.0006,y,s['row_z']-PLACARD_DZ),(0,-1,0),(0,0,1),.0295,.0163,UV[seat+lab_])
   set_mesh(g,sn,[('P3e_Subpanel',st,None),('GL_Placard_Atlas',pl,puv)],np.array((X,0,0)));nodes[names[sn]]['translation']=gl(np.array((X,0,0))).tolist()
   for lab_,y in zip(ROW,s['row_y']):
    c=next(c for c in controls if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab_)
