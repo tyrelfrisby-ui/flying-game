@@ -170,6 +170,10 @@ public sealed partial class Aircraft
         if (src is null) return;
         _edges ??= BuildStrikeEdges();
         if (_edges.Count == 0) return;
+        // A state that is not finite (or a step that moved it absurdly far) has nothing to sweep: the cell loop below would
+        // run from CellOf(NaN) = int.MinValue.
+        Vec3 sp = State.Position, d = State.Position - pre.Position;
+        if (!double.IsFinite(sp.X) || !double.IsFinite(sp.Y) || !double.IsFinite(sp.Z) || !double.IsFinite(d.Length) || d.Length > 50.0) return;
         Vec3 cg = Config.Mass.CgVec();
         double reach = 0;
         foreach (StrikeEdge e in _edges) reach = Math.Max(reach, Math.Max((e.A - cg).Length, (e.B - cg).Length) + e.RadiusM);

@@ -459,7 +459,7 @@ public static class Forest
         public void Near(double x0, double y0, double x1, double y1, List<Tree> into)
         {
             WorldTerrain? w = WorldTerrain.Active;
-            if (w is null) return;
+            if (w is null || !(x1 - x0 < 1000 && y1 - y0 < 1000)) return;   // NaN or absurd: no cell range to walk
             var cells = _cells;
             if (!ReferenceEquals(w, _for) || cells.Count > 20000) { cells = new(); _cells = cells; _for = w; }
             for (int i = CellOf(x0); i <= CellOf(x1); i++)

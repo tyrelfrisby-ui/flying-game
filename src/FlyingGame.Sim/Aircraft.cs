@@ -621,14 +621,23 @@ public sealed partial class Aircraft
         // a fabric wing: PA-18 boxes Ixx 2,733 against 1,450), so the floor acted on every wing loss and handed the
         // aeroplane angular momentum it never had (PA-18 tip panel: L_x 1,072 → 2,047). The only floor left keeps the
         // tensor positive: a tenth of what it was, logged when it acts.
-        double Floor(double i, double was, string axis)
+        // The one floor: what is left can never have less inertia about P than its own remaining boxes have. Exact shedding
+        // only goes below that when the books are inconsistent (the model's boxes carry more than the config's inertia on
+        // that axis); there conservation cannot hold whatever is done, and a remnant lighter in inertia than its own parts
+        // is a stiff rigid body the contact springs drive unstable (a C172 cabin left alone went 6 → 387 m/s in a step).
+        double bx = 0, by = 0, bz = 0;
+        foreach (var e in Hydro.Attached) Box(e, ref bx, ref by, ref bz);
+        // And a separation never ADDS inertia: where the boxes already carry more than the aeroplane has (the Extra's pitch
+        // axis, its engine far forward of a light config Iyy), the floor is what it had.
+        double Floor(double i, double boxes, double had, string axis)
         {
-            if (i >= 0.1 * was) return i;
-            Hydro.DamageLog.Add($"inertia floor on {axis}: {i:F0} kg·m² left of {was:F0} — momentum not conserved on this axis");
-            return 0.1 * was;
+            double min = System.Math.Max(System.Math.Min(boxes, had), 1.0);
+            if (i >= min) return i;
+            Hydro.DamageLog.Add($"inertia floor on {axis}: {i:F0} kg·m² left, its own boxes carry {boxes:F0} — momentum not conserved on this axis");
+            return min;
         }
         var next = new MassProperties(m1,
-            Floor(mp.Ixx - ix, mp.Ixx, "Ixx"), Floor(mp.Iyy - iy, mp.Iyy, "Iyy"), Floor(mp.Izz - iz, mp.Izz, "Izz"), mp.Ixz - pxz,
+            Floor(mp.Ixx - ix, bx, mp.Ixx, "Ixx"), Floor(mp.Iyy - iy, by, mp.Iyy, "Iyy"), Floor(mp.Izz - iz, bz, mp.Izz, "Izz"), mp.Ixz - pxz,
             mp.Ixy - pxy, mp.Iyz - pyz);
         if (!PositiveDefinite(next))
         {
