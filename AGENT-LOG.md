@@ -1,4 +1,27 @@
 ## NEEDS YOU
+<!-- crash-tuning needs-you -->
+- **CRASH TUNING FROM YOUR 2026.1104.0427 FLIGHT — BUILT, NOT INSTALLED, NOT MERGED (Claude, 2026-11-04,
+  lane/claude-crash-tuning `339b2a2f`, off island-nav `b7d1a680`). Nothing approved by me.**
+  iOS `deploy.sh NOINSTALL` `** BUILD SUCCEEDED **` at `bd1ccd96` (stamp 2026.1104.1036, 0 `error CS`; "installed on 0
+  of 1": NOINSTALL is not a device). `339b2a2f` (the limb-crush fix, Sim only) came after that build and is NOT built.
+  Please fly (Pitts, Cub, Extra, Great Lakes; and the C172 for contrast):
+  1. **Crash on the grass at speed** (`-crashtest grass`): the steel-tube fuselage must stay one piece — wings, tail
+     surfaces, gear and the engine (at the firewall) can still come off. A hard tail strike now BENDS the tail up (drawn:
+     the aft fuselage turns on a pivot at the tail station; its rudder/elevator stop following the stick); a hard nose-in
+     bends the engine mount and then drops the engine. HUD says "TAIL BENT", "ENGINE MOUNT BENT", "FUSELAGE CRUSHED".
+  2. **Slide distance:** pieces now slide on the ground they are on (they used μ 0.7, the BUILDING value, everywhere),
+     and the island's green ground is μ 0.45 (was 0.50). Tell me if the wreck still stops too soon.
+  3. **Treetops:** a pass through the middle of a crown at cruise now dents the leading edges (sound + "BRANCH DAMAGE",
+     less lift and more drag on those strips), can take a control surface or nick the prop; near the trunk, thick limbs
+     can take a wing panel. Brushing the outer twigs is only drag. Is the amount right?
+  4. **Decisions for you:** (a) `structureType` tags — steel tube: Pitts, Extra, J-3 ×2, PA-18 ×3, Great Lakes,
+     Decathlon, Cassutt, Gee Bee R-2, SGS 2-33, Pawnee, Stearman; wood: JN-4, H-4; composite: SR22, Glasair, EB29R, Swift,
+     paraglider, target drone; aluminium: the rest (AirCam, hang glider included). Sources quoted from memory, not
+     re-fetched. (b) Aluminium fuselages now also crush first (break at √2 × the old speed: cabin 11.3 m/s instead of 8);
+     composite 1.15×, wood 1.24×. Say if you want aluminium kept at the old rule. (c) No canopy part exists in the sim,
+     so "canopy can break off" is not modelled. (d) Combat (bullet) damage still shoots tails off steel-tube types —
+     left alone on purpose.
+<!-- /crash-tuning needs-you -->
 <!-- parity-merge needs-you -->
 - **PARITY MERGE (Claude, 2026-11-04, Ty approved 07:29: "merge both ways, get them in parity and then lock them in
   parity"). IN PROGRESS. Nothing approved by me; every conflict call is in the Log entry "parity merge".**
@@ -2863,6 +2886,73 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-11-04 09:30– PST — Claude · lane/claude-crash-tuning · crash tuning: steel-tube fuselages crush, wreck friction, branch damage
+Ty, after flying 2026.1104.0427: "momentum is still too weak or the friction is too high. The fuselage is really strong
+so rarer than having it break apart have it tend to bend and crush more. Engine, wings, tails and canopy can break off but
+for all steel tube airplanes ... the fuselage doesn't break apart other than at the firewall. Tree hits were too
+forgiving: it made a sound with no damage until I got deep toward the trunks."
+- **Commits:** `bd1ccd96` (everything below), `339b2a2f` (limb crush on a fuselage by its work F·d/F_c, not by closing
+  energy — found in self-review after the build).
+- **Momentum — measured first (`CrashSlideProbe`).** A bare Pitts fuselage (wings, gear, prop gone) at 60 kt slides
+  134.8 m on flat grass against Coulomb's v²/(2μg) 138.8 m; 91.5 m on the island's Rough against 97.1; 92.5 m on the
+  runway against 88.3. So the airframe's own sliding friction was NOT the problem and is unchanged. The scripted Pitts
+  cartwheel (35 m/s) stops in 59 m / 5 s: tumbling onto its wings, whose impacts are inelastic with friction μ·J_n, and a
+  tumbling biplane's own air drag (~0.3 g at 15 m/s). Real, and left alone. Restitution of the hard points is 0.07–0.16
+  (computed from the spring/damper/rebound for 50–600 kg effective mass): in the 0.1–0.3 band, unchanged. What was wrong:
+  - **Wreck pieces used μ 0.7 (`AirframeContact.FrictionMu`, the BUILDING value) on every surface** and were fully
+    inelastic. Now `AirframeContact.SlidingMu(surface)` (paved 0.55, gravel 0.50, grass 0.35, rough 0.45, snow 0.10, ice
+    0.03–0.04), wet bed under water 0.3, restitution 0.2 above 1 m/s (measured 0.25 with four corners in sequence).
+    `IWreckWorld.SurfaceAt` added. A 500 kg block at 60 kt on grass slides 115–140 m (was < 69 m).
+  - **Rough (island pasture) 0.50 → 0.45** (`KeelSlidingCoefficient`, shared with float keels): top of the dry-grass band;
+    the bumps cost their own 6 % already.
+  - Separation keeps v + ω×r exactly (|Δp|/p < 1e-9, tested for a wing panel, a C172 tail, a Pitts nose). Free tumbling
+    keeps L to < 2 % in 1 s for a 500 kg block; the 60 kg block's 7 %/s is HydroBody's aerodynamic damping of the turning
+    faces (scales 1/m), not a clamp. No sleep/clamp changes: sleep is < 0.05 m/s and < 0.05 rad/s for 1 s on the ground.
+  - Water: airframe water forces are already hydrodynamic (AirframeFlooding, `waterByHydro: true`); no Coulomb on water.
+- **Structure type.** `AircraftConfig.structureType` + `structureTypeSource` on all 34 configs (list in NEEDS YOU 4a).
+  `Core/FuselageStructure.cs`: a fuselage section (Nose, Cabin, TailBoom) struck above its break speed v_b crushes
+  δ = 0.15·(v²/v_b² − 1) (the tree code's crush energy law) and breaks only when its accumulated crush passes its
+  capacity: steel tube cabin/tail ∞, steel engine mount 0.20 m (engine off at the firewall), aluminium 0.15 m (single
+  blow √2·v_b: cabin 8 → 11.3 m/s, tail 5.5 → 7.8), wood 0.08 (1.24×), composite 0.05 (1.15×), untagged 0 (old rule).
+  Gate: `Aircraft.FilterFuselageBreaks` (hard-point arrivals, `ContactPoint.ArrivalPending/ArrivalMs/ArrivalNormalBody`),
+  the tree trunk path (`Resolve`) and the water joints (steel cabin/tail hold under load). Geometry: a crushed cabin point
+  moves in (cap 0.30 m); a crushed tail boom / engine mount bends about its station by atan(δ/arm), cap 30°, its points
+  turn, and the tail surfaces' incidence follows (`StripFlowState.IncidenceDeltaRad`: stab −pitch, fin +yaw). Event
+  `ContactEventKind.FuselageCrushed`. Unity: `AirframeVisual.ShowFuselageBend` cuts the section at its station (the break's
+  own cut) onto a pivot and turns it; a later break lets the pivot go as debris; `StructuralDamage` plays a crunch and
+  shows TAIL BENT / ENGINE MOUNT BENT / FUSELAGE CRUSHED. Measured: belly/back slams at 15 m/s — Pitts, Great Lakes,
+  PA-18 (inverted) cabin crush 0.56–0.70 m (energy-equivalent; drawn capped at 0.30), Extra/J-3/Decathlon upright stay
+  whole; C172 at 15 m/s breaks into three, at 10 m/s crushes 0.028 m and holds. PA-18/J-3/Decathlon tail-first at 12 m/s:
+  tail bent 7.4°, nothing off. Pitts nose-in at 16 m/s, −70°: engine off at the firewall, cabin and tail stay.
+- **Trees (`TreeStructure` branches, `BranchStrike`).** Branch diameter d_b = 0.005 + 0.2·d_stem·(1 − ρ/r_c); branch
+  density λ = 10/(π·r_c) m/m³; crossings (2/π)·λ·ℓ·v; force per branch F = F_s(d) + ρ_w·d²·v². Over 1.5 kN a leading
+  edge dents 5 cm·F/F₀ of its third's length (damage 0..1 → strip lift × (1 − 0.4 D), Cd + 0.06 D); over 2.5 kN a control
+  surface accumulates damage and is lost at 1; prop tips chewed 5 % of d per crossing above 1 cm, a 6 cm limb at the hub
+  stops the engine; limbs ≥ 5 cm are struck like stems (snap with m/4 + F·d/v, or bend / break the panel by the panel's own
+  strength), again each time they get a third thicker. The cutting work F·d is added to the old foliage drag. Measured
+  (30 m fir, 15 m up, Pitts 60 m/s, left tip at ρ/r_c): 0.90 → no damage; 0.60 → 0.04; 0.35 → 0.20–0.27, Δv 0.25–0.5 m/s;
+  0.12 → 0.51. J-3 at 20 m/s in the outer twigs: none. A 40 m fir's lower crown at 70 m/s takes the lower-left panel.
+- **Tests.** New `CrashTuningTests` 30 (sliding per surface, piece friction, restitution, tumbling L, separation momentum,
+  every config tagged (literal lists), crush law per type (literals), slams per type, tail bend, firewall, trunk, branch
+  literals, canopy pass damages + drags, slow twig brush minor, outer twigs only drag, limb breaks a wing).
+  `BreakupTests`: the tail-strike and belly-slam break-ups were the PA-18 (now steel tube): moved to the C172 at 10 and
+  15 m/s (above the aluminium single-blow speeds), and two new PA-18 tests assert the crush/bend instead.
+  Crash classes (Tree/IslandTreetop/Debris/Breakup/WreckRemnant/WingAileron/CrashWater/WaterBreakup/BentPanel/DebrisWiring/
+  StallBreak/TaildraggerNoTipStrike/ContactDamage/AirframeContact/StrutStation/SolidsBroadphase/FloatKeel/GroundContact):
+  base `b7d1a680` 254 run, 253 passed, 0 failed, 1 skipped (Gee Bee landings); branch 284 run, 281 passed, 2 failed
+  (the two BreakupTests above, then rewritten: 46/46 in that class), 1 skipped. After `339b2a2f`: CrashTuning + TreeStrike +
+  IslandTreetop + Breakup 88/88.
+  **Full suite** (branch `339b2a2f`, `--filter "FullyQualifiedName!~IslandDroneProbe&FullyQualifiedName!~LaunchReplication"`,
+  nice'd, other lanes' suites running on the same Mac): 2,495 run, 2,296 passed, 193 failed, 6 skipped (1 h 10 m). The base
+  full run was cut off by the 2 h job limit, so every failing method (147 methods, 231 cases) was re-run by name on BOTH
+  base `b7d1a680` and the branch: identical — 124 fail on both, 107 pass on both, 0 fail only on the branch, 0 fixed. The
+  other ~69 of the 193 are suite coupling (pass when re-run). No regression found.
+- **Build:** `deploy.sh NOINSTALL` from this worktree at `bd1ccd96`: `** BUILD SUCCEEDED **`, 0 `error CS`, stamp
+  2026.1104.1036, not installed. bundleVersion and the StreamingAssets copies the build wrote were reverted, not committed.
+  `tools/check-parity.sh`: PARITY OK (the 58 GLB warnings are pre-existing); the pre-commit parity hook passed.
+- **Not done / open:** no canopy component; combat damage unchanged; `ShrinkDisc` allocates (LINQ) when branches chew a
+  prop (rare); WreckSim's contact allocates per step per piece (it did before; one more small array now).
 <!-- parity-merge entry -->
 ### 2026-11-04 07:31– PST — Claude · parity merge (lane/claude-quest-islandnav ⇄ lane/claude-island-nav) · Ty approved 07:29
 **NEEDS YOU:** see the top "PARITY MERGE" item under NEEDS YOU (kept current there).
