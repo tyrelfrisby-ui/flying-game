@@ -105,6 +105,15 @@ namespace FlyingGame.Bridge
                     for (double a = -f.Length / 2; a <= f.Length / 2; a += 50) foreach (int s in new[] { -1, 1 }) b.Cylinder(P(f.Centre + f.U * (a / 1000) + f.V * (s * f.Width / 2000), f.Elevation), 1.3f, 1.2f, 8, Orange);
                     continue;
                 }
+                // The Frank Church canyon strips (the fields with a "river") are dirt and turf, not runways (Ty 2026-11-03:
+                // Soldier Bar "looked paved and had a centerline"): one natural-coloured surface and nothing painted on it
+                // or beside it — no shoulders, centreline, threshold bars, numbers or name.
+                if (f.Definition.Has("river"))
+                {
+                    Color ground = f.Surface == "turf" || f.Surface.Contains("grass") ? new Color(.40f, .47f, .25f) : new Color(.47f, .39f, .28f);
+                    SurfaceQuad(b, f, f.Length, f.Width, f.Elevation + .03, ground);
+                    continue;
+                }
                 double length = f.Length, offset = 0; // Interior runway paint/deck stays beneath the opaque rock roof.
                 Color surface = f.Surface == "asphalt" || f.Surface == "paved" ? new Color(.15f, .17f, .18f) : f.Surface.Contains("grass") || f.Surface == "turf" ? new Color(.44f, .50f, .27f) : f.Surface == "hard sand" ? Sand : new Color(.58f, .54f, .45f);
                 SurfaceQuad(b, f, length, f.Width, f.Elevation + .04, surface, offset);
