@@ -180,3 +180,11 @@ sat 4.5 cm higher in the cabin and failed the 12 cm check. The CG is a point IN 
 does not move it. When two configs share an airframe and an eye, place the second so its airframe coincides with
 the first (`Spec.SitHighM`), let the new gear be the thing that is off, and gate the coincidence
 (`check_eye_interiors.py` prints `COINCIDE`). Before trusting an eye in a variant, measure it in that variant.
+
+### A pre-flight check that only prints is not a gate
+Before the C172 v4 build I ran the `ps … | grep -E "(xcodebuild|Unity)"` check, echoed its output and then started
+`deploy.sh` in the SAME command — so when another lane's Unity batch appeared in that list, my build started
+anyway and the two overlapped. Make the check the condition (`until ! ps … | grep -q .; do sleep 60; done && build`),
+never a line of output to read afterwards. And know what it matches: an orphaned `il2cpp` from a dead Xcode build
+(parent reparented to launchd, 0 % CPU, under `/tmp/flyinggame-dd/…/Unity-iPhone.build/`) matches forever, as does
+`adb logcat` under the Unity path; exclude those by PID after checking them, not by loosening the pattern.
