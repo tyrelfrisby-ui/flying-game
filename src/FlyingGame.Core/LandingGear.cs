@@ -412,9 +412,8 @@ public static class LandingGear
             if (cull && stage == 0)
             {
                 // Clearance to the ground (penetration's negative) and to the water (from the tyre's bottom, as below).
-                double tyreRc = g.TireRadiusM > 0 ? g.TireRadiusM : 0.22;
                 double clearGround = (groundZ - groundH) - wheelWorld.Z;
-                double clearWater = waterH.HasValue ? -wheelWorld.Z - tyreRc - waterH.Value : double.PositiveInfinity;
+                double clearWater = waterH.HasValue ? -wheelWorld.Z - waterH.Value : double.PositiveInfinity;
                 stageClear![2 * gi] = System.Math.Min(clearGround, clearWater);
                 stageClear[2 * gi + 1] = AirframeContact.StageCullMargin(s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody)).Length, dt);
             }
@@ -422,21 +421,38 @@ public static class LandingGear
             if (overWater)
             {
                 // A WHEEL on water: it planes while it is fast enough and ploughs when it is not. The force
-                // goes on at the contact point, so the nose-over when the speed decays is the moment arm's
-                // doing and not a special case. (WheelHydro has the physics and the references.)
-                double tyreR = g.TireRadiusM > 0 ? g.TireRadiusM : 0.22;
-                double wheelBottomUp = -wheelWorld.Z - tyreR;               // the bottom of the tyre, in height
-                double depth = waterH!.Value - wheelBottomUp;
+                // goes on at its centre of pressure on the tyre, so the nose-over when the speed decays is the
+                // moment arm's doing and not a special case. (WheelHydro has the physics and the references.)
+                // The gear point is the BOTTOM of the tyre, as it is on the ground below (penetration is measured
+                // from it): the water branch used to take it for the axle and put the tyre a radius lower.
+                double tyreR = TireRadiusOf(config, g);
+                double depth = waterH!.Value - (-wheelWorld.Z);
                 if (depth > 0)
                 {
                     Vec3 vWater = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
                     if (WorldDecks.All.Count > 0) vWater -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
-                    Vec3 hydro = WheelHydro.Force(config, g, depth, staticLoadN, vWater, out _, out _);
+                    // The water pushes on the TYRE, and the tyre is on the leg: the leg's spring is in series with
+                    // the water, as it is with the ground. The tyre sits as deep as the leg lets it — where the
+                    // water's push equals the spring's (quasi-static) — not at the gear point's geometric depth;
+                    // without it every touch went straight into the airframe as if the leg were solid.
+                    double tyreDepth = depth;
+                    if (g.SpringN > 0)
+                    {
+                        double lo = 0, hi = depth;
+                        for (int it = 0; it < 24; it++)
+                        {
+                            double mid = 0.5 * (lo + hi);
+                            double up = -WheelHydro.Force(config, g, mid, vWater, out _, out _, out _).Z;
+                            if (up > g.SpringN * (depth - mid)) hi = mid; else lo = mid;
+                        }
+                        tyreDepth = 0.5 * (lo + hi);
+                    }
+                    Vec3 hydro = WheelHydro.Force(config, g, tyreDepth, vWater, out _, out Vec3 cpOffset, out _);
                     totalForce += hydro;
-                    totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody), hydro);
+                    totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody) + cpOffset, hydro);
                     if (touching != null && gi < touching.Length) touching[gi] = true;
                 }
-                // Deep water: the wheel never reaches the bed, so there is no ground contact to add.
+                // Deep water: the tyre never reaches the bed, so there is no ground contact to add.
                 if (waterH.Value - groundH > tyreR * 2) continue;
             }
             double localGroundZ = groundZ - groundH;

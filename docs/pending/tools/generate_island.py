@@ -226,7 +226,8 @@ def height(x,y):
    r=dict(r,length_m=drake['exterior_strip_m'],centre=[r['centre'][0]+offset*u[0],r['centre'][1]+offset*u[1]])
   along,cross=local(p,r);l,b=dimensions(r);pad=r['pad'];da=max(0,abs(along)-l/2-pad.get('end_shoulder_m',60)/1000);db=max(0,abs(cross)-b/2-pad['shoulder_m']/1000);dd=math.hypot(da,db);blend=pad['blend_m']/1000
   if dd<blend:
-   z=r['elevation_ft']*FT+max(-l/2,min(l/2,along))*1000*r.get('slope_percent',0)/100-(W['height_field']['water_lane_bed_offset_m'] if r['surface']=='water' else 0)+strip_shape(r,along,cross)
+   ss=r['pad']['end_shoulder_m']/1000 if r['pad'].get('sloped_end_shoulders') else 0
+   z=r['elevation_ft']*FT+max(-l/2-ss,min(l/2+ss,along))*1000*r.get('slope_percent',0)/100-(W['height_field']['water_lane_bed_offset_m'] if r['surface']=='water' else 0)+strip_shape(r,along,cross)
    claims.append((dd,1-smooth(dd/blend),z,r['key']))
  if claims:
   dd,a,z,_=min(claims)
@@ -290,9 +291,15 @@ def finals():
   out.append(dict(airport=a['airport'],title=a['title'],threshold=th,outer=outer,course_true_deg=c,precision=('ILS' in a['title'] or 'LOC' in a['title'] or 'LDA' in a['title']),elevation_ft=field['elevation_ft'],circling=a.get('circling_only',False)))
  return out
 
+BACKCOUNTRY={a['id'] for a in W['backcountry_strips']}
 def runway_finals():
  out=[]
  for r in FIELDS:
+  # The Frank Church strips (2026-11-03, lane/claude-frank-church-valleys) have no Part 77 surface: they are
+  # canyon strips whose approaches FOLLOW the canyon, and a straight 1.5 km 20:1 fan off each end planed the
+  # ground round them into the flat tables Ty saw them standing on. Their approach corridor along the canyon
+  # floor is asserted directly instead (FrankChurchTests).
+  if r['key'] in BACKCOUNTRY:continue
   l,b=dimensions(r);u=vec(r['heading_true_deg'])
   for sign in [-1,1]:
    if r['field']=='DRAKE' and sign==1:continue  # Ty: single portal, no reverse final.

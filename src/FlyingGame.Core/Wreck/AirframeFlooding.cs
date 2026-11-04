@@ -207,6 +207,16 @@ public sealed class AirframeFlooding
         return best;
     }
 
+    /// <summary>Elements cut out of the airframe by something other than <see cref="Detach"/> (a wing panel outboard of
+    /// its structural station, whose share of the wing's mass Aircraft.ShedStrips carves out): kept for
+    /// <see cref="TakeDetached"/>, so the panel becomes a wreck piece of its own like any other part.</summary>
+    public void AddDetached(AirframeComponent comp, List<HydroElement> els)
+    {
+        if (els.Count == 0) return;
+        if (_detached.TryGetValue(comp, out List<HydroElement>? had)) had.AddRange(els);
+        else _detached[comp] = new List<HydroElement>(els);
+    }
+
     /// <summary>The elements a component took with it when it broke off (once), or null.</summary>
     public List<HydroElement>? TakeDetached(AirframeComponent comp)
     {

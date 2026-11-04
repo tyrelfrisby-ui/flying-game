@@ -2,7 +2,9 @@ using FlyingGame.Core.MathTypes;
 
 namespace FlyingGame.Core;
 
-/// <summary>Mass properties about the CG. Ixy = Iyz = 0 assumed (standard aircraft left/right symmetry); Ixz kept full.</summary>
+/// <summary>Mass properties about the CG. Ixz kept full; Ixy and Iyz are zero for a symmetric aeroplane and are carried
+/// only once it is not — an airframe that has lost a wing panel on one side (Aircraft.ShedMass), a broken-off piece. The
+/// tensor is [[Ixx, −Ixy, −Ixz], [−Ixy, Iyy, −Iyz], [−Ixz, −Iyz, Izz]] with Ixy = Σm·x·y etc.</summary>
 public readonly struct MassProperties
 {
     public readonly double MassKg;
@@ -10,14 +12,36 @@ public readonly struct MassProperties
     public readonly double Iyy;
     public readonly double Izz;
     public readonly double Ixz;
+    public readonly double Ixy;
+    public readonly double Iyz;
 
     public MassProperties(double massKg, double ixx, double iyy, double izz, double ixz)
+        : this(massKg, ixx, iyy, izz, ixz, 0.0, 0.0) { }
+
+    public MassProperties(double massKg, double ixx, double iyy, double izz, double ixz, double ixy, double iyz)
     {
         MassKg = massKg;
         Ixx = ixx;
         Iyy = iyy;
         Izz = izz;
         Ixz = ixz;
+        Ixy = ixy;
+        Iyz = iyz;
+    }
+
+    /// <summary>I·ω, body axes.</summary>
+    public Vec3 Times(Vec3 w) => new(
+        Ixx * w.X - Ixy * w.Y - Ixz * w.Z,
+        -Ixy * w.X + Iyy * w.Y - Iyz * w.Z,
+        -Ixz * w.X - Iyz * w.Y + Izz * w.Z);
+
+    /// <summary>I⁻¹·v, body axes (the full symmetric 3×3 inverse).</summary>
+    public Vec3 Solve(Vec3 v)
+    {
+        double a = Ixx, b = -Ixy, c = -Ixz, d = Iyy, e = -Iyz, f = Izz;
+        double A = d * f - e * e, B = c * e - b * f, C = b * e - c * d, D = a * f - c * c, E = b * c - a * e, F = a * d - b * b;
+        double det = a * A + b * B + c * C;
+        return new Vec3(A * v.X + B * v.Y + C * v.Z, B * v.X + D * v.Y + E * v.Z, C * v.X + E * v.Y + F * v.Z) / det;
     }
 }
 
@@ -83,6 +107,13 @@ public static class RigidBody6DOF
     public static RigidBodyDerivative ComputeDerivative(RigidBodyState s, Vec3 forceBody, Vec3 momentBody, MassProperties mp)
     {
         Vec3 velocityDot = forceBody / mp.MassKg - Vec3.Cross(s.Rates, s.Velocity);
+
+        if (mp.Ixy != 0.0 || mp.Iyz != 0.0)
+        {
+            // An asymmetric body: Euler's equations with the whole tensor, I·ω̇ = M − ω × I·ω.
+            Vec3 wd = mp.Solve(momentBody - Vec3.Cross(s.Rates, mp.Times(s.Rates)));
+            return new RigidBodyDerivative(s.Attitude.Rotate(s.Velocity), Quat.Derivative(s.Attitude, s.Rates), velocityDot, wd);
+        }
 
         double p = s.Rates.X, q = s.Rates.Y, r = s.Rates.Z;
         double l = momentBody.X, m = momentBody.Y, n = momentBody.Z;

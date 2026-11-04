@@ -156,7 +156,8 @@ public static partial class IslandTerrain
             var delta = p - c; double ad = delta.Dot(f.U), cr = delta.Dot(f.V);
             double da = Math.Max(0, Math.Abs(ad) - l / 2 - f.EndShoulder / 1000), db = Math.Max(0, Math.Abs(cr) - f.Width / 2000 - f.Shoulder / 1000), dd = Math.Sqrt(da * da + db * db);
             if (dd >= f.Blend / 1000) continue;
-            double a = 1 - Smooth(dd / (f.Blend / 1000)), zz = f.Elevation + Math.Clamp(ad, -l / 2, l / 2) * 1000 * f.Slope / 100 - (f.Surface == "water" ? H.N("water_lane_bed_offset_m") : 0) + IslandHeightIndex.StripShape(f, ad, cr);
+            if (Smooth(dd / (f.Blend / 1000)) >= 1) continue;   // a zero weight (see IslandHeightIndex)
+            double a = 1 - Smooth(dd / (f.Blend / 1000)), zz = f.Elevation + Math.Clamp(ad, -l / 2 - f.SlopeShoulder / 1000, l / 2 + f.SlopeShoulder / 1000) * 1000 * f.Slope / 100 - (f.Surface == "water" ? H.N("water_lane_bed_offset_m") : 0) + IslandHeightIndex.StripShape(f, ad, cr);
             if (dd < nearest || (dd == nearest && a < bestA)) { nearest = dd; bestA = a; bestZ = zz; }
             maxA = Math.Max(maxA, a); if (dd > 0) { double wt = a / (dd * dd); sumW += wt; sumZ += wt * zz; }
         }

@@ -5,37 +5,53 @@ namespace FlyingGame.Core;
 
 /// <summary>
 /// A WHEEL on water (owner 2026-10-16: "make sure hydroplaning is accurate so tires can skim on water before
-/// reaching land but getting too slow will flip the plane").
+/// reaching land but getting too slow will flip the plane"; Ty 2026-11-03: the J-3 on wheels flipped at once when
+/// skimming a pond, and a gentle touch in the Extra stopped it dead).
 ///
-/// THE PHYSICS, and why there is no fudge factor in it. A tyre is held off the water by the water's own
-/// dynamic pressure, ½ρV². When that pressure reaches the pressure INSIDE the tyre, the tyre can no longer
-/// squeeze the water out of the way and rides up on top of it: that balance is where the documented total
-/// hydroplaning speed comes from —
+/// THE PHYSICS. The tyre is a cylinder of radius r and width b moving at V over the water with its bottom h below the
+/// surface. The water meets the wetted FRONT arc of the tyre (the rear is ventilated — open to the air — at any speed
+/// worth the name), from the bottom (angle 0) up to the waterline at φ_w = acos(1 − h/r). The pressure on that arc is
+/// the planing pressure ½ρV²·C. Integrating it over the arc, normal to the surface:
 ///
-///     V_p (knots) = 9 · √(tyre pressure in psi)        [NASA TN D-2056; ESDU 71026; FAA AC 91-6A]
+///     lift  L = ½ρV² C b r sin φ_w = ½ρV² C b l_f      l_f = wetted length ahead of the bottom (the planform)
+///     drag  D = ½ρV² C b r (1 − cos φ_w) = ½ρV² C b h   the frontal height in the water
 ///
-/// — and the pressure balance alone gives 7.2√p, the same form, which is a decent check that the empirical
-/// 9 is doing nothing but tidying up the dynamics. So:
+/// so D/L = h/l_f = tan(φ_w/2): in planing (h small) the drag is the planing surface's L·tan τ, and as the tyre
+/// sinks to its axle and beyond the same integral becomes the ploughing drag of a ventilated bluff body.
 ///
-///  - the water supports the wheel in proportion to (V/V_p)², reaching the whole wheel load at V_p;
-///  - below that it cannot support the wheel, which PLOUGHS: the frontal area of the immersed tyre drags
-///    through water at ρ/ρ_air ≈ 800 times the force the same area would feel in air.
+/// C IS NOT CHOSEN. Horne's total hydroplaning speed, V_p (kt) = 9 √p (NASA TN D-2056, 1963; ESDU 71026; FAA
+/// AC 91-6A), is the speed at which the water's pressure on the tyre reaches the tyre's inflation pressure:
+/// ½ρV_p²·C = p. Solving with Horne's 9 gives C = 2·6894.76/(1000·(9·0.514444)²) = 0.643, independent of p — which
+/// is why the law has that form. (A ventilated circular cylinder in free-streamline theory has C_D ≈ 0.5–0.9;
+/// 0.643 sits inside that.) Below V_p the water's pressure is below the inflation pressure and the tyre keeps its
+/// shape, so the rigid cylinder is the right body; above V_p the water flattens the tyre, which only adds planform
+/// (lift), so the rigid tyre is conservative there.
 ///
-/// The flip is not scripted. The ploughing drag is applied AT THE CONTACT POINT, which on a taildragger is
-/// ahead of and below the centre of gravity, so the moment that pitches the aeroplane onto its nose comes out
-/// of the same cross product as everything else. Skim fast and it holds; let the speed decay and it goes over,
-/// for the same reason a real one does.
+/// WHAT FOLLOWS FROM IT, with no other number: the wheel rides where L carries its share of the weight, so its ride
+/// height rises with speed (at V_p the wetted planform is exactly the dry footprint, W/p); the most a wheel can lift
+/// is at its axle (l_f = r), so below V_dig = √(2W/(ρ C b r)) it cannot hold itself up, sinks to 2r and ploughs —
+/// that is the dig-in, and its drag, applied at the bottom of the tyre well below the centre of gravity, is the
+/// nose-over moment, in proportion to the load. Nothing is a step: every term grows from zero with the immersion.
+///
+/// Also: buoyancy of the immersed segment (Archimedes; small — a wheel cannot float an aeroplane), ITTC-1957 friction
+/// on the wetted arc (<see cref="FloatHydro.FrictionCoefficient"/>), and heave damping — the sink rate w changes the
+/// incidence of the wetted surface by w/V (planing lift ∝ incidence, Savitsky), plus the cross-flow of a flat plate
+/// (C_D 1.2, Hoerner, the same as <see cref="FloatHydro"/>). The spray sheet's momentum IS the pressure drag D (Green
+/// 1936: the jet carries a planing plate's ideal drag), so it is not added again.
+///
+/// Not modelled (stated): the wheel's spin-up (its friction torque is a few newtons), and the gear leg in the water
+/// once the tyre is under (a leg has a few square centimetres of frontal area against the tyre's hundreds).
 /// </summary>
 public static class WheelHydro
 {
     public const double WaterDensityKgM3 = 1000.0;
-    /// <summary>Drag coefficient of a ploughing tyre's immersed frontal area — a blunt body in water.</summary>
-    public const double PloughCd = 0.90;
-    /// <summary>What is left of that once the tyre is up on top and only throwing spray.</summary>
-    public const double PlaningCd = 0.10;
     /// <summary>Tyre width as a fraction of its diameter. A 31×13 bushwheel is 0.42; a 6.00-6 on a light
-    /// single is about 0.34. One number for both, and the pressure matters far more than this does.</summary>
+    /// single is about 0.34; an 8.00-6 is 0.36. One number for all.</summary>
     public const double WidthPerDiameter = 0.38;
+    /// <summary>The planing pressure coefficient behind Horne's law: ½ρV_p²·C = p with V_p = 9√p kt (see the class).</summary>
+    public static readonly double PressureCoefficient = 2.0 * 6894.76 / (WaterDensityKgM3 * System.Math.Pow(9.0 * 0.514444, 2));
+    /// <summary>Cross-flow drag coefficient of the tyre's wetted planform moving up or down through the surface.</summary>
+    public const double HeaveDragCd = 1.2;
 
     /// <summary>
     /// Tyre pressure, in psi. Taken from the type when it is known, and otherwise estimated from the tyre's
@@ -51,13 +67,6 @@ public static class WheelHydro
         if (g.TirePressurePsi > 0) return g.TirePressurePsi;
         double r = LandingGear.TireRadiusOf(c, g);
         double mass = c.Mass != null ? c.Mass.MassKg : 800;
-        // Load over the contact patch. The patch grows with the tyre, so a big soft tyre at the same weight
-        // runs a far lower pressure — which is the whole point of a bushwheel.
-        //
-        // The patch length is 0.55 r. Checked against three real aeroplanes rather than chosen: it gives a
-        // Cub on 8.00-6 about 13 psi (POH 18), a 172 on 6.00-6 about 36 (POH 38) and a 737 main about 250
-        // (real 205). Close enough for an estimate; a type that cares states TirePressurePsi and gets the
-        // book figure instead.
         double width = 2 * r * WidthPerDiameter;
         double patchM2 = width * (0.55 * r);
         double perWheelN = mass * 9.81 / 2.2;                  // the mains carry most of it
@@ -68,52 +77,76 @@ public static class WheelHydro
     /// <summary>The speed at which a tyre at this pressure rides up on top of the water.</summary>
     public static double HydroplaneSpeedMs(double pressurePsi) => 9.0 * System.Math.Sqrt(pressurePsi) * 0.514444;
 
-    /// <summary>How much of the wheel's load the water is carrying: (V/V_p)², all of it at V_p.</summary>
-    public static double PlaningFraction(double speedMs, double hydroplaneMs)
+    /// <summary>Below this speed a tyre cannot hold up <paramref name="loadN"/> however deep it sinks (its planing lift
+    /// is greatest at the axle, l_f = r, where the half-immersed tyre also displaces ρ g b π r²/2):
+    /// √(2(W − ρ g b π r²/2)/(ρ C b r)).</summary>
+    public static double DigInSpeedMs(AircraftConfig c, GearConfig g, double loadN)
     {
-        if (hydroplaneMs <= 1e-6) return 1;
-        double u = speedMs / hydroplaneMs;
-        return System.Math.Clamp(u * u, 0, 1);
+        double r = LandingGear.TireRadiusOf(c, g), b = 2 * r * WidthPerDiameter;
+        double net = System.Math.Max(0.0, loadN - WaterDensityKgM3 * 9.81 * b * System.Math.PI * r * r / 2);
+        return System.Math.Sqrt(2 * net / (WaterDensityKgM3 * PressureCoefficient * b * r));
+    }
+
+    /// <summary>The parts of the force, for tests and the HUD.</summary>
+    public readonly struct Parts
+    {
+        public readonly double LiftN, BuoyancyN, HeaveN, PressureDragN, FrictionN, ImmersionM, WettedLengthM;
+        public Parts(double lift, double buoy, double heave, double dp, double df, double h, double lf)
+        { LiftN = lift; BuoyancyN = buoy; HeaveN = heave; PressureDragN = dp; FrictionN = df; ImmersionM = h; WettedLengthM = lf; }
     }
 
     /// <summary>
-    /// The force on one wheel immersed in water, in WORLD axes (NED). <paramref name="depthM"/> is how far
-    /// the water surface is above the bottom of the tyre; <paramref name="loadN"/> is the share of the
-    /// aeroplane's weight this wheel would be carrying on firm ground.
-    ///
-    /// <paramref name="planing"/> comes back true while the water is carrying the wheel — which is the thing
-    /// a pilot skimming a bar needs to know, and what the HUD can say.
+    /// The force on one tyre in water, WORLD axes (NED), and where it acts, as a world offset from the bottom of the
+    /// tyre (the centre of pressure on the wetted arc). <paramref name="depthM"/> is how far the water surface is
+    /// above the bottom of the tyre; <paramref name="contactVelWorld"/> the tyre's velocity relative to the water.
+    /// <paramref name="planing"/> comes back true while the water's dynamic pressure is what is holding it up.
     /// </summary>
-    public static Vec3 Force(AircraftConfig c, GearConfig g, double depthM, double loadN,
-                             Vec3 contactVelWorld, out bool planing, out double planingFraction)
+    public static Vec3 Force(AircraftConfig c, GearConfig g, double depthM, Vec3 contactVelWorld,
+                             out bool planing, out Vec3 centreOffsetWorld, out Parts parts)
     {
         planing = false;
-        planingFraction = 0;
+        centreOffsetWorld = Vec3.Zero;
+        parts = default;
         if (depthM <= 0) return Vec3.Zero;
 
         double r = LandingGear.TireRadiusOf(c, g);
-        double d = System.Math.Min(depthM, 2 * r);                       // no deeper than the tyre is tall
-        double width = 2 * r * WidthPerDiameter;
+        double b = 2 * r * WidthPerDiameter;
+        double h = System.Math.Min(depthM, 2 * r);
+        double cosPhi = System.Math.Clamp(1 - h / r, -1, 1);
+        double phi = System.Math.Acos(cosPhi), sinPhi = System.Math.Sin(phi);
+        double lf = r * sinPhi;                                      // wetted planform ahead of the bottom
 
-        // Horizontal speed through the water, and the direction it opposes.
         var horiz = new Vec3(contactVelWorld.X, contactVelWorld.Y, 0);
         double v = horiz.Length;
-        double psi = TirePressurePsi(c, g);
-        double vp = HydroplaneSpeedMs(psi);
-        double phi = PlaningFraction(v, vp);
-        planingFraction = phi;
-        planing = phi >= 0.999;
+        double w = contactVelWorld.Z;                                // + = sinking into the water
+        const double rho = WaterDensityKgM3;
+        double cp = PressureCoefficient;
+        double q = 0.5 * rho * v * v;
 
-        // ---- support: the water carries the wheel in proportion to (V/V_p)².
-        double supportN = loadN * phi;
+        // Planing lift on the wetted arc, and its change with the sink rate: the incidence of the wetted surface (its
+        // mean slope, φ_w/2) grows by w/V, and planing lift goes with the incidence.
+        double lift = q * cp * b * lf;
+        double tauE = System.Math.Max(phi / 2, 0.05);
+        double heave = v > 0.5 ? lift / (v * tauE) * w : 0;
+        heave += 0.5 * rho * HeaveDragCd * b * (2 * lf) * w * System.Math.Abs(w);
+        double buoy = rho * 9.81 * b * r * r * (phi - sinPhi * cosPhi);
+        double up = System.Math.Max(0.0, lift + heave) + buoy;       // water pushes, never pulls
 
-        // ---- drag: the immersed frontal area, blunt when ploughing and spray-only when up on top.
-        double frontalM2 = width * d;
-        double cd = PlaningCd + (PloughCd - PlaningCd) * (1 - phi);
-        double dragN = 0.5 * WaterDensityKgM3 * v * v * frontalM2 * cd;
+        double dp = q * cp * b * h;
+        double arc = r * phi;
+        double df = arc > 1e-6 && v > 1e-3 ? q * b * arc * FloatHydro.FrictionCoefficient(v * arc / FloatHydro.WaterKinematicViscosity) : 0;
 
-        Vec3 force = new(0, 0, -supportN);                               // NED: up is −z
-        if (v > 1e-6) force -= horiz * (dragN / v);
+        planing = lift > buoy && h < r;
+        parts = new Parts(lift, buoy, heave, dp, df, h, lf);
+
+        Vec3 force = new(0, 0, -up);                                 // NED: up is −z
+        if (v > 1e-6)
+        {
+            Vec3 dir = horiz / v;
+            force -= dir * (dp + df);
+            centreOffsetWorld = dir * (0.5 * lf) + new Vec3(0, 0, -0.5 * h);
+        }
+        else centreOffsetWorld = new Vec3(0, 0, -0.5 * h);
         return force;
     }
 }

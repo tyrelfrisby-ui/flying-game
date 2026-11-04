@@ -425,3 +425,22 @@ Gradle project (`launcher/build.gradle`) and in Bee's own copies (`Library/Bee/a
 through the environment, delete all of `Library/Bee` after a release build, and grep the tree for the password (file
 names only) rather than trusting a list of places (`deploy-quest.sh --release`). Also: assigning `""` to
 `PlayerSettings.Android.keystoreName` serialises as `'{inproject}: '`, so restore signing fields only when you set them.
+
+### Check a force's parity with the mirror state before blaming a sign
+"Opposite aileron lowers the nose inverted" looked like a sign error at negative α. There was none. The aileron's
+separated-flow load was a DRAG along the wind, EVEN in δ, where a plate's load is normal to the plate and the
+deflection's share is ODD in δ. An even term cannot mirror, and it slowed the spin with either stick. What found it was
+the mirror test (`SpinBalanceProbe` part `mirror`): flip a developed spin 180° about x, hold both states, and compare
+part by part. Symmetric physics maps (L, M, N) → (L, −M, −N); whatever doesn't is either geometry or a wrong-parity term.
+Two traps on the way: a probe that rebuilds an `Aircraft` resets the per-strip separation memory, which is hysteretic
+(11–16°), and read the TR-379 slip roll ~40 % low until the flown aircraft's memory was copied across. And a failure blamed
+on the last lane to touch the code (StallAuthority on run #3) came from two runs earlier. Bisect before attributing.
+
+### A weighted average with a zero weight is a NaN waiting for its geometry
+The island pad blend skipped pads with `dd >= blend` but averaged the rest with weight `1 − Smooth(dd/blend)`, which
+rounds to exactly 0 just inside the edge. With one such pad in range `sumZ/sumW` was 0/0, and `Mix(h, NaN, 0)` is
+NaN, not h. It sat unnoticed until the Frank Church valleys put strip approaches across those edges. The moraine pass
+had the same shape (`melt / u` with u = 0), and its box blur spread the NaN over whole rows of the island. Guard the
+weight, not the result. When a terrain change makes far-off ground go strange, scan for NaN before suspecting the
+change. And expect a regenerated relief to re-pick every generator-chosen site (snow patches, ledges, boulders): that
+search is a global ranking, so its literal tests must be re-copied from the new report, not "fixed".

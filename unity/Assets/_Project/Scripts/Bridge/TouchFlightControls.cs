@@ -112,10 +112,11 @@ namespace FlyingGame.Bridge
         public float TrimAileron => _aileronTrim * TrimAuthority;
         public float TrimRudder => _rudderTrim * TrimAuthority;
         // Buttons fire on the finger that touches them (not IMGUI), so they work while the pads are held (owner).
-        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail, Smoke, LookCentre }
+        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail, Smoke, LookCentre, CamRef }
         private readonly HashSet<Btn> _tapped = new();
         private Rect _gearRect;                             // GEAR UP / DOWN (retractable types)
         private Rect _smokeRect;                            // SMOKE ON / OFF (owner 2026-10-31: a full-time button, not a menu)
+        private Rect _camRefRect;                           // CAM: FLT PATH / TRACK (Ty 2026-11-03: full-time, beside SMOKE)
         private CockpitView _cockpitCache;
         private CockpitView _cockpit => _cockpitCache ??= GetComponent<CockpitView>();
         /// <summary>Looking around is only a thing when you are sitting in the aeroplane.</summary>
@@ -267,7 +268,8 @@ namespace FlyingGame.Bridge
             // Four rows now, not three: SMOKE is a full-time button of its own (owner 2026-10-31) rather than a
             // control squeezed in beside BAIL. The keep-out shrink has to divide by four or the top row climbs onto
             // the aeroplane, which the rule below forbids.
-            int rows = SmokeAvailable ? 4 : 3;
+            // The CAM button (Flight Path / Track, Ty 2026-11-03) is full-time, so the fourth row always exists.
+            int rows = 4;
             if (ScreenLayout.HasAircraftKeepOut)
             {
                 float maxTop = ScreenLayout.AircraftKeepOut.yMin - gap;
@@ -293,7 +295,8 @@ namespace FlyingGame.Bridge
                 _bailRect = towSlot ? new Rect(x0 + bw + gap, r2, bw, bh) : new Rect(x0, r2, 2f * bw + gap, bh);
                 _ejectRect = new Rect(x0 + bw + gap, r2, bw, bh);
             }
-            _smokeRect = SmokeAvailable ? new Rect(x0, r3, 2f * bw + gap, bh) : new Rect(0, 0, 0, 0);
+            _smokeRect = SmokeAvailable ? new Rect(x0, r3, bw, bh) : new Rect(0, 0, 0, 0);
+            _camRefRect = SmokeAvailable ? new Rect(x0 + bw + gap, r3, bw, bh) : new Rect(x0, r3, 2f * bw + gap, bh);
             _engineRowRect = Rect.zero;
             if (EngineBelowWanted && !TouchSticksHidden) LayOutEngineBelowCluster(s, h, margin, gap, rowGap, clusterLeft, clusterRight);
             // Trim bars: rudder under the left pad, aileron under the right pad (RC transmitter style).
@@ -354,8 +357,8 @@ namespace FlyingGame.Bridge
                     if (fit < wideH) wideH = Mathf.Max(_half * 0.16f, fit);
                 }
                 // Units: Reset 1, Aircraft 1.5, Flaps 1.5 (three segments), the switches 1.2 each.
-                float units = 1f + 1.5f + (flaps ? 1.5f : 0f) + (SmokeAvailable ? 1.2f : 0f) + 1.2f + (HasEjectionSeat ? 1.2f : 0f) + (gear ? 1.2f : 0f);
-                int n = 3 + (flaps ? 1 : 0) + (SmokeAvailable ? 1 : 0) + (HasEjectionSeat ? 1 : 0) + (gear ? 1 : 0);   // Reset, Aircraft, Bail + options
+                float units = 1f + 1.5f + (flaps ? 1.5f : 0f) + (SmokeAvailable ? 1.2f : 0f) + 1.2f + 1.2f + (HasEjectionSeat ? 1.2f : 0f) + (gear ? 1.2f : 0f);
+                int n = 4 + (flaps ? 1 : 0) + (SmokeAvailable ? 1 : 0) + (HasEjectionSeat ? 1 : 0) + (gear ? 1 : 0);   // Reset, Aircraft, CAM, Bail + options
                 float span = w - UiLayout.SafeLeft - UiLayout.SafeRight - 2f * margin;
                 float u = Mathf.Min(s * 0.16f, (span - (n - 1) * gap) / units);
                 float x = w * 0.5f - (u * units + (n - 1) * gap) * 0.5f;
@@ -364,6 +367,7 @@ namespace FlyingGame.Bridge
                 _acftRect = Take(1.5f);
                 _brakeRect = flaps ? Take(1.5f) : Rect.zero;
                 _smokeRect = SmokeAvailable ? Take(1.2f) : Rect.zero;
+                _camRefRect = Take(1.2f);
                 _bailRect = Take(1.2f);
                 _ejectRect = HasEjectionSeat ? Take(1.2f) : Rect.zero;
                 _gearRect = gear ? Take(1.2f) : Rect.zero;
@@ -385,12 +389,13 @@ namespace FlyingGame.Bridge
                 _resetRect = new Rect(lx, rowLow, unit, hLow);
                 _acftRect = new Rect(lx + unit + gap, rowLow, 1.5f * unit, hLow);
                 _brakeRect = flaps ? new Rect(lx + 2.5f * unit + 2f * gap, rowLow, 1.5f * unit, hLow) : Rect.zero;
-                int n = (SmokeAvailable ? 1 : 0) + 1 + (HasEjectionSeat ? 1 : 0) + (gear ? 1 : 0);
+                int n = (SmokeAvailable ? 1 : 0) + 2 + (HasEjectionSeat ? 1 : 0) + (gear ? 1 : 0);
                 float tw = Mathf.Min(1.5f * unit, (avail - (n - 1) * gap) / n);
                 float tx = (clusterLeft + clusterRight - (n * tw + (n - 1) * gap)) * 0.5f;
                 int k = 0;
                 Rect Next() => new Rect(tx + k++ * (tw + gap), rowHigh, tw, bh);
                 _smokeRect = SmokeAvailable ? Next() : Rect.zero;
+                _camRefRect = Next();
                 _bailRect = Next();
                 _ejectRect = HasEjectionSeat ? Next() : Rect.zero;
                 _gearRect = gear ? Next() : Rect.zero;
@@ -430,7 +435,7 @@ namespace FlyingGame.Bridge
             var tow = GetComponent<TowController>();
             _towRect = Slot(tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null &&
                 (tow.Towing || (_driver.GroundStart && tow.Tow == null)));
-            _bailRect = Slot(BailAvailable); _ejectRect = Slot(EjectAvailable); _smokeRect = Slot(SmokeAvailable);
+            _bailRect = Slot(BailAvailable); _ejectRect = Slot(EjectAvailable); _smokeRect = Slot(SmokeAvailable); _camRefRect = Slot();
         }
 
         /// <summary>Tell the shared layout (UiLayout) where the controls are, so text and dials keep clear of them.</summary>
@@ -512,12 +517,12 @@ namespace FlyingGame.Bridge
             var tow = GetComponent<TowController>();
             bool towing = tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null &&
                 (tow.Towing || (_driver.GroundStart && tow.Tow == null));
-            int count = 2 + (SmokeAvailable ? 1 : 0) + (BailAvailable ? 1 : 0) +
+            int count = 3 + (SmokeAvailable ? 1 : 0) + (BailAvailable ? 1 : 0) +
                 (EjectAvailable ? 1 : 0) + (flaps ? 1 : 0) + (gear ? 1 : 0) + (towing ? 1 : 0);
             float left = UiLayout.SafeLeft + UiLayout.Margin;
             float span = Screen.width - UiLayout.SafeRight - UiLayout.Margin - left;
             // Aircraft and segmented flaps get extra width; every button shares the same height.
-            float units = count - .2f + .9f + (SmokeAvailable ? .1f : 0f) + (BailAvailable ? .1f : 0f) + (flaps ? 1.1f : 0f);
+            float units = count - .2f + .9f + (SmokeAvailable ? .1f : 0f) + .1f + (BailAvailable ? .1f : 0f) + (flaps ? 1.1f : 0f);
             float unit = (span - (count - 1) * gap) / units;
             float height = s * ScreenLayout.ButtonHeight;
             Rect Take(bool shown, float weight = 1f)
@@ -527,7 +532,7 @@ namespace FlyingGame.Bridge
                 left = r.xMax + gap;
                 return r;
             }
-            _smokeRect = Take(SmokeAvailable, 1.1f); _bailRect = Take(BailAvailable, 1.1f);
+            _smokeRect = Take(SmokeAvailable, 1.1f); _camRefRect = Take(true, 1.1f); _bailRect = Take(BailAvailable, 1.1f);
             _ejectRect = Take(EjectAvailable); _resetRect = Take(true, .8f);
             _acftRect = Take(true, 1.9f); _brakeRect = Take(flaps, 2.1f);
             _gearRect = Take(gear); _towRect = Take(towing);
@@ -657,6 +662,7 @@ namespace FlyingGame.Bridge
                     if (_brakeRect.Contains(p.pos)) { _flapTapThird = Mathf.Clamp((p.pos.x < _brakeRect.x + _brakeRect.width * .5f ? 0 : p.pos.x < _brakeRect.x + _brakeRect.width * .75f ? 1 : 2), 0, 2); _tapped.Add(Btn.Flaps); continue; }
                     if (_gearRect.Contains(p.pos)) { _tapped.Add(Btn.Gear); continue; }
                     if (SmokeAvailable && _smokeRect.Contains(p.pos)) { _tapped.Add(Btn.Smoke); continue; }
+                    if (_camRefRect.Contains(p.pos)) { _tapped.Add(Btn.CamRef); continue; }
                     if (LookAvailable && _lookCentreRect.Contains(p.pos)) { _tapped.Add(Btn.LookCentre); continue; }
                     if (LookAvailable && _lookLeftRect.Contains(p.pos) && _lookFinger == int.MinValue)
                     { _lookFinger = p.id; _lookDir = -1; continue; }
@@ -746,6 +752,10 @@ namespace FlyingGame.Bridge
                         break;
                     case Btn.Smoke:
                         if (SmokeAvailable) _smoke.Toggle();
+                        break;
+                    case Btn.CamRef:
+                        // A lesson that forces Track still shows it; the tap sets the choice it goes back to afterwards.
+                        SessionSettings.CameraReferenceMode = FlyingGame.Core.CameraReference.Toggle(SessionSettings.CameraReferenceMode);
                         break;
                     case Btn.LookCentre:
                         if (LookAvailable) _cockpit.Centre();
@@ -1250,6 +1260,13 @@ namespace FlyingGame.Bridge
                 GUI.color = on ? new Color(1f, 0.85f, 0.3f, 1f) : Color.white;
                 Button(_smokeRect, on ? "SMOKE ON" : "SMOKE");
                 GUI.color = Color.white;
+            }
+            // CAM (Ty 2026-11-03): what the chase camera looks along — the flight path (relative wind) or the ground
+            // track. Full-time, like SMOKE; a runway lesson that forces Track says so on the button.
+            {
+                bool forced = _driver.GroundReferenceForced;
+                var mode = FlyingGame.Core.CameraReference.Effective(SessionSettings.CameraReferenceMode, forced);
+                Button(_camRefRect, FlyingGame.Core.CameraReference.Label(mode, forced));
             }
             // LOOK ◀ / centre / ▶ (owner 2026-10-31): the aerobatic sights sit on the eye's own lateral line, about
             // 90 degrees off the nose, so without a way to turn your head they can never be seen. Shown only in the

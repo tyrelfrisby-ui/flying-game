@@ -98,6 +98,29 @@ public sealed class AircraftConfig
     /// null on everything with a stick connected to something.</summary>
     public WeightShiftConfig? WeightShift { get; set; }
 
+    /// <summary>Where each wing's outboard panel joins the structure that holds it (<see cref="FlyingGame.Core.WingStructure"/>):
+    /// |y| in metres, keyed by surface id ("wing", "wing-upper", "wing-lower"). A biplane's is the interplane strut, a
+    /// strut-braced wing's the lift-strut attach, measured from the type's own model. Absent = the aileron's inboard end
+    /// (the cantilever rule).</summary>
+    public Dictionary<string, double>? WingBreakStationY { get; set; }
+
+    /// <summary>Where <see cref="WingBreakStationY"/> comes from: the document, figure and inch figure (JSON has no comments).</summary>
+    public string WingBreakStationSource { get; set; } = "";
+
+    /// <summary>A strut-braced wing's lift-strut FUSELAGE fitting, body frame [x, y, z] m (+x forward, +y right, +z down;
+    /// the right-hand fitting — the left is its mirror), converted from the type's station / butt line / height datum
+    /// as described in <see cref="LiftStrutFuselageAttachSource"/>. Reference geometry: nothing in the flight model reads it.</summary>
+    public double[]? LiftStrutFuselageAttach { get; set; }
+    public string LiftStrutFuselageAttachSource { get; set; } = "";
+
+    /// <summary>How the wing is held up outboard of the cabin: "strut" (lift struts) or "" (a cantilever, or a biplane,
+    /// which is braced by its cellule anyway). A braced spar runs on through its station at the section its inboard bay
+    /// needs (<see cref="FlyingGame.Core.WingStructure.EnsureStrength"/>).</summary>
+    public string WingBracing { get; set; } = "";
+
+    /// <summary>The rigid slave strut joining a biplane's upper and lower ailerons on each side (null = none).</summary>
+    public SlaveStrutConfig? SlaveStrut { get; set; }
+
     // (The 2026-10-30 `LoadingConfig? Loading` stood here, from the load-sheet implementation that collided with
     // this one. Only one may own AircraftConfig.Loading. See the note in StartMenu.cs and e4755c9.)
 }
@@ -455,6 +478,35 @@ public sealed class CockpitOpeningConfig
     /// <summary>"open" (nothing over it: always an opening) or "canopy" (acrylic over it: an opening once it breaks).</summary>
     public string Enclosure { get; set; } = "open";
     public bool IsOpen => string.Equals(Enclosure, "open", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// An aileron interconnect: a rigid strut, one each side, pinned to a horn on each aileron. The stick drives the
+/// <see cref="DrivenSurface"/> rows; the <see cref="SlavedSurface"/> rows go wherever the strut puts them. The strut runs
+/// between the two hinge lines at span |y| <see cref="DrivenY"/> / <see cref="SlavedY"/>. Each horn points from its hinge
+/// line to its pin at <see cref="DrivenHornDownDeg"/> / <see cref="SlavedHornDownDeg"/> below body +x (forward) in the
+/// x–z plane, <see cref="HornArmM"/> long (or its own <see cref="DrivenHornArmM"/> / <see cref="SlavedHornArmM"/>).
+/// The slaved aileron turns with the driven one in the ratio of the two horns' arms measured across the strut, so two
+/// parallel equal horns (a parallelogram) move the ailerons 1:1. Without a horn angle both horns stand PERPENDICULAR to
+/// the strut, pointing forward (the pre-2026-11-03 stand-in, which also gives 1:1).
+/// </summary>
+public sealed class SlaveStrutConfig
+{
+    public string DrivenSurface { get; set; } = "";
+    public string SlavedSurface { get; set; } = "";
+    public double DrivenY { get; set; }
+    public double SlavedY { get; set; }
+    public double HornArmM { get; set; } = 0.07;
+    /// <summary>Driven (stick) aileron's horn: hinge → pin direction, degrees below body +x (+ = pin below the hinge line).
+    /// Null = the perpendicular-to-the-strut stand-in.</summary>
+    public double? DrivenHornDownDeg { get; set; }
+    /// <summary>Slaved aileron's horn direction, as <see cref="DrivenHornDownDeg"/>.</summary>
+    public double? SlavedHornDownDeg { get; set; }
+    /// <summary>Each horn's own hinge-to-pin length, m (0 = <see cref="HornArmM"/>).</summary>
+    public double DrivenHornArmM { get; set; }
+    public double SlavedHornArmM { get; set; }
+    /// <summary>Where the horn geometry comes from (JSON has no comments).</summary>
+    public string Source { get; set; } = "";
 }
 
 /// <summary>Per-type switches for the wing cellule of a multi-wing aeroplane.</summary>

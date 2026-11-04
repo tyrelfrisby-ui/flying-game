@@ -76,14 +76,16 @@ namespace FlyingGame.Bridge
         {
             WingsGone = false;
             Severity = 0f;
-            if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; _watched.Damage.Changed -= OnDamage; }
+            if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; _watched.Damage.Changed -= OnDamage; _watched.Contact -= OnContact; }
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
-            if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; _watched.Damage.Changed += OnDamage; }
-            // The old wreck goes with the old aeroplane.
+            if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; _watched.Damage.Changed += OnDamage; _watched.Contact += OnContact; }
+            // The old wreck goes with the old aeroplane, and the trees it snapped stand again (FlyingGame.Core.TreeStructure).
+            FlyingGame.Core.Forest.ClearBroken();
             foreach (GameObject g in _wreckVisuals) if (g != null) Destroy(g);
             _wreckVisuals.Clear();
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;
             if (GetComponent<FuelSlickVisual>() == null) gameObject.AddComponent<FuelSlickVisual>();
+            if (GetComponent<ContactEffects>() == null) gameObject.AddComponent<ContactEffects>();   // placeholder scrape sound + dust
             LostLine = null;
             ReadLimits();
         }
@@ -117,6 +119,26 @@ namespace FlyingGame.Bridge
             d.Piece = piece;
             d.PieceOffsetBody = piece.CgBody - _watched.Config.Mass.CgVec();
         }
+
+        /// <summary>Contact damage (Ty 2026-11-03): a medium wingtip strike bends the panel — the crunch, raised as a land
+        /// impact so FlightAudio plays it, and the panel turned up on the model. Breaks arrive as ComponentLost.</summary>
+        private void OnContact(FlyingGame.Core.ContactEvent e)
+        {
+            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent || _watched == null) return;
+            FlyingGame.Core.CrashEvents.RaiseImpact(new FlyingGame.Core.CrashImpact(FlyingGame.Core.ImpactSurface.Land, e.PositionWorld, e.VelocityWorld,
+                e.VelocityWorld.Length, _watched.MassProperties.MassKg, System.Math.Clamp(e.Intensity, 0.2, 1.0), -1));
+            string name = PanelName(e.Component);
+            LostLine = LostLine == null ? "BENT: " + name : LostLine + ", BENT " + name;
+        }
+
+        private static string PanelName(FlyingGame.Core.AirframeComponent c) => c switch
+        {
+            FlyingGame.Core.AirframeComponent.WingTipLeft => "LEFT WINGTIP PANEL",
+            FlyingGame.Core.AirframeComponent.WingTipRight => "RIGHT WINGTIP PANEL",
+            FlyingGame.Core.AirframeComponent.WingTipLowerLeft => "LEFT LOWER WINGTIP PANEL",
+            FlyingGame.Core.AirframeComponent.WingTipLowerRight => "RIGHT LOWER WINGTIP PANEL",
+            _ => c.ToString().ToUpperInvariant(),
+        };
 
         /// <summary>Bullet damage that is not a part loss: fuel streaming, fire.</summary>
         private void OnDamage(FlyingGame.Core.AirframeComponent c, FlyingGame.Core.Combat.DamageEvent e)
@@ -160,6 +182,8 @@ namespace FlyingGame.Bridge
                 FlyingGame.Core.AirframeComponent.GearNose => "NOSE GEAR",
                 FlyingGame.Core.AirframeComponent.GearTail => "TAILWHEEL",
                 FlyingGame.Core.AirframeComponent.Propeller => "PROP STRIKE — engine stopped",
+                FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipRight
+                    or FlyingGame.Core.AirframeComponent.WingTipLowerLeft or FlyingGame.Core.AirframeComponent.WingTipLowerRight => PanelName(c),
                 _ => c.ToString().ToUpperInvariant(),
             };
             LostLine = c == FlyingGame.Core.AirframeComponent.Propeller ? (LostLine == null ? name : LostLine + ", " + name)
@@ -187,6 +211,11 @@ namespace FlyingGame.Bridge
 
             // The wreck and the airframe's flooding, in step with the game clock.
             _relay?.Step(Time.deltaTime);
+            // Bent wing panels follow their deflection (it grows with the load factor until they snap).
+            if (_visual == null) _visual = GetComponent<AirframeVisual>();
+            if (_visual != null)
+                foreach (FlyingGame.Core.WingPanel p in ac.Panels)
+                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003) _visual.ShowPanelBend(p, ac.Config);
 
             StructuralState st = ac.Structure;
             LoadFactorG = (float)ac.LoadFactorZ;

@@ -132,6 +132,8 @@ public static class FloatHydro
         public Vec3 StepWorld, BowWorld, SternWorld;        // NED world positions of the keel points
         public double LateralForceN;     // side force (slender-body lift + crossflow)
         public double TrimDeg, Lambda, VentilatedFraction, WaterRudderN;
+        /// <summary>The water's whole push on this float, upward (world), N: what its struts and bottom carry.</summary>
+        public double WaterUpN;
         // Drag breakdown (N): friction, planing pressure (dynamic L tan τ), hydrostatic step-face, wave (Michell), spray
         public double FrictionN, PlaningPressureN, StepFaceN, WaveN, SprayN;
     }
@@ -301,6 +303,7 @@ public static class FloatHydro
         RigidBodyState s, double rudderCmd, double waterRudderUp01, ref Vec3 sumF, ref Vec3 sumM)
     {
         (FloatState fs, Vec3 force, Vec3 moment) = OneFloatImpl(config, f, yF, hasRudder, stx, s, rudderCmd, waterRudderUp01);
+        fs.WaterUpN = -force.Z;
         sumF += force; sumM += moment;
         return fs;
     }
@@ -457,6 +460,33 @@ public static class FloatHydro
         }
 
         // ---- 3–5. planing forebody (Savitsky) ----
+        // Savitsky's τ is the trim of the WETTED bottom. The float's forebody is not prismatic: its keel runs nearly
+        // straight forward of the step (the keel line, ForeKeelSlope) and then sweeps up to the bow. While the water
+        // only wets the straight part the keel line is the bottom; once it reaches the upswept bow, the wetted bottom
+        // meets the water along the chord from the step keel to where the keel crosses the surface, which is steeper.
+        // Taking only the keel line there gave a float set down flat or a little nose-low at speed NO planing lift
+        // (τ ≤ 0) however much bow was in the water, so it knifed under and drove the engine into the lake (Ty
+        // 2026-11-03, the J-3 on floats breaking up on landing; FloatLandingTests). The steeper of the two is used.
+        double planeSlope = h.ForeKeelSlope;
+        if (lk > 1e-3)
+        {
+            double xf = h.StepX + lk, zf = h.KeelZStep;
+            for (int i = h.LastFore - 1; i >= 0; i--)
+            {
+                if (h.X[i] < xf) continue;
+                double t = (xf - h.X[i + 1]) / System.Math.Max(h.X[i] - h.X[i + 1], 1e-9);
+                zf = h.KeelOf(i + 1) + (h.KeelOf(i) - h.KeelOf(i + 1)) * t;
+                break;
+            }
+            planeSlope = System.Math.Min(planeSlope, (zf - h.KeelZStep) / lk);   // body z is down: a rising bow is negative
+        }
+        if (planeSlope < h.ForeKeelSlope)
+        {
+            Vec3 dkc = q.Rotate(new Vec3(1, 0, planeSlope).Normalized());
+            double dkch = vH > 1e-6 ? (dkc.X * vStep.X + dkc.Y * vStep.Y) / vH : System.Math.Sqrt(dkc.X * dkc.X + dkc.Y * dkc.Y);
+            keelPitch = System.Math.Atan2(-dkc.Z, System.Math.Max(System.Math.Abs(dkch), 1e-9)) * (dkch >= 0 ? 1 : -1);
+            tauRad = keelPitch + sink; tauDeg = tauRad * 180 / System.Math.PI;
+        }
         double rdeg = 0, lambda = 0, bw = b, lift = 0, sForeSav = 0, v1 = vH;
         if (lk > 1e-3 && dStep > 0 && vH > 0.3 && tauDeg > 0.1)
         {
@@ -467,7 +497,7 @@ public static class FloatHydro
             lambda = System.Math.Min(lambda, h.ForebodyLength / bw);
             double cv = vH / System.Math.Sqrt(g * bw);
             double xcp = h.StepX + 0.75 * lambda * bw;
-            double zcp = h.KeelZStep + h.ForeKeelSlope * (xcp - h.StepX);
+            double zcp = h.KeelZStep + planeSlope * (xcp - h.StepX);
             // The incidence the dynamic lift sees is at its own centre of pressure: the bottom's sink there includes
             // the pitch rate times the arm from the CG (quasi-steady planing; this is the planing surface's pitch
             // damping, which the step point alone does not have).

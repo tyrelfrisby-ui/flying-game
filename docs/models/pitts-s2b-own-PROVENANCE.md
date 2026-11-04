@@ -455,3 +455,29 @@ render attempts both exit 139. No requested PNG or contact sheet was produced, n
 approved. `render_vr_phase1.py` recovers before GLBs from fixed commit 0a1a7b4; run before,
 then after, then its CPU `--contact <render-dir>` mode when Blender works. Baseline body views
 show absence of a body (there was none), not a fabricated earlier body.
+
+## 2026-11-03 — v13 aileron slave-strut horns (builder only; committed GLBs NOT regenerated)
+
+`build_pitts_s2b.py` v13 replaces the slave-strut horns. Before, the lower aileron's horn stood ABOVE the lower wing
+and the upper's hung BELOW the upper wing, so the two horns pointed opposite ways vertically; across the strut's ~25°
+stagger lean that linkage would drive the uppers at ~0.1 of the lowers. Now both horns are the same vector: 0.072 m
+from the hinge line, 20° below the forward chord, the pin inside the fixed wing's trailing-edge cove and the strut
+passing through the skin to reach it. That is a parallelogram, so the uppers follow the lowers 1:1.
+
+- **Source for the lower horn:** the Pitts S-1-11 factory drawing, Detail A (biplaneforum.com thread 20836). It shows
+  the 11-510-53 link fork on an AN3-6 bolt just ahead of the 11-460 aileron's nose, slightly below the chord, with
+  the strut entering through the top skin. The 20° angle is measured off that unscaled section.
+- **Upper horn:** made parallel and equal to the lower one. Owners rig the four ailerons to move together, and
+  "the bends in the arms line up the two arcs" (biplaneforum thread 19463).
+- **Not found:** no S-2 arm length was available (the Aviat S-2B parts catalogue was not reachable). The 0.072 m is
+  kept from the previous pin offset.
+- **Sim twin:** the `slaveStrut` horns in `configs/aircraft/pitts-s2b-like.json` (`drivenHornDownDeg` /
+  `slavedHornDownDeg` 20).
+
+**The four committed GLBs still carry the old horns.** Their sequence cards, sights and rear panel were added by
+offline updaters after the last full build, so a full rebuild from this script would drop them. A scratch build
+(`PITTS_OUT=/tmp/... blender -b --python tools/own_models/build_pitts_s2b.py`, 2.54 MB against the committed
+2.76 MB) was rendered to check the new horns.
+
+To fix the GLBs, replace only the `Aileron_UL/UR/LL/LR` and `Strut_Slave_L/R` meshes in each one, in the manner of
+`build_ea300.py --wing-only`. Before committing, compare the exported node sets against HEAD.

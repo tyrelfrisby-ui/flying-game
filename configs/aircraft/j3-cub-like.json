@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "id": "j3-cub-like",
   "displayName": "J-3 Cub-like (85 hp)",
+  "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 3.4 },
+  "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in) from the centreline: our own J-3 model (tools/own_models/build_j3_cub.py Y_ST, traced from the J-3 three-view). Checks: Piper spar drawing 14383 (J-3 to PA-18) puts the strut fitting 121.25 in from the root bolt hole, measured 123.5 front / 122.25 rear in from the spar root end on a PA-18 spar (supercub.org 'Spar Drilling', quoting drawings 14388/14453), plus ~13 in root-end offset (scaled) = 135-136.5 in; the PA-18 Information Manual three-view (p.4) scales to 129-131 in. 3.40 m sits inside that 130-136 in spread.",
+  "liftStrutFuselageAttach": [-0.24, 0.325, 0.41],
+  "liftStrutFuselageAttachSource": "Own J-3 model (build_j3_cub.py F_ST): one fitting for both V-struts on the lower longeron, 0.645 m (25.4 in) aft of the wing LE (the TCDS A-691 datum), BL 0.325 m (12.8 in), 1.16 m (45.7 in) below the wing chord line; put in this config's frame from its root wing LE (x 0.407) and chord line (z -0.75).",
   "spawnIasMs": 28,
   "mass": {
     "massKg": 553.0,
@@ -464,7 +469,7 @@
           "pos": [
             -4.256,
             -1.316,
-            0.0
+            -0.485
           ],
           "chord": 0.499,
           "area": 0.1877,
@@ -481,7 +486,7 @@
           "pos": [
             -4.266,
             -0.941,
-            0.0
+            -0.485
           ],
           "chord": 0.542,
           "area": 0.2037,
@@ -498,7 +503,7 @@
           "pos": [
             -4.277,
             -0.564,
-            0.0
+            -0.485
           ],
           "chord": 0.584,
           "area": 0.2197,
@@ -515,7 +520,7 @@
           "pos": [
             -4.288,
             -0.189,
-            0.0
+            -0.485
           ],
           "chord": 0.627,
           "area": 0.2358,
@@ -532,7 +537,7 @@
           "pos": [
             -4.288,
             0.189,
-            0.0
+            -0.485
           ],
           "chord": 0.627,
           "area": 0.2358,
@@ -549,7 +554,7 @@
           "pos": [
             -4.277,
             0.564,
-            0.0
+            -0.485
           ],
           "chord": 0.584,
           "area": 0.2197,
@@ -566,7 +571,7 @@
           "pos": [
             -4.266,
             0.941,
-            0.0
+            -0.485
           ],
           "chord": 0.542,
           "area": 0.2037,
@@ -583,7 +588,7 @@
           "pos": [
             -4.256,
             1.316,
-            0.0
+            -0.485
           ],
           "chord": 0.499,
           "area": 0.1877,
@@ -606,7 +611,7 @@
           "pos": [
             -4.694,
             -1.316,
-            0.0
+            -0.485
           ],
           "chord": 0.314,
           "area": 0.1179,
@@ -623,7 +628,7 @@
           "pos": [
             -4.741,
             -0.941,
-            0.0
+            -0.485
           ],
           "chord": 0.34,
           "area": 0.1281,
@@ -640,7 +645,7 @@
           "pos": [
             -4.788,
             -0.564,
-            0.0
+            -0.485
           ],
           "chord": 0.367,
           "area": 0.1381,
@@ -657,7 +662,7 @@
           "pos": [
             -4.836,
             -0.189,
-            0.0
+            -0.485
           ],
           "chord": 0.394,
           "area": 0.1481,
@@ -674,7 +679,7 @@
           "pos": [
             -4.836,
             0.189,
-            0.0
+            -0.485
           ],
           "chord": 0.394,
           "area": 0.1481,
@@ -691,7 +696,7 @@
           "pos": [
             -4.788,
             0.564,
-            0.0
+            -0.485
           ],
           "chord": 0.367,
           "area": 0.1381,
@@ -708,7 +713,7 @@
           "pos": [
             -4.741,
             0.941,
-            0.0
+            -0.485
           ],
           "chord": 0.34,
           "area": 0.1281,
@@ -725,7 +730,7 @@
           "pos": [
             -4.694,
             1.316,
-            0.0
+            -0.485
           ],
           "chord": 0.314,
           "area": 0.1179,
@@ -1362,14 +1367,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.004289,
-    "finOffsetRad": 0.005752,
+    "aileronRad": 0.004288,
+    "finOffsetRad": 0.005751,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 33.678,
-    "alphaRad": 0.021462,
-    "elevatorTrimRad": 0.000045,
-    "bankRad": 0.00616
+    "tasMs": 33.682,
+    "alphaRad": 0.021394,
+    "elevatorTrimRad": 0.000535,
+    "bankRad": 0.006159
   },
   "controls": {
     "aileron": {
