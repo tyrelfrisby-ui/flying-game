@@ -1,4 +1,31 @@
 ## NEEDS YOU
+- **NEEDS YOU: Ty, approve the C172 rudder pedals (renders) and decide the yoke-vs-thigh item** (Claude, 2026-11-04,
+  lane/claude-172-instruments; NOT merged, NOT deployed, nothing installed).
+  - Ty (2026-11-04): "move the rudder pedals above the cabin floor and forward. Put the simulated human inside and
+    test geometry."
+  - Done: the pedals sat on the carpet at the panel face, 0.18 m ahead of a seated knee. A 1.778 m pilot at the
+    approved eye could reach them only with the knees jammed up at 84 deg. They now hang from rudder bars below the
+    panel (MM 27-20-00). The pad centre is 0.199 m (7.8 in) further forward, the pad bottom 152 mm above the carpet
+    (was 85 mm), and every pedal part is 36 mm or more above it at full travel. The pad face is inclined 56 deg, with
+    the toe brake flush above it.
+  - The human is Codex's 1.778 m seated mannequin (lane/codex-eyepoints f05f1511), solved backwards from the
+    approved eye. New checker: `tools/own_models/check_c172_pedal_fit.py` (Blender). Knee 132 deg (129.7-132.3
+    at full rudder), heels resting on the carpet, both feet reach at neutral and full rudder. Legs to panel 114 mm,
+    to other pedals 32 mm, sole on its own pedal -2.3 ... +0.2 mm: all PASS.
+  - **RED, your call:** at 90 deg of wheel the right horn reaches 17 mm into the right thigh (29 mm at full
+    rudder). The wheel clears the legs only up to 35 deg. The yoke is approved v4 geometry and the thigh is fixed by
+    the approved eye, so I changed neither. Options: a yoke hub about 40 mm higher, less displayed wheel travel, or
+    a seat/eye change.
+  - Also found, not changed: the approved eye is 59 mm outboard of the seat centre, so the left thigh is 23 mm into
+    the door trim. The torso floats about 0.20 m forward of the seat back. MM puts the pedal pivot at FS 6.5; a
+    1.778 m pilot at the approved eye cannot reach that, so the hinge is at FS 16.5.
+  - Look at `renders/c172/pedals-v1/{before,after}_{eye,side}.png` (copies in `/tmp/c172-pedals-renders/`). I
+    looked at all four.
+  - `check_c172_cockpit.py` PASS on both GLBs; the new pedal guard rejects 935ff945's GLB. Rebuild diffed against
+    935ff945: only the pedals, toe brakes and new rudder bars changed. `deploy.sh` ** BUILD SUCCEEDED **, 0 error
+    CS, build 2026.1104.0503, run with a dummy UDID so nothing was installed (bundleVersion bump not committed).
+    No src/ or configs/ change. C172InstrumentTests and CockpitEyeTests: 131/131 pass.
+  - Notes, sources and all numbers: `docs/models/c172-pedals-v1.md`.
 - **NEEDS YOU: approve C172 v4 swap** (Claude, 2026-11-03, lane/claude-172-instruments; NOT merged, NOT deployed).
   - Ty decision (2026-11-03, his words): "The Cessna panel is good except you need to swap the vertical column of
     engine instruments and nav heads so the engine instruments are to the right of the nav heads."

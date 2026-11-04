@@ -276,6 +276,24 @@ rig(box('Flap_indicator',(.458,.253,-.016),(.010,.002,.004),white,0),'translatio
 box('Compass_mount',(0,.37,.445),(.075,.065,.055),black,.008);text('Compass_card','W  27  30  N',(0,.3373,.448),.009)
 rig(CREATED[-1],'rotation','+Z',[0,360],'magneticHeading');box('Compass_lubber',(0,.337,.448),(.001,.001,.020),orange,0)
 # Dual control yokes and all four rudder pedals, independent toe brakes.
+# PEDALS (Ty, 2026-11-04: "move the rudder pedals above the cabin floor and forward"). They used to stand on the
+# carpet directly under the panel face (f 0.30), 0.18 m ahead of a seated pilot's knee, where no foot can reach them
+# without going through the floor. In a 172 the rudder bars sit "in area below instrument panel", their pivot shaft
+# set 6.50 in aft of the firewall (172 Maintenance Manual 27-20-00, rudder pedal installation). Each pedal now hangs
+# on an arm from a lateral rudder bar 4 cm above the carpet, with an inclined pad whose lower half takes the ball of
+# the foot and whose upper part is the toe brake, flush with it. The place is set by the seated 1.778 m mannequin at
+# the approved eye: the ball of the foot as far forward as it goes with the heel resting on the carpet, which is a
+# 130 degree knee. tools/own_models/check_c172_pedal_fit.py seats the mannequin and measures it.
+PEDAL_TILT=56                                                     # pad face, degrees up from horizontal
+PEDAL_D=(math.cos(math.radians(PEDAL_TILT)),math.sin(math.radians(PEDAL_TILT)))   # up the face (fwd, up)
+PEDAL_N=(-PEDAL_D[1],PEDAL_D[0])                                  # face normal, toward the pilot
+PEDAL_BALL=(.486,-.359)                                           # ball-of-foot contact at neutral (fwd, up)
+PEDAL_PAD=(PEDAL_BALL[0]-.01*PEDAL_N[0],PEDAL_BALL[1]-.01*PEDAL_N[1])   # pad centre: face 10 mm aft of it
+PEDAL_TOE=(PEDAL_PAD[0]+.052*PEDAL_D[0],PEDAL_PAD[1]+.052*PEDAL_D[1])   # toe brake above the pad, same face
+PEDAL_PIVOT=(.546,-.505)                                          # rudder bar / pedal hinge (fwd, up)
+HINGE={}
+def pedal_box(n,x,c,s,m,bevel):
+ o=box(n,(x,c[0],c[1]),s,m,bevel);o.rotation_euler.y=math.radians(90-PEDAL_TILT);return o
 for side,x in [('L',-.30),('R',.30)]:
  col=cyl('Yoke_'+side+'_pitch',(x,.125,.040),.013,.27,metal);rig(col,'translation','+X',[-.07,.07],'elevator')
  yoke=box('Yoke_'+side+'_roll',(x,-.025,.040),(.120,.046,.066),black,.016);rig(yoke,'rotation','+X',[-90,90],'aileron');parent(yoke,col)
@@ -284,9 +302,12 @@ for side,x in [('L',-.30),('R',.30)]:
   a=line('Yoke_'+side+'_grip',(x+s*.135,-.030,-.002),(x+s*.135,-.030,.095),.014,black);parent(a,yoke)
  parent(text('Yoke_badge','TRAINER',(x,-.0482,.041),.009,ivory),yoke)
  for s,tag in [(-1,'L'),(1,'R')]:
-  xx=x+s*.083;o=box('Pedal_'+side+'_'+tag,(xx,.30,-.425),(.125,.042,.075),black,.005);rig(o,'rotation','-Y',[-18,18],'rudder');
-  toe=box('Toe_brake_'+side+'_'+tag,(xx,.275,-.399),(.11,.012,.027),metal,.002);rig(toe,'rotation','-Y',[0,15],'brake.'+tag);parent(toe,o)
-  for k in range(5):parent(box('Pedal_rib',(xx-.045+k*.022,.271,-.431),(.004,.004,.039),metal,.001),o)
+  xx=x+s*.083;o=pedal_box('Pedal_'+side+'_'+tag,xx,PEDAL_PAD,(.125,.020,.065),black,.004);rig(o,'rotation','-Y',[-18,18],'rudder');HINGE[o.name]=xyz((xx,*PEDAL_PIVOT))
+  toe=pedal_box('Toe_brake_'+side+'_'+tag,xx,PEDAL_TOE,(.11,.020,.035),metal,.002);rig(toe,'rotation','-Y',[0,15],'brake.'+tag);parent(toe,o)
+  HINGE[toe.name]=xyz((xx,PEDAL_TOE[0]-.0175*PEDAL_D[0],PEDAL_TOE[1]-.0175*PEDAL_D[1]))
+  for k in range(5):parent(pedal_box('Pedal_rib',xx-.045+k*.022,(PEDAL_PAD[0]+.0115*PEDAL_N[0],PEDAL_PAD[1]+.0115*PEDAL_N[1]),(.004,.003,.050),metal,.0005),o)
+  parent(line('Pedal_arm',(xx,PEDAL_PAD[0]-.01*PEDAL_N[0]-.02*PEDAL_D[0],PEDAL_PAD[1]-.01*PEDAL_N[1]-.02*PEDAL_D[1]),(xx,*PEDAL_PIVOT),.009,metal),o)
+ line('Rudder_bar_'+side,(x-.16,*PEDAL_PIVOT),(x+.16,*PEDAL_PIVOT),.012,metal)
 # Floor, centre pedestal and trim (wheel on vertical fore-aft plane).
 box('Carpet',(0,-.47,-.565),(1.04,2.20,.035),carpet,.012)
 box('Centre_pedestal',(0,-.12,-.38),(.12,.38,.31),black,.010)
@@ -355,8 +376,7 @@ for e in RIG:
  o=bpy.data.objects[e['node']]
  # Hinge locations rather than visual centres on pedals, visors and door latches.
  delta=Vector((0,0,0))
- if '_Pedal_' in o.name:delta.z=-.0375
- elif '_Toe_brake_' in o.name:delta.z=-.0135
+ if o.name in HINGE:delta=Vector(HINGE[o.name])-o.matrix_world.translation
  elif '_Sunvisor_' in o.name:delta.z=.060
  if delta.length:
   children=[(c,c.matrix_world.copy()) for c in o.children]

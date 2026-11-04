@@ -91,6 +91,17 @@ def check(path):
   # forward glTF X is unchanged by rotating about X. Include parent position and 70 mm travel.
   n=nodes[names.index(name)];par=nodes[parents[names.index(name)]]
   assert n['translation'][0]+par['translation'][0]+hi[0]+.070<.262-.010,('yoke grip sweep',side)
+ # Ty, 2026-11-04: rudder pedals clearly above the cabin floor and forward of the panel face. Literals: carpet top
+ # -0.5475, panel face 0.2975 (c172_cockpit.py). The full fit, with the seated mannequin at the approved eye and
+ # full rudder and yoke travel, is check_c172_pedal_fit.py (Blender).
+ for side in ['L','R']:
+  for tag in ['L','R']:
+   name='C172_Pedal_'+side+'_'+tag;n=nodes[names.index(name)];lo,hi=bounds(name)
+   assert abs(n['translation'][0]-.546)<1e-4 and abs(n['translation'][1]+.505)<1e-4,(name,'hinge moved',n['translation'])
+   assert n['translation'][1]+lo[1]>-.5475+.030,(name,'within 30 mm of the carpet')
+   assert n['translation'][0]+lo[0]>.2975+.15,(name,'not forward of the panel face')
+   toe=nodes[names.index('C172_Toe_brake_'+side+'_'+tag)]
+   assert n['translation'][1]+toe['translation'][1]>-.5475+.15,(name,'toe brake under 150 mm above the carpet')
  # Moving TC geometry is exactly symmetric about its own origin, centred on its case/pivot.
  lo,hi=bounds('C172_TC_airplane');assert abs(lo[2]+hi[2])<.0001,('asymmetric TC wings',lo,hi)
  tc=nodes[names.index('C172_TC_airplane')]['translation']
