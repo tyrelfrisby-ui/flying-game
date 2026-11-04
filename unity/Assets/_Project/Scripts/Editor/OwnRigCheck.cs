@@ -140,7 +140,8 @@ namespace FlyingGame.EditorTools
                     else if (required) { Debug.LogError($"RIG the model has no '{node}' — {what} will not work"); fixtures++; }
                     else Debug.Log($"RIG   {what,-22} (none on this model)");
                 }
-                Want("Eye_Rear", "cockpit eye, default", true);
+                // The C172 uses its configured seat eye, as the C172 capture below does.
+                Want("Eye_Rear", "cockpit eye, default", !bound.ContainsKey("C172_AI_roll"));
                 Want("Eye_Front", "cockpit eye, other seat", false);
                 Want("Radio_Display_R", "COM display", false);
                 Want("Xpdr_Display_R", "transponder display", false);
@@ -277,6 +278,8 @@ namespace FlyingGame.EditorTools
                                   Dictionary<string, Transform> bound, string dir)
         {
             Directory.CreateDirectory(dir);
+            var captureInputs = RigInputs.Parked();
+            var captureRecords = new List<object>();
             var sunGo = new GameObject("Sun");
             Light sun = sunGo.AddComponent<Light>();
             sun.type = LightType.Directional;
@@ -291,8 +294,18 @@ namespace FlyingGame.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.52f, 0.68f, 0.86f);
             cam.nearClipPlane = 0.03f;
-            var rt = new RenderTexture(1600, 1000, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
+            var rt = new RenderTexture(3200, 2000, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
 
+            void Record(string path)
+            {
+                Capture(cam, rt, path);
+                captureRecords.Add(new {
+                    path = Path.GetFileName(path),
+                    rig_inputs = captureInputs,
+                    eye_unity = new[] {cam.transform.position.x,cam.transform.position.y,cam.transform.position.z},
+                    fov_deg = cam.fieldOfView
+                });
+            }
             var displays = new CockpitDisplays();
             displays.Bind(n => bound.TryGetValue(n, out Transform t) ? t : null);
 
@@ -320,9 +333,100 @@ namespace FlyingGame.EditorTools
                     r.AirspeedKias = 60; r.AltitudeFt = 0; r.Rpm = 800; r.HeadingDeg = 0;
                 })),
             };
+            // The 172 panel (Codex's) has no eye nodes, so its seat comes from the pilot eye in Codex's render
+            // manifest (renders/c172/v1/render-manifest.json, design frame x right / y forward / z up), carried
+            // into the model's OWN imported frame — glTF (y, z, x) of the design point, then x negated by the
+            // importer — so the shot sits in the seat whichever way the model is placed. The state is chosen to
+            // be asymmetric everywhere, so a reversed sign cannot hide: right bank and nose up, a card off north,
+            // the TC on the R mark, needles half right / half down, FROM on NAV2, the ADF needle 45° right.
+            if (bound.ContainsKey("C172_AI_roll"))
+            {
+                Vector3 Design(float x, float y, float z) => model.TransformPoint(new Vector3(-y, z, x));
+                RigInputs c172 = With((ref RigInputs r) =>
+                {
+                    r.AiBankDeg = 20; r.AiPitchDeg = 5; r.DgCardDeg = 30; r.CompassCardDeg = 35; r.TcNeedle = 1;
+                    r.SlipBall = 0.5; r.SuctionInHg = 5; r.AirspeedMph = 100; r.AltitudeFt = 3500; r.VsiFpm = 500;
+                    r.Rpm = 2400; r.OilPressPsi = 75; r.OilTempF = 190; r.FuelCentreFrac = 0.75;
+                    r.Nav1Cdi = 0.5; r.Nav1Gs = -0.5; r.Nav1ToFrom = 1; r.Nav1Flag = 0; r.Nav1GsFlag = 0; r.Nav1ObsDeg = 90;
+                    r.Nav2Cdi = -0.5; r.Nav2ToFrom = -1; r.Nav2Flag = 0; r.Nav2ObsDeg = 270;
+                    r.AdfNeedleDeg = 45; r.AdfCardDeg = 0;
+                });
+                // V3 controlled comparisons all use the imported aircraft and runtime rig.
+                void V3(string name, RigInputs inputs, Vector3 eye, Vector3 target, float fov)
+                {
+                    builder.SetRig(inputs, 0f);
+                    captureInputs = inputs;
+                    cam.transform.position = Design(eye.x,eye.y,eye.z);
+                    cam.transform.rotation = Quaternion.LookRotation(Design(target.x,target.y,target.z)-cam.transform.position,model.up);
+                    cam.fieldOfView=fov;
+                    Record(Path.Combine(dir,name+".png"));
+                }
+                foreach (var v in new[] { ("0",0.0),("plus500",500.0),("minus500",-500.0) })
+                {
+                    var r=c172;r.VsiFpm=v.Item2;
+                    V3("c172-vsi-"+v.Item1,r,new Vector3(-.219f,.08f,.218f),new Vector3(-.219f,.30f,.218f),25f);
+                }
+                foreach (var v in new[] { ("level",0.0),("std-left",-1.0),("std-right",1.0) })
+                {
+                    var r=c172;r.TcNeedle=v.Item2;r.SlipBall=0;
+                    V3("c172-tc-"+v.Item1,r,new Vector3(-.423f,.08f,.218f),new Vector3(-.423f,.30f,.218f),25f);
+                }
+                foreach (var v in new[] { ("level",0.0,0.0),("bank20",20.0,0.0),("pitch10",0.0,10.0) })
+                {
+                    var r=c172;r.AiBankDeg=v.Item2;r.AiPitchDeg=v.Item3;
+                    V3("c172-ai-"+v.Item1+"-straight",r,new Vector3(-.321f,.08f,.323f),new Vector3(-.321f,.30f,.323f),25f);
+                    V3("c172-ai-"+v.Item1+"-offaxis",r,new Vector3(.332f,-.346f,.548f),new Vector3(-.321f,.30f,.323f),8f);
+                }
+                V3("c172-labels-lower",c172,new Vector3(.24f,-.20f,.30f),new Vector3(0,.28f,-.025f),65f);
+                V3("c172-labels-switches",c172,new Vector3(-.34f,0,.04f),new Vector3(-.32f,.28f,-.025f),60f);
+                V3("c172-labels-cabin-flaps",c172,new Vector3(.36f,-.02f,.04f),new Vector3(.30f,.28f,-.025f),60f);
+                V3("c172-labels-dials",c172,new Vector3(-.32f,-.10f,.27f),new Vector3(-.32f,.30f,.27f),38f);
+                var controls=c172; controls.Mixture=0;
+                V3("c172-engine-controls",controls,new Vector3(.035f,-.20f,-.030f),new Vector3(.035f,.28f,-.030f),35f);
+                V3("c172-panel-straight",c172,new Vector3(0,-.65f,.19f),new Vector3(0,.30f,.19f),38f);
+                V3("c172-engine-column",c172,new Vector3(0f,-.14f,.21f),new Vector3(0f,.30f,.21f),45f);  // v4: engine column right of the NAV heads
+                foreach ((string name, RigInputs r) in new[] { ("parked", RigInputs.Parked()), ("c172-known", c172) })
+                {
+                    builder.SetRig(r, 0f);
+                    captureInputs = r;
+                    Vector3 eye = Design(-0.337f, -0.346f, 0.548f);
+                    cam.transform.position = eye;
+                    cam.transform.rotation = Quaternion.LookRotation(Design(-0.10f, 0.32f, 0.20f) - eye, model.up);
+                    cam.fieldOfView = 60f;
+                    Record( Path.Combine(dir, $"c172-pilot-eye-{name}.png"));
+                    if (name == "parked")
+                    {
+                        cam.transform.rotation = Quaternion.LookRotation(Design(-.03f,.30f,.17f) - eye, model.up);
+                        cam.fieldOfView = 64f;
+                        Record( Path.Combine(dir, "full-panel-pilot-eye.png"));
+                    }
+                    Vector3 six = Design(-0.321f, -0.10f, 0.27f);
+                    cam.transform.position = six;
+                    cam.transform.rotation = Quaternion.LookRotation(Design(-0.27f, 0.30f, 0.27f) - six, model.up);
+                    cam.fieldOfView = 40f;
+                    Record( Path.Combine(dir, $"c172-sixpack-{name}.png"));
+                    if (name == "parked")
+                    {
+                        foreach (var shot in new[] {
+                            ("attitude", new Vector3(-.321f,.08f,.323f), new Vector3(-.321f,.30f,.323f), 25f),
+                            ("directional-gyro", new Vector3(-.321f,.08f,.218f), new Vector3(-.321f,.30f,.218f), 25f),
+                            ("turn-coordinator", new Vector3(-.423f,.08f,.218f), new Vector3(-.423f,.30f,.218f), 25f),
+                            ("throttle-mixture", new Vector3(.035f,-.20f,-.030f), new Vector3(.035f,.28f,-.030f), 35f),
+                            ("low-side-flush", new Vector3(-.10f,.05f,.19f), new Vector3(-.35f,.30f,.29f), 33f) })
+                        {
+                            cam.transform.position = Design(shot.Item2.x, shot.Item2.y, shot.Item2.z);
+                            cam.transform.rotation = Quaternion.LookRotation(Design(shot.Item3.x, shot.Item3.y, shot.Item3.z) - cam.transform.position, model.up);
+                            cam.fieldOfView = shot.Item4;
+                            Record( Path.Combine(dir, $"c172-{shot.Item1}.png"));
+                        }
+                    }
+                }
+            }
+
             foreach ((string name, RigInputs r) in states)
             {
                 builder.SetRig(r, 0f);
+                captureInputs = r;
                 displays.Update(r);
                 foreach (string seat in new[] { "Eye_Rear", "Eye_Front" })
                 {
@@ -330,7 +434,7 @@ namespace FlyingGame.EditorTools
                     cam.transform.position = eye.position;
                     cam.transform.rotation = root.rotation;
                     cam.fieldOfView = 72f;
-                    Capture(cam, rt, Path.Combine(dir, $"{seat.ToLowerInvariant()}-{name}.png"));
+                    Record( Path.Combine(dir, $"{seat.ToLowerInvariant()}-{name}.png"));
                 }
 
                 Bounds b = Visible(root);
@@ -338,8 +442,10 @@ namespace FlyingGame.EditorTools
                 cam.transform.position = b.center + new Vector3(0.55f, 0.35f, -0.75f).normalized * far * 0.62f;
                 cam.transform.rotation = Quaternion.LookRotation(b.center - cam.transform.position, Vector3.up);
                 cam.fieldOfView = 35f;
-                Capture(cam, rt, Path.Combine(dir, $"exterior-{name}.png"));
+                Record( Path.Combine(dir, $"exterior-{name}.png"));
             }
+            File.WriteAllText(Path.Combine(dir,"capture-inputs.json"),
+                Newtonsoft.Json.JsonConvert.SerializeObject(captureRecords, Newtonsoft.Json.Formatting.Indented));
             RenderTexture.active = null;
             UnityEngine.Object.DestroyImmediate(rt);
             UnityEngine.Object.DestroyImmediate(camGo);

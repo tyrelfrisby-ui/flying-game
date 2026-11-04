@@ -467,3 +467,10 @@ printed `Passed!`/`Failed!`, and the loop waiting for that line polled until the
 (or perl), print the filter's first entry before launching it, and make any wait loop also stop when the process it
 waits on has exited. Related: building a worktree through `/tmp/...` failed with `CS0006 ... obj~/... not found` while
 the same build through `/private/tmp/...` succeeded. Give dotnet the resolved path.
+### A pre-flight check that only prints is not a gate
+Before the C172 v4 build I ran the `ps … | grep -E "(xcodebuild|Unity)"` check, echoed its output and then started
+`deploy.sh` in the SAME command — so when another lane's Unity batch appeared in that list, my build started
+anyway and the two overlapped. Make the check the condition (`until ! ps … | grep -q .; do sleep 60; done && build`),
+never a line of output to read afterwards. And know what it matches: an orphaned `il2cpp` from a dead Xcode build
+(parent reparented to launchd, 0 % CPU, under `/tmp/flyinggame-dd/…/Unity-iPhone.build/`) matches forever, as does
+`adb logcat` under the Unity path; exclude those by PID after checking them, not by loosening the pattern.

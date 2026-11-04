@@ -425,6 +425,14 @@ public sealed partial class Aircraft
     /// wing lifting at all; that load reaches a panel only through its own contact points (AircraftContactDamage).</summary>
     public double AeroLoadFactorZ { get; private set; } = 1.0;
 
+    /// <summary>
+    /// Specific force, body axes, m/s²: every non-gravitational force on the airframe over its mass, at the last
+    /// force evaluation of the step — what an accelerometer, a compass float or an inclinometer ball feels.
+    /// (0, 0, −g) in level flight. Unlike <see cref="LoadFactorZ"/> it includes buoyancy, because a float in
+    /// a compass bowl feels the water holding the aeroplane up just as it feels the wing.
+    /// </summary>
+    public Vec3 SpecificForceBody { get; private set; } = new(0, 0, -9.80665);
+
     /// <summary>Engine speed (rpm) for piston/prop types from the prop model's throttle→rpm law; 0 for gliders.
     /// Jets (PropDiameterM == 0) report a pseudo-N1 0..100 as MaxRpm-scaled throttle.</summary>
     /// <summary>Engine rpm for the audio/instruments. Constant-speed prop: below ~30 % throttle the prop sits on
@@ -1260,6 +1268,7 @@ public sealed partial class Aircraft
             Vec3 nonGrav = totalF - gravityBody - waterF;
             LoadFactorZ = weightN > 1e-9 ? -nonGrav.Z / weightN : 1.0;
             AeroLoadFactorZ = weightN > 1e-9 ? -aeroForce.Z / weightN : 1.0;
+            if (MassProperties.MassKg > 1e-9) SpecificForceBody = (totalF - gravityBody) / MassProperties.MassKg;
             return (totalF, totalM);
         }
 

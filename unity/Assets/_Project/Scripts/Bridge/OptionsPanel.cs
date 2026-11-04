@@ -152,6 +152,24 @@ namespace FlyingGame.Bridge
                 Note($"Opens below {CockpitRigState.CanopyMaxOpenKt:F0} kt; faster than that it shuts and locks", ref y);
             }
 
+            // The 172's failure hooks and its DME switch. Partial panel is a vacuum failure: the pump quits and
+            // the two air gyros run down on their own physics while the electric turn coordinator carries on.
+            var c172 = CockpitRigState.LiveC172;
+            if (c172 != null)
+            {
+                var f = c172.Failures;
+                int vp = PickRow("Vacuum pump", new[] { "Working", "Failed" }, f.VacuumPump ? 1 : 0, ref y);
+                if (vp >= 0) f.VacuumPump = vp == 1;
+                Note($"Suction {c172.Vacuum.SuctionInHg:0.0} inHg; AI rotor {c172.Ai.Rotor.SpeedFraction * 100:0}%, DG {c172.Dg.Rotor.SpeedFraction * 100:0}%", ref y);
+                int el = PickRow("Electrical bus", new[] { "Working", "Failed" }, f.Electrical ? 1 : 0, ref y);
+                if (el >= 0) f.Electrical = el == 1;
+                int tcf = PickRow("Turn coordinator", new[] { "Working", "Failed" }, f.TurnCoordinator ? 1 : 0, ref y);
+                if (tcf >= 0) f.TurnCoordinator = tcf == 1;
+                var srcs = new[] { FlyingGame.Core.Instruments.DmeSource.Nav1, FlyingGame.Core.Instruments.DmeSource.Nav2, FlyingGame.Core.Instruments.DmeSource.Hold };
+                int ds = PickRow("DME", new[] { "NAV 1", "NAV 2", "HOLD" }, System.Array.IndexOf(srcs, c172.Dme.Source), ref y);
+                if (ds >= 0) c172.Dme.Source = srcs[ds];
+            }
+
             SequenceCard card = visual.Card;
             if (card == null || !card.HasHolder) return;
 

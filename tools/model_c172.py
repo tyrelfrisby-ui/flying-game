@@ -129,6 +129,7 @@ def mesh_from_loops(name, loops, close_ends=True):
                 bm.faces.new(ring)
             except ValueError:
                 pass
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
     bm.normal_update()
     bm.to_mesh(me)
     bm.free()
@@ -793,6 +794,10 @@ for side in (-1, 1):
     if st:
         parts.append(st)
 
+# Authored late-172M panel/cabin; all moving objects retain individual names and pivots.
+_cockpit_file = os.path.join(REPO, 'tools/own_models/c172_cockpit.py')
+exec(compile(open(_cockpit_file).read(), _cockpit_file, 'exec'), {'__file__': _cockpit_file})
+
 # ---- smooth, thicken the single-sided surfaces, and export ---------------------------------------------------
 # Shade smooth. Mesh.use_auto_smooth was removed in Blender 4.1 — the angle-limited version is now a
 # "Smooth by Angle" modifier — so mark the polygons smooth and let the exporter write split normals.
@@ -812,10 +817,10 @@ except Exception as exc:
         for poly in ob.data.polygons:
             poly.use_smooth = True
 
-OUT = os.path.join(REPO, "unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb")
+OUT = os.environ.get("C172_MODEL_OUT", os.path.join(REPO, "unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb"))
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True,
-                          export_apply=True, export_yup=True)
+                          export_apply=True, export_yup=True, export_extras=True)
 tris = sum(len(o.data.polygons) for o in parts)
 print("C172 EXPORT %s" % OUT)
 print("C172 parts=%d faces=%d" % (len(parts), tris))

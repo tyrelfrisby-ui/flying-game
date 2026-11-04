@@ -790,6 +790,114 @@
   the aileron meshes stay where they are and a skinned carved model is not split; a disconnected upper aileron that floats
   free is not shown floating (the rig animates every aileron from the stick); a light prop strike curls the tips in the
   sim (`PropRadiusM`) but the blades are only drawn bent on a stoppage; scraped tips leave no marks.
+- **NEEDS YOU: Ty, approve the C172 seat move (renders); the yoke-vs-thigh item is still yours** (Claude, 2026-11-04,
+  lane/claude-172-instruments; NOT merged, NOT deployed, nothing installed).
+  - Ty (2026-11-04 5:17): "the pilot should sit at the back of the seat with his back against the backrest/backboard
+    of the seat... move the seat forward so that is the case."
+  - Done: the approved eye, pedals and yoke did not move. Both front seats (they are identical, and the CFI eye has
+    the same fore-aft) moved **239 mm forward (+X)**. The cushion is **45 mm lower**, and the back is **reclined
+    12 deg** to match the mannequin's torso. Lowering was needed because, with the eye fixed, no forward move could
+    fix 57 mm of sink. Reclining was needed because an upright back can only touch one line of a 12 deg torso. To
+    clear the trim wheel and the fuel-selector base, the inboard edge moved 35 mm out (width 0.43 -> 0.395 m). The
+    door armrests now end ahead of the reclined back. The tracks run forward under the seat.
+  - New gates in `check_c172_pedal_fit.py`. Torso to seatback: -2.9 mm (resting) over 231 mm from the waist
+    (was 130-192 mm off). Pelvis: -13.5 mm. Buttocks into cushion: 11.7 mm (was 57). Seat against trim wheel,
+    fuel selector, pedestal and armrests: 0 (before, the old seat ran into the fuel-selector base and the armrest).
+    Warning: above the padded insert, the upper torso is 19-30 mm off the back's rounded top edge.
+  - Legs unchanged: knee 132.3/132.0 deg (129.7-132.3 full rudder), panel 114.5 mm, other pedals 32.5 mm, heels
+    resting, pedals 36.4 mm above the carpet: PASS. **Still RED, your call:** yoke at 90 deg of wheel -17.1 mm into
+    the right thigh (-28.7 at full rudder), unchanged. Left thigh 23.0 mm into the door pleats (warning), unchanged.
+  - Look at `renders/c172/seat-v1/{before,after}_side.png` and `after_eye.png`. I opened all four.
+  - `check_c172_cockpit.py` PASS on both GLBs. Rebuild diffed against b2e84ee0: same 163 nodes; only the seats,
+    the static interior and the seat-adjust pivots changed. `c172-like-own-rig.json` regenerates byte-identical.
+    C172InstrumentTests + CockpitEyeTests 131/131 pass.
+    `deploy.sh` ** BUILD SUCCEEDED **, 0 error CS, build 2026.1104.0941, dummy UDID so nothing was installed
+    (bundleVersion bump and build-touched GraphicsSettings not committed). No src/ or configs/ change.
+  - Notes and all numbers: `docs/models/c172-seat-v1.md`.
+- **NEEDS YOU: Ty, approve the C172 rudder pedals (renders) and decide the yoke-vs-thigh item** (Claude, 2026-11-04,
+  lane/claude-172-instruments; NOT merged, NOT deployed, nothing installed).
+  - Ty (2026-11-04): "move the rudder pedals above the cabin floor and forward. Put the simulated human inside and
+    test geometry."
+  - Done: the pedals sat on the carpet at the panel face, 0.18 m ahead of a seated knee. A 1.778 m pilot at the
+    approved eye could reach them only with the knees jammed up at 84 deg. They now hang from rudder bars below the
+    panel (MM 27-20-00). The pad centre is 0.199 m (7.8 in) further forward, the pad bottom 152 mm above the carpet
+    (was 85 mm), and every pedal part is 36 mm or more above it at full travel. The pad face is inclined 56 deg, with
+    the toe brake flush above it.
+  - The human is Codex's 1.778 m seated mannequin (lane/codex-eyepoints f05f1511), solved backwards from the
+    approved eye. New checker: `tools/own_models/check_c172_pedal_fit.py` (Blender). Knee 132 deg (129.7-132.3
+    at full rudder), heels resting on the carpet, both feet reach at neutral and full rudder. Legs to panel 114 mm,
+    to other pedals 32 mm, sole on its own pedal -2.3 ... +0.2 mm: all PASS.
+  - **RED, your call:** at 90 deg of wheel the right horn reaches 17 mm into the right thigh (29 mm at full
+    rudder). The wheel clears the legs only up to 35 deg. The yoke is approved v4 geometry and the thigh is fixed by
+    the approved eye, so I changed neither. Options: a yoke hub about 40 mm higher, less displayed wheel travel, or
+    a seat/eye change.
+  - Also found, not changed: the approved eye is 59 mm outboard of the seat centre, so the left thigh is 23 mm into
+    the door trim. The torso floats about 0.20 m forward of the seat back. MM puts the pedal pivot at FS 6.5; a
+    1.778 m pilot at the approved eye cannot reach that, so the hinge is at FS 16.5.
+  - Look at `renders/c172/pedals-v1/{before,after}_{eye,side}.png` (copies in `/tmp/c172-pedals-renders/`). I
+    looked at all four.
+  - `check_c172_cockpit.py` PASS on both GLBs; the new pedal guard rejects 935ff945's GLB. Rebuild diffed against
+    935ff945: only the pedals, toe brakes and new rudder bars changed. `deploy.sh` ** BUILD SUCCEEDED **, 0 error
+    CS, build 2026.1104.0503, run with a dummy UDID so nothing was installed (bundleVersion bump not committed).
+    No src/ or configs/ change. C172InstrumentTests and CockpitEyeTests: 131/131 pass.
+  - Notes, sources and all numbers: `docs/models/c172-pedals-v1.md`.
+- **NEEDS YOU: approve C172 v4 swap** (Claude, 2026-11-03, lane/claude-172-instruments; NOT merged, NOT deployed).
+  - Ty decision (2026-11-03, his words): "The Cessna panel is good except you need to swap the vertical column of
+    engine instruments and nav heads so the engine instruments are to the right of the nav heads."
+  - Done: NAV1/NAV2/ADF now at x = -0.112 m beside the six-pack; OIL PRESS/OIL TEMP/AMPS/EGT column at x = 0, right of
+    them; radio stack and everything else unchanged. Rig tables differ from v3 only in the pivots of the moved parts
+    (each exactly 0.112 m). `check_c172_cockpit.py` now asserts altimeter < NAV heads < engine column < radios.
+  - Compare `renders/c172/instruments-v4/before/` (v3 at 35f617b3) with `renders/c172/instruments-v4/after/`:
+    `full-panel-pilot-eye.png`, `c172-panel-layout-diagram.png` (+ `c172-pilot-eye-c172-known.png`, posed needles).
+    I looked at the after seat-eye render: six-pack | NAV 1 / NAV 2 / ADF | engine column | radios.
+  - Both GLBs pass the checker; Unity OwnRigCheck RIG OK, 34/34 bound, 0 off pivot. C172InstrumentTests + ModelRigTests
+    56 pass, 1 known baseline failure (glider airbrake NaN), as on v3. `deploy.sh` ** BUILD SUCCEEDED **, build 2026.1103.2142, run with a dummy UDID so nothing was installed (bundleVersion bump not committed). My fault: that build overlapped a Unity batch another lane had just started (pid 7989) - I launched without waiting; if that lane saw odd results around 21:42-21:46, re-run it.
+  - Notes: `docs/models/c172-instruments-v4.md`.
+- **NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/** (Codex, 2026-11-03, lane/claude-172-instruments).
+  - New layout: standard T six-pack; tach under VSI, suction under DG, separate L/R fuel quantity under TC;
+    one OIL PRESS / OIL TEMP / AMPS / EGT column, shifted usable NAV1/NAV2/ADF and intact radio stack; plain right panel.
+  - Flat, contrasting, larger panel/dial/radio lettering; switch and primer labels clear their controls from the pilot eye.
+  - Plain black 13 mm throttle, red 10 mm mixture, black 8 mm carb heat, in that left-to-right order; coaxial shafts,
+    translation only, no prop control. No existing carb-heat/ammeter/EGT runtime parameters: those authored nodes stay unbound.
+  - VSI zero points left; ±500 fpm hits upper/lower 5 at ±45°, with the matching piecewise ±2000 fpm scale.
+  - Shallow masked AI slide, 0.8 mm/degree pitch, matching ladder and retained roll; level/bank20/pitch10 in straight and CFI views.
+  - Symmetric, centred TC rear-view airplane; ±1 rate = ±20° on matching radial marks, retained tube/ball/two wires.
+  - 34 fresh PNGs including measured labelled layout diagram; SHA-256, mtimes, complete rig inputs and camera manifest;
+    all copied byte-for-byte. Docs: `docs/models/c172-instruments-v3.md`; evidence: `renders/c172/instruments-v3/`.
+  - 45/45 C172 tests; ModelRigTests 11 pass + known glider airbrake NaN baseline failure. Both GLB checkers pass;
+    Unity/Metal OwnRigCheck RIG OK, 34/34 bound. No src/config changes, deployment, device install, push or merge.
+- **172 PANEL V2 — NEEDS YOU: Ty, approve the new panel renders (Codex, 2026-11-03, lane/claude-172-instruments).**
+  Addresses all feedback logged at 14:38–14:41: recessed flush mounts and four slotted corner screws per instrument;
+  level centred AI reference; top-view DG airplane; rear-view TC airplane, L/R standard-rate marks, 2 MIN and D.C. ELEC.;
+  curved inclinometer tube, ball and two wires; fixed-pitch panel with no prop control; plain black throttle/red mixture
+  plungers without white stripes or vernier detail, with translation-only runtime bindings. ADF head/tail and TRAINER
+  yokes retained. Exterior loft winding corrected and panel/glareshield ends fitted inside the fuselage at the wing root.
+  Review `renders/c172/instruments-v2/`; PNG copies in `~/Developer/agent-lanes/xfer/c172v2/`.
+  V1 was the original geometry, captured at 10:20 before this feedback, rather than evidence of the requested changes;
+  no uncommitted earlier attempt was present. Provenance and reproduction: `docs/models/c172-instruments-v2.md`.
+  **Approval remains pending. Local commit only; no push or merge.**
+- **1970s 172 INSTRUMENTS, MODELLED FROM THE MECHANISMS AND BOUND TO CODEX'S PANEL — NOT MERGED, NOT DEPLOYED, waiting on
+  your panel-render approval (Claude, 2026-11-03, lane/claude-172-instruments).** Full write-up: `docs/C172-INSTRUMENTS.md`.
+  Vacuum pump → AI and DG spin up and run down on their own physics (95 % in 2 min; 41 % two minutes after the pump
+  quits); the AI erects to the apparent vertical (after a 180° turn it shows ~2.9° climb and ~0.6° bank the other way)
+  and tumbles past 70° pitch / 110° bank; the DG is not slaved and drifts 3.7° per 15 min at 45° N (10.6 °/h of it is
+  the Earth); the whisky compass's turning and acceleration errors come out of a pendulous float in a 63° dip field;
+  the electric TC survives a vacuum failure; NAV1 VOR/LOC/GS, NAV2 VOR/LOC, ADF and DME are separate units.
+  In game (OPTIONS, when flying the 172): vacuum pump / electrical bus / TC failure switches and the DME source. RADIOS:
+  for the 172 the heading cell is DG + compass, the DG knob, "DG = COMPASS", suction, ADF card.
+  - **Decisions for you:** (1) the panel sits at **45° N** (this world has no latitude) — that sets the DG drift and
+    the compass dip; (2) the pump is sized so the suction **reaches the green at 1,200 rpm** (idle 700 rpm reads 1.9 inHg)
+    — tell me what your 172 shows at idle and I will re-derive it; (3) I put the TC's standard-rate wing at **15°** because
+    Codex's face has no L/R index yet.
+  - **Found, not changed — please look:** (a) the own 172 GLB has its nose at glTF **+X**; every approved own model
+    (Extra, J-3, 2-33, Great Lakes) has it at −X, and `AirframeModels.OwnSpecs["c172-like"]` assumes −X, so with "own
+    models" on the 172 is very probably placed **tail first** (true since 2026-10-25, before Codex's cockpit). (b)
+    `AirframeVisual.LateUpdate` calls `SetRig(RigInputsNow(...))` **twice a frame** for every rigged model (two lanes each
+    added it), so the other types' lagged needles (VSI, vario) run at double rate; the 172 panel guards itself.
+    Confirmed by render: `renders/c172/instruments-v1/exterior-parked.png` (camera aft-right) shows the nose nearest
+    the camera, and Codex's panel box showing through the fuselage side at the wing root.
+    (c) For Codex: TO/FROM needs separate TO and FROM legends, the ADF has no rotating card node, the CDI has 2 dots a
+    side where a VOR head has 5, and the compass card is a flat strip (it needs to be a band to turn).
 - **PITTS SPIRAL DIVE AT LAUNCH, RIGHT THEN LEFT — WHY, AND STICK-FREE NOW OFF WITH A PAD (Grok Bot, 2026-11-02,
   lane/claude-stickfree-launch):** build `2026.1102.1803` predates the spawn fix `b62b67d0`. Its long first frame
   (0.05 s = ten sim steps, before the pad publishes) flew whatever the PREVIOUS flight left in the driver's inputs, plus
@@ -3937,6 +4045,33 @@ separately from lane/claude-pitts-spin.
 - Build: `deploy.sh 00000000-NOINSTALL` 17:01 PST `** BUILD SUCCEEDED **`, 0 `error CS` (the first two batches caught a
   1-arg `Array.Clear` and a `ContactPoint` clash with UnityEngine — the dotnet suite cannot see either); bundleVersion bump
   and regenerated StreamingAssets reverted. Not installed, not merged into lane/claude-island-nav (Ty has not flown it).
+### 2026-11-03 — Claude · lane/claude-172-instruments (off island-nav e8a40b0a; lane/codex-172-cockpit 8655aadb merged in) · 1970s 172 instruments
+- **Core** `src/FlyingGame.Core/Instruments/`: VacuumSystem (vane pump vs compressible jet flow, 5.0 inHg relief valve,
+  displacement derived from "green at 1,200 rpm"), GyroRotor (impulse-turbine drive, windage derived from rated speed),
+  AttitudeIndicator, DirectionalGyro (non-slaved; Earth rate, unbalance, gimbal friction, leveling, knob), MagneticCompass
+  (pendulous float, dipole field, hard-iron deviation), TurnCoordinator (canted rate gyro, DC-motor rotor, ball),
+  NavReceiver (VOR / tailored LOC / GS from its antenna site), AdfReceiver (loop in the airframe plane), DmeUnit
+  (slant range, closure-rate GS, search/memory, NAV1/NAV2/HOLD), C172Panel + InstrumentFailures. `Aircraft.SpecificForceBody`
+  (read-only addition). 32 new `RigInputs` params (`docs/C172-INSTRUMENTS.md`).
+- **Bridge**: `CockpitRigState.FillC172` for `c172-like`, stepped once per frame; RADIOS heading cell and OPTIONS rows
+  for the 172 (DG knob, DG = COMPASS, ADF card, vacuum / bus / TC failures, DME source).
+- **Binding**: `docs/models/c172-like-own-rig.json` (32 nodes) from `tools/own_models/c172_instrument_rig.py`, pivots
+  read off the GLB, scales off Codex's faces. Codex's handoff `c172-panel-rig.json` renamed **`c172-panel-bindings.json`**
+  (builder, checker and doc updated): ConfigSync requires every `*-rig.json` to be a runtime table and REFUSED the iOS
+  build on it.
+- **Tests**: `C172InstrumentTests` 32/32 (expected values hand-derived, listed in the class comment). Full suite on a
+  machine running ~10 other lanes' suites: 672 pass / 142 fail; base e8a40b0a's full run hung at 09:19 (killed). The
+  families that differed were re-run alone on both trees: **identical**, 97 pass / 8 fail (the 8 = Seaside/Playground/
+  Event terrain tests, failing on base too); every SpawnSpeed/Structural/MultiEngine/Soaring/GroundTow NaN in the full
+  run passes alone (suite coupling). `ModelRigTests.FullAirBrakeStops...` fails alone, as it has since b62b67d0.
+- **Build**: `deploy.sh NO-INSTALL-PLACEHOLDER` → `** BUILD SUCCEEDED **`, 0 `error CS`, installed on no device
+  (deliberately). bundleVersion bump reverted.
+- **Render check** (`OwnRigCheck` RIG_TYPE=c172-like, new 172 pilot-eye shot from Codex's manifest eye):
+  32/32 bound, 0 off pivot, 0 wrong parent (its one error: no `Eye_Rear` node on this model). Known state (bank 20 R,
+  pitch 5, DG 030, TC on R, ball R, 100 mph, 3,500 ft, +500 fpm, NAV1 OBS 090 CDI ½ R GS ½ down TO, NAV2 OBS 270 CDI ½ L
+  FROM, ADF 45 R) read correctly on every instrument, by eye: `renders/c172/instruments-v1/`.
+- Not merged into island-nav, not deployed: waiting for Ty's panel-render approval. No gate approved.
+
 ### 2026-11-02 — Grok Bot · lane/claude-stickfree-launch (off lane/claude-rig-trim b62b67d0) · launch spiral, stick-free with a pad
 Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spiral dive; the next launch went LEFT.
 - **Rig is solved stick FIXED:** `RigSolver.SteadyForces` (src/FlyingGame.Sim/RigSolver.cs:176-185) hands explicit
@@ -8321,3 +8456,79 @@ Ty reviewed the gl7 renders (xfer/gl7: side-by-side, photo comparison, rear cons
 
 ## 2026-11-03 14:42 PST - Great Lakes wing surfaces: Ty approved (voice call)
 Ty reviewed xfer/glwing close-ups and approved: one aileron per side per wing (4 total), slave struts tying upper to lower, no extra surfaces. Upper-aileron removal question closed.
+## 2026-11-03 — lane/codex-172-cockpit: late-172M panel and complete cabin v1
+
+Ty requested a 1970s 172L/M cockpit with standard six-pack, conventional separate navigation heads, period radios and full four-place interior. Added original primitive-built cabin in `tools/own_models/c172_cockpit.py`, integrated into `tools/model_c172.py`; no third-party cockpit mesh or photo texture is used. Eight real-aircraft photographs and source URLs are retained in `ref/172/`. The reference note explicitly distinguishes modern upgrades from period evidence and explains the requested late-M-style standard six-pack versus earlier offset layouts.
+
+Authored vacuum AI with independent pitch/roll, non-slaved DG card with independent heading bug and sync/bug knobs, electrical TC and slip ball, ASI/altimeter/VSI, separate NAV1 CDI+GS and NAV2 CDI-only heads, ADF indicator/receiver, standalone DME, two KX-170B-style nav/coms, audio panel and KT-76-style transponder; suction, ammeter, tach, oil temperature/pressure, individual left/right fuel gauges and EGT; glareshield compass, master/start/primer, throttle/mixture/carb heat, flap switch/indicator, cabin heat/air, trim wheel/indicator and fuel selector. Both yokes, both rudder-pedal pairs and all four toe brakes are independent named moving meshes. Both front seats, rear bench, belts, tracks, pleated period-colour upholstery, door cards/pulls/latches, pillars, headliner/seams/light, visors and baggage shelf are modelled.
+
+Rig handoff: `docs/models/c172-panel-rig.md` plus JSON companion; 104 moving bindings with names, axes, visual travel, signals and pivots, also exported as custom glTF extras. Static detail consolidated to a cabin with 133 total nodes; moving descendants retain their hierarchy. This is an authored visual rig, not runtime avionics integration: readouts remain examples, signal calibration/interactions and Unity flight validation are Claude's follow-up. No src/config/Unity script changes or device-build claim. Review rendering is actual Cycles geometry at 1800×1200; exterior airframe is absent from the six interior review views, and furniture is retained. Pilot/CFI cameras use existing eye stations. Panel camera and aft-looking cabin camera are review views.
+
+Validation: `check_c172_cockpit.py` checks all 104 moving meshes/extras, 45 explicitly required bindings, NAV2's lack of GS, dual controls, structural cabin coverage, graph uniqueness/parentage/cycles/orphans, identity rotation/unit scale, all binding pivots within 0.01mm and actual exported primary-case size/clearance. Python syntax and `git diff --check` are required before commit. Final results and render hashes are retained with the review artifacts.
+
+Renders: `renders/c172/v1/full-panel-straight.png`, `pilot-eye.png`, `cfi-right-seat.png`, `radio-stack.png`, `nav-heads.png`, `cabin-wide.png`; accompanying interior GLB, editable Blender build scene and camera manifest. **Awaiting Ty's approval; no gate approved.** Glass Overlay untouched. Local lane only; no merge, push or deployment, and no forced add.
+
+Final verification: full aircraft 161 nodes / cabin 133 nodes; 104/104 binding pivots and 45 required bindings pass. All 28 pre-existing airframe names retained. All six final renders visually reviewed; close-ups reframed to retain both NAV heads and the complete radio stack. Final model SHA-256 `d59a3a19f2246e5d3739b6b24cc22d1fba59dca5d8c0e5dbbee8d35b469e55b6`; cabin SHA-256 `2d6e907df9d4f58aa2227a300153c2fd153304e56e8733179bf4f93c3552f773`. Validation JSON and per-render hashes/cameras recorded. Python compilation and `git diff --check` pass. Required `git ls-files | git check-ignore --no-index --stdin -v` printed nothing before commit; no ignored files force-added.
+
+## 2026-11-03 14:38 PST - 172 instruments: Ty says they still stick out
+NEEDS YOU: approve re-render. Ty (voice call) reviewed instruments-v1 renders: instruments still protrude from the panel. 172 instruments must be flush-mounted (bezels flush with panel face, nothing sticking out). Codex fixing placement and re-rendering.
+
+## 2026-11-03 14:39 PST - 172 instruments, more Ty feedback (voice call)
+NEEDS YOU: approve v2 re-render.
+1. Instruments protrude about 1 inch; must sit flush with the panel surface, each mounted with four visible screws at the bezel corners.
+2. Attitude indicator miniature airplane reference is crooked; must be level and centered.
+3. DG airplane is just a plus sign; replace with a real top-view airplane silhouette.
+
+## 2026-11-03 14:40 PST - 172 panel: Ty says nothing visibly changed
+NEEDS YOU: approve v2. Ty: turn coordinator still a crude block (needs real TC: rear-view airplane symbol, L/R index marks, 2 MIN text, DC ELEC label); inclinometer still rectangular (must be curved glass tube, ball, two reference wires). Plus earlier items: flush 4-screw mounts, level AI airplane, DG airplane silhouette. Verify the renders actually use the new instrument art (instruments-v1 may be stale).
+
+## 2026-11-03 14:41 PST - 172 panel: controls (Ty)
+NEEDS YOU: approve v2. (6) 172 is fixed-pitch: no propeller control anywhere on panel/quadrant. (7) Throttle and mixture are push-pull plungers: no white tick marks, no rotation (no vernier twist), they just push in and pull out.
+
+## 2026-11-03 14:59 PST - 172 instruments v2 final review (Codex)
+
+NEEDS YOU: Ty, approve `renders/c172/instruments-v2/`. All seven 14:38–14:41 feedback items addressed; ADF head/tail needle and TRAINER yokes retained. Full-panel pilot-eye, parked/known-state six-pack and pilot views, AI/DG/TC/controls close-ups, low side flushness view and exterior captured from the final own model in Unity/Metal. All 14 PNGs copied and hash-verified in `~/Developer/agent-lanes/xfer/c172v2/`. No fallback: Unity reports RIG OK, 34/34 bound, no off-pivot or wrong-parent nodes, exit 0 and zero compiler errors. Source, scene, model and image hashes/cameras are in the render manifest. Final model SHA256 `d029a49fd2765147065217796442ea0a59f2f8f186c96744e7237b8ba3210d16`.
+
+V1 was captured at 10:20 and matched the unchanged original builder; the checkout began clean. Its original shell faced inward (signed volume -4.840003 m³). V2 corrects the winding, recesses all 17 cases behind the panel plane with 68 visible corner screws, fits the upper panel/glareshield inside the shell, and closes the AI rear case against oblique sky leaks. The low-angle and exterior renders were inspected. Details/reproduction: `docs/models/c172-instruments-v2.md`.
+
+Validation: 32 C172 checks pass; both GLBs pass graph, all 104 authored/45 required bindings, pivots, spacing and flushness. Broader ModelRigTests: 11 pass, one baseline glider airbrake test fails with NaN rollout distances, reproduced in isolation on clean HEAD. Python compilation and diff whitespace checks pass. No src/config changes, device build or deployment claim. ProjectSettings generation discarded. Approval remains pending; local commit only, no push/merge, no forced add.
+
+## 2026-11-03 16:25 PST - 172 panel v2 rejected (Ty)
+NEEDS YOU: approve v3 renders in `~/Developer/agent-lanes/xfer/c172v3/`. Ty rejected v2:
+1. Labels unreadable: they float in space off the panel, too small, low contrast. Make them placards / printed labels flat ON the panel surface, legible size, high contrast.
+2. Three push-pull controls; the third is carb heat. Left to right: throttle (biggest knob), mixture right of it (red, smaller), carb heat right of the mixture (smaller still). Plain push-pull, no ticks, no rotation; fixed pitch, no prop control.
+3. VSI zero at the 9 o'clock position: needle level, pointing left, at zero.
+4. Attitude indicator too "round" (domed/deep bezel): flatten so it reads without parallax; face near the glass, horizon bar and airplane symbol close to the dial plane. Every gauge: shallow bezel, face near flush, high-contrast markings, parallax-resistant.
+Keep: flush instruments with four corner screws, level AI airplane, top-view DG airplane, TC rear-view airplane with curved glass-tube inclinometer and two wires, ADF needle distinct head/tail, 1970s style, TRAINER yokes.
+
+## 2026-11-03 16:26 PST - 172 turn coordinator marks (Ty)
+NEEDS YOU: approve v3. TC standard-rate L and R marks must sit on the exact radial the rear-view airplane's wing reaches at 3°/s (about 20° down from level, as on real Cessna TCs), so the wing lies exactly parallel on the mark at standard rate; verify the overlay. The rear-view airplane's wings must be perfectly symmetric about the centre pivot (one wing looks longer). Add close-ups of the TC at standard rate left and right.
+
+## 2026-11-03 16:28 PST - 172 panel layout (Ty)
+NEEDS YOU: approve v3 layout. Tachometer directly under the VSI. One vertical engine column between the flight instruments and the radio stack, top to bottom: oil pressure, oil temp, fuel (taken as FUEL PRESSURE/FLOW — fuel quantity goes under the TC; Ty to confirm), ammeter, EGT. Suction gauge under the DG. Two fuel quantity gauges under the TC, L and R tanks. Six-pack stays the standard T; keep every earlier fix. Wants a full-panel pilot-eye render plus a labeled layout diagram.
+
+## 2026-11-03 16:29 PST - 172 engine column correction (Ty)
+NEEDS YOU: approve v3 layout. Correction: the 172 is carbureted, so NO fuel pressure or fuel flow gauge. Engine column, top to bottom: oil pressure, oil temp, ammeter, EGT. The only fuel gauges are the two L/R fuel quantity gauges under the TC. (Supersedes the 16:28 "fuel press" assumption; nothing to confirm.)
+
+## 2026-11-03 17:21 PST - 172 instruments v3 (Codex)
+
+NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/
+
+- Rebuilt the requested standard-T panel layout: tach below VSI, suction below DG, L/R fuel quantity below TC,
+  one oil pressure / oil temperature / centre-zero amps / EGT column, relocated NAV/ADF heads and intact radios.
+  Removed the former right engine cluster; no fuel pressure/flow or propeller control.
+- Replaced floating/tiny legends with flat high-contrast printing: at least 6.20 mm control caps and 4.59 mm dial caps,
+  larger numerals, supporting-surface offsets at most 0.3 mm. Lowered switch labels and placed PRIMER on ivory for pilot-eye visibility.
+- Corrected throttle/mixture/carb-heat order, 13/10/8 mm radii, coaxial shafts and translation-only authored bindings.
+  ModelRig.cs has no carb-heat, ammeter or EGT input, so these three remain authored/unbound; all prior runtime params remain.
+- Redrew/calibrated VSI left zero, ±500 at ±45°, ±1000 top/bottom and ±2000 near right; model parameter zero matches the drawn pose.
+- Replaced the deep AI sphere with a shallow masked sliding horizon; 10° pitch up translates down 8 mm against its printed ladder.
+  Retained level orange wings/dot, bank scale, sky pointer and roll binding; captured straight and off-axis comparisons.
+- Centred and symmetrized the TC airplane and fuselage; ±1 rate now rotates ±20° onto matching radial indices. Retained L/R,
+  2 MIN, D.C. ELEC., curved glass inclinometer, ball and wires. Retained flush four-screw mounts, top-view DG, ADF head/tail and TRAINER yokes.
+- Extended exported-mesh checks for every mount/radio/yoke/switch clearance, TC symmetry/radials, actual VSI drawn zero,
+  flat label geometry and engine plunger dimensions/order/translation. 45/45 C172 tests pass; ModelRigTests 11 pass and the
+  known `FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake` NaN baseline fails; no unrelated physics changes.
+- Delivered 34 fresh final Unity/Metal and schematic PNGs, inspected individually, with complete input/hash/mtime provenance,
+  copied byte-for-byte to xfer/c172v3. Both GLBs pass; Unity OwnRigCheck reports RIG OK / 34 bound. Reproduction and full file list:
+  `docs/models/c172-instruments-v3.md`. No src/config edits; ProjectSettings churn discarded; local commit only, no deploy/device install.
