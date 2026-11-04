@@ -498,11 +498,16 @@ public sealed partial class Aircraft
         }
         else fPart = 0.5 * mEff * e.CrushVBreakMs * e.CrushVBreakMs / CrushTravelM;
         bool fuselage = e.UltimateNm <= 0 && FuselageStructure.IsSection(e.Component);
-        if (fuselage && fLimb > fPart && Crush.Type != StructureType.Untagged
-            && !Crush.Absorb(e.Component, va, e.CrushVBreakMs, mEff, out double crush))
+        // A limb is not a trunk: it does not stop the airframe, it does the work F·d of being broken through. On a fuselage
+        // section past its crush force that work crushes it by F·d / F_c (not by the closing speed's energy).
+        if (fuselage && fLimb > fPart && Crush.Type != StructureType.Untagged)
         {
-            CrushFromTree(e.Component, nb, crush, mEff, va, e.CrushVBreakMs);
-            fPart = double.PositiveInfinity;
+            double crush = fLimb * d / fPart;
+            if (!Crush.AbsorbCrush(e.Component, crush, fLimb * d))
+            {
+                CrushAt(e.Component, null, nb, crush, mEff, 0.0, 0.0);
+                fPart = double.PositiveInfinity;
+            }
         }
         if (e.Component == AirframeComponent.Cabin && _lost.Contains(AirframeComponent.Cabin)) fPart = double.PositiveInfinity;
         Vec3 nWorld = State.Attitude.Rotate(nb);

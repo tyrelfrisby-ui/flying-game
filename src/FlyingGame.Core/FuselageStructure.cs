@@ -131,6 +131,22 @@ public sealed class FuselageCrush
         return total > cap;
     }
 
+    /// <summary>A crush of a known amount (a limb that snaps does work F·d on the section, which crushes F·d / F_c): adds
+    /// <paramref name="crushM"/> and <paramref name="energyJ"/>; returns true when the section now breaks.</summary>
+    public bool AbsorbCrush(AirframeComponent section, double crushM, double energyJ)
+    {
+        if (!FuselageStructure.IsSection(section)) return true;
+        double total = CrushOf(section) + System.Math.Max(0.0, crushM);
+        AbsorbedJ += System.Math.Max(0.0, energyJ);
+        switch (section)
+        {
+            case AirframeComponent.Nose: NoseCrushM = total; break;
+            case AirframeComponent.Cabin: CabinCrushM = total; break;
+            case AirframeComponent.TailBoom: TailCrushM = total; break;
+        }
+        return total > FuselageStructure.CapacityM(Type, section);
+    }
+
     /// <summary>A load-ruled overload (the water joints): no arrival speed; steel tube still holds the cabin and tail.</summary>
     public bool BreaksUnderLoad(AirframeComponent section) =>
         !FuselageStructure.IsSection(section) || !double.IsPositiveInfinity(FuselageStructure.CapacityM(Type, section));

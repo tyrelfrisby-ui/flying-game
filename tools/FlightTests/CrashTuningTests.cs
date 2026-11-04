@@ -202,6 +202,11 @@ public class CrashTuningTests : IDisposable
         Assert.False(al.Absorb(AirframeComponent.Cabin, 10.0, 8.0, 300, out double d1));
         Assert.Equal(0.084375, d1, 6);
         Assert.True(al.Absorb(AirframeComponent.Cabin, 10.0, 8.0, 300, out _));
+        // A limb's work crushes by amount (F·d / F_c): 0.10 m then 0.06 m passes the aluminium cabin's 0.15; steel never.
+        var al2 = new FuselageCrush(StructureType.AluminumMonocoque);
+        Assert.False(al2.AbsorbCrush(AirframeComponent.Cabin, 0.10, 1000));
+        Assert.True(al2.AbsorbCrush(AirframeComponent.Cabin, 0.06, 600));
+        Assert.False(new FuselageCrush(StructureType.SteelTube).AbsorbCrush(AirframeComponent.Cabin, 5.0, 1e6));
     }
 
     /// <summary>Drop an aeroplane with no gear flat onto its belly at <paramref name="sinkMs"/> (20 m/s forward, on grass).</summary>
