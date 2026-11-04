@@ -2,8 +2,10 @@
 - **TY'S DECISION (2026-11-03 21:01 PST): MERGE THE PITTS CRASH DEBRIS INTO THE PLAYABLE LANE (Grok Bot, lane/claude-island-nav).**
   Ty approved merging lane/claude-pitts-debris `d8ab9861` (lane-private build `2026.1103.1929`) into lane/claude-island-nav and
   installing it on his iPhone. Merged here (AGENT-LOG conflict only: both NEEDS YOU entries kept). Install: `tools/deploy/deploy.sh`
-  to the iPhone, foreground, after no other deploy.sh/xcodebuild/Unity batch was running; the build number is logged below
-  when it finishes. The debris-render approval in the Pitts entry is separate: still no `*-debris.glb` installed.
+  to the iPhone (00008150-001629A83662401C), foreground, started 21:10:39 PST once no other deploy.sh/xcodebuild/Unity batch was
+  running: 0 `error CS`, `** BUILD SUCCEEDED **`, **installed and launched on Ty's iPhone, build `2026.1103.2111`
+  (`202611032111`)**, done 21:15:18 PST. Targeted tests on the merge (DebrisWiring, LiveryPicker, OwnPittsModel): 26/26 passed.
+  bundleVersion bump not committed. The debris-render approval in the Pitts entry is separate: still no `*-debris.glb` installed.
 - **TESTFLIGHT UPLOAD: `2026.1103.2046` (build `202611032046`) (Grok Bot, 2026-11-03 20:55 PST, lane/claude-island-nav
   `d9730e24` code, the same Unity export as device build `2026.1103.2022`):** Ty approved ("yes upload the current playable
   build to testflight"). APFS clone of `/private/tmp/flyinggame-ios` (island-nav export, 20:23) into `/private/tmp/aero-tf/ios`
