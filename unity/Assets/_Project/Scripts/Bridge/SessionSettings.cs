@@ -59,6 +59,8 @@ namespace FlyingGame.Bridge
         public static bool BubbleInstancing = true;
         /// <summary>Magenta 5-second flight path vector with a cone at its tip (owner 2026-09-10).</summary>
         public static bool ShowFlightPath = false;        // owner 2026-10-28: off until asked for
+        /// <summary>The floating N / S / E / W letters above the horizon (Ty 2026-11-03: a setting, off by default).</summary>
+        public static bool ShowCardinalLetters = FlyingGame.Core.CardinalLetters.DefaultShown;
         /// <summary>Real 3-D airframe models where one exists (AirframeModels); off = the procedural airframes.</summary>
         public static bool UseAirframeModels = true;
 
@@ -78,6 +80,24 @@ namespace FlyingGame.Bridge
         }
         private const string PrefGamepadStickFree = "set.gamepadStickFree";
         private static bool _gpFree, _gpFreeLoaded;
+
+        /// <summary>What the chase camera looks along: the flight path (relative wind) or the ground track — the CAM
+        /// button (Ty 2026-11-03; CameraReference). Flight Path unless the player chose otherwise; saved at once.</summary>
+        public static CameraReference.Mode CameraReferenceMode
+        {
+            get { if (!_camRefLoaded) { _camRef = CameraReference.Load(PrefsStore.Instance); _camRefLoaded = true; } return _camRef; }
+            set { _camRef = value; _camRefLoaded = true; CameraReference.Save(PrefsStore.Instance, value); PlayerPrefs.Save(); }
+        }
+        private static CameraReference.Mode _camRef;
+        private static bool _camRefLoaded;
+
+        /// <summary>PlayerPrefs behind CameraReference's testable store.</summary>
+        private sealed class PrefsStore : CameraReference.IIntStore
+        {
+            public static readonly PrefsStore Instance = new();
+            public int GetInt(string key, int fallback) => PlayerPrefs.GetInt(key, fallback);
+            public void SetInt(string key, int value) => PlayerPrefs.SetInt(key, value);
+        }
 
         /// <summary>WHICH SEAT the cockpit view sits in, for a model that was drawn with more than one eye point
         /// (the Extra 300's Eye_Front / Eye_Rear). Aerobatic two-seaters are flown SOLO FROM THE REAR, which is
@@ -458,6 +478,7 @@ namespace FlyingGame.Bridge
             BubbleInstancing   = GetBool("set.bubbleInstancing", BubbleInstancing);
             BubbleStreaks      = (Streaks)PlayerPrefs.GetInt("set.bubbleStreaks", (int)BubbleStreaks);
             ShowFlightPath     = GetBool("set.flightPath", ShowFlightPath);
+            ShowCardinalLetters = GetBool(FlyingGame.Core.CardinalLetters.PrefKey, ShowCardinalLetters);
             ShowForceVectors   = GetBool("set.forceVectors", ShowForceVectors);
             FlightTestData     = GetBool("set.flightTestData", FlightTestData);
             ShowAtmosphereMap  = GetBool("set.atmosphereMap", ShowAtmosphereMap);
@@ -496,6 +517,7 @@ namespace FlyingGame.Bridge
             SetBool("set.bubbleInstancing", BubbleInstancing);
             PlayerPrefs.SetInt("set.bubbleStreaks", (int)BubbleStreaks);
             SetBool("set.flightPath", ShowFlightPath);
+            SetBool(FlyingGame.Core.CardinalLetters.PrefKey, ShowCardinalLetters);
             SetBool("set.forceVectors", ShowForceVectors);
             SetBool("set.flightTestData", FlightTestData);
             SetBool("set.atmosphereMap", ShowAtmosphereMap);

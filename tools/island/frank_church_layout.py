@@ -24,15 +24,16 @@ RIVERS={
  'CC':dict(name='Chamberlain Creek',top=1580,v=[(-0.05,-1.05,1226,500),(-0.60,-3.10,1186,540),(-1.45,-4.25,1160,520),(-1.75,-4.65,1100,220),(-1.85,-5.15,700,100)]),
 }
 STRIPS=[ # id, river, seg, t, side m (+ left of downstream), min bench m, slope %, L, W, surface, one_way, rot (deg from upstream)
- ('Thomas Creek','MF',1,.50,-185, 5,1.2,1220,30,'dirt',False,0),
- ('Mackay Bar',  'MF',2,.64, 280, 5,1.8, 460,24,'dirt',False,0),
- ('Indian Creek','MF',4,.50,-185, 5,1.6,1220,30,'dirt',False,0),
+ # surfaces (2026-11-03, Ty: "all unpaved"): ITD/AOPA/FAA 5010, mountainflying.com, stripscout — none of these is gravel.
+ ('Thomas Creek','MF',1,.50,-185, 5,1.2,1220,30,'turf',  False,0),
+ ('Mackay Bar',  'MF',2,.64, 280, 5,1.8, 460,24,'dirt',  False,0),
+ ('Indian Creek','MF',4,.50,-185, 5,1.6,1220,30,'dirt',  False,0),
  ('Sulphur Creek','SC',1,.50,-185,5,2.0, 915,30,'turf',  False,0),
  ('Cabin Creek', 'BC',0,.32, 110, 6,6.5, 460,20,'dirt',  True, 0),
  ('Soldier Bar', 'CC',1,.22,-200,12,4.5, 400,20,'dirt',  True,-30),
- ('Chamberlain', 'CC',1,.55, 185, 5,1.2,1100,40,'dirt',False,0),
+ ('Chamberlain', 'CC',1,.55, 185, 5,1.2,1100,40,'turf',  False,0),
  ('Dewey Moore', 'CC',0,.26, 200,10,7.0, 370,18,'dirt',  True, 32),
- ('Big Creek',   'CC',0,.74, 185, 5,1.0,1070,34,'dirt',False,0),
+ ('Big Creek',   'CC',0,.74, 185, 5,1.0,1070,34,'turf',  False,0),
 ]
 def seg(r,i):a=RIVERS[r]['v'][i];b=RIVERS[r]['v'][i+1];return a,b
 def floor_near(r,p):

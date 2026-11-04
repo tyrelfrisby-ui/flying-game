@@ -241,6 +241,16 @@ sat 4.5 cm higher in the cabin and failed the 12 cm check. The CG is a point IN 
 does not move it. When two configs share an airframe and an eye, place the second so its airframe coincides with
 the first (`Spec.SitHighM`), let the new gear be the thing that is off, and gate the coincidence
 (`check_eye_interiors.py` prints `COINCIDE`). Before trusting an eye in a variant, measure it in that variant.
+### Check a force's parity with the mirror state before blaming a sign
+"Opposite aileron lowers the nose inverted" looked like a sign error at negative α. There was none. The aileron's
+separated-flow load was a DRAG along the wind, EVEN in δ, where a plate's load is normal to the plate and the
+deflection's share is ODD in δ. An even term cannot mirror, and it slowed the spin with either stick. What found it was
+the mirror test (`SpinBalanceProbe` part `mirror`): flip a developed spin 180° about x, hold both states, and compare
+part by part. Symmetric physics maps (L, M, N) → (L, −M, −N); whatever doesn't is either geometry or a wrong-parity term.
+Two traps on the way: a probe that rebuilds an `Aircraft` resets the per-strip separation memory, which is hysteretic
+(11–16°), and read the TR-379 slip roll ~40 % low until the flown aircraft's memory was copied across. And a failure blamed
+on the last lane to touch the code (StallAuthority on run #3) came from two runs earlier. Bisect before attributing.
+
 ### A weighted average with a zero weight is a NaN waiting for its geometry
 The island pad blend skipped pads with `dd >= blend` but averaged the rest with weight `1 − Smooth(dd/blend)`, which
 rounds to exactly 0 just inside the edge. With one such pad in range `sumZ/sumW` was 0/0, and `Mix(h, NaN, 0)` is

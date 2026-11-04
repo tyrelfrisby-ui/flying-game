@@ -12,6 +12,8 @@ namespace FlyingGame.EditorTools
     ///   overhead  straight down from 1.6 km above the strip, its landing heading up the picture;
     ///   approach  a pilot's short final: 900 m (or -fcApproachM) before the landing threshold on the landing heading (uphill; the
     ///             one-way heading where there is one), 4 degrees above it, looking at the far end;
+    ///   low       the surface close up: 150 m before the landing threshold, 3 m above it, looking down the strip;
+    ///   surface   on the strip, 20 m past the threshold, 8 m up, looking at the ground ahead;
     ///   wall      for a one-way strip, a 3/4 view up the canyon past it, showing what closes beyond the far end.
     /// Writes build/frank-church/&lt;tag&gt;/*.png. Editor only.
     ///   Unity -batchmode -quit -projectPath unity -executeMethod FlyingGame.EditorTools.FrankChurchRender.RenderStrips -fcTag after
@@ -81,12 +83,26 @@ namespace FlyingGame.EditorTools
                 // Short final: 900 m out (-fcApproachM to change it), 4 degrees up from the threshold (never inside the ground).
                 double ex = tx - ux * approachM, ey = ty - uy * approachM, ez = System.Math.Max(tz + approachM * System.Math.Tan(4 * System.Math.PI / 180), H(ex, ey) + 25);
                 Shoot($"{slug}-approach", S(ex, ey, ez), S(fx, fy, fz), Vector3.up, 55, S(s.X, s.Y, s.ElevationM));
+                // Low: the surface itself. 150 m before the landing threshold, 3 m above it, looking down the strip.
+                double lx = tx - ux * 150, ly = ty - uy * 150, lz = System.Math.Max(tz, H(lx, ly)) + 3;
+                Shoot($"{slug}-low", S(lx, ly, lz), S(tx + ux * 350, ty + uy * 350, tz + sign * 350 * s.SlopePercent / 100), Vector3.up, 50, S(s.X, s.Y, s.ElevationM));
+                // Surface: on the strip, 20 m past the threshold and 8 m up, looking at the ground 60-200 m ahead.
+                double qx = tx + ux * 20, qy = ty + uy * 20, qz = tz + sign * 20 * s.SlopePercent / 100 + 8;
+                Shoot($"{slug}-surface", S(qx, qy, qz), S(tx + ux * 140, ty + uy * 140, tz + sign * 140 * s.SlopePercent / 100), Vector3.up, 60, S(s.X, s.Y, s.ElevationM));
                 if (s.OneWay)
                 {
                     // 3/4 view: 1.2 km behind and 500 m to the side of the threshold, 300 m up, looking past the far end.
                     double sx = tx - ux * 700 - uy * 500, sy = ty - uy * 700 + ux * 500;
                     Shoot($"{slug}-wall", S(sx, sy, System.Math.Max(tz + 300, H(sx, sy) + 60)), S(fx + ux * 250, fy + uy * 250, fz + 60), Vector3.up, 55, S(s.X, s.Y, s.ElevationM));
                 }
+            }
+            // Control: the longest paved runway, which must keep its markings. 600 m short of its end A, 40 m up.
+            FlyingGame.Core.IslandField paved = null;
+            foreach (var f in FlyingGame.Core.IslandTerrain.Fields) if (FlyingGame.Core.StripFinish.Painted(f.Surface) && (paved == null || f.Length > paved.Length)) paved = f;
+            if (paved != null)
+            {
+                var end = paved.Centre - paved.U * (paved.Length / 2000); var eye = end - paved.U * .6; double ez = paved.Plane(end);
+                Shoot($"paved-control-{paved.Field.ToLowerInvariant()}", WorldBuilder.U(eye.X, eye.Y, System.Math.Max(ez + 40, H(eye.X, eye.Y) + 20)), WorldBuilder.U(paved.Centre.X, paved.Centre.Y, paved.Elevation), Vector3.up, 45, WorldBuilder.U(end.X, end.Y, ez));
             }
             File.WriteAllText(Path.Combine(outDir, "cameras.txt"), log.ToString());
             RenderTexture.active = null;

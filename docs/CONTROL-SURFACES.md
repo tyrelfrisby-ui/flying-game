@@ -666,3 +666,54 @@ Decalage changes incidence, not these perturbation loads, so it does not enter.
 * **Hinge gap.** Real and not small: in flight on a Fairchild 22, sealing the hinge gap bought about a third more
   effectiveness on 0.09c ailerons and about a fifth on 0.18c (Soulé & Gracey, NACA TN 632, 1938). The η_δ above is the
   SEALED value. No config records a gap, and the Pitts' real gap is not known here, so no loss is applied.
+
+## The aileron in separated flow: a plate's load is normal to the plate (2026-11-03, Pitts spin run #4)
+
+Ty, on 2026.1103.1622: "the inverted flat isn't quite flat enough now and full opposite aileron actually reduces the spin
+rate and lowers the nose which is not correct". Aileron against the roll (upright: away from the rudder; inverted, where
+p and r have opposite signs in body axes: TOWARD the rudder) is the flat-spin input upright and inverted alike. For a
+fuselage-loaded aeroplane ailerons against the spin are pro-spin (NACA TR 1329, Neihouse, Klinar & Scher 1960).
+
+**The mirror test** (`SpinBalanceProbe`, part `mirror`). Turn an aeroplane over about its own x axis and every term of a
+top/bottom-symmetric airframe maps (α, β, p, q, r) → (−α, −β, p, −q, −r) and (L, M, N) → (L, −M, −N). The inertia
+couples, the prop's gyro (h along +x is unchanged), torque, P-factor, swirl and every symmetric section map exactly; the
+ailerons map onto themselves (δa unchanged). So the mirror of an upright LEFT spin with right stick is an inverted RIGHT
+spin with right stick. Holding a developed spin and its mirror state and comparing part by part, the only things that do
+not mirror are the airframe's own geometry: the fin on top, out of every wake when inverted (more anti-spin damping); the
+spiral slipstream striking that fin (a constant body yaw-left, pro-spin in an upright left spin and anti-spin in an
+inverted right one); the upper wing 0.81 m above the CG and the lower 0.25 m below; Ixz; the body camber below. No sign
+error in any α-, β- or p-dependent term (audited: AeroModel, PropModel, RigidBody6DOF, ApplyWingSideslipRoll, the
+elevator anti-spin stall, P-factor, gyro, downwash, wake gating).
+
+**What was wrong: the deflected aileron's separated-flow load.** `AeroModel` added 1.2·sin²δ·1.5·sep of drag coefficient
+to every aileron strip, along the local wind. Two consequences, both measured in developed spins:
+* it is EVEN in δ, the same on both wings, so it is rotary damping: the spin slowed with either stick (inverted idle right
+  164 → 154 deg/s against the roll, upright idle left 183 → 165);
+* at spin α its chordwise part pushes aft on the ailerons, and the cellule they sit on is above the CG: full aileron
+  pitched the nose body-UP by 156 N·m upright (nose up: flatter) and 268 N·m inverted, where body-up is the nose going
+  DOWN toward the ground. That is the "lowers the nose".
+
+**The physics.** In separated flow the pressure on a plate acts normal to it (Hoerner, *Fluid-Dynamic Drag*, ch. 3). A
+deflected aileron is the aft part of the section turned δ about its hinge, so its share of the section's normal force CN
+tilts with it: a chordwise force CN·sin δ on the flap area, aft on the surface whose trailing edge is deflected into the
+windward side, forward on the one deflected away. It is ODD in δ: a pair makes a yaw couple toward the down-going aileron
+(the adverse yaw that grows past the stall, which is what the original owner directive asked for) and no net drag, and
+it mirrors with the windward side, i.e. with the sign of α. The roll part stays where it was (the hinged row's Δα, cut by
+separation). Applied to the hinged row only, the surface that physically moves; every aircraft but the paraglider has one.
+
+**What it did** (Pitts, developed spin, full aileron against the roll; with the ailerons neutral every spin is within 0.1° and
+1 deg/s of before — not exactly equal only because the rigged aileron offset, 0.374°, is a small deflection):
+
+| spin | before α, θ, Ω | after α, θ, Ω |
+|---|---|---|
+| inverted 40 % R | −32.9, −55.7, 154 | **−90.9, +1.6, 235** |
+| upright 40 % L (its mirror) | 91.8, 2.8, 190 | 98.3, 9.0, 248 |
+| inverted idle R | −29.3, −59.3, 154 | −36.3, −51.6, 132 |
+| upright idle L (its mirror) | 31.8, −56.7, 165 | 89.5, −0.3, 248 |
+
+Aileron WITH the roll now un-flattens a flat spin (upright 40 % L: α 93 → 30), as TR 1329 says for this loading.
+
+**Open.** At idle the inverted right spin flattens and raises its nose with the aileron but turns more slowly: it stays at
+α −36, where the wing's own autorotation is the roll driver and the aileron opposes it directly. Its upright mirror goes
+flat. The difference is the fin and slipstream geometry above, not a sign. The full-power inverted right spin with the
+aileron still does not hold (it gyrates, α −175..+170): run #3's gyro-yaw departure, unchanged.

@@ -1,4 +1,122 @@
 ## NEEDS YOU
+- **TY'S DECISION (2026-11-03): "Grob looks good add it" — MERGE NOT DONE, QUESTION FOR TY (Claude, lane/claude-island-nav
+  `73c3ad9d`):** Asked to merge lane/codex-grob103 `919da6c7` (Florian Blanc Twin III Acro model, renders/grob/v-fix).
+  Stopped before merging because that branch carries more than the Grob:
+  - it is built on **lane/claude-cert-restructure** (`1161db31`..`d0986c0c`, 5 commits), which this log still lists as
+    "REVIEW BEFORE MERGE": the new levels, **save-data migration of old saves** (PilotRecord, SaveMigrationTests), the
+    737-800 retired from progression and pickers, and the rewritten progression.json. Merging the Grob would install
+    all of that on the iPhone, and a save migration cannot be undone on the device;
+  - it is the **model only** (GLBs, rig, provenance). The flight config, airbrakes, tests and the aerobatic-glider stage
+    are on **lane/claude-grob103** (`d7962cdd`), also off `d0986c0c`, and that config is the Twin II Acro while the
+    approved model is the Twin III Acro. Merged alone, the GLBs sit in Resources with no config to fly them.
+  **Ty, which one?** (a) also merge the cert restructure + lane/claude-grob103 config (full Grob, new progression);
+  (b) cherry-pick only the Grob onto island-nav without the restructure (needs the config rebased off the old levels,
+  and its stage wiring dropped or redone); (c) merge the model only, not yet flyable. No merge, build or install was
+  done; island-nav unchanged apart from this entry. ProjectSettings/GraphicsSettings left untouched.
+
+- **TY'S DECISION (2026-11-03 21:01 PST): MERGE THE PITTS CRASH DEBRIS INTO THE PLAYABLE LANE (Grok Bot, lane/claude-island-nav).**
+  Ty approved merging lane/claude-pitts-debris `d8ab9861` (lane-private build `2026.1103.1929`) into lane/claude-island-nav and
+  installing it on his iPhone. Merged here (AGENT-LOG conflict only: both NEEDS YOU entries kept). Install: `tools/deploy/deploy.sh`
+  to the iPhone (00008150-001629A83662401C), foreground, started 21:10:39 PST once no other deploy.sh/xcodebuild/Unity batch was
+  running: 0 `error CS`, `** BUILD SUCCEEDED **`, **installed and launched on Ty's iPhone, build `2026.1103.2111`
+  (`202611032111`)**, done 21:15:18 PST. Targeted tests on the merge (DebrisWiring, LiveryPicker, OwnPittsModel): 26/26 passed.
+  bundleVersion bump not committed. The debris-render approval in the Pitts entry is separate: still no `*-debris.glb` installed.
+- **FRANK CHURCH STRIPS UNPAVED, NO RUNWAY PAINT; BUILT 2026.1103.2136, NOT INSTALLED (Claude, 2026-11-03,
+  lane/claude-fc-surfaces, from island-nav `26468fee`):** the strips are now the surfaces the real ones are (turf: Thomas
+  Creek, Sulphur Creek, Chamberlain, Big Creek; dirt: Mackay Bar, Indian Creek, Cabin Creek, Soldier Bar, Dewey Moore).
+  The centreline, threshold bars, numbers and painted ident are gone from every unpaved island field (gravel airparks,
+  turf strips and beaches as well); only asphalt keeps them, and PANC's control render is unchanged. Dirt is drawn as
+  rutted brown earth and turf as mown grass. Turf rolls as Grass, dirt as Gravel. Because grass strips lie naturally
+  (your 2026-11-03 rule), the three new turf strips now have a shape: Chamberlain a 1.71 m banana, Big Creek a 2.69 m
+  crest, Thomas Creek gentle rolling. **Please look at** ~/Developer/agent-lanes/xfer/frank-church-v2/
+  (`*-surface.png` shows the ground close up; README.md explains the rest). Not merged; ProjectSettings bump not committed.
+
+- **TESTFLIGHT UPLOAD: `2026.1103.2046` (build `202611032046`) (Grok Bot, 2026-11-03 20:55 PST, lane/claude-island-nav
+  `d9730e24` code, the same Unity export as device build `2026.1103.2022`):** Ty approved ("yes upload the current playable
+  build to testflight"). APFS clone of `/private/tmp/flyinggame-ios` (island-nav export, 20:23) into `/private/tmp/aero-tf/ios`
+  so other lanes' deploy.sh runs could not wipe it mid-archive; only the clone's Info.plist was bumped (ProjectSettings untouched,
+  nothing to revert). `xcodebuild archive` Release, team DH425V439F, automatic signing → `** ARCHIVE SUCCEEDED **`;
+  `-exportArchive` with tools/deploy/ExportOptions-asc.plist (app-store-connect, destination upload) → `Upload succeeded`
+  20:54:48 PST, `** EXPORT SUCCEEDED **`. Bundle com.tyrelfrisby.aeroplayground, ASC app id 6810484227.
+  `ITSAppUsesNonExemptEncryption` = false was already set (standard HTTPS only), so no export-compliance question.
+  OTA ipa (build/ota) NOT refreshed. No push, no merge. **Ty:** once processing finishes the internal group "Aero Playground
+  Beta" gets it automatically (TestFlight app); for the external "Friends" link, add the build to that group in App Store
+  Connect → TestFlight and submit it for Beta App Review.
+
+- **N/S/E/W LETTERS: A SETTING, OFF BY DEFAULT, AND AT INFINITY WHEN ON; BUILT 2026.1103.2040, NOT INSTALLED (Claude,
+  2026-11-03, lane/claude-nsew-toggle `07558784`, from island-nav `e8fd1370`):** OPTIONS › Aids › "N / S / E / W
+  letters on the horizon", off by default, saved as `set.cardinalLetters`. When on, each letter rides with the
+  camera's position (not its rotation) 15 km out on its bearing, lower edge 2° and top 5° above horizontal, so you
+  cannot fly up to one and it keeps the same size at any altitude. Arena 1 "Cardinal turn" does not need them: it is
+  scored on heading and sideslip, so with letters off you fly it on the HUD heading / heading card / dials.
+  `** BUILD SUCCEEDED **`, 0 `error CS`. Not looked at in a render yet: **please switch them on and check the size
+  and height above the horizon.** Not merged; ProjectSettings/GraphicsSettings changes from the build not committed.
+
+- **FRANK CHURCH VALLEYS MERGED AND INSTALLED: `2026.1103.2022` (Grok Bot, 2026-11-03 20:28 PST, lane/claude-island-nav
+  `d9730e24`, merge of lane/claude-frank-church-valleys `a0949d92`):** Ty approved the renders ("Yes, merge the Frank Church
+  valleys and install"). All nine strips are now on the river floor or low benches with 239-711 m canyon walls; one-way:
+  Cabin Creek (land 112, 6.5 %), Soldier Bar (land 006, 4.5 %), Dewey Moore (land 047, 7.0 %). Conflicts in AGENT-LOG.md and
+  CLAUDE.md only; both sides kept. `deploy.sh` `** BUILD SUCCEEDED **`, installed + launched on Ty's iPhone and iPad mini;
+  Frisby_801C_EFB reported Locked. ProjectSettings bump not committed. Renders: ~/Developer/agent-lanes/xfer/frank-church-v1/.
+
+- **PITTS SPIN #4 IS ON THE IPHONE: `2026.1103.1951` (Grok Bot, 2026-11-03 19:56 PST, lane/claude-island-nav `868bdda1`,
+  merge of lane/claude-pitts-spin `3bf6ed2f`/`fe232151` on top of the CAM-button commits):** AGENT-LOG conflict only (both
+  NEEDS YOU entries kept). Merged tree: PittsFlatSpinAileron/Spin/PittsRollRate/CameraReference filter 51/52 passed; the one
+  failure is the pre-existing `SpinTests.ProSpinDepartsAndSustainsRotation` (fails on base too). `deploy.sh
+  00008150-001629A83662401C` `** BUILD SUCCEEDED **`, 0 `error CS`, installed 19:55; the auto-launch failed only because the
+  phone was locked (open it by hand). devicectl shows 2026.1103.1951. ProjectSettings bump not committed. See the run #4
+  entry below for what to fly. No gate approved.
+
+- **PITTS SPIN #4: INVERTED FLAT + FLAT-SPIN AILERON FIXED; BUILT 2026.1103.1941, NOT INSTALLED (Claude, 2026-11-03,
+  lane/claude-pitts-spin `fe232151`, island-nav `510f987c` merged in first):** cause: a deflected aileron in separated flow
+  was a DRAG along the wind, even in δ. It slowed the spin with either stick, and its chordwise push on a cellule above the
+  CG pitched the nose body-up: up when upright, DOWN when inverted. Now it is the plate's normal force tilted with the
+  surface, a yaw couple toward the down aileron, mirrored by sign(α). No α/β/p sign error anywhere (mirror test). Your
+  Cm(β) is the body camber term: body-fixed, already flattening when inverted, small. Pitts, full aileron against the roll:
+  - **inverted 40 % R, stick forward:** α −32.9 → **−90.9**, nose −55.7° → **+1.6°**, 154 → **235 deg/s (1.53 s/turn)**;
+  - **upright 40 % L:** α 91.8 → 98.3, 190 → 248 deg/s.
+  Ailerons neutral, every spin is unchanged (≤ 0.1°, 1 deg/s). **Please fly:**
+  - inverted 40 % power, right rudder, right aileron;
+  - the upright flat WITH out-spin aileron, which is now flatter and faster than before: idle left goes flat (α 89.5),
+    full-power left goes past flat (α 107, nose +17°, gyrating).
+  Open: the idle inverted spin flattens but turns slower with the aileron; full-power inverted right + right aileron still
+  gyrates out (run #3's gyro yaw). StallAuthority SR22/Jenny is from run #1's tail wakes (d54a06e5), not run #3. The
+  calibration fix moves the SR22 book stall 70 → 68 kt, so it was not shipped. New tests pass, no newly failing names in
+  the 18 flight classes. No gate approved.
+
+- **FLIGHT-PATH MARKER FOLLOWS THE CAM BUTTON, ON THE IPHONE: `2026.1103.1740` (Grok Bot, 2026-11-03 17:46 PST, lane/claude-island-nav
+  `b7d54117`):** **Ty's decisions (2026-11-03):** (1) the HUD flight-path marker follows the CAM button. Its old automatic switch
+  to the ground track below 500 ft AGL is removed: CAM: FLT PATH draws the air-velocity vector (green), CAM: TRACK draws
+  the ground track (magenta, with the point-of-impact target). (2) Runway lessons keep FORCING Track (the button shows
+  "(LESSON)"), and the marker follows that forced Track too. Code: `CameraReference.MarkerUsesGroundTrack/MarkerVelocity`
+  and `FlightPathVector.cs`, using the same `CameraReference.Effective(button, Driver.GroundReferenceForced)` as the
+  camera. `FlightSimDriver.GroundReference` (the 500 ft rule) now has no callers; I left it in place. Tests: 2 new
+  in `CameraReferenceTests`; camera/flight-path filter 23/23 passed. `deploy.sh 00008150-001629A83662401C`
+  `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched 17:46 (ProjectSettings bump not committed). Still open:
+  Codex to polish the CAM button's look. No gate approved.
+
+- **CAMERA FLIGHT PATH / TRACK BUTTON IS ON THE IPHONE: `2026.1103.1715` (Grok Bot, 2026-11-03 17:22 PST, lane/claude-island-nav
+  `c7d60932`, cherry-picked from lane/claude-wheel-hydroplane `94fe5aca`):** the automatic switch of the chase camera to the
+  ground track below 500 ft AGL is gone (that was why the relative-wind camera sat at 7:30 on a low crosswind final). A
+  full-time **CAM** button beside SMOKE toggles "CAM: FLT PATH" (air velocity, the default) and "CAM: TRACK" (ground track);
+  the choice persists (PlayerPrefs `set.cameraReference`). Pure logic in `src/FlyingGame.Core/CameraReference.cs`, 6 tests in
+  `CameraReferenceTests`; camera tests 21/21 passed; `deploy.sh 00008150-001629A83662401C` `** BUILD SUCCEEDED **`,
+  installed and launched 17:22 (ProjectSettings bump not committed). Questions (1) and (2), about the marker following the
+  button and lessons forcing Track, were ANSWERED by Ty the same day; see the `2026.1103.1740` entry above.
+  (3) **Codex: please polish the CAM button's look**; it is functional placeholder styling. No gate approved.
+
+- **ISLAND-NAV `2026.1103.1622` IS ON THE IPHONE (island surfaces + Pitts spin #3 merged); ONE TEST HANGS ON THE MERGED TREE
+  (Grok Bot, 2026-11-03 16:55 PST, lane/claude-island-nav `ce53d62e`):** `deploy.sh 00008150-001629A83662401C` →
+  `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on Ty's iPhone 16:28 (ProjectSettings bump not committed).
+  Earlier, 15:29, the pre-merge `2026.1103.1409` had been put on it as a stopgap. **Please fly it: Pitts spins, island
+  strips/snow, gamepad.** Open items: (1) `LaunchReplicationTests.ConsecutiveAirStartsAreTheSameLaunchAndFlyHandsOff`
+  **hangs on the merged tree only**: in the full run on `(pa18-floats-like, stickFree False)` from ~15:31 at full CPU
+  (killed 16:20), and run alone on `(p51d-like, stickFree True)` after 49 cases had passed (killed after 20 min). The base
+  `da807576` gets through the whole class. It is not skipped in code; the full merged run stopped at 1194 tests, so the
+  ~450 tests after it have **not** run on the merged tree yet. (2) `StallAuthorityTests.FullAftHoldsJustPastTheStallForEveryAircraft`
+  (SR22 14.5° and Jenny 13.0° vs 16.5° stall) fails alone on merged and passes alone on base. It comes in with Pitts spin #3,
+  whose own log lists it as failing alone on that lane before the merge: a tail-table physics change, not a merge
+  mistake, so I left it alone. No gate approved.
 - **FRANK CHURCH STRIPS MOVED DOWN INTO RIVER CANYONS — PLEASE LOOK AT THE RENDERS (Claude, 2026-11-03,
   lane/claude-frank-church-valleys, NOT MERGED):** your "always deep in the valleys". All nine strips now lie on the floor
   of a river canyon (Middle Fork, Sulphur Creek, Big Creek, Chamberlain Creek), 3–30 m above the water. The walls rise
@@ -8,6 +126,83 @@
   things for you to decide: (1) the backcountry strips no longer carry a Part 77 20:1 surface, since their approaches
   follow the canyon (that fan was half of the mesa look); (2) the relief generator re-picked its snow patches and rock
   ledges, so there are now 1/3/5/10° patches (no 4° or 8°) and six ledges. No device install was done.
+- **NEEDS YOU: APPROVE THE DEBRIS RENDERS. CRASH DEBRIS NOW COMES FROM THE AEROPLANE ON SCREEN, IN ITS LIVERY (Claude,
+  2026-11-03, lane/claude-pitts-debris `0a5a7e79` repro + `b1c00bca` fix):** the prebuilt debris pieces are the
+  Codex lane's (lane/codex-pitts-debris); their renders are in `~/Developer/agent-lanes/xfer/debris-v1/<aircraft>/` and
+  `~/Developer/agent-lanes/xfer/pitts-debris-v1/`. **Nothing is installed**: no `*-debris.glb` is in Resources, and
+  `DebrisWiringTests.NoDebrisSetIsInstalledBeforeTheRendersAreApproved` fails if one appears. Once you approve, put each set beside
+  its intact GLB as `<intact GLB name>-debris.glb` (e.g. `Resources/Models/pitts-s2b-like/pitts-s2b-like-own-n1191-debris.glb`) and the
+  game picks it up. Until then the runtime split below makes the pieces, from the same model and the same paint.
+  - **Root cause** (two faults, `AirframeVisual.cs` at `ce53d62e`):
+    1. `TryPlaceModel` (`:2114-2126`) hides the procedural shell but leaves its parts in `_parts`/`_wingParts`. `DetachStatic`
+       (`:337-414`) and `DetachWings` (`:525-558`) split those parts too and hand every piece to `AddPiece` (`:580-590`), which gives it a
+       NEW, ENABLED `MeshRenderer`. **That is the "old Pitts render"**: the red procedural Pitts's wings, ailerons, stab, fin, rudder,
+       cowl, prop and wheels fell out in `FlyingGame/Airframe` paint. For the stab and fin, `Matches()` (`:308-320`) only knew the
+       procedural names (the model's meshes are `Model:Stab`...). So a stab or fin loss dropped only the hidden shell's part, and the
+       model's own tail stayed on the aeroplane.
+    2. `CloneMesh` (`:661-669`) copied positions and triangles into submesh 0 and nothing else: no UVs, colours or tangents, and
+       recomputed normals. `AddPiece` took only `mr.sharedMaterial` (slot 0). Every piece lost its baked texture paint, and so did the part
+       left on the aeroplane, because the kept half went through the same copy. `CutModelLeg` (`:1681-1738`) kept uv0 but merged the
+       submeshes into slot 0.
+  - **Reproduced** by the new editor check `DebrisPaintCheck` on `0a5a7e79`: the Pitts failed in all 4 liveries (60 failures,
+    `/tmp/pitts-debris/repro-base.log`); the whole fleet failed with 666 failures (`/tmp/pitts-debris/fleet-base.log`).
+  - **Fix** (`b1c00bca`):
+    - New `DebrisMesh.Split` carries every vertex attribute (normals, tangents, colours, all 8 UV channels) and keeps each triangle in its own
+      submesh. `ForPiece` drops empty submeshes together with their materials. Every cut goes through it.
+    - `AirframeBuilder.IsDebrisSource`: anything hidden when the model took over is never debris. Its lost parts still leave the
+      airframe, unseen. A prop strike no longer bends the hidden shell's blades into visible cubes.
+    - The model's own named parts match their component (Stab/Elevator/Fin/Rudder/Aileron_UL...). A one-mesh downloaded model's tail is cut
+      from the space of the hidden procedural stab/fin. The model's mesh objects are emptied, never destroyed, so the J-3's elevators
+      under its Stab and the rig nodes survive.
+    - A wing failure no longer takes the stabiliser tips and wheels with it.
+    - A nose or tail break after a wing failure now still cuts the model; `TakeWingParts` used to drop the whole model from the part
+      list.
+    - Wing and fin lettering (`Decal:*`) leaves with the wing or fin it is painted on.
+    - **Prebuilt hook**: `TakePrebuiltDebris` loads `AirframeModels.PlacedResourcePath(id) + "-debris"`, which is the very file
+      `Place` loaded, so it can never be another livery's or another type's. It is placed at the intact model's pose and drops its
+      `Debris.<AirframeComponent>.<label>` nodes. The runtime split still takes the part off the aeroplane but drops nothing of its
+      own. There is no lookup for the procedural shell, or for a model repainted at run time (the Talk Flying 172, a recoloured 2-33).
+      Rebuild/livery change resets the hook.
+    - Wreck physics is unchanged.
+    - TODO: runtime cuts are not capped; the prebuilt sets are.
+  - **Tests**:
+    - `DebrisPaintCheck` (`Unity -batchmode -nographics -projectPath unity -executeMethod FlyingGame.EditorTools.DebrisPaintCheck.Run`,
+      `DEBRIS_TYPES=` to limit) breaks every type up through the game's own code, in every livery and with own-models off and on, plus
+      the 2-33 and 172 override schemes: the wing failure plus stab, fin, nose and both mains, then aileron, elevator, rudder, a whole
+      wing, an outer panel, tail boom, tailwheel, nose gear and nose. Every debris face must be a face that was drawn, at the same
+      place, with the same Material object and the same UV. Kept parts must keep their UVs. The prebuilt hook is exercised on every
+      Pitts livery with a stand-in set cut from the intact GLB.
+      **PASS: 48 of 48 (type, livery, file) combinations, 0 failures** (`/tmp/pitts-debris/fleet3.log`); base: 666 failures.
+    - New `tools/FlightTests/DebrisWiringTests` (3 tests): the debris-set names per Pitts livery as literals, no set installed, and the
+      wiring.
+    - The targeted suites (DebrisWiring, LiveryPicker, OwnPittsModel): 26/26 passed.
+    - **The full suite did not finish.** Around 60 other lanes' `dotnet test` processes were on the Mac: the first run was killed at
+      60 min and the second sat 47 min without output, so I stopped it. Between them they reported 66 failing names, all in terrain,
+      island, contact and flight classes in `src/` (Alaska, Glacier, Alpine, HighDesert, PlateauCopy, FrankChurch, ...). I re-ran
+      those 24 classes on base `ce53d62e` (detached worktree) and on this branch: **62 failed / 108 passed on both, with identical
+      names. No new failures.** This lane changes nothing in `src/` or `configs/`.
+  - **Build**: Unity iOS export plus xcodebuild of this worktree into a LANE-PRIVATE directory (`/private/tmp/pitts-debris-build/ios`, derived
+    data `/private/tmp/pitts-debris-build/dd`, not the shared `/private/tmp/flyinggame-dd`). `deploy.sh` was not used.
+    **0 `error CS`, `** BUILD SUCCEEDED **`, stamp `2026.1103.1929`**, `.app` at
+    `/private/tmp/pitts-debris-build/dd/Build/Products/Release-iphoneos/AeroPlayground.app`. **Not installed on any device.** The
+    bundleVersion bump was not committed.
+  - **Every aircraft** (DebrisPaintCheck on base vs fix; "shell" = hidden procedural parts drawn as debris under a model):
+  | type | model shown (defaults: models on, own-models off) | liveries | broken before the fix (DebrisPaintCheck on base) | fixed by the general fix |
+  |---|---|---|---|---|
+  | pitts-s2b-like | our S-2B GLB, one per livery | checker-unmarked, factory-unmarked, n31dg, n1191 | YES: the hidden procedural Pitts's wings, ailerons, stab, fin, rudder, cowl/prop and wheels fell as debris in FlyingGame/Airframe paint; the model's own stab/fin/elevator/rudder never came off; the model's pieces AND the fuselage left behind lost their UVs (paint) | yes, all 4 PASS |
+  | extra-300-like | our EA300 GLB, one per livery | unmarked, talk-flying, n300uy | YES: same (shell parts + lost UVs) | yes, all 3 PASS |
+  | great-lakes-like | our GLB | type | YES: shell + lost UVs | yes |
+  | j3-cub-like / j3-cub-floats-like | our GLBs | type | YES: shell + lost UVs | yes |
+  | glider-2-33-like | procedural (our GLB only with own-models or the factory / talk-flying override) | type (+2 by override) | procedural: lost UVs; GLB: shell + lost UVs | yes (procedural and both GLBs) |
+  | c172-like | downloaded OBJ (our GLB with own-models; Talk Flying repaint by override) | type (+talk-flying by override) | YES: shell + lost UVs (+ wrong faces in the Talk Flying repaint) | yes, both files, both schemes |
+  | pa28-archer, cirrus-sr22, stearman-pt17, jn4-jenny, p51d, geebee-r2, hughes-h4 | downloaded model | type | YES: shell + lost UVs | yes |
+  | f86-sabre, dc3 | downloaded model | type | YES: shell (UVs survived on these meshes) | yes |
+  | boeing-737 | downloaded model | type | YES: shell + lost UVs | yes |
+  | pa18-cub / pa18-bush / pa18-floats | downloaded PA-18 OBJ (bush/floats keep their own gear) | type | YES: shell + lost UVs | yes |
+  | seminole-like | downloaded Apache OBJ (our PA-44 GLB with own-models) | type | YES: shell + lost UVs | yes, both |
+  | glider-eb29r-like | downloaded OBJ (our GLB with own-models) | type | YES: shell + lost UVs | yes, both |
+  | glider-swift-s1-like | procedural (our GLB with own-models) | type | procedural: lost UVs; GLB: shell + lost UVs | yes, both |
+  | paraglider, hang-glider, dhc2-beaver (+floats), pa25-pawnee, decathlon, cassutt, glasair3, aircam (+amphib) | procedural only | type | partly: no wrong render (the procedural airframe IS what is on screen), but pieces and the part left behind lost their UVs and material slots | yes |
 
 - **NOTHING INSTALLED 14:35 — IPHONE STILL 4016; PITTS SPIN #3 AND ISLAND SURFACES NEED A MERGE BEFORE THEY CAN GO ON (Grok Bot,
   2026-11-03 14:35 PST, lane/claude-island-nav `66656185`):** Ty's iPhone (00008150-001629A83662401C) is "unavailable" in
@@ -1451,6 +1646,229 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 — Claude · lane/claude-fc-surfaces (off island-nav 26468fee) · Frank Church strips unpaved, no runway paint
+Ty: in frank-church-v1/after-soldier-bar-approach.png the strips render PAVED with centreline dashes. Every real Frank
+Church strip is unpaved.
+
+**Cause:** `IslandWorldBuilder.Runways` drew centreline dashes, threshold bars, numbers and the painted ident on every land
+field whatever its surface was. On top of that the layout had five strips as `gravel`, drawn in a flat grey-tan
+(.58,.54,.45) that reads as pavement once it carries a white centreline.
+
+**Fix:**
+- `tools/island/frank_church_layout.py` surfaces, from ITD/AOPA/FAA 5010, mountainflying and stripscout: Thomas Creek
+  turf, Mackay Bar dirt, Indian Creek dirt, Sulphur Creek turf, Cabin Creek dirt (the 5010 says turf, the strip is
+  dirt), Soldier Bar dirt, Chamberlain turf, Dewey Moore dirt, Big Creek turf. Re-ran the layout script (spec diff is
+  the five surface lines only) and `generate_runtime.py`. No relief regen: TerrainGen fixes only the strip plane.
+  `check_parity.py` passes (1.27e-11 m), and `generate_runtime --check` / `generate_gradient --check` are clean.
+- New `src/FlyingGame.Core/StripFinish.cs` makes one decision: `Of(surface)` returns Paved/Gravel/Dirt/Turf/Sand/Water;
+  `Painted` is true for pavement only; `LiesNaturally` for turf/grass; `Rolls` gives Paved, Grass for turf, and Gravel
+  for everything else. `IslandTerrain.SurfaceAt` and the `IslandField` shape choice now go through it, with the same
+  mapping as before.
+- `IslandWorldBuilder.Runways`: paint (centreline, thresholds, numbers, ident) only `if StripFinish.Painted`. Unpaved
+  fields get `UnpavedSurface`: 10 m patches along the strip with a fixed FNV hash, two darker wheel tracks 2.6 m
+  apart, edges fading into the shoulder, and mower stripes on turf. The colours are dirt (.46,.36,.25), turf
+  (.40,.49,.25) and gravel (.53,.50,.43). Sand stays plain. It is laid on `f.SurfaceHeight` + 4 cm, so it follows a
+  shaped field. The AP3 STOL line is kept.
+- Side effect, on purpose: under the grass-lies-naturally rule (NaturalSurfaceTests), Chamberlain, Big Creek and
+  Thomas Creek take shapes 9/10/11 (banana 1.71 / crest 2.69 / rolling 0.32). Sulphur Creek moves to index 12, which is
+  still banana 1.92, so it is unchanged.
+- `FrankChurchRender` gained `-low` (150 m before the threshold, 3 m up), `-surface` (on the strip, 20 m in, 8 m up)
+  and a `paved-control-<field>` shot of the longest paved runway.
+
+**Tests** (TestRunner, in-process): new `FrankChurchTests.EveryStripIsTheUnpavedSurfaceTheRealOneIsAndCarriesNoPaint`
+(literal surface per strip; FrankChurch.Ground; not Painted; finish; shape iff turf; SurfaceAt at 9 points per strip).
+New `StripFinishTests` (2): a literal table, plus every island field painted iff asphalt and rolling the way it is
+drawn. `NaturalSurfaceTests` gained the three new turf strips as literals, and `EveryStripIsFlatAcross...` has a
+literal TurfLie table. NaturalSurface + FrankChurch + StripFinish: **19/19 pass**. Wider set (IslandHeightIndex,
+IslandSurface, IslandWaterAndNormal, IslandStart, IslandCombat, IslandStartupCost, Forest, MountainFront,
+MountainRoughness, RunwayChoice, NaturalSurface, FrankChurch, StripFinish): 88 pass, 9 fail. The 9 failing names are
+**identical on the base 26468fee**: Forest ×2 (PHDH timber, dry country), MountainFront bays, MountainRoughness ×6
+(`airport:Bench` anchor). Caveat: other lanes' `dotnet test` runs were going at the same time; the comparison is
+name for name.
+
+**Build:** `/tmp/fcs-build.sh` (deploy.sh copy, DEVICES=(), own `/private/tmp/fcs-ios` and `fcs-dd`, no pruner):
+`** BUILD SUCCEEDED **`, 0 `error CS`, `2026.1103.2136`, run on the final code. Not installed. ProjectSettings changes
+reverted. Library: `unity-Library-claude-fc-surfaces` (APFS clone of the frank-church-valleys cache). The editor
+renders crashed once in the Burst compiler at startup; `--burst-disable-compilation` fixed it (editor renders only).
+
+**Renders:** ~/Developer/agent-lanes/xfer/frank-church-v2/ (README.md). Before/after for all nine strips: overhead,
+approach, low, surface, wall, plus paved-control-panc. Looked at every Frank Church strip in the after set: no white
+paint anywhere. PANC's markings are unchanged.
+
+### 2026-11-03 — Claude · lane/claude-nsew-toggle · N/S/E/W letters: a setting, off by default, drawn at infinity
+Ty: make the floating N/S/E/W letters a toggle in Settings, OFF by default, persisted; added scope: when on they must
+always sit far away just above the horizon, never close to the aeroplane — at effectively infinite distance,
+following the camera's position but not its rotation, the same angular size at any altitude.
+
+**Before:** four TextMeshes fixed 2.5 km from the world origin at 600 m, always on. Fly 2.5 km north and you were in
+the N; climb past 600 m and the letters sat below you.
+
+**Now:**
+- `FlyingGame.Core.CardinalLetters`: `DefaultShown = false`, `PrefKey = "set.cardinalLetters"`, and the placement.
+  Card centre = camera + (dir·15 000 m, up), with `up` chosen so the card's lower edge is 2° and its top 5° above
+  true horizontal. The visible horizon dips below horizontal as you climb, so the letters are always above it. The
+  offset does not depend on the camera at all, so bearing, elevation and angular size are the same everywhere.
+  15 km sits inside the main camera's 20 km far plane; relief inside 15 km still hides a letter as a ridge would.
+- `CardinalLetterVisibility` (one per letter): moves the letter in `Camera.onPreCull` for `Camera.main` (after
+  ChaseCamera/CockpitView have placed the camera), scales the glyph to the card height from the renderer's local
+  bounds, and switches the RENDERER on the setting. It switches the renderer rather than the GameObject because
+  Side2DView hides the letters by deactivating them and restores only the ones it turned off.
+- `SessionSettings.ShowCardinalLetters` is loaded/saved with the other `set.*` prefs. A fresh install and anyone
+  with saved prefs but no `set.cardinalLetters` key get off. The row is on OPTIONS › Aids, next to the other
+  visual aids.
+
+**Challenge lessons:** the only lesson with cardinal callouts is Arena 1 `a1c3-cardinal-turn` (callouts "West turn
+left to north", "Roll out north"). It is scored from the aircraft state: `headingRad` (setup: hold current, ±8°;
+rollout: 000°, ±6°) and `betaRad`. No challenge, lesson or practice looks up the letters (the only other reference is
+Side2DView hiding them). With letters off the lesson behaves exactly the same; the pilot reads heading off the HUD
+tape/readout, the nav-radio heading card (on by default) or the dials, and the live band strip shows in/out of band.
+
+**Tests:** `CardinalLettersTests` (5, literal values): default off and the key; N/E/S/W bearings 0/90/180/−90; lower
+and upper edges 2° and 5° and 15 000 m range from three camera positions (ground, 3 048 m, far off origin); offset
+independent of camera position, far corner < 20 000 m; a1c3 graded on `headingRad, headingRad, betaRad` with its two
+callout keys. `CardinalLettersTests|ChallengeTests`: 8/8 passed.
+
+**Build:** deploy.sh's build steps (Unity export + xcodebuild), with lane-private `/private/tmp/flyinggame-ios-nsew`
+and `-dd-nsew` and no install step, as asked. Waited for claude-ski-physics' Unity batch to finish first.
+0 `error CS`, `** BUILD SUCCEEDED **`, bundle 2026.1103.2040, not installed. The bundleVersion bump and the
+GraphicsSettings change from the build are not committed. unity/Library is a symlink to an APFS clone of island-nav's
+cache (`unity-Library-claude-nsew-toggle`).
+
+**Not done:** no seat-eye render of the letters, so their on-screen size and the 2° clearance are checked by
+arithmetic only. No gate approved.
+
+### 2026-11-03 — Claude · lane/claude-pitts-spin (run #4) · flat-spin aileron upright/inverted: the separated aileron load, the mirror test
+Ty, on 2026.1103.1622: "the inverted flat isn't quite flat enough now and full opposite aileron actually reduces the spin
+rate and lowers the nose which is not correct". Upright flat feels good, keep it. Ty suspected Cm(β). Merged
+lane/claude-island-nav `510f987c` first (fast-forward). The worktree's uncommitted GraphicsSettings shader line
+(`5fda959b…`) collided with island-nav's committed one (`6c1e7a2f…`): I took the merge and put the uncommitted line back
+under it. Both lines are there, nothing staged.
+
+**Method: the mirror test** (`SpinBalanceProbe`, parts `mirror`, `mirrorfly`). Turning the aeroplane over (180° about x)
+maps (α, β, p, q, r) → (−α, −β, p, −q, −r) and (L, M, N) → (L, −M, −N). Every symmetric term maps exactly: inertia
+couples, prop gyro (h stays along +x), torque, P-factor, swirl, symmetric sections. δa is unchanged, so the mirror of an
+upright LEFT spin with right stick is an inverted RIGHT spin with right stick. I held a developed spin and its flipped
+state, with strip separation memory copied left↔right (the 11–16° band is hysteretic, so a fresh aircraft starts those
+strips attached and reads ~40 % low on the TR-379 slip roll), and compared part by part.
+- **No sign error.** Audited α/β/p use in AeroModel (strip loop, ApplyWingSideslipRoll, fuselage, elevator anti-spin
+  stall, downwash, wake and stall gating), PropModel (P-factor, gyro, swirl) and RigidBody6DOF (Stevens & Lewis
+  equations, (Izz−Ixx)pr and Ixz terms). All mirror.
+- **Ty's Cm(β):** it exists as the turtle-deck/cowl SECTION CAMBER (`ApplyFuselage`, keys `sectionCamber*`/`cowlCamber*`,
+  Ty's own "sideslip → nose down" of 2026-11-01). It is body-fixed, which is right for a body's camber, so inverted it
+  pitches toward FLATTER (larger |α|), the sense Ty asked for; upright it is slightly steepening. It is small: −100..−400
+  N·m against the stab's 3–7 kN. Not the cause; unchanged.
+- **What does not mirror is geometry.** The fin is on top: inverted it is out of every wake and damps more (−452 vs −299
+  N·m at 40 % R). The spiral slipstream hits that fin: a constant ~−425 N·m yaw at full power, pro-spin upright left and
+  anti-spin inverted right. The upper wing is 0.81 m above the CG, the lower 0.25 m below. Ixz. The camber above.
+  Removing the swirl yaw alone (`SPINBAL_SLIPK=0`) does not stop the inverted roll-out.
+- **The inverted flat is a stable state.** Started at the mirror of the upright 40 % flat, it holds at α −84, θ −5, 184
+  deg/s. The inverted 40 % R entry never got there: it sat at α −33.
+
+**Cause: the aileron's separated-flow load.** `AeroModel` added `1.2·sin²δ·1.5·sep` to every aileron strip's DRAG, along
+the local wind. Full aileron against the roll at the developed state (`aildelta`, `ailbal`):
+- It is even in δ, so it is rotary damping. The spin slowed with either stick: inverted idle R 164 → 154 deg/s, upright
+  idle L 183 → 165.
+- At spin α its chordwise part pushes aft on a cellule above the CG: +156 N·m body nose-up upright (flatter) and +268
+  N·m inverted, where body nose-up is the nose going DOWN. That was "lowers the nose".
+
+The A/B toggles separated it: drag off → most of the rate loss goes; both stall cuts off → it flattens but slows further.
+**Fix (fe232151):** in separated flow a plate's pressure acts normal to the plate (Hoerner ch. 3). The deflected aileron's
+share of the section normal force tilts with it: a chordwise `CN·sin δ` on the hinged row's area, aft on the surface
+deflected into the windward side, forward on the other. Odd in δ: a yaw couple toward the down aileron (post-stall
+adverse yaw) and no net drag, mirrored by sign(α). The roll part is unchanged. Hinged row only; every type but the
+paraglider has one (the paraglider loses its separated brake-drag term). docs/CONTROL-SURFACES.md § "The aileron in
+separated flow".
+
+**Table** (Pitts, `SpinBalanceProbe` flatgrid). Developed spin: stall, then 45 s of stick full aft (upright) or full
+forward (inverted) and full rudder, mean of the last 20 s; α range shown where it spans > 15°. "Against roll" = upright,
+away from the rudder; inverted, toward it. Before = 510f987c (what Ty flew), after = fe232151. θ is the nose attitude,
+Ω the rotation about the vertical.
+
+| spin | aileron | before: θ / α / Ω deg/s / s per turn | after: θ / α / Ω deg/s / s per turn |
+|---|---|---|---|
+| inverted idle R | neutral | -59.6 / -29.4 / 164 / 2.20 | -59.5 / -29.4 / 164 / 2.20 |
+| inverted idle R | full R (against roll) | -59.3 / -29.3 / 154 / 2.34 | -51.6 / -36.3 / 132 / 2.74 |
+| inverted idle L | neutral | -57.3 / -31.0 (-43..-20) / 219 / 1.64 | -57.3 / -30.9 (-43..-20) / 220 / 1.64 |
+| inverted idle L | full L (against roll) | -55.8 / -32.5 (-46..-21) / 204 / 1.77 | -56.7 / -30.9 / 202 / 1.78 |
+| inverted 40% R | neutral | -56.4 / -32.7 / 165 / 2.19 | -56.3 / -32.8 / 164 / 2.19 |
+| inverted 40% R | full R (against roll) | -55.7 / -32.9 / 154 / 2.33 | 1.6 / -90.9 / 235 / 1.53 |
+| inverted 40% L | neutral | -58.6 / -29.6 (-41..-21) / 273 / 1.32 | -58.7 / -29.6 (-41..-21) / 274 / 1.32 |
+| inverted 40% L | full L (against roll) | 0.5 / 89.3 / 189 / 1.91 | -55.6 / -31.6 (-44..-23) / 257 / 1.40 |
+| inverted full R | neutral | -34.3 / -25.4 (-86..87) / 147 / 2.45 | -34.5 / -25.3 (-86..88) / 147 / 2.45 |
+| inverted full R | full R (against roll) | -35.9 / -22.2 (-86..89) / 139 / 2.58 | -24.1 / -28.0 (-175..170) / 152 / 2.37 |
+| inverted full L | neutral | -60.3 / -28.4 (-37..-21) / 351 / 1.03 | -60.3 / -28.3 (-37..-21) / 351 / 1.03 |
+| inverted full L | full L (against roll) | 0.7 / 88.0 (70..103) / 135 / 2.67 | -57.5 / -30.3 / 340 / 1.06 |
+| upright idle L | neutral | -56.9 / 31.8 / 183 / 1.97 | -56.9 / 31.8 / 183 / 1.97 |
+| upright idle L | full R (against roll) | -56.7 / 31.8 / 165 / 2.19 | -0.3 / 89.5 / 248 / 1.45 |
+| upright idle R | neutral | -57.3 / 30.9 / 245 / 1.47 | -57.4 / 30.9 / 245 / 1.47 |
+| upright idle R | full L (against roll) | -57.6 / 30.4 / 228 / 1.58 | -51.4 / 35.9 / 223 / 1.61 |
+| upright 40% L | neutral | 3.9 / 92.9 / 201 / 1.79 | 4.0 / 93.0 / 201 / 1.79 |
+| upright 40% L | full R (against roll) | 2.8 / 91.8 / 190 / 1.90 | 9.0 / 98.3 / 248 / 1.45 |
+| upright 40% R | neutral | -57.6 / 30.8 / 318 / 1.13 | -57.7 / 30.7 / 318 / 1.13 |
+| upright 40% R | full L (against roll) | -57.7 / 30.5 / 295 / 1.22 | -54.5 / 32.4 / 293 / 1.23 |
+| upright full L | neutral | 3.5 / 90.4 (71..107) / 126 / 2.85 | 3.6 / 90.5 (71..108) / 126 / 2.85 |
+| upright full L | full R (against roll) | 2.7 / 90.0 (70..105) / 124 / 2.91 | 17.4 / 107.2 (81..128) / 149 / 2.41 |
+| upright full R | neutral | -58.5 / 29.9 / 399 / 0.90 | -58.5 / 29.8 / 399 / 0.90 |
+| upright full R | full L (against roll) | -50.0 / 6.9 / 149 / 2.41 | -54.9 / 32.8 / 389 / 0.93 |
+
+**Pitch budget** (`ailbal`, N·m, body +M = nose up, held at each developed state). **Inverted 40 % R** before, neutral →
+aileron: stab 6233 → 5399, wings 1039 → 1101, Munk −3055 → −2581, gyro −2237 → −2068, inertial (Izz−Ixx)pr −2447 → −2156,
+Ixz −132 → −127, camber −151 → −143. **After**, neutral → aileron: stab 6177 → 2780, wings 1030 → 1105, Munk −3031 → 21,
+gyro −2255 → −5687, inertial −2461 → +283, Ixz −129 → 809, camber −157 → −17. The flat inverted state is held by the gyro,
+exactly as the upright flat is. **Upright mirror 40 % L** after, neutral → aileron: gyro 4854 → 5928, inertial −545 →
+−1877, stab −2931 → −2767. The yaw at the inverted idle spin shows the limit: the aileron's wing yaw goes +258 → +1036
+pro-spin, but β grows −12 → −18 and the fin (−386 → −663), rudder (543 → 21) and crossflow (−679 → −950) absorb it.
+
+**What Ty should feel.** Inverted, 40 % power, right rudder, stick forward, right aileron: a real inverted flat, nose on
+the horizon, 1.5 s/turn. Upright, ailerons neutral: unchanged (within 0.1°, 1 deg/s). **Upright WITH out-spin aileron
+changes**, in the direction Ty described, but by more than before:
+- idle L goes flat, α 31.8 → 89.5;
+- 40 % L: α 98, 248 deg/s;
+- full L: α 107 (81..128), nose +17°, tail-low and gyrating. Please fly this one.
+
+Aileron WITH the roll now un-flattens a flat spin (upright 40 % L α 93 → 30): TR 1329, fuselage-loaded. Inverted 40 %/full
+LEFT with left aileron used to roll over into an UPRIGHT flat; it now stays inverted at α −31.
+
+**Open.** (1) Inverted idle R: nose up and flatter with the aileron (θ −59.6 → −51.6, α −29 → −36), but slower (164 →
+132). It stays at α −36, where the wing's autorotation drives the roll and the aileron fights it; its upright mirror goes
+flat. The geometry above, not a sign. (2) Inverted full R + R aileron (Ty's run #3 case) still does not hold: gyrates
+α −175..+170 (was −86..+89). Run #3's gyro-yaw departure; `PittsPowerSpinTargetTests` stays skipped. (3) Inverted LEFT and
+upright RIGHT (gyro-adverse senses) do not go flat with power.
+
+**StallAuthorityTests.FullAftHoldsJustPastTheStallForEveryAircraft** (SR22 14.5°, Jenny 13.0° vs 16.5°):
+- Not run #3's tail tables. Bisected: passes at d54a06e5^ (16.0 / 16.0), fails at **d54a06e5** (run #1, "Tail wakes
+  from each section's own geometry", 14.5 / 13.5). 453aba6e moved Jenny another −0.5°.
+- Island-nav's log blames spin #3; it is run #1. It passed on island-nav before because island-nav had none of this lane.
+- The protocol fix (`CALIBRATE_STALL=1 CALIBRATE_ONLY=…`) gives SR22 saturation 7.9 → 17.8 and Jenny 12.4 → 23.6. Rig
+  stays green, but the glide table moves the book-checked numbers the wrong way: SR22 clean stall 70 → 68 kt (POH 70
+  KIAS), best glide 91 → 88 kt; Jenny 34 → 33 kt.
+- Not shipped (CLAUDE.md: measure the validated numbers too). Reverted. It wants the tail-wake change and the two
+  saturations looked at together.
+
+**Tests.** New `PittsFlatSpinAileronTests` (5 + a 4-case pin, literals from this table). Same 18 classes on both trees
+(AdverseYaw, AerobatGround, AileronHighAlpha, ControlTravel, GlideTable, PittsRollRate, PittsFlatSpin, PittsPowerSpin,
+Reversible, RigTests, RollPhysics, RollRate, SpinTests, StallAuthority, StallBreak, TailSection, TailWake,
+WingAileronBreakup), 350 tests:
+- base 510f987c + the new test file: 338 passed, 10 failed, 2 skipped;
+- after: **342 passed, 6 failed, 2 skipped**;
+- by name: nothing fails after that passed before. The 4 new tests fail on base and pass after;
+- the 6 failing on both, all pre-existing: AerobatGroundHandling Pitts ×3, SpinTests.ProSpinDepartsAndSustainsRotation,
+  GlideTableTests.CreditsReachTheUser (j3 LICENSE), StallAuthority above.
+
+**Build:** `zsh tools/deploy/deploy.sh NOINSTALL` → `** BUILD SUCCEEDED **`, 0 `error CS`, bundleVersion **2026.1103.1941**. Not installed (deploy.sh read "NOINSTALL" as a device name: "installed on 0 of 1 device(s)"). ProjectSettings bump not committed.
+
+### 2026-11-03 16:55 PST — Grok Bot · lane/claude-island-nav `ce53d62e` · merged-tree suite vs base, build 1622, iPhone install
+- **Suites** (`--filter FullyQualifiedName!~IslandDroneProbe`): merged ran in `/tmp/islandnav_full/merged.log` and was aborted at
+  1194/~1640 (107 failed, 1082 passed, 5 skipped) by the LaunchReplication hang. Base `da807576` ran in `/tmp/islandnav_cmp/base.log`,
+  which was still running at 16:53 with 81 failures. Compared by name over the part both had covered: 43 names failed on merged and
+  not on base, 14 the other way. Re-run alone on both trees (SpawnSpeed, TailWake, StallAuthority, FloatsOnLand, AircraftLoad,
+  GroundTow classes): merged 1 failed of 138, base 0 of 130. All the SpawnSpeed "alpha NaN" failures (every type), TailWake ×3,
+  FloatsOnLand ×2, AircraftLoad, GroundTow pass alone, so they are suite coupling (CLAUDE.md "compare, never count"). The one real
+  new failure is StallAuthority FullAft (SR22, Jenny), which comes from Pitts spin #3 (see NEEDS YOU). There is also the
+  LaunchReplication hang, which is new on the merged tree.
+- **No commits besides this log entry.** I found no clear merge mistake to fix.
+- **Build/install:** `2026.1103.1622` / `202611031622`, `** BUILD SUCCEEDED **`, 0 `error CS`, installed on iPhone 00008150-001629A83662401C.
+
 ### 2026-11-03 — Claude · lane/claude-frank-church-valleys (off island-nav ce53d62e) · the Frank Church strips down in their valleys
 **Pending Ty's approval of the renders; not merged; nothing installed.**
 - **Why they were on mesas.** On the island the nine strips are pinned anchors (`backcountry_strips`) at 4,400–5,000 ft,

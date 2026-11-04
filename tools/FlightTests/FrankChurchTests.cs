@@ -56,6 +56,53 @@ public class FrankChurchTests : IDisposable
     };
     private static readonly string[] OneWays = { "Cabin Creek", "Soldier Bar", "Dewey Moore" };
 
+    // Copied by hand from the sources (2026-11-03, Ty: "real Frank Church backcountry strips are all unpaved"; Idaho
+    // ITD / AOPA / FAA 5010, mountainflying.com, stripscout). Cabin Creek: the 5010 says turf, the strip is dirt.
+    private static readonly Dictionary<string, string> Surfaces = new()
+    {
+        ["Thomas Creek"] = "turf", ["Mackay Bar"] = "dirt", ["Indian Creek"] = "dirt", ["Sulphur Creek"] = "turf",
+        ["Cabin Creek"] = "dirt", ["Soldier Bar"] = "dirt", ["Chamberlain"] = "turf", ["Dewey Moore"] = "dirt",
+        ["Big Creek"] = "turf",
+    };
+    // The turf strips' natural lie on the centreline, metres below / above the plane, and the cross-sweep amplitude:
+    // copied from the shapes as generated (NaturalSurfaceTests; generate_island.shape_params), 2026-11-03.
+    private static readonly Dictionary<string, (double below, double above, double sweep)> TurfLie = new()
+    {
+        ["Sulphur Creek"] = (1.92, 0, .38), ["Chamberlain"] = (1.71, 0, .59), ["Big Creek"] = (0, 2.69, .28),
+        ["Thomas Creek"] = (.32, .20, .41),
+    };
+
+    /// <summary>
+    /// Ty (2026-11-03) saw the strips drawn as paved runways, centreline dashes and all. Each strip is the surface the
+    /// real one is, it rolls like that surface (turf as grass; dirt as gravel, the ground model's hard unpaved
+    /// surface), and nothing unpaved is given runway paint (StripFinish.Painted decides it for IslandWorldBuilder).
+    /// </summary>
+    [Fact]
+    public void EveryStripIsTheUnpavedSurfaceTheRealOneIsAndCarriesNoPaint()
+    {
+        Assert.Equal(Surfaces.Count, FrankChurch.Strips.Length);
+        foreach (FrankChurch.Strip s in FrankChurch.Strips)
+        {
+            string want = Surfaces[s.Name];
+            var f = Field(s);
+            Check(f.Surface == want, $"{s.Name} is {f.Surface}, the real strip is {want}");
+            Check(s.Surface == (want == "turf" ? FrankChurch.Ground.Turf : FrankChurch.Ground.Dirt), $"{s.Name}: FrankChurch.Strip says {s.Surface}");
+            Check(!StripFinish.Painted(f.Surface), $"{s.Name} ({f.Surface}) would be painted like a paved runway");
+            Check(StripFinish.Of(f.Surface) == (want == "turf" ? StripFinish.Kind.Turf : StripFinish.Kind.Dirt), $"{s.Name} is drawn as {StripFinish.Of(f.Surface)}");
+            Check((f.Shape.Kind > -.5) == (want == "turf"), $"{s.Name}: a {want} strip {(f.Shape.Kind > -.5 ? "has" : "lacks")} a natural lie");
+            var rolls = want == "turf" ? WorldTerrain.Surface.Grass : WorldTerrain.Surface.Gravel;
+            foreach (double along in new[] { -.45, 0, .45 })
+                foreach (double across in new[] { -.4, 0, .4 })
+                {
+                    var (x, y) = At(s, along * s.LengthM, across * s.WidthM);
+                    var got = WorldTerrain.SurfaceAt(x, y);
+                    Check(got == rolls, $"{s.Name} rolls like {got} at {along:+0.00;-0.00}L {across:+0.0;-0.0}W, should be {rolls}");
+                }
+            _o.WriteLine($"{s.Name,-14} {f.Surface,-5} drawn {StripFinish.Of(f.Surface),-5} rolls {rolls,-6} painted {StripFinish.Painted(f.Surface)}");
+        }
+        Verdict();
+    }
+
     [Fact]
     public void EveryStripIsWithinTenMinutesOfEveryOther()
     {
@@ -88,21 +135,22 @@ public class FrankChurchTests : IDisposable
     {
         // A strip you cannot roll straight down is not a strip. Flat across to the edges, and the slope along it is
         // the slope it says it has, every 5 m from end to end — a sloped strip that was flat and then stepped would
-        // pass a test that only looked at a few stations. The turf strip, Sulphur Creek, lies the way a field lies
-        // (Ty 2026-11-03, NaturalSurfaceTests): a 1.92 m banana with a 0.38 m cross-sweep, held to those bounds.
+        // pass a test that only looked at a few stations. The turf strips lie the way a field lies (Ty 2026-11-03,
+        // NaturalSurfaceTests), each held to its own shape's bounds (TurfLie).
         foreach (FrankChurch.Strip s in FrankChurch.Strips)
         {
-            double sag = s.Name == "Sulphur Creek" ? 1.92 + .05 : 0, sweep = s.Name == "Sulphur Creek" ? 2 * .38 + .05 : 0;
+            bool turf = TurfLie.TryGetValue(s.Name, out var lie);
+            double below = turf ? lie.below + .05 : 0, above = turf ? lie.above + .05 : 0, sweep = turf ? 2 * lie.sweep + .05 : 0;
             for (double along = -s.LengthM / 2; along <= s.LengthM / 2; along += 5)
             {
                 var (cx, cy) = At(s, along);
                 double mid = H(cx, cy), plane = s.ElevationM + along * s.SlopePercent / 100.0;
-                if (sag > 0) Assert.InRange(mid - plane, -sag, .05);
+                if (turf) Assert.InRange(mid - plane, -below, above);
                 else Assert.True(Math.Abs(mid - plane) < .01, $"{s.Name}: {mid - plane:+0.000;-0.000} m off its plane {along:0} m along");
                 foreach (int k in new[] { -1, 1 })
                 {
                     var (ex, ey) = At(s, along, k * s.WidthM * 0.45);
-                    if (sweep > 0) Assert.InRange(H(ex, ey) - mid, -sweep, sweep);
+                    if (turf) Assert.InRange(H(ex, ey) - mid, -sweep, sweep);
                     else Assert.True(Math.Abs(H(ex, ey) - mid) < .01, $"{s.Name}: not flat across {along:0} m along");
                 }
             }

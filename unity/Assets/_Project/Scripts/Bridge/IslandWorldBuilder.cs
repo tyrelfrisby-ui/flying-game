@@ -100,27 +100,26 @@ namespace FlyingGame.Bridge
             var b = new B();
             foreach (var f in IslandTerrain.Fields)
             {
-                if (f.Surface == "water")
+                var finish = StripFinish.Of(f.Surface);
+                if (finish == StripFinish.Kind.Water)
                 {
                     for (double a = -f.Length / 2; a <= f.Length / 2; a += 50) foreach (int s in new[] { -1, 1 }) b.Cylinder(P(f.Centre + f.U * (a / 1000) + f.V * (s * f.Width / 2000), f.Elevation), 1.3f, 1.2f, 8, Orange);
                     continue;
                 }
-                // The Frank Church canyon strips (the fields with a "river") are dirt and turf, not runways (Ty 2026-11-03:
-                // Soldier Bar "looked paved and had a centerline"): one natural-coloured surface and nothing painted on it
-                // or beside it — no shoulders, centreline, threshold bars, numbers or name.
-                if (f.Definition.Has("river"))
-                {
-                    Color ground = f.Surface == "turf" || f.Surface.Contains("grass") ? new Color(.40f, .47f, .25f) : new Color(.47f, .39f, .28f);
-                    SurfaceQuad(b, f, f.Length, f.Width, f.Elevation + .03, ground);
-                    continue;
-                }
                 double length = f.Length, offset = 0; // Interior runway paint/deck stays beneath the opaque rock roof.
-                Color surface = f.Surface == "asphalt" || f.Surface == "paved" ? new Color(.15f, .17f, .18f) : f.Surface.Contains("grass") || f.Surface == "turf" ? new Color(.44f, .50f, .27f) : f.Surface == "hard sand" ? Sand : new Color(.58f, .54f, .45f);
-                SurfaceQuad(b, f, length, f.Width, f.Elevation + .04, surface, offset);
                 // Shoulder planes are authored at the exact field datum, the pad's own flat shoulder beyond both edges
                 // (60 m everywhere but the Frank Church canyon strips, whose 30-40 m shoulders end at the river bank:
                 // a 60 m plane there hung in the air over the bank).
                 foreach (int side in new[] { -1, 1 }) SurfaceQuad(b, f, length, f.Shoulder, f.Elevation + .025, new Color(.47f, .49f, .32f), offset, side * (f.Width / 2 + f.Shoulder / 2));
+                if (f.Field == "AP3") for (int i = 0; i < 11; i++) SurfaceQuad(b, f, .7, 8, f.Elevation + .08, i == 0 ? Orange : White, -f.Length / 2 + 150 + i * 25);
+                if (!StripFinish.Painted(f.Surface))
+                {
+                    // Dirt, turf, gravel and sand carry no runway paint at all (Ty 2026-11-03, the Frank Church strips):
+                    // no centreline, threshold bars, numbers or painted ident -- just worn ground.
+                    UnpavedSurface(b, f, finish);
+                    continue;
+                }
+                SurfaceQuad(b, f, length, f.Width, f.Elevation + .04, new Color(.15f, .17f, .18f), offset);
                 for (double a = -f.Length / 2 + 40; a < -f.Length / 2 + length - 20; a += 60) SurfaceQuad(b, f, 30, .9, f.Elevation + .06, White, a);
                 string[] nums = f.Numbers.Split('/');
                 for (int end = 0; end < (f.Field == "DRAKE" ? 1 : 2); end++)
@@ -131,9 +130,48 @@ namespace FlyingGame.Bridge
                 }
                 var identAt = f.Centre + f.V * ((f.Width / 2 + 16) / 1000);
                 Label(f.Id + ":ident", f.Field, identAt, Math.Max(f.Elevation, IslandTerrain.HeightKm(identAt)) + .10, parent, f.Heading, 8);
-                if (f.Field == "AP3") for (int i = 0; i < 11; i++) SurfaceQuad(b, f, .7, 8, f.Elevation + .08, i == 0 ? Orange : White, -f.Length / 2 + 150 + i * 25);
             }
             b.Build("Runway-surfaces-markings-buoys", parent, Lit);
+        }
+        /// <summary>An unpaved strip as worn ground: its own colour in 10 m patches along, a pair of darker wheel tracks
+        /// (2.6 m apart, a main-gear track) down the middle where the traffic runs, edges fading into the shoulder grass,
+        /// and on turf the lengthwise stripes a mower leaves. All low contrast and no white: nothing reads as paint. Laid on
+        /// the strip's own surface (plane plus natural shape) at the same 4 cm as before, so it follows a shaped field.</summary>
+        private static void UnpavedSurface(B b, IslandField f, StripFinish.Kind finish)
+        {
+            Color shoulder = new(.47f, .49f, .32f);
+            (Color ground, Color track, float patch) = finish switch
+            {
+                StripFinish.Kind.Dirt => (new Color(.46f, .36f, .25f), new Color(.37f, .29f, .20f), .07f),
+                StripFinish.Kind.Turf => (new Color(.40f, .49f, .25f), new Color(.45f, .46f, .27f), .025f),
+                StripFinish.Kind.Sand => (Sand, Sand * .95f, .03f),
+                _ => (new Color(.53f, .50f, .43f), new Color(.45f, .42f, .36f), .05f),
+            };
+            ground.a = track.a = 1;
+            double half = f.Width / 2, edge = Math.Min(2.5, f.Width * .12);
+            var cuts = new List<double> { -half, -half + edge, -1.75, -.85, .85, 1.75, half - edge, half };
+            if (finish == StripFinish.Kind.Turf) for (double c = -half + edge + 4; c < half - edge - 1; c += 4) cuts.Add(c);
+            cuts.Sort();
+            int na = Math.Max(1, (int)Math.Ceiling(f.Length / 10));
+            uint seed = 2166136261; foreach (char ch in f.Id) seed = unchecked((seed ^ ch) * 16777619);
+            Vector3 W(double fa, double cm) { var p = f.Centre + f.U * (fa * f.Length / 1000) + f.V * (cm / 1000); return P(p, f.SurfaceHeight(p) + .04); }
+            for (int k = 0; k + 1 < cuts.Count; k++)
+            {
+                double c0 = cuts[k], c1 = cuts[k + 1], cm = (c0 + c1) / 2, ac = Math.Abs(cm);
+                if (c1 - c0 < .01) continue;
+                Color band = ac > .85 && ac < 1.75 && finish != StripFinish.Kind.Sand ? track : ground;
+                if (ac > half - edge) band = Color.Lerp(ground, shoulder, .5f);
+                if (finish == StripFinish.Kind.Turf && ac < half - edge && (ac < .85 || ac > 1.75)) band *= ((int)Math.Floor((cm + half) / 4) & 1) == 0 ? .98f : 1.02f;
+                for (int i = 0; i < na; i++)
+                {
+                    // Patchiness: a fixed hash of (strip, cell, band), so every build draws the same ground.
+                    uint h = unchecked(seed ^ (uint)i * 19349663u ^ (uint)k * 83492791u); h ^= h >> 13; h = unchecked(h * 0x5bd1e995u); h ^= h >> 15;
+                    float shade = 1 + patch * ((h & 0xffff) / 32767.5f - 1);
+                    Color c = band * shade; c.a = 1;
+                    double a0 = -.5 + (double)i / na, a1 = -.5 + (double)(i + 1) / na;
+                    b.Quad(W(a0, c0), W(a1, c0), W(a1, c1), W(a0, c1), c);
+                }
+            }
         }
         private static Color Colour(string mat) => mat switch
         {

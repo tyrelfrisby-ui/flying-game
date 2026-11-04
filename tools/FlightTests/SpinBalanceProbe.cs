@@ -206,6 +206,7 @@ public class SpinBalanceProbe
         string parts = Environment.GetEnvironmentVariable("SPINBAL_PARTS") ?? "spin,recover,table,budget";
         AircraftConfig cfg = Load(id);
         if (Environment.GetEnvironmentVariable("SPINBAL_NOGYRO") != null) cfg.Propulsion!.PropInertia = 0;
+        if (Environment.GetEnvironmentVariable("SPINBAL_SLIPK") is string slipK) cfg.Propulsion!.SlipstreamK = double.Parse(slipK);
         var tables = Aircraft.BuildAirfoilTables(cfg);
         double S = RefArea(cfg), c = RefChord(cfg), eMax = cfg.Controls.Elevator.MaxDeflRad, rMax = cfg.Controls.Rudder.MaxDeflRad;
         _out.WriteLine($"{id}: S {S:F2} m², c {c:F3} m, elevator ±{eMax * D:F1}°, rudder ±{rMax * D:F1}°, I {cfg.Mass.Inertia.Ixx}/{cfg.Mass.Inertia.Iyy}/{cfg.Mass.Inertia.Izz}");
@@ -305,6 +306,144 @@ public class SpinBalanceProbe
                 double nInert = (mI.Ixx - mI.Iyy) * w.X * w.Y;
                 _out.WriteLine($"        q {w.Y * D,5:F0}  YAW wings {nW,6:F0} htail {nH,5:F0} fin+rud {nV,6:F0} fus {nF,6:F0} moments {nMom,5:F0} thrust {nThr,6:F0} (gyro yaw {nGy,6:F0}, gyro pitch {mGy,6:F0})  inertial (Ixx−Iyy)pq {nInert,6:F0}");
             }, inv, ail);
+        }
+
+        if (parts.Contains("flatgrid"))
+        {
+            // Run #4 (owner 2026-11-03, build 1622): "the inverted flat isn't quite flat enough now and full opposite aileron
+            // actually reduces the spin rate and lowers the nose". Each spin with ailerons neutral, then with full aileron
+            // AGAINST the developed roll rate (out-spin: right stick in an upright left spin, and in an inverted spin the stick
+            // toward the rudder, since there p and r have opposite signs), then with it.
+            string levers = Environment.GetEnvironmentVariable("SPINBAL_LEVERS") ?? "1,0.2,-1";
+            foreach (bool inv in (Environment.GetEnvironmentVariable("SPINBAL_INV") ?? "0,1").Split(',').Select(x => x == "1"))
+                foreach (double lever in levers.Split(',').Select(double.Parse))
+                    foreach (double rud in new[] { -1.0, 1.0 })
+                    {
+                        var (st, _) = Developed(cfg, rud, lever, inv);
+                        double opp = inv ? rud : -rud;   // out-spin: against the roll (upright against the rudder, inverted with it)
+                        string L(string tag, SpinStats x) => $"{tag}: α {x.Alpha,6:F1} ({x.AlphaMin,4:F0}..{x.AlphaMax,4:F0}) θ {x.Pitch,6:F1} Ω {x.OmegaVertDeg,4:F0} {x.SecPerTurn,4:F2} s/t p/r {x.P,4:F0}/{x.R,4:F0}";
+                        string line = $"FLAT {(inv ? "inv" : "up "),-3} {(lever == 1.0 ? "idle" : lever == 0.2 ? "40%" : "full"),-4} {(rud < 0 ? "L" : "R")} | " + L("ail 0", st);
+                        var (so, _) = Developed(cfg, rud, lever, inv, opp);
+                        line += " | " + L($"opp({opp,2})", so);
+                        if (Environment.GetEnvironmentVariable("SPINBAL_WITH") != null) { var (sw, _) = Developed(cfg, rud, lever, inv, -opp); line += " | " + L("with", sw); }
+                        _out.WriteLine(line);
+                    }
+        }
+
+        if (parts.Contains("mirror"))
+        {
+            // Run #4. THE MIRROR TEST. Turn an aeroplane over (180° about its own x axis) and every term of a top/bottom
+            // symmetric airframe maps (α, β, p, q, r) → (−α, −β, p, −q, −r) and (L, M, N) → (L, −M, −N): inertia coupling,
+            // the prop's gyro (h along +x is unchanged by the flip), its torque and P-factor, every symmetric section. The
+            // mirror of an upright LEFT spin (stick aft, left rudder, aileron δa) is an inverted RIGHT spin (stick forward,
+            // right rudder, the same δa). So take a developed upright spin, hold both it and its mirror state for 1 s (flow
+            // memory and rpm settle), and compare each part's moment: whatever does not mirror is a real asymmetry of the
+            // airframe (fin on top, wings above the CG, a cambered section, body camber) or a sign error.
+            double ailU = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_AIL") ?? "0");
+            double rudU = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_RUD") ?? "-1");
+            var mI = cfg.Mass.Inertia; Vec3 cg = cfg.Mass.CgVec(); double h = SimLoop.DefaultFixedDtSec;
+            var cfgP = cfg.Fuselage.Crossflow;
+            foreach (double lever in (Environment.GetEnvironmentVariable("SPINBAL_LEVERS") ?? "-1,1").Split(',').Select(double.Parse))
+            {
+                bool srcInv = Environment.GetEnvironmentVariable("SPINBAL_FROMINV") != null;   // source spin inverted (rudder as given)
+                var (stU, acU) = Developed(cfg, rudU, lever, srcInv, ailU);
+                var sU = acU.State;
+                var sI = new RigidBodyState(sU.Position, Quat.Multiply(sU.Attitude, new Quat(1, 0, 0, 0)),
+                                            new Vec3(sU.Velocity.X, -sU.Velocity.Y, -sU.Velocity.Z), new Vec3(sU.Rates.X, -sU.Rates.Y, -sU.Rates.Z));
+                var dU = acU.CurrentDeflections;
+                var pU = Parts(cfg, sU, new ControlInputs(ailU, srcInv ? 1 : -1, rudU, lever), dU, acU);
+                var pI = Parts(cfg, sI, new ControlInputs(ailU, srcInv ? -1 : 1, -rudU, lever), new ControlDeflections(dU.AileronRad, -dU.ElevatorRad, -dU.RudderRad, 0), acU, true);
+                _out.WriteLine($"MIRROR {(srcInv ? "SOURCE INVERTED (columns: inv | its upright mirror)" : "upright")} rud {rudU} ail {ailU} lever {lever}: α {stU.Alpha:F1} θ {stU.Pitch:F1} Ω {stU.OmegaVertDeg:F0} {stU.SecPerTurn:F2} s/t; state p/q/r {sU.Rates.X * D:F0}/{sU.Rates.Y * D:F0}/{sU.Rates.Z * D:F0} β {Math.Asin(sU.Velocity.Y / sU.Velocity.Length) * D:F1}");
+                _out.WriteLine("   part                 |  L up   L inv  ΔL  |  M up  −M inv  ΔM  |  N up  −N inv  ΔN    (Δ = asymmetry, N·m; + M = nose up in the UPRIGHT sense)");
+                Vec3 sumU = Vec3.Zero, sumI = Vec3.Zero;
+                foreach (var key in pU.Keys.Union(pI.Keys))
+                {
+                    Vec3 u = pU.GetValueOrDefault(key), i = pI.GetValueOrDefault(key);
+                    if (!key.StartsWith("  ")) { sumU += u; sumI += i; }
+                    _out.WriteLine($"   {key,-20} | {u.X,6:F0} {i.X,6:F0} {i.X - u.X,5:F0} | {u.Y,6:F0} {-i.Y,6:F0} {-i.Y - u.Y,5:F0} | {u.Z,6:F0} {-i.Z,6:F0} {-i.Z - u.Z,5:F0}");
+                }
+                _out.WriteLine($"   {"SUM (aero+prop+inert)",-20} | {sumU.X,6:F0} {sumI.X,6:F0} {sumI.X - sumU.X,5:F0} | {sumU.Y,6:F0} {-sumI.Y,6:F0} {-sumI.Y - sumU.Y,5:F0} | {sumU.Z,6:F0} {-sumI.Z,6:F0} {-sumI.Z - sumU.Z,5:F0}");
+            }
+        }
+
+        if (parts.Contains("mirrorfly"))
+        {
+            // Run #4: start AT the mirror of the developed upright spin (stick forward, opposite rudder, same aileron) and fly
+            // it on: does the inverted flat hold once it is there (stability), or is it only the entry that never reaches it?
+            double ailU = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_AIL") ?? "0");
+            double rudU = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_RUD") ?? "-1");
+            double h = SimLoop.DefaultFixedDtSec;
+            foreach (double lever in (Environment.GetEnvironmentVariable("SPINBAL_LEVERS") ?? "-1").Split(',').Select(double.Parse))
+                foreach (double ailI in new[] { ailU, 1.0, -1.0 })
+                {
+                    bool srcInv = Environment.GetEnvironmentVariable("SPINBAL_FROMINV") != null;
+                    var (stU, acU) = Developed(cfg, rudU, lever, srcInv, ailU);
+                    var sU = acU.State; var dU = acU.CurrentDeflections;
+                    foreach (bool flip in new[] { false, true })
+                    {
+                        bool inv = flip != srcInv;
+                        var st = flip ? new RigidBodyState(sU.Position, Quat.Multiply(sU.Attitude, new Quat(1, 0, 0, 0)),
+                                                          new Vec3(sU.Velocity.X, -sU.Velocity.Y, -sU.Velocity.Z), new Vec3(sU.Rates.X, -sU.Rates.Y, -sU.Rates.Z)) : sU;
+                        var a = new Aircraft(cfg, st, flip ? new ControlDeflections(dU.AileronRad, -dU.ElevatorRad, -dU.RudderRad, 0) : dU);
+                        double ail = ailI;                                          // δa is unchanged by the flip
+                        var ci = new ControlInputs(ail, inv ? 1 : -1, flip ? -rudU : rudU, lever);
+                        var tr = new System.Text.StringBuilder(); double sa = 0, sw = 0; int n = 0;
+                        for (double t = 0; t < 30; t += h)
+                        {
+                            a.Step(ci, h); Relift(a);
+                            if (t > 15) { sa += Alpha(a.State); sw += Math.Abs(OmegaVert(a.State)) * D; n++; }
+                            if (Math.Abs(t - Math.Round(t / 2) * 2) < h / 2)
+                                tr.Append($"[{t:F0} α{Alpha(a.State):F0} θ{FormationPilot.Euler(a.State.Attitude).Item2 * D:F0} Ω{OmegaVert(a.State) * D:F0}] ");
+                        }
+                        _out.WriteLine($"MFLY lever {lever} {(inv ? "INVERTED" : "upright ")} ail {ail,2}: 15–30 s α {sa / n:F1} Ω {sw / n:F0}   {tr}");
+                    }
+                    if (ailI == ailU && ailU != 0) break;
+                }
+        }
+
+        if (parts.Contains("aildelta"))
+        {
+            // Run #4: what full aileron does at the developed spin's own state, part by part: Δ(L, M, N) of full out-spin
+            // aileron (upright: against the rudder; inverted: with it, i.e. against the roll) over ailerons neutral.
+            foreach (bool inv in (Environment.GetEnvironmentVariable("SPINBAL_INV") ?? "0,1").Split(',').Select(x => x == "1"))
+                foreach (double lever in (Environment.GetEnvironmentVariable("SPINBAL_LEVERS") ?? "1,0.2").Split(',').Select(double.Parse))
+                {
+                    double rud = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_RUD") ?? (inv ? "1" : "-1"));
+                    var (st0, ac) = Developed(cfg, rud, lever, inv);
+                    double opp = inv ? rud : -rud;
+                    var d0 = ac.CurrentDeflections; double el = inv ? 1 : -1;
+                    var p0 = Parts(cfg, ac.State, new ControlInputs(0, el, rud, lever), d0, ac);
+                    var p1 = Parts(cfg, ac.State, new ControlInputs(opp, el, rud, lever), new ControlDeflections(opp * cfg.Controls.Aileron.MaxDeflRad, d0.ElevatorRad, d0.RudderRad, 0), ac);
+                    var w = ac.State.Rates;
+                    _out.WriteLine($"AILDELTA {(inv ? "inv" : "up ")} lever {lever} rud {rud} ail {opp}: α {st0.Alpha:F1} θ {st0.Pitch:F1} Ω {st0.OmegaVertDeg:F0}; p/q/r {w.X * D:F0}/{w.Y * D:F0}/{w.Z * D:F0}  (pro-spin roll sign {Math.Sign(w.X)}, pro yaw {Math.Sign(w.Z)})");
+                    foreach (var key in p0.Keys.Union(p1.Keys))
+                    {
+                        Vec3 d = p1.GetValueOrDefault(key) - p0.GetValueOrDefault(key);
+                        if (d.Length > 5) _out.WriteLine($"   {key,-20} ΔL {d.X,6:F0}  ΔM {d.Y,6:F0}  ΔN {d.Z,6:F0}");
+                    }
+                }
+        }
+
+        if (parts.Contains("ailbal"))
+        {
+            // Run #4: the developed spin with ailerons neutral and with full out-spin aileron HELD (two equilibria), each part's
+            // moment at each and the change: how the new balance is reached (inertial pq yaw, sideslip roll, rate).
+            foreach (bool inv in (Environment.GetEnvironmentVariable("SPINBAL_INV") ?? "0,1").Split(',').Select(x => x == "1"))
+                foreach (double lever in (Environment.GetEnvironmentVariable("SPINBAL_LEVERS") ?? "1").Split(',').Select(double.Parse))
+                {
+                    double rud = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_RUD") ?? (inv ? "1" : "-1"));
+                    double opp = inv ? rud : -rud, el = inv ? 1 : -1;
+                    var (s0, a0) = Developed(cfg, rud, lever, inv);
+                    var (s1, a1) = Developed(cfg, rud, lever, inv, opp);
+                    var p0 = Parts(cfg, a0.State, new ControlInputs(0, el, rud, lever), a0.CurrentDeflections, a0);
+                    var p1 = Parts(cfg, a1.State, new ControlInputs(opp, el, rud, lever), a1.CurrentDeflections, a1);
+                    _out.WriteLine($"AILBAL {(inv ? "inv" : "up ")} lever {lever} rud {rud}: ail 0 α {s0.Alpha:F1} θ {s0.Pitch:F1} β {s0.Beta:F1} p/q/r {s0.P:F0}/{s0.Q:F0}/{s0.R:F0} Ω {s0.OmegaVertDeg:F0}  →  ail {opp}: α {s1.Alpha:F1} θ {s1.Pitch:F1} β {s1.Beta:F1} p/q/r {s1.P:F0}/{s1.Q:F0}/{s1.R:F0} Ω {s1.OmegaVertDeg:F0}");
+                    foreach (var key in p0.Keys.Union(p1.Keys))
+                    {
+                        Vec3 u = p0.GetValueOrDefault(key), v = p1.GetValueOrDefault(key);
+                        _out.WriteLine($"   {key,-20} L {u.X,6:F0} → {v.X,6:F0}   M {u.Y,6:F0} → {v.Y,6:F0}   N {u.Z,6:F0} → {v.Z,6:F0}");
+                    }
+                }
         }
 
         if (parts.Contains("exp"))
@@ -429,6 +568,76 @@ public class SpinBalanceProbe
                 _out.WriteLine($"BUDGET rud {rud,2}: aero M (N·m, Cm) stick full aft {mU / n,7:F0} ({mU / n / qSc:F3})  neutral {mN / n,7:F0} ({mN / n / qSc:F3})  full fwd {mD / n,7:F0} ({mD / n / qSc:F3})  no h-tail {mTailOff / n,7:F0}");
                 _out.WriteLine($"              inertial (Izz−Ixx)·p·r {inert / n,7:F0}  Ixz(r²−p²) {ixz / n,6:F0}   η stab {etaS / n:F3} elev {etaE / n:F3}   N rudder pro {nPro / n,6:F0} anti {nAnti / n,6:F0}");
             }
+    }
+
+    /// <summary>Each part's moment about the CG (body, N·m) at one held state: the aircraft is held there 1 s so flow memory and rpm
+    /// settle, then one step is captured. Lift/drag/section moments by wing, h-tail and fin; fuselage terms; prop (as applied, a
+    /// moment) with the gyro broken out; and the inertial couples of the rigid-body equations.</summary>
+    public static Dictionary<string, Vec3> Parts(AircraftConfig cfg, RigidBodyState st, ControlInputs ci, ControlDeflections d0,
+                                                 Aircraft? memFrom = null, bool mirrored = false)
+    {
+        var mI = cfg.Mass.Inertia; Vec3 cg = cfg.Mass.CgVec(); double h = SimLoop.DefaultFixedDtSec; var cfgP = cfg.Fuselage.Crossflow;
+        var a = new Aircraft(cfg, st, d0);
+        if (memFrom is not null)
+        {
+            // The per-strip separation memory is hysteretic (holds between 11° and 16°), so a fresh aircraft would start every
+            // strip in that band attached: copy the flown aircraft's, left and right swapped when the state is flipped.
+            a.State = st; a.Step(ci, h);
+            double[] src = Mem(memFrom).Separation, dst = Mem(a).Separation;
+            int[] map = mirrored ? MirrorStrips(cfg) : Enumerable.Range(0, src.Length).ToArray();
+            for (int i = 0; i < dst.Length && i < map.Length; i++) dst[i] = src[map[i]];
+        }
+        for (double t = 0; t < 1.0; t += h) { a.State = st; a.Step(ci, h); }
+        a.State = st; a.CaptureForces = true; a.Step(ci, h);
+        var m = new Dictionary<string, Vec3>();
+        void Add(string k, Vec3 v) => m[k] = (m.TryGetValue(k, out var o) ? o : Vec3.Zero) + v;
+        foreach (var f in a.LastForces)
+        {
+            Vec3 mm = Vec3.Cross(f.PosBody - cg, f.ForceBody) + f.MomentBody;
+            switch (f.Kind)
+            {
+                case "lift": case "drag": case "moment" when (f.PosBody - cg).Length > 1e-9:
+                    string k = f.PosBody.X < -1.5 ? (Math.Abs(f.PosBody.Z + 0.071) > 1e-3 ? (f.PosBody.X < -3.2 ? "rudder" : "fin") : f.PosBody.X < -3.2 ? "elevator" : "stab")
+                             : f.PosBody.Z < 0 ? "wing upper" : "wing lower";
+                    Add(k, mm); break;
+                case "moment": Add(f.MomentBody.Y != 0 && f.MomentBody.X == 0 ? "fus Munk" : f.MomentBody.X != 0 && f.MomentBody.Y == 0 && f.MomentBody.Z == 0 ? "sep-wing slip roll" : "damping", mm); break;
+                case "fuselage":
+                    bool camber = Math.Abs(f.PosBody.X - cfgP.SectionCamberCenterX) < 1e-6 || Math.Abs(f.PosBody.X - cfgP.CowlCamberCenterX) < 1e-6;
+                    Add(camber ? "fus camber Cm(β)" : "fus crossflow", mm); break;
+                case "thrust": Add("prop (all)", f.MomentBody); break;          // applied as a moment about the CG
+                case "gyro": Add("  of which gyro", f.MomentBody); break;
+                case "tailflow": case "weight": break;                            // overlay records, not loads
+                default: Add(f.Kind, mm); break;
+            }
+        }
+        Vec3 w = st.Rates;
+        m["inertial"] = new Vec3((mI.Iyy - mI.Izz) * w.Y * w.Z, (mI.Izz - mI.Ixx) * w.X * w.Z, (mI.Ixx - mI.Iyy) * w.X * w.Y);
+        m["inertial Ixz"] = new Vec3(mI.Ixz * w.X * w.Y, -mI.Ixz * (w.X * w.X - w.Z * w.Z), -mI.Ixz * w.Y * w.Z);
+        return m;
+    }
+
+    private static StripFlowState Mem(Aircraft a) =>
+        (StripFlowState)typeof(Aircraft).GetField("_flowState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(a)!;
+
+    /// <summary>For each strip, the index of its lateral mirror (same surface, y → −y).</summary>
+    private static int[] MirrorStrips(AircraftConfig cfg)
+    {
+        var map = new List<int>(); int b = 0;
+        foreach (var sf in cfg.Surfaces)
+        {
+            for (int i = 0; i < sf.Strips.Count; i++)
+            {
+                int best = i; double bd = double.MaxValue;
+                for (int j = 0; j < sf.Strips.Count; j++)
+                {
+                    double d = Math.Abs(sf.Strips[j].Pos[0] - sf.Strips[i].Pos[0]) + Math.Abs(sf.Strips[j].Pos[1] + sf.Strips[i].Pos[1]);
+                    if (d < bd) { bd = d; best = j; }
+                }
+                map.Add(b + best);
+            }
+            b += sf.Strips.Count;
+        }
+        return map.ToArray();
     }
 
     private static double Span(AircraftConfig c)
