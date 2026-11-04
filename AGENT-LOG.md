@@ -1,6 +1,6 @@
 ## NEEDS YOU
 - **2026-11-04 lane/claude-grob103 — GROB RE-BASED ON THE G 103 C TWIN III ACRO (FIXED TANDEM GEAR), NOT THE TWIN II
-  (Claude). Local commit __HASH__; not merged. No gate marked approved. Nothing built: no Unity, no deploy.sh (Ty's
+  (Claude). Local commit a3db18c2 (this entry rides in it); not merged. No gate marked approved. Nothing built: no Unity, no deploy.sh (Ty's
   instruction).** Ty decided 2026-11-04 that the aerobatic two-seater is the Twin III Acro with fixed main, nose and
   tail wheels. The id `glider-grob103-acro-like` is kept; the display name is now "Twin III Acro-like Aerobatic
   Two-Seater". Every number and its source is in `docs/aircraft/grob103-acro-DERIVATION.md` §0; the builder cites each
