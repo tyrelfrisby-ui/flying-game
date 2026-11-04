@@ -1,4 +1,44 @@
 ## NEEDS YOU
+<!-- tire-spinup needs-you -->
+- **TYRE SPIN-UP + GROUND/BRAKE SOUND (Claude, 2026-11-04, lane/claude-tire-spinup; analysis only, no physics/audio code
+  changed). Full write-up: `docs/TIRE-SPINUP-AND-GROUND-SOUND.md`; probe: `docs/tire-spinup-probe/`.** Decisions for Ty:
+  1. **The sim has no wheel spin-up at all.** There is no ω and no wheel inertia (WheelHydro.cs:42 says "not modelled").
+     At touchdown the only fore-aft tyre force is rolling resistance (`RollingCoefficient·N`, LandingGear.cs:563).
+     Real spin-up takes t = I·V/(μ·N·r²) (= k·m_wheel·V/(μN), so r cancels), with N from the gear k·x + c·ẋ (LandingGear.cs:492).
+     The probe uses the real LandingGear.Compute at 50 kt, lift 0.9 W, with ASSUMED wheel masses. Spin-up times, ms, asphalt / dirt (=gravel in code) / dry grass:
+     - Cub: 1 ft/s 154/578*/627*, 3 ft/s 50/67/78, 6 ft/s 26/35/40, 10 ft/s 16/21/24 (*skips at 1 ft/s; 110/146/170 at lift 0.7).
+     - Pitts: 64/85/99, 24/31/35, 12/16/19, 8/10/12.
+     - Extra: 62/81/93, 23/31/35, 12/16/18, 8/10/11.
+     - C172: 75/98/113, 29/38/43, 15/20/23, 10/13/14.
+     - Decathlon: 94/127/148, 36/47/54, 19/25/29, 12/16/18.
+     - Great Lakes: 81/109/128, 31/40/46, 16/21/24, 10/13/15.
+     - 2-33: 86/111/128, 35/45/51, 19/24/28, 12/15/17.
+
+     Missing per landing: ΔV 0.18–0.45 m/s, and a nose-down moment of 2.5–10 kN·m at 3 ft/s (×3 at 10 ft/s).
+     **Approve?** A per-wheel ω state + `WheelInertiaKgM2`, a tanh slip-ratio Fx, and brake as torque (doc §4). Parity-shared Core.
+  2. **The chirp is cosmetic and keyed wrongly** (StructuralDamage 96-108, OneShotSynth 150-155/346-352).
+     - It is silent below 1.3 ft/s, with a fixed 0.16–0.28 s length.
+     - It plays on grass, snow and ice too.
+
+     Proposed: drive it per wheel from slip power, for the real duration, with smoke/skid marks from the same slip energy (Codex visuals).
+  3. **Other physics nits:**
+     - Auto tyre radius is too big: C172 0.261 m (real ≈0.19), Decathlon 0.314 (≈0.20), Cub 0.307 (≈0.27).
+     - `GearConfig.RollResistN` is dead.
+     - There is no Dirt/Sand surface: both, and water strips, roll as Gravel.
+     - The brake is a force demand with a lock-up branch, not a torque.
+  4. **Sound (your steering):**
+     - Per-wheel surface sampling: today it is one sample at the CG, and asphalt, grass and snow are silent.
+     - A `GroundMaterial` key table linking physics surface ↔ the imagery (StripFinish / FrankChurch.Ground / IslandTerrainMesh uv1+colour channels).
+       Its fields: μ, μr, rolling voice gain/pitch-vs-speed curves, `crossfadeS` 0.15–0.3 s, and wheelSpinup/bearingWhir/brake flags.
+     - Per-wheel equal-power crossfades, panned L/R.
+     - Bearing whir from ω (≈9×rev/s, very quiet, fades as the wheel slows).
+     - Water (splash/spray from float speed + SprayField) and snow (crunch; ski hiss when on skis) get **no chirp and no whir**.
+     - Per-wheel L/R brake drag ∝ p·v and squeal above p>0.6 or demand/μN>0.8, fading at stop. None on water or skis.
+     - All of it is a new `TyreBrakeSynth` + table-driven `SurfaceSynth` in the existing procedural mixer (FlightAudio 359-369). Doc §5.
+
+     **Approve the schema/plan?**
+  5. **NEEDS-Codex:** adopt the same GroundMaterial key in the terrain/splat code so sound, dust and skid marks match the imagery.
+     I didn't touch any Codex visuals, `lane/claude-trigger-brakes` or `lane/claude-crash-tuning`.
 <!-- parity-merge needs-you -->
 - **PARITY MERGE (Claude, 2026-11-04, Ty approved 07:29: "merge both ways, get them in parity and then lock them in
   parity"). IN PROGRESS. Nothing approved by me; every conflict call is in the Log entry "parity merge".**
@@ -2863,6 +2903,9 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 — Claude · lane/claude-tire-spinup · tyre spin-up + ground/brake sound analysis
+Analysis only, no physics or audio code changed. I added `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` (code findings with file:line, constants, spin-up tables, issues, physics fix, sound/brake schema) and `docs/tire-spinup-probe/` (a .NET console using the real LandingGear.Compute: `dotnet run -c Release --project docs/tire-spinup-probe -- configs/aircraft 0.9`). The probe was built and run with nice -n 10 outside the repo. No Unity/xcodebuild build. NEEDS YOU: see the top "TYRE SPIN-UP" item.
+
 <!-- parity-merge entry -->
 ### 2026-11-04 07:31– PST — Claude · parity merge (lane/claude-quest-islandnav ⇄ lane/claude-island-nav) · Ty approved 07:29
 **NEEDS YOU:** see the top "PARITY MERGE" item under NEEDS YOU (kept current there).
