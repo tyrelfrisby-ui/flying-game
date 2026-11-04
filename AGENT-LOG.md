@@ -1,4 +1,24 @@
 ## NEEDS YOU
+- **EXTRA 300 COCKPIT AS YOU LAID IT OUT — ONE COCKPIT FOR iPHONE/MAC AND QUEST (Claude, 2026-11-04, lane/claude-extra-cockpit-shared
+  `217a0847`, built `2026.1104.0831` (`deploy.sh 00000000-NOINSTALL`: ** BUILD SUCCEEDED **, 0 error CS), NOT installed, NOT merged).** Instrument lighting (approved) plus, from your 07:33 list:
+  1. **Panel:** IAC card CENTRED; left column airspeed over G meter, right column altimeter over turn coordinator (3-1/8);
+     Trig-style 2-1/4 COM and transponder heads on the left (their own knobs, LCDs showing the frequency / code); 3-1/8
+     three-in-one oil P / oil T / fuel P on the right; lower row tach, MP, fuel computer (FF gph / gallons used) and ammeter.
+     EGT/CHT and both fuel-quantity gauges are gone ("that is it"). Shorter stick kept.
+  2. **One switch row along the panel bottom** (z 0.075 m): mag, master, fuel pump, alt air, mixture, prop | trim, fuel
+     selector, smoke, nav, strobe, landing. Nothing below the panel any more (the radio subpanel by your knees is gone), and
+     no switch in the 17 cm behind the stick and your hand. Panel bottom edge is 30 mm lower to fit it.
+  3. **Ailerons hinge at 30 % of their chord** with a round nose in a matching cove: TE down 30° and the nose stands
+     ~49 mm above the upper skin (`renders/extra-cockpit-shared/aileron/extra-aileron-L-section--30.jpg`). Looks only —
+     the flight model is unchanged (the honest lift change measured 239 → 193 deg/s; written up, not applied).
+  4. **Wing-skin break at the aileron fixed** on the Extra (16.8 mm step → 1.3), 172 (wing skin z-fighting under the whole
+     aileron → re-cut), Great Lakes, J-3 wheels + floats, Pitts (4 liveries); 2-33 34 mm → 2.6 mm (0.1 over my 2.5 mark,
+     a small shoulder left a quarter of the way back on its aileron — say if it bothers you).
+  **Ty:** look at `renders/extra-cockpit-shared/eye/extra-quest-rear-sun.png`, `…-rear-night.png`, `extra-ios-rear-sun.png`,
+  `…-night.png`. Then: OK to merge into island-nav and build for the phone / Quest? Two things to confirm: the fuel-pressure
+  green band I drew is 18–30 psi (unsourced — what does your panel say?), and the radio heads' knobs are visual only on the
+  phone (on the Quest your hand works them).
+
 - **CRASH PHYSICS MERGED INTO ISLAND-NAV — ON YOUR IPHONE AS `2026.1104.0427` (Grok Bot, 2026-11-04 04:30 PST,
   lane/claude-crash-physics `da163a65` → island-nav `abeadac3`, Ty approved):** trees snap, crashes keep momentum,
   only overloaded parts come off, debris no longer sinks. Only AGENT-LOG.md conflicted (both sides kept).
@@ -1823,6 +1843,30 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 08:40 — Claude · lane/claude-extra-cockpit-shared (phase 2) · Ty's Extra panel, one switch row, 30 % aileron hinge, skin breaks fixed
+- **Ask** (Ty 07:33, via the coordinator): lighting approved; the LAYOUT still wrong and must be in the next build (card centred;
+  ASI over G left; ALT over TC right; Trig radio + xpdr left; 3-in-1 right; lower row tach / MP / fuel computer / ammeter; all
+  switches and knobs in one row on the panel bottom; keep the shorter stick); aileron hinge 30 % with the nose poking up; the
+  wing-skin break fixed on every model; cockpit renders from the pilot eye, sun and night. Done by Claude, not Codex.
+- **Done** (8a5737c9, db87f77c, 217a0847): `tools/own_models/extra_cockpit_shared.py` (pass 11, all three Extra liveries:
+  layout with a no-overlap / clear-of-card assertion that caught two real overlaps while laying it out, three-in-one with its
+  own art and three needles, fuel-computer and Trig heads with LCDs and 0.45-scale knobs, panel 0.055–0.360 m, the switch row,
+  retired gauges as `Legacy_P3g_*`, card centred, ailerons re-hinged at 30 % with an arc nose and matching cove, nose skins
+  filled to the wing's lip); `tools/own_models/fix_aileron_junctions.py` (pass 12: 172 bay re-cut, GL, J-3 ×2, 2-33 ×2,
+  Pitts ×4); `render_aileron_deflect.py`; `SharedPanelRigTests` pins the 14 instrument nodes per seat.
+- **Measured** (`check_aileron_junction.py`, worst at neutral): Extra 16.8 mm / 29.6° → 1.3 mm / 3.6°; 172 coplanar → 2.4 mm,
+  no overlap; GL 6.1 mm + 15 mm gap → 1.9 mm / 5 mm; J-3 6.6 mm + 15 mm → 1.7 / 5; Pitts 3.8 → 1.5; 2-33 33.9 → 2.6 mm
+  (FAIL by 0.1 mm at one tip station; a shoulder at ~25 % of its aileron chord is visible in the section render). Legacy GL
+  GLBs (unused) and 12 runtime-carved models untouched.
+- **Checks:** cockpit tests 68/68; model/rig tests: every failing name also fails on aeb9695a (HydroJ3 porpoise, J3FloatsWater
+  landing, PlateauCopy ×5, the terrain/nav names of a coupled run, ModelRig air brake, AerobatGround Pitts). CockpitEyeShots
+  PASS 7/7. Build `2026.1104.0831` BUILD SUCCEEDED, 0 error CS, not installed; ProjectSettings and the stale StreamingAssets
+  mirror restored, not committed. `tools/check-parity.sh` does not exist in this tree: not run.
+- **Renders:** `renders/extra-cockpit-shared/` (README.md): eye/ (Quest + iPhone, sun + night), aileron/ (−30/0/+30 section),
+  junction-before/ and junction-after/.
+- **Caveats:** the passes edit GLBs in place; a full rebuild of any of these models drops them (docs/SHARED-COCKPIT.md).
+  Fuel-pressure dial bands unsourced. The Quest lane must take these GLBs by merging island-nav, not edit them. No gate approved.
+
 ### 2026-11-04 06:40 — Claude · lane/claude-extra-cockpit-shared (phase 1 of 3) · one Extra cockpit for iOS/Mac and Quest, legible instruments, aileron junction checker, Codex spec
 - **Ask** (Ty, 05:35, msg pt534u, after flying the Extra on the Quest): stick too tall (stick + hand hide the
   instruments); switches and knobs still by his knees, not one row along the panel bottom; a break in the wing skin
