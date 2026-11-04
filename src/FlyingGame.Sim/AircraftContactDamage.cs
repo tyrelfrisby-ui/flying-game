@@ -174,7 +174,7 @@ public sealed partial class Aircraft
         foreach (ContactPoint p in _contacts) if (p.Panel >= 0 && p.ForceBody.LengthSquared > 0) { any = true; break; }
         if (!any && !_panels.Any(q => q.State == PanelState.Bent))
         {
-            Array.Clear(_panelTouching); Array.Clear(_bentThisStrike);
+            Array.Clear(_panelTouching, 0, _panelTouching.Length); Array.Clear(_bentThisStrike, 0, _bentThisStrike.Length);
             foreach (WingPanel q in _panels) q.ElasticRad = 0.0;
             return;
         }

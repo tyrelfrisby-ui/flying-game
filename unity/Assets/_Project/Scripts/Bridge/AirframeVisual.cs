@@ -272,7 +272,94 @@ namespace FlyingGame.Bridge
         {
             _componentsDetached = true;
             if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return null; }
+            // A wing panel that was bent first: its pieces are already on their own pivot — that pivot is the debris.
+            if (_bentPanels.TryGetValue(comp, out Transform bent) && bent != null)
+            {
+                _bentPanels.Remove(comp);
+                GameObject rest = DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
+                if (rest != null) for (int i = rest.transform.childCount - 1; i >= 0; i--) rest.transform.GetChild(i).SetParent(bent, true);
+                if (rest != null) Object.Destroy(rest);
+                bent.SetParent(null, true);
+                float sd = TipSide(comp);
+                return LaunchDebris(bent.gameObject, worldVelocityUnity + transform.right * (4f * sd) + transform.up * 3f, transform.right * sd, -sd);
+            }
             return DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
+        }
+
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, Transform> _bentPanels = new();
+
+        private static bool IsTipPanel(FlyingGame.Core.AirframeComponent c) =>
+            c is FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipRight
+              or FlyingGame.Core.AirframeComponent.WingTipLowerLeft or FlyingGame.Core.AirframeComponent.WingTipLowerRight;
+        private static float TipSide(FlyingGame.Core.AirframeComponent c) =>
+            c is FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipLowerLeft ? -1f : 1f;
+
+        /// <summary>
+        /// Which side of a tip panel's cut a triangle is on: outboard of its station on its side and, on a biplane, on its
+        /// own wing's side of the height midway between the two wings at the station (root-local y = −sim z).
+        /// </summary>
+        private static System.Func<Vector3, bool> TipPanelTest(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        {
+            float side = p.Side, cut = (float)p.BreakY;
+            float? midUp = null;
+            if (cfg != null)
+                foreach (FlyingGame.Core.WingPanel q in FlyingGame.Core.WingStructure.Build(cfg))
+                    if (q.Side == p.Side && q.SurfaceId != p.SurfaceId) midUp = (float)(-(p.BreakZ + q.BreakZ) * 0.5);
+            bool lower = p.Lower;
+            return c => c.x * side > cut && (midUp == null || (lower ? c.y < midUp.Value : c.y > midUp.Value));
+        }
+
+        private static void SplitBy(Mesh src, Transform part, Transform root, System.Func<Vector3, bool> lostTest, out Mesh lost, out Mesh kept)
+        {
+            lost = null; kept = null;
+            Vector3[] v = src.vertices; int[] t = src.triangles;
+            if (v.Length == 0 || t.Length == 0) return;
+            var r = new Vector3[v.Length];
+            for (int i = 0; i < v.Length; i++) r[i] = root.InverseTransformPoint(part.TransformPoint(v[i]));
+            var lt = new List<int>(); var kt = new List<int>();
+            for (int i = 0; i + 2 < t.Length; i += 3)
+            {
+                List<int> dst = lostTest((r[t[i]] + r[t[i + 1]] + r[t[i + 2]]) / 3f) ? lt : kt;
+                dst.Add(t[i]); dst.Add(t[i + 1]); dst.Add(t[i + 2]);
+            }
+            if (lt.Count > 0) lost = CloneMesh(v, lt.ToArray());
+            if (kt.Count > 0) kept = CloneMesh(v, kt.ToArray());
+        }
+
+        /// <summary>
+        /// A wing panel bent by a strike, or flexing under a tip contact (contact damage): on first call its triangles move
+        /// onto a pivot on the station line, which then turns about the flight axis by the panel's set plus its elastic flex. PLACEHOLDER — static
+        /// meshes only, the aileron meshes stay where they are (AGENT-LOG NEEDS-Codex).
+        /// </summary>
+        public void ShowPanelBend(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        {
+            if (_builder == null) return;
+            if (!_bentPanels.TryGetValue(p.Component, out Transform pivot) || pivot == null)
+            {
+                var go = new GameObject("Bent-" + p.Component);
+                pivot = go.transform;
+                pivot.SetParent(transform, false);
+                pivot.localPosition = new Vector3(p.Side * (float)p.BreakY, (float)-p.BreakZ, 0f);
+                pivot.localRotation = Quaternion.identity;
+                System.Func<Vector3, bool> test = TipPanelTest(p, cfg);
+                foreach (GameObject part in new List<GameObject>(_builder.WingParts))
+                {
+                    if (part == null) continue;
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null || mf.name.ToLowerInvariant().Contains("aileron")) continue;
+                        SplitBy(mf.sharedMesh, mf.transform, transform, test, out Mesh lost, out Mesh kept);
+                        if (lost == null) continue;
+                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                        AddPiece(pivot, mf.name + "-bent", lost, mr != null ? mr.sharedMaterial : null,
+                            pivot.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(pivot.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (kept == null) mf.gameObject.SetActive(false); else mf.sharedMesh = kept;
+                    }
+                }
+                _bentPanels[p.Component] = pivot;
+            }
+            // Root-local x = sim y, y = up, z = sim x: tip up is +angle about +z on the right, − on the left.
+            pivot.localRotation = Quaternion.AngleAxis(p.Side * (float)((p.BendRad + p.ElasticRad) * 180.0 / System.Math.PI), Vector3.forward);
         }
 
         /// <summary>Detach a component's visual parts as tumbling debris — shared by the player's airframe and the
@@ -293,7 +380,12 @@ namespace FlyingGame.Bridge
             bool aileron = comp is FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.AileronRight;
             bool elevator = comp is FlyingGame.Core.AirframeComponent.ElevatorLeft or FlyingGame.Core.AirframeComponent.ElevatorRight;
             bool rudder = comp == FlyingGame.Core.AirframeComponent.Rudder;
-            float side = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingLeftInner
+            bool tip = IsTipPanel(comp);
+            System.Func<Vector3, bool> tipTest = null;
+            if (tip && cfg != null)
+                foreach (FlyingGame.Core.WingPanel wp in FlyingGame.Core.WingStructure.Build(cfg))
+                    if (wp.Component == comp) tipTest = TipPanelTest(wp, cfg);
+            float side = tip ? TipSide(comp) : comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingLeftInner
                       or FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.ElevatorLeft ? -1f : 1f;
             float semi = cfg != null ? (float)FlyingGame.Core.WingPanels.Semispan(cfg) : 5f;
             float cutAbs = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingRightOuter
@@ -319,7 +411,7 @@ namespace FlyingGame.Bridge
                 };
             }
             List<GameObject> parts;
-            if (leftWing || rightWing || panel) parts = new List<GameObject>(_builder.WingParts);
+            if (leftWing || rightWing || panel || tip) parts = new List<GameObject>(_builder.WingParts);
             else if (gearLeg)
             {
                 parts = _builder.TakeLegParts(comp);
@@ -365,6 +457,21 @@ namespace FlyingGame.Bridge
                         if (lost == null) continue;
                         MeshRenderer mr = mf.GetComponent<MeshRenderer>();
                         AddPiece(debris.transform, mf.name, lost, mr != null ? mr.sharedMaterial : null,
+                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                    }
+                }
+                else if (tip)
+                {
+                    // The panel outboard of its wing's structural station (and, on a biplane, only that wing's).
+                    if (tipTest == null) continue;
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null) continue;
+                        SplitBy(mf.sharedMesh, mf.transform, root, tipTest, out Mesh lost, out Mesh kept);
+                        if (lost == null) continue;
+                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                        AddPiece(debris.transform, mf.name + "-" + comp, lost, mr != null ? mr.sharedMaterial : null,
                             root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
                         if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
                     }
@@ -416,12 +523,12 @@ namespace FlyingGame.Bridge
             _builder.Forget(gone);
             foreach (GameObject g in gone) if (g != null) Object.Destroy(g);
             Vector3 sideDir = (leftWing || side < 0f) ? -root.right : root.right;
-            Vector3 kick = leftWing || rightWing || panel ? sideDir * 4f + root.up * 3f
+            Vector3 kick = leftWing || rightWing || panel || tip ? sideDir * 4f + root.up * 3f
                 : gearLeg ? -root.forward * 2f - root.up * 1f + (comp == FlyingGame.Core.AirframeComponent.GearLeft ? -root.right : root.right) * 1.5f
                 : tailBoom ? -root.forward * 3f + root.up * 2.5f
                 : nose ? root.forward * 2f + root.up * 3f
                 : -root.forward * 3f + root.up * 4f;
-            return LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
+            return LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel || tip ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
         }
 
         /// <summary>Split a part's mesh on one side of the centreline at a spanwise station (root-local x = sim y):
