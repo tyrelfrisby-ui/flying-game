@@ -136,8 +136,25 @@ namespace FlyingGame.Bridge
             Inputs = new ControlInputs(0, TrimStick, 0, lever);
         }
 
+        // The scripted crash (FlyingGame.Sim.CrashScenario): with the launch argument "-crashtest runway|grass" the first flight
+        // of the session is the Pitts cartwheel DebrisGroundTests crash, so the phone build reproduces it on demand.
+        private static bool _crashTestDone;
+
         private void SpawnAircraft()
         {
+            string crash = _crashTestDone ? null : CrashScenario.FromArgs(System.Environment.GetCommandLineArgs());
+            if (crash != null)
+            {
+                _crashTestDone = true;
+                AircraftId = "pitts-s2b-like";
+                var pitts = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
+                AircraftName = string.IsNullOrEmpty(pitts.DisplayName) ? AircraftId : pitts.DisplayName;
+                TrimStick = 0;
+                Sim = new SimLoop(new Aircraft(pitts, CrashScenario.PittsStart(pitts, crash == "grass"), ControlDeflections.Neutral));
+                Debug.Log($"[CrashTest] Pitts scripted crash on the {crash}");
+                ApplyStateToTransform();
+                return;
+            }
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
             SessionSettings.ApplyFeel(config);   // the user's expo / dead-zone tuning (OPTIONS)
             // (The 2026-10-30 SessionLoading.Apply stood here. The 2026-10-31 loading model applies the load
