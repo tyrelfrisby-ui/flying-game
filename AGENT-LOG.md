@@ -1,4 +1,11 @@
 ## NEEDS YOU
+- **FRANK CHURCH VALLEYS MERGED AND INSTALLED: `2026.1103.2022` (Grok Bot, 2026-11-03 20:28 PST, lane/claude-island-nav
+  `d9730e24`, merge of lane/claude-frank-church-valleys `a0949d92`):** Ty approved the renders ("Yes, merge the Frank Church
+  valleys and install"). All nine strips are now on the river floor or low benches with 239-711 m canyon walls; one-way:
+  Cabin Creek (land 112, 6.5 %), Soldier Bar (land 006, 4.5 %), Dewey Moore (land 047, 7.0 %). Conflicts in AGENT-LOG.md and
+  CLAUDE.md only; both sides kept. `deploy.sh` `** BUILD SUCCEEDED **`, installed + launched on Ty's iPhone and iPad mini;
+  Frisby_801C_EFB reported Locked. ProjectSettings bump not committed. Renders: ~/Developer/agent-lanes/xfer/frank-church-v1/.
+
 - **PITTS SPIN #4 IS ON THE IPHONE: `2026.1103.1951` (Grok Bot, 2026-11-03 19:56 PST, lane/claude-island-nav `868bdda1`,
   merge of lane/claude-pitts-spin `3bf6ed2f`/`fe232151` on top of the CAM-button commits):** AGENT-LOG conflict only (both
   NEEDS YOU entries kept). Merged tree: PittsFlatSpinAileron/Spin/PittsRollRate/CameraReference filter 51/52 passed; the one
