@@ -1,0 +1,67 @@
+{
+  "model": "unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb",
+  "builder_axes": "X forward, Y left, Z up",
+  "sensor_width_mm": 36,
+  "cameras": [
+    {
+      "name": "left_console_photo",
+      "position_m": [
+        -2.04,
+        0.035,
+        0.2
+      ],
+      "target_m": [
+        -1.73,
+        0.27,
+        -0.15
+      ],
+      "lens_mm": 38,
+      "ortho_scale_m": null
+    },
+    {
+      "name": "trim_rear_left_wall",
+      "position_m": [
+        -1.91,
+        0.04,
+        -0.32
+      ],
+      "target_m": [
+        -1.843,
+        0.322,
+        -0.285
+      ],
+      "lens_mm": 42,
+      "ortho_scale_m": null
+    },
+    {
+      "name": "rear_seat_panel",
+      "position_m": [
+        -1.95,
+        0,
+        0.29
+      ],
+      "target_m": [
+        -1.64,
+        0,
+        0.03
+      ],
+      "lens_mm": 20,
+      "ortho_scale_m": null
+    },
+    {
+      "name": "front_seat_panel",
+      "position_m": [
+        -1.22,
+        0,
+        0.27
+      ],
+      "target_m": [
+        -0.97,
+        0,
+        0.03
+      ],
+      "lens_mm": 20,
+      "ortho_scale_m": null
+    }
+  ]
+}

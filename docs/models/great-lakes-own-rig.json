@@ -1276,9 +1276,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.04,
-    -0.32,
-    0.35
+    1.093,
+    -0.15,
+    0.318
    ],
    "map": [
     [
@@ -1291,7 +1291,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "throttle (black knob, inboard) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
+   "desc": "throttle QUADRANT lever on the left sidewall (Ty 2026-11-02), idle 25 deg aft to full 25 deg forward; both cockpits on the SAME input.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1308,9 +1308,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.72,
-    -0.3,
-    0.3508
+    1.763,
+    -0.17,
+    0.318
    ],
    "map": [
     [
@@ -1323,7 +1323,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "throttle (black knob, inboard) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
+   "desc": "throttle QUADRANT lever on the left sidewall (Ty 2026-11-02), idle 25 deg aft to full 25 deg forward; both cockpits on the SAME input.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1643,9 +1643,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    0.215
+    1.6389999999999998,
+    -0.098,
+    0.295
    ],
    "map": [
     [
@@ -1687,9 +1687,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    0.251
+    2.0029999999999997,
+    -0.11099999999999999,
+    0.322
    ],
    "map": [
     [
@@ -1698,12 +1698,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1719,9 +1719,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    0.287
+    1.9229999999999996,
+    -0.11099999999999999,
+    0.322
    ],
    "map": [
     [
@@ -1730,12 +1730,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1751,9 +1751,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    0.32299999999999995
+    2.0029999999999997,
+    -0.11099999999999999,
+    0.288
    ],
    "map": [
     [
@@ -1762,12 +1762,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1783,9 +1783,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    0.215
+    1.9629999999999996,
+    -0.11099999999999999,
+    0.288
    ],
    "map": [
     [
@@ -1794,12 +1794,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1815,9 +1815,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    0.251
+    1.9229999999999996,
+    -0.11099999999999999,
+    0.288
    ],
    "map": [
     [
@@ -1826,12 +1826,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -1847,9 +1847,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    0.287
+    1.918,
+    -0.198,
+    0.268
    ],
    "map": [
     [
@@ -1872,30 +1872,30 @@
    "node": "Ctl_PushPull_Mixture",
    "param": "mixture",
    "parent": null,
-   "kind": "move",
+   "kind": "rot",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    0.32299999999999995
+    1.763,
+    -0.17,
+    0.258
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     0.0
     ],
     [
-     1,
-     -0.05
+     1.0,
+     50.0
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "(E) left-sidewall quadrant lever, Ty 2026-11-02; red mixture",
    "extra": {},
    "link": "",
    "note": ""
@@ -1904,30 +1904,30 @@
    "node": "Ctl_PushPull_Prop",
    "param": "prop",
    "parent": null,
-   "kind": "move",
+   "kind": "rot",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    0.215
+    1.763,
+    -0.17,
+    0.288
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     0.0
     ],
     [
-     1,
-     -0.05
+     1.0,
+     50.0
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "(E) left-sidewall quadrant lever, Ty 2026-11-02; blue prop",
    "extra": {},
    "link": "",
    "note": ""
@@ -1943,9 +1943,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    0.251
+    2.008,
+    -0.198,
+    0.268
    ],
    "map": [
     [
@@ -1968,62 +1968,34 @@
    "node": "Ctl_Rotary_Trim",
    "param": "trim",
    "parent": null,
-   "kind": "rot",
+   "kind": "move",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    0.287
+    1.9629999999999999,
+    -0.245,
+    0.263
    ],
    "map": [
     [
      -1,
-     0
+     -0.06
     ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector",
-   "param": "fuel_valve",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.463,
-    0.16,
-    0.32299999999999995
-   ],
-   "map": [
     [
      0,
      0
     ],
     [
      1,
-     90
+     0.06
     ]
    ],
    "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "unit": "-1..1",
+   "desc": "Left wall cable trim; forward nose down, aft nose up; estimated reach",
    "extra": {},
    "link": "",
    "note": ""
@@ -2039,9 +2011,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    -0.215
+    1.6389999999999998,
+    0.098,
+    -0.093
    ],
    "map": [
     [
@@ -2071,9 +2043,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    -0.251
+    1.6389999999999998,
+    0.131,
+    -0.06
    ],
    "map": [
     [
@@ -2103,9 +2075,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    -0.287
+    1.6389999999999998,
+    0.1,
+    -0.024
    ],
    "map": [
     [
@@ -2135,9 +2107,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    -0.32299999999999995
+    1.6389999999999998,
+    0.067,
+    -0.089
    ],
    "map": [
     [
@@ -2167,9 +2139,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    -0.215
+    1.6389999999999998,
+    0.144,
+    -0.188
    ],
    "map": [
     [
@@ -2199,9 +2171,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    -0.251
+    1.6389999999999998,
+    0.151,
+    -0.157
    ],
    "map": [
     [
@@ -2231,9 +2203,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    -0.287
+    1.6389999999999998,
+    0.15,
+    -0.126
    ],
    "map": [
     [
@@ -2263,9 +2235,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    -0.32299999999999995
+    1.6389999999999998,
+    0.15,
+    -0.094
    ],
    "map": [
     [
@@ -2295,9 +2267,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    -0.215
+    1.6389999999999998,
+    0.037,
+    -0.095
    ],
    "map": [
     [
@@ -2327,9 +2299,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    -0.251
+    1.6389999999999998,
+    0.035,
+    -0.021
    ],
    "map": [
     [
@@ -2359,9 +2331,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    0.215
+    0.969,
+    -0.078,
+    0.14
    ],
    "map": [
     [
@@ -2403,9 +2375,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    0.251
+    1.333,
+    -0.091,
+    0.322
    ],
    "map": [
     [
@@ -2414,12 +2386,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2435,9 +2407,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    0.287
+    1.253,
+    -0.091,
+    0.322
    ],
    "map": [
     [
@@ -2446,12 +2418,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2467,9 +2439,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    0.32299999999999995
+    1.333,
+    -0.091,
+    0.288
    ],
    "map": [
     [
@@ -2478,12 +2450,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2499,9 +2471,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    0.215
+    1.293,
+    -0.091,
+    0.288
    ],
    "map": [
     [
@@ -2510,12 +2482,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2531,9 +2503,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    0.251
+    1.253,
+    -0.091,
+    0.288
    ],
    "map": [
     [
@@ -2542,12 +2514,12 @@
     ],
     [
      1,
-     40
+     80
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
    "extra": {},
    "link": "",
    "note": ""
@@ -2563,9 +2535,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    0.287
+    1.2479999999999998,
+    -0.178,
+    0.268
    ],
    "map": [
     [
@@ -2588,30 +2560,30 @@
    "node": "Ctl_PushPull_Mixture_Front",
    "param": "mixture",
    "parent": null,
-   "kind": "move",
+   "kind": "rot",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    0.32299999999999995
+    1.093,
+    -0.15,
+    0.258
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     0.0
     ],
     [
-     1,
-     -0.05
+     1.0,
+     50.0
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "(E) left-sidewall quadrant lever, Ty 2026-11-02; red mixture",
    "extra": {},
    "link": "",
    "note": ""
@@ -2620,30 +2592,30 @@
    "node": "Ctl_PushPull_Prop_Front",
    "param": "prop",
    "parent": null,
-   "kind": "move",
+   "kind": "rot",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    0.215
+    1.093,
+    -0.15,
+    0.288
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     0.0
     ],
     [
-     1,
-     -0.05
+     1.0,
+     50.0
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "(E) left-sidewall quadrant lever, Ty 2026-11-02; blue prop",
    "extra": {},
    "link": "",
    "note": ""
@@ -2659,9 +2631,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    0.251
+    1.3379999999999999,
+    -0.178,
+    0.268
    ],
    "map": [
     [
@@ -2684,62 +2656,34 @@
    "node": "Ctl_Rotary_Trim_Front",
    "param": "trim",
    "parent": null,
-   "kind": "rot",
+   "kind": "move",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    0.287
+    1.293,
+    -0.245,
+    0.263
    ],
    "map": [
     [
      -1,
-     0
+     -0.06
     ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector_Front",
-   "param": "fuel_valve",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    0.32299999999999995
-   ],
-   "map": [
     [
      0,
      0
     ],
     [
      1,
-     90
+     0.06
     ]
    ],
    "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "unit": "-1..1",
+   "desc": "Left wall cable trim; forward nose down, aft nose up; estimated reach",
    "extra": {},
    "link": "",
    "note": ""
@@ -2755,9 +2699,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    -0.215
+    0.969,
+    -0.035,
+    -0.11
    ],
    "map": [
     [
@@ -2787,9 +2731,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    -0.251
+    0.969,
+    -0.035,
+    -0.079
    ],
    "map": [
     [
@@ -2819,9 +2763,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    -0.287
+    0.969,
+    -0.035,
+    -0.047
    ],
    "map": [
     [
@@ -2851,9 +2795,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    -0.32299999999999995
+    0.969,
+    -0.035,
+    -0.142
    ],
    "map": [
     [
@@ -2883,9 +2827,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    -0.215
+    0.969,
+    -0.035,
+    0.01
    ],
    "map": [
     [
@@ -2915,9 +2859,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    -0.251
+    0.969,
+    -0.035,
+    0.041
    ],
    "map": [
     [
@@ -2947,9 +2891,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    -0.287
+    0.969,
+    -0.035,
+    0.073
    ],
    "map": [
     [
@@ -2979,9 +2923,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    -0.32299999999999995
+    0.969,
+    -0.035,
+    0.105
    ],
    "map": [
     [
@@ -3011,9 +2955,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    -0.215
+    0.969,
+    -0.035,
+    0.137
    ],
    "map": [
     [
@@ -3043,9 +2987,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    -0.251
+    0.969,
+    -0.035,
+    0.168
    ],
    "map": [
     [
@@ -3060,6 +3004,134 @@
    "model": 0.0,
    "unit": "0..1",
    "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.9629999999999996,
+    -0.11099999999999999,
+    0.322
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Alternator_Front",
+   "param": "alternator",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.293,
+    -0.091,
+    0.322
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_valve",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.763,
+    -0.17,
+    -0.322
+   ],
+   "map": [
+    [
+     0,
+     -90
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 1,
+   "unit": "0..1",
+   "desc": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_valve",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.093,
+    -0.17,
+    -0.322
+   ],
+   "map": [
+    [
+     0,
+     -90
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 1,
+   "unit": "0..1",
+   "desc": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
    "extra": {},
    "link": "",
    "note": ""
@@ -3125,9 +3197,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    0.215
+    1.6389999999999998,
+    -0.098,
+    0.295
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -3150,7 +3222,9 @@
    "grip": "Grip_Magneto",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "label": "MAGS"
   },
   {
    "node": "Ctl_Toggle_Master",
@@ -3163,11 +3237,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    0.251
+    2.0029999999999997,
+    -0.11099999999999999,
+    0.322
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3185,7 +3259,9 @@
    "grip": "Grip_Master",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "MASTER"
   },
   {
    "node": "Ctl_Toggle_FuelPump",
@@ -3198,11 +3274,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    0.287
+    1.9229999999999996,
+    -0.11099999999999999,
+    0.322
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3220,7 +3296,9 @@
    "grip": "Grip_FuelPump",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "FUEL PUMP"
   },
   {
    "node": "Ctl_Toggle_NavLights",
@@ -3233,11 +3311,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    0.32299999999999995
+    2.0029999999999997,
+    -0.11099999999999999,
+    0.288
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3255,7 +3333,9 @@
    "grip": "Grip_NavLights",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "NAV"
   },
   {
    "node": "Ctl_Toggle_Strobe",
@@ -3268,11 +3348,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    0.215
+    1.9629999999999996,
+    -0.11099999999999999,
+    0.288
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3290,7 +3370,9 @@
    "grip": "Grip_Strobe",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "STROBE"
   },
   {
    "node": "Ctl_Toggle_LandingLight",
@@ -3303,11 +3385,11 @@
     1.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    0.251
+    1.9229999999999996,
+    -0.11099999999999999,
+    0.288
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -3325,7 +3407,9 @@
    "grip": "Grip_LandingLight",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "LDG"
   },
   {
    "node": "Ctl_Toggle_Smoke",
@@ -3338,9 +3422,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    0.287
+    1.918,
+    -0.198,
+    0.268
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3360,7 +3444,9 @@
    "grip": "Grip_Smoke",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Underslung auxiliary control",
+   "label": "SMOKE"
   },
   {
    "node": "Ctl_PushPull_Mixture",
@@ -3368,17 +3454,17 @@
    "kind": "PushPull",
    "seat": "Rear",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    0.32299999999999995
+    1.763,
+    -0.17,
+    0.258
    ],
-   "travel": 50,
-   "travel_unit": "mm",
+   "travel": 50.0,
+   "travel_unit": "deg",
    "sim_ends": [
     0,
     1
@@ -3391,8 +3477,9 @@
    "poke": "Poke_Mixture",
    "grip": "Grip_Mixture",
    "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "sweep_radius_m": 0.117,
+   "semantics": "absolute",
+   "placement": "gl_quadrant_v3: left-sidewall throttle quadrant lever (Ty 2026-11-02)"
   },
   {
    "node": "Ctl_PushPull_Prop",
@@ -3400,17 +3487,17 @@
    "kind": "PushPull",
    "seat": "Rear",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    0.215
+    1.763,
+    -0.17,
+    0.288
    ],
-   "travel": 50,
-   "travel_unit": "mm",
+   "travel": 50.0,
+   "travel_unit": "deg",
    "sim_ends": [
     0,
     1
@@ -3423,8 +3510,9 @@
    "poke": "Poke_Prop",
    "grip": "Grip_Prop",
    "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "sweep_radius_m": 0.144,
+   "semantics": "absolute",
+   "placement": "gl_quadrant_v3: left-sidewall throttle quadrant lever (Ty 2026-11-02)"
   },
   {
    "node": "Ctl_PushPull_CarbHeat",
@@ -3437,9 +3525,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    0.251
+    2.008,
+    -0.198,
+    0.268
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -3459,25 +3547,27 @@
    "grip": "Grip_CarbHeat",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Underslung auxiliary control",
+   "label": "CARB HEAT"
   },
   {
    "node": "Ctl_Rotary_Trim",
    "param": "trim",
-   "kind": "Rotary",
+   "kind": "PushPull",
    "seat": "Rear",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    0.287
+    1.9629999999999999,
+    -0.245,
+    0.263
    ],
-   "travel": 300,
-   "travel_unit": "deg",
+   "travel": 0.12,
+   "travel_unit": "m",
    "sim_ends": [
     -1,
     1
@@ -3491,42 +3581,9 @@
    "grip": "Grip_Trim",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector",
-   "param": "fuel_valve",
-   "kind": "Rotary",
-   "seat": "Rear",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.463,
-    0.16,
-    0.32299999999999995
-   ],
-   "travel": 90,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_FuelSelector",
-   "grip": "Grip_FuelSelector",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v6 indicator inside window beside console; index at left; cord separate",
+   "label": "TRIM / NOSE DOWN forward / NOSE UP aft"
   },
   {
    "node": "Ctl_Rotary_ComOuter",
@@ -3539,9 +3596,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    -0.215
+    1.6389999999999998,
+    0.098,
+    -0.093
    ],
    "travel": 540,
    "travel_unit": "deg",
@@ -3583,7 +3640,8 @@
    "wrap": [
     118,
     136.975
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_ComInner",
@@ -3596,9 +3654,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    -0.251
+    1.6389999999999998,
+    0.131,
+    -0.06
    ],
    "travel": 360,
    "travel_unit": "deg",
@@ -3659,7 +3717,8 @@
    "semantics": "increment_fraction",
    "step": 0.025,
    "alternative_step_mhz": 0.008333333333333333,
-   "channel_spacing_requires_owner_choice": true
+   "channel_spacing_requires_owner_choice": true,
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_ComVolume",
@@ -3672,9 +3731,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    -0.287
+    1.6389999999999998,
+    0.1,
+    -0.024
    ],
    "travel": 270,
    "travel_unit": "deg",
@@ -3691,7 +3750,8 @@
    "grip": "Grip_ComVolume",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_PushPull_ComSwap",
@@ -3704,9 +3764,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.593,
-    0.16,
-    -0.32299999999999995
+    1.6389999999999998,
+    0.067,
+    -0.089
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -3726,7 +3786,8 @@
    "grip": "Grip_ComSwap",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit1",
@@ -3739,9 +3800,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    -0.215
+    1.6389999999999998,
+    0.144,
+    -0.188
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3772,7 +3833,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit2",
@@ -3785,9 +3847,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    -0.251
+    1.6389999999999998,
+    0.151,
+    -0.157
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3818,7 +3880,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit3",
@@ -3831,9 +3894,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    -0.287
+    1.6389999999999998,
+    0.15,
+    -0.126
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3864,7 +3927,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit4",
@@ -3877,9 +3941,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.528,
-    0.16,
-    -0.32299999999999995
+    1.6389999999999998,
+    0.15,
+    -0.094
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3910,7 +3974,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrMode",
@@ -3923,9 +3988,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    -0.215
+    1.6389999999999998,
+    0.037,
+    -0.095
    ],
    "travel": 90,
    "travel_unit": "deg",
@@ -3947,7 +4012,8 @@
    "grip": "Grip_XpdrMode",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_PushPull_XpdrIdent",
@@ -3960,9 +4026,9 @@
     0.0
    ],
    "pivot_gltf": [
-    1.463,
-    0.16,
-    -0.251
+    1.6389999999999998,
+    0.035,
+    -0.021
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -3982,7 +4048,8 @@
    "grip": "Grip_XpdrIdent",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_Magneto_Front",
@@ -3995,9 +4062,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    0.215
+    0.969,
+    -0.078,
+    0.14
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -4020,7 +4087,9 @@
    "grip": "Grip_Magneto_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "label": "MAGS"
   },
   {
    "node": "Ctl_Toggle_Master_Front",
@@ -4033,11 +4102,11 @@
     1.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    0.251
+    1.333,
+    -0.091,
+    0.322
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4055,7 +4124,9 @@
    "grip": "Grip_Master_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "MASTER"
   },
   {
    "node": "Ctl_Toggle_FuelPump_Front",
@@ -4068,11 +4139,11 @@
     1.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    0.287
+    1.253,
+    -0.091,
+    0.322
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4090,7 +4161,9 @@
    "grip": "Grip_FuelPump_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "FUEL PUMP"
   },
   {
    "node": "Ctl_Toggle_NavLights_Front",
@@ -4103,11 +4176,11 @@
     1.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    0.32299999999999995
+    1.333,
+    -0.091,
+    0.288
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4125,7 +4198,9 @@
    "grip": "Grip_NavLights_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "NAV"
   },
   {
    "node": "Ctl_Toggle_Strobe_Front",
@@ -4138,11 +4213,11 @@
     1.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    0.215
+    1.293,
+    -0.091,
+    0.288
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4160,7 +4235,9 @@
    "grip": "Grip_Strobe_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "STROBE"
   },
   {
    "node": "Ctl_Toggle_LandingLight_Front",
@@ -4173,11 +4250,11 @@
     1.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    0.251
+    1.253,
+    -0.091,
+    0.288
    ],
-   "travel": 40,
+   "travel": 80,
    "travel_unit": "deg",
    "sim_ends": [
     0,
@@ -4195,7 +4272,9 @@
    "grip": "Grip_LandingLight_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "LDG"
   },
   {
    "node": "Ctl_Toggle_Smoke_Front",
@@ -4208,9 +4287,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    0.287
+    1.2479999999999998,
+    -0.178,
+    0.268
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -4230,7 +4309,9 @@
    "grip": "Grip_Smoke_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Underslung auxiliary control",
+   "label": "SMOKE"
   },
   {
    "node": "Ctl_PushPull_Mixture_Front",
@@ -4238,17 +4319,17 @@
    "kind": "PushPull",
    "seat": "Front",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    0.32299999999999995
+    1.093,
+    -0.15,
+    0.258
    ],
-   "travel": 50,
-   "travel_unit": "mm",
+   "travel": 50.0,
+   "travel_unit": "deg",
    "sim_ends": [
     0,
     1
@@ -4261,8 +4342,9 @@
    "poke": "Poke_Mixture_Front",
    "grip": "Grip_Mixture_Front",
    "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "sweep_radius_m": 0.117,
+   "semantics": "absolute",
+   "placement": "gl_quadrant_v3: left-sidewall throttle quadrant lever (Ty 2026-11-02)"
   },
   {
    "node": "Ctl_PushPull_Prop_Front",
@@ -4270,17 +4352,17 @@
    "kind": "PushPull",
    "seat": "Front",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    0.215
+    1.093,
+    -0.15,
+    0.288
    ],
-   "travel": 50,
-   "travel_unit": "mm",
+   "travel": 50.0,
+   "travel_unit": "deg",
    "sim_ends": [
     0,
     1
@@ -4293,8 +4375,9 @@
    "poke": "Poke_Prop_Front",
    "grip": "Grip_Prop_Front",
    "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "sweep_radius_m": 0.144,
+   "semantics": "absolute",
+   "placement": "gl_quadrant_v3: left-sidewall throttle quadrant lever (Ty 2026-11-02)"
   },
   {
    "node": "Ctl_PushPull_CarbHeat_Front",
@@ -4307,9 +4390,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    0.251
+    1.3379999999999999,
+    -0.178,
+    0.268
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -4329,25 +4412,27 @@
    "grip": "Grip_CarbHeat_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Underslung auxiliary control",
+   "label": "CARB HEAT"
   },
   {
    "node": "Ctl_Rotary_Trim_Front",
    "param": "trim",
-   "kind": "Rotary",
+   "kind": "PushPull",
    "seat": "Front",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    0.287
+    1.293,
+    -0.245,
+    0.263
    ],
-   "travel": 300,
-   "travel_unit": "deg",
+   "travel": 0.12,
+   "travel_unit": "m",
    "sim_ends": [
     -1,
     1
@@ -4361,42 +4446,9 @@
    "grip": "Grip_Trim_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector_Front",
-   "param": "fuel_valve",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    0.32299999999999995
-   ],
-   "travel": 90,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_FuelSelector_Front",
-   "grip": "Grip_FuelSelector_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "v6 indicator inside window beside console; index at left; cord separate",
+   "label": "TRIM / NOSE DOWN forward / NOSE UP aft"
   },
   {
    "node": "Ctl_Rotary_ComOuter_Front",
@@ -4409,9 +4461,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    -0.215
+    0.969,
+    -0.035,
+    -0.11
    ],
    "travel": 540,
    "travel_unit": "deg",
@@ -4453,7 +4505,8 @@
    "wrap": [
     118,
     136.975
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_ComInner_Front",
@@ -4466,9 +4519,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    -0.251
+    0.969,
+    -0.035,
+    -0.079
    ],
    "travel": 360,
    "travel_unit": "deg",
@@ -4529,7 +4582,8 @@
    "semantics": "increment_fraction",
    "step": 0.025,
    "alternative_step_mhz": 0.008333333333333333,
-   "channel_spacing_requires_owner_choice": true
+   "channel_spacing_requires_owner_choice": true,
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_ComVolume_Front",
@@ -4542,9 +4596,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    -0.287
+    0.969,
+    -0.035,
+    -0.047
    ],
    "travel": 270,
    "travel_unit": "deg",
@@ -4561,7 +4615,8 @@
    "grip": "Grip_ComVolume_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_PushPull_ComSwap_Front",
@@ -4574,9 +4629,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.9229999999999999,
-    0.16,
-    -0.32299999999999995
+    0.969,
+    -0.035,
+    -0.142
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -4596,7 +4651,8 @@
    "grip": "Grip_ComSwap_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit1_Front",
@@ -4609,9 +4665,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    -0.215
+    0.969,
+    -0.035,
+    0.01
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4642,7 +4698,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit2_Front",
@@ -4655,9 +4712,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    -0.251
+    0.969,
+    -0.035,
+    0.041
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4688,7 +4745,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit3_Front",
@@ -4701,9 +4759,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    -0.287
+    0.969,
+    -0.035,
+    0.073
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4734,7 +4792,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit4_Front",
@@ -4747,9 +4806,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.8579999999999999,
-    0.16,
-    -0.32299999999999995
+    0.969,
+    -0.035,
+    0.105
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4780,7 +4839,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_Rotary_XpdrMode_Front",
@@ -4793,9 +4853,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    -0.215
+    0.969,
+    -0.035,
+    0.137
    ],
    "travel": 90,
    "travel_unit": "deg",
@@ -4817,7 +4877,8 @@
    "grip": "Grip_XpdrMode_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
   },
   {
    "node": "Ctl_PushPull_XpdrIdent_Front",
@@ -4830,9 +4891,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.7929999999999999,
-    0.16,
-    -0.251
+    0.969,
+    -0.035,
+    0.168
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -4852,7 +4913,156 @@
    "grip": "Grip_XpdrIdent_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+  },
+  {
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.9629999999999996,
+    -0.11099999999999999,
+    0.322
+   ],
+   "travel": 80,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Alternator",
+   "grip": "Grip_Alternator",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "ALT"
+  },
+  {
+   "node": "Ctl_Toggle_Alternator_Front",
+   "param": "alternator",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.293,
+    -0.091,
+    0.322
+   ],
+   "travel": 80,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Alternator_Front",
+   "grip": "Grip_Alternator_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "label": "ALT"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_valve",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.763,
+    -0.17,
+    -0.322
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector",
+   "grip": "Grip_FuelSelector",
+   "position_status": "E",
+   "sweep_radius_m": 0.108,
+   "semantics": "absolute",
+   "placement": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
+   "label": "FUEL VALVE"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_valve",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.093,
+    -0.17,
+    -0.322
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector_Front",
+   "grip": "Grip_FuelSelector_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.108,
+   "semantics": "absolute",
+   "placement": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
+   "label": "FUEL VALVE"
   }
  ],
  "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."

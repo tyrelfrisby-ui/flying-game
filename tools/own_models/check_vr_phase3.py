@@ -31,6 +31,9 @@ def check(path):
   obstacles=[('knee_'+side,np.array((seatx-.20,sy*.105,z-.24)),.065) for side,sy in [('L',1),('R',-1)]]
   # Bound primary-control sweeps by a capsule around sampled physical grip paths.
   for label in ('Stick','Throttle'):
+   # A Great Lakes quadrant throttle (v7, Ty 2026-11-03) is a lever on an arc, not the push-pull this box models;
+   # its full-mesh sweep against every console part is measured by check_gl_quadrant.py, which must pass too.
+   if label=='Throttle' and 'GL_Quadrant_'+seat[0] in idx:continue
    name='Grip_'+label+'_'+seat
    if name not in idx:
     legacy=label+('_R' if seat=='Rear' else '_F')
