@@ -21,6 +21,16 @@
   running: 0 `error CS`, `** BUILD SUCCEEDED **`, **installed and launched on Ty's iPhone, build `2026.1103.2111`
   (`202611032111`)**, done 21:15:18 PST. Targeted tests on the merge (DebrisWiring, LiveryPicker, OwnPittsModel): 26/26 passed.
   bundleVersion bump not committed. The debris-render approval in the Pitts entry is separate: still no `*-debris.glb` installed.
+- **FRANK CHURCH STRIPS UNPAVED, NO RUNWAY PAINT; BUILT 2026.1103.2136, NOT INSTALLED (Claude, 2026-11-03,
+  lane/claude-fc-surfaces, from island-nav `26468fee`):** the strips are now the surfaces the real ones are (turf: Thomas
+  Creek, Sulphur Creek, Chamberlain, Big Creek; dirt: Mackay Bar, Indian Creek, Cabin Creek, Soldier Bar, Dewey Moore).
+  The centreline, threshold bars, numbers and painted ident are gone from every unpaved island field (gravel airparks,
+  turf strips and beaches as well); only asphalt keeps them, and PANC's control render is unchanged. Dirt is drawn as
+  rutted brown earth and turf as mown grass. Turf rolls as Grass, dirt as Gravel. Because grass strips lie naturally
+  (your 2026-11-03 rule), the three new turf strips now have a shape: Chamberlain a 1.71 m banana, Big Creek a 2.69 m
+  crest, Thomas Creek gentle rolling. **Please look at** ~/Developer/agent-lanes/xfer/frank-church-v2/
+  (`*-surface.png` shows the ground close up; README.md explains the rest). Not merged; ProjectSettings bump not committed.
+
 - **TESTFLIGHT UPLOAD: `2026.1103.2046` (build `202611032046`) (Grok Bot, 2026-11-03 20:55 PST, lane/claude-island-nav
   `d9730e24` code, the same Unity export as device build `2026.1103.2022`):** Ty approved ("yes upload the current playable
   build to testflight"). APFS clone of `/private/tmp/flyinggame-ios` (island-nav export, 20:23) into `/private/tmp/aero-tf/ios`
@@ -1636,6 +1646,55 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 — Claude · lane/claude-fc-surfaces (off island-nav 26468fee) · Frank Church strips unpaved, no runway paint
+Ty: in frank-church-v1/after-soldier-bar-approach.png the strips render PAVED with centreline dashes. Every real Frank
+Church strip is unpaved.
+
+**Cause:** `IslandWorldBuilder.Runways` drew centreline dashes, threshold bars, numbers and the painted ident on every land
+field whatever its surface was. On top of that the layout had five strips as `gravel`, drawn in a flat grey-tan
+(.58,.54,.45) that reads as pavement once it carries a white centreline.
+
+**Fix:**
+- `tools/island/frank_church_layout.py` surfaces, from ITD/AOPA/FAA 5010, mountainflying and stripscout: Thomas Creek
+  turf, Mackay Bar dirt, Indian Creek dirt, Sulphur Creek turf, Cabin Creek dirt (the 5010 says turf, the strip is
+  dirt), Soldier Bar dirt, Chamberlain turf, Dewey Moore dirt, Big Creek turf. Re-ran the layout script (spec diff is
+  the five surface lines only) and `generate_runtime.py`. No relief regen: TerrainGen fixes only the strip plane.
+  `check_parity.py` passes (1.27e-11 m), and `generate_runtime --check` / `generate_gradient --check` are clean.
+- New `src/FlyingGame.Core/StripFinish.cs` makes one decision: `Of(surface)` returns Paved/Gravel/Dirt/Turf/Sand/Water;
+  `Painted` is true for pavement only; `LiesNaturally` for turf/grass; `Rolls` gives Paved, Grass for turf, and Gravel
+  for everything else. `IslandTerrain.SurfaceAt` and the `IslandField` shape choice now go through it, with the same
+  mapping as before.
+- `IslandWorldBuilder.Runways`: paint (centreline, thresholds, numbers, ident) only `if StripFinish.Painted`. Unpaved
+  fields get `UnpavedSurface`: 10 m patches along the strip with a fixed FNV hash, two darker wheel tracks 2.6 m
+  apart, edges fading into the shoulder, and mower stripes on turf. The colours are dirt (.46,.36,.25), turf
+  (.40,.49,.25) and gravel (.53,.50,.43). Sand stays plain. It is laid on `f.SurfaceHeight` + 4 cm, so it follows a
+  shaped field. The AP3 STOL line is kept.
+- Side effect, on purpose: under the grass-lies-naturally rule (NaturalSurfaceTests), Chamberlain, Big Creek and
+  Thomas Creek take shapes 9/10/11 (banana 1.71 / crest 2.69 / rolling 0.32). Sulphur Creek moves to index 12, which is
+  still banana 1.92, so it is unchanged.
+- `FrankChurchRender` gained `-low` (150 m before the threshold, 3 m up), `-surface` (on the strip, 20 m in, 8 m up)
+  and a `paved-control-<field>` shot of the longest paved runway.
+
+**Tests** (TestRunner, in-process): new `FrankChurchTests.EveryStripIsTheUnpavedSurfaceTheRealOneIsAndCarriesNoPaint`
+(literal surface per strip; FrankChurch.Ground; not Painted; finish; shape iff turf; SurfaceAt at 9 points per strip).
+New `StripFinishTests` (2): a literal table, plus every island field painted iff asphalt and rolling the way it is
+drawn. `NaturalSurfaceTests` gained the three new turf strips as literals, and `EveryStripIsFlatAcross...` has a
+literal TurfLie table. NaturalSurface + FrankChurch + StripFinish: **19/19 pass**. Wider set (IslandHeightIndex,
+IslandSurface, IslandWaterAndNormal, IslandStart, IslandCombat, IslandStartupCost, Forest, MountainFront,
+MountainRoughness, RunwayChoice, NaturalSurface, FrankChurch, StripFinish): 88 pass, 9 fail. The 9 failing names are
+**identical on the base 26468fee**: Forest ×2 (PHDH timber, dry country), MountainFront bays, MountainRoughness ×6
+(`airport:Bench` anchor). Caveat: other lanes' `dotnet test` runs were going at the same time; the comparison is
+name for name.
+
+**Build:** `/tmp/fcs-build.sh` (deploy.sh copy, DEVICES=(), own `/private/tmp/fcs-ios` and `fcs-dd`, no pruner):
+`** BUILD SUCCEEDED **`, 0 `error CS`, `2026.1103.2136`, run on the final code. Not installed. ProjectSettings changes
+reverted. Library: `unity-Library-claude-fc-surfaces` (APFS clone of the frank-church-valleys cache). The editor
+renders crashed once in the Burst compiler at startup; `--burst-disable-compilation` fixed it (editor renders only).
+
+**Renders:** ~/Developer/agent-lanes/xfer/frank-church-v2/ (README.md). Before/after for all nine strips: overhead,
+approach, low, surface, wall, plus paved-control-panc. Looked at every Frank Church strip in the after set: no white
+paint anywhere. PANC's markings are unchanged.
+
 ### 2026-11-03 — Claude · lane/claude-nsew-toggle · N/S/E/W letters: a setting, off by default, drawn at infinity
 Ty: make the floating N/S/E/W letters a toggle in Settings, OFF by default, persisted; added scope: when on they must
 always sit far away just above the horizon, never close to the aeroplane — at effectively infinite distance,
