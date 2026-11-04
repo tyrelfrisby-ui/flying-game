@@ -1644,8 +1644,8 @@
    ],
    "pivot_gltf": [
     1.6389999999999998,
-    -0.098,
-    0.295
+    -0.061,
+    0.255
    ],
    "map": [
     [
@@ -2332,8 +2332,8 @@
    ],
    "pivot_gltf": [
     0.969,
-    -0.078,
-    0.14
+    -0.041,
+    0.199
    ],
    "map": [
     [
@@ -3198,8 +3198,8 @@
    ],
    "pivot_gltf": [
     1.6389999999999998,
-    -0.098,
-    0.295
+    -0.061,
+    0.255
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -3223,7 +3223,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "gl_quadrant_v3: ignition on the instrument panel face",
    "label": "MAGS"
   },
   {
@@ -4063,8 +4063,8 @@
    ],
    "pivot_gltf": [
     0.969,
-    -0.078,
-    0.14
+    -0.041,
+    0.199
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -4088,7 +4088,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "gl_quadrant_v3: single labelled row along the bottom of the panel (Ty 2026-11-02)",
+   "placement": "gl_quadrant_v3: ignition on the instrument panel face",
    "label": "MAGS"
   },
   {

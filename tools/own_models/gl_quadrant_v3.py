@@ -389,6 +389,27 @@ def build_linkages(g,doc,controls,names):
  g.doc['extras']['vrCockpitPhase3a']['placement_v4']='Ty 2026-11-03: continuous left trim cord through fairleads toward tail; right-wall linked fuel rod and two red handles ON down / OFF inboard'
 
 
+def seat_magneto(g,doc):
+ C=g.doc['extras']['vrCockpitPhase3a']['controls'];nodes={n['name']:n for n in g.doc['nodes']}
+ for seat,s in SEATS.items():
+  X,outline,obst=cc.seat_geometry(g,'great-lakes-like',seat)
+  yc=cc.Y0+cc.RES*(np.arange(cc.NY)+.5);zc=cc.Z0+cc.RES*(np.arange(cc.NZ)+.5);YY,ZZ=np.meshgrid(yc,zc,indexing='ij')
+  ok=(cc.boxsum(obst,-.017,.017,-.017,.017)==0)&(cc.boxsum(~outline,-.016,.016,-.018,.018)==0)
+  c=next(c for c in C if c['seat']==seat and c['grip'][5:].replace('_Front','')=='Magneto');p=builder(np.array(c['pivot_gltf']))
+  for o in C:
+   q=builder(np.array(o['pivot_gltf']))
+   if o is not c and abs(q[0]-X)<.01:ok&=np.hypot(YY-q[1],ZZ-q[2])>=.031
+  cand=np.argwhere(ok);assert len(cand),(seat,'no legal magneto slot')
+  k=np.argmin((yc[cand[:,0]]-p[1])**2+(zc[cand[:,1]]-p[2])**2);P=np.array((X-.001,round(float(yc[cand[k,0]]),3),round(float(zc[cand[k,1]]),3)))
+  c['pivot_gltf']=gl(P).tolist();c['placement']='gl_quadrant_v3: ignition on the instrument panel face'
+  nodes[c['node']]['translation']=gl(P).tolist();nodes[c['node']].setdefault('extras',{})['interaction']=c
+  nodes['Mount_'+c['grip'][5:]]['translation']=gl(P).tolist()
+  for r in doc['rig']:
+   if r['node']==c['node']:r['pivot_gltf']=c['pivot_gltf']
+  for d in doc['controls']:
+   if d['node']==c['node']:d.update(pivot_gltf=c['pivot_gltf'],placement=c['placement'])
+  print('magneto',seat,'(y,z)',np.round(p[1:],3),'->',P[1:])
+
 def check_row(g):
  """Photo layout contract: only ignition remains on the instrument panel."""
  C=g.doc['extras']['vrCockpitPhase3a']['controls']
@@ -396,7 +417,7 @@ def check_row(g):
   for lab in ROW:
    c=next(c for c in C if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
    p=builder(np.array(c['pivot_gltf']))
-   if lab=='Magneto':assert abs(p[0]-s['X']+.001)<.0001
+   if lab=='Magneto':assert abs(p[0]-s['X']+.001)<.0001 and p[2]>-.07,(seat,p)
    else:assert p[1]>.25 and p[0]<s['px']-.13,(seat,lab,p)
  print('photo console placement legal')
 
@@ -410,6 +431,16 @@ if __name__=='__main__':
   if k not in seen:seen.add(k);rows.append(r)
  doc['rig']=rows
  build(g,doc)
+ # The ignition switch is the one switch v7 keeps on each panel, and v3's row left it hanging below the panel's
+ # bottom edge (rear 18 mm, front 18 mm: Ty 2026-11-03 "switches outside of the panel"). Put it on the nearest
+ # legal spot of the panel face itself (cockpit_controls_v2's footprint rules, 31 mm from the radio knobs).
+ seat_magneto(g,doc)
+ # Each control's fixed Mount_ twin sits at its pivot (cockpit_controls_v2's rule); the console / wall moves above
+ # left the v3 row's meshless Mount_ empties behind on the panel.
+ nn={n['name']:n for n in g.doc['nodes']}
+ for c in g.doc['extras']['vrCockpitPhase3a']['controls']:
+  m=nn.get('Mount_'+c['grip'][5:])
+  if m is not None and 'mesh' not in m and not any(c2 for c2 in m.get('children',[])):m['translation']=list(c['pivot_gltf'])
  # The quadrant prop/mixture levers and the fuel handles outgrew the 40 mm / 105 mm P3a sweep radius they inherited;
  # check_vr_phase3 bounds each control by it, so record the measured one (metadata only, nothing at runtime reads it).
  by={n['name']:n for n in g.doc['nodes']}
