@@ -1,4 +1,30 @@
 ## NEEDS YOU
+- **QUEST COCKPIT SWITCHES: GREAT LAKES v7 MERGED IN, PITTS + EXTRA SWITCHES IN ONE ROW ON THE PANEL, EXTRA PANEL/STICK
+  RESIZED, PITTS CANOPY/NOSE VIEW, NO HEADSET CORD (Claude, 2026-11-03, lane/claude-quest-cockpit-switches off the Quest
+  lane 2be16316).** Owner pt502u + three add-ons. BUILT, NOT INSTALLED (no device touched): Quest APK
+  `[QuestBuild] Quest build SUCCEEDED` (21:01, 0 error CS); iOS deploy.sh NOINSTALL: `** BUILD SUCCEEDED **` 21:06 (0 error CS, "installed on 0 of 1 device(s)": NOINSTALL is not a device).
+  Renders, before (2be16316) / after, same Quest-3S-eye camera: `~/Developer/flying-game-worktrees/_xfer/quest-switches/`
+  (README.txt lists all 36). Please look at:
+  1. **Great Lakes** (gl_*): your approved v7 cockpit is now in the Quest lane (merge of lane/codex-greatlakes-cockpit,
+     four ailerons, upper slaved). gl_front_before shows WHY you saw switches outside: they sat on the fuselage deck.
+     Only the ignition and radio are on the panels (v7); the two ignition switches were hanging below the panel edge
+     and are now on the face. The FRONT radio knobs still sit along the bottom edge of the front panel (v7 placement;
+     your keypad decision will replace them). OK?
+  2. **Pitts** (pitts_*): 12 switches in ONE line along the bottom of each panel, six left / six right of a centre gap
+     (a full-width row runs into the stick's sweep), with placards; radio knobs on COM/XPDR faceplates above the gauges.
+     Is a centre gap acceptable as "one row"?
+  3. **Pitts canopy bars** (pitts_front, pitts_canopy_bars): the two bows over the FRONT panel are gone. The two hoops
+     you see from the REAR seat (over the rear panel, just behind the front seater) are still there; if those are the
+     bars you meant, say so and they go too. New black release knob front-left + cable (pitts_canopy_front_left).
+  4. **Pitts over the nose** (pitts_rear_nose): rear panel 27 mm lower, eye unchanged; the cowling top is now just
+     visible over it in level flight (3.1 deg below the horizon). Enough?
+  5. **Extra** (extra_*): rear (and front) panel now runs out to both cockpit walls (no side gaps), 0.275 m tall
+     (was 0.438 m of panel face; ~0.25 m measured on a photographed 330LX panel), one switch row along its bottom, radio
+     knobs on a small centre subpanel below, small gauges moved to the side wings, stick 0.06 m shorter. No published
+     Extra panel height or stick length was found; both numbers are photo estimates (log entry). Right size?
+  6. **Headset cord**: removed in every aircraft (it was a runtime rope in the Quest hands code, not part of any model).
+  Pre-existing failures, same at 2be16316: AerobatGroundHandling (3 Pitts landing tests), ModelRigTests glider air
+  brake, StreamingAssetsTests x2. Nothing approved.
 - **QUEST STORE RELEASE APK READY, NOT UPLOADED (Claude, 2026-11-03, lane/claude-vr-hands-fix).** Meta Horizon Store app
   1408996628974607, package com.tyrelfrisby.aeroplayground.quest. `build/quest/release/AeroPlayground.apk`, versionCode 2,
   versionName 2026.1103.0920, 200,713,755 bytes, signed with the NEW upload key (cert SHA-256
@@ -2335,6 +2361,65 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 21:30 PST — Claude · lane/claude-quest-cockpit-switches (off lane/claude-quest-islandnav 2be16316) · switches on the panels on the Quest, GL v7, Pitts/Extra rows, Extra panel + stick, Pitts canopy + nose, headset cord
+Owner pt502u: "the pitts and the great lakes have switches outside of the panel on the meta quest version use the new
+great lakes and fix the pitts with one row of switches along the bottom of the panel"; plus (via Grok Bot) the Extra
+panel/stick/row, the Extra rear-panel side gaps, the headset cable, and the Pitts canopy bars / release knob / nose view.
+- **Commits.** 0e63e696 merge lane/codex-greatlakes-cockpit (9dd328dc); 4f54176b headset cord off; 62c54a41 Pitts v3;
+  60f3ff48 Extra P3f; be648602 GL ignition on the panels; 74cb309f checks + render tool; and this log.
+- **Why the switches floated on the Quest.** Not a Quest code path: every switch is a GLB node and no runtime code moves
+  it, on either platform. vr_phase3 (P3a) authors every control on a "side console" FORWARD of the panel at |y|
+  .215-.323, which on the Pitts and Great Lakes is outside the fuselage; cockpit_controls_v2 (lane/codex-greatlakes-
+  cockpit) was the pass that put them on the panels, and it never reached the Quest lane. Worse, the Quest lane's
+  Great Lakes was rebuilt in 2be16316 as island-nav's fresh Blender export run through P3a/P3c only, so its switches
+  went straight back out onto the deck. iOS draws the same GLBs from the same eye (CockpitFov 72 deg, flat gauge
+  overlays over the lower view); the headset shows the whole 3-D cockpit at full scale with no overlay, so it was seen
+  there first. Prevention: vr_phase3 now prints that it is not finished and lists each model's pass order;
+  cockpit_controls_v2.apply refuses a GLB a later pass owns (Pitts v3, Extra P3f, GL quadrant); CockpitControlInteriorTests
+  (now in this lane; it had not been run since GL v4) passes on all 8 GLBs with the GL v7 console/wall rule added.
+- **Great Lakes.** Merged, not cherry-picked (history and Ty's approval entries come with it). GLB = HEAD's six-gauge
+  export + the lane's own passes re-run in order (cockpit_controls_v2, gl_windshield_v2, gl_quadrant_v3 from
+  GL_QUADRANT_BASE_DIR): every Ctl_/quadrant/console mesh equals the approved v7 GLB. Four ailerons: LL/LR drivers,
+  UL/UR followers on the slave struts (solved constant-length tables), all on the "aileron" param (rig rows checked).
+  Ignition switches moved onto the panel faces (rear z -.098 -> -.061, front -.078 -> -.041; they hung below the edge).
+  check_vr_phase3 had not been re-run since v3 and failed on the approved v7 GLB itself (push-pull throttle box, stale
+  40 mm sweep radii); fixed in the checker / metadata, not by moving approved parts.
+- **Pitts** (pitts_cockpit_v3.py --switch-groups, Codex-authored, applied by me): one line of 12 switches along the bottom
+  of each panel (6 + 6, 31 mm pitch, centre gap for the stick sweep; rear panel face extended down to carry it, row z
+  -.167; front -.096), placards; radio knobs on COM/XPDR faceplates; Canopy_Bow_*_Front meshes dropped; 20 mm black knob
+  front-left + 3 mm cable to the existing black latch knob; rear panel assembly 27 mm lower (top .294 -> .267 m), eye and
+  config unchanged: panel-top sightline -0.35 -> -3.34 deg, cowling crown visible at -3.13 deg. Reference for the S-2B's
+  limited forward view: AOPA Pilot "Pitts S-2B" (A. K. Marsh, April 1996); the exact target is Ty's instruction.
+- **Extra 300** (extra_panel_p3f.py). Sources searched: Extra 300L Information Manual (Fig 7.6.1 rear panel: no
+  dimensions), Extra 300L IPC (stick 43203.000-LK / 46204.000-LK, panel 86502.008-01: part numbers only), the 300LX
+  maintenance manual (blocked to scripts). Measured instead: Wikimedia Commons "Extra 330 LX cockpit.jpg" scaled by its
+  3-1/8 in ASI: upper rear panel ~0.25 m tall with one switch row along its bottom, bolted to the frame both sides, a
+  centre subpanel below; "Cockpit Extra330LC (4435531411).jpg" shows the same on a bare frame. Before -> after (m):
+  panel face height 0.438 (P3b .075..360 + P3e -.078..075) -> 0.275 (.085..360); rear half-width .220 -> .293 at the
+  bottom (walls .297) up to .391; stick pivot-to-grip-top rear 0.481 -> 0.421, front 0.461 -> 0.401 (from the rear eye
+  the old grip top projected onto the middle gauge row; in both photos it lines up with the panel's bottom edge:
+  0.048 m puts it there, the 330LX projection implies ~0.078; 0.06 chosen). Switches: one row z .115, |y| <= .274.
+  Radio knobs: centre subpanel below. 2-1/4 in gauges to the side wings (fuel left, ammeter right above the IAC card).
+- **Side gaps on the other two-seaters** (slice of the walls at each panel plane): Great Lakes front and rear panels meet
+  the walls (<= 7 mm); 2-33 front panel meets them, its rear seat has no panel; J-3 (both) panel stops 30 mm short at
+  the bottom and its rounded top corners up to 105 mm, but the gap is behind the yellow door-post tubes from both eyes
+  (j3_* renders) and the v18 panel is Ty-reviewed: left unchanged, flag if wanted.
+- **Headset cord**: the only cord was VrCockpitHands' runtime rope + plug (Quest only, every aircraft; no model has a
+  cable). HeadsetCordOn = false at the one place a HeadsetCord is made; the pilot-gear GLB's unhidden Headset_Plug root
+  is hidden too. iOS never drew it, so both builds agree.
+- **iOS vs Quest.** One set of GLBs, rig tables and seat eyes for both; nothing here is platform-specific, so the switch
+  positions, panels, sticks and canopy are identical on iOS. The only VR-only change is the cord (it never existed on iOS).
+- **Tests** (targeted, no full suite): CockpitControlInteriorTests, OwnPittsModelTests, CockpitLiveTests 45/45 pass;
+  CockpitEye/ExtraRearPanelTop/ModelRig/StreamingAssets/SeatChoice/PanelControl/HeadsetCord: 131/134, the 3 failures
+  (ModelRigTests glider air brake, StreamingAssetsTests x2) identical at 2be16316; AerobatGroundHandlingTests 3 Pitts
+  landing failures, identical at 2be16316. Checkers: check_vr_phase3 PASS 10 assets / 442 controls; check_gl_quadrant OK;
+  check_great_lakes_rig 92/92.
+- **Builds** (not installed; Quest 340YC10GBK0TYV and the iPhone untouched): Quest `deploy-quest.sh --build-only`
+  `[QuestBuild] Quest build SUCCEEDED` 21:01 (0 error CS); iOS `deploy.sh NOINSTALL`: `** BUILD SUCCEEDED **` 21:06 (0 error CS, "installed on 0 of 1 device(s)": NOINSTALL is not a device). Build-time
+  GraphicsSettings.asset shader line and bundleVersion bump reverted.
+- **Renders**: ~/Developer/flying-game-worktrees/_xfer/quest-switches/ (README.txt), tool CockpitEyeShots.cs.
+  Nothing approved.
+
 ### 2026-11-03 09:31 PST — Claude · lane/claude-vr-hands-fix · Quest store release build (Meta Horizon Store), not uploaded
 - Signing: the Quest APK was signed with Unity's Android Debug key (cert 9c7224d9…3956). New PKCS12 upload keystore
   OUTSIDE the repo, `~/Developer/agent-lanes/keys/aeroplayground-quest.keystore` (dir 700, file 600), alias `upload`,
