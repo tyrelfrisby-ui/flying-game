@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "aircam-amphib-like",
   "displayName": "AirCam-like (amphib)",
+  "wingBracing": "strut",
   "spawnIasMs": 31.0,
   "mass": {
     "massKg": 880.0,

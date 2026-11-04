@@ -22,6 +22,61 @@
   and its stage wiring dropped or redone); (c) merge the model only, not yet flyable. No merge, build or install was
   done; island-nav unchanged apart from this entry. ProjectSettings/GraphicsSettings left untouched.
 
+- **CRASHES KEEP THEIR MOMENTUM; TREES SNAP; ONLY THE PART THAT IS OVERLOADED COMES OFF — ON LAND, IN TREES AND ON WATER
+  (Claude, 2026-11-03, lane/claude-crash-physics). Nothing approved; not merged into island-nav (the supervisor's call).**
+  **iPhone build `2026.1103.2157` (lane HEAD 9b267623) is INSTALLED on Ty's iPhone** — `deploy.sh 00008150-001629A83662401C`
+  `** BUILD SUCCEEDED **`, 0 `error CS`, launched (ProjectSettings bump not committed). Launch with
+  `-crashtest runway` or `-crashtest grass` (e.g. `xcrun devicectl device process launch --device 00008150-001629A83662401C
+  com.tyrelfrisby.aeroplayground -- -crashtest grass`) to start in the scripted Pitts cartwheel.
+  **⚠ SUPERVISOR: that build predates f47db91f and 9a24353c.** 9a24353c fixes a total break-up (everything but the
+  cabin gone) going unstable and then FREEZING in the tree sweep's cell loop (CellOf(NaN)) — it hung the test suite, and
+  on the phone it would hang the game. Please rebuild from this lane (HEAD 9a24353c or later) before Ty flies crashes.
+  1. **Why "it broke apart and stopped" in the treetops:** the forest was a rigid `WorldSolids` cylinder of the CROWN's
+     radius (2.4 × (0.22 + H/24): 4.7 m for a 42 m fir) standing from the ground to the very top, pushed back with the
+     hard-ground spring like a building, and every hard point that met it broke by closing speed. Measured on the base
+     (d9a3eee8): Pitts at 60 m/s, 1.5 m below the tops — 60 → 5.5 m/s in 0.1 s against a NEIGHBOUR's crown 20 m short of
+     the tree, nose + cabin + tail boom + a wing gone, then moving backwards. Now: same flight keeps 60+ m/s, tops snap.
+  2. **Please fly:** treetops at speed in the Pitts and the Cub (a top snaps with a small kick; a trunk takes only the wing
+     panel that hit it and you roll toward the missing panel); a gentle wheel touch on the water in the Extra and the J-3
+     (skims, drags, stays whole). Check the debris looks like your aeroplane's paint and the camera stays on you.
+  3. **Done for you (decisions answered/decided):** decision 1 static load counts (`BentPanelStaticLoadTests`; on water too);
+     decision 2 no wingtip drag when flown right — every taildragger, `TaildraggerNoTipStrikeTests` 93/94 (the J-3/PA-18
+     stab was 0.485 m too low: fixed); decisions 4/5 real strut stations and the Pitts slave-strut horns (sim + builder).
+  5. **YOUR PITTS CRASH ON THE GRASS (21:18): pieces grey/white, wings sinking — what I found.**
+     (a) **Sinking — fixed.** The sim's wreck pieces rest at 0.0 cm on the runway and beside it for 12 s
+         (`DebrisGroundTests`). What sank was the Unity fallback for a piece with no sim piece: it DELETED the piece when its
+         origin (the aeroplane's CG at the break, well above the piece's lowest point) got within 0.3 m of the ground — the
+         mesh half under the grass as it vanished. It now lands, slides (μ 0.5) and rests, and is never removed for
+         reaching the ground; a sim-driven piece is also never DRAWN below the ground. No Unity colliders: the game uses
+         none and the island has no terrain collider, so a Rigidbody would fall straight through; the sim stays in charge.
+     (b) **Grey/white paint — NOT reproduced and NOT explained.** In the editor the game's own break path (FreezeRig, then
+         DetachStatic for exactly your lost parts) keeps every texture, material and UV on every piece and on what stays
+         (`DebrisBreakRender`, own and downloaded settings; renders `build/debris-break/`). Ruled out: mesh Read/Write
+         (`ModelReadableCheck`: 27 models, all readable), mipmap streaming (off on every quality level), property blocks
+         (none on airframes), runtime Shader.Find materials (none on the Pitts path), submesh/material order. Your
+         screenshot's grey wings have the PROCEDURAL shell's square tips, so I also stopped FreezeRig from ever re-showing a
+         renderer the placement hid. **Please run `-crashtest grass` on this build and send the device log's `[Debris]`
+         lines** (each piece's material, shader, texture, UV0, readable) — that is the evidence the editor cannot give.
+     (c) **Found while looking:** a broken main gear leg's cut also takes slices of the fuselage, the lower wing, both
+         wheel pants and the exhaust (`CutModelLeg`'s box is too generous) — not fixed here.
+  4. **Open, for you or an owner:**
+     (a) **Gee Bee R-2 landings not checked** — the game's landing law porpoises it in the hold and bounces it onto its
+         prop, so the test pilot cannot land it; its taxi turns and rest clearance do pass. Needs a Gee Bee wheel-landing law.
+     (b) **Tricycle prop clearance is wrong in the configs:** with the prop disc of the contact-patch lane, the SR22's and
+         Glasair III's blade tips sit **4 cm BELOW their tyres** level (SR22 hub 0.05 m below the CG, R 0.99, tyres 1.00),
+         PA-28 3.5 cm above, C172 15 cm — real ones are ~8–11 in. A light water skim therefore strikes the prop
+         (`WheelWaterTests.ALightTouchAtSpeedSkimsAndBreaksNothing` SR22 + Glasair fail on this branch, pass on the
+         hydroplane lane, which has no prop disc). Needs each type's published prop clearance and a re-rig — not guessed here.
+     (c) **Pitts GLBs still have the old horns:** the sim and `build_pitts_s2b.py` v13 are right, the four committed GLBs
+         carry offline additions a full rebuild would drop; a targeted aileron/strut mesh swap is written up in
+         `docs/models/pitts-s2b-own-PROVENANCE.md`. Scratch renders: `~/Developer/agent-lanes/xfer/pitts-slave-horns/`.
+     (d) **Snapped trees are still drawn whole** (the sim knows the top is gone; ForestBuilder does not).
+     (e) **The wreck model's Raymer weights were ~2× a fabric wing's** — calibrated to the config inertia here
+         (`AirframeHydroModel.CalibrateWingMass`, roll, then pitch on the tail, then yaw; never below ×0.5 of Raymer: PA-18
+         and C172 wings at that floor, J-3 ×0.51, Great Lakes ×0.65; the 172's tail-boom piece is now 33.7 kg, light
+         against a real ~60). The crash-water owner may want real component weights instead of a fit.
+     (f) **A gear-down Extra arriving on water at 4 m/s of sink** noses over and loses nose and both wings, each on its
+         own overload (worst step 1.1 m/s = 22 g, no dead stop). Physical as far as I can measure; say if it feels wrong.
 - **TY'S DECISION (2026-11-03 21:01 PST): MERGE THE PITTS CRASH DEBRIS INTO THE PLAYABLE LANE (Grok Bot, lane/claude-island-nav).**
   Ty approved merging lane/claude-pitts-debris `d8ab9861` (lane-private build `2026.1103.1929`) into lane/claude-island-nav and
   installing it on his iPhone. Merged here (AGENT-LOG conflict only: both NEEDS YOU entries kept). Install: `tools/deploy/deploy.sh`
@@ -212,6 +267,29 @@
   | glider-swift-s1-like | procedural (our GLB with own-models) | type | procedural: lost UVs; GLB: shell + lost UVs | yes, both |
   | paraglider, hang-glider, dhc2-beaver (+floats), pa25-pawnee, decathlon, cassutt, glasair3, aircam (+amphib) | procedural only | type | partly: no wrong render (the procedural airframe IS what is on screen), but pieces and the part left behind lost their UVs and material slots | yes |
 
+- **FLOATS NO LONGER BREAK UP ON LANDING; WHEELS SKIM WATER FOR REAL — FLY TO CHECK, AND TWO DECISIONS (Claude,
+  2026-11-03, lane/claude-wheel-hydroplane, NOT merged, NOT installed: build-ready check in the Log entry).**
+  - **Why the J-3 floats broke up:** the floats' planing lift (Savitsky) took its trim angle from the straight keel
+    line just ahead of the step and gave ZERO lift at trim ≤ 0.1°, however much of the swept-up bow was in the water.
+    Touch down flat or a little nose-low at speed (measured: 32 m/s, 2 m/s sink, −2°) and the floats knifed under
+    (step draft 0.61 m on a 0.50 m float), it pitched to −10°, the engine hit the water at 70 mph and the engine-mount
+    rule correctly tore the nose off ("12.4 kN along the fuselage against 12.1"). Fixed: the trim is the wetted bottom's
+    (the chord to where the keel meets the water when that is steeper). At 60 mph, 100–300 fpm, +5° every landing was
+    already clean, which is why the old test never saw it. Also fixed: an aeroplane spawned afloat took a phantom
+    "slam" on its first step (the floats' entrained water counted as newly hit: 420 kN on a Beaver).
+  - **DECISION 1 — hard-landing threshold (new: floats can now be damaged).** A float's bottom splits (that compartment
+    floods; nothing breaks off) above its 14 CFR 23.527 ultimate water load: n_w = 0.012·V_S0²/(tan^⅔β·W^⅓) with each
+    twin float the hull of a half-weight seaplane, ×1.5. J-3 floats: n_w 4.12 → 17.9 kN per float. Measured at 60 mph,
+    +5°: up to 3.0 m/s (590 fpm) no damage, 3.5 m/s (690 fpm) splits both; the 23.473 design sink for this wing
+    loading is 2.2 m/s (433 fpm). Landing FLAT (0°) is harder: one float split at 2 m/s (390 fpm). And a porpoise after
+    a 100 fpm touchdown with the stick held fixed peaked at 16.7 of the 17.9 kN — so if you feel it splitting floats on
+    landings you would call fair, say so: raise it, or keep it and fix the porpoise. OK as is?
+  - **DECISION 2 — tyre pressure / tundra tyres.** Wheels on water now ride on real planing pressure (Horne's 9√psi
+    gives the pressure coefficient C = 0.643; nothing tuned). J-3 standard tyres: 12.2 psi → V_p 31 kt, and below
+    ~20 kt (dig-in, full weight on the wheels) a tyre cannot hold itself up at all. The bushwheel option (half psi,
+    twice the tyre) planes much lower. Want an 8.50-6 tundra option on the J-3 as its own setting?
+  - **Please fly:** J-3 floats normal landings, a flat fast one, and a step taxi at 35 mph; J-3 on wheels skimming at
+    40–45 kt with some power and the tail a little low, then chop the power and feel it dig in; the Extra skimming.
 - **NOTHING INSTALLED 14:35 — IPHONE STILL 4016; PITTS SPIN #3 AND ISLAND SURFACES NEED A MERGE BEFORE THEY CAN GO ON (Grok Bot,
   2026-11-03 14:35 PST, lane/claude-island-nav `66656185`):** Ty's iPhone (00008150-001629A83662401C) is "unavailable" in
   devicectl; a direct `devicectl device install` of the built `2026.1103.1409` (deadzone 0.02 + roll-only) gave
@@ -249,6 +327,89 @@
   The build also carries everything already on island-nav (stick-free launch, rig trim, hydro). Check the build stamp
   on screen before flying. The `ProjectSettings` bundleVersion/build bump was not committed. Small thing in the
   deploy log: it printed "no assets-incoming in … -- wrong repo?" and then carried on; the build was not affected.
+- **WINGTIPS NO LONGER GO THROUGH THE GROUND; WING PANELS BEND AND BREAK; SLAVE STRUTS; PROP STRIKES — PLEASE
+  FEEL-TEST (Claude, 2026-11-03, lane/claude-contact-patches). Nothing approved, NOT merged, NOT on any device**
+  (`deploy.sh 00000000-NOINSTALL`: `** BUILD SUCCEEDED **`, 0 `error CS`, build 2026.1103.1656, installed nowhere).
+  1. **Why the Pitts's tip went in:** its lower wing's strip heights already contain the dihedral (z 0.528 at the root
+     → 0.408 at the tip) and the tip hard point subtracted |y|·tanΓ again: it sat **0.15 m inside the wing**, at the
+     quarter chord only. Only the own-model biplanes' lower wings (Pitts, Great Lakes) are built like that; every other
+     config keeps its strips flat, so the code now tells the two apart per surface (`WingStructure.ChordZ`).
+  2. **Contact patches, fleet-wide:** every wing tip is a five-point patch (LE, TE, the aileron's outer trailing corner,
+     lower and upper skin at 30 % chord), with ONE ground sample and ONE contact stiffness; stab tips, fin top (LE+TE),
+     rudder heel; the propeller is its whole disc (12 blade-tip stations at full radius). Friction per island surface
+     (hard structure sliding: paved 0.55, gravel 0.50, grass 0.35, snow 0.10, packed glacier 0.04 — the float keel's
+     published coefficients; buildings 0.7). A wingtip is a cantilever (k_w = 3EI/L³) in series with the contact: the
+     give is the wing flexing UP (drawn), not the ground coming through it.
+  3. **Break stations** (the panel outboard bends/breaks): Pitts I-strut lower 2.18 / upper 2.28 m, Great Lakes N-strut
+     2.875 m, J-3 lift-strut attach 3.40 m — all measured from our own model builders. **Not measured — the aileron's
+     inboard end stands in:** Stearman, Jenny, C172, PA-18 ×3, Pawnee, Beaver ×2, AirCam ×2, 2-33 (marked
+     `wingBracing: strut` where they are strut-braced, so their spar is still sized as a braced one). Cantilever types
+     (Extra, P-51, jets …) use the aileron's inboard end by rule. **DONE 2026-11-03 (lane/claude-crash-physics, Ty
+     decision 4: "decide it yourself"):** stations from cited references for every strut-braced type and both vintage
+     biplanes, in the configs with `wingBreakStationSource`, pinned in `StrutStationTests` — table and sources in that
+     lane's Log entry. Only the AirCam ×2 is still on the aileron-end rule (no published station found).
+  4. **Strength from first principles, no fudge factors:** M1 = the Schrenk lift outboard of the station at 1 g less the
+     panel's own weight (Raymer); a braced spar is one section from its root bay out, sized by that bay (q·L²/8). Limit =
+     gMax × that (14 CFR 23.305: no permanent set below it); ultimate = limit × the game's ultimateFactor 2.0. Pitts
+     lower panel: M1 72, bay 330, **limit 1,985, ultimate 3,971 N·m**. A strike moment between the two: **bent 5° tip-up,
+     with the crunch** (raised through the crash-audio path); past ultimate: **off**, with its rows, its aileron, its mass
+     and the CG shift. Measured, Pitts banked 35° at 20 m/s onto the lower tip: 0.8 m/s sink bends it, 3 m/s takes it.
+  5. **Bent panel in flight (your rule):** 5° at 1 g, +10° per g, ratcheting (once at 10° it stays at 10°), snaps past 15°
+     = 2 g. Test: held to 1.993 g, snapped at 2.014 g. **Against a real spar:** an intact Pitts lower panel turns ~0.06°
+     per g at its station (a spar sized to its ultimate, σ/E ≈ 7·10⁻³ for spruce and 2024-T3 alike); the bent one turns
+     10° per g — **~170× softer** — and it goes at 2·M1 = 143 N·m against the intact 3,971: **3.6 % of its strength
+     left**. That is a spar that has broken through and is held by fabric, ribs and wires, not a "bent" one: a real spar
+     that yields at limit and survives keeps most of its stiffness. It is your number, and it makes a bent panel very
+     fragile on the ground too (item 10a).
+  6. **Slave strut (Pitts):** a rigid link solved geometrically between horns on the lower (stick) and upper ailerons at
+     the builder's stations, 10 in inboard of the I-struts. Never frozen: with both wings straight the uppers move
+     exactly with the lowers (what the rig was solved with); a bent panel adds whatever the geometry changes. **The
+     Pitts's struts pin INBOARD of the I-strut, so a lower-panel bend does not move them.** (A test with the pin moved
+     outboard: a 5° bend drives the upper aileron ≈14° trailing-edge down and it still follows the stick.) **Geometry
+     note:** the GLB's horns point opposite ways vertically; with the strut's 24° stagger lean that would move the uppers at
+     only a fifth of the lowers. **DONE 2026-11-03 (lane/claude-crash-physics, Ty decision 5):** both horns now forward and
+     20° below the chord (Pitts S-1-11 factory drawing, Detail A), parallel, in the sim (`SlaveLink.Build`, config
+     `drivenHornDownDeg`/`slavedHornDownDeg`) and in `build_pitts_s2b.py` v13: uppers follow 1:1 within 0.11° over ±25°.
+     The committed GLBs are NOT yet rebuilt (see that lane's NEEDS YOU).
+  7. **Lower panel gone:** its aileron goes too (its hinge crossed the station), the strut goes, and the upper aileron on
+     that side **floats hinge-moment-free** (H = a + b·δ = 0 on its own strips: trailing edge up ~α/3 in level flight),
+     off the stick; the other side works. **Great Lakes:** the flight config has aileron rows on the LOWER wing only (the
+     own model has four ailerons and slave struts), so a lower-panel loss takes that side's only aileron and roll power
+     halves. **Add upper aileron rows to the GL config?** That changes its roll rate and needs a re-rig — not done here.
+     Single-aileron monoplanes lose the aileron on the panel that went; the other still works.
+  8. **Prop strike:** the disc does not push (a turning blade cuts or curls); the ground drags the tips round with μ·N·R
+     against the engine's P/ω and the rotor's inertia. A 5 mm brush curls the tips by what went in (thrust at the same
+     power ∝ R^(2/3)) and the engine **runs on**; a nose-over brakes it under a quarter of idle in a fraction of a second
+     — **sudden stoppage**. A blade in the water stops it outright.
+  9. **Sound/dust hooks:** `Aircraft.Contact` (ScrapeStart/Stop with surface and μ·N·v in W, PanelBent, PanelBroken,
+     PropStrike, PropStoppage, each with world position/velocity) and `Aircraft.Scrapes` per frame. Placeholder noise and
+     dust are in (`ContactEffects`); the real ones are Codex's (next item).
+  10. **Please decide / fly:** (a) **an inverted PA-18 that tips off its fin lands on its wingtips at ~3 m/s**: 7.0 kN·m
+      per tip against limit 3.8 / ultimate 7.6 — both bend, and then (the 2 g rule) the bent panels cannot carry the
+      aeroplane's own weight and come off. Should the 2 g rule govern STATIC ground load on a bent panel, or flight load
+      only? **ANSWERED (Ty, 2026-11-03): static load counts** — kept, verified and tested in lane/claude-crash-physics
+      (`BentPanelStaticLoadTests`), and on water too. (b) a **14 m/s Pitts or Gee Bee swerve that grows into a ground loop now ends ~2 s in, 16° of bank and 89°/s
+      of yaw, in a lower wingtip strike that takes the panel** — before, the tip went through the runway. Real?
+      **ANSWERED (Ty, 2026-11-03): keep the uncontrolled ground-loop strike; a well-flown aeroplane must NEVER drag a
+      wingtip** — `TaildraggerNoTipStrikeTests` in lane/claude-crash-physics, every taildragger. (c) Pitts:
+      drop a wing on landing, scrape it, ground-loop onto it: does a touch scrape, a firm one crunch and bend, a hard one
+      take the panel? Then pull 2 g with a bent panel.
+  11. **Found, not fixed:** building `Aircraft.Hydro` in the Aircraft constructor (instead of on first use) makes EVERY
+      flight NaN within seconds — whoever owns the crash-water model should know. The "gentle landing breaks nothing"
+      test started the Cub 650 m inside a hill (`Airports[0].ElevationM` is not the island's ground; it failed at base
+      too); it now lands on an island runway.
+  12. **Not done:** in-plane (drag) bending of a panel (the chord is far deeper than the spar); tail tips, nose and
+      fuselage still break on closing speed; no scrape events on water (the hydro spray owns it); no ice surface kind
+      (packed glacier snow is the nearest).
+- **Codex: real scrape audio, dust/debris and damage visuals for the contact patches (Claude, 2026-11-03,
+  lane/claude-contact-patches).** Hooks: `Aircraft.Scrapes` (each frame: part, component, surface code, μ·N·v in W, normal
+  force, slip speed, world position/velocity) and `Aircraft.Contact` events (ScrapeStart/Stop, PanelBent — the crunch now
+  goes through CrashEvents as a land impact — PanelBroken, PropStrike, PropStoppage). Placeholders to replace:
+  `Bridge/ContactEffects.cs` (looping brown noise + a hemisphere dust emitter, 4 voices). Visual gaps: a bent panel is
+  drawn by moving its STATIC triangles onto a pivot at the station (`AirframeVisual.ShowPanelBend`, set + elastic flex) —
+  the aileron meshes stay where they are and a skinned carved model is not split; a disconnected upper aileron that floats
+  free is not shown floating (the rig animates every aileron from the stick); a light prop strike curls the tips in the
+  sim (`PropRadiusM`) but the blades are only drawn bent on a stoppage; scraped tips leave no marks.
 - **PITTS SPIRAL DIVE AT LAUNCH, RIGHT THEN LEFT — WHY, AND STICK-FREE NOW OFF WITH A PAD (Grok Bot, 2026-11-02,
   lane/claude-stickfree-launch):** build `2026.1102.1803` predates the spawn fix `b62b67d0`. Its long first frame
   (0.05 s = ten sim steps, before the pad publishes) flew whatever the PREVIOUS flight left in the driver's inputs, plus
@@ -1724,6 +1885,99 @@ renders crashed once in the Burst compiler at startup; `--burst-disable-compilat
 approach, low, surface, wall, plus paved-control-panc. Looked at every Frank Church strip in the after set: no white
 paint anywhere. PANC's markings are unchanged.
 
+### 2026-11-03 21:30 PST — Claude · lane/claude-crash-physics · crash physics: trees, localized break-up with momentum, water, decisions 1/2/4/5
+Ty: "i flew into the tree tops at high speed and it just broke apart and stopped … if a wing hits just that wing breaks off
+and everything should retain its momentum"; then decisions 1 (static load counts), 2 (never drag a wingtip when flown
+right), 4/5 (decide the strut stations and the Pitts horns yourself), and water (same rules on water).
+- **Merges:** lane/claude-contact-patches (53bb28e1) → `d9a3eee8` (AirframeVisual: tip-panel cut and bend pivot now go
+  through DebrisMesh.Split / IsDebrisSource like the debris lane's cuts — every UV and material slot, only what is on
+  screen; AGENT-LOG both sides). lane/claude-wheel-hydroplane (325b367e) → `28f71059` (AGENT-LOG both sides).
+  lane/claude-crash-water: its src is already here via island-nav; its later test/log edits not taken.
+- **Root cause of the dead stop** (measured on d9a3eee8, `IslandTreetopTests` now asserts the opposite): see NEEDS YOU 1.
+- **Tree model** (`Core/TreeStrike.cs`): stem = cone, DBH = H/60; green Douglas-fir MOR 53 MPa (USDA Wood Handbook
+  Table 5-3a), 600 kg/m³; struck fast it fails within ~2 d of the blow: F_s = MOR·π·d²/64 (6.5 kN at 5 cm, 26 kN at
+  10 cm, 230 kN at 30 cm). Crown = cone of branches 1.5 kg/m³ from 0.2 H, drag ρ_c·A·v². Forest stays a WorldSolids shape
+  for `Penetration`, but is `IFrangible`: the airframe's hard-point spring no longer meets it.
+- **Airframe side** (`Sim/AircraftTreeStrike.cs`): strike edges (each wing LE inboard/outboard of its station, nose /
+  cabin / tail sections, stab and fin LEs) swept over the step (8 samples) against every stem. Weaker of stem and part
+  fails: stem snaps (airframe pays m_top/4·v_n + F_s·d/v_n, capped at stopping the point; a panel past limit takes the 5°
+  set) — or the part breaks through LoseComponent (piece leaves with v + ω×r), the trunk stops the PIECE
+  (`WreckPiece.StopAt`), the rest pays F_c·5 cm/v_n. Part strength: wing = cantilever about its station, in-plane ultimate
+  = vertical × 0.5/(t/c); fuselage/tail = ½·m_eff·v_break²/0.15 m. Low demand (v_n·√(k·m_eff) below both) = inelastic stop.
+- **Momentum at separation, exact:** `MassProperties` carries Ixy/Iyz (EOM uses the full tensor only when they are
+  non-zero, so symmetric aeroplanes are bit-identical); ShedMass subtracts the piece's exact share incl. products (the old
+  floor "never below the remaining boxes" ADDED angular momentum: PA-18 tip L_x 1,072 → 2,047); tip panels are wreck
+  pieces now (they had none). Measured: |Δp|/p 1e-16, |ΔL|/L ≤ 3e-13 on land and on water.
+- **Two inconsistencies found and fixed:** (1) the wreck model's Raymer boxes carried 1.3–2.3× the config's inertia
+  (PA-18 Ixx 2,733 vs 1,450) — wing structure (roll, yaw) and tail structure (pitch) scaled toward ≤ 90 % of the
+  config, never below ×0.5 (`CalibrateWingMass`), else a lost part took more inertia than the aeroplane had and the
+  Extra went NaN; where the fit cannot close, ShedMass's floor acts and logs "not conserved" (the tests assert it did not); (2) the water joints read gMax 10 as "unset" and
+  sized the Extra (+10 g) as 3.8 g — its wing root 34.5 kN·m against 64.5 at its own outboard station.
+- **Bent-panel law:** its flight load is now the LIFT's (`AeroLoadFactorZ`) — the total load factor counted the fuselage
+  thumping onto the ground as wing lift and snapped bent panels that touched nothing. Static contact on a bent panel
+  counts (decision 1): PA-18 inverted on two bent tips snaps them at 2.04 × M1; on intact tips the same rest bends them
+  (8.4 × M1 > limit) and they stay on. On water a panel now feels the water (`RecordPanelWaterLoads`: buoyancy + slam +
+  drag of the wing elements outboard of its station) through the same law.
+- **Tests (new, literals):** TreeStrikeTests 9 (stem/crown numbers; PA-18 tip into a 25 m fir loses only the panel and
+  aileron, piece held by the trunk; strike-step Δv 0.05 m/s on 36 N·s, 99.6 % of speed 1 s on; v+ω×r and p, L
+  conserved; Pitts through a treetop at 70 m/s Δv 0.06 m/s; glancing wingtip at 60 m/s keeps 59 m/s; missing panel rolls
+  37°/s toward it; second trunk takes the inner wing; 2 m/s into a trunk stops, nothing breaks). IslandTreetopTests 3.
+  BentPanelStaticLoadTests 2. WaterBreakupTests 5 (Extra/J-3 gentle touch: 41.4 → 39.5 m/s at 1 s, peak 0.57 g, intact;
+  Extra wing dug in at 40 m/s/6 m/s/30°: right outer wing off at 12.8 vs 11.7 kN·m, nose on its own 29.4 vs 26.7 kN,
+  left wing/inner right/tail stay, momentum exact; hard arrivals worst step 1.1 m/s, no NaN). StrutStationTests 19,
+  TaildraggerNoTipStrikeTests 94 (93 pass, Gee Bee landings skipped — NEEDS YOU 4a). Changed: CrashWaterTests flat-wing
+  slam (a lighter wing stops before a thickness in), RigTests (J-3/PA-18 rig re-solved after the stab fix).
+- **Decision 4 — strut stations** (|y| config frame; `wingBreakStationSource` in each config): C172 WS 100.50 in = 2.553 m
+  (Cessna 172 1969–76 Service Manual Fig. 1-2; strut rib inferred); J-3 ×2 3.40 m (own model; Piper spar data 135–136.5 in,
+  three-view ~130 — not confirmed); PA-18 ×3 3.40 m (Piper spar drawing 14383, fitting at 123.5/122.25 in from the spar
+  root, ±4 in); PA-25 139 in = 3.531 m (SSA/AIRW-D0026 Pawnee spar stress analysis Figs 15-1/15-2); DHC-2 ×2 ~122 in =
+  3.10 m (L-20A three-view, ±5 in); SGS 2-33 3.13 m (own build_sgs233.py; three-view ~125 in); Stearman upper 3.480 /
+  lower 3.251 m (US Navy N2S three-view, ±3 in); JN-4 outer interplane 4.521 m (Commons three-view, ±4 in); AirCam ×2 NOT
+  found (strut-braced per Lockwood manual via NTSB WPR19FA161) — still the aileron-end rule. Fuselage ends recorded where
+  our own models give them (J-3 ×2, 2-33: `liftStrutFuselageAttach`); nothing reads them yet.
+- **Decision 5 — Pitts slave-strut horns:** Pitts S-1-11 factory drawing Detail A (biplaneforum thread 20836): the lower
+  aileron's pin ahead of the hinge ~20° below the chord in the trailing-edge cove; upper horn direction unpublished — made
+  parallel and equal (owners rig all four to move together). `SlaveLink.Build` takes each horn's direction/arm from config
+  (`drivenHornDownDeg`/`slavedHornDownDeg`, 20/20); uppers follow 1:1 within 0.11° over ±25° (the old opposite horns: 0.12).
+  `build_pitts_s2b.py` v13 builds both horns so; committed GLBs not rebuilt (NEEDS YOU 4c).
+- **Decision 2 — physical cause found:** J-3 and PA-18 hstab/elevator strips at z 0 (the CG line, a placeholder); the own
+  model puts the stab plane 0.485 m above it. Elevator trailing corners stood 5–6 cm off the ground at rest and scraped
+  on firm three-point arrivals (1.4–1.8 kN). Raised in all five J-3/PA-18 configs: rest clearance 0.06 → 0.54 m (J-3),
+  0.05 → 0.52 (PA-18), 0.18 → 0.66 (Bush); trim moved ≤ 0.06°; rig re-solved.
+- **Unity:** bent-panel debris wrapped so its sim piece carries it from the airframe origin; snapped trees cleared on a
+  new flight. Debris is cut from the on-screen model through the debris lane's DebrisMesh; the camera targets the
+  aeroplane root, which is never detached.
+- **Debris (Ty's 21:18 Pitts grass crash):** `DebrisGroundTests` (runway + beside it, 12 s, 5 pieces each at 0.0 cm, v+ω×r
+  to 1e-14), `CrashScenario` + `-crashtest runway|grass`, WingDebris ground contact (no destroy at the ground),
+  FreezeRig guard, `[Debris]` device log, `DebrisBreakRender` and `ModelReadableCheck` (editor). Paint not reproduced.
+  Process slip: I started the second editor render while another lane's Unity/xcodebuild was running (one build at a time).
+- **Merged lane/claude-island-nav (73c3ad9d) → 91aaf0c2** (CameraReference: island-nav's superset; AGENT-LOG both sides).
+- **Hang fixed (mine):** the pre-merge branch suite hung 30 min in ApproachSpawnTests (every thread in a Monitor wait) and
+  aborted at 332 tests; `Forest.LiveTrees.Near` held a lock across terrain queries. f47db91f; that class alone no longer
+  hangs (its 2 NaN failures are the base's too).
+- **Two more of mine found by the post-merge suite and fixed (9a24353c):** a C172 total break-up left a cabin with a tenth of
+  its inertia — lighter than its own box — which the contact springs drove from 6 to 387 m/s in a step; the tree sweep
+  then walked cells from CellOf(NaN) for ever (GroundContactCullTests hung 30 min). Floor = the remnant's own boxes,
+  never more than it had; the sweep refuses non-finite or absurd ranges (`WreckRemnantTests`). The Extra's pitch books
+  cannot close (boxes Iyy > config), so its water break-ups keep the piece's Iyy share: |ΔL|/L 4.6·10⁻⁴, logged.
+- Suite vs base: **full suite, post-merge, at 9a24353c** (`--filter "FullyQualifiedName!~IslandDroneProbe&FullyQualifiedName!~LaunchReplication"`,
+  `--blame-hang-timeout 30m`, nice'd; LaunchReplication excluded as instructed — its hang is pre-existing): **2,012 run,
+  1,839 passed, 167 failed, 6 skipped**, no hang. Base `d9a3eee8` (same Mac, same load, LaunchReplication included):
+  1,911 run, 1,694 passed, 212 failed. Compared BY NAME: 58 base failures now pass; **16 names fail only on the branch**,
+  each re-run alone here and on lane/claude-island-nav 73c3ad9d (all 83 of that filter pass there):
+  - 9 were my out-of-tree build folder (AirframeFlowTests ×5, StickAndRudderTests ×4 climb a fixed `../` to configs) —
+    pass from the normal build; 1 suite coupling (SpawnSpeed H-4) — passes alone.
+  - **2 come with lane/claude-wheel-hydroplane** (reproduce identically on 325b367e): `J3FloatsWaterTests.LandsOnTheWater…`
+    (draft 0.351 m vs 0.18–0.30) and `HydroJ3Tests.Porpoises…(attitude 2)` (swing 0.6°) — for that lane's owner.
+  - **2 are the prop-clearance geometry** (NEEDS YOU 4b): WheelWaterTests SR22, Glasair.
+  - **2 were mine, fixed with the reason in the test:** SolidsBroadphase forest stand-in (the forest is now out of the
+    airframe broadphase by design; the stand-in is checked against the whole forest directly) and CrashWater wing float
+    (the calibrated 69 kg wing floats on past the window: it must not sink before 100 s and floats > 60 s).
+  The pre-merge branch run (21:08) aborted at 332 tests on my lock deadlock (fixed f47db91f); the first post-merge run
+  aborted at 889 on the remnant blow-up (fixed 9a24353c). Targeted after the last fixes: crash/tree/water/debris/wiring/
+  contact/strut/remnant classes all pass (25/25 and 122-test set).
+- Build: `deploy.sh 00008150-001629A83662401C` 22:02 PST from this worktree at 9b267623: `** BUILD SUCCEEDED **`, 0 `error CS`,
+  bundleVersion `2026.1103.2157`, installed and launched on the iPhone; bundleVersion/GraphicsSettings/StreamingAssets reverted.
 ### 2026-11-03 — Claude · lane/claude-nsew-toggle · N/S/E/W letters: a setting, off by default, drawn at infinity
 Ty: make the floating N/S/E/W letters a toggle in Settings, OFF by default, persisted; added scope: when on they must
 always sit far away just above the horizon, never close to the aeroplane — at effectively infinite distance,
@@ -1898,6 +2152,40 @@ WingAileronBreakup), 350 tests:
 - **No commits besides this log entry.** I found no clear merge mistake to fix.
 - **Build/install:** `2026.1103.1622` / `202611031622`, `** BUILD SUCCEEDED **`, 0 `error CS`, installed on iPhone 00008150-001629A83662401C.
 
+### 2026-11-03 19:00 PST — Claude · lane/claude-wheel-hydroplane · float break-up, wheels on water (camera already shipped)
+- **Camera:** done earlier on this lane (`94fe5aca`, `3a2c895f`), cherry-picked to island-nav and installed by Grok Bot as
+  2026.1103.1715. Not touched again.
+- **Float break-up, how it was found:** flat water and three real island sites (a shallow Bighorn lake edge, the sea
+  near shore, open sea), 432 touchdowns. 60 mph was clean everywhere; 72 mph with 1–2 m/s sink and −2° broke the
+  Nose joint by the axial (9 g engine-mount) rule after the floats went fully under. Traced step by step: zero Savitsky
+  lift at τ ≤ 0.1° (FloatHydro), not CheckJoints, not the hard points (floatsCarryWater keeps them off the water), not
+  CrashRelay, not a prop strike. Separately, in water shallower than the float's draft the float keels meet the BED
+  under land rules (a lake edge 0.6 m deep at 3.5 m/s sink lost both floats as "gear") — not changed, noted. Island lakes
+  are 3–50 m deep at centre and both authored seaplane lanes are 3.0 m deep everywhere.
+- **Fix (FloatHydro):** planing τ from the wetted keel chord when it is steeper than the keel line. **Aircraft:** the
+  floats' added mass is initialised from the starting state; float water load (FloatHydro forces + the added-mass slam
+  impulse) against the 23.527 ultimate → FloatFlooding puncture at the step compartment + DamageLog line.
+- **Wheels on water (WheelHydro rewritten):** uniform planing pressure ½ρV²·C on the wetted front arc → lift
+  ½ρV²C·b·l_f, pressure drag ½ρV²C·b·h (L·tanτ planing, ventilated plough when deep), C = 0.643 from 9√psi; buoyancy of
+  the immersed segment, ITTC friction, heave damping (incidence w/V + C_D 1.2 cross-flow). No static-load input and no
+  step: every term grows from zero. LandingGear: the gear point is the tyre BOTTOM (as on the ground — the water branch
+  took it for the axle and put the tyre a radius lower), the leg spring is in series with the water (quasi-static), and
+  the force acts at the centre of pressure. **Before → after**, same light touch (0.5 m/s sink, idle, 3 m water): J-3 at
+  0.9 V_p 14.5 → 1.8 m/s in 1 s at 4.3 g, over → 14.5 → 11.6 m/s, 0.56 g, upright; Cassutt at 34.5 m/s 13.9 g, prop and
+  tail gone → 0.37 g, nothing; Extra 41 m/s 0.44 → 0.57 g (both fine). J-3 at 42 kt, 30–50 % power, tail low: skims 15 s
+  at ≤ 0.13 g. Power off: over at 6.6 s / 9.2 m/s holding 2°, at 8.35 s / 6.8 m/s holding 10° (V_p 16.2 m/s). In 10 cm
+  of water over gravel a Cub slows without going over (the bed limits the immersion).
+- **Ty's Extra "instant stop":** in deep water at flying speed the old model did NOT stop the Extra (0.44 g); it did
+  stop it at or below ~1.1 V_p (5.6 g at 0.9 V_p). Which case Ty hit is not proven; the new contact has no such stop in
+  any case tested. **Exceptions, stated:** the 737 at 200 kt skims for 1.2 s, then its nose dips and the nose belly bursts
+  (WaterSlam, a real load); the Pitts survives the touch but a second, harder touch after it skips peaked at 2.5 g.
+- **Boundary with lane/claude-crash-physics:** that lane is the Unity debris drawing (AirframeVisual/DebrisMesh) and
+  piece momentum; this lane changed only water contact forces and water triggers (FloatHydro, WheelHydro, LandingGear
+  water branch, the float water-load check). No overlap. A prop blade touching water still bends at 0.15 m/s closing.
+- **Tests (new/changed):** FloatLandingTests (normal J-3 landings 100/200/300 fpm on the step and off it; fast flat
+  touchdown; threshold 2.2 vs 5.0 m/s; step taxi 35 mph — pitch range 4.9°; every float type), WheelWaterTests (every
+  wheeled type light touch, peak < 1 g, nothing broken; J-3 skim; dig-in and tail-down delay; not-instant-stop),
+  WheelHydroTests rewritten where they pinned the old (V/V_p)² support. Codex: nothing to polish here.
 ### 2026-11-03 — Claude · lane/claude-frank-church-valleys (off island-nav ce53d62e) · the Frank Church strips down in their valleys
 **Pending Ty's approval of the renders; not merged; nothing installed.**
 - **Why they were on mesas.** On the island the nine strips are pinned anchors (`backcountry_strips`) at 4,400–5,000 ft,
@@ -2035,6 +2323,35 @@ separately from lane/claude-pitts-spin.
   `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from the island-nav worktree: **`** BUILD SUCCEEDED **`**, 0
   `error CS`, build `2026.1103.0957`; iPhone again **CoreDeviceError 4016**, installed on 0 of 1. **Not on the phone.**
   The island-nav worktree already had uncommitted ProjectSettings/GraphicsSettings edits before this deploy; left as found.
+### 2026-11-03 — Claude · lane/claude-contact-patches (off e8a40b0a) · contact patches, wing-panel damage, slave struts, prop strike
+- Ty: the Pitts wingtip goes through the ground; patches on every tip, tail and the prop; scrape with sound and dust;
+  hard scrape breaks the lower panel outboard of the I-strut, lower aileron lost, upper trails stick-free; same for the
+  Great Lakes and the fleet. Then: medium strike bends 5°, bent panel 5° at 1 g → 15° at 2 g and snaps; the slave strut
+  as a rigid link that keeps working; break stations per bracing type. Summary in NEEDS YOU above.
+- Code: `Core/WingStructure.cs` (panels, stations, Schrenk/bay strength, bent law, `SlaveLink`), `Core/ContactEvents.cs`,
+  `AirframeContact` (patch points, shared sample and stiffness, surface friction, tip compliance, stage-0 records),
+  `AeroModel`/`StripFlowState` (per-strip deflection override and bend), `Sim/AircraftContactDamage.cs` (strike checks,
+  bend/break, ailerons and links, prop strike, scrapes/events, mass shed), config fields `wingBreakStationY`,
+  `slaveStrut`, `wingBracing`; Unity `AirframeVisual` (tip-panel cut, bend pivot), `StructuralDamage` (crunch, HUD),
+  `ContactEffects` (placeholder).
+- Tests: `ContactPatchTests` (19: tip patch geometry, flat-strip dihedral, no penetration, every type has its patches,
+  stations, scrape friction yaw and surface ratio, scrape start/stop, strength, medium bend + crunch, hard break with mass
+  and CG, bent law, 2 g snap, slave strut 1:1 and through a bend, stick-free upper aileron, Great Lakes aileron loss, Cub
+  single aileron, prop brush, nose-over). Changed: `AirframeContactTests` (gentle landing on a real runway; Cub tip strike
+  takes the panel outboard of the lift strut; inverted PA-18 allowed its prop and tip panels — item 10a),
+  `CombatTests.TipStrikeTakesOnlyTheOuterPanel` (WingTipLeft), `GroundLoopTests` probe (stops at the first airframe
+  contact — item 10b).
+- **Full suite vs e8a40b0a, failing NAMES** (same Mac, other lanes' suites running, load 7–150; `IslandDroneProbe`, a
+  non-asserting probe that ran >40 min, excluded from both): base 130 failed / 1,756; branch 220 / 1,775 (19 new tests).
+  93 names fail only on the branch: StructuralTests 39 + SpawnSpeedTests 33 (`NaN`, the coupling another lane recorded
+  on 2026-11-02), ReversibleControl 4, Spin 3, MultiEngine 3, TipWheel 2, LaunchReplication 2, GroundLoop 2, and one each
+  of TrimConvergence, Soaring, GroundTow, Challenge, AircraftLoad. **Re-run alone: 89 pass; 4 were real** (GroundLoop
+  Pitts/Gee Bee — the ground loop now strikes a tip; LaunchReplication Pitts ×2 — the reconstructed slave link was 1:1
+  only to ~0.05° and put the hands-off Pitts 4° off heading in 40 s). Both fixed (exact 1:1 while straight; probe stops
+  at airframe contact) and pass. 3 base failures no longer fail (the gentle-landing and hard-tip-strike tests, NoseSkid).
+- Build: `deploy.sh 00000000-NOINSTALL` 17:01 PST `** BUILD SUCCEEDED **`, 0 `error CS` (the first two batches caught a
+  1-arg `Array.Clear` and a `ContactPoint` clash with UnityEngine — the dotnet suite cannot see either); bundleVersion bump
+  and regenerated StreamingAssets reverted. Not installed, not merged into lane/claude-island-nav (Ty has not flown it).
 ### 2026-11-02 — Grok Bot · lane/claude-stickfree-launch (off lane/claude-rig-trim b62b67d0) · launch spiral, stick-free with a pad
 Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spiral dive; the next launch went LEFT.
 - **Rig is solved stick FIXED:** `RigSolver.SteadyForces` (src/FlyingGame.Sim/RigSolver.cs:176-185) hands explicit

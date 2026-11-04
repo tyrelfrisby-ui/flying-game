@@ -507,6 +507,10 @@ public static class AeroModel
                     continue; // this strip left with a broken-off component (wing half, tail): no aero from it
                 }
                 Vec3 stripAt = LoadPoint(config, idx, strip);   // a hinged section's loads act at the SECTION quarter-chord
+                // A bent panel (WingStructure): the row has turned about the panel's station — its load point has moved
+                // with it and its dihedral has grown by the bend.
+                double bendRad = flowState?.BendRad is { } bends && idx < bends.Length ? bends[idx] : 0.0;
+                if (bendRad != 0.0 && flowState!.BendOffset is { } offs && idx < offs.Length) stripAt += offs[idx];
                 Vec3 r = stripAt - cg;
                 // The induction is a property of ATTACHED circulation (it is the lattice's), so it fades with this strip's
                 // own separation: a stalled, spinning cellule is left exactly as it was.
@@ -574,7 +578,7 @@ public static class AeroModel
                     // so sideslip shifts the strip's local AoA — upwind panel gains α, downwind loses
                     // it (Δα ≈ β·Γ). This is THE roll-from-sideslip mechanism (banks a spin into the
                     // rotation); it emerges per strip and keeps working post-stall via the tables.
-                    double dihedral = strip.DihedralRad;
+                    double dihedral = strip.DihedralRad + bendRad;
                     double sideSign = Math.Sign(strip.PosVec().Y);
                     double uu = vLocal.X;
                     double ww = vLocal.Z * Math.Cos(dihedral) + vLocal.Y * Math.Sin(dihedral) * sideSign;
@@ -609,10 +613,13 @@ public static class AeroModel
                     momentAxis = new Vec3(0, 1, 0);
                 }
 
-                double controlDeflRad = strip.Control is null ? 0.0 : controls.GetDeflection(strip.Control.Surface);
+                // A row whose deflection the structure decides (a slaved or disconnected aileron, WingStructure): its own
+                // value, rigging included — it is not where the stick puts it.
+                double overrideRad = flowState?.DeflectionOverride is { } ovr && idx < ovr.Length ? ovr[idx] : double.NaN;
+                double controlDeflRad = strip.Control is null ? 0.0 : !double.IsNaN(overrideRad) ? overrideRad : controls.GetDeflection(strip.Control.Surface);
                 // RIGGING (RigConfig): the ailerons' neutral sits AileronRad off the stick's, and the whole fin, rudder and
                 // all, is set FinOffsetRad to the centreline. Built into the airframe; zero on an unrigged type.
-                if (strip.Control is not null && strip.Control.Surface == "aileron") controlDeflRad += config.Rig.AileronRad;
+                if (strip.Control is not null && strip.Control.Surface == "aileron" && double.IsNaN(overrideRad)) controlDeflRad += config.Rig.AileronRad;
                 double stripIncidence = strip.IncidenceRad + (isVertical ? config.Rig.FinOffsetRad : 0.0);
                 string sectionKey = SectionTableKey(config, surfaceIndex) ?? strip.Airfoil;
                 if (!airfoilTables.TryGetValue(sectionKey, out AirfoilTable? table))

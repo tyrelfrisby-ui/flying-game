@@ -54,22 +54,27 @@ public sealed class SolidsBroadphaseTests
                     foreach (var t in Forest.InRect(x, y, x + 60, y + 60)) { trees.Add(t); break; }
             Assert.True(trees.Count > 30, $"only {trees.Count} trees found");
             int hits = 0;
-            var nb = new WorldSolids.Nearby();
+            // Since 2026-11-03 the forest is frangible (TreeStructure): the airframe's hard-point broadphase leaves it out and
+            // the aeroplane meets trees through its own strike test, so the stand-in is checked against the whole forest
+            // shape directly — the same Within() the broadphase used to call.
+            var forest = WorldSolids.Shapes.OfType<Forest.Solids>().First();
+            Assert.IsAssignableFrom<WorldSolids.IFrangible>(forest);
             foreach (var t in trees)
             {
                 double cu = t.GroundM + t.HeightM * 0.7;
                 const double reach = 8;
-                nb.Update(t.X - reach, t.Y - reach, cu - reach, t.X + reach, t.Y + reach, cu + reach);
+                WorldSolids.IShape nb = forest.Within(t.X - reach - WorldSolids.Nearby.RegionMarginM, t.Y - reach - WorldSolids.Nearby.RegionMarginM, cu - reach - WorldSolids.Nearby.RegionMarginM,
+                                                      t.X + reach + WorldSolids.Nearby.RegionMarginM, t.Y + reach + WorldSolids.Nearby.RegionMarginM, cu + reach + WorldSolids.Nearby.RegionMarginM);
                 for (int k = 0; k < 40; k++)
                 {
                     // Mostly inside the region; a few outside it, where the stand-in must fall back to the whole forest.
                     double span = k % 10 == 0 ? 120 : reach;
                     double x = t.X + (rnd.NextDouble() * 2 - 1) * span, y = t.Y + (rnd.NextDouble() * 2 - 1) * span;
                     double u = t.GroundM + rnd.NextDouble() * (t.HeightM + 4);
-                    var full = WorldSolids.Penetration(x, y, u);
-                    var near = nb.Penetration(x, y, u);
-                    Assert.Equal(full.HasValue, near.HasValue);
-                    if (full.HasValue) { hits++; Assert.Equal(full.Value.depth, near!.Value.depth); Assert.Equal(full.Value.normalNed, near.Value.normalNed); }
+                    bool fullHit = forest.Penetrate(x, y, u, out Vec3 fn, out double fd);
+                    bool nearHit = nb.Penetrate(x, y, u, out Vec3 nn, out double nd);
+                    Assert.Equal(fullHit, nearHit);
+                    if (fullHit) { hits++; Assert.Equal(fd, nd); Assert.Equal(fn, nn); }
                 }
             }
             Assert.True(hits > 100, $"only {hits} points hit a tree");

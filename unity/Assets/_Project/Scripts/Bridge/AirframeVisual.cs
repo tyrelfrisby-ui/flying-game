@@ -272,7 +272,94 @@ namespace FlyingGame.Bridge
         {
             _componentsDetached = true;
             if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return null; }
+            // A wing panel that was bent first: its pieces are already on their own pivot — that pivot is the debris.
+            if (_bentPanels.TryGetValue(comp, out Transform bent) && bent != null)
+            {
+                _bentPanels.Remove(comp);
+                GameObject rest = DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
+                if (rest != null) for (int i = rest.transform.childCount - 1; i >= 0; i--) rest.transform.GetChild(i).SetParent(bent, true);
+                if (rest != null) Object.Destroy(rest);
+                // The debris object's origin is the aeroplane's CG at the break (WingDebris carries it rigidly with its sim
+                // piece), so the pivot goes under a parent posed there, keeping its offset and its bend.
+                var wrap = new GameObject("Debris-" + comp);
+                wrap.transform.SetPositionAndRotation(transform.position, transform.rotation);
+                bent.SetParent(wrap.transform, true);
+                float sd = TipSide(comp);
+                return LaunchDebris(wrap, worldVelocityUnity + transform.right * (4f * sd) + transform.up * 3f, transform.right * sd, -sd);
+            }
             return DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
+        }
+
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, Transform> _bentPanels = new();
+
+        private static bool IsTipPanel(FlyingGame.Core.AirframeComponent c) =>
+            c is FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipRight
+              or FlyingGame.Core.AirframeComponent.WingTipLowerLeft or FlyingGame.Core.AirframeComponent.WingTipLowerRight;
+        private static float TipSide(FlyingGame.Core.AirframeComponent c) =>
+            c is FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipLowerLeft ? -1f : 1f;
+
+        /// <summary>
+        /// Which side of a tip panel's cut a triangle is on: outboard of its station on its side and, on a biplane, on its
+        /// own wing's side of the height midway between the two wings at the station (root-local y = −sim z).
+        /// </summary>
+        private static System.Func<Vector3, bool> TipPanelTest(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        {
+            float side = p.Side, cut = (float)p.BreakY;
+            float? midUp = null;
+            if (cfg != null)
+                foreach (FlyingGame.Core.WingPanel q in FlyingGame.Core.WingStructure.Build(cfg))
+                    if (q.Side == p.Side && q.SurfaceId != p.SurfaceId) midUp = (float)(-(p.BreakZ + q.BreakZ) * 0.5);
+            bool lower = p.Lower;
+            return c => c.x * side > cut && (midUp == null || (lower ? c.y < midUp.Value : c.y > midUp.Value));
+        }
+
+        private static void SplitBy(Mesh src, Transform part, Transform root, System.Func<Vector3, bool> lostTest, out Mesh lost, out Mesh kept)
+        {
+            lost = null; kept = src;
+            if (src == null || !src.isReadable) return;
+            Vector3[] v = src.vertices;
+            if (v.Length == 0) return;
+            var r = new Vector3[v.Length];
+            Matrix4x4 m = root.worldToLocalMatrix * part.localToWorldMatrix;
+            for (int i = 0; i < v.Length; i++) r[i] = m.MultiplyPoint3x4(v[i]);
+            DebrisMesh.Split(src, (a, b, c) => lostTest((r[a] + r[b] + r[c]) / 3f), out lost, out kept);
+        }
+
+        /// <summary>
+        /// A wing panel bent by a strike, or flexing under a tip contact (contact damage): on first call its triangles move
+        /// onto a pivot on the station line, which then turns about the flight axis by the panel's set plus its elastic flex. PLACEHOLDER — static
+        /// meshes only, the aileron meshes stay where they are (AGENT-LOG NEEDS-Codex).
+        /// </summary>
+        public void ShowPanelBend(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        {
+            if (_builder == null) return;
+            if (!_bentPanels.TryGetValue(p.Component, out Transform pivot) || pivot == null)
+            {
+                var go = new GameObject("Bent-" + p.Component);
+                pivot = go.transform;
+                pivot.SetParent(transform, false);
+                pivot.localPosition = new Vector3(p.Side * (float)p.BreakY, (float)-p.BreakZ, 0f);
+                pivot.localRotation = Quaternion.identity;
+                System.Func<Vector3, bool> test = TipPanelTest(p, cfg);
+                foreach (GameObject part in new List<GameObject>(_builder.WingParts))
+                {
+                    if (part == null) continue;
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null || mf.name.ToLowerInvariant().Contains("aileron")) continue;
+                        // Only what is on screen moves onto the pivot (the hidden procedural shell would appear in its own paint).
+                        if (!_builder.IsDebrisSource(mf)) continue;
+                        SplitBy(mf.sharedMesh, mf.transform, transform, test, out Mesh lost, out Mesh kept);
+                        if (lost == null) continue;
+                        AddPiece(pivot, mf.name + "-bent", lost, mf.GetComponent<Renderer>()?.sharedMaterials,
+                            pivot.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(pivot.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (kept == null && !IsModelMesh(mf)) mf.gameObject.SetActive(false); else mf.sharedMesh = kept;
+                    }
+                }
+                _bentPanels[p.Component] = pivot;
+            }
+            // Root-local x = sim y, y = up, z = sim x: tip up is +angle about +z on the right, − on the left.
+            pivot.localRotation = Quaternion.AngleAxis(p.Side * (float)((p.BendRad + p.ElasticRad) * 180.0 / System.Math.PI), Vector3.forward);
         }
 
         /// <summary>Detach a component's visual parts as tumbling debris — shared by the player's airframe and the
@@ -304,7 +391,12 @@ namespace FlyingGame.Bridge
             bool elevator = comp is FlyingGame.Core.AirframeComponent.ElevatorLeft or FlyingGame.Core.AirframeComponent.ElevatorRight;
             bool rudder = comp == FlyingGame.Core.AirframeComponent.Rudder;
             bool tailH = comp == FlyingGame.Core.AirframeComponent.TailHorizontal, tailV = comp == FlyingGame.Core.AirframeComponent.TailVertical;
-            float side = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingLeftInner
+            bool tip = IsTipPanel(comp);
+            System.Func<Vector3, bool> tipTest = null;
+            if (tip && cfg != null)
+                foreach (FlyingGame.Core.WingPanel wp in FlyingGame.Core.WingStructure.Build(cfg))
+                    if (wp.Component == comp) tipTest = TipPanelTest(wp, cfg);
+            float side = tip ? TipSide(comp) : comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingLeftInner
                       or FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.ElevatorLeft ? -1f : 1f;
             if (leftWing) side = -1f;
             float semi = cfg != null ? (float)FlyingGame.Core.WingPanels.Semispan(cfg) : 5f;
@@ -354,7 +446,7 @@ namespace FlyingGame.Bridge
 
             List<GameObject> parts;
             var legTaken = new HashSet<GameObject>();
-            if (leftWing || rightWing || panel) parts = new List<GameObject>(_builder.WingParts);
+            if (leftWing || rightWing || panel || tip) parts = new List<GameObject>(_builder.WingParts);
             else if (gearLeg)
             {
                 parts = _builder.TakeLegParts(comp);
@@ -401,6 +493,20 @@ namespace FlyingGame.Bridge
                         SplitBySide(mf.sharedMesh, mf.transform, root, side, bodyHalf, NamedWing(lname) ? NoBand : band, out Mesh lost, out Mesh kept);
                         if (lost == null) continue;
                         Emit(mf, lost, mf.name);
+                        Keep(mf, kept);
+                    }
+                }
+                else if (tip)
+                {
+                    // The panel outboard of its wing's structural station (and, on a biplane, only that wing's) — cut with
+                    // every UV and material slot, dropped only where that mesh was on screen.
+                    if (tipTest == null) continue;
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
+                        SplitBy(mf.sharedMesh, mf.transform, root, tipTest, out Mesh lost, out Mesh kept);
+                        if (lost == null) continue;
+                        Emit(mf, lost, mf.name + "-" + comp);
                         Keep(mf, kept);
                     }
                 }
@@ -477,12 +583,12 @@ namespace FlyingGame.Bridge
             _builder.Forget(gone);
             foreach (GameObject g in gone) if (g != null) Gone(g);
             Vector3 sideDir = (leftWing || side < 0f) ? -root.right : root.right;
-            Vector3 kick = leftWing || rightWing || panel ? sideDir * 4f + root.up * 3f
+            Vector3 kick = leftWing || rightWing || panel || tip ? sideDir * 4f + root.up * 3f
                 : gearLeg ? -root.forward * 2f - root.up * 1f + (comp == FlyingGame.Core.AirframeComponent.GearLeft ? -root.right : root.right) * 1.5f
                 : tailBoom ? -root.forward * 3f + root.up * 2.5f
                 : nose ? root.forward * 2f + root.up * 3f
                 : -root.forward * 3f + root.up * 4f;
-            return LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
+            return LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel || tip ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
         }
 
         /// <summary>A mesh object of the placed model (TryPlaceModel prefixes every one).</summary>
@@ -723,6 +829,10 @@ namespace FlyingGame.Bridge
         {
             (mesh, mats) = DebrisMesh.ForPiece(mesh, mats);
             if (mesh == null) return;
+            // What each piece draws with, in the device log (Ty 2026-11-03: pieces grey and white on the iPhone, painted in
+            // the editor): material, shader, texture, whether the mesh still has UVs and can still be read.
+            Debug.Log($"[Debris] piece '{name}': {mesh.vertexCount} verts, uv0={mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.TexCoord0)}, readable={mesh.isReadable}, mats=" +
+                string.Join(" | ", System.Linq.Enumerable.Select(mats, m => m == null ? "NULL" : $"{m.name}[{(m.shader != null ? m.shader.name : "no shader")}] tex={(m.mainTexture != null ? m.mainTexture.name : "none")}")));
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
@@ -788,17 +898,24 @@ namespace FlyingGame.Bridge
 
     /// <summary>
     /// A separated piece of airframe. When the crash physics owns it (<see cref="Piece"/> set by StructuralDamage) it
-    /// simply sits where the sim's wreck piece is — falling, striking, plunging, floating, sinking: all of that is
-    /// FlyingGame.Core.Wreck.WreckSim, and this is only its picture. Otherwise (combat drones, the widget) it falls back to
-    /// simple kinematic ballistics — gravity, a drag-ish velocity damping (a loose panel flutters down at ~15 m/s rather
-    /// than streamlining), a decaying tumble — until it reaches the ground or 30 s pass.
+    /// simply sits where the sim's wreck piece is — falling, striking, sliding, plunging, floating, sinking: all of that is
+    /// FlyingGame.Core.Wreck.WreckSim (box-corner ground contact with Coulomb friction against the island's own ground),
+    /// and this is only its picture. Otherwise (combat drones, the widget, a part the sim has no volumes for) it runs the
+    /// same kind of contact itself: gravity, a drag-ish damping, a decaying tumble, and the ground under its lowest vertex.
+    ///
+    /// Ty 2026-11-03 (iPhone 2026.1103.2111): "the detached wings sink below the ground surface and disappear". The fallback
+    /// used to DESTROY a piece the moment its origin — the aeroplane's CG at the break, well above the piece's lowest point —
+    /// came within 0.3 m of the ground: the mesh was already half under the grass when it vanished. Now nothing is removed
+    /// for reaching the ground; it lands, slides and comes to rest on it, and stays until the next flight clears the wreck.
+    /// And whichever drives it, no vertex of a piece is ever drawn below the ground under it (<see cref="KeepAboveGround"/>).
     /// </summary>
     public sealed class WingDebris : MonoBehaviour
     {
         public Vector3 Velocity;
         public Vector3 AngularVelocityDeg;
-        public float LifeSec = 30f;
-        /// <summary>The sim piece this is the picture of (null = the old free ballistics).</summary>
+        /// <summary>Only a piece that is still falling is ever removed by time (lost off a cliff, into the sea's floor).</summary>
+        public float LifeSec = 600f;
+        /// <summary>The sim piece this is the picture of (null = its own contact below).</summary>
         public FlyingGame.Core.Wreck.WreckPiece Piece;
         /// <summary>The piece's CG relative to the aeroplane's CG, body frame: this object's origin is the aeroplane's
         /// CG at the moment of the break, carried rigidly with the piece.</summary>
@@ -807,6 +924,12 @@ namespace FlyingGame.Bridge
         private const float GravityMs2 = 9.80665f;
         private const float DragPerSec = 0.65f;     // terminal ≈ g/drag ≈ 15 m/s
         private const float SpinDecayPerSec = 0.25f;
+        /// <summary>Metal on grass/asphalt sliding (the hard-structure coefficients, AirframeContact.SlidingMu), and the
+        /// bounce a crumpling panel keeps.</summary>
+        private const float SlideMu = 0.5f, Restitution = 0.2f;
+
+        // A sample of the piece's vertices in its own frame (at most ~300): the lowest of them meets the ground.
+        private Vector3[] _probe;
 
         private void Update()
         {
@@ -815,6 +938,7 @@ namespace FlyingGame.Bridge
                 FlyingGame.Core.RigidBodyState s = Piece.State;
                 FlyingGame.Core.MathTypes.Vec3 origin = s.Position - s.Attitude.Rotate(PieceOffsetBody);
                 transform.SetPositionAndRotation(CoordinateMap.ToUnity(origin), CoordinateMap.ToUnity(s.Attitude));
+                KeepAboveGround(out _);   // the sim's boxes hold it; this only guards the drawn mesh against their difference
                 return;
             }
             float dt = Time.deltaTime;
@@ -823,14 +947,63 @@ namespace FlyingGame.Bridge
             transform.position += Velocity * dt;
             transform.Rotate(AngularVelocityDeg * dt, Space.World);
             AngularVelocityDeg *= Mathf.Max(0f, 1f - SpinDecayPerSec * dt);
-
-            LifeSec -= dt;
-            FlyingGame.Core.MathTypes.Vec3 sim = CoordinateMap.ToSim(transform.position);
-            float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(sim.X, sim.Y);
-            if (LifeSec <= 0f || transform.position.y <= ground + 0.3f)
+            if (KeepAboveGround(out float pushed) && Velocity.y < 0f)
             {
-                Destroy(gameObject);
+                // Contact: the normal speed bounces back at the restitution, friction takes μ·N·dt off the sliding speed
+                // (N ≈ the weight while resting, the arrival's impulse on the step it lands), and the tumble dies.
+                float vn = -Velocity.y;
+                Velocity.y = vn * Restitution;
+                var h = new Vector3(Velocity.x, 0f, Velocity.z);
+                float slide = h.magnitude, dv = SlideMu * (GravityMs2 * dt + vn * (1f + Restitution));
+                Velocity = slide > dv ? new Vector3(Velocity.x * (1f - dv / slide), Velocity.y, Velocity.z * (1f - dv / slide)) : new Vector3(0f, Velocity.y, 0f);
+                AngularVelocityDeg *= Mathf.Max(0f, 1f - 6f * dt);
+                return;
             }
+            if (pushed <= 0f) LifeSec -= dt;
+            if (LifeSec <= 0f) Destroy(gameObject);
+        }
+
+        /// <summary>Lift the piece so its lowest vertex is on the ground under that vertex (the island's height field — the
+        /// surface the aeroplane rolls on). True when it was touching; <paramref name="pushed"/> = how far it was lifted.</summary>
+        public bool KeepAboveGround(out float pushed)
+        {
+            pushed = 0f;
+            _probe ??= Probe();
+            if (_probe.Length == 0) return false;
+            Vector3 low = Vector3.zero; float lowY = float.MaxValue;
+            Matrix4x4 m = transform.localToWorldMatrix;
+            foreach (Vector3 v in _probe) { Vector3 w = m.MultiplyPoint3x4(v); if (w.y < lowY) { lowY = w.y; low = w; } }
+            FlyingGame.Core.MathTypes.Vec3 sim = CoordinateMap.ToSim(low);
+            float ground = (float)FlyingGame.Core.WorldTerrain.HardPointGroundAt(sim.X, sim.Y, -sim.Z);
+            if (lowY > ground + 0.01f) return false;
+            pushed = ground - lowY;
+            if (pushed > 0f) transform.position += Vector3.up * pushed;
+            return true;
+        }
+
+        private Vector3[] Probe()
+        {
+            var pts = new System.Collections.Generic.List<Vector3>();
+            Matrix4x4 toLocal = transform.worldToLocalMatrix;
+            foreach (MeshFilter mf in GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh mesh = mf.sharedMesh;
+                if (mesh == null) continue;
+                Matrix4x4 toMe = toLocal * mf.transform.localToWorldMatrix;
+                if (mesh.isReadable)
+                {
+                    Vector3[] v = mesh.vertices;
+                    int step = Mathf.Max(1, v.Length / 300);
+                    for (int i = 0; i < v.Length; i += step) pts.Add(toMe.MultiplyPoint3x4(v[i]));
+                }
+                else
+                {
+                    Bounds b = mesh.bounds;   // an unreadable mesh: its bounding box's corners
+                    for (int k = 0; k < 8; k++)
+                        pts.Add(toMe.MultiplyPoint3x4(b.center + Vector3.Scale(b.extents, new Vector3((k & 1) == 0 ? -1 : 1, (k & 2) == 0 ? -1 : 1, (k & 4) == 0 ? -1 : 1))));
+                }
+            }
+            return pts.ToArray();
         }
     }
 
@@ -1747,7 +1920,10 @@ namespace FlyingGame.Bridge
             {
                 if (g == null) continue;
                 var mr = g.transform.parent != null ? g.transform.parent.GetComponent<MeshRenderer>() : null;
-                if (mr != null) mr.enabled = true;
+                // Only a rigid copy that was on screen before its skin took over comes back — never anything the
+                // placement hid (the procedural shell, a livery's hidden pieces): a revived shell part is the old
+                // red/white procedural Pitts appearing in the wreck (Ty 2026-11-03).
+                if (mr != null && !_hiddenAtPlace.Contains(mr)) mr.enabled = true;
                 Kill(g);
             }
             _rigged.Clear();

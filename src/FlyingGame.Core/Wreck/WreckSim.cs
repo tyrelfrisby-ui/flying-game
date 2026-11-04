@@ -83,6 +83,36 @@ public sealed class WreckPiece
             izz += e.MassKg * ((h.X * h.X + h.Y * h.Y) / 3 + r.X * r.X + r.Y * r.Y);
         }
         Inertia = new Vec3(System.Math.Max(ixx, 1e-3), System.Math.Max(iyy, 1e-3), System.Math.Max(izz, 1e-3));
+        double pxy = 0, pxz = 0, pyz = 0;
+        foreach (HydroElement e in elements) { Vec3 r = e.Centre - CgBody; pxy += e.MassKg * r.X * r.Y; pxz += e.MassKg * r.X * r.Z; pyz += e.MassKg * r.Y * r.Z; }
+        Products = new Vec3(pxy, pxz, pyz);
+    }
+
+    /// <summary>Products of inertia about the CG (Ixy, Ixz, Iyz = Σm·x·y …): the boxes' parallel-axis shares. A wing
+    /// panel is long in y and swept or dihedralled, so they are not zero.</summary>
+    public Vec3 Products { get; }
+    /// <summary>The full rigid-body mass properties about the piece's CG.</summary>
+    public MassProperties MassProps => new(MassKg, Inertia.X, Inertia.Y, Inertia.Z, Products.Y, Products.X, Products.Z);
+
+    /// <summary>
+    /// The piece has met something that does not give (the tree trunk that took it off): the impulse along
+    /// <paramref name="normalWorld"/> at <paramref name="atWorld"/> that stops that point closing on it, through the piece's
+    /// mass and inertia — inelastic, no friction. Returns the impulse, N·s (0 if it was not closing).
+    /// </summary>
+    public double StopAt(Vec3 atWorld, Vec3 normalWorld)
+    {
+        RigidBodyState s = State;
+        Quat q = s.Attitude, qi = q.Conjugate();
+        Vec3 r = qi.Rotate(atWorld - s.Position), n = qi.Rotate(normalWorld);
+        Vec3 v = s.Velocity + Vec3.Cross(s.Rates, r);
+        double closing = -Vec3.Dot(v, n);
+        if (closing <= 0) return 0;
+        MassProperties mp = MassProps;
+        double k = 1.0 / MassKg + Vec3.Dot(Vec3.Cross(mp.Solve(Vec3.Cross(r, n)), r), n);
+        double j = closing / k;
+        Vec3 jb = n * j;
+        State = new RigidBodyState(s.Position, s.Attitude, s.Velocity + jb / MassKg, s.Rates + mp.Solve(Vec3.Cross(r, jb)));
+        return j;
     }
 
     /// <summary>Lowest point of the piece's boxes, world (z down: the largest z).</summary>
@@ -183,7 +213,7 @@ public sealed class WreckSim
             return;
         }
 
-        var mp = new MassProperties(p.MassKg, p.Inertia.X, p.Inertia.Y, p.Inertia.Z, 0);
+        MassProperties mp = p.MassProps;
         WaterCoeffs before = HydroBody.Coefficients(p.Elements, p.CgBody, s, waterUp, airDrag: true);
         Vec3 gWorld = new(0, 0, p.MassKg * WaterPhysics.G);
         (Vec3, Vec3) Forces(RigidBodyState st)
