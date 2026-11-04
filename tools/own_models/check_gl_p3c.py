@@ -75,43 +75,41 @@ def check(path):
     elevation=float(np.degrees(np.arctan2(p[2]-q[2],np.linalg.norm((p-q)[:2]))))
     assert 20<elevation<65,(leg['node'],elevation)
    report[group].append(dict(node=leg['node'],endpoint_fitting_mm=endpoint_fit*1000,**(dict(axle_contact_mm=axle_gap*1000,elevation_deg=elevation,belly_endpoint_m=p.tolist(),axle_endpoint_m=q.tolist()) if elevation is not None else {}),fitting_skin_mm=padgap*1000,**({'before_endpoint_skin_gap_mm':leg['before_endpoint_skin_gap_mm'],'after_endpoint_skin_gap_mm':distance(p,skin)*1000} if group=='cabane' else {})))
+ from gl_windshield_v2 import NU,NV,THICK,TRIM_H
+ from vr_phase3c import ray_skin
+ assert not any(n.startswith('Windscreen_Base_Screws') for n in nodes)
  for screen in meta['screens']:
-  n=nodes[screen['node']];mesh=g.doc['meshes'][n['mesh']];assert len(mesh['primitives'])==2
-  triangles=vertices(g,screen['node']);face_tris=triangles[:3072][:,::-1];edges=triangles[3072:]
-  assert len(edges)==304==screen['edge_triangles']
-  thickness=np.linalg.norm(face_tris[:1536]-face_tris[1536:][:,::-1],axis=2)
-  assert np.all((thickness>.00349)&(thickness<.00351))
-  # All welded edges of the two surfaces + perimeter must have two incident faces.
-  weld,indices=np.unique(np.round(triangles.reshape(-1,3),6),axis=0,return_inverse=True)
-  faces=indices.reshape(-1,3);pairs=np.sort(np.concatenate([faces[:,[0,1]],faces[:,[1,2]],faces[:,[2,0]]]),axis=1)
+  # v2 (Ty 2026-11-02): ONE frameless curved acrylic sheet ahead of each opening; one material, no edge rim.
+  assert screen['revision']=='v2' and not screen['trim_node'].startswith('Windscreen')
+  n=nodes[screen['node']];mesh=g.doc['meshes'][n['mesh']];assert len(mesh['primitives'])==1
+  tris=vertices(g,screen['node']);per=(NV-1)*(NU-1)*4;assert len(tris)==per+2*(2*(NU+NV)-4)
+  quads=tris[:per].reshape(-1,4,3,3);thickness=np.linalg.norm(quads[:,0,0]-quads[:,2,0],axis=1)
+  assert np.allclose(thickness,THICK,atol=2e-5),(thickness.min(),thickness.max())
+  v=tris.reshape(-1,3);weld,ids=np.unique(np.round(v,6),axis=0,return_inverse=True);faces=ids.reshape(-1,3)
+  pairs=np.sort(np.concatenate([faces[:,[0,1]],faces[:,[1,2]],faces[:,[2,0]]]),axis=1)
   _,counts=np.unique(pairs,axis=0,return_counts=True);assert np.all(counts==2)
-  seat=0 if screen['node'].endswith('Front') else 1;xf,xa,hw=meta['cockpits'][seat]
-  base=np.concatenate([face_tris[:128:2,:2].reshape(-1,3)])
-  centre=base[np.argmin(abs(base[:,1]))];base_distance=float(centre[0]-xf)
-  assert .020<=base_distance<=.030 and abs(base_distance-screen['base_forward_distance_m'])<1e-6
-  assert base[:,1].min() < -hw and base[:,1].max() > hw
-  # Base follows the deck (4 mm seating clearance) and wraps both forward corners.
-  from vr_phase3c import ray_skin
-  assert max(abs(p[2]-ray_skin(skin,p[0],p[1])-.004) for p in base)<1e-6
-  for prim in mesh['primitives']:
-   material=g.doc['materials'][prim['material']];assert material['alphaMode']=='BLEND'
-   assert .2<material['pbrMetallicRoughness']['baseColorFactor'][3]<.75
-   assert material['pbrMetallicRoughness']['roughnessFactor']<.1
-   assert 'KHR_materials_transmission' not in material.get('extensions',{})
-  assert g.doc['materials'][mesh['primitives'][0]['material']]['extensions']['KHR_materials_ior']['ior']==1.49
-  v=triangles.reshape(-1,3);top=float(v[:,2].max());edge=max(face_tris[1409,2,2],face_tris[1534,2,2],face_tris[2945,0,2],face_tris[3070,0,2]);drop=top-float(edge)
-  assert abs(top-screen['top_height_m'])<1e-6 and abs(drop-screen['top_edge_drop_m'])<1e-6
-  # Weld coordinates and verify one connected sheet, with no separate frame components.
-  unique,ids=np.unique(np.round(v,6),axis=0,return_inverse=True);adj=[set() for _ in unique]
-  for face in ids.reshape(-1,3):
-   for i in face:adj[i].update(face)
+  adj=[set() for _ in weld]
+  for f in faces:
+   for i in f:adj[i].update(f)
   seen={0};todo=[0]
   while todo:
    for i in adj[todo.pop()]-seen:seen.add(i);todo.append(i)
-  assert len(seen)==len(unique)
-  report['screens'].append(dict(node=screen['node'],top_height_m=top,top_edge_drop_mm=drop*1000,thickness_min_mm=float(thickness.min()*1000),thickness_max_mm=float(thickness.max()*1000),edge_triangles=len(edges),closed_manifold=True,base_to_opening_forward_edge_mm=base_distance*1000,centre_height_mm=screen['centre_height_above_skin_m']*1000,components=1))
+  assert len(seen)==len(weld)
+  seat=0 if screen['node'].endswith('Front') else 1;xf,xa,hw=meta['cockpits'][seat]
+  # Entirely ahead of its own opening, and clear of the opening ahead (rear screen).
+  assert v[:,0].min()>=xf-1e-6,(screen['node'],v[:,0].min()-xf)
+  if seat==1:assert v[:,0].max()<meta['cockpits'][0][1]-.01
+  base=quads[:NU-1,0,0];assert max(abs(p[2]-ray_skin(skin,p[0],p[1])-.004) for p in base)<1e-5
+  assert .15<=screen['base_forward_distance_m']<=.28 and abs(screen['base_centre_x_m']-base[np.argmin(abs(base[:,1]))][0])<.01
+  assert 45<screen['centre_rake_deg_from_horizontal']<75
+  material=g.doc['materials'][mesh['primitives'][0]['material']];assert material['alphaMode']=='BLEND'
+  assert .15<material['pbrMetallicRoughness']['baseColorFactor'][3]<.4 and material['extensions']['KHR_materials_ior']['ior']==1.49
+  trim=vertices(g,screen['trim_node']);assert trim[:,:,2].max()-base[:,2].max()<TRIM_H+.004
+  tm=g.doc['materials'][g.doc['meshes'][nodes[screen['trim_node']]['mesh']]['primitives'][0]['material']];assert tm['pbrMetallicRoughness']['metallicFactor']>.8
+  top=float(v[:,2].max());assert abs(top-screen['top_height_m'])<1e-5
+  report['screens'].append(dict(node=screen['node'],top_height_m=top,thickness_mm=float(thickness.mean()*1000),closed_manifold=True,components=1,primitives=1,base_centre_ahead_of_opening_mm=screen['base_forward_distance_m']*1000,centre_rake_deg=screen['centre_rake_deg_from_horizontal'],top_exponent=screen['top_exponent'],trim_node=screen['trim_node']))
  assert report['screens'][0]['top_height_m']<report['screens'][1]['top_height_m']
- assert report['screens'][0]['top_edge_drop_mm']<report['screens'][1]['top_edge_drop_mm']
+ assert report['screens'][0]['top_exponent']>report['screens'][1]['top_exponent']  # front flatter on top
  # Test every new triangle against an aperture extrusion above the local coaming.
  # Padding belongs at the aperture boundary; clearance concerns its inner free volume.
  min_aperture=1e9

@@ -439,7 +439,7 @@
    ],
    "pivot_gltf": [
     0.8550000000000001,
-    0.31633333333333336,
+    0.22039393939393942,
     -0.0381
    ],
    "map": [
@@ -471,7 +471,7 @@
    ],
    "pivot_gltf": [
     0.8770000000000001,
-    0.3413333333333334,
+    0.24539393939393944,
     -0.0381
    ],
    "map": [
@@ -1206,9 +1206,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    0.215
+    0.809,
+    -0.2178,
+    0.195
    ],
    "map": [
     [
@@ -1250,9 +1250,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    0.251
+    0.809,
+    -0.2178,
+    0.226
    ],
    "map": [
     [
@@ -1282,9 +1282,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    0.287
+    0.809,
+    -0.2178,
+    0.257
    ],
    "map": [
     [
@@ -1314,9 +1314,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    0.32299999999999995
+    0.809,
+    -0.2178,
+    -0.257
    ],
    "map": [
     [
@@ -1346,9 +1346,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    0.215
+    0.809,
+    -0.2178,
+    -0.288
    ],
    "map": [
     [
@@ -1378,9 +1378,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    0.251
+    0.809,
+    -0.2178,
+    -0.319
    ],
    "map": [
     [
@@ -1410,9 +1410,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    0.287
+    0.809,
+    -0.2178,
+    0.288
    ],
    "map": [
     [
@@ -1442,9 +1442,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    0.32299999999999995
+    0.809,
+    -0.2178,
+    0.319
    ],
    "map": [
     [
@@ -1474,9 +1474,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    0.215
+    0.809,
+    -0.2178,
+    -0.35
    ],
    "map": [
     [
@@ -1506,9 +1506,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    0.251
+    0.809,
+    -0.2178,
+    0.35
    ],
    "map": [
     [
@@ -1538,9 +1538,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    0.287
+    0.809,
+    -0.2178,
+    -0.195
    ],
    "map": [
     [
@@ -1570,9 +1570,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    0.32299999999999995
+    0.809,
+    -0.2178,
+    -0.226
    ],
    "map": [
     [
@@ -1602,9 +1602,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    -0.215
+    0.809,
+    0.0772,
+    -0.1395
    ],
    "map": [
     [
@@ -1634,9 +1634,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    -0.251
+    0.809,
+    0.0772,
+    -0.10850000000000001
    ],
    "map": [
     [
@@ -1666,9 +1666,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    -0.287
+    0.809,
+    0.0772,
+    -0.07750000000000001
    ],
    "map": [
     [
@@ -1698,9 +1698,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    -0.32299999999999995
+    0.809,
+    0.0772,
+    -0.046500000000000014
    ],
    "map": [
     [
@@ -1730,9 +1730,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    -0.215
+    0.809,
+    0.0772,
+    -0.015500000000000014
    ],
    "map": [
     [
@@ -1762,9 +1762,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    -0.251
+    0.809,
+    0.0772,
+    0.015499999999999986
    ],
    "map": [
     [
@@ -1794,9 +1794,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    -0.287
+    0.809,
+    0.0772,
+    0.046499999999999986
    ],
    "map": [
     [
@@ -1826,9 +1826,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    -0.32299999999999995
+    0.809,
+    0.0772,
+    0.07749999999999999
    ],
    "map": [
     [
@@ -1858,9 +1858,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    -0.215
+    0.809,
+    0.0772,
+    0.10849999999999999
    ],
    "map": [
     [
@@ -1890,9 +1890,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    -0.251
+    0.809,
+    0.0772,
+    0.1395
    ],
    "map": [
     [
@@ -1922,9 +1922,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    0.215
+    0.152,
+    -0.096,
+    0.195
    ],
    "map": [
     [
@@ -1966,9 +1966,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    0.251
+    0.152,
+    -0.096,
+    0.226
    ],
    "map": [
     [
@@ -1998,9 +1998,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    0.287
+    0.152,
+    -0.096,
+    0.257
    ],
    "map": [
     [
@@ -2030,9 +2030,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    0.32299999999999995
+    0.152,
+    -0.096,
+    -0.257
    ],
    "map": [
     [
@@ -2062,9 +2062,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    0.215
+    0.152,
+    -0.096,
+    -0.288
    ],
    "map": [
     [
@@ -2094,9 +2094,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    0.251
+    0.152,
+    -0.096,
+    -0.319
    ],
    "map": [
     [
@@ -2126,9 +2126,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    0.287
+    0.152,
+    -0.096,
+    0.288
    ],
    "map": [
     [
@@ -2158,9 +2158,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    0.32299999999999995
+    0.152,
+    -0.096,
+    0.319
    ],
    "map": [
     [
@@ -2190,9 +2190,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    0.215
+    0.152,
+    -0.096,
+    -0.35
    ],
    "map": [
     [
@@ -2222,9 +2222,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    0.251
+    0.152,
+    -0.096,
+    0.35
    ],
    "map": [
     [
@@ -2254,9 +2254,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    0.287
+    0.152,
+    -0.096,
+    -0.195
    ],
    "map": [
     [
@@ -2286,9 +2286,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    0.32299999999999995
+    0.152,
+    -0.096,
+    -0.226
    ],
    "map": [
     [
@@ -2318,9 +2318,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    -0.215
+    0.152,
+    0.135,
+    -0.1395
    ],
    "map": [
     [
@@ -2350,9 +2350,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    -0.251
+    0.152,
+    0.135,
+    -0.10850000000000001
    ],
    "map": [
     [
@@ -2382,9 +2382,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    -0.287
+    0.152,
+    0.135,
+    -0.07750000000000001
    ],
    "map": [
     [
@@ -2414,9 +2414,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    -0.32299999999999995
+    0.152,
+    0.135,
+    -0.046500000000000014
    ],
    "map": [
     [
@@ -2446,9 +2446,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    -0.215
+    0.152,
+    0.135,
+    -0.015500000000000014
    ],
    "map": [
     [
@@ -2478,9 +2478,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    -0.251
+    0.152,
+    0.135,
+    0.015499999999999986
    ],
    "map": [
     [
@@ -2510,9 +2510,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    -0.287
+    0.152,
+    0.135,
+    0.046499999999999986
    ],
    "map": [
     [
@@ -2542,9 +2542,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    -0.32299999999999995
+    0.152,
+    0.135,
+    0.07749999999999999
    ],
    "map": [
     [
@@ -2574,9 +2574,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    -0.215
+    0.152,
+    0.135,
+    0.10849999999999999
    ],
    "map": [
     [
@@ -2606,9 +2606,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    -0.251
+    0.152,
+    0.135,
+    0.1395
    ],
    "map": [
     [
@@ -2641,9 +2641,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    0.215
+    0.809,
+    -0.2178,
+    0.195
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -2666,7 +2666,8 @@
    "grip": "Grip_Magneto",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Master",
@@ -2679,9 +2680,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    0.251
+    0.809,
+    -0.2178,
+    0.226
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2701,7 +2702,8 @@
    "grip": "Grip_Master",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_FuelPump",
@@ -2714,9 +2716,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    0.287
+    0.809,
+    -0.2178,
+    0.257
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2736,7 +2738,8 @@
    "grip": "Grip_FuelPump",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_NavLights",
@@ -2749,9 +2752,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    0.32299999999999995
+    0.809,
+    -0.2178,
+    -0.257
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2771,7 +2774,8 @@
    "grip": "Grip_NavLights",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Strobe",
@@ -2784,9 +2788,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    0.215
+    0.809,
+    -0.2178,
+    -0.288
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2806,7 +2810,8 @@
    "grip": "Grip_Strobe",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_LandingLight",
@@ -2819,9 +2824,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    0.251
+    0.809,
+    -0.2178,
+    -0.319
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2841,7 +2846,8 @@
    "grip": "Grip_LandingLight",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Smoke",
@@ -2854,9 +2860,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    0.287
+    0.809,
+    -0.2178,
+    0.288
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2876,7 +2882,8 @@
    "grip": "Grip_Smoke",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_Mixture",
@@ -2889,9 +2896,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    0.32299999999999995
+    0.809,
+    -0.2178,
+    0.319
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -2908,7 +2915,8 @@
    "grip": "Grip_Mixture",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_Prop",
@@ -2921,9 +2929,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    0.215
+    0.809,
+    -0.2178,
+    -0.35
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -2940,7 +2948,8 @@
    "grip": "Grip_Prop",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_AlternateAir",
@@ -2953,9 +2962,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    0.251
+    0.809,
+    -0.2178,
+    0.35
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -2975,7 +2984,8 @@
    "grip": "Grip_AlternateAir",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_Trim",
@@ -2988,9 +2998,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    0.287
+    0.809,
+    -0.2178,
+    -0.195
    ],
    "travel": 300,
    "travel_unit": "deg",
@@ -3007,7 +3017,8 @@
    "grip": "Grip_Trim",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_FuelSelector",
@@ -3020,9 +3031,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    0.32299999999999995
+    0.809,
+    -0.2178,
+    -0.226
    ],
    "travel": 180,
    "travel_unit": "deg",
@@ -3043,7 +3054,8 @@
    "grip": "Grip_FuelSelector",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_ComOuter",
@@ -3056,9 +3068,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    -0.215
+    0.809,
+    0.0772,
+    -0.1395
    ],
    "travel": 540,
    "travel_unit": "deg",
@@ -3100,7 +3112,8 @@
    "wrap": [
     118,
     136.975
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_ComInner",
@@ -3113,9 +3126,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    -0.251
+    0.809,
+    0.0772,
+    -0.10850000000000001
    ],
    "travel": 360,
    "travel_unit": "deg",
@@ -3176,7 +3189,8 @@
    "semantics": "increment_fraction",
    "step": 0.025,
    "alternative_step_mhz": 0.008333333333333333,
-   "channel_spacing_requires_owner_choice": true
+   "channel_spacing_requires_owner_choice": true,
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_ComVolume",
@@ -3189,9 +3203,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    -0.287
+    0.809,
+    0.0772,
+    -0.07750000000000001
    ],
    "travel": 270,
    "travel_unit": "deg",
@@ -3208,7 +3222,8 @@
    "grip": "Grip_ComVolume",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_PushPull_ComSwap",
@@ -3221,9 +3236,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.755,
-    0.24,
-    -0.32299999999999995
+    0.809,
+    0.0772,
+    -0.046500000000000014
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -3243,7 +3258,8 @@
    "grip": "Grip_ComSwap",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit1",
@@ -3256,9 +3272,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    -0.215
+    0.809,
+    0.0772,
+    -0.015500000000000014
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3289,7 +3305,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit2",
@@ -3302,9 +3319,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    -0.251
+    0.809,
+    0.0772,
+    0.015499999999999986
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3335,7 +3352,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit3",
@@ -3348,9 +3366,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    -0.287
+    0.809,
+    0.0772,
+    0.046499999999999986
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3381,7 +3399,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit4",
@@ -3394,9 +3413,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.69,
-    0.24,
-    -0.32299999999999995
+    0.809,
+    0.0772,
+    0.07749999999999999
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3427,7 +3446,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrMode",
@@ -3440,9 +3460,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    -0.215
+    0.809,
+    0.0772,
+    0.10849999999999999
    ],
    "travel": 90,
    "travel_unit": "deg",
@@ -3464,7 +3484,8 @@
    "grip": "Grip_XpdrMode",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_PushPull_XpdrIdent",
@@ -3477,9 +3498,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.625,
-    0.24,
-    -0.251
+    0.809,
+    0.0772,
+    0.1395
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -3499,7 +3520,8 @@
    "grip": "Grip_XpdrIdent",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_Magneto_Front",
@@ -3512,9 +3534,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    0.215
+    0.152,
+    -0.096,
+    0.195
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -3537,7 +3559,8 @@
    "grip": "Grip_Magneto_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Master_Front",
@@ -3550,9 +3573,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    0.251
+    0.152,
+    -0.096,
+    0.226
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3572,7 +3595,8 @@
    "grip": "Grip_Master_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_FuelPump_Front",
@@ -3585,9 +3609,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    0.287
+    0.152,
+    -0.096,
+    0.257
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3607,7 +3631,8 @@
    "grip": "Grip_FuelPump_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_NavLights_Front",
@@ -3620,9 +3645,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    0.32299999999999995
+    0.152,
+    -0.096,
+    -0.257
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3642,7 +3667,8 @@
    "grip": "Grip_NavLights_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Strobe_Front",
@@ -3655,9 +3681,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    0.215
+    0.152,
+    -0.096,
+    -0.288
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3677,7 +3703,8 @@
    "grip": "Grip_Strobe_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_LandingLight_Front",
@@ -3690,9 +3717,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    0.251
+    0.152,
+    -0.096,
+    -0.319
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3712,7 +3739,8 @@
    "grip": "Grip_LandingLight_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Smoke_Front",
@@ -3725,9 +3753,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    0.287
+    0.152,
+    -0.096,
+    0.288
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3747,7 +3775,8 @@
    "grip": "Grip_Smoke_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_Mixture_Front",
@@ -3760,9 +3789,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    0.32299999999999995
+    0.152,
+    -0.096,
+    0.319
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -3779,7 +3808,8 @@
    "grip": "Grip_Mixture_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_Prop_Front",
@@ -3792,9 +3822,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    0.215
+    0.152,
+    -0.096,
+    -0.35
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -3811,7 +3841,8 @@
    "grip": "Grip_Prop_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_AlternateAir_Front",
@@ -3824,9 +3855,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    0.251
+    0.152,
+    -0.096,
+    0.35
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -3846,7 +3877,8 @@
    "grip": "Grip_AlternateAir_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_Trim_Front",
@@ -3859,9 +3891,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    0.287
+    0.152,
+    -0.096,
+    -0.195
    ],
    "travel": 300,
    "travel_unit": "deg",
@@ -3878,7 +3910,8 @@
    "grip": "Grip_Trim_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_FuelSelector_Front",
@@ -3891,9 +3924,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    0.32299999999999995
+    0.152,
+    -0.096,
+    -0.226
    ],
    "travel": 180,
    "travel_unit": "deg",
@@ -3914,7 +3947,8 @@
    "grip": "Grip_FuelSelector_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_ComOuter_Front",
@@ -3927,9 +3961,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    -0.215
+    0.152,
+    0.135,
+    -0.1395
    ],
    "travel": 540,
    "travel_unit": "deg",
@@ -3971,7 +4005,8 @@
    "wrap": [
     118,
     136.975
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_ComInner_Front",
@@ -3984,9 +4019,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    -0.251
+    0.152,
+    0.135,
+    -0.10850000000000001
    ],
    "travel": 360,
    "travel_unit": "deg",
@@ -4047,7 +4082,8 @@
    "semantics": "increment_fraction",
    "step": 0.025,
    "alternative_step_mhz": 0.008333333333333333,
-   "channel_spacing_requires_owner_choice": true
+   "channel_spacing_requires_owner_choice": true,
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_ComVolume_Front",
@@ -4060,9 +4096,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    -0.287
+    0.152,
+    0.135,
+    -0.07750000000000001
    ],
    "travel": 270,
    "travel_unit": "deg",
@@ -4079,7 +4115,8 @@
    "grip": "Grip_ComVolume_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_PushPull_ComSwap_Front",
@@ -4092,9 +4129,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.09999999999999999,
-    0.24,
-    -0.32299999999999995
+    0.152,
+    0.135,
+    -0.046500000000000014
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -4114,7 +4151,8 @@
    "grip": "Grip_ComSwap_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit1_Front",
@@ -4127,9 +4165,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    -0.215
+    0.152,
+    0.135,
+    -0.015500000000000014
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4160,7 +4198,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit2_Front",
@@ -4173,9 +4212,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    -0.251
+    0.152,
+    0.135,
+    0.015499999999999986
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4206,7 +4245,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit3_Front",
@@ -4219,9 +4259,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    -0.287
+    0.152,
+    0.135,
+    0.046499999999999986
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4252,7 +4292,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit4_Front",
@@ -4265,9 +4306,9 @@
     0.0
    ],
    "pivot_gltf": [
-    0.03499999999999999,
-    0.24,
-    -0.32299999999999995
+    0.152,
+    0.135,
+    0.07749999999999999
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4298,7 +4339,8 @@
    "wrap": [
     0,
     7
-   ]
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrMode_Front",
@@ -4311,9 +4353,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    -0.215
+    0.152,
+    0.135,
+    0.10849999999999999
    ],
    "travel": 90,
    "travel_unit": "deg",
@@ -4335,7 +4377,8 @@
    "grip": "Grip_XpdrMode_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_PushPull_XpdrIdent_Front",
@@ -4348,9 +4391,9 @@
     0.0
    ],
    "pivot_gltf": [
-    -0.030000000000000013,
-    0.24,
-    -0.251
+    0.152,
+    0.135,
+    0.1395
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -4370,7 +4413,8 @@
    "grip": "Grip_XpdrIdent_Front",
    "position_status": "E",
    "sweep_radius_m": 0.04,
-   "semantics": "absolute"
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   }
  ],
  "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."

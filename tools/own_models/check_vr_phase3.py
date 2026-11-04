@@ -31,6 +31,9 @@ def check(path):
   obstacles=[('knee_'+side,np.array((seatx-.20,sy*.105,z-.24)),.065) for side,sy in [('L',1),('R',-1)]]
   # Bound primary-control sweeps by a capsule around sampled physical grip paths.
   for label in ('Stick','Throttle'):
+   # A Great Lakes quadrant throttle (v7, Ty 2026-11-03) is a lever on an arc, not the push-pull this box models;
+   # its full-mesh sweep against every console part is measured by check_gl_quadrant.py, which must pass too.
+   if label=='Throttle' and 'GL_Quadrant_'+seat[0] in idx:continue
    name='Grip_'+label+'_'+seat
    if name not in idx:
     legacy=label+('_R' if seat=='Rear' else '_F')
@@ -72,7 +75,11 @@ def check_panels(g,path):
    assert np.allclose([-face[:,1].mean(),face[:,2].mean()],[u,v],atol=.002)
    bezel=vertices('Bezel_P3b_'+row['gauge']+'_'+panel['suffix'])
    measured=np.linalg.norm(bezel[:,1:]-np.array([-u,v]),axis=1).max();assert abs(measured-r)<1e-6
-   assert abs(u)+r<=.22 and .075<=v-r and v+r<=.36
+   if 'outline_zw' in panel:
+    # P3f (Ty 2026-11-03): the panel runs out to the cockpit walls; every bezel lies wholly on it.
+    zw=np.array(panel['outline_zw']);assert zw[0,0]<=v-r and v+r<=zw[-1,0]
+    assert all(abs(u)+np.sqrt(max(r*r-(z-v)**2,0))<=w for z,w in zw if abs(z-v)<=r),row['gauge']
+   else:assert abs(u)+r<=.22 and .075<=v-r and v+r<=.36
    circles.append((u,v,float(measured)))
    for name in row['needles']:
     k=name[:-2];k=k[7:] if k.startswith('Needle_') else k
@@ -88,7 +95,12 @@ def check_panels(g,path):
   assert min(gaps)>=.006-1e-6,min(gaps)
   # Every relocated control's conservative sphere stays below the instrument area.
   for c in g.doc['extras']['vrCockpitPhase3a']['controls']:
-   if c['seat']==panel['seat']:assert builder(c['pivot_gltf'])[2]+c['sweep_radius_m']<.075
+   if c['seat']!=panel['seat']:continue
+   if 'outline_zw' in panel:
+    # P3f: switches in one row on the panel's bottom edge; every control clear of every bezel (toggle bat +25 mm).
+    p=builder(c['pivot_gltf'])
+    for cu,cv,cr in circles:assert np.hypot(p[1]+cu,p[2]-cv)>=cr+.026,(c['node'],cu,cv)
+   else:assert builder(c['pivot_gltf'])[2]+c['sweep_radius_m']<.075
   report.append(dict(seat=panel['seat'],gauges=len(rows),live_needle_nodes=count,min_bezel_gap_mm=round(float(min(gaps))*1000,4),max_face_plane_error_mm=round(maxerr*1000,6)))
  return report
 if __name__=='__main__':

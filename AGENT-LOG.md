@@ -59,6 +59,60 @@
   byte-equal to island-nav's and every other mesh equal to ours.
   Left out for now (NOT merged): lane/vr-cockpit-combined, lane/claude-hydro-quest, lane/claude-quest-hands-install,
   lane/codex-vr-quest.
+- **NEEDS YOU — PITTS REAR PANEL 2 IN LOWER, REAR BOWS KEPT AND CONFORMED TO IT (Claude, 2026-11-03,
+  lane/claude-quest-cockpit-switches, v3.1 on 5e2ed1b1).** Ty: "The two in back are good but lower the panel 2 inches
+  and make the tubes conform to the panel so there is less forward obstruction." BUILT, NOT INSTALLED (no device
+  touched): Quest `[QuestBuild] Quest build SUCCEEDED` (21:51, build-only, 0 error CS); iOS `deploy.sh NOINSTALL` `** BUILD SUCCEEDED **` (21:55, 0 error CS; "installed on 0 of 1 device(s)": NOINSTALL).
+  Renders, rear-seat eye, Quest 3S per-eye FOV, before (5e2ed1b1) / after:
+  `~/Developer/flying-game-worktrees/_xfer/quest-switches/v2/` (README.txt lists all 8). Please look at:
+  1. **Panel** (pitts_rear_panel): the whole rear panel assembly is 50.8 mm lower (77.8 mm in all with v3's 27 mm):
+     rim top 0.2968 -> 0.2190 m. Switch row, placards, gauges, card, COM/XPDR faceplates moved with it; the eye is
+     unchanged. From the eye the panel top is now 8.9 deg below the horizon (v3: 3.3 deg).
+  2. **Bows** (pitts_rear_bows, pitts_rear_bows_up): both rear bows stay. They are rebuilt so that from your eye
+     each one runs just UNDER the panel's top edge (the rim outline projected from the eye onto the bow, inset by
+     the tube), so you see the panel edge, not a hoop above it (crowns 0.321 -> 0.222 / 0.228 m). The latch block,
+     pin and black knob came down 96 mm with them; the release cable follows the new rear bow. Because the lowered
+     panel's shoulders are now below the sill, each bow ends in a short level foot (~7 cm) out to its sill rail:
+     visible either side of the panel. Is that acceptable, or should the bows meet the rails some other way?
+  3. **Over the nose** (pitts_rear_nose; ray cast through the GLB, tools/own_models/check_pitts_rear_view.py):
+     the cowling top edge is 1.9 deg below the horizon, the same before and after (the eye and cowling don't move).
+     Before, the rear latch block sat right on the horizon line straight ahead. Now the cowling is visible from
+     -1.9 down to -3.35 deg dead ahead, where the FRONT cockpit's canopy latch block (left on the front panel
+     crown when v3 removed the front bows) is the next thing in the way. 3 deg either side of centre, cowling is
+     visible down to -4.9 deg (was -3.4). Should that front latch block go, or move?
+  4. **Nothing pokes out** (new check_pitts_rear_view.py, all four liveries): every rear-panel, bow, latch, cable
+     and rear control vertex is inside the fuselage skin (min 2.6 mm), the panel clears the rear stick's full
+     envelope by 35.5 mm, the pedals by 376 mm and the rear pilot's legs by 125 mm. New
+     tools/FlightTests/PittsRearViewTests.cs pins the numbers as literals. check_vr_phase2.py (broken since v3
+     dropped the front bows) checks the v3.1 bows again; check_vr_phase3 PASS.
+  Tests: the Pitts/cockpit classes pass (133); failures are the same pre-existing ones as at 2be16316: ModelRigTests
+  glider air brake and the 3 AerobatGroundHandling Pitts landing tests. Nothing approved.
+- **QUEST COCKPIT SWITCHES: GREAT LAKES v7 MERGED IN, PITTS + EXTRA SWITCHES IN ONE ROW ON THE PANEL, EXTRA PANEL/STICK
+  RESIZED, PITTS CANOPY/NOSE VIEW, NO HEADSET CORD (Claude, 2026-11-03, lane/claude-quest-cockpit-switches off the Quest
+  lane 2be16316).** Owner pt502u + three add-ons. BUILT, NOT INSTALLED (no device touched): Quest APK
+  `[QuestBuild] Quest build SUCCEEDED` (21:01, 0 error CS); iOS deploy.sh NOINSTALL: `** BUILD SUCCEEDED **` 21:06 (0 error CS, "installed on 0 of 1 device(s)": NOINSTALL is not a device).
+  Renders, before (2be16316) / after, same Quest-3S-eye camera: `~/Developer/flying-game-worktrees/_xfer/quest-switches/`
+  (README.txt lists all 36). Please look at:
+  1. **Great Lakes** (gl_*): your approved v7 cockpit is now in the Quest lane (merge of lane/codex-greatlakes-cockpit,
+     four ailerons, upper slaved). gl_front_before shows WHY you saw switches outside: they sat on the fuselage deck.
+     Only the ignition and radio are on the panels (v7); the two ignition switches were hanging below the panel edge
+     and are now on the face. The FRONT radio knobs still sit along the bottom edge of the front panel (v7 placement;
+     your keypad decision will replace them). OK?
+  2. **Pitts** (pitts_*): 12 switches in ONE line along the bottom of each panel, six left / six right of a centre gap
+     (a full-width row runs into the stick's sweep), with placards; radio knobs on COM/XPDR faceplates above the gauges.
+     Is a centre gap acceptable as "one row"?
+  3. **Pitts canopy bars** (pitts_front, pitts_canopy_bars): the two bows over the FRONT panel are gone. The two hoops
+     you see from the REAR seat (over the rear panel, just behind the front seater) are still there; if those are the
+     bars you meant, say so and they go too. New black release knob front-left + cable (pitts_canopy_front_left).
+  4. **Pitts over the nose** (pitts_rear_nose): rear panel 27 mm lower, eye unchanged; the cowling top is now just
+     visible over it in level flight (3.1 deg below the horizon). Enough?
+  5. **Extra** (extra_*): rear (and front) panel now runs out to both cockpit walls (no side gaps), 0.275 m tall
+     (was 0.438 m of panel face; ~0.25 m measured on a photographed 330LX panel), one switch row along its bottom, radio
+     knobs on a small centre subpanel below, small gauges moved to the side wings, stick 0.06 m shorter. No published
+     Extra panel height or stick length was found; both numbers are photo estimates (log entry). Right size?
+  6. **Headset cord**: removed in every aircraft (it was a runtime rope in the Quest hands code, not part of any model).
+  Pre-existing failures, same at 2be16316: AerobatGroundHandling (3 Pitts landing tests), ModelRigTests glider air
+  brake, StreamingAssetsTests x2. Nothing approved.
 - **QUEST STORE RELEASE APK READY, NOT UPLOADED (Claude, 2026-11-03, lane/claude-vr-hands-fix).** Meta Horizon Store app
   1408996628974607, package com.tyrelfrisby.aeroplayground.quest. `build/quest/release/AeroPlayground.apk`, versionCode 2,
   versionName 2026.1103.0920, 200,713,755 bytes, signed with the NEW upload key (cert SHA-256
@@ -118,6 +172,29 @@
      3 m/s, full pedal). Stern renders side/top/rear, down/up: `docs/pending/j3-cockpit/v18/water-rudder/` (box
      /workspace/j3-cockpit/v18/water-rudder/). Steers too hard?
   Nothing approved.
+
+## NEEDS YOU — Great Lakes v7 review (Ty, 2026-11-03 10:26 PST)
+- Ty critique: the throttle/prop/mixture quadrant labels overhang ahead of and behind the curved quadrant. Trim the label plates so they end where the quadrant curve begins. Render approval still pending; no code changed.
+- **GREAT LAKES: THROTTLE QUADRANT LEVERS + ONE LABELLED SWITCH ROW (Codex, 2026-11-02, lane/codex-greatlakes-cockpit,
+  7fcd960e · 25c0914f). Ty's answer: the throttle is a QUADRANT LEVER, not push-pull (recorded in TY-DECISIONS.md).**
+  BUILD SUCCEEDED (build-only, bundle 2026.1102.2236, 0 `error CS`, bundleVersion bump reverted). Not merged, not installed.
+  Close-up renders: Grok box /workspace/greatlakes/v2/throttle/ (Mac /tmp/glthr, prefix v3_). In the headset, Great Lakes, from each seat:
+  1. **Quadrant.** On the left sidewall of each cockpit there's a quadrant. From inboard to outboard it holds the black throttle, the blue prop lever and the red mixture lever, and forward is full. The throttle is grabbable as a LeverArc, using the same grab API as the Pitts and Extra. The rear quadrant now sits at panel-bottom height to match IMG_1666, not at hip height as in your earlier photo. Right height? Is the housing too big?
+  2. **Switches.** Each panel now has a single row along its bottom edge, and every switch has a placard: MAGS, MASTER, FUEL PUMP, CARB HEAT, SMOKE, TRIM, FUEL VALVE, NAV LTS, STROBE, LAND LT. All of them pass the interior test. In the rear row, MAGS and MASTER sit left of the sequence card. Do you want them right of it?
+  3. **Front radio remote.** It has 10 COM/XPDR knobs with no labels, just above the switch row. They were there before this work, but they read as a second row. Should they be removed, moved or labelled? The placard font has no digits and no J, Q, Y or Z.
+  4. **Not done.** Prop and mixture slide along the chord of the lever arc, not a true arc. Legacy liveries weren't rebuilt. Stick hand logic is still lane/claude-vr-hands-fix's.
+  **Nothing approved.**
+- **GREAT LAKES v2: SWITCHES ON THE PANEL + NEW WINDSHIELDS (Codex, 2026-11-02, lane/codex-greatlakes-cockpit,
+  2576bec6 · 09bc3206). Owner pt281u: "switches were outside … on the sides; windshields not even close".** BUILD SUCCEEDED (build-only deploy copy, no install, 0 `error CS`). Not
+  merged, not installed. Renders (before/after, same cameras): Grok box /workspace/greatlakes/v2/, Mac
+  ~/Developer/glv2-renders/. In the headset/phone, Great Lakes, from each seat:
+  1. **Switches.** Every switch, knob and lever (88 across the GL, Pitts and Extra GLBs) now sits on a panel face
+     inside the cockpit, not out on the fuselage sides. Right spots?
+  2. **Windshields.** One-piece, curved and frameless, standing on the turtle deck ahead of each opening, with only a
+     thin aluminium strip at the base. The front one is lower (top +0.373 m) and flatter on top than the rear one
+     (+0.398 m). Height and rake right? Do you see over the front one from the rear seat?
+  3. **Stick/throttle by hand.** Not this lane: it belongs to lane/claude-vr-hands-fix (untouched here).
+  **Nothing approved.**
 - **QUEST: HANDS BUILD FOR THE HEADSET — lane/claude-quest-hands-install (Claude, 2026-11-02 19:10 PST). Ty EXPLICITLY
   APPROVED installing the hand-tracking build on the Quest (19:10 PST); that overrides the "do not install on the
   Quest" note in the lane/claude-vr-hands brief. This approves the INSTALL only: no gate, merge to main or feature is
@@ -2786,6 +2863,65 @@ passes on the merge (J3FloatsWaterTests.FullRudderOnATaxiDoesNotCapsizeIt). **On
 - `QuestFrameBudgetProbe` stays red as it was on the Quest parent (167.5 KiB/s there): 184.0 on the merge; the steady
   state is the parent's 71 KiB/s; the extra is a one-time first-touch cache (CellEntry[], 361 KiB at second 15).
 <!-- /parity-merge entry -->
+### 2026-11-03 21:30 PST — Claude · lane/claude-quest-cockpit-switches (off lane/claude-quest-islandnav 2be16316) · switches on the panels on the Quest, GL v7, Pitts/Extra rows, Extra panel + stick, Pitts canopy + nose, headset cord
+Owner pt502u: "the pitts and the great lakes have switches outside of the panel on the meta quest version use the new
+great lakes and fix the pitts with one row of switches along the bottom of the panel"; plus (via Grok Bot) the Extra
+panel/stick/row, the Extra rear-panel side gaps, the headset cable, and the Pitts canopy bars / release knob / nose view.
+- **Commits.** 0e63e696 merge lane/codex-greatlakes-cockpit (9dd328dc); 4f54176b headset cord off; 62c54a41 Pitts v3;
+  60f3ff48 Extra P3f; be648602 GL ignition on the panels; 74cb309f checks + render tool; and this log.
+- **Why the switches floated on the Quest.** Not a Quest code path: every switch is a GLB node and no runtime code moves
+  it, on either platform. vr_phase3 (P3a) authors every control on a "side console" FORWARD of the panel at |y|
+  .215-.323, which on the Pitts and Great Lakes is outside the fuselage; cockpit_controls_v2 (lane/codex-greatlakes-
+  cockpit) was the pass that put them on the panels, and it never reached the Quest lane. Worse, the Quest lane's
+  Great Lakes was rebuilt in 2be16316 as island-nav's fresh Blender export run through P3a/P3c only, so its switches
+  went straight back out onto the deck. iOS draws the same GLBs from the same eye (CockpitFov 72 deg, flat gauge
+  overlays over the lower view); the headset shows the whole 3-D cockpit at full scale with no overlay, so it was seen
+  there first. Prevention: vr_phase3 now prints that it is not finished and lists each model's pass order;
+  cockpit_controls_v2.apply refuses a GLB a later pass owns (Pitts v3, Extra P3f, GL quadrant); CockpitControlInteriorTests
+  (now in this lane; it had not been run since GL v4) passes on all 8 GLBs with the GL v7 console/wall rule added.
+- **Great Lakes.** Merged, not cherry-picked (history and Ty's approval entries come with it). GLB = HEAD's six-gauge
+  export + the lane's own passes re-run in order (cockpit_controls_v2, gl_windshield_v2, gl_quadrant_v3 from
+  GL_QUADRANT_BASE_DIR): every Ctl_/quadrant/console mesh equals the approved v7 GLB. Four ailerons: LL/LR drivers,
+  UL/UR followers on the slave struts (solved constant-length tables), all on the "aileron" param (rig rows checked).
+  Ignition switches moved onto the panel faces (rear z -.098 -> -.061, front -.078 -> -.041; they hung below the edge).
+  check_vr_phase3 had not been re-run since v3 and failed on the approved v7 GLB itself (push-pull throttle box, stale
+  40 mm sweep radii); fixed in the checker / metadata, not by moving approved parts.
+- **Pitts** (pitts_cockpit_v3.py --switch-groups, Codex-authored, applied by me): one line of 12 switches along the bottom
+  of each panel (6 + 6, 31 mm pitch, centre gap for the stick sweep; rear panel face extended down to carry it, row z
+  -.167; front -.096), placards; radio knobs on COM/XPDR faceplates; Canopy_Bow_*_Front meshes dropped; 20 mm black knob
+  front-left + 3 mm cable to the existing black latch knob; rear panel assembly 27 mm lower (top .294 -> .267 m), eye and
+  config unchanged: panel-top sightline -0.35 -> -3.34 deg, cowling crown visible at -3.13 deg. Reference for the S-2B's
+  limited forward view: AOPA Pilot "Pitts S-2B" (A. K. Marsh, April 1996); the exact target is Ty's instruction.
+- **Extra 300** (extra_panel_p3f.py). Sources searched: Extra 300L Information Manual (Fig 7.6.1 rear panel: no
+  dimensions), Extra 300L IPC (stick 43203.000-LK / 46204.000-LK, panel 86502.008-01: part numbers only), the 300LX
+  maintenance manual (blocked to scripts). Measured instead: Wikimedia Commons "Extra 330 LX cockpit.jpg" scaled by its
+  3-1/8 in ASI: upper rear panel ~0.25 m tall with one switch row along its bottom, bolted to the frame both sides, a
+  centre subpanel below; "Cockpit Extra330LC (4435531411).jpg" shows the same on a bare frame. Before -> after (m):
+  panel face height 0.438 (P3b .075..360 + P3e -.078..075) -> 0.275 (.085..360); rear half-width .220 -> .293 at the
+  bottom (walls .297) up to .391; stick pivot-to-grip-top rear 0.481 -> 0.421, front 0.461 -> 0.401 (from the rear eye
+  the old grip top projected onto the middle gauge row; in both photos it lines up with the panel's bottom edge:
+  0.048 m puts it there, the 330LX projection implies ~0.078; 0.06 chosen). Switches: one row z .115, |y| <= .274.
+  Radio knobs: centre subpanel below. 2-1/4 in gauges to the side wings (fuel left, ammeter right above the IAC card).
+- **Side gaps on the other two-seaters** (slice of the walls at each panel plane): Great Lakes front and rear panels meet
+  the walls (<= 7 mm); 2-33 front panel meets them, its rear seat has no panel; J-3 (both) panel stops 30 mm short at
+  the bottom and its rounded top corners up to 105 mm, but the gap is behind the yellow door-post tubes from both eyes
+  (j3_* renders) and the v18 panel is Ty-reviewed: left unchanged, flag if wanted.
+- **Headset cord**: the only cord was VrCockpitHands' runtime rope + plug (Quest only, every aircraft; no model has a
+  cable). HeadsetCordOn = false at the one place a HeadsetCord is made; the pilot-gear GLB's unhidden Headset_Plug root
+  is hidden too. iOS never drew it, so both builds agree.
+- **iOS vs Quest.** One set of GLBs, rig tables and seat eyes for both; nothing here is platform-specific, so the switch
+  positions, panels, sticks and canopy are identical on iOS. The only VR-only change is the cord (it never existed on iOS).
+- **Tests** (targeted, no full suite): CockpitControlInteriorTests, OwnPittsModelTests, CockpitLiveTests 45/45 pass;
+  CockpitEye/ExtraRearPanelTop/ModelRig/StreamingAssets/SeatChoice/PanelControl/HeadsetCord: 131/134, the 3 failures
+  (ModelRigTests glider air brake, StreamingAssetsTests x2) identical at 2be16316; AerobatGroundHandlingTests 3 Pitts
+  landing failures, identical at 2be16316. Checkers: check_vr_phase3 PASS 10 assets / 442 controls; check_gl_quadrant OK;
+  check_great_lakes_rig 92/92.
+- **Builds** (not installed; Quest 340YC10GBK0TYV and the iPhone untouched): Quest `deploy-quest.sh --build-only`
+  `[QuestBuild] Quest build SUCCEEDED` 21:01 (0 error CS); iOS `deploy.sh NOINSTALL`: `** BUILD SUCCEEDED **` 21:06 (0 error CS, "installed on 0 of 1 device(s)": NOINSTALL is not a device). Build-time
+  GraphicsSettings.asset shader line and bundleVersion bump reverted.
+- **Renders**: ~/Developer/flying-game-worktrees/_xfer/quest-switches/ (README.txt), tool CockpitEyeShots.cs.
+  Nothing approved.
+
 ### 2026-11-03 09:31 PST — Claude · lane/claude-vr-hands-fix · Quest store release build (Meta Horizon Store), not uploaded
 - Signing: the Quest APK was signed with Unity's Android Debug key (cert 9c7224d9…3956). New PKCS12 upload keystore
   OUTSIDE the repo, `~/Developer/agent-lanes/keys/aeroplayground-quest.keystore` (dir 700, file 600), alias `upload`,
@@ -2956,6 +3092,30 @@ spring), hung on a hook on the back of the front seat (left) = rudder up.
   ~/Developer/agent-lanes/aero-playground/AeroPlayground-quest-hands-j3v17-2026.1102.2002-00083874.apk.
 - **Install:** `adb -s 340YC10GBK0TYV install -r`: Success; versionName 2026.1102.1913 → 2026.1102.2002 (20:12 PST); launched
   via monkey. Install was approved by Ty for this build. No gate approved.
+- 2026-11-02 22:41 PST Codex lane/codex-greatlakes-cockpit: GL throttle quadrant (Ty: "quadrant lever") on the left sidewall of each cockpit, throttle/prop/mixture, grabbable (LeverArc via the Throttle_R/F pivot + Grip_Throttle_*); prop/mixture are Ctl_ rot rows. Switches moved to one placarded row along the bottom of each panel (steering t290u). Rig json deduped (347→91 rows: every P3a control was listed 9×, so only the last row's pivot moved). New gl_quadrant_v3.py (deterministic; restores from 4dc7ded5) and check_gl_quadrant.py. Tests: check_gl_quadrant OK, check_great_lakes_rig 91/91, check_gl_p3c PASS, GL+interior NUnit 9/9. The filtered Rig/Cockpit/Vr run had 17 failures, all unrelated (world, Pitts ground, glider airbrake, nav). check_vr_phase3 not run (no PIL on the Mac). Commits 7fcd960e, 25c0914f. BUILD SUCCEEDED 2026.1102.2236, not installed.
+### 2026-11-02 — Codex · lane/codex-greatlakes-cockpit · Great Lakes v2: controls on the panel faces, frameless windshields
+Owner pt281u (verbatim): "the switches were outside of the great lakes on the sides. the windshields are not even close
+to correct try again.  hand control did not work on the great lakes stick or throttle".
+- **Controls (2576bec6).** `tools/own_models/cockpit_controls_v2.py` re-seats every `Ctl_*`/`Mount_*` node on real
+  panel-face triangles: GL (rear face x −1.638, front −0.968), Pitts (−0.808/−0.151), Extra (−1.172/−0.147). The rig JSONs
+  were updated to match. New `tools/FlightTests/CockpitControlInteriorTests.cs` checks each control on 8 GLBs (GL main, 4 Pitts,
+  3 Extra; 88 controls): the pivot must be within −8/+3 mm of the face, and a ±12 mm footprint must land on panel-face triangles.
+  The 8 tests pass; a Python prototype of the same test fails 88/88 on the base a112004a GLBs.
+  `check_vr_phase3`: PASS 10 assets, 440 controls, min clearance 25.43 mm. `OwnPittsModelTests.World` → internal.
+- **Windshields (09bc3206).** `tools/own_models/gl_windshield_v2.py` (idempotent) replaces both GL screens with one
+  closed, curved solid each (4.7 mm thick, acrylic, no frame or rim material). Each stands on the deck ahead of its opening,
+  with a superellipse top: the front is lower and flatter (top .373, n=4, rake 58°), the rear taller (top .398, n=2.2, rake 62°).
+  The base trim is a 14 mm aluminium strip with 9 screws, renamed `GL_Windshield_Base_Trim_<Seat>` (a `Windscreen*` name would read as
+  glass in AirframeSurface). Applied to all 3 GL GLBs. Cabane struts and gear legs are untouched. `check_gl_p3c.py` asserts it
+  (manifold, one component, thickness, ahead-of-opening, on-deck, rake 45–75°, alpha, ior, trim) and passes on all 3.
+- **Tests.** The full suite has failures in world/terrain/handling classes. Re-run in isolation, the 16 failures in Alaska,
+  StreamingAssets, AerobatGroundHandling and AirframeContact are the same names at a112004a (a temporary detached worktree, since removed).
+- **Build.** deploy.sh's Unity export + xcodebuild steps, with no device install and lane-private /private/tmp/glv2-* dirs:
+  `** BUILD SUCCEEDED **`, 0 `error CS` (21:40 PST); the bundleVersion bump was reverted.
+- **Not done / open.** The stick/throttle hand grab is lane/claude-vr-hands-fix (not touched). The legacy GL liveries
+  (-red-sunburst, -white-stripes) have different cockpit stations, and nothing references them; they get the new screens but are excluded
+  from the interior test. The eye note in great-lakes-like.json was written against the old screen tops. Possible GLB merge conflict
+  with 8c88bb74 (floor windows) on Pitts/Extra. The check_great_lakes_rig failure on Grip_Magneto rotation predates this lane.
 ### 2026-11-02 — Claude · lane/claude-quest-hands-install · the hands build on Ty's Quest (install approved by Ty, 19:10 PST)
 - **Approval:** Ty explicitly approved installing the hand-tracking build on the Quest (19:10 PST). This overrides the
   "do not install on the Quest" note in the lane/claude-vr-hands brief, for the install only. No gate is marked approved.
@@ -7898,3 +8058,148 @@ Added to `renders/hud-layout/v1/`, leaving the original analog PNGs intact:
 - `hud-hud-touch-portrait-mp.png`
 
 README and manifest include provenance, capture command, hashes and the MP equipment/presentation rule. Glass Overlay untouched. Required tracked-file ignore audit prints nothing before the local commit; no forced add, push, merge, installation, deployment or visual approval claimed. Ty's review remains pending.
+
+## 2026-11-03 — Great Lakes v4 left-wall cable trim (Codex)
+
+Ty request on lane/codex-greatlakes-cockpit, starting f36f095e: removed TRIM and FUEL VALVE from both panel switch rows; eight remaining controls retain individual placards and even spacing (rear row keeps its card gap). Rebuilt both trim controls as fore/aft cable handles on the left wall, 80 mm aft of the quadrant pivot and 115 mm below it, with a 120 mm slot, nine scale ticks, moving red pointer and TRIM / NOSE DOWN / NOSE UP placards. Forward is nose-down, aft nose-up; both use the existing shared trim input. Placement/reach is an authored estimate for pilot review. Removed obsolete low-wall trim meshes and fuel valve meshes, mounts and interactions; no fuel valve placed pending Ty's real location. Glass Overlay untouched.
+
+Generator remains deterministic from its documented base. Validation: switch-row legality passes; check_gl_quadrant.py passes both rows, trim translation/direction, absent obsolete controls and quadrant sweeps (rear 14.2 mm / front 13.0 mm minimum sampled clearance). No Unity/device validation claimed. Blender v4 renders and visual review recorded below. Local only; no push.
+
+## 2026-11-03 — Great Lakes photo console correction (Codex)
+
+Studied Ty's `greatlakes-quadrant-switches-ty.png` and `greatlakes-cockpit-ty.png`. Supersedes the panel-row interpretation above: both panels retain ignition only; battery master / ALT OUT / fuel pump toggles now sit on the grey left console ahead of the quadrant, with ON legend and breaker rows on its inboard face. Other existing auxiliary inputs move to the breaker face. ALT OUT is a visual placard/toggle (no new simulator input invented). Black separate quadrant plates carry THROTTLE / RPM / MIXTURE and CLOSED / DEC legends, black T ball, blue prop lever, and red star friction adjuster. White braided cable runs fore/aft below it; a small cable clamp carries the pointer beside the existing scale (nose-down forward). Fuel valve omitted pending Ty's location. Glass Overlay untouched.
+
+Reused unfinished `render_gl_v4.py`. Photo placement assertions and sampled quadrant sweep checker PASS: rear 14.2 mm, front 13.0 mm minimum clearance; trim linkage/direction and absent fuel-valve checks pass. No Unity/headset validation claimed. Requested review renders use prefix `gl4` in `renders/greatlakes/v4/`; prior untracked `great-lakes_*` images are pre-correction artifacts and are not the delivered views. Local commits only, no push; no force-add. Tracked-file ignore audit must print nothing immediately before each commit.
+
+Final visual pass: rounded the separate quadrant cheeks, cylindrical blue prop knob, larger T marking, shortened the console face so trim lies below it, and lowered the trim camera to expose the cable clamp/scale. Four final 1600×1200 Cycles renders inspected: `gl4_front_seat_panel.png`, `gl4_rear_seat_panel.png`, `gl4_left_console_photo.png`, `gl4_trim_rear_left_wall.png`; camera manifest `gl4_cameras.json`, all under `renders/greatlakes/v4/`. Panel radio knobs remain existing avionics controls. Placement and sweep checks pass after final geometry edits. Prior rebuild determinism verified by matching SHA-256; no runtime validation claimed.
+
+## 2026-11-03 — Great Lakes v4 continuous trim / linked fuel valve follow-up
+
+Ty correction: replaced the two short trim cord segments with a continuous braided run from ahead of the front cockpit, below both left quadrants, aft through simple ring fairleads along the narrowing fuselage toward the tail. Existing cable clamps, scales and linked trim input remain; nose-down is forward. Routing beyond the photographed cockpit is an authored estimate.
+
+Added the two red right-wall fuel handles opposite the left quadrants on a common fore/aft torque rod extending ahead of the front seat. Default model is ON, both handles down; both existing FuelSelector interactions share fuel_valve with a 90-degree turn toward the pilot knee for OFF. Static rod bearings support the linkage. Restored shared rig rows and interaction metadata; generated StreamingAssets mirror remains ignored and is not staged. Glass Overlay untouched; existing glass node/material dictionaries match HEAD.
+
+Validation: deterministic GLB rebuild SHA-256 match; photo placement and quadrant/trim/fuel linkage checker PASS (14.2 mm rear / 13.0 mm front quadrant sweep clearance). No Unity/headset validation or pilot approval claimed. Four additional v4 review views are being rendered with render_gl_v4.py, including a render-only simultaneous OFF pose; shipped GLB stays ON. Local commits only, no push, no force-add. Pre-commit tracked-file ignore audit required to print nothing.
+
+Fuel input convention checked against VrCockpitHands.Panel.cs: 1 = ON (down), 0 = OFF (inboard); rig model value is 1. OFF review explicitly sets Blender XYZ rotation for both handles.
+
+v4 render inventory (all relative to repository root):
+- `renders/greatlakes/v4/gl4_linkages_fuel_valve_rear_right.png`
+- `renders/greatlakes/v4/gl4_linkages_fuel_valve_front_right.png`
+- `renders/greatlakes/v4/gl4_linkages_fuel_valve_off.png`
+- `renders/greatlakes/v4/gl4_linkages_trim_run.png`
+- `renders/greatlakes/v4/gl4_front_seat_panel.png` (prior v4)
+- `renders/greatlakes/v4/gl4_rear_seat_panel.png` (prior v4)
+- `renders/greatlakes/v4/gl4_left_console_photo.png` (prior v4)
+- `renders/greatlakes/v4/gl4_trim_rear_left_wall.png` (prior v4 short cord)
+- `renders/greatlakes/v4/great-lakes_front_seat_panel.png` (pre-correction, untracked)
+- `renders/greatlakes/v4/great-lakes_rear_seat_panel.png` (pre-correction, untracked)
+- `renders/greatlakes/v4/great-lakes_trim_front_left_wall.png` (pre-correction, untracked)
+- `renders/greatlakes/v4/great-lakes_trim_rear_left_wall.png` (pre-correction, untracked)
+Camera manifests: `gl4_linkages_cameras.json`, `gl4_cameras.json`, and pre-correction untracked `great-lakes_cameras.json` in the same directory.
+
+Final four new 1600×1200 Cycles images visually inspected. Rear/front ON close-ups show down-pointing red handles and rod; OFF close-up shows the inboard handle pose. Trim run is viewed aft from the narrow left-wall corridor, with 2 W local review fill to expose the cable, scale and fairlead; seats/fuselage naturally occlude the enclosed tailward portion. No geometry hidden for these views. Camera manifest covers the four final presets. Rejected obstructed camera drafts were kept outside the repository or replaced before staging. Final model+rig deterministic rebuild PASS. Existing pre-correction untracked artifacts preserved untouched.
+
+## 2026-11-03 — Great Lakes v5 aft/outboard console correction (Codex)
+
+Applied Ty's follow-up from v4 left_console_photo to both cockpits. Replaced the 320 × 118 × 140 mm console with a compact 130 × 70 × 75 mm enclosure, centered 200 mm aft of the quadrant pivot at Y=.305 m (outboard edge .340 m against the wall). Three top toggles and two five-position breaker rows fit with 24 mm breaker pitch; existing auxiliary interactions retained. All box hardware is aft of the full lever swept volume. Separate console hardware mesh makes it included in the environment clearance check.
+
+Throttle remains tallest (150 mm shaft), prop next (135 mm), mixture shortened to 105 mm. Black T ball retained; prop now a flat 26 × 8 × 34 mm blue paddle. Photo does not visibly establish a separate mixture knob: kept the required existing simulator mixture control with a small plain black cylindrical grip instead of the red ball. Red star friction adjuster stays on quadrant cheek. Existing inputs, full 50-degree lever travel, linked trim and right fuel linkage retained. Glass Overlay untouched; glass node/material dictionaries equal pre-change HEAD.
+
+Validation: deterministic GLB + rig rebuild PASS. check_gl_quadrant.py checks environment at one-degree travel increments (rear 14.1 mm / front 13.0 mm minimum sampled margin, conservative paddle bound); continuous analytic X extrema of every moving mesh vertex prove 51.6 mm separation from console enclosure/hardware in each cockpit. IAC holder bounds do not overlap either enclosure; rays from both eye nodes to card face mesh vertices clear both boxes. No Unity/headset or pilot approval claimed. Render-only travel copies show idle plus translucent mid/full positions; no model pose changes. V5 render review recorded in next commit. Local only, no push; never force-add.
+
+Additional v5 validation: independent-input lever travel cannot produce shaft/grip contact: rotation preserves lateral slabs, which remain 3.7 mm apart at all combinations of inputs (shared pivot bosses excluded from the free shaft/grip test). Updated the existing rig checker to expect the chosen black mixture grip; all 91/91 bindings, parents, pivots, moving meshes, axes and scales pass.
+
+V5 review render inventory, all under `renders/greatlakes/v5/`:
+- `gl5_left_console_photo.png`
+- `gl5_front_seat_panel.png`
+- `gl5_rear_seat_panel.png`
+- `gl5_trim_rear_left_wall.png`
+- `gl5_fuel_valve_rear_right.png`
+- `gl5_fuel_valve_front_right.png`
+- `gl5_fuel_valve_off.png`
+- `gl5_trim_run.png`
+- `gl5_quadrant_front_close.png`
+- `gl5_lever_travel_clearance.png`
+- `gl5_lever_travel_clearance_front.png`
+
+Operator renderer `tools/own_models/render_gl_v5.py` preserves the eight delivered v4 cameras and adds front quadrant and both-seat travel views. Camera manifest: `gl5_cameras.json`; travel views use actual moving meshes at 0 degrees (solid), 25 and 50 degrees (translucent green), about builder +Y. No geometry hidden beyond existing default visibility metadata. Final travel cameras sit inside the rim to avoid the rejected obstructed drafts. All images are 1600 × 1200, 24-sample denoised Cycles. Original untracked pre-correction v4 files preserved.
+
+Final visual QA: inspected all eleven delivered images, including both unobstructed final travel cameras, matching console/card view, both panel views, both trim views and all fuel views. Final front close-up confirms staggered black/blue/black handles and the side friction star. All PNGs verified at 1600 × 1200; final manifest reconciled to the eleven completed files and final travel camera settings. Pre-commit tracked-file ignore audit printed nothing for each local commit. No push.
+
+## 2026-11-03 — Great Lakes v6, Ty's explicit quadrant correction (Codex)
+
+Reference inspected: `~/Developer/agent-lanes/aero-playground/ref/greatlakes-quadrant-switches-ty.png`. Applied Ty's explicit v6 instructions where they differ from visible photo hardware: three round black/blue/red knobs, with the red mixture on its own lever inside the third quadrant slot; removed the side red friction star. Both cockpits retain laminated black quadrant cheeks, staggered lever heights (150/135/120 mm shafts), throttle tallest, and independent 50-degree forward lever travel. Widened free lever pitch to 30 mm to accommodate round knobs with 4 mm independent lateral clearance.
+
+Compact 130 x 70 x 75 mm switch boxes stay aft of the levers. Each has six fore/aft toggles on its inboard face: MASTER / ALT / FUEL PUMP above NAV / STROBE / LDG. Added actual alternator interaction/rig nodes, grip and poke points in both seats; all six switch axes now throw fore/aft, OFF aft / ON forward. Six black push-button circuit breakers sit on each lid in matching 2 x 3 order, with matching labels. Preserved existing smoke/carb auxiliary interactions below the enclosure. Alternator follows the existing visual-only panel-control system, like fuel pump/lights; no new simulated electrical system claimed.
+
+Trim red index is now entirely in a dedicated recessed indicator window alongside/below the box, with fixed index on the left; no pointer or clamp on the braided cord. Cord route runs outboard beside the boxes. Existing trim input, travel and sense retained. Fuel handles, common rod and guides, geometry and bindings compare exactly with pre-change HEAD. Windscreen glass node/material/geometry also compare exactly; no Glass Overlay changes.
+
+Validation: 93/93 exported rig bindings, parents, pivots, moving meshes, axes and unit scales PASS. Deterministic GLB + rig rebuild byte-for-byte PASS. Quadrant sweep environment margins: rear 10.7 mm, front 9.9 mm; continuous full-mesh separation from aft box/hardware 54.1 mm both seats; independent free lever lateral separation 4.0 mm. Both IAC eye-to-card sightlines and holder bounds clear. Both 2 x 3 toggle layouts checked against actual grip endpoint motion: ON is forward. Runtime mirror regenerated locally (repository-ignored; never force-added). No Unity/headset or pilot approval claimed.
+
+V6 renders and final visual review recorded below. Local lane only; no merge, push or deploy. Pre-existing untracked v4 artifacts left untouched.
+
+Final visual refinements: removed floating knob letter cards; supported narrow gate names beside the shaft paths; removed obsolete prop/mixture push-pull mount pads that filled those slots. Trim window moved to the visible inboard side (Y=.263 m); pointer stays inside the window, left index fixed, cord runs separately below it at Y=.253 m / Z=-.270 m. Breaker rows aligned with switch rows in the same reading direction. Rejected camera drafts and superseded travel previews are outside the final render set.
+
+Final v6 render review: nine 1600 x 1200, 24-sample denoised Cycles views visually inspected, plus `gl6_side_by_side_ty.png` (Ty's full photo beside the full assembly render, neither cropped). All under `renders/greatlakes/v6/`:
+- `gl6_photo_comparison.png`
+- `gl6_left_console_photo.png`
+- `gl6_console_rear_detail.png`
+- `gl6_console_front_detail.png`
+- `gl6_quadrant_front_close.png`
+- `gl6_trim_rear_left_wall.png`
+- `gl6_trim_front_left_wall.png`
+- `gl6_rear_seat_panel.png`
+- `gl6_front_seat_panel.png`
+- `gl6_side_by_side_ty.png`
+
+`gl6_cameras.json` records the final nine camera presets and clearance figures. Images include actual cockpit geometry and default visibility, no cutaway; front cockpit views naturally receive less light than rear views. Detail and comparison views show three plain round knobs, open slots, six top breakers in the same reading order as the six face toggles, and separate trim window/cord. Panel views retain both instrument layouts, IAC card and right fuel handles. Code/model/rig local commit: `9e31f458`. Pre-commit check-ignore output empty; no force-add. Final render commit also audited for empty check-ignore output. No merge, push or deploy.
+
+## 2026-11-03 — Great Lakes v7 switch/breaker swap (Ty)
+
+Both cockpits: exchanged the v6 hardware surfaces. Six fore/aft toggles now sit on the box lid; six breakers occupy the former switch positions on the inboard face. Same 2 x 3 reading order on each surface: MASTER / ALT / FUEL PUMP, then NAV / STROBE / LDG. Switch bindings, pivots and hand grip/poke points follow the lid geometry; forward remains ON with the existing 80-degree map.
+
+Throttle shaft unchanged at 150 mm; blue prop shaft is 124.6 mm, exactly 25.4 mm shorter, and red mixture shaft 99.2 mm, exactly 50.8 mm shorter. Round knobs, slots, 30 mm pitch, travel and colours retained. No other geometry changes requested or made. Existing v4 untracked artifacts preserved. No Glass Overlay work, merge, push or deploy.
+
+Validation: 93/93 rig bindings PASS. Exported grip-to-pivot distances checked against shaft lengths plus existing knob centre offsets; exact 1/2-inch shaft stagger contract checked. Both 2 x 3 switch layouts and actual grip endpoints pass forward-ON checks. Same sweep margins: rear 10.7 mm / front 9.9 mm; continuous console separation 54.1 mm; independent lever lateral separation 4.0 mm. IAC holder and both eye-to-card sightlines clear. Final preservation and render results below.
+
+Preservation: compared every exported node, mesh attribute/index array and material against v6. Only the twelve switch nodes and their hand points, the four prop/mixture nodes and their hand points, and the two console hardware meshes changed. All 325 other nodes/meshes/materials unchanged, including throttle, trim/cord/window, fuel, glass and IAC. Deterministic GLB + rig rebuild byte-for-byte PASS. Runtime rig mirror regenerated locally; ignored and not force-added.
+
+Final v7 review set under `renders/greatlakes/v7/`: five 1600 x 1200, 24-sample denoised Cycles views, all visually inspected, plus an uncropped side-by-side with Ty's photo:
+- `gl7_photo_comparison.png`
+- `gl7_console_rear_detail.png`
+- `gl7_console_front_detail.png`
+- `gl7_quadrant_front_close.png`
+- `gl7_console_rear_on.png` (render-only: six rear switches at param 1 / 80 degrees, forward)
+- `gl7_side_by_side_ty.png`
+
+`gl7_cameras.json` records the five delivered cameras and clearance values. No geometry hidden/cut beyond default visibility metadata. Front cockpit naturally receives less light. No headset/pilot approval claimed. Pre-commit check-ignore audit output empty; never force-add. Local lane commit only, no merge/push/deploy.
+
+## 2026-11-03 10:30 PST: Great Lakes radio interaction (design decision)
+NEEDS YOU: none. Ty has decided; this is logged, not a gate approval.
+- Ty wants no turning knobs on the Great Lakes COM and transponder. You tap the radio itself, a small pop-up keypad appears, and you type the frequency or squawk code.
+- Ty: it doesn't have to be super realistic, because turning knobs is always annoying in games.
+- This is also the default for every radio UI in other aircraft.
+- No code changed.
+
+## 2026-11-03 10:30 PST: Great Lakes v7 upper ailerons (Ty's position)
+NEEDS YOU: Ty, confirm after the close-up render which surfaces to remove.
+- Ty's position: there are no little ailerons above the top ailerons, which sounds ridiculous, so the upper extra surfaces should likely be removed.
+- Reference note: the real 2T-1A-2 has ailerons on both the upper and lower wings. If the extra parts are additional small surfaces or tabs on the upper wing, remove them but keep the normal upper ailerons.
+- No code changed yet. A close-up render of the upper wing has been requested.
+
+## 2026-11-03 10:31 PST: Great Lakes instructor fuel cut (Ty decision)
+NEEDS YOU: Ty, review the placement and ON/OFF renders (gl5_fuel_valve_*) that were sent to chat.
+- Ty confirmed that the two right-wall fuel handles work together on one shaft and are fully linked. Moving either handle moves both.
+- No code changed. The placement and ON/OFF visuals are still awaiting his render review.
+
+## 2026-11-03 10:32 PST: Great Lakes paint (Ty decision)
+NEEDS YOU: Ty, approve the renders of the red-with-blue-trim livery once they're made.
+- Ty's favorite is red with blue trim, and it is the default Great Lakes livery.
+- No code changed.
+
+## 2026-11-03 14:35 PST — Great Lakes v7 renders: Ty approved on voice call
+Ty reviewed the gl7 renders (xfer/gl7: side-by-side, photo comparison, rear console) and said he approves v7 (commit 707ae43a). Recorded as Ty's own words; not installed yet.
+
+## 2026-11-03 14:42 PST - Great Lakes wing surfaces: Ty approved (voice call)
+Ty reviewed xfer/glwing close-ups and approved: one aileron per side per wing (4 total), slave struts tying upper to lower, no extra surfaces. Upper-aileron removal question closed.
