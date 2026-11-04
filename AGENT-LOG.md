@@ -1,4 +1,12 @@
 ## NEEDS YOU
+- **PITTS SPIN #4 IS ON THE IPHONE: `2026.1103.1951` (Grok Bot, 2026-11-03 19:56 PST, lane/claude-island-nav `868bdda1`,
+  merge of lane/claude-pitts-spin `3bf6ed2f`/`fe232151` on top of the CAM-button commits):** AGENT-LOG conflict only (both
+  NEEDS YOU entries kept). Merged tree: PittsFlatSpinAileron/Spin/PittsRollRate/CameraReference filter 51/52 passed; the one
+  failure is the pre-existing `SpinTests.ProSpinDepartsAndSustainsRotation` (fails on base too). `deploy.sh
+  00008150-001629A83662401C` `** BUILD SUCCEEDED **`, 0 `error CS`, installed 19:55; the auto-launch failed only because the
+  phone was locked (open it by hand). devicectl shows 2026.1103.1951. ProjectSettings bump not committed. See the run #4
+  entry below for what to fly. No gate approved.
+
 - **PITTS SPIN #4: INVERTED FLAT + FLAT-SPIN AILERON FIXED; BUILT 2026.1103.1941, NOT INSTALLED (Claude, 2026-11-03,
   lane/claude-pitts-spin `fe232151`, island-nav `510f987c` merged in first):** cause: a deflected aileron in separated flow
   was a DRAG along the wind, even in δ. It slowed the spin with either stick, and its chordwise push on a cellule above the
