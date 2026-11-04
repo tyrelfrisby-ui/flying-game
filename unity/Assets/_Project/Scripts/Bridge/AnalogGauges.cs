@@ -172,11 +172,14 @@ namespace FlyingGame.Bridge
             GUI.matrix = m;
         }
 
-        private void OnGUI() => Draw(true);
+        private void OnGUI() { if (!TvOutput.Active) Draw(true); }   // TV mode: the dials are on the TV (DrawForTv)
 
         /// <summary>Clip recorder: draw the dials again into the clip image (GUI.matrix maps the screen view onto it).
         /// No state is advanced (anchor smoothing, g tell-tales) — the live pass owns that.</summary>
         public void DrawForClip() => Draw(false);
+
+        /// <summary>TV MODE (TvOutput): the live pass, drawn into the TV's picture and laid out for it (UiSurface).</summary>
+        public void DrawForTv() => Draw(true);
 
         private void Draw(bool live)
         {
@@ -206,7 +209,7 @@ namespace FlyingGame.Bridge
 
             // Exterior: one fixed flight row and compact engine readouts underneath.
             // Cockpit: retain the existing bottom panel. Neither layout follows the aircraft or camera.
-            Rect view = _cam.pixelRect; float top = Screen.height - view.yMax, bottom = Screen.height - view.y;
+            Rect view = _cam.pixelRect; float top = UiSurface.Height - view.yMax, bottom = UiSurface.Height - view.y;
             float readH = (float)FlyingGame.Core.HudInstrumentLayout.ValueHeight(s);
             bool glider = aircraft.Config.Propulsion == null;
             // Owner 2026-11-02: the engine row goes BELOW the airplane where the controls layout published room for it.
@@ -221,8 +224,8 @@ namespace FlyingGame.Bridge
                 // Fixed face sizes; spare width is not spread across the screen.
                 bool pad = controller;
                 float left = pad ? UiLayout.SafeLeft + UiLayout.Margin : UiLayout.BandLeft;
-                float right = pad ? Screen.width - UiLayout.SafeRight - UiLayout.Margin : UiLayout.BandRight;
-                if (!pad) right = Mathf.Min(right, Screen.width - UiLayout.SafeRight - UiLayout.Margin - s * .19f - UiLayout.Gap);
+                float right = pad ? UiSurface.Width - UiLayout.SafeRight - UiLayout.Margin : UiLayout.BandRight;
+                if (!pad) right = Mathf.Min(right, UiSurface.Width - UiLayout.SafeRight - UiLayout.Margin - s * .19f - UiLayout.Gap);
                 float width = (float)FlyingGame.Core.HudInstrumentLayout.RowWidth(s, right - left, pad);
                 float x = (left + right - width) * 0.5f;
                 float step = width / 4f; columnWidth = step;
@@ -232,7 +235,7 @@ namespace FlyingGame.Bridge
                 alt = new Vector2(x + step * 1.5f, y);
                 gc = new Vector2(x + step * 2.5f, y);
                 vc = new Vector2(x + step * 3.5f, y);
-                if (live) { UiLayout.DialsLeft = right; UiLayout.DialsRight = right; UiLayout.DialsFrame = Time.frameCount; }
+                if (live && !UiSurface.IsTv) { UiLayout.DialsLeft = right; UiLayout.DialsRight = right; UiLayout.DialsFrame = Time.frameCount; }
                 if (belowPlane)
                 {
                     float er = (float)FlyingGame.Core.HudInstrumentLayout.EngineRadius(s, pad);
@@ -432,7 +435,7 @@ namespace FlyingGame.Bridge
             _mono.fontSize = UiLayout.MinText;
             float lh = _mono.fontSize * 1.2f, w = _mono.CalcSize(new GUIContent(rows[0])).x + fs * 0.6f, hh = lh * rows.Length + fs * 0.4f;
             // Between the dial columns, at the top of the band (cockpit: above the panel, top-left of the view).
-            float x = (Screen.width - w) * 0.5f;
+            float x = (UiSurface.Width - w) * 0.5f;
             float y = UiLayout.ToolbarBottom + UiLayout.Gap;
             GUI.color = new Color(0f, 0f, 0f, 0.45f); GUI.DrawTexture(new Rect(x, y, w, hh), Texture2D.whiteTexture); GUI.color = Color.white;
             for (int i = 0; i < rows.Length; i++) GUI.Label(new Rect(x + fs * 0.3f, y + fs * 0.2f + i * lh, w, lh), rows[i], _mono);

@@ -175,6 +175,9 @@ namespace FlyingGame.Bridge
             bool analog = SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && Gauges != null;
             bool hud = SessionSettings.Instruments == SessionSettings.InstrumentMode.Hud && Hud != null;
             if (!analog && !hud) return;
+            // TV mode: the main camera renders the TV's picture, so the dials are laid out for the TV (TvOutput, UiSurface).
+            bool tv = TvOutput.Active;
+            if (tv) UiSurface.Begin(TvOutput.Width, TvOutput.Height);
             RenderTexture prev = RenderTexture.active;
             Matrix4x4 keep = GUI.matrix;
             Color keepColor = GUI.color;
@@ -186,7 +189,7 @@ namespace FlyingGame.Bridge
                 if (analog)
                 {
                     Rect vp = _main.pixelRect;
-                    float top = Screen.height - vp.yMax;   // GUI space is top-left origin
+                    float top = UiSurface.Height - vp.yMax;   // GUI space is top-left origin
                     float s = _rt.width / vp.width;
                     GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1f)) * Matrix4x4.Translate(new Vector3(-vp.x, -top, 0f));
                     Gauges.DrawForClip();
@@ -203,6 +206,7 @@ namespace FlyingGame.Bridge
                 GUI.color = keepColor;
                 GL.PopMatrix();
                 RenderTexture.active = prev;
+                if (tv) UiSurface.End();
             }
         }
 

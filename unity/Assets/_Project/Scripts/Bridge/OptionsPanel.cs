@@ -280,6 +280,17 @@ namespace FlyingGame.Bridge
             int im = PickRow("Instruments", new[] { "Dials", "HUD", "None" }, System.Array.IndexOf(modes, SessionSettings.Instruments), ref y);
             if (im >= 0) { SessionSettings.Instruments = modes[im]; SessionSettings.SavePrefs(); }
 
+            // TV MODE (Ty 2026-11-04): what a connected TV (AirPlay or HDMI) shows. Always listed on iOS, so it can be
+            // set before the TV is plugged in; TvOutput applies it whenever one is there.
+            if (TvOutput.Supported || TvOutput.SimulateForTest)
+            {
+                var tvs = new[] { FlyingGame.Core.TvSetting.GameOnTv, FlyingGame.Core.TvSetting.Mirror };
+                int tv = PickRow("TV screen", new[] { "Game on TV", "Mirror" }, System.Array.IndexOf(tvs, TvOutput.Setting), ref y);
+                if (tv >= 0) TvOutput.Setting = tvs[tv];
+                Note(TvOutput.TvConnected ? TvOutput.StatusText
+                     : "Game on TV: the TV shows the flight, this screen becomes the controls", ref y);
+            }
+
             // The radio stack and the dead-reckoning instruments (owner 2026-10-18). On by default: the
             // chart shows no position, so these are the only way to find out where you are.
             bool nav = NavRadios.Shown;

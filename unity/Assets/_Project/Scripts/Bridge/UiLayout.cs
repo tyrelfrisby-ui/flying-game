@@ -24,7 +24,7 @@ namespace FlyingGame.Bridge
         public static bool IPadSafeAreaForTest;
         public static int MinText => Mathf.Max(22, Mathf.RoundToInt(S * 33f / 1206f));
         public static int CaptionText => Mathf.Max(20, Mathf.RoundToInt(S * 30f / 1206f));
-        public static float S => Mathf.Min(Screen.width, Screen.height);
+        public static float S => Mathf.Min(UiSurface.Width, UiSurface.Height);
         public static float Margin => S * 0.018f;
         public static float Gap => S * 0.012f;
         public static float ButtonH => S * 0.062f;
@@ -38,11 +38,14 @@ namespace FlyingGame.Bridge
         // zero and nothing moves.
 
         /// <summary>Pixels of the top edge the Dynamic Island, notch or status bar is sitting in.</summary>
-        public static float SafeTop => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest ? 0f : Screen.height > Screen.width ? 186f : 0f) : Mathf.Max(0f, Screen.height - Screen.safeArea.yMax);
+        public static float SafeTop => UiSurface.IsTv ? TvInset(UiSurface.Height) : IPhoneSafeAreaForTest ? (IPadSafeAreaForTest ? 0f : Screen.height > Screen.width ? 186f : 0f) : Mathf.Max(0f, Screen.height - Screen.safeArea.yMax);
         /// <summary>Pixels of the bottom edge the home indicator is sitting in.</summary>
-        public static float SafeBottom => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest ? 40f : 63f) : Mathf.Max(0f, Screen.safeArea.yMin);
-        public static float SafeLeft => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest || Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.safeArea.xMin);
-        public static float SafeRight => IPhoneSafeAreaForTest ? (IPadSafeAreaForTest || Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.width - Screen.safeArea.xMax);
+        public static float SafeBottom => UiSurface.IsTv ? TvInset(UiSurface.Height) : IPhoneSafeAreaForTest ? (IPadSafeAreaForTest ? 40f : 63f) : Mathf.Max(0f, Screen.safeArea.yMin);
+        public static float SafeLeft => UiSurface.IsTv ? TvInset(UiSurface.Width) : IPhoneSafeAreaForTest ? (IPadSafeAreaForTest || Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.safeArea.xMin);
+        public static float SafeRight => UiSurface.IsTv ? TvInset(UiSurface.Width) : IPhoneSafeAreaForTest ? (IPadSafeAreaForTest || Screen.height > Screen.width ? 0f : 186f) : Mathf.Max(0f, Screen.width - Screen.safeArea.xMax);
+
+        /// <summary>A TV's title-safe margin (TvSafeArea): the TV pass has no notch, but an HDMI set may overscan.</summary>
+        private static float TvInset(float edge) => (float)FlyingGame.Core.TvSafeArea.Inset(edge);
 
         /// <summary>The toolbar's own top edge: the margin, pushed clear of whatever the hardware is sitting in. The
         /// in-flight row had the same defect the owner reported on the launch page — MENU and OPTIONS were under the
@@ -50,7 +53,7 @@ namespace FlyingGame.Bridge
         private static float ToolbarTop => SafeTop + Margin;
 
         public static Rect MenuRect => new Rect(SafeLeft + Margin, ToolbarTop, S * 0.13f, ButtonH);
-        public static Rect OptionsRect => new Rect(Screen.width - SafeRight - Margin - S * 0.17f, ToolbarTop, S * 0.17f, ButtonH);
+        public static Rect OptionsRect => new Rect(UiSurface.Width - SafeRight - Margin - S * 0.17f, ToolbarTop, S * 0.17f, ButtonH);
         public static float ToolbarBottom => ToolbarTop + ButtonH;
 
         /// <summary>Toolbar slot <paramref name="i"/> of <paramref name="n"/>, filled right-to-left from just left of OPTIONS.</summary>
@@ -72,8 +75,8 @@ namespace FlyingGame.Bridge
         /// <summary>The AERO panel's insets are on (outside views): they use the dials' space.</summary>
         public static bool AeroInsetsShown;
         public static bool DialsShown => Time.frameCount - DialsFrame <= 2;
-        public static float BandLeft => Mathf.Max(Margin, BandMin);
-        public static float BandRight => Mathf.Min(Screen.width - Margin, BandMax);
+        public static float BandLeft => UiSurface.IsTv ? SafeLeft + Margin : Mathf.Max(Margin, BandMin);   // the TV has no pads
+        public static float BandRight => UiSurface.IsTv ? UiSurface.Width - SafeRight - Margin : Mathf.Min(Screen.width - Margin, BandMax);
 
         /// <summary>The engine row is drawn under the flight row (and the text stack starts below it). False when the
         /// engine row is below the airplane instead (<see cref="EngineRowRect"/>) or there is no engine.</summary>
@@ -99,7 +102,7 @@ namespace FlyingGame.Bridge
                 if (Time.frameCount != _frame) { StackBottomLastFrame = Mathf.Max(ToolbarBottom, _stackBottomThisFrame); _stackBottomThisFrame = ToolbarBottom; }
                 _frame = Time.frameCount; _evt = t;
                 _cursor = ToolbarBottom + Gap * 0.6f;
-                if (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !ChaseCamera.InCockpit && !AeroInsetsShown)
+                if (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !ChaseCamera.InCockpit && !AeroInsetsShown && !TvOutput.Active)   // TV: the dials are on the TV
                     _cursor = InstrumentBottom + Gap;
             }
         }

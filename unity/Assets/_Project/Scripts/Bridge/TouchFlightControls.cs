@@ -96,8 +96,10 @@ namespace FlyingGame.Bridge
         /// A gamepad is connected: the touch pads / strips and trim slider / bars are hidden and take no touches
         /// (owner 2026-11-02). Re-read every frame from <see cref="GamepadInput.Now"/>, so hot-plug flips it.
         /// The buttons (Reset, Aircraft, Flaps, Gear, Smoke, Tow, Bail, Fire, Eject, Look) stay.
+        /// TV MODE: while the instruments are drawn into the TV's picture (UiSurface.IsTv) this also reads true: there are
+        /// no sticks on the TV, so its dials take the same full-width row they take with a pad.
         /// </summary>
-        public static bool TouchSticksHidden => !DeskMode && !FlyingGame.Core.GamepadShaping.TouchSticksShown(DeskMode, GamepadInput.Now.Connected);
+        public static bool TouchSticksHidden => UiSurface.IsTv || (!DeskMode && !FlyingGame.Core.GamepadShaping.TouchSticksShown(DeskMode, GamepadInput.Now.Connected));
         private bool _touchSticksWereHidden;
         private Rect _eleStrip, _thrStrip; private float _stripY;
 
@@ -197,7 +199,7 @@ namespace FlyingGame.Bridge
             // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
             _egress ??= GetComponent<PilotEgress>();
             Rect ko = ScreenLayout.AircraftKeepOut;
-            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}|{UiLayout.SafeBottom}|{UiLayout.SafeLeft}|{UiLayout.SafeRight}|{BailAvailable}|{EjectAvailable}|{TouchSticksHidden}|{EngineBelowWanted}|{SmokeAvailable}|{_driver.HasFlaps}|{_driver.Sim?.Aircraft?.Config?.RetractableGear == true}";
+            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}|{UiLayout.SafeBottom}|{UiLayout.SafeLeft}|{UiLayout.SafeRight}|{BailAvailable}|{EjectAvailable}|{TouchSticksHidden}|{EngineBelowWanted}|{SmokeAvailable}|{_driver.HasFlaps}|{_driver.Sim?.Aircraft?.Config?.RetractableGear == true}|{TvOutput.Active}";
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
             GamepadMenuButtons();   // (Menu has to be able to CLOSE the options panel, so this runs with it open)
@@ -313,7 +315,7 @@ namespace FlyingGame.Bridge
         private Rect _engineRowRect;   // GUI space (top-left origin); width 0 = engine row under the flight row
         /// <summary>Owner 2026-11-02: the analog ENGINE row (tach, throttle, flow, fuel) goes BELOW the airplane, centred,
         /// in touch and controller layouts. Not in the cockpit (panel), lessons' strips or the Mac.</summary>
-        private bool EngineBelowWanted => !DeskMode && !StripMode && !ChaseCamera.InCockpit &&
+        private bool EngineBelowWanted => !DeskMode && !StripMode && !ChaseCamera.InCockpit && !TvOutput.Active &&   // TV: the engine row is on the TV
             (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog || SessionSettings.Instruments == SessionSettings.InstrumentMode.Hud) && !SessionSettings.FlightTestData &&
             _driver != null && _driver.Sim?.Aircraft?.Config?.Propulsion != null;
 
@@ -435,7 +437,7 @@ namespace FlyingGame.Bridge
         {
             float w = Screen.width, h = Screen.height;
             if (!DeskMode) UiLayout.LeftBottomLimit = 99999f;
-            UiLayout.EngineRowRect = DeskMode ? Rect.zero : _engineRowRect;
+            UiLayout.EngineRowRect = DeskMode || TvOutput.Active ? Rect.zero : _engineRowRect;
             if (TouchSticksHidden)
             {
                 UiLayout.BandMin = UiLayout.SafeLeft; UiLayout.BandMax = w - UiLayout.SafeRight;
@@ -604,7 +606,12 @@ namespace FlyingGame.Bridge
             _brakeHeld = false;
 
             var pointers = new List<(int id, Vector2 pos, bool began, bool ended)>();
-            if (Input.touchCount > 0)
+            if (TvButtonPad.Showing)
+            {
+                // TV + pad: the phone is TvButtonPad's grid, and these buttons are not drawn. Let go of anything held.
+                _fireFinger = _lookFinger = _ejectFinger = int.MinValue; _lookDir = 0; _ejectHold = 0f;
+            }
+            else if (Input.touchCount > 0)
             {
                 foreach (Touch t in Input.touches)
                 {
@@ -967,6 +974,30 @@ namespace FlyingGame.Bridge
             _egress.BailOut();
         }
 
+        /// <summary>
+        /// TV + GAME CONTROLLER (TvButtonPad): a big button on the phone's grid presses the SAME button this class owns —
+        /// the same queue the on-screen buttons and the pad's d-pad use, so the two can never drift apart. Flaps step
+        /// from where the flaps ARE, as the d-pad does.
+        /// </summary>
+        public void PressFromPad(FlyingGame.Core.PadButton b)
+        {
+            switch (b)
+            {
+                case FlyingGame.Core.PadButton.Reset: _tapped.Add(Btn.Reset); break;
+                case FlyingGame.Core.PadButton.Aircraft: _tapped.Add(Btn.Aircraft); break;
+                case FlyingGame.Core.PadButton.Gear: _tapped.Add(Btn.Gear); break;
+                case FlyingGame.Core.PadButton.Smoke: _tapped.Add(Btn.Smoke); break;
+                case FlyingGame.Core.PadButton.CamRef: _tapped.Add(Btn.CamRef); break;
+                case FlyingGame.Core.PadButton.LookCentre: _tapped.Add(Btn.LookCentre); break;
+                case FlyingGame.Core.PadButton.FlapsUp:
+                case FlyingGame.Core.PadButton.FlapsDown:
+                    int at = Mathf.RoundToInt((float)(_driver.Sim?.Aircraft?.FlapFraction ?? 0.0) * 2f);
+                    _deskFlapStep = Mathf.Clamp(at + (b == FlyingGame.Core.PadButton.FlapsDown ? 1 : -1), 0, 2);
+                    _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps);
+                    break;
+            }
+        }
+
         private void DoReset()
         {
             _rudder = _aileron = _elevator = 0f;
@@ -986,6 +1017,7 @@ namespace FlyingGame.Bridge
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) return;   // the replay bar owns the tray
+            if (TvButtonPad.Showing) return;   // TV + pad: the phone is the button grid
             EnsureStyles();
 
             // Portrait: opaque tray under the controls. The camera only clears its own (upper) viewport,

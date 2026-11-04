@@ -428,6 +428,7 @@ dedicated "instruments on the second monitor" layout is a different feature (Q8)
 | R5 | Other lanes edit `UiLayout`, `AnalogGauges` and `HudOverlay`, so merge conflicts are possible. | The edits are one-token replacements (`Screen.width` → `UiSurface.Width`) in few lines, and the logic lives in new files. |
 | R6 | Quest build breaks. | No platform API outside `#if UNITY_IOS`. Pure C# for the rest, no new packages, and the iOS-only `.meta` plugin importer. The Quest lane compiles the same Bridge, so a Unity batch compile for Android is worth one run before merge (Q11). |
 | R7 | AirPlay latency (≈100–200 ms) makes flying from the phone while watching the TV feel soft. | This is inherent to AirPlay. HDMI is near zero. The one-frame pipeline latency we add is negligible next to it. Document it, and recommend HDMI or the pad for aerobatics. |
+| R9 | An iPad with **Stage Manager** may use the TV as an extended desktop instead of mirroring. The app's own window can then be dragged onto the TV, and iOS may never offer the external-display role (the app declares a single scene). | Test on an iPad with Stage Manager on and off (§7.3). If extended mode never produces a second `Display`, iPad TV mode needs Stage Manager off, and Options says so. |
 | R8 | PIN pairing can be brute-forced offline if the exchange is captured. | Single-use PIN, 2-minute window, 5 tries, QR as the recommended path, and TLS-PSK later. |
 
 ---
