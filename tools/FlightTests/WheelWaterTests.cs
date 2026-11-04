@@ -138,6 +138,65 @@ public class WheelWaterTests
     }
 }
 
+[Collection("WorldTerrainActive")]
+public class WaterSkiTests
+{
+    private readonly ITestOutputHelper _out;
+    public WaterSkiTests(ITestOutputHelper o) { _out = o; }
+
+    private static AircraftConfig Load(string id) =>
+        AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
+
+    /// <summary>Ty 2026-11-04: a J-3 on wheels water-skis on its mains, tail up, at 40–50 kt. Same pilot as every other
+    /// test here (a 2° attitude held, 40 % power, a 0.5 m/s touch on deep water): 10 s on the water, no nose-over,
+    /// next to no speed lost. Nothing in WheelHydro knows what kind of gear it is: the outcome is the fat 12 psi tyres'
+    /// planing lift at their own positions.</summary>
+    [Theory]
+    [InlineData(45.0)]
+    [InlineData(50.0)]
+    public void AJ3SkisOnItsMainsTailUp(double kt)
+    {
+        FloatHydro.FlatWaterOverride = 3.0;
+        try
+        {
+            var r = WheelWaterTouch.Run(Load("j3-cub-like"), 0.5, 10.0, speed: kt * 0.514444, throttle01: 0.4, holdPitchDeg: 2);
+            _out.WriteLine($"{kt} kt: " + r);
+            Assert.True(r.NoseOverAt < 0, $"nosed over at {r.NoseOverAt:F1} s");
+            Assert.True(r.TouchedFraction > 0.8, $"on the water only {r.TouchedFraction:P0} of the time");
+            Assert.True(r.MinSpeed > 0.85 * r.V, $"slowed {r.V:F1} -> {r.MinSpeed:F1} m/s");
+            Assert.True(r.Lost.Count == 0 && r.Damage.Count == 0);
+        }
+        finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
+    /// <summary>The same pilot and the same water for a 172 and a J-3 (45 kt, nose held 6° up, 40 % power): the J-3 skis;
+    /// the 172's nose wheel — 1.25 m ahead of the CG, against the J-3 mains' 0.16 m — goes into the water and it goes
+    /// over. Its mains are 6.00-6 at 38 psi (V_p 55 kt) against the J-3's 12 psi (31 kt). Which wheel is "the nose wheel"
+    /// is read from the geometry (the gear farthest ahead of the CG), not from the gear type.</summary>
+    [Fact]
+    public void ATricyclesNoseWheelDigsInWhereTheJ3Skis()
+    {
+        FloatHydro.FlatWaterOverride = 3.0;
+        try
+        {
+            AircraftConfig cub = Load("j3-cub-like"), c172 = Load("c172-like");
+            var j3 = WheelWaterTouch.Run(cub, 0.5, 10.0, speed: 45 * 0.514444, throttle01: 0.4, holdPitchDeg: 6);
+            var tri = WheelWaterTouch.Run(c172, 0.5, 10.0, speed: 45 * 0.514444, throttle01: 0.4, holdPitchDeg: 6);
+            int fwd = 0;
+            for (int i = 1; i < c172.Gear.Count; i++) if (c172.Gear[i].Pos[0] > c172.Gear[fwd].Pos[0]) fwd = i;
+            double rFwd = LandingGear.TireRadiusOf(c172, c172.Gear[fwd]);
+            _out.WriteLine("J-3:  " + j3);
+            _out.WriteLine("C172: " + tri);
+            _out.WriteLine($"C172 forward wheel (x {c172.Gear[fwd].Pos[0]:F2}, CG {c172.Mass.CgVec().X:F2}): peak immersion {tri.PeakImmersionM[fwd]:F2} m, tyre r {rFwd:F2}");
+            Assert.True(j3.NoseOverAt < 0, $"the J-3 should ski (over at {j3.NoseOverAt:F1} s)");
+            Assert.True(tri.NoseOverAt > 0, "the 172 should go over");
+            Assert.True(tri.PeakImmersionM[fwd] > rFwd, $"its forward wheel only went {tri.PeakImmersionM[fwd]:F2} m in");
+            Assert.True(tri.MinSpeed < 0.3 * tri.V, "no sustained ski");
+        }
+        finally { FloatHydro.FlatWaterOverride = null; }
+    }
+}
+
 /// <summary>A light wheel touch on deep water: level-ish glide trim at a skimming speed, wheels 3 cm above the
 /// surface, sinking at the given rate. Shared by the probe and the tests.</summary>
 public static class WheelWaterTouch
@@ -145,7 +204,7 @@ public static class WheelWaterTouch
     public sealed class Result
     {
         public string Id = "";
-        public double NoseOverAt = -1, MeanDecelG, TouchedFraction, SpeedAtNoseOver; public double V, PeakDecelG, PeakPitchRateDps, MinSpeed, SpeedAt1s, MaxPitchDeg, MinPitchDeg, TouchAt = -1, PeakNz;
+        public double[] PeakImmersionM = System.Array.Empty<double>(); public double NoseOverAt = -1, MeanDecelG, TouchedFraction, SpeedAtNoseOver; public double V, PeakDecelG, PeakPitchRateDps, MinSpeed, SpeedAt1s, MaxPitchDeg, MinPitchDeg, TouchAt = -1, PeakNz;
         public bool Converged;
         public List<string> Events = new();
         public List<AirframeComponent> Lost = new();
@@ -227,11 +286,14 @@ public static class WheelWaterTouch
             // In the water: any tyre bottom (the gear point) below the surface. (LandingGear's own touching flag is
             // the ground's in shallow water, where the tyre also reaches the bed.)
             bool wetWheel = false;
-            foreach (GearConfig g in cfg.Gear)
+            if (res.PeakImmersionM.Length != cfg.Gear.Count) res.PeakImmersionM = new double[cfg.Gear.Count];
+            for (int gi = 0; gi < cfg.Gear.Count; gi++)
             {
-                Vec3 p = s.Position + s.Attitude.Rotate(g.PosVec() - cg);
+                Vec3 p = s.Position + s.Attitude.Rotate(cfg.Gear[gi].PosVec() - cg);
                 double? wUp = FloatHydro.WaterSurfaceAt(p.X, p.Y);
-                if (wUp.HasValue && -p.Z < wUp.Value) { wetWheel = true; break; }
+                if (!wUp.HasValue || -p.Z >= wUp.Value) continue;
+                wetWheel = true;
+                res.PeakImmersionM[gi] = Math.Max(res.PeakImmersionM[gi], wUp.Value + p.Z);
             }
             bool inContact = wetWheel || ac.AnyGearTouching;
             if (res.TouchAt < 0 && inContact) res.TouchAt = t + win;

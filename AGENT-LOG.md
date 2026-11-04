@@ -1,4 +1,13 @@
 ## NEEDS YOU
+- **WATER SKIING: J-3 SKIS, 172 DIGS IN — BOTH EMERGENT, NOTHING SCRIPTED (Claude, 2026-11-04, lane/claude-wheel-hydroplane,
+  tests only on top of 325b367e/9c5fa54c; not merged, not installed).** Same pilot, same water for both (45 kt, nose held
+  6°, 40 % power, 0.5 m/s touch, deep water): the J-3 holds 22–23 m/s for 10 s at 0.07 g; the 172's forward wheel goes
+  0.92 m under and it goes over at 5.3 s (prop strike, 12.5 m/s). WheelHydro has no gear-type or aircraft-name logic: the
+  difference is geometry (the 172's nose wheel 1.25 m ahead of the CG vs the J-3 mains' 0.16 m) and tyres (6.00-6 at
+  38 psi, V_p 55 kt, vs 12 psi, 31 kt). **Two things to know before you fly it:** (1) 45 kt is near the 172's own stall,
+  so its wheels carry more weight than the Cub's do — at 50 kt, 2° nose-up and 40 % power the 172 DID hold for 10 s,
+  so "a 172 cannot ski" is a tendency here, not a law; is that what you'd expect? (2) the Extra skis at its own flying
+  speed (80 kt, 0.57 g) but at 45–50 kt, below its stall, its 0.155 m tyres cannot carry it and it goes over in 0.4 s.
 - **FLOATS NO LONGER BREAK UP ON LANDING; WHEELS SKIM WATER FOR REAL — FLY TO CHECK, AND TWO DECISIONS (Claude,
   2026-11-03, lane/claude-wheel-hydroplane; 325b367e is in lane/claude-crash-physics, the follow-up is not; NOT installed.
   Build-ready: iOS `2026.1103.2246` ** BUILD SUCCEEDED **, 0 `error CS` — deploy.sh not run, as instructed).**
@@ -1467,6 +1476,22 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 10:30 PST — Claude · lane/claude-wheel-hydroplane · water skiing: taildraggers ski, the 172 digs in
+- **Root cause of the J-3 flip on water contact** (fixed in 325b367e, not re-done): the old WheelHydro held the wheel up
+  by speed alone — support = static load·(V/V_p)², whatever the depth — so contact was a step of up to the whole weight;
+  below V_p the support vanished and the wheel sank to 2r, where a plough drag of ½ρV²·0.9 on the immersed frontal area
+  (several kN at 25 kt, more than 1 g) acted at the tyre bottom, well below the CG — an instant nose-over. And the water
+  branch put the tyre bottom a radius below the gear point (the ground code's contact point). Now the flip, where it
+  happens, emerges: planing pressure on the wetted arc (C = 0.643 from 9√psi), lift ∝ wetted planform, drag ∝ immersed
+  height, per wheel at its own position, through the leg spring. No scripted flip, no gear-type outcome anywhere.
+- **New tests (WaterSkiTests, beside WheelWaterTests):** AJ3SkisOnItsMainsTailUp at 45 and 50 kt (2° held, 40 % power:
+  no nose-over, 99 % on the water, ≤ 6 % speed lost); ATricyclesNoseWheelDigsInWhereTheJ3Skis (numbers in NEEDS YOU; the
+  forward wheel is found from the geometry). The slow-down dig-in and the tail-down delay are the existing
+  WheelWaterTests.SlowingBelowThePlaningSpeed… The test helper now records each wheel's peak immersion and detects water
+  contact itself. WheelHydroTests + WheelWaterTests + WaterSkiTests: 39 + 3 passed.
+- **No src change in this entry**, so no new build (the src state is 9c5fa54c, iOS 2026.1103.2246 ** BUILD SUCCEEDED **).
+  tools/check-parity.sh (island-nav's copy): PARITY OK; its hook is a no-op on this branch. No crash/wreck file touched
+  (lane/claude-crash-tuning is in them).
 ### 2026-11-03 19:00 PST — Claude · lane/claude-wheel-hydroplane · float break-up, wheels on water (camera already shipped)
 - **Camera:** done earlier on this lane (`94fe5aca`, `3a2c895f`), cherry-picked to island-nav and installed by Grok Bot as
   2026.1103.1715. Not touched again.
