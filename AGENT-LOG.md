@@ -1,4 +1,16 @@
 ## NEEDS YOU
+- **NEEDS YOU: approve C172 v4 swap** (Claude, 2026-11-03, lane/claude-172-instruments; NOT merged, NOT deployed).
+  - Ty decision (2026-11-03, his words): "The Cessna panel is good except you need to swap the vertical column of
+    engine instruments and nav heads so the engine instruments are to the right of the nav heads."
+  - Done: NAV1/NAV2/ADF now at x = -0.112 m beside the six-pack; OIL PRESS/OIL TEMP/AMPS/EGT column at x = 0, right of
+    them; radio stack and everything else unchanged. Rig tables differ from v3 only in the pivots of the moved parts
+    (each exactly 0.112 m). `check_c172_cockpit.py` now asserts altimeter < NAV heads < engine column < radios.
+  - Compare `renders/c172/instruments-v4/before/` (v3 at 35f617b3) with `renders/c172/instruments-v4/after/`:
+    `full-panel-pilot-eye.png`, `c172-panel-layout-diagram.png` (+ `c172-pilot-eye-c172-known.png`, posed needles).
+    I looked at the after seat-eye render: six-pack | NAV 1 / NAV 2 / ADF | engine column | radios.
+  - Both GLBs pass the checker; Unity OwnRigCheck RIG OK, 34/34 bound, 0 off pivot. C172InstrumentTests + ModelRigTests
+    56 pass, 1 known baseline failure (glider airbrake NaN), as on v3. `deploy.sh` ** BUILD SUCCEEDED **, build 2026.1103.2142, run with a dummy UDID so nothing was installed (bundleVersion bump not committed). My fault: that build overlapped a Unity batch another lane had just started (pid 7989) - I launched without waiting; if that lane saw odd results around 21:42-21:46, re-run it.
+  - Notes: `docs/models/c172-instruments-v4.md`.
 - **NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/** (Codex, 2026-11-03, lane/claude-172-instruments).
   - New layout: standard T six-pack; tach under VSI, suction under DG, separate L/R fuel quantity under TC;
     one OIL PRESS / OIL TEMP / AMPS / EGT column, shifted usable NAV1/NAV2/ADF and intact radio stack; plain right panel.

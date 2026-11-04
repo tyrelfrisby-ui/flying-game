@@ -1,7 +1,7 @@
 {
   "model": "c172-like-own",
-  "livery": "v3",
-  "source": "Authored 172 v3 panel: tools/own_models/c172_cockpit.py, lane/claude-172-instruments; docs/models/c172-instruments-v3.md. Runtime maps target existing ModelRig inputs only. Pivots generated from the final GLB node translations by tools/own_models/c172_instrument_rig.py.",
+  "livery": "v4",
+  "source": "Authored 172 v4 panel (v3 with the NAV heads and engine column swapped): tools/own_models/c172_cockpit.py, lane/claude-172-instruments; docs/models/c172-instruments-v4.md. Runtime maps target existing ModelRig inputs only. Pivots generated from the final GLB node translations by tools/own_models/c172_instrument_rig.py.",
   "rig": [
     {
       "node": "C172_AI_roll",
@@ -194,7 +194,7 @@
       "pivot_gltf": [
         0.2956,
         0.323,
-        0
+        -0.112
       ],
       "map": [
         [
@@ -223,7 +223,7 @@
       "pivot_gltf": [
         0.2966,
         0.323,
-        0
+        -0.112
       ],
       "map": [
         [
@@ -254,7 +254,7 @@
       "pivot_gltf": [
         0.2973,
         0.293,
-        -0.026
+        -0.138
       ],
       "map": [
         [
@@ -285,7 +285,7 @@
       "pivot_gltf": [
         0.2953,
         0.331,
-        0.014
+        -0.098
       ],
       "map": [
         [
@@ -314,7 +314,7 @@
       "pivot_gltf": [
         0.2953,
         0.339,
-        0.014
+        -0.098
       ],
       "map": [
         [
@@ -347,7 +347,7 @@
       "pivot_gltf": [
         0.2956,
         0.218,
-        0
+        -0.112
       ],
       "map": [
         [
@@ -376,7 +376,7 @@
       "pivot_gltf": [
         0.2966,
         0.218,
-        0
+        -0.112
       ],
       "map": [
         [
@@ -407,7 +407,7 @@
       "pivot_gltf": [
         0.2973,
         0.188,
-        -0.026
+        -0.138
       ],
       "map": [
         [
@@ -438,7 +438,7 @@
       "pivot_gltf": [
         0.2953,
         0.226,
-        0.014
+        -0.098
       ],
       "map": [
         [
@@ -467,7 +467,7 @@
       "pivot_gltf": [
         0.2953,
         0.234,
-        0.014
+        -0.098
       ],
       "map": [
         [
@@ -500,7 +500,7 @@
       "pivot_gltf": [
         0.2954,
         0.323,
-        0
+        -0.112
       ],
       "map": [
         [
@@ -529,7 +529,7 @@
       "pivot_gltf": [
         0.2953,
         0.347,
-        0.014
+        -0.098
       ],
       "map": [
         [
@@ -558,7 +558,7 @@
       "pivot_gltf": [
         0.296,
         0.113,
-        0
+        -0.112
       ],
       "map": [
         [
@@ -589,7 +589,7 @@
       "pivot_gltf": [
         0.2973,
         0.083,
-        -0.026
+        -0.138
       ],
       "map": [
         [
@@ -872,7 +872,7 @@
       "pivot_gltf": [
         0.2959,
         0.333,
-        -0.112
+        0
       ],
       "map": [
         [
@@ -901,7 +901,7 @@
       "pivot_gltf": [
         0.2959,
         0.253,
-        -0.112
+        0
       ],
       "map": [
         [

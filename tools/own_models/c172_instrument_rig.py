@@ -58,8 +58,8 @@ for s in 'LR':
 # ammeter or EGT param: keep those three authored nodes unbound rather than inventing signals.
 for node,param in [('C172_Throttle','throttle'),('C172_Mixture','mixture')]:
     row(node,param,'move',X,[[0,0],[1,0.06]],'Plain push-pull plunger: +X pushes into the panel; no twist')
-doc=dict(model='c172-like-own',livery='v3',
-  source="Authored 172 v3 panel: tools/own_models/c172_cockpit.py, lane/claude-172-instruments; docs/models/c172-instruments-v3.md. Runtime maps target existing ModelRig inputs only. Pivots generated from the final GLB node translations by tools/own_models/c172_instrument_rig.py.",
+doc=dict(model='c172-like-own',livery='v4',
+  source="Authored 172 v4 panel (v3 with the NAV heads and engine column swapped): tools/own_models/c172_cockpit.py, lane/claude-172-instruments; docs/models/c172-instruments-v4.md. Runtime maps target existing ModelRig inputs only. Pivots generated from the final GLB node translations by tools/own_models/c172_instrument_rig.py.",
   rig=rows)
 open(out,'w').write(json.dumps(doc,indent=2)+'\n')
 print(len(rows),'rows')

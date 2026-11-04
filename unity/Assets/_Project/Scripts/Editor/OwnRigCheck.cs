@@ -384,7 +384,7 @@ namespace FlyingGame.EditorTools
                 var controls=c172; controls.Mixture=0;
                 V3("c172-engine-controls",controls,new Vector3(.035f,-.20f,-.030f),new Vector3(.035f,.28f,-.030f),35f);
                 V3("c172-panel-straight",c172,new Vector3(0,-.65f,.19f),new Vector3(0,.30f,.19f),38f);
-                V3("c172-engine-column",c172,new Vector3(-.112f,-.14f,.21f),new Vector3(-.112f,.30f,.21f),45f);
+                V3("c172-engine-column",c172,new Vector3(0f,-.14f,.21f),new Vector3(0f,.30f,.21f),45f);  // v4: engine column right of the NAV heads
                 foreach ((string name, RigInputs r) in new[] { ("parked", RigInputs.Parked()), ("c172-known", c172) })
                 {
                     builder.SetRig(r, 0f);

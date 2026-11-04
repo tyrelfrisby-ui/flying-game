@@ -70,7 +70,10 @@ def check(path):
  layout={a['name']:a for a in cases}
  assert layout['Tach']['x']==layout['VSI']['x'] and layout['Tach']['z']<layout['VSI']['z']
  assert layout['Suction']['x']==layout['DG']['x'] and layout['Suction']['z']<layout['DG']['z']
- assert all(layout[n]['x']==-.112 for n in ['Oil_press','Oil_temp','Ammeter','EGT'])
+ assert all(layout[n]['x']==0 for n in ['Oil_press','Oil_temp','Ammeter','EGT'])
+ # Ty, 2026-11-03: NAV heads beside the six-pack, the engine column to their RIGHT, then the radios.
+ assert all(layout[n]['x']==-.112 for n in ['NAV1','NAV2','ADF'])
+ assert layout['Altimeter']['x']<layout['NAV1']['x']<layout['Oil_press']['x']<.160
  assert [layout[n]['z'] for n in ['Oil_press','Oil_temp','Ammeter','EGT']]==sorted([layout[n]['z'] for n in ['Oil_press','Oil_temp','Ammeter','EGT']],reverse=True)
  assert abs((layout['Fuel_L']['x']+layout['Fuel_R']['x'])/2-layout['Turn_coordinator']['x'])<1e-6
  assert not any('Fuel_press' in n or 'Fuel_flow' in n or 'Prop_control' in n for n in names)

@@ -158,9 +158,11 @@ for n,x,z,labels in [('Airspeed',-.423,.323,list(range(0,200,20))),('Attitude',-
   needle(n+'_needle',x,z,55 if n=='Airspeed' else (90 if n=='VSI' else 0),.038 if n=='VSI' else .028)
   if n=='Altimeter':
    needle('Altimeter_1000',x,z,20,.019);needle('Altimeter_10000',x,z,5,.012);knob('Altimeter_baro',x-.027,z-.030,.005);text('Baro_window','29.92',(x+.014,.2658,z-.014),.005)
-# Two distinct nav heads and ADF, not an HSI.
+# Two distinct nav heads and ADF, not an HSI. As in a real 172 they sit beside the six-pack, LEFT of the engine column
+# (Ty, 2026-11-03: "engine instruments to the right of the nav heads").
+NAV_X=-.112;ENGINE_X=0
 for idx,z in [(1,.323),(2,.218)]:
- x=0;dial('NAV'+str(idx),x,z,.039,['N',3,6,'E',12,15,'S',21,24,'W',30,33])
+ x=NAV_X;dial('NAV'+str(idx),x,z,.039,['N',3,6,'E',12,15,'S',21,24,'W',30,33])
  rose=cyl('NAV%d_OBS_card'%idx,(x,.258,z),.027,.001,face);rig(rose,'rotation','+X',[0,360],'nav%d.obsDeg'%idx)
  for i,t in enumerate(['N',3,6,'E',12,15,'S',21,24,'W',30,33]):
   a=i*math.pi/6;parent(text('OBS_card',str(t),(x+math.sin(a)*.023,.2573,z+math.cos(a)*.023),.008),rose)
@@ -173,15 +175,15 @@ for idx,z in [(1,.323),(2,.218)]:
   zz=z+.008+(['NAV','TO_FROM','GS'].index(flag)*.008)
   box('NAV_flag_window',(x+.014,.2455,zz),(.017,.0002,.0075),face,0)
   q=text('NAV%d_%s_flag'%(idx,flag),'TO' if flag=='TO_FROM' else flag,(x+.014,.2452,zz),.0063,red);rig(q,'rotation','+X',[0,90],'nav%d.%s'%(idx,flag))
-x=0;z=.113;dial('ADF',x,z,.039,['N',3,6,'E',12,15,'S',21,24,'W',30,33]);adf=needle('ADF_bearing',x,z,35,.028,orange,.252);
+x=NAV_X;z=.113;dial('ADF',x,z,.039,['N',3,6,'E',12,15,'S',21,24,'W',30,33]);adf=needle('ADF_bearing',x,z,35,.028,orange,.252);
 tail=silhouette('ADF_tail',x,.252,z,[(-.001,0),(-.001,-.022),(-.003,-.026),(.003,-.026),(.001,-.022),(.001,0)],orange)
 head=silhouette('ADF_head',x,.251,z,[(0,.030),(-.003,.023),(.003,.023)],orange)
 for detail in [tail,head]:
  # Rotate around its gauge-centred origin to align head and tail with the needle.
  detail.rotation_euler.x=-math.radians(35);parent(detail,adf)
 knob('ADF_card_adjust',x-.026,z-.03,.005)
-# Requested third row and a single engine column between flight instruments and radios.
-for n,x,z,r,labs in [('Tach',-.219,.113,.040,[0,5,10,15,20,25,30,35]),('Suction',-.321,.113,.028,[0,2,4,6,8]),('Fuel_L',-.450,.113,.020,['E','1/4','1/2','3/4','F']),('Fuel_R',-.396,.113,.020,['E','1/4','1/2','3/4','F']),('Oil_press',-.112,.333,.026,[0,25,50,75,100]),('Oil_temp',-.112,.253,.026,[75,100,150,200,245]),('Ammeter',-.112,.173,.026,[-60,-30,0,30,60]),('EGT',-.112,.093,.026,[8,10,12,14,16])]:
+# Requested third row and a single engine column between the NAV heads and the radios.
+for n,x,z,r,labs in [('Tach',-.219,.113,.040,[0,5,10,15,20,25,30,35]),('Suction',-.321,.113,.028,[0,2,4,6,8]),('Fuel_L',-.450,.113,.020,['E','1/4','1/2','3/4','F']),('Fuel_R',-.396,.113,.020,['E','1/4','1/2','3/4','F']),('Oil_press',ENGINE_X,.333,.026,[0,25,50,75,100]),('Oil_temp',ENGINE_X,.253,.026,[75,100,150,200,245]),('Ammeter',ENGINE_X,.173,.026,[-60,-30,0,30,60]),('EGT',ENGINE_X,.093,.026,[8,10,12,14,16])]:
  dial(n,x,z,r,labs if n!='Ammeter' else None)
  if n=='Ammeter':
   # A true centre-zero semicircular scale, -60 left, zero up, +60 right.
@@ -406,7 +408,7 @@ if os.environ.get('C172_RENDER')=='1':
  scene.view_settings.view_transform='AgX'
  for n,p,power,size in [('Key',(-1,-.7,1.7),160,2),('Fill',(1,-.2,1.1),110,1.4),('Windshield',(0,1,1.2),180,1.2)]:
   bpy.ops.object.light_add(type='AREA',location=xyz(p));o=bpy.context.object;o.name=n;o.data.energy=power;o.data.shape='DISK';o.data.size=size;o.rotation_euler=(Vector(xyz((0,-.3,.05)))-o.location).to_track_quat('-Z','Y').to_euler()
- views=[('full-panel-straight',(0,-.60,.22),(0,.29,.17),26),('pilot-eye',(-.337,-.346,.548),(-.10,.32,.20),22),('cfi-right-seat',(.332,-.346,.548),(-.09,.32,.17),22),('radio-stack',(.095,-.29,.27),(.095,.28,.205),35),('nav-heads',(-.112,-.21,.28),(-.112,.27,.265),55),('cabin-wide',(0,.20,.56),(0,-.95,-.10),18)]
+ views=[('full-panel-straight',(0,-.60,.22),(0,.29,.17),26),('pilot-eye',(-.337,-.346,.548),(-.10,.32,.20),22),('cfi-right-seat',(.332,-.346,.548),(-.09,.32,.17),22),('radio-stack',(.095,-.29,.27),(.095,.28,.205),35),('nav-heads',(NAV_X,-.21,.28),(NAV_X,.27,.265),55),('cabin-wide',(0,.20,.56),(0,-.95,-.10),18)]
  if OUT.name=='instruments-v3':
   views=[('full-panel-pilot-eye',(-.337,-.346,.548),(-.03,.30,.17),19),
    ('six-pack',(-.321,-.20,.29),(-.321,.30,.27),44),
