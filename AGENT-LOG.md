@@ -1,7 +1,13 @@
 ## NEEDS YOU
 - **CRASHES KEEP THEIR MOMENTUM; TREES SNAP; ONLY THE PART THAT IS OVERLOADED COMES OFF — ON LAND, IN TREES AND ON WATER
   (Claude, 2026-11-03, lane/claude-crash-physics). Nothing approved; not merged into island-nav (the supervisor's call).**
-  (Build and suite results: pending — filled in when they are in.)
+  **iPhone build `2026.1103.2157` (lane HEAD 9b267623) is INSTALLED on Ty's iPhone** — `deploy.sh 00008150-001629A83662401C`
+  `** BUILD SUCCEEDED **`, 0 `error CS`, launched (ProjectSettings bump not committed). Launch with
+  `-crashtest runway` or `-crashtest grass` (e.g. `xcrun devicectl device process launch --device 00008150-001629A83662401C
+  com.tyrelfrisby.aeroplayground -- -crashtest grass`) to start in the scripted Pitts cartwheel.
+  **⚠ SUPERVISOR: that build predates f47db91f and 9a24353c.** 9a24353c fixes a total break-up (everything but the
+  cabin gone) going unstable and then FREEZING in the tree sweep's cell loop (CellOf(NaN)) — it hung the test suite, and
+  on the phone it would hang the game. Please rebuild from this lane (HEAD 9a24353c or later) before Ty flies crashes.
   1. **Why "it broke apart and stopped" in the treetops:** the forest was a rigid `WorldSolids` cylinder of the CROWN's
      radius (2.4 × (0.22 + H/24): 4.7 m for a 42 m fir) standing from the ground to the very top, pushed back with the
      hard-ground spring like a building, and every hard point that met it broke by closing speed. Measured on the base
@@ -13,6 +19,23 @@
   3. **Done for you (decisions answered/decided):** decision 1 static load counts (`BentPanelStaticLoadTests`; on water too);
      decision 2 no wingtip drag when flown right — every taildragger, `TaildraggerNoTipStrikeTests` 93/94 (the J-3/PA-18
      stab was 0.485 m too low: fixed); decisions 4/5 real strut stations and the Pitts slave-strut horns (sim + builder).
+  5. **YOUR PITTS CRASH ON THE GRASS (21:18): pieces grey/white, wings sinking — what I found.**
+     (a) **Sinking — fixed.** The sim's wreck pieces rest at 0.0 cm on the runway and beside it for 12 s
+         (`DebrisGroundTests`). What sank was the Unity fallback for a piece with no sim piece: it DELETED the piece when its
+         origin (the aeroplane's CG at the break, well above the piece's lowest point) got within 0.3 m of the ground — the
+         mesh half under the grass as it vanished. It now lands, slides (μ 0.5) and rests, and is never removed for
+         reaching the ground; a sim-driven piece is also never DRAWN below the ground. No Unity colliders: the game uses
+         none and the island has no terrain collider, so a Rigidbody would fall straight through; the sim stays in charge.
+     (b) **Grey/white paint — NOT reproduced and NOT explained.** In the editor the game's own break path (FreezeRig, then
+         DetachStatic for exactly your lost parts) keeps every texture, material and UV on every piece and on what stays
+         (`DebrisBreakRender`, own and downloaded settings; renders `build/debris-break/`). Ruled out: mesh Read/Write
+         (`ModelReadableCheck`: 27 models, all readable), mipmap streaming (off on every quality level), property blocks
+         (none on airframes), runtime Shader.Find materials (none on the Pitts path), submesh/material order. Your
+         screenshot's grey wings have the PROCEDURAL shell's square tips, so I also stopped FreezeRig from ever re-showing a
+         renderer the placement hid. **Please run `-crashtest grass` on this build and send the device log's `[Debris]`
+         lines** (each piece's material, shader, texture, UV0, readable) — that is the evidence the editor cannot give.
+     (c) **Found while looking:** a broken main gear leg's cut also takes slices of the fuselage, the lower wing, both
+         wheel pants and the exhaust (`CutModelLeg`'s box is too generous) — not fixed here.
   4. **Open, for you or an owner:**
      (a) **Gee Bee R-2 landings not checked** — the game's landing law porpoises it in the hold and bounces it onto its
          prop, so the test pilot cannot land it; its taxi turns and rest clearance do pass. Needs a Gee Bee wheel-landing law.
@@ -1821,8 +1844,37 @@ right), 4/5 (decide the strut stations and the Pitts horns yourself), and water 
 - **Unity:** bent-panel debris wrapped so its sim piece carries it from the airframe origin; snapped trees cleared on a
   new flight. Debris is cut from the on-screen model through the debris lane's DebrisMesh; the camera targets the
   aeroplane root, which is never detached.
-- Suite vs base: pending.
-- Build: pending.
+- **Debris (Ty's 21:18 Pitts grass crash):** `DebrisGroundTests` (runway + beside it, 12 s, 5 pieces each at 0.0 cm, v+ω×r
+  to 1e-14), `CrashScenario` + `-crashtest runway|grass`, WingDebris ground contact (no destroy at the ground),
+  FreezeRig guard, `[Debris]` device log, `DebrisBreakRender` and `ModelReadableCheck` (editor). Paint not reproduced.
+  Process slip: I started the second editor render while another lane's Unity/xcodebuild was running (one build at a time).
+- **Merged lane/claude-island-nav (73c3ad9d) → 91aaf0c2** (CameraReference: island-nav's superset; AGENT-LOG both sides).
+- **Hang fixed (mine):** the pre-merge branch suite hung 30 min in ApproachSpawnTests (every thread in a Monitor wait) and
+  aborted at 332 tests; `Forest.LiveTrees.Near` held a lock across terrain queries. f47db91f; that class alone no longer
+  hangs (its 2 NaN failures are the base's too).
+- **Two more of mine found by the post-merge suite and fixed (9a24353c):** a C172 total break-up left a cabin with a tenth of
+  its inertia — lighter than its own box — which the contact springs drove from 6 to 387 m/s in a step; the tree sweep
+  then walked cells from CellOf(NaN) for ever (GroundContactCullTests hung 30 min). Floor = the remnant's own boxes,
+  never more than it had; the sweep refuses non-finite or absurd ranges (`WreckRemnantTests`). The Extra's pitch books
+  cannot close (boxes Iyy > config), so its water break-ups keep the piece's Iyy share: |ΔL|/L 4.6·10⁻⁴, logged.
+- Suite vs base: **full suite, post-merge, at 9a24353c** (`--filter "FullyQualifiedName!~IslandDroneProbe&FullyQualifiedName!~LaunchReplication"`,
+  `--blame-hang-timeout 30m`, nice'd; LaunchReplication excluded as instructed — its hang is pre-existing): **2,012 run,
+  1,839 passed, 167 failed, 6 skipped**, no hang. Base `d9a3eee8` (same Mac, same load, LaunchReplication included):
+  1,911 run, 1,694 passed, 212 failed. Compared BY NAME: 58 base failures now pass; **16 names fail only on the branch**,
+  each re-run alone here and on lane/claude-island-nav 73c3ad9d (all 83 of that filter pass there):
+  - 9 were my out-of-tree build folder (AirframeFlowTests ×5, StickAndRudderTests ×4 climb a fixed `../` to configs) —
+    pass from the normal build; 1 suite coupling (SpawnSpeed H-4) — passes alone.
+  - **2 come with lane/claude-wheel-hydroplane** (reproduce identically on 325b367e): `J3FloatsWaterTests.LandsOnTheWater…`
+    (draft 0.351 m vs 0.18–0.30) and `HydroJ3Tests.Porpoises…(attitude 2)` (swing 0.6°) — for that lane's owner.
+  - **2 are the prop-clearance geometry** (NEEDS YOU 4b): WheelWaterTests SR22, Glasair.
+  - **2 were mine, fixed with the reason in the test:** SolidsBroadphase forest stand-in (the forest is now out of the
+    airframe broadphase by design; the stand-in is checked against the whole forest directly) and CrashWater wing float
+    (the calibrated 69 kg wing floats on past the window: it must not sink before 100 s and floats > 60 s).
+  The pre-merge branch run (21:08) aborted at 332 tests on my lock deadlock (fixed f47db91f); the first post-merge run
+  aborted at 889 on the remnant blow-up (fixed 9a24353c). Targeted after the last fixes: crash/tree/water/debris/wiring/
+  contact/strut/remnant classes all pass (25/25 and 122-test set).
+- Build: `deploy.sh 00008150-001629A83662401C` 22:02 PST from this worktree at 9b267623: `** BUILD SUCCEEDED **`, 0 `error CS`,
+  bundleVersion `2026.1103.2157`, installed and launched on the iPhone; bundleVersion/GraphicsSettings/StreamingAssets reverted.
 ### 2026-11-03 — Claude · lane/claude-nsew-toggle · N/S/E/W letters: a setting, off by default, drawn at infinity
 Ty: make the floating N/S/E/W letters a toggle in Settings, OFF by default, persisted; added scope: when on they must
 always sit far away just above the horizon, never close to the aeroplane — at effectively infinite distance,
