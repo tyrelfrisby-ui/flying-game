@@ -978,7 +978,9 @@ public sealed class Aircraft
         double tau = instantFrac > _wakeStalledFrac ? Config.StallDynamics.WakeGrowTau : Config.StallDynamics.WakeDecayTau;
         _wakeStalledFrac += (instantFrac - _wakeStalledFrac) * (1.0 - Math.Exp(-dt / tau));
 
-        int stripCount = Config.Surfaces.Sum(s => s.Strips.Count);
+        // A loop, not LINQ's Sum: that boxes the list's enumerator at every step (QuestFrameBudgetProbe).
+        int stripCount = 0;
+        for (int i = 0; i < Config.Surfaces.Count; i++) stripCount += Config.Surfaces[i].Strips.Count;
         _flowState.EnsureSize(stripCount);
 
         // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R.

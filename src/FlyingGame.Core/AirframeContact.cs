@@ -422,8 +422,9 @@ public static class AirframeContact
             if (w.Z > lowestZ) lowestZ = w.Z;        // z is + DOWN, so the largest z is the lowest point
         }
         if (wheels != null)
-            foreach (Vec3 b in wheels)
+            for (int i = 0; i < wheels.Count; i++)   // (an index loop: foreach over the IReadOnlyList allocates, once a step)
             {
+                Vec3 b = wheels[i];
                 Vec3 rWorld = s.Attitude.Rotate(b - cg);
                 double horiz = System.Math.Sqrt(rWorld.X * rWorld.X + rWorld.Y * rWorld.Y);
                 if (horiz > reach) reach = horiz;
