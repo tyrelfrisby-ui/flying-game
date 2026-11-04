@@ -4531,3 +4531,6 @@ NEEDS YOU: approve v3. TC standard-rate L and R marks must sit on the exact radi
 
 ## 2026-11-03 16:28 PST - 172 panel layout (Ty)
 NEEDS YOU: approve v3 layout. Tachometer directly under the VSI. One vertical engine column between the flight instruments and the radio stack, top to bottom: oil pressure, oil temp, fuel (taken as FUEL PRESSURE/FLOW — fuel quantity goes under the TC; Ty to confirm), ammeter, EGT. Suction gauge under the DG. Two fuel quantity gauges under the TC, L and R tanks. Six-pack stays the standard T; keep every earlier fix. Wants a full-panel pilot-eye render plus a labeled layout diagram.
+
+## 2026-11-03 16:29 PST - 172 engine column correction (Ty)
+NEEDS YOU: approve v3 layout. Correction: the 172 is carbureted, so NO fuel pressure or fuel flow gauge. Engine column, top to bottom: oil pressure, oil temp, ammeter, EGT. The only fuel gauges are the two L/R fuel quantity gauges under the TC. (Supersedes the 16:28 "fuel press" assumption; nothing to confirm.)
