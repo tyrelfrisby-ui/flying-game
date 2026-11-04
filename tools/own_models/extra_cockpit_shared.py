@@ -49,8 +49,8 @@ ROW_LEFT = ['Magneto', 'Master', 'FuelPump', 'AlternateAir', 'Mixture', 'Prop'] 
 ROW_RIGHT = ['Trim', 'FuelSelector', 'Smoke', 'NavLights', 'Strobe', 'LandingLight']   # inboard -> outboard, -y side
 # Knobs ON the radio heads (a TY91/TT21-style head carries its own): offsets (dy left +, dz up) from the head centre.
 HEAD_KNOBS = {
-    'COM': {'ComOuter': (-.015, -.015), 'ComInner': (-.015, -.015), 'ComVolume': (.015, -.015), 'ComSwap': (-.021, .010)},
-    'XPDR': {'XpdrIdent': (.021, .011), 'XpdrMode': (-.021, .011),
+    'COM': {'ComOuter': (-.015, -.015), 'ComInner': (-.015, -.015), 'ComVolume': (.015, -.015), 'ComSwap': (-.0235, -.004)},
+    'XPDR': {'XpdrIdent': (.0245, .011), 'XpdrMode': (-.0245, .011),
              'XpdrDigit1': (.0135, -.013), 'XpdrDigit2': (.0045, -.013), 'XpdrDigit3': (-.0045, -.013), 'XpdrDigit4': (-.0135, -.013)},
 }
 # LCD windows on the heads (CockpitDisplays: COM 128x76, XPDR 156x64, fuel computer 128x76 textures).

@@ -4,7 +4,8 @@ blender -b --factory-startup --python tools/own_models/render_aileron_deflect.py
 
 Turns NODE about its rig axis (rig json axis_gltf, through the node's origin, which is the hinge) by each DEG of the rig's
 own convention (+ = TE up for Aileron_L; the rig map gives TE down 30 at -30), and renders <label>-<deg>.png from above,
-aft and outboard of the aileron's mid-span, and <label>-<deg>-below.png from below.
+as a 2 mm chordwise section through wing + aileron at the aileron's mid-span (orthographic, along the span, aileron
+orange, wing dark, framed on the hinge): the nose against the upper and lower skins.
 """
 import bpy, json, sys, math
 from pathlib import Path
@@ -41,9 +42,47 @@ def shoot(cam_loc, target, path, ortho=None):
     bpy.ops.render.render(write_still=True)
 
 
+import bmesh
+s_cut = mid.y
+# Every mesh crossing mid-span, sliced to a 2 mm chordwise slab with caps; aileron orange, wing dark.
+slices = []
+for o in list(sc.objects):
+    if o.type != 'MESH': continue
+    bb = [o.matrix_world @ Vector(c) for c in o.bound_box]
+    if not (min(p.y for p in bb) - 1e-3 <= s_cut <= max(p.y for p in bb) + 1e-3) or o.name.startswith(('Gear', 'Wheel', 'Strut')):
+        o.hide_render = True; continue
+    slices.append(o)
+for o in slices:
+    if o is ob: continue
+    o.hide_render = True
+    c = o.copy(); c.data = o.data.copy(); sc.collection.objects.link(c); c.hide_render = False
+    bm = bmesh.new(); bm.from_mesh(c.data); bm.transform(c.matrix_world)
+    bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=1e-5)
+    for off, sg in ((.001, 1), (-.001, -1)):
+        ret = bmesh.ops.bisect_plane(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces), plane_co=(0, s_cut + off, 0),
+                                     plane_no=(0, sg, 0), clear_outer=True, dist=1e-7)
+        e = [x for x in ret['geom_cut'] if isinstance(x, bmesh.types.BMEdge) and x.is_boundary]
+        if e: bmesh.ops.holes_fill(bm, edges=e, sides=0)
+    c.matrix_world = Matrix.Identity(4); bm.to_mesh(c.data); bm.free()
+    m = bpy.data.materials.new('w'); m.use_nodes = True; m.node_tree.nodes['Principled BSDF'].inputs[0].default_value = (.05, .07, .1, 1)
+    c.data.materials.clear(); c.data.materials.append(m)
+    for poly in c.data.polygons: poly.material_index = 0
+ob.hide_render = True
 for deg in map(float, degs):
     R = Matrix.Translation(piv) @ Matrix.Rotation(math.radians(deg), 4, ax) @ Matrix.Translation(-piv)
-    ob.matrix_world = R @ rest
-    shoot(mid + Vector((1.1, side * 0.9, 0.65)), mid, out / f'{label}-{deg:+.0f}.png')
-    shoot(mid + Vector((1.1, side * 0.9, -0.65)), mid, out / f'{label}-{deg:+.0f}-below.png')
+    a = ob.copy(); a.data = ob.data.copy(); sc.collection.objects.link(a); a.hide_render = False; a.matrix_world = R @ rest
+    bm = bmesh.new(); bm.from_mesh(a.data); bm.transform(a.matrix_world)
+    bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=1e-5)
+    for off, sg in ((.001, 1), (-.001, -1)):
+        ret = bmesh.ops.bisect_plane(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces), plane_co=(0, s_cut + off, 0),
+                                     plane_no=(0, sg, 0), clear_outer=True, dist=1e-7)
+        e = [x for x in ret['geom_cut'] if isinstance(x, bmesh.types.BMEdge) and x.is_boundary]
+        if e: bmesh.ops.holes_fill(bm, edges=e, sides=0)
+    a.matrix_world = Matrix.Identity(4); bm.to_mesh(a.data); bm.free()
+    m = bpy.data.materials.new('a'); m.use_nodes = True; m.node_tree.nodes['Principled BSDF'].inputs[0].default_value = (.9, .25, .1, 1)
+    a.data.materials.clear(); a.data.materials.append(m)
+    for poly in a.data.polygons: poly.material_index = 0
+    hinge = piv + ax * ((s_cut - piv.y) / ax.y)
+    shoot(hinge + Vector((0, side * 2.0, 0)), hinge + Vector((-.04, 0, 0)), out / f'{label}-{deg:+.0f}.png', ortho=.42)
+    bpy.data.objects.remove(a)
 print('[deflect] rendered', label, degs, 'axis', tuple(round(a, 4) for a in ax), 'pivot', tuple(round(p, 4) for p in piv))

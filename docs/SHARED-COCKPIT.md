@@ -80,11 +80,14 @@ offline pass"). To regenerate reproducibly, from the approved GLBs, NumPy/Pillow
 | 8 | `vr_phase3e.py` | rear throttle on the left wall with a gate, canopy handles | d0517239 |
 | 9 | island-nav wing transplant: `ea300_wing_export.replace_wings` | airfoil-B `Wing`/`Aileron_L/R` into the VR GLBs | 2be16316 |
 | 10 | `extra_panel_p3f.py` | panels out to the walls, 0.275 m tall, one switch row, radio subpanel, sticks −0.06 m | 60f3ff48 |
-| 11 | (lane/codex-extra-cockpit-shared) the stick, switch row, panel layout, aileron hinge and junction per `_xfer/extra-cockpit-shared/CODEX-SPEC.md` | — | next |
+| 11 | `extra_cockpit_shared.py` (`/usr/bin/python3`: NumPy + Pillow) | Ty's panel: card centred, ASI/G left, ALT/TC right, Trig-style COM + XPDR heads left, 3-in-1 right, lower row tach / MP / fuel computer / ammeter; panel 0.055–0.360 m; one switch row (z 0.075, none within 85 mm of the stick); radio subpanel gone; aileron hinge at 30 % chord with an arc nose and matching cove; aileron nose skins filled to the wing lip | 8a5737c9 |
+| 12 | `fix_aileron_junctions.py` (other models, not the Extra) | wing/aileron skin break at neutral: 172 bay re-cut, GL / J-3 / 2-33 / Pitts nose skins + gap | db87f77c |
 
 After any pass: `drop_card_slot.validate` on the node graph, `check_vr_phase3.py`, `check_aileron_junction.py`, then
 `dotnet test --filter "CockpitControlInteriorTests|ExtraRearPanelTopTests|SharedPanelRigTests|InstrumentFacesTests|ModelRigTests"`,
-then a seat-eye render (`CockpitEyeShots`, COCKPIT_SHOTS) — and look at it.
+then a seat-eye render (`CockpitEyeShots`, COCKPIT_SHOTS), `render_aileron_deflect.py` for the hinge — and look at them.
+
+Passes 11 and 12 edit the GLBs in place. A full `build_ea300.py`, `model_c172.py`, `build_pitts_s2b.py`, `build_j3_cub.py`, `build_sgs233.py` or Great Lakes rebuild drops them: re-run them after any such rebuild, then `check_aileron_junction.py` must print OK.
 
 ## Merging this into the Quest lane
 
