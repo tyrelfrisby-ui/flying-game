@@ -1207,8 +1207,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    -0.04,
-    0.289
+    -0.167,
+    0.195
    ],
    "map": [
     [
@@ -1251,8 +1251,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    0.27
+    -0.167,
+    0.226
    ],
    "map": [
     [
@@ -1283,8 +1283,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    0.301
+    -0.167,
+    0.257
    ],
    "map": [
     [
@@ -1315,8 +1315,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    -0.27
+    -0.167,
+    -0.257
    ],
    "map": [
     [
@@ -1347,8 +1347,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    -0.301
+    -0.167,
+    -0.288
    ],
    "map": [
     [
@@ -1379,8 +1379,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    -0.333
+    -0.167,
+    -0.319
    ],
    "map": [
     [
@@ -1411,8 +1411,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    0.333
+    -0.167,
+    0.288
    ],
    "map": [
     [
@@ -1443,8 +1443,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.08,
-    0.27
+    -0.167,
+    0.319
    ],
    "map": [
     [
@@ -1475,8 +1475,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.08,
-    0.301
+    -0.167,
+    -0.35
    ],
    "map": [
     [
@@ -1507,8 +1507,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    -0.02,
-    0.32
+    -0.167,
+    0.35
    ],
    "map": [
     [
@@ -1539,8 +1539,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    -0.05,
-    0.25
+    -0.167,
+    -0.195
    ],
    "map": [
     [
@@ -1571,8 +1571,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    -0.04,
-    -0.29
+    -0.167,
+    -0.226
    ],
    "map": [
     [
@@ -1603,8 +1603,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    -0.102
+    0.128,
+    -0.1395
    ],
    "map": [
     [
@@ -1635,8 +1635,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    -0.134
+    0.128,
+    -0.10850000000000001
    ],
    "map": [
     [
@@ -1667,8 +1667,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    -0.071
+    0.128,
+    -0.07750000000000001
    ],
    "map": [
     [
@@ -1699,8 +1699,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    -0.039
+    0.128,
+    -0.046500000000000014
    ],
    "map": [
     [
@@ -1731,8 +1731,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.04
+    0.128,
+    -0.015500000000000014
    ],
    "map": [
     [
@@ -1763,8 +1763,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.072
+    0.128,
+    0.015499999999999986
    ],
    "map": [
     [
@@ -1795,8 +1795,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.104
+    0.128,
+    0.046499999999999986
    ],
    "map": [
     [
@@ -1827,8 +1827,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.136
+    0.128,
+    0.07749999999999999
    ],
    "map": [
     [
@@ -1859,8 +1859,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.167
+    0.128,
+    0.10849999999999999
    ],
    "map": [
     [
@@ -1891,8 +1891,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.009
+    0.128,
+    0.1395
    ],
    "map": [
     [
@@ -1923,8 +1923,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    -0.001,
-    0.28
+    -0.096,
+    0.195
    ],
    "map": [
     [
@@ -1967,8 +1967,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    0.25
+    -0.096,
+    0.226
    ],
    "map": [
     [
@@ -1999,8 +1999,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    0.281
+    -0.096,
+    0.257
    ],
    "map": [
     [
@@ -2031,8 +2031,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    -0.251
+    -0.096,
+    -0.257
    ],
    "map": [
     [
@@ -2063,8 +2063,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    -0.282
+    -0.096,
+    -0.288
    ],
    "map": [
     [
@@ -2095,8 +2095,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    -0.314
+    -0.096,
+    -0.319
    ],
    "map": [
     [
@@ -2127,8 +2127,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    0.312
+    -0.096,
+    0.288
    ],
    "map": [
     [
@@ -2159,8 +2159,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.22
+    -0.096,
+    0.319
    ],
    "map": [
     [
@@ -2191,8 +2191,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.252
+    -0.096,
+    -0.35
    ],
    "map": [
     [
@@ -2223,8 +2223,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.283
+    -0.096,
+    0.35
    ],
    "map": [
     [
@@ -2255,8 +2255,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    -0.001,
-    0.22
+    -0.096,
+    -0.195
    ],
    "map": [
     [
@@ -2287,8 +2287,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    -0.001,
-    -0.28
+    -0.096,
+    -0.226
    ],
    "map": [
     [
@@ -2319,8 +2319,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    -0.1
+    0.135,
+    -0.1395
    ],
    "map": [
     [
@@ -2351,8 +2351,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    -0.132
+    0.135,
+    -0.10850000000000001
    ],
    "map": [
     [
@@ -2383,8 +2383,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    -0.069
+    0.135,
+    -0.07750000000000001
    ],
    "map": [
     [
@@ -2415,8 +2415,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    -0.163
+    0.135,
+    -0.046500000000000014
    ],
    "map": [
     [
@@ -2447,8 +2447,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.04
+    0.135,
+    -0.015500000000000014
    ],
    "map": [
     [
@@ -2479,8 +2479,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.072
+    0.135,
+    0.015499999999999986
    ],
    "map": [
     [
@@ -2511,8 +2511,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.104
+    0.135,
+    0.046499999999999986
    ],
    "map": [
     [
@@ -2543,8 +2543,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.136
+    0.135,
+    0.07749999999999999
    ],
    "map": [
     [
@@ -2575,8 +2575,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.167
+    0.135,
+    0.10849999999999999
    ],
    "map": [
     [
@@ -2607,8 +2607,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.009
+    0.135,
+    0.1395
    ],
    "map": [
     [
@@ -2642,8 +2642,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    -0.04,
-    0.289
+    -0.167,
+    0.195
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -2667,7 +2667,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Master",
@@ -2681,8 +2681,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    0.27
+    -0.167,
+    0.226
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2703,7 +2703,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_FuelPump",
@@ -2717,8 +2717,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    0.301
+    -0.167,
+    0.257
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2739,7 +2739,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_NavLights",
@@ -2753,8 +2753,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    -0.27
+    -0.167,
+    -0.257
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2775,7 +2775,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Strobe",
@@ -2789,8 +2789,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    -0.301
+    -0.167,
+    -0.288
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2811,7 +2811,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_LandingLight",
@@ -2825,8 +2825,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    -0.333
+    -0.167,
+    -0.319
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2847,7 +2847,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Smoke",
@@ -2861,8 +2861,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.02,
-    0.333
+    -0.167,
+    0.288
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -2883,7 +2883,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_Mixture",
@@ -2897,8 +2897,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.08,
-    0.27
+    -0.167,
+    0.319
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -2916,7 +2916,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_Prop",
@@ -2930,8 +2930,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.08,
-    0.301
+    -0.167,
+    -0.35
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -2949,7 +2949,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_AlternateAir",
@@ -2963,8 +2963,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    -0.02,
-    0.32
+    -0.167,
+    0.35
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -2985,7 +2985,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_Trim",
@@ -2999,8 +2999,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    -0.05,
-    0.25
+    -0.167,
+    -0.195
    ],
    "travel": 300,
    "travel_unit": "deg",
@@ -3018,7 +3018,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_FuelSelector",
@@ -3032,8 +3032,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    -0.04,
-    -0.29
+    -0.167,
+    -0.226
    ],
    "travel": 180,
    "travel_unit": "deg",
@@ -3055,7 +3055,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_ComOuter",
@@ -3069,8 +3069,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    -0.102
+    0.128,
+    -0.1395
    ],
    "travel": 540,
    "travel_unit": "deg",
@@ -3113,7 +3113,7 @@
     118,
     136.975
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_ComInner",
@@ -3127,8 +3127,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    -0.134
+    0.128,
+    -0.10850000000000001
    ],
    "travel": 360,
    "travel_unit": "deg",
@@ -3190,7 +3190,7 @@
    "step": 0.025,
    "alternative_step_mhz": 0.008333333333333333,
    "channel_spacing_requires_owner_choice": true,
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_ComVolume",
@@ -3204,8 +3204,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    -0.071
+    0.128,
+    -0.07750000000000001
    ],
    "travel": 270,
    "travel_unit": "deg",
@@ -3223,7 +3223,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_PushPull_ComSwap",
@@ -3237,8 +3237,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    -0.039
+    0.128,
+    -0.046500000000000014
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -3259,7 +3259,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit1",
@@ -3273,8 +3273,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.04
+    0.128,
+    -0.015500000000000014
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3306,7 +3306,7 @@
     0,
     7
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit2",
@@ -3320,8 +3320,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.072
+    0.128,
+    0.015499999999999986
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3353,7 +3353,7 @@
     0,
     7
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit3",
@@ -3367,8 +3367,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.104
+    0.128,
+    0.046499999999999986
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3400,7 +3400,7 @@
     0,
     7
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit4",
@@ -3414,8 +3414,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.136
+    0.128,
+    0.07749999999999999
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -3447,7 +3447,7 @@
     0,
     7
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrMode",
@@ -3461,8 +3461,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.167
+    0.128,
+    0.10849999999999999
    ],
    "travel": 90,
    "travel_unit": "deg",
@@ -3485,7 +3485,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_PushPull_XpdrIdent",
@@ -3499,8 +3499,8 @@
    ],
    "pivot_gltf": [
     0.809,
-    0.119,
-    0.009
+    0.128,
+    0.1395
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -3521,7 +3521,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_Magneto_Front",
@@ -3535,8 +3535,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    -0.001,
-    0.28
+    -0.096,
+    0.195
    ],
    "travel": 130,
    "travel_unit": "deg",
@@ -3560,7 +3560,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Master_Front",
@@ -3574,8 +3574,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    0.25
+    -0.096,
+    0.226
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3596,7 +3596,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_FuelPump_Front",
@@ -3610,8 +3610,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    0.281
+    -0.096,
+    0.257
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3632,7 +3632,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_NavLights_Front",
@@ -3646,8 +3646,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    -0.251
+    -0.096,
+    -0.257
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3668,7 +3668,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Strobe_Front",
@@ -3682,8 +3682,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    -0.282
+    -0.096,
+    -0.288
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3704,7 +3704,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_LandingLight_Front",
@@ -3718,8 +3718,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    -0.314
+    -0.096,
+    -0.319
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3740,7 +3740,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Toggle_Smoke_Front",
@@ -3754,8 +3754,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.059,
-    0.312
+    -0.096,
+    0.288
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -3776,7 +3776,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_Mixture_Front",
@@ -3790,8 +3790,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.22
+    -0.096,
+    0.319
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -3809,7 +3809,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_Prop_Front",
@@ -3823,8 +3823,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.252
+    -0.096,
+    -0.35
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -3842,7 +3842,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_PushPull_AlternateAir_Front",
@@ -3856,8 +3856,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.283
+    -0.096,
+    0.35
    ],
    "travel": 35,
    "travel_unit": "mm",
@@ -3878,7 +3878,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_Trim_Front",
@@ -3892,8 +3892,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    -0.001,
-    0.22
+    -0.096,
+    -0.195
    ],
    "travel": 300,
    "travel_unit": "deg",
@@ -3911,7 +3911,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_FuelSelector_Front",
@@ -3925,8 +3925,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    -0.001,
-    -0.28
+    -0.096,
+    -0.226
    ],
    "travel": 180,
    "travel_unit": "deg",
@@ -3948,7 +3948,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
   },
   {
    "node": "Ctl_Rotary_ComOuter_Front",
@@ -3962,8 +3962,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    -0.1
+    0.135,
+    -0.1395
    ],
    "travel": 540,
    "travel_unit": "deg",
@@ -4006,7 +4006,7 @@
     118,
     136.975
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_ComInner_Front",
@@ -4020,8 +4020,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    -0.132
+    0.135,
+    -0.10850000000000001
    ],
    "travel": 360,
    "travel_unit": "deg",
@@ -4083,7 +4083,7 @@
    "step": 0.025,
    "alternative_step_mhz": 0.008333333333333333,
    "channel_spacing_requires_owner_choice": true,
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_ComVolume_Front",
@@ -4097,8 +4097,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    -0.069
+    0.135,
+    -0.07750000000000001
    ],
    "travel": 270,
    "travel_unit": "deg",
@@ -4116,7 +4116,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_PushPull_ComSwap_Front",
@@ -4130,8 +4130,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    -0.163
+    0.135,
+    -0.046500000000000014
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -4152,7 +4152,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit1_Front",
@@ -4166,8 +4166,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.04
+    0.135,
+    -0.015500000000000014
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4199,7 +4199,7 @@
     0,
     7
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit2_Front",
@@ -4213,8 +4213,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.072
+    0.135,
+    0.015499999999999986
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4246,7 +4246,7 @@
     0,
     7
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit3_Front",
@@ -4260,8 +4260,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.104
+    0.135,
+    0.046499999999999986
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4293,7 +4293,7 @@
     0,
     7
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrDigit4_Front",
@@ -4307,8 +4307,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.136
+    0.135,
+    0.07749999999999999
    ],
    "travel": 315,
    "travel_unit": "deg",
@@ -4340,7 +4340,7 @@
     0,
     7
    ],
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_Rotary_XpdrMode_Front",
@@ -4354,8 +4354,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.167
+    0.135,
+    0.10849999999999999
    ],
    "travel": 90,
    "travel_unit": "deg",
@@ -4378,7 +4378,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   },
   {
    "node": "Ctl_PushPull_XpdrIdent_Front",
@@ -4392,8 +4392,8 @@
    ],
    "pivot_gltf": [
     0.152,
-    0.1,
-    0.009
+    0.135,
+    0.1395
    ],
    "travel": 4,
    "travel_unit": "mm",
@@ -4414,7 +4414,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "cockpit_controls_v2: aft-facing panel face, inside cockpit"
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
   }
  ],
  "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."
