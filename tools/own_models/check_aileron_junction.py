@@ -258,7 +258,15 @@ def measure(path):
                     row[surf + '_step_mm'] = round((za - zw) * 1000, 1) if zw is not None and za is not None else None
                 row['wing_inboard'] = bool(inward)
                 res['root'].append(row)
+        # A station whose chord jumps far past its neighbours' is cutting a protrusion (the Extra's spade arm, a balance
+        # horn or a hinge bracket hanging off the aileron), not skin: report it, do not score it.
+        chords = sorted(r['chord'] for r in res['le'])
+        med = chords[len(chords) // 2] if chords else 0
         for row in res['le']:
+            if med and row['chord'] > 1.25 * med:
+                row['protrusion'] = True
+        res['le_scored'] = [r for r in res['le'] if not r.get('protrusion')]
+        for row in res['le_scored']:
             for k in ('upper_step_mm', 'lower_step_mm'):
                 if row.get(k) is not None and abs(row[k]) > LIMIT['step'] * 1000:
                     res['fail'].append(f"LE {k[:5]} step {row[k]} mm at span {row['span']}")
@@ -301,11 +309,12 @@ def main(argv):
         print(f"{r['file']:44s} {r['status']}" + (f"  ({r.get('note')})" if r.get('note') else ''))
         for a in r.get('ailerons', []):
             worst = {}
-            for row in a['le'] + a['root']:
+            for row in a.get('le_scored', a['le']) + a['root']:
                 for k in ('upper_step_mm', 'lower_step_mm', 'gap_mm', 'kink_deg'):
                     if row.get(k) is not None and abs(row[k]) > abs(worst.get(k, 0)):
                         worst[k] = row[k]
-            print(f"    {a['aileron']:11s} on {a['wing']:10s} chord {a['chord']:.3f}  worst: " +
+            prot = [r['span'] for r in a['le'] if r.get('protrusion')]
+            print(f"    {a['aileron']:11s} on {str(a['wing']):10s} chord {a['chord']:.3f}" + (f" (protrusion skipped at span {prot})" if prot else '') + "  worst: " +
                   ', '.join(f"{k} {v}" for k, v in worst.items()) + f"  ->  {len(a['fail'])} faults")
             for f in a['fail'][:6]:
                 print('       ', f)
