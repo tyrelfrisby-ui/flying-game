@@ -1,24 +1,34 @@
 ## NEEDS YOU
 <!-- parity-merge needs-you -->
-- **PARITY MERGE (Claude, 2026-11-04, Ty approved 07:29: "merge both ways, get them in parity and then lock them in
-  parity"). IN PROGRESS. Nothing approved by me; every conflict call is in the Log entry "parity merge".**
-  1. **`~/Developer/flying-game-worktrees/claude-island-nav` is now DETACHED at aeb9695a**, holding your uncommitted
+- **PARITY MERGE DONE: BOTH LANES ARE ONE COMMIT AND LOCKED (Claude, 2026-11-04, Ty approved 07:29).**
+  lane/claude-island-nav = lane/claude-quest-islandnav = **b7d1a680**; `tools/check-parity.sh --strict` PARITY: OK.
+  The lock is a git hook (tools/githooks, docs/PARITY.md "The lock"): a shared change may only land while the lanes are
+  identical, and the other lane must then merge it. Every conflict call is in the Log entry "parity merge". Nothing
+  approved by me.
+  1. **iPhone install did not happen.** The build is fine (2026.1104.0957, BUILD SUCCEEDED), but the phone refused it
+     (4016) and then dropped off. Unlock it, plug it in, then run
+     `xcrun devicectl device install app --device 00008150-001629A83662401C /tmp/flyinggame-dd/Build/Products/Release-iphoneos/AeroPlayground.app`
+     (check that the version reads 2026.1104.0957 first; another lane's build can overwrite that folder), or just run
+     `zsh tools/deploy/deploy.sh` from `claude-island-nav-merge`. **The Quest 3S has 2026.1104.1002.**
+  2. **`~/Developer/flying-game-worktrees/claude-island-nav` is DETACHED at aeb9695a**, holding your uncommitted
      ProjectSettings.asset, GraphicsSettings.asset and 16 StreamingAssets/aircraft/*.json exactly as they were (backup:
-     ~/Developer/agent-lanes/backups/parity-merge-20261104-0731/). The branch lane/claude-island-nav is worked in
-     `~/Developer/flying-game-worktrees/claude-island-nav-merge`. Decide what to do with those files there.
-  2. **Not merged, decide:** lane/codex-pitts-debris (020655ef, 95d44eb3: offline debris pipeline + Pitts pilot;
-     island-nav already has lane/claude-pitts-debris d8ab9861); codex/own-pitts-s2b (v11–v13 cabane/strut rebuilds,
-     Oct 28, "not yet approved by Ty"; the lanes' Pitts is newer); lane/claude-extra-cockpit-shared (35179373, 6898f355
-     + 4: the shared Extra cockpit + instrument lighting, in NEITHER lane; both lanes now carry the switches lane's Extra
-     P3f panels, so it will need a merge on top, and you said the layout is still wrong).
-  3. **Great Lakes windshield: confirm.** Both lanes now carry GL v7 (the parity renders' "QUEST NEXT f1618036"). You
-     approved "the Great Lakes windshield" at 07:33; if you meant another one, it needs a GLB follow-up.
-  4. **New red test from the merge, not fudged:** FloatLandingTests J-3 0.5 m/s landing splits a float bottom (18.1 kN
-     vs 17.9; island-nav alone 17.2). Island-nav's late step slam (nz ~4 on a 98 fpm landing) plus our drawn water
-     rudder. Needs a float-model decision (Log entry, step 1).
-  5. **QuestFrameBudgetProbe still RED, pre-existing:** 167.5 KiB/sim-s at the Quest parent vs its 160 KiB limit (184.0
-     after the merge: a one-time cache fill; steady state 71, equal). The merge had made it 251–622: fixed
-     (WingStructure ToLowerInvariant per step on water). The rest is the RK4 ForceMoment closure (pre-existing).
+     ~/Developer/agent-lanes/backups/parity-merge-20261104-0731/). The 16 JSON match what ConfigSync regenerates on any
+     build (build output, most likely safe to discard). lane/claude-island-nav is now worked in
+     `~/Developer/flying-game-worktrees/claude-island-nav-merge`.
+  3. **Not merged, decide:** lane/codex-pitts-debris (020655ef, 95d44eb3: offline debris pipeline + Pitts pilot; the
+     lanes already have lane/claude-pitts-debris d8ab9861); codex/own-pitts-s2b (v11–v13 cabane/strut, Oct 28, "not yet
+     approved"; the lanes' Pitts is newer); lane/claude-extra-cockpit-shared (35179373, 6898f355 + 4: shared Extra
+     cockpit + instrument lighting, in neither lane; both lanes now carry the switches lane's Extra P3f panels, so it
+     will need a merge on top, and you said the layout is still wrong).
+  4. **Great Lakes windshield: confirm.** Both lanes carry GL v7 (the parity renders' "QUEST NEXT f1618036"). You
+     approved "the Great Lakes windshield" at 07:33. If you meant another one, it needs a GLB follow-up.
+  5. **New red test from the merge, not fudged:** FloatLandingTests J-3 0.5 m/s landing splits a float bottom (18.1 kN
+     vs 17.9; island-nav alone 17.2). Cause: island-nav's late step slam (nz ~4 on a 98 fpm landing) plus our drawn
+     water rudder. Needs a float-model decision.
+  6. **QuestFrameBudgetProbe still RED, pre-existing:** 167.5 KiB/sim-s at the Quest parent vs the 160 limit; 184.0 now,
+     the difference being a one-time cache fill; steady state is 71 on both. The merge had made it 251–622, and that is
+     fixed. What is left is the RK4 ForceMoment closure.
+  7. **Lock gap:** fast-forwards and `update-ref` run no commit hook. Don't move a lane ref by hand.
 <!-- /parity-merge needs-you -->
 - **QUEST 3S HAS ISLAND-NAV ON IT: FLY AND CHECK (Claude, 2026-11-03, lane/claude-quest-islandnav). Nothing approved.**
   Installed on the Quest 3S (340YC10GBK0TYV) with `adb install -r` (debug-signed, no signature mismatch): versionName
@@ -2942,6 +2952,34 @@ BLOCKED (exit 1); docs-only and Quest-only commits while out of sync OK; the oth
 BLOCKED; merging the other lane's tip OK both as an automatic merge (pre-merge-commit) and as a conflicted merge
 finished with `git commit` (pre-commit, MERGE_HEAD); merging a feature lane while in sync OK (lead), while behind BLOCKED.
 Known gap, documented: a fast-forward or `update-ref` runs no commit hook.
+
+**Step 5 — parity.** After the lock commit (73dcc9d4) island-nav merged the Quest tip with no conflicts → **b7d1a680**,
+and the Quest lane fast-forwarded to it: **both lanes are the same commit**, so `git diff lane/claude-island-nav
+lane/claude-quest-islandnav` is empty. `tools/check-parity.sh --strict`: every commit in both, no shared Quest-only
+commit, GLBs all 29 identical, **PARITY: OK, exit 0**. Lock installed (`tools/githooks/install.sh`, common
+.git/hooks); `--hook` exits 0 on both lanes, and the dispatcher does nothing on lane/claude-parity (no tools/githooks there).
+
+**Step 7 — tests on b7d1a680.** Quest-lane worktree, full suite: **2,391 passed / 2,524 (127 failed, 6 skipped)**,
+1 h 40 m. By name, 115 distinct failing tests: every one is in the pre-existing parent sets above, except 2 that
+appear here first. Both pass alone (CockpitLiveTests.ACappedFrameRunsAtMostTheCapAndSaysSo = NaN under coupling;
+IslandCombatTests.AWreckOnTheGround…, the timing test noted before). Still red and new to the merge:
+FloatLandingTests J-3 0.5 m/s (step 1). Island-nav worktree (same commit): see below.
+
+**Step 8/9 — builds and installs.**
+- iOS from `claude-island-nav-merge`: `deploy.sh 00008150-001629A83662401C` → PARITY: OK, **`** BUILD SUCCEEDED **`**,
+  0 `error CS`, bundleVersion **2026.1104.0957**. Install on Ty's iPhone FAILED: CoreDeviceError 4016, then the phone
+  went "unavailable" (locked / off USB). The built app (Info.plist checked: 2026.1104.0957) is at
+  /tmp/flyinggame-dd/Build/Products/Release-iphoneos/AeroPlayground.app. NEEDS YOU.
+- Quest from the Quest lane: `deploy-quest.sh` → parity gate passed, APK built, **installed and launched on the Quest 3S
+  (340YC10GBK0TYV), version 2026.1104.1002**, exit 0, 0 `error CS`.
+- Both builds' ProjectSettings bundleVersion bump and the 16 StreamingAssets/aircraft JSON that ConfigSync rewrites were
+  restored afterwards (not committed). Those 16 are the SAME files as the "uncommitted" ones in the old island-nav
+  worktree, and the Pitts one carries the same diff: it is ConfigSync output, not hand work.
+- Island-nav worktree, same commit b7d1a680, full suite: **2,364 passed / 2,524 (154 failed, 6 skipped)**, 1 h 38 m.
+  134 distinct names: all in the pre-existing sets, except 14 (LandingGearTests ×5, PittsFlatSpinAileronTests ×5,
+  ReversibleControlTests ×2, TipWheelTests, VrBailoutTests) that this run alone failed. Their 5 classes re-run alone:
+  **77/77 passed**, so this is coupling (same commit as the Quest-lane run, which passed them). The real count of tests
+  that fail when run in isolation is the same for both lanes, since it is one tree.
 <!-- /parity-merge entry -->
 ### 2026-11-03 21:30 PST — Claude · lane/claude-quest-cockpit-switches (off lane/claude-quest-islandnav 2be16316) · switches on the panels on the Quest, GL v7, Pitts/Extra rows, Extra panel + stick, Pitts canopy + nose, headset cord
 Owner pt502u: "the pitts and the great lakes have switches outside of the panel on the meta quest version use the new
