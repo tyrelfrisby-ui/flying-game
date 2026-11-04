@@ -93,7 +93,8 @@ public class TreeStrikeTests : IDisposable
     {
         // Threshold, from the impulse the strike can take out of the airframe: the panel's joint carries at most its
         // failure force F_c while the edge crushes FailureTravelM = 5 cm, J = F_c·δ / v_n. The PA-18 panel gives way at
-        // F_c ≈ 22 kN at 45 m/s: J ≈ 22 kN·0.05 / 45 ≈ 25 N·s on the 737 kg left — 0.03 m/s. Measured on the step of the
+        // F_c ≈ 32 kN at 45 m/s (outboard of the lift-strut fitting at 3.40 m): J ≈ 32 kN·0.05 / 45 ≈ 36 N·s on the
+        // ~780 kg left — 0.05 m/s. Measured on the step of the
         // strike against an untouched twin flown in lock-step (the change across that one step, so what the crown's branches
         // took before it is not counted); 0.1 m/s allows
         // a tenth of a percent of the speed. After it, the aeroplane is a different shape and flies differently — that is
