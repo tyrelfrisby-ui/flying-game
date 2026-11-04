@@ -65,7 +65,8 @@ public sealed partial class Aircraft
         {
             // The structure scale from a model of its own: building the aeroplane's Hydro here would arm the water
             // model on every aeroplane from its first step (it is created on first use, near water or on a break).
-            WingStructure.EnsureStrength(_panels, Config, AirframeHydroModel.Build(Config, Load).StructureScale);
+            AirframeHydroModel hm = AirframeHydroModel.Build(Config, Load);
+            WingStructure.EnsureStrength(_panels, Config, hm.StructureScale * hm.WingMassFactor);   // the wing weight the wreck model carries
             foreach (ContactPoint p in _contacts)
                 if (p.Panel >= 0 && _panels[p.Panel].TipStiffnessNPerM > 0)
                     p.StiffnessScale = _panels[p.Panel].TipStiffnessNPerM / (AirframeContact.SpringNPerM + _panels[p.Panel].TipStiffnessNPerM);
@@ -165,20 +166,60 @@ public sealed partial class Aircraft
 
     // ---- wing panels -------------------------------------------------------------------------------------------------
 
-    /// <summary>Strike loads on each panel's station, from the contact forces recorded on the step's first stage, and the
-    /// bent-panel law in flight.</summary>
+    // ---- water on the panels -----------------------------------------------------------------------------------------
+
+    /// <summary>The water's bending moment on each panel's station this step, N·m, signed as CheckPanels' "up" (+ = tip up).</summary>
+    private double[] _panelWaterUp = Array.Empty<double>();
+
+    /// <summary>
+    /// On water a wingtip's hard points push nothing (the airframe's own volumes are AirframeFlooding's), so a panel would
+    /// never feel the water at all. Its load is the water's force on the wing elements outboard of its station — buoyancy,
+    /// the momentum handed to the water it sets moving (the slam) and drag, <see cref="WaterSlam.ElementForce"/> — taken
+    /// about the station like a contact force: a share of each element by the part of its span beyond the station, at the
+    /// middle of that part. It enters the same law as the ground (Ty 2026-11-03: the same localized break-up on water,
+    /// static load included).
+    /// </summary>
+    private void RecordPanelWaterLoads(RigidBodyState s0, RigidBodyState s1, double dt)
+    {
+        if (_panels.Count == 0) return;
+        if (_panelWaterUp.Length != _panels.Count) _panelWaterUp = new double[_panels.Count];
+        Array.Clear(_panelWaterUp, 0, _panelWaterUp.Length);
+        if (!_hydroArmed || !Hydro.Active || dt <= 0) return;
+        Vec3 cg = Config.Mass.CgVec();
+        for (int k = 0; k < _panels.Count; k++)
+        {
+            WingPanel w = _panels[k];
+            if (w.State == PanelState.Broken) continue;
+            foreach (HydroElement e in Hydro.Attached)
+            {
+                if (Math.Sign(e.Centre.Y) != w.Side || !(e.Name == w.SurfaceId || WingStructure.BelongsTo(e.Name, w.SurfaceId, Config))) continue;
+                if (e.Atom is not (WreckAtom.WingLInner or WreckAtom.WingLOuter or WreckAtom.WingRInner or WreckAtom.WingROuter or WreckAtom.AileronL or WreckAtom.AileronR)) continue;
+                double y0 = Math.Abs(e.Centre.Y) - e.Half.Y, y1 = Math.Abs(e.Centre.Y) + e.Half.Y;
+                if (y1 <= w.BreakY) continue;
+                double inner = Math.Max(y0, w.BreakY), frac = y1 > y0 ? (y1 - inner) / (y1 - y0) : 1.0;
+                Vec3 f = WaterSlam.ElementForce(e, cg, s0, s1, Hydro.WaterUp, dt) * frac;
+                if (f.LengthSquared == 0) continue;
+                double ry = w.Side * (0.5 * (y1 + inner) - w.BreakY), rz = e.Centre.Z - w.BreakZ;
+                _panelWaterUp[k] += -w.Side * (ry * f.Z - rz * f.Y);
+            }
+        }
+    }
+
+    /// <summary>Strike loads on each panel's station, from the contact forces recorded on the step's first stage and the
+    /// water's (<see cref="RecordPanelWaterLoads"/>), and the bent-panel law in flight.</summary>
     private void CheckPanels()
     {
         if (_panels.Count == 0) return;
         bool any = false;
         foreach (ContactPoint p in _contacts) if (p.Panel >= 0 && p.ForceBody.LengthSquared > 0) { any = true; break; }
+        foreach (double m in _panelWaterUp) if (m != 0) { any = true; break; }
         if (!any && !_panels.Any(q => q.State == PanelState.Bent))
         {
             Array.Clear(_panelTouching, 0, _panelTouching.Length); Array.Clear(_bentThisStrike, 0, _bentThisStrike.Length);
             foreach (WingPanel q in _panels) q.ElasticRad = 0.0;
             return;
         }
-        WingStructure.EnsureStrength(_panels, Config, Hydro.Model.StructureScale);
+        WingStructure.EnsureStrength(_panels, Config, Hydro.Model.StructureScale * Hydro.Model.WingMassFactor);
         for (int k = 0; k < _panels.Count; k++)
         {
             WingPanel w = _panels[k];
@@ -195,6 +236,7 @@ public sealed partial class Aircraft
                 if (p.ForceBody.Length > fMax) { fMax = p.ForceBody.Length; at = p; }
             }
             double up = -w.Side * mx;   // + = bending the tip UP
+            if (k < _panelWaterUp.Length && _panelWaterUp[k] != 0) { up += _panelWaterUp[k]; touched = true; }
             // The flex the contact force puts in it: F/k_w at the tip, as the tip slope of a cantilever.
             double len = w.TipY - w.BreakY;
             w.ElasticRad = touched && w.TipStiffnessNPerM > 0 && len > 0 ? 1.5 * (up / len) / w.TipStiffnessNPerM / len : 0.0;

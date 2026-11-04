@@ -1194,10 +1194,12 @@ public sealed partial class Aircraft
         if (_hydroArmed)
         {
             State = Hydro.AfterStep(preStep, State, MassProperties, dt);
+            RecordPanelWaterLoads(preStep, State, dt);   // the water on each wing panel's station (AircraftContactDamage)
             FloatFlood?.Flood(State, Hydro.WaterUp, dt);
             foreach (AirframeComponent c in Hydro.TakeBreaks())   // the water break-up rule (AirframeFlooding.CheckJoints)
                 if (!_lost.Contains(c) && !_pendingBreaks.Contains(c)) _pendingBreaks.Add(c);
         }
+        else RecordPanelWaterLoads(preStep, State, dt);   // clears last step's water moments once clear of the water
         long tAfter = SimProfile.Begin();
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
