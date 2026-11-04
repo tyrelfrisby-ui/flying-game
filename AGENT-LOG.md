@@ -4525,3 +4525,6 @@ NEEDS YOU: approve v3 renders in `~/Developer/agent-lanes/xfer/c172v3/`. Ty reje
 3. VSI zero at the 9 o'clock position: needle level, pointing left, at zero.
 4. Attitude indicator too "round" (domed/deep bezel): flatten so it reads without parallax; face near the glass, horizon bar and airplane symbol close to the dial plane. Every gauge: shallow bezel, face near flush, high-contrast markings, parallax-resistant.
 Keep: flush instruments with four corner screws, level AI airplane, top-view DG airplane, TC rear-view airplane with curved glass-tube inclinometer and two wires, ADF needle distinct head/tail, 1970s style, TRAINER yokes.
+
+## 2026-11-03 16:26 PST - 172 turn coordinator marks (Ty)
+NEEDS YOU: approve v3. TC standard-rate L and R marks must sit on the exact radial the rear-view airplane's wing reaches at 3°/s (about 20° down from level, as on real Cessna TCs), so the wing lies exactly parallel on the mark at standard rate; verify the overlay. The rear-view airplane's wings must be perfectly symmetric about the centre pivot (one wing looks longer). Add close-ups of the TC at standard rate left and right.
