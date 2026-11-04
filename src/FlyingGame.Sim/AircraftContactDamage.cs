@@ -128,7 +128,17 @@ public sealed partial class Aircraft
                 WingPanel? pd = PanelFor(l.DrivenSurface, l.Side), ps = PanelFor(l.SlavedSurface, l.Side);
                 Func<Vec3, Vec3>? bd = pd is { State: PanelState.Bent } ? v => pd.Bend(v, pd.BendRad) : null;
                 Func<Vec3, Vec3>? bs = ps is { State: PanelState.Bent } ? v => ps.Bend(v, ps.BendRad) : null;
-                _linkLocal[i] = l.Solve(driven, bd, bs, _linkLocal[i], 0.7);
+                if (bd is null && bs is null)
+                {
+                    // Both wings straight: a working slave strut moves the two ailerons together, and that is what the
+                    // aeroplane was rigged with (RigSolver) — the stick's deflection, exactly, as before.
+                    _linkLocal[i] = driven;
+                    continue;
+                }
+                // A bent wing: the deflection the strut now gives, less what it gives straight (the reconstructed horns are
+                // not exactly 1:1 — the upper hinge is swept, the lower is not — and that residue is not the bend's).
+                double guess = _linkLocal[i] - driven;
+                _linkLocal[i] = driven + l.Solve(driven, bd, bs, driven + guess, 0.7) - l.Solve(driven, null, null, driven, 0.7);
             }
             else
             {
