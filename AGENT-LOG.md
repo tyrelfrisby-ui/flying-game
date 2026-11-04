@@ -1,4 +1,17 @@
 ## NEEDS YOU
+- **NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/** (Codex, 2026-11-03, lane/claude-172-instruments).
+  - New layout: standard T six-pack; tach under VSI, suction under DG, separate L/R fuel quantity under TC;
+    one OIL PRESS / OIL TEMP / AMPS / EGT column, shifted usable NAV1/NAV2/ADF and intact radio stack; plain right panel.
+  - Flat, contrasting, larger panel/dial/radio lettering; switch and primer labels clear their controls from the pilot eye.
+  - Plain black 13 mm throttle, red 10 mm mixture, black 8 mm carb heat, in that left-to-right order; coaxial shafts,
+    translation only, no prop control. No existing carb-heat/ammeter/EGT runtime parameters: those authored nodes stay unbound.
+  - VSI zero points left; ±500 fpm hits upper/lower 5 at ±45°, with the matching piecewise ±2000 fpm scale.
+  - Shallow masked AI slide, 0.8 mm/degree pitch, matching ladder and retained roll; level/bank20/pitch10 in straight and CFI views.
+  - Symmetric, centred TC rear-view airplane; ±1 rate = ±20° on matching radial marks, retained tube/ball/two wires.
+  - 34 fresh PNGs including measured labelled layout diagram; SHA-256, mtimes, complete rig inputs and camera manifest;
+    all copied byte-for-byte. Docs: `docs/models/c172-instruments-v3.md`; evidence: `renders/c172/instruments-v3/`.
+  - 45/45 C172 tests; ModelRigTests 11 pass + known glider airbrake NaN baseline failure. Both GLB checkers pass;
+    Unity/Metal OwnRigCheck RIG OK, 34/34 bound. No src/config changes, deployment, device install, push or merge.
 - **172 PANEL V2 — NEEDS YOU: Ty, approve the new panel renders (Codex, 2026-11-03, lane/claude-172-instruments).**
   Addresses all feedback logged at 14:38–14:41: recessed flush mounts and four slotted corner screws per instrument;
   level centred AI reference; top-view DG airplane; rear-view TC airplane, L/R standard-rate marks, 2 MIN and D.C. ELEC.;
@@ -4534,3 +4547,26 @@ NEEDS YOU: approve v3 layout. Tachometer directly under the VSI. One vertical en
 
 ## 2026-11-03 16:29 PST - 172 engine column correction (Ty)
 NEEDS YOU: approve v3 layout. Correction: the 172 is carbureted, so NO fuel pressure or fuel flow gauge. Engine column, top to bottom: oil pressure, oil temp, ammeter, EGT. The only fuel gauges are the two L/R fuel quantity gauges under the TC. (Supersedes the 16:28 "fuel press" assumption; nothing to confirm.)
+
+## 2026-11-03 17:21 PST - 172 instruments v3 (Codex)
+
+NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/
+
+- Rebuilt the requested standard-T panel layout: tach below VSI, suction below DG, L/R fuel quantity below TC,
+  one oil pressure / oil temperature / centre-zero amps / EGT column, relocated NAV/ADF heads and intact radios.
+  Removed the former right engine cluster; no fuel pressure/flow or propeller control.
+- Replaced floating/tiny legends with flat high-contrast printing: at least 6.20 mm control caps and 4.59 mm dial caps,
+  larger numerals, supporting-surface offsets at most 0.3 mm. Lowered switch labels and placed PRIMER on ivory for pilot-eye visibility.
+- Corrected throttle/mixture/carb-heat order, 13/10/8 mm radii, coaxial shafts and translation-only authored bindings.
+  ModelRig.cs has no carb-heat, ammeter or EGT input, so these three remain authored/unbound; all prior runtime params remain.
+- Redrew/calibrated VSI left zero, ±500 at ±45°, ±1000 top/bottom and ±2000 near right; model parameter zero matches the drawn pose.
+- Replaced the deep AI sphere with a shallow masked sliding horizon; 10° pitch up translates down 8 mm against its printed ladder.
+  Retained level orange wings/dot, bank scale, sky pointer and roll binding; captured straight and off-axis comparisons.
+- Centred and symmetrized the TC airplane and fuselage; ±1 rate now rotates ±20° onto matching radial indices. Retained L/R,
+  2 MIN, D.C. ELEC., curved glass inclinometer, ball and wires. Retained flush four-screw mounts, top-view DG, ADF head/tail and TRAINER yokes.
+- Extended exported-mesh checks for every mount/radio/yoke/switch clearance, TC symmetry/radials, actual VSI drawn zero,
+  flat label geometry and engine plunger dimensions/order/translation. 45/45 C172 tests pass; ModelRigTests 11 pass and the
+  known `FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake` NaN baseline fails; no unrelated physics changes.
+- Delivered 34 fresh final Unity/Metal and schematic PNGs, inspected individually, with complete input/hash/mtime provenance,
+  copied byte-for-byte to xfer/c172v3. Both GLBs pass; Unity OwnRigCheck reports RIG OK / 34 bound. Reproduction and full file list:
+  `docs/models/c172-instruments-v3.md`. No src/config edits; ProjectSettings churn discarded; local commit only, no deploy/device install.

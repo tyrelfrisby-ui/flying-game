@@ -693,4 +693,77 @@ public class C172InstrumentTests
         }
         Assert.DoesNotContain(rows.Keys, n => n.Contains("Prop", StringComparison.OrdinalIgnoreCase));
     }
+    private static System.Text.Json.JsonElement V3Row(string name)
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", "c172-like-own-rig.json");
+        return System.Text.Json.JsonDocument.Parse(File.ReadAllText(path)).RootElement.GetProperty("rig")
+            .EnumerateArray().Single(r => r.GetProperty("node").GetString() == name).Clone();
+    }
+
+    private static RigNode V3Node(string name)
+    {
+        var r = V3Row(name);
+        var m = r.GetProperty("map").EnumerateArray().ToArray();
+        return new RigNode(name,"",r.GetProperty("param").GetString()!,r.GetProperty("kind").GetString()=="move",
+            1,0,0,0,0,0,m.Select(v=>v[0].GetDouble()).ToArray(),m.Select(v=>v[1].GetDouble()).ToArray());
+    }
+
+    [Theory]
+    [InlineData(-2000,-170)] [InlineData(-1000,-90)] [InlineData(-500,-45)]
+    [InlineData(0,0)] [InlineData(500,45)] [InlineData(1000,90)] [InlineData(2000,170)]
+    public void VsiMovesClockwiseFromItsDrawnLeftZero(double fpm,double degrees)
+    {
+        Assert.Equal(degrees,V3Node("C172_VSI_needle").Value(fpm),8);
+        Assert.Equal(0,V3Row("C172_VSI_needle").GetProperty("model").GetDouble());
+    }
+
+    [Theory]
+    [InlineData(-1,-20)] [InlineData(0,0)] [InlineData(1,20)] [InlineData(2,40)]
+    public void TcStandardRateEqualsTheTwentyDegreeIndex(double rate,double angle)
+        => Assert.Equal(angle,V3Node("C172_TC_airplane").Value(rate),8);
+
+    [Fact]
+    public void PitchUpSlidesHorizonDownByThePrintedTenDegreeLadderSpacing()
+    {
+        Assert.True(V3Node("C172_AI_pitch").Move);
+        Assert.Equal(-.008,V3Node("C172_AI_pitch").Value(10),8);
+    }
+
+    [Fact]
+    public void AllThreeEnginePlungersTranslateAndDecreaseInSizeFromLeftToRight()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while(root != null && !File.Exists(Path.Combine(root.FullName,"tools","own_models","c172_cockpit.py"))) root=root.Parent;
+        Assert.NotNull(root);
+        var authored = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(root!.FullName,"docs","models","c172-panel-bindings.json")))
+            .RootElement.GetProperty("bindings").EnumerateArray().ToDictionary(r=>r.GetProperty("node").GetString()!,r=>r);
+        byte[] bytes=File.ReadAllBytes(Path.Combine(root.FullName,"unity","Assets","_Project","Resources","Models","c172-like","c172-like-own.glb"));
+        int length=System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(12,4));
+        var glb=System.Text.Json.JsonDocument.Parse(bytes.AsMemory(20,length)).RootElement;
+        double lastX=double.NegativeInfinity,lastRadius=double.PositiveInfinity;
+        foreach(var (name,radius) in new[]{("Throttle",.013),("Mixture",.010),("Carb_heat",.008)})
+        {
+            string key="C172_"+name;
+            var binding=authored[key];
+            Assert.Equal("translation",binding.GetProperty("kind").GetString());
+            Assert.Equal("+X forward (Blender)",binding.GetProperty("axis").GetString());
+            Assert.Equal(.06,binding.GetProperty("range")[1].GetDouble(),8);
+            var node=glb.GetProperty("nodes").EnumerateArray().Single(n=>n.GetProperty("name").GetString()==key);
+            double x=node.GetProperty("translation")[2].GetDouble();
+            var prims=glb.GetProperty("meshes")[node.GetProperty("mesh").GetInt32()].GetProperty("primitives").EnumerateArray();
+            double lo=double.PositiveInfinity,hi=double.NegativeInfinity;
+            foreach(var prim in prims)
+            {
+                var a=glb.GetProperty("accessors")[prim.GetProperty("attributes").GetProperty("POSITION").GetInt32()];
+                lo=Math.Min(lo,a.GetProperty("min")[2].GetDouble());hi=Math.Max(hi,a.GetProperty("max")[2].GetDouble());
+            }
+            double measured=(hi-lo)/2;
+            Assert.Equal(radius,measured,5);Assert.True(x>lastX);Assert.True(measured<lastRadius);
+            lastX=x;lastRadius=measured;
+        }
+        Assert.False(new RigInputs().TryGet("carb_heat",out _));
+        Assert.False(new RigInputs().TryGet("ammeter",out _));
+        Assert.False(new RigInputs().TryGet("egt",out _));
+    }
+
 }

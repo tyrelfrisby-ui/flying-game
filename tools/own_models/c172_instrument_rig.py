@@ -5,9 +5,10 @@ Pivots are read from the GLB's own node translations, so a re-exported panel onl
     python3 tools/own_models/c172_instrument_rig.py \
         unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb docs/models/c172-like-own-rig.json
 
-Dial calibrations are read off Codex's builder (tools/own_models/c172_cockpit.py): labels at tau*i/n clockwise
-from 12, needles baked at -angle (ASI -55, ALT 0, small hands -20/-5, engine gauges and ADF -35), which the
-straight-on render renders/c172/v1/full-panel-straight.png confirms (ASI toward 160-180, tach toward 35).
+Dial calibrations follow tools/own_models/c172_cockpit.py. Maps are additive motion from the baked
+mesh (not absolute angles); model records the parameter at the authored pose. VSI is drawn at its
+left-pointing zero, so its additive map and model are both zero at 0 fpm. ASI/tach/ADF retain their
+explicit baked-angle corrections. Regenerate after every export to read the new pivots.
 """
 import json,struct,sys
 glb=sys.argv[1]; out=sys.argv[2]
@@ -25,10 +26,10 @@ def row(node,param,kind,axis,mp,desc,parent="",wrap=0,extrap=0,model=0.0):
 CW="+deg = clockwise as seen from the seat"
 # ---- the 172 instruments (FlyingGame.Core.Instruments) --------------------------------------------------------
 row('C172_AI_roll','ai_bank_deg','rot',X,[[-180,180],[180,-180]],"AI horizon/roll assembly: rolls the OPPOSITE way to the indicated bank (right bank = horizon tilts anticlockwise); "+CW)
-row('C172_AI_pitch','ai_pitch_deg','rot',Z,[[-25,-25],[25,25]],"AI horizon sphere about the lateral axis inside the roll assembly: nose up turns the face DOWN (more sky); 1:1, Codex's +/-25 deg envelope",parent='C172_AI_roll')
+row('C172_AI_pitch','ai_pitch_deg','move',Y,[[-25,.020],[25,-.020]],"Flat horizon slide: 0.8 mm per degree; pitch up moves horizon DOWN, matching 5/10/15/20 degree ladder",parent='C172_AI_roll')
 row('C172_DG_card','dg_card_deg','rot',X,[[0,0],[360,-360]],"DG card: drawn N at 12 o'clock, numbers clockwise; the reading sits under the top lubber, so the card turns anticlockwise by it; "+CW,wrap=360)
 row('C172_DG_sync_adjust','dg_knob_deg','rot',X,[[0,0],[360,360]],"DG push-and-turn knob, 1:1 with the card change it made",wrap=360)
-row('C172_TC_airplane','tc_needle','rot',X,[[-2,-30],[2,30]],"TC little aeroplane: 1 rate (standard rate) = 15 deg right wing down at the L/R standard-rate index; stops at 2 rates; "+CW)
+row('C172_TC_airplane','tc_needle','rot',X,[[-2,-40],[2,40]],"TC little aeroplane: 1 rate (standard rate) = 20 deg right wing down at the L/R standard-rate index; stops at 2 rates; "+CW)
 row('C172_TC_slip_ball','slip_ball','move',Z,[[-1,-0.015],[1,0.015]],"inclinometer ball, +1 = right end of the tube (12 deg of apparent-gravity lean)")
 for i in (1,2):
     row(f'C172_NAV{i}_CDI',f'nav{i}_cdi','move',Z,[[-1,-0.018],[1,0.018]],f"NAV{i} course needle: +1 = full scale right (course to the right); VOR 10 deg, localizer tailored")
@@ -47,17 +48,18 @@ row('C172_Airspeed_needle','airspeed_mph','rot',X,[[0,55],[200,415]],"ASI, MPH f
 row('C172_Altimeter_needle','altitude_ft','rot',X,[[0,0],[1000,360]],"altimeter long hand, 1 turn per 1,000 ft (unbounded); drawn at 0",extrap=1)
 row('C172_Altimeter_1000','altitude_ft','rot',X,[[0,20],[10000,380]],"altimeter short hand, 1 turn per 10,000 ft; drawn at -20 deg",extrap=1)
 row('C172_Altimeter_10000','altitude_ft','rot',X,[[0,5],[100000,365]],"altimeter 10,000 ft pointer, 1 turn per 100,000 ft; drawn at -5 deg",extrap=1)
-row('C172_VSI_needle','vsi_fpm','rot',X,[[-2000,-180],[2000,180]],"VSI as DRAWN: 0 at 12 o'clock, climb clockwise to 2,000 at 6 o'clock (9 deg per 100 fpm), descent anticlockwise; drawn at 0")
+row('C172_VSI_needle','vsi_fpm','rot',X,[[-2000,-170],[-1000,-90],[0,0],[1000,90],[2000,170]],"VSI: drawn zero at 9 o'clock (LEFT); +/-500 fpm at +/-45 clockwise degrees from zero; 1000 at top/bottom; 2000 near right",model=0)
 row('C172_Tach_needle','rpm','rot',X,[[0,35],[3500,350]],"tachometer: 0-35 hundred rpm every 45 deg = 0.09 deg/rpm; drawn at -35 deg")
 row('C172_Oil_press_needle','oil_press_psi','rot',X,[[0,35],[100,323]],"oil pressure: 0-100 psi, 72 deg per 25 psi; drawn at -35 deg")
 row('C172_Oil_temp_needle','oil_temp_f','rot',X,[[75,35],[100,107],[150,179],[200,251],[245,323]],"oil temperature: labels 75/100/150/200/245 F every 72 deg (non-linear face); drawn at -35 deg")
 for s in 'LR':
     row(f'C172_Fuel_{s}_needle','fuel_centre_frac','rot',X,[[0,35],[1,323]],f"fuel {s}: E..F over 288 deg (72 deg per quarter); the sim has one fuel fraction; drawn at -35 deg")
-# Fixed-pitch trainer: two plain plungers, with no rotational or prop-control binding.
+# Fixed-pitch trainer: throttle and mixture bind as plain plungers. ModelRig.TryGet has no carb-heat,
+# ammeter or EGT param: keep those three authored nodes unbound rather than inventing signals.
 for node,param in [('C172_Throttle','throttle'),('C172_Mixture','mixture')]:
     row(node,param,'move',X,[[0,0],[1,0.06]],'Plain push-pull plunger: +X pushes into the panel; no twist')
-doc=dict(model='c172-like-own',livery='v1',
-  source="Codex's panel (lane/codex-172-cockpit 8655aadb, docs/models/c172-panel-rig.md); bound to FlyingGame.Core.Instruments by lane/claude-172-instruments. Generated from the GLB's own node translations (pivots) by tools/own_models/c172_instrument_rig.py.",
+doc=dict(model='c172-like-own',livery='v3',
+  source="Authored 172 v3 panel: tools/own_models/c172_cockpit.py, lane/claude-172-instruments; docs/models/c172-instruments-v3.md. Runtime maps target existing ModelRig inputs only. Pivots generated from the final GLB node translations by tools/own_models/c172_instrument_rig.py.",
   rig=rows)
 open(out,'w').write(json.dumps(doc,indent=2)+'\n')
 print(len(rows),'rows')

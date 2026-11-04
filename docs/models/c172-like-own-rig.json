@@ -1,7 +1,7 @@
 {
   "model": "c172-like-own",
-  "livery": "v1",
-  "source": "Codex's panel (lane/codex-172-cockpit 8655aadb, docs/models/c172-panel-rig.md); bound to FlyingGame.Core.Instruments by lane/claude-172-instruments. Generated from the GLB's own node translations (pivots) by tools/own_models/c172_instrument_rig.py.",
+  "livery": "v3",
+  "source": "Authored 172 v3 panel: tools/own_models/c172_cockpit.py, lane/claude-172-instruments; docs/models/c172-instruments-v3.md. Runtime maps target existing ModelRig inputs only. Pivots generated from the final GLB node translations by tools/own_models/c172_instrument_rig.py.",
   "rig": [
     {
       "node": "C172_AI_roll",
@@ -14,7 +14,7 @@
         0
       ],
       "pivot_gltf": [
-        0.327,
+        0.3018,
         0.323,
         -0.321
       ],
@@ -36,29 +36,29 @@
       "node": "C172_AI_pitch",
       "parent": "C172_AI_roll",
       "param": "ai_pitch_deg",
-      "kind": "rot",
+      "kind": "move",
       "axis_gltf": [
         0,
-        0,
-        1
+        1,
+        0
       ],
       "pivot_gltf": [
-        0.327,
+        0.299,
         0.323,
         -0.321
       ],
       "map": [
         [
           -25,
-          -25
+          0.02
         ],
         [
           25,
-          25
+          -0.02
         ]
       ],
       "model": 0.0,
-      "desc": "AI horizon sphere about the lateral axis inside the roll assembly: nose up turns the face DOWN (more sky); 1:1, Codex's +/-25 deg envelope",
+      "desc": "Flat horizon slide: 0.8 mm per degree; pitch up moves horizon DOWN, matching 5/10/15/20 degree ladder",
       "extra": {}
     },
     {
@@ -72,7 +72,7 @@
         0
       ],
       "pivot_gltf": [
-        0.3004,
+        0.2967,
         0.218,
         -0.321
       ],
@@ -103,7 +103,7 @@
         0
       ],
       "pivot_gltf": [
-        0.301,
+        0.2973,
         0.188,
         -0.348
       ],
@@ -134,22 +134,22 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
-        0.222,
+        0.2959,
+        0.218,
         -0.423
       ],
       "map": [
         [
           -2,
-          -30
+          -40
         ],
         [
           2,
-          30
+          40
         ]
       ],
       "model": 0.0,
-      "desc": "TC little aeroplane: 1 rate (standard rate) = 15 deg right wing down at the L/R standard-rate index; stops at 2 rates; +deg = clockwise as seen from the seat",
+      "desc": "TC little aeroplane: 1 rate (standard rate) = 20 deg right wing down at the L/R standard-rate index; stops at 2 rates; +deg = clockwise as seen from the seat",
       "extra": {}
     },
     {
@@ -163,7 +163,7 @@
         1
       ],
       "pivot_gltf": [
-        0.2993,
+        0.2956,
         0.196,
         -0.423
       ],
@@ -192,9 +192,9 @@
         1
       ],
       "pivot_gltf": [
-        0.2993,
+        0.2956,
         0.323,
-        -0.112
+        0
       ],
       "map": [
         [
@@ -221,9 +221,9 @@
         0
       ],
       "pivot_gltf": [
-        0.3003,
+        0.2966,
         0.323,
-        -0.112
+        0
       ],
       "map": [
         [
@@ -252,9 +252,9 @@
         0
       ],
       "pivot_gltf": [
-        0.301,
+        0.2973,
         0.293,
-        -0.138
+        -0.026
       ],
       "map": [
         [
@@ -283,9 +283,9 @@
         0
       ],
       "pivot_gltf": [
-        0.299,
-        0.335,
-        -0.099
+        0.2953,
+        0.331,
+        0.014
       ],
       "map": [
         [
@@ -312,9 +312,9 @@
         0
       ],
       "pivot_gltf": [
-        0.299,
-        0.342,
-        -0.099
+        0.2953,
+        0.339,
+        0.014
       ],
       "map": [
         [
@@ -345,9 +345,9 @@
         1
       ],
       "pivot_gltf": [
-        0.2993,
+        0.2956,
         0.218,
-        -0.112
+        0
       ],
       "map": [
         [
@@ -374,9 +374,9 @@
         0
       ],
       "pivot_gltf": [
-        0.3003,
+        0.2966,
         0.218,
-        -0.112
+        0
       ],
       "map": [
         [
@@ -405,9 +405,9 @@
         0
       ],
       "pivot_gltf": [
-        0.301,
+        0.2973,
         0.188,
-        -0.138
+        -0.026
       ],
       "map": [
         [
@@ -436,9 +436,9 @@
         0
       ],
       "pivot_gltf": [
-        0.299,
-        0.23,
-        -0.099
+        0.2953,
+        0.226,
+        0.014
       ],
       "map": [
         [
@@ -465,9 +465,9 @@
         0
       ],
       "pivot_gltf": [
-        0.299,
-        0.237,
-        -0.099
+        0.2953,
+        0.234,
+        0.014
       ],
       "map": [
         [
@@ -498,9 +498,9 @@
         0
       ],
       "pivot_gltf": [
-        0.2991,
+        0.2954,
         0.323,
-        -0.112
+        0
       ],
       "map": [
         [
@@ -527,9 +527,9 @@
         0
       ],
       "pivot_gltf": [
-        0.299,
-        0.349,
-        -0.099
+        0.2953,
+        0.347,
+        0.014
       ],
       "map": [
         [
@@ -556,9 +556,9 @@
         0
       ],
       "pivot_gltf": [
-        0.2997,
-        0.111,
-        -0.112
+        0.296,
+        0.113,
+        0
       ],
       "map": [
         [
@@ -587,9 +587,9 @@
         0
       ],
       "pivot_gltf": [
-        0.301,
-        0.081,
-        -0.138
+        0.2973,
+        0.083,
+        -0.026
       ],
       "map": [
         [
@@ -618,7 +618,7 @@
         0
       ],
       "pivot_gltf": [
-        0.334,
+        0.3373,
         0.448,
         0
       ],
@@ -649,9 +649,9 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
-        0.315,
-        0.443
+        0.2959,
+        0.113,
+        -0.321
       ],
       "map": [
         [
@@ -678,7 +678,7 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
+        0.2959,
         0.323,
         -0.423
       ],
@@ -707,7 +707,7 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
+        0.2959,
         0.323,
         -0.219
       ],
@@ -738,7 +738,7 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
+        0.2959,
         0.323,
         -0.219
       ],
@@ -769,7 +769,7 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
+        0.2959,
         0.323,
         -0.219
       ],
@@ -800,22 +800,34 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
+        0.2959,
         0.218,
         -0.219
       ],
       "map": [
         [
           -2000,
-          -180
+          -170
+        ],
+        [
+          -1000,
+          -90
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1000,
+          90
         ],
         [
           2000,
-          180
+          170
         ]
       ],
-      "model": 0.0,
-      "desc": "VSI as DRAWN: 0 at 12 o'clock, climb clockwise to 2,000 at 6 o'clock (9 deg per 100 fpm), descent anticlockwise; drawn at 0",
+      "model": 0,
+      "desc": "VSI: drawn zero at 9 o'clock (LEFT); +/-500 fpm at +/-45 clockwise degrees from zero; 1000 at top/bottom; 2000 near right",
       "extra": {}
     },
     {
@@ -829,9 +841,9 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
-        0.314,
-        0.303
+        0.2959,
+        0.113,
+        -0.219
       ],
       "map": [
         [
@@ -858,9 +870,9 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
-        0.213,
-        0.264
+        0.2959,
+        0.333,
+        -0.112
       ],
       "map": [
         [
@@ -887,9 +899,9 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
-        0.213,
-        0.335
+        0.2959,
+        0.253,
+        -0.112
       ],
       "map": [
         [
@@ -928,9 +940,9 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
-        0.139,
-        0.264
+        0.2959,
+        0.113,
+        -0.45
       ],
       "map": [
         [
@@ -957,9 +969,9 @@
         0
       ],
       "pivot_gltf": [
-        0.2996,
-        0.139,
-        0.335
+        0.2959,
+        0.113,
+        -0.396
       ],
       "map": [
         [
@@ -987,8 +999,8 @@
       ],
       "pivot_gltf": [
         0.151,
-        -0.041,
-        0.035
+        -0.03,
+        -0.04
       ],
       "map": [
         [
@@ -1016,8 +1028,8 @@
       ],
       "pivot_gltf": [
         0.151,
-        -0.041,
-        0.112
+        -0.03,
+        0.035
       ],
       "map": [
         [
