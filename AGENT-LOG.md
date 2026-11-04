@@ -1,4 +1,24 @@
 ## NEEDS YOU
+- **TV MODE (AirPlay / HDMI): GAME ON THE TV, PHONE AS THE CONTROLLER; TV + PAD BUTTON GRID — BUILT, NOT INSTALLED,
+  NOT MERGED (Claude, 2026-11-04, lane/claude-tv-companion `e5051bdc`, plan `docs/TV-COMPANION-PLAN.md` `63c858c4`).**
+  `deploy.sh` `** BUILD SUCCEEDED **` (stamp `2026.1104.0658`), 0 `error CS`; run with a placeholder UDID so it installed
+  on **no** device. Nothing approved. ProjectSettings bump and the Editor's StreamingAssets re-sync left uncommitted.
+  Renders of both screens: `renders/tv/v1/`.
+  1. **Please answer the plan's open questions** (§9). These have working defaults: **Q1** default for a new TV = Game on
+     TV (the alternative is Mirror). **Q3** TV shows instruments only, and the event/lesson lines stay on the phone.
+     **Q4** portrait is not locked. **Q5** title-safe margin 2.5 %. **Q6** the grid's button list (views, switches,
+     actions). These are open: **Q2** iPad too? **Q7** radio/intercom output on a TV. **Q8** Mac second monitor?
+     **Q9/Q10** companion pairing (QR, PIN or both) and TLS-PSK. **Q11** OK to run one Android (Quest) batch compile
+     from this lane?
+  2. **Only a device can prove the TV path** (plan §7.3). Install this lane, then try: AirPlay to an Apple TV and HDMI,
+     each with Options › Display › TV screen = Mirror and = Game on TV; connect and disconnect mid-flight; switch the
+     setting while connected; the 8BitDo connected (the grid appears). Send the `[TV]` log lines. Two behaviours are
+     unverified because only iOS has them: that iOS keeps mirroring until we show a window (R1), and that hiding the
+     window gives the TV back to mirroring (R2).
+  3. **Feature 4 (companion over the LAN) is plan only** (§5: `_aeroplayground._tcp`, Swift Network.framework, PIN/QR
+     plus HMAC, NDJSON, Mac authoritative). The Bonjour type is already declared in both apps so the first local-network
+     grant includes it.
+
 - **CRASH PHYSICS MERGED INTO ISLAND-NAV — ON YOUR IPHONE AS `2026.1104.0427` (Grok Bot, 2026-11-04 04:30 PST,
   lane/claude-crash-physics `da163a65` → island-nav `abeadac3`, Ty approved):** trees snap, crashes keep momentum,
   only overloaded parts come off, debris no longer sinks. Only AGENT-LOG.md conflicted (both sides kept).
@@ -1823,6 +1843,37 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 — Claude · lane/claude-tv-companion (off island-nav aeb9695a) · TV mode: game on the TV, phone as the controller
+- **Ask** (Ty): AirPlay/HDMI mirroring clean; game full size on a second screen with the phone as a full-screen touch
+  controller; the same with a Bluetooth pad (phone becomes a button pad); a Mac companion over the LAN following Glass's
+  pattern. Plan first, then 1–2 with tests, 3 if time allows, 4 at plan stage.
+- **Plan** `docs/TV-COMPANION-PLAN.md` + `docs/glass-companion-notes.md` (`63c858c4`). A key finding, from reading the
+  exported trampoline: the app runs the UIScene lifecycle with only the Application role, so `Display.Activate()` would
+  put Unity's TV window in no scene and show nothing. The external-display role and an inert scene delegate are required,
+  and Unity's own `UnityScene` cannot be that delegate (it forwards every scene's lifecycle to the app).
+- **Built** (`e5051bdc`): `TvOutput` (mode logic, TV-sized ping-pong textures, presenter on display 1, phone backdrop),
+  `UiSurface` (the HUD lays out for the TV only inside the TV pass; outside it is `Screen`, so handheld is unchanged),
+  `TvButtonPad` (feature 3 grid; every button presses an existing button), `Plugins/iOS/AeroTv.mm`, Info.plist roles,
+  Options › Display › TV screen. The phone keeps `TouchFlightControls` and the toolbar exactly as handheld. One-token
+  `Screen` → `UiSurface` edits in UiLayout, AnalogGauges, HudOverlay, ScreenLayout, ClipRecorder.
+- **Tests:** FlightTests `TvLayoutTests` 39/39 (literals worked by hand). Unity EditMode `TvSurfaceTests` 7/7. PlayMode
+  `TvOutputPlayTests` 3 passed, 1 **ignored**: the world reaches the simulated TV at its shape and full viewport, Mirror
+  leaves the camera alone, the setting switches mid-flight, and 5 connect/disconnect cycles leak no RenderTexture.
+  Ignored: "IMGUI lands in the TV picture", because a `-batchmode` Editor runs no Repaint pass. The `tvshots` render
+  covers it instead (below). These are the first Unity test assemblies in the repo (Test Framework 1.6.0 was already a
+  dependency; no manifest change).
+- **Quest:** the Android player compiles the same `#else` stubs the Editor compiled (0 errors), the plugin lives under
+  `Plugins/iOS/`, the tests drop out under `UNITY_INCLUDE_TESTS`, and nothing touches `Packages/` or XR. Not
+  compiled for Android here (Q11). Every file is "shared" under the parity rule, so it merges to the Quest lane with
+  island-nav.
+- **Render check** (`AERO_SELFTEST=tvshots`, a temporary uncommitted Mono Mac capture player under its own product name,
+  so Ty's Mac prefs were untouched; iPhone-shaped 2622 × 1206 phone with simulated safe areas, simulated 1920 × 1080 TV):
+  `renders/tv/v1/` — `tv-tv-*` the TV picture, `tv-phone-*` the phone. Looked at all of them: on the TV, dials and engine
+  row laid out for 16:9 and clear of the aircraft; the HUD with its engine readouts in the TV's bottom band and the
+  ladder stopping above it; the cockpit panel along the TV's bottom. On the phone, the unchanged controller on a dark
+  backdrop with "Showing on the TV · 1920 × 1080"; with a pad, the button grid (current view lit, no GEAR on the
+  fixed-gear 172, flaps showing 0 %). This is a desktop preview, not a device capture. It is also the evidence for the
+  PlayMode case that was ignored: the IMGUI pass does land in the TV picture.
 ### 2026-11-03 22:21 — Claude · lane/claude-frank-church-valleys → island-nav · unpaved Frank Church strips, v2 renders, installed
 - **Ask** (Ty via Grok Bot, 21:55): all nine strips real dirt or turf, with no centreline, edge marking or paved
   look; render each approach into `renders/frankchurch/v2/`; then merge and install (Ty approved).
