@@ -27,8 +27,16 @@ public class SharedPanelRigTests
             string param = n.GetProperty("param").GetString()!;
             if (!r.TryGet(param, out _)) dead.Add($"{node} ({param})");
         }
-        Assert.True(count >= 30, $"only {count} instrument nodes in the rig");
         Assert.Empty(dead);
+        // Ty's panel (2026-11-04, extra_cockpit_shared.py), per seat: ASI, altimeter (2 hands), TC (+ ball), G (+ 2
+        // tell-tales), tach, MP, the three-in-one (oil P, oil T, fuel P) and the ammeter = 14. Nothing else on the panel.
+        var names = doc.RootElement.GetProperty("rig").EnumerateArray().Select(n => n.GetProperty("node").GetString()!)
+                       .Where(n => n.StartsWith("Needle_") || n.StartsWith("Ball_")).ToHashSet();
+        foreach (string sfx in new[] { "_R", "_F" })
+            foreach (string n in new[] { "Needle_ASI", "Needle_Alt100", "Needle_Alt1000", "Needle_TC", "Ball_TC", "Needle_G", "Needle_GMax",
+                                         "Needle_GMin", "Needle_Tach", "Needle_MP", "Needle_OilP", "Needle_OilT", "Needle_FuelP", "Needle_Amps" })
+                Assert.Contains(n + sfx, names);
+        Assert.Equal(28, names.Count);
     }
 
     [Theory]
