@@ -20,6 +20,15 @@ def definitions():
 def update(path):
     model=path.parent.name;key,xs,z=SPECS[model];g=Glb(path)
     if g.doc.get('extras',{}).get('vrCockpitPhase3a'):return
+    # P3a seats every control on a "side console" FORWARD of the panel at |y| .215-.323: on the Great Lakes and the
+    # Pitts that is OUTSIDE the fuselage skin. It is only the first step: a fresh Blender export run through P3a alone
+    # is how the Quest lane's Great Lakes got its switches back out on the fuselage sides (2be16316, Ty 2026-11-03
+    # "switches outside of the panel"). The placement passes that follow are part of the model; run them, in order:
+    #   great-lakes-like: vr_phase3c -> cockpit_controls_v2 -> gl_windshield_v2 -> gl_quadrant_v3
+    #   pitts-s2b-like:   cockpit_controls_v2 -> pitts_cockpit_v3
+    #   extra-300-like:   vr_phase3b -> vr_phase3d -> vr_phase3e -> cockpit_controls_v2 -> extra_panel_p3f
+    # tools/FlightTests/CockpitControlInteriorTests fails while any control is off its panel / console.
+    print('P3a placed', path.name, '- NOT finished: run the follow-up placement passes (vr_phase3.py comment)')
     a=Author(g);black=g.material('P3_ControlBlack',(.025,.025,.03));red=g.material('P3_MixtureRed',(.8,.025,.025));blue=g.material('P3_PropBlue',(.025,.12,.8));metal=g.material('P3_ControlMetal',(.55,.55,.58))
     rigpath=ROOT/f'docs/models/{key}-own-rig.json';doc=json.loads(rigpath.read_text());controls=[]
     # Superseded hand controls keep inert compatibility nodes, never coincident moving meshes.

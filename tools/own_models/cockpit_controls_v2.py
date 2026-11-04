@@ -170,7 +170,11 @@ def allocate(model):
  return result
 
 def apply(path,model,placement):
- g=Glb(path);names={n['name']:i for i,n in enumerate(g.doc['nodes'])};nodes=g.doc['nodes']
+ g=Glb(path)
+ # A later pass owns these controls now; re-placing them here would undo it (and re-add the retired P3e subpanel).
+ ex=g.doc.get('extras',{});later=[k for k in ('vrCockpitPhase3f','pittsCockpitV3') if ex.get(k)]
+ if ex.get('vrCockpitPhase3a',{}).get('placement_v4'):later.append('gl_quadrant_v3')
+ assert not later,(path.name,'controls already placed by',later,'- rebuild from the base GLB instead');names={n['name']:i for i,n in enumerate(g.doc['nodes'])};nodes=g.doc['nodes']
  key=SPECS[model][0];rigpath=ROOT/f'docs/models/{key}-own-rig.json';doc=json.loads(rigpath.read_text())
  if model=='great-lakes-like':
   for nm in GL_POP:

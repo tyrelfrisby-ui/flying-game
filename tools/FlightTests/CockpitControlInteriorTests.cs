@@ -15,7 +15,11 @@ namespace FlyingGame.FlightTests;
 /// One exception (Ty 2026-11-02, "the Great Lakes throttle is a QUADRANT LEVER (not push-pull)"): the Great
 /// Lakes prop and mixture are levers in the throttle quadrant on the left sidewall, not panel push-pulls, so
 /// their Ctl_/Mount_ nodes must instead lie in that seat's quadrant box, inside the fuselage (see the quadrant
-/// test below and tools/own_models/gl_quadrant_v3.py).
+/// test below and tools/own_models/gl_quadrant_v3.py). And Ty's approved Great Lakes v7 (2026-11-03, from his own
+/// photographs): only the ignition and the radio are on the GL panels; the battery / alternator / pump / light
+/// toggles sit on the lid of a small console box on the left wall behind the quadrant, smoke and carb heat on its
+/// face, the trim on the left wall and the fuel valve on the right wall. Those must lie ON that hardware (within
+/// 30 mm of a GL_ console, quadrant, trim-run or fuel-rod mesh) and inside the cockpit walls.
 ///
 /// The two legacy Great Lakes GLBs (-red-sunburst, -white-stripes) are excluded: no code loads them
 /// (great-lakes-like-own.glb is the only Great Lakes the game uses) and their cockpit openings and panels sit
@@ -41,9 +45,11 @@ public class CockpitControlInteriorTests
         new object[] { "pitts-s2b-like", "pitts-s2b-like-own-checker-unmarked", -0.808, -0.151 },
         new object[] { "pitts-s2b-like", "pitts-s2b-like-own-factory-unmarked", -0.808, -0.151 },
         new object[] { "pitts-s2b-like", "pitts-s2b-like-own-n1191", -0.808, -0.151 },
-        new object[] { "extra-300-like", "extra-300-like-own", -1.172, -0.147 },
-        new object[] { "extra-300-like", "extra-300-like-own-n300uy", -1.172, -0.147 },
-        new object[] { "extra-300-like", "extra-300-like-own-unmarked", -1.172, -0.147 },
+        // P3f (Ty 2026-11-03): the Extra's switches are on the P3b panel itself now (one row along its bottom edge),
+        // its radio knobs on the centre radio subpanel in the same plane; the P3e subpanel 3 mm ahead is retired.
+        new object[] { "extra-300-like", "extra-300-like-own", -1.175, -0.150 },
+        new object[] { "extra-300-like", "extra-300-like-own-n300uy", -1.175, -0.150 },
+        new object[] { "extra-300-like", "extra-300-like-own-unmarked", -1.175, -0.150 },
     };
 
     [Theory]
@@ -62,6 +68,7 @@ public class CockpitControlInteriorTests
 
         var faces = PanelTriangles(j, bin, nodes, parent);
         Assert.NotEmpty(faces);
+        var hardware = model == "great-lakes-like" ? HardwareBoxes(j, bin, nodes, parent, "GL_") : new List<(P lo, P hi)>();
         var failures = new List<string>();
         int controls = 0;
         for (int i = 0; i < count; i++)
@@ -75,6 +82,12 @@ public class CockpitControlInteriorTests
             if (model == "great-lakes-like" && (name.Contains("_Prop") || name.Contains("_Mixture")))
             {
                 if (!InGreatLakesQuadrant(x, y, z, face)) failures.Add($"{name}: ({x:F3},{y:F3},{z:F3}) not in the left-sidewall quadrant");
+                continue;
+            }
+            if (model == "great-lakes-like" && x < face - 0.008)
+            {
+                bool on = hardware.Any(b => x > b.lo.x - 0.03 && x < b.hi.x + 0.03 && y > b.lo.y - 0.03 && y < b.hi.y + 0.03 && z > b.lo.z - 0.03 && z < b.hi.z + 0.03);
+                if (!on || Math.Abs(y) > 0.345) failures.Add($"{name}: ({x:F3},{y:F3},{z:F3}) is neither on the panel nor on the v7 console / wall hardware");
                 continue;
             }
             if (x < face - 0.008 || x > face + 0.003) { failures.Add($"{name}: x {x:F3} not at panel face {face:F3}"); continue; }
@@ -91,7 +104,7 @@ public class CockpitControlInteriorTests
         }
         _o.WriteLine($"{file}: {controls} controls, {failures.Count} off-panel");
         foreach (string f in failures.Take(20)) _o.WriteLine("  " + f);
-        Assert.Equal(88, controls);
+        Assert.Equal(model == "great-lakes-like" ? 90 : 88, controls);   // GL v7: + an alternator switch per seat (no Mount_ twin)
         Assert.Empty(failures);
     }
 
@@ -189,6 +202,23 @@ public class CockpitControlInteriorTests
                     : Enumerable.Range(0, pos.Length).ToArray();
                 for (int k = 0; k + 2 < ids.Length; k += 3) res.Add(new Tri(pos[ids[k]], pos[ids[k + 1]], pos[ids[k + 2]]));
             }
+        }
+        return res;
+    }
+
+    /// <summary>World axis-aligned boxes, builder metres, of every mesh node whose name starts with the prefix.</summary>
+    private static List<(P lo, P hi)> HardwareBoxes(JsonElement j, byte[] bin, JsonElement nodes, int[] parent, string prefix)
+    {
+        JsonElement acc = j.GetProperty("accessors"), views = j.GetProperty("bufferViews"), meshes = j.GetProperty("meshes");
+        var res = new List<(P, P)>();
+        for (int i = 0; i < nodes.GetArrayLength(); i++)
+        {
+            if (!nodes[i].GetProperty("name").GetString()!.StartsWith(prefix) || !nodes[i].TryGetProperty("mesh", out JsonElement mi)) continue;
+            double[] m = OwnPittsModelTests.World(nodes, parent, i);
+            var pts = meshes[mi.GetInt32()].GetProperty("primitives").EnumerateArray()
+                .SelectMany(prim => Read(acc, views, bin, prim.GetProperty("attributes").GetProperty("POSITION").GetInt32()))
+                .Select(v => new P(-(m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12]), m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14], m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13])).ToList();
+            res.Add((new P(pts.Min(q => q.x), pts.Min(q => q.y), pts.Min(q => q.z)), new P(pts.Max(q => q.x), pts.Max(q => q.y), pts.Max(q => q.z))));
         }
         return res;
     }

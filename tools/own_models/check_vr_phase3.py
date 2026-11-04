@@ -75,7 +75,11 @@ def check_panels(g,path):
    assert np.allclose([-face[:,1].mean(),face[:,2].mean()],[u,v],atol=.002)
    bezel=vertices('Bezel_P3b_'+row['gauge']+'_'+panel['suffix'])
    measured=np.linalg.norm(bezel[:,1:]-np.array([-u,v]),axis=1).max();assert abs(measured-r)<1e-6
-   assert abs(u)+r<=.22 and .075<=v-r and v+r<=.36
+   if 'outline_zw' in panel:
+    # P3f (Ty 2026-11-03): the panel runs out to the cockpit walls; every bezel lies wholly on it.
+    zw=np.array(panel['outline_zw']);assert zw[0,0]<=v-r and v+r<=zw[-1,0]
+    assert all(abs(u)+np.sqrt(max(r*r-(z-v)**2,0))<=w for z,w in zw if abs(z-v)<=r),row['gauge']
+   else:assert abs(u)+r<=.22 and .075<=v-r and v+r<=.36
    circles.append((u,v,float(measured)))
    for name in row['needles']:
     k=name[:-2];k=k[7:] if k.startswith('Needle_') else k
@@ -91,7 +95,12 @@ def check_panels(g,path):
   assert min(gaps)>=.006-1e-6,min(gaps)
   # Every relocated control's conservative sphere stays below the instrument area.
   for c in g.doc['extras']['vrCockpitPhase3a']['controls']:
-   if c['seat']==panel['seat']:assert builder(c['pivot_gltf'])[2]+c['sweep_radius_m']<.075
+   if c['seat']!=panel['seat']:continue
+   if 'outline_zw' in panel:
+    # P3f: switches in one row on the panel's bottom edge; every control clear of every bezel (toggle bat +25 mm).
+    p=builder(c['pivot_gltf'])
+    for cu,cv,cr in circles:assert np.hypot(p[1]+cu,p[2]-cv)>=cr+.026,(c['node'],cu,cv)
+   else:assert builder(c['pivot_gltf'])[2]+c['sweep_radius_m']<.075
   report.append(dict(seat=panel['seat'],gauges=len(rows),live_needle_nodes=count,min_bezel_gap_mm=round(float(min(gaps))*1000,4),max_face_plane_error_mm=round(maxerr*1000,6)))
  return report
 if __name__=='__main__':
