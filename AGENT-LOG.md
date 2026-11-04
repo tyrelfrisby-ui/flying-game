@@ -1,6 +1,7 @@
 ## NEEDS YOU
 - **FLOAT HYDRO SPEC (2026-11-04): ALL SIX SPEC TESTS GREEN; THREE OLD WATER-RUDDER TESTS STILL RED — YOUR CALL ON THE
-  HINGE (Claude, lane/claude-wheel-hydroplane, merged island-nav b7d1a680 in; local only, not installed).**
+  HINGE (Claude, lane/claude-wheel-hydroplane, merged island-nav b7d1a680 in; local only, not installed; iOS 2026.1104.1106
+  ** BUILD SUCCEEDED **, 0 error CS, build-ready).**
   1. **Water rudder, retracted, at rest.** The drawn retract hinge is at the keel line at the heel (1.16 m below the CG),
      and the drawn Edo float rests 2.1° bow-up with the heel 8.3 cm deep, so the hooked blade's lowest ~9 cm sit in the
      water at rest. Pedal authority hooked: 108 N·m at 3 m/s against 856 down; none from ~5 m/s. The rudder lane's three
@@ -2920,6 +2921,12 @@
   island-nav b7d1a680 21 failed / 191; this branch 17 / 199. New on the branch: none. Fixed: FloatLanding 0.5 m/s,
   HydroJ3 porpoise 2°, J3FloatsWater landing, WheelHydro shallow Cub. Both: 10 Alaska + 2 WheelSki (world), the 3 rudder
   tests (NEEDS YOU 1), SR22/Glasair prop strike (NEEDS YOU 4). No crash/wreck file edited (lane/claude-crash-tuning).
+- **Build:** deploy.sh's two steps by hand into lane-private /private/tmp/wh-ios and /private/tmp/wh-dd (no other
+  Unity/xcodebuild running): Unity iOS export 0 `error CS`, xcodebuild `** BUILD SUCCEEDED **`, 2026.1104.1106. Not
+  installed. Reverted, not committed: the ProjectSettings bump, and the build's copy of 16 configs/aircraft files into
+  unity/Assets/StreamingAssets — **island-nav's tracked StreamingAssets copies lag configs/ by 16 files** (strut stations,
+  stab heights from the crash/contact lanes); every build re-copies them, so the shipped app is right, but the tracked
+  copies want a sync commit by whoever owns them. tools/check-parity.sh: PARITY OK.
 ### 2026-11-04 10:30 PST — Claude · lane/claude-wheel-hydroplane · water skiing: taildraggers ski, the 172 digs in
 - **Root cause of the J-3 flip on water contact** (fixed in 325b367e, not re-done): the old WheelHydro held the wheel up
   by speed alone — support = static load·(V/V_p)², whatever the depth — so contact was a step of up to the whole weight;
