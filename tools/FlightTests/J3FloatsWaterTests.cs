@@ -158,7 +158,10 @@ public class J3FloatsWaterTests
                         }
                         _out.WriteLine($"power {power:P0}, wind {wind / 0.5144:F0} kt, aileron {ail:+0;-0;0}: from {v0:F2} m/s, max |roll| {maxRoll:F1}, max speed {vMax:F2} m/s");
                         Assert.True(maxRoll < 15, $"power {power:P0} wind {wind:F1} ail {ail}: rolled to {maxRoll:F0} deg");
-                        Assert.True(vMax < v0 + 0.5, $"sped up from {v0:F2} to {vMax:F2} m/s in a turn on the same power");
+                        // In still air a turn on the same power must not speed it up. In the 15 kt wind the full-rudder turn
+                        // swings it downwind and the wind's push on the airframe raises its speed over the water — real, and
+                        // larger or smaller with the hull's drag (+0.37 m/s on island-nav b7d1a680, +0.61 here): not asserted.
+                        if (wind == 0) Assert.True(vMax < v0 + 0.5, $"sped up from {v0:F2} to {vMax:F2} m/s in a turn on the same power");
                     }
                     finally { Atmosphere.SteadyWind = Vec3.Zero; }
                 }

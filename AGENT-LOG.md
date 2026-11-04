@@ -1,4 +1,21 @@
 ## NEEDS YOU
+- **FLOAT HYDRO SPEC (2026-11-04): ALL SIX SPEC TESTS GREEN; THREE OLD WATER-RUDDER TESTS STILL RED — YOUR CALL ON THE
+  HINGE (Claude, lane/claude-wheel-hydroplane, merged island-nav b7d1a680 in; local only, not installed).**
+  1. **Water rudder, retracted, at rest.** The drawn retract hinge is at the keel line at the heel (1.16 m below the CG),
+     and the drawn Edo float rests 2.1° bow-up with the heel 8.3 cm deep, so the hooked blade's lowest ~9 cm sit in the
+     water at rest. Pedal authority hooked: 108 N·m at 3 m/s against 856 down; none from ~5 m/s. The rudder lane's three
+     tests (`HookedItIsOutOfTheWater…`, `UpItMakesNoForce`, `ATaxiTurnsTighter…`) were written on the old prismatic float
+     (keel 1.495 m, heel higher) and are red on island-nav too. Either the hinge is drawn too low, or the real J-3 does
+     sit heel-deep enough to wet a hooked blade — which is it? Not changed.
+  2. **The hard-landing number that went red (18.1 vs 17.9 kN):** island-nav carried my first float fix, which used the
+     bow chord at every trim AND took the float load from one 5 ms step. A J-3 that skips after a 100 fpm touchdown and
+     comes back on one float had a one-step added-mass spike counted as a structural load. With the bow chord only below
+     zero trim (as in 9c5fa54c) the same landing peaks at 16.9; with the load over 20 ms, 13.2 kN. Not a tolerance change.
+  3. **Idle taxi turn:** with the water rudder UP the J-3 still turns 254° in 20 s at 1.5 m/s on full pedal (down: 259°).
+     Something other than the blade is yawing it at idle; not chased. Worth a fly: does a J-3 on floats turn that well at
+     idle with the rudder up?
+  4. **SR22 and Glasair light water touch** now strike the prop (contact-patch lane's full-radius prop disc, on
+     island-nav). That is the crash lane's rule; flagged, not changed.
 - **WATER SKIING: J-3 SKIS, 172 DIGS IN — BOTH EMERGENT, NOTHING SCRIPTED (Claude, 2026-11-04, lane/claude-wheel-hydroplane,
   tests only on top of 325b367e/9c5fa54c; not merged, not installed).** Same pilot, same water for both (45 kt, nose held
   6°, 40 % power, 0.5 m/s touch, deep water): the J-3 holds 22–23 m/s for 10 s at 0.07 g; the 172's forward wheel goes
@@ -2875,6 +2892,34 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 11:30 PST — Claude · lane/claude-wheel-hydroplane · float hydrodynamics spec (Ty, agent-lanes/float-hydro-spec.txt)
+- **Merged lane/claude-island-nav (b7d1a680) into this lane** (only AGENT-LOG conflicted: both sides kept). It brought
+  the drawn, retractable water rudder (lane/claude-j3-water-rudder), the crash/contact-patch work and an intermediate copy
+  of my float fix.
+- **The model already is the spec's element model, so it was reused, not rewritten:** FloatHydro cuts each float into
+  ~30 drawn stations against the instantaneous water plane, each with its own immersion, velocity (v + ω×r) and section:
+  buoyancy at each station's centroid; Savitsky planing on the forebody at its centre of pressure and on the afterbody in
+  the step's wake (Savitsky & Morabito); ITTC friction over the station girths (wetted length from the cuts, so it moves
+  with trim, speed and load); Michell wave drag; whisker spray; slender-body side force U∂(m′v)/∂x plus crossflow at each
+  station's own position (the keel lateral elements); each float at its own offset; the drawn water rudder. WheelHydro is
+  the same idea for tyres (planing pressure on the wetted arc, per wheel at its position), kept as its own class.
+- **What the tests show, all emergent (FloatHandlingTests, HydroJ3Tests):**
+  - Hump 1,219 N (0.21 W) at 14.6 mph, on the step at 21.2 mph, unstick 48.5 mph after 20 s / 751 ft; drag on the step
+    falls to 24 N before unstick (new assert in TheWaterRun…).
+  - Step vs heel: held at 12° the heels plough (stern 0.31 m deep at 3 m/s), the hump is ~19 % higher (planing pressure
+    drag L·tanτ 400–485 N vs 280–305) and it gets on the step 3.2 s later. Delayed, not never: 85 hp has the margin.
+  - Porpoise: 2° held on the step swings 6.7° (lower limit); 9° steady (1.3°).
+  - Water loop: the water's side-force centre for a ±3° slip is 0.95 m BEHIND the CG at 6° (dN/dβ +209 N·m/deg) and
+    1.14 m AHEAD at ~0° (−1,037): a 3° slip kick nose-low turns the nose 17° away in 6 s; at 6° it moves 1.5°.
+  - Twin floats: drifting right at 1.5 m/s it heels 5.1° right, the right float 0.386 m deep against 0.217.
+  - Water rudder: full pedal swing at 3 m/s 856 N·m down, 108 hooked, 0 at 5.5 m/s (see NEEDS YOU 1).
+  - Weathervaning: no added torque anywhere — the stable dN/dβ above is the floats; the fin adds its own.
+- **Test changes:** J3FloatsWaterTests.FullRudderOnATaxi… asserts "no speed-up in a turn" only in still air: in the 15 kt
+  wind the turn swings it downwind and the wind's push raises its water speed (+0.37 m/s island-nav, +0.61 here) — real.
+- **Regression (the 19 water/gear/float classes + FloatLanding, WheelWater, WaterSki, FloatHandling, J3WaterRudder):**
+  island-nav b7d1a680 21 failed / 191; this branch 17 / 199. New on the branch: none. Fixed: FloatLanding 0.5 m/s,
+  HydroJ3 porpoise 2°, J3FloatsWater landing, WheelHydro shallow Cub. Both: 10 Alaska + 2 WheelSki (world), the 3 rudder
+  tests (NEEDS YOU 1), SR22/Glasair prop strike (NEEDS YOU 4). No crash/wreck file edited (lane/claude-crash-tuning).
 ### 2026-11-04 10:30 PST — Claude · lane/claude-wheel-hydroplane · water skiing: taildraggers ski, the 172 digs in
 - **Root cause of the J-3 flip on water contact** (fixed in 325b367e, not re-done): the old WheelHydro held the wheel up
   by speed alone — support = static load·(V/V_p)², whatever the depth — so contact was a step of up to the whole weight;
