@@ -1,13 +1,23 @@
 ## NEEDS YOU
+- **FLIGHT-PATH MARKER FOLLOWS THE CAM BUTTON, ON THE IPHONE: `2026.1103.1740` (Grok Bot, 2026-11-03 17:46 PST, lane/claude-island-nav
+  `b7d54117`):** **Ty's decisions (2026-11-03):** (1) the HUD flight-path marker follows the CAM button. Its old automatic switch
+  to the ground track below 500 ft AGL is removed: CAM: FLT PATH draws the air-velocity vector (green), CAM: TRACK draws
+  the ground track (magenta, with the point-of-impact target). (2) Runway lessons keep FORCING Track (the button shows
+  "(LESSON)"), and the marker follows that forced Track too. Code: `CameraReference.MarkerUsesGroundTrack/MarkerVelocity`
+  and `FlightPathVector.cs`, using the same `CameraReference.Effective(button, Driver.GroundReferenceForced)` as the
+  camera. `FlightSimDriver.GroundReference` (the 500 ft rule) now has no callers; I left it in place. Tests: 2 new
+  in `CameraReferenceTests`; camera/flight-path filter 23/23 passed. `deploy.sh 00008150-001629A83662401C`
+  `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched 17:46 (ProjectSettings bump not committed). Still open:
+  Codex to polish the CAM button's look. No gate approved.
+
 - **CAMERA FLIGHT PATH / TRACK BUTTON IS ON THE IPHONE: `2026.1103.1715` (Grok Bot, 2026-11-03 17:22 PST, lane/claude-island-nav
   `c7d60932`, cherry-picked from lane/claude-wheel-hydroplane `94fe5aca`):** the automatic switch of the chase camera to the
   ground track below 500 ft AGL is gone (that was why the relative-wind camera sat at 7:30 on a low crosswind final). A
   full-time **CAM** button beside SMOKE toggles "CAM: FLT PATH" (air velocity, the default) and "CAM: TRACK" (ground track);
   the choice persists (PlayerPrefs `set.cameraReference`). Pure logic in `src/FlyingGame.Core/CameraReference.cs`, 6 tests in
   `CameraReferenceTests`; camera tests 21/21 passed; `deploy.sh 00008150-001629A83662401C` `** BUILD SUCCEEDED **`,
-  installed and launched 17:22 (ProjectSettings bump not committed). Questions: (1) the HUD flight-path marker
-  (`FlightPathVector.cs`) still uses the old 500 ft `GroundReference` for its magenta track. Should it follow the CAM
-  button too? (2) Runway lessons that force ground reference still force Track (label shows "(LESSON)"). Keep that?
+  installed and launched 17:22 (ProjectSettings bump not committed). Questions (1) and (2), about the marker following the
+  button and lessons forcing Track, were ANSWERED by Ty the same day; see the `2026.1103.1740` entry above.
   (3) **Codex: please polish the CAM button's look**; it is functional placeholder styling. No gate approved.
 
 - **ISLAND-NAV `2026.1103.1622` IS ON THE IPHONE (island surfaces + Pitts spin #3 merged); ONE TEST HANGS ON THE MERGED TREE
