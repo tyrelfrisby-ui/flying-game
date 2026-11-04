@@ -1,4 +1,16 @@
 ## NEEDS YOU
+- **TESTFLIGHT UPLOAD: `2026.1103.2046` (build `202611032046`) (Grok Bot, 2026-11-03 20:55 PST, lane/claude-island-nav
+  `d9730e24` code, the same Unity export as device build `2026.1103.2022`):** Ty approved ("yes upload the current playable
+  build to testflight"). APFS clone of `/private/tmp/flyinggame-ios` (island-nav export, 20:23) into `/private/tmp/aero-tf/ios`
+  so other lanes' deploy.sh runs could not wipe it mid-archive; only the clone's Info.plist was bumped (ProjectSettings untouched,
+  nothing to revert). `xcodebuild archive` Release, team DH425V439F, automatic signing → `** ARCHIVE SUCCEEDED **`;
+  `-exportArchive` with tools/deploy/ExportOptions-asc.plist (app-store-connect, destination upload) → `Upload succeeded`
+  20:54:48 PST, `** EXPORT SUCCEEDED **`. Bundle com.tyrelfrisby.aeroplayground, ASC app id 6810484227.
+  `ITSAppUsesNonExemptEncryption` = false was already set (standard HTTPS only), so no export-compliance question.
+  OTA ipa (build/ota) NOT refreshed. No push, no merge. **Ty:** once processing finishes the internal group "Aero Playground
+  Beta" gets it automatically (TestFlight app); for the external "Friends" link, add the build to that group in App Store
+  Connect → TestFlight and submit it for Beta App Review.
+
 - **N/S/E/W LETTERS: A SETTING, OFF BY DEFAULT, AND AT INFINITY WHEN ON; BUILT 2026.1103.2040, NOT INSTALLED (Claude,
   2026-11-03, lane/claude-nsew-toggle `07558784`, from island-nav `e8fd1370`):** OPTIONS › Aids › "N / S / E / W
   letters on the horizon", off by default, saved as `set.cardinalLetters`. When on, each letter rides with the
