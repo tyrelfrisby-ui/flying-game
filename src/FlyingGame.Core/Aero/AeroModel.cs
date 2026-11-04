@@ -246,7 +246,11 @@ public static class AeroModel
             }
             if (best < 0) continue;
             double ch = hinged ? st.Chord : all[best].st.Chord, cf = hinged ? all[best].st.Chord : st.Chord;
-            e[i] = ch / (ch + cf);
+            // A set-back hinge (ControlAxisConfig.HingeSetBackFrac): the flap that cambers the section is the part AFT of
+            // the hinge line; the nose ahead of it rises into the cove and lifts little (DATCOM 4.1.1.2 / 6.1.1.1 measure
+            // c_f from the hinge line). The section chord is unchanged.
+            double setBack = Math.Clamp(cfg.Controls?.Aileron?.HingeSetBackFrac ?? 0.0, 0.0, 0.5);
+            e[i] = ch * (1.0 - setBack) / (ch + cf);
         }
         return e;
     }
