@@ -18,6 +18,12 @@ namespace FlyingGame.Bridge
     /// After the pilot leaves the camera follows the PILOT (ChaseCamera.OverrideTarget) and the right pad
     /// steers the canopy (aileron → yaw ≤ 30°/s); the abandoned aircraft flies on under the sim with a
     /// neutral stick/rudder (trim kept) and the throttle it had.
+    ///
+    /// HANDS ON (headset, docs/vr-cockpit.md phase 2): <see cref="LeaveByHand"/> is the other way out — the pilot
+    /// opened the canopy, the belts and climbed out himself, so there is no timed sequence and NO automatic chute:
+    /// he stays in first person (VrCockpitHands) and opens it with <see cref="PullRipcord"/>. Same body, same air,
+    /// same canopy model as the menu's BAIL OUT, which stays as the shortcut (timed, over the right side, the chute
+    /// opening by itself 3 s after he leaves, seen from outside).
     /// </summary>
     [RequireComponent(typeof(FlightSimDriver))]
     public sealed class PilotEgress : MonoBehaviour
@@ -26,6 +32,16 @@ namespace FlyingGame.Bridge
 
         public Phase Current { get; private set; } = Phase.InCockpit;
         public bool PilotOut => Current >= Phase.FreeFall;
+        /// <summary>He left by hand (headset): first person, ripcord by hand, no automatic opening.</summary>
+        public bool HandsOn { get; private set; }
+        /// <summary>The pilot's world velocity (m/s) once out; zero in the cockpit.</summary>
+        public Vector3 PilotVelocity => _pilot != null ? _pilot.Velocity : Vector3.zero;
+        /// <summary>0 packed / streaming .. 1 full canopy.</summary>
+        public float ChuteInflate01 => _pilot?.Chute != null ? _pilot.Chute.Fill : 0f;
+        public bool ChuteOut => _pilot?.Chute != null;
+        public bool PilotLanded => _pilot != null && _pilot.Landed;
+        /// <summary>The non-gravitational acceleration on the pilot (drag, opening shock), in g.</summary>
+        public float PilotLoadG => _pilot != null ? _pilot.AeroAccelG : 0f;
 
         /// <summary>Camera target once the pilot has left the aircraft (null while in the cockpit).</summary>
         public Transform PilotTransform { get; private set; }
@@ -126,6 +142,7 @@ namespace FlyingGame.Bridge
             Current = Phase.InCockpit;
             _t = 0f;
             _eject = _canopyDone = _pilotDone = _pilotLeftFired = _seatDone = _chuteDone = false;
+            HandsOn = false;
             _status = ""; LastLine = ""; _restT = _voiceT = -1f; _spoken = false;
             PilotVoice.Stop();
             var cam = Cam();
@@ -180,7 +197,7 @@ namespace FlyingGame.Bridge
             {
                 if (!_canopyDone && _t >= BailCanopySec) JettisonCanopy();
                 if (!_pilotDone && _t >= BailJumpSec) JumpOverTheSide();
-                if (_pilotDone && !_chuteDone && _t - _pilotLeftT >= BailChuteSec) DeployChute();
+                if (_pilotDone && !_chuteDone && !HandsOn && _t - _pilotLeftT >= BailChuteSec) DeployChute();
             }
             else
             {
@@ -290,6 +307,44 @@ namespace FlyingGame.Bridge
             FirePilotLeft();
         }
 
+        /// <summary>
+        /// THE HANDS-ON EXIT: he has climbed out of the cockpit himself (VrCockpitHands). <paramref name="pos"/> is his
+        /// body centre and <paramref name="vel"/> the aeroplane's velocity at that point plus his push (Core
+        /// JumperAero.ExitVelocity), both world. He tumbles for JumperAero.StabiliseSec, then flies belly to earth; the
+        /// chute waits for <see cref="PullRipcord"/>. The figure is not drawn: the camera is his head.
+        /// </summary>
+        public void LeaveByHand(Vector3 pos, Vector3 vel, float headingDeg)
+        {
+            if (Current != Phase.InCockpit) return;
+            HandsOn = true;
+            _eject = false;
+            _t = 0f;
+            _canopyDone = true;
+            _chuteDone = false;
+            _pilot = new PilotBody(pos, vel, Vector3.zero, headingDeg, withSeat: false, seatUp: Vector3.up,
+                initialRotation: Quaternion.Euler(0f, headingDeg, 0f));
+            _pilot.FirstPerson = true;
+            _pilot.TumbleSec = (float)FlyingGame.Core.Vr.JumperAero.StabiliseSec;
+            _pilot.Hit += OnPilotHit;
+            PilotTransform = _pilot.Transform;
+            AbandonAircraft();
+            Current = Phase.FreeFall;
+            Log($"pilot climbed out by hand at {(vel - _driver.WorldVelocityUnity).magnitude:F1} m/s relative to the aircraft");
+            FirePilotLeft();
+        }
+
+        /// <summary>Show or hide the primitive canopy (when the pilot-gear asset's own Parachute_Deployed is drawn).</summary>
+        public void SetChuteVisualVisible(bool on) => _pilot?.Chute?.SetVisible(on);
+
+        /// <summary>The ripcord, pulled by hand (headset): the pins clear and the pilot chute goes. False if there is
+        /// nothing to pull (still aboard, already open, on the ground).</summary>
+        public bool PullRipcord()
+        {
+            if (!PilotOut || _chuteDone || _pilot == null || _pilot.Landed) return false;
+            DeployChute();
+            return true;
+        }
+
         private void FirePilotLeft()
         {
             _pilotDone = true;
@@ -340,6 +395,9 @@ namespace FlyingGame.Bridge
         private float ReadBodyPos()
         {
             float pitch = _touch != null ? _touch.StickElevator : (float)_driver.Inputs.Elevator;
+            // Hands on (first person): neutral is the stable belly-to-earth arch a pilot is taught to fall in, and the
+            // stick forward trades it for speed (track, head down); there is no "back" from flat.
+            if (HandsOn) return Mathf.Clamp01(pitch);
             return Mathf.Clamp01(0.5f + 0.5f * pitch);
         }
 
@@ -361,7 +419,8 @@ namespace FlyingGame.Bridge
                 case Phase.CanopyGone: _status = $"CANOPY GONE  jump in {Mathf.Max(0f, BailJumpSec - _t):F1} s"; break;
                 case Phase.FreeFall:
                     float tChute = _eject ? EjectChuteSec - _t : BailChuteSec - (_t - _pilotLeftT);
-                    _status = _eject && _t < EjectSeatSepSec ? $"EJECT  {_pilot.AirspeedMs:F0} m/s"
+                    _status = HandsOn ? $"FREE FALL  {_pilot.AirspeedMs:F0} m/s  pull the ripcord"
+                        : _eject && _t < EjectSeatSepSec ? $"EJECT  {_pilot.AirspeedMs:F0} m/s"
                         : $"FREE FALL  {_pilot.HeightAglM:F0} m AGL  {_pilot.AirspeedMs:F0} m/s  chute in {Mathf.Max(0f, tChute):F1} s";
                     break;
                 case Phase.ChuteDeploying:

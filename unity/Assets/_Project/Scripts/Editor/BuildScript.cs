@@ -260,7 +260,7 @@ namespace FlyingGame.EditorTools
         // SceneBootstrap/BubbleField/SoaringScenery look up.
         private static void EnsureAlwaysIncludedShaders()
         {
-            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Decal", "FlyingGame/Airframe", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/PowellSandstone", "FlyingGame/Spray", "FlyingGame/Smoke", "FlyingGame/Water", "FlyingGame/FuelSlick", "FlyingGame/Waterfall", "FlyingGame/Glass", "FlyingGame/PropBlur", "GUI/3D Text Shader", "FlyingGame/WorldText", "Hidden/FlyingGame/WaveSim", "Hidden/FlyingGame/WakeFoam", "FlyingGame/SunsetSky", "FlyingGame/AirportSurface", "FlyingGame/AirportGlow", "FlyingGame/UrbanFacade" };
+            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Decal", "FlyingGame/Airframe", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/PowellSandstone", "FlyingGame/Spray", "FlyingGame/Smoke", "FlyingGame/Water", "FlyingGame/FuelSlick", "FlyingGame/Waterfall", "FlyingGame/Glass", "FlyingGame/PropBlur", "GUI/3D Text Shader", "FlyingGame/WorldText", "Hidden/FlyingGame/WaveSim", "Hidden/FlyingGame/WakeFoam", "FlyingGame/SunsetSky", "FlyingGame/AirportSurface", "FlyingGame/AirportGlow", "FlyingGame/UrbanFacade", "FlyingGame/XrOverlay", "Hidden/FlyingGame/QuestRecordPack" };
             var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
             SerializedProperty arr = so.FindProperty("m_AlwaysIncludedShaders");
             foreach (string name in names)
@@ -437,6 +437,18 @@ namespace FlyingGame.EditorTools
 
             proj.WriteToFile(projPath);
             Debug.Log("Xcode: linked AVFoundation, CoreMedia, CoreVideo, Photos, StoreKit; Swift 5 + embedded runtime; privacy manifest in the app target");
+        }
+
+        /// <summary>For other build tools (QuestBuild): the scene, and the shared assets every player build needs —
+        /// force-included shaders, the pinned built-in font, readable engine loops. Idempotent.</summary>
+        internal const string MainScenePath = ScenePath;
+        internal static void EnsureSceneInBuildForTools()
+        {
+            EnsureSceneInBuild();
+            EnsureAlwaysIncludedShaders();
+            EnsureBuiltinFontPreloaded();
+            EnsureEngineLoopsReadable();
+            AssetDatabase.SaveAssets();
         }
 
         private static void EnsureSceneInBuild()

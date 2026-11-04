@@ -157,7 +157,7 @@ public sealed partial class Aircraft
     private bool EdgeActive(StrikeEdge e)
     {
         if (e.Component != AirframeComponent.Cabin && _lost.Contains(e.Component)) return false;
-        foreach (AirframeComponent g in e.GoneWith) if (_lost.Contains(g)) return false;
+        for (int i = 0; i < e.GoneWith.Length; i++) if (_lost.Contains(e.GoneWith[i])) return false;
         if (e.Panel >= 0 && _panels[e.Panel].State == PanelState.Broken) return false;
         return true;
     }
@@ -176,7 +176,7 @@ public sealed partial class Aircraft
         if (!double.IsFinite(sp.X) || !double.IsFinite(sp.Y) || !double.IsFinite(sp.Z) || !double.IsFinite(d.Length) || d.Length > 50.0) return;
         Vec3 cg = Config.Mass.CgVec();
         double reach = 0;
-        foreach (StrikeEdge e in _edges) reach = Math.Max(reach, Math.Max((e.A - cg).Length, (e.B - cg).Length) + e.RadiusM);
+        for (int i = 0; i < _edges.Count; i++) { StrikeEdge e = _edges[i]; reach = Math.Max(reach, Math.Max((e.A - cg).Length, (e.B - cg).Length) + e.RadiusM); }
         if (Trees is null)
         {
             // The whole sky in one height query, as the forest's own solid does.
@@ -188,8 +188,9 @@ public sealed partial class Aircraft
         src.Near(State.Position.X - m, State.Position.Y - m, State.Position.X + m, State.Position.Y + m, _treesNear);
         if (_treesNear.Count == 0) return;
 
-        foreach (Forest.Tree tree in _treesNear)
+        for (int ti = 0; ti < _treesNear.Count; ti++)
         {
+            Forest.Tree tree = _treesNear[ti];
             for (int ei = 0; ei < _edges.Count; ei++)
             {
                 StrikeEdge e = _edges[ei];
@@ -313,8 +314,9 @@ public sealed partial class Aircraft
     private void CrownDrag(ITreeSource src, Vec3 cg, double dt)
     {
         Vec3 jSum = Vec3.Zero, hSum = Vec3.Zero;   // impulse (body) and its moment about P (body)
-        foreach (StrikeEdge e in _edges!)
+        for (int ei = 0; ei < _edges!.Count; ei++)
         {
+            StrikeEdge e = _edges[ei];
             if (!EdgeActive(e)) continue;
             double area = (e.B - e.A).Length / 3.0 * CrownSweepHeightM;
             for (int k = 0; k < 3; k++)
@@ -322,8 +324,9 @@ public sealed partial class Aircraft
                 Vec3 b = e.A + (e.B - e.A) * ((k + 0.5) / 3.0);
                 Vec3 wPt = World(State, b, cg);
                 double up = -wPt.Z;
-                foreach (Forest.Tree t in _treesNear)
+                for (int ti = 0; ti < _treesNear.Count; ti++)
                 {
+                    Forest.Tree t = _treesNear[ti];
                     if (up > src.TopOf(t)) continue;
                     double rc = TreeStructure.CrownRadiusAt(t, up);
                     if (rc <= 0) continue;

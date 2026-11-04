@@ -99,7 +99,23 @@ public static class WorldSolids
 
     /// <summary>A solid that is not a box (the sea cave's rock roof): reports penetration at a point.</summary>
     public interface IShape { bool Penetrate(double x, double y, double up, out Vec3 normalNed, out double depth); }
-    public static readonly System.Collections.Generic.List<IShape> Shapes = new();
+    public static readonly TrackedList<IShape> Shapes = new();
+
+    /// <summary>
+    /// A solid or deck that never moves and answers "not here" everywhere outside this rectangle (sim x, y, metres):
+    /// <see cref="IShape.Penetrate"/> false, <see cref="WorldDecks.IDeck.TopAt"/> false. It is then asked only by points
+    /// inside it (<see cref="FootprintIndex{T}"/>). Anything that moves, or whose extent is not simple to state, does
+    /// not implement this and is asked everywhere, as before. A footprint that is too small is a solid that cannot be
+    /// hit, so it errs large: <c>WorldIndexTests</c> walks every footprint in the island against its own Penetrate.
+    /// </summary>
+    public interface IFootprint { void Footprint(out double minX, out double minY, out double maxX, out double maxY); }
+
+    /// <summary>Which shapes can be hit at a point, in list order.</summary>
+    public static readonly FootprintIndex<IShape> ShapeIndex = new(Shapes);
+
+    /// <summary>Off only to prove the index changes nothing: with it off every shape and deck is asked, as before
+    /// 2026-11-02 (<c>WorldIndexTests</c> flies the same flights both ways).</summary>
+    public static bool IndexEnabled = true;
 
     /// <summary>If (x, y, up) is inside a box, the outward push (world, z DOWN) along the least-penetration axis and
     /// its depth; null outside every box.</summary>
@@ -116,8 +132,19 @@ public static class WorldSolids
             if (m == py) return (new Vec3(0, System.Math.Sign(dy), 0), py);
             return (new Vec3(0, 0, 1), pBot);
         }
-        foreach (IShape sh in Shapes)
-            if (sh.Penetrate(x, y, up, out Vec3 n, out double d)) return (n, d);
+        if (!IndexEnabled)
+        {
+            SimProfile.CountSolidTests(Shapes.Count);
+            foreach (IShape sh in Shapes)
+                if (sh.Penetrate(x, y, up, out Vec3 n0, out double d0)) return (n0, d0);
+            return null;
+        }
+        // Only the shapes whose footprint holds (x, y), in list order: the first that answers is the one the walk over
+        // the whole list found (FootprintIndex). It was 1,475 shapes per hard point per RK4 stage.
+        IShape[] shapes = ShapeIndex.Candidates(x, y, out int[] at);
+        SimProfile.CountSolidTests(at.Length);
+        for (int k = 0; k < at.Length; k++)
+            if (shapes[at[k]].Penetrate(x, y, up, out Vec3 n, out double d)) return (n, d);
         return null;
     }
 
@@ -481,7 +508,21 @@ public static class AirframeContact
     /// every stage in cruise.
     /// </summary>
     public static bool ClearOfTheGround(List<ContactPoint> points, IReadOnlyList<Vec3>? wheels, Vec3 cg, RigidBodyState s, double extraM)
+        => ClearOfTheGround(points, wheels, cg, s, extraM, out _);
+
+    /// <summary>The four samples round the CG, as unit offsets (scaled by the reach: the same sums, no array a call).</summary>
+    private static readonly (double dx, double dy)[] Around = { (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0) };
+
+    /// <summary>
+    /// <see cref="ClearOfTheGround(List{ContactPoint}, IReadOnlyList{Vec3}?, Vec3, RigidBodyState, double)"/>, also
+    /// saying how far clear the lowest point is (<paramref name="clearanceM"/>, the number compared with 60 m + extra;
+    /// −∞ with nothing to test). A step whose clearance is under 60 m − its travel cannot be clear of the ground at any of
+    /// its four stages, by the same bound that lets a clear step skip them, so the caller can skip the per-stage test
+    /// (<see cref="StageCannotBeClear"/>).
+    /// </summary>
+    public static bool ClearOfTheGround(List<ContactPoint> points, IReadOnlyList<Vec3>? wheels, Vec3 cg, RigidBodyState s, double extraM, out double clearanceM)
     {
+        clearanceM = double.NegativeInfinity;
         double reach = 0, lowestZ = double.MinValue;
         foreach (ContactPoint p in points)
         {
@@ -492,8 +533,9 @@ public static class AirframeContact
             if (w.Z > lowestZ) lowestZ = w.Z;        // z is + DOWN, so the largest z is the lowest point
         }
         if (wheels != null)
-            foreach (Vec3 b in wheels)
+            for (int i = 0; i < wheels.Count; i++)   // (an index loop: foreach over the IReadOnlyList allocates, once a step)
             {
+                Vec3 b = wheels[i];
                 Vec3 rWorld = s.Attitude.Rotate(b - cg);
                 double horiz = System.Math.Sqrt(rWorld.X * rWorld.X + rWorld.Y * rWorld.Y);
                 if (horiz > reach) reach = horiz;
@@ -502,15 +544,16 @@ public static class AirframeContact
             }
         if (lowestZ == double.MinValue) return false;
         double highestGround = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
-        foreach ((double dx, double dy) in new[] { (reach, 0.0), (-reach, 0.0), (0.0, reach), (0.0, -reach) })
+        foreach ((double ux, double uy) in Around)
         {
-            double g = WorldTerrain.GroundHeightAt(s.Position.X + dx, s.Position.Y + dy);
+            double g = WorldTerrain.GroundHeightAt(s.Position.X + ux * reach, s.Position.Y + uy * reach);
             if (g > highestGround) highestGround = g;
         }
         // Water counts as ground here: a float or a hull touches it.
         double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
         if (water.HasValue && water.Value > highestGround) highestGround = water.Value;
-        return -lowestZ - highestGround > ClearAboveM + extraM;
+        clearanceM = -lowestZ - highestGround;
+        return clearanceM > ClearAboveM + extraM;
     }
 
     /// <summary>Off only to prove the per-step ground test and the stage cull change nothing: with it off the sim takes
@@ -526,6 +569,15 @@ public static class AirframeContact
     /// edge) a contact can begin one step — 5 ms — later than it did; solids are still tested at every stage.
     /// </summary>
     public static double StageCullMargin(double speedMs, double dt) => 0.1 + 11.0 * speedMs * dt;
+
+    /// <summary>
+    /// True when a step whose airframe is <paramref name="stepClearanceM"/> clear of the ground, and can travel
+    /// <paramref name="extraM"/> in the step (the margin <see cref="ClearOfTheGround(List{ContactPoint}, IReadOnlyList{Vec3}?, Vec3, RigidBodyState, double)"/>
+    /// was given), cannot be more than 60 m clear at any of its RK4 stages — so <see cref="Compute(List{ContactPoint}, Vec3, RigidBodyState, List{AirframeComponent}?, double, ImpactRecorder?, bool, bool, int, double, bool)"/>
+    /// need not ask, at five height evaluations a stage. Quest, 2026-11-02: on the ground those were 20 of the 48
+    /// evaluations a 2-33 made each step, every one of them answering "not clear".
+    /// </summary>
+    public static bool StageCannotBeClear(double stepClearanceM, double extraM) => stepClearanceM + extraM <= ClearAboveM;
 
     /// <summary>
     /// Contact forces (world) and the components whose points just hit hard enough to break.
@@ -554,11 +606,16 @@ public static class AirframeContact
     /// from 72 fps to 20 below 60 m and to 8 on the ground (docs/quest-performance.md, *Slow near the ground*).
     /// </summary>
     public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt)
+        => Compute(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, stage, dt, false);
+
+    /// <summary>The same, told by the step (<paramref name="knownNotClear"/>, <see cref="StageCannotBeClear"/>) that the
+    /// clear-of-the-ground test would say no, so it is not asked.</summary>
+    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt, bool knownNotClear)
     {
         // A step's first stage (or a call outside any step) is the one recorded on the points (ContactPoint.ForceBody …).
         bool record = stage <= 0;
         long tClear = SimProfile.Begin();
-        bool clear = points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s);
+        bool clear = !knownNotClear && points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s);
         SimProfile.End(SimProfile.Scope.ContactClear, tClear);
         if (clear)
         {

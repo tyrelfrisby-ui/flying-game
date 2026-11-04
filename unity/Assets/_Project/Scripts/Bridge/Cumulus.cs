@@ -204,6 +204,10 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            // NOT suppressed in VR, unlike the instrument overlays. Greyout and redout are not information
+            // drawn on the glass, they are what the pilot's own eyes do under G, and a veil laid evenly over
+            // the whole screen covers both eyes equally — which is exactly right in a headset, and the one
+            // cue an aerobatic pilot would most notice missing. The compositor draws behind it.
             if (_whiteout <= 0.01f || SessionSettings.MenuOpen || Event.current.type != EventType.Repaint) return;
             if (_white == null) { _white = new Texture2D(1, 1); _white.SetPixel(0, 0, Color.white); _white.Apply(); }
             GUI.depth = 100;   // under the HUD, over the world

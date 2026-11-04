@@ -33,8 +33,34 @@ namespace FlyingGame.Bridge
         /// <summary>The look itself. The camera reads it; everything here writes it.</summary>
         public readonly CockpitLook Look = new();
 
-        /// <summary>Which authored seat the pilot is in. Clamped to what the aeroplane has.</summary>
+        /// <summary>Which authored seat the pilot is in. Clamped to what the aeroplane has. FOLLOWS the choice kept
+        /// per aircraft by seat ID (<see cref="SessionSettings.SeatIdFor"/>), re-resolved whenever the aeroplane or
+        /// the choice changes, so a seat picked for one type can never land in another type's seat at the same
+        /// position in the list.</summary>
         public int SeatIndex { get; private set; }
+
+        private int _seatVersion = -1;
+
+        /// <summary>Sit in the seat chosen for the aeroplane now loaded (its primary seat if none was chosen).</summary>
+        private void ResolveSeat()
+        {
+            _seatVersion = SessionSettings.SeatChoiceVersion;
+            string id = Driver != null ? SessionSettings.SeatIdFor(Driver.AircraftId) : null;
+            int i = SeatChoice.IndexOf(Seats, id);
+            if (i == SeatIndex) return;
+            SeatIndex = i;
+            FollowLegacySeat();
+            Look.Centre();
+        }
+
+        /// <summary>The Options page's Rear / Front row and the model's own eye empties read
+        /// <see cref="SessionSettings.Seat"/>; keep it saying the same seat this view is in.</summary>
+        private void FollowLegacySeat()
+        {
+            string id = SeatChoice.IdAt(Seats, SeatIndex);
+            if (id == "front") SessionSettings.Seat = SessionSettings.CockpitSeat.Front;
+            else if (id == "rear") SessionSettings.Seat = SessionSettings.CockpitSeat.Rear;
+        }
 
         // THE SETTINGS ARE STATIC, and deliberately so. Options must be able to show and change them whether or
         // not a CockpitView exists right now -- on the menu, in an outside view, before an aeroplane is loaded
@@ -125,6 +151,7 @@ namespace FlyingGame.Bridge
             LoadSettings();
             if (Driver != null) Driver.AircraftChanged += OnAircraftChanged;
             ApplySettings();
+            ResolveSeat();
         }
 
         private void OnDestroy()
@@ -132,10 +159,13 @@ namespace FlyingGame.Bridge
             if (Driver != null) Driver.AircraftChanged -= OnAircraftChanged;
         }
 
-        /// <summary>A different aeroplane has different seats: keep the index legal and look ahead again.</summary>
+        /// <summary>A different aeroplane has different seats: sit in the one chosen FOR IT (by ID — before
+        /// 2026-11-02 the old index was clamped and kept, which put a glider's "rear" in the Pitts' front seat) and
+        /// look ahead again.</summary>
         private void OnAircraftChanged()
         {
-            SeatIndex = Mathf.Clamp(SeatIndex, 0, Mathf.Max(0, SeatCount - 1));
+            SeatIndex = -1;
+            ResolveSeat();
             Look.Centre();
         }
 
@@ -149,20 +179,17 @@ namespace FlyingGame.Bridge
 
         public int SeatCount => Mathf.Max(1, Seats.Count);
 
-        public string SeatLabel
-        {
-            get
-            {
-                var seats = Seats;
-                if (seats.Count == 0) return "Cockpit";
-                int i = Mathf.Clamp(SeatIndex, 0, seats.Count - 1);
-                return string.IsNullOrEmpty(seats[i].Label) ? $"Seat {i + 1}" : seats[i].Label;
-            }
-        }
+        public string SeatLabel => SeatChoice.Label(Seats, SeatChoice.IdAt(Seats, SeatIndex));
 
-        public void SelectSeat(int index)
+        /// <summary>Sit in seat <paramref name="index"/> of the aeroplane now loaded. <paramref name="remember"/>
+        /// keeps it as the choice for this type (the seat buttons); editor tools that only look pass false.</summary>
+        public void SelectSeat(int index, bool remember = true)
         {
             SeatIndex = Mathf.Clamp(index, 0, Mathf.Max(0, SeatCount - 1));
+            if (remember && Driver != null && Seats.Count > 0)
+                SessionSettings.ChooseSeat(Driver.AircraftId, SeatChoice.IdAt(Seats, SeatIndex));
+            _seatVersion = SessionSettings.SeatChoiceVersion;
+            FollowLegacySeat();
             Look.Centre();
         }
 
@@ -203,13 +230,18 @@ namespace FlyingGame.Bridge
             // Settings first, and even while the menu is open: the pilot is standing in Options moving the slider,
             // and the gyro has to come on there so the view is already following him when he closes it.
             ApplySettings();
+            // A seat chosen from a menu (the VR menu, Options) while this aeroplane is loaded: sit in it now.
+            if (_seatVersion != SessionSettings.SeatChoiceVersion) ResolveSeat();
             if (SessionSettings.MenuOpen) { _hadHat = false; _hatHeld = 0f; return; }
 
             // The device first, then the hat. They do NOT exclude each other: CockpitLook keeps the two offsets
             // apart and sums them, so holding the phone turned and tapping the pad compose the way a pilot's neck
             // and his seat do. (Before 2026-11-01 the device took the frame and returned here, which meant turning
             // the option on silently disabled the look pad.)
-            if (DeviceLook && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
+            // VR owns the gyro while it is on: both applying would double every head movement, and VR
+            // is one-for-one where this is geared. VrRig drives the camera instead.
+            // A native headset (Quest) likewise: QuestRig drives the camera from the headset's own pose.
+            if (DeviceLook && !VrMode.HeadTracked && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
 
             // The stick's hat, then the buttons on glass. Either may be the only one present.
             int x = 0, y = 0;

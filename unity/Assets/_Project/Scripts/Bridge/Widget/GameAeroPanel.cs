@@ -71,6 +71,8 @@ namespace FlyingGame.Bridge.Widget
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen) { IsOpen = false; return; }
+            // A Quest never shows OnGUI, and Host.Read() samples the air and allocates a readout on every GUI event.
+            if (XrHeadset.Active) { IsOpen = false; return; }
             if (Host == null || Host.Ac == null) return;
             EnsureStyles();
             var ap = Host.Autopilot;

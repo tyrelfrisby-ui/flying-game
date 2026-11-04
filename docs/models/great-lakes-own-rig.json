@@ -1,2150 +1,4859 @@
 {
-  "model": "great-lakes-like-own",
-  "livery": "v1",
-  "rig": [
-    {
-      "node": "Needle_Alt100_F",
-      "parent": "Instruments_Front",
-      "param": "altitude_ft",
-      "unit": "ft",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.03,
-        0.2336
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1000.0,
-          360.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_map_extrapolate": 1,
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Needle_Alt1000_F",
-      "parent": "Instruments_Front",
-      "param": "altitude_ft",
-      "unit": "ft",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.03,
-        0.2336
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          10000.0,
-          360.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_map_extrapolate": 1,
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Needle_ASI_F",
-      "parent": "Instruments_Front",
-      "param": "airspeed_mph",
-      "unit": "mph",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.03,
-        0.1113
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          40.0,
-          30.0
-        ],
-        [
-          200.0,
-          330.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "ASI 40..200 mph over 30..330 deg (E layout), rests at 0 below 40; arcs green 58(E)-120, yellow 120-153, red line 153 (TCDS); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "TC_Symbol_F",
-      "parent": "Instruments_Front",
-      "param": "turn_rate_dps",
-      "unit": "deg/s",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.03,
-        0.0073
-      ],
-      "map": [
-        [
-          -6.0,
-          -40.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          6.0,
-          40.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "turn coordinator airplane symbol, standard rate (3 deg/s) = the 20 deg L/R index (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "TC_Ball_F",
-      "parent": "Instruments_Front",
-      "param": "slip_ball",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        1.0,
-        -0.0,
-        0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.0341,
-        0.0073
-      ],
-      "map": [
-        [
-          -1.0,
-          -18.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          18.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "turn coordinator ball, swings on the tube arc about this pivot (above the dial centre): +1 = ball to the pilot's right (E 18 deg)",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Needle_OilP_F",
-      "parent": "Instruments_Front",
-      "param": "oil_press_psi",
-      "unit": "psi",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.03,
-        -0.0761
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          115.0,
-          160.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "dual engine gauge upper scale: oil pressure 0..115 psi over the top half (E); green 60-90, red 25 / 115 (Lycoming typical, E); modelled at -80 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": -80.0
-      }
-    },
-    {
-      "node": "Needle_OilT_F",
-      "parent": "Instruments_Front",
-      "param": "oil_temp_f",
-      "unit": "degF",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.03,
-        -0.0761
-      ],
-      "map": [
-        [
-          100.0,
-          0.0
-        ],
-        [
-          250.0,
-          160.0
-        ]
-      ],
-      "model": 100.0,
-      "desc": "dual engine gauge lower scale: oil temp 100..250 F over the bottom half, clockwise (E); red 245 (Lycoming typical, E); modelled at 100 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 100.0
-      }
-    },
-    {
-      "node": "Needle_OilP2_F",
-      "parent": "Instruments_Front",
-      "param": "oil_press_psi",
-      "unit": "psi",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.03,
-        -0.1594
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          120.0,
-          300.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "standalone front oil pressure: 0..120 psi, 7 to 5 o'clock clockwise (E layout); yellow 25-60, green 60-90, red radials 25 / 115 psi (Lycoming typical, E; not aircraft-specific approved limits); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": -150.0
-      }
-    },
-    {
-      "node": "Needle_Tach_F",
-      "parent": "Instruments_Front",
-      "param": "rpm",
-      "unit": "rpm",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        0.03,
-        -0.2436
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          3500.0,
-          300.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "tachometer 0..3500 rpm over 300 deg from 7 o'clock (E layout); green 2000(E)-2700, red line 2700 (TCDS); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": -150.0
-      }
-    },
-    {
-      "node": "Needle_G_R",
-      "parent": "Instruments_Rear",
-      "param": "g_load",
-      "unit": "g",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        0.071,
-        0.124
-      ],
-      "map": [
-        [
-          -4.0,
-          -92.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          10.0,
-          230.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "accelerometer -4..+10 g, 0 g at 12 o'clock, 23 deg/g (photo layout, E); red +5.4 / -4.0 (TCDS A18EA rev 11 NOTE 6 load factors); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Needle_GMax_R",
-      "parent": "Instruments_Rear",
-      "param": "g_max_seen",
-      "unit": "g",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        0.071,
-        0.124
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          10.0,
-          230.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Needle_GMin_R",
-      "parent": "Instruments_Rear",
-      "param": "g_min_seen",
-      "unit": "g",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        0.071,
-        0.124
-      ],
-      "map": [
-        [
-          -4.0,
-          -92.0
-        ],
-        [
-          0.0,
-          0.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "accelerometer min tell-tale (follows g_load down, stays); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Needle_MP_R",
-      "parent": "Instruments_Rear",
-      "param": "manifold_inhg",
-      "unit": "inHg",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        0.071,
-        -0.154
-      ],
-      "map": [
-        [
-          10.0,
-          0.0
-        ],
-        [
-          35.0,
-          300.0
-        ]
-      ],
-      "model": 10.0,
-      "desc": "manifold pressure 10..35 inHg, 12 deg per inHg from 8 o'clock (photo layout, E); pinned at 10 below; modelled at -120 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": -120.0
-      }
-    },
-    {
-      "node": "Needle_CHT_R",
-      "parent": "Instruments_Rear",
-      "param": "cht_f",
-      "unit": "degF",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        0.032,
-        -0.228
-      ],
-      "map": [
-        [
-          200.0,
-          0.0
-        ],
-        [
-          500.0,
-          180.0
-        ]
-      ],
-      "model": 200.0,
-      "desc": "small top-right gauge read as CHT (identity E), 200..500 F, 9 -> 3 o'clock; red 500 (Lycoming typical, E); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": -90.0
-      }
-    },
-    {
-      "node": "Needle_VSI_R",
-      "parent": "Instruments_Rear",
-      "param": "vsi_fpm",
-      "unit": "ft/min",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.019,
-        0.203
-      ],
-      "map": [
-        [
-          -2000.0,
-          -170.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          2000.0,
-          170.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "VSI, modelled at 0 (9 o'clock), +2000 fpm climb = 170 deg clockwise (E layout, photo shows a 0-2000 dial); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": -90.0
-      }
-    },
-    {
-      "node": "Needle_Alt100_R",
-      "parent": "Instruments_Rear",
-      "param": "altitude_ft",
-      "unit": "ft",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.019,
-        0.115
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1000.0,
-          360.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_map_extrapolate": 1,
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Needle_Alt1000_R",
-      "parent": "Instruments_Rear",
-      "param": "altitude_ft",
-      "unit": "ft",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.019,
-        0.115
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          10000.0,
-          360.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_map_extrapolate": 1,
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Needle_ASI_R",
-      "parent": "Instruments_Rear",
-      "param": "airspeed_mph",
-      "unit": "mph",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.019,
-        0.028
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          40.0,
-          30.0
-        ],
-        [
-          200.0,
-          330.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "ASI 40..200 mph over 30..330 deg (E layout), rests at 0 below 40; arcs green 58(E)-120, yellow 120-153, red line 153 (TCDS); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "TC_Symbol_R",
-      "parent": "Instruments_Rear",
-      "param": "turn_rate_dps",
-      "unit": "deg/s",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.019,
-        -0.059
-      ],
-      "map": [
-        [
-          -6.0,
-          -40.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          6.0,
-          40.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "turn coordinator airplane symbol, standard rate (3 deg/s) = the 20 deg L/R index (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "TC_Ball_R",
-      "parent": "Instruments_Rear",
-      "param": "slip_ball",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        1.0,
-        -0.0,
-        0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.0133,
-        -0.059
-      ],
-      "map": [
-        [
-          -1.0,
-          -18.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          18.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "turn coordinator ball, swings on the tube arc about this pivot (above the dial centre): +1 = ball to the pilot's right (E 18 deg)",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Needle_Tach_R",
-      "parent": "Instruments_Rear",
-      "param": "rpm",
-      "unit": "rpm",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.019,
-        -0.148
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          3500.0,
-          300.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "tachometer 0..3500 rpm over 300 deg from 7 o'clock (E layout); green 2000(E)-2700, red line 2700 (TCDS); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": -150.0
-      }
-    },
-    {
-      "node": "Needle_OilP_R",
-      "parent": "Instruments_Rear",
-      "param": "oil_press_psi",
-      "unit": "psi",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.029,
-        -0.224
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          115.0,
-          160.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "dual engine gauge upper scale: oil pressure 0..115 psi over the top half (E); green 60-90, red 25 / 115 (Lycoming typical, E); modelled at -80 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": -80.0
-      }
-    },
-    {
-      "node": "Needle_OilT_R",
-      "parent": "Instruments_Rear",
-      "param": "oil_temp_f",
-      "unit": "degF",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.029,
-        -0.224
-      ],
-      "map": [
-        [
-          100.0,
-          0.0
-        ],
-        [
-          250.0,
-          160.0
-        ]
-      ],
-      "model": 100.0,
-      "desc": "dual engine gauge lower scale: oil temp 100..250 F over the bottom half, clockwise (E); red 245 (Lycoming typical, E); modelled at 100 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 100.0
-      }
-    },
-    {
-      "node": "MagKey_R",
-      "parent": "Instruments_Rear",
-      "param": "magneto",
-      "unit": "OFF/R/L/BOTH/START",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        0.02,
-        0.279
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          30.0
-        ],
-        [
-          2.0,
-          60.0
-        ],
-        [
-          3.0,
-          90.0
-        ],
-        [
-          4.0,
-          130.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "ignition key OFF, R, L, BOTH, START (spring back to BOTH); detent angles E; modelled at -60 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_detents": [
-          0,
-          1,
-          2,
-          3,
-          4
-        ],
-        "rig_dial_ang0_deg": -60.0
-      }
-    },
-    {
-      "node": "Compass_Card_R",
-      "parent": "Instruments_Rear",
-      "param": "heading_deg",
-      "unit": "deg magnetic",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        1.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.668,
-        0.128,
-        0.032
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          360.0,
-          360.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_map_wrap": 360.0
-      }
-    },
-    {
-      "node": "Compass_Card_F",
-      "parent": "Instruments_Front",
-      "param": "heading_deg",
-      "unit": "deg magnetic",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        1.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.9423,
-        0.125,
-        -0.0257
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          360.0,
-          360.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
-      "link": "front + rear panels both show it (same param)",
-      "note": "",
-      "extra": {
-        "rig_map_wrap": 360.0
-      }
-    },
-    {
-      "node": "Radio_VolumeKnob_R",
-      "parent": "Instruments_Rear",
-      "param": "com_volume",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.6505,
-        0.0985,
-        -0.035
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          270.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "radio head volume knob (left, on/off + squelch push), 0 = off .. 1 = full over 270 deg (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Radio_TuneOuter_R",
-      "parent": "Instruments_Rear",
-      "param": "com_freq_mhz",
-      "unit": "MHz",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.6505,
-        0.0985,
-        -0.083
-      ],
-      "map": [
-        [
-          118.0,
-          0.0
-        ],
-        [
-          137.0,
-          285.0
-        ]
-      ],
-      "model": 118.0,
-      "desc": "radio head dual-concentric tuning knob, OUTER (MHz): 15 deg detent per MHz, turns with the MHz part (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_map_extrapolate": 1,
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Radio_TuneInner_R",
-      "parent": "Instruments_Rear",
-      "param": "com_freq_mhz",
-      "unit": "MHz",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.6505,
-        0.0985,
-        -0.083
-      ],
-      "map": [
-        [
-          118.0,
-          0.0
-        ],
-        [
-          119.0,
-          600.0
-        ]
-      ],
-      "model": 118.0,
-      "desc": "radio head dual-concentric tuning knob, INNER (kHz): 15 deg detent per 25 kHz channel, i.e. 600 deg per MHz (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_map_extrapolate": 1,
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "Xpdr_Knob_R",
-      "parent": "Instruments_Rear",
-      "param": "xpdr_knob_clicks",
-      "unit": "clicks",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.6505,
-        0.0535,
-        -0.0815
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          30.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "transponder head rotary knob (squawk / menu entry): 30 deg per click (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-      "link": "rear (PIC) panel only",
-      "note": "",
-      "extra": {
-        "rig_map_extrapolate": 1,
-        "rig_dial_ang0_deg": 0.0
-      }
-    },
-    {
-      "node": "TorqueTube",
-      "parent": "Controls",
-      "param": "aileron",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.25,
-        -0.74,
-        0.0
-      ],
-      "map": [
-        [
-          -1.0,
-          -18.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          18.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "aileron torque tube under the floor carrying both sticks: +1 = stick tops to the right (roll right), 18 deg (E)",
-      "link": "Aileron_LL/LR (drivers) -> UL/UR (slave struts); Stick_F and Stick_R are children",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Stick_F",
-      "parent": "TorqueTube",
-      "param": "elevator",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        0.0,
-        -1.0
-      ],
-      "pivot_gltf": [
-        0.92,
-        -0.74,
-        0.0
-      ],
-      "map": [
-        [
-          -1.0,
-          -12.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          18.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "stick pitch about its yoke on the torque tube: +1 aft 18, -1 forward 12 (E; stops on the aft stick per manual)",
-      "link": "Elevator_L/R_Pivot; front + rear sticks linked (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Stick_R",
-      "parent": "TorqueTube",
-      "param": "elevator",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        0.0,
-        -1.0
-      ],
-      "pivot_gltf": [
-        1.6,
-        -0.74,
-        0.0
-      ],
-      "map": [
-        [
-          -1.0,
-          -12.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          18.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "stick pitch about its yoke on the torque tube: +1 aft 18, -1 forward 12 (E; stops on the aft stick per manual)",
-      "link": "Elevator_L/R_Pivot; front + rear sticks linked (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Pedal_F_L",
-      "parent": "Controls",
-      "param": "rudder",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        0.0,
-        -1.0
-      ],
-      "pivot_gltf": [
-        0.5,
-        -0.685,
-        0.13
-      ],
-      "map": [
-        [
-          -1.0,
-          -15.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          15.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "left rudder pedal frame, floor hinge: +1 (right rudder) top aft 15 deg (E)",
-      "link": "Rudder_Pivot; all four pedals linked (rear pedals beside the front seat)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Pedal_F_R",
-      "parent": "Controls",
-      "param": "rudder",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        0.5,
-        -0.685,
-        -0.13
-      ],
-      "map": [
-        [
-          -1.0,
-          -15.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          15.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "right rudder pedal frame, floor hinge: +1 (right rudder) top forward 15 deg (E)",
-      "link": "Rudder_Pivot; all four pedals linked (rear pedals beside the front seat)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Pedal_R_L",
-      "parent": "Controls",
-      "param": "rudder",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        0.0,
-        -1.0
-      ],
-      "pivot_gltf": [
-        1.12,
-        -0.685,
-        0.25
-      ],
-      "map": [
-        [
-          -1.0,
-          -15.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          15.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "left rudder pedal frame, floor hinge: +1 (right rudder) top aft 15 deg (E)",
-      "link": "Rudder_Pivot; all four pedals linked (rear pedals beside the front seat)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Pedal_R_R",
-      "parent": "Controls",
-      "param": "rudder",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.12,
-        -0.685,
-        -0.25
-      ],
-      "map": [
-        [
-          -1.0,
-          -15.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          15.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "right rudder pedal frame, floor hinge: +1 (right rudder) top forward 15 deg (E)",
-      "link": "Rudder_Pivot; all four pedals linked (rear pedals beside the front seat)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Brake_F_L",
-      "parent": "Controls",
-      "param": "brake_left",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        0.6,
-        -0.688,
-        0.13
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          20.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "left heel brake pedal (one per foot, each cockpit, manual): 1 = pushed, top forward 20 deg (E)",
-      "link": "wheel brake left; front + rear linked",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Brake_F_R",
-      "parent": "Controls",
-      "param": "brake_right",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        0.6,
-        -0.688,
-        -0.13
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          20.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "right heel brake pedal (one per foot, each cockpit, manual): 1 = pushed, top forward 20 deg (E)",
-      "link": "wheel brake right; front + rear linked",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Brake_R_L",
-      "parent": "Controls",
-      "param": "brake_left",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.22,
-        -0.688,
-        0.25
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          20.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "left heel brake pedal (one per foot, each cockpit, manual): 1 = pushed, top forward 20 deg (E)",
-      "link": "wheel brake left; front + rear linked",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Brake_R_R",
-      "parent": "Controls",
-      "param": "brake_right",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.22,
-        -0.688,
-        -0.25
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          20.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "right heel brake pedal (one per foot, each cockpit, manual): 1 = pushed, top forward 20 deg (E)",
-      "link": "wheel brake right; front + rear linked",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Throttle_F",
-      "parent": "Controls",
-      "param": "throttle",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.04,
-        -0.32,
-        0.35
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          50.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "throttle (black knob, inboard) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
-      "link": "front + rear quadrants linked (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Throttle_R",
-      "parent": "Controls",
-      "param": "throttle",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.72,
-        -0.3,
-        0.3508
-      ],
-      "map": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          50.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "throttle (black knob, inboard) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
-      "link": "front + rear quadrants linked (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Prop_F",
-      "parent": "Controls",
-      "param": "prop",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.04,
-        -0.32,
-        0.325
-      ],
-      "map": [
-        [
-          0.0,
-          50.0
-        ],
-        [
-          1.0,
-          50.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "propeller rpm (black knob, middle; Hartzell constant-speed, F6-31 governor) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
-      "link": "front + rear quadrants linked (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Prop_R",
-      "parent": "Controls",
-      "param": "prop",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.72,
-        -0.3,
-        0.3258
-      ],
-      "map": [
-        [
-          0.0,
-          50.0
-        ],
-        [
-          1.0,
-          50.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "propeller rpm (black knob, middle; Hartzell constant-speed, F6-31 governor) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
-      "link": "front + rear quadrants linked (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Mixture_F",
-      "parent": "Controls",
-      "param": "mixture",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.04,
-        -0.32,
-        0.3
-      ],
-      "map": [
-        [
-          0.0,
-          50.0
-        ],
-        [
-          1.0,
-          50.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "mixture (red knob, outboard) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
-      "link": "front + rear quadrants linked (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Mixture_R",
-      "parent": "Controls",
-      "param": "mixture",
-      "unit": "0..1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        1.72,
-        -0.3,
-        0.3008
-      ],
-      "map": [
-        [
-          0.0,
-          50.0
-        ],
-        [
-          1.0,
-          50.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "mixture (red knob, outboard) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
-      "link": "front + rear quadrants linked (same param)",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Trim_F",
-      "parent": "Controls",
-      "param": "trim",
-      "unit": "-1 nose down .. +1 nose up",
-      "kind": "move",
-      "axis_gltf": [
-        1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.04,
-        -0.42,
-        0.3541
-      ],
-      "map": [
-        [
-          -1.0,
-          -0.06
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          0.06
-        ]
-      ],
-      "model": 0.0,
-      "desc": "stabilizer trim knob in a slot low on the left wall: aft = nose up, 60 mm each way (E)",
-      "link": "Stab_TrimPivot (jack-screw stabilizer); front + rear linked",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "FuelValve_F",
-      "parent": "Controls",
-      "param": "fuel_valve",
-      "unit": "0 OFF / 1 ON",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        0.968,
-        -0.105,
-        -0.2
-      ],
-      "map": [
-        [
-          0.0,
-          90.0
-        ],
-        [
-          1.0,
-          0.0
-        ]
-      ],
-      "model": 1.0,
-      "desc": "fuel shut-off (a control in each cockpit, manual): modelled ON (handle vertical), OFF = 90 deg clockwise (E)",
-      "link": "front + rear linked",
-      "note": "",
-      "extra": {
-        "rig_detents": [
-          0,
-          1
-        ]
-      }
-    },
-    {
-      "node": "Trim_R",
-      "parent": "Controls",
-      "param": "trim",
-      "unit": "-1 nose down .. +1 nose up",
-      "kind": "move",
-      "axis_gltf": [
-        1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.72,
-        -0.42,
-        0.3541
-      ],
-      "map": [
-        [
-          -1.0,
-          -0.06
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          0.06
-        ]
-      ],
-      "model": 0.0,
-      "desc": "stabilizer trim knob in a slot low on the left wall: aft = nose up, 60 mm each way (E)",
-      "link": "Stab_TrimPivot (jack-screw stabilizer); front + rear linked",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "FuelValve_R",
-      "parent": "Controls",
-      "param": "fuel_valve",
-      "unit": "0 OFF / 1 ON",
-      "kind": "rot",
-      "axis_gltf": [
-        -1.0,
-        0.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        1.638,
-        -0.125,
-        -0.2
-      ],
-      "map": [
-        [
-          0.0,
-          90.0
-        ],
-        [
-          1.0,
-          0.0
-        ]
-      ],
-      "model": 1.0,
-      "desc": "fuel shut-off (a control in each cockpit, manual): modelled ON (handle vertical), OFF = 90 deg clockwise (E)",
-      "link": "front + rear linked",
-      "note": "",
-      "extra": {
-        "rig_detents": [
-          0,
-          1
-        ]
-      }
-    },
-    {
-      "node": "Elevator_L_Pivot",
-      "parent": "Stab_TrimPivot",
-      "param": "elevator",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        4.59,
-        -0.14,
-        0.8025
-      ],
-      "map": [
-        [
-          -1.0,
-          -29.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          21.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "elevator: +1 (stick aft) TE up 21, -1 TE down 29 (TCDS A18EA)",
-      "link": "Stick_F/Stick_R; rides on Stab_TrimPivot",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Elevator_R_Pivot",
-      "parent": "Stab_TrimPivot",
-      "param": "elevator",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0,
-        1.0
-      ],
-      "pivot_gltf": [
-        4.59,
-        -0.14,
-        -0.8025
-      ],
-      "map": [
-        [
-          -1.0,
-          -29.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          21.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "elevator: +1 (stick aft) TE up 21, -1 TE down 29 (TCDS A18EA)",
-      "link": "Stick_F/Stick_R; rides on Stab_TrimPivot",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Rudder_Pivot",
-      "parent": null,
-      "param": "rudder",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        1.0,
-        -0.0
-      ],
-      "pivot_gltf": [
-        4.59,
-        0.2405,
-        0.0
-      ],
-      "map": [
-        [
-          -1.0,
-          -35.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          35.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "rudder on the vertical hinge line at the sternpost: +1 (right pedal) TE to starboard 35 (TCDS A18EA)",
-      "link": "Pedal_*",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Stab_TrimPivot",
-      "parent": null,
-      "param": "trim",
-      "unit": "-1 nose down .. +1 nose up",
-      "kind": "rot",
-      "axis_gltf": [
-        0.0,
-        0.0,
-        -1.0
-      ],
-      "pivot_gltf": [
-        4.555,
-        -0.14,
-        0.0
-      ],
-      "map": [
-        [
-          -1.0,
-          7.25
-        ],
-        [
-          1.0,
-          0.25
-        ],
-        [
-          1.0714,
-          0.0
-        ]
-      ],
-      "model": 1.0714,
-      "desc": "jack-screw stabilizer about the rear beam: LE up 7.25 deg at -1 (nose down), 0.25 at +1 (nose up) (TCDS A18EA travel); modelled at 0 deg = just past +1. Sense: nose-up trim = LE down (confirmed by Ty, 2026-10-30)",
-      "link": "Trim_F/Trim_R",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Aileron_UL_Pivot",
-      "parent": null,
-      "param": "aileron",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        0.15643,
-        0.0,
-        0.98769
-      ],
-      "pivot_gltf": [
-        1.1869,
-        0.6585,
-        2.8075
-      ],
-      "map": [
-        [
-          -1.0,
-          22.999
-        ],
-        [
-          -0.5,
-          11.727
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          0.5235602094240838,
-          -11.217
-        ],
-        [
-          1.0,
-          -21.997
-        ]
-      ],
-      "model": 0.0,
-      "desc": "upper aileron (follower on Strut_Slave_L): solved constant-strut-length table (+deg = TE up)",
-      "link": "TorqueTube / sticks",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Aileron_UR_Pivot",
-      "parent": null,
-      "param": "aileron",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.15643,
-        -0.0,
-        0.98769
-      ],
-      "pivot_gltf": [
-        1.1869,
-        0.6585,
-        -2.8075
-      ],
-      "map": [
-        [
-          -1.0,
-          -21.997
-        ],
-        [
-          -0.5235602094240838,
-          -11.217
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          0.5,
-          11.727
-        ],
-        [
-          1.0,
-          22.999
-        ]
-      ],
-      "model": 0.0,
-      "desc": "upper aileron (follower on Strut_Slave_R): solved constant-strut-length table (+deg = TE up)",
-      "link": "TorqueTube / sticks",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Aileron_LL_Pivot",
-      "parent": null,
-      "param": "aileron",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        0.0349,
-        0.99939
-      ],
-      "pivot_gltf": [
-        1.538,
-        -0.6881,
-        2.39
-      ],
-      "map": [
-        [
-          -1.0,
-          24.0
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          -21.01
-        ]
-      ],
-      "model": 0.0,
-      "desc": "lower aileron (driver): +1 roll right = TE down 21.01 (+deg = TE up)",
-      "link": "TorqueTube / sticks",
-      "note": "",
-      "extra": {}
-    },
-    {
-      "node": "Aileron_LR_Pivot",
-      "parent": null,
-      "param": "aileron",
-      "unit": "-1..+1",
-      "kind": "rot",
-      "axis_gltf": [
-        -0.0,
-        -0.0349,
-        0.99939
-      ],
-      "pivot_gltf": [
-        1.538,
-        -0.6881,
-        -2.39
-      ],
-      "map": [
-        [
-          -1.0,
-          -21.01
-        ],
-        [
-          0.0,
-          0.0
-        ],
-        [
-          1.0,
-          24.0
-        ]
-      ],
-      "model": 0.0,
-      "desc": "lower aileron (driver): +1 roll right = TE up 24.00 (+deg = TE up)",
-      "link": "TorqueTube / sticks",
-      "note": "",
-      "extra": {}
-    }
-  ],
-  "displays": [
-    {
-      "node": "Radio_Display_R",
-      "parent": "Instruments_Rear",
-      "params": [
-        "com_freq_mhz",
-        "com_standby_mhz"
-      ],
-      "centre_gltf": [
-        1.6511,
-        0.1035,
-        -0.059
-      ],
-      "facing_gltf": [
-        1.0,
-        0.0,
-        -0.0
-      ],
-      "size_m": [
-        0.032,
-        0.019
-      ],
-      "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); active + standby frequency, 25 / 8.33 kHz"
-    },
-    {
-      "node": "Xpdr_Display_R",
-      "parent": "Instruments_Rear",
-      "params": [
-        "xpdr_squawk",
-        "xpdr_mode"
-      ],
-      "centre_gltf": [
-        1.6511,
-        0.06,
-        -0.0515
-      ],
-      "facing_gltf": [
-        1.0,
-        0.0,
-        -0.0
-      ],
-      "size_m": [
-        0.039,
-        0.016
-      ],
-      "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); 4-digit octal squawk + mode (OFF / SBY / ON / ALT), IDENT"
-    }
-  ]
+ "model": "great-lakes-like-own",
+ "livery": "v1",
+ "rig": [
+  {
+   "node": "Needle_Alt100_F",
+   "parent": "Instruments_Front",
+   "param": "altitude_ft",
+   "unit": "ft",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    0.2336
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1000.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1,
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_Alt1000_F",
+   "parent": "Instruments_Front",
+   "param": "altitude_ft",
+   "unit": "ft",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    0.2336
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10000.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1,
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_ASI_F",
+   "parent": "Instruments_Front",
+   "param": "airspeed_mph",
+   "unit": "mph",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    0.1113
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     40.0,
+     30.0
+    ],
+    [
+     200.0,
+     330.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "ASI 40..200 mph over 30..330 deg (E layout), rests at 0 below 40; arcs green 58(E)-120, yellow 120-153, red line 153 (TCDS); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "TC_Symbol_F",
+   "parent": "Instruments_Front",
+   "param": "turn_rate_dps",
+   "unit": "deg/s",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    0.0073
+   ],
+   "map": [
+    [
+     -6.0,
+     -40.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     6.0,
+     40.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "turn coordinator airplane symbol, standard rate (3 deg/s) = the 20 deg L/R index (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "TC_Ball_F",
+   "parent": "Instruments_Front",
+   "param": "slip_ball",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    -0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.0341,
+    0.0073
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "turn coordinator ball, swings on the tube arc about this pivot (above the dial centre): +1 = ball to the pilot's right (E 18 deg)",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Needle_OilP_F",
+   "parent": "Instruments_Front",
+   "param": "oil_press_psi",
+   "unit": "psi",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    -0.0761
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     115.0,
+     160.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "dual engine gauge upper scale: oil pressure 0..115 psi over the top half (E); green 60-90, red 25 / 115 (Lycoming typical, E); modelled at -80 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -80.0
+   }
+  },
+  {
+   "node": "Needle_OilT_F",
+   "parent": "Instruments_Front",
+   "param": "oil_temp_f",
+   "unit": "degF",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    -0.0761
+   ],
+   "map": [
+    [
+     100.0,
+     0.0
+    ],
+    [
+     250.0,
+     160.0
+    ]
+   ],
+   "model": 100.0,
+   "desc": "dual engine gauge lower scale: oil temp 100..250 F over the bottom half, clockwise (E); red 245 (Lycoming typical, E); modelled at 100 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 100.0
+   }
+  },
+  {
+   "node": "Needle_OilP2_F",
+   "parent": "Instruments_Front",
+   "param": "oil_press_psi",
+   "unit": "psi",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    -0.1594
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     120.0,
+     300.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "standalone front oil pressure: 0..120 psi, 7 to 5 o'clock clockwise (E layout); yellow 25-60, green 60-90, red radials 25 / 115 psi (Lycoming typical, E; not aircraft-specific approved limits); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   }
+  },
+  {
+   "node": "Needle_Tach_F",
+   "parent": "Instruments_Front",
+   "param": "rpm",
+   "unit": "rpm",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    -0.2436
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     3500.0,
+     300.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "tachometer 0..3500 rpm over 300 deg from 7 o'clock (E layout); green 2000(E)-2700, red line 2700 (TCDS); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   }
+  },
+  {
+   "node": "Needle_G_R",
+   "parent": "Instruments_Rear",
+   "param": "g_load",
+   "unit": "g",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    0.071,
+    0.124
+   ],
+   "map": [
+    [
+     -4.0,
+     -92.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10.0,
+     230.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "accelerometer -4..+10 g, 0 g at 12 o'clock, 23 deg/g (photo layout, E); red +5.4 / -4.0 (TCDS A18EA rev 11 NOTE 6 load factors); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_GMax_R",
+   "parent": "Instruments_Rear",
+   "param": "g_max_seen",
+   "unit": "g",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    0.071,
+    0.124
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10.0,
+     230.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_GMin_R",
+   "parent": "Instruments_Rear",
+   "param": "g_min_seen",
+   "unit": "g",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    0.071,
+    0.124
+   ],
+   "map": [
+    [
+     -4.0,
+     -92.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "accelerometer min tell-tale (follows g_load down, stays); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_MP_R",
+   "parent": "Instruments_Rear",
+   "param": "manifold_inhg",
+   "unit": "inHg",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    0.071,
+    -0.154
+   ],
+   "map": [
+    [
+     10.0,
+     0.0
+    ],
+    [
+     35.0,
+     300.0
+    ]
+   ],
+   "model": 10.0,
+   "desc": "manifold pressure 10..35 inHg, 12 deg per inHg from 8 o'clock (photo layout, E); pinned at 10 below; modelled at -120 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -120.0
+   }
+  },
+  {
+   "node": "Needle_CHT_R",
+   "parent": "Instruments_Rear",
+   "param": "cht_f",
+   "unit": "degF",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    0.032,
+    -0.228
+   ],
+   "map": [
+    [
+     200.0,
+     0.0
+    ],
+    [
+     500.0,
+     180.0
+    ]
+   ],
+   "model": 200.0,
+   "desc": "small top-right gauge read as CHT (identity E), 200..500 F, 9 -> 3 o'clock; red 500 (Lycoming typical, E); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -90.0
+   }
+  },
+  {
+   "node": "Needle_VSI_R",
+   "parent": "Instruments_Rear",
+   "param": "vsi_fpm",
+   "unit": "ft/min",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.019,
+    0.203
+   ],
+   "map": [
+    [
+     -2000.0,
+     -170.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     2000.0,
+     170.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "VSI, modelled at 0 (9 o'clock), +2000 fpm climb = 170 deg clockwise (E layout, photo shows a 0-2000 dial); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -90.0
+   }
+  },
+  {
+   "node": "Needle_Alt100_R",
+   "parent": "Instruments_Rear",
+   "param": "altitude_ft",
+   "unit": "ft",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.019,
+    0.115
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1000.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1,
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_Alt1000_R",
+   "parent": "Instruments_Rear",
+   "param": "altitude_ft",
+   "unit": "ft",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.019,
+    0.115
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10000.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1,
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_ASI_R",
+   "parent": "Instruments_Rear",
+   "param": "airspeed_mph",
+   "unit": "mph",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.019,
+    0.028
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     40.0,
+     30.0
+    ],
+    [
+     200.0,
+     330.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "ASI 40..200 mph over 30..330 deg (E layout), rests at 0 below 40; arcs green 58(E)-120, yellow 120-153, red line 153 (TCDS); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "TC_Symbol_R",
+   "parent": "Instruments_Rear",
+   "param": "turn_rate_dps",
+   "unit": "deg/s",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.019,
+    -0.059
+   ],
+   "map": [
+    [
+     -6.0,
+     -40.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     6.0,
+     40.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "turn coordinator airplane symbol, standard rate (3 deg/s) = the 20 deg L/R index (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "TC_Ball_R",
+   "parent": "Instruments_Rear",
+   "param": "slip_ball",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    -0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.0133,
+    -0.059
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "turn coordinator ball, swings on the tube arc about this pivot (above the dial centre): +1 = ball to the pilot's right (E 18 deg)",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Needle_Tach_R",
+   "parent": "Instruments_Rear",
+   "param": "rpm",
+   "unit": "rpm",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.019,
+    -0.148
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     3500.0,
+     300.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "tachometer 0..3500 rpm over 300 deg from 7 o'clock (E layout); green 2000(E)-2700, red line 2700 (TCDS); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   }
+  },
+  {
+   "node": "Needle_OilP_R",
+   "parent": "Instruments_Rear",
+   "param": "oil_press_psi",
+   "unit": "psi",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.029,
+    -0.224
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     115.0,
+     160.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "dual engine gauge upper scale: oil pressure 0..115 psi over the top half (E); green 60-90, red 25 / 115 (Lycoming typical, E); modelled at -80 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -80.0
+   }
+  },
+  {
+   "node": "Needle_OilT_R",
+   "parent": "Instruments_Rear",
+   "param": "oil_temp_f",
+   "unit": "degF",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.638,
+    -0.029,
+    -0.224
+   ],
+   "map": [
+    [
+     100.0,
+     0.0
+    ],
+    [
+     250.0,
+     160.0
+    ]
+   ],
+   "model": 100.0,
+   "desc": "dual engine gauge lower scale: oil temp 100..250 F over the bottom half, clockwise (E); red 245 (Lycoming typical, E); modelled at 100 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 100.0
+   }
+  },
+  {
+   "node": "Compass_Card_R",
+   "parent": "Instruments_Rear",
+   "param": "heading_deg",
+   "unit": "deg magnetic",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.668,
+    0.128,
+    0.032
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     360.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_map_wrap": 360.0
+   }
+  },
+  {
+   "node": "Compass_Card_F",
+   "parent": "Instruments_Front",
+   "param": "heading_deg",
+   "unit": "deg magnetic",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.9423,
+    0.125,
+    -0.0257
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     360.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_map_wrap": 360.0
+   }
+  },
+  {
+   "node": "TorqueTube",
+   "parent": "Controls",
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.25,
+    -0.74,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "aileron torque tube under the floor carrying both sticks: +1 = stick tops to the right (roll right), 18 deg (E)",
+   "link": "Aileron_LL/LR (drivers) -> UL/UR (slave struts); Stick_F and Stick_R are children",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Stick_F",
+   "parent": "TorqueTube",
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.92,
+    -0.74,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -12.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stick pitch about its yoke on the torque tube: +1 aft 18, -1 forward 12 (E; stops on the aft stick per manual)",
+   "link": "Elevator_L/R_Pivot; front + rear sticks linked (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Stick_R",
+   "parent": "TorqueTube",
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    1.6,
+    -0.74,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -12.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stick pitch about its yoke on the torque tube: +1 aft 18, -1 forward 12 (E; stops on the aft stick per manual)",
+   "link": "Elevator_L/R_Pivot; front + rear sticks linked (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_F_L",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.5,
+    -0.685,
+    0.13
+   ],
+   "map": [
+    [
+     -1.0,
+     -15.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     15.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "left rudder pedal frame, floor hinge: +1 (right rudder) top aft 15 deg (E)",
+   "link": "Rudder_Pivot; all four pedals linked (rear pedals beside the front seat)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_F_R",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.5,
+    -0.685,
+    -0.13
+   ],
+   "map": [
+    [
+     -1.0,
+     -15.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     15.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "right rudder pedal frame, floor hinge: +1 (right rudder) top forward 15 deg (E)",
+   "link": "Rudder_Pivot; all four pedals linked (rear pedals beside the front seat)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_R_L",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    1.12,
+    -0.685,
+    0.25
+   ],
+   "map": [
+    [
+     -1.0,
+     -15.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     15.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "left rudder pedal frame, floor hinge: +1 (right rudder) top aft 15 deg (E)",
+   "link": "Rudder_Pivot; all four pedals linked (rear pedals beside the front seat)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_R_R",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.12,
+    -0.685,
+    -0.25
+   ],
+   "map": [
+    [
+     -1.0,
+     -15.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     15.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "right rudder pedal frame, floor hinge: +1 (right rudder) top forward 15 deg (E)",
+   "link": "Rudder_Pivot; all four pedals linked (rear pedals beside the front seat)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Brake_F_L",
+   "parent": "Controls",
+   "param": "brake_left",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.6,
+    -0.688,
+    0.13
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "left heel brake pedal (one per foot, each cockpit, manual): 1 = pushed, top forward 20 deg (E)",
+   "link": "wheel brake left; front + rear linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Brake_F_R",
+   "parent": "Controls",
+   "param": "brake_right",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.6,
+    -0.688,
+    -0.13
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "right heel brake pedal (one per foot, each cockpit, manual): 1 = pushed, top forward 20 deg (E)",
+   "link": "wheel brake right; front + rear linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Brake_R_L",
+   "parent": "Controls",
+   "param": "brake_left",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.22,
+    -0.688,
+    0.25
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "left heel brake pedal (one per foot, each cockpit, manual): 1 = pushed, top forward 20 deg (E)",
+   "link": "wheel brake left; front + rear linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Brake_R_R",
+   "parent": "Controls",
+   "param": "brake_right",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.22,
+    -0.688,
+    -0.25
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "right heel brake pedal (one per foot, each cockpit, manual): 1 = pushed, top forward 20 deg (E)",
+   "link": "wheel brake right; front + rear linked",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Throttle_F",
+   "parent": "Controls",
+   "param": "throttle",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.04,
+    -0.32,
+    0.35
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     50.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "throttle (black knob, inboard) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
+   "link": "front + rear quadrants linked (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Throttle_R",
+   "parent": "Controls",
+   "param": "throttle",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.72,
+    -0.3,
+    0.3508
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     50.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "throttle (black knob, inboard) on the left-wall quadrant: modelled at 0 (full aft), 1 = 50 deg forward (E)",
+   "link": "front + rear quadrants linked (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Elevator_L_Pivot",
+   "parent": "Stab_TrimPivot",
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    4.59,
+    -0.14,
+    0.8025
+   ],
+   "map": [
+    [
+     -1.0,
+     -29.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     21.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "elevator: +1 (stick aft) TE up 21, -1 TE down 29 (TCDS A18EA)",
+   "link": "Stick_F/Stick_R; rides on Stab_TrimPivot",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Elevator_R_Pivot",
+   "parent": "Stab_TrimPivot",
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    4.59,
+    -0.14,
+    -0.8025
+   ],
+   "map": [
+    [
+     -1.0,
+     -29.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     21.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "elevator: +1 (stick aft) TE up 21, -1 TE down 29 (TCDS A18EA)",
+   "link": "Stick_F/Stick_R; rides on Stab_TrimPivot",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Rudder_Pivot",
+   "parent": null,
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    4.59,
+    0.2405,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -35.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     35.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "rudder on the vertical hinge line at the sternpost: +1 (right pedal) TE to starboard 35 (TCDS A18EA)",
+   "link": "Pedal_*",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Stab_TrimPivot",
+   "parent": null,
+   "param": "trim",
+   "unit": "-1 nose down .. +1 nose up",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    4.555,
+    -0.14,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     7.25
+    ],
+    [
+     1.0,
+     0.25
+    ],
+    [
+     1.0714,
+     0.0
+    ]
+   ],
+   "model": 1.0714,
+   "desc": "jack-screw stabilizer about the rear beam: LE up 7.25 deg at -1 (nose down), 0.25 at +1 (nose up) (TCDS A18EA travel); modelled at 0 deg = just past +1. Sense: nose-up trim = LE down (confirmed by Ty, 2026-10-30)",
+   "link": "Trim_F/Trim_R",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Aileron_UL_Pivot",
+   "parent": null,
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.15643,
+    0.0,
+    0.98769
+   ],
+   "pivot_gltf": [
+    1.1869,
+    0.6585,
+    2.8075
+   ],
+   "map": [
+    [
+     -1.0,
+     22.999
+    ],
+    [
+     -0.5,
+     11.727
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.5235602094240838,
+     -11.217
+    ],
+    [
+     1.0,
+     -21.997
+    ]
+   ],
+   "model": 0.0,
+   "desc": "upper aileron (follower on Strut_Slave_L): solved constant-strut-length table (+deg = TE up)",
+   "link": "TorqueTube / sticks",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Aileron_UR_Pivot",
+   "parent": null,
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.15643,
+    -0.0,
+    0.98769
+   ],
+   "pivot_gltf": [
+    1.1869,
+    0.6585,
+    -2.8075
+   ],
+   "map": [
+    [
+     -1.0,
+     -21.997
+    ],
+    [
+     -0.5235602094240838,
+     -11.217
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.5,
+     11.727
+    ],
+    [
+     1.0,
+     22.999
+    ]
+   ],
+   "model": 0.0,
+   "desc": "upper aileron (follower on Strut_Slave_R): solved constant-strut-length table (+deg = TE up)",
+   "link": "TorqueTube / sticks",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Aileron_LL_Pivot",
+   "parent": null,
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    0.0349,
+    0.99939
+   ],
+   "pivot_gltf": [
+    1.538,
+    -0.6881,
+    2.39
+   ],
+   "map": [
+    [
+     -1.0,
+     24.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     -21.01
+    ]
+   ],
+   "model": 0.0,
+   "desc": "lower aileron (driver): +1 roll right = TE down 21.01 (+deg = TE up)",
+   "link": "TorqueTube / sticks",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Aileron_LR_Pivot",
+   "parent": null,
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0349,
+    0.99939
+   ],
+   "pivot_gltf": [
+    1.538,
+    -0.6881,
+    -2.39
+   ],
+   "map": [
+    [
+     -1.0,
+     -21.01
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     24.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "lower aileron (driver): +1 roll right = TE up 24.00 (+deg = TE up)",
+   "link": "TorqueTube / sticks",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Ctl_Rotary_Magneto",
+   "param": "magneto",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     30
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     90
+    ],
+    [
+     4,
+     130
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Master",
+   "param": "master",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Mixture",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Prop",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_CarbHeat",
+   "param": "carb_heat",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_valve",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume",
+   "param": "com_volume",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     270
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Magneto_Front",
+   "param": "magneto",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     30
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     90
+    ],
+    [
+     4,
+     130
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Master_Front",
+   "param": "master",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Mixture_Front",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Prop_Front",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_CarbHeat_Front",
+   "param": "carb_heat",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_valve",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume_Front",
+   "param": "com_volume",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     270
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  }
+ ],
+ "displays": [
+  {
+   "node": "Radio_Display_R",
+   "parent": "Instruments_Rear",
+   "params": [
+    "com_freq_mhz",
+    "com_standby_mhz"
+   ],
+   "centre_gltf": [
+    1.6511,
+    0.1035,
+    -0.059
+   ],
+   "facing_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "size_m": [
+    0.032,
+    0.019
+   ],
+   "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); active + standby frequency, 25 / 8.33 kHz"
+  },
+  {
+   "node": "Xpdr_Display_R",
+   "parent": "Instruments_Rear",
+   "params": [
+    "xpdr_squawk",
+    "xpdr_mode"
+   ],
+   "centre_gltf": [
+    1.6511,
+    0.06,
+    -0.0515
+   ],
+   "facing_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "size_m": [
+    0.039,
+    0.016
+   ],
+   "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); 4-digit octal squawk + mode (OFF / SBY / ON / ALT), IDENT"
+  }
+ ],
+ "controls": [
+  {
+   "node": "Ctl_Rotary_Magneto",
+   "param": "magneto",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    0.215
+   ],
+   "travel": 130,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    4
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "detent_count": 5,
+   "spring_return": true,
+   "spring_return_from": 4,
+   "spring_return_to": 3,
+   "poke": "Poke_Magneto",
+   "grip": "Grip_Magneto",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Master",
+   "param": "master",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    0.251
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Master",
+   "grip": "Grip_Master",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    0.287
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelPump",
+   "grip": "Grip_FuelPump",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    0.32299999999999995
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_NavLights",
+   "grip": "Grip_NavLights",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    0.215
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Strobe",
+   "grip": "Grip_Strobe",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    0.251
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_LandingLight",
+   "grip": "Grip_LandingLight",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    0.287
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Smoke",
+   "grip": "Grip_Smoke",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_Mixture",
+   "param": "mixture",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    0.32299999999999995
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Mixture",
+   "grip": "Grip_Mixture",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_Prop",
+   "param": "prop",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    0.215
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Prop",
+   "grip": "Grip_Prop",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_CarbHeat",
+   "param": "carb_heat",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    0.251
+   ],
+   "travel": 35,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_CarbHeat",
+   "grip": "Grip_CarbHeat",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    0.287
+   ],
+   "travel": 300,
+   "travel_unit": "deg",
+   "sim_ends": [
+    -1,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Trim",
+   "grip": "Grip_Trim",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_valve",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    0.32299999999999995
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector",
+   "grip": "Grip_FuelSelector",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    -0.215
+   ],
+   "travel": 540,
+   "travel_unit": "deg",
+   "sim_ends": [
+    118,
+    136
+   ],
+   "detents": [
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136
+   ],
+   "detent_count": 19,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComOuter",
+   "grip": "Grip_ComOuter",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment",
+   "step": 1,
+   "wrap": [
+    118,
+    136.975
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    -0.251
+   ],
+   "travel": 360,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    0.975
+   ],
+   "detents": [
+    0.0,
+    0.025,
+    0.05,
+    0.07500000000000001,
+    0.1,
+    0.125,
+    0.15000000000000002,
+    0.17500000000000002,
+    0.2,
+    0.225,
+    0.25,
+    0.275,
+    0.30000000000000004,
+    0.325,
+    0.35000000000000003,
+    0.375,
+    0.4,
+    0.42500000000000004,
+    0.45,
+    0.47500000000000003,
+    0.5,
+    0.525,
+    0.55,
+    0.5750000000000001,
+    0.6000000000000001,
+    0.625,
+    0.65,
+    0.675,
+    0.7000000000000001,
+    0.7250000000000001,
+    0.75,
+    0.775,
+    0.8,
+    0.8250000000000001,
+    0.8500000000000001,
+    0.875,
+    0.9,
+    0.925,
+    0.9500000000000001,
+    0.9750000000000001
+   ],
+   "detent_count": 40,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComInner",
+   "grip": "Grip_ComInner",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment_fraction",
+   "step": 0.025,
+   "alternative_step_mhz": 0.008333333333333333,
+   "channel_spacing_requires_owner_choice": true
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume",
+   "param": "com_volume",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    -0.287
+   ],
+   "travel": 270,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComVolume",
+   "grip": "Grip_ComVolume",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.593,
+    0.16,
+    -0.32299999999999995
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComSwap",
+   "grip": "Grip_ComSwap",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    -0.215
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit1",
+   "grip": "Grip_XpdrDigit1",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1000,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    -0.251
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit2",
+   "grip": "Grip_XpdrDigit2",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 100,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    -0.287
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit3",
+   "grip": "Grip_XpdrDigit3",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 10,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.528,
+    0.16,
+    -0.32299999999999995
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit4",
+   "grip": "Grip_XpdrDigit4",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    -0.215
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    3
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "detent_count": 4,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrMode",
+   "grip": "Grip_XpdrMode",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.463,
+    0.16,
+    -0.251
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrIdent",
+   "grip": "Grip_XpdrIdent",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_Magneto_Front",
+   "param": "magneto",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    0.215
+   ],
+   "travel": 130,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    4
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "detent_count": 5,
+   "spring_return": true,
+   "spring_return_from": 4,
+   "spring_return_to": 3,
+   "poke": "Poke_Magneto_Front",
+   "grip": "Grip_Magneto_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Master_Front",
+   "param": "master",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    0.251
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Master_Front",
+   "grip": "Grip_Master_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    0.287
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelPump_Front",
+   "grip": "Grip_FuelPump_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    0.32299999999999995
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_NavLights_Front",
+   "grip": "Grip_NavLights_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    0.215
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Strobe_Front",
+   "grip": "Grip_Strobe_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    0.251
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_LandingLight_Front",
+   "grip": "Grip_LandingLight_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    0.287
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Smoke_Front",
+   "grip": "Grip_Smoke_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_Mixture_Front",
+   "param": "mixture",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    0.32299999999999995
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Mixture_Front",
+   "grip": "Grip_Mixture_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_Prop_Front",
+   "param": "prop",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    0.215
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Prop_Front",
+   "grip": "Grip_Prop_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_CarbHeat_Front",
+   "param": "carb_heat",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    0.251
+   ],
+   "travel": 35,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_CarbHeat_Front",
+   "grip": "Grip_CarbHeat_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    0.287
+   ],
+   "travel": 300,
+   "travel_unit": "deg",
+   "sim_ends": [
+    -1,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Trim_Front",
+   "grip": "Grip_Trim_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_valve",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    0.32299999999999995
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector_Front",
+   "grip": "Grip_FuelSelector_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    -0.215
+   ],
+   "travel": 540,
+   "travel_unit": "deg",
+   "sim_ends": [
+    118,
+    136
+   ],
+   "detents": [
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136
+   ],
+   "detent_count": 19,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComOuter_Front",
+   "grip": "Grip_ComOuter_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment",
+   "step": 1,
+   "wrap": [
+    118,
+    136.975
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    -0.251
+   ],
+   "travel": 360,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    0.975
+   ],
+   "detents": [
+    0.0,
+    0.025,
+    0.05,
+    0.07500000000000001,
+    0.1,
+    0.125,
+    0.15000000000000002,
+    0.17500000000000002,
+    0.2,
+    0.225,
+    0.25,
+    0.275,
+    0.30000000000000004,
+    0.325,
+    0.35000000000000003,
+    0.375,
+    0.4,
+    0.42500000000000004,
+    0.45,
+    0.47500000000000003,
+    0.5,
+    0.525,
+    0.55,
+    0.5750000000000001,
+    0.6000000000000001,
+    0.625,
+    0.65,
+    0.675,
+    0.7000000000000001,
+    0.7250000000000001,
+    0.75,
+    0.775,
+    0.8,
+    0.8250000000000001,
+    0.8500000000000001,
+    0.875,
+    0.9,
+    0.925,
+    0.9500000000000001,
+    0.9750000000000001
+   ],
+   "detent_count": 40,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComInner_Front",
+   "grip": "Grip_ComInner_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment_fraction",
+   "step": 0.025,
+   "alternative_step_mhz": 0.008333333333333333,
+   "channel_spacing_requires_owner_choice": true
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume_Front",
+   "param": "com_volume",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    -0.287
+   ],
+   "travel": 270,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComVolume_Front",
+   "grip": "Grip_ComVolume_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.9229999999999999,
+    0.16,
+    -0.32299999999999995
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComSwap_Front",
+   "grip": "Grip_ComSwap_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    -0.215
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit1_Front",
+   "grip": "Grip_XpdrDigit1_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1000,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    -0.251
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit2_Front",
+   "grip": "Grip_XpdrDigit2_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 100,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    -0.287
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit3_Front",
+   "grip": "Grip_XpdrDigit3_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 10,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8579999999999999,
+    0.16,
+    -0.32299999999999995
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit4_Front",
+   "grip": "Grip_XpdrDigit4_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1,
+   "wrap": [
+    0,
+    7
+   ]
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    -0.215
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    3
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "detent_count": 4,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrMode_Front",
+   "grip": "Grip_XpdrMode_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7929999999999999,
+    0.16,
+    -0.251
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrIdent_Front",
+   "grip": "Grip_XpdrIdent_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute"
+  }
+ ],
+ "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."
 }

@@ -17,6 +17,10 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            // In a headset a screen-space overlay smears across both eyes at the wrong depth. Codex's
+            // VR HUD replaces these; the MENUS deliberately keep drawing, or there would be no way to
+            // switch VR back off.
+            if (VrMode.SuppressFlatOverlays) return;
             if (Driver == null || SessionSettings.MenuOpen)
             {
                 return;

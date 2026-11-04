@@ -85,15 +85,6 @@ namespace FlyingGame.Bridge
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
-            // A model that brought its own rig moves ITS parts — the same control positions, so the drawn
-            // surfaces and the cockpit always agree with the aeroplane the sim is flying.
-            if (_builder.HasOwnRig)
-                _builder.SetRig(RigInputsNow(_driver.Sim.Aircraft,
-                                             DebugDeflect.HasValue
-                                                 ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
-                                                 : d,
-                                             Time.deltaTime),
-                                Time.deltaTime);
             var acp = _driver.Sim.Aircraft;
             float rpm = DebugRpm ?? (acp.EngineStopped ? 0f : (float)acp.EngineRpm);
             _builder.SpinProps(i =>
@@ -104,18 +95,32 @@ namespace FlyingGame.Bridge
             }, Time.deltaTime);
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
             // A model that brought its own rig moves ITS parts — the same control positions the aero model is
-            // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown.
-            if (_builder.HasOwnRig)
+            // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown. A model whose
+            // cockpit was drawn as pictures (the Pitts, the Extra's rear panel) has them made live by CockpitLiveParts
+            // from the same readings. ONCE a frame: this used to run twice, and the second pass saw no time pass, so it
+            // dragged the vario and the turn needle back toward zero every frame.
+            if (_builder.ModelRoot != null && !_live.Bound) _live.Bind(this, AirframeModels.PlacedOwnName(_driver.AircraftId));
+            if (_builder.HasOwnRig || _live.Active)
             {
                 var rd = DebugDeflect.HasValue
                     ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
                     : d;
-                _builder.SetRig(RigInputsNow(acp, rd, Time.deltaTime), Time.deltaTime);
+                FlyingGame.Core.RigInputs rig = RigInputsNow(acp, rd, Time.deltaTime);
+                if (_builder.HasOwnRig) _builder.SetRig(rig, Time.deltaTime);
+                _live.Update(rig);
                 // The red handle, pulled all the way: the canopy is gone the moment the rig says so, whether
                 // the hand on it was the player's or the bailout's.
                 if (Cockpit.CanopyPull01 >= 0.999f && !Cockpit.CanopyGone) JettisonRigPart(_driver.WorldVelocityUnity);
-                // The panel's own glass and paper: the two avionics LCDs, and the sequence card in its holder.
-                _displays.Bind(FindInModel);
+                // The water-rudder cable follows the handle the rig just placed (floats J-3 only; nothing elsewhere).
+                if (_builder.HasOwnRig && !_waterRudder.Bound) _waterRudder.Bind(_builder.ModelRoot);
+                _waterRudder.LateUpdate();
+            }
+            if (_builder.ModelRoot != null)
+            {
+                // The panel's own glass and paper: the two avionics LCDs, and the sequence card in its holder — on
+                // every placed model, rigged or not (the Pitts has a card holder and no rig, so its card never got
+                // the anti-flicker separation).
+                _displays.Bind(FindInModel, transform);
                 _displays.Update(_lastRig);
                 Card.Bind(this, _driver.AircraftId);
             }
@@ -130,6 +135,10 @@ namespace FlyingGame.Bridge
         /// <summary>The avionics LCDs and the sequence card holder, where the model has them.</summary>
         private readonly CockpitDisplays _displays = new();
         public readonly SequenceCard Card = new();
+        /// <summary>The painted parts of a cockpit made to move: live dials, cut-out sticks and pedals, an added
+        /// throttle (FlyingGame.Core.CockpitLive says which, per model).</summary>
+        private readonly CockpitLiveParts _live = new();
+        private readonly CockpitWaterRudder _waterRudder = new();     // the J-3 floats' red retract handle's cable
 
 
         private FlyingGame.Core.RigInputs _lastRig;
@@ -141,6 +150,12 @@ namespace FlyingGame.Bridge
         /// <summary>A named node inside the placed model — the eye points, the display faces, the sequence card.
         /// null for the procedural shell, or where the model has no such node.</summary>
         public Transform FindInModel(string node) => _builder.FindInModel(node);
+
+        /// <summary>The placed model's root, or null where the aeroplane on screen is the procedural shell.</summary>
+        public Transform ModelRoot => _builder.ModelRoot;
+
+        /// <summary>True when the placed model brought its own rig (its stick, pedals and needles move by it).</summary>
+        public bool HasOwnRig => _builder.HasOwnRig;
 
         private bool _rigPartGone;
 
@@ -184,6 +199,46 @@ namespace FlyingGame.Bridge
             Cockpit.CanopyGone = true;
             _rigPartGone = true;
             return true;
+        }
+
+        /// <summary>
+        /// THE CANOPY LEAVES ON ITS OWN PHYSICS (the headset's hands-on canopy, Core Vr.CanopyDynamics: torn off its
+        /// hinges above the failure speed, or jettisoned). The part is CONTRACT's `Canopy_Detachable` (the whole moving
+        /// canopy and nothing of the airframe), else the node the rig marks jettisonable, else the Pitts' `Canopy_Slide`
+        /// or the `Canopy`. It is detached with everything under it and flown by <see cref="CanopyFlight"/>, a Core
+        /// <see cref="FlyingGame.Core.Vr.CanopyFreeBody"/> with the canopy's own mass, drag and lift. Torn hinges show
+        /// Codex's `Canopy_Hinge_Broken_*` fittings. Returns the part's centre (world), or null where the model has no
+        /// canopy to lose (the procedural shell gets its stand-in, as the menu's bail-out does).
+        /// </summary>
+        public Vector3? DetachCanopy(FlyingGame.Core.Vr.CanopyDynamics canopy, Vector3 velocityWorld, Vector3 upWorld,
+                                     Vector3 spinWorld, bool hingesBroke)
+        {
+            if (Cockpit.CanopyGone) return null;
+            AirframeRig rig = _builder.Rig;
+            Transform part = FindInModel("Canopy_Detachable");
+            if (part == null && rig != null) part = rig.Jettisonable().T;
+            if (part == null) part = FindInModel("Canopy_Slide") ?? FindInModel("Canopy");
+            Cockpit.CanopyGone = true;
+            _rigPartGone = true;
+            if (part == null)
+            {
+                Transform shell = transform.Find("Canopy");
+                CanopyJettison.Spawn(_driver, shell);
+                if (shell != null && shell.TryGetComponent(out Renderer r)) r.enabled = false;
+                return null;
+            }
+            if (hingesBroke && _builder.ModelRoot != null)
+                foreach (Transform t in _builder.ModelRoot.GetComponentsInChildren<Transform>(true))
+                    if ((t.name.StartsWith("Model:") ? t.name.Substring(6) : t.name).StartsWith("Canopy_Hinge_Broken")) t.gameObject.SetActive(true);
+
+            Bounds b = PartBounds(part);
+            rig?.Release(part);
+            ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
+            part.SetParent(null, true);
+            static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
+            var body = new FlyingGame.Core.Vr.CanopyFreeBody(canopy, C(b.center), C(velocityWorld), C(upWorld), C(transform.forward), C(spinWorld));
+            part.gameObject.AddComponent<CanopyFlight>().Init(body, b.center, Mathf.Max(0.1f, b.extents.y * 0.5f));
+            return b.center;
         }
 
         /// <summary>World bounds of a part and everything under it, or a canopy-sized box where it has no
@@ -258,6 +313,7 @@ namespace FlyingGame.Bridge
             // stayed at idle however the player flew; the prop and mixture levers sat full AFT; and every needle
             // the rig drives from an engine reading pointed at zero.
             Cockpit.Fill(ref r, _driver, ac, d, dt);
+            r.WaterRudderUp = ac.WaterRudderUp01;    // the blade's slewed travel (Aircraft.Step); 0 on anything without a retract
             _lastRig = r;      // what the avionics displays and the sequence card read, one frame's state
             return r;
         }
@@ -698,6 +754,7 @@ namespace FlyingGame.Bridge
 
         private void Rebuild()
         {
+            QuestRig.Note($"airframe rebuild {_driver.AircraftId}");
             _builtId = _driver.AircraftId;
             _builtModels = SessionSettings.UseAirframeModels;
             _builtOwn = SessionSettings.UseOwnModels;
@@ -708,6 +765,8 @@ namespace FlyingGame.Bridge
             Cockpit.Reset();
             _displays.Forget();
             Card.Forget();
+            _live.Forget();
+            _waterRudder.Forget();
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
             foreach (var sights in GetComponentsInChildren<CockpitSights>(true)) sights.BindLocal(_driver);
             GetComponent<GroundShadow>()?.Refresh();
@@ -2478,8 +2537,13 @@ namespace FlyingGame.Bridge
         private void TryPlaceModel(Transform root, AircraftConfig cfg)
         {
             UsedModel = false;
+            // Timed (Quest, 2026-11-02: 4.2 s between the [Livery] line and the model's [Airframe] line on the first
+            // build of the 2-33's own model, inside the startup SLOW FRAME). Has() is where the first Resources.Load is.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             if (!SessionSettings.UseAirframeModels || Paint.HasValue || !AirframeModels.Has(cfg.Id)) return;
+            double tFound = sw.Elapsed.TotalMilliseconds;
             GameObject inst = AirframeModels.Place(root, cfg.Id, cfg, out _);
+            Debug.Log($"[Airframe] {cfg.Id}: model ready in {sw.Elapsed.TotalMilliseconds:F0} ms (found / loaded {tFound:F0}, placed {sw.Elapsed.TotalMilliseconds - tFound:F0})");
             if (inst == null) return;
             UsedModel = true;
             _modelRoot = inst.transform;
@@ -4415,11 +4479,15 @@ namespace FlyingGame.Bridge
                         Fuselage = white, Wing = white, TailColor = white, Control = red,
                     };
                 default: // glider-2-33-like (and anything unknown): high-wing strut-braced tandem trainer
+                    // Schweizer yellow all over (255,204,0, the Commons 2-33A 3-view). This was red and cream -- the
+                    // red-and-white 2-33 Ty removed on 2026-11-02; the 2-33 now always draws our own yellow model, and
+                    // if that ever fails to load, this fallback is yellow too.
+                    Color sgsYellow = new(1f, 0.8f, 0f);
                     return new Style
                     {
                         BodyAxisZ = 0.15f, Body = new[] { (2.2f, 0.05f), (1.9f, 0.25f), (1.2f, 0.45f), (0.3f, 0.48f), (-0.8f, 0.38f), (-2.0f, 0.24f), (-3.5f, 0.14f), (-5.0f, 0.09f), (-5.7f, 0.06f) },
                         Canopy = (1.0f, -0.42f, 1.6f, 0.8f, 0.55f), HighWingStruts = true, Tail = null,
-                        Fuselage = red, Wing = cream, TailColor = cream, Control = red,
+                        Fuselage = sgsYellow, Wing = sgsYellow, TailColor = sgsYellow, Control = sgsYellow,
                     };
             }
         }

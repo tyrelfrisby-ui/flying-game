@@ -81,7 +81,7 @@ namespace FlyingGame.Bridge
                 if (!byName.ContainsKey(n)) byName[n] = t;
             }
 
-            var bound = new AirframeRig();
+            var bound = new AirframeRig { Table = rig };
             int link = 0;
             foreach (RigNode n in rig.Nodes)
             {
@@ -97,6 +97,9 @@ namespace FlyingGame.Bridge
                       + $" (params {string.Join(", ", rig.Params())})");
             return bound;
         }
+
+        /// <summary>The table this was bound from (its rows and its `controls`).</summary>
+        public ModelRig Table { get; private set; }
 
         /// <summary>Every node that bound, for an editor check to measure against the model.</summary>
         public IReadOnlyList<Bound> Nodes => _bound;
@@ -190,10 +193,10 @@ namespace FlyingGame.Bridge
             if (string.IsNullOrEmpty(modelId)) return null;
             if (Cache.TryGetValue(modelId, out ModelRig cached)) return cached;
             ModelRig rig = null;
-            string path = Path.Combine(Application.streamingAssetsPath, "rigs", modelId + ".json");
+            string path = "rigs/" + modelId + ".json";
             try
             {
-                if (File.Exists(path)) rig = Parse(File.ReadAllText(path));
+                if (StreamingFiles.TryReadAllText(path, out string json, out _)) rig = Parse(json);
             }
             catch (System.Exception e)
             {
@@ -211,7 +214,17 @@ namespace FlyingGame.Bridge
         {
             JObject root = JObject.Parse(json);
             var nodes = new List<RigNode>();
-            var rows = root["rig"] as JArray;
+            string model = root["model"]?.Value<string>() ?? "";
+            List<JToken> rows = null;
+            if (root["rig"] is JArray all)
+            {
+                // Once each: Codex's Extra table repeats its Ctl_* rows (414 rows, 126 nodes). The file is not edited.
+                rows = FlyingGame.Core.Vr.RigRows.FirstOfEach<JToken>(new List<JToken>(all), r => r["node"]?.Value<string>() ?? "", JToken.DeepEquals,
+                                                                      out int dropped, out List<string> differing);
+                if (dropped > 0)
+                    Debug.Log($"[Airframe] rig {model}: {all.Count} rows for {rows.Count} nodes — {dropped} duplicate row(s) dropped, the first of each kept" +
+                              (differing.Count > 0 ? $"; duplicates that DIFFER from the kept row: {string.Join(", ", differing)}" : " (all identical)"));
+            }
             if (rows != null)
             {
                 foreach (JToken row in rows)
@@ -248,7 +261,45 @@ namespace FlyingGame.Bridge
                         jettisonParam: extra?["rig_jettison_param"]?.Value<string>() ?? ""));
                 }
             }
-            return new ModelRig(root["model"]?.Value<string>() ?? "", nodes);
+            return new ModelRig(model, nodes, ParseControls(root, model));
+        }
+
+        /// <summary>The table's `controls` (Codex's phase 3a inventory, docs/models/vr-cockpit-phase3a.md), once each.</summary>
+        private static List<FlyingGame.Core.Vr.PanelControlSpec> ParseControls(JObject root, string model)
+        {
+            var specs = new List<FlyingGame.Core.Vr.PanelControlSpec>();
+            if (root["controls"] is not JArray all) return specs;
+            var rows = FlyingGame.Core.Vr.RigRows.FirstOfEach<JToken>(new List<JToken>(all), r => r["node"]?.Value<string>() ?? "", JToken.DeepEquals,
+                                                                      out int dropped, out List<string> differing);
+            if (dropped > 0)
+                Debug.Log($"[Airframe] rig {model}: {dropped} duplicate control row(s) dropped" + (differing.Count > 0 ? $" (differing: {string.Join(", ", differing)})" : ""));
+            foreach (JToken c in rows)
+            {
+                string kind = c["kind"]?.Value<string>() ?? "";
+                var spec = new FlyingGame.Core.Vr.PanelControlSpec
+                {
+                    Node = c["node"]?.Value<string>() ?? "",
+                    Param = c["param"]?.Value<string>() ?? "",
+                    Seat = c["seat"]?.Value<string>() ?? "Rear",
+                    Semantics = c["semantics"]?.Value<string>() ?? "absolute",
+                    Grip = c["grip"]?.Value<string>() ?? "",
+                    Poke = c["poke"]?.Value<string>() ?? "",
+                    Kind = kind == "Toggle" ? FlyingGame.Core.Vr.PanelKind.Toggle : kind == "PushPull" ? FlyingGame.Core.Vr.PanelKind.PushPull : FlyingGame.Core.Vr.PanelKind.Rotary,
+                };
+                if (c["sim_ends"] is JArray ends && ends.Count == 2) { spec.Lo = ends[0].Value<double>(); spec.Hi = ends[1].Value<double>(); }
+                if (c["detents"] is JArray det)
+                {
+                    spec.Detents = new double[det.Count];
+                    for (int i = 0; i < det.Count; i++) spec.Detents[i] = det[i].Value<double>();
+                }
+                if (c["spring_return"]?.Value<bool>() == true)
+                {
+                    spec.SpringFrom = c["spring_return_from"]?.Value<double>() ?? double.NaN;
+                    spec.SpringTo = c["spring_return_to"]?.Value<double>() ?? double.NaN;
+                }
+                if (spec.Node.Length > 0) specs.Add(spec);
+            }
+            return specs;
         }
     }
 }

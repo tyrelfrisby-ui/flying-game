@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge
         public float LadderHalfWidthDeg = 9f;   // half-length of ladder bars in azimuth degrees
         public float LineWidthFrac = 0.0022f;   // line width as a fraction of min(w,h)
 
-        private Camera _cam;
+        private Camera _cam, _liveCam;
         private Material _mat;
         private GUIStyle _text, _small, _engineLabel, _engineValue;
         private int _fs;
@@ -31,7 +31,7 @@ namespace FlyingGame.Bridge
 
         private void Awake()
         {
-            _cam = GetComponent<Camera>();
+            _cam = _liveCam = GetComponent<Camera>();
             Shader sh = Shader.Find("FlyingGame/HudLine");
             if (sh != null) _mat = new Material(sh) { color = Color.white };
         }
@@ -101,6 +101,9 @@ namespace FlyingGame.Bridge
         private void OnPostRender()
         {
             if (Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud) { _labels.Clear(); return; }
+            // In a headset's cockpit the real instruments count: no HUD unless the VR menu's HUD row asks for it.
+            // (Only the live pass: a clip renders its own camera, which is never the headset's.)
+            if (_cam == _liveCam && !XrHeadset.HudAllowed) { _labels.Clear(); return; }
             _labels.Clear();
             float vw = _cam.pixelWidth, vh = _cam.pixelHeight;   // the flying area (full screen in landscape)
             float s = Mathf.Min(vw, vh);
@@ -237,6 +240,8 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            // In a headset a screen-space overlay smears across both eyes at the wrong depth.
+            if (VrMode.SuppressFlatOverlays) return;
             DrawLabels(_labels, _cam.pixelRect, Screen.height);
             DrawEngineReadouts();
         }

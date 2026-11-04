@@ -360,8 +360,13 @@ namespace FlyingGame.Bridge
             return best ?? nearest;
         }
 
-        /// <summary>Stopwatch ticks spent inside SimLoop.Advance by every driver, summed (the AERO_SELFTEST=perf line reports
-        /// it per frame beside the frame time, with the player's height above the ground).</summary>
+        /// <summary>Frames on which the sim gave up catching up with real time (the [QuestPerf] line reports the
+        /// increase): a steady count means the frame cannot carry the physics.</summary>
+        public static int CatchUpCappedFrames;
+
+        /// <summary>Stopwatch ticks spent inside <see cref="SimLoop.Advance(double, ControlInputs, ref double, double)"/>
+        /// by every driver, summed (the [QuestPerf] line and the AERO_SELFTEST=perf line report it per frame beside
+        /// SimProfile's breakdown / the frame time).</summary>
         public static long SimAdvanceTicks;
 
         private void Update()
@@ -370,8 +375,11 @@ namespace FlyingGame.Bridge
             Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors || ForceCapture;
             ControlInputs inputs = InputFilter != null ? InputFilter(Inputs, Time.deltaTime) : Inputs;
             if (AutoFilter != null) inputs = AutoFilter(inputs, Time.deltaTime);
+            // In a headset the catch-up is capped at two display periods (SimLoop.HeadsetCatchUpSec): chasing a long
+            // frame with up to ten physics steps made the next frame late as well, and so on.
+            double cap = XrHeadset.Active ? SimLoop.HeadsetCatchUpSec(XrHeadset.CurrentRefreshHz) : SimLoop.MaxCatchUpSec;
             long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-            Sim.Advance(Time.deltaTime, inputs, ref _accumulator);
+            if (Sim.Advance(Time.deltaTime, inputs, ref _accumulator, cap)) CatchUpCappedFrames++;
             SimAdvanceTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t0;
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();

@@ -51,8 +51,8 @@ namespace FlyingGame.Bridge
             if (!Native && !link) { System.Array.Clear(_held, 0, ButtonCount); System.Array.Clear(_was, 0, ButtonCount); return; }   // (the link dropped: nothing stays held)
             if (Native && !_started) { _started = true; HJ_Start(); }
             _frame = Time.frameCount;
-            bool any = Native && HJ_Count() > 0;
-            for (int b = 0; b < ButtonCount; b++) { _was[b] = _held[b]; _held[b] = link ? JoyLink.Button(b) : any && HJ_Button(0, b) != 0; }
+            bool any = Native && HJ_Count() > _stickDev;
+            for (int b = 0; b < ButtonCount; b++) { _was[b] = _held[b]; _held[b] = link ? JoyLink.Button(b) : any && HJ_Button(_stickDev, b) != 0; }
         }
 
         /// <summary>JOYSTICK LINK (2026-10-12): no joystick of this device's own, and the Mac's arriving over the network.</summary>
@@ -66,10 +66,10 @@ namespace FlyingGame.Bridge
         public static float LocalRaw(int i)
         {
             if (Off) return 0f;
-            if (Native) { if (!_started) { _started = true; HJ_Start(); } return HJ_Count() > 0 ? HJ_Axis(0, i - 1) : 0f; }
+            if (Native) { if (!_started) { _started = true; HJ_Start(); } return HJ_Count() > _stickDev ? HJ_Axis(_stickDev, i - 1) : 0f; }
             try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; }
         }
-        public static bool LocalButton(int b) => !Off && Native && b >= 0 && b < ButtonCount && HJ_Count() > 0 && HJ_Button(0, b) != 0;
+        public static bool LocalButton(int b) => !Off && Native && b >= 0 && b < ButtonCount && HJ_Count() > _stickDev && HJ_Button(_stickDev, b) != 0;
         public static string LocalName
         {
             get
@@ -81,8 +81,13 @@ namespace FlyingGame.Bridge
                     if (Time.unscaledTime - _nameAt > 0.5f)
                     {
                         _nameAt = Time.unscaledTime;
-                        int n = HJ_Count() > 0 ? HJ_Name(0, _nameBuf, _nameBuf.Length) : -1;
-                        _nameCache = n > 0 ? System.Text.Encoding.UTF8.GetString(_nameBuf, 0, n) : null;
+                        // The STICK is the first device that is not a pair of rudder pedals (RudderPedals reads those):
+                        // with the pedals plugged in first, device 0 would otherwise have been calibrated as the stick.
+                        int count = HJ_Count();
+                        _stickDev = 0;
+                        for (int d = 0; d < count; d++)
+                            if (!FlyingGame.Core.PedalCatalog.NameSaysPedals(NativeName(d))) { _stickDev = d; break; }
+                        _nameCache = count > _stickDev ? NativeName(_stickDev) : null;
                     }
                     return _nameCache;
                 }
@@ -90,6 +95,19 @@ namespace FlyingGame.Bridge
                 return null;
             }
         }
+        // ---- the Mac's HID devices, all of them (RudderPedals reads the pedals among them) ----
+        private static int _stickDev;
+        public static bool NativeAvailable => Native && !Off;
+        public static int NativeCount { get { if (!NativeAvailable) return 0; if (!_started) { _started = true; HJ_Start(); } return HJ_Count(); } }
+        public static string NativeName(int dev)
+        {
+            if (!NativeAvailable) return null;
+            int n = HJ_Name(dev, _nameBuf, _nameBuf.Length);
+            return n > 0 ? System.Text.Encoding.UTF8.GetString(_nameBuf, 0, n) : null;
+        }
+        /// <summary>Axis i (0…7) of HID device <paramref name="dev"/>, −1…1.</summary>
+        public static float NativeAxis(int dev, int i) => NativeAvailable ? HJ_Axis(dev, i) : 0f;
+
         public static bool ButtonHeld(int b)
         {
             if (Off) return false;

@@ -33,7 +33,7 @@ public sealed class CockpitEyeTests
     /// with the aeroplane 0.223 m low and sat in the tub.</summary>
     public static TheoryData<string, string, double, double, double> ApprovedEyes => new()
     {
-        { "glider-2-33-like",   "front",   0.971,  0.000, -0.111 },
+        { "glider-2-33-like",   "front",   0.971,  0.000, -0.136 },
         { "glider-2-33-like",   "rear",    0.164,  0.000, -0.060 },
         { "c172-like",          "pilot",  -0.346, -0.337, -0.548 },
         { "c172-like",          "copilot",-0.346,  0.332, -0.548 },

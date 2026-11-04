@@ -107,6 +107,236 @@ public class J3OwnModelTests
         Assert.Equal(-115.0, mag.Value(3), 3);  // BOTH
     }
 
+    /// <summary>Ty 2026-11-02 (v16 cockpit), with the values typed in by hand from build_j3_cub.py's RIG log and
+    /// docs/models/j3-cub-own-RIG.md: the mag switch sits on the LEFT root rib facing inboard (glTF -z), the trim crank
+    /// moved 0.30 m aft (glTF x -0.252 -> 0.048), the rear-seat carb heat knob is gone and the fuel lever became a
+    /// push-pull knob. The carb heat and fuel valve have no sim value yet, so they are listed static, by their new names,
+    /// and nothing still names a node the GLB no longer has.</summary>
+    [Theory]
+    [InlineData("j3-cub-own-rig.json")]
+    [InlineData("j3-cub-floats-own-rig.json")]
+    public void TheV16CockpitIsWhereTySaid(string file)
+    {
+        ModelRig rig = Rig(file);
+        // The mag switch moved again in v17 (Ty 2026-11-02 19:00): TheV17CockpitIsWhereTySaid holds where it is now.
+        RigNode trim = rig.Find("Trim_Crank")!;
+        Assert.Equal(0.048, trim.Px, 3);
+        Assert.Equal(450.0, trim.Value(1), 3);
+        // The floats rig adds the water rudder (handle + blade on water_rudder_up, lane/claude-j3-water-rudder); v18 adds the primer to both.
+        Assert.Equal(file.Contains("floats") ? 29 : 27, rig.Nodes.Count);
+
+        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", file);
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        var stat = doc.RootElement.GetProperty("static").EnumerateArray().ToDictionary(e => e.GetProperty("node").GetString()!, e => e.GetProperty("param").GetString()!);
+        Assert.Equal("fuel_valve", stat["FuelValve_Knob"]);
+        Assert.Equal("carb_heat", stat["CarbHeat_Lever"]);
+        foreach (string gone in new[] { "CarbHeat_Knob_Rear", "FuelValve_Lever" })
+        {
+            Assert.False(stat.ContainsKey(gone), $"{file}: {gone} was removed in v16 and must not be listed");
+            Assert.Null(rig.Find(gone));
+        }
+    }
+
+    /// <summary>Ty 2026-11-02 19:00-19:07 (v17 cockpit). Values typed in by hand from build_j3_cub.py's log
+    /// (MAGSWITCH v17, FUELTANK v17, RIG MagSwitch_Knob), in the GLB's glTF frame (x = drawing station - 1.817, nose at -x;
+    /// y up = z + 0.135; z = to port):
+    ///  * "the ignition switch is abeam the top of the front seat": the front seat back's top is at station 2.130
+    ///    (glTF x 0.313; v16 had the switch at 1.743, glTF -0.074, 0.39 m further forward). Still on the LEFT root rib
+    ///    (rib face at z 0.300) up in the wing well, now turned 20 deg toward the rear seat so BOTH is not hidden by the
+    ///    knob from the rear eye.
+    ///  * the 12 US gal nose tank (45.4 L) between the firewall (station 0.800, glTF x -1.017) and the panel's aft face
+    ///    (1.233, glTF -0.584), under the dash deck and the red filler cap (cap top y 0.363), measured here from the
+    ///    GLB's own triangles (rays along x through the shell), not from anything the build wrote down.
+    ///    Band 41.6..49.2 L = 12 +- 1 US gal: no drawing of the tank was found (AOPA / Univair give only "12 gal"),
+    ///    so the drum is sized from the room and the photos; 1 gal is about 1.5 cm on its height, a sizing slip this
+    ///    would still catch, and the stiffening beads stand 3.5 mm proud of the drawn outline (about +0.5 L).
+    ///  * the clear drain hose runs from the sump (just under the tank) into the floorboards (floor top at station
+    ///    0.950: z -0.532, glTF y -0.397).</summary>
+    [Theory]
+    [InlineData("j3-cub-like")]
+    [InlineData("j3-cub-floats-like")]
+    public void TheV17CockpitIsWhereTySaid(string model)
+    {
+        RigNode mag = Rig(model == "j3-cub-like" ? "j3-cub-own-rig.json" : "j3-cub-floats-own-rig.json").Find("MagSwitch_Knob")!;
+        Assert.Equal(0.313, mag.Px, 3);                         // abeam the front seat back's top (station 2.130)
+        Assert.Equal(0.7122, mag.Py, 3);                        // up in the wing well, above the left window
+        Assert.InRange(mag.Pz, 0.26, 0.30);                     // on the left root rib (face at 0.300), plate stands out 0..3.6 cm
+        Assert.Equal((0.342, 0.0, -0.940), (Math.Round(mag.Ax, 3), Math.Round(mag.Ay, 3), Math.Round(mag.Az, 3)));   // inboard, 20 deg aft
+        Assert.Equal(model == "j3-cub-like" ? 27 : 29, Rig(model == "j3-cub-like" ? "j3-cub-own-rig.json" : "j3-cub-floats-own-rig.json").Nodes.Count);   // v18 primer; floats: + the water rudder handle and blade
+
+        string glb = Path.Combine(OwnPittsModelTests.Models, model, model + "-own.glb");
+        var (tank, tankMat) = Triangles(glb, "Fuel_Tank", "Fuel_tank_black");
+        var (hose, hoseMat) = Triangles(glb, "Fuel_Drain_Hose", null);
+        double minX = tank.Min(t => t.Min(p => p.x)), maxX = tank.Max(t => t.Max(p => p.x));
+        double minY = tank.Min(t => t.Min(p => p.y)), maxY = tank.Max(t => t.Max(p => p.y));
+        Assert.InRange(minX, -1.017, -0.95);                    // aft of the firewall, close to it
+        Assert.InRange(maxX, -0.75, -0.584 - 0.08);             // ahead of the panel's aft face, room for the gauge cans
+        Assert.True(maxY < 0.363, $"{model}: tank top {maxY:F3} must sit under the filler cap");
+        double litres = VolumeAlongX(tank) * 1000.0;
+        Assert.InRange(litres, 41.6, 49.2);
+
+        double hoseTop = hose.Max(t => t.Max(p => p.y)), hoseBottom = hose.Min(t => t.Min(p => p.y));
+        Assert.InRange(hoseTop, minY - 0.03, minY);             // starts at the sump, just under the tank
+        Assert.True(hoseBottom <= -0.397, $"{model}: the drain hose ends at {hoseBottom:F3}, above the floor (-0.397)");
+        Assert.Equal("BLEND", hoseMat.GetProperty("alphaMode").GetString());   // clear
+        Assert.True(hoseMat.GetProperty("pbrMetallicRoughness").GetProperty("baseColorFactor")[3].GetDouble() < 0.9);
+        Assert.False(tankMat.TryGetProperty("alphaMode", out _));
+    }
+
+    /// <summary>Ty 2026-11-02 20:2x (v18 cockpit). Values typed in by hand from build_j3_cub.py's log (UNDER-TANK v18,
+    /// FUELTANK v18) in the glTF frame (x = station - 1.817, y = z + 0.135, z = to port):
+    ///  * "make the diagonal tubes under the tank black and have them come to a point lower almost 'under the floor' and
+    ///    they go under the tank with close clearance": the two V tubes (axis from the side clusters at station 1.218,
+    ///    z 0.004, half-spread 0.293, to the firewall centre at station 0.830) meet at floor level (the floorboards' top
+    ///    line at the firewall, z -0.522, glTF y -0.387; v17 met at y -0.295) in black, and every point of the tank sits
+    ///    above them with a 1..4 cm gap from tube surface to tank (built for about 2.5 cm).
+    ///  * the panel, left to right: TACH, AIRSPEED, COMPASS, ALTIMETER, OIL (t283u corrected t282u), the airspeed's face
+    ///    the same size as the altimeter's, read from the needle pivots and the Panel_Gauges faces round them.
+    ///  * the drain at the CENTRE of the tank bottom, the hose straight down (t285u), clear of the tubes.
+    ///  * the primer at the far right after the oil gauge, a push-pull a hand can pull (t284u).</summary>
+    [Theory]
+    [InlineData("j3-cub-like")]
+    [InlineData("j3-cub-floats-like")]
+    public void TheV18CockpitIsWhereTySaid(string model)
+    {
+        string glb = Path.Combine(OwnPittsModelTests.Models, model, model + "-own.glb");
+        var (tubes, tubeMat) = Triangles(glb, "Cabin", "Cabin_tube_black");
+        JsonElement col = tubeMat.GetProperty("pbrMetallicRoughness").GetProperty("baseColorFactor");
+        for (int k = 0; k < 3; k++) Assert.True(col[k].GetDouble() < 0.02, $"{model}: the under-tank tubes must be black (channel {k} = {col[k].GetDouble():F3})");
+        var tp = tubes.SelectMany(t => t).ToList();
+        var low = tp.OrderBy(p => p.y).First();
+        Assert.InRange(low.y, -0.42, -0.38);                  // at / just below the floorboards' top (glTF -0.387)
+        Assert.InRange(low.x, -1.02, -0.95);                  // at the firewall
+        Assert.InRange(low.z, -0.03, 0.03);                   // the centre, between the pedals
+
+        var (tank, _) = Triangles(glb, "Fuel_Tank", "Fuel_tank_black");
+        var A = (x: 1.218 - 1.817, y: 0.004 + 0.135); var Bp = (x: 0.830 - 1.817, y: -0.522 + 0.135);
+        double minGap = double.MaxValue;
+        foreach (var p in tank.SelectMany(t => t))
+        {
+            foreach (double sz in new[] { 1.0, -1.0 })
+            {
+                (double x, double y, double z) a = (A.x, A.y, sz * 0.293), b = (Bp.x, Bp.y, sz * 0.006);
+                (double x, double y, double z) d = (b.x - a.x, b.y - a.y, b.z - a.z);
+                double t = Math.Clamp(((p.x - a.x) * d.x + (p.y - a.y) * d.y + (p.z - a.z) * d.z) / (d.x * d.x + d.y * d.y + d.z * d.z), 0, 1);
+                double dx = p.x - a.x - t * d.x, dy = p.y - a.y - t * d.y, dz = p.z - a.z - t * d.z;
+                minGap = Math.Min(minGap, Math.Sqrt(dx * dx + dy * dy + dz * dz) - 0.010);
+            }
+            // Under it, not across its face: in side view the tube axis at this station is below every tank point.
+            double tl = (p.x - Bp.x) / (A.x - Bp.x);
+            if (tl >= 0 && tl <= 1) Assert.True(p.y > Bp.y + tl * (A.y - Bp.y) + 0.01, $"{model}: tank point {p} is not above the V tubes");
+        }
+        Assert.InRange(minGap, 0.01, 0.04);
+
+        var (hose, _) = Triangles(glb, "Fuel_Drain_Hose", null);
+        var hp = hose.SelectMany(t => t).ToList();
+        Assert.InRange(hp.Average(p => p.z), -0.01, 0.01);    // centre of the tank bottom
+        Assert.True(hp.Max(p => p.x) - hp.Min(p => p.x) < 0.02, $"{model}: the drain hose should run straight down");
+        // Clear of the tubes: at the hose's station the tube axes are +-0.087 m out, ~7 cm of air each side.
+        double hx = hp.Average(p => p.x), tH = (hx - Bp.x) / (A.x - Bp.x);
+        double tubeZ = 0.006 + tH * (0.293 - 0.006);       // the tube axis' half-spread at the hose's station
+        Assert.True(tubeZ - 0.010 - hp.Max(p => Math.Abs(p.z)) > 0.05, $"{model}: the V tubes pass within {tubeZ - 0.010 - hp.Max(p => Math.Abs(p.z)):F3} m of the hose");
+
+        ModelRig rig = Rig(model == "j3-cub-like" ? "j3-cub-own-rig.json" : "j3-cub-floats-own-rig.json");
+        string[] order = { "Needle_Tach", "Needle_Airspeed", "Compass_Card", "Needle_Alt_1000ft", "Needle_OilTemp", "Primer_Plunger" };
+        double[] z = order.Select(n => rig.Find(n)!.Pz).ToArray();
+        for (int i = 1; i < z.Length; i++) Assert.True(z[i] < z[i - 1], $"{model}: {order[i]} (z {z[i]:F3}) should be right of {order[i - 1]} (z {z[i - 1]:F3})");
+        var (faces, _) = Triangles(glb, "Panel_Gauges", null);
+        var fp = faces.SelectMany(t => t).ToList();
+        double FaceR(RigNode n) => fp.Select(p => Math.Sqrt((p.y - n.Py) * (p.y - n.Py) + (p.z - n.Pz) * (p.z - n.Pz))).Where(r => r < 0.045).Max();
+        Assert.Equal(FaceR(rig.Find("Needle_Alt_1000ft")!), FaceR(rig.Find("Needle_Airspeed")!), 3);
+
+        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", model == "j3-cub-like" ? "j3-cub-own-rig.json" : "j3-cub-floats-own-rig.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement primer = doc.RootElement.GetProperty("controls").EnumerateArray().Single(c => c.GetProperty("node").GetString() == "Primer_Plunger");
+        Assert.Equal("PushPull", primer.GetProperty("kind").GetString());
+        Assert.Equal("Grip_Primer", primer.GetProperty("grip").GetString());
+        Assert.Equal(0.05, rig.Find("Primer_Plunger")!.Value(1), 3);   // pulls 50 mm aft
+        // The floats' water-rudder handle is a hand control too (picked up off the floor, hung on the hook).
+        var wr = doc.RootElement.GetProperty("controls").EnumerateArray().Where(c => c.GetProperty("node").GetString() == "WaterRudder_Handle").ToList();
+        Assert.Equal(model == "j3-cub-floats-like" ? 1 : 0, wr.Count);
+        if (wr.Count == 1)
+        {
+            Assert.Equal("water_rudder_up", wr[0].GetProperty("param").GetString());
+            Assert.Equal("Grip_WaterRudder", wr[0].GetProperty("grip").GetString());
+        }
+    }
+
+    /// <summary>One node's triangles, from one primitive (by material name) or all of them. The J-3's static parts are
+    /// exported with their transforms applied, so the node itself must be the identity.</summary>
+    private static (List<(double x, double y, double z)[]> tris, JsonElement material) Triangles(string path, string node, string? material)
+    {
+        var (j, bin) = OwnPittsModelTests.ReadGlb(path);
+        JsonElement nd = j.GetProperty("nodes").EnumerateArray().Single(n => n.TryGetProperty("name", out JsonElement nm) && nm.GetString() == node);
+        Assert.False(nd.TryGetProperty("translation", out _) || nd.TryGetProperty("rotation", out _) || nd.TryGetProperty("matrix", out _), node + " should carry no transform");
+        var tris = new List<(double, double, double)[]>(); JsonElement mat = default;
+        foreach (JsonElement prim in j.GetProperty("meshes")[nd.GetProperty("mesh").GetInt32()].GetProperty("primitives").EnumerateArray())
+        {
+            JsonElement m = j.GetProperty("materials")[prim.GetProperty("material").GetInt32()];
+            if (material != null && m.GetProperty("name").GetString() != material) continue;
+            mat = m;
+            var pos = Accessor(j, bin, prim.GetProperty("attributes").GetProperty("POSITION").GetInt32());
+            var idx = Accessor(j, bin, prim.GetProperty("indices").GetInt32());
+            for (int k = 0; k + 2 < idx.Count; k += 3)
+                tris.Add(new[] { pos[(int)idx[k][0]], pos[(int)idx[k + 1][0]], pos[(int)idx[k + 2][0]] }.Select(p => (p[0], p[1], p[2])).ToArray());
+        }
+        Assert.True(tris.Count > 0, $"{node}: no triangles");
+        return (tris, mat);
+    }
+
+    private static List<double[]> Accessor(JsonElement j, byte[] bin, int i)
+    {
+        JsonElement a = j.GetProperty("accessors")[i], bv = j.GetProperty("bufferViews")[a.GetProperty("bufferView").GetInt32()];
+        int o = (bv.TryGetProperty("byteOffset", out JsonElement bo) ? bo.GetInt32() : 0) + (a.TryGetProperty("byteOffset", out JsonElement ao) ? ao.GetInt32() : 0);
+        int n = a.GetProperty("type").GetString() == "VEC3" ? 3 : 1, ct = a.GetProperty("componentType").GetInt32();
+        int size = ct == 5126 || ct == 5125 ? 4 : ct == 5123 ? 2 : 1;
+        int stride = bv.TryGetProperty("byteStride", out JsonElement bs) ? bs.GetInt32() : n * size;
+        var res = new List<double[]>();
+        for (int k = 0; k < a.GetProperty("count").GetInt32(); k++)
+        {
+            var v = new double[n];
+            for (int c = 0; c < n; c++)
+            {
+                int at = o + k * stride + c * size;
+                v[c] = ct == 5126 ? BitConverter.ToSingle(bin, at) : ct == 5125 ? BitConverter.ToUInt32(bin, at) : ct == 5123 ? BitConverter.ToUInt16(bin, at) : bin[at];
+            }
+            res.Add(v);
+        }
+        return res;
+    }
+
+    /// <summary>Enclosed volume, by casting rays along x on a 4 mm grid in (y, z) and pairing the crossings in order.
+    /// The grid is offset by an odd fraction so no ray runs exactly along a shared edge; rays with an odd number of
+    /// crossings (grazing an edge) are left out and must be rare.</summary>
+    private static double VolumeAlongX(List<(double x, double y, double z)[]> tris)
+    {
+        const double h = 0.004;
+        double y0 = tris.Min(t => t.Min(p => p.y)), y1 = tris.Max(t => t.Max(p => p.y));
+        double z0 = tris.Min(t => t.Min(p => p.z)), z1 = tris.Max(t => t.Max(p => p.z));
+        double vol = 0; int odd = 0, rays = 0;
+        for (double y = y0 + 0.000613; y < y1; y += h)
+            for (double z = z0 + 0.001377; z < z1; z += h)
+            {
+                var xs = new List<double>();
+                foreach (var t in tris)
+                {
+                    var (a, b, c) = (t[0], t[1], t[2]);
+                    double d = (b.y - a.y) * (c.z - a.z) - (c.y - a.y) * (b.z - a.z);
+                    if (Math.Abs(d) < 1e-14) continue;
+                    double u = ((y - a.y) * (c.z - a.z) - (c.y - a.y) * (z - a.z)) / d, v = ((b.y - a.y) * (z - a.z) - (y - a.y) * (b.z - a.z)) / d;
+                    if (u < 0 || v < 0 || u + v > 1) continue;
+                    xs.Add(a.x + u * (b.x - a.x) + v * (c.x - a.x));
+                }
+                if (xs.Count == 0) continue;
+                rays++;
+                if (xs.Count % 2 == 1) { odd++; continue; }
+                xs.Sort();
+                for (int k = 0; k < xs.Count; k += 2) vol += (xs[k + 1] - xs[k]) * h * h;
+            }
+        Assert.True(odd < rays / 50, $"{odd} of {rays} rays crossed the shell an odd number of times");
+        return vol;
+    }
+
     /// <summary>The J-3's elevator goes further up than down (config maxDeflNegRad 0.5934 = 34 deg, maxDeflRad 0.5061 = 29),
     /// so the stick-aft side is normalised by the UP stop: full up draws 34, half up 17, full down 29.</summary>
     [Fact]

@@ -225,5 +225,6 @@ namespace FlyingGame.Bridge
         public volatile bool OnGround;
         public volatile float AircraftGain = 1f;         // distance attenuation of the aircraft's own sounds (pilot out)
         public volatile bool PilotOut;                    // listener = the pilot: wind is HIS airspeed, no engine in the ear
+        public volatile float CockpitAir;                 // extra wind in an open / canopy-less cockpit (Core Vr.CockpitWind), cockpit view only
     }
 }

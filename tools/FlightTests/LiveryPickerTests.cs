@@ -82,13 +82,32 @@ public class LiveryPickerTests
     public void EveryOtherTypeIsUnchanged()
     {
         // No picker → nothing saved is ever read; the override still applies to every type, exactly as AERO_LIVERY did.
-        foreach (string id in new[] { "glider-2-33-like", "c172-like", "pa18-cub-like", "stearman-pt17-like" })
+        foreach (string id in new[] { "c172-like", "pa18-cub-like", "stearman-pt17-like" })
         {
             Assert.Equal("type", LiveryChoice.Resolve(id, null, null));
             Assert.Equal("type", LiveryChoice.Resolve(id, null, "talk-flying"));
             Assert.Equal("talk-flying", LiveryChoice.Resolve(id, "talk-flying", null));
         }
-        Assert.Equal("factory", LiveryChoice.Resolve("glider-2-33-like", "factory", null));
+    }
+
+    /// <summary>Ty 2026-11-02: the red-and-white 2-33 (the procedural trainer its "type" livery drew) is gone on every
+    /// platform; the yellow 2-33 is the default and the only one, and no menu offers a choice.</summary>
+    [Fact]
+    public void The233IsOnlyEverYellow()
+    {
+        const string G = "glider-2-33-like";
+        Assert.False(LiveryChoice.HasChoice(G));
+        // Nothing saved, anything saved by an older build (its picker's ids, the trainer's "type", rubbish): yellow.
+        foreach (string? saved in new[] { null, "", "type", "factory", "talk-flying", "n31dg", "bogus" })
+        {
+            Assert.Equal("talk-flying", LiveryChoice.Resolve(G, null, saved));
+            Assert.Equal("-own-tf", LiveryChoice.OwnSuffix(G, LiveryChoice.Resolve(G, null, saved)));
+        }
+        // AERO_LIVERY cannot bring the trainer back either; the plain factory yellow stays reachable for captures.
+        Assert.Equal("talk-flying", LiveryChoice.Resolve(G, "type", null));
+        Assert.Equal("talk-flying", LiveryChoice.Resolve(G, "unmarked", "factory"));
+        Assert.Equal("factory", LiveryChoice.Resolve(G, "factory", null));
+        Assert.Equal("-own", LiveryChoice.OwnSuffix(G, LiveryChoice.Resolve(G, "factory", null)));
     }
 
     [Fact]

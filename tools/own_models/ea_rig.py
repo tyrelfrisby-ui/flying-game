@@ -124,8 +124,10 @@ CAN = _empty('Canopy', w(CAN_H0)); _empty('Canopy_HingeAxis', w(CAN_H1))
 for n in ('Canopy_Glass', 'Canopy_Frame'):
     o = P[n]; o.data.transform(Matrix.Translation(-w(CAN_H0))); o.parent = CAN; o.location = Vector()
 rig2(CAN, 'canopy_open', w(CAN_H1) - w(CAN_H0), [0, 1], [0, 100], '0 closed .. 1 open', 'canopy on its right-sill hinge line: 1 = open, left edge up and over to the right, 100 deg (E stop)',
-     tv=w(CAN_L) - w(CAN_H0), want=lambda d: d.z > 0, link='CanopyLock_F/R must read 0 (unlocked) to open',
+     tv=w(CAN_L) - w(CAN_H0), want=lambda d: d.z > 0, link='Postprocess latch v2: canopy_latch=1 retracts pins before opening',
      extra={'hinge_axis_marker': 'Canopy_HingeAxis', 'rig_jettison_param': 'canopy_jettison', 'rig_jettison_desc': 'canopy_jettison 1 = the sim detaches this node (with its children) and gives it the airflow; bailout uses it'})
+# Legacy lock geometry/rig is superseded by vr_phase2.extra_latch after export.
+# CanopyRelease_* are independent emergency jettison pulls and remain on airframe.
 for sfx in ('F', 'R'):
     o = origin2('CanopyLock_' + sfx, RIGPTS['CanopyLock_' + sfx], CAN)
     rig2(o, 'canopy_lock', STBD, [0, 1], [35, 0], '0 unlocked / 1 locked', 'red canopy lock lever on the left canopy frame (moves with the canopy): modelled locked (lever aft, flat); unlocked = 35 deg up (E)',

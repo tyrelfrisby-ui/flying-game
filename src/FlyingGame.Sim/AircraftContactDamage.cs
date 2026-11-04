@@ -122,13 +122,14 @@ public sealed partial class Aircraft
         for (int i = 0; i < _links.Count; i++)
         {
             SlaveLink l = _links[i];
-            if (l.SlavedRows.All(StripGone)) continue;     // the slaved aileron itself has gone
+            if (AllGone(l.SlavedRows)) continue;     // the slaved aileron itself has gone
             if (l.Connected)
             {
                 double driven = l.DrivenSign * (_aileronRad + Config.Rig.AileronRad);
                 WingPanel? pd = PanelFor(l.DrivenSurface, l.Side), ps = PanelFor(l.SlavedSurface, l.Side);
-                Func<Vec3, Vec3>? bd = pd is { State: PanelState.Bent } ? v => pd.Bend(v, pd.BendRad) : null;
-                Func<Vec3, Vec3>? bs = ps is { State: PanelState.Bent } ? v => ps.Bend(v, ps.BendRad) : null;
+                // Built only for a bent panel: a lambda over pd/ps here would allocate its closure every step.
+                Func<Vec3, Vec3>? bd = pd is { State: PanelState.Bent } ? BendOf(pd) : null;
+                Func<Vec3, Vec3>? bs = ps is { State: PanelState.Bent } ? BendOf(ps) : null;
                 if (bd is null && bs is null)
                 {
                     // Both wings straight: a working slave strut moves the two ailerons together, and that is what the
@@ -146,8 +147,9 @@ public sealed partial class Aircraft
                 // FREE: no strut, no cable, no spring, no tab — it trails where its own hinge moment is zero,
                 // H = a + b·δ = 0 (the same strip terms as the stick-free circuit), settling with the linkage's lag.
                 double a = 0, b = 0;
-                foreach (int r in l.SlavedRows)
+                for (int j = 0; j < l.SlavedRows.Length; j++)
                 {
+                    int r = l.SlavedRows[j];
                     StripConfig st = _stripAt[r]!;
                     HingeStrip(r, st.Area * st.Chord, Math.Sign(st.Control!.Gain), ax, ref a, ref b);
                 }
@@ -158,11 +160,20 @@ public sealed partial class Aircraft
                 _linkLocal[i] = Settle(cur, target, ax, dt) * l.SlavedSign;
             }
             double axisVal = _linkLocal[i] * l.SlavedSign;
-            foreach (int r in l.SlavedRows) ovr[r] = axisVal;
+            for (int j = 0; j < l.SlavedRows.Length; j++) ovr[l.SlavedRows[j]] = axisVal;
             WingPanel? sp = PanelFor(l.SlavedSurface, l.Side);
-            if (sp is not null) foreach (int r in sp.AileronFixed) if (!_deadAileronRows.Contains(r)) ovr[r] = axisVal;
+            if (sp is not null)
+                for (int j = 0; j < sp.AileronFixed.Length; j++) if (!_deadAileronRows.Contains(sp.AileronFixed[j])) ovr[sp.AileronFixed[j]] = axisVal;
         }
     }
+
+    private bool AllGone(int[] rows)
+    {
+        for (int j = 0; j < rows.Length; j++) if (!StripGone(rows[j])) return false;
+        return true;
+    }
+
+    private static Func<Vec3, Vec3> BendOf(WingPanel p) => v => p.Bend(v, p.BendRad);
 
     // ---- wing panels -------------------------------------------------------------------------------------------------
 
@@ -190,8 +201,10 @@ public sealed partial class Aircraft
         {
             WingPanel w = _panels[k];
             if (w.State == PanelState.Broken) continue;
-            foreach (HydroElement e in Hydro.Attached)
+            IReadOnlyList<HydroElement> attached = Hydro.Attached;
+            for (int j = 0; j < attached.Count; j++)
             {
+                HydroElement e = attached[j];
                 if (Math.Sign(e.Centre.Y) != w.Side || !(e.Name == w.SurfaceId || WingStructure.BelongsTo(e.Name, w.SurfaceId, Config))) continue;
                 if (e.Atom is not (WreckAtom.WingLInner or WreckAtom.WingLOuter or WreckAtom.WingRInner or WreckAtom.WingROuter or WreckAtom.AileronL or WreckAtom.AileronR)) continue;
                 double y0 = Math.Abs(e.Centre.Y) - e.Half.Y, y1 = Math.Abs(e.Centre.Y) + e.Half.Y;
@@ -211,12 +224,13 @@ public sealed partial class Aircraft
     {
         if (_panels.Count == 0) return;
         bool any = false;
-        foreach (ContactPoint p in _contacts) if (p.Panel >= 0 && p.ForceBody.LengthSquared > 0) { any = true; break; }
-        foreach (double m in _panelWaterUp) if (m != 0) { any = true; break; }
-        if (!any && !_panels.Any(q => q.State == PanelState.Bent))
+        for (int i = 0; i < _contacts.Count && !any; i++) if (_contacts[i].Panel >= 0 && _contacts[i].ForceBody.LengthSquared > 0) any = true;
+        for (int i = 0; i < _panelWaterUp.Length && !any; i++) if (_panelWaterUp[i] != 0) any = true;
+        for (int i = 0; i < _panels.Count && !any; i++) if (_panels[i].State == PanelState.Bent) any = true;
+        if (!any)
         {
             Array.Clear(_panelTouching, 0, _panelTouching.Length); Array.Clear(_bentThisStrike, 0, _bentThisStrike.Length);
-            foreach (WingPanel q in _panels) q.ElasticRad = 0.0;
+            for (int i = 0; i < _panels.Count; i++) _panels[i].ElasticRad = 0.0;
             return;
         }
         WingStructure.EnsureStrength(_panels, Config, Hydro.Model.StructureScale * Hydro.Model.WingMassFactor);
@@ -226,8 +240,9 @@ public sealed partial class Aircraft
             if (w.State == PanelState.Broken) continue;
             double mx = 0, fMax = 0; bool touched = false;
             ContactPoint? at = null;
-            foreach (ContactPoint p in _contacts)
+            for (int i = 0; i < _contacts.Count; i++)
             {
+                ContactPoint p = _contacts[i];
                 if (p.Panel != k || p.ForceBody.LengthSquared <= 0) continue;
                 // Moment about the station's axis (along x through y = ±BreakY, z = BreakZ).
                 Vec3 r = p.Body - new Vec3(p.Body.X, w.Side * w.BreakY, w.BreakZ);
@@ -411,8 +426,9 @@ public sealed partial class Aircraft
         {
             if (_propStopped[e] || _noseLost) continue;
             double dMax = 0, muN = 0; bool water = false; ContactPoint? at = null;
-            foreach (ContactPoint p in _contacts)
+            for (int i = 0; i < _contacts.Count; i++)
             {
+                ContactPoint p = _contacts[i];
                 if (!p.PropDisc || p.Patch != _propPatch[e] || p.DepthM <= 0) continue;
                 if (p.DepthM > dMax) { dMax = p.DepthM; at = p; }
                 if (p.SurfaceCode == ContactPoint.SurfaceWater) water = true;
@@ -485,8 +501,9 @@ public sealed partial class Aircraft
     {
         _scrapeSeen.Clear();
         int patch = int.MinValue; ScrapeState? cur = null;
-        foreach (ContactPoint p in _contacts)
+        for (int i = 0; i < _contacts.Count; i++)
         {
+            ContactPoint p = _contacts[i];
             if (p.PropDisc) continue;
             bool sliding = p.NormalN > 0 && p.SurfaceCode != ContactPoint.SurfaceWater && p.SurfaceCode != ContactPoint.SurfaceNone;
             if (!sliding) continue;
@@ -521,7 +538,7 @@ public sealed partial class Aircraft
             }
             if (!_scrapeSeen.Contains(kv.Key)) _scrapeGone.Add(kv.Key);
         }
-        foreach (string g in _scrapeGone) _scrapes.Remove(g);
+        for (int i = 0; i < _scrapeGone.Count; i++) _scrapes.Remove(_scrapeGone[i]);
     }
 
     private void Raise(ContactEventKind kind, string part, AirframeComponent comp, ContactPoint? at, double intensity, double value)
