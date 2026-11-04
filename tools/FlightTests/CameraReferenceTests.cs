@@ -78,4 +78,23 @@ public class CameraReferenceTests
         store.Values["set.cameraReference"] = 7;   // a value from nowhere reads as the default
         Assert.Equal(CameraReference.Mode.FlightPath, CameraReference.Load(store));
     }
+
+    [Fact]
+    public void TheFlightPathMarkerFollowsTheButtonNotTheAltitude()
+    {
+        // Ty 2026-11-03: FLT PATH = the air-velocity vector, TRACK = the ground track, at any height (no 500 ft rule).
+        Assert.False(CameraReference.MarkerUsesGroundTrack(CameraReference.Mode.FlightPath));
+        Assert.True(CameraReference.MarkerUsesGroundTrack(CameraReference.Mode.Track));
+        Assert.Equal(Air, CameraReference.MarkerVelocity(CameraReference.Mode.FlightPath, Air, Ground));
+        Assert.Equal(Ground, CameraReference.MarkerVelocity(CameraReference.Mode.Track, Air, Ground));
+    }
+
+    [Fact]
+    public void ARunwayLessonForcesTheMarkerOntoTheTrackToo()
+    {
+        // Ty 2026-11-03: lessons keep forcing Track, and the marker follows that forced Track.
+        var eff = CameraReference.Effective(CameraReference.Mode.FlightPath, lessonForcesTrack: true);
+        Assert.True(CameraReference.MarkerUsesGroundTrack(eff));
+        Assert.Equal(Ground, CameraReference.MarkerVelocity(eff, Air, Ground));
+    }
 }

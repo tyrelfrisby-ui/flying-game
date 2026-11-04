@@ -37,6 +37,16 @@ public static class CameraReference
         return len >= minTrackSpeedMs ? v / len : null;
     }
 
+    /// <summary>The HUD flight-path marker follows the same button (Ty 2026-11-03): FLT PATH draws the AIR-velocity
+    /// vector (green), TRACK draws the GROUND track (magenta, with the impact point). The old automatic switch to the
+    /// ground track below 500 ft AGL is gone for the marker too. A runway lesson that forces Track forces it here as
+    /// well (pass the <see cref="Effective"/> mode).</summary>
+    public static bool MarkerUsesGroundTrack(Mode effective) => effective == Mode.Track;
+
+    /// <summary>The velocity the flight-path marker is drawn along for this mode.</summary>
+    public static Vec3 MarkerVelocity(Mode effective, Vec3 airVelocity, Vec3 groundVelocity)
+        => MarkerUsesGroundTrack(effective) ? groundVelocity : airVelocity;
+
     public static string Label(Mode effective, bool forced)
         => (effective == Mode.Track ? "CAM: TRACK" : "CAM: FLT PATH") + (forced ? " (LESSON)" : "");
 
