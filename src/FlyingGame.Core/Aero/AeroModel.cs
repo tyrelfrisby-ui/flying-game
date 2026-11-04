@@ -708,11 +708,11 @@ public static class AeroModel
                     controlDeltaAlpha *= 1.0 - (1.0 - cellule!.AileronInduction) * stripAttached;
 
                 // AILERONS in separated flow (owner directive): a deflected aileron on a stalled wing
-                // section stops commanding lift but KEEPS its pressure drag — so roll authority fades
+                // section stops commanding lift but KEEPS its pressure load — so roll authority fades
                 // with this strip's own separation memory while adverse yaw grows. Attached flight
-                // keeps full roll power plus a modest deflection-drag increment (real adverse yaw).
+                // keeps full roll power; its adverse yaw is the induced-drag asymmetry the polar already gives.
                 bool isAileronStrip = strip.Control is not null && strip.Control.Surface == "aileron";
-                double cdDeflection = 0.0;
+                double flapSep = 0.0, flapDelta = 0.0;
                 if (isAileronStrip && Math.Abs(controlDeflRad) > 1e-9)
                 {
                     double sep = flowState is not null && idx < flowState.Separation.Length ? flowState.Separation[idx] : 0.0;
@@ -723,8 +723,9 @@ public static class AeroModel
                     double yawGate = Math.Clamp(Math.Abs(bodyRates.Z) / 1.2, 0.0, 1.0);
                     controlDeltaAlpha *= 1.0 - 0.5 * yawGate * wake.StalledFraction;
                     if (!double.IsNaN(hingedDragDelta)) hingedDragDelta *= (1.0 - 0.85 * sep) * (1.0 - 0.5 * yawGate * wake.StalledFraction);
-                    double deltaGeom = strip.Control!.Gain * controlDeflRad;
-                    cdDeflection = 1.2 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * 1.5 * sep; // separated flow ONLY — attached aileron drag stays the induced-drag asymmetry the polar already gives
+                    // The deflected surface's separated-flow pressure load (FLAP NORMAL, below): on the hinged row only, the one
+                    // that physically moves (the fixed row's gain is a camber, not a deflection).
+                    if (Math.Abs(strip.Control!.Gain) >= 0.9) { flapSep = sep; flapDelta = strip.Control.Gain * controlDeflRad; }
                 }
 
                 // FLAP: trailing-edge flap shifts the strip's zero-lift angle (added camber) and,
@@ -850,13 +851,13 @@ public static class AeroModel
                 if (flowState is not null && idx < flowState.InstCl.Length)
                 {
                     flowState.InstCl[idx] = coeffs.Cl;
-                    flowState.InstCd[idx] = coeffs.Cd + cdInduced + cdDeflection;
+                    flowState.InstCd[idx] = coeffs.Cd + cdInduced;
                     flowState.InstCm[idx] = coeffs.Cm;
                     flowState.ChordM[idx] = strip.Chord;
                     if (config.StallDynamics.UnsteadyLagEnabled && flowState.LagPrimed)
                     {
                         coeffs = new AeroCoefficients(flowState.LagCl[idx], flowState.LagCd[idx], flowState.LagCm[idx]);
-                        cdInduced = 0; cdDeflection = 0; // lagged Cd already contains them
+                        cdInduced = 0; // lagged Cd already contains it
                     }
                 }
 
@@ -895,10 +896,28 @@ public static class AeroModel
                 double clTotal = coeffs.Cl + highLiftCl;
 
                 double lift = q * strip.Area * clTotal;
-                double drag = q * strip.Area * (coeffs.Cd + cdInduced + cdDeflection + flapCd);
+                double drag = q * strip.Area * (coeffs.Cd + cdInduced + flapCd);
                 double momentC4 = q * strip.Area * strip.Chord * (coeffs.Cm + flapCm);
 
                 Vec3 force = liftDir * lift - dragDir * drag;
+                // FLAP NORMAL (run #4, owner 2026-11-03: "full opposite aileron actually reduces the spin rate and lowers the
+                // nose"). In separated flow the pressure on a plate acts NORMAL to the plate (Hoerner, Fluid-Dynamic Drag ch. 3),
+                // and a deflected aileron is a plate turned δ about its hinge: its share of the section's normal force tilts
+                // with it, so the deflection adds a CHORDWISE force CN·sin δ on the flap area — aft on the surface whose
+                // trailing edge is deflected into the windward side, forward on the one deflected away. Odd in δ, so a pair
+                // makes a yaw couple toward the down-going aileron (the adverse yaw that grows past the stall) and no net
+                // drag. Turn the aeroplane over and the windward side changes with the sign of α, so the couple mirrors.
+                // This replaces 1.2·sin²δ·1.5·sep applied as DRAG along the local wind: even in δ, the same on both wings, it
+                // damped the rotation (the spin slowed with either aileron), and at spin α its chordwise part pushed aft on a
+                // cellule that sits above the CG, pitching the nose body-UP whichever way up the aeroplane was: flatter upright,
+                // steeper inverted. docs/CONTROL-SURFACES.md § "The aileron in separated flow".
+                if (flapSep > 0.0)
+                {
+                    double cn = Math.Abs(coeffs.Cl * Math.Cos(alpha) + coeffs.Cd * Math.Sin(alpha));   // the section's normal-force coefficient
+                    double fx = -Math.Sign(Math.Sin(alpha)) * cn * Math.Sin(flapDelta) * q * strip.Area * flapSep;
+                    force += new Vec3(fx, 0, 0);
+                    if (ForceDebug.Samples is not null) ForceDebug.Add(stripAt, new Vec3(fx, 0, 0), Vec3.Zero, "drag");
+                }
                 Vec3 momentFromForce = Vec3.Cross(r, force);
                 Vec3 momentAero = momentAxis * momentC4;
 

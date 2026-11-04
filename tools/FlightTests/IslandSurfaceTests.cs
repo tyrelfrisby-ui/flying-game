@@ -40,24 +40,29 @@ public class IslandSurfaceTests : IDisposable
         Atmosphere.SteadyWind = Vec3.Zero;
     }
 
-    // ---- the designated landing places (generator report, 2026-11-02) ----------------------------------
+    // ---- the designated landing places (generator report, 2026-11-03) ----------------------------------
+    // Re-copied by hand after the Frank Church valleys (lane/claude-frank-church-valleys) regenerated the relief: the
+    // generator's site search is a global ranking (ice distance, ELA, local relief, spacing between sites), so new
+    // canyons moved most of its picks. Same targets; it now finds 1, 3, 5 and 10 deg patches (no 4 or 8 deg one) and
+    // six ledges.
     // id, sim x (north) m, sim y (east) m, uphill heading deg true, landable length x width m, slope deg,
     // cross slope deg (+ rising to the right of the uphill heading), height at the centre m, shape.
     // shape: how the snow lies on the plane (generator site log): crest / banana amplitude, rolling amplitude.
     public static readonly (string id, double x, double y, double hdg, double len, double wid, double slope, double cross, double z, string shape)[] Patches =
     {
-        ("SP1", 6550, -3150, 0, 160, 40, 1, 0.1, 875.1, "crest 0.58"),
-        ("SP2", 6250, -2800, 0, 130, 35, 3, 1.6, 866.2, "banana 0.49"),
-        ("SP3", 7000, -3250, 0, 150, 35, 4, -3.0, 867.6, "rolling 0.35"),
-        ("SP4", -5600, -5200, 90, 110, 30, 8, -3.0, 1073.7, "crest 0.71"),
+        ("SP1", 6550, -3150, 0, 160, 40, 1, -0.5, 875.7, "crest 0.58"),
+        ("SP2", 7000, -3250, 180, 130, 35, 3, 3.0, 867.7, "banana 0.49"),
+        ("SP3", 6250, -2800, 0, 120, 30, 5, -2.2, 863.2, "crest 0.58"),
+        ("SP4", -5600, -5200, 90, 100, 25, 10, -3.0, 1074.8, "banana 0.50"),
     };
     public static readonly (string id, double x, double y, double hdg, double len, double wid, double slope, double cross, double z, string shape)[] Ledges =
     {
-        ("LD1", -850, 4600, 90, 150, 45, 0, 0.3, 1333.0, "flat"),
-        ("LD2", -950, 6550, 90, 130, 40, 1, -2.0, 1177.3, "flat"),
-        ("LD3", 3800, -9600, 90, 170, 45, 4, -2.0, 350.6, "sloped"),
-        ("LD4", -6700, 4000, 0, 150, 40, 7, -2.0, 395.4, "sloped"),
-        ("LD5", -2050, 4750, 0, 140, 45, 0, 0.0, 1152.6, "rounded"),
+        ("LD1", -850, 4650, 90, 150, 45, 0, -0.1, 1333.1, "flat"),
+        ("LD2", -2050, 3850, 270, 130, 40, 1, 0.0, 1100.7, "flat"),
+        ("LD3", -1300, 6600, 0, 170, 45, 4, -2.0, 1176.9, "sloped"),
+        ("LD4", -3050, 4700, 180, 150, 40, 7, -2.0, 1112.7, "sloped"),
+        ("LD5", 3850, -9550, 75, 160, 50, 2, 0.0, 350.6, "rounded"),
+        ("LD6", -5900, -50, 0, 140, 45, 0, 0.0, 726.3, "rounded"),
     };
 
     /// <summary>A point `along` m up the slope and `across` m to its right from a site's centre (sim x, y).</summary>
@@ -312,10 +317,11 @@ public class IslandSurfaceTests : IDisposable
     [Fact]
     public void BouldersAreRockStandingOnTheIce()
     {
-        // The four biggest (generator survey): sim x, y, radius, height above the ice.
+        // The four biggest (generator survey, re-copied 2026-11-03 after the Frank Church valleys regenerated the relief
+        // and the moraines with it): sim x, y, radius, height above the ice.
         var big = new (double x, double y, double r, double h)[]
         {
-            (-5559.9, -4661.0, 11.9, 9.1), (2725.6, -3157.3, 10.8, 8.3), (7354.0, -166.8, 11.3, 7.9), (7478.4, 39.2, 11.0, 7.6),
+            (-2648.4, -5759.2, 11.9, 6.7), (7354.0, -166.8, 11.3, 7.9), (2082.7, -3133.2, 11.2, 6.8), (-2222.2, -6217.9, 11.2, 7.6),
         };
         foreach (var b in big)
         {
@@ -326,7 +332,7 @@ public class IslandSurfaceTests : IDisposable
             _o.WriteLine($"boulder x {b.x} y {b.y}: stands {stands:F1} m above the ice round it");
             Assert.InRange(stands, .6 * b.h, b.h + 3);
         }
-        Assert.Equal(44, IslandRelief.Boulders().Count);
+        Assert.Equal(54, IslandRelief.Boulders().Count);
     }
 
     // ---- what the gear feels -----------------------------------------------------------------------------
@@ -475,10 +481,10 @@ public class IslandSurfaceTests : IDisposable
     [Fact]
     public void ACubOnSkisLandsUphillOnTheSteepPatchAndStopsOnIt()
     {
-        // SP4: 110 x 30 m rising 8 deg to the east. Touch down 10 m inside the low end at 31 kt going uphill — how a
+        // SP4: 100 x 25 m rising 10 deg to the east. Touch down 10 m inside the low end at 31 kt going uphill — how a
         // pilot uses a steep patch — and stop on it. The slope does the stopping: along it the ground's normal
-        // force has a component g sin 8 deg = 1.37 m/s2 against the climb, and the ski adds mu g cos 8 deg
-        // (0.055 running): v^2 / (2 g (sin + mu cos)) = 67 m from 16 m/s, where the flat would take 240.
+        // force has a component g sin 10 deg = 1.70 m/s2 against the climb, and the ski adds mu g cos 10 deg
+        // (0.055 running): v^2 / (2 g (sin + mu cos)) = 57 m from 16 m/s, where the flat would take 240.
         var s = Patches[3]; Assert.Equal("SP4", s.id);
         var (px, py) = On(s.x, s.y, s.hdg, -s.len / 2 + 10, 0);
         AircraftConfig c = Cub(skis: true, bushwheels: false);
@@ -501,7 +507,7 @@ public class IslandSurfaceTests : IDisposable
         _o.WriteLine($"SP4: ran {ran:F0} m uphill (sin + mu cos: {want:F0} m), at rest {along:+0;-0} m along, {across:+0.0;-0.0} m across, "
                    + $"speed {ac.State.Velocity.Length:F2} m/s, surface {WorldTerrain.SurfaceAt(ac.State.Position.X, ac.State.Position.Y)}");
         Assert.InRange(ran, .8 * want, 1.2 * want);
-        // And it stays there: the ski's static hold (4 x 0.055 = 0.22) is more than tan 8 deg (0.14).
+        // And it stays there: the ski's static hold (4 x 0.055 = 0.22) is more than tan 10 deg (0.18).
         Assert.True(Math.Abs(along) <= s.len / 2 && Math.Abs(across) <= s.wid / 2, $"ran off the patch to {along:F0}/{across:F0} m");
         Assert.True(ac.State.Velocity.Length < .1, $"still moving at {ac.State.Velocity.Length:F2} m/s");
     }

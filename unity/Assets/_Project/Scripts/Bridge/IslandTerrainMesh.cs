@@ -125,7 +125,7 @@ namespace FlyingGame.Bridge
                 double x0 = c.X0 + j * CellM, y0 = c.Y0 + i * CellM;
                 bool ice = IslandRelief.NeedsFineMesh(y0 / 1000, x0 / 1000, (y0 + CellM) / 1000, (x0 + CellM) / 1000);
                 fine |= ice;
-                c.Detail[j * N + i] = ice || NearCave(x0 + .5 * CellM, y0 + .5 * CellM);
+                c.Detail[j * N + i] = ice || NearCave(x0 + .5 * CellM, y0 + .5 * CellM) || OnShapedField(x0 + .5 * CellM, y0 + .5 * CellM);
             }
             // The coarse levels' ground: without the crevasses, seracs and boulders.
             c.Hc = c.H; c.Dxc = c.Dx; c.Dyc = c.Dy;
@@ -187,6 +187,16 @@ namespace FlyingGame.Bridge
             return d <= 0 ? 0 : IslandTerrain.Smooth(Math.Min(1, d / .6));
         }
 
+        /// <summary>On a natural-shaped (grass/turf) strip or its painted shoulders, cell centre (x, y) sim metres. Their
+        /// banana, crest or roll is finer than a 25 m triangle: Sulphur Creek's 1.9 m banana and cross-sweep missed the
+        /// mesh by 0.49 m, and the ground came up through the strip's paint in dark zig-zags (2026-11-03, the Frank
+        /// Church renders). 5 m cells there follow the shape the paint is drawn on.</summary>
+        static bool OnShapedField(double x, double y)
+        {
+            var p = new IslandPoint(y / 1000, x / 1000);
+            foreach (var f in IslandTerrain.Fields) if (f.Shape.Kind > -.5 && f.Contains(p, f.Shoulder + 20)) return true;
+            return false;
+        }
         static bool NearCave(double x, double y)
         {
             var p = new IslandPoint(y / 1000, x / 1000);
@@ -311,7 +321,7 @@ namespace FlyingGame.Bridge
         {
             if (i >= 0 && i < N && j >= 0 && j < N) return c.Detail[j * N + i];
             double x0 = c.X0 + j * CellM, y0 = c.Y0 + i * CellM;
-            return IslandRelief.NeedsFineMesh(y0 / 1000, x0 / 1000, (y0 + CellM) / 1000, (x0 + CellM) / 1000) || NearCave(x0 + .5 * CellM, y0 + .5 * CellM);
+            return IslandRelief.NeedsFineMesh(y0 / 1000, x0 / 1000, (y0 + CellM) / 1000, (x0 + CellM) / 1000) || NearCave(x0 + .5 * CellM, y0 + .5 * CellM) || OnShapedField(x0 + .5 * CellM, y0 + .5 * CellM);
         }
 
         /// <summary>One exact sample of the ground (thread-safe Core arithmetic only; Unity types are plain structs).</summary>

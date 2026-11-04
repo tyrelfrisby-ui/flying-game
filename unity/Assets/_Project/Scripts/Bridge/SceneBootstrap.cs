@@ -9,8 +9,6 @@ namespace FlyingGame.Bridge
     /// </summary>
     public static class SceneBootstrap
     {
-        private const float LetterDistanceM = 2500f;
-        private const float LetterAltitudeM = 600f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Build()
@@ -36,22 +34,22 @@ namespace FlyingGame.Bridge
 
         private static void BuildCardinalLetters()
         {
-            // Unity +z is sim north (CoordinateMap).
-            (string letter, Vector3 dir)[] cards =
+            // Placement, size and default live in Core CardinalLetters: drawn as if at infinity (they ride with the
+            // camera's position, a few degrees above the horizon) and only when the setting is on (off by default).
+            foreach ((string letter, FlyingGame.Core.MathTypes.Vec3 d) in FlyingGame.Core.CardinalLetters.Cards)
             {
-                ("N", Vector3.forward), ("S", Vector3.back), ("E", Vector3.right), ("W", Vector3.left),
-            };
-            foreach ((string letter, Vector3 dir) in cards)
-            {
+                var dir = new Vector3((float)d.X, (float)d.Y, (float)d.Z);
                 var go = new GameObject($"Cardinal-{letter}");
-                go.transform.position = dir * LetterDistanceM + Vector3.up * LetterAltitudeM;
+                go.transform.position = dir * (float)FlyingGame.Core.CardinalLetters.RangeM;
                 go.transform.rotation = Quaternion.LookRotation(dir, Vector3.up); // face inward text side
                 var text = go.AddComponent<TextMesh>();
                 text.text = letter;
                 text.fontSize = 40;
-                text.characterSize = 40f; // ~large enough to read at 2.5 km
+                text.characterSize = 1f;   // the glyph is scaled to CardinalLetters.CardHeightM when first drawn
                 text.anchor = TextAnchor.MiddleCenter;
                 text.color = new Color(1f, 1f, 1f, 0.9f);
+                go.GetComponent<MeshRenderer>().enabled = SessionSettings.ShowCardinalLetters;
+                go.AddComponent<CardinalLetterVisibility>().Direction = dir;
             }
         }
 
