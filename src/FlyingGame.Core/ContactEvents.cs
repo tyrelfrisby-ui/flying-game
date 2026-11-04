@@ -17,6 +17,9 @@ public enum ContactEventKind
     PropStrike,
     /// <summary>The propeller strike stopped the engine (sudden stoppage). Value = rpm when it began.</summary>
     PropStoppage,
+    /// <summary>A tree stem snapped where the airframe struck it (TreeStructure). Intensity = the stem's strength, N;
+    /// value = its diameter there, m.</summary>
+    TreeSnapped,
 }
 
 /// <summary>One contact event, raised by <c>Aircraft.ContactEvent</c> after the step in which it happened.</summary>

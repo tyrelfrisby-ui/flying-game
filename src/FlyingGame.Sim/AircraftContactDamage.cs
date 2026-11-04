@@ -220,8 +220,12 @@ public sealed partial class Aircraft
                 continue;
             }
             // BENT: the flight load (and a new strike in the sense that opens the bend) takes it along 5° at 1 g → 15° at 2 g.
+            // The flight load is the LIFT's (AeroLoadFactorZ): the whole-aeroplane load factor also counts the ground
+            // decelerating the fuselage, which bends no wing — a −3 g thump of the cabin onto the ground snapped bent panels
+            // that had not touched anything. Contact on the panel itself is nContact, static weight included (Ty
+            // 2026-11-03, decision 1: static load counts).
             double sgn = Math.Sign(w.BendRad);
-            double nFlight = LoadFactorZ * sgn;
+            double nFlight = AeroLoadFactorZ * sgn;
             double nContact = touched ? up * sgn / w.M1Nm : 0.0;
             if (touched && -up * sgn > WingStructure.SnapLoadFactor * w.M1Nm) { BreakPanel(k, -up * sgn / w.UltimateNm, at); continue; }   // a cracked spar knocked back the other way
             double th = WingStructure.BentDeflection(Math.Max(nFlight, nContact), w.BendRad);
@@ -295,7 +299,7 @@ public sealed partial class Aircraft
             var shed = new List<int>(w.Strips);
             if (!onlyAileron) shed.AddRange(w.AileronHinged.Where(i => !w.Strips.Contains(i)));
             else shed.RemoveAll(i => w.AileronHinged.Contains(i));
-            ShedStrips(shed);
+            ShedStrips(shed, w.Component);
             if (onlyAileron) LoseComponent(w.Side < 0 ? AirframeComponent.AileronLeft : AirframeComponent.AileronRight);
             return;
         }
@@ -313,9 +317,9 @@ public sealed partial class Aircraft
 
     /// <summary>Take the structure of these strips off the rigid body: Raymer's wing mass per area, scaled like the rest
     /// of the airframe, moved from the element that carried it to a box of its own that leaves (<see cref="ShedMass"/>).</summary>
-    private void ShedStrips(IEnumerable<int> strips)
+    private void ShedStrips(IEnumerable<int> strips, AirframeComponent comp)
     {
-        double kg = Hydro.Model.StructureScale * WaterPhysics.RaymerWingKgPerM2, semi = WingPanels.Semispan(Config);
+        double kg = Hydro.Model.StructureScale * Hydro.Model.WingMassFactor * WaterPhysics.RaymerWingKgPerM2, semi = WingPanels.Semispan(Config);
         var gone = new List<HydroElement>();
         foreach (int i in strips)
         {
@@ -342,6 +346,7 @@ public sealed partial class Aircraft
             gone.Add(new HydroElement(sf.Id + "-panel", atom, new Vec3(st.Pos[0] - 0.25 * st.Chord, y, st.Pos[2]),
                 new Vec3(0.5 * st.Chord, 0.5 * WingStructure.Width(st), 0.5 * tc * st.Chord), 0, take, 0));
         }
+        Hydro.AddDetached(comp, gone);   // the panel is a wreck piece of its own (CrashRelay), with exactly this mass
         ShedMass(gone);
     }
 

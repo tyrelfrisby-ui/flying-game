@@ -279,9 +279,13 @@ namespace FlyingGame.Bridge
                 GameObject rest = DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
                 if (rest != null) for (int i = rest.transform.childCount - 1; i >= 0; i--) rest.transform.GetChild(i).SetParent(bent, true);
                 if (rest != null) Object.Destroy(rest);
-                bent.SetParent(null, true);
+                // The debris object's origin is the aeroplane's CG at the break (WingDebris carries it rigidly with its sim
+                // piece), so the pivot goes under a parent posed there, keeping its offset and its bend.
+                var wrap = new GameObject("Debris-" + comp);
+                wrap.transform.SetPositionAndRotation(transform.position, transform.rotation);
+                bent.SetParent(wrap.transform, true);
                 float sd = TipSide(comp);
-                return LaunchDebris(bent.gameObject, worldVelocityUnity + transform.right * (4f * sd) + transform.up * 3f, transform.right * sd, -sd);
+                return LaunchDebris(wrap, worldVelocityUnity + transform.right * (4f * sd) + transform.up * 3f, transform.right * sd, -sd);
             }
             return DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
         }

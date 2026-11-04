@@ -129,6 +129,11 @@ public static class WorldSolids
     /// for one region: same answers for any point inside it.</summary>
     public interface IRegional { IShape Within(double minX, double minY, double minUp, double maxX, double maxY, double maxUp); }
 
+    /// <summary>A solid that breaks rather than stops (the forest): an airframe does not meet it through the hard-point
+    /// spring (<see cref="Nearby"/> leaves it out) but through its own strike test (<see cref="TreeStructure"/>), which
+    /// weighs the wood's strength against the part that hits it. <see cref="Penetration"/> still reports it.</summary>
+    public interface IFrangible { }
+
     /// <summary>Bump after rebuilding the solids in place (same counts), so every <see cref="Nearby"/> re-gathers.</summary>
     public static int Version;
 
@@ -164,6 +169,7 @@ public static class WorldSolids
                 if (b.Cx + b.Hx >= _x0 && b.Cx - b.Hx <= _x1 && b.Cy + b.Hy >= _y0 && b.Cy - b.Hy <= _y1 && b.Top >= _u0 && b.Bottom <= _u1) _boxes.Add(b);
             foreach (IShape sh in Shapes)
             {
+                if (sh is IFrangible) continue;   // trees: the airframe's tree-strike test, not a spring
                 if (sh is IRegional rg) { _shapes.Add(rg.Within(_x0, _y0, _u0, _x1, _y1, _u1)); continue; }
                 if (sh is IBounded bd)
                 {

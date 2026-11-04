@@ -200,8 +200,11 @@ public sealed class CrashWaterTests : IDisposable
             if (double.IsNaN(vAfter) && wing.LowestPoint().Z > 0.19) vAfter = wing.WorldVelocity.Z;
             deepest = System.Math.Max(deepest, wing.DepthM);
         }
-        _out.WriteLine($"down speed a thickness in: {vAfter:F2} m/s; deepest the centre went {deepest:F2} m");
-        Assert.InRange(vAfter, -1.0, 1.5);
+        _out.WriteLine($"wing {wing.MassKg:F0} kg; down speed a thickness in: {vAfter:F2} m/s; deepest the centre went {deepest:F2} m");
+        // Since 2026-11-03 the wing structure's mass is calibrated to the config's roll inertia (AirframeHydroModel
+        // .CalibrateWingMass: the 172's ×0.25, 43 kg a wing): lighter still against the same added mass, it can be stopped
+        // before its underside is a thickness in at all — NaN here is that, and then only the depth below can tell.
+        if (!double.IsNaN(vAfter)) Assert.InRange(vAfter, -1.0, 1.5);
         Assert.True(deepest < 0.3, $"the flat wing's centre went {deepest:F2} m under");
     }
 

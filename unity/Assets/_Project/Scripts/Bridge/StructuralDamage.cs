@@ -79,7 +79,8 @@ namespace FlyingGame.Bridge
             if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; _watched.Damage.Changed -= OnDamage; _watched.Contact -= OnContact; }
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
             if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; _watched.Damage.Changed += OnDamage; _watched.Contact += OnContact; }
-            // The old wreck goes with the old aeroplane.
+            // The old wreck goes with the old aeroplane, and the trees it snapped stand again (FlyingGame.Core.TreeStructure).
+            FlyingGame.Core.Forest.ClearBroken();
             foreach (GameObject g in _wreckVisuals) if (g != null) Destroy(g);
             _wreckVisuals.Clear();
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;

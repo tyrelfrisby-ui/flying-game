@@ -307,6 +307,7 @@ public sealed partial class Aircraft
         FlapFraction = flapFraction;
         GearExtension = gearExtension;
         LoadFactorZ = loadFactorZ;
+        AeroLoadFactorZ = loadFactorZ;
     }
 
     // ---- telemetry shared by audio / structure / HUD / net (read-only) ----------------------------
@@ -351,6 +352,10 @@ public sealed partial class Aircraft
     /// pushed over. Sign: body z is DOWN, so lift (−z) gives a positive n.
     /// </summary>
     public double LoadFactorZ { get; private set; } = 1.0;
+    /// <summary>The part of <see cref="LoadFactorZ"/> the AIR makes (aero normal force over weight): what loads a wing
+    /// panel in bending as lift does. A fuselage thumping onto the ground decelerates the aeroplane at several g without the
+    /// wing lifting at all; that load reaches a panel only through its own contact points (AircraftContactDamage).</summary>
+    public double AeroLoadFactorZ { get; private set; } = 1.0;
 
     /// <summary>Engine speed (rpm) for piston/prop types from the prop model's throttle→rpm law; 0 for gliders.
     /// Jets (PropDiameterM == 0) report a pseudo-N1 0..100 as MaxRpm-scaled throttle.</summary>
@@ -573,8 +578,8 @@ public sealed partial class Aircraft
     /// is taken about Config.Mass.Cg (the reference point P), so P stays the reference and the remainder's true CG is
     /// carried as an offset c from it:
     ///   m' = m − Σm_e;   c' = (m·c − Σ m_e·r_e) / m'   (r_e from P);
-    ///   I_P' = I_P − Σ [box inertia of e + m_e·(parallel axis to P)],  never below the inertia about P of the boxes
-    ///   that remain;  weight m'·g acts at P + c' (the gravity moment c' × W in ForceMoment).
+    ///   I_P' = I_P − Σ [box inertia of e + m_e·(parallel axis to P)], products (Ixy, Ixz, Iyz) included, so momentum
+    ///   is conserved at the separation;  weight m'·g acts at P + c' (the gravity moment c' × W in ForceMoment).
     /// The rigid-body equations are then written about P rather than the CG, which leaves out the coupling term
     /// m'·c' × a_P: exact at rest and in steady sinking, an approximation while it tumbles (|c'| is tens of cm).
     /// </summary>
@@ -582,7 +587,7 @@ public sealed partial class Aircraft
     {
         if (gone.Count == 0) return;
         Vec3 cg0 = Config.Mass.CgVec();
-        double dm = 0, ix = 0, iy = 0, iz = 0;
+        double dm = 0, ix = 0, iy = 0, iz = 0, pxy = 0, pxz = 0, pyz = 0;
         Vec3 first = Vec3.Zero;
         void Box(FlyingGame.Core.Wreck.HydroElement e, ref double x, ref double y, ref double z)
         {
@@ -591,16 +596,45 @@ public sealed partial class Aircraft
             y += e.MassKg * ((h.X * h.X + h.Z * h.Z) / 3 + r.X * r.X + r.Z * r.Z);
             z += e.MassKg * ((h.X * h.X + h.Y * h.Y) / 3 + r.X * r.X + r.Y * r.Y);
         }
-        foreach (var e in gone) { dm += e.MassKg; first += (e.Centre - cg0) * e.MassKg; Box(e, ref ix, ref iy, ref iz); }
+        foreach (var e in gone)
+        {
+            dm += e.MassKg; first += (e.Centre - cg0) * e.MassKg; Box(e, ref ix, ref iy, ref iz);
+            // Products of inertia about P: an axis-aligned box has none of its own, only its parallel-axis share. A
+            // piece off ONE side takes Ixy and Iyz with it, and the rest is left asymmetric (2026-11-03: momentum).
+            Vec3 r = e.Centre - cg0;
+            pxy += e.MassKg * r.X * r.Y; pxz += e.MassKg * r.X * r.Z; pyz += e.MassKg * r.Y * r.Z;
+        }
         if (dm <= 0) return;
         MassProperties mp = MassProperties;
         double m1 = mp.MassKg - dm;
         if (m1 <= 1.0) return;   // nothing would be left: a broken config, keep the body as it is
-        double fx = 0, fy = 0, fz = 0;
-        foreach (var e in Hydro.Attached) Box(e, ref fx, ref fy, ref fz);
         CgShiftBody = (CgShiftBody * mp.MassKg - first) / m1;
-        MassProperties = new MassProperties(m1,
-            System.Math.Max(mp.Ixx - ix, fx), System.Math.Max(mp.Iyy - iy, fy), System.Math.Max(mp.Izz - iz, fz), mp.Ixz);
+        // Exactly what the piece takes, so linear AND angular momentum are conserved at the separation (the piece leaves
+        // with the same ω and with v + ω×r: WreckSim.Add). Until 2026-11-03 the remainder was floored at the inertia of the
+        // wreck model's remaining boxes; those boxes carry 1.3–2.3× the config's published inertia (Raymer's 12.2 kg/m² on
+        // a fabric wing: PA-18 boxes Ixx 2,733 against 1,450), so the floor acted on every wing loss and handed the
+        // aeroplane angular momentum it never had (PA-18 tip panel: L_x 1,072 → 2,047). The only floor left keeps the
+        // tensor positive: a tenth of what it was, logged when it acts.
+        double Floor(double i, double was, string axis)
+        {
+            if (i >= 0.1 * was) return i;
+            Hydro.DamageLog.Add($"inertia floor on {axis}: {i:F0} kg·m² left of {was:F0} — momentum not conserved on this axis");
+            return 0.1 * was;
+        }
+        var next = new MassProperties(m1,
+            Floor(mp.Ixx - ix, mp.Ixx, "Ixx"), Floor(mp.Iyy - iy, mp.Iyy, "Iyy"), Floor(mp.Izz - iz, mp.Izz, "Izz"), mp.Ixz - pxz,
+            mp.Ixy - pxy, mp.Iyz - pyz);
+        if (!PositiveDefinite(next))
+        {
+            Hydro.DamageLog.Add("inertia products dropped: the tensor left was not positive definite — momentum not conserved");
+            next = new MassProperties(m1, next.Ixx, next.Iyy, next.Izz, 0, 0, 0);
+        }
+        MassProperties = next;
+    }
+    private static bool PositiveDefinite(MassProperties m)
+    {
+        double a = m.Ixx, b = -m.Ixy, c = -m.Ixz, d = m.Iyy, e = -m.Iyz, f = m.Izz;
+        return a > 0 && a * d - b * b > 0 && a * (d * f - e * e) - b * (b * f - c * e) + c * (b * e - c * d) > 0;
     }
     private bool _noseLost;
 
@@ -1078,6 +1112,7 @@ public sealed partial class Aircraft
             // not load factor (a sunk glider is not pulling 20 g).
             Vec3 nonGrav = totalF - gravityBody - waterF;
             LoadFactorZ = weightN > 1e-9 ? -nonGrav.Z / weightN : 1.0;
+            AeroLoadFactorZ = weightN > 1e-9 ? -aeroForce.Z / weightN : 1.0;
             return (totalF, totalM);
         }
 
@@ -1104,6 +1139,7 @@ public sealed partial class Aircraft
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
         UpdateLoad(dt);
+        StepTrees(preStep, dt);   // stems and crowns: snap, stop, or take the part that hit them (AircraftTreeStrike)
         if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
         AfterStepContactDamage(dt);

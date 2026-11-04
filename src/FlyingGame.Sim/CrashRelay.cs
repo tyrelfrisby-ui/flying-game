@@ -128,6 +128,9 @@ public sealed class CrashRelay
     private WreckPiece Spawn(string name, AirframeComponent c, List<HydroElement> els)
     {
         WreckPiece p = Wreck.Add(name, c, els, Aircraft.Config.Mass.CgVec(), Aircraft.State);
+        // What broke it off may hold it: a trunk the piece struck stops it there (after it has left with the airframe's own
+        // velocity field, so momentum is conserved at the separation and the stop is the piece's alone).
+        if (Aircraft.TakeSeparationStop(c, out Vec3 stopAt, out Vec3 stopN)) p.StopAt(stopAt, stopN);
         // A prop/gear loss alone is an intact ditching, not an airframe break-up. LastImpact is
         // populated before ComponentLost in Aircraft.Step, so this snapshots the actual fuel now.
         bool airframeBreak = c is not (AirframeComponent.GearLeft or AirframeComponent.GearRight

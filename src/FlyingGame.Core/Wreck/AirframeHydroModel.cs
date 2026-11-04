@@ -116,6 +116,43 @@ public sealed class AirframeHydroModel
 
     public double TotalMassKg { get { double m = 0; foreach (HydroElement e in Elements) m += e.MassKg; return m; } }
 
+    /// <summary>What the wing structure's Raymer mass was multiplied by so the model's roll inertia fits inside the
+    /// config's (1 = untouched). See <see cref="CalibrateWingMass"/>.</summary>
+    public double WingMassFactor { get; private set; } = 1.0;
+
+    /// <summary>
+    /// Raymer's 2.5 lb/ft² (12.2 kg/m²) is a metal GA wing's. On a fabric wing it is about twice the real thing (a PA-18
+    /// wing is ~45 kg; the buildup gave its outer panel and aileron alone 57 kg), and the model's boxes then carried 1.9×
+    /// the config's published roll inertia (PA-18 Ixx 2,733 against 1,450; C172 2,979 against 1,285; J-3 1,685 against
+    /// 1,003) — impossible for parts of that aeroplane, and fatal once a broken-off piece takes exactly its own share: two
+    /// PA-18 tip panels would have taken more roll inertia than the aeroplane had (2026-11-03, momentum at separation).
+    /// So the wing STRUCTURE (not the fuel in it) is scaled down until the boxes' Ixx about the CG is no more than 90 % of
+    /// the config's — the rest is the spread of mass inside each box that boxes cannot carry — and what it shed goes into
+    /// the cabin structure, on the roll axis. Mass and CG height are unchanged; the volumes, and so the floating, are too.
+    /// Types whose wings already fit (Pitts, Great Lakes) are untouched.
+    /// </summary>
+    private static void CalibrateWingMass(AirframeHydroModel m, AircraftConfig c)
+    {
+        double target = 0.9 * c.Mass.Inertia.Ixx;
+        if (target <= 0) return;
+        Vec3 cg = c.Mass.CgVec();
+        static bool Wing(HydroElement e) => e.Atom is WreckAtom.WingLInner or WreckAtom.WingLOuter or WreckAtom.WingRInner or WreckAtom.WingROuter
+            or WreckAtom.AileronL or WreckAtom.AileronR;
+        static bool Structure(HydroElement e) => !e.Name.StartsWith("tank-") && !e.Name.StartsWith("engine") && !e.Name.StartsWith("fuel");
+        double Ix(HydroElement e) { Vec3 r = e.Centre - cg, h = e.Half; return e.MassKg * ((h.Y * h.Y + h.Z * h.Z) / 3 + r.Y * r.Y + r.Z * r.Z); }
+        double iw = 0, io = 0, mw = 0;
+        foreach (HydroElement e in m.Elements) { if (Wing(e) && Structure(e)) { iw += Ix(e); mw += e.MassKg; } else io += Ix(e); }
+        if (iw <= 0 || io + iw <= target) return;
+        double f = System.Math.Clamp((target - io) / iw, 0.25, 1.0);
+        HydroElement? cabin = m.Elements.FirstOrDefault(e => e.Atom == WreckAtom.Cabin && Structure(e));
+        if (cabin is null) return;
+        double moved = 0;
+        foreach (HydroElement e in m.Elements) if (Wing(e) && Structure(e)) { moved += e.MassKg * (1 - f); e.MassKg *= f; }
+        cabin.MassKg += moved;
+        m.WingMassFactor = f;
+        m.Derivation.Add($"wing structure x{f:F3} ({moved:F1} kg to the cabin): the boxes' Ixx {io + iw:F0} kg·m² against the config's {c.Mass.Inertia.Ixx:F0}");
+    }
+
     public static double ThicknessRatio(string? airfoil)
     {
         string a = (airfoil ?? "").ToLowerInvariant();
@@ -479,6 +516,7 @@ public sealed class AirframeHydroModel
         }
         m.Derivation.Add($"total element mass {m.TotalMassKg:F0} kg vs config {wdg:F0} kg at this loading");
         BuildJoints(m, c, noseCut, tailCut, axisZ, wdg);
+        CalibrateWingMass(m, c);
         return m;
     }
 
