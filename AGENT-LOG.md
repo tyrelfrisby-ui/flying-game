@@ -1,4 +1,12 @@
 ## NEEDS YOU
+- **FRANK CHURCH STRIPS UNPAVED — ON YOUR IPHONE AS `2026.1103.2218` (Claude, 2026-11-03 22:21 PST,
+  lane/claude-frank-church-valleys `35901e96` → island-nav `6c24d8eb`):** all nine strips are real dirt or turf, drawn as worn
+  ground, with no centreline, edge marks, numbers or paved look (fc-surfaces' finish, which this lane kept in
+  preference to its own). Approach views of each strip are in `renders/frankchurch/v2/` (9 PNGs, 450 m final).
+  `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on the iPhone (00008150-001629A83662401C).
+  Check the stamp says 2026.1103.2218 before flying. Nothing for you to decide; fly Soldier Bar and tell us if it
+  still reads as paved.
+
 - **TY'S DECISION (2026-11-03): "Grob looks good add it" — MERGE NOT DONE, QUESTION FOR TY (Claude, lane/claude-island-nav
   `73c3ad9d`):** Asked to merge lane/codex-grob103 `919da6c7` (Florian Blanc Twin III Acro model, renders/grob/v-fix).
   Stopped before merging because that branch carries more than the Grob:
@@ -1646,6 +1654,27 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 22:21 — Claude · lane/claude-frank-church-valleys → island-nav · unpaved Frank Church strips, v2 renders, installed
+- **Ask** (Ty via Grok Bot, 21:55): all nine strips real dirt or turf, with no centreline, edge marking or paved
+  look; render each approach into `renders/frankchurch/v2/`; then merge and install (Ty approved).
+- **Done:** I first made the change in this lane (`f0618178`: river strips drawn as one plain quad, the five gravel
+  strips made dirt). island-nav already carried lane/claude-fc-surfaces (`8917ca0a`), which does the same job better:
+  surfaces from sources, worn-ground drawing, `StripFinish` and tests. So the lane merged island-nav and took its
+  side for the spec, IslandData, the layout tool and IslandWorldBuilder (`35901e96`). Kept from this lane:
+  `FrankChurchRender -fcApproachM`, and the 9 approach renders re-shot from the merged state and inspected one by
+  one. No white paint, centreline, edges, numbers or names remain; dirt strips show a worn brown track, and the turf
+  strips a mown centre.
+- **Checks:** FrankChurch, IslandSurface, StripFinish and NaturalSurface tests 34/34. `generate_runtime` and
+  `generate_gradient` `--check` are current, and the spec reproduces from `frank_church_layout.py`. Lane build
+  (no-deploy copy) `** BUILD SUCCEEDED **`, 0 `error CS`.
+- **Merge and install:** island-nav `6c24d8eb` (merge commit; its uncommitted ProjectSettings/GraphicsSettings
+  untouched). `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` in the foreground, after checking no other
+  Unity or xcodebuild was running: `** BUILD SUCCEEDED **`, 0 `error CS`, **installed and launched as
+  `2026.1103.2218` (202611032218)** at 22:21. The bundleVersion bump is not committed; it sits in island-nav's
+  already-modified ProjectSettings.asset alongside work that is not mine.
+- **Note for whoever runs the busy check:** `grep -E '^ *[0-9]+ (/.*/)?(xcodebuild|Unity)'` also matches agents'
+  `zsh -c` wait loops whose text mentions Unity, so it never goes quiet on its own. Drop lines whose command is
+  `zsh`/`bash`/`sh`.
 ### 2026-11-03 — Claude · lane/claude-fc-surfaces (off island-nav 26468fee) · Frank Church strips unpaved, no runway paint
 Ty: in frank-church-v1/after-soldier-bar-approach.png the strips render PAVED with centreline dashes. Every real Frank
 Church strip is unpaved.
