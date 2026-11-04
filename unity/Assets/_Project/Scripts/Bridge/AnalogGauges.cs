@@ -181,6 +181,7 @@ namespace FlyingGame.Bridge
         private void Draw(bool live)
         {
             if (Driver == null || Driver.Sim == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Analog) return;
+            if (!PilotEgress.HudAllowed(Driver)) return;   // the pilot is leaving or has left (PilotOutRules.ShowHud)
             if (UiLayout.AeroInsetsShown && !ChaseCamera.InCockpit) return;   // the AERO insets take the dials' place while the pilot has them on
             if (live && UiLayout.Modal) return;   // a lesson card is up
             var aircraft = Driver.Sim.Aircraft;

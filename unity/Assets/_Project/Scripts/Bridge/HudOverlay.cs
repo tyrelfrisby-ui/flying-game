@@ -101,6 +101,9 @@ namespace FlyingGame.Bridge
         private void OnPostRender()
         {
             if (Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud) { _labels.Clear(); return; }
+            // Not once the pilot is leaving or has left (PilotOutRules.ShowHud): the HUD is the aeroplane's, and the
+            // camera that follows him out is not a view of it (Ty 2026-11-04, Great Lakes bail-out on the Quest).
+            if (!PilotEgress.HudAllowed(Driver)) { _labels.Clear(); return; }
             _labels.Clear();
             float vw = _cam.pixelWidth, vh = _cam.pixelHeight;   // the flying area (full screen in landscape)
             float s = Mathf.Min(vw, vh);
@@ -247,7 +250,7 @@ namespace FlyingGame.Bridge
             Rect band = UiLayout.EngineRowRect;
             if (ac?.Config?.Propulsion == null || band.width <= 0f || ChaseCamera.InCockpit ||
                 SessionSettings.MenuOpen || SessionSettings.ReplayActive || UiLayout.Modal ||
-                SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud) return;
+                SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud || !PilotEgress.HudAllowed(Driver)) return;
 
             _engineLabel ??= new GUIStyle { font = UiFont.Get(), alignment = TextAnchor.MiddleCenter };
             _engineValue ??= new GUIStyle(_engineLabel) { fontStyle = FontStyle.Bold };

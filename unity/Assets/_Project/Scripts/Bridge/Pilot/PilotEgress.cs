@@ -27,6 +27,36 @@ namespace FlyingGame.Bridge
         public Phase Current { get; private set; } = Phase.InCockpit;
         public bool PilotOut => Current >= Phase.FreeFall;
 
+        /// <summary>The phase as the screen rules see it (<see cref="FlyingGame.Core.PilotOutRules"/>).</summary>
+        public FlyingGame.Core.PilotOutRules.Stage Stage => StageOf(Current);
+
+        public static FlyingGame.Core.PilotOutRules.Stage StageOf(Phase p) => p switch
+        {
+            Phase.InCockpit => FlyingGame.Core.PilotOutRules.Stage.Aboard,
+            Phase.BailingOut or Phase.CanopyGone => FlyingGame.Core.PilotOutRules.Stage.Egressing,
+            Phase.FreeFall or Phase.ChuteDeploying => FlyingGame.Core.PilotOutRules.Stage.FreeFall,
+            Phase.UnderCanopy => FlyingGame.Core.PilotOutRules.Stage.UnderCanopy,
+            _ => FlyingGame.Core.PilotOutRules.Stage.Landed,   // Tumbling, Landed
+        };
+
+        /// <summary>May a HUD draw for this aeroplane now? False from the moment a bail-out starts until the next
+        /// flight (Ty 2026-11-04: the HUD came back over the falling pilot on the Quest). Every HUD asks this — the
+        /// green HUD, the floating dials, the flight-path line, the dev status lines — on every platform.</summary>
+        public static bool HudAllowed(FlightSimDriver driver)
+        {
+            PilotEgress e = driver != null ? driver.GetComponent<PilotEgress>() : null;
+            return e == null || FlyingGame.Core.PilotOutRules.ShowHud(e.Stage);
+        }
+
+        /// <summary>Can the pilot see a flat OnGUI overlay? Not through a headset: a stereo camera renders the eyes,
+        /// and OnGUI only reaches the mirror window. A platform with its own notion (the Quest lane's VrMode) may
+        /// replace this at start-up.</summary>
+        public static Func<bool> FlatOverlayVisible = () =>
+        {
+            Camera c = Camera.main;
+            return c == null || !c.stereoEnabled;
+        };
+
         /// <summary>Camera target once the pilot has left the aircraft (null while in the cockpit).</summary>
         public Transform PilotTransform { get; private set; }
         /// <summary>The pilot's own wind-relative airspeed (m/s) once out — the wind in his ears; 0 in the cockpit.</summary>
@@ -79,6 +109,7 @@ namespace FlyingGame.Bridge
         {
             if (_driver != null) _driver.AircraftChanged -= ResetToCockpit;
             _pilot?.Destroy();
+            if (_remarkGo != null) Destroy(_remarkGo);
         }
 
         // ---- public commands ---------------------------------------------------------------------
@@ -128,6 +159,7 @@ namespace FlyingGame.Bridge
             _eject = _canopyDone = _pilotDone = _pilotLeftFired = _seatDone = _chuteDone = false;
             _status = ""; LastLine = ""; _restT = _voiceT = -1f; _spoken = false;
             PilotVoice.Stop();
+            UpdateRemark();   // takes the world-space one-liner down
             var cam = Cam();
             if (cam != null && cam.OverrideTarget != null)
             {
@@ -350,6 +382,63 @@ namespace FlyingGame.Bridge
         }
 
         private void Log(string msg) => Debug.Log($"[PilotEgress] t={_t:F1}s {msg}");
+
+        // ---- the landing one-liner, in the world (headsets) ----------------------------------------
+        //
+        // Ty 2026-11-04 on the Quest: "there was no corny comment when i got to the ground in my parachute i like
+        // that make sure it is in the quest version as well". It was there — on the egress status line, which is
+        // OnGUI, and a headset never sees OnGUI. Where the flat overlay cannot be seen the same text (label and
+        // quote, as the status line has it) floats 2 m ahead of the eyes and a little below the line of sight,
+        // follows the head lazily and faces it. A flat screen keeps only the status line, so nothing shows twice.
+
+        private GameObject _remarkGo;
+        private TextMesh _remark;
+        private bool _remarkPlaced;
+
+        private void LateUpdate() => UpdateRemark();
+
+        private void UpdateRemark()
+        {
+            bool show = FlyingGame.Core.PilotOutRules.ShowRemark(Stage, _spoken, LastLine)
+                && FlyingGame.Core.PilotOutRules.RemarkInWorld(FlatOverlayVisible())
+                && !SessionSettings.MenuOpen && !SessionSettings.ReplayActive;
+            Camera cam = show ? Camera.main : null;
+            if (cam == null)
+            {
+                if (_remarkGo != null && _remarkGo.activeSelf) _remarkGo.SetActive(false);
+                _remarkPlaced = false;
+                return;
+            }
+            if (_remark == null)
+            {
+                _remarkGo = new GameObject("PilotRemark");
+                _remark = _remarkGo.AddComponent<TextMesh>();
+                _remark.font = UiFont.Get();
+                _remarkGo.GetComponent<MeshRenderer>().sharedMaterial = _remark.font.material;
+                _remark.fontSize = 64;
+                _remark.characterSize = 0.008f;            // ~5 cm capitals: about 1.5 degrees at 2 m
+                _remark.anchor = TextAnchor.MiddleCenter;
+                _remark.alignment = TextAlignment.Center;
+                _remark.color = new Color(1f, 0.85f, 0.3f, 1f);   // the status line's colour
+            }
+            string text = FlyingGame.Core.PilotOutRules.RemarkText(PilotPhrases.Label(Outcome), LastLine);
+            if (_remark.text != text) _remark.text = text;
+            if (!_remarkGo.activeSelf) _remarkGo.SetActive(true);
+
+            // Ahead along the head's HEADING (level), so looking down at his boots does not put it in the grass.
+            Transform eye = cam.transform;
+            Vector3 f = Vector3.ProjectOnPlane(eye.forward, Vector3.up);
+            if (f.sqrMagnitude < 1e-4f) f = Vector3.ProjectOnPlane(eye.up, Vector3.up);
+            f.Normalize();
+            float below = (float)FlyingGame.Core.PilotOutRules.RemarkBelowDeg * Mathf.Deg2Rad;
+            Vector3 want = eye.position + (f * Mathf.Cos(below) + Vector3.down * Mathf.Sin(below)) * (float)FlyingGame.Core.PilotOutRules.RemarkDistanceM;
+            Transform t = _remarkGo.transform;
+            t.position = _remarkPlaced ? Vector3.Lerp(t.position, want, 1f - Mathf.Exp(-Time.deltaTime / 0.6f)) : want;
+            _remarkPlaced = true;
+            // A TextMesh shows its -Z face: forward points AWAY from the reader.
+            Vector3 away = t.position - eye.position;
+            if (away.sqrMagnitude > 1e-6f) t.rotation = Quaternion.LookRotation(away, Vector3.up);
+        }
 
         // ---- status line ---------------------------------------------------------------------------
 
