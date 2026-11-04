@@ -2,6 +2,9 @@
   "schemaVersion": 1,
   "id": "j3-cub-like",
   "displayName": "J-3 Cub-like (85 hp)",
+  "wingBracing": "strut",
+  "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break station = the lift-strut wing attach, |y| 3.40 (tools/own_models/build_j3_cub.py Y_ST).",
+  "wingBreakStationY": { "wing": 3.40 },
   "spawnIasMs": 28,
   "mass": {
     "massKg": 553.0,

@@ -15,6 +15,10 @@ public enum AirframeComponent
     // carries the fuel — and every control surface is its own part. WingLeft/WingRight above still mean the whole wing
     // (the g-limit failure); losing an inner panel takes its outer panel with it.
     WingLeftOuter, WingRightOuter, WingLeftInner, WingRightInner, AileronLeft, AileronRight, ElevatorLeft, ElevatorRight, Rudder,
+    // Contact damage (Ty 2026-11-03, appended, never inserted): the panel outboard of each wing's STRUCTURAL station
+    // (WingStructure) — a biplane's interplane strut, a strut-braced wing's lift-strut attach, a cantilever wing's aileron
+    // inboard end. WingTip* is a monoplane's wing or a biplane's upper wing; WingTipLower* a biplane's lower wing.
+    WingTipLeft, WingTipRight, WingTipLowerLeft, WingTipLowerRight,
 }
 
 /// <summary>Where the wing splits into its two panels: |y| beyond this fraction of the semispan is the outer panel.</summary>
@@ -54,6 +58,32 @@ public sealed class ContactPoint
     /// it could close on it before the step ends (<see cref="AirframeContact.StageCullMargin"/>). The later stages skip
     /// the ground query while the first exceeds the second.</summary>
     public double StageClearM = double.NegativeInfinity, StageMarginM;
+
+    /// <summary>Points with the same patch number (&gt;= 0) are one contact PATCH: close together on one part (a wingtip's
+    /// leading edge, trailing edge and skins; the propeller disc) and listed together, they share one ground and water
+    /// sample per evaluation. -1 = a point on its own.</summary>
+    public int Patch = -1;
+    /// <summary>The <see cref="WingStructure"/> panel this point is on (-1 = none). Such a point breaks nothing by its
+    /// closing speed: the aeroplane checks the bending moment its force puts on the panel's station.</summary>
+    public int Panel = -1;
+    /// <summary>A blade-tip station on the propeller disc. The disc is not a hard point — a turning blade cuts or curls,
+    /// it cannot hold the aeroplane up — so it pushes nothing; its penetration is the prop strike (Aircraft).</summary>
+    public bool PropDisc;
+    /// <summary>Contact spring and damper multiplier for a point on a flexible part. A wingtip is a cantilever of tip
+    /// stiffness k_w in series with the contact's k_c: it presses with k_w/(k_c + k_w) of a hard point's force for the
+    /// same approach, and the rest of that approach is the wing bending UP (WingPanel.ElasticRad) — not the ground
+    /// coming through it.</summary>
+    public double StiffnessScale = 1.0;
+
+    // What this point felt at the last RECORDED evaluation (a step's first RK4 stage), body frame. Zero when clear.
+    public Vec3 ForceBody;
+    public double DepthM, NormalN, SlipMs, FrictionW;
+    /// <summary>What it touched: <see cref="SurfaceNone"/>, <see cref="SurfaceSolid"/>, <see cref="SurfaceWater"/> or a
+    /// <see cref="WorldTerrain.Surface"/> value.</summary>
+    public int SurfaceCode = SurfaceNone;
+    public const int SurfaceNone = -1, SurfaceSolid = -2, SurfaceWater = -3;
+    /// <summary>World position and velocity at that evaluation.</summary>
+    public Vec3 WorldPos, WorldVel;
 }
 
 /// <summary>Solid boxes in the world (buildings, bridge decks, landmark legs) that the airframe collides with.
@@ -237,29 +267,81 @@ public static class AirframeContact
         return (rootX + 0.25 * chord + 0.6, rootX - 0.75 * chord - 0.3);
     }
 
-    /// <summary>Derive the hard points from the config geometry.</summary>
+    /// <summary>Contact friction of airframe structure (aluminium or steel skin, a wooden tip bow, a fabric-covered
+    /// panel's steel or wood edge) SLIDING on the surface: the published hard-structure-on-ground coefficients that the
+    /// float keel already uses (<see cref="WorldTerrain.KeelSlidingCoefficient"/>; metal on asphalt/concrete 0.5–0.6,
+    /// gravel 0.5, grass 0.35, snow 0.10, wind-polished glacier 0.04). Buildings keep <see cref="FrictionMu"/>.</summary>
+    public static double SlidingMu(WorldTerrain.Surface s) => WorldTerrain.KeelSlidingCoefficient(s);
+
+    /// <summary>
+    /// Derive the hard points from the config geometry (Ty 2026-11-03: "the tip of every wing, tail and the prop").
+    /// Strip positions are quarter-chord points. On the own-model biplanes' lower wings their heights ALREADY contain the
+    /// dihedral (a Pitts lower wing runs z 0.528 at the root to 0.408 at the tip); everywhere else they sit at one height
+    /// and the dihedral is only in dihedralRad (<see cref="WingStructure.ChordZ"/> tells them apart). The tip is the outer
+    /// strip's outer edge. Before 2026-11-03 the tip point always subtracted |y|·tan Γ, which on the Pitts counted the
+    /// dihedral twice and put the point 0.15 m INSIDE the lower wing, at its quarter chord only — so the wing went
+    /// through the ground before anything touched.
+    /// Each wingtip is a PATCH of five points sharing one ground sample: leading edge, trailing edge, the aileron's outer
+    /// trailing corner, and the lower and upper skin at 30 % chord (thickness from the airfoil). Stab tips, the fin top and
+    /// the rudder heel are patches too, and the propeller is its whole disc (twelve blade-tip stations at full radius).
+    /// </summary>
     public static List<ContactPoint> BuildPoints(AircraftConfig c)
     {
         var pts = new List<ContactPoint>();
+        int patch = 0;
         double rBody = c.Fuselage.Crossflow?.BodyRadiusM > 0 ? c.Fuselage.Crossflow.BodyRadiusM : 0.5;
         double len = c.Fuselage.Crossflow?.LengthM > 0 ? c.Fuselage.Crossflow.LengthM : 7.0;
-        double minTe = double.MaxValue, maxLe = double.MinValue;
+        double minTe = double.MaxValue;
+        foreach (SurfaceConfig sf in c.Surfaces)
+            foreach (StripConfig st in sf.Strips) minTe = System.Math.Min(minTe, st.Pos[0] - 0.75 * st.Chord);
+        List<WingPanel> panels = WingStructure.Build(c);
+
+        StripConfig? Outer(SurfaceConfig sf, int side)
+        {
+            StripConfig? o = null;
+            foreach (StripConfig st in sf.Strips) if (System.Math.Sign(st.Pos[1]) == side && (o is null || System.Math.Abs(st.Pos[1]) > System.Math.Abs(o.Pos[1]))) o = st;
+            return o;
+        }
+        (double y, double z) Edge(SurfaceConfig sf, StripConfig st, int side)
+        {
+            double y = st.Pos[1] + side * 0.5 * WingStructure.Width(st);
+            return (y, WingStructure.ChordZ(sf, st, System.Math.Abs(y)));
+        }
+        void TipPatch(SurfaceConfig baseSf, IEnumerable<SurfaceConfig> controlRows, int side, AirframeComponent comp, int panel, double breakMs, string tag, bool skins)
+        {
+            StripConfig? tip = Outer(baseSf, side);
+            if (tip is null) return;
+            (double ye, double ze) = Edge(baseSf, tip, side);
+            double le = tip.Pos[0] + 0.25 * tip.Chord, te = tip.Pos[0] - 0.75 * tip.Chord;
+            var group = new List<ContactPoint>();
+            void Add(string what, double x, double y, double z) =>
+                group.Add(new ContactPoint { Body = new Vec3(x, y, z), Component = comp, BreakSpeedMs = breakMs, Name = $"{tag}-{what}-{(side < 0 ? "L" : "R")}", Patch = patch, Panel = panel });
+            Add("LE", le, ye, ze);
+            Add("TE", te, ye, ze);
+            foreach (SurfaceConfig row in controlRows)
+            {
+                StripConfig? o = Outer(row, side);
+                if (o is null) continue;
+                (double yr, double zr) = Edge(row, o, side);
+                double ter = o.Pos[0] - 0.75 * o.Chord;
+                if (ter < te - 0.01) Add("TEcorner", ter, yr, zr);
+            }
+            if (skins)
+            {
+                double chord = le - te, half = 0.5 * Wreck.AirframeHydroModel.ThicknessRatio(tip.Airfoil) * chord, xs = le - 0.3 * chord;
+                Add("skinLower", xs, ye, ze + half);
+                Add("skinUpper", xs, ye, ze - half);
+            }
+            pts.AddRange(group);
+            patch++;
+        }
+
         foreach (SurfaceConfig sf in c.Surfaces)
         {
             string id = sf.Id.ToLowerInvariant();
-            bool vertical = id.Contains("vstab") || id.StartsWith("rudder") || id.Contains("fin");
-            bool isWing = id.Contains("wing") && !id.Contains("aileron");
-            bool isStab = id == "hstab";
-            bool isFin = id == "vstab";
-            foreach (StripConfig st in sf.Strips)
+            if (sf.Strips.Count == 0) continue;
+            if (WingStructure.IsWingBase(sf.Id))
             {
-                minTe = System.Math.Min(minTe, st.Pos[0] - 0.75 * st.Chord);
-                maxLe = System.Math.Max(maxLe, st.Pos[0] + 0.25 * st.Chord);
-            }
-            if (isWing)
-            {
-                StripConfig l = sf.Strips[0], r = sf.Strips[0];
-                foreach (StripConfig st in sf.Strips) { if (st.Pos[1] < l.Pos[1]) l = st; if (st.Pos[1] > r.Pos[1]) r = st; }
                 // Wing root skin (the top of a high wing is what a flipped aircraft rests on; the bottom of a low
                 // wing is what a belly landing rides on): one point each side of the centreline.
                 StripConfig root = sf.Strips[0];
@@ -267,39 +349,58 @@ public static class AirframeContact
                 double skin = root.Pos[2] < 0 ? root.Pos[2] - 0.07 * root.Chord : root.Pos[2] + 0.07 * root.Chord;
                 pts.Add(new ContactPoint { Body = new Vec3(root.Pos[0], -0.8, skin), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "wing-root-L" });
                 pts.Add(new ContactPoint { Body = new Vec3(root.Pos[0], 0.8, skin), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "wing-root-R" });
-                // Wing tips: a hard tip strike takes only the OUTER panel; a mid-span strike (0.45 semispan) takes the
-                // inner panel and the outer with it (owner 2026-09-10).
-                foreach ((StripConfig st, AirframeComponent comp, double sign) in new[] { (l, AirframeComponent.WingLeftOuter, -1.0), (r, AirframeComponent.WingRightOuter, 1.0) })
+                var rows = c.Surfaces.Where(r => r != sf && WingStructure.BelongsTo(r.Id, sf.Id, c)).ToList();
+                foreach (int side in new[] { -1, 1 })
                 {
-                    double w = st.Chord > 1e-6 ? st.Area / st.Chord : 0.3;
-                    double y = st.Pos[1] + sign * w * 0.5;
-                    double z = st.Pos[2] - System.Math.Abs(y) * System.Math.Tan(st.DihedralRad);
-                    pts.Add(new ContactPoint { Body = new Vec3(st.Pos[0], y, z), Component = comp, BreakSpeedMs = 4.5, Name = comp + ":" + sf.Id });
+                    int pi = panels.FindIndex(p => p.SurfaceId == sf.Id && p.Side == side);
+                    if (pi >= 0) TipPatch(sf, rows, side, panels[pi].Component, pi, 0.0, "tip:" + sf.Id, true);
+                    else TipPatch(sf, rows, side, side < 0 ? AirframeComponent.WingLeftOuter : AirframeComponent.WingRightOuter, -1, 4.5, "tip:" + sf.Id, true);
                 }
-                double semi = System.Math.Max(System.Math.Abs(l.Pos[1]), System.Math.Abs(r.Pos[1]));
+                // A mid-span strike (0.45 semispan) takes the inner panel and the outer with it (owner 2026-09-10).
+                StripConfig? lt = Outer(sf, -1), rt = Outer(sf, 1);
+                double semi = System.Math.Max(lt is null ? 0 : System.Math.Abs(lt.Pos[1]), rt is null ? 0 : System.Math.Abs(rt.Pos[1]));
                 foreach ((AirframeComponent comp, double sign) in new[] { (AirframeComponent.WingLeftInner, -1.0), (AirframeComponent.WingRightInner, 1.0) })
                 {
                     double y = sign * semi * 0.45;
                     StripConfig near = root; foreach (StripConfig st in sf.Strips) if (System.Math.Abs(st.Pos[1] - y) < System.Math.Abs(near.Pos[1] - y)) near = st;
-                    double z = near.Pos[2] - System.Math.Abs(y) * System.Math.Tan(near.DihedralRad) + (near.Pos[2] < 0 ? -0.06 * near.Chord : 0.06 * near.Chord);
+                    double z = WingStructure.ChordZ(sf, near, System.Math.Abs(y)) + (near.Pos[2] < 0 ? -0.06 * near.Chord : 0.06 * near.Chord);
                     pts.Add(new ContactPoint { Body = new Vec3(near.Pos[0], y, z), Component = comp, BreakSpeedMs = 7.0, Name = comp + ":" + sf.Id });
                 }
             }
-            if (isStab)
+            if (id == "hstab")
             {
-                StripConfig l = sf.Strips[0], r = sf.Strips[0];
-                foreach (StripConfig st in sf.Strips) { if (st.Pos[1] < l.Pos[1]) l = st; if (st.Pos[1] > r.Pos[1]) r = st; }
-                pts.Add(new ContactPoint { Body = new Vec3(l.Pos[0], l.Pos[1] - 0.2, l.Pos[2]), Component = AirframeComponent.TailHorizontal, BreakSpeedMs = 5.0, Name = "stab-L" });
-                pts.Add(new ContactPoint { Body = new Vec3(r.Pos[0], r.Pos[1] + 0.2, r.Pos[2]), Component = AirframeComponent.TailHorizontal, BreakSpeedMs = 5.0, Name = "stab-R" });
+                var elev = c.Surfaces.Where(r => r.Id.ToLowerInvariant() == "elevator").ToList();
+                foreach (int side in new[] { -1, 1 })
+                {
+                    int before = pts.Count;
+                    TipPatch(sf, elev, side, AirframeComponent.TailHorizontal, -1, 5.0, "stab", false);
+                    if (pts.Count > before) pts[before].Name = side < 0 ? "stab-L" : "stab-R";
+                }
             }
-            if (isFin && sf.Strips.Count > 0)
+            if (id == "vstab")
             {
                 StripConfig top = sf.Strips[0];
                 foreach (StripConfig st in sf.Strips) if (st.Pos[2] < top.Pos[2]) top = st;
-                double w = top.Chord > 1e-6 ? top.Area / top.Chord : 0.3;
-                double topZ = top.Pos[2] - w * 0.5;
+                double topZ = top.Pos[2] - 0.5 * WingStructure.Width(top);
                 if (topZ > -0.2) topZ = -0.2; // a fin that sits below the axis (low rudder): still give it a top
-                pts.Add(new ContactPoint { Body = new Vec3(top.Pos[0], 0, topZ), Component = AirframeComponent.TailVertical, BreakSpeedMs = 5.0, Name = "fin-top" });
+                pts.Add(new ContactPoint { Body = new Vec3(top.Pos[0] + 0.25 * top.Chord, 0, topZ), Component = AirframeComponent.TailVertical, BreakSpeedMs = 5.0, Name = "fin-top", Patch = patch });
+                SurfaceConfig? rud = c.Surfaces.FirstOrDefault(r => r.Id.ToLowerInvariant().StartsWith("rudder") && r.Strips.Count > 0);
+                double teTop = top.Pos[0] - 0.75 * top.Chord;
+                if (rud is not null)
+                {
+                    StripConfig rt = rud.Strips[0], rb = rud.Strips[0];
+                    foreach (StripConfig st in rud.Strips) { if (st.Pos[2] < rt.Pos[2]) rt = st; if (st.Pos[2] > rb.Pos[2]) rb = st; }
+                    teTop = System.Math.Min(teTop, rt.Pos[0] - 0.75 * rt.Chord);
+                    pts.Add(new ContactPoint { Body = new Vec3(teTop, 0, topZ), Component = AirframeComponent.TailVertical, BreakSpeedMs = 5.0, Name = "fin-top-TE", Patch = patch });
+                    patch++;
+                    // The rudder's heel: its lowest trailing corner, what a tail-low arrival drags first.
+                    pts.Add(new ContactPoint { Body = new Vec3(rb.Pos[0] - 0.75 * rb.Chord, 0, rb.Pos[2] + 0.5 * WingStructure.Width(rb)), Component = AirframeComponent.Rudder, BreakSpeedMs = 5.0, Name = "rudder-heel" });
+                }
+                else
+                {
+                    pts.Add(new ContactPoint { Body = new Vec3(teTop, 0, topZ), Component = AirframeComponent.TailVertical, BreakSpeedMs = 5.0, Name = "fin-top-TE", Patch = patch });
+                    patch++;
+                }
             }
         }
         double tailX = minTe - 0.2, noseX = tailX + len;
@@ -310,18 +411,19 @@ public static class AirframeContact
         // line: a P-51's fuselage axis is 0.75 m above its CG, and putting the prop on the CG line struck it 0.75 m early.
         double axisZ = c.Propulsion?.ThrustLineZ ?? 0.0;
         pts.Add(new ContactPoint { Body = new Vec3(noseX, 0, axisZ), Component = AirframeComponent.Nose, BreakSpeedMs = NoseBreakMs, Name = "nose" });
-        // Propeller disc: the lowest blade tip. ANY ground contact is a prop strike (engine stops, blades bend).
+        // Propeller disc: twelve blade-tip stations at full radius, one patch per propeller.
         if (c.Propulsion is not null && c.Propulsion.PropDiameterM > 0)
         {
-            double r = c.Propulsion.PropDiameterM * 0.5 * 0.85;
-            if (c.Engines.Count == 0)
+            double r = c.Propulsion.PropDiameterM * 0.5;
+            var hubs = c.Engines.Count == 0 ? new List<Vec3> { new(noseX + 0.1, 0, axisZ) } : c.Engines.Select(e => new Vec3(e.Pos[0] + 1.0, e.Pos[1], e.Pos[2])).ToList();
+            foreach (Vec3 hub in hubs)
             {
-                pts.Add(new ContactPoint { Body = new Vec3(noseX + 0.1, 0, axisZ + r), Component = AirframeComponent.Propeller, BreakSpeedMs = 0.15, Name = "prop-tip" });
-            }
-            else
-            {
-                foreach (EngineMount e in c.Engines)
-                    pts.Add(new ContactPoint { Body = new Vec3(e.Pos[0] + 1.0, e.Pos[1], e.Pos[2] + r), Component = AirframeComponent.Propeller, BreakSpeedMs = 0.15, Name = "prop-tip" });
+                for (int k = 0; k < PropDiscStations; k++)
+                {
+                    double a = 2 * System.Math.PI * k / PropDiscStations;
+                    pts.Add(new ContactPoint { Body = new Vec3(hub.X, hub.Y + r * System.Math.Sin(a), hub.Z + r * System.Math.Cos(a)), Component = AirframeComponent.Propeller, BreakSpeedMs = 0, Name = "prop-tip", Patch = patch, PropDisc = true });
+                }
+                patch++;
             }
         }
         // Fuselage in three sections: a hard tail-cone strike snaps the TAIL BOOM (stab, fin, tailwheel go with it);
@@ -335,12 +437,15 @@ public static class AirframeContact
         {
             pts.Add(new ContactPoint { Body = new Vec3(e.Pos[0] + 0.8, e.Pos[1], e.Pos[2] + 0.4), Component = e.Pos[1] < 0 ? AirframeComponent.NacelleLeft : AirframeComponent.NacelleRight, BreakSpeedMs = 6.0, Name = "nacelle" });
         }
-        // Tougher airframes (config impactStrength) take proportionally harder hits before anything breaks — except the
-        // prop strike, which is a ground touch at any speed.
+        // Tougher airframes (config impactStrength) take proportionally harder hits before anything breaks (the wing
+        // panels' strengths scale the same way, WingStructure.EnsureStrength).
         if (c.ImpactStrength > 0 && System.Math.Abs(c.ImpactStrength - 1.0) > 1e-9)
             foreach (ContactPoint p in pts) if (p.Component != AirframeComponent.Propeller && p.BreakSpeedMs > 0) p.BreakSpeedMs *= c.ImpactStrength;
         return pts;
     }
+
+    /// <summary>Blade-tip stations on each propeller disc.</summary>
+    public const int PropDiscStations = 12;
 
     /// <summary>
     /// How far above the ground the whole airframe is unambiguously clear of it. Terrain cannot rise by this much
@@ -444,6 +549,8 @@ public static class AirframeContact
     /// </summary>
     public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt)
     {
+        // A step's first stage (or a call outside any step) is the one recorded on the points (ContactPoint.ForceBody …).
+        bool record = stage <= 0;
         long tClear = SimProfile.Begin();
         bool clear = points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s);
         SimProfile.End(SimProfile.Scope.ContactClear, tClear);
@@ -452,12 +559,12 @@ public static class AirframeContact
             // No clearance remembered for the later stages: if one of them is not clear, it tests every point.
             if (stage == 0) foreach (ContactPoint p in points) p.StageClearM = double.NegativeInfinity;
             long tSolids = SimProfile.Begin();
-            var solidsOnly = ComputeSolidsOnly(points, cg, s, broken, impacts);
+            var solidsOnly = ComputeEveryPoint(points, cg, s, broken, 0.0, impacts, false, false, -1, 0.0, groundClear: true, record);
             SimProfile.End(SimProfile.Scope.ContactPoints, tSolids);
             return solidsOnly;
         }
         long tPoints = SimProfile.Begin();
-        var result = ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, stage, dt, groundClear: false);
+        var result = ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, stage, dt, groundClear: false, record);
         SimProfile.End(SimProfile.Scope.ContactPoints, tPoints);
         return result;
     }
@@ -471,7 +578,7 @@ public static class AirframeContact
     /// point arriving at the water is still an impact and can still break its component — water at 25 m/s is hard —
     /// but the old ditching spring-damper is not applied.</param>
     public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false, bool waterByHydro = false)
-        => ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, -1, 0.0, groundClear: false);
+        => ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater, waterByHydro, -1, 0.0, groundClear: false, record: true);
 
     /// <summary>
     /// The hard points against <see cref="WorldSolids"/> only, for an airframe already known to be clear of the ground
@@ -479,10 +586,10 @@ public static class AirframeContact
     /// no height queries, one box-list test per point. Buildings, the tower, the arch legs and the sea-cave roof stand
     /// higher than <see cref="ClearAboveM"/> above the ground under them, so this runs at every altitude.
     /// </summary>
-    public static (Vec3 Force, Vec3 Moment) ComputeSolidsOnly(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, ImpactRecorder? impacts)
-        => ComputeEveryPoint(points, cg, s, broken, 0.0, impacts, false, false, -1, 0.0, groundClear: true);
+    public static (Vec3 Force, Vec3 Moment) ComputeSolidsOnly(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, ImpactRecorder? impacts, bool record = false)
+        => ComputeEveryPoint(points, cg, s, broken, 0.0, impacts, false, false, -1, 0.0, groundClear: true, record);
 
-    private static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt, bool groundClear)
+    private static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ, ImpactRecorder? impacts, bool floatsCarryWater, bool waterByHydro, int stage, double dt, bool groundClear, bool record)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         bool cull = StageCullEnabled && stage >= 0;
@@ -492,12 +599,20 @@ public static class AirframeContact
         reach += 0.5;
         var nearby = WorldSolids.NearbyFor(points);
         nearby.Update(s.Position.X - reach, s.Position.Y - reach, -s.Position.Z - reach, s.Position.X + reach, s.Position.Y + reach, -s.Position.Z + reach);
-        foreach (ContactPoint p in points)
+        // One ground/water sample per patch (its points are listed together): taken where the first point that needs it is.
+        int samplePatch = int.MinValue; double patchGround = 0; double? patchWater = null;
+        // A patch is ONE contact: its touching points share one contact stiffness (each takes k/m, c/m of m touching),
+        // or a wingtip lying flat would press five times as hard as a point.
+        int sharePatch = int.MinValue, shareCount = 1, head = 0;
+        for (int idx = 0; idx < points.Count; idx++)
         {
+            ContactPoint p = points[idx];
+            if (idx == 0 || p.Patch != points[idx - 1].Patch) head = idx;
             Vec3 rBody = p.Body - cg;
             Vec3 rWorld = s.Attitude.Rotate(rBody);
             Vec3 w = s.Position + rWorld;
             Vec3 vel = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));   // world velocity of the point
+            if (record) { p.ForceBody = Vec3.Zero; p.DepthM = 0; p.NormalN = 0; p.SlipMs = 0; p.FrictionW = 0; p.SurfaceCode = ContactPoint.SurfaceNone; p.WorldPos = w; p.WorldVel = vel; }
 
             Vec3 normal = new(0, 0, -1);   // outward (NED up)
             double depth;
@@ -510,8 +625,18 @@ public static class AirframeContact
             else
             {
             // Ground (with the wheel-scale bumps when the point is low enough to meet them) — normal is world up.
-            groundH = WorldTerrain.HardPointGroundAt(w.X, w.Y, -w.Z);
-            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
+            double? waterH;
+            if (p.Patch >= 0)
+            {
+                // Always where the patch's FIRST point is, whichever point asks first (culled or not, same answer).
+                if (p.Patch != samplePatch) SamplePatch(points, head, cg, s, ref samplePatch, ref patchGround, ref patchWater);
+                groundH = patchGround; waterH = patchWater;
+            }
+            else
+            {
+                groundH = WorldTerrain.HardPointGroundAt(w.X, w.Y, -w.Z);
+                waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
+            }
             onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             // On water, a SEAPLANE's hull is FloatHydro's business and this must keep its hands off it. A wheeled
             // aeroplane's is nobody's: every point over water used to return no force at all, so a landplane that
@@ -547,6 +672,20 @@ public static class AirframeContact
             if (solidWins) { normal = solid!.Value.normalNed; depth = solid.Value.depth; }
 
             if (depth <= 0.0) { p.Touching = false; continue; }
+            if (p.Patch >= 0 && p.Patch != sharePatch && !groundClear)
+            {
+                // How many of this patch's points are into the ground or the water (the shared sample; solids aside).
+                sharePatch = p.Patch; shareCount = 0;
+                if (samplePatch != p.Patch) SamplePatch(points, head, cg, s, ref samplePatch, ref patchGround, ref patchWater);
+                for (int j = idx; j < points.Count && points[j].Patch == p.Patch; j++)
+                {
+                    Vec3 wj = s.Position + s.Attitude.Rotate(points[j].Body - cg);
+                    double topJ = patchWater.HasValue && patchWater.Value > patchGround && !floatsCarryWater ? patchWater.Value : patchGround;
+                    if ((wj.Z + surfaceOffsetZ) + topJ > 0.0) shareCount++;
+                }
+                if (shareCount < 1) shareCount = 1;
+            }
+            double share = p.Patch >= 0 && p.Patch == sharePatch ? 1.0 / shareCount : 1.0;
 
             double closing = -Vec3.Dot(vel, normal);          // + = moving INTO the surface
             bool ditching = onWater && !floatsCarryWater && !solidWins;
@@ -568,26 +707,57 @@ public static class AirframeContact
                 // Buoyancy, drag and added mass are AirframeFlooding's. What is left for this point is the BED: a
                 // sunk aeroplane comes to rest on the bottom like on any ground.
                 double bed = (w.Z + surfaceOffsetZ) - (-groundH);
-                if (bed <= 0.0) continue;
+                if (bed <= 0.0) { if (record) { p.DepthM = depth; p.SurfaceCode = ContactPoint.SurfaceWater; } continue; }
                 depth = bed;
                 ditching = false;
             }
-            double spring = (ditching ? WaterSpringNPerM : SpringNPerM) * depth;
+            double spring = (ditching ? WaterSpringNPerM : SpringNPerM) * depth * share * p.StiffnessScale;
             if (closing < 0.0) spring *= ReboundFraction;                        // crumpling, not a trampoline
-            double n = spring + (ditching ? WaterDampNsPerM : DampNsPerM) * System.Math.Max(0.0, closing);
-            Vec3 f = normal * n;
-            // Coulomb friction against the tangential velocity (regularised at low speed).
+            double n = spring + (ditching ? WaterDampNsPerM : DampNsPerM) * share * p.StiffnessScale * System.Math.Max(0.0, closing);
+            // Coulomb friction against the tangential velocity (regularised at low speed): the surface's own coefficient
+            // on the ground, FrictionMu on a building or in the water.
+            WorldTerrain.Surface kind = WorldTerrain.Surface.Paved;
+            double muSurface = FrictionMu;
+            if (!solidWins && !ditching)
+            {
+                kind = WorldTerrain.SurfaceOverride ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(w.X, w.Y, -w.Z) : WorldTerrain.Surface.Paved);
+                muSurface = SlidingMu(kind);
+            }
             Vec3 vt = vel - normal * Vec3.Dot(vel, normal);
             double vtLen = vt.Length;
+            if (record)
+            {
+                p.DepthM = depth; p.NormalN = n; p.SlipMs = vtLen; p.FrictionW = muSurface * n * vtLen;
+                p.SurfaceCode = solidWins ? ContactPoint.SurfaceSolid : ditching ? ContactPoint.SurfaceWater : (int)kind;
+            }
+            // A propeller blade cuts or curls; it does not hold the aeroplane up (Aircraft reads its depth: the strike).
+            if (p.PropDisc) continue;
+            Vec3 f = normal * n;
             if (vtLen > 1e-4)
             {
-                double mu = FrictionMu * System.Math.Min(1.0, vtLen / 0.3);
+                double mu = muSurface * System.Math.Min(1.0, vtLen / 0.3);
                 f -= vt / vtLen * (mu * n);
             }
             totalF += f;
             totalM += Vec3.Cross(rWorld, f);
+            if (record) p.ForceBody = s.Attitude.Conjugate().Rotate(f);
             Aero.ForceDebug.Add(p.Body, s.Attitude.Conjugate().Rotate(f), Vec3.Zero, "contact");
         }
         return (totalF, totalM);
+    }
+
+    /// <summary>The patch's ground and water, sampled under its first point at the height of its LOWEST point: the
+    /// ground query adds the wheel-scale bumps only for a point near the surface (WorldTerrain.HardPointGroundAt), and a
+    /// patch must see them if any of its points could.</summary>
+    private static void SamplePatch(List<ContactPoint> points, int head, Vec3 cg, RigidBodyState s, ref int samplePatch, ref double ground, ref double? water)
+    {
+        ContactPoint first = points[head];
+        Vec3 w = s.Position + s.Attitude.Rotate(first.Body - cg);
+        double up = -w.Z;
+        for (int j = head + 1; j < points.Count && points[j].Patch == first.Patch; j++)
+            up = System.Math.Min(up, -(s.Position.Z + s.Attitude.Rotate(points[j].Body - cg).Z));
+        ground = WorldTerrain.HardPointGroundAt(w.X, w.Y, up);
+        water = FloatHydro.WaterSurfaceAt(w.X, w.Y, up);
+        samplePatch = first.Patch;
     }
 }

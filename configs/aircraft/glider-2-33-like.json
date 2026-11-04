@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "glider-2-33-like",
   "displayName": "2-33-like Trainer Glider",
+  "wingBracing": "strut",
   "spawnIasMs": 22,
   "mass": {
     "massKg": 350,

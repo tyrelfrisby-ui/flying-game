@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "c172-like",
   "displayName": "172-like Trainer",
+  "wingBracing": "strut",
   "spawnIasMs": 50,
   "mass": {
     "massKg": 1043,

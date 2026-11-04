@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "dhc2-beaver-like",
   "displayName": "Beaver-like",
+  "wingBracing": "strut",
   "spawnIasMs": 50,
   "mass": {
     "massKg": 2040.0,

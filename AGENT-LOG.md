@@ -49,6 +49,81 @@
   The build also carries everything already on island-nav (stick-free launch, rig trim, hydro). Check the build stamp
   on screen before flying. The `ProjectSettings` bundleVersion/build bump was not committed. Small thing in the
   deploy log: it printed "no assets-incoming in … -- wrong repo?" and then carried on; the build was not affected.
+- **WINGTIPS NO LONGER GO THROUGH THE GROUND; WING PANELS BEND AND BREAK; SLAVE STRUTS; PROP STRIKES — PLEASE
+  FEEL-TEST (Claude, 2026-11-03, lane/claude-contact-patches). Nothing approved, NOT merged, NOT on any device**
+  (`deploy.sh 00000000-NOINSTALL`: `** BUILD SUCCEEDED **`, 0 `error CS`, build 2026.1103.1656, installed nowhere).
+  1. **Why the Pitts's tip went in:** its lower wing's strip heights already contain the dihedral (z 0.528 at the root
+     → 0.408 at the tip) and the tip hard point subtracted |y|·tanΓ again: it sat **0.15 m inside the wing**, at the
+     quarter chord only. Only the own-model biplanes' lower wings (Pitts, Great Lakes) are built like that; every other
+     config keeps its strips flat, so the code now tells the two apart per surface (`WingStructure.ChordZ`).
+  2. **Contact patches, fleet-wide:** every wing tip is a five-point patch (LE, TE, the aileron's outer trailing corner,
+     lower and upper skin at 30 % chord), with ONE ground sample and ONE contact stiffness; stab tips, fin top (LE+TE),
+     rudder heel; the propeller is its whole disc (12 blade-tip stations at full radius). Friction per island surface
+     (hard structure sliding: paved 0.55, gravel 0.50, grass 0.35, snow 0.10, packed glacier 0.04 — the float keel's
+     published coefficients; buildings 0.7). A wingtip is a cantilever (k_w = 3EI/L³) in series with the contact: the
+     give is the wing flexing UP (drawn), not the ground coming through it.
+  3. **Break stations** (the panel outboard bends/breaks): Pitts I-strut lower 2.18 / upper 2.28 m, Great Lakes N-strut
+     2.875 m, J-3 lift-strut attach 3.40 m — all measured from our own model builders. **Not measured — the aileron's
+     inboard end stands in:** Stearman, Jenny, C172, PA-18 ×3, Pawnee, Beaver ×2, AirCam ×2, 2-33 (marked
+     `wingBracing: strut` where they are strut-braced, so their spar is still sized as a braced one). Cantilever types
+     (Extra, P-51, jets …) use the aileron's inboard end by rule. **If you have the real strut stations, each is one line.**
+  4. **Strength from first principles, no fudge factors:** M1 = the Schrenk lift outboard of the station at 1 g less the
+     panel's own weight (Raymer); a braced spar is one section from its root bay out, sized by that bay (q·L²/8). Limit =
+     gMax × that (14 CFR 23.305: no permanent set below it); ultimate = limit × the game's ultimateFactor 2.0. Pitts
+     lower panel: M1 72, bay 330, **limit 1,985, ultimate 3,971 N·m**. A strike moment between the two: **bent 5° tip-up,
+     with the crunch** (raised through the crash-audio path); past ultimate: **off**, with its rows, its aileron, its mass
+     and the CG shift. Measured, Pitts banked 35° at 20 m/s onto the lower tip: 0.8 m/s sink bends it, 3 m/s takes it.
+  5. **Bent panel in flight (your rule):** 5° at 1 g, +10° per g, ratcheting (once at 10° it stays at 10°), snaps past 15°
+     = 2 g. Test: held to 1.993 g, snapped at 2.014 g. **Against a real spar:** an intact Pitts lower panel turns ~0.06°
+     per g at its station (a spar sized to its ultimate, σ/E ≈ 7·10⁻³ for spruce and 2024-T3 alike); the bent one turns
+     10° per g — **~170× softer** — and it goes at 2·M1 = 143 N·m against the intact 3,971: **3.6 % of its strength
+     left**. That is a spar that has broken through and is held by fabric, ribs and wires, not a "bent" one: a real spar
+     that yields at limit and survives keeps most of its stiffness. It is your number, and it makes a bent panel very
+     fragile on the ground too (item 10a).
+  6. **Slave strut (Pitts):** a rigid link solved geometrically between horns on the lower (stick) and upper ailerons at
+     the builder's stations, 10 in inboard of the I-struts. Never frozen: with both wings straight the uppers move
+     exactly with the lowers (what the rig was solved with); a bent panel adds whatever the geometry changes. **The
+     Pitts's struts pin INBOARD of the I-strut, so a lower-panel bend does not move them.** (A test with the pin moved
+     outboard: a 5° bend drives the upper aileron ≈14° trailing-edge down and it still follows the stick.) **Geometry
+     note:** the GLB's horns point opposite ways vertically; with the strut's 24° stagger lean that would move the uppers at
+     only a fifth of the lowers. A working slave strut moves them together, so the arms are modelled perpendicular to the
+     strut — the model's horn heights look cosmetic; worth a look by whoever owns the Pitts model.
+  7. **Lower panel gone:** its aileron goes too (its hinge crossed the station), the strut goes, and the upper aileron on
+     that side **floats hinge-moment-free** (H = a + b·δ = 0 on its own strips: trailing edge up ~α/3 in level flight),
+     off the stick; the other side works. **Great Lakes:** the flight config has aileron rows on the LOWER wing only (the
+     own model has four ailerons and slave struts), so a lower-panel loss takes that side's only aileron and roll power
+     halves. **Add upper aileron rows to the GL config?** That changes its roll rate and needs a re-rig — not done here.
+     Single-aileron monoplanes lose the aileron on the panel that went; the other still works.
+  8. **Prop strike:** the disc does not push (a turning blade cuts or curls); the ground drags the tips round with μ·N·R
+     against the engine's P/ω and the rotor's inertia. A 5 mm brush curls the tips by what went in (thrust at the same
+     power ∝ R^(2/3)) and the engine **runs on**; a nose-over brakes it under a quarter of idle in a fraction of a second
+     — **sudden stoppage**. A blade in the water stops it outright.
+  9. **Sound/dust hooks:** `Aircraft.Contact` (ScrapeStart/Stop with surface and μ·N·v in W, PanelBent, PanelBroken,
+     PropStrike, PropStoppage, each with world position/velocity) and `Aircraft.Scrapes` per frame. Placeholder noise and
+     dust are in (`ContactEffects`); the real ones are Codex's (next item).
+  10. **Please decide / fly:** (a) **an inverted PA-18 that tips off its fin lands on its wingtips at ~3 m/s**: 7.0 kN·m
+      per tip against limit 3.8 / ultimate 7.6 — both bend, and then (the 2 g rule) the bent panels cannot carry the
+      aeroplane's own weight and come off. Should the 2 g rule govern STATIC ground load on a bent panel, or flight load
+      only? (b) a **14 m/s Pitts or Gee Bee swerve that grows into a ground loop now ends ~2 s in, 16° of bank and 89°/s
+      of yaw, in a lower wingtip strike that takes the panel** — before, the tip went through the runway. Real? (c) Pitts:
+      drop a wing on landing, scrape it, ground-loop onto it: does a touch scrape, a firm one crunch and bend, a hard one
+      take the panel? Then pull 2 g with a bent panel.
+  11. **Found, not fixed:** building `Aircraft.Hydro` in the Aircraft constructor (instead of on first use) makes EVERY
+      flight NaN within seconds — whoever owns the crash-water model should know. The "gentle landing breaks nothing"
+      test started the Cub 650 m inside a hill (`Airports[0].ElevationM` is not the island's ground; it failed at base
+      too); it now lands on an island runway.
+  12. **Not done:** in-plane (drag) bending of a panel (the chord is far deeper than the spar); tail tips, nose and
+      fuselage still break on closing speed; no scrape events on water (the hydro spray owns it); no ice surface kind
+      (packed glacier snow is the nearest).
+- **Codex: real scrape audio, dust/debris and damage visuals for the contact patches (Claude, 2026-11-03,
+  lane/claude-contact-patches).** Hooks: `Aircraft.Scrapes` (each frame: part, component, surface code, μ·N·v in W, normal
+  force, slip speed, world position/velocity) and `Aircraft.Contact` events (ScrapeStart/Stop, PanelBent — the crunch now
+  goes through CrashEvents as a land impact — PanelBroken, PropStrike, PropStoppage). Placeholders to replace:
+  `Bridge/ContactEffects.cs` (looping brown noise + a hemisphere dust emitter, 4 voices). Visual gaps: a bent panel is
+  drawn by moving its STATIC triangles onto a pivot at the station (`AirframeVisual.ShowPanelBend`, set + elastic flex) —
+  the aileron meshes stay where they are and a skinned carved model is not split; a disconnected upper aileron that floats
+  free is not shown floating (the rig animates every aileron from the stick); a light prop strike curls the tips in the
+  sim (`PropRadiusM`) but the blades are only drawn bent on a stoppage; scraped tips leave no marks.
 - **PITTS SPIRAL DIVE AT LAUNCH, RIGHT THEN LEFT — WHY, AND STICK-FREE NOW OFF WITH A PAD (Grok Bot, 2026-11-02,
   lane/claude-stickfree-launch):** build `2026.1102.1803` predates the spawn fix `b62b67d0`. Its long first frame
   (0.05 s = ten sim steps, before the pad publishes) flew whatever the PREVIOUS flight left in the driver's inputs, plus
@@ -1545,6 +1620,35 @@ separately from lane/claude-pitts-spin.
   `zsh tools/deploy/deploy.sh 00008150-001629A83662401C` from the island-nav worktree: **`** BUILD SUCCEEDED **`**, 0
   `error CS`, build `2026.1103.0957`; iPhone again **CoreDeviceError 4016**, installed on 0 of 1. **Not on the phone.**
   The island-nav worktree already had uncommitted ProjectSettings/GraphicsSettings edits before this deploy; left as found.
+### 2026-11-03 — Claude · lane/claude-contact-patches (off e8a40b0a) · contact patches, wing-panel damage, slave struts, prop strike
+- Ty: the Pitts wingtip goes through the ground; patches on every tip, tail and the prop; scrape with sound and dust;
+  hard scrape breaks the lower panel outboard of the I-strut, lower aileron lost, upper trails stick-free; same for the
+  Great Lakes and the fleet. Then: medium strike bends 5°, bent panel 5° at 1 g → 15° at 2 g and snaps; the slave strut
+  as a rigid link that keeps working; break stations per bracing type. Summary in NEEDS YOU above.
+- Code: `Core/WingStructure.cs` (panels, stations, Schrenk/bay strength, bent law, `SlaveLink`), `Core/ContactEvents.cs`,
+  `AirframeContact` (patch points, shared sample and stiffness, surface friction, tip compliance, stage-0 records),
+  `AeroModel`/`StripFlowState` (per-strip deflection override and bend), `Sim/AircraftContactDamage.cs` (strike checks,
+  bend/break, ailerons and links, prop strike, scrapes/events, mass shed), config fields `wingBreakStationY`,
+  `slaveStrut`, `wingBracing`; Unity `AirframeVisual` (tip-panel cut, bend pivot), `StructuralDamage` (crunch, HUD),
+  `ContactEffects` (placeholder).
+- Tests: `ContactPatchTests` (19: tip patch geometry, flat-strip dihedral, no penetration, every type has its patches,
+  stations, scrape friction yaw and surface ratio, scrape start/stop, strength, medium bend + crunch, hard break with mass
+  and CG, bent law, 2 g snap, slave strut 1:1 and through a bend, stick-free upper aileron, Great Lakes aileron loss, Cub
+  single aileron, prop brush, nose-over). Changed: `AirframeContactTests` (gentle landing on a real runway; Cub tip strike
+  takes the panel outboard of the lift strut; inverted PA-18 allowed its prop and tip panels — item 10a),
+  `CombatTests.TipStrikeTakesOnlyTheOuterPanel` (WingTipLeft), `GroundLoopTests` probe (stops at the first airframe
+  contact — item 10b).
+- **Full suite vs e8a40b0a, failing NAMES** (same Mac, other lanes' suites running, load 7–150; `IslandDroneProbe`, a
+  non-asserting probe that ran >40 min, excluded from both): base 130 failed / 1,756; branch 220 / 1,775 (19 new tests).
+  93 names fail only on the branch: StructuralTests 39 + SpawnSpeedTests 33 (`NaN`, the coupling another lane recorded
+  on 2026-11-02), ReversibleControl 4, Spin 3, MultiEngine 3, TipWheel 2, LaunchReplication 2, GroundLoop 2, and one each
+  of TrimConvergence, Soaring, GroundTow, Challenge, AircraftLoad. **Re-run alone: 89 pass; 4 were real** (GroundLoop
+  Pitts/Gee Bee — the ground loop now strikes a tip; LaunchReplication Pitts ×2 — the reconstructed slave link was 1:1
+  only to ~0.05° and put the hands-off Pitts 4° off heading in 40 s). Both fixed (exact 1:1 while straight; probe stops
+  at airframe contact) and pass. 3 base failures no longer fail (the gentle-landing and hard-tip-strike tests, NoseSkid).
+- Build: `deploy.sh 00000000-NOINSTALL` 17:01 PST `** BUILD SUCCEEDED **`, 0 `error CS` (the first two batches caught a
+  1-arg `Array.Clear` and a `ContactPoint` clash with UnityEngine — the dotnet suite cannot see either); bundleVersion bump
+  and regenerated StreamingAssets reverted. Not installed, not merged into lane/claude-island-nav (Ty has not flown it).
 ### 2026-11-02 — Grok Bot · lane/claude-stickfree-launch (off lane/claude-rig-trim b62b67d0) · launch spiral, stick-free with a pad
 Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spiral dive; the next launch went LEFT.
 - **Rig is solved stick FIXED:** `RigSolver.SteadyForces` (src/FlyingGame.Sim/RigSolver.cs:176-185) hands explicit

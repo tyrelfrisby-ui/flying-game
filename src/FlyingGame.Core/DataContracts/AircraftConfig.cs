@@ -98,6 +98,20 @@ public sealed class AircraftConfig
     /// null on everything with a stick connected to something.</summary>
     public WeightShiftConfig? WeightShift { get; set; }
 
+    /// <summary>Where each wing's outboard panel joins the structure that holds it (<see cref="FlyingGame.Core.WingStructure"/>):
+    /// |y| in metres, keyed by surface id ("wing", "wing-upper", "wing-lower"). A biplane's is the interplane strut, a
+    /// strut-braced wing's the lift-strut attach, measured from the type's own model. Absent = the aileron's inboard end
+    /// (the cantilever rule).</summary>
+    public Dictionary<string, double>? WingBreakStationY { get; set; }
+
+    /// <summary>How the wing is held up outboard of the cabin: "strut" (lift struts) or "" (a cantilever, or a biplane,
+    /// which is braced by its cellule anyway). A braced spar runs on through its station at the section its inboard bay
+    /// needs (<see cref="FlyingGame.Core.WingStructure.EnsureStrength"/>).</summary>
+    public string WingBracing { get; set; } = "";
+
+    /// <summary>The rigid slave strut joining a biplane's upper and lower ailerons on each side (null = none).</summary>
+    public SlaveStrutConfig? SlaveStrut { get; set; }
+
     // (The 2026-10-30 `LoadingConfig? Loading` stood here, from the load-sheet implementation that collided with
     // this one. Only one may own AircraftConfig.Loading. See the note in StartMenu.cs and e4755c9.)
 }
@@ -455,6 +469,22 @@ public sealed class CockpitOpeningConfig
     /// <summary>"open" (nothing over it: always an opening) or "canopy" (acrylic over it: an opening once it breaks).</summary>
     public string Enclosure { get; set; } = "open";
     public bool IsOpen => string.Equals(Enclosure, "open", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// An aileron interconnect: a rigid strut, one each side, pinned to a horn on each aileron. The stick drives the
+/// <see cref="DrivenSurface"/> rows; the <see cref="SlavedSurface"/> rows go wherever the strut puts them. The strut runs
+/// between the two hinge lines at span |y| <see cref="DrivenY"/> / <see cref="SlavedY"/>; each horn arm is
+/// <see cref="HornArmM"/> long and stands PERPENDICULAR to the strut, pointing forward — the geometry of a working
+/// slave strut, which moves the two ailerons together.
+/// </summary>
+public sealed class SlaveStrutConfig
+{
+    public string DrivenSurface { get; set; } = "";
+    public string SlavedSurface { get; set; } = "";
+    public double DrivenY { get; set; }
+    public double SlavedY { get; set; }
+    public double HornArmM { get; set; } = 0.07;
 }
 
 /// <summary>Per-type switches for the wing cellule of a multi-wing aeroplane.</summary>
