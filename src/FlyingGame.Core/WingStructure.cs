@@ -353,13 +353,21 @@ public sealed class SlaveLink
             var link = new SlaveLink { Side = side, DrivenSurface = d.Id, SlavedSurface = sl.Id };
             if (!Hinge(d, start[d.Id], side, cfg.DrivenY, out link.DrivenHinge, out link.DrivenAxis, out link.DrivenRows, out link.DrivenSign)) continue;
             if (!Hinge(sl, start[sl.Id], side, cfg.SlavedY, out link.SlavedHinge, out link.SlavedAxis, out link.SlavedRows, out link.SlavedSign)) continue;
-            // Both horns stand perpendicular to the strut in the x–z plane, pointing forward: n = (−u_z, 0, u_x) for the
-            // strut direction u, so the two pins move ALONG the strut by the same amount for the same deflection.
+            // Each horn points from its hinge line to its pin in the x–z plane. A small deflection δ moves a pin by
+            // δ·(arm × axis); the strut only feels the part of that along itself, which is the horn's projection on the
+            // strut's forward normal n = (−u_z, 0, u_x). So the ailerons turn in the ratio of the two horns' n-projections:
+            // 1:1 for two parallel equal horns (a parallelogram, the real Pitts — see the config's slaveStrut.source), and
+            // 1:1 for the stand-in with no horn angle given (both horns ALONG n).
             Vec3 u = link.SlavedHinge - link.DrivenHinge;
             Vec3 nrm = new Vec3(-u.Z, 0, u.X).Normalized();
             if (nrm.X < 0) nrm = nrm * -1.0;
-            link.DrivenPin = link.DrivenHinge + nrm * cfg.HornArmM;
-            link.SlavedPin = link.SlavedHinge + nrm * cfg.HornArmM;
+            Vec3 HornDir(double? downDeg) => downDeg is { } a
+                ? new Vec3(System.Math.Cos(a * System.Math.PI / 180.0), 0, System.Math.Sin(a * System.Math.PI / 180.0))
+                : nrm;
+            double armD = cfg.DrivenHornArmM > 0 ? cfg.DrivenHornArmM : cfg.HornArmM;
+            double armS = cfg.SlavedHornArmM > 0 ? cfg.SlavedHornArmM : cfg.HornArmM;
+            link.DrivenPin = link.DrivenHinge + HornDir(cfg.DrivenHornDownDeg) * armD;
+            link.SlavedPin = link.SlavedHinge + HornDir(cfg.SlavedHornDownDeg) * armS;
             link.LengthM = (link.SlavedPin - link.DrivenPin).Length;
             link._rotSignD = TeDownSign(link.DrivenHinge, link.DrivenAxis);
             link._rotSignS = TeDownSign(link.SlavedHinge, link.SlavedAxis);
