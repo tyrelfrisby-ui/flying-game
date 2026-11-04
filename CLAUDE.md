@@ -3,6 +3,16 @@
 Working notes for agents on this repo. `AGENT-LOG.md` is the running log and carries **NEEDS YOU** at the top;
 this file is the standing guidance that does not belong to any one lane.
 
+## PARITY: iOS/Mac and Quest stay in sync at all times (Ty, 2026-11-04)
+
+- One game. Shared code and assets only; platform differences only behind build-time flags (`UNITY_IOS`,
+  `UNITY_ANDROID`, the XR defines) and the Quest-only files listed in `docs/PARITY.md`.
+- Every change lands on `lane/claude-island-nav` first and is merged into `lane/claude-quest-islandnav` THE SAME DAY,
+  or lands on a shared lane merged into both. Never commit shared code, a config or a GLB on the Quest lane alone.
+- Art for both platforms comes from one GLB and one config. A "Quest-only" windshield is a fork.
+- Run `tools/check-parity.sh` before any deploy. `deploy.sh` prints it (never blocks iOS); `deploy-quest.sh` refuses
+  while it fails unless `PARITY_OVERRIDE=1`, and any override gets an AGENT-LOG line.
+
 ## How work lands here
 
 - One `lane/<agent>-<topic>` branch per piece of work, in its own worktree under

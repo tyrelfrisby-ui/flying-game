@@ -105,7 +105,7 @@ namespace FlyingGame.Bridge
 
         private void LateUpdate()
         {
-            bool show = SessionSettings.ShowFlightPath && Driver != null && Driver.Sim != null && !SessionSettings.MenuOpen && !(GetComponent<PilotEgress>()?.PilotOut ?? false);
+            bool show = SessionSettings.ShowFlightPath && Driver != null && Driver.Sim != null && !SessionSettings.MenuOpen && PilotEgress.HudAllowed(Driver);
             _line.enabled = show; _cone.SetActive(false);   // no arrowhead (owner)
             if (!show) { _havePrev = false; _target.SetActive(false); return; }
 
