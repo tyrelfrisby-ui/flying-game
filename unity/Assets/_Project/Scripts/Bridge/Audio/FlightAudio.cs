@@ -79,6 +79,7 @@ namespace FlyingGame.Bridge
         public const float SpeedOfSoundMs = 343f, ReferenceDistanceM = 25f;
         private readonly List<(FxKind kind, float level, float due)> _delayed = new();
         private PilotEgress _egress;
+        private AirframeVisual _visual;
 
         /// <summary>Distance from the listener (the pilot once out, else 0) to the aircraft.</summary>
         public float ListenerDistanceM { get; private set; }
@@ -293,6 +294,16 @@ namespace FlyingGame.Bridge
             _tele.PilotOut = pilotOut;
             _tele.AircraftGain = pilotOut ? DistanceGain(ListenerDistanceM) : 1f;
             if (pilotOut) { _tele.IasMs = SessionSettings.ReplayActive ? FlightReplay.ReplayPilotSpeedMs : _egress.PilotAirspeedMs; _tele.AlphaDeg = 0f; _tele.BetaDeg = 0f; _tele.Spoiler01 = 0f; }
+            // An open or departed canopy lets the slipstream into the cockpit: the noise grows with q and with how open it
+            // is (Core Vr.CockpitWind). What a SHUT canopy lets through is already in the wind above; only the excess is added.
+            _visual ??= GetComponent<AirframeVisual>();
+            float air = 0f;
+            if (!pilotOut && _visual != null && ChaseCamera.InCockpit)
+            {
+                double q = 0.5 * 1.225 * d.IasMs * d.IasMs, e = _visual.Cockpit.CockpitExposure01;
+                air = (float)(FlyingGame.Core.Vr.CockpitWind.Amplitude(q, e) - FlyingGame.Core.Vr.CockpitWind.Amplitude(q, 0.0));
+            }
+            _tele.CockpitAir = air;
         }
 
         // ---- audio thread ---------------------------------------------------------------------------
@@ -310,7 +321,7 @@ namespace FlyingGame.Bridge
             bool powered = engine != null;
 
             float acGain = t.AircraftGain;
-            _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered && !t.PilotOut);
+            _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered && !t.PilotOut, t.CockpitAir);
             _fx.Prepare(ias, t.GroanSeverity, acGain);
             _surface.Prepare(t.GravelSpeed, t.RoughSpeed);
             CrashSoundMixer crashes = _crashes;

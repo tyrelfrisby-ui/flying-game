@@ -226,6 +226,31 @@ public sealed partial class Aircraft
         GearDown = down;
         if (immediate) GearExtension = down ? 1.0 : 0.0;
     }
+    /// <summary>
+    /// The water-rudder retract (Ty 2026-11-02, t278u; floatplanes whose config draws a retractable blade). The blade
+    /// is spring-loaded DOWN: with the cockpit handle let go of it lies on the floor and the rudder is down, which is
+    /// how every aircraft starts (a new Aircraft is a water start with the rudder down). Hanging the handle on its hook
+    /// raises it. 0 = down .. 1 = up (on the hook).
+    /// </summary>
+    public bool HasWaterRudderRetract => Config.Floats is { WaterRudderRetractable: true, WaterRudderChordM: > 0 };
+    /// <summary>The handle is on the hook (target: up). False = let go of (target: down, the spring).</summary>
+    public bool WaterRudderHooked { get; private set; }
+    /// <summary>Where the blade is, 0 = down .. 1 = up.</summary>
+    public double WaterRudderUp01 { get; private set; }
+    /// <summary>A hand holding the handle (VR) sets the cable pull directly, 0..1 (the fraction of the way from the floor
+    /// to the hook); null = nobody is holding it, so the hook or the spring decides.</summary>
+    public double? WaterRudderHeldUp01 { get; set; }
+    /// <summary>Hand time to lift the handle from the floor onto the hook (or unhook it and let the spring take it):
+    /// a judgement of the reach and the hang, not a measured number. The blade follows the cable.</summary>
+    public const double WaterRudderTravelSec = 0.8;
+    public void SetWaterRudderHooked(bool hooked, bool immediate = false)
+    {
+        if (!HasWaterRudderRetract) { WaterRudderHooked = false; WaterRudderUp01 = 0; return; }
+        WaterRudderHooked = hooked;
+        if (immediate) WaterRudderUp01 = hooked ? 1.0 : 0.0;
+    }
+    /// <summary>The phone / controller toggle: hang the handle on the hook, or take it off.</summary>
+    public void ToggleWaterRudder() => SetWaterRudderHooked(!WaterRudderHooked);
     public void SetEngineThrottleScale(int idx, double scale) { if (idx>=0 && idx<Config.Engines.Count) Config.Engines[idx].ThrottleScale = System.Math.Clamp(scale,0,1); }
     public double SlatFraction { get; set; }   // 0..1 (auto or manual)
     /// <summary>The whole-aircraft parachute, on types that carry one (owner 2026-10-16). Always present as
@@ -249,6 +274,11 @@ public sealed partial class Aircraft
         return true;
     }
 
+    /// <summary>Extra flat-plate drag area (m²) on top of the airframe's own, set from outside the sim each frame —
+    /// today an OPEN CANOPY in the headset's hands-on bail-out (Core Vr.CanopyDynamics.DragAreaM2). Applied along the
+    /// relative wind at <see cref="ExtraDragPointBody"/> (body axes, the config's frame), so it also yaws and pitches.</summary>
+    public double ExtraDragAreaM2 { get; set; }
+    public Vec3 ExtraDragPointBody { get; set; }
     public double BrakeInput { get; set; }     // 0..1 wheel braking (on ground), both sides
     /// <summary>Differential braking bias -1 (left only) .. +1 (right only): rudder pedal toe-brake feel.
     /// Left/right brake = BrakeInput × (1 ∓ bias) clamped to 0..1.</summary>
@@ -263,7 +293,39 @@ public sealed partial class Aircraft
     /// <summary>New mass and inertia (live weight &amp; balance — the Aero Widget's loading command). The CG itself is
     /// Config.Mass.Cg, which every force and moment is taken about.</summary>
     public void SetMassProperties(double massKg, double ixx, double iyy, double izz, double ixz) =>
-        MassProperties = new MassProperties(massKg, ixx, iyy, izz, ixz);
+        MassProperties = Shed(new MassProperties(massKg, ixx, iyy, izz, ixz));
+
+    /// <summary>Mass that has LEFT the aeroplane in flight (a departed canopy, Core Vr.CanopyDynamics; a component broken
+    /// off with its volumes, <see cref="LoseComponent"/>), and the
+    /// first moment of it about the reference CG, kg·m (body frame). Zero unless something has gone.</summary>
+    public double ShedMassKg { get; private set; }
+    private Vec3 _shedMoment;
+
+    /// <summary>The CG of what is left, body frame: Config.Mass.Cg moved by −m·r / (M − m). Forces and moments are still
+    /// taken about Config.Mass.Cg (every geometry in the config is placed relative to it); the shift enters as the
+    /// remaining weight's moment about it (see the force sum), which is exactly what moving the CG does to the
+    /// statics. The dynamics' coupling term m·r×a is neglected (a 14 kg canopy 0.5 m from the CG of an 800 kg aeroplane).</summary>
+    public Vec3 CgShiftBody => MassProperties.MassKg > 1.0 ? _shedMoment * (-1.0 / MassProperties.MassKg) : Vec3.Zero;
+
+    /// <summary>A part of <paramref name="kg"/> at <paramref name="pointBody"/> (the config's body frame) has left:
+    /// the mass drops, the inertia loses its parallel-axis share, and the CG moves away from where it was.</summary>
+    public void ShedMass(double kg, Vec3 pointBody)
+    {
+        if (kg <= 0.0) return;
+        ShedMassKg += kg;
+        _shedMoment += (pointBody - Config.Mass.CgVec()) * kg;
+        MassProperties = Shed(MassProperties, kg, pointBody - Config.Mass.CgVec());
+    }
+
+    private MassProperties Shed(MassProperties p) =>
+        ShedMassKg > 0.0 ? Shed(p, ShedMassKg, _shedMoment * (1.0 / ShedMassKg)) : p;
+
+    private static MassProperties Shed(MassProperties p, double kg, Vec3 d) => new(
+        Math.Max(1.0, p.MassKg - kg),
+        Math.Max(1.0, p.Ixx - kg * (d.Y * d.Y + d.Z * d.Z)),
+        Math.Max(1.0, p.Iyy - kg * (d.X * d.X + d.Z * d.Z)),
+        Math.Max(1.0, p.Izz - kg * (d.X * d.X + d.Y * d.Y)),
+        p.Ixz - kg * d.X * d.Z);
 
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
     {
@@ -334,7 +396,7 @@ public sealed partial class Aircraft
     /// Ignored once damage owns the tensor.</summary>
     public void ApplyLoad()
     {
-        if (!_massOwnedByDamage) MassProperties = Load.Properties;
+        if (!_massOwnedByDamage) MassProperties = Shed(Load.Properties);
     }
 
     /// <summary>Fuel mass burned per second at the current throttle. Shaft power is MaxPowerW x throttle
@@ -362,6 +424,14 @@ public sealed partial class Aircraft
     /// panel in bending as lift does. A fuselage thumping onto the ground decelerates the aeroplane at several g without the
     /// wing lifting at all; that load reaches a panel only through its own contact points (AircraftContactDamage).</summary>
     public double AeroLoadFactorZ { get; private set; } = 1.0;
+
+    /// <summary>
+    /// Specific force, body axes, m/s²: every non-gravitational force on the airframe over its mass, at the last
+    /// force evaluation of the step — what an accelerometer, a compass float or an inclinometer ball feels.
+    /// (0, 0, −g) in level flight. Unlike <see cref="LoadFactorZ"/> it includes buoyancy, because a float in
+    /// a compass bowl feels the water holding the aeroplane up just as it feels the wing.
+    /// </summary>
+    public Vec3 SpecificForceBody { get; private set; } = new(0, 0, -9.80665);
 
     /// <summary>Engine speed (rpm) for piston/prop types from the prop model's throttle→rpm law; 0 for gliders.
     /// Jets (PropDiameterM == 0) report a pseudo-N1 0..100 as MaxRpm-scaled throttle.</summary>
@@ -575,10 +645,6 @@ public sealed partial class Aircraft
         ComponentLost?.Invoke(comp);
     }
 
-    /// <summary>Where the remaining airframe's CG is relative to Config.Mass.Cg, body frame, m. Zero until something
-    /// with mass breaks off (<see cref="ShedMass"/>).</summary>
-    public Vec3 CgShiftBody { get; private set; }
-
     /// <summary>
     /// Take the mass of elements that have left the airframe off the rigid body. Every force and moment in this class
     /// is taken about Config.Mass.Cg (the reference point P), so P stays the reference and the remainder's true CG is
@@ -614,7 +680,8 @@ public sealed partial class Aircraft
         MassProperties mp = MassProperties;
         double m1 = mp.MassKg - dm;
         if (m1 <= 1.0) return;   // nothing would be left: a broken config, keep the body as it is
-        CgShiftBody = (CgShiftBody * mp.MassKg - first) / m1;
+        // One account of what has left, shared with ShedMass(kg, point) (a departed canopy): CgShiftBody = −Σm·r / m'.
+        ShedMassKg += dm; _shedMoment += first;
         // Exactly what the piece takes, so linear AND angular momentum are conserved at the separation (the piece leaves
         // with the same ω and with v + ω×r: WreckSim.Add). Until 2026-11-03 the remainder was floored at the inertia of the
         // wreck model's remaining boxes; those boxes carry 1.3–2.3× the config's published inertia (Raymer's 12.2 kg/m² on
@@ -626,7 +693,8 @@ public sealed partial class Aircraft
         // that axis); there conservation cannot hold whatever is done, and a remnant lighter in inertia than its own parts
         // is a stiff rigid body the contact springs drive unstable (a C172 cabin left alone went 6 → 387 m/s in a step).
         double bx = 0, by = 0, bz = 0;
-        foreach (var e in Hydro.Attached) Box(e, ref bx, ref by, ref bz);
+        var attached = Hydro.Attached;
+        for (int k = 0; k < attached.Count; k++) Box(attached[k], ref bx, ref by, ref bz);
         // And a separation never ADDS inertia: where the boxes already carry more than the aeroplane has (the Extra's pitch
         // axis, its engine far forward of a light config Iyy), the floor is what it had.
         double Floor(double i, double boxes, double had, string axis)
@@ -1035,7 +1103,9 @@ public sealed partial class Aircraft
         double tau = instantFrac > _wakeStalledFrac ? Config.StallDynamics.WakeGrowTau : Config.StallDynamics.WakeDecayTau;
         _wakeStalledFrac += (instantFrac - _wakeStalledFrac) * (1.0 - Math.Exp(-dt / tau));
 
-        int stripCount = Config.Surfaces.Sum(s => s.Strips.Count);
+        // A loop, not LINQ's Sum: that boxes the list's enumerator at every step (QuestFrameBudgetProbe).
+        int stripCount = 0;
+        for (int i = 0; i < Config.Surfaces.Count; i++) stripCount += Config.Surfaces[i].Strips.Count;
         _flowState.EnsureSize(stripCount);
 
         // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R.
@@ -1048,9 +1118,12 @@ public sealed partial class Aircraft
         // wheels found well clear on the first can skip the other three (AirframeContact.StageCullMargin).
         int stage = -1;
         double stepDt = dt;
+        double stepTravel = 11.0 * (State.Velocity.Length + State.Rates.Length * 10.0) * dt, stepClearance = double.PositiveInfinity;
         bool groundClear = AirframeContact.StageCullEnabled && WorldTerrain.Active != null && _contacts.Count > 0
-            && AirframeContact.ClearOfTheGround(_contacts, _wheelBodies, Config.Mass.CgVec(), State,
-                   11.0 * (State.Velocity.Length + State.Rates.Length * 10.0) * dt);
+            && AirframeContact.ClearOfTheGround(_contacts, _wheelBodies, Config.Mass.CgVec(), State, stepTravel, out stepClearance);
+        // Well inside 60 m of the ground (sitting on it, taxiing, landing): no stage can be clear, so the hard points
+        // skip that test at each stage too.
+        bool stagesNotClear = AirframeContact.StageCullEnabled && !groundClear && AirframeContact.StageCannotBeClear(stepClearance, stepTravel);
 
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
@@ -1087,7 +1160,7 @@ public sealed partial class Aircraft
             {
                 double rudderCmdW = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
                 long tFl = SimProfile.Begin();
-                (Vec3 hF, Vec3 hM) = FloatHydro.Compute(Config, s, rudderCmdW);
+                (Vec3 hF, Vec3 hM) = FloatHydro.Compute(Config, s, rudderCmdW, WaterRudderUp01);
                 SimProfile.End(SimProfile.Scope.Floats, tFl);
                 totalF += s.Attitude.Conjugate().Rotate(hF);
                 totalM += s.Attitude.Conjugate().Rotate(hM);
@@ -1135,6 +1208,18 @@ public sealed partial class Aircraft
                 double vA = vAir.Length;
                 if (vA > 1.0) totalF -= vAir * (0.5 * airDensity * vA * Config.GearDragAreaM2 * GearExtension);
             }
+            if (ExtraDragAreaM2 > 0)
+            {
+                Vec3 vAir = s.Velocity - windBody;
+                double vA = vAir.Length;
+                if (vA > 1.0)
+                {
+                    Vec3 xF = vAir * (-0.5 * airDensity * vA * ExtraDragAreaM2);
+                    ForceDebug.Add(ExtraDragPointBody, xF, Vec3.Zero, "extra-drag");
+                    totalF += xF;
+                    totalM += Vec3.Cross(ExtraDragPointBody - Config.Mass.CgVec(), xF);
+                }
+            }
             if (Brs.Out && Config.Brs is not null)
             {
                 // The whole-aircraft parachute. Applied at the bridle, which is above the CG — that offset is
@@ -1159,7 +1244,7 @@ public sealed partial class Aircraft
                 // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).
                 long tCt = SimProfile.Begin();
                 (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, 0.0, _impacts,
-                    Config.Floats is not null, waterByHydro: true, stage, stepDt);
+                    Config.Floats is not null, waterByHydro: true, stage, stepDt, stagesNotClear);
                 SimProfile.End(SimProfile.Scope.Contact, tCt);
                 totalF += s.Attitude.Conjugate().Rotate(cF);
                 totalM += s.Attitude.Conjugate().Rotate(cM);
@@ -1183,6 +1268,7 @@ public sealed partial class Aircraft
             Vec3 nonGrav = totalF - gravityBody - waterF;
             LoadFactorZ = weightN > 1e-9 ? -nonGrav.Z / weightN : 1.0;
             AeroLoadFactorZ = weightN > 1e-9 ? -aeroForce.Z / weightN : 1.0;
+            if (MassProperties.MassKg > 1e-9) SpecificForceBody = (totalF - gravityBody) / MassProperties.MassKg;
             return (totalF, totalM);
         }
 
@@ -1223,6 +1309,15 @@ public sealed partial class Aircraft
         {
             double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
             LandingGear.UpdateTailwheel(Config, State, Tailwheel, rudderCmd, dt);
+        }
+        if (HasWaterRudderRetract)
+        {
+            if (WaterRudderHeldUp01 is double held) WaterRudderUp01 = Math.Clamp(held, 0.0, 1.0);
+            else
+            {
+                double target = WaterRudderHooked ? 1.0 : 0.0, step = dt / WaterRudderTravelSec;
+                WaterRudderUp01 = WaterRudderUp01 < target ? Math.Min(target, WaterRudderUp01 + step) : Math.Max(target, WaterRudderUp01 - step);
+            }
         }
         if (Config.RetractableGear)
         {

@@ -1,0 +1,20 @@
+[
+  {
+    "model": "unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb",
+    "sha256": "d59a3a19f2246e5d3739b6b24cc22d1fba59dca5d8c0e5dbbee8d35b469e55b6",
+    "nodes": 161,
+    "bindings": 104,
+    "required_bindings": 45,
+    "graph": "unique names, one parent, no cycles, no orphan nodes",
+    "result": "PASS"
+  },
+  {
+    "model": "renders/c172/v1/c172-interior.glb",
+    "sha256": "2d6e907df9d4f58aa2227a300153c2fd153304e56e8733179bf4f93c3552f773",
+    "nodes": 133,
+    "bindings": 104,
+    "required_bindings": 45,
+    "graph": "unique names, one parent, no cycles, no orphan nodes",
+    "result": "PASS"
+  }
+]

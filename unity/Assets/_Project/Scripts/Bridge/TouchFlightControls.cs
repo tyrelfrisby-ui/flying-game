@@ -181,6 +181,7 @@ namespace FlyingGame.Bridge
                 _throttle = AxisForFraction(k);
             }
             _leftKnob = IdleLeftKnob();
+            _vrHandle = -1f;
             float t = (float)_driver.TrimStick / Mathf.Max(0.01f, TrimAuthority);
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
             // Aileron and rudder trim start centred on every new flight, like the pitch trim starts on the spawn's: the
@@ -189,7 +190,8 @@ namespace FlyingGame.Bridge
             _aileronTrim = _rudderTrim = 0f;
         }
 
-        private string _layoutKey;
+        private ((int, int, bool, bool, bool, bool, bool), (bool, float, float, float, float, float, float), (bool, bool, bool, bool, bool, bool, bool)) _layoutKey;
+        private bool _layoutKeySet;
 
         private void Update()
         {
@@ -197,9 +199,14 @@ namespace FlyingGame.Bridge
             // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
             _egress ??= GetComponent<PilotEgress>();
             Rect ko = ScreenLayout.AircraftKeepOut;
-            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}|{UiLayout.SafeBottom}|{UiLayout.SafeLeft}|{UiLayout.SafeRight}|{BailAvailable}|{EjectAvailable}|{TouchSticksHidden}|{EngineBelowWanted}|{SmokeAvailable}|{_driver.HasFlaps}|{_driver.Sim?.Aircraft?.Config?.RetractableGear == true}";
-            if (key != _layoutKey) { _layoutKey = key; LayOut(); }
+            // A value tuple, not a string: this runs every frame, and an interpolated key was ~10 boxed values and a
+            // string of garbage a frame for the collector (docs/quest-performance.md).
+            var key = ((Screen.width, Screen.height, StripElevator, StripThrottle, StripBrakes, FireAvailable, HasEjectionSeat),
+                       (_driver.Sim?.Aircraft?.Config?.Propulsion == null, ko.yMin, ko.xMin, ko.xMax, UiLayout.SafeBottom, UiLayout.SafeLeft, UiLayout.SafeRight),
+                       (BailAvailable, EjectAvailable, TouchSticksHidden, EngineBelowWanted, SmokeAvailable, _driver.HasFlaps, _driver.Sim?.Aircraft?.Config?.RetractableGear == true));
+            if (!_layoutKeySet || !key.Equals(_layoutKey)) { _layoutKey = key; _layoutKeySet = true; LayOut(); }
             JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
+            RudderPedals.Tick();   // (hot-plug and the calibration's live readout work with the menus open, too)
             GamepadMenuButtons();   // (Menu has to be able to CLOSE the options panel, so this runs with it open)
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive)
             {
@@ -212,6 +219,7 @@ namespace FlyingGame.Bridge
             ReadPointers();
             if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
             GamepadFlight();
+            QuestInput();   // last: in the headset the Touch controllers and the hands own the controls they move
             PublishToDriver();
         }
 
@@ -737,6 +745,10 @@ namespace FlyingGame.Bridge
                         break;
                     case Btn.Gear:
                         if (ac?.Config?.RetractableGear == true) ac.SetGear(!ac.GearDown);
+                        // Floatplanes with a water-rudder retract (the J-3 floats, Ty 2026-11-02 t278u): the same slot
+                        // hangs the red handle on the front-seat hook (rudder UP) or lets it go (spring: DOWN). In VR the
+                        // hand does it on the handle itself (CockpitWaterRudder); this is the phone / controller way.
+                        else if (ac != null && ac.HasWaterRudderRetract && ac.WaterRudderHeldUp01 == null) ac.ToggleWaterRudder();
                         break;
                     case Btn.Smoke:
                         if (SmokeAvailable) _smoke.Toggle();
@@ -775,7 +787,7 @@ namespace FlyingGame.Bridge
             {
                 // Throttle strip: bottom = idle, top = full (lever travel the whole strip height).
                 float t01 = Mathf.Clamp01((pos.y - _thrStrip.y) / Mathf.Max(1f, _thrStrip.height));
-                if (StripBrakes) { _stripBrake01 = 1f - t01; _rudder = 0f; return; }   // brakes / spoiler: top = off, pull DOWN = more
+                if (StripBrakes) { _stripBrake01 = 1f - t01; _rudder = 0f; _vrHandle = -1f; return; }   // brakes / spoiler: top = off, pull DOWN = more
                 _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * t01);
                 _rudder = 0f;
                 return;
@@ -907,11 +919,20 @@ namespace FlyingGame.Bridge
             if (_egress != null && _egress.PilotOut) return;
 
             (float throttle01, float padBrake) = SplitLeftAxis();
-            float brake = Mathf.Max(padBrake, _brakeHeld ? 1f : 0f);
+            float brake = Mathf.Max(Mathf.Max(padBrake, _brakeHeld ? 1f : 0f), _questBrake);
             bool poweredNow = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             if (StripMode && StripBrakes) brake = poweredNow ? _stripBrake01 : Mathf.Clamp01((_stripBrake01 - 0.85f) / 0.15f);
-            _driver.Sim.Aircraft.BrakeInput = brake;
-            _driver.Sim.Aircraft.BrakeBias = brake > 0f ? Mathf.Clamp(_rudder * BrakeRudderBias, -1f, 1f) : 0f;
+            // A glider's dive-brake handle moved by a hand in the headset (VrCockpitHands): its last 15 % is the wheel
+            // brake, the same band as the strip's. The spoiler itself is already on the knob (SetSpoilerHandle).
+            if (!poweredNow && _vrHandle >= 0f) brake = Mathf.Max(brake, (float)FlyingGame.Core.Vr.SpoilerHandle.WheelBrake(_vrHandle));
+            // RUDDER PEDALS (docs/RUDDER-PEDALS.md) join here, so there is still one input path: each wheel gets the
+            // harder of its toe brake and the hand's brake (biased by the hand's rudder, as before), carried to the
+            // sim as its brake + bias; the rudder below adds the pedals to the hand's. No pedals = exactly as before.
+            FlyingGame.Core.PedalFrame pedals = RudderPedals.Frame;
+            float handBias = brake > 0f ? Mathf.Clamp(_rudder * BrakeRudderBias, -1f, 1f) : 0f;
+            (double simBrake, double simBias) = FlyingGame.Core.PedalBlend.Combine(brake, handBias, pedals);
+            _driver.Sim.Aircraft.BrakeInput = simBrake;
+            _driver.Sim.Aircraft.BrakeBias = simBias;
             // Trim biases the elevator like a real trim tab: hands-off stick still holds the trimmed attitude.
             float trim = (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority;
             // ThrottleLever: -1 = full forward (full power), +1 = full aft (idle). Powered: lever = 1 - 2·throttle01.
@@ -926,8 +947,152 @@ namespace FlyingGame.Bridge
             // With a gamepad connected a centred thumb stick holds the surfaces unless the player chose stick-free
             // (OPTIONS › Controls, off by default with a pad; GamepadShaping.ControlsFree). Read every frame: hot-plug flips it.
             // FlyingGame.Sim.PilotControls is the composition (engine-free, so the launch tests fly the same one).
-            _driver.Inputs = PilotControls.Compose(_aileron, _elevator, _rudder, _aileronTrim * TrimAuthority, trim, _rudderTrim * TrimAuthority,
-                lever, _rightFinger != int.MinValue, _leftFinger != int.MinValue, GamepadInput.Now.Connected, SessionSettings.GamepadStickFree);
+            // A hand in the headset on the cockpit's stick is never "let go"; feet on the rudder pedals hold the rudder,
+            // and the pedals' rudder adds to the hand's (PedalBlend).
+            double rudderIn = FlyingGame.Core.PedalBlend.Rudder(_rudder, pedals);
+            _driver.Inputs = PilotControls.Compose(_aileron, _elevator, rudderIn, _aileronTrim * TrimAuthority, trim, _rudderTrim * TrimAuthority,
+                lever, _rightFinger != int.MinValue || _vrStickHeld, _leftFinger != int.MinValue || pedals.Active,
+                GamepadInput.Now.Connected, SessionSettings.GamepadStickFree);
+        }
+
+        // ---- Meta Quest (native OpenXR headset) -------------------------------
+        // The Touch controllers feed the SAME state the pads and a joystick feed (aileron, elevator, rudder, the
+        // sticky throttle knob, trim, brakes, the tap buttons), so the flight model has one input path. The mapping
+        // itself is QuestControlMapper in Core (tested in QuestControlsTests); the table is docs/quest-controls.md.
+
+        private readonly FlyingGame.Core.Vr.QuestControlMapper _quest = new();
+        private float _questBrake;
+        private bool _questFlying, _questWaitRelease;
+        /// <summary>A headset hand is holding the cockpit's own stick (VrCockpitHands): the stick is held even at neutral.</summary>
+        private bool _vrStickHeld;
+        /// <summary>Where a hand in the headset last left a glider's dive-brake handle, 0..1, or −1 when the knob (a
+        /// thumbstick, a pad, a reset) has moved it since. Only its wheel-brake band needs keeping: the spoiler part is
+        /// written into the knob itself, so everything else carries on from there.</summary>
+        private float _vrHandle = -1f;
+
+        /// <summary>The glider's dive-brake handle, 0 stowed .. 1 full aft (the last 15 % the wheel brake): the hand's
+        /// own value while it has one, else where the knob or the strip puts it (<see cref="FlyingGame.Core.Vr.SpoilerHandle"/>).</summary>
+        public float SpoilerHandle01
+        {
+            get
+            {
+                if (_vrHandle >= 0f) return _vrHandle;
+                if (StripMode && StripBrakes) return _stripBrake01;
+                (_, float padBrake) = SplitLeftAxis();
+                return (float)FlyingGame.Core.Vr.SpoilerHandle.FromKnob(SpoilerFraction, padBrake);
+            }
+        }
+
+        /// <summary>A hand moved the dive-brake handle: the knob (and the strip) go to its spoiler, and its wheel-brake
+        /// band is kept until something else moves the knob. Released, it stays: nothing springs it back.</summary>
+        public void SetSpoilerHandle(float handle01)
+        {
+            handle01 = Mathf.Clamp01(handle01);
+            _vrHandle = handle01;
+            _throttle = AxisForFraction((float)FlyingGame.Core.Vr.SpoilerHandle.KnobFor(handle01, IdleFraction));
+            _leftKnob = IdleLeftKnob();
+            _stripBrake01 = handle01;
+        }
+
+        /// <summary>The pitch-trim LEVER, −1 full forward (nose down) .. +1 full aft (nose up): the rig's `trim`, i.e. the
+        /// negative of the elevator bias (AirframeVisual.RigInputsNow). Setting it moves the same trim the slider, the
+        /// keys and the A / B buttons move.</summary>
+        public float PitchTrimLever
+        {
+            get => InvertElevator ? _pitchTrim : -_pitchTrim;
+            set => _pitchTrim = Mathf.Clamp(InvertElevator ? value : -value, -1f, 1f);
+        }
+
+        /// <summary>The hands on the cockpit's own controls, into the same state the thumbsticks feed. Runs with
+        /// controllers or with tracked hands alone.</summary>
+        private void ApplyCockpitHands(VrCockpitHands hands)
+        {
+            if (hands == null) return;
+            VrCockpitHands.GateRightFinger = _rightFinger; VrCockpitHands.GateLeftFinger = _leftFinger;   // (the [VrHands] line)
+            // A hand on the stick owns pitch and roll unless a thumbstick is pushed past its dead zone
+            // (HandPadArbiter); rudder and throttle stay with the pad unless a hand holds the throttle lever.
+            if (hands.StickHeld && !hands.PadOwnsStick && _rightFinger == int.MinValue)
+            {
+                // The held stick, in the sim's own sense (already linear in stick angle), less the trim this class adds
+                // back in PublishToDriver: the surface goes where the hand put the stick, trimmed or not.
+                _aileron = Mathf.Clamp(hands.AileronInput - TrimAileron, -1f, 1f);
+                _elevator = Mathf.Clamp(hands.ElevatorInput - TrimElevator, -1f, 1f);
+                _vrStickHeld = true;
+            }
+            if (_leftFinger == int.MinValue)
+            {
+                if (hands.ThrottleHeld) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * hands.Throttle01); _leftKnob = IdleLeftKnob(); }
+                if (hands.SpoilerHandleHeld) SetSpoilerHandle(hands.SpoilerHandle01);
+            }
+            if (hands.TrimLeverHeld && _trimFinger == int.MinValue) PitchTrimLever = hands.TrimLever;
+        }
+
+        private void QuestInput()
+        {
+            _questBrake = 0f;
+            _vrStickHeld = false;
+            if (!XrHeadset.Active) { _questFlying = false; return; }
+            // The press that closed the VR menu (A, B, X, Y, a trigger) must not carry on into trim, flaps or guns:
+            // after the menu, nothing is read until every button is up.
+            if (XrHeadset.MenuOpen) { _questWaitRelease = true; return; }
+            var f = XrControllers.Read(out bool any);
+            if (!any || f.HandsOnly)
+            {
+                // Controllers put down or asleep: LET GO of the stick and rudder rather than holding the last
+                // deflection (a stick latched full right would keep rolling). The throttle is a lever and stays.
+                if (_questFlying && _rightFinger == int.MinValue) { _aileron = 0f; _elevator = 0f; }
+                if (_questFlying && _leftFinger == int.MinValue) _rudder = 0f;
+                _questFlying = false;
+                // Tracked hands still reach the cockpit's own controls (docs/vr-cockpit.md, "Hands").
+                VrCockpitHands th = VrCockpitHands.Current;
+                if (th != null) { th.PadOwnsStick = false; th.Tick(); ApplyCockpitHands(th); }
+                return;
+            }
+            if (_questWaitRelease)
+            {
+                if (f.A || f.B || f.X || f.Y || f.LeftTrigger > 0.2 || f.RightTrigger > 0.2 || f.LeftStickClick || f.RightStickClick) return;
+                _questWaitRelease = false;
+            }
+            _questFlying = true;
+            float dt = Time.unscaledDeltaTime;
+            _quest.InvertElevator = InvertElevator;
+            (float thr01, _) = SplitLeftAxis();
+            // In the cockpit the grips belong to the hands on the aeroplane's own controls (VrCockpitHands): the
+            // mapper's grab-anywhere throttle and the smoke toggle only see a grip that isn't closing on a control.
+            VrCockpitHands hands = VrCockpitHands.Current;
+            if (hands != null) { hands.PadOwnsStick = FlyingGame.Core.Vr.HandPadArbiter.PadStickActive(f.RightX, f.RightY); hands.Tick(); hands.MaskGrips(ref f); }
+            var c = _quest.Step(f, dt, thr01);
+            if (_rightFinger == int.MinValue) { _aileron = (float)c.Aileron; _elevator = (float)c.Elevator; }
+            if (_leftFinger == int.MinValue)
+            {
+                _rudder = (float)c.Rudder;
+                if (c.ThrottleMoved) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * (float)c.Throttle01); _leftKnob = IdleLeftKnob(); _vrHandle = -1f; }
+            }
+            _questBrake = (float)c.Brake;
+            if (c.PitchTrimRate != 0.0) _pitchTrim = Mathf.Clamp(_pitchTrim + (float)c.PitchTrimRate * dt, -1f, 1f);
+            ApplyCockpitHands(hands);
+            var ac = _driver.Sim?.Aircraft;
+            if ((c.FlapsDown || c.FlapsUp) && ac != null)
+            {
+                // From where the flaps ARE (a lesson or a reset may have set them), one notch at a time.
+                int step = Mathf.Clamp(Mathf.RoundToInt((float)ac.FlapFraction * 2f) + (c.FlapsDown ? 1 : -1), 0, 2);
+                _deskFlapStep = step; _flapTapThird = step; _tapped.Add(Btn.Flaps);
+            }
+            if (c.Gear) _tapped.Add(ac?.Config?.Propulsion == null ? Btn.Tow : Btn.Gear);   // a glider has no gear: the stick click is TOW / RELEASE
+            if (c.Smoke) _tapped.Add(Btn.Smoke);
+            _combat ??= GetComponent<CombatController>();
+            if (c.Fire && FireAvailable && _combat != null) _combat.Firing = true;
+            ActOnTaps();
+        }
+
+        // The VR menu's handles on the buttons a pilot would otherwise tap on the glass.
+        public void MenuReset() => DoReset();
+        public bool MenuHandleAvailable => EjectAvailable || BailAvailable;
+        public string MenuHandleLabel => EjectAvailable ? "Eject" : HasBrs ? "Deploy BRS" : "Bail out";
+        public void MenuPullHandle()
+        {
+            if (EjectAvailable) _egress.Eject();
+            else if (BailAvailable) PullTheHandle();
         }
 
         // ---- shaping helpers -------------------------------------------------
@@ -985,6 +1150,10 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            // In a headset a screen-space overlay smears across both eyes at the wrong depth. Codex's
+            // VR HUD replaces these; the MENUS deliberately keep drawing, or there would be no way to
+            // switch VR back off.
+            if (VrMode.SuppressFlatOverlays) return;
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) return;   // the replay bar owns the tray
             EnsureStyles();
 
@@ -1074,6 +1243,13 @@ namespace FlyingGame.Bridge
             {
                 var acg = _driver.Sim.Aircraft;
                 string lbl = acg.GearDown ? (acg.GearExtension < 0.99 ? "GEAR ↓ …" : "GEAR UP") : (acg.GearExtension > 0.01 ? "GEAR ↑ …" : "GEAR DOWN");
+                Button(_gearRect, lbl);
+            }
+            else if (_driver.Sim?.Aircraft is { HasWaterRudderRetract: true } acw)
+            {
+                // Says what a tap will do, like GEAR; the dots while the cable is still travelling.
+                double u = acw.WaterRudderUp01;
+                string lbl = acw.WaterRudderHooked ? (u < 0.99 ? "W.RUDDER ↑ …" : "W.RUDDER DOWN") : (u > 0.01 ? "W.RUDDER ↓ …" : "W.RUDDER UP");
                 Button(_gearRect, lbl);
             }
             // SMOKE (owner 2026-10-31): a full-time button like GEAR, lit while the oil is on. Shown for anything that

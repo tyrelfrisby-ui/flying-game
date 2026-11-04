@@ -219,7 +219,9 @@ def main():
     if '--json' in sys.argv: print(json.dumps(report, indent=1, default=str))
     # The gate: every type the Quest lists (FlyingGame.Core.Vr.QuestFleet.Listed), drawn by the GLB the game places
     # for it, has nothing within 12 cm of the eye of every seat the headset offers (QuestFleet.SeatsOnly: the J-3 is
-    # flown from the rear only, its front eye has a cabin tube 9 cm away). Keep this list in step with QuestFleet.
+    # flown from the rear only; its front eye had a ceiling tube 9 cm away until the v16 tubes went up under the skylight,
+    # 2026-11-02: front now clear too, but the headset offers the rear until Ty says otherwise). Keep this list in step
+    # with QuestFleet.
     quest = {'pitts-s2b-like-own-checker-unmarked.glb': None, 'extra-300-like-own-unmarked.glb': None,
              'great-lakes-like-own.glb': None, 'glider-2-33-like-own-tf.glb': None,
              'j3-cub-like-own.glb': ['rear'], 'j3-cub-floats-like-own.glb': ['rear']}

@@ -1,0 +1,4421 @@
+{
+ "model": "pitts-s2b-like-own",
+ "rig": [
+  {
+   "node": "Pedal_L_Front",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    -0.535,
+    0.13
+   ],
+   "map": [
+    [
+     -1,
+     15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_R_Front",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    -0.535,
+    -0.13
+   ],
+   "map": [
+    [
+     -1,
+     -15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_L_Rear",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43,
+    -0.535,
+    0.285
+   ],
+   "map": [
+    [
+     -1,
+     15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Pedal_R_Rear",
+   "param": "rudder",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43,
+    -0.535,
+    -0.285
+   ],
+   "map": [
+    [
+     -1,
+     -15
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     15
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "StickRoll_Front",
+   "param": "aileron",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.17,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -18
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Stick_Front",
+   "param": "elevator",
+   "parent": "StickRoll_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.17,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -12
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Throttle_Front",
+   "param": "throttle",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.4,
+    -0.18,
+    0.2679972883068913
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     50
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "StickRoll_Rear",
+   "param": "aileron",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.93,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -18
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Stick_Rear",
+   "param": "elevator",
+   "parent": "StickRoll_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    0.93,
+    -0.58,
+    0.0
+   ],
+   "map": [
+    [
+     -1,
+     -12
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     18
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Throttle_Rear",
+   "param": "throttle",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.12,
+    -0.18,
+    0.22354792851489283
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     50
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Slide",
+   "param": "canopy_open",
+   "parent": "Canopy_Detachable",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8,
+    0.16,
+    -0.36
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.2,
+     0.1016
+    ],
+    [
+     1,
+     0.1016
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "S-2B 4 inch estimated aft track; slide first, then hinge",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy",
+   "param": "canopy_open",
+   "parent": "Canopy_Slide",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8,
+    0.16,
+    -0.36
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.2,
+     0
+    ],
+    [
+     1,
+     100
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Right side hinge; estimated 100 degree stop; first 20 percent is aft slide",
+   "extra": {
+    "detachable_root": "Canopy_Detachable"
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Pin",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8550000000000001,
+    0.22039393939393942,
+    -0.0381
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0762
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Knob",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.8770000000000001,
+    0.24539393939393944,
+    -0.0381
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0762
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Pin_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.19999999999999998,
+    0.2212222222222222,
+    -0.0381
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0762
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Knob_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22199999999999998,
+    0.2462222222222222,
+    -0.0381
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0762
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Primary_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.2,
+    -0.265,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.3800000000000001,
+    -0.445,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.3800000000000001,
+    -0.445,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Secondary_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Secondary_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.2,
+    -0.31,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.3800000000000001,
+    -0.49,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.3800000000000001,
+    -0.49,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.45,
+    0.065,
+    0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.45,
+    0.065,
+    -0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Crotch_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.2550000000000001,
+    -0.42500000000000004,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     100
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Primary_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43000000000000005,
+    -0.265,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.61,
+    -0.445,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.61,
+    -0.445,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Secondary_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Secondary_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.43000000000000005,
+    -0.31,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.61,
+    -0.49,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.61,
+    -0.49,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.68,
+    0.065,
+    0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.68,
+    0.065,
+    -0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Crotch_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.48500000000000004,
+    -0.42500000000000004,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     100
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Jettison_Knob_Rear",
+   "param": "canopy_jettison",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.875,
+    0.18045,
+    -0.31840100440030916
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.04
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Right bow/sill junction confirmed by Ty 2026-11-02; estimated 40 mm inboard pull releases right hinge pins at any speed",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Jettison_Knob_Front",
+   "param": "canopy_jettison",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    0.19218518518518518,
+    -0.2573582321171389
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.04
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Right bow/sill junction confirmed by Ty 2026-11-02; estimated 40 mm inboard pull releases right hinge pins at any speed",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Magneto",
+   "param": "magneto",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.195
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     30
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     90
+    ],
+    [
+     4,
+     130
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Master",
+   "param": "master",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.226
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.257
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.257
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.288
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.319
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.288
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Mixture",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.319
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Prop",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.35
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.35
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.195
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_selector",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.226
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     180
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.1395
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.10850000000000001
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume",
+   "param": "com_volume",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.07750000000000001
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     270
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.046500000000000014
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.015500000000000014
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.015499999999999986
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.046499999999999986
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.07749999999999999
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.10849999999999999
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.1395
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Magneto_Front",
+   "param": "magneto",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.195
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     30
+    ],
+    [
+     2,
+     60
+    ],
+    [
+     3,
+     90
+    ],
+    [
+     4,
+     130
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Master_Front",
+   "param": "master",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.226
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.257
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.257
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.288
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.319
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.288
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Mixture_Front",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.319
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_Prop_Front",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.35
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.35
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.195
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_selector",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.226
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     180
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.1395
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.10850000000000001
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume_Front",
+   "param": "com_volume",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.07750000000000001
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     270
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.046500000000000014
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.015500000000000014
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.015499999999999986
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.046499999999999986
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.07749999999999999
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.10849999999999999
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.1395
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  }
+ ],
+ "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.",
+ "controls": [
+  {
+   "node": "Ctl_Rotary_Magneto",
+   "param": "magneto",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.195
+   ],
+   "travel": 130,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    4
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "detent_count": 5,
+   "spring_return": true,
+   "spring_return_from": 4,
+   "spring_return_to": 3,
+   "poke": "Poke_Magneto",
+   "grip": "Grip_Magneto",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_Master",
+   "param": "master",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.226
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Master",
+   "grip": "Grip_Master",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.257
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelPump",
+   "grip": "Grip_FuelPump",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.257
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_NavLights",
+   "grip": "Grip_NavLights",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.288
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Strobe",
+   "grip": "Grip_Strobe",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.319
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_LandingLight",
+   "grip": "Grip_LandingLight",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.288
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Smoke",
+   "grip": "Grip_Smoke",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_PushPull_Mixture",
+   "param": "mixture",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.319
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Mixture",
+   "grip": "Grip_Mixture",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_PushPull_Prop",
+   "param": "prop",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.35
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Prop",
+   "grip": "Grip_Prop",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.35
+   ],
+   "travel": 35,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_AlternateAir",
+   "grip": "Grip_AlternateAir",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.195
+   ],
+   "travel": 300,
+   "travel_unit": "deg",
+   "sim_ends": [
+    -1,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Trim",
+   "grip": "Grip_Trim",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_selector",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    -0.226
+   ],
+   "travel": 180,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    2
+   ],
+   "detents": [
+    0,
+    1,
+    2
+   ],
+   "detent_count": 3,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector",
+   "grip": "Grip_FuelSelector",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.1395
+   ],
+   "travel": 540,
+   "travel_unit": "deg",
+   "sim_ends": [
+    118,
+    136
+   ],
+   "detents": [
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136
+   ],
+   "detent_count": 19,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComOuter",
+   "grip": "Grip_ComOuter",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment",
+   "step": 1,
+   "wrap": [
+    118,
+    136.975
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.10850000000000001
+   ],
+   "travel": 360,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    0.975
+   ],
+   "detents": [
+    0.0,
+    0.025,
+    0.05,
+    0.07500000000000001,
+    0.1,
+    0.125,
+    0.15000000000000002,
+    0.17500000000000002,
+    0.2,
+    0.225,
+    0.25,
+    0.275,
+    0.30000000000000004,
+    0.325,
+    0.35000000000000003,
+    0.375,
+    0.4,
+    0.42500000000000004,
+    0.45,
+    0.47500000000000003,
+    0.5,
+    0.525,
+    0.55,
+    0.5750000000000001,
+    0.6000000000000001,
+    0.625,
+    0.65,
+    0.675,
+    0.7000000000000001,
+    0.7250000000000001,
+    0.75,
+    0.775,
+    0.8,
+    0.8250000000000001,
+    0.8500000000000001,
+    0.875,
+    0.9,
+    0.925,
+    0.9500000000000001,
+    0.9750000000000001
+   ],
+   "detent_count": 40,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComInner",
+   "grip": "Grip_ComInner",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment_fraction",
+   "step": 0.025,
+   "alternative_step_mhz": 0.008333333333333333,
+   "channel_spacing_requires_owner_choice": true,
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume",
+   "param": "com_volume",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.07750000000000001
+   ],
+   "travel": 270,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComVolume",
+   "grip": "Grip_ComVolume",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.046500000000000014
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComSwap",
+   "grip": "Grip_ComSwap",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    -0.015500000000000014
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit1",
+   "grip": "Grip_XpdrDigit1",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1000,
+   "wrap": [
+    0,
+    7
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.015499999999999986
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit2",
+   "grip": "Grip_XpdrDigit2",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 100,
+   "wrap": [
+    0,
+    7
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.046499999999999986
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit3",
+   "grip": "Grip_XpdrDigit3",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 10,
+   "wrap": [
+    0,
+    7
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.07749999999999999
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit4",
+   "grip": "Grip_XpdrDigit4",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1,
+   "wrap": [
+    0,
+    7
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "kind": "Rotary",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.10849999999999999
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    3
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "detent_count": 4,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrMode",
+   "grip": "Grip_XpdrMode",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    0.0772,
+    0.1395
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrIdent",
+   "grip": "Grip_XpdrIdent",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_Magneto_Front",
+   "param": "magneto",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.195
+   ],
+   "travel": 130,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    4
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "detent_count": 5,
+   "spring_return": true,
+   "spring_return_from": 4,
+   "spring_return_to": 3,
+   "poke": "Poke_Magneto_Front",
+   "grip": "Grip_Magneto_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_Master_Front",
+   "param": "master",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.226
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Master_Front",
+   "grip": "Grip_Master_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.257
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelPump_Front",
+   "grip": "Grip_FuelPump_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.257
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_NavLights_Front",
+   "grip": "Grip_NavLights_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.288
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Strobe_Front",
+   "grip": "Grip_Strobe_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.319
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_LandingLight_Front",
+   "grip": "Grip_LandingLight_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.288
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Smoke_Front",
+   "grip": "Grip_Smoke_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_PushPull_Mixture_Front",
+   "param": "mixture",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.319
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Mixture_Front",
+   "grip": "Grip_Mixture_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_PushPull_Prop_Front",
+   "param": "prop",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.35
+   ],
+   "travel": 50,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Prop_Front",
+   "grip": "Grip_Prop_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    0.35
+   ],
+   "travel": 35,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_AlternateAir_Front",
+   "grip": "Grip_AlternateAir_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.195
+   ],
+   "travel": 300,
+   "travel_unit": "deg",
+   "sim_ends": [
+    -1,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Trim_Front",
+   "grip": "Grip_Trim_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Rotary_FuelSelector_Front",
+   "param": "fuel_selector",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    -0.096,
+    -0.226
+   ],
+   "travel": 180,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    2
+   ],
+   "detents": [
+    0,
+    1,
+    2
+   ],
+   "detent_count": 3,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_FuelSelector_Front",
+   "grip": "Grip_FuelSelector_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.1395
+   ],
+   "travel": 540,
+   "travel_unit": "deg",
+   "sim_ends": [
+    118,
+    136
+   ],
+   "detents": [
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136
+   ],
+   "detent_count": 19,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComOuter_Front",
+   "grip": "Grip_ComOuter_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment",
+   "step": 1,
+   "wrap": [
+    118,
+    136.975
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.10850000000000001
+   ],
+   "travel": 360,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    0.975
+   ],
+   "detents": [
+    0.0,
+    0.025,
+    0.05,
+    0.07500000000000001,
+    0.1,
+    0.125,
+    0.15000000000000002,
+    0.17500000000000002,
+    0.2,
+    0.225,
+    0.25,
+    0.275,
+    0.30000000000000004,
+    0.325,
+    0.35000000000000003,
+    0.375,
+    0.4,
+    0.42500000000000004,
+    0.45,
+    0.47500000000000003,
+    0.5,
+    0.525,
+    0.55,
+    0.5750000000000001,
+    0.6000000000000001,
+    0.625,
+    0.65,
+    0.675,
+    0.7000000000000001,
+    0.7250000000000001,
+    0.75,
+    0.775,
+    0.8,
+    0.8250000000000001,
+    0.8500000000000001,
+    0.875,
+    0.9,
+    0.925,
+    0.9500000000000001,
+    0.9750000000000001
+   ],
+   "detent_count": 40,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComInner_Front",
+   "grip": "Grip_ComInner_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "increment_fraction",
+   "step": 0.025,
+   "alternative_step_mhz": 0.008333333333333333,
+   "channel_spacing_requires_owner_choice": true,
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_ComVolume_Front",
+   "param": "com_volume",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.07750000000000001
+   ],
+   "travel": 270,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComVolume_Front",
+   "grip": "Grip_ComVolume_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.046500000000000014
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_ComSwap_Front",
+   "grip": "Grip_ComSwap_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    -0.015500000000000014
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit1_Front",
+   "grip": "Grip_XpdrDigit1_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1000,
+   "wrap": [
+    0,
+    7
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.015499999999999986
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit2_Front",
+   "grip": "Grip_XpdrDigit2_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 100,
+   "wrap": [
+    0,
+    7
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.046499999999999986
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit3_Front",
+   "grip": "Grip_XpdrDigit3_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 10,
+   "wrap": [
+    0,
+    7
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.07749999999999999
+   ],
+   "travel": 315,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    7
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "detent_count": 8,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrDigit4_Front",
+   "grip": "Grip_XpdrDigit4_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "octal_digit",
+   "digit_place": 1,
+   "wrap": [
+    0,
+    7
+   ],
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "kind": "Rotary",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.10849999999999999
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    3
+   ],
+   "detents": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "detent_count": 4,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrMode_Front",
+   "grip": "Grip_XpdrMode_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "kind": "PushPull",
+   "seat": "Front",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.152,
+    0.135,
+    0.1395
+   ],
+   "travel": 4,
+   "travel_unit": "mm",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": true,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_XpdrIdent_Front",
+   "grip": "Grip_XpdrIdent_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: COM / XPDR upper panel faceplates"
+  }
+ ],
+ "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."
+}

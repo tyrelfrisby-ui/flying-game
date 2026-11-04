@@ -18,15 +18,35 @@ public static class WorldDecks
     public interface IDeck { bool TopAt(double x, double y, out double topM); }
     /// <summary>A deck that MOVES (the carrier): its surface velocity at (x, y), world NED (m/s).</summary>
     public interface IMovingDeck : IDeck { Vec3 VelocityAt(double x, double y); }
-    public static readonly List<IDeck> All = new();
+    public static readonly TrackedList<IDeck> All = new();
+    /// <summary>Which decks can be under a point, in list order (the 128 the island has were every one asked by every
+    /// wheel and hard point at every RK4 stage).</summary>
+    public static readonly FootprintIndex<IDeck> Index = new(All);
+    private static int[]? _allIdx; private static IDeck[]? _allDecks; private static int _allVersion = -1;
+    /// <summary>The index's candidates, or every deck when <see cref="WorldSolids.IndexEnabled"/> is off (tests).</summary>
+    private static IDeck[] Candidates(double x, double y, out int[] at)
+    {
+        if (WorldSolids.IndexEnabled) return Index.Candidates(x, y, out at);
+        if (_allVersion != All.Version || _allDecks == null || _allIdx == null)
+        {
+            _allDecks = new IDeck[All.Count]; All.CopyTo(_allDecks, 0);
+            _allIdx = new int[All.Count]; for (int i = 0; i < _allIdx.Length; i++) _allIdx[i] = i;
+            _allVersion = All.Version;
+        }
+        at = _allIdx; return _allDecks;
+    }
 
     /// <summary>Velocity of the surface a wheel at height <paramref name="up"/> stands on — zero for the ground and fixed decks.
     /// The gear works with the wheel's motion RELATIVE to it, so an aircraft lands on, rolls on and is carried by a moving deck.</summary>
     public static Vec3 SurfaceVelocity(double x, double y, double up)
     {
         double best = double.NegativeInfinity; Vec3 v = Vec3.Zero;
-        foreach (IDeck d in All)
+        IDeck[] decks = Candidates(x, y, out int[] at);
+        for (int k = 0; k < at.Length; k++)
+        {
+            IDeck d = decks[at[k]];
             if (d.TopAt(x, y, out double t) && up >= t - 2.5 && t > best) { best = t; v = d is IMovingDeck m ? m.VelocityAt(x, y) : Vec3.Zero; }
+        }
         return v;
     }
 
@@ -34,15 +54,17 @@ public static class WorldDecks
     public static bool DeckUnder(double x, double y, double up, out double topM)
     {
         topM = double.NegativeInfinity; bool any = false;
-        foreach (IDeck d in All)
-            if (d.TopAt(x, y, out double t) && up >= t - 2.5 && t > topM) { topM = t; any = true; }
+        IDeck[] decks = Candidates(x, y, out int[] at);
+        for (int k = 0; k < at.Length; k++)
+            if (decks[at[k]].TopAt(x, y, out double t) && up >= t - 2.5 && t > topM) { topM = t; any = true; }
         return any;
     }
 
-    public sealed class Circle : IDeck
+    public sealed class Circle : IDeck, WorldSolids.IFootprint
     {
         public readonly double Cx, Cy, R, Top;
         public Circle(double cx, double cy, double r, double top) { Cx = cx; Cy = cy; R = r; Top = top; }
+        public void Footprint(out double x0, out double y0, out double x1, out double y1) { double r = R + 0.01; x0 = Cx - r; y0 = Cy - r; x1 = Cx + r; y1 = Cy + r; }
         public bool TopAt(double x, double y, out double topM) { topM = Top; return (x - Cx) * (x - Cx) + (y - Cy) * (y - Cy) <= R * R; }
     }
 }
@@ -181,9 +203,11 @@ public static class CanyonLake
                     yield return new Spire(x, y, 18, 14, SurfaceM - 50, n.FootM + n.OpeningM + 6);
     }
 
-    public sealed class SpireSolid : WorldSolids.IShape
+    public sealed class SpireSolid : WorldSolids.IShape, WorldSolids.IFootprint
     {
         private readonly Spire _s; public SpireSolid(Spire s) { _s = s; }
+        public void Footprint(out double x0, out double y0, out double x1, out double y1)
+        { double r = System.Math.Max(_s.BaseR, _s.TopR) + 0.01; x0 = _s.X - r; y0 = _s.Y - r; x1 = _s.X + r; y1 = _s.Y + r; }
         public bool Penetrate(double x, double y, double up, out Vec3 n, out double depth)
         {
             n = Vec3.Zero; depth = 0;
@@ -197,9 +221,16 @@ public static class CanyonLake
         }
     }
 
-    public sealed class ArchSolid : WorldSolids.IShape
+    public sealed class ArchSolid : WorldSolids.IShape, WorldSolids.IFootprint
     {
         private readonly NaturalArch _a; public ArchSolid(NaturalArch a) { _a = a; }
+        /// <summary>Penetrate needs |s| ≤ half span + 8 and |c| ≤ half width about the mid-span point.</summary>
+        public void Footprint(out double x0, out double y0, out double x1, out double y1)
+        {
+            double a = _a.HalfSpan + 8, b = _a.WidthM / 2, r = System.Math.Sqrt(a * a + b * b) + 0.01;
+            double mx = 0.5 * (_a.Ax + _a.Bx), my = 0.5 * (_a.Ay + _a.By);
+            x0 = mx - r; y0 = my - r; x1 = mx + r; y1 = my + r;
+        }
         public bool Penetrate(double x, double y, double up, out Vec3 n, out double depth)
         {
             n = Vec3.Zero; depth = 0;
@@ -496,10 +527,13 @@ public static class FlyCity
     public static double SpinYawRad(double t) => 2 * System.Math.PI * (t / SpinPeriodS);
 
     /// <summary>Torus around (cx, cy, cz) in the vertical plane whose NORMAL has heading yaw; R major, r tube.</summary>
-    public sealed class TorusSolid : WorldSolids.IShape
+    public sealed class TorusSolid : WorldSolids.IShape, WorldSolids.IFootprint
     {
         private readonly double _cx, _cy, _cz, _R, _r; private readonly double? _fixedYaw;
         public TorusSolid(double cx, double cy, double cz, double R, double r, double? fixedYawRad) { _cx = cx; _cy = cy; _cz = cz; _R = R; _r = r; _fixedYaw = fixedYawRad; }
+        /// <summary>The bounding sphere's square (a spinning ring spins about its centre).</summary>
+        public void Footprint(out double x0, out double y0, out double x1, out double y1)
+        { double r = _R + _r + 0.01; x0 = _cx - r; y0 = _cy - r; x1 = _cx + r; y1 = _cy + r; }
         public bool Penetrate(double x, double y, double up, out Vec3 n, out double depth)
         {
             n = Vec3.Zero; depth = 0;

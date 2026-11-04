@@ -1,0 +1,230 @@
+{
+  "review": "Ty approval pending",
+  "generated_at": "2026-11-03T14:58:55.344305-08:00",
+  "scope": "Actual imported full own C172 aircraft and runtime rig; all final PNGs rendered in Unity, no fallback art",
+  "model_sha256": "d029a49fd2765147065217796442ea0a59f2f8f186c96744e7237b8ba3210d16",
+  "interior_sha256": "14bbc60748cbc171025188fbe3650e6878afe8f93e659e67f95dea1ea3354596",
+  "editable_scene_sha256": "ac130ec4d4dd9ad0e89c756f81de8c86dde79876c979cf74801a2856f99b7a98",
+  "runtime_rig_sha256": "599c510c1cfa8bad17e593ebb318162f5e4c84574575f5436decb8f8cb7e6809",
+  "unity_result": "RIG OK; 34/34 nodes bound; zero off-pivot; zero wrong parents; zero error CS; exit 0",
+  "tests": {
+    "C172InstrumentTests": "32 passed",
+    "ModelRigTests": "11 passed; FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake fails identically on clean HEAD (NaN rollout), including isolated reruns"
+  },
+  "mounts": {
+    "count": 17,
+    "corner_screws_each": 4,
+    "panel_front_design_forward_m": 0.2975,
+    "case_front_gate": "all exported case vertices at or behind 0.2974 m"
+  },
+  "fuselage_winding": {
+    "baseline_signed_volume_m3": -4.840003,
+    "v2_signed_volume_m3": 4.86745
+  },
+  "sources": {
+    "tools/model_c172.py": "ed9e4224aeea04f7d1ce97133159b681bd5894f0ae1f13f35f9d31a6586fe424",
+    "tools/own_models/c172_cockpit.py": "eefef32e19d87bfdad6df3cab2f7bcae9dc52de50b211ae5ef9da2524a148697",
+    "tools/own_models/c172_instrument_rig.py": "e7799bed2be6a18111e8a91ab2b5683e3abcbb0668c80e0fe40c23a5af5d1895",
+    "unity/Assets/_Project/Scripts/Editor/OwnRigCheck.cs": "33b5b893cf87b45c298918e670eee13b84179d88f8c46c8bb0d6a81bdcd8ba0a"
+  },
+  "cameras": [
+    {
+      "path": "c172-attitude.png",
+      "sha256": "d81ecd50bf0b38ba1e99a9ad22676d18dc1a791f2ddf700bbeac5ad53701f141",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "eye_design_m": [
+        -0.321,
+        0.08,
+        0.323
+      ],
+      "target_design_m": [
+        -0.321,
+        0.3,
+        0.323
+      ],
+      "vertical_fov_deg": 25
+    },
+    {
+      "path": "c172-directional-gyro.png",
+      "sha256": "f4f13ae70e2b7209eedf06f2dc8682f43f6f2421d1f0eaa4c026728ce37141ad",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "eye_design_m": [
+        -0.321,
+        0.08,
+        0.218
+      ],
+      "target_design_m": [
+        -0.321,
+        0.3,
+        0.218
+      ],
+      "vertical_fov_deg": 25
+    },
+    {
+      "path": "c172-low-side-flush.png",
+      "sha256": "3d6506dc566c8f928b9fcb9529393c88a54468f000bebb5c8fbb66bdade35094",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "eye_design_m": [
+        -0.1,
+        0.05,
+        0.19
+      ],
+      "target_design_m": [
+        -0.35,
+        0.3,
+        0.29
+      ],
+      "vertical_fov_deg": 33
+    },
+    {
+      "path": "c172-pilot-eye-c172-known.png",
+      "sha256": "6d3f90e6272688d847e8eda2c5f9c29d304e4e2aa98cfc6b6b01e2937e7dba16",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "c172-known",
+      "eye_design_m": [
+        -0.337,
+        -0.346,
+        0.548
+      ],
+      "target_design_m": [
+        -0.1,
+        0.32,
+        0.2
+      ],
+      "vertical_fov_deg": 60
+    },
+    {
+      "path": "c172-pilot-eye-parked.png",
+      "sha256": "6a08712a753fbe1d71e9d7b0e96ae0602dcee8c7a2739a723c52072600b43b2d",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "eye_design_m": [
+        -0.337,
+        -0.346,
+        0.548
+      ],
+      "target_design_m": [
+        -0.1,
+        0.32,
+        0.2
+      ],
+      "vertical_fov_deg": 60
+    },
+    {
+      "path": "c172-sixpack-c172-known.png",
+      "sha256": "0586a465e403314130bb391eef71065c26b41d2598ebb8ae8dceeb9c98cc582c",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "c172-known",
+      "eye_design_m": [
+        -0.321,
+        -0.1,
+        0.27
+      ],
+      "target_design_m": [
+        -0.27,
+        0.3,
+        0.27
+      ],
+      "vertical_fov_deg": 40
+    },
+    {
+      "path": "c172-sixpack-parked.png",
+      "sha256": "a995657ea646edb395208f3232504e4f395f9dc5764ac84736a5068b4524db57",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "eye_design_m": [
+        -0.321,
+        -0.1,
+        0.27
+      ],
+      "target_design_m": [
+        -0.27,
+        0.3,
+        0.27
+      ],
+      "vertical_fov_deg": 40
+    },
+    {
+      "path": "c172-throttle-mixture.png",
+      "sha256": "e409f621fb7a9ebf3ea2e9de7661bcc7fbe85690b2a00412f2bde0da6b0b6111",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "eye_design_m": [
+        0.065,
+        -0.15,
+        0.065
+      ],
+      "target_design_m": [
+        0.065,
+        0.22,
+        -0.04
+      ],
+      "vertical_fov_deg": 27
+    },
+    {
+      "path": "c172-turn-coordinator.png",
+      "sha256": "4348a674451897bec9ff88ca61332018209e03b962dcff60a796922588c55a26",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "eye_design_m": [
+        -0.423,
+        0.08,
+        0.218
+      ],
+      "target_design_m": [
+        -0.423,
+        0.3,
+        0.218
+      ],
+      "vertical_fov_deg": 25
+    },
+    {
+      "path": "exterior-cruise.png",
+      "sha256": "22b5b2cf31ea2bf8b7e5c71cbb8088c413d66ea53afbeab82f8917006b86ad76",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "cruise",
+      "camera": "Aircraft bounds three-quarter exterior; OwnRigCheck.Shots"
+    },
+    {
+      "path": "exterior-full-controls-canopy-open.png",
+      "sha256": "22b5b2cf31ea2bf8b7e5c71cbb8088c413d66ea53afbeab82f8917006b86ad76",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "full-controls-canopy-open",
+      "camera": "Aircraft bounds three-quarter exterior; OwnRigCheck.Shots"
+    },
+    {
+      "path": "exterior-parked.png",
+      "sha256": "22b5b2cf31ea2bf8b7e5c71cbb8088c413d66ea53afbeab82f8917006b86ad76",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "camera": "Aircraft bounds three-quarter exterior; OwnRigCheck.Shots"
+    },
+    {
+      "path": "exterior-pulling-4g.png",
+      "sha256": "22b5b2cf31ea2bf8b7e5c71cbb8088c413d66ea53afbeab82f8917006b86ad76",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "pulling-4g",
+      "camera": "Aircraft bounds three-quarter exterior; OwnRigCheck.Shots"
+    },
+    {
+      "path": "full-panel-pilot-eye.png",
+      "sha256": "dc68c89573802ce5204cecaaf028f17853af7fcfbbe40a2663e6a1f9d245a448",
+      "renderer": "Unity built-in renderer / Metal, 1600x1000, 4x MSAA",
+      "state": "parked",
+      "eye_design_m": [
+        -0.337,
+        -0.346,
+        0.548
+      ],
+      "target_design_m": [
+        -0.03,
+        0.3,
+        0.17
+      ],
+      "vertical_fov_deg": 64
+    }
+  ]
+}

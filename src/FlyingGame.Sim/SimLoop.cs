@@ -55,9 +55,24 @@ public sealed class SimLoop
     /// that frame instead.</summary>
     public const double MaxCatchUpSec = 1.0 / 20.0;
 
-    public void Advance(double realDtSec, ControlInputs inputs, ref double accumulatorSec)
+    public void Advance(double realDtSec, ControlInputs inputs, ref double accumulatorSec) =>
+        Advance(realDtSec, inputs, ref accumulatorSec, MaxCatchUpSec);
+
+    /// <summary>The catch-up cap for a headset running at <paramref name="displayHz"/>: two display periods (27.8 ms,
+    /// five or six steps, at 72 Hz). A dropped frame is caught up in full; anything longer is not chased. On a phone the
+    /// 1/20 s cap is a frame and a half at 30 fps; in a headset it is 3.6 frames, so one 50 ms garbage collection asked
+    /// the next frame for ten steps — a third again of the frame's CPU — which made THAT frame late too: the
+    /// "slow, catches up, slows again" Ty saw on the Quest (2026-11-02). Never more than <see cref="MaxCatchUpSec"/>.</summary>
+    public static double HeadsetCatchUpSec(double displayHz) =>
+        displayHz > 1.0 ? Math.Min(MaxCatchUpSec, 2.0 / displayHz) : MaxCatchUpSec;
+
+    /// <summary><see cref="Advance(double, ControlInputs, ref double)"/> with the caller's own cap. Returns true when the
+    /// cap threw time away: the sim ran slower than real time this frame rather than make the next frame late.</summary>
+    public bool Advance(double realDtSec, ControlInputs inputs, ref double accumulatorSec, double maxCatchUpSec)
     {
-        accumulatorSec = Math.Min(accumulatorSec + realDtSec, MaxCatchUpSec);
+        double wanted = accumulatorSec + realDtSec;
+        accumulatorSec = Math.Min(wanted, maxCatchUpSec);
+        bool capped = wanted > maxCatchUpSec;
         bool capture = Aircraft.CaptureForces;
         while (accumulatorSec >= FixedDtSec)
         {
@@ -68,5 +83,6 @@ public sealed class SimLoop
             accumulatorSec -= FixedDtSec;
         }
         Aircraft.CaptureForces = capture;
+        return capped;
     }
 }

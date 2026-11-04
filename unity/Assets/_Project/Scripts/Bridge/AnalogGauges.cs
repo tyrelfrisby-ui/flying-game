@@ -172,7 +172,12 @@ namespace FlyingGame.Bridge
             GUI.matrix = m;
         }
 
-        private void OnGUI() => Draw(true);
+        private void OnGUI()
+        {
+            // In a headset a screen-space overlay smears across both eyes at the wrong depth.
+            if (VrMode.SuppressFlatOverlays) return;
+            Draw(true);
+        }
 
         /// <summary>Clip recorder: draw the dials again into the clip image (GUI.matrix maps the screen view onto it).
         /// No state is advanced (anchor smoothing, g tell-tales) — the live pass owns that.</summary>
@@ -181,6 +186,7 @@ namespace FlyingGame.Bridge
         private void Draw(bool live)
         {
             if (Driver == null || Driver.Sim == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Analog) return;
+            if (!PilotEgress.HudAllowed(Driver)) return;   // the pilot is leaving or has left (PilotOutRules.ShowHud)
             if (UiLayout.AeroInsetsShown && !ChaseCamera.InCockpit) return;   // the AERO insets take the dials' place while the pilot has them on
             if (live && UiLayout.Modal) return;   // a lesson card is up
             var aircraft = Driver.Sim.Aircraft;

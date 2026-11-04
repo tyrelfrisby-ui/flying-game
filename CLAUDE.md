@@ -3,6 +3,21 @@
 Working notes for agents on this repo. `AGENT-LOG.md` is the running log and carries **NEEDS YOU** at the top;
 this file is the standing guidance that does not belong to any one lane.
 
+## PARITY: iOS/Mac and Quest stay in sync at all times (Ty, 2026-11-04)
+
+- One game. Shared code and assets only; platform differences only behind build-time flags (`UNITY_IOS`,
+  `UNITY_ANDROID`, the XR defines) and the Quest-only files listed in `docs/PARITY.md`.
+- Every change lands on `lane/claude-island-nav` first and is merged into `lane/claude-quest-islandnav` THE SAME DAY,
+  or lands on a shared lane merged into both. Never commit shared code, a config or a GLB on the Quest lane alone.
+- Art for both platforms comes from one GLB and one config. A "Quest-only" windshield is a fork.
+- Run `tools/check-parity.sh` before any deploy. `deploy.sh` prints it (never blocks iOS); `deploy-quest.sh` refuses
+  while it fails unless `PARITY_OVERRIDE=1`, and any override gets an AGENT-LOG line.
+- **The lanes are LOCKED in parity** (Ty 2026-11-04 07:29). Every commit to either lane must keep them in sync:
+  `tools/githooks/pre-commit` / `pre-merge-commit` → `tools/check-parity.sh --hook` (installed for all worktrees by
+  `tools/githooks/install.sh`). A shared change is allowed only while the lanes are identical, and the other lane must
+  then merge it; merging the other lane's tip is always allowed. Platform-only code goes only behind `#if UNITY_IOS` /
+  `UNITY_ANDROID` or in the documented platform folders. Never `--no-verify`. docs/PARITY.md, "The lock".
+
 ## How work lands here
 
 - One `lane/<agent>-<topic>` branch per piece of work, in its own worktree under
@@ -207,6 +222,148 @@ against the build you made before reasoning about the code.
 after it can still print, which reads as a passing check. Quote the pattern (`--include='*.unity'`) and check the
 exit status rather than trusting the next line of output.
 
+### `src/` is compiled by Unity too, so it may only use what Unity has
+`src/FlyingGame.Core` is not a library Unity consumes as a DLL — Unity compiles those .cs files itself (hence the
+tracked `.meta` files beside them). So anything the .NET 8 suite happily links is not automatically available:
+`System.Text.Json` is not in Unity, and a new `JsonSerializer.Deserialize` in Core is six `error CS0234`s in a
+batch run while all 36 test cases stay green. The repo's answer is already written down in
+`AtmosphereFieldConfigLoader` / `UnityAtmosphereLoader`: wrap the headless loader in `#if !UNITY_5_3_OR_NEWER`
+and put a Newtonsoft counterpart in the Bridge assembly. Add POCOs and maths to Core freely; add a dependency to
+Core only after checking Unity has it.
+
+### An editor batch tool has to drive the component itself
+`Awake`, `OnEnable`, `Start` and `Update` do NOT fire on a plain `MonoBehaviour` added in edit mode, so a tool
+that adds a component and then reads what it built gets nothing — `VrStereoShots` reported "the rig built no
+eyes", which reads like a gyro or a config problem and is neither. Give the component an explicit entry point
+the tool calls (`VrRig.SetActiveForTesting`), resolve references lazily rather than in `Awake`, and don't reach
+for `SendMessage`. The same applies to anything sized from `Screen`: the batch window is 640x480, so a rig that
+sized its eye targets from it rendered 272x408 instead of 963x1265 — blurry shots and far too narrow a field of
+view, with no error anywhere. A shot tool must state the device's pixels AND its physical size
+(`VrRig.SetScreenForTesting`), the same way `CockpitEyeCheck` states the eye it is checking.
+
+### A menu drawn with OnGUI does not exist inside a headset
+Every menu in this game is IMGUI, and on a Quest IMGUI draws to a back buffer nobody sees. The first Quest build
+would have opened on the landing page, paused, invisible, with no way out, and nothing in the log would have
+said so: the app "runs". Anything a pilot must reach in VR needs a world-space counterpart (`QuestMenu`), and a
+flight started from it must not lead into another OnGUI-only screen (a lesson card, a challenge brief), which is
+why the VR menu starts free flight only. Ask "can he see this with the headset on?" of every new screen.
+
+### OpenXR refuses to build on a validation error, and some of its rules are shared settings
+`OpenXRProjectValidationBuildStep` throws `BuildFailedException` for any error-level rule, and Meta Quest Support
+has one that iOS cares about: the default orientation must be Landscape Left, while iOS is AutoRotation. Changing
+the shared setting in ProjectSettings would have changed the iPhone build. `QuestBuild.BuildQuest` sets it for the
+duration of the Android build and restores it in `finally`, the same way the bundleVersion stamp is restored. Any
+future rule that touches a shared setting gets the same treatment, never a committed change.
+
+### `build/*.log` ignores logs, not everything you write into build/
+The Quest deploy first wrote its logcat capture to `build/quest-logcat.txt`, which `git check-ignore` showed was
+NOT ignored: the rules are `build/*/` (directories) and `build/*.log`. Put new artefacts inside a build/
+subdirectory (`build/quest/logcat.txt`) or give them a .log name, and check with `git check-ignore -v` before the
+first run, not after.
+
+### A shader name in a list is not a shader in the build
+The VR menu was written against `Shader.Find("GUI/3D Text Shader")`, because `EnsureAlwaysIncludedShaders` lists
+that name and a comment in WorldText.shader mentions it. It does not exist in this editor: every build logs
+`'GUI/3D Text Shader' not found in editor — skipped`, and `new Material(null)` threw inside the menu's Build(), so
+the headset would have opened on an invisible, paused landing page with no menu at all. The shot tool
+(`QuestMenuShots`) caught it on the bench. Before depending on a shader by name, grep the build log for
+"not found" and render the thing once; prefer a shader of our own in `Shaders/` (`FlyingGame/XrOverlay`).
+
+### StreamingAssets is a folder on iOS and a zip on Android
+Every runtime loader read `Path.Combine(Application.streamingAssetsPath, …)` with `File.ReadAllText`, which works
+in the editor and on iOS and throws on Android, where that path is `jar:file://…/base.apk!/assets`. On the Quest
+the aircraft config never loaded, so `FlightSimDriver.Spawn` threw in `Awake` and again on FLY, the aeroplane stayed
+at the world origin with no sim — 2,749 m inside the island's summit — and the chase camera, which may not go
+underground, sat on the peak. Ty reported "on top of a mountain looking around"; no bench check could have seen it
+because the bench has a real folder. Read StreamingAssets only through `StreamingFiles` (it reads inside the APK);
+`StreamingAssetsTests.RuntimeCodeReadsStreamingAssetsOnlyThroughStreamingFiles` holds runtime code to that. For a
+new platform, ask what its file system looks like before trusting a loader that "works everywhere".
+
+### A choice stored as an index means something else in the next list
+The cockpit seat was a bare index into whatever aeroplane was loaded. On the Quest landing page that was the 2-33
+(front = 0, rear = 1), so "Rear seat" stored 1 and FLY put Ty in the Pitts' seat 1 — its FRONT seat. The clamp on
+aircraft change made it look safe: every index stayed in range. Keep a choice by the thing's own stable ID
+(`SeatChoice`, seat ids are "never renamed once shipped") and resolve it against the list it is applied to, with a
+stated default when the ID is absent; and a menu that offers a choice for "the aeroplane you will fly" must read
+THAT aeroplane, not the one that happens to be loaded.
+
+### When a platform drops an overlay, ask what the overlay was covering for
+The Pitts' and the Extra's rear panels are painted faces with painted needles (`rear_panel.py`: "all static"), and
+in the Extra they sit in front of the rig's real needles. Nobody noticed on an iPhone, because the flat dials
+(`AnalogGauges`) carried the readings; the Quest suppresses every flat overlay, and Ty's first report was "none of
+the cockpit gauges move". Before standing an overlay down on a new platform, find what the pilot was reading from
+it and check that the 3-D cockpit really shows the same thing on the aircraft he will fly.
+
+### A fix that needs an optional node must say when it found nothing
+`CockpitDisplays.SeparateCoplanar` (the 2026-11-01 card-flicker fix) returned silently without `Eye_Rear`, and ran
+only for rigged models. The Pitts has neither an eye node nor a rig, so the fix never reached the aeroplane the
+report came from, and the card "still flickers" a day later. Test a fix on the aircraft named in the report, fall
+back to something every model has (the aeroplane's own axes), and log when a lookup comes back empty.
+
+### A millimetre in world space is not a millimetre
+There is no floating origin: the aeroplane is routinely kilometres from (0, 0, 0), where a float carries about half
+a millimetre, so `t.position += dir * 0.001f` can round to nothing or to double. Separate coplanar surfaces, place
+needles and pivot cut-out parts in the PARENT's local frame from local transforms (`CockpitLiveParts`), never by
+reading and writing world positions.
+
+### `Transform.name` allocates a new string on every read
+`GroundShadow` read two names per ancestor of every airframe mesh, every frame: on the Quest that was the largest
+source of garbage, and a non-generational collector turns steady garbage into a periodic stutter. Resolve anything a
+name decides once (on build / `Refresh`) and keep the answer; never read `.name` in a per-frame loop.
+
+### A device's layout is not the device
+The Input System turns a USB joystick on Android into an `AndroidJoystick` whose layout has a `stick` (X, Y) and
+nothing else. Rudder pedals put the rudder on Rz and may put the toe brakes on Android's BRAKE / GAS axes. None of
+those are controls on that layout, so reading `allControls` finds two axes, and both are toe brakes. Nothing errors,
+and the rudder is simply never there. The values are in the device's state (`AndroidGameControllerState.axis`, one
+float per Android axis code), and the device description lists which ones it has (`motionAxes`). Read what the
+description says the hardware has, not what the layout chose to name (`Bridge/RudderPedals.cs`). Also,
+`InputControl.currentStatePtr` is not public: use `CopyState<T>`.
+
+### Never parent your object to something another system rebuilds
+The VR menu's panel was parented to the aeroplane so it would ride the cockpit. The airframe's rebuild (every FLY)
+destroys every drawable child it did not build itself — a rule written to stop a model's fuselage riding along to the
+next aircraft — so the menu worked on the landing page and was a destroyed object from the first flight on. `_built`
+stayed true, every ☰ threw inside `Open`, and on the headset nothing happened at all; it was first blamed on the
+input handler. Hang things on a root object you own (`QuestRig.HudAnchor`) and make anything a pilot cannot do
+without rebuild itself when it finds its objects gone.
+
+### A glTF mesh is not a Unity mesh
+glTFast puts a mesh's first primitive on the node's GameObject and each further primitive (one per material, when
+they do not share a vertex buffer) on a child of its own. The Pitts' `Cockpit` is nine Unity meshes; a cut that read
+`cockpit.GetComponent<MeshFilter>()` saw only the seats and left the sticks static. The bench check summed triangles
+over all the GLB's primitives, so it agreed with the table and proved nothing about the code. When code reads a
+model's geometry, check it against the hierarchy glTFast BUILDS (`GetComponentsInChildren<MeshFilter>`), not the
+file's mesh list.
+
+
+### A shortcut with a threshold is a cliff in the frame budget
+`AirframeContact` skipped its hard points only while the airframe was 60 m clear of the ground. Every bench run
+flew above that, so the expensive path — 21 points × 4 RK4 stages × 200 Hz of ground, water, cave and surface
+queries — was never timed, and on the Quest it took the frame from 72 fps to 20 the moment Ty came down to land.
+Then the catch-up cap doubled the steps per frame, which is why it felt like "a crawl". When code has a cheap path
+and an expensive one, time the expensive one on purpose (`QuestLowAltitudeProbe` flies 500 m, 50 m, 30 m and the
+ground at the device's own coordinates), and keep a per-subsystem breakdown in the device log (`SimProfile`, the
+`top:` field of `[QuestPerf]`): a build that cannot be sampled has to say where its time went.
+
+### An eye point is only as good as the model the game draws
+The 2-33 and the J-3 had approved eye points, measured on our own GLBs, and the Quest still put Ty inside the
+fuselage: neither type was drawing our GLB. The 2-33's default livery drew the procedural trainer and the J-3's own
+model is not wired in, and the procedural airframe is a closed tube with the eye buried in it. Before trusting an
+eye (or a sight, or a cockpit part), find out which model `AirframeModels.PickOwn` actually places for that type and
+livery, and measure against that one (`tools/own_models/check_eye_interiors.py`). Also: `AirframeModels.Place` puts
+the model in the CG-rooted frame using the config's datum numbers, and the eyes were measured in that frame — adding
+the CG to the eye "puts" the Great Lakes pilot 7 cm under his own turtle deck.
+
+### A second camera inherits nothing it was not given
+The Quest clip recorder renders the scene a second time from the head with its own camera, and two things the
+pilot sees did not come with it. The aerobatic sight is shown only to `Camera.main` in the cockpit
+(`CockpitSights`), so it was missing from every clip. The water's depth tint reads `_CameraDepthTexture`, which
+only the XR camera renders, so the recording sampled another camera's foveated, tiled depth and painted a
+flickering light-blue grid on the sea. Ty reported that grid as z-fighting. When you add a camera, list what
+the scene's shaders and components key on per camera (Camera.main checks, onPreCull hooks, depth / reflection
+textures, layers), and give each one to the new camera explicitly (`CockpitSights.MirrorCamera`,
+`_WaterSceneDepthOff`) or switch it off for that render on purpose.
 ### A full procedural rebuild can revive content removed by an offline pass
 The Extra wing-only change initially regenerated an obsolete cockpit card alongside the current card
 (`SequenceCard_Face.001`). HEAD's GLB had been updated offline after the full builder. Compare exported node
@@ -241,6 +398,49 @@ sat 4.5 cm higher in the cabin and failed the 12 cm check. The CG is a point IN 
 does not move it. When two configs share an airframe and an eye, place the second so its airframe coincides with
 the first (`Spec.SitHighM`), let the new gear be the thing that is off, and gate the coincidence
 (`check_eye_interiors.py` prints `COINCIDE`). Before trusting an eye in a variant, measure it in that variant.
+
+### A bench world without the game's world measures a different game
+`QuestLowAltitudeProbe` timed contact on the island's terrain and called the slowdown fixed, while the headset still
+sat at 27 fps on the ground: the game's `IslandGeometry.Build()` registers 1,475 solids and 128 decks, the probe built
+none, and every hard point was asking all of them at every RK4 stage. The probe's 94 height queries a step were the
+"fixed" number; the device's 771 were the real one. When a bench number disagrees with the device by a large factor,
+find what the device has that the bench does not before tuning anything. Build the world the game builds
+(`IslandGeometry.Build()`, cleared in `finally`), and count work, not only time (`SimProfile`'s `solids`).
+### A Core type name can be shadowed in the Bridge, and only Unity sees it
+`FlyingGame.Core.Vr.PilotBody` compiled and 32 tests passed in the .NET suite, then gave five `error CS0117` in the
+Unity batch: the Bridge already has an `internal sealed class PilotBody` (the bailout's jumper, `Bridge/Pilot`), and
+inside `namespace FlyingGame.Bridge` the Bridge's own type wins over a `using FlyingGame.Core.Vr`. The suite cannot
+see it because it never compiles the Bridge. The same run found `AirframeVisual.ModelRoot`, which is on the
+builder, not the visual. Before naming a new Core type, `grep -rn "class <Name>\b" unity/Assets` (with perl or
+`grep -w`; BSD sed has no `\b`), and run the Unity batch before trusting any Bridge code that calls into it.
+
+### Quote the shipped model's number, not the sketch's
+The parachute's opening shock went into three comments as "≈ 7.4 g" because that is what a quick Python sketch of the
+opening said. The Core model that ships blends the body's drag area differently and gives 6.7 g; the sketch had never
+been the code. Every comment, doc table and NEEDS YOU line had to be found and changed. Sketch to choose the model, then
+run the Core function itself (a throwaway probe test is enough) and copy THOSE numbers into docs and tests.
+
+### Two points on a lever do not give its hinge
+The 2-33's dive-brake knob sits 11 cm along its hinge from the pivot. A lever built from the pivot and the knob at its
+two ends (`r₀ × r₁` as the axis) read a hinge tilted 19° off lateral and a 31° sweep for the rig's 33°, so the hand
+would have needed 6 % more pull than the handle moved and the knob would have been drawn off its own slot. Nothing
+errors; `VrHandleCheck` caught it by printing the sweep. Take the hinge direction from the rig (`RigHandle.HingeWorld`:
+`RestRot · axis` in the parent) and project onto the plane across it; derive only the SENSE from the points.
+
+### A clean merge is not a compiling merge
+lane/claude-vr-cockpit and lane/codex-vr-cockpit each added `case "canopy_latch":` to `RigInputs.TryGet`, a few lines
+apart. git merged them without a conflict and the result was a duplicate case label (and two contracts for one param).
+After any merge, build before reading the conflict list as the list of problems — and grep the merged switch
+statements for a repeated label when two lanes touched the same table.
+
+### Unity writes the keystore password into files you never asked for
+A release Android build with `PlayerSettings.Android.keystorePass` set leaves the password in plain text in the generated
+Gradle project (`launcher/build.gradle`) and in Bee's own copies (`Library/Bee/artifacts/…/build.gradle(.xml)`,
+`Library/Bee/Player*-inputdata.json`); deleting only `Library/Bee/Android` missed three of the four. Pass the password
+through the environment, delete all of `Library/Bee` after a release build, and grep the tree for the password (file
+names only) rather than trusting a list of places (`deploy-quest.sh --release`). Also: assigning `""` to
+`PlayerSettings.Android.keystoreName` serialises as `'{inproject}: '`, so restore signing fields only when you set them.
+
 ### Check a force's parity with the mirror state before blaming a sign
 "Opposite aileron lowers the nose inverted" looked like a sign error at negative α. There was none. The aileron's
 separated-flow load was a DRAG along the wind, EVEN in δ, where a plate's load is normal to the plate and the
@@ -259,3 +459,18 @@ had the same shape (`melt / u` with u = 0), and its box blur spread the NaN over
 weight, not the result. When a terrain change makes far-off ground go strange, scan for NaN before suspecting the
 change. And expect a regenerated relief to re-pick every generator-chosen site (snow patches, ledges, boulders): that
 search is a global ranking, so its literal tests must be re-copied from the new report, not "fixed".
+
+### A test filter that matches nothing is not a passing run, and a poll that waits for a pass never ends
+Re-running the merge's failures, the names were cut out of the log with `sed 's/^\s*Failed //'`. BSD sed has no `\s`,
+so every name kept its `  Failed ` prefix and ` [6 s]` suffix, the `--filter` matched no test, `dotnet test` never
+printed `Passed!`/`Failed!`, and the loop waiting for that line polled until the session was killed. Use `[[:space:]]`
+(or perl), print the filter's first entry before launching it, and make any wait loop also stop when the process it
+waits on has exited. Related: building a worktree through `/tmp/...` failed with `CS0006 ... obj~/... not found` while
+the same build through `/private/tmp/...` succeeded. Give dotnet the resolved path.
+### A pre-flight check that only prints is not a gate
+Before the C172 v4 build I ran the `ps … | grep -E "(xcodebuild|Unity)"` check, echoed its output and then started
+`deploy.sh` in the SAME command — so when another lane's Unity batch appeared in that list, my build started
+anyway and the two overlapped. Make the check the condition (`until ! ps … | grep -q .; do sleep 60; done && build`),
+never a line of output to read afterwards. And know what it matches: an orphaned `il2cpp` from a dead Xcode build
+(parent reparented to launchd, 0 % CPU, under `/tmp/flyinggame-dd/…/Unity-iPhone.build/`) matches forever, as does
+`adb logcat` under the Unity path; exclude those by PID after checking them, not by loosening the pattern.

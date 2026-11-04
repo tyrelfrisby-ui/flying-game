@@ -108,6 +108,43 @@ namespace FlyingGame.Bridge
         public static CockpitSeat Seat = CockpitSeat.Rear;
         public static string SeatLabel => Seat == CockpitSeat.Rear ? "REAR (PIC)" : "FRONT";
 
+        // ---- the seat the pilot chose, per aeroplane, by seat ID ----
+        // What CockpitView sits the eye in (and so the Quest's head). Kept by the seat's ID ("rear", "front",
+        // "pilot") per aircraft type, never as an index into whatever aeroplane is loaded: an index chosen on the
+        // landing page's glider became the Pitts' FRONT seat on FLY (owner Ty, 2026-11-02, "i chose the back seat
+        // and it put me in the front seat"). Nothing chosen = the primary seat (SeatChoice). Persisted at once.
+
+        private const string PrefSeatIdFor = "set.seatId.";
+        private static readonly System.Collections.Generic.Dictionary<string, string> _seatIds = new();
+
+        /// <summary>Bumped on every choice, so a CockpitView can follow a choice made from a menu.</summary>
+        public static int SeatChoiceVersion { get; private set; }
+
+        /// <summary>The seat ID chosen for this aircraft type, or null for "its primary seat". In a headset a seat
+        /// QuestFleet does not clear (the J-3's front: a cabin tube 9 cm from the eye) reads as the primary seat, so a
+        /// choice saved before, or made on another screen, cannot put the pilot's head in it.</summary>
+        public static string SeatIdFor(string aircraftId)
+        {
+            if (string.IsNullOrEmpty(aircraftId)) return null;
+            if (!_seatIds.TryGetValue(aircraftId, out string id))
+                _seatIds[aircraftId] = id = PlayerPrefs.GetString(PrefSeatIdFor + aircraftId, "");
+            if (string.IsNullOrEmpty(id)) return null;
+            if (XrHeadset.Active && !FlyingGame.Core.Vr.QuestFleet.SeatCleared(aircraftId, id)) return null;
+            return id;
+        }
+
+        /// <summary>Choose a seat for this aircraft type (and remember it).</summary>
+        public static void ChooseSeat(string aircraftId, string seatId)
+        {
+            if (string.IsNullOrEmpty(aircraftId)) return;
+            seatId ??= "";
+            if (SeatIdFor(aircraftId) == (seatId.Length == 0 ? null : seatId)) return;
+            _seatIds[aircraftId] = seatId;
+            PlayerPrefs.SetString(PrefSeatIdFor + aircraftId, seatId);
+            PlayerPrefs.Save();
+            SeatChoiceVersion++;
+        }
+
         /// <summary>The paint scheme OVERRIDE (Livery.cs), for every type: AERO_LIVERY at launch, which is how a capture
         /// instance is told to wear Talk Flying for a recorded shot, and the editor renders' -livery. null = none, and
         /// each type wears its own choice (<see cref="LiveryFor"/>).</summary>
@@ -582,19 +619,42 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetFloat(PrefStickExpo, StickExpo);
             PlayerPrefs.Save();
         }
-        /// <summary>Push the user's feel settings into a loaded config: the stick expo always, and a dead zone only where
-        /// the user has set one (the aircraft's own stays otherwise).</summary>
+        /// <summary>The headset's DEAD ZONE applies (FlyingGame.Core.Vr.QuestStickFeel): a headset is up, or this is
+        /// the Quest's APK (the only Android build), where the landing page's aeroplane can load before XR reports in.
+        /// Expo is no longer platform-dependent: it is <see cref="StickExpo"/> everywhere (Ty 2026-11-04, parity).</summary>
+        public static bool HeadsetFeel => XrHeadset.Active || Application.platform == RuntimePlatform.Android;
+
+        /// <summary>Push the user's feel settings into a loaded config: the stick expo always, on every platform; a dead
+        /// zone where the user has set one, else in a headset the headset's (none extra: the controller reader already
+        /// zones the stick), else the aircraft's own.</summary>
         public static void ApplyFeel(FlyingGame.Core.DataContracts.AircraftConfig cfg)
         {
             LoadFeel();
             if (cfg?.Controls == null) return;
+            bool headset = HeadsetFeel;
             var axes = new[] { cfg.Controls.Aileron, cfg.Controls.Elevator, cfg.Controls.Rudder };
             for (int i = 0; i < 3; i++)
             {
                 if (axes[i] == null) continue;
                 axes[i].Expo = i == 2 ? FlyingGame.Core.InputExpo.Yaw(StickExpo) : FlyingGame.Core.InputExpo.PitchRoll(StickExpo);
-                if (FeelDeadZone[i] >= 0f) axes[i].DeadZone = FeelDeadZone[i];
+                axes[i].DeadZone = FlyingGame.Core.Vr.QuestStickFeel.Resolve(FeelDeadZone[i], axes[i].DeadZone, headset, FlyingGame.Core.Vr.QuestStickFeel.DefaultExtraDeadZone);
             }
+        }
+
+        /// <summary>Apply the feel to the aeroplane in flight now: the type's own values first (so a dead zone put back
+        /// to "unset" restores them), then <see cref="ApplyFeel"/>. Options and the VR menu both call this.</summary>
+        public static void ReapplyFeel(FlyingGame.Core.DataContracts.AircraftConfig cfg)
+        {
+            if (cfg?.Controls == null) return;
+            try
+            {
+                var fresh = UnityAircraftConfigLoader.LoadFromStreamingAssets(cfg.Id);
+                cfg.Controls.Aileron.Expo = fresh.Controls.Aileron.Expo; cfg.Controls.Aileron.DeadZone = fresh.Controls.Aileron.DeadZone;
+                cfg.Controls.Elevator.Expo = fresh.Controls.Elevator.Expo; cfg.Controls.Elevator.DeadZone = fresh.Controls.Elevator.DeadZone;
+                cfg.Controls.Rudder.Expo = fresh.Controls.Rudder.Expo; cfg.Controls.Rudder.DeadZone = fresh.Controls.Rudder.DeadZone;
+            }
+            catch (System.Exception) { }
+            ApplyFeel(cfg);
         }
 
         // ---- regional air (owner 2026-10-27: "atmospheric conditions should vary by region across the landscape") ----

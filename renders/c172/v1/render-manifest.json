@@ -1,0 +1,97 @@
+{
+  "renderer": "Blender Cycles CPU, 32 samples",
+  "scope": "Authored interior only; exterior airframe absent from review renders",
+  "cameras": [
+    {
+      "path": "full-panel-straight.png",
+      "eye_design_m": [
+        0,
+        -0.6,
+        0.22
+      ],
+      "target_design_m": [
+        0,
+        0.29,
+        0.17
+      ],
+      "lens_mm": 26,
+      "sha256": "7a28841bcbd66ef34e94bd35f7e8d1c7cb86f2f7d836a4a63e2f71120920563d"
+    },
+    {
+      "path": "pilot-eye.png",
+      "eye_design_m": [
+        -0.337,
+        -0.346,
+        0.548
+      ],
+      "target_design_m": [
+        -0.1,
+        0.32,
+        0.2
+      ],
+      "lens_mm": 22,
+      "sha256": "fd39d128106faa1b45f5d4a7d1e6104fa8f56786838e7b6d5b61ab04e3ab5764"
+    },
+    {
+      "path": "cfi-right-seat.png",
+      "eye_design_m": [
+        0.332,
+        -0.346,
+        0.548
+      ],
+      "target_design_m": [
+        -0.09,
+        0.32,
+        0.17
+      ],
+      "lens_mm": 22,
+      "sha256": "3bf324df316ee04d4c08c05684e751e6ce6c72386a3d9d290da89b0e7120106e"
+    },
+    {
+      "path": "radio-stack.png",
+      "eye_design_m": [
+        0.095,
+        -0.29,
+        0.27
+      ],
+      "target_design_m": [
+        0.095,
+        0.28,
+        0.205
+      ],
+      "lens_mm": 35,
+      "sha256": "a8712d3f910364ea4ddcc6f3797f8304e5ead892f87f2850298ebb335faf98c5"
+    },
+    {
+      "path": "nav-heads.png",
+      "eye_design_m": [
+        -0.112,
+        -0.21,
+        0.28
+      ],
+      "target_design_m": [
+        -0.112,
+        0.27,
+        0.265
+      ],
+      "lens_mm": 55,
+      "sha256": "fd6b101dec047db684d8d6c21e32ab124d69f99a4aa0ea653cc0402c8a6aaedb"
+    },
+    {
+      "path": "cabin-wide.png",
+      "eye_design_m": [
+        0,
+        0.2,
+        0.56
+      ],
+      "target_design_m": [
+        0,
+        -0.95,
+        -0.1
+      ],
+      "lens_mm": 18,
+      "sha256": "2f0f27b70c49e38a89ce73acfb41f671cb8f2f98ca4f153a7acbe0edf94bf076"
+    }
+  ],
+  "interior_sha256": "2d6e907df9d4f58aa2227a300153c2fd153304e56e8733179bf4f93c3552f773"
+}

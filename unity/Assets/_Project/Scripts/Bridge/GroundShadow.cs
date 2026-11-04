@@ -21,6 +21,13 @@ namespace FlyingGame.Bridge
         private Light _sun;
         private readonly List<MeshFilter> _parts = new();
 
+        /// <summary>A part that may cast, with everything a NAME decides about it resolved once at
+        /// <see cref="Refresh"/>. Reading Transform.name allocates a new string every time, and this loop used to read
+        /// two per ancestor of every airframe mesh every frame (IsSight, HasSkin): over a thousand strings a frame
+        /// below 1,500 m, which on the Quest was a garbage collection every few seconds (docs/quest-performance.md).</summary>
+        private struct Caster { public MeshFilter Mf; public Renderer R; public SkinnedMeshRenderer[] Skins; }
+        private readonly List<Caster> _cast = new();
+
         private void Start()
         {
             Shader sh = Shader.Find("FlyingGame/PlanarShadow");
@@ -38,18 +45,41 @@ namespace FlyingGame.Bridge
             Refresh();
         }
 
-        private static bool HasSkin(Transform t)
+        private static bool HasSkin(SkinnedMeshRenderer[] skins)
         {
-            foreach (Transform c in t) if (c.name.StartsWith("Skin:")) { var smr = c.GetComponent<SkinnedMeshRenderer>(); if (smr != null && smr.enabled) return true; }
+            foreach (SkinnedMeshRenderer smr in skins) if (smr != null && smr.enabled) return true;
             return false;
         }
 
+        /// <summary>The skinned copies a carve hung under a part ("Skin:" children), found once.</summary>
+        private static SkinnedMeshRenderer[] SkinsOf(Transform t)
+        {
+            List<SkinnedMeshRenderer> l = null;
+            for (int i = 0; i < t.childCount; i++)
+            {
+                Transform c = t.GetChild(i);
+                if (!c.name.StartsWith("Skin:", System.StringComparison.Ordinal)) continue;
+                var smr = c.GetComponent<SkinnedMeshRenderer>();
+                if (smr != null) (l ??= new List<SkinnedMeshRenderer>()).Add(smr);
+            }
+            return l != null ? l.ToArray() : System.Array.Empty<SkinnedMeshRenderer>();
+        }
+
         /// <summary>Re-collect the airframe meshes (AirframeVisual calls this after a rebuild).</summary>
-        public void Refresh() => GetComponentsInChildren(true, _parts);
+        public void Refresh()
+        {
+            GetComponentsInChildren(true, _parts);
+            _cast.Clear();
+            foreach (MeshFilter mf in _parts)
+            {
+                if (mf == null || CockpitSights.IsSight(mf.transform)) continue;
+                _cast.Add(new Caster { Mf = mf, R = mf.GetComponent<Renderer>(), Skins = SkinsOf(mf.transform) });
+            }
+        }
 
         private void LateUpdate()
         {
-            if (_material == null || _parts.Count == 0)
+            if (_material == null || _cast.Count == 0)
             {
                 return;
             }
@@ -85,16 +115,17 @@ namespace FlyingGame.Bridge
             proj.SetRow(2, new Vector4(0f, -kz, 1f, kz * GroundY));
             proj.SetRow(3, new Vector4(0f, 0f, 0f, 1f));
 
-            foreach (MeshFilter mf in _parts)
+            foreach (Caster c in _cast)
             {
-                if (mf == null || mf.sharedMesh == null || !mf.gameObject.activeInHierarchy || CockpitSights.IsSight(mf.transform))
+                MeshFilter mf = c.Mf;
+                if (mf == null || mf.sharedMesh == null || !mf.gameObject.activeInHierarchy)
                 {
                     continue;
                 }
-                var rr = mf.GetComponent<Renderer>();
+                var rr = c.R;
                 // The hidden procedural shell under a real model casts nothing — but a RIGGED model mesh (its renderer handed
                 // over to a skinned copy, owner 2026-10-05: "the shadow was wrong") still casts, from its rigid mesh.
-                if (rr != null && !rr.enabled && !HasSkin(mf.transform)) continue;
+                if (rr != null && !rr.enabled && !HasSkin(c.Skins)) continue;
                 Matrix4x4 m = proj * mf.transform.localToWorldMatrix;
                 // Every submesh: the real models (USDZ imports) are one mesh with a submesh per material, and drawing
                 // only submesh 0 cast the shadow of a single small piece (owner: "the shadow is tiny").

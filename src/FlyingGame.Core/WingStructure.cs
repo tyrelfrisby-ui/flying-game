@@ -96,18 +96,24 @@ public static class WingStructure
     public static double BentDeflection(double n, double peakRad) => System.Math.Max(System.Math.Abs(peakRad), BentSetRad + TangentRadPerG * (n - 1.0));
 
     /// <summary>The wing surfaces ("wing", "wing-upper", "wing-lower"): ids with "wing" and no control-row suffix.</summary>
-    public static bool IsWingBase(string id)
-    {
-        string l = id.ToLowerInvariant();
-        return l.Contains("wing") && !l.Contains("aileron") && !l.Contains("flap") && !l.Contains("slat") && !l.Contains("spoiler");
-    }
+    public static bool IsWingBase(string id) =>
+        // Case-insensitive search, not ToLowerInvariant: this runs per step on water (RecordPanelWaterLoads), and a
+        // lowered copy is a string of garbage every call (the Quest's collector is non-generational).
+        Has(id, "wing") && !Has(id, "aileron") && !Has(id, "flap") && !Has(id, "slat") && !Has(id, "spoiler");
+
+    private static bool Has(string s, string part) => s.IndexOf(part, System.StringComparison.OrdinalIgnoreCase) >= 0;
 
     /// <summary>The rows belonging to wing <paramref name="baseId"/>: itself and every surface named baseId-…</summary>
     public static bool BelongsTo(string id, string baseId, AircraftConfig c)
     {
         if (id == baseId) return true;
-        if (!id.StartsWith(baseId + "-", System.StringComparison.OrdinalIgnoreCase)) return false;
-        foreach (SurfaceConfig s in c.Surfaces) if (s.Id != baseId && IsWingBase(s.Id) && s.Id.Length > baseId.Length && id.StartsWith(s.Id, System.StringComparison.OrdinalIgnoreCase)) return false;
+        // baseId + "-" without building it (allocation-free: called per step, see IsWingBase).
+        if (id.Length <= baseId.Length || id[baseId.Length] != '-' || !id.StartsWith(baseId, System.StringComparison.OrdinalIgnoreCase)) return false;
+        for (int i = 0; i < c.Surfaces.Count; i++)
+        {
+            SurfaceConfig s = c.Surfaces[i];
+            if (s.Id != baseId && IsWingBase(s.Id) && s.Id.Length > baseId.Length && id.StartsWith(s.Id, System.StringComparison.OrdinalIgnoreCase)) return false;
+        }
         return true;
     }
 

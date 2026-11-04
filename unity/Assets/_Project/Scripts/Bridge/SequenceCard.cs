@@ -177,7 +177,7 @@ namespace FlyingGame.Bridge
             return null;
         }
 
-        private static void SetMainTexture(Material m, Texture tex)
+        internal static void SetMainTexture(Material m, Texture tex)
         {
             if (m == null) return;
             bool any = false;

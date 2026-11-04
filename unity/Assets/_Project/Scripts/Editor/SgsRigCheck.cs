@@ -36,9 +36,8 @@ namespace FlyingGame.EditorTools
             try
             {
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-                // The livery is per TYPE now (SessionSettings.SetLivery / LiveryFor), not one global id: the picker
-                // reads it through one place and LiveryPickerTests holds that line.
-                SessionSettings.SetLivery(Type, "factory");
+                // No livery to set: the 2-33 has one scheme, our own yellow model in Talk Flying trim (LiveryChoice,
+                // Ty 2026-11-02), so this checks the model every 2-33 flies.
                 SessionSettings.UseAirframeModels = true;
                 SessionSettings.UseOwnModels = true;
 

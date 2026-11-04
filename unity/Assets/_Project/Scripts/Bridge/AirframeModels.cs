@@ -179,7 +179,7 @@ namespace FlyingGame.Bridge
         /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
             (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like" || modelId == "great-lakes-like"
-                || (modelId == "glider-2-33-like" && (SessionSettings.LiveryFor(modelId) is "factory" or "talk-flying"))
+                || modelId == "glider-2-33-like"   // ours always: yellow, the only 2-33 (LiveryChoice, Ty 2026-11-02)
                 || modelId == "j3-cub-like" || modelId == "j3-cub-floats-like")   // ours always: wheels and floats (Ty 2026-11-02)
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
@@ -244,6 +244,7 @@ namespace FlyingGame.Bridge
             bool ownGear = UsesOwnGear(id);
             id = ModelId(id);
             bool own = PickOwn(id);
+            QuestRig.Note($"model {id}{(own ? " (own)" : "")} loaded");
             var prefab = Resources.Load<GameObject>(ResourcePath(id, own));
             if (prefab == null || !(own ? OwnSpecs : Specs).TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);

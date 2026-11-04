@@ -1,0 +1,394 @@
+{
+ "pitts-s2b-like-own-checker-unmarked.glb": {
+  "tube_members": 23,
+  "tube_ends": 46,
+  "max_endpoint_axis_error_mm": 0.0,
+  "lateral_skin_clearance_mm": 10.193623321880386,
+  "min_tube_vertex_lateral_skin_gap_mm": 10.168575638669019,
+  "longeron_widths": [
+   {
+    "x": -1.59,
+    "top_m": 0.614731343086233,
+    "bottom_m": 0.33306075614579217
+   },
+   {
+    "x": -0.98,
+    "top_m": 0.6739679587432095,
+    "bottom_m": 0.389830848231428
+   },
+   {
+    "x": -0.14,
+    "top_m": 0.5949770046748774,
+    "bottom_m": 0.46049738956796166
+   }
+  ],
+  "tube_od_mm": [
+   25.4,
+   19.05
+  ],
+  "panel": {
+   "half_width": 0.335,
+   "bottom": -0.12,
+   "crown": 0.152,
+   "min_gauge_margin_mm": 35.99919229504073
+  },
+  "grips_builder": {
+   "Foot_L_Front": [
+    -0.24,
+    0.13,
+    -0.46
+   ],
+   "Foot_R_Front": [
+    -0.24,
+    -0.13,
+    -0.46
+   ],
+   "Foot_L_Rear": [
+    -0.45,
+    0.285,
+    -0.46
+   ],
+   "Foot_R_Rear": [
+    -0.45,
+    -0.285,
+    -0.46
+   ],
+   "Grip_Stick_Front": [
+    -0.22000000000000003,
+    0,
+    -0.10499999999999994
+   ],
+   "Grip_Throttle_Front": [
+    -0.44,
+    0.2679972883068913,
+    -0.065
+   ],
+   "Grip_Stick_Rear": [
+    -0.9800000000000001,
+    0,
+    -0.07499999999999991
+   ],
+   "Grip_Throttle_Rear": [
+    -1.1600000000000001,
+    0.22354792851489283,
+    -0.065
+   ]
+  },
+  "removed_triangles": {
+   "Cockpit_seat": 40,
+   "Cockpit_panel": 18,
+   "Cockpit_gauge_bezel": 34,
+   "Cockpit_stick": 130,
+   "Cockpit_tube": 230,
+   "Cockpit_dash_top": 12
+  },
+  "rear_pedal_eye_reach_m": 1.208242525323455
+ },
+ "pitts-s2b-like-own-factory-unmarked.glb": {
+  "tube_members": 23,
+  "tube_ends": 46,
+  "max_endpoint_axis_error_mm": 0.0,
+  "lateral_skin_clearance_mm": 10.193623321880386,
+  "min_tube_vertex_lateral_skin_gap_mm": 10.168575638669019,
+  "longeron_widths": [
+   {
+    "x": -1.59,
+    "top_m": 0.614731343086233,
+    "bottom_m": 0.33306075614579217
+   },
+   {
+    "x": -0.98,
+    "top_m": 0.6739679587432095,
+    "bottom_m": 0.389830848231428
+   },
+   {
+    "x": -0.14,
+    "top_m": 0.5949770046748774,
+    "bottom_m": 0.46049738956796166
+   }
+  ],
+  "tube_od_mm": [
+   25.4,
+   19.05
+  ],
+  "panel": {
+   "half_width": 0.335,
+   "bottom": -0.12,
+   "crown": 0.152,
+   "min_gauge_margin_mm": 35.99919229504073
+  },
+  "grips_builder": {
+   "Foot_L_Front": [
+    -0.24,
+    0.13,
+    -0.46
+   ],
+   "Foot_R_Front": [
+    -0.24,
+    -0.13,
+    -0.46
+   ],
+   "Foot_L_Rear": [
+    -0.45,
+    0.285,
+    -0.46
+   ],
+   "Foot_R_Rear": [
+    -0.45,
+    -0.285,
+    -0.46
+   ],
+   "Grip_Stick_Front": [
+    -0.22000000000000003,
+    0,
+    -0.10499999999999994
+   ],
+   "Grip_Throttle_Front": [
+    -0.44,
+    0.2679972883068913,
+    -0.065
+   ],
+   "Grip_Stick_Rear": [
+    -0.9800000000000001,
+    0,
+    -0.07499999999999991
+   ],
+   "Grip_Throttle_Rear": [
+    -1.1600000000000001,
+    0.22354792851489283,
+    -0.065
+   ]
+  },
+  "removed_triangles": {
+   "Cockpit_seat": 40,
+   "Cockpit_panel": 18,
+   "Cockpit_gauge_bezel": 34,
+   "Cockpit_stick": 130,
+   "Cockpit_tube": 230,
+   "Cockpit_dash_top": 12
+  },
+  "rear_pedal_eye_reach_m": 1.208242525323455
+ },
+ "pitts-s2b-like-own-n1191.glb": {
+  "tube_members": 23,
+  "tube_ends": 46,
+  "max_endpoint_axis_error_mm": 0.0,
+  "lateral_skin_clearance_mm": 10.193623321880386,
+  "min_tube_vertex_lateral_skin_gap_mm": 10.168575638669019,
+  "longeron_widths": [
+   {
+    "x": -1.59,
+    "top_m": 0.614731343086233,
+    "bottom_m": 0.33306075614579217
+   },
+   {
+    "x": -0.98,
+    "top_m": 0.6739679587432095,
+    "bottom_m": 0.389830848231428
+   },
+   {
+    "x": -0.14,
+    "top_m": 0.5949770046748774,
+    "bottom_m": 0.46049738956796166
+   }
+  ],
+  "tube_od_mm": [
+   25.4,
+   19.05
+  ],
+  "panel": {
+   "half_width": 0.335,
+   "bottom": -0.12,
+   "crown": 0.152,
+   "min_gauge_margin_mm": 35.99919229504073
+  },
+  "grips_builder": {
+   "Foot_L_Front": [
+    -0.24,
+    0.13,
+    -0.46
+   ],
+   "Foot_R_Front": [
+    -0.24,
+    -0.13,
+    -0.46
+   ],
+   "Foot_L_Rear": [
+    -0.45,
+    0.285,
+    -0.46
+   ],
+   "Foot_R_Rear": [
+    -0.45,
+    -0.285,
+    -0.46
+   ],
+   "Grip_Stick_Front": [
+    -0.22000000000000003,
+    0,
+    -0.10499999999999994
+   ],
+   "Grip_Throttle_Front": [
+    -0.44,
+    0.2679972883068913,
+    -0.065
+   ],
+   "Grip_Stick_Rear": [
+    -0.9800000000000001,
+    0,
+    -0.07499999999999991
+   ],
+   "Grip_Throttle_Rear": [
+    -1.1600000000000001,
+    0.22354792851489283,
+    -0.065
+   ]
+  },
+  "removed_triangles": {
+   "Cockpit_seat": 40,
+   "Cockpit_panel": 18,
+   "Cockpit_gauge_bezel": 34,
+   "Cockpit_stick": 130,
+   "Cockpit_tube": 230,
+   "Cockpit_dash_top": 12
+  },
+  "rear_pedal_eye_reach_m": 1.208242525323455
+ },
+ "pitts-s2b-like-own.glb": {
+  "tube_members": 23,
+  "tube_ends": 46,
+  "max_endpoint_axis_error_mm": 0.0,
+  "lateral_skin_clearance_mm": 10.193623321880386,
+  "min_tube_vertex_lateral_skin_gap_mm": 10.168575638669019,
+  "longeron_widths": [
+   {
+    "x": -1.59,
+    "top_m": 0.614731343086233,
+    "bottom_m": 0.33306075614579217
+   },
+   {
+    "x": -0.98,
+    "top_m": 0.6739679587432095,
+    "bottom_m": 0.389830848231428
+   },
+   {
+    "x": -0.14,
+    "top_m": 0.5949770046748774,
+    "bottom_m": 0.46049738956796166
+   }
+  ],
+  "tube_od_mm": [
+   25.4,
+   19.05
+  ],
+  "panel": {
+   "half_width": 0.335,
+   "bottom": -0.12,
+   "crown": 0.152,
+   "min_gauge_margin_mm": 35.99919229504073
+  },
+  "grips_builder": {
+   "Foot_L_Front": [
+    -0.24,
+    0.13,
+    -0.46
+   ],
+   "Foot_R_Front": [
+    -0.24,
+    -0.13,
+    -0.46
+   ],
+   "Foot_L_Rear": [
+    -0.45,
+    0.285,
+    -0.46
+   ],
+   "Foot_R_Rear": [
+    -0.45,
+    -0.285,
+    -0.46
+   ],
+   "Grip_Stick_Front": [
+    -0.22000000000000003,
+    0,
+    -0.10499999999999994
+   ],
+   "Grip_Throttle_Front": [
+    -0.44,
+    0.2679972883068913,
+    -0.065
+   ],
+   "Grip_Stick_Rear": [
+    -0.9800000000000001,
+    0,
+    -0.07499999999999991
+   ],
+   "Grip_Throttle_Rear": [
+    -1.1600000000000001,
+    0.22354792851489283,
+    -0.065
+   ]
+  },
+  "removed_triangles": {
+   "Cockpit_seat": 40,
+   "Cockpit_panel": 18,
+   "Cockpit_gauge_bezel": 34,
+   "Cockpit_stick": 130,
+   "Cockpit_tube": 230,
+   "Cockpit_dash_top": 12
+  },
+  "rear_pedal_eye_reach_m": 1.208242525323455
+ },
+ "extra-300-like-own-n300uy.glb": {
+  "latch": "red + white paired squeeze paddles; dimensions estimated"
+ },
+ "extra-300-like-own-unmarked.glb": {
+  "latch": "red + white paired squeeze paddles; dimensions estimated"
+ },
+ "extra-300-like-own.glb": {
+  "latch": "red + white paired squeeze paddles; dimensions estimated"
+ },
+ "pitts_body_capsule_clearance": {
+  "Cockpit": {
+   "conservative_clearance_mm": 11.682455690705178,
+   "limb": "L_LowerLeg"
+  },
+  "Cockpit_Truss": {
+   "conservative_clearance_mm": 2.60833308002409,
+   "limb": "L_UpperLeg"
+  },
+  "RearPanel_Rounded": {
+   "conservative_clearance_mm": 76.34194489599717,
+   "limb": "R_Middle3"
+  },
+  "FrontSeat_region": {
+   "conservative_clearance_mm": 11.682455690705178,
+   "limb": "L_LowerLeg"
+  }
+ },
+ "pitts_torso_surface": {
+  "Cockpit": {
+   "mesh_vertex_clearance_mm": 26.26014363869066,
+   "intersecting_torso_edges": 0
+  },
+  "Cockpit_Truss": {
+   "mesh_vertex_clearance_mm": 97.36061893170074,
+   "intersecting_torso_edges": 0
+  },
+  "RearPanel_Rounded": {
+   "mesh_vertex_clearance_mm": 402.49999523162836,
+   "intersecting_torso_edges": 0
+  },
+  "FrontSeat_region": {
+   "mesh_vertex_clearance_mm": 423.547768873304,
+   "intersecting_torso_edges": 0
+  }
+ },
+ "pilot": {
+  "originalGeometry": true,
+  "build": "CPU fallback, Blender startup unavailable; same numeric source as Blender builder",
+  "triangles": 2416,
+  "bones": 49,
+  "anthropometry": "NRC 1983 civilian male 50th: stature 1.736 m, sitting shoulder .594 m; segment estimates documented in PROVENANCE"
+ }
+}
