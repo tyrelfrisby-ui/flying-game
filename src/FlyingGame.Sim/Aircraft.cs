@@ -1386,7 +1386,7 @@ public sealed partial class Aircraft
         }
 
         double rescaled = Math.Clamp((magnitude - axis.DeadZone) / (1.0 - axis.DeadZone), 0.0, 1.0);
-        double shaped = axis.Expo * rescaled * rescaled * rescaled + (1.0 - axis.Expo) * rescaled;
+        double shaped = FlyingGame.Core.InputExpo.Apply(rescaled, axis.Expo);   // after the dead zone, never before
         return Math.Sign(clamped) * shaped * axis.LimitFor(Math.Sign(clamped));
     }
 

@@ -556,22 +556,34 @@ namespace FlyingGame.Bridge
         private static bool GetBool(string k, bool dflt) => PlayerPrefs.GetInt(k, dflt ? 1 : 0) == 1;
         private static void SetBool(string k, bool v) => PlayerPrefs.SetInt(k, v ? 1 : 0);
 
-        // ---- control feel (owner 2026-09-15): per-axis expo and dead zone the user can tune; < 0 = the aircraft's own ----
-        public static readonly float[] FeelExpo = { -1f, -1f, -1f };       // aileron, elevator, rudder
-        public static readonly float[] FeelDeadZone = { -1f, -1f, -1f };
+        // ---- control feel (owner 2026-09-15): per-axis dead zone the user can tune; < 0 = the aircraft's own ----
+        // ---- and ONE stick expo for every aircraft and every platform (Ty 2026-11-04: "hand flying needs some expo") ----
+        public static readonly float[] FeelDeadZone = { -1f, -1f, -1f };   // aileron, elevator, rudder
         public static readonly string[] FeelAxisNames = { "Aileron", "Elevator", "Rudder" };
+        /// <summary>
+        /// "Stick expo" (OPTIONS › Controls, 0…70 %): the pitch-and-roll expo; the rudder gets
+        /// <see cref="FlyingGame.Core.InputExpo.Yaw"/> of it (0.20 / 0.30, so the default 30 % is 20 % on the pedals).
+        /// It replaces the aircraft's own expo for hand flying, on the phone, the Mac and the Quest alike, and the curve
+        /// is applied once, after the dead zone, by Aircraft.ShapeAxis (<see cref="FlyingGame.Core.InputExpo"/>). The
+        /// old per-axis expo sliders' prefs ("feel.expo.0…2") are left where they are and no longer read.
+        /// </summary>
+        public static float StickExpo = (float)FlyingGame.Core.InputExpo.DefaultPitchRoll;
+        private const string PrefStickExpo = "feel.stickExpo";
         private static bool _feelLoaded;
         public static void LoadFeel()
         {
             if (_feelLoaded) return; _feelLoaded = true;
-            for (int i = 0; i < 3; i++) { FeelExpo[i] = PlayerPrefs.GetFloat("feel.expo." + i, -1f); FeelDeadZone[i] = PlayerPrefs.GetFloat("feel.dz." + i, -1f); }
+            for (int i = 0; i < 3; i++) FeelDeadZone[i] = PlayerPrefs.GetFloat("feel.dz." + i, -1f);
+            StickExpo = (float)FlyingGame.Core.InputExpo.PitchRoll(PlayerPrefs.GetFloat(PrefStickExpo, (float)FlyingGame.Core.InputExpo.DefaultPitchRoll));
         }
         public static void SaveFeel()
         {
-            for (int i = 0; i < 3; i++) { PlayerPrefs.SetFloat("feel.expo." + i, FeelExpo[i]); PlayerPrefs.SetFloat("feel.dz." + i, FeelDeadZone[i]); }
+            for (int i = 0; i < 3; i++) PlayerPrefs.SetFloat("feel.dz." + i, FeelDeadZone[i]);
+            PlayerPrefs.SetFloat(PrefStickExpo, StickExpo);
             PlayerPrefs.Save();
         }
-        /// <summary>Push the user's feel settings into a loaded config (the aircraft's own values stay where a setting is off).</summary>
+        /// <summary>Push the user's feel settings into a loaded config: the stick expo always, and a dead zone only where
+        /// the user has set one (the aircraft's own stays otherwise).</summary>
         public static void ApplyFeel(FlyingGame.Core.DataContracts.AircraftConfig cfg)
         {
             LoadFeel();
@@ -580,7 +592,7 @@ namespace FlyingGame.Bridge
             for (int i = 0; i < 3; i++)
             {
                 if (axes[i] == null) continue;
-                if (FeelExpo[i] >= 0f) axes[i].Expo = FeelExpo[i];
+                axes[i].Expo = i == 2 ? FlyingGame.Core.InputExpo.Yaw(StickExpo) : FlyingGame.Core.InputExpo.PitchRoll(StickExpo);
                 if (FeelDeadZone[i] >= 0f) axes[i].DeadZone = FeelDeadZone[i];
             }
         }

@@ -6,14 +6,16 @@ namespace FlyingGame.Core;
 ///
 /// Pure arithmetic, no Unity: the Unity side reads the pad and hands the raw numbers here. A thumb stick travels a
 /// centimetre where a real stick travels a hand's width, so it gets a dead zone of its own (pads rest a few percent
-/// off centre and drift) and HEAVY expo, so the middle of that short travel is fine control and the stops are
-/// still full deflection.
+/// off centre and drift). Its expo is NOT here any more: the pad used to add a heavy 0.65 curve of its own, and
+/// Aircraft.ShapeAxis then added the aeroplane's on top — two curves. Since 2026-11-04 the pad hands over its zoned
+/// sticks linearly (<see cref="DefaultExpo"/> = 0) and the one shared <see cref="InputExpo"/> curve is applied by the
+/// sim, the same for a pad, the touch pads, a joystick and the Quest.
 ///
 ///  • DEAD ZONE: everything inside it is exactly zero, and what is left is rescaled so the edge of the zone is 0 and
 ///    the stop is 1 — no step at the edge, and nothing lost at the end. The two sticks use a RADIAL zone, measured on
 ///    the stick's distance from centre, so a small diagonal is not cut to a pure axis the way two separate axis zones
 ///    would cut it.
-///  • EXPO: out = (1 − e)·x + e·x³. At x = ±1 that is ±1 for every e, so full deflection is exactly full; for e in
+///  • EXPO (available, off by default): out = (1 − e)·x + e·x³ (<see cref="InputExpo.Apply"/>). At x = ±1 that is ±1 for every e, so full deflection is exactly full; for e in
 ///    0…1 the slope (1 − e) + 3e·x² is never negative, so more stick never gives less control.
 ///
 /// The mapping (Ty, 2026-11-02, "the right hand on the stick"): RIGHT stick = roll and pitch, LEFT stick X = rudder
@@ -31,8 +33,9 @@ public static class GamepadShaping
     public const double DefaultStickDeadZone = 0.02;
     /// <summary>The triggers' dead zone: they rest at zero and do not drift, so they need less.</summary>
     public const double DefaultTriggerDeadZone = 0.05;
-    /// <summary>The expo blend, 0 = linear … 1 = pure cube.</summary>
-    public const double DefaultExpo = 0.65;
+    /// <summary>The pad's OWN expo blend, 0 = linear … 1 = pure cube. Zero: the shared <see cref="InputExpo"/> curve,
+    /// applied once by Aircraft.ShapeAxis, is the expo (Ty 2026-11-04; was 0.65 here, stacked on the aeroplane's).</summary>
+    public const double DefaultExpo = 0.0;
 
     /// <summary>One axis through a symmetric dead zone, rescaled so the stop is still ±1.</summary>
     public static double DeadZone(double x, double deadZone)
@@ -56,11 +59,7 @@ public static class GamepadShaping
     }
 
     /// <summary>The cubic expo blend (1 − e)·x + e·x³, with e clamped to 0…1 and x to ±1.</summary>
-    public static double Expo(double x, double expo)
-    {
-        double e = Math.Clamp(expo, 0.0, 1.0), c = Math.Clamp(x, -1.0, 1.0);
-        return (1.0 - e) * c + e * c * c * c;
-    }
+    public static double Expo(double x, double expo) => InputExpo.Apply(x, expo);
 
     /// <summary>The flying stick (the RIGHT stick), dead zone then expo per axis: (roll, pitch).</summary>
     public static (double X, double Y) Stick(double x, double y,
