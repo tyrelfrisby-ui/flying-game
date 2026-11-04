@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "f86-sabre-like",
   "displayName": "F-86-like Jet Fighter",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "North American F-86: aluminium semi-monocoque fuselage.",
   "spawnIasMs": 180,
   "mass": {
     "massKg": 6900,

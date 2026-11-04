@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "p51d-like",
   "displayName": "P-51D-like Fighter",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "North American P-51D: aluminium semi-monocoque fuselage.",
   "spawnIasMs": 110,
   "mass": {
     "massKg": 4600,

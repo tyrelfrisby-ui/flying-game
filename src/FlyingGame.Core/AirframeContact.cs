@@ -84,6 +84,12 @@ public sealed class ContactPoint
     public const int SurfaceNone = -1, SurfaceSolid = -2, SurfaceWater = -3;
     /// <summary>World position and velocity at that evaluation.</summary>
     public Vec3 WorldPos, WorldVel;
+    /// <summary>Set when the point ARRIVED faster than its break speed (the aeroplane reads and clears it: a fuselage
+    /// section crushes before it breaks, <see cref="FuselageStructure"/>): the closing speed and the surface's outward
+    /// normal in the body frame.</summary>
+    public bool ArrivalPending;
+    public double ArrivalMs;
+    public Vec3 ArrivalNormalBody;
 }
 
 /// <summary>Solid boxes in the world (buildings, bridge decks, landmark legs) that the airframe collides with.
@@ -760,9 +766,13 @@ public static class AirframeContact
                 // (Wreck/AirframeFlooding.CheckJoints): a closing speed at first touch says nothing about the load once
                 // the water's added mass has taken it up. A propeller blade in the water still bends.
                 bool loadRuled = onWater && !floatsCarryWater && !solidWins && waterByHydro && p.Component != AirframeComponent.Propeller;
-                if (broken is not null && p.BreakSpeedMs > 0 && closing > p.BreakSpeedMs && !broken.Contains(p.Component) && !loadRuled)
+                if (broken is not null && p.BreakSpeedMs > 0 && closing > p.BreakSpeedMs && !loadRuled)
                 {
-                    broken.Add(p.Component);
+                    if (!p.ArrivalPending || closing > p.ArrivalMs)
+                    {
+                        p.ArrivalPending = true; p.ArrivalMs = closing; p.ArrivalNormalBody = s.Attitude.Conjugate().Rotate(normal);
+                    }
+                    if (!broken.Contains(p.Component)) broken.Add(p.Component);
                 }
             }
             if (ditching && waterByHydro)
