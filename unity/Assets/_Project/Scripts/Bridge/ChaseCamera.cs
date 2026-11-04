@@ -324,9 +324,14 @@ namespace FlyingGame.Bridge
                 // still shows genuine sideslip / gyroscopic yaw / tumbles.
                 // ... but only once actually MOVING: parked in a 5 m/s crosswind the air vector is the wind from the
                 // side, and the launch view sat off the wingtip (owner). Ground track speed gates it.
-                // Ground reference (runway lessons, low altitude): follow the ground track instead — the runway is the reference.
-                Vector3 v = Driver.GroundReference ? Driver.WorldVelocityUnity : Driver.AirVelocityUnity;
-                if (v.magnitude >= MinTrackSpeed && Driver.WorldVelocityUnity.magnitude >= MinTrackSpeed) return v.normalized;
+                // Flight Path or Track is the pilot's choice now (the CAM button; Ty 2026-11-03), not the height: below
+                // 500 ft the old automatic switch put the chase view off at 7:30 on a crosswind final. A runway lesson
+                // can still force Track (CameraReference.Effective).
+                FlyingGame.Core.CameraReference.Mode mode = FlyingGame.Core.CameraReference.Effective(SessionSettings.CameraReferenceMode, Driver.GroundReferenceForced);
+                Vector3 a = Driver.AirVelocityUnity, g = Driver.WorldVelocityUnity;
+                FlyingGame.Core.MathTypes.Vec3? d = FlyingGame.Core.CameraReference.Direction(mode,
+                    new FlyingGame.Core.MathTypes.Vec3(a.x, a.y, a.z), new FlyingGame.Core.MathTypes.Vec3(g.x, g.y, g.z), MinTrackSpeed);
+                if (d.HasValue) return new Vector3((float)d.Value.X, (float)d.Value.Y, (float)d.Value.Z);
             }
             return Target.forward;
         }

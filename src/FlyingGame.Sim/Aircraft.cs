@@ -149,6 +149,8 @@ public sealed partial class Aircraft
     private readonly List<AirframeComponent> _pendingBreaks = new();
     private readonly HashSet<AirframeComponent> _lostGear = new();   // legs torn off (LandingGear skips them)
     private bool[] _gearTouching = System.Array.Empty<bool>();       // per-leg contact state, Config.Gear order
+    /// <summary>Is any leg on the ground or in the water (the last step's contact state).</summary>
+    public bool AnyGearTouching => System.Array.IndexOf(_gearTouching, true) >= 0;
     private double[] _gearStageClear = System.Array.Empty<double>(); // per leg: clearance and margin from a step's first RK4 stage
     private Vec3[] _wheelBodies = System.Array.Empty<Vec3>();         // each leg's contact point (body), for the step's clear test
     private readonly ImpactRecorder _impacts = new();
@@ -283,6 +285,10 @@ public sealed partial class Aircraft
         foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
         Structure = new StructuralState(config.Limits);
         if (config.Floats is not null) FloatFlood = new FloatFlooding(config);
+        InitFloatWaterLoads();
+        // The water the floats already carry at the start (an aeroplane spawned afloat): without this the first step
+        // took all of it as newly entrained — a slam out of nothing, 420 kN on a Beaver starting with its heels wet.
+        if (config.Floats is not null) _floatAddedMass = FloatHydro.AddedMassOf(config, initialState);
 
         ControlDeflections initial = initialDeflections ?? ControlDeflections.Neutral;
         _aileronRad = initial.AileronRad;
@@ -642,6 +648,61 @@ public sealed partial class Aircraft
     // half second — 100 m of margin is more than any aeroplane closes in that time.
     private bool _hydroArmed;
     private FloatHydro.AddedMass _floatAddedMass = FloatHydro.AddedMass.None;
+
+    /// <summary>
+    /// A float's ultimate water load, N — 14 CFR 23.527 (hull and main float load factors): the limit water reaction
+    /// load factor n_w = C1·V_S0² / (tan^(2/3) β · W^(1/3)), C1 = 0.012, V_S0 in knots, W in pounds, β the deadrise at
+    /// the step; for twin floats each float is the hull of a fictitious seaplane of half the weight (23.527(b)); times
+    /// the 1.5 factor of safety (23.303). V_S0 is the type's own (PracticeScenario.EstimateVso, power off, no flap).
+    /// Above it the float's bottom splits (FloatFlooding): the aeroplane does not come apart, it starts to fill on that
+    /// side — the damage a float actually takes from a landing far harder than it was designed for. 0 = no floats.
+    /// </summary>
+    public double FloatUltimateWaterLoadN { get; private set; }
+    /// <summary>The limit water load factor n_w that load is built on (23.527), for the log and tests.</summary>
+    public double FloatLimitWaterLoadFactor { get; private set; }
+    private readonly bool[] _floatSplit = new bool[2];
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, double> VsoCache = new();
+
+    private void InitFloatWaterLoads()
+    {
+        if (Config.Floats is null || FloatFlood is null) return;
+        double vso = VsoCache.GetOrAdd(Config.Id ?? "", _ => Practice.PracticeScenario.EstimateVso(Config, 0.0));
+        int floats = Config.Floats.Count == 1 ? 1 : 2;
+        double wLb = Config.Mass.MassKg * 2.20462 / floats;
+        double vKt = vso * 1.943844;
+        double beta = Config.Floats.DeadriseDeg * System.Math.PI / 180;
+        FloatLimitWaterLoadFactor = 0.012 * vKt * vKt / (System.Math.Pow(System.Math.Tan(beta), 2.0 / 3.0) * System.Math.Pow(wLb, 1.0 / 3.0));
+        FloatUltimateWaterLoadN = 1.5 * FloatLimitWaterLoadFactor * Config.Mass.MassKg * 9.81 / floats;
+    }
+
+    /// <summary>Peak water load each main float has carried, N (tests and the log).</summary>
+    public readonly double[] FloatPeakWaterLoadN = new double[2];
+
+    /// <summary>After the step: each main float's water reaction — FloatHydro's forces, plus its share of the entrained
+    /// water's momentum (the added-mass slam, applied implicitly after the RK4 step, so it is not in those forces) —
+    /// against <see cref="FloatUltimateWaterLoadN"/>.</summary>
+    private void CheckFloatWaterLoads(RigidBodyState beforeAm, RigidBodyState afterAm, double dt)
+    {
+        if (FloatUltimateWaterLoadN <= 0 || dt <= 0) return;
+        double dvUp = -(afterAm.Attitude.Rotate(afterAm.Velocity) - beforeAm.Attitude.Rotate(beforeAm.Velocity)).Z;
+        double slamN = System.Math.Max(0.0, dvUp) * MassProperties.MassKg / dt;
+        int n = Config.Floats!.Count == 1 ? 1 : 2;
+        double l0 = System.Math.Max(0, FloatHydro.Floats[0].WaterUpN), l1 = n == 2 ? System.Math.Max(0, FloatHydro.Floats[1].WaterUpN) : 0;
+        double sum = l0 + l1;
+        for (int i = 0; i < n; i++)
+        {
+            double own = i == 0 ? l0 : l1;
+            double load = own + slamN * (sum > 1e-6 ? own / sum : 1.0 / n);
+            if (load > FloatPeakWaterLoadN[i]) FloatPeakWaterLoadN[i] = load;
+            if (_floatSplit[i] || load <= FloatUltimateWaterLoadN) continue;
+            _floatSplit[i] = true;
+            string side = n == 1 ? "hull" : i == 0 ? "left float" : "right float";
+            string why = $"{side} bottom split at the step: {load / 1000:F1} kN of water load against {FloatUltimateWaterLoadN / 1000:F1} (14 CFR 23.527 ultimate)";
+            // A buckled bottom panel at the step: a 300 × 6 mm split, running up the side above the waterline.
+            PunctureFloat(new FloatPuncture(i, 2, 0.30 * 0.006, 0.30 * 0.002, why));
+            Hydro.DamageLog.Add(why);
+        }
+    }
     private double _hydroRecheckSec;
     private void PrepareWater(double dt)
     {
@@ -1125,8 +1186,10 @@ public sealed partial class Aircraft
         {
             // The water the floats carry (FloatHydro.AddedMassOf): applied implicitly, like the airframe's below.
             FloatHydro.AddedMass am = FloatHydro.AddedMassOf(Config, State);
+            RigidBodyState beforeAm = State;
             State = FloatHydro.CorrectForAddedMass(preStep, State, MassProperties, _floatAddedMass, am, dt);
             _floatAddedMass = am;
+            CheckFloatWaterLoads(beforeAm, State, dt);
         }
         if (_hydroArmed)
         {

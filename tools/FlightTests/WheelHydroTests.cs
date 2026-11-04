@@ -63,44 +63,92 @@ public class WheelHydroTests : IDisposable
         Assert.True(jetPsi > psi * 3, "an airliner's tyre has to be far harder than a bushwheel");
     }
 
-    [Fact]
-    public void TheWaterCarriesTheWheelAtSpeedAndNotAtAWalk()
+    private static double Lift(AircraftConfig c, GearConfig g, double h, double v)
     {
-        AircraftConfig cub = Cub();
-        GearConfig main = cub.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
-        double vp = WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(cub, main));
-        const double load = 3000;
+        Vec3 f = WheelHydro.Force(c, g, h, new Vec3(v, 0, 0), out _, out _, out _);
+        return -f.Z;
+    }
 
-        // Fast: the water holds the wheel up and the drag is spray.
-        Vec3 fast = WheelHydro.Force(cub, main, 0.10, load, new Vec3(vp * 1.2, 0, 0), out bool planingFast, out double phiFast);
-        Assert.True(planingFast, "at 1.2 V_p it should be on top");
-        Assert.Equal(1.0, phiFast, 3);
-        Assert.Equal(-load, fast.Z, 0);                         // NED: the whole load, upward
-        double dragFast = Math.Sqrt(fast.X * fast.X + fast.Y * fast.Y);
-
-        // Slow: almost no support, and a great deal more drag for the speed.
-        Vec3 slow = WheelHydro.Force(cub, main, 0.10, load, new Vec3(vp * 0.35, 0, 0), out bool planingSlow, out double phiSlow);
-        Assert.False(planingSlow);
-        Assert.InRange(phiSlow, 0.1, 0.2);
-        Assert.True(-slow.Z < load * 0.2, "a wheel at a third of V_p is not being held up");
-        double dragSlow = Math.Sqrt(slow.X * slow.X + slow.Y * slow.Y);
-        // The drag COEFFICIENT is what jumps: nine times, from spray to ploughing.
-        double cdFast = dragFast / (0.5 * 1000 * (vp * 1.2) * (vp * 1.2));
-        double cdSlow = dragSlow / (0.5 * 1000 * (vp * 0.35) * (vp * 0.35));
-        _o.WriteLine($"V_p {vp:0.0} m/s: planing Cd·A {cdFast:0.0000}, ploughing Cd·A {cdSlow:0.0000}");
-        Assert.True(cdSlow > cdFast * 5, "the ploughing drag coefficient has to be far higher than the spray one");
+    /// <summary>The immersion at which the tyre's lift carries <paramref name="load"/>, or NaN if it cannot (bisection
+    /// up to the axle, where the lift is greatest).</summary>
+    private static double RideDepth(AircraftConfig c, GearConfig g, double load, double v)
+    {
+        double r = LandingGear.TireRadiusOf(c, g), lo = 0, hi = r;
+        if (Lift(c, g, hi, v) < load) return double.NaN;
+        for (int i = 0; i < 60; i++) { double m = 0.5 * (lo + hi); if (Lift(c, g, m, v) < load) lo = m; else hi = m; }
+        return 0.5 * (lo + hi);
     }
 
     [Fact]
-    public void DeeperWaterMeansMoreDragAndNoMoreSupport()
+    public void ThePressureCoefficientIsHornesLaw()
     {
+        // ½ρV_p²C = p with V_p = 9√p kt: C = 2·6894.76 / (1000·(9·0.514444)²) = 13789.52 / 21437.0, worked by hand: 0.6433.
+        Assert.Equal(0.6433, WheelHydro.PressureCoefficient, 4);
+    }
+
+    [Fact]
+    public void TheForceGrowsFromNothingAtFirstTouch()
+    {
+        // Ty 2026-11-03: a gentle touch stopped the Extra dead. The water's hold on a tyre must start at zero.
         AircraftConfig cub = Cub();
         GearConfig main = cub.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         double vp = WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(cub, main));
-        Vec3 shallow = WheelHydro.Force(cub, main, 0.03, 3000, new Vec3(vp * 0.5, 0, 0), out _, out _);
-        Vec3 deep = WheelHydro.Force(cub, main, 0.30, 3000, new Vec3(vp * 0.5, 0, 0), out _, out _);
-        Assert.True(Math.Abs(deep.X) > Math.Abs(shallow.X) * 3, "deeper immersion has to drag much harder");
-        Assert.Equal(shallow.Z, deep.Z, 1);                      // the support is the speed's business, not the depth's
+        double w = cub.Mass.MassKg * 9.81;
+        // The planing lift grows as the wetted length, √(2rh): continuous, steep, and zero at zero.
+        foreach (double v in new[] { 0.5 * vp, vp, 2 * vp })
+        {
+            double prev = 0;
+            foreach (double h in new[] { 1e-9, 1e-7, 1e-5, 1e-3 })
+            {
+                double f = WheelHydro.Force(cub, main, h, new Vec3(v, 0, 0.5), out _, out _, out _).Length;
+                Assert.True(f > prev, $"at {v:F1} m/s the force must grow with the immersion");
+                prev = f;
+            }
+            Vec3 first = WheelHydro.Force(cub, main, 1e-9, new Vec3(v, 0, 0.5), out _, out _, out _);
+            Assert.True(first.Length < 0.002 * w, $"at {v:F1} m/s, 1 nm in: {first.Length:F1} N");
+        }
+    }
+
+    [Fact]
+    public void TheRideHeightRisesWithSpeedAndAtVpTheWettedAreaIsTheFootprint()
+    {
+        AircraftConfig cub = Cub();
+        GearConfig main = cub.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
+        double psi = WheelHydro.TirePressurePsi(cub, main), vp = WheelHydro.HydroplaneSpeedMs(psi);
+        double load = cub.Mass.MassKg * 9.81 * 0.88 / 2;
+        double r = LandingGear.TireRadiusOf(cub, main), b = 2 * r * WheelHydro.WidthPerDiameter;
+        double hSlow = RideDepth(cub, main, load, 0.8 * vp), hVp = RideDepth(cub, main, load, vp), hFast = RideDepth(cub, main, load, 1.5 * vp);
+        _o.WriteLine($"ride depth under {load:F0} N: {hSlow * 1000:F0} mm at 0.8 Vp, {hVp * 1000:F0} at Vp, {hFast * 1000:F0} at 1.5 Vp");
+        Assert.True(hSlow > hVp && hVp > hFast, "faster rides higher");
+        // At V_p the water's pressure is the tyre's: the planform carrying the load is the dry footprint W/p.
+        WheelHydro.Force(cub, main, hVp, new Vec3(vp, 0, 0), out _, out _, out WheelHydro.Parts parts);
+        double footprint = load / (psi * 6894.76);
+        Assert.Equal(1.0, b * parts.WettedLengthM / footprint, 2);
+        // Below the dig-in speed nothing holds it up.
+        double vDig = WheelHydro.DigInSpeedMs(cub, main, load);
+        _o.WriteLine($"V_p {vp:F1} m/s, dig-in {vDig:F1} m/s ({vDig / vp:F2} V_p)");
+        Assert.True(double.IsNaN(RideDepth(cub, main, load, 0.95 * vDig)));
+        Assert.False(double.IsNaN(RideDepth(cub, main, load, 1.05 * vDig)));
+    }
+
+    [Fact]
+    public void DeeperWaterMeansMoreDragAndTheLiftPeaksAtTheAxle()
+    {
+        AircraftConfig cub = Cub();
+        GearConfig main = cub.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
+        double r = LandingGear.TireRadiusOf(cub, main), v = 10;
+        double prevDrag = 0;
+        foreach (double h in new[] { 0.02, 0.1, 0.5 * r, r, 1.5 * r, 2 * r })
+        {
+            Vec3 f = WheelHydro.Force(cub, main, h, new Vec3(v, 0, 0), out _, out _, out _);
+            Assert.True(-f.X > prevDrag, $"drag must grow with depth (h {h:F3})");
+            prevDrag = -f.X;
+        }
+        Assert.True(Lift(cub, main, r, v) > Lift(cub, main, 0.5 * r, v));
+        Assert.True(Lift(cub, main, r, v) > Lift(cub, main, 1.5 * r, v));
+        // In planing the drag is the planing surface's L·tan τ: D/L = tan(φ_w/2) = h/l_f.
+        WheelHydro.Force(cub, main, 0.02, new Vec3(v, 0, 0), out _, out _, out WheelHydro.Parts p);
+        Assert.Equal(0.02 / p.WettedLengthM, p.PressureDragN / p.LiftN, 6);
     }
 
     [Fact]
@@ -148,70 +196,39 @@ public class WheelHydroTests : IDisposable
         Assert.True(vBush < vPlain * 0.8, "soft tyres go on top of the water at a lower speed");
 
         // And the fat tyre drags more once it IS ploughing, because there is more of it in the water.
-        Vec3 fPlain = WheelHydro.Force(plain, gp, 0.12, 3000, new Vec3(8, 0, 0), out _, out _);
-        Vec3 fBush = WheelHydro.Force(bush, gb, 0.12, 3000, new Vec3(8, 0, 0), out _, out _);
+        Vec3 fPlain = WheelHydro.Force(plain, gp, 0.12, new Vec3(8, 0, 0), out _, out _, out _);
+        Vec3 fBush = WheelHydro.Force(bush, gb, 0.12, new Vec3(8, 0, 0), out _, out _, out _);
         Assert.True(Math.Abs(fBush.X) > Math.Abs(fPlain.X), "a wider tyre pushes more water");
     }
 
     [Fact]
     public void ACubSkimsShallowWaterFastAndNosesOverBelowThePlaningSpeed()
     {
-        // The real case, and the one the owner described: a hand's depth of water over a gravel bed, which is
-        // what the braided rivers are. Above the planing speed the water carries the wheels and they skim
-        // clear of the bottom; below it they are in the bed with a wall of water in front of them.
-        //
-        // The dangerous band is JUST below planing speed, not at a crawl — plough drag goes as V², so at a
-        // walking pace it merely stops you. That is also how it goes wrong in reality.
+        // The real case, and the one the owner described: a hand's depth of water (0.10 m) over a gravel bed, which is
+        // what the braided rivers are. Flown in, not started in the water: a light touch at 1.3 V_p with power and the
+        // tail held low skims; with the power off it slows through V_p, digs in and goes over.
         AircraftConfig cfg = Cub();
         GearConfig main = cfg.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         double vp = WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(cfg, main));
         _o.WriteLine($"Cub planes at {vp:0.0} m/s ({vp / 0.514444:0} kt)");
-
-        var fast = Run(vp * 1.3);
-        _o.WriteLine($"  {vp * 1.3:0.0} m/s (1.3 V_p): worst pitch {fast.pitch * 180 / Math.PI:+0.0;-0.0}°, "
-                     + $"{fast.decel:0.0} m/s lost, wheel off the bed {fast.offBed * 100:0}% of the time");
-        Assert.False(fast.flipped, "above the planing speed it should skim, not dig in");
-        Assert.True(fast.offBed > 0.5, "the water should be carrying the wheels most of the time");
-
-        var marginal = Run(vp * 0.8);
-        _o.WriteLine($"  {vp * 0.8:0.0} m/s (0.8 V_p): worst pitch {marginal.pitch * 180 / Math.PI:+0.0;-0.0}°, "
-                     + $"{marginal.decel:0.0} m/s lost, wheel off the bed {marginal.offBed * 100:0}%");
-        Assert.True(marginal.flipped || marginal.pitch < -20 * Math.PI / 180,
-                    $"below the planing speed the wheels plough and it should go over (worst pitch {marginal.pitch * 180 / Math.PI:0.0}°)");
-
-        var crawl = Run(3.0);
-        _o.WriteLine($"  3.0 m/s (a crawl): worst pitch {crawl.pitch * 180 / Math.PI:+0.0;-0.0}°, {crawl.decel:0.0} m/s lost");
-        Assert.False(crawl.flipped, "at a walking pace the water just stops you");
-    }
-
-    private (double pitch, bool flipped, double decel, double offBed) Run(double speedMs)
-    {
-        // Flat bed at zero with 0.10 m of water over it.
-        WorldTerrain.Active = null;
         FloatHydro.FlatWaterOverride = 0.10;
-        Atmosphere.SteadyWind = Vec3.Zero;
-        AircraftConfig cfg = Cub();
-        RigidBodyState rest = LandingGear.RestingState(cfg, 0, 0, 0, 0);
-        var state = new RigidBodyState(rest.Position, rest.Attitude, new Vec3(speedMs, 0, 0), Vec3.Zero);
-        var ac = new Aircraft(cfg, state, new ControlDeflections(0, 0, 0, 0));
-        var loop = new SimLoop(ac);
-        double worst = 0;
-        bool flipped = false;
-        int steps = 0, off = 0;
-        for (int i = 0; i < 500; i++)
+        try
         {
-            loop.RunFor(SimLoop.DefaultFixedDtSec, ControlInputs.Neutral);
-            if (double.IsNaN(ac.State.Position.X)) break;
-            Quat q = ac.State.Attitude;
-            double pitch = Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1));
-            if (Math.Abs(pitch) > Math.Abs(worst)) worst = pitch;
-            if (pitch < -30 * Math.PI / 180) flipped = true;
-            steps++;
-            if (!LandingGear.AnyMainWheelOnGround(cfg, ac.State)) off++;
-            if (ac.State.Velocity.Length < 0.3) break;
+            var fast = WheelWaterTouch.Run(cfg, 0.5, 3.0, speed: 1.3 * vp);
+            _o.WriteLine("  1.3 V_p: " + fast);
+            Assert.True(fast.TouchAt > 0, "never touched");
+            Assert.True(fast.NoseOverAt < 0, "above the planing speed it should skim, not dig in");
+            Assert.True(fast.PeakDecelG < 0.5, $"peak {fast.PeakDecelG:F2} g");
+            Assert.True(fast.Lost.Count == 0 && fast.Damage.Count == 0);
+
+            // Power off it slows on the water — and in a hand's depth it does not go over: the bed holds the tyre's
+            // immersion to 0.10 m, so the plough drag (½ρV²·C·b·0.10) never reaches the nose-over moment. (In deep
+            // water it does: WheelWaterTests.SlowingBelowThePlaningSpeedDigsIn….)
+            var idle = WheelWaterTouch.Run(cfg, 0.5, 15.0, speed: 1.3 * vp, holdPitchDeg: 4);
+            _o.WriteLine("  1.3 V_p, idle, slowing: " + idle);
+            Assert.True(idle.MinSpeed < 0.5 * vp, "it should slow right down in the water");
+            Assert.True(idle.PeakDecelG < 1.0, $"peak {idle.PeakDecelG:F2} g");
         }
-        double decel = speedMs - ac.State.Velocity.Length;
-        FloatHydro.FlatWaterOverride = null;
-        return (worst, flipped, decel, steps > 0 ? (double)off / steps : 0);
+        finally { FloatHydro.FlatWaterOverride = null; }
     }
 }
