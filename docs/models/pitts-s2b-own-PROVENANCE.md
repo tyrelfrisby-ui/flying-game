@@ -385,3 +385,29 @@ import/render remain unverified here. No Tests/ or app logic changes.
 All four own liveries add original mirrored red rod sights, generated from [sights-spec.json](sights-spec.json) by the shared `sights.py` helper invoked by this builder through `sequence_card.blender_add`. Bars are 0.500 m long × 8 mm diameter, vertical and ±45° in body-Y planes, centred laterally from Ty’s accepted sight-reference eye (-1.325,0,-0.300). Measured I-strut attachments body (-0.082181616, ±2.235188945, -0.300); frame centres (-1.325, ±1.850, -0.300). Fittings engage the waist; supports step inboard before extending aft, preserving the importer’s outer-wing alignment. Photos ref2/ref3 were viewed only; no copied photo texture or third-party geometry.
 
 The rear IAC card moves down 50 mm: builder centre (-0.8087,0,0.015) → (-0.8087,0,-0.035), raw GLB (0.8087,-0.035,0). No instruments moved; size, flush contact, centreline, UVs and source artwork remain unchanged. Original round-1 buffers, front-panel triangles, seats and all airframe paint are retained by the native updater. Sight angles, full-aileron-travel clearance bounds and eye visibility pass for all four Pitts liveries; existing IAC checks pass. Full Blender/Unity verification remains external. See [sights-PROVENANCE.md](sights-PROVENANCE.md) for exact data, renders, numerical checks and commands. Ty’s feedback is logged without changing any approval gate or eyepoint status.
+
+## 2026-11-03 — v13 aileron slave-strut horns (builder only; committed GLBs NOT regenerated)
+
+`build_pitts_s2b.py` v13 replaces the slave-strut horns. Before, the lower aileron's horn stood ABOVE the lower wing
+and the upper's hung BELOW the upper wing, so the two horns pointed opposite ways vertically; across the strut's ~25°
+stagger lean that linkage would drive the uppers at ~0.1 of the lowers. Now both horns are the same vector: 0.072 m
+from the hinge line, 20° below the forward chord, the pin inside the fixed wing's trailing-edge cove and the strut
+passing through the skin to reach it. That is a parallelogram, so the uppers follow the lowers 1:1.
+
+- **Source for the lower horn:** the Pitts S-1-11 factory drawing, Detail A (biplaneforum.com thread 20836). It shows
+  the 11-510-53 link fork on an AN3-6 bolt just ahead of the 11-460 aileron's nose, slightly below the chord, with
+  the strut entering through the top skin. The 20° angle is measured off that unscaled section.
+- **Upper horn:** made parallel and equal to the lower one. Owners rig the four ailerons to move together, and
+  "the bends in the arms line up the two arcs" (biplaneforum thread 19463).
+- **Not found:** no S-2 arm length was available (the Aviat S-2B parts catalogue was not reachable). The 0.072 m is
+  kept from the previous pin offset.
+- **Sim twin:** the `slaveStrut` horns in `configs/aircraft/pitts-s2b-like.json` (`drivenHornDownDeg` /
+  `slavedHornDownDeg` 20).
+
+**The four committed GLBs still carry the old horns.** Their sequence cards, sights and rear panel were added by
+offline updaters after the last full build, so a full rebuild from this script would drop them. A scratch build
+(`PITTS_OUT=/tmp/... blender -b --python tools/own_models/build_pitts_s2b.py`, 2.54 MB against the committed
+2.76 MB) was rendered to check the new horns.
+
+To fix the GLBs, replace only the `Aileron_UL/UR/LL/LR` and `Strut_Slave_L/R` meshes in each one, in the manner of
+`build_ea300.py --wing-only`. Before committing, compare the exported node sets against HEAD.

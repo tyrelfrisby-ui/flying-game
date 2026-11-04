@@ -3,8 +3,10 @@
   "id": "j3-cub-floats-like",
   "displayName": "J-3 Cub-like on Floats",
   "wingBracing": "strut",
-  "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break station = the lift-strut wing attach, |y| 3.40 (tools/own_models/build_j3_cub.py Y_ST).",
-  "wingBreakStationY": { "wing": 3.40 },
+  "wingBreakStationY": { "wing": 3.4 },
+  "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in) from the centreline: our own J-3 model (tools/own_models/build_j3_cub.py Y_ST, traced from the J-3 three-view). Checks: Piper spar drawing 14383 (J-3 to PA-18) puts the strut fitting 121.25 in from the root bolt hole, measured 123.5 front / 122.25 rear in from the spar root end on a PA-18 spar (supercub.org 'Spar Drilling', quoting drawings 14388/14453), plus ~13 in root-end offset (scaled) = 135-136.5 in; the PA-18 Information Manual three-view (p.4) scales to 129-131 in. 3.40 m sits inside that 130-136 in spread.",
+  "liftStrutFuselageAttach": [-0.24, 0.325, 0.41],
+  "liftStrutFuselageAttachSource": "As j3-cub-like (same airframe, same eye, Spec.SitHighM): build_j3_cub.py F_ST, 0.645 m aft of the wing LE, BL 0.325 m, 1.16 m below the chord line.",
   "spawnIasMs": 26,
   "mass": {
     "massKg": 589.7,

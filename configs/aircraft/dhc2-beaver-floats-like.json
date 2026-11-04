@@ -3,6 +3,8 @@
   "id": "dhc2-beaver-floats-like",
   "displayName": "Beaver-like on Floats",
   "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 3.1 },
+  "wingBreakStationSource": "As dhc2-beaver-like: lift-strut wing attach ~122 in = 3.10 m from the centreline, scaled (+/-5 in) off the L-20A/DHC-2 three-view (48 ft span); no published station found.",
   "spawnIasMs": 48,
   "mass": {
     "massKg": 2200.0,
