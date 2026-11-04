@@ -1,4 +1,28 @@
 ## NEEDS YOU
+- **NEEDS YOU: Ty, approve the C172 seat move (renders); the yoke-vs-thigh item is still yours** (Claude, 2026-11-04,
+  lane/claude-172-instruments; NOT merged, NOT deployed, nothing installed).
+  - Ty (2026-11-04 5:17): "the pilot should sit at the back of the seat with his back against the backrest/backboard
+    of the seat... move the seat forward so that is the case."
+  - Done: the approved eye, pedals and yoke did not move. Both front seats (they are identical, and the CFI eye has
+    the same fore-aft) moved **239 mm forward (+X)**. The cushion is **45 mm lower**, and the back is **reclined
+    12 deg** to match the mannequin's torso. Lowering was needed because, with the eye fixed, no forward move could
+    fix 57 mm of sink. Reclining was needed because an upright back can only touch one line of a 12 deg torso. To
+    clear the trim wheel and the fuel-selector base, the inboard edge moved 35 mm out (width 0.43 -> 0.395 m). The
+    door armrests now end ahead of the reclined back. The tracks run forward under the seat.
+  - New gates in `check_c172_pedal_fit.py`. Torso to seatback: -2.9 mm (resting) over 231 mm from the waist
+    (was 130-192 mm off). Pelvis: -13.5 mm. Buttocks into cushion: 11.7 mm (was 57). Seat against trim wheel,
+    fuel selector, pedestal and armrests: 0 (before, the old seat ran into the fuel-selector base and the armrest).
+    Warning: above the padded insert, the upper torso is 19-30 mm off the back's rounded top edge.
+  - Legs unchanged: knee 132.3/132.0 deg (129.7-132.3 full rudder), panel 114.5 mm, other pedals 32.5 mm, heels
+    resting, pedals 36.4 mm above the carpet: PASS. **Still RED, your call:** yoke at 90 deg of wheel -17.1 mm into
+    the right thigh (-28.7 at full rudder), unchanged. Left thigh 23.0 mm into the door pleats (warning), unchanged.
+  - Look at `renders/c172/seat-v1/{before,after}_side.png` and `after_eye.png`. I opened all four.
+  - `check_c172_cockpit.py` PASS on both GLBs. Rebuild diffed against b2e84ee0: same 163 nodes; only the seats,
+    the static interior and the seat-adjust pivots changed. `c172-like-own-rig.json` regenerates byte-identical.
+    C172InstrumentTests + CockpitEyeTests 131/131 pass.
+    `deploy.sh` ** BUILD SUCCEEDED **, 0 error CS, build 2026.1104.0941, dummy UDID so nothing was installed
+    (bundleVersion bump and build-touched GraphicsSettings not committed). No src/ or configs/ change.
+  - Notes and all numbers: `docs/models/c172-seat-v1.md`.
 - **NEEDS YOU: Ty, approve the C172 rudder pedals (renders) and decide the yoke-vs-thigh item** (Claude, 2026-11-04,
   lane/claude-172-instruments; NOT merged, NOT deployed, nothing installed).
   - Ty (2026-11-04): "move the rudder pedals above the cabin floor and forward. Put the simulated human inside and

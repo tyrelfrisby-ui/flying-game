@@ -19,7 +19,10 @@ other back, the rig's 18 degrees) and with the pilot's yoke at every corner of i
 wheel +/-90 degrees):
   * that each foot reaches its pedal (shank-length residual) and the included knee angle;
   * signed clearance of thighs, shanks and feet to the panel, the yokes, the floor, the pedals and everything else;
-  * how far every pedal stays above the carpet.
+  * how far every pedal stays above the carpet;
+  * the seat (seat-v1): the torso's gap to the seatback along its length and the pelvis's, perpendicular to the
+    12-degree torso; how far the buttocks press into the cushion; and that neither front seat runs into the trim
+    wheel, the pedestal, the fuel selector or a door armrest.
 Any failure is printed and the script exits non-zero; the numbers go to OUT.json.
 """
 import bpy, json, math, os, sys
@@ -137,11 +140,24 @@ def pose_yoke(column, wheel):
     bpy.context.view_layer.update()
 
 
+SEAT_MATS = ('saddle_vinyl', 'warm_ivory', 'woven_ochre')
+
+
+def is_seat_upholstery(t, m):
+    """The front seats' cushion, back and belts, wherever the seat is: upholstery between the pedestal and the
+    door trim (the trim's inner faces are at |y| >= 0.47, its armrest at >= 0.4065), aft of the panel, below the
+    headliner. Works on the old seat place and the new one, so before and after are measured the same way."""
+    c = centroid(t)
+    return any(s in m for s in SEAT_MATS) and 0.085 < abs(c.y) < 0.40 and -0.85 < c.x < 0.05 and -0.40 < c.z < 0.32
+
+
 def scene_groups():
     """Triangle groups in their current pose. Interior_static is one joined mesh, so it is split by place/material."""
     st = OB['C172_Interior_static']
     is_floor = lambda t, m: 'carpet' in m and centroid(t).z < -0.50
-    is_seat = lambda t, m: centroid(t).x < -0.20 and centroid(t).z < -0.05 and abs(centroid(t).y) > 0.06 and not is_floor(t, m)
+    # Seat: the upholstery above (which follows the seat when it moves), plus the pedals-v1 rule unchanged, so the
+    # leg clearances are measured against the same "other" structure as before.
+    is_seat = lambda t, m: not is_floor(t, m) and (is_seat_upholstery(t, m) or (centroid(t).x < -0.20 and centroid(t).z < -0.05 and abs(centroid(t).y) > 0.06))
     is_panel = lambda t, m: centroid(t).x > 0.15 and centroid(t).z > -0.12
     g = dict(floor=world_tris(st, is_floor), seat=world_tris(st, is_seat), panel=world_tris(st, lambda t, m: is_panel(t, m) and not is_floor(t, m)))
     g['other'] = world_tris(st, lambda t, m: not (is_floor(t, m) or is_seat(t, m) or is_panel(t, m)))
@@ -319,6 +335,101 @@ report['pilot_left_pedal'] = dict(centre=[round(c, 4) for c in pc], bottom_above
 seat_top = floor_height(bvh(g0['seat'][1]), HP + Vector((-0.05, 0, 0)))
 report['cushion'] = dict(top_z=round(seat_top, 4) if seat_top else None, buttock_contact_z=round(HP.z - S['contact_to_h_point'], 4),
                          compression_m=round(seat_top - (HP.z - S['contact_to_h_point']), 4) if seat_top else None)
+
+
+# ---- the seat against the mannequin (Ty, 2026-11-04: "the pilot should sit at the back of the seat with his back
+# against the backrest") and against the cabin it moves through ---------------------------------------------------
+SEAT_COMPRESSION_MAX = 0.015   # buttocks into the cushion: the mannequin's own allowance (pedals-v1 report)
+BACK_GAP_MAX = 0.010           # torso to seatback, wherever the seatback is behind it: "resting", not floating
+BACK_PRESS_MAX = 0.015         # torso or pelvis into the seatback foam
+BACK_REST_SPAN = 0.20          # torso length, from the waist up, that must rest on the seatback within those limits
+
+
+def islands(o):
+    """Connected triangle islands of a joined mesh: [(bbox_min, bbox_max, material, tris)]."""
+    me = o.data; me.calc_loop_triangles(); mw = o.matrix_world
+    weld = {}; key = [weld.setdefault(tuple(round(c, 5) for c in v.co), len(weld)) for v in me.vertices]   # glTF splits at seams
+    par = list(range(len(weld)))
+    def root(i):                                      # i: a vertex index; union-find on its welded position
+        k = key[i]
+        while par[k] != k: par[k] = par[par[k]]; k = par[k]
+        return k
+    for t in me.loop_triangles:
+        a = root(t.vertices[0])
+        for v in t.vertices[1:]: par[root(v)] = a
+    V = [mw @ v.co for v in me.vertices]; groups = {}
+    for t in me.loop_triangles:
+        tri = [V[i] for i in t.vertices]; mat = o.material_slots[t.material_index].material.name
+        groups.setdefault(root(t.vertices[0]), []).append((tri, mat))
+    out = []
+    for g in groups.values():
+        ps = [p for tri, _ in g for p in tri]
+        out.append((Vector([min(p[k] for p in ps) for k in range(3)]), Vector([max(p[k] for p in ps) for k in range(3)]), g[0][1], g))
+    return out
+
+
+def seat_fit():
+    st = OB['C172_Interior_static']
+    up_tris = world_tris(st, lambda t, m: is_seat_upholstery(t, m) and centroid(t).y > 0)   # pilot's (left) seat
+    tree = bvh(up_tris); aft = -Vector((up.z, 0, -up.x))                  # perpendicular to the torso, toward the back
+    out = {}
+    # Cushion: the buttock contact plane (HP - contact_to_h_point) against the cushion top under the pelvis.
+    contact = HP.z - S['contact_to_h_point']; comp = []
+    for dx in (-0.08, -0.06, -0.04, -0.02, 0.0, 0.02, 0.04, 0.06):
+        for dy in (-0.06, 0.0, 0.06):
+            hit = tree.ray_cast(Vector((HP.x + dx, HP.y + dy, HP.z)), Vector((0, 0, -1)))
+            if hit[0] is not None: comp.append((hit[0].z - contact, dx, dy))
+    at_hp = [c for c, dx, dy in comp if dx == 0 and dy == 0]
+    out['cushion'] = dict(compression_at_h_point_m=round(at_hp[0], 4) if at_hp else None,
+                          compression_max_m=round(max(c for c, _, _ in comp), 4) if comp else None,
+                          compression_min_m=round(min(c for c, _, _ in comp), 4) if comp else None, samples=len(comp))
+    # Back: rays from the torso axis straight back (perpendicular to the 12-degree torso), centre and +/-80 mm.
+    gaps = []; top = J['shoulder'] - 0.06 * up; step = (top - J['waist']).length / 20
+    for i in range(21):
+        p = J['waist'].lerp(top, i / 20)
+        for dy in (-0.08, 0.0, 0.08):
+            hit = tree.ray_cast(p + Vector((0, dy, 0)), aft, 0.6)
+            gaps.append((hit[3] - S['torso_half_depth'] if hit[0] is not None else None, round(p.z, 3), dy, i))
+    held = [g for g in gaps if g[0] is not None]
+    hz = sorted({g[1] for g in held})
+    rest = 0                                            # consecutive heights from the waist up where all 3 rest
+    for i in range(21):
+        row = [g[0] for g in gaps if g[3] == i]
+        if not all(g is not None and -BACK_PRESS_MAX <= g <= BACK_GAP_MAX for g in row): break
+        rest = i + 1
+    out['back'] = dict(torso_gap_max_m=round(max(g[0] for g in held), 4) if held else None,
+                       torso_gap_min_m=round(min(g[0] for g in held), 4) if held else None,
+                       resting_span_from_waist_m=round(max(rest - 1, 0) * step, 3) if rest else 0.0,
+                       torso_length_m=round(20 * step, 3),
+                       torso_gap_centre_m=[(g[1], round(g[0], 4)) for g in held if g[2] == 0.0],
+                       supported_z=[hz[0], hz[-1]] if hz else None,
+                       unsupported_samples=len(gaps) - len(held))
+    # Pelvis: the same ray from the H-point; it meets whichever seat surface is behind the buttocks (the cushion top,
+    # on a seat too far aft).
+    pel = [tree.ray_cast(HP + Vector((0, dy, 0)), aft, 0.6) for dy in (-0.06, 0.0, 0.06)]
+    pel = [h[3] - S['pelvis_half_depth'] for h in pel if h[0] is not None]
+    out['back']['pelvis_gap_min_m'] = round(min(pel), 4) if pel else None
+    # The seat may not run into the trim wheel, the pedestal, the fuel selector or the door armrests, either side.
+    # Interior_static is one joined mesh, but every box in it is still its own island, so the seat and the armrest
+    # are told apart by island (a per-triangle filter cannot: the seat back's bevel strips lie beside the armrest).
+    isl = islands(st)
+    lo = lambda i, k: i[0][k]; hi = lambda i, k: i[1][k]
+    for side, sgn in (('L', 1), ('R', -1)):
+        ay = lambda i: sorted((sgn * lo(i, 1), sgn * hi(i, 1)))
+        is_arm = lambda i: 'saddle_vinyl' in i[2] and ay(i)[0] > 0.39 and ay(i)[1] < 0.53 and lo(i, 2) > -0.10 and hi(i, 2) < -0.01
+        is_st = lambda i: (any(s_ in i[2] for s_ in SEAT_MATS) and not is_arm(i) and 0.085 < sgn * (lo(i, 1) + hi(i, 1)) / 2 < 0.46
+                           and lo(i, 0) > -0.85 and hi(i, 0) < 0.12 and lo(i, 2) > -0.53 and hi(i, 2) < 0.32)
+        seat = world_tris(OB['C172_Seat_base_' + side]) + [t for i in isl if is_st(i) for t in i[3]]
+        obst = dict(trim_wheel=world_tris(OB['C172_Trim_wheel']), fuel_selector=world_tris(OB['C172_Fuel_selector']),
+                    pedestal=[t for i in isl if 'charcoal' in i[2] and max(abs(lo(i, 1)), abs(hi(i, 1))) < 0.09 and lo(i, 0) > -0.6 and hi(i, 0) < 0.15 and hi(i, 2) < -0.15 for t in i[3]],
+                    armrest=[t for i in isl if is_arm(i) for t in i[3]])
+        st_tree = bvh(seat)
+        out['interference_' + side] = {k: len(st_tree.overlap(bvh(v))) if v else None for k, v in obst.items()}
+        out['interference_' + side]['_islands'] = dict(seat=sum(1 for i in isl if is_st(i)), armrest=sum(1 for i in isl if is_arm(i)))
+    return out
+
+
+report['seat'] = seat_fit()
 FEET = {}
 for rudder in (0, -1, 1):
     reset(); pose_rudder(rudder); g = scene_groups()
@@ -343,6 +454,18 @@ for key, r in report['poses'].items():
         if 'other' in c and c['other']['min'] < 0: report.setdefault('warnings', []).append('%s: %s %s %.1f mm into other cabin structure at %s' % (tag, side, c['other']['part'], -c['other']['min'] * 1000, c['other']['at']))
     if r['yoke_legs'] and r['yoke_legs']['min'] < CLEAR: F.append('%s: yoke %.1f mm from %s at column %+d wheel %+d' % (tag, r['yoke_legs']['min'] * 1000, r['yoke_legs']['part'], r['yoke_legs']['column'], r['yoke_legs']['wheel']))
     if r['lowest_pedal_above_carpet']['min'] < PEDAL_FLOOR_MIN: F.append('%s: %s only %.1f mm above the carpet' % (tag, r['lowest_pedal_above_carpet']['part'], r['lowest_pedal_above_carpet']['min'] * 1000))
+sf = report['seat']; cu, bk = sf['cushion'], sf['back']
+if cu['compression_at_h_point_m'] is None or cu['compression_at_h_point_m'] < 0: F.append('seat: buttocks do not touch the cushion under the H-point (%s)' % cu['compression_at_h_point_m'])
+if cu['compression_max_m'] is not None and cu['compression_max_m'] > SEAT_COMPRESSION_MAX: F.append('seat: buttocks %.1f mm into the cushion (mannequin allows %.0f)' % (cu['compression_max_m'] * 1000, SEAT_COMPRESSION_MAX * 1000))
+if bk['torso_gap_max_m'] is None: F.append('seat: no seatback behind the torso at all')
+else:
+    if bk['resting_span_from_waist_m'] < BACK_REST_SPAN: F.append('seat: back rests on the seatback over only %.0f mm from the waist (want %.0f within %.0f mm; worst gap %.1f mm)' % (bk['resting_span_from_waist_m'] * 1000, BACK_REST_SPAN * 1000, BACK_GAP_MAX * 1000, bk['torso_gap_max_m'] * 1000))
+    elif bk['torso_gap_max_m'] > BACK_GAP_MAX: report.setdefault('warnings', []).append('seat: above the resting span the torso is up to %.1f mm off the seatback (its rounded top edge)' % (bk['torso_gap_max_m'] * 1000))
+    if bk['torso_gap_min_m'] < -BACK_PRESS_MAX: F.append('seat: back %.1f mm into the seatback' % (-bk['torso_gap_min_m'] * 1000))
+if bk['pelvis_gap_min_m'] is None or not (-BACK_PRESS_MAX <= bk['pelvis_gap_min_m'] <= BACK_GAP_MAX): F.append('seat: pelvis to seatback %s m (want %.0f..+%.0f mm)' % (bk['pelvis_gap_min_m'], -BACK_PRESS_MAX * 1000, BACK_GAP_MAX * 1000))
+for side in 'LR':
+    for k, n in sf['interference_' + side].items():
+        if k != '_islands' and n: F.append('seat %s: %d triangle pairs intersect the %s' % (side, n, k))
 Path(OUT_JSON).write_text(json.dumps(report, indent=1) + '\n')
 print(json.dumps({k: v for k, v in report.items() if k != 'joints'}, indent=1))
 

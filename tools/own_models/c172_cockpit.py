@@ -318,19 +318,38 @@ rig(box('Trim_indicator',(-.086,-.037,-.202),(.002,.010,.005),white,0),'translat
 box('Fuel_selector_base',(0,-.29,-.51),(.17,.18,.055),black,.012)
 q=box('Fuel_selector',(0,-.29,-.466),(.018,.095,.014),red,.004);rig(q,'rotation','+Z',[-90,180],'fuelSelector')
 # Both fully modelled front seats, rear bench, seat tracks, belts, stitched upholstery.
-for side,x in [('L',-.278),('R',.278)]:
- for xx in [x-.16,x+.16]:box('Seat_track_'+side,(xx,-.47,-.526),(.022,.78,.018),metal,.002)
- box('Seat_base_'+side,(x,-.48,-.39),(.43,.46,.23),tan,.032)
- box('Seat_cushion_'+side,(x,-.48,-.251),(.43,.46,.09),ivory,.040)
- box('Seat_insert_'+side,(x,-.48,-.201),(.31,.34,.012),cloth,.009)
- back=box('Seat_back_'+side,(x,-.728,.035),(.43,.095,.54),tan,.040)
- box('Seat_back_insert_'+side,(x,-.669,.039),(.33,.021,.43),cloth,.025)
+# SEATS (Ty, 2026-11-04: "the pilot should sit at the back of the seat with his back against the backrest/backboard
+# of the seat... move the seat forward so that is the case"). The seat used to stand where the 1.778 m mannequin at
+# the approved eye floated 0.19 m in front of an upright back, buttocks 57 mm into the cushion. The eye does not
+# move, so the seat comes to the body: forward SEAT_DF, cushion down SEAT_DZ, and the back reclined to the
+# mannequin's own 12-degree torso, its insert face BACK_FACE behind the torso axis (torso radius 0.140: 3 mm into
+# the foam; pelvis 0.150: 13 mm). The torso axis runs through the mannequin's H-point TORSO_HP, solved backwards
+# from the eye by check_c172_pedal_fit.py (literal here; a change there has to be a deliberate change here).
+# Moved this far the seat reaches the trim wheel and the fuel selector, so its inboard edge comes out to 0.098
+# (width 0.43 -> 0.395, centre 17.5 mm outboard), and the door armrests end ahead of the reclined back. The tracks
+# stay on the floor and run forward under the seat. Measured by check_c172_pedal_fit.py (seat-v1).
+SEAT_DF,SEAT_DZ,SEAT_X,SEAT_W=.239,-.045,.2955,.395
+BACK_RECLINE,BACK_FACE,TORSO_HP=12,.137,(-.2993,-.1561)          # degrees aft of vertical; m; (fwd, up)
+BACK_U=(-math.sin(math.radians(BACK_RECLINE)),math.cos(math.radians(BACK_RECLINE)))   # up the back (fwd, up)
+BACK_N=(BACK_U[1],-BACK_U[0])                                     # out of the back face, toward the pilot
+_bu=-.206+SEAT_DZ-.029+.27*BACK_U[1]                              # back's bottom edge 29 mm under the cushion top
+BACK_C=(TORSO_HP[0]+(-(BACK_FACE+.0695)-(_bu-TORSO_HP[1])*BACK_N[1])/BACK_N[0],_bu)   # insert face is 69.5 mm in front
+def back_box(n,x,a,b,s,m,bevel):
+ o=box(n,(x,BACK_C[0]+a*BACK_N[0]+b*BACK_U[0],BACK_C[1]+a*BACK_N[1]+b*BACK_U[1]),s,m,bevel);o.rotation_euler.y=-math.radians(BACK_RECLINE);return o
+for side,x in [('L',-SEAT_X),('R',SEAT_X)]:
+ f0=-.48+SEAT_DF
+ for xx in [x-.16,x+.16]:box('Seat_track_'+side,(xx,-.39,-.526),(.022,.94,.018),metal,.002)
+ box('Seat_base_'+side,(x,f0,-.4125),(SEAT_W,.46,.185),tan,.032)
+ box('Seat_cushion_'+side,(x,f0,-.251+SEAT_DZ),(SEAT_W,.46,.09),ivory,.040)
+ box('Seat_insert_'+side,(x,f0,-.201+SEAT_DZ),(.31,.34,.012),cloth,.009)
+ back=back_box('Seat_back_'+side,x,0,0,(SEAT_W,.095,.54),tan,.040)
+ back_box('Seat_back_insert_'+side,x,.059,.004,(.33,.021,.43),cloth,.025)
  for k in range(7):
-  xx=x-.132+k*.044;box('Seat_stitch_'+side,(xx,-.655,.039),(.0015,.002,.38),ivory,.0005);box('Seat_cushion_pleat',(xx,-.48,-.193),(.0015,.30,.0015),ivory,.0004)
- for xx in [x-.19,x+.19]:
-  box('Lap_belt_'+side,(xx,-.48,-.190),(.040,.32,.009),carpet,.002)
- box('Belt_buckle_'+side,(x+.16,-.43,-.183),(.048,.043,.014),metal,.003)
- knob('Seat_adjust_'+side,x,-.31,.010,f=-.69,kind='translation')
+  xx=x-.132+k*.044;back_box('Seat_stitch_'+side,xx,.073,.004,(.0015,.002,.38),ivory,.0005);box('Seat_cushion_pleat',(xx,f0,-.193+SEAT_DZ),(.0015,.30,.0015),ivory,.0004)
+ for xx in [x-.175,x+.175]:
+  box('Lap_belt_'+side,(xx,f0,-.190+SEAT_DZ),(.040,.32,.009),carpet,.002)
+ box('Belt_buckle_'+side,(x+.145,f0+.05,-.183+SEAT_DZ),(.048,.043,.014),metal,.003)
+ knob('Seat_adjust_'+side,x,-.31+SEAT_DZ,.010,f=-.69+SEAT_DF,kind='translation')
 box('Rear_bench_base',(0,-1.22,-.33),(.94,.43,.29),tan,.035)
 box('Rear_bench_cushion',(0,-1.22,-.155),(.94,.45,.08),cloth,.035)
 box('Rear_bench_back',(0,-1.48,.065),(.94,.11,.46),tan,.035)
@@ -342,7 +361,7 @@ box('Baggage_shelf',(0,-1.65,.18),(.88,.23,.035),carpet,.008)
 for side,x in [('L',-.516),('R',.516)]:
  box('Door_'+side,(x,-.42,-.155),(.038,1.17,.66),ivory,.025)
  box('Door_insert_'+side,(x*.955,-.42,-.12),(.014,.91,.35),cloth,.012)
- box('Door_armrest_'+side,(x*.89,-.44,-.057),(.105,.46,.058),tan,.022)
+ box('Door_armrest_'+side,(x*.89,-.325,-.057),(.105,.23,.058),tan,.022)   # ends ahead of the reclined seat back (seat-v1)
  for i in range(10):box('Door_pleat',(x*.932,-.84+i*.088,-.14),(.003,.002,.27),ivory,.0005)
  line('Door_pull_'+side,(x*.91,-.13,.065),(x*.91,-.35,.065),.013,tan)
  q=line('Door_latch_'+side,(x*.925,.03,.073),(x*.925,-.06,.073),.008,metal);rig(q,'rotation','+Z',[0,40],'door.'+side+'.latch')
