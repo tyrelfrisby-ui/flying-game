@@ -33,6 +33,8 @@ namespace FlyingGame.Bridge
 
         // ---- the presentation engine gauges (P) --------------------------------------------------------
         private double _oilTempF = 180.0, _chtF = 320.0;
+        /// <summary>The fuel computer's count, US gallons burned since the aeroplane was reset.</summary>
+        private double _fuelUsedGal;
 
         // ---- avionics, as the player left them ---------------------------------------------------------
         /// <summary>COM active / standby in MHz, and the volume. Defaults: 122.800 (unicom) on 121.500.</summary>
@@ -96,7 +98,7 @@ namespace FlyingGame.Bridge
             _energyHeightM = double.NaN; _varioMs = 0.0;
             _headingDeg = _headingRawDeg = float.NaN; _turnRateDps = 0f; _vsiFpm = 0f;
             _gMax = _gMin = 0.0;
-            _oilTempF = 180.0; _chtF = 320.0;
+            _oilTempF = 180.0; _chtF = 320.0; _fuelUsedGal = 0.0;
             CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true;
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
         }
@@ -234,9 +236,32 @@ namespace FlyingGame.Bridge
                 ? System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * maxRpm)) - 0.08 * (_oilTempF - 180.0), 0.0, 115.0)
                 : 0.0;
 
-            // No fuel quantity anywhere in the sim: the gauge reads full rather than lying about an engine
-            // that cannot run dry.
-            r.FuelCentreFrac = 1.0;
+            // Fuel: the loading's own tanks where it has fuel in them (the loading page), by tank id. The reference
+            // loading carries NO fuel on most types (the open W&B decision in AGENT-LOG) and the engine runs anyway,
+            // so an empty loading reads FULL rather than showing empty tanks under a running engine.
+            const double KgPerUsGal = 2.7216;                     // avgas, 6.0 lb per US gallon
+            AircraftLoad load = ac.Load;
+            bool loaded = load != null && load.FuelKg > 1e-6;
+            double Gal(string id)
+            {
+                AircraftLoad.Slot s = load?.Find(id);
+                if (s == null) return 0.0;
+                return (loaded ? s.Kg : s.MaxKg) / KgPerUsGal;
+            }
+            r.FuelCentreFrac = loaded && load.FuelCapacityKg > 0.0 ? load.FuelKg / load.FuelCapacityKg : 1.0;
+            r.FuelWingGal = Gal("wingLeft") + Gal("wingRight");
+            r.FuelAkroGal = Gal("centre");
+            // The fuel computer: the sim's own burn (BSFC x shaft power, Aircraft.FuelFlowKgPerSec), and its total.
+            r.FuelFlowGph = running ? ac.FuelFlowKgPerSec * 3600.0 / KgPerUsGal : 0.0;
+            if (dt > 1e-4f) _fuelUsedGal += r.FuelFlowGph * dt / 3600.0;
+            r.FuelUsedGal = _fuelUsedGal;
+
+            // Presentation (P), no sim behind them, aimed at the middles of the markings the shared panel's dials are
+            // drawn with (CODEX-SPEC, the three-in-one and the ammeter; to be checked against Ty's own panel):
+            // fuel pressure with the engine-driven pump turning, the alternator's charge, EGT with power.
+            r.FuelPressPsi = running ? 18.0 + 10.0 * thr : 0.0;
+            r.Amps = running ? 3.0 : r.Master > 0.5 ? -4.0 : 0.0;
+            r.EgtF = running ? 1200.0 + 250.0 * thr : 100.0;
         }
 
         /// <summary>The canopy's own motion: it swings to where it was commanded, and the emergency handle

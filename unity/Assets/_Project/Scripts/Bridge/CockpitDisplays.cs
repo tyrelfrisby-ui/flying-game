@@ -30,7 +30,7 @@ namespace FlyingGame.Bridge
             public int W, H, Scale;
         }
 
-        private Lcd _com, _xpdr;
+        private Lcd _com, _xpdr, _fuel;
         private bool _looked;
 
         /// <summary>The LCD's own colour: the greenish white of a backlit segment display.</summary>
@@ -48,6 +48,9 @@ namespace FlyingGame.Bridge
             // glyph is square on the glass.
             _com = Make(find("Radio_Display_R"), 128, 76, 3);
             _xpdr = Make(find("Xpdr_Display_R"), 156, 64, 4);
+            // The fuel computer / totalizer of the shared Extra panel (CODEX-SPEC: a 2-1/4 in head on the lower row, its
+            // window a quad named Totalizer_Display_R with UV 0..1, 40 x 24 mm). Nothing happens on a model without one.
+            _fuel = Make(find("Totalizer_Display_R"), 128, 76, 3);
         }
 
         /// <summary>A fresh aeroplane: look the quads up again (the hierarchy was rebuilt), and let go of the
@@ -55,8 +58,8 @@ namespace FlyingGame.Bridge
         public void Forget()
         {
             _looked = false;
-            Drop(_com); Drop(_xpdr);
-            _com = _xpdr = null;
+            Drop(_com); Drop(_xpdr); Drop(_fuel);
+            _com = _xpdr = _fuel = null;
         }
 
         /// <summary>Surfaces the Extra's GLB lays flat against another, double-sided, so the depth test decides
@@ -72,6 +75,7 @@ namespace FlyingGame.Bridge
             ("RearPanel_UpperExtension", 0.0005f),
             ("Radio_Display_R", 0.001f),
             ("Xpdr_Display_R", 0.001f),
+            ("Totalizer_Display_R", 0.001f),
         };
 
         private static void SeparateCoplanar(System.Func<string, Transform> find)
@@ -125,6 +129,14 @@ namespace FlyingGame.Bridge
                 string mode = r.XpdrMode <= 0.5 ? "OFF" : r.XpdrMode <= 1.5 ? "SBY" : r.XpdrMode <= 2.5 ? "ON" : "ALT";
                 int code = Mathf.Clamp((int)(r.XpdrSquawk + 0.5), 0, 7777);
                 Draw(_xpdr, $"{code:0000} {mode}", r.XpdrMode > 0.5);
+            }
+            if (_fuel != null)
+            {
+                // Flow over used, to a tenth of a gallon, the way a fuel computer pages them; powered by the master.
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                string text = "FF " + System.Math.Clamp(r.FuelFlowGph, 0.0, 99.9).ToString("0.0", ci)
+                            + "\nUS " + System.Math.Clamp(r.FuelUsedGal, 0.0, 999.9).ToString("0.0", ci);
+                Draw(_fuel, text, r.Master > 0.5);
             }
         }
 

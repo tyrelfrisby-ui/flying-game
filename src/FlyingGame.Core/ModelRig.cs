@@ -198,6 +198,22 @@ public struct RigInputs
     /// <summary>Free-running count of transponder knob clicks (the knob turns on, never back to a stop).</summary>
     public double XpdrKnobClicks;
 
+    // ---- the engine gauges the shared Extra panel adds (lane/claude-extra-cockpit-shared, 2026-11-04) -----------
+    // The P3b panel already carried needles for these (Needle_Amps_*, Needle_EGT_*, Needle_Fuel_Wing/Akro_*), and no
+    // param fed them on either platform, so they sat at rest; Ty's new layout adds the three-in-one's fuel pressure
+    // and a fuel computer. Filled by Bridge CockpitRigState.
+
+    /// <summary>Ammeter, amperes, + = charging (a centre-zero ammeter).</summary>
+    public double Amps;
+    /// <summary>Fuel pressure at the engine, psi.</summary>
+    public double FuelPressPsi;
+    /// <summary>Exhaust gas temperature, deg F.</summary>
+    public double EgtF;
+    /// <summary>US gallons in the wing tanks together, and in the centre (aerobatic) tank.</summary>
+    public double FuelWingGal, FuelAkroGal;
+    /// <summary>The fuel computer: flow now (US gal/h) and burned since the aeroplane was reset (US gal).</summary>
+    public double FuelFlowGph, FuelUsedGal;
+
     /// <summary>The CONTROL half, from the sim's deflections and the type's travel limits. The instrument
     /// readings are the caller's to fill in — a remote aeroplane's panel is nobody's to read.
     ///
@@ -299,6 +315,13 @@ public struct RigInputs
             case "xpdr_squawk": value = XpdrSquawk; return true;
             case "xpdr_mode": value = XpdrMode; return true;
             case "xpdr_knob_clicks": value = XpdrKnobClicks; return true;
+            case "amps": value = Amps; return true;
+            case "fuel_press_psi": value = FuelPressPsi; return true;
+            case "egt_f": value = EgtF; return true;
+            case "fuel_wing_gal": value = FuelWingGal; return true;
+            case "fuel_akro_gal": value = FuelAkroGal; return true;
+            case "fuel_flow_gph": value = FuelFlowGph; return true;
+            case "fuel_used_gal": value = FuelUsedGal; return true;
             default: value = 0.0; return false;
         }
     }
