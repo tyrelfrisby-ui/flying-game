@@ -202,7 +202,7 @@ public static class Forest
         // Nothing stands outside the built world: the height field answers everywhere, but the mesh stops,
         // and a render from the north edge showed a line of conifers standing in mid-air over the sea.
         if (!WorldTerrain.OnBuiltGround(x, y)) return false;
-        WorldTerrain.Surface sfc = WorldTerrain.SurfaceAt(x, y);
+        WorldTerrain.Surface sfc = WorldTerrain.Coarse(WorldTerrain.SurfaceAt(x, y));
         // ROUGH is pasture and rolling country, which is where the timber has always been allowed. The
         // ALPINE range is reported Gravel over its whole block — "granite and scree, not pasture" — and that
         // one line kept every conifer off the Cascades: render after render came back with bare rock down to

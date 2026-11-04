@@ -1,44 +1,73 @@
 ## NEEDS YOU
 <!-- tire-spinup needs-you -->
-- **TYRE SPIN-UP + GROUND/BRAKE SOUND (Claude, 2026-11-04, lane/claude-tire-spinup; analysis only, no physics/audio code
-  changed). Full write-up: `docs/TIRE-SPINUP-AND-GROUND-SOUND.md`; probe: `docs/tire-spinup-probe/`.** Decisions for Ty:
-  1. **The sim has no wheel spin-up at all.** There is no ω and no wheel inertia (WheelHydro.cs:42 says "not modelled").
-     At touchdown the only fore-aft tyre force is rolling resistance (`RollingCoefficient·N`, LandingGear.cs:563).
-     Real spin-up takes t = I·V/(μ·N·r²) (= k·m_wheel·V/(μN), so r cancels), with N from the gear k·x + c·ẋ (LandingGear.cs:492).
-     The probe uses the real LandingGear.Compute at 50 kt, lift 0.9 W, with ASSUMED wheel masses. Spin-up times, ms, asphalt / dirt (=gravel in code) / dry grass:
-     - Cub: 1 ft/s 154/578*/627*, 3 ft/s 50/67/78, 6 ft/s 26/35/40, 10 ft/s 16/21/24 (*skips at 1 ft/s; 110/146/170 at lift 0.7).
-     - Pitts: 64/85/99, 24/31/35, 12/16/19, 8/10/12.
-     - Extra: 62/81/93, 23/31/35, 12/16/18, 8/10/11.
-     - C172: 75/98/113, 29/38/43, 15/20/23, 10/13/14.
-     - Decathlon: 94/127/148, 36/47/54, 19/25/29, 12/16/18.
-     - Great Lakes: 81/109/128, 31/40/46, 16/21/24, 10/13/15.
-     - 2-33: 86/111/128, 35/45/51, 19/24/28, 12/15/17.
+- **TYRE SPIN-UP + GROUND/BRAKE SOUND: BUILT (Claude, 2026-11-04, lane/claude-tire-spinup; local commits, not merged).
+  What was built and the numbers: `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` §7. iOS build 2026.1104.1404 `** BUILD SUCCEEDED **`
+  (not installed). Suite: 2 new red tests, explained in item 10, not fudged.** Decisions for Ty:
+  1. **The wheels now turn** (`WheelSpin`), with brake = torque and lock-up emergent. Measured on the C172 at 50 kt, 3 ft/s:
+     - spin-up 31 ms on asphalt;
+     - ΔV 0.31 m/s;
+     - a 1.05 g drag spike for those tens of ms;
+     - 3.9 deg/s extra nose-down.
 
-     Missing per landing: ΔV 0.18–0.45 m/s, and a nose-down moment of 2.5–10 kN·m at 3 ft/s (×3 at 10 ft/s).
-     **Approve?** A per-wheel ω state + `WheelInertiaKgM2`, a tanh slip-ratio Fx, and brake as torque (doc §4). Parity-shared Core.
-  2. **The chirp is cosmetic and keyed wrongly** (StructuralDamage 96-108, OneShotSynth 150-155/346-352).
-     - It is silent below 1.3 ft/s, with a fixed 0.16–0.28 s length.
-     - It plays on grass, snow and ice too.
+     Spin-up times run +6 … +10 % on the probe table from 3 ft/s up: the model slides at μ_k = 0.8 μ while the slip is large.
+  2. **Taildragger wheel landings bounce less (please fly it).** The spin-up drag at the patch, ~1.1 m below the CG,
+     is a nose-DOWN angular impulse: ΣI·V/r²·h/I_yy ≈ 15 deg/s on the PA-18 at 25 m/s. At a 5 ft/s wheel landing it
+     cancels the normal force's nose-up bounce:
+     - peak q is +0.4 deg/s with cold wheels;
+     - it is +6.4 deg/s with the wheels already turning (the old model).
 
-     Proposed: drive it per wheel from slip power, for the real duration, with smoke/skid marks from the same slip energy (Codex visuals).
-  3. **Other physics nits:**
-     - Auto tyre radius is too big: C172 0.261 m (real ≈0.19), Decathlon 0.314 (≈0.20), Cub 0.307 (≈0.27).
-     - `GearConfig.RollResistN` is dead.
-     - There is no Dirt/Sand surface: both, and water strips, roll as Gravel.
-     - The brake is a force demand with a lock-up branch, not a torque.
-  4. **Sound (your steering):**
-     - Per-wheel surface sampling: today it is one sample at the CG, and asphalt, grass and snow are silent.
-     - A `GroundMaterial` key table linking physics surface ↔ the imagery (StripFinish / FrankChurch.Ground / IslandTerrainMesh uv1+colour channels).
-       Its fields: μ, μr, rolling voice gain/pitch-vs-speed curves, `crossfadeS` 0.15–0.3 s, and wheelSpinup/bearingWhir/brake flags.
-     - Per-wheel equal-power crossfades, panned L/R.
-     - Bearing whir from ω (≈9×rev/s, very quiet, fades as the wheel slows).
-     - Water (splash/spray from float speed + SprayField) and snow (crunch; ski hiss when on skis) get **no chirp and no whir**.
-     - Per-wheel L/R brake drag ∝ p·v and squeal above p>0.6 or demand/μN>0.8, fading at stop. None on water or skis.
-     - All of it is a new `TyreBrakeSynth` + table-driven `SurfaceSynth` in the existing procedural mixer (FlightAudio 359-369). Doc §5.
+     `LandingGearTests.TaildraggerMainTouchdownPitchesNoseUp` now measures the two mechanisms separately; no tuning.
+     The size depends on the rotating masses in (3).
+  3. **Wheel masses and tyre radii are estimates from tyre sizes / catalogue weights; please check the ones you know.**
+     - Radii (free radius):
+       - C172 6.00-6 mains **0.222**. You asked ~0.19, from my analysis doc, which mislabelled a 6.00-6's LOADED
+         radius as its size; the 172 POH lists 6.00-6 mains and a 5.00-5 nose.
+       - Decathlon 0.222 (you said ~0.20; I took 6.00-6).
+       - Cub 0.27 (8.00-4).
+       - Full list in doc §7.
+     - The radius also sizes the procedural wheel visuals and WheelHydro's planing tyre.
+     - Rotating masses: 5.00-5 5.6 kg, 6.00-6 7.6, 8.00-6 9.7, tundra 16, 737 main leg 380.
+     - Say if you want 0.19/0.20.
+  4. **Full pedal on dry asphalt can now LOCK a C172's mains and keep them locked.** Braking moves load to the
+     nosewheel: main load reaches 0.69 of static, against the 0.675 lock edge your 2026-09-13 tune sets. A locked wheel
+     stays locked until the pedal eases (μ_k < μ_peak). The old per-stage branch only flickered.
+     Options:
+     - keep it (real);
+     - lower full-pedal torque a touch (e.g. 0.6) so a 172 only skids when light.
+  5. **Dirt and Sand are surfaces now.**
+     - Dirt: μ 0.60, μr 0.06 (Frank Church dirt, island "dirt").
+     - Hard sand: μ 0.55, μr 0.08 (the 32 island "hard sand" strips; loose sand would be 0.15–0.30, not on the map).
+     - Heating, chart, rattle, keel sliding and forest still see gravel (`WorldTerrain.Coarse`).
+  6. **`rollResistN` is removed** (dead since forever; 33 configs). Bearing drag is its own term: 0.04 N·m/kg plus a
+     30 s spin-down.
+  7. **Sound (Ty's steering), all procedural, untested by ear:**
+     - Per-wheel ground under each wheel with equal-power 0.15–0.3 s crossfades.
+     - Panned L/R.
+     - Chirp from the real slip energy for the real spin-up time: none on grass/sand/snow/water, a scuff on dirt/gravel.
+     - Bearing whir from ω (silent in water/snow/skis, winds down after take-off).
+     - Brake scrape ∝ pressure × speed; squeal over 0.6 pedal or near lock.
+     - Water splash / planing hiss / spray, ski hiss, keel scrape.
+     - The old closing-rate touchdown chirp is gone.
 
-     **Approve the schema/plan?**
-  5. **NEEDS-Codex:** adopt the same GroundMaterial key in the terrain/splat code so sound, dust and skid marks match the imagery.
-     I didn't touch any Codex visuals, `lane/claude-trigger-brakes` or `lane/claude-crash-tuning`.
+     **Levels need your ears.**
+  8. **NEEDS-Codex:** adopt `FlyingGame.Core.GroundMaterial` (`GroundMaterials.Row(..).Visual` documents the link) in
+     the terrain/splat code, so dust, skid marks and sound match the paint. The island mesh still reads
+     `IslandTerrain.SurfaceAt` (unchanged); physics reads `WheelSurfaceAt`. No Codex file was touched.
+  9. **Overlaps, not touched:**
+     - `lane/claude-crash-tuning` (PID 35956, uncommitted) also edits every config (structureType, other lines) and
+       AircraftConfig.cs (another class). It will merge textually; it gets the new Dirt/Sand enum members, whose keel
+       friction falls through to gravel's.
+     - `lane/claude-wheel-hydroplane` (c2b4474d): WheelHydro reads `TireRadiusOf`, so its C172 dig-in and J-3 skim
+       numbers will move with the new radii (C172 nose 0.261 → 0.18, Cub 0.307 → 0.27). Re-run WheelWaterTests after merging.
+     - `lane/claude-trigger-brakes`: input side only; the brake still enters as brake × (1 ∓ bias). No overlap.
+  10. **Two tests are red because of this lane, and I left them red (real physics, your call):**
+     - `TaildraggerNoTipStrikeTests…(p51d-like)`: on the calm three-point landing the P-51 loses its prop on the rollout.
+       - The cause is the spin-up nose-down impulse: two ~30 kg main assemblies at ~50 m/s, ≈ 16 deg/s on its I_yy.
+       - With wheel mass ≈ 0 it passes, so it is the spin-up and not the brake.
+       - Either the P-51's rotating mass is high, or its touchdown needs stick held harder back.
+     - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)`: the real 300×100 main tyre (r 0.15, the old auto
+       rule gave 0.31) is too small to plane at 25 m/s, digs in, and the nose breaks off. It passes with the auto radius.
+     - Also red, and red at the branch point too (not mine): the same water test for the SR22 and the Glasair III.
 <!-- parity-merge needs-you -->
 - **PARITY MERGE (Claude, 2026-11-04, Ty approved 07:29: "merge both ways, get them in parity and then lock them in
   parity"). IN PROGRESS. Nothing approved by me; every conflict call is in the Log entry "parity merge".**
@@ -2903,6 +2932,43 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 14:15 PST — Claude · lane/claude-tire-spinup · wheel spin-up physics + tyre/brake/ground sound BUILT (Ty approved ~09:40)
+- **Physics (Core, shared):**
+  - New `WheelSpin.cs` (per-wheel ω, tanh slip-ratio force with combined slip, brake as Coulomb torque, emergent lock-up,
+    bearing decay, one implicit wheel step per sim step on RK4 stage 0, momentum-consistent with the aircraft).
+  - `WheelState` per leg on `Aircraft.Wheels`.
+  - `LandingGear.Compute(..., wheels)`: the old lock branch is removed.
+  - `GearConfig.WheelMassKg` / `WheelInertiaKgM2` added; `RollResistN` removed.
+  - `WorldTerrain.Surface.Dirt` / `Sand` (appended) plus `WorldTerrain.Coarse`.
+  - `StripFinish.Wheels` and `IslandTerrain.WheelSurfaceAt`; FrankChurch dirt → Dirt.
+  - 33 configs: real tyre radii, rotating masses, `gearType` "feet" (hang/paraglider) and "tail-skid" (JN-4).
+- **Sound:**
+  - Core `GroundMaterial` / `GroundMaterials` (the shared key + table) and `GroundSoundMix` (per-wheel equal-power
+    crossfade, pan, chirp/whir/brake/water/ski/keel decisions).
+  - Bridge: `SurfaceSynth` rewritten table-driven, new `TyreBrakeSynth`, `FlightAudio` wiring, the old touchdown chirp
+    removed from `StructuralDamage`, Dirt/Sand dust look in `ContactEffects`.
+  - No Codex file touched.
+- **Tests (new):**
+  - `WheelSpinTests` 6: the probe table to within 10 % from 3 ft/s up, impulse = ΣI·V/r², emergent lock-up, grass vs
+    asphalt lock, touchdown drag spike and pitch-down.
+  - `GroundSoundMixTests` 9: crossfade Σw = 1 and Σg² = 1, equal-power pan, no whir/chirp/brake on water/snow/skis,
+    chirp duration = slip time, scrape ∝ p·v, squeal, whir fade.
+  - Updated: `LandingGearTests.TaildraggerMainTouchdownPitchesNoseUp` (bounce and spin-up measured separately),
+    FrankChurch/StripFinish surface literals (Dirt).
+- **Full suite (nice, one run at a time but with other lanes' suites on the machine):**
+  - Branch point b85ea02e: 216 failed / 2302 passed / 6 skipped of 2524.
+  - This lane: 167 / 2365 / 6 of 2538.
+  - 25 names failed here and not at the base. Re-run alone: 18 pass (coupling), 7 fail.
+  - Of those 7: 3 were stale surface literals (fixed), 2 water tests fail at the base too when run alone (SR22,
+    Glasair), and 2 are real and left red (P-51 rollout prop strike, Swift water skim; NEEDS YOU 10).
+  - Also fixed on the way: a `Math.Sign(NaN)` throw in the wheel step, which only showed in the full run.
+- **Build:** `zsh tools/deploy/deploy.sh <dummy UDID>`, bundleVersion 2026.1104.1404: `** BUILD SUCCEEDED **`, installed
+  on 0 devices (on purpose). The ProjectSettings bump was not committed. The StreamingAssets mirror is committed as the
+  build regenerated it (identical to configs/).
+- `tools/check-parity.sh`: PARITY OK. This lane is not merged into either platform lane (local commits only).
+- **Overlaps** (read-only, `git --no-optional-locks`): see NEEDS YOU 9 — crash-tuning (configs and AircraftConfig.cs,
+  other lines), wheel-hydroplane (TireRadiusOf feeds WheelHydro), trigger-brakes (none).
+
 ### 2026-11-04 — Claude · lane/claude-tire-spinup · tyre spin-up + ground/brake sound analysis
 Analysis only, no physics or audio code changed. I added `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` (code findings with file:line, constants, spin-up tables, issues, physics fix, sound/brake schema) and `docs/tire-spinup-probe/` (a .NET console using the real LandingGear.Compute: `dotnet run -c Release --project docs/tire-spinup-probe -- configs/aircraft 0.9`). The probe was built and run with nice -n 10 outside the repo. No Unity/xcodebuild build. NEEDS YOU: see the top "TYRE SPIN-UP" item.
 

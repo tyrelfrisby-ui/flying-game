@@ -1,7 +1,7 @@
-# Tyre spin-up, ground-roll sound, brake sound: analysis + proposal (Claude, 2026-11-04)
+# Tyre spin-up, ground-roll sound, brake sound (Claude, 2026-11-04)
 
-Branch `lane/claude-tire-spinup` off `lane/claude-island-nav` b7d1a680. **Analysis only: no physics or audio code changed.**
-Line numbers are against b7d1a680.
+Branch `lane/claude-tire-spinup` off `lane/claude-island-nav` b7d1a680. §1–6 are the analysis (line numbers against
+b7d1a680); Ty approved the build at ~09:40 the same day, and **§7 is what was built**.
 
 ## 1. What the code does today
 
@@ -255,3 +255,101 @@ Snow: with skis carrying the load (`OnSki`, wheel-ski load share), there is no c
 ## 6. Other lanes checked
 - `lane/claude-crash-tuning` (Claude PID 35956, **read only**): its uncommitted structureType edits (34 configs + AircraftConfig.cs) and the untracked `CrashSlideProbe.cs` don't touch gear or tyres.
 - `lane/claude-crash-physics` (da163a65) is already merged into island-nav, and it has no tyre or spin-up commits.
+
+## 7. As built (2026-11-04, after Ty's approval)
+
+### Physics (`src/FlyingGame.Core`, shared)
+- **`WheelSpin.cs`** — one wheel equation, `I·ω̇ = D·r − T_brake − T_bearing`, and the slip force
+  `D = μN·fall(κ)·sat(σ)·σx/σ` with `σx = κ/0.08`, `κ = (v_fwd − ω·r)/max(|v_fwd|, 1 m/s)` and `σy` = the tyre's
+  lateral demand over μN (combined slip). `sat` is tanh for pure longitudinal slip and the old clamp for pure
+  cornering, so **cornering is unchanged to the newton**. `fall` takes μ from its peak (κ ≤ 0.15) to the sliding
+  0.8 μ by κ = 1, which is the same μ_k the old locked branch had.
+- **Integration:** once a step, on RK4 stage 0, in sub-steps of ≤ 0.5 ms. It is linearly implicit in the slip, never
+  carried through synchronism in one sub-step. The force on the aircraft is the one that changed the wheel's
+  angular momentum, so **wheel and aircraft impulse agree exactly**. Stages 1–3 apply the same force per newton of
+  their own load.
+- **Brake = Coulomb torque**: `T = pedal_i · 0.675 · TireMu · W_static/n_braked · r`, which is Ty's 2026-09-13 tune
+  written as a torque. The same `(1 ∓ bias)` split applies.
+  - **Lock-up is emergent**: T > peak D·r and the wheel stops. The old `brakeDemandN > muLimit` branch is gone.
+  - Skis keep their load-limited brake: a ski has no wheel against the snow.
+- **Rolling resistance stays a direct force at the patch.** It is mostly ploughing, and on snow it exceeds the grip.
+- **Bearing**: Coulomb `0.04 N·m/kg` plus viscous `I/30 s` (spin-down τ 30 s). `GearConfig.RollResistN` (dead) is
+  **removed** from the code and from all 33 configs.
+- **Per-wheel contact state** `WheelState` (`Aircraft.Wheels`): load, surface, `GroundMaterial`, v_fwd, ω, slip
+  ratio, slip power, brake, brake torque, locked, onSki, overWater, side, plus slip energy/time accumulators for the
+  sound.
+- **Non-wheels** (float-keel, nose/tip/tail skids, `feet`) and direct `LandingGear.Compute` calls without state use
+  the wheel's steady state: the old brake force, with the same lock threshold.
+- **Seeding**: an aircraft placed on the ground (spawn, teleport, a test setting `State`) gets rolling wheels. One
+  placed in the air gets stopped wheels.
+- **Surfaces**: `WorldTerrain.Surface.Dirt` (7) and `Sand` (8), appended.
+  - Dirt: grip 0.75 (μ 0.60), μr 0.06.
+  - Hard sand: grip 0.6875 (μ 0.55), μr 0.08. The island's "hard sand" is wet-packed beach; loose sand would be 0.15–0.30.
+  - Mapping: FrankChurch Dirt → Dirt. Island "dirt"/"hard sand" fields → Dirt/Sand via `StripFinish.Wheels` /
+    `IslandTerrain.WheelSurfaceAt`, which is the physics' query.
+  - **`IslandTerrain.SurfaceAt` and `StripFinish.Rolls`, which the terrain mesh reads, are unchanged**, so nothing
+    anyone sees moves.
+  - Heating, the chart tint, the micro-rattle, keel sliding and the forest read `WorldTerrain.Coarse(s)` (dirt/sand
+    → gravel), so they are bit-identical.
+- **Tyre radii** are now real sizes; the auto rule is a fallback only, and every wheeled config now states its own.
+  Main / nose-or-tail, m:
+  - C172 0.222 / 0.18 (6.00-6 mains, 5.00-5 nose).
+  - Decathlon 0.222 / 0.10.
+  - J-3 0.27 / 0.076 (8.00-4).
+  - PA-18 0.28 / 0.10 (8.00-6).
+  - PA-28 and Seminole 0.222 / 0.18.
+  - SR22 0.19 / 0.18 (15×6.00-6).
+  - Beaver 0.33 / 0.13 (8.50-10).
+  - Stearman 0.31 / 0.11.
+  - Pawnee 0.28 / 0.10.
+  - JN-4 0.33 (26×4); its tail is a `tail-skid`.
+  - Gliders 0.15–0.19 / 0.075–0.105.
+  - 737 nose 0.343 (27×7.75-15; it was 0.5).
+- **Rotating mass** (`wheelMassKg`: tyre + tube + wheel + disc), estimates from catalogue weights:
+  - 5.00-5 ≈ 5.6 with brake, 4.6 nose.
+  - 6.00-6 ≈ 7.6.
+  - 8.00-4/-6 ≈ 7.5–9.7.
+  - Tundra 16.
+  - 737 main leg 380 (2 × ~190), nose 70.
+
+### Sound
+- **`GroundMaterial` + `GroundMaterials.Row`** (Core): the key shared by physics, sound and (later) imagery. Each row
+  has its physics surface (grip and μr are *read* from the physics, never copied), the visual link (documentation
+  only), the chirp scale, whir / brake-scrape / squeal / skid flags, the rolling voice with its gain- and pitch-vs-speed
+  curves, and the crossfade time (0.15–0.30 s).
+- **`GroundSoundMix`** (Core, tested):
+  - Per-wheel key weights eased with each row's crossfade time and normalised to Σw = 1; voices get √w (equal power).
+  - Equal-power pan ±0.5 by wheel side.
+  - Chirp = the wheel's own slip energy / time, so its duration is the real spin-up's. The level is
+    log10(P/50 W)/3 × the row's chirp: 1 on asphalt/deck, 0.25 gravel, 0.15 dirt, 0 on grass/sand/rough/snow/ice/water.
+  - Whir from ω: 9 × rev/s, gain ∝ (v/25.7)^1.5 × 0.016, also in the air, so it fades as the wheel spins down.
+    None in water, on snow or on skis.
+  - Brake scrape ∝ pressure × rim speed. Squeal when p > 0.6 or κ > 0.08, ∝ rim speed, so it fades as the wheel stops.
+    Neither in water, on skis, or where the row says no.
+  - Water splash/hiss from wheels in water and from the floats (FloatHydro planing vs buoyancy share), spray from the
+    floats' spray force, ski hiss, keel/skid scrape.
+- **Bridge/Audio**:
+  - `SurfaceSynth` is now a table of rolling voices, nine recipes × 2 sides.
+  - `TyreBrakeSynth` (new) renders whir, chirp, scrape and squeal per side, and water, spray, ski and keel centred.
+  - `FlightAudio` copies the mix into `AudioTelemetry` once a frame. Slip time crosses threads as a cumulative µs
+    counter, so no chirp is lost between frames.
+  - The old closing-rate `TireChirp` call in `StructuralDamage` is gone; the `FxKind` stays.
+
+### Measured (tools/FlightTests/WheelSpinTests, GroundSoundMixTests)
+- **Spin-up time, model vs probe**, from 3 ft/s up: +6 … +10 % on every row (the probe held μ at its peak; the model slides
+  at μ_k while κ is large and fades by tanh at the end, timed to 5 % slip). The 1 ft/s rows (skips) are printed, not asserted.
+- **Impulse** = ΣI·V/r² to within 4 % on asphalt and 10 % on grass. Rolling resistance runs on top.
+- **C172 touchdown at 50 kt, 3 ft/s:**
+  - ΔV 0.31 m/s against prespun wheels (ΣI·V/r²/m with the nosewheel ≈ 0.32).
+  - Peak decel 1.05 g vs 0.08 g.
+  - Pitch rate a further 3.9 deg/s nose-down during the spin-up.
+- **Lock-up**: 0.95 × peak·r keeps turning (κ 0.14), 1.05 × locks. C172 on grass at full pedal locks (main load 0.62 of
+  static); on asphalt at 60 % it does not. **On asphalt at FULL pedal the mains lock** once braking has moved load to the
+  nose (0.69 of static against the 0.675 threshold), and they stay locked until the pedal comes off. A real locked wheel
+  does, but the old per-stage branch only flickered. Ty's call (AGENT-LOG).
+- **Taildragger wheel landing (PA-18, 25 m/s, 1.5 m/s sink, 6° pitch):**
+  - Peak q is +6.4 deg/s with the wheels already turning (the bounce).
+  - With cold wheels it is +0.4: the spin-up is ≈ ΣI·V/r²·h/I_yy ≈ 15 deg/s nose-down.
+- **P-51, calm three-point landing:** the same impulse (≈ 16 deg/s) lifts the tail into a prop strike on the rollout
+  (`TaildraggerNoTipStrikeTests`, left red). With zero wheel mass it passes.
+- **Swift S-1 on water:** its real 300×100 tyre (r 0.15) digs in where the auto rule's 0.31 skimmed (`WheelWaterTests`, left red).

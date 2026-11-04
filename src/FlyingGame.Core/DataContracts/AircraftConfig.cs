@@ -757,9 +757,13 @@ public sealed class GearConfig
     public double MaxSteerRad { get; set; } = 0.5;    // steering authority when steerable
     public double TireMu { get; set; } = 0.8;         // dry tarmac friction (limits tire force)
     public double CorneringStiffnessN { get; set; } = 6000; // side force per rad slip (before mu limit)
-    public double RollResistN { get; set; } = 40;     // rolling resistance at full load
     public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
-    public double TireRadiusM { get; set; }           // visual tire size (0 = auto from fuselage length); 0.445 = 35" bushwheel
+    public double TireRadiusM { get; set; }           // tyre's free radius, the visual and the rolling one (0 = auto from fuselage length); 0.445 = 35" bushwheel
+    // The wheel's SPIN (2026-11-04, WheelSpin): what has to be spun up from rest at touchdown and stopped by the brake.
+    // WheelMassKg is the ROTATING mass of one wheel — tyre, tube, wheel halves and brake disc (the caliper does not turn);
+    // 0 = estimated from the tyre size (WheelSpin.MassOf). WheelInertiaKgM2 overrides the I = 0.65·m·r² it implies.
+    public double WheelMassKg { get; set; }
+    public double WheelInertiaKgM2 { get; set; }
     // Tyre pressure (psi), which is what decides when a wheel hydroplanes: V_p (kt) = 9√p. 0 = estimate it
     // from the tyre's size and the aeroplane's weight (WheelHydro.TirePressurePsi).
     public double TirePressurePsi { get; set; }

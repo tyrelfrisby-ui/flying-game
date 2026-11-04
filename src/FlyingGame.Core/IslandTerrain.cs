@@ -114,6 +114,16 @@ public static partial class IslandTerrain
         return IslandWater.WaterAt(p);
     }
     public static string WaterIndexWorkBounds => IslandWater.WorkBounds;
+    /// <summary>What a WHEEL finds: <see cref="SurfaceAt"/>, with a dirt or hard-sand field rolled as what it is
+    /// (<see cref="StripFinish.Wheels"/>). The terrain paint keeps calling SurfaceAt, whose classes it was drawn
+    /// against, so this changes nothing anyone sees.</summary>
+    public static WorldTerrain.Surface WheelSurfaceAt(double x, double y)
+    {
+        var p = new IslandPoint(y / 1000, x / 1000);
+        foreach (var f in Fields) if (f.Contains(p)) return StripFinish.Wheels(f.Surface);
+        return SurfaceAt(x, y);
+    }
+
     public static WorldTerrain.Surface SurfaceAt(double x, double y)
     {
         var p = new IslandPoint(y / 1000, x / 1000);

@@ -72,7 +72,7 @@ namespace FlyingGame.Bridge
         private static (float pitch, Color dust) Look(int surface) => surface switch
         {
             (int)WorldTerrain.Surface.Paved => (1.15f, new Color(0.62f, 0.60f, 0.58f, 0.35f)),
-            (int)WorldTerrain.Surface.Gravel => (0.9f, new Color(0.58f, 0.53f, 0.46f, 0.45f)),
+            (int)WorldTerrain.Surface.Gravel or (int)WorldTerrain.Surface.Dirt or (int)WorldTerrain.Surface.Sand => (0.9f, new Color(0.58f, 0.53f, 0.46f, 0.45f)),
             (int)WorldTerrain.Surface.Grass => (0.65f, new Color(0.40f, 0.42f, 0.25f, 0.40f)),
             (int)WorldTerrain.Surface.Snow or (int)WorldTerrain.Surface.PackedGlacierSnow => (0.5f, new Color(0.95f, 0.97f, 1f, 0.55f)),
             FlyingGame.Core.ContactPoint.SurfaceSolid => (1.35f, new Color(0.6f, 0.6f, 0.6f, 0.3f)),

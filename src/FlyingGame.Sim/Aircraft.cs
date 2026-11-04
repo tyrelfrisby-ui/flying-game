@@ -139,7 +139,14 @@ public sealed partial class Aircraft
 {
     public AircraftConfig Config { get; }
     public MassProperties MassProperties { get; private set; }
-    public RigidBodyState State { get; set; }
+    public RigidBodyState State { get => _state; set { _state = value; _wheelsUnseeded = true; } }
+    private RigidBodyState _state;
+    /// <summary>The state was put somewhere from outside a step (spawn, teleport, a test): the wheels are given the spin
+    /// that state implies before the next step, so an aeroplane placed rolling does not start with a skid.</summary>
+    private bool _wheelsUnseeded = true;
+    /// <summary>Each leg's wheel: its spin and what it is doing on the ground (WheelSpin), config.Gear order.</summary>
+    public IReadOnlyList<WheelState> Wheels => _wheels;
+    private WheelState[] _wheels = System.Array.Empty<WheelState>();
 
     /// <summary>Structural g-limit state (limit/ultimate loads, groan severity, wing failure).</summary>
     public StructuralState Structure { get; }
@@ -340,6 +347,7 @@ public sealed partial class Aircraft
         InitContactDamage();
         _gearTouching = new bool[config.Gear.Count];
         _gearStageClear = new double[2 * config.Gear.Count];
+        _wheels = WheelState.For(config);
         _wheelBodies = config.Gear.Select(g => g.PosVec()).ToArray();
         Damage = new FlyingGame.Core.Combat.DamageState(LoseComponent, IsLost);
         foreach (GearConfig g in config.Gear) if (g.IsTailwheel && g.IsSteerable) { Tailwheel = new LandingGear.TailwheelState(); break; }
@@ -1188,7 +1196,7 @@ public sealed partial class Aircraft
                 // brake is also full brake, whatever the pilot's own brake input is doing (SpoilerConfig).
                 double wheelBrake = Math.Max(BrakeInput, Config.Controls.Spoiler.BrakeFromHandle(_spoilerFraction));
                 long tGear = SimProfile.Begin();
-                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, wheelBrake, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, amphibUp, stage, stepDt, _gearStageClear);
+                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, wheelBrake, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, amphibUp, stage, stepDt, _gearStageClear, _wheels);
                 SimProfile.End(SimProfile.Scope.Gear, tGear);
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
@@ -1264,10 +1272,15 @@ public sealed partial class Aircraft
         }
 
         PrepareWater(dt);
+        if (_wheelsUnseeded) WheelSpin.SeedRolling(Config, State, _wheels);
+        foreach (WheelState w in _wheels) w.ClearContact();
         RigidBodyState preStep = State;
         long tForces = SimProfile.Begin();
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
         SimProfile.End(SimProfile.Scope.Forces, tForces);
+        // A wheel the gear did not turn against the ground this step (in the air, on a ski, in the water, retracted)
+        // runs down in its bearings.
+        foreach (WheelState w in _wheels) { if (!w.Advanced) w.Coast(dt); w.Advanced = false; }
         if (Config.Floats is not null)
         {
             // The water the floats carry (FloatHydro.AddedMassOf): applied implicitly, like the airframe's below.
@@ -1380,6 +1393,7 @@ public sealed partial class Aircraft
             double tauSec = target > s0 ? Config.StallDynamics.StripSepTau : Config.StallDynamics.StripReattachTau;
             _flowState.Separation[i] = s0 + (target - s0) * (1.0 - Math.Exp(-dt / tauSec));
         }
+        _wheelsUnseeded = false;   // the State writes above are the step's own
         SimProfile.End(SimProfile.Scope.AfterStep, tAfter);
         SimProfile.End(SimProfile.Scope.Step, tStep);
     }
