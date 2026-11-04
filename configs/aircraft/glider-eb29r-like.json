@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "glider-eb29r-like",
   "displayName": "EB29R-like Open Class",
+  "structureType": "composite",
+  "structureTypeSource": "Schempp-Hirth/Binder EB29R: carbon/aramid composite fuselage shell.",
   "spawnIasMs": 30,
   "mass": {
     "massKg": 700,

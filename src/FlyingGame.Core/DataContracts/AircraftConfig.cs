@@ -45,6 +45,15 @@ public sealed class AircraftConfig
     /// <summary>Airframe toughness against impacts: multiplies every break speed (hard points and gear legs).
     /// 1 = light-aircraft default; a wartime fighter is ~1.6.</summary>
     public double ImpactStrength { get; set; } = 1.0;
+    /// <summary>How the FUSELAGE is built, which decides how it fails in a crash (Ty 2026-11-04, <see cref="FuselageStructure"/>):
+    /// "steelTube" (welded 4130 truss under fabric or light panels — Pitts, Extra, Cubs, Great Lakes, Decathlon …: it bends
+    /// and crushes and never breaks apart, except that the engine can leave at the firewall), "aluminumMonocoque"
+    /// (riveted skin and stringers: crushes progressively, then breaks), "composite" (glass/carbon shell: little crush,
+    /// then it cracks), "wood" (spruce/plywood truss or shell: splinters after a little crush). Empty = untagged, which
+    /// keeps the old break-at-first-overload rule exactly.</summary>
+    public string StructureType { get; set; } = "";
+    /// <summary>Where <see cref="StructureType"/> came from (type certificate, maintenance manual, builder's notes).</summary>
+    public string StructureTypeSource { get; set; } = "";
 
     public MassConfig Mass { get; set; } = new();
     /// <summary>Seats, tanks and baggage, and the weight-and-balance envelope. Optional; absent means the authored

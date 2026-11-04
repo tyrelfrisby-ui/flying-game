@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "hang-glider-like",
   "displayName": "Hang Glider-like (intermediate)",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Hang glider: aluminium tube frame and sail; no fuselage to break (tagged with the aluminium rule).",
   "spawnIasMs": 11.0,
   "mass": {
     "massKg": 110.0,

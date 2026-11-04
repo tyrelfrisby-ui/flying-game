@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "aircam-like",
   "displayName": "AirCam-like",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Lockwood AirCam: riveted 6061 aluminium sheet and tube airframe (Lockwood Aircraft AirCam builder manual); no steel truss.",
   "wingBracing": "strut",
   "spawnIasMs": 31.0,
   "mass": {
