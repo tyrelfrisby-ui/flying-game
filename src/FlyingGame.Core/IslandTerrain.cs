@@ -117,7 +117,7 @@ public static partial class IslandTerrain
     public static WorldTerrain.Surface SurfaceAt(double x, double y)
     {
         var p = new IslandPoint(y / 1000, x / 1000);
-        foreach (var f in Fields) if (f.Contains(p)) return f.Surface == "asphalt" || f.Surface == "paved" ? WorldTerrain.Surface.Paved : f.Surface.Contains("grass") || f.Surface == "turf" ? WorldTerrain.Surface.Grass : WorldTerrain.Surface.Gravel;
+        foreach (var f in Fields) if (f.Contains(p)) return StripFinish.Rolls(f.Surface);
         // The authored ski landing zones stay snow whatever the ice does.
         foreach (var q in SurfaceTables.Glaciers) if ((p - q.SkiCentre).Length < .15) return WorldTerrain.Surface.Snow;
         // Ty's surfaces (2026-11-02): the generator's classes. A designated rock ledge is gravel; a designated
@@ -223,7 +223,7 @@ public sealed class IslandField
         SlopeShoulder = d["pad"]["sloped_end_shoulders"].Flag() ? EndShoulder : 0;
         // Grass and turf strips lie the way the field lies (NaturalShapeParams); paved, gravel, dirt and sand stay
         // planes, and so does Drake's, whose strip runs on into the cave under an authored rock roof.
-        Shape = (Surface.Contains("grass") || Surface == "turf") && Field != "DRAKE" ? NaturalShapeParams.For(Id, Length, Width) : NaturalShapeParams.Flat;
+        Shape = StripFinish.LiesNaturally(Surface) && Field != "DRAKE" ? NaturalShapeParams.For(Id, Length, Width) : NaturalShapeParams.Flat;
     }
     public NaturalShapeParams Shape { get; private set; }
     internal void SetShape(NaturalShapeParams s) => Shape = s;

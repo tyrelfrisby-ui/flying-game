@@ -3377,7 +3377,7 @@
         "width_m": 40,
         "elevation_ft": 3871.7,
         "slope_percent": 1.2,
-        "surface": "gravel",
+        "surface": "turf",
         "one_way_true_deg": null,
         "pad": {
           "shoulder_m": 40,
@@ -3412,7 +3412,7 @@
         "width_m": 34,
         "elevation_ft": 3957.1,
         "slope_percent": 1.0,
-        "surface": "gravel",
+        "surface": "turf",
         "one_way_true_deg": null,
         "pad": {
           "shoulder_m": 40,
@@ -3447,7 +3447,7 @@
         "width_m": 30,
         "elevation_ft": 3711.2,
         "slope_percent": 1.2,
-        "surface": "gravel",
+        "surface": "turf",
         "one_way_true_deg": null,
         "pad": {
           "shoulder_m": 40,
@@ -3616,7 +3616,7 @@
         "width_m": 30,
         "elevation_ft": 3551.7,
         "slope_percent": 1.6,
-        "surface": "gravel",
+        "surface": "dirt",
         "one_way_true_deg": null,
         "pad": {
           "shoulder_m": 40,
@@ -3651,7 +3651,7 @@
         "width_m": 24,
         "elevation_ft": 3648.7,
         "slope_percent": 1.8,
-        "surface": "gravel",
+        "surface": "dirt",
         "one_way_true_deg": null,
         "pad": {
           "shoulder_m": 40,

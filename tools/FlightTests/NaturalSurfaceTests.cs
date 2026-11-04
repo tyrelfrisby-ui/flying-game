@@ -30,7 +30,8 @@ public class NaturalSurfaceTests : IDisposable
     {
         ("3U2 19/1", "banana", 2.09), ("KMEV 13G/31G", "crest", 1.71), ("AP1", "rolling", 0.0), ("AP3", "banana", 1.49),
         ("AP4", "crest", 1.25), ("AP5", "rolling", 0.0), ("AP6", "banana", 1.18), ("AP8", "crest", 2.00),
-        ("AP14", "rolling", 0.0), ("Sulphur Creek", "banana", 1.92),
+        ("AP14", "rolling", 0.0), ("Chamberlain", "banana", 1.71), ("Big Creek", "crest", 2.66), ("Thomas Creek", "rolling", 0.0),
+        ("Sulphur Creek", "banana", 1.92),
     };
 
     private static double H(double x, double y) => WorldTerrain.Active!.HeightAt(x, y);
