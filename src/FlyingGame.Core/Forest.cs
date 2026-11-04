@@ -450,22 +450,24 @@ public static class Forest
     public static readonly LiveTrees Live = new();
     public sealed class LiveTrees : ITreeSource
     {
-        private readonly Dictionary<(int, int), (bool has, Tree t)> _cells = new();
+        // Nothing is computed while anything is held: TryTreeInCell asks the terrain, which has its own lazy
+        // initialisation, and a lock held across it deadlocked two test threads (2026-11-03: ApproachSpawnTests hung 30 min
+        // at 0 % CPU, every thread in a Monitor wait). A cell's answer is a pure function of the world, so two threads that
+        // race on one compute the same tree and either may win.
+        private System.Collections.Concurrent.ConcurrentDictionary<(int, int), (bool has, Tree t)> _cells = new();
         private WorldTerrain? _for;
         public void Near(double x0, double y0, double x1, double y1, List<Tree> into)
         {
             WorldTerrain? w = WorldTerrain.Active;
             if (w is null) return;
-            lock (_cells)
-            {
-                if (!ReferenceEquals(w, _for) || _cells.Count > 20000) { _cells.Clear(); _for = w; }
-                for (int i = CellOf(x0); i <= CellOf(x1); i++)
-                    for (int j = CellOf(y0); j <= CellOf(y1); j++)
-                    {
-                        if (!_cells.TryGetValue((i, j), out var c)) { c.has = TryTreeInCell(i, j, out c.t); _cells[(i, j)] = c; }
-                        if (c.has && c.t.X >= x0 && c.t.X <= x1 && c.t.Y >= y0 && c.t.Y <= y1) into.Add(c.t);
-                    }
-            }
+            var cells = _cells;
+            if (!ReferenceEquals(w, _for) || cells.Count > 20000) { cells = new(); _cells = cells; _for = w; }
+            for (int i = CellOf(x0); i <= CellOf(x1); i++)
+                for (int j = CellOf(y0); j <= CellOf(y1); j++)
+                {
+                    if (!cells.TryGetValue((i, j), out var c)) { c.has = TryTreeInCell(i, j, out c.t); cells[(i, j)] = c; }
+                    if (c.has && c.t.X >= x0 && c.t.X <= x1 && c.t.Y >= y0 && c.t.Y <= y1) into.Add(c.t);
+                }
         }
         public double TopOf(in Tree t) => _brokenTop.TryGetValue((CellOf(t.X), CellOf(t.Y)), out double h) ? h : t.TopM;
         public void BreakAt(in Tree t, double up) => _brokenTop.AddOrUpdate((CellOf(t.X), CellOf(t.Y)), up, (_, h) => System.Math.Min(h, up));
