@@ -205,8 +205,7 @@ public class WheelHydroTests : IDisposable
     public void ACubSkimsShallowWaterFastAndNosesOverBelowThePlaningSpeed()
     {
         // The real case, and the one the owner described: a hand's depth of water (0.10 m) over a gravel bed, which is
-        // what the braided rivers are. Flown in, not started in the water: a light touch at 1.3 V_p with power and the
-        // tail held low skims; with the power off it slows through V_p, digs in and goes over.
+        // what the braided rivers are. Flown in, not started in the water: a light touch at skimming speed skims.
         AircraftConfig cfg = Cub();
         GearConfig main = cfg.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         double vp = WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(cfg, main));
@@ -214,8 +213,9 @@ public class WheelHydroTests : IDisposable
         FloatHydro.FlatWaterOverride = 0.10;
         try
         {
-            var fast = WheelWaterTouch.Run(cfg, 0.5, 3.0, speed: 1.3 * vp);
-            _o.WriteLine("  1.3 V_p: " + fast);
+            // At the skimming speed of the all-types test (1.15 × its slowest glide trim: 1.5 V_p for the PA-18).
+            var fast = WheelWaterTouch.Run(cfg, 0.5, 3.0, holdPitchDeg: 3);   // nose held at 3°: on trim it floats in ground effect
+            _o.WriteLine($"  {fast.V / vp:F2} V_p: " + fast);
             Assert.True(fast.TouchAt > 0, "never touched");
             Assert.True(fast.NoseOverAt < 0, "above the planing speed it should skim, not dig in");
             Assert.True(fast.PeakDecelG < 0.5, $"peak {fast.PeakDecelG:F2} g");

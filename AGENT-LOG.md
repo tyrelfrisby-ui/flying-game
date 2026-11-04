@@ -1,21 +1,24 @@
 ## NEEDS YOU
 - **FLOATS NO LONGER BREAK UP ON LANDING; WHEELS SKIM WATER FOR REAL — FLY TO CHECK, AND TWO DECISIONS (Claude,
-  2026-11-03, lane/claude-wheel-hydroplane, NOT merged, NOT installed: build-ready check in the Log entry).**
+  2026-11-03, lane/claude-wheel-hydroplane; 325b367e is in lane/claude-crash-physics, the follow-up is not; NOT installed.
+  Build-ready: iOS `2026.1103.2246` ** BUILD SUCCEEDED **, 0 `error CS` — deploy.sh not run, as instructed).**
   - **Why the J-3 floats broke up:** the floats' planing lift (Savitsky) took its trim angle from the straight keel
     line just ahead of the step and gave ZERO lift at trim ≤ 0.1°, however much of the swept-up bow was in the water.
     Touch down flat or a little nose-low at speed (measured: 32 m/s, 2 m/s sink, −2°) and the floats knifed under
     (step draft 0.61 m on a 0.50 m float), it pitched to −10°, the engine hit the water at 70 mph and the engine-mount
-    rule correctly tore the nose off ("12.4 kN along the fuselage against 12.1"). Fixed: the trim is the wetted bottom's
-    (the chord to where the keel meets the water when that is steeper). At 60 mph, 100–300 fpm, +5° every landing was
+    rule correctly tore the nose off ("12.4 kN along the fuselage against 12.1"). Fixed: below zero trim (only there —
+    every positive-trim state, including the validated low-trim porpoise, is untouched) the trim moves over the first
+    degree to the wetted bottom's chord, from the step keel to where the keel meets the water. At 60 mph, 100–300 fpm, +5° every landing was
     already clean, which is why the old test never saw it. Also fixed: an aeroplane spawned afloat took a phantom
     "slam" on its first step (the floats' entrained water counted as newly hit: 420 kN on a Beaver).
   - **DECISION 1 — hard-landing threshold (new: floats can now be damaged).** A float's bottom splits (that compartment
     floods; nothing breaks off) above its 14 CFR 23.527 ultimate water load: n_w = 0.012·V_S0²/(tan^⅔β·W^⅓) with each
     twin float the hull of a half-weight seaplane, ×1.5. J-3 floats: n_w 4.12 → 17.9 kN per float. Measured at 60 mph,
     +5°: up to 3.0 m/s (590 fpm) no damage, 3.5 m/s (690 fpm) splits both; the 23.473 design sink for this wing
-    loading is 2.2 m/s (433 fpm). Landing FLAT (0°) is harder: one float split at 2 m/s (390 fpm). And a porpoise after
-    a 100 fpm touchdown with the stick held fixed peaked at 16.7 of the 17.9 kN — so if you feel it splitting floats on
-    landings you would call fair, say so: raise it, or keep it and fix the porpoise. OK as is?
+    loading is 2.2 m/s (433 fpm): it peaks at 8.5 kN there. The water load is averaged over 20 ms (an assumed response
+    time of a float on its struts — a one-step spike of the slam is not a load the struts feel). Worst normal landing
+    in the tests (100 fpm, then a skip, wings held level): 12.5 of 17.9 kN; a fast flat touchdown 15.8. Landing on ONE
+    float (wing low) is much harder — if you feel it splitting floats on landings you would call fair, say so. OK?
   - **DECISION 2 — tyre pressure / tundra tyres.** Wheels on water now ride on real planing pressure (Horne's 9√psi
     gives the pressure coefficient C = 0.643; nothing tuned). J-3 standard tyres: 12.2 psi → V_p 31 kt, and below
     ~20 kt (dig-in, full weight on the wheels) a tyre cannot hold itself up at all. The bushwheel option (half psi,
@@ -1474,9 +1477,11 @@
   CrashRelay, not a prop strike. Separately, in water shallower than the float's draft the float keels meet the BED
   under land rules (a lake edge 0.6 m deep at 3.5 m/s sink lost both floats as "gear") — not changed, noted. Island lakes
   are 3–50 m deep at centre and both authored seaplane lanes are 3.0 m deep everywhere.
-- **Fix (FloatHydro):** planing τ from the wetted keel chord when it is steeper than the keel line. **Aircraft:** the
-  floats' added mass is initialised from the starting state; float water load (FloatHydro forces + the added-mass slam
-  impulse) against the 23.527 ultimate → FloatFlooding puncture at the step compartment + DamageLog line.
+- **Fix (FloatHydro):** at negative keel-line τ only, τ ramps over 1° to the wetted keel chord (a first version used the
+  chord at all trims and killed the validated 2° porpoise in HydroJ3Tests and made the step taxi porpoise; caught by
+  the base/branch diff, fixed). **Aircraft:** the floats' added mass is initialised from the starting state; float water
+  load (FloatHydro forces + the added-mass slam impulse, averaged over 20 ms) against the 23.527 ultimate →
+  FloatFlooding puncture at the step compartment + DamageLog line.
 - **Wheels on water (WheelHydro rewritten):** uniform planing pressure ½ρV²·C on the wetted front arc → lift
   ½ρV²C·b·l_f, pressure drag ½ρV²C·b·h (L·tanτ planing, ventilated plough when deep), C = 0.643 from 9√psi; buoyancy of
   the immersed segment, ITTC friction, heave damping (incidence w/V + C_D 1.2 cross-flow). No static-load input and no
@@ -1494,10 +1499,21 @@
 - **Boundary with lane/claude-crash-physics:** that lane is the Unity debris drawing (AirframeVisual/DebrisMesh) and
   piece momentum; this lane changed only water contact forces and water triggers (FloatHydro, WheelHydro, LandingGear
   water branch, the float water-load check). No overlap. A prop blade touching water still bends at 0.15 m/s closing.
-- **Tests (new/changed):** FloatLandingTests (normal J-3 landings 100/200/300 fpm on the step and off it; fast flat
-  touchdown; threshold 2.2 vs 5.0 m/s; step taxi 35 mph — pitch range 4.9°; every float type), WheelWaterTests (every
+- **Tests (new/changed):** FloatLandingTests (normal J-3 landings 100/200/300 fpm on the step and off it, wings held
+  level; fast flat touchdown; threshold 2.2 vs 5.0 m/s; step taxi 35 mph at a 7° attitude — pitch 5.6..5.7°; every float
+  type: J-3, PA-18, Beaver, AirCam amphib, H-4 — clean), WheelWaterTests (every
   wheeled type light touch, peak < 1 g, nothing broken; J-3 skim; dig-in and tail-down delay; not-instant-stop),
   WheelHydroTests rewritten where they pinned the old (V/V_p)² support. Codex: nothing to polish here.
+- **Regression:** the full suite on base did not finish (the session running it ended; no trx). Instead, every class
+  that exercises water, float or wheel contact — CrashWater, Breakup, Displacement, FlyingBoat, Float, FloatTaxiRudder,
+  HydroJ3, J3FloatsWater, SprayField, FuelSlick, FlatWaterHook, WheelHydro, WheelSki, LandingGear, GroundLoop,
+  Tailwheel, Alaska, FloatsOnLand, AirframeContact — on base ce53d62e and on this branch: base 16 failed / 139; branch
+  14 failed / 182 (with the new classes). New on the branch: none. Fixed: CrashWaterTests.AnIntactDitchingFloatsFar…,
+  WheelHydroTests.ACubSkims…. The 14 left fail on base too (11 Alaska, 2 AirframeContact, 2 WheelSki — world/terrain,
+  not water). The whole suite was NOT run on the final code: say so before merging.
+- **Build:** deploy.sh's own two steps by hand, into lane-private paths (/private/tmp/wh-ios, /private/tmp/wh-dd — not
+  the shared flyinggame-dd): Unity iOS export 0 `error CS`, xcodebuild `** BUILD SUCCEEDED **`, 2026.1103.2246. Not
+  installed (instructed: no deploy). ProjectSettings/GraphicsSettings changes from the build reverted, not committed.
 ### 2026-11-03 14:35 PST — Grok Bot · lane/claude-island-nav · status sweep and install attempt (nothing installed)
 - **Install:** iPhone unavailable, 4016 on `devicectl install` of `/private/tmp/flyinggame-dd/.../AeroPlayground.app`
   (CFBundleVersion 202611031409). iPad mini connected but not asked for. No build run, no merge, no ProjectSettings change.

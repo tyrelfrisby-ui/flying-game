@@ -224,8 +224,18 @@ public static class WheelWaterTouch
             if (Math.Abs(t + win - 1.0) < 1e-6) res.SpeedAt1s = vw.Length;
             Quat a = s.Attitude; double pitch = Math.Asin(Math.Clamp(2 * (a.W * a.Y - a.Z * a.X), -1, 1)) * 57.3;
             res.MaxPitchDeg = Math.Max(res.MaxPitchDeg, pitch); res.MinPitchDeg = Math.Min(res.MinPitchDeg, pitch);
-            if (res.TouchAt < 0 && ac.AnyGearTouching) res.TouchAt = t + win;
-            if (ac.AnyGearTouching) touched++;
+            // In the water: any tyre bottom (the gear point) below the surface. (LandingGear's own touching flag is
+            // the ground's in shallow water, where the tyre also reaches the bed.)
+            bool wetWheel = false;
+            foreach (GearConfig g in cfg.Gear)
+            {
+                Vec3 p = s.Position + s.Attitude.Rotate(g.PosVec() - cg);
+                double? wUp = FloatHydro.WaterSurfaceAt(p.X, p.Y);
+                if (wUp.HasValue && -p.Z < wUp.Value) { wetWheel = true; break; }
+            }
+            bool inContact = wetWheel || ac.AnyGearTouching;
+            if (res.TouchAt < 0 && inContact) res.TouchAt = t + win;
+            if (inContact) touched++;
             if (res.NoseOverAt < 0 && (pitch < -30 || ac.LostComponents.Contains(AirframeComponent.Propeller))) { res.NoseOverAt = t + win; res.SpeedAtNoseOver = vw.Length; }
             log?.Invoke($"t={t + win:F2} V {vw.Length:F1} decel {decel:F2} g h {-s.Position.Z:F2} pitch {pitch:F1} q {s.Rates.Y * 57.3:F0} nz {ac.LoadFactorZ:F2} gear {ac.AnyGearTouching}");
             vPrev = vw;

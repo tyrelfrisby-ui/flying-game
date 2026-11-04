@@ -252,6 +252,7 @@ public class J3FloatsWaterTests
             for (int i = 0; i < 300; i++) sim.RunFor(0.1, new ControlInputs(0, 0, 0, Lever(0)));
             RigidBodyState end = ac.State;
             double cg = -end.Position.Z;
+            _out.WriteLine($"float peak water load {ac.FloatPeakWaterLoadN[0] / 1000:F1}/{ac.FloatPeakWaterLoadN[1] / 1000:F1} kN of {ac.FloatUltimateWaterLoadN / 1000:F1}; damage [{string.Join("; ", ac.Hydro.DamageLog)}]");
             _out.WriteLine($"30 s later: CG {cg:F3} m above the water, draft {FloatHydro.LastReport.DraftAtStepM:F3}, roll {Roll(end):F1}, pitch {Pitch(end):F1}");
             Assert.False(double.IsNaN(cg));
             Assert.InRange(FloatHydro.LastReport.DraftAtStepM, 0.18, 0.30);
