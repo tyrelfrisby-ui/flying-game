@@ -1,4 +1,46 @@
 ## NEEDS YOU
+- **QUEST 3S HAS ISLAND-NAV ON IT: FLY AND CHECK (Claude, 2026-11-03, lane/claude-quest-islandnav). Nothing approved.**
+  Installed on the Quest 3S (340YC10GBK0TYV) with `adb install -r` (debug-signed, no signature mismatch): versionName
+  **2026.1103.1834**, `build/quest/AeroPlayground.apk` (194 MB). iOS from the same tree: `** BUILD SUCCEEDED **`, stamp
+  2026.1103.1822, installed on 3 of 3 devices (re-run after the allocation fixes: BUILD SUCCEEDED again, 3 of 3). This branch = lane/claude-vr-hands-fix (e8facf3c) + lane/claude-island-nav
+  (510f987c); merge commit 2be16316. Please fly / look at, in the headset:
+  1. **J-3 on floats on the water** (island-nav's drawn EDO 60-1320 hull + our drawn water rudder): rest attitude, taxi
+     turns with the water rudder DOWN and hooked UP, a step take-off. **Decision for you:** with the drawn hull the J-3
+     rests 2.1 deg bow-up with the CG 1.160 m above the water, which puts the water-rudder hinge (z 1.160 at the transom
+     bottom, as drawn in v18) about 9 cm UNDER water, so even hooked up (90 deg) the blade's lower edge stays wet
+     (0.005-0.011 m2). Three J3WaterRudderTests are red for exactly that (Up makes no force / hooked out of the water /
+     taxi turns tighter with it down: 259 vs 254 deg at idle). Not fudged either way. Options: a bigger retract angle (it
+     was 140 deg before v18), the hinge higher on the transom, or accept that a retracted rudder drags at rest.
+  2. **Low-level and on-the-ground frame rate** at the island (both lanes' contact speed-ups are in: our footprint index
+     + stage skip, island-nav's per-airframe broadphase; solids now tested at every altitude). Read `[QuestPerf]`.
+  3. **Gamepad + Touch controllers + rudder pedals together**: island-nav's gamepad flight (dead zone 0.02) is read
+     first, the Quest controllers / cockpit hands after it; pedals add to the rudder.
+  4. **Extra 300** (all liveries): island-nav's airfoil-B visible wing on our VR cockpit. **Great Lakes**: island-nav's
+     six-gauge front panel + wet compass with our P3 controls and P3d windshields/gear (re-applied by vr_phase3/3c).
+  5. The HUD engine readouts (island-nav) are suppressed in the headset like every flat overlay.
+  6. **A newer APK is waiting, NOT installed:** `build/quest/AeroPlayground.apk` is now **2026.1103.2240** (the merge +
+     three allocation fixes below). The headset had gone off USB by the time it finished, so the Quest still carries
+     2026.1103.1834. Plug it in and run `zsh tools/deploy/deploy-quest.sh` (debug-signed, installs with -r).
+  **Quest garbage (QuestFrameBudgetProbe, Pitts over the island, alone):** hands-fix 86.6 KiB / 38 ms CPU per
+  sim-second; island-nav's own tip 329.1 KiB / 78 ms; the merge 281.6 KiB, and 167.5 KiB / 75 ms after three fixes
+  (BiplaneCellule.Covers and ClearOfTheGround enumerated an IReadOnlyList with foreach; Aircraft.Step's LINQ Sum over
+  the surfaces). Still RED against its 160 KiB limit: what is left is the per-step ForceMoment closure (hands-fix has it
+  too) and island-nav's terrain height-index allocations (IslandHeightIndex Budget[], List<int>). The doubled CPU is
+  island-nav's: hard points against the solids at every altitude. Not fixed here.
+  **Tests.** Full suite on the merge (excluding IslandDroneProbe, --blame-hang 30m): 2,262, 2,031 passed, 226 failed, 5
+  skipped, no hang. Every failing class was re-run on lane/claude-island-nav 510f987c and lane/claude-vr-hands-fix
+  e8facf3c; the 103 names failing only here were re-run alone on the merge, and 5 stayed red: J3WaterRudderTests x3
+  (item 1), J3FloatsWaterTests.FullRudderOnATaxiDoesNotCapsizeIt(0.30) (15 kt from the right: water speed 4.33 -> 4.92 m/s
+  in the turn, limit +0.5; island-nav's test, our bigger drawn blade), and QuestFrameBudgetProbe (above). Everything else
+  in the 226 is pre-existing on a base or global coupling (passes alone). IslandCombatTests.AWreckOnTheGround... failed
+  once alone (the wreck no longer costs 1.5x a flying aeroplane: both lanes' contact speed-ups) and passed in the second
+  isolation run: a timing assertion.
+  **Model checks:** check_gl_p3c, check_vr_phase1, check_vr_phase2, check_vr_phase3, check_sights, check_eye_interiors
+  pass; check_great_lakes_rig fails on Grip_Magneto's rotation, the same on hands-fix's own GLB (pre-existing: the
+  checker predates the P3 grips). check_ea300_wing_b not run (no matplotlib); the transplanted wing meshes are
+  byte-equal to island-nav's and every other mesh equal to ours.
+  Left out for now (NOT merged): lane/vr-cockpit-combined, lane/claude-hydro-quest, lane/claude-quest-hands-install,
+  lane/codex-vr-quest.
 - **QUEST STORE RELEASE APK READY, NOT UPLOADED (Claude, 2026-11-03, lane/claude-vr-hands-fix).** Meta Horizon Store app
   1408996628974607, package com.tyrelfrisby.aeroplayground.quest. `build/quest/release/AeroPlayground.apk`, versionCode 2,
   versionName 2026.1103.0920, 200,713,755 bytes, signed with the NEW upload key (cert SHA-256
