@@ -8283,3 +8283,10 @@ Ty reviewed the gl7 renders (xfer/gl7: side-by-side, photo comparison, rear cons
 
 ## 2026-11-03 14:42 PST - Great Lakes wing surfaces: Ty approved (voice call)
 Ty reviewed xfer/glwing close-ups and approved: one aileron per side per wing (4 total), slave struts tying upper to lower, no extra surfaces. Upper-aileron removal question closed.
+
+## 2026-11-04 — lane/claude-app-icon: AP letter app icon (Ty approved)
+- Replaced unity/Assets/_Project/Art/AppIcon.png (same GUID 069fd8c6…, so all 19 iPhone/iPad/App Store icon slots in Player Settings pick it up) with the AP letter icon (aero/vector/png/ap-icon-color-1024.png): 1024×1024, opaque, no alpha (sips hasAlpha: no).
+- ProjectSettings.asset: set the Default icon (m_BuildTargetIcons) to the same texture so Mac (OSXUniversal) and Quest/Android builds get it too (Android adaptive slots stay empty → fall back to default).
+- tools/check-parity.sh: PARITY OK. Branch is off lane/claude-island-nav b7d1a680.
+- BUILD NOT RUN: the parity-merge agent was mid-tests (dotnet test pid 27644) with its iOS/Quest builds queued next; did not start a Unity/xcodebuild alongside it. No install (rides the parity-merge install).
+- NEXT: after the parity merge, merge lane/claude-app-icon into lane/claude-island-nav AND lane/claude-quest-islandnav (ProjectSettings.asset touched — merge carefully with the parity merge's ProjectSettings), then build: need ** BUILD SUCCEEDED **.
