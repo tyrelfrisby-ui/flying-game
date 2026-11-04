@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "seminole-like",
   "displayName": "Seminole-like Twin",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Piper PA-44 Seminole: all-metal aluminium semi-monocoque (Piper PA-44 service manual).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 1724,

@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "target-drone-like",
   "displayName": "Target drone",
+  "structureType": "composite",
+  "structureTypeSource": "Target drone: composite airframe (generic jet target drone).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 340,

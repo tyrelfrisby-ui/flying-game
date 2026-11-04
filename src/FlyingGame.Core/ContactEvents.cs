@@ -20,6 +20,13 @@ public enum ContactEventKind
     /// <summary>A tree stem snapped where the airframe struck it (TreeStructure). Intensity = the stem's strength, N;
     /// value = its diameter there, m.</summary>
     TreeSnapped,
+    /// <summary>A fuselage section crushed instead of breaking (<see cref="FuselageStructure"/>): Component = Nose, Cabin or
+    /// TailBoom. Intensity = the energy this arrival put into the crush, J; value = the crush, m.</summary>
+    FuselageCrushed,
+    /// <summary>The airframe went through branches (<see cref="BranchStrike"/>) and they did harm: a dented leading edge, torn
+    /// fabric, a struck propeller or a damaged control surface. Intensity = the energy the wood took out of the airframe, J;
+    /// value = the branch diameter met, m.</summary>
+    BranchDamage,
 }
 
 /// <summary>One contact event, raised by <c>Aircraft.ContactEvent</c> after the step in which it happened.</summary>

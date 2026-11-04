@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "glasair3-like",
   "displayName": "Glasair III-like",
+  "structureType": "composite",
+  "structureTypeSource": "Glasair III: glass-fibre composite fuselage shell (Stoddard-Hamilton builder manual).",
   "spawnIasMs": 100,
   "mass": {
     "massKg": 1090,

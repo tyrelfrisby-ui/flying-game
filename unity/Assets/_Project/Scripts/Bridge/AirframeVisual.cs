@@ -79,6 +79,7 @@ namespace FlyingGame.Bridge
             // Challenge spawns adopt a new sim without AircraftChanged — an intact sim airframe means rebuild.
             if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();
             if (_componentsDetached && _driver.Sim.Aircraft.LostComponents.Count == 0) Rebuild();
+            else if (_fuselageBent && _driver.Sim.Aircraft.Crush.TailCrushM == 0 && _driver.Sim.Aircraft.Crush.NoseCrushM == 0) Rebuild();   // a fresh airframe
             if (_builtModels != SessionSettings.UseAirframeModels || _builtOwn != SessionSettings.UseOwnModels) Rebuild();
             // A broken airframe keeps its pieces off until the next flight's fresh sim; the new livery waits for that rebuild.
             else if (!_wingsDetached && !_componentsDetached && _builtLivery != SessionSettings.LiveryFor(_builtId)) Rebuild();
@@ -347,6 +348,53 @@ namespace FlyingGame.Bridge
         }
 
         private readonly Dictionary<FlyingGame.Core.AirframeComponent, Transform> _bentPanels = new();
+        private bool _fuselageBent;
+
+        /// <summary>
+        /// A crushed fuselage that BENDS instead of breaking (Ty 2026-11-04, <see cref="FlyingGame.Core.FuselageStructure"/>):
+        /// on first call the tail boom (or the engine and mount) is cut off the body at its station by the same cut a break
+        /// uses, and hung on a pivot there; every call turns the pivot to the sim's bend. If the section later breaks after
+        /// all, <see cref="DetachComponent"/> finds the pivot in <see cref="_bentPanels"/> and lets it go as the debris.
+        /// The tail's control surfaces stop following the stick once bent (the rig is frozen by the cut).
+        /// </summary>
+        public void ShowFuselageBend(FlyingGame.Core.FuselageCrush crush, AircraftConfig cfg)
+        {
+            if (_builder == null || cfg == null || crush == null) return;
+            (double noseCut, double tailCut) = FlyingGame.Core.AirframeContact.FuselageStations(cfg);
+            const float Deg = (float)(180.0 / System.Math.PI);
+            if (System.Math.Abs(crush.TailBendPitchRad) + System.Math.Abs(crush.TailBendYawRad) > 0.003
+                && !(_driver?.Sim?.Aircraft?.LostComponents.Contains(FlyingGame.Core.AirframeComponent.TailBoom) ?? true))
+            {
+                Transform t = BendPivot(FlyingGame.Core.AirframeComponent.TailBoom, tailCut, cfg);
+                // Root-local x = sim y, y = up, z = sim x: the tail (toward −z) goes up for + about +x, right for − about +y.
+                if (t != null) t.localRotation = Quaternion.AngleAxis(-(float)crush.TailBendYawRad * Deg, Vector3.up) * Quaternion.AngleAxis((float)crush.TailBendPitchRad * Deg, Vector3.right);
+            }
+            if (System.Math.Abs(crush.NoseBendRad) > 0.003
+                && !(_driver?.Sim?.Aircraft?.LostComponents.Contains(FlyingGame.Core.AirframeComponent.Nose) ?? true))
+            {
+                Transform t = BendPivot(FlyingGame.Core.AirframeComponent.Nose, noseCut, cfg);
+                if (t != null) t.localRotation = Quaternion.AngleAxis((float)crush.NoseBendRad * Deg, Vector3.right);   // nose (+z) down
+            }
+        }
+
+        private Transform BendPivot(FlyingGame.Core.AirframeComponent comp, double stationX, AircraftConfig cfg)
+        {
+            if (_bentPanels.TryGetValue(comp, out Transform pivot)) return pivot;
+            _bentPanels[comp] = null;   // one attempt per flight: a model with nothing to cut there just does not bend
+            GameObject cut = DetachStatic(_builder, transform, cfg, comp, Vector3.zero);
+            if (cut == null) return null;
+            WingDebris d = cut.GetComponent<WingDebris>();
+            if (d != null) Object.DestroyImmediate(d);
+            var go = new GameObject("Bent-" + comp);
+            pivot = go.transform;
+            pivot.SetParent(transform, false);
+            pivot.localPosition = new Vector3(0f, 0f, (float)stationX);
+            pivot.localRotation = Quaternion.identity;
+            cut.transform.SetParent(pivot, true);
+            _bentPanels[comp] = pivot;
+            _fuselageBent = true;
+            return pivot;
+        }
 
         private static bool IsTipPanel(FlyingGame.Core.AirframeComponent c) =>
             c is FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipRight
@@ -761,6 +809,8 @@ namespace FlyingGame.Bridge
             _builtLivery = SessionSettings.LiveryFor(_builtId);
             _wingsDetached = false;
             _componentsDetached = false;
+            _fuselageBent = false;
+            _bentPanels.Clear();
             _rigPartGone = false;
             Cockpit.Reset();
             _displays.Forget();

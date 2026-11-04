@@ -284,6 +284,8 @@ public sealed partial class Aircraft
     /// Left/right brake = BrakeInput × (1 ∓ bias) clamped to 0..1.</summary>
     public double BrakeBias { get; set; }
     private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
+    /// <summary>The per-strip flow and damage state (tests and probes read the crash damage in it).</summary>
+    public StripFlowState FlowStateForTests => _flowState;
 
     /// <summary>External world-frame force (N) applied at ExternalForcePointBody — the aerotow rope
     /// tension, winch, etc. Set by the coupling each step; zero by default.</summary>
@@ -1301,6 +1303,7 @@ public sealed partial class Aircraft
         UpdateLoad(dt);
         StepTrees(preStep, dt);   // stems and crowns: snap, stop, or take the part that hit them (AircraftTreeStrike)
         if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
+        FilterFuselageBreaks();   // a fuselage section crushes before it breaks (AircraftFuselageCrush)
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
         AfterStepContactDamage(dt);
         if (_impacts.MaxClosingMs > 0.0) HardImpact?.Invoke(_impacts.MaxClosingMs, _impacts.Point);

@@ -541,13 +541,18 @@ public sealed class WorldTerrain
     /// <summary>KINETIC friction of a float keel (aluminium float bottom with a steel/aluminium keel skid strip) SLIDING on
     /// the surface (owner 2026-10-03). Published sliding coefficients: metal on dry asphalt/concrete 0.5-0.6 (Engineering
     /// ToolBox: metal-concrete 0.3-0.6; aluminium-asphalt ~0.5-0.6) -> 0.55; gravel ~0.5; grass 0.3-0.4 dry, ~0.2 wet
-    /// (why floatplanes use wet grass) -> 0.35; ploughed/rough ground ~0.5. A Beaver sliding on at 50 kt stops in ~60 m on
+    /// (why floatplanes use wet grass) -> 0.35; rough pasture 0.45 (below). A Beaver sliding on at 50 kt stops in ~60 m on
     /// pavement, ~90 m on grass.</summary>
     public static double KeelSlidingCoefficient(Surface s) => s switch
     {
         Surface.Paved => 0.55,
         Surface.Gravel => 0.50,
         Surface.Grass => 0.35,
+        // ROUGH is the island's green ground off the strips: pasture, i.e. grass over uneven earth (Ty 2026-11-04, "the
+        // friction is too high"). It used to fall to the 0.50 default (ploughed earth). Dry grass is 0.3–0.45 and the
+        // unevenness is in the ground itself (MicroBumpAt: a belly slide over it loses 6 % more distance than on flat
+        // grass of the same μ, CrashSlideProbe), so it takes the top of the grass band rather than a second helping.
+        Surface.Rough => 0.45,
         Surface.Snow => 0.10,          // a keel on snow slides like a ski, because that is what it is
         Surface.PackedGlacierSnow => 0.04,   // and on packed, wind-polished ice it slides very nearly freely
         // Metal on ice, the same table as above (Engineering ToolBox): steel-ice 0.03, brass-ice 0.02 at 0 C.

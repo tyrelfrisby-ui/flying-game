@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "geebee-r2-like",
   "displayName": "Gee Bee R-2-like",
+  "structureType": "steelTube",
+  "structureTypeSource": "Granville Bros Gee Bee R-1/R-2: welded steel-tube fuselage with wooden formers and fabric; plywood-covered wooden wing.",
   "spawnIasMs": 80,
   "mass": {
     "massKg": 1300,
