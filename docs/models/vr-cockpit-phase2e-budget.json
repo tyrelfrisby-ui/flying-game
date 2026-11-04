@@ -1,0 +1,519 @@
+{
+  "files": {
+    "extra-300-like-own-n300uy.glb": {
+      "before_bytes": 5300836,
+      "after_bytes": 5183584,
+      "before_v_t": [
+        98175,
+        127066
+      ],
+      "after_v_t": [
+        95487,
+        126170
+      ]
+    },
+    "extra-300-like-own-unmarked.glb": {
+      "before_bytes": 4964728,
+      "after_bytes": 4847476,
+      "before_v_t": [
+        98175,
+        127066
+      ],
+      "after_v_t": [
+        95487,
+        126170
+      ]
+    },
+    "extra-300-like-own.glb": {
+      "before_bytes": 5591620,
+      "after_bytes": 5474368,
+      "before_v_t": [
+        98175,
+        127066
+      ],
+      "after_v_t": [
+        95487,
+        126170
+      ]
+    },
+    "pitts-s2b-like-own-checker-unmarked.glb": {
+      "before_bytes": 7207224,
+      "after_bytes": 3579536,
+      "before_v_t": [
+        143048,
+        88318
+      ],
+      "after_v_t": [
+        77624,
+        66510
+      ]
+    },
+    "pitts-s2b-like-own-factory-unmarked.glb": {
+      "before_bytes": 7183144,
+      "after_bytes": 3604512,
+      "before_v_t": [
+        143824,
+        89610
+      ],
+      "after_v_t": [
+        78400,
+        67802
+      ]
+    },
+    "pitts-s2b-like-own-n1191.glb": {
+      "before_bytes": 7199796,
+      "after_bytes": 3621164,
+      "before_v_t": [
+        143824,
+        89610
+      ],
+      "after_v_t": [
+        78400,
+        67802
+      ]
+    },
+    "pitts-s2b-like-own.glb": {
+      "before_bytes": 7156864,
+      "after_bytes": 3578232,
+      "before_v_t": [
+        143048,
+        88318
+      ],
+      "after_v_t": [
+        77624,
+        66510
+      ]
+    }
+  },
+  "meshes": {
+    "extra-300-like": {
+      "Canopy_Frame": {
+        "before": [
+          1187,
+          1660
+        ],
+        "after": [
+          1187,
+          1660
+        ]
+      },
+      "Canopy_Glass": {
+        "before": [
+          529,
+          954
+        ],
+        "after": [
+          529,
+          954
+        ]
+      },
+      "Canopy_Sill": {
+        "before": [
+          1206,
+          1676
+        ],
+        "after": [
+          1206,
+          1676
+        ]
+      },
+      "CanopyRelease_F": {
+        "before": [
+          56,
+          40
+        ],
+        "after": [
+          56,
+          40
+        ]
+      },
+      "CanopyRelease_R": {
+        "before": [
+          56,
+          40
+        ],
+        "after": [
+          56,
+          40
+        ]
+      },
+      "Canopy_Latch_Handle_Aft": {
+        "before": [
+          168,
+          56
+        ],
+        "after": [
+          168,
+          56
+        ]
+      },
+      "Canopy_Latch_Handle_Aft_White": {
+        "before": [
+          36,
+          12
+        ],
+        "after": [
+          36,
+          12
+        ]
+      },
+      "Canopy_Latch_Handle_Fwd": {
+        "before": [
+          168,
+          56
+        ],
+        "after": [
+          168,
+          56
+        ]
+      },
+      "Canopy_Latch_Handle_Fwd_White": {
+        "before": [
+          36,
+          12
+        ],
+        "after": [
+          36,
+          12
+        ]
+      },
+      "Canopy_Latch_Pin_1": {
+        "before": [
+          132,
+          44
+        ],
+        "after": [
+          132,
+          44
+        ]
+      },
+      "Canopy_Latch_Hole_1": {
+        "before": [
+          1344,
+          448
+        ],
+        "after": [
+          672,
+          224
+        ]
+      },
+      "Canopy_Latch_Pin_2": {
+        "before": [
+          132,
+          44
+        ],
+        "after": [
+          132,
+          44
+        ]
+      },
+      "Canopy_Latch_Hole_2": {
+        "before": [
+          1344,
+          448
+        ],
+        "after": [
+          672,
+          224
+        ]
+      },
+      "Canopy_Latch_Handle_Aft_Front": {
+        "before": [
+          168,
+          56
+        ],
+        "after": [
+          168,
+          56
+        ]
+      },
+      "Canopy_Latch_Handle_Aft_Front_White": {
+        "before": [
+          36,
+          12
+        ],
+        "after": [
+          36,
+          12
+        ]
+      },
+      "Canopy_Latch_Handle_Fwd_Front": {
+        "before": [
+          168,
+          56
+        ],
+        "after": [
+          168,
+          56
+        ]
+      },
+      "Canopy_Latch_Handle_Fwd_Front_White": {
+        "before": [
+          36,
+          12
+        ],
+        "after": [
+          36,
+          12
+        ]
+      },
+      "Canopy_Latch_Pin_1_Front": {
+        "before": [
+          132,
+          44
+        ],
+        "after": [
+          132,
+          44
+        ]
+      },
+      "Canopy_Latch_Hole_1_Front": {
+        "before": [
+          1344,
+          448
+        ],
+        "after": [
+          672,
+          224
+        ]
+      },
+      "Canopy_Latch_Pin_2_Front": {
+        "before": [
+          132,
+          44
+        ],
+        "after": [
+          132,
+          44
+        ]
+      },
+      "Canopy_Latch_Hole_2_Front": {
+        "before": [
+          1344,
+          448
+        ],
+        "after": [
+          672,
+          224
+        ]
+      },
+      "Headset_Jack_Rear": {
+        "before": [
+          36,
+          12
+        ],
+        "after": [
+          36,
+          12
+        ]
+      },
+      "Headset_Jack_Rear_Phone": {
+        "before": [
+          132,
+          44
+        ],
+        "after": [
+          132,
+          44
+        ]
+      },
+      "Headset_Jack_Rear_Mic": {
+        "before": [
+          132,
+          44
+        ],
+        "after": [
+          132,
+          44
+        ]
+      },
+      "Headset_Jack_Front": {
+        "before": [
+          36,
+          12
+        ],
+        "after": [
+          36,
+          12
+        ]
+      },
+      "Headset_Jack_Front_Phone": {
+        "before": [
+          132,
+          44
+        ],
+        "after": [
+          132,
+          44
+        ]
+      },
+      "Headset_Jack_Front_Mic": {
+        "before": [
+          132,
+          44
+        ],
+        "after": [
+          132,
+          44
+        ]
+      },
+      "Canopy_Hinge_Airframe_Rear": {
+        "before": [
+          168,
+          56
+        ],
+        "after": [
+          168,
+          56
+        ]
+      },
+      "Canopy_Hinge_Canopy_Rear": {
+        "before": [
+          168,
+          56
+        ],
+        "after": [
+          168,
+          56
+        ]
+      },
+      "Canopy_Hinge_Broken_Rear": {
+        "before": [
+          12,
+          4
+        ],
+        "after": [
+          12,
+          4
+        ]
+      },
+      "Canopy_Hinge_Airframe_Front": {
+        "before": [
+          168,
+          56
+        ],
+        "after": [
+          168,
+          56
+        ]
+      },
+      "Canopy_Hinge_Canopy_Front": {
+        "before": [
+          168,
+          56
+        ],
+        "after": [
+          168,
+          56
+        ]
+      },
+      "Canopy_Hinge_Broken_Front": {
+        "before": [
+          12,
+          4
+        ],
+        "after": [
+          12,
+          4
+        ]
+      }
+    },
+    "pitts-s2b-like": {
+      "Canopy_Frame": {
+        "before": [
+          10752,
+          3584
+        ],
+        "after": [
+          2640,
+          880
+        ]
+      },
+      "Panel_Rim_Rear": {
+        "before": [
+          13524,
+          4508
+        ],
+        "after": [
+          2772,
+          924
+        ]
+      },
+      "Panel_Rim_Front": {
+        "before": [
+          13524,
+          4508
+        ],
+        "after": [
+          2772,
+          924
+        ]
+      },
+      "Canopy_Bow_F": {
+        "before": [
+          11016,
+          3672
+        ],
+        "after": [
+          2376,
+          792
+        ]
+      },
+      "Canopy_Bow_R": {
+        "before": [
+          11016,
+          3672
+        ],
+        "after": [
+          2376,
+          792
+        ]
+      },
+      "Canopy_Bow_F_Front": {
+        "before": [
+          6480,
+          2160
+        ],
+        "after": [
+          1512,
+          504
+        ]
+      },
+      "Canopy_Bow_R_Front": {
+        "before": [
+          6480,
+          2160
+        ],
+        "after": [
+          1512,
+          504
+        ]
+      },
+      "Canopy_Sill_Airframe_L": {
+        "before": [
+          5376,
+          1792
+        ],
+        "after": [
+          1080,
+          360
+        ]
+      },
+      "Canopy_Sill_Airframe_R": {
+        "before": [
+          5376,
+          1792
+        ],
+        "after": [
+          1080,
+          360
+        ]
+      }
+    }
+  },
+  "checks": [
+    "All seven HEAD migrations preserve node graph/transforms/extras verbatim.",
+    "All seven 0a1a7b4 CPU rebuilds match final per-node vertex/triangle counts.",
+    "All seven migrated and fresh assets are byte-identical on repeat update."
+  ]
+}

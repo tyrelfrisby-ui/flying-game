@@ -1,0 +1,27 @@
+{
+ "reference": "d936b10",
+ "canonical_regeneration_base": "0a1a7b4",
+ "canonical_regeneration_identical": true,
+ "idempotent": true,
+ "shared_rig_byte_unchanged": true,
+ "assets": [
+  {
+   "file": "great-lakes-like-own-red-sunburst.glb",
+   "all_node_records_unchanged": 259,
+   "unchanged_mesh_nodes": 148,
+   "sha256": "22f09ca7385d2347bc98a52e7eb7c87a9b28fa64c46a0c5340d8ca3ace37f92a"
+  },
+  {
+   "file": "great-lakes-like-own-white-stripes.glb",
+   "all_node_records_unchanged": 259,
+   "unchanged_mesh_nodes": 148,
+   "sha256": "85f59c54c79c5b8ade581262111c677581fb0060e8b9030320ecf4c97b88f301"
+  },
+  {
+   "file": "great-lakes-like-own.glb",
+   "all_node_records_unchanged": 357,
+   "unchanged_mesh_nodes": 218,
+   "sha256": "f570441f92a28729a128867c702983957b51a32bb7f17d2d2b3b6df140294d63"
+  }
+ ]
+}

@@ -775,3 +775,6 @@ if _WING_BASE is not None:
     replace_wings(_WING_BASE.name, OUT, OUT)
     _WING_BASE.close()
     print('PRESERVED non-wing baseline; replaced Wing + Aileron_L/R')
+# Phase 1 shared geometry path (also works without Blender after a base export).
+from vr_cockpit import update as vr_phase1_update
+vr_phase1_update(OUT)
