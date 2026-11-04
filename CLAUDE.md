@@ -241,3 +241,11 @@ sat 4.5 cm higher in the cabin and failed the 12 cm check. The CG is a point IN 
 does not move it. When two configs share an airframe and an eye, place the second so its airframe coincides with
 the first (`Spec.SitHighM`), let the new gear be the thing that is off, and gate the coincidence
 (`check_eye_interiors.py` prints `COINCIDE`). Before trusting an eye in a variant, measure it in that variant.
+### A weighted average with a zero weight is a NaN waiting for its geometry
+The island pad blend skipped pads with `dd >= blend` but averaged the rest with weight `1 − Smooth(dd/blend)`, which
+rounds to exactly 0 just inside the edge. With one such pad in range `sumZ/sumW` was 0/0, and `Mix(h, NaN, 0)` is
+NaN, not h. It sat unnoticed until the Frank Church valleys put strip approaches across those edges. The moraine pass
+had the same shape (`melt / u` with u = 0), and its box blur spread the NaN over whole rows of the island. Guard the
+weight, not the result. When a terrain change makes far-off ground go strange, scan for NaN before suspecting the
+change. And expect a regenerated relief to re-pick every generator-chosen site (snow patches, ledges, boulders): that
+search is a global ranking, so its literal tests must be re-copied from the new report, not "fixed".

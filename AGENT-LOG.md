@@ -1,4 +1,14 @@
 ## NEEDS YOU
+- **FRANK CHURCH STRIPS MOVED DOWN INTO RIVER CANYONS — PLEASE LOOK AT THE RENDERS (Claude, 2026-11-03,
+  lane/claude-frank-church-valleys, NOT MERGED):** your "always deep in the valleys". All nine strips now lie on the floor
+  of a river canyon (Middle Fork, Sulphur Creek, Big Creek, Chamberlain Creek), 3–30 m above the water. The walls rise
+  239–711 m on both sides within 1.5 km; before, they stood on tables. **Cabin Creek, Soldier Bar and Dewey Moore are
+  one-way**: land uphill (6.5 / 4.5 / 7 %) into a wall or creek head with no go-around, take off downhill and
+  down-canyon. Before/after renders and a README are in `~/Developer/agent-lanes/xfer/frank-church-v1/`. Two
+  things for you to decide: (1) the backcountry strips no longer carry a Part 77 20:1 surface, since their approaches
+  follow the canyon (that fan was half of the mesa look); (2) the relief generator re-picked its snow patches and rock
+  ledges, so there are now 1/3/5/10° patches (no 4° or 8°) and six ledges. No device install was done.
+
 - **NOTHING INSTALLED 14:35 — IPHONE STILL 4016; PITTS SPIN #3 AND ISLAND SURFACES NEED A MERGE BEFORE THEY CAN GO ON (Grok Bot,
   2026-11-03 14:35 PST, lane/claude-island-nav `66656185`):** Ty's iPhone (00008150-001629A83662401C) is "unavailable" in
   devicectl; a direct `devicectl device install` of the built `2026.1103.1409` (deadzone 0.02 + roll-only) gave
@@ -1441,6 +1451,64 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 — Claude · lane/claude-frank-church-valleys (off island-nav ce53d62e) · the Frank Church strips down in their valleys
+**Pending Ty's approval of the renders; not merged; nothing installed.**
+- **Why they were on mesas.** On the island the nine strips are pinned anchors (`backcountry_strips`) at 4,400–5,000 ft,
+  which is the interior plateau, with no river below them. The relief generator holds ground UP round an anchor (its
+  bench bound). Every end also carried a 1.5 km 20:1 Part 77 fan, which planed the ground flat. The old C2 canyon
+  had been deleted for standing strips on pedestals. Measured at base: the ground fell 100–813 m away within 1 km.
+  (`FrankChurch.cs`'s canyon is the legacy world's and is not drawn on the island.)
+- **What changed.**
+  - New "C2-*" river canyons in `island-spec.json`, authored by the new `tools/island/frank_church_layout.py`, which
+    also places the strips. They are the Middle Fork (S→N, a gorge into the Dillingham lowland), Sulphur Creek and
+    Big Creek into it, and Chamberlain Creek under Frank Church's south face. Floors fall downstream (1.7–3.6 % on the
+    strip reaches), with wide flats at the strips. The F14 gravel bar moved onto the Middle Fork's E–W reach.
+  - TerrainGen (`Constraints.cs`): walled canyons hold their sides up as a lower bound measured from the nearest
+    thalweg; "exact" floors fix the grade so erosion cannot dig under a bench; walls lean back (≤ 35°) within 400 m of
+    a canyon strip; and a continuous headwall stands past each one-way strip's high end.
+  - `generate_island.runway_finals`: no Part 77 surface for backcountry strips. Their canyon approaches are tested
+    instead.
+  - New pad flag `sloped_end_shoulders`: the slope runs on through the end shoulders. A level shoulder put a kink on
+    the threshold that the 25 m mesh cut by up to 0.42 m, burying the low-end paint. It is mirrored in the index,
+    the reference, the gradient (regenerated), the generator and both Python mirrors.
+  - Unity: shoulder paint uses the field's own shoulder width (it was a fixed 60 m and hung over the river bank).
+    Natural-shaped (turf) strips get 5 m mesh cells, because Sulphur Creek's banana came up through its paint in
+    zig-zags. This applies to every turf strip on the island.
+  - Two latent bugs found on the way:
+    - (a) `IslandHeightIndex`/reference: at the exact edge of a pad blend the weight rounds to 0, `sumW` is 0 and the
+      ground was NaN. It hit four of the new approaches, and the base already had it near the old Sulphur Creek.
+      Zero-weight pads are now skipped.
+    - (b) `Surfaces.cs` moraines: 0/0 on an ice node with no routed thickness, which the blur spread as NaN over whole
+      rows (Bighorn and Payette went to −29 m in one generation). Guarded.
+  - **Knock-on:** the relief is global (climate, ice and the site ranking), so the generator re-picked its landing
+    sites and boulders. `IslandSurfaceTests` literals were re-copied by hand from its report (SP1–SP4, LD1–LD6,
+    four biggest boulders, 54 boulders), and the `WorldRender` cameras were updated.
+- **Strips** (walls L/R above the strip within 1.5 km · strip ends above the river · length · slope):
+  - Middle Fork: Thomas Creek 3,711 ft (382/502 m · 6–13 m · 4,003 ft · 1.2 %); Mackay Bar 3,649 ft
+    (402/392 · 3–8 · 1,509 · 1.8 %); Indian Creek 3,552 ft (329/428 · 5–11 · 4,003 · 1.6 %).
+  - Sulphur Creek: Sulphur Creek 3,780 ft (389/351 · 5–25 · 3,002 · 2.0 %, turf).
+  - Big Creek: **Cabin Creek ONE-WAY** land 112° / take off 292°, 3,720 ft (239/377 · 5–9 · 1,509 · 6.5 %).
+  - Chamberlain Creek: **Soldier Bar ONE-WAY** land 006° / take off 186°, 3,931 ft (398/251 · 8–24 · 1,312 · 4.5 %);
+    **Dewey Moore ONE-WAY** land 047° / take off 227°, 4,054 ft (711/329 · 6–30 · 1,214 · 7 %); Chamberlain 3,872 ft
+    (417/389 · 5–14 · 3,609 · 1.2 %); Big Creek 3,957 ft (509/355 · 5–15 · 3,510 · 1.0 %).
+  - Briefing data: `FrankChurch.Strip.River`, `LandingHeadingsDeg`, `TakeoffHeadingsDeg`, `NoGoAround`,
+    `TakeoffHeadingDeg`, `GoAround`; and in the spec `landing_true_deg`, `takeoff_true_deg`, `go_around`.
+- **Tests.**
+  - `FrankChurchTests` was rewritten. The old file measured the legacy canyon through a world that returns island
+    heights, and it asked for 10 strips; four of its tests failed at base. The 12 new tests all pass: deep valley
+    on both sides; river beside the strip 3–60 m below and never on it; rivers never climb more than 5 m (only under
+    a bank blend); one-way lands uphill into a wall that needs more than 20 % to out-climb, with an open down-canyon
+    approach; two-way ends open under a 10 % plane; planar every 5 m; mesh and paint against the collision ground
+    (0.000 m; turf 0.49 m, held at 0.5); no cliff on worked ground; compactness.
+  - `IslandSurfaceTests` 15/15. IslandCheck PASS (554 checks), continuity PASS, parity PASS, `generate_runtime`
+    and `generate_gradient` `--check` current.
+  - **Full suite: incomplete in BOTH runs.** Base and branch each stalled at the same test after the playa test.
+    The base run was killed at the 2-hour limit and I stopped the branch run. Up to there: base 54 failures, branch
+    50, **no failure on the branch that is not also on base**, and the four old FrankChurch failures are gone.
+    Another lane's Unity build was running at the same time.
+- **Build:** `/tmp/fc-build.sh`, a copy of `deploy.sh` with DEVICES forced empty, its own `/private/tmp/fc-ios` and `fc-dd` paths and no cache pruner: `** BUILD SUCCEEDED **`, 0 `error CS`, bundle `2026.1103.1944`. **Not installed on any device.** The bundleVersion bump was not committed. Lane Library: `~/Library/Application Support/FlyingGame/unity-Library-claude-frank-church-valleys` (plus a `-before` APFS clone used only for the base renders).
+- **Renders:** `~/Developer/agent-lanes/xfer/frank-church-v1/` (README.md; before-/after-<strip>-overhead/approach,
+  -wall for the one-way strips, and before/after hillshade maps).
 ### 2026-11-03 14:35 PST — Grok Bot · lane/claude-island-nav · status sweep and install attempt (nothing installed)
 - **Install:** iPhone unavailable, 4016 on `devicectl install` of `/private/tmp/flyinggame-dd/.../AeroPlayground.app`
   (CFBundleVersion 202611031409). iPad mini connected but not asked for. No build run, no merge, no ProjectSettings change.

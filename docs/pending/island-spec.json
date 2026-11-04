@@ -1953,6 +1953,546 @@
           100,
           100
         ]
+      },
+      {
+        "id": "C2-MF1",
+        "name": "Middle Fork",
+        "path": [
+          [
+            2.8,
+            -1.95
+          ],
+          [
+            2.95,
+            -1.1
+          ]
+        ],
+        "rim_width_m": [
+          640,
+          900
+        ],
+        "floor_width_m": [
+          240,
+          500
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3700.8,
+          3694.2
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-MF2",
+        "name": "Middle Fork",
+        "path": [
+          [
+            2.95,
+            -1.1
+          ],
+          [
+            3.1,
+            0.45
+          ]
+        ],
+        "rim_width_m": [
+          900,
+          1040
+        ],
+        "floor_width_m": [
+          500,
+          640
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3694.2,
+          3668.0
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-MF3",
+        "name": "Middle Fork",
+        "path": [
+          [
+            3.1,
+            0.45
+          ],
+          [
+            3.95,
+            0.62
+          ]
+        ],
+        "rim_width_m": [
+          1040,
+          1040
+        ],
+        "floor_width_m": [
+          640,
+          640
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3668.0,
+          3608.9
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-MF4",
+        "name": "Middle Fork",
+        "path": [
+          [
+            3.95,
+            0.62
+          ],
+          [
+            4.25,
+            0.95
+          ]
+        ],
+        "rim_width_m": [
+          1040,
+          820
+        ],
+        "floor_width_m": [
+          640,
+          420
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3608.9,
+          3576.1
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-MF5",
+        "name": "Middle Fork",
+        "path": [
+          [
+            4.25,
+            0.95
+          ],
+          [
+            4.4,
+            2.45
+          ]
+        ],
+        "rim_width_m": [
+          820,
+          940
+        ],
+        "floor_width_m": [
+          420,
+          540
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3576.1,
+          3484.3
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-MF6",
+        "name": "Middle Fork",
+        "path": [
+          [
+            4.4,
+            2.45
+          ],
+          [
+            4.75,
+            2.85
+          ]
+        ],
+        "rim_width_m": [
+          940,
+          660
+        ],
+        "floor_width_m": [
+          540,
+          260
+        ],
+        "floor": "ceiling",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3484.3,
+          3412.1
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-MF7",
+        "name": "Middle Fork",
+        "path": [
+          [
+            4.75,
+            2.85
+          ],
+          [
+            5.1,
+            3.25
+          ]
+        ],
+        "rim_width_m": [
+          660,
+          520
+        ],
+        "floor_width_m": [
+          260,
+          120
+        ],
+        "floor": "ceiling",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3412.1,
+          2788.7
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-MF8",
+        "name": "Middle Fork",
+        "path": [
+          [
+            5.1,
+            3.25
+          ],
+          [
+            5.45,
+            3.65
+          ]
+        ],
+        "rim_width_m": [
+          520,
+          500
+        ],
+        "floor_width_m": [
+          120,
+          100
+        ],
+        "floor": "ceiling",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          2788.7,
+          1968.5
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-SC1",
+        "name": "Sulphur Creek",
+        "path": [
+          [
+            2.55,
+            2.3
+          ],
+          [
+            2.7,
+            1.85
+          ]
+        ],
+        "rim_width_m": [
+          720,
+          760
+        ],
+        "floor_width_m": [
+          320,
+          360
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3871.4,
+          3822.2
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-SC2",
+        "name": "Sulphur Creek",
+        "path": [
+          [
+            2.7,
+            1.85
+          ],
+          [
+            3.1,
+            0.45
+          ]
+        ],
+        "rim_width_m": [
+          760,
+          940
+        ],
+        "floor_width_m": [
+          360,
+          540
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3822.2,
+          3668.0
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-BC1",
+        "name": "Big Creek",
+        "path": [
+          [
+            5.05,
+            0.62
+          ],
+          [
+            4.25,
+            0.95
+          ]
+        ],
+        "rim_width_m": [
+          700,
+          820
+        ],
+        "floor_width_m": [
+          300,
+          420
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3756.6,
+          3576.1
+        ],
+        "walls": {
+          "top_ft": 4921,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-CC1",
+        "name": "Chamberlain Creek",
+        "path": [
+          [
+            -0.05,
+            -1.05
+          ],
+          [
+            -0.6,
+            -3.1
+          ]
+        ],
+        "rim_width_m": [
+          900,
+          940
+        ],
+        "floor_width_m": [
+          500,
+          540
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          4022.3,
+          3891.1
+        ],
+        "walls": {
+          "top_ft": 5184,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-CC2",
+        "name": "Chamberlain Creek",
+        "path": [
+          [
+            -0.6,
+            -3.1
+          ],
+          [
+            -1.45,
+            -4.25
+          ]
+        ],
+        "rim_width_m": [
+          940,
+          920
+        ],
+        "floor_width_m": [
+          540,
+          520
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3891.1,
+          3805.8
+        ],
+        "walls": {
+          "top_ft": 5184,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-CC3",
+        "name": "Chamberlain Creek",
+        "path": [
+          [
+            -1.45,
+            -4.25
+          ],
+          [
+            -1.75,
+            -4.65
+          ]
+        ],
+        "rim_width_m": [
+          920,
+          620
+        ],
+        "floor_width_m": [
+          520,
+          220
+        ],
+        "floor": "exact",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3805.8,
+          3608.9
+        ],
+        "walls": {
+          "top_ft": 5184,
+          "run_m": 600,
+          "crest_m": 150
+        }
+      },
+      {
+        "id": "C2-CC4",
+        "name": "Chamberlain Creek",
+        "path": [
+          [
+            -1.75,
+            -4.65
+          ],
+          [
+            -1.85,
+            -5.15
+          ]
+        ],
+        "rim_width_m": [
+          620,
+          500
+        ],
+        "floor_width_m": [
+          220,
+          100
+        ],
+        "floor": "ceiling",
+        "depth_m": [
+          0,
+          0
+        ],
+        "floor_ft": [
+          3608.9,
+          2296.6
+        ],
+        "walls": {
+          "top_ft": 5184,
+          "run_m": 600,
+          "crest_m": 150
+        }
       }
     ],
     "lesson_terrain": [
@@ -2486,8 +3026,8 @@
         "id": "F14",
         "name": "Middle Fork bars and strips",
         "centre": [
-          3.5,
-          0.5
+          3.525,
+          0.535
         ],
         "status": "target"
       },
@@ -2829,218 +3369,311 @@
       {
         "id": "Chamberlain",
         "centre": [
-          0.7,
-          -1.8
+          -0.9187,
+          -3.8425
         ],
-        "heading_true_deg": 31,
+        "heading_true_deg": 36.5,
         "length_m": 1100,
         "width_m": 40,
-        "elevation_ft": 4800,
-        "slope_percent": 0.0,
+        "elevation_ft": 3871.7,
+        "slope_percent": 1.2,
         "surface": "gravel",
         "one_way_true_deg": null,
         "pad": {
-          "shoulder_m": 60,
+          "shoulder_m": 40,
           "end_shoulder_m": 60,
-          "blend_m": 200
+          "blend_m": 110,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           -3900,
           -11000
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Chamberlain Creek",
+        "landing_true_deg": [
+          36.5,
+          216.5
+        ],
+        "takeoff_true_deg": [
+          36.5,
+          216.5
+        ],
+        "go_around": "down-canyon either way"
       },
       {
         "id": "Big Creek",
         "centre": [
-          2.5,
-          -0.3
+          -0.2783,
+          -2.6149
         ],
-        "heading_true_deg": 0,
+        "heading_true_deg": 15.0,
         "length_m": 1070,
         "width_m": 34,
-        "elevation_ft": 4800,
-        "slope_percent": 0.8,
+        "elevation_ft": 3957.1,
+        "slope_percent": 1.0,
         "surface": "gravel",
         "one_way_true_deg": null,
         "pad": {
-          "shoulder_m": 60,
+          "shoulder_m": 40,
           "end_shoulder_m": 60,
-          "blend_m": 200
+          "blend_m": 110,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           -2600,
           -11400
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Chamberlain Creek",
+        "landing_true_deg": [
+          15.0,
+          195.0
+        ],
+        "takeoff_true_deg": [
+          15.0,
+          195.0
+        ],
+        "go_around": "down-canyon either way"
       },
       {
         "id": "Thomas Creek",
         "centre": [
-          4.4,
-          0.65
+          3.2091,
+          -0.3428
         ],
-        "heading_true_deg": 98,
+        "heading_true_deg": 185.5,
         "length_m": 1220,
         "width_m": 30,
-        "elevation_ft": 5000,
+        "elevation_ft": 3711.2,
         "slope_percent": 1.2,
         "surface": "gravel",
         "one_way_true_deg": null,
         "pad": {
-          "shoulder_m": 60,
+          "shoulder_m": 40,
           "end_shoulder_m": 60,
-          "blend_m": 200
+          "blend_m": 110,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           -4700,
           -14100
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Middle Fork",
+        "landing_true_deg": [
+          185.5,
+          5.5
+        ],
+        "takeoff_true_deg": [
+          185.5,
+          5.5
+        ],
+        "go_around": "down-canyon either way"
       },
       {
         "id": "Sulphur Creek",
         "centre": [
-          3.4,
-          -0.4
+          2.7221,
+          1.0992
         ],
-        "heading_true_deg": 70,
+        "heading_true_deg": 344.1,
         "length_m": 915,
         "width_m": 30,
-        "elevation_ft": 4830,
-        "slope_percent": 0.0,
+        "elevation_ft": 3779.9,
+        "slope_percent": 2.0,
         "surface": "turf",
         "one_way_true_deg": null,
         "pad": {
-          "shoulder_m": 60,
+          "shoulder_m": 40,
           "end_shoulder_m": 60,
-          "blend_m": 200
+          "blend_m": 110,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           -3200,
           -14300
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Sulphur Creek",
+        "landing_true_deg": [
+          344.1,
+          164.1
+        ],
+        "takeoff_true_deg": [
+          344.1,
+          164.1
+        ],
+        "go_around": "down-canyon either way"
       },
       {
         "id": "Soldier Bar",
         "centre": [
-          4,
-          1.35
+          -0.9478,
+          -3.2341
         ],
-        "heading_true_deg": 86,
+        "heading_true_deg": 6.5,
         "length_m": 400,
         "width_m": 20,
-        "elevation_ft": 4400,
-        "slope_percent": 1.5,
+        "elevation_ft": 3930.9,
+        "slope_percent": 4.5,
         "surface": "dirt",
-        "one_way_true_deg": 86,
+        "one_way_true_deg": 6.5,
         "pad": {
-          "shoulder_m": 60,
-          "end_shoulder_m": 60,
-          "blend_m": 200
+          "shoulder_m": 30,
+          "end_shoulder_m": 50,
+          "blend_m": 80,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           -1900,
           -13900
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Chamberlain Creek",
+        "landing_true_deg": [
+          6.5
+        ],
+        "takeoff_true_deg": [
+          186.5
+        ],
+        "go_around": "none: land uphill toward the closing wall; take off downhill, down-canyon"
       },
       {
         "id": "Cabin Creek",
         "centre": [
-          3.1,
-          0.55
+          4.7521,
+          0.6239
         ],
-        "heading_true_deg": 179,
+        "heading_true_deg": 112.4,
         "length_m": 460,
         "width_m": 20,
-        "elevation_ft": 4700,
-        "slope_percent": 3.0,
+        "elevation_ft": 3719.6,
+        "slope_percent": 6.5,
         "surface": "dirt",
-        "one_way_true_deg": 179,
+        "one_way_true_deg": 112.4,
         "pad": {
-          "shoulder_m": 60,
-          "end_shoulder_m": 60,
-          "blend_m": 200
+          "shoulder_m": 30,
+          "end_shoulder_m": 50,
+          "blend_m": 80,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           -3500,
           -12126
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Big Creek",
+        "landing_true_deg": [
+          112.4
+        ],
+        "takeoff_true_deg": [
+          292.4
+        ],
+        "go_around": "none: land uphill toward the closing wall; take off downhill, down-canyon"
       },
       {
         "id": "Dewey Moore",
         "centre": [
-          -0.8,
-          -2.8
+          0.0002,
+          -1.6348
         ],
-        "heading_true_deg": 215,
+        "heading_true_deg": 47.0,
         "length_m": 370,
         "width_m": 18,
-        "elevation_ft": 4600,
-        "slope_percent": 4.0,
+        "elevation_ft": 4053.8,
+        "slope_percent": 7.0,
         "surface": "dirt",
-        "one_way_true_deg": 215,
+        "one_way_true_deg": 47.0,
         "pad": {
-          "shoulder_m": 60,
-          "end_shoulder_m": 60,
-          "blend_m": 200
+          "shoulder_m": 30,
+          "end_shoulder_m": 50,
+          "blend_m": 80,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           -2900,
           -13528
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Chamberlain Creek",
+        "landing_true_deg": [
+          47.0
+        ],
+        "takeoff_true_deg": [
+          227.0
+        ],
+        "go_around": "none: land uphill toward the closing wall; take off downhill, down-canyon"
       },
       {
         "id": "Indian Creek",
         "centre": [
-          3.5,
-          2
+          4.5091,
+          1.6816
         ],
-        "heading_true_deg": 47,
+        "heading_true_deg": 185.7,
         "length_m": 1220,
         "width_m": 30,
-        "elevation_ft": 4500,
-        "slope_percent": 1.8,
+        "elevation_ft": 3551.7,
+        "slope_percent": 1.6,
         "surface": "gravel",
         "one_way_true_deg": null,
         "pad": {
-          "shoulder_m": 60,
+          "shoulder_m": 40,
           "end_shoulder_m": 60,
-          "blend_m": 200
+          "blend_m": 110,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           -300,
           -12830
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Middle Fork",
+        "landing_true_deg": [
+          185.7,
+          5.7
+        ],
+        "takeoff_true_deg": [
+          185.7,
+          5.7
+        ],
+        "go_around": "down-canyon either way"
       },
       {
         "id": "Mackay Bar",
         "centre": [
-          5.1,
-          1.3
+          3.5891,
+          0.8334
         ],
-        "heading_true_deg": 330,
+        "heading_true_deg": 258.7,
         "length_m": 460,
         "width_m": 24,
-        "elevation_ft": 4500,
+        "elevation_ft": 3648.7,
         "slope_percent": 1.8,
         "surface": "gravel",
         "one_way_true_deg": null,
         "pad": {
-          "shoulder_m": 60,
+          "shoulder_m": 40,
           "end_shoulder_m": 60,
-          "blend_m": 200
+          "blend_m": 110,
+          "sloped_end_shoulders": true
         },
         "old_sim_metres": [
           1000,
           -12486
         ],
-        "shore_class": "inland"
+        "shore_class": "inland",
+        "river": "Middle Fork",
+        "landing_true_deg": [
+          258.7,
+          78.7
+        ],
+        "takeoff_true_deg": [
+          258.7,
+          78.7
+        ],
+        "go_around": "down-canyon either way"
       }
     ],
     "aerobatic_boxes": [

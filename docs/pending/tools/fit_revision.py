@@ -172,7 +172,8 @@ def exact_rescreen(g,poly,surface,fields):
 
 def padheight(g,r,p):
  l,b=g.dimensions(r);t,c=g.local(p,r)
- return r['elevation_ft']*g.FT+max(-l/2,min(l/2,t))*1000*r.get('slope_percent',0)/100
+ ss=r['pad']['end_shoulder_m']/1000 if r['pad'].get('sloped_end_shoulders') else 0
+ return r['elevation_ft']*g.FT+max(-l/2-ss,min(l/2+ss,t))*1000*r.get('slope_percent',0)/100
 
 def measure_revision(g):
  w=g.W;F=g.FIELDS;grid=Grid(g);m={};rows=[];waters=waterpolys(g)
