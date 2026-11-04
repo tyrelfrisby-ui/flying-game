@@ -321,6 +321,8 @@ namespace FlyingGame.Bridge
             // density altitude, OAT, load factors, rates, path angle, control positions...).
             if (BoolRow("Flight test data", ref SessionSettings.FlightTestData, ref y)) SessionSettings.SavePrefs();
             if (BoolRow("Atmosphere map", ref SessionSettings.ShowAtmosphereMap, ref y)) SessionSettings.SavePrefs();
+            // Ty 2026-11-03: off by default; when on they sit far off just above the horizon, never in reach.
+            if (BoolRow("N / S / E / W letters on the horizon", ref SessionSettings.ShowCardinalLetters, ref y)) SessionSettings.SavePrefs();
         }
 
         private void ControlsPage(ref float y)
