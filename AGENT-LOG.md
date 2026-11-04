@@ -1,4 +1,17 @@
 ## NEEDS YOU
+- **ISLAND-NAV `2026.1103.1622` IS ON THE IPHONE (island surfaces + Pitts spin #3 merged); ONE TEST HANGS ON THE MERGED TREE
+  (Grok Bot, 2026-11-03 16:55 PST, lane/claude-island-nav `ce53d62e`):** `deploy.sh 00008150-001629A83662401C` →
+  `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on Ty's iPhone 16:28 (ProjectSettings bump not committed).
+  Earlier, 15:29, the pre-merge `2026.1103.1409` had been put on it as a stopgap. **Please fly it: Pitts spins, island
+  strips/snow, gamepad.** Open items: (1) `LaunchReplicationTests.ConsecutiveAirStartsAreTheSameLaunchAndFlyHandsOff`
+  **hangs on the merged tree only**: in the full run on `(pa18-floats-like, stickFree False)` from ~15:31 at full CPU
+  (killed 16:20), and run alone on `(p51d-like, stickFree True)` after 49 cases had passed (killed after 20 min). The base
+  `da807576` gets through the whole class. It is not skipped in code; the full merged run stopped at 1194 tests, so the
+  ~450 tests after it have **not** run on the merged tree yet. (2) `StallAuthorityTests.FullAftHoldsJustPastTheStallForEveryAircraft`
+  (SR22 14.5° and Jenny 13.0° vs 16.5° stall) fails alone on merged and passes alone on base. It comes in with Pitts spin #3,
+  whose own log lists it as failing alone on that lane before the merge: a tail-table physics change, not a merge
+  mistake, so I left it alone. No gate approved.
+
 - **NOTHING INSTALLED 14:35 — IPHONE STILL 4016; PITTS SPIN #3 AND ISLAND SURFACES NEED A MERGE BEFORE THEY CAN GO ON (Grok Bot,
   2026-11-03 14:35 PST, lane/claude-island-nav `66656185`):** Ty's iPhone (00008150-001629A83662401C) is "unavailable" in
   devicectl; a direct `devicectl device install` of the built `2026.1103.1409` (deadzone 0.02 + roll-only) gave
@@ -1441,6 +1454,18 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 16:55 PST — Grok Bot · lane/claude-island-nav `ce53d62e` · merged-tree suite vs base, build 1622, iPhone install
+- **Suites** (`--filter FullyQualifiedName!~IslandDroneProbe`): merged ran in `/tmp/islandnav_full/merged.log` and was aborted at
+  1194/~1640 (107 failed, 1082 passed, 5 skipped) by the LaunchReplication hang. Base `da807576` ran in `/tmp/islandnav_cmp/base.log`,
+  which was still running at 16:53 with 81 failures. Compared by name over the part both had covered: 43 names failed on merged and
+  not on base, 14 the other way. Re-run alone on both trees (SpawnSpeed, TailWake, StallAuthority, FloatsOnLand, AircraftLoad,
+  GroundTow classes): merged 1 failed of 138, base 0 of 130. All the SpawnSpeed "alpha NaN" failures (every type), TailWake ×3,
+  FloatsOnLand ×2, AircraftLoad, GroundTow pass alone, so they are suite coupling (CLAUDE.md "compare, never count"). The one real
+  new failure is StallAuthority FullAft (SR22, Jenny), which comes from Pitts spin #3 (see NEEDS YOU). There is also the
+  LaunchReplication hang, which is new on the merged tree.
+- **No commits besides this log entry.** I found no clear merge mistake to fix.
+- **Build/install:** `2026.1103.1622` / `202611031622`, `** BUILD SUCCEEDED **`, 0 `error CS`, installed on iPhone 00008150-001629A83662401C.
+
 ### 2026-11-03 14:35 PST — Grok Bot · lane/claude-island-nav · status sweep and install attempt (nothing installed)
 - **Install:** iPhone unavailable, 4016 on `devicectl install` of `/private/tmp/flyinggame-dd/.../AeroPlayground.app`
   (CFBundleVersion 202611031409). iPad mini connected but not asked for. No build run, no merge, no ProjectSettings change.
