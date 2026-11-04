@@ -1,4 +1,9 @@
 ## NEEDS YOU
+- **TY'S DECISION (2026-11-03 21:01 PST): MERGE THE PITTS CRASH DEBRIS INTO THE PLAYABLE LANE (Grok Bot, lane/claude-island-nav).**
+  Ty approved merging lane/claude-pitts-debris `d8ab9861` (lane-private build `2026.1103.1929`) into lane/claude-island-nav and
+  installing it on his iPhone. Merged here (AGENT-LOG conflict only: both NEEDS YOU entries kept). Install: `tools/deploy/deploy.sh`
+  to the iPhone, foreground, after no other deploy.sh/xcodebuild/Unity batch was running; the build number is logged below
+  when it finishes. The debris-render approval in the Pitts entry is separate: still no `*-debris.glb` installed.
 - **TESTFLIGHT UPLOAD: `2026.1103.2046` (build `202611032046`) (Grok Bot, 2026-11-03 20:55 PST, lane/claude-island-nav
   `d9730e24` code, the same Unity export as device build `2026.1103.2022`):** Ty approved ("yes upload the current playable
   build to testflight"). APFS clone of `/private/tmp/flyinggame-ios` (island-nav export, 20:23) into `/private/tmp/aero-tf/ios`
@@ -94,6 +99,83 @@
   things for you to decide: (1) the backcountry strips no longer carry a Part 77 20:1 surface, since their approaches
   follow the canyon (that fan was half of the mesa look); (2) the relief generator re-picked its snow patches and rock
   ledges, so there are now 1/3/5/10° patches (no 4° or 8°) and six ledges. No device install was done.
+- **NEEDS YOU: APPROVE THE DEBRIS RENDERS. CRASH DEBRIS NOW COMES FROM THE AEROPLANE ON SCREEN, IN ITS LIVERY (Claude,
+  2026-11-03, lane/claude-pitts-debris `0a5a7e79` repro + `b1c00bca` fix):** the prebuilt debris pieces are the
+  Codex lane's (lane/codex-pitts-debris); their renders are in `~/Developer/agent-lanes/xfer/debris-v1/<aircraft>/` and
+  `~/Developer/agent-lanes/xfer/pitts-debris-v1/`. **Nothing is installed**: no `*-debris.glb` is in Resources, and
+  `DebrisWiringTests.NoDebrisSetIsInstalledBeforeTheRendersAreApproved` fails if one appears. Once you approve, put each set beside
+  its intact GLB as `<intact GLB name>-debris.glb` (e.g. `Resources/Models/pitts-s2b-like/pitts-s2b-like-own-n1191-debris.glb`) and the
+  game picks it up. Until then the runtime split below makes the pieces, from the same model and the same paint.
+  - **Root cause** (two faults, `AirframeVisual.cs` at `ce53d62e`):
+    1. `TryPlaceModel` (`:2114-2126`) hides the procedural shell but leaves its parts in `_parts`/`_wingParts`. `DetachStatic`
+       (`:337-414`) and `DetachWings` (`:525-558`) split those parts too and hand every piece to `AddPiece` (`:580-590`), which gives it a
+       NEW, ENABLED `MeshRenderer`. **That is the "old Pitts render"**: the red procedural Pitts's wings, ailerons, stab, fin, rudder,
+       cowl, prop and wheels fell out in `FlyingGame/Airframe` paint. For the stab and fin, `Matches()` (`:308-320`) only knew the
+       procedural names (the model's meshes are `Model:Stab`...). So a stab or fin loss dropped only the hidden shell's part, and the
+       model's own tail stayed on the aeroplane.
+    2. `CloneMesh` (`:661-669`) copied positions and triangles into submesh 0 and nothing else: no UVs, colours or tangents, and
+       recomputed normals. `AddPiece` took only `mr.sharedMaterial` (slot 0). Every piece lost its baked texture paint, and so did the part
+       left on the aeroplane, because the kept half went through the same copy. `CutModelLeg` (`:1681-1738`) kept uv0 but merged the
+       submeshes into slot 0.
+  - **Reproduced** by the new editor check `DebrisPaintCheck` on `0a5a7e79`: the Pitts failed in all 4 liveries (60 failures,
+    `/tmp/pitts-debris/repro-base.log`); the whole fleet failed with 666 failures (`/tmp/pitts-debris/fleet-base.log`).
+  - **Fix** (`b1c00bca`):
+    - New `DebrisMesh.Split` carries every vertex attribute (normals, tangents, colours, all 8 UV channels) and keeps each triangle in its own
+      submesh. `ForPiece` drops empty submeshes together with their materials. Every cut goes through it.
+    - `AirframeBuilder.IsDebrisSource`: anything hidden when the model took over is never debris. Its lost parts still leave the
+      airframe, unseen. A prop strike no longer bends the hidden shell's blades into visible cubes.
+    - The model's own named parts match their component (Stab/Elevator/Fin/Rudder/Aileron_UL...). A one-mesh downloaded model's tail is cut
+      from the space of the hidden procedural stab/fin. The model's mesh objects are emptied, never destroyed, so the J-3's elevators
+      under its Stab and the rig nodes survive.
+    - A wing failure no longer takes the stabiliser tips and wheels with it.
+    - A nose or tail break after a wing failure now still cuts the model; `TakeWingParts` used to drop the whole model from the part
+      list.
+    - Wing and fin lettering (`Decal:*`) leaves with the wing or fin it is painted on.
+    - **Prebuilt hook**: `TakePrebuiltDebris` loads `AirframeModels.PlacedResourcePath(id) + "-debris"`, which is the very file
+      `Place` loaded, so it can never be another livery's or another type's. It is placed at the intact model's pose and drops its
+      `Debris.<AirframeComponent>.<label>` nodes. The runtime split still takes the part off the aeroplane but drops nothing of its
+      own. There is no lookup for the procedural shell, or for a model repainted at run time (the Talk Flying 172, a recoloured 2-33).
+      Rebuild/livery change resets the hook.
+    - Wreck physics is unchanged.
+    - TODO: runtime cuts are not capped; the prebuilt sets are.
+  - **Tests**:
+    - `DebrisPaintCheck` (`Unity -batchmode -nographics -projectPath unity -executeMethod FlyingGame.EditorTools.DebrisPaintCheck.Run`,
+      `DEBRIS_TYPES=` to limit) breaks every type up through the game's own code, in every livery and with own-models off and on, plus
+      the 2-33 and 172 override schemes: the wing failure plus stab, fin, nose and both mains, then aileron, elevator, rudder, a whole
+      wing, an outer panel, tail boom, tailwheel, nose gear and nose. Every debris face must be a face that was drawn, at the same
+      place, with the same Material object and the same UV. Kept parts must keep their UVs. The prebuilt hook is exercised on every
+      Pitts livery with a stand-in set cut from the intact GLB.
+      **PASS: 48 of 48 (type, livery, file) combinations, 0 failures** (`/tmp/pitts-debris/fleet3.log`); base: 666 failures.
+    - New `tools/FlightTests/DebrisWiringTests` (3 tests): the debris-set names per Pitts livery as literals, no set installed, and the
+      wiring.
+    - The targeted suites (DebrisWiring, LiveryPicker, OwnPittsModel): 26/26 passed.
+    - **The full suite did not finish.** Around 60 other lanes' `dotnet test` processes were on the Mac: the first run was killed at
+      60 min and the second sat 47 min without output, so I stopped it. Between them they reported 66 failing names, all in terrain,
+      island, contact and flight classes in `src/` (Alaska, Glacier, Alpine, HighDesert, PlateauCopy, FrankChurch, ...). I re-ran
+      those 24 classes on base `ce53d62e` (detached worktree) and on this branch: **62 failed / 108 passed on both, with identical
+      names. No new failures.** This lane changes nothing in `src/` or `configs/`.
+  - **Build**: Unity iOS export plus xcodebuild of this worktree into a LANE-PRIVATE directory (`/private/tmp/pitts-debris-build/ios`, derived
+    data `/private/tmp/pitts-debris-build/dd`, not the shared `/private/tmp/flyinggame-dd`). `deploy.sh` was not used.
+    **0 `error CS`, `** BUILD SUCCEEDED **`, stamp `2026.1103.1929`**, `.app` at
+    `/private/tmp/pitts-debris-build/dd/Build/Products/Release-iphoneos/AeroPlayground.app`. **Not installed on any device.** The
+    bundleVersion bump was not committed.
+  - **Every aircraft** (DebrisPaintCheck on base vs fix; "shell" = hidden procedural parts drawn as debris under a model):
+  | type | model shown (defaults: models on, own-models off) | liveries | broken before the fix (DebrisPaintCheck on base) | fixed by the general fix |
+  |---|---|---|---|---|
+  | pitts-s2b-like | our S-2B GLB, one per livery | checker-unmarked, factory-unmarked, n31dg, n1191 | YES: the hidden procedural Pitts's wings, ailerons, stab, fin, rudder, cowl/prop and wheels fell as debris in FlyingGame/Airframe paint; the model's own stab/fin/elevator/rudder never came off; the model's pieces AND the fuselage left behind lost their UVs (paint) | yes, all 4 PASS |
+  | extra-300-like | our EA300 GLB, one per livery | unmarked, talk-flying, n300uy | YES: same (shell parts + lost UVs) | yes, all 3 PASS |
+  | great-lakes-like | our GLB | type | YES: shell + lost UVs | yes |
+  | j3-cub-like / j3-cub-floats-like | our GLBs | type | YES: shell + lost UVs | yes |
+  | glider-2-33-like | procedural (our GLB only with own-models or the factory / talk-flying override) | type (+2 by override) | procedural: lost UVs; GLB: shell + lost UVs | yes (procedural and both GLBs) |
+  | c172-like | downloaded OBJ (our GLB with own-models; Talk Flying repaint by override) | type (+talk-flying by override) | YES: shell + lost UVs (+ wrong faces in the Talk Flying repaint) | yes, both files, both schemes |
+  | pa28-archer, cirrus-sr22, stearman-pt17, jn4-jenny, p51d, geebee-r2, hughes-h4 | downloaded model | type | YES: shell + lost UVs | yes |
+  | f86-sabre, dc3 | downloaded model | type | YES: shell (UVs survived on these meshes) | yes |
+  | boeing-737 | downloaded model | type | YES: shell + lost UVs | yes |
+  | pa18-cub / pa18-bush / pa18-floats | downloaded PA-18 OBJ (bush/floats keep their own gear) | type | YES: shell + lost UVs | yes |
+  | seminole-like | downloaded Apache OBJ (our PA-44 GLB with own-models) | type | YES: shell + lost UVs | yes, both |
+  | glider-eb29r-like | downloaded OBJ (our GLB with own-models) | type | YES: shell + lost UVs | yes, both |
+  | glider-swift-s1-like | procedural (our GLB with own-models) | type | procedural: lost UVs; GLB: shell + lost UVs | yes, both |
+  | paraglider, hang-glider, dhc2-beaver (+floats), pa25-pawnee, decathlon, cassutt, glasair3, aircam (+amphib) | procedural only | type | partly: no wrong render (the procedural airframe IS what is on screen), but pieces and the part left behind lost their UVs and material slots | yes |
 
 - **NOTHING INSTALLED 14:35 — IPHONE STILL 4016; PITTS SPIN #3 AND ISLAND SURFACES NEED A MERGE BEFORE THEY CAN GO ON (Grok Bot,
   2026-11-03 14:35 PST, lane/claude-island-nav `66656185`):** Ty's iPhone (00008150-001629A83662401C) is "unavailable" in
