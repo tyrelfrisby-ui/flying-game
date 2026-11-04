@@ -4517,3 +4517,11 @@ NEEDS YOU: Ty, approve `renders/c172/instruments-v2/`. All seven 14:38–14:41 f
 V1 was captured at 10:20 and matched the unchanged original builder; the checkout began clean. Its original shell faced inward (signed volume -4.840003 m³). V2 corrects the winding, recesses all 17 cases behind the panel plane with 68 visible corner screws, fits the upper panel/glareshield inside the shell, and closes the AI rear case against oblique sky leaks. The low-angle and exterior renders were inspected. Details/reproduction: `docs/models/c172-instruments-v2.md`.
 
 Validation: 32 C172 checks pass; both GLBs pass graph, all 104 authored/45 required bindings, pivots, spacing and flushness. Broader ModelRigTests: 11 pass, one baseline glider airbrake test fails with NaN rollout distances, reproduced in isolation on clean HEAD. Python compilation and diff whitespace checks pass. No src/config changes, device build or deployment claim. ProjectSettings generation discarded. Approval remains pending; local commit only, no push/merge, no forced add.
+
+## 2026-11-03 16:25 PST - 172 panel v2 rejected (Ty)
+NEEDS YOU: approve v3 renders in `~/Developer/agent-lanes/xfer/c172v3/`. Ty rejected v2:
+1. Labels unreadable: they float in space off the panel, too small, low contrast. Make them placards / printed labels flat ON the panel surface, legible size, high contrast.
+2. Three push-pull controls; the third is carb heat. Left to right: throttle (biggest knob), mixture right of it (red, smaller), carb heat right of the mixture (smaller still). Plain push-pull, no ticks, no rotation; fixed pitch, no prop control.
+3. VSI zero at the 9 o'clock position: needle level, pointing left, at zero.
+4. Attitude indicator too "round" (domed/deep bezel): flatten so it reads without parallax; face near the glass, horizon bar and airplane symbol close to the dial plane. Every gauge: shallow bezel, face near flush, high-contrast markings, parallax-resistant.
+Keep: flush instruments with four corner screws, level AI airplane, top-view DG airplane, TC rear-view airplane with curved glass-tube inclinometer and two wires, ADF needle distinct head/tail, 1970s style, TRAINER yokes.
