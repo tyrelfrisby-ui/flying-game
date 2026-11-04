@@ -52,6 +52,11 @@ namespace FlyingGame.Bridge
         private readonly HashSet<string> _struck = new();
         private readonly HandPose[] _jHands = { HandPose.None, HandPose.None };
         private readonly Ripcord _ripcord = Ripcord.BackRig();
+        /// <summary>No headset cord, in any aeroplane (Ty 2026-11-03: "remove the floating headset cable in the cockpit",
+        /// he finds it annoying). Off here, at the one place a cord is made: no <see cref="HeadsetCord"/> is created, so
+        /// there is no rope, no plug, no plug to grab and nothing to tug his head on the way out. The Core model
+        /// (HeadsetCord, VerletRope) and the aircraft's static Headset_Jack_* sockets stay; set true to bring it back.</summary>
+        internal static readonly bool HeadsetCordOn = false;
         /// <summary>The ripcord handle, relative to the jumper's eye in his own frame: the LEFT main lift web at the chest
         /// strap (Strong Para-Cushion manual), 0.40 below and 0.15 ahead of the eye, 0.10 left (E).</summary>
         private static readonly Vector3 RipcordAtEye = new(-0.10f, -0.40f, 0.15f);
@@ -147,7 +152,8 @@ namespace FlyingGame.Bridge
             _relLapProxy = _eye + new Vector3(-0.11f, -0.62f, 0.15f);
 
             // The cord: Codex's jack (phase 1 already has the empties), else the right side below the shoulder (E).
-            cockpit.Cord ??= new HeadsetCord();
+            if (HeadsetCordOn) cockpit.Cord ??= new HeadsetCord();
+            else cockpit.Cord = null;
             _jackNode = full != null ? Contract("Headset_Jack_" + full) : null;
             _jackProxy = _eye + new Vector3(0.24f, -0.50f, -0.10f);
 
@@ -373,7 +379,8 @@ namespace FlyingGame.Bridge
 
             // The plug, by hand.
             HeadsetCord cord = cockpit.Cord;
-            if (_grab.IsHeldBy(Grabbable.HeadsetPlug, out HandSide ps))
+            if (cord == null) { }
+            else if (_grab.IsHeldBy(Grabbable.HeadsetPlug, out HandSide ps))
             {
                 if (cord.Follow(_hands[(int)ps].Position))
                 {
@@ -509,7 +516,8 @@ namespace FlyingGame.Bridge
 
         private void StepCord(HeadsetCord cord, float dt, bool inCockpit)
         {
-            if (cord == null || _ropeLine == null) return;
+            if (_ropeLine == null) return;
+            if (cord == null) { if (_ropeLine.enabled) { _ropeLine.enabled = false; _plug.SetActive(false); } return; }
             // The view's tug relaxes (translation only).
             _yank *= Mathf.Exp(-dt / (float)HeadsetCord.YankTauSec);
             if (cord.State == CordState.HeadsetOff) { _ropeLine.enabled = false; _plug.SetActive(false); return; }
@@ -799,6 +807,7 @@ namespace FlyingGame.Bridge
                         if (t.name == "Parachute_Deployed") _gearDeployed = t;
                         else if (t.name == "Grip_Ripcord") _gearRipcord = t;
                         else if (t.name == "Headset") t.gameObject.SetActive(false);   // the camera is the head
+                        else if (t.name == "Headset_Plug") t.gameObject.SetActive(false);   // no cord (HeadsetCordOn), so no plug either
                         else if (t.name == "Parachute_Canopy") _gearCanopy = t.GetComponent<SkinnedMeshRenderer>();
                     }
                     if (_gearCanopy != null && _gearCanopy.sharedMesh != null) _inflateIdx = _gearCanopy.sharedMesh.GetBlendShapeIndex("Inflate");

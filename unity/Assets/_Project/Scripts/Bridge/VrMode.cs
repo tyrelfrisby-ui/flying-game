@@ -98,6 +98,12 @@ namespace FlyingGame.Bridge
         /// both eyes and sit at the wrong depth. Codex's VR HUD replaces them.</summary>
         public static bool SuppressFlatOverlays => On || XrHeadset.Active;
 
+        /// <summary>The landing one-liner (PilotEgress, shared): where a flat overlay cannot be seen it is drawn in the
+        /// world instead (PilotOutRules.RemarkInWorld). The shared default asks the camera whether it is stereo, which
+        /// misses Cardboard (its eyes are separate cameras); this is the headset's own answer, for both.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void HookFlatOverlay() => PilotEgress.FlatOverlayVisible = () => !SuppressFlatOverlays;
+
         /// <summary>True when ANY headset is tracking the head (Cardboard or native): the mono device look stands
         /// down, because both reading a head would double every movement.</summary>
         public static bool HeadTracked => On || XrHeadset.Active;

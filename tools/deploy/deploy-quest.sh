@@ -16,6 +16,11 @@
 #                  written to build/quest/release/. Implies --build-only (a release-signed APK will not install over a
 #                  debug-signed one), then runs tools/deploy/quest-vrc-check.sh on it. Gradle writes the password into
 #                  its build.gradle, so the Android Gradle project is deleted afterwards.
+#
+# PARITY (Ty 2026-11-04: "ios/mac and quest must stay in sync at all times"; docs/PARITY.md): before anything is
+# built, tools/check-parity.sh must pass -- every commit of lane/claude-island-nav must be in this lane. If it fails
+# this script stops with exit 3 and builds and installs NOTHING. PARITY_OVERRIDE=1 builds anyway (a Quest-only
+# experiment Ty asked for; say so in the AGENT-LOG).
 set -e
 set -o pipefail
 cd "${0:A:h:h:h}"
@@ -32,6 +37,19 @@ while (( $# )); do
   esac
   shift
 done
+
+if [ ! -x tools/check-parity.sh ]; then
+  echo "== tools/check-parity.sh is missing: this lane does not have lane/claude-parity merged (docs/PARITY.md)"
+  [ "${PARITY_OVERRIDE:-0}" = 1 ] || { echo "== refusing to build a Quest build that cannot be checked; PARITY_OVERRIDE=1 to force"; exit 3; }
+elif ! tools/check-parity.sh --brief; then
+  if [ "${PARITY_OVERRIDE:-0}" = 1 ]; then
+    echo "== PARITY_OVERRIDE=1: building a Quest build that is OUT OF SYNC with iOS -- note it in the AGENT-LOG"
+  else
+    echo "== refusing to build: the Quest lane is behind iOS (above). Merge lane/claude-island-nav into this lane first,"
+    echo "   or PARITY_OVERRIDE=1 for a deliberate Quest-only build. Nothing was built or installed."
+    exit 3
+  fi
+fi
 if (( RELEASE )); then
   [[ "$VERSION_CODE" == <1-> ]] || { echo "== --release needs --version-code N (a positive integer above the last upload)"; exit 64; }
   KEYSTORE="$HOME/Developer/agent-lanes/keys/aeroplayground-quest.keystore"
