@@ -9,6 +9,8 @@ public interface IWreckWorld
     double? WaterUpAt(double x, double y, double up);
     /// <summary>Ground or bed height (m, up).</summary>
     double GroundUpAt(double x, double y);
+    /// <summary>What the ground is at (x, y): it decides how a piece slides on it (<see cref="AirframeContact.SlidingMu"/>).</summary>
+    WorldTerrain.Surface SurfaceAt(double x, double y, double up);
 }
 
 /// <summary>The game world: FloatHydro's water (which honours its test override) over WorldTerrain's ground.</summary>
@@ -17,15 +19,19 @@ public sealed class LiveWreckWorld : IWreckWorld
     public static readonly LiveWreckWorld Instance = new();
     public double? WaterUpAt(double x, double y, double up) => FloatHydro.WaterSurfaceAt(x, y, up);
     public double GroundUpAt(double x, double y) => WorldTerrain.GroundHeightAt(x, y);
+    public WorldTerrain.Surface SurfaceAt(double x, double y, double up) =>
+        WorldTerrain.SurfaceOverride ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(x, y, up) : WorldTerrain.Surface.Paved);
 }
 
 /// <summary>Flat test world: water at a fixed height (or none) over flat ground.</summary>
 public sealed class FlatWreckWorld : IWreckWorld
 {
     public double? Water; public double Ground;
+    public WorldTerrain.Surface Surface = WorldTerrain.Surface.Paved;
     public FlatWreckWorld(double? waterUp, double groundUp) { Water = waterUp; Ground = groundUp; }
     public double? WaterUpAt(double x, double y, double up) => Water.HasValue && Water.Value > Ground ? Water : null;
     public double GroundUpAt(double x, double y) => Ground;
+    public WorldTerrain.Surface SurfaceAt(double x, double y, double up) => WorldTerrain.SurfaceOverride ?? Surface;
 }
 
 public enum WreckPhase { InAir, Plunging, Floating, Sinking, OnBottom, OnLand }
@@ -139,8 +145,12 @@ public sealed class WreckPiece
 /// mass, its volume and its openings, never out of its name.
 ///
 /// Integration: fixed <see cref="Dt"/> steps, RK4 for gravity and hydrostatics, then the implicit drag/added-mass
-/// update, then ground/bed contact as inelastic impulses at the box corners with Coulomb friction
-/// (μ = <see cref="AirframeContact.FrictionMu"/>, the airframe's own), then flooding.
+/// update, then ground/bed contact as impulses at the box corners — restitution <see cref="Restitution"/> above
+/// <see cref="RestitutionMinMs"/>, inelastic below it — with Coulomb friction of the surface the piece is on
+/// (<see cref="AirframeContact.SlidingMu"/>: the same metal-on-ground table as the airframe's hard points, so a piece
+/// on grass slides as far as the airframe would; <see cref="WetBedMu"/> on a bed under water), then flooding.
+/// Until 2026-11-04 every piece used μ = 0.7 (<see cref="AirframeContact.FrictionMu"/>, the BUILDING value) on every
+/// surface, and stopped dead on its first touch: a piece on grass slid half as far as the airframe it came off.
 ///
 /// Events (raised on the caller's thread, from <see cref="Advance"/>): a <see cref="CrashImpact"/> at each piece's
 /// first contact with water and its first with land (a bed under water is not an impact anyone hears); a
@@ -161,6 +171,14 @@ public sealed class WreckSim
     public double ReportIntervalS { get; set; } = 0.1;
     /// <summary>Normal impact speed that counts as full severity, m/s.</summary>
     public double BreakSpeedMs { get; set; } = AirframeContact.CabinBreakMs;
+    /// <summary>Coefficient of restitution of a piece's arrival on the ground (Ty 2026-11-04: crashes keep their momentum).
+    /// Crashed structure on earth returns little: 0.1–0.3 for a light metal or wooden part on firm ground; 0.2 here, the
+    /// airframe's own hard points giving 0.07–0.16 (AirframeContact's crumpling spring).</summary>
+    public const double Restitution = 0.2;
+    /// <summary>Below this closing speed an arrival is inelastic, so a resting piece does not chatter, m/s.</summary>
+    public const double RestitutionMinMs = 1.0;
+    /// <summary>Kinetic friction on a bed under water (mud and silt, wet), the wet end of grass/earth.</summary>
+    public const double WetBedMu = 0.3;
     public double Time { get; private set; }
     public readonly List<WreckPiece> Pieces = new();
     private double _acc;
@@ -235,7 +253,8 @@ public sealed class WreckSim
         }
 
         // Ground / bed.
-        bool onGround = Contact(p, ref s, groundUp, out double closing, out Vec3 contactAt);
+        double mu = water ? WetBedMu : AirframeContact.SlidingMu(World.SurfaceAt(s.Position.X, s.Position.Y, groundUp));
+        bool onGround = Contact(p, ref s, groundUp, mu, out double closing, out Vec3 contactAt);
         // Resting on the ground the contact comes and goes step to step by a hair; within 2 cm counts as on it.
         bool resting = onGround || (-LowestPointOf(p, s).Z) - groundUp < 0.02;
         if (onGround && !p.HitLand && !water)
@@ -319,39 +338,47 @@ public sealed class WreckSim
     }
 
     /// <summary>
-    /// Inelastic contact of the box corners with the ground: each corner below the surface and moving into it gets
-    /// the impulse that stops its normal motion (through the piece's mass and inertia), and a Coulomb friction impulse
-    /// up to μ times that; then the piece is lifted out by the deepest penetration. Four passes settle a resting box.
+    /// Contact of the box corners with the ground: each corner below the surface and moving into it gets the impulse that
+    /// turns its normal motion round to <see cref="Restitution"/> of its arrival (none below <see cref="RestitutionMinMs"/>:
+    /// inelastic), through the piece's mass and inertia, and a Coulomb friction impulse up to μ times that; then the piece
+    /// is lifted out by the deepest penetration. Four passes settle a resting box. The arrival speeds are taken before any
+    /// impulse, so a corner's bounce is its own and not what its neighbours' impulses left it.
     /// </summary>
-    private static bool Contact(WreckPiece p, ref RigidBodyState s, double groundUp, out double maxClosing, out Vec3 contactAt)
+    private static bool Contact(WreckPiece p, ref RigidBodyState s, double groundUp, double mu, out double maxClosing, out Vec3 contactAt)
     {
         maxClosing = 0; contactAt = s.Position;
         double deepest = 0;
         Quat q = s.Attitude, qi = q.Conjugate();
         Vec3 vW = q.Rotate(s.Velocity), wW = q.Rotate(s.Rates);
-        double mu = AirframeContact.FrictionMu;
         bool any = false;
         var corners = new List<Vec3>(8 * p.Elements.Count);
         foreach (HydroElement e in p.Elements)
             for (int i = 0; i < 8; i++)
                 corners.Add(q.Rotate(e.Centre - p.CgBody + new Vec3((i & 1) == 0 ? -e.Half.X : e.Half.X, (i & 2) == 0 ? -e.Half.Y : e.Half.Y, (i & 4) == 0 ? -e.Half.Z : e.Half.Z)));
         Vec3 InvI(Vec3 tW) { Vec3 tb = qi.Rotate(tW); return q.Rotate(new Vec3(tb.X / p.Inertia.X, tb.Y / p.Inertia.Y, tb.Z / p.Inertia.Z)); }
+        var bounce = new double[corners.Count];   // each corner's target normal velocity after the impulse (− = away)
+        for (int k = 0; k < corners.Count; k++)
+        {
+            double vn0 = (vW + Vec3.Cross(wW, corners[k])).Z;
+            bounce[k] = vn0 > RestitutionMinMs ? -Restitution * vn0 : 0.0;
+        }
         for (int pass = 0; pass < 4; pass++)
         {
-            foreach (Vec3 r in corners)
+            for (int k = 0; k < corners.Count; k++)
             {
+                Vec3 r = corners[k];
                 double pen = (s.Position.Z + r.Z) + groundUp;   // + = below the ground
                 if (pen <= 0) continue;
                 any = true;
                 if (pass == 0 && pen > deepest) { deepest = pen; contactAt = s.Position + r; }
                 Vec3 vp = vW + Vec3.Cross(wW, r);
                 double vn = vp.Z;                                   // + = into the ground
-                if (vn <= 0) continue;
-                if (pass == 0) maxClosing = System.Math.Max(maxClosing, vn);
+                if (pass == 0 && vn > 0) maxClosing = System.Math.Max(maxClosing, vn);
+                if (vn <= bounce[k]) continue;
                 Vec3 n = new(0, 0, -1);
                 Vec3 rn = Vec3.Cross(r, n);
                 double kN = 1.0 / p.MassKg + Vec3.Dot(Vec3.Cross(InvI(rn), r), n);
-                double jn = vn / kN;
+                double jn = (vn - bounce[k]) / kN;
                 Vec3 J = n * jn;
                 Vec3 vt = new(vp.X, vp.Y, 0);
                 double vtl = vt.Length;

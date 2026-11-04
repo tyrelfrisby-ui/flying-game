@@ -621,6 +621,7 @@ public static class AeroModel
                 // all, is set FinOffsetRad to the centreline. Built into the airframe; zero on an unrigged type.
                 if (strip.Control is not null && strip.Control.Surface == "aileron" && double.IsNaN(overrideRad)) controlDeflRad += config.Rig.AileronRad;
                 double stripIncidence = strip.IncidenceRad + (isVertical ? config.Rig.FinOffsetRad : 0.0);
+                if (flowState?.IncidenceDeltaRad is { } incd && idx < incd.Length) stripIncidence += incd[idx];   // a bent tail boom
                 string sectionKey = SectionTableKey(config, surfaceIndex) ?? strip.Airfoil;
                 if (!airfoilTables.TryGetValue(sectionKey, out AirfoilTable? table))
                 {
@@ -897,6 +898,12 @@ public static class AeroModel
 
                 double lift = q * strip.Area * clTotal;
                 double drag = q * strip.Area * (coeffs.Cd + cdInduced + flapCd);
+                if (flowState?.LiftFactor is { } lf && idx < lf.Length)
+                {
+                    // Branch damage (dented leading edge, torn fabric): less lift and more drag from this strip.
+                    lift *= lf[idx];
+                    if (flowState.ExtraCd is { } xcd && idx < xcd.Length) drag += q * strip.Area * xcd[idx];
+                }
                 double momentC4 = q * strip.Area * strip.Chord * (coeffs.Cm + flapCm);
 
                 Vec3 force = liftDir * lift - dragDir * drag;

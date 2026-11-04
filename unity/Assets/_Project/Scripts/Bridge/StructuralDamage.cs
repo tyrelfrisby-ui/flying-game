@@ -124,7 +124,24 @@ namespace FlyingGame.Bridge
         /// impact so FlightAudio plays it, and the panel turned up on the model. Breaks arrive as ComponentLost.</summary>
         private void OnContact(FlyingGame.Core.ContactEvent e)
         {
-            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent || _watched == null) return;
+            if (_watched == null) return;
+            if (e.Kind == FlyingGame.Core.ContactEventKind.FuselageCrushed || e.Kind == FlyingGame.Core.ContactEventKind.BranchDamage)
+            {
+                // A crushed fuselage section (it bends instead of breaking) or branches doing harm (Ty 2026-11-04: "it made a
+                // sound with no damage"): the crunch, as a land impact, its severity from the energy the crush or the wood took
+                // against the energy of an arrival at the cabin's break speed.
+                double eBreak = 0.5 * _watched.MassProperties.MassKg * FlyingGame.Core.AirframeContact.CabinBreakMs * FlyingGame.Core.AirframeContact.CabinBreakMs;
+                double sev = System.Math.Clamp(e.Intensity / System.Math.Max(1.0, eBreak), e.Kind == FlyingGame.Core.ContactEventKind.BranchDamage ? 0.1 : 0.25, 1.0);
+                FlyingGame.Core.CrashEvents.RaiseImpact(new FlyingGame.Core.CrashImpact(FlyingGame.Core.ImpactSurface.Land, e.PositionWorld, e.VelocityWorld,
+                    e.VelocityWorld.Length, _watched.MassProperties.MassKg, sev, -1));
+                string what = e.Kind == FlyingGame.Core.ContactEventKind.BranchDamage
+                    ? (e.Component == FlyingGame.Core.AirframeComponent.Propeller ? "PROP DAMAGED BY BRANCHES" : "BRANCH DAMAGE")
+                    : e.Component == FlyingGame.Core.AirframeComponent.TailBoom ? "TAIL BENT"
+                    : e.Component == FlyingGame.Core.AirframeComponent.Nose ? "ENGINE MOUNT BENT" : "FUSELAGE CRUSHED";
+                if (LostLine == null || !LostLine.Contains(what)) LostLine = LostLine == null ? what : LostLine + ", " + what;
+                return;
+            }
+            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent) return;
             FlyingGame.Core.CrashEvents.RaiseImpact(new FlyingGame.Core.CrashImpact(FlyingGame.Core.ImpactSurface.Land, e.PositionWorld, e.VelocityWorld,
                 e.VelocityWorld.Length, _watched.MassProperties.MassKg, System.Math.Clamp(e.Intensity, 0.2, 1.0), -1));
             string name = PanelName(e.Component);
@@ -216,6 +233,8 @@ namespace FlyingGame.Bridge
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)
                     if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003) _visual.ShowPanelBend(p, ac.Config);
+            // A crushed tail boom or engine mount bends on the model too.
+            if (_visual != null && (ac.Crush.TailCrushM > 0 || ac.Crush.NoseCrushM > 0)) _visual.ShowFuselageBend(ac.Crush, ac.Config);
 
             StructuralState st = ac.Structure;
             LoadFactorG = (float)ac.LoadFactorZ;
