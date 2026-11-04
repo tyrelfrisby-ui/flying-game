@@ -1,21 +1,24 @@
 ## NEEDS YOU
 <!-- parity-merge needs-you -->
-- **PARITY MERGE IN PROGRESS (Claude, 2026-11-04, Ty approved 07:29: "merge both ways, get them in parity and then lock
-  them in parity"). Nothing approved by me; see the Log entry "parity merge" for every conflict call.**
-  1. **`~/Developer/flying-game-worktrees/claude-island-nav` will be DETACHED at aeb9695a** (step 2) so the branch can be
-     merged in `claude-island-nav-merge`. Your uncommitted ProjectSettings.asset, GraphicsSettings.asset and 16
-     StreamingAssets/aircraft/*.json there are untouched (backup: ~/Developer/agent-lanes/backups/parity-merge-20261104-0731/).
-  2. **Not merged, for you to decide:** lane/codex-pitts-debris (020655ef, 95d44eb3: offline debris pipeline + Pitts pilot;
-     island-nav already has lane/claude-pitts-debris d8ab9861), codex/own-pitts-s2b (v11–v13 cabane/strut rebuilds, Oct 28,
-     "not yet approved by Ty"; island-nav's Pitts is newer), lane/claude-extra-cockpit-shared (35179373, 6898f355 and 4
-     more: the shared Extra P3f cockpit + instrument lighting — in NEITHER lane, still another session's lane; the switches
-     merge brings the Quest P3f Extra into both lanes, so this one will need a merge on top).
-  3. **New red test from the merge, not fudged:** FloatLandingTests J-3 0.5 m/s landing splits a float bottom (18.1 kN
+- **PARITY MERGE (Claude, 2026-11-04, Ty approved 07:29: "merge both ways, get them in parity and then lock them in
+  parity"). IN PROGRESS. Nothing approved by me; every conflict call is in the Log entry "parity merge".**
+  1. **`~/Developer/flying-game-worktrees/claude-island-nav` is now DETACHED at aeb9695a**, holding your uncommitted
+     ProjectSettings.asset, GraphicsSettings.asset and 16 StreamingAssets/aircraft/*.json exactly as they were (backup:
+     ~/Developer/agent-lanes/backups/parity-merge-20261104-0731/). The branch lane/claude-island-nav is worked in
+     `~/Developer/flying-game-worktrees/claude-island-nav-merge`. Decide what to do with those files there.
+  2. **Not merged, decide:** lane/codex-pitts-debris (020655ef, 95d44eb3: offline debris pipeline + Pitts pilot;
+     island-nav already has lane/claude-pitts-debris d8ab9861); codex/own-pitts-s2b (v11–v13 cabane/strut rebuilds,
+     Oct 28, "not yet approved by Ty"; the lanes' Pitts is newer); lane/claude-extra-cockpit-shared (35179373, 6898f355
+     + 4: the shared Extra cockpit + instrument lighting, in NEITHER lane; both lanes now carry the switches lane's Extra
+     P3f panels, so it will need a merge on top, and you said the layout is still wrong).
+  3. **Great Lakes windshield: confirm.** Both lanes now carry GL v7 (the parity renders' "QUEST NEXT f1618036"). You
+     approved "the Great Lakes windshield" at 07:33; if you meant another one, it needs a GLB follow-up.
+  4. **New red test from the merge, not fudged:** FloatLandingTests J-3 0.5 m/s landing splits a float bottom (18.1 kN
      vs 17.9; island-nav alone 17.2). Island-nav's late step slam (nz ~4 on a 98 fpm landing) plus our drawn water
      rudder. Needs a float-model decision (Log entry, step 1).
-  4. **QuestFrameBudgetProbe still RED, pre-existing:** 167.5 KiB/sim-s at the Quest parent against its 160 KiB limit
-     (the ForceMoment closure and island-index first-touch caches). The merge had made it 251–622; WingStructure's
-     per-step ToLowerInvariant fixed back to the parent's 71 KiB/s steady state.
+  5. **QuestFrameBudgetProbe still RED, pre-existing:** 167.5 KiB/sim-s at the Quest parent vs its 160 KiB limit (184.0
+     after the merge: a one-time cache fill; steady state 71, equal). The merge had made it 251–622: fixed
+     (WingStructure ToLowerInvariant per step on water). The rest is the RK4 ForceMoment closure (pre-existing).
 <!-- /parity-merge needs-you -->
 - **QUEST 3S HAS ISLAND-NAV ON IT: FLY AND CHECK (Claude, 2026-11-03, lane/claude-quest-islandnav). Nothing approved.**
   Installed on the Quest 3S (340YC10GBK0TYV) with `adb install -r` (debug-signed, no signature mismatch): versionName
@@ -2862,6 +2865,23 @@ passes on the merge (J3FloatsWaterTests.FullRudderOnATaxiDoesNotCapsizeIt). **On
   to pass it. **NEEDS YOU / a float-model lane.**
 - `QuestFrameBudgetProbe` stays red as it was on the Quest parent (167.5 KiB/s there): 184.0 on the merge; the steady
   state is the parent's 71 KiB/s; the extra is a one-time first-touch cache (CellEntry[], 361 KiB at second 15).
+
+**Step 2 — lane/claude-quest-islandnav 0a3b09d0 into lane/claude-island-nav → 15442b87** (in the new worktree
+`~/Developer/flying-game-worktrees/claude-island-nav-merge`). No conflicts; the tree is the Quest tip's. The old
+`claude-island-nav` worktree was `git switch --detach`ed at aeb9695a first; its 18 uncommitted files (ProjectSettings,
+GraphicsSettings, 16 StreamingAssets/aircraft/*.json) are byte-for-byte as they were (status diffed before/after).
+
+**Step 3 — Pitts panel and canopy: lane/claude-quest-cockpit-switches 033dd76d into the Quest lane.** Only AGENT-LOG.md
+conflicted (both kept, Quest-lane text first). Every GLB it changes (Pitts ×4, Extra ×3, Great Lakes ×3) was changed on
+that lane only since its base 2be16316, so git took them whole; island-nav has changed no GLB since 510f987c
+(docs/PARITY.md), so there was no newer island-nav art to keep. Judgement calls:
+- **Extra 300:** the switches lane's P3f panels (60f3ff48) go to both lanes. The newer "one cockpit for iOS/Mac and Quest"
+  (35179373) and instrument lighting (6898f355) are on lane/claude-extra-cockpit-shared, which is in NEITHER lane and
+  had not been merged by anyone; I did not merge it (Ty 07:34: "Extra LAYOUT still wrong → phase 2"). NEEDS YOU.
+- **Great Lakes:** v7 (codex-greatlakes-cockpit via 0e63e696, Ty-approved v7 renders 32bda88b) — the parity lane's
+  "QUEST NEXT f1618036" windshield — is now on both lanes. Ty approved "the Great Lakes windshield" at 07:33 without
+  naming one in the log; if it was not v7's, the GLB needs a follow-up. NEEDS YOU (confirm).
+- Not merged: lane/codex-pitts-debris (2 commits), codex/own-pitts-s2b (3, Oct 28, unapproved): NEEDS YOU.
 <!-- /parity-merge entry -->
 ### 2026-11-03 21:30 PST — Claude · lane/claude-quest-cockpit-switches (off lane/claude-quest-islandnav 2be16316) · switches on the panels on the Quest, GL v7, Pitts/Extra rows, Extra panel + stick, Pitts canopy + nose, headset cord
 Owner pt502u: "the pitts and the great lakes have switches outside of the panel on the meta quest version use the new
