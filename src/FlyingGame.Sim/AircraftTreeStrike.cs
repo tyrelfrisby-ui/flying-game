@@ -350,5 +350,17 @@ public enum TreeStrikeOutcome { Stopped, StemSnapped, PartBroken }
 
 /// <summary>One stem strike: which edge, what happened, the closing speed (m/s), the impulse on the airframe (N·s), the
 /// stem diameter and height where struck, and the two strengths compared (N).</summary>
-public readonly record struct TreeStrikeRecord(string Edge, AirframeComponent Component, TreeStrikeOutcome Outcome, double ClosingMs,
-    double ImpulseNs, double StemDiameterM, double HeightM, double StemStrengthN, double PartStrengthN);
+public readonly struct TreeStrikeRecord
+{
+    public readonly string Edge; public readonly AirframeComponent Component; public readonly TreeStrikeOutcome Outcome;
+    public readonly double ClosingMs, ImpulseNs, StemDiameterM, HeightM, StemStrengthN, PartStrengthN;
+    public TreeStrikeRecord(string edge, AirframeComponent component, TreeStrikeOutcome outcome, double closingMs,
+        double impulseNs, double stemDiameterM, double heightM, double stemStrengthN, double partStrengthN)
+    {
+        Edge = edge; Component = component; Outcome = outcome; ClosingMs = closingMs; ImpulseNs = impulseNs;
+        StemDiameterM = stemDiameterM; HeightM = heightM; StemStrengthN = stemStrengthN; PartStrengthN = partStrengthN;
+    }
+    public override string ToString() =>
+        $"{Edge} ({Component}): {Outcome} at {ClosingMs:F1} m/s, {ImpulseNs:F1} N·s; stem {StemDiameterM * 100:F1} cm at {HeightM:F1} m, " +
+        $"{StemStrengthN / 1000:F1} kN against the part's {PartStrengthN / 1000:F1} kN";
+}
