@@ -9,7 +9,7 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 /// <summary>
-/// Diagnostic (GROB_PROBE=1): everything the Twin II Acro's validation table needs, printed -- the polar at the two
+/// Diagnostic (GROB_PROBE=1): everything the Twin III Acro's validation table needs, printed -- the polar at the two
 /// published masses, stall speeds clean and brakes-out, the airbrake glide, the 45-degree brakes-out dive, a 45-45
 /// roll reversal, and spins at both ends of the CG range. Grob103Tests asserts the bands; this shows the numbers.
 /// </summary>
@@ -23,7 +23,7 @@ public class Grob103Probe
     public void Everything()
     {
         if (Environment.GetEnvironmentVariable("GROB_PROBE") == null) return;
-        foreach ((string name, double front, double rear) in new[] { ("solo 450", 70.0, 0.0), ("solo 470 (default)", 90.0, 0.0), ("dual 580", 100.0, 100.0) })
+        foreach ((string name, double front, double rear) in new[] { ("solo 469", 70.0, 0.0), ("solo 489 (default)", 90.0, 0.0), ("dual 579 (the [POH] polar)", 90.0, 90.0), ("dual 600", 110.0, 91.0) })
         {
             AircraftConfig c = Grob103.Loaded(front, rear);
             _out.WriteLine($"== {name}: {c.Mass.MassKg:F0} kg, CG {-c.Mass.Cg[0] * 1000:F0} mm aft of datum");
@@ -37,15 +37,25 @@ public class Grob103Probe
             double vs = Grob103.StallSpeed(c, 0.0), vsb = Grob103.StallSpeed(c, 1.0);
             _out.WriteLine($"   stall clean {vs * 3.6:F1} km/h, brakes {vsb * 3.6:F1} km/h");
             var pb = Grob103.Polar(c, 1.0);
-            TrimSolver.Result ap = TrimSolver.SolveGliderTrim(c, 95 / 3.6, 0.0, spoilerFraction: 1.0);
-            _out.WriteLine($"   full brakes: best L/D {pb.BestLd:F1} at {pb.BestLdV * 3.6:F0} km/h; at 95 km/h L/D {ap.GlideRatio:F1}");
-            _out.WriteLine($"   45 deg dive, full brakes: terminal {Grob103.DiveTerminal(c, 45, 1.0) * 3.6:F0} km/h; clean {Grob103.DiveTerminal(c, 45, 0.0) * 3.6:F0} km/h");
+            TrimSolver.Result ap = TrimSolver.SolveGliderTrim(c, 96 / 3.6, 0.0, spoilerFraction: 1.0);
+            _out.WriteLine($"   full brakes: best L/D {pb.BestLd:F1} at {pb.BestLdV * 3.6:F0} km/h; at 96 km/h L/D {ap.GlideRatio:F2}");
+            _out.WriteLine($"   dive, full brakes: 45 deg terminal {Grob103.DiveTerminal(c, 45, 1.0) * 3.6:F0} km/h, 54 deg {Grob103.DiveTerminal(c, 54, 1.0) * 3.6:F0} km/h; clean 45 deg {Grob103.DiveTerminal(c, 45, 0.0) * 3.6:F0} km/h");
             double t45 = Grob103.RollReversal(c, 1.4 * vs, _out);
             _out.WriteLine($"   45-45 reversal at 1.4 Vs ({1.4 * vs * 3.6:F0} km/h): {t45:F2} s");
         }
-        foreach ((string name, double front, double rear) in new[] { ("AFT CG solo 70 kg", 70.0, 0.0), ("FWD CG solo 110 kg", 110.0, 0.0), ("dual 100/100", 100.0, 100.0) })
+        // [POH] 5.2.2 stall table: 450 kg and 530 kg at aft CG, 600 kg at forward CG (the limits, 480 / 270 mm)
+        foreach ((string name, double front, double rear, double cgMm) in new[] { ("450 kg aft", 51.0, 0.0, 480.0), ("530 kg aft", 70.0, 61.0, 480.0), ("600 kg fwd", 110.0, 91.0, 270.0) })
         {
-            AircraftConfig c = Grob103.Loaded(front, rear);
+            AircraftConfig c = Grob103.LoadedAtCg(front, rear, cgMm);
+            _out.WriteLine($"== stall {name}: {c.Mass.MassKg:F0} kg at {cgMm} mm: clean {Grob103.StallSpeed(c, 0.0) * 3.6:F1} km/h, brakes {Grob103.StallSpeed(c, 1.0) * 3.6:F1} km/h");
+        }
+        // spins: the lightest legal solo (70 kg, the aft-most legal CG without trim weights), a heavy solo, a dual
+        // crew, and both CG limits ([POH] 2.7: 270 / 480 mm)
+        foreach ((string name, double front, double rear, double cgMm) in new[] { ("AFT CG solo 70 kg", 70.0, 0.0, 0.0), ("solo 110 kg", 110.0, 0.0, 0.0),
+                                                                                ("dual 100/100", 100.0, 100.0, 0.0), ("solo 90 kg at the AFT LIMIT", 90.0, 0.0, 480.0),
+                                                                                ("solo 110 kg at the FWD LIMIT", 110.0, 0.0, 270.0) })
+        {
+            AircraftConfig c = cgMm > 0 ? Grob103.LoadedAtCg(front, rear, cgMm) : Grob103.Loaded(front, rear);
             var s = Grob103.Spin(c, +1.0, 12.0, 6.0);
             _out.WriteLine($"== spin {name} (CG {-c.Mass.Cg[0] * 1000:F0} mm): {s.Turns:F2} turns in 12 s, {s.SecPerTurn:F1} s/turn, " +
                            $"{s.HeightPerTurn:F0} m/turn, stalled {s.Stalled:P0}, recovered after {s.RecoveryTurns:F2} turns ({s.RecoverySec:F1} s, recovered {s.Recovered})");
@@ -53,7 +63,7 @@ public class Grob103Probe
     }
 }
 
-/// <summary>Shared Twin II Acro helpers for the probe and the tests.</summary>
+/// <summary>Shared Twin III Acro helpers for the probe and the tests.</summary>
 public static class Grob103
 {
     public const string Id = "glider-grob103-acro-like";
@@ -70,6 +80,15 @@ public static class Grob103
         MassProperties mp = load.Properties; Vec3 cg = load.Cg;
         c.Mass.MassKg = mp.MassKg; c.Mass.Cg = new[] { cg.X, cg.Y, cg.Z };
         c.Mass.Inertia = new InertiaConfig { Ixx = mp.Ixx, Iyy = mp.Iyy, Izz = mp.Izz, Ixz = mp.Ixz };
+        return c;
+    }
+
+    /// <summary>The config loaded with these seat masses, then its CG moved to `cgMm` aft of the datum: the way a flight
+    /// test reaches a CG limit with ballast. Inertia is the loading's own.</summary>
+    public static AircraftConfig LoadedAtCg(double frontKg, double rearKg, double cgMm)
+    {
+        AircraftConfig c = Loaded(frontKg, rearKg);
+        c.Mass.Cg = new[] { -cgMm / 1000.0, c.Mass.Cg[1], c.Mass.Cg[2] };
         return c;
     }
 
@@ -191,7 +210,7 @@ public static class Grob103
                                              double RecoveryTurns, double RecoverySec, bool Recovered);
 
     /// <summary>Spin entry from a trimmed glide: full aft stick and full rudder held for `holdS`, then standard recovery
-    /// (full opposite rudder, stick to neutral -- the [FM] recovery: "opposite rudder, stick neutral") until the
+    /// (full opposite rudder, stick to neutral -- the Twin II [FM] recovery; the Twin III [POH] 3.5 adds "push elevator control") until the
     /// rotation stops, up to `recoverMaxS`.</summary>
     public static SpinResult Spin(AircraftConfig c, double rudder, double holdS, double recoverMaxS)
     {
@@ -276,15 +295,16 @@ public class Grob103Rigging
     private readonly ITestOutputHelper _out;
     public Grob103Rigging(ITestOutputHelper o) { _out = o; }
 
-    /// <summary>GROB_RIG=1: the trimmed elevator at the mid-envelope CG (360 mm) and 580 kg, at the published best-glide
-    /// speed (105 km/h, CL ~0.6) -- the condition the stabiliser incidence is rigged for.</summary>
+    /// <summary>GROB_RIG=1: the trimmed elevator at the mid-envelope CG ((270 + 480) / 2 = 375 mm, [POH] 2.7) and 579 kg,
+    /// at the published best-glide speed ([POH] 5.7: 95 km/h at 579 kg, CL 0.76) -- the condition the stabiliser
+    /// incidence is rigged for.</summary>
     [Fact]
     public void ElevatorAtMidCg()
     {
         if (Environment.GetEnvironmentVariable("GROB_RIG") == null) return;
         AircraftConfig c = Grob103.Load();
-        c.Mass.MassKg = 580; c.Mass.Cg = new[] { -0.360, 0, c.Mass.Cg[2] };
-        TrimSolver.Result t = TrimSolver.SolveGliderTrim(c, 105 / 3.6, 0.0);
+        c.Mass.MassKg = 579; c.Mass.Cg = new[] { -0.375, 0, c.Mass.Cg[2] };
+        TrimSolver.Result t = TrimSolver.SolveGliderTrim(c, 95 / 3.6, 0.0);
         _out.WriteLine($"RIG elevator {t.ElevatorRad * 57.2958:F3} deg at alpha {t.AlphaRad * 57.2958:F2}, L/D {t.GlideRatio:F2}");
     }
 }

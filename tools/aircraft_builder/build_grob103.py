@@ -1,4 +1,5 @@
-"""Grob G 103A Twin II Acro -> configs/aircraft/glider-grob103-acro-like.json (2026-11-01, lane/claude-grob103).
+"""Grob G 103 C Twin III Acro -> configs/aircraft/glider-grob103-acro-like.json (2026-11-01, lane/claude-grob103;
+re-based from the Twin II Acro to the Twin III Acro 2026-11-04 on Ty's call).
 
     python3 tools/aircraft_builder/build_grob103.py            (writes the config and prints every derivation)
     GROB_OUT=/tmp/x.json python3 tools/aircraft_builder/build_grob103.py   (writes somewhere else)
@@ -7,20 +8,27 @@ Ty's brief: physics from published geometry and standard aerodynamics, NO fudge 
 is for validation only and nothing here is tuned toward it. docs/aircraft/grob103-acro-DERIVATION.md walks through
 every number this prints. Inputs:
 
-  data/grob103_threeview.json  the flight manual's own three-view, measured (grob103_threeview.py)
-  data/grob103_xfoil.json      XFOIL 6.99 polars for the E603 wing and the FX 71-L-150/30 tail (grob103_xfoil.py)
+  data/grob103_threeview.json  the TWIN II flight manual's three-view, measured (grob103_threeview.py) -- the Twin III's
+                               own three-view ([POH] 1.6) is too small to measure, so the Twin II's SHAPES are kept and
+                               stretched to the Twin III's published span and area (ASSUMED, see WING PLANFORM)
+  data/grob103_xfoil.json      XFOIL 6.99 polars for the E583 wing and the FX 71-L-150/30 tail (grob103_xfoil.py)
 
 and these published figures, quoted where they are used:
 
-  [TCDS-FAA]  FAA TCDS G39EU (Grob G 103 / G 103A): CG range, datum, seat arms, control travel.
-  [TCDS-EASA] EASA TCDS A.250 Issue 04, Section L (G 103 A Twin II Acro): category, VA/VNE/VRA/VT/VW, masses.
-  [FM]        Flight Manual GROB G 103 TWIN II, Sept 1981 / LBA rev. March 1982:
-              https://esgc.co.uk/wp-content/uploads/2014/01/Grob103_Flight_Manual.pdf
-  [OTM]       Grob OTM 315-66/1 (full aerobatics restored) and MSB 315-65/1 (simple aerobatics only).
-  [BGA]       BGA data sheet, Grob 103 Twin II Acro.
+  [POH]       Pilot's Operating Handbook G 103 C TWIN III ACRO, issue January 1989, revision 6 / 16.10.2003 (the copy of
+              s/n 34197, G-CLXH): https://pilots.scottishglidingcentre.co.uk/_media/aircraft/twinastir/grob103c_poh.pdf
+              Limits are the ones it gives for OSB 315-66 INSTALLED (the airframe aerobatics are approved for).
+  [TCDS]      EASA TCDS A.250 Issue 04 (21 Dec 2011), Section N "G 103 C TWIN III ACRO" (Ty's note said A.024; the
+              Twin III Acro is Section N of A.250): https://www.easa.europa.eu/en/downloads/7216/en
+  [UIUC]      UIUC "Incomplete Guide to Airfoil Usage": "Grob 103C Twin III Acro -- Eppler 583 / Eppler 583".
+  [N41KP]     Statement of weight and balance, Grob 103C Twin III N41KP, 29 Sep 2010 (Norcal Soaring):
+              https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/kp_weight_and_balance.pdf -- ONE weighed airframe:
+              empty CG, seat and baggage arms, main and tail wheel stations.
+  [FM-II]     Flight Manual GROB G 103 TWIN II, Sept 1981 -- only where the Twin III has no figure of its own (flagged).
+  [TCDS-FAA]  FAA TCDS G39EU (G 103 / G 103A, i.e. TWIN II) -- control travel and brake height, flagged likewise.
 
-Frame: +x FORWARD, +y right, +z DOWN, origin at the [FM]/[TCDS] DATUM -- the wing leading edge at the root rib -- on
-the fuselage reference line at the wing root (the wing's own chord line: the Twin II is a mid-wing). A station s mm
+Frame: +x FORWARD, +y right, +z DOWN, origin at the [POH]/[TCDS] DATUM -- the wing leading edge at the root rib -- on
+the fuselage reference line at the wing root (the wing's own chord line: the Twin III is a mid-wing, [POH] 1.4). A station s mm
 aft of the datum is body x = -s/1000.
 """
 import json, math, os, sys
@@ -43,11 +51,16 @@ def say(*a): print(*a)
 # =====================================================================================================================
 # 1. PUBLISHED GEOMETRY
 # =====================================================================================================================
-SPAN = 17.5             # [FM] I.5 "Span 17.5 m"
-AREA = 17.8             # [FM] I.5 "Wing Area 17.8 m2"
-LENGTH = 8.18           # [FM] I.5 "Length 8.18 m"
-MAC_PUB = 1.058         # [FM] II.7: 260-460 mm aft of datum "equivalent to 24.7% to 43.6% of the M.A.C." -> 200/0.189
+SPAN = 18.0             # [POH] 1.4 "Wing span 18.0 m"; [TCDS] N.III.4 "Span 18,00 m"
+AREA = 17.5             # [POH] 1.4 "Wing area 17.5 m2" (b2/S 18.51; [POH] quotes "aspect ratio 18.5")
+LENGTH = 8.18           # [POH] 1.4 "Length 8.18 m" (the same as the Twin II's)
 HALF = SPAN / 2
+# The Twin II three-view this planform is measured from spans 17.5 m ([FM-II] I.5). The Twin III's wing is a new
+# "triple tapered" wing ([POH] 1.4) whose stations are not published and whose three-view ([POH] 1.6) is too small to
+# measure: every SPANWISE station read off the Twin II drawing (chords, aileron, airbrake box, strip edges) is stretched
+# by 18.0/17.5 and the chords then scaled to the published 17.5 m2. ASSUMED -- the Twin III's own taper breaks are lost.
+SPAN_II = 17.5
+STRETCH = SPAN / SPAN_II
 
 # Stations along the fuselage, from the side view (scaled by the 8.18 m length) and the plan view (span scale,
 # stretched x 8.18/7.956 because the plan view's fuselage draws 2.7 % short of the published length).
@@ -59,6 +72,7 @@ def body_x_from_nose(s): return NOSE_TO_DATUM - s
 # 2. WING PLANFORM (three-view, scaled to the published area)
 # =====================================================================================================================
 def wing_chord_table():
+    HALF = SPAN_II / 2           # the Twin II drawing's own half span: the table is built in ITS coordinates
     bins = {}
     for s in TV['wing']['stations']:
         b = round(abs(s['y']) * 4) / 4
@@ -75,21 +89,29 @@ def wing_chord_table():
     return pts
 
 RAW = wing_chord_table()
-def _interp(pts, y):
+def _interp_ii(pts, y):
     y = abs(y)
     for (y0, c0), (y1, c1) in zip(pts, pts[1:]):
         if y0 <= y <= y1: return c0 + (c1 - c0) * (y - y0) / (y1 - y0)
     return pts[-1][1]
+def _interp(pts, y): return _interp_ii(pts, abs(y) / STRETCH)     # Twin III station -> the Twin II drawing's
 def _integrate(f, a, b, n=2000):
     h = (b - a) / n
     return sum(f(a + (i + 0.5) * h) for i in range(n)) * h
 RAW_AREA = 2 * _integrate(lambda y: _interp(RAW, y), 0, HALF)
 CHORD_SCALE = AREA / RAW_AREA
+# The Twin II drawing's own chord correction (its planform measured 17.554 m2 against [FM-II]'s 17.8): the tail, which
+# is kept from that drawing unstretched, takes this one, not the wing's stretched-and-rescaled factor.
+CHORD_SCALE_II = 17.8 / (RAW_AREA / STRETCH)
 def chord(y): return _interp(RAW, y) * CHORD_SCALE
 MAC = 2 * _integrate(lambda y: chord(y) ** 2, 0, HALF) / AREA
-say(f"[wing] measured planform area {RAW_AREA:.3f} m2 -> chords x {CHORD_SCALE:.4f} to the published {AREA} m2")
-say(f"[wing] root {chord(0):.3f} m, y 4.75 {chord(4.75):.3f}, y 8.0 {chord(8.0):.3f}, tip {chord(HALF):.3f}; "
-    f"MAC {MAC:.3f} m (published {MAC_PUB}, {100*(MAC/MAC_PUB-1):+.1f} %); AR {SPAN**2/AREA:.2f}")
+# The Twin III's MAC is not published (the [POH] gives its CG range in mm only); the Twin II's [FM-II] II.7 MAC no longer
+# applies, so %MAC below is of this planform's own integral MAC.
+MAC_PUB = MAC
+say(f"[wing] Twin II planform stretched x {STRETCH:.4f} spanwise: area {RAW_AREA:.3f} m2 -> chords x {CHORD_SCALE:.4f} "
+    f"to the published {AREA} m2 (the Twin II drawing's own correction was x {CHORD_SCALE_II:.4f})")
+say(f"[wing] root {chord(0):.3f} m, y 4.89 {chord(4.89):.3f}, y 8.23 {chord(8.23):.3f}, tip {chord(HALF):.3f}; "
+    f"MAC {MAC:.3f} m (not published); AR {SPAN**2/AREA:.2f} ([POH] 18.5)")
 
 # Leading edge: straight and unswept -- the measured LE stations scatter within +-0.03 m of the root's once the
 # drawing's 0.64 deg tilt cancels between the two sides (grob103_threeview.json 'front'/'wing').
@@ -106,7 +128,7 @@ def _inner_lines(lo, hi):
     for s in TV['wing']['stations']:
         for d in s['inner']:
             f = d / s['chord']
-            if lo < f < hi: out.append((abs(s['y']), f, s['chord']))
+            if lo < f < hi: out.append((abs(s['y']) * STRETCH, f, s['chord']))
     return out
 ail = _inner_lines(0.6, 0.85)
 AIL_IN = round(min(a[0] for a in ail), 2); AIL_OUT = round(max(a[0] for a in ail), 2)
@@ -117,7 +139,8 @@ BRK_XC = sum(b[1] for b in brk) / len(brk)
 say(f"[wing] aileron y {AIL_IN}-{AIL_OUT} m, chord ratio E = {AIL_E:.3f}; airbrake box y {BRK_IN}-{BRK_OUT} m "
     f"at x/c {BRK_XC:.3f}")
 
-# Washout and rigging incidence are NOT published (GAP). Washout: 1.5 deg, linear root to tip -- an assumption,
+# Dihedral, aileron chord ratio and the airbrake box's x/c are the Twin II drawing's: none is published for the
+# Twin III (ASSUMED the same). Washout and rigging incidence are NOT published (GAP). Washout: 1.5 deg, linear root to tip -- an assumption,
 # the middle of the 1-2 deg that glass two-seaters of the period carry; the derivation shows its sensitivity.
 WASHOUT = 1.5 * D2R
 
@@ -139,10 +162,13 @@ def section_props(foil, re):
     return {'a0': a0, 'alpha0Deg': alpha0, 'clmax': top['cl'], 'alphaClmaxDeg': top['alphaDeg'],
             'cdmin': min(q['cd'] for q in p), 'cm0': sum(cm0) / len(cm0)}
 
-RES = [0.6e6, 0.8e6, 1.0e6, 1.25e6, 1.5e6, 2.0e6, 2.5e6]
+# The Twin III Acro's wing is the Eppler E583 at root and tip ([UIUC]), not the Twin II's E603. XFOIL's 2.5 M sweep
+# did not converge past 13.5 deg (its cl_max stops there, below the 2.0 M one), so the family ends at 2.0 M and is
+# held there above it (data/grob103_xfoil.json keeps the 2.5 M points for the record).
+RES = [0.6e6, 0.8e6, 1.0e6, 1.25e6, 1.5e6, 2.0e6]
 for re in RES:
-    s = section_props('e603', re)
-    say(f"[E603 Re {re/1e6:.2f}M] a0 {s['a0']:.3f}/rad  alpha0 {s['alpha0Deg']:+.2f} deg  clmax {s['clmax']:.3f} at "
+    s = section_props('e583', re)
+    say(f"[E583 Re {re/1e6:.2f}M] a0 {s['a0']:.3f}/rad  alpha0 {s['alpha0Deg']:+.2f} deg  clmax {s['clmax']:.3f} at "
         f"{s['alphaClmaxDeg']:.1f} deg  cdmin {s['cdmin']:.5f}  cm0 {s['cm0']:+.4f}")
 
 # Each strip NAMES the table for its chord at 90 km/h (25 m/s); AeroModel then flies it at its own instantaneous
@@ -152,9 +178,9 @@ def re_of(c): return V_REF * c / NU
 def nearest_re(c): return min(RES, key=lambda r: abs(math.log(r / re_of(c))))
 
 def lifting_line(alpha_deg, n=41):
-    """Glauert's monoplane equation for this planform (symmetric loading, odd terms), E603 at Re 1.5M, with the
+    """Glauert's monoplane equation for this planform (symmetric loading, odd terms), E583 at Re 1.5M, with the
     washout. Returns CL, induced-drag factor e, a_3D (per rad), and the local cl distribution."""
-    sec = section_props('e603', 1.5e6)
+    sec = section_props('e583', 1.5e6)
     a0, al0 = sec['a0'], sec['alpha0Deg'] * D2R
     th = [(i + 0.5) * math.pi / (2 * n) for i in range(n)]         # half span: theta in (0, pi/2)
     ks = [2 * j + 1 for j in range(n)]
@@ -187,7 +213,7 @@ def lifting_line(alpha_deg, n=41):
 
 cl_a, e_a, _ = lifting_line(2.0); cl_b, e_b, dist = lifting_line(6.0)
 A3D = (cl_b - cl_a) / (4.0 * D2R)
-SEC15 = section_props('e603', 1.5e6)
+SEC15 = section_props('e583', 1.5e6)
 SCALE3D = A3D / SEC15['a0']
 cl_des, E_SPAN, dist_des = lifting_line(4.0)
 say(f"[lifting line] a_3D {A3D:.3f}/rad = {SCALE3D:.3f} x the 2-D {SEC15['a0']:.3f}; span efficiency e "
@@ -196,12 +222,12 @@ peak = max(dist_des, key=lambda p: p[1] / cl_des)
 say(f"[lifting line] local cl/CL peaks at {peak[1]/cl_des:.3f} at y {peak[0]:.2f} m (where the stall starts)")
 
 def wing_table(re):
-    """The finite-span E603 table at Re: XFOIL's attached range with alpha stretched about the zero-lift angle by
+    """The finite-span E583 table at Re: XFOIL's attached range with alpha stretched about the zero-lift angle by
     the lifting line's a_3D/a_2D (the downwash of the whole wing), XFOIL's profile drag and quarter-chord moment
     unchanged (the sim adds induced drag per strip), then the flat-plate post-stall and reversed flow the fleet's
     tables use (poststall_plate.py, reversed_flow.py; Hoerner CD90 1.20 at AR 17 is the finite-plate figure)."""
-    p = polar('e603', re)
-    al0 = section_props('e603', re)['alpha0Deg']
+    p = polar('e583', re)
+    al0 = section_props('e583', re)['alpha0Deg']
     pk = max(p, key=lambda q: q['cl'])
     # attached + XFOIL's own stall: keep everything XFOIL converged on, to 4 deg past the peak
     pts = [q for q in p if q['alphaDeg'] <= pk['alphaDeg'] + 4.0]
@@ -259,15 +285,17 @@ def tail_table(re, scale):
 # =====================================================================================================================
 # 4. WING STRIPS
 # =====================================================================================================================
-# Strip edges per half-wing: every control end is an edge (airbrake 2.45/3.70, aileron 5.0/8.6), finer outboard.
-EDGES = [0.0, 0.85, 1.65, BRK_IN, 0.5 * (BRK_IN + BRK_OUT), BRK_OUT, 4.35, AIL_IN, 5.6, 6.2, 6.8, 7.35, 7.85, 8.25,
-         AIL_OUT, HALF]
+# Strip edges per half-wing: every control end is an edge (airbrake box, aileron), finer outboard. The fixed edges are
+# the Twin II strip layout, stretched with the rest of the span.
+EDGES = [0.0] + [e * STRETCH for e in (0.85, 1.65)] + [BRK_IN, 0.5 * (BRK_IN + BRK_OUT), BRK_OUT, 4.35 * STRETCH, AIL_IN] + \
+        [e * STRETCH for e in (5.6, 6.2, 6.8, 7.35, 7.85, 8.25)] + [AIL_OUT, HALF]
 # The rigging incidence is not published either. A glider's fuselage is set to meet the air nose-on at the speed it
-# spends its life at, so the root incidence is the wing's own 3-D angle of attack at CL 0.60 (580 kg at the published
-# best-glide speed, 105 km/h): the boom then trails the flow at best glide.
-SEC_ROOT = section_props('e603', nearest_re(chord(0.4)))
-INCIDENCE = (SEC_ROOT['alpha0Deg'] * D2R + 0.60 / A3D)
-say(f"[rigging] root incidence {INCIDENCE/D2R:.2f} deg (body alpha 0 at CL 0.60), washout {WASHOUT/D2R:.1f} deg")
+# spends its life at, so the root incidence is the wing's own 3-D angle of attack at the published best-glide point:
+# [POH] 5.7, 579 kg at 95 km/h -> CL 2W/(rho V^2 S). The boom then trails the flow at best glide.
+CL_BG = 2 * 579.0 * G / (RHO * (95 / 3.6) ** 2 * AREA)
+SEC_ROOT = section_props('e583', nearest_re(chord(0.4)))
+INCIDENCE = (SEC_ROOT['alpha0Deg'] * D2R + CL_BG / A3D)
+say(f"[rigging] root incidence {INCIDENCE/D2R:.2f} deg (body alpha 0 at CL {CL_BG:.3f}), washout {WASHOUT/D2R:.1f} deg")
 
 def tau_gain(E):
     """Fixed-strip gain from the hinged chord ratio: g = (0.85 tau(E) - E)/(1 - E), thin-airfoil tau (Glauert),
@@ -287,7 +315,7 @@ for side in (-1, 1):
         E = AIL_E if has_ail else 0.0
         inc = INCIDENCE - WASHOUT * yc / HALF
         z = -yc * math.tan(DIHEDRAL)
-        re = nearest_re(c); key = f'e603-re{re/1e6:.2f}M-3d'; airfoil_keys.add((key, re))
+        re = nearest_re(c); key = f'e583-re{re/1e6:.2f}M-3d'; airfoil_keys.add((key, re))
         cf = c * (1 - E)
         st = {'pos': [round(LE_X - 0.25 * cf, 4), round(side * yc, 4), round(z, 4)], 'chord': round(cf, 4),
               'area': round(cf * w, 5), 'incidenceRad': round(inc, 5), 'dihedralRad': round(DIHEDRAL, 5),
@@ -307,8 +335,8 @@ say(f"[wing] {len(wing)} strips + {len(wing_ail)} aileron strips, area {wsum:.3f
 # =====================================================================================================================
 # 5. TAIL (three-view; tail sections ASSUMED Wortmann FX 71-L-150/30 -- the Twin II's tail section is not published)
 # =====================================================================================================================
-# Horizontal tail: plan view, line centres. The drawn tail is the ORIGINAL (pre s/n 33879) tailplane: [TCDS-EASA]
-# Note 8 fits an enlarged one from s/n 33879, whose size is not published (GAP / question for Ty).
+# Horizontal tail: plan view, line centres. This is the TWIN II drawing's tail (its original, pre s/n 33879 tailplane);
+# no Twin III tail dimension is published, so the tailplane, fin and rudder are KEPT from it (ASSUMED, flagged).
 tb = {}
 for s in TV['tailplane']['stations']:
     b = round(abs(s['y']) * 8) / 8
@@ -327,7 +355,7 @@ def trow(y):
             t = (y - r0[0]) / (r1[0] - r0[0]); return tuple(r0[i] + t * (r1[i] - r0[i]) for i in (1, 2, 3))
     r = TROWS[-1] if y > TROWS[-1][0] else TROWS[0]
     return r[1], r[2], r[3]
-STAB_INC = -1.53 * D2R
+STAB_INC = -0.68 * D2R
 STAB_Z = -1.20      # side view: the tailplane sits on the fin top, 172 px (1.20 m) above the reference line
 T_EDGES = [0.0, 0.3, 0.6, 0.9, 1.15, 1.38, 1.56, T_HALF]
 stab, elev = [], []
@@ -335,7 +363,7 @@ for side in (-1, 1):
     for y0, y1 in zip(T_EDGES, T_EDGES[1:]):
         yc = 0.5 * (y0 + y1); w = y1 - y0
         c, ce, le = trow(yc)
-        c *= CHORD_SCALE; ce *= CHORD_SCALE
+        c *= CHORD_SCALE_II; ce *= CHORD_SCALE_II
         le_b = tail_le_body(le)
         cf = c - ce
         stab.append({'pos': [round(le_b - 0.25 * cf, 4), round(side * yc, 4), STAB_Z], 'chord': round(cf, 4),
@@ -349,12 +377,12 @@ E_EL = sum(s['area'] for s in elev) / S_H
 EL_GAIN, EL_TAU = tau_gain(E_EL)
 for s in stab: s['control'] = {'surface': 'elevator', 'gain': round(EL_GAIN, 4)}
 # Stabiliser incidence (unpublished). Rigged by the design rule a sailplane's tail is set to: the elevator streamlined
-# (zero deflection) at the MID-ENVELOPE CG (360 mm) at the best-glide condition (580 kg, 105 km/h, CL 0.6), so the
-# trim's travel is shared out evenly either side. Solved in the sim (GROB_RIG=1 Grob103Rigging): with the stab at 0
-# the elevator trims at -2.31 deg there; the section's elevator effectiveness is 0.85 tau(E 0.259) = 0.53, so the stab
-# goes on at 0.53 x -2.31 = -1.22 deg; that re-trims at -0.59 (downwash moves with it), and one more step,
-# -1.22 + 0.53 x -0.59 = -1.53 deg, puts it at the figure the rig probe prints. The Twin II has a
-# spring trim, not a tab ([TCDS-EASA] Note 8: "spring trim system"), which is what trimType "spring" models.
+# (zero deflection) at the MID-ENVELOPE CG (375 mm = (270 + 480)/2, [POH] 2.7) at the best-glide condition ([POH] 5.7:
+# 579 kg, 95 km/h, CL 0.76), so the trim's travel is shared out evenly either side. Solved in the sim (GROB_RIG=1
+# Grob103Rigging), stepping stab += 0.53 x elevator (0.53 = 0.85 tau(E 0.259), the elevator's section effectiveness)
+# from the Twin II's -1.53 deg: elevator +1.29 -> stab -0.85; +0.33 -> -0.68; residual +0.09 deg. The trim is a spring
+# trim on the Twin II ([TCDS-EASA] A.250 Section L Note 8); the Twin III's [POH] speaks only of a "trim device" --
+# trimType "spring" KEPT.
 
 # Fin and rudder: side view (scale 6.98 mm/px), rows quoted in the derivation. LE root (boom top, z -0.06) at
 # 6.80 m from the nose, LE top (z -1.17) at 7.30; hinge line 7.55 m at the rudder foot (z +0.21) to 7.82 m at the
@@ -424,7 +452,7 @@ AMAX = max(math.pi / 4 * w * d for _, w, d in PROFILE)
 DEQ = math.sqrt(4 * AMAX / math.pi)
 FINE = LENGTH / DEQ
 FF = 1 + 60 / FINE ** 3 + FINE / 400                       # Raymer eq. 12.31 (fuselage form factor)
-V_BG = 105 / 3.6                                           # [FM] best glide at 580 kg
+V_BG = 95 / 3.6                                            # [POH] 5.7 best glide, 579 kg
 RE_L = V_BG * LENGTH / NU
 CF_T = 0.455 / math.log10(RE_L) ** 2.58                    # Prandtl-Schlichting, fully turbulent
 # Transition at the canopy's front frame (1.0 m from the nose): the glass nose ahead of it is smooth and in a
@@ -435,8 +463,8 @@ A_MIX = RE_TR * (0.455 / math.log10(RE_TR) ** 2.58 - 1.328 / math.sqrt(RE_TR))
 CF_F = CF_T - A_MIX / RE_L
 CDA_FUS = CF_F * FF * SWET_F
 # Wing-fuselage junction (Hoerner, Fluid-Dynamic Drag 8-11, one junction per side): dCD.t^2 = 0.75 t/c - 0.0003/(t/c)^2,
-# halved for the moulded root fairing the Twin II has (Hoerner: a fillet removes about half to all of it).
-TC_ROOT = 0.198                                             # E603 thickness (UIUC coordinates)
+# halved for the moulded root fairing the Twin III has (Hoerner: a fillet removes about half to all of it).
+TC_ROOT = 0.165                                             # E583 thickness, 16.5 % at 0.41 c (UIUC coordinates)
 t_root = TC_ROOT * chord(0)
 CDA_JUNC = 2 * 0.5 * (0.75 * TC_ROOT - 0.0003 / TC_ROOT ** 2) * t_root ** 2
 # T-junction fin/tailplane and fin/fuselage (same formula, full value: no fillets drawn)
@@ -444,7 +472,7 @@ TC_TAIL = 0.15
 CDA_TJ = 2 * (0.75 * TC_TAIL - 0.0003 / TC_TAIL ** 2) * (TC_TAIL * 0.52) ** 2 + \
          (0.75 * TC_TAIL - 0.0003 / TC_TAIL ** 2) * (TC_TAIL * 0.80) ** 2
 # Wheels, part-buried in the fuselage (Hoerner 13-3: a wheel half in a well CD ~0.25 on its exposed frontal area).
-# [FM] tyres: main 6.00-6 (0.40 m dia, 0.15 wide) showing 0.21 m below the keel; nose 260x85 showing ~0.10 m;
+# [FM-II] tyres (the Twin III's sizes are not in the [POH]; ASSUMED the same): main 6.00-6 (0.40 m dia, 0.15 wide) showing 0.21 m below the keel; nose 260x85 showing ~0.10 m;
 # tail 210x65 showing ~0.09 m (side view).
 CDA_WHEELS = 0.25 * (0.15 * 0.21 + 0.085 * 0.10 + 0.065 * 0.09)
 # Canopy frames, vents, tow hooks, the pitot in the fin, control gaps: Thomas ('Fundamentals of Sailplane Design'
@@ -469,9 +497,11 @@ say(f"[fuselage] plan area {PLAN_A:.2f} m2 at x {centroid_x(1):+.2f}; side area 
 # =====================================================================================================================
 # 7. MASS, CG AND INERTIA (component build-up, protocol 1c)
 # =====================================================================================================================
-EMPTY_PUB = 380.0       # [FM] II.6 "Empty weight about 380 kg"
-MTOM = 580.0            # [FM]/[TCDS-EASA]
-MAX_NLP = 400.0         # [FM] "Maximum permitted weight of non lifting parts 400 kg"
+EMPTY_PUB = 399.0       # [POH] 5.7, the flight-polar airframe D-4279: "flight weight = empty weight + 180 kg = 579 kg".
+                        # The [POH] gives no type empty mass (it is per airframe, Sec. 6); N41KP weighs 439.7 kg with
+                        # its equipment ([N41KP] 969.3 lb).
+MTOM = 600.0            # [POH] 2.6 "Max. permissible take-off mass 600 kg"; [TCDS] N.III.9
+MAX_NLP = 420.0         # [POH] 2.6 "Max. permissible mass of all non-lifting parts 420 kg"; [TCDS] N.III.9
 # WINGS: the max mass of non-lifting parts is the wing-root bending design point -- n x (W - W_wing) at MTOM -- so
 # the wing pair is MTOM - NLP_max = 180 kg (90 kg a side). Distributed along the span in proportion to chord^2
 # (skin and spar caps both scale with the section's chord x thickness), chordwise at 0.40 c (spar at ~0.3-0.35 c,
@@ -479,7 +509,7 @@ MAX_NLP = 400.0         # [FM] "Maximum permitted weight of non lifting parts 40
 M_WINGS = MTOM - MAX_NLP
 items = []      # (name, kg, x_body, y, z, (ixx_own, iyy_own, izz_own))
 wsq = [(0.5 * (y0 + y1), _integrate(lambda y: chord(y) ** 2, y0, y1, 100))
-       for y0, y1 in zip([i * 0.25 for i in range(35)], [i * 0.25 for i in range(1, 36)])]
+       for y0, y1 in zip([i * 0.25 for i in range(36)], [i * 0.25 for i in range(1, 37)])]
 tot = sum(v for _, v in wsq)
 for y, v in wsq:
     m = M_WINGS / 2 * v / tot
@@ -493,9 +523,14 @@ M_VT = round(5.5 * (S_FIN + S_RUD), 1)
 x_vt = sum(s['pos'][0] * s['area'] for s in fin + rud) / (S_FIN + S_RUD)
 items.append(('fin+rudder', M_VT, x_vt, 0, -0.55, (M_VT * 1.38 ** 2 / 12, M_VT * 1.38 ** 2 / 12, 0)))
 # FUSELAGE: what is left of the empty mass, split into the concentrated items and a shell spread over the wetted area.
-gear = [('main wheel, brake, axle, mount', 12.0, body_x_from_nose(3.022), 0, 0.49),
-        ('nose wheel', 3.0, body_x_from_nose(0.858), 0, 0.56),
-        ('tail wheel', 2.0, body_x_from_nose(7.335), 0, 0.23)]
+# Wheel stations: main and tail from the [N41KP] weighing ("datum to main gear 21.25 in", "datum to tail wheel
+# 192.00 in" = 540 / 4877 mm aft); the nose wheel's is not given there, so it stays where the Twin II drawing puts it.
+MAIN_X = -21.25 * 0.0254
+TAIL_X = -192.00 * 0.0254
+NOSE_X = body_x_from_nose(0.858)
+gear = [('main wheel, brake, axle, mount', 12.0, MAIN_X, 0, 0.49),
+        ('nose wheel', 3.0, NOSE_X, 0, 0.56),
+        ('tail wheel', 2.0, TAIL_X, 0, 0.23)]
 fixed = gear + [
     ('front canopy (frame + acrylic)', 9.0, body_x_from_nose(1.45), 0, -0.30),
     ('rear canopy', 9.0, body_x_from_nose(2.75), 0, -0.42),
@@ -512,12 +547,12 @@ for (x0, w0, d0), (x1, w1, d1) in zip(PROFILE, PROFILE[1:]):
     a = 0.5 * (ellipse_perim(w0, d0) + ellipse_perim(w1, d1)) * (x1 - x0)
     segs.append((0.5 * (x0 + x1), a, 0.25 * (w0 + w1 + d0 + d1) / 2))
 # The shell's areal density is the one thing nobody publishes. Spread uniformly over the wetted area it puts the
-# empty CG 52 mm FORWARD of the range the manual publishes ([FM] p.31: 720-757 mm aft of datum at 380 kg) -- and
-# then a legal 2 x 100 kg crew sits forward of the 260 mm limit, so uniform is wrong. A tail boom carries the whole
-# tail's bending and torsion in a small perimeter, so its laminate is heavier per square metre than the cockpit's
-# big shell. Model the density as rising linearly along the fuselage, w = 1 + k (x/L), and SOLVE k so the empty CG
-# lands mid-range (738 mm). The answer is printed; a k of a few is a believable boom-to-nose laminate ratio.
-EMPTY_CG_PUB = (720 + 757) / 2 / 1000.0
+# empty CG well FORWARD of where a weighed Twin III has it. A tail boom carries the whole tail's bending and torsion in
+# a small perimeter, so its laminate is heavier per square metre than the cockpit's big shell. Model the density as
+# rising linearly along the fuselage, w = 1 + k (x/L), and SOLVE k so the empty CG lands on the one Twin III empty CG
+# found: [N41KP] "CG (Empty) = 28.69 in" = 729 mm aft of datum (that airframe weighs 440 kg, this one 399: the pairing
+# is two sources, flagged). The [POH] publishes no empty-CG range (Maintenance Manual Sec. 7, not available).
+EMPTY_CG_PUB = 28.69 * 0.0254
 def shell_items(k):
     wts = [a * (1 + k * xm / LENGTH) for xm, a, _ in segs]; wt = sum(wts)
     return [('shell', m_shell * w / wt, body_x_from_nose(xm), 0, 0.0,
@@ -535,7 +570,7 @@ for _ in range(80):
     else: hi = mid
 K_SHELL = 0.5 * (lo + hi)
 items = base_items + shell_items(K_SHELL)
-say(f"[mass] shell spread uniformly -> empty CG {CG_UNIFORM*1000:.0f} mm (published 720-757); solved areal "
+say(f"[mass] shell spread uniformly -> empty CG {CG_UNIFORM*1000:.0f} mm ([N41KP] 729); solved areal "
     f"density ramp k = {K_SHELL:.2f} (tail-end laminate {1+K_SHELL*7.5/LENGTH:.2f} x the nose's)")
 say(f"[mass] wings {M_WINGS} kg, tailplane {M_HT}, fin {M_VT}, concentrated {sum(f[1] for f in fixed)}, shell "
     f"{m_shell:.1f} => empty {EMPTY_PUB}")
@@ -553,15 +588,17 @@ def mass_props(itms):
 M_E, CG_E, I_E = mass_props(items)
 say(f"[mass] EMPTY {M_E:.1f} kg, CG {-CG_E[0]*1000:.0f} mm aft of datum, z {CG_E[2]:+.3f}; "
     f"Ixx {I_E['ixx']:.0f} Iyy {I_E['iyy']:.0f} Izz {I_E['izz']:.0f} Ixz {I_E['ixz']:.1f}")
-# Check against the placard: [FM] II.8 "Minimum load in the front seat for all flight 70 kg". The minimum exists to
-# keep a solo aeroplane inside the aft limit, so a 70 kg front pilot should land at or just inside 460 mm.
-SEAT1 = (-(-1150) / 1000.0, 0.0, 0.25)   # [FM] V.2 / [TCDS-FAA]: 1150 mm in front of the datum
-SEAT2 = (-(40) / 1000.0, 0.0, 0.24)      # 40 mm behind the datum
+# Check against the placard: [POH] 2.10 "Min. load in the 1st seat 70 kg". The minimum exists to keep a solo
+# aeroplane inside the aft limit, so a 70 kg front pilot should land inside 480 mm.
+# Seat arms: [N41KP] "Front pilot -44.57 in", "Rear pilot 1.38 in" (1132 mm ahead of / 35 mm behind the datum). The
+# [POH] does not give them; the Twin II's [FM-II] V.2 arms were 1150 / 40 mm.
+SEAT1 = (44.57 * 0.0254, 0.0, 0.25)
+SEAT2 = (-1.38 * 0.0254, 0.0, 0.24)
 cg70 = (M_E * CG_E[0] + 70 * SEAT1[0]) / (M_E + 70)
-say(f"[mass] check: 70 kg front seat solo -> CG {-cg70*1000:.0f} mm aft of datum (aft limit 460 mm)")
+say(f"[mass] check: 70 kg front seat solo -> CG {-cg70*1000:.0f} mm aft of datum (aft limit 480 mm)")
 
-PILOT_SOLO = 90.0       # one pilot with parachute in the FRONT seat (the solo seat [FM] II.8) -> 470 kg, the
-                        # [FM] IV.6 "single seater" stall-speed weight
+PILOT_SOLO = 90.0       # one pilot with parachute in the FRONT seat ("On solo flights the pilot has to be in the front
+                        # seat", [POH] 2.10) -> 489 kg
 pilot = lambda st, kg, nm: (nm, kg, st[0], st[1], st[2], (kg * (0.30 ** 2 + 0.15 ** 2) / 1.0 * 0.5,
                                                          kg * (0.6 ** 2 + 0.3 ** 2) / 12, kg * (0.6 ** 2 + 0.4 ** 2) / 12))
 default_items = items + [pilot(SEAT1, PILOT_SOLO, 'front pilot')]
@@ -573,14 +610,15 @@ say(f"[mass] DEFAULT (solo, {PILOT_SOLO:.0f} kg front): {M_D:.1f} kg, CG {-CG_D[
 Rx = 2 * math.sqrt(I_D['ixx'] / M_D) / SPAN; Ry = 2 * math.sqrt(I_D['iyy'] / M_D) / LENGTH
 Rz = 2 * math.sqrt(I_D['izz'] / M_D) / ((SPAN + LENGTH) / 2)
 say(f"[mass] radii of gyration Rx {Rx:.3f} Ry {Ry:.3f} Rz {Rz:.3f} (protocol bands are for powered light aircraft)")
-for nm, ld in (('dual 2x100 kg (580 kg)', [pilot(SEAT1, 100, 'f'), pilot(SEAT2, 100, 'r')]),
+for nm, ld in (('dual 2x100 kg', [pilot(SEAT1, 100, 'f'), pilot(SEAT2, 100, 'r')]),
                ('solo 70 kg', [pilot(SEAT1, 70, 'f')]), ('front 110 kg solo', [pilot(SEAT1, 110, 'f')]),
-               ('dual 110+110 (600 kg, over MTOM)', [pilot(SEAT1, 110, 'f'), pilot(SEAT2, 110, 'r')])):
+               ('dual 110+110 (over MTOM)', [pilot(SEAT1, 110, 'f'), pilot(SEAT2, 110, 'r')])):
     m, cg, ii = mass_props(items + ld)
     say(f"[mass]   {nm}: {m:.0f} kg, CG {-cg[0]*1000:.0f} mm = {pct_mac(cg[0]):.1f} % MAC")
 
 # =====================================================================================================================
-# 8. CONTROLS (FAA TCDS G39EU travels; the chord of the arc each is quoted at)
+# 8. CONTROLS (FAA TCDS G39EU travels -- the TWIN II's: [TCDS] N.III.13 refers the Twin III's to its Maintenance
+#    Manual, which is not available, so these are KEPT and flagged; the chord of the arc each is quoted at)
 # =====================================================================================================================
 def arc(d, r): return 2 * math.asin(d / (2 * r))
 AIL_UP, AIL_DN = arc(90, 208), arc(50, 208)      # 90 up / 50 down mm at 208 mm (inboard end)
@@ -595,13 +633,15 @@ say(f"[controls] aileron {AIL_UP/D2R:.1f} up / {AIL_DN/D2R:.1f} down, elevator {
 AIL_SYM = 0.5 * (AIL_UP + AIL_DN)
 
 # =====================================================================================================================
-# 9. AIRBRAKES (Schempp-Hirth type, upper surface only [TCDS-EASA]; 170 mm extension [TCDS-FAA])
+# 9. AIRBRAKES -- "airbrakes (Type GROB) on the upper side" ([POH] 1.4, 7.4); "airbrakes on upper wing surface"
+#    ([TCDS] N.III.2). No flaps. Upper surface only: the [POH] describes no lower-surface blades.
 # =====================================================================================================================
-BRAKE_H = 0.170
-# Local velocity over the upper surface at the brake's x/c, from XFOIL's boundary-layer dump (E603, Re 1.5M, DUMP):
-# Ue/V at x/c 0.428 = 1.351 at CL 0.21, 1.422 at CL 0.57, 1.489 at CL 0.92, 1.554 at CL 1.25. The brakes are used from
-# the dive (CL ~0.2) to the approach (CL ~0.9); the middle of that, 1.42 at CL 0.57, so the plate sees 2.02 q.
-UE_RATIO = 1.42
+BRAKE_H = 0.170         # [TCDS-FAA] G39EU, the TWIN II's 170 mm: no Twin III figure found (KEPT, flagged)
+# Local velocity over the upper surface at the brake's x/c, from XFOIL's boundary-layer dump on the E583 (Re 1.5M,
+# Ncrit 9, 200 panels, DUMP at a fixed CL), nearest panel x/c 0.434: Ue/V = 1.326 at CL 0.21, 1.398 at CL 0.57, 1.464
+# at CL 0.92, 1.531 at CL 1.25. The brakes are used from the dive (CL ~0.2) to the approach (CL ~0.9); the middle of
+# that, 1.40 at CL 0.57, so the plate sees 1.96 q. (Run 2026-11-04; the E603's was 1.42.)
+UE_RATIO = 1.40
 
 # =====================================================================================================================
 # 10. ASSEMBLE
@@ -612,8 +652,8 @@ tables = {}
 # log Re between members (AirfoilTableData.ReynoldsFamily).
 for re in RES:
     tb = wing_table(re)
-    tb['reynoldsFamily'] = 'e603-3d'; tb['reynoldsNumber'] = re
-    tables[f'e603-re{re/1e6:.2f}M-3d'] = tb
+    tb['reynoldsFamily'] = 'e583-3d'; tb['reynoldsNumber'] = re
+    tables[f'e583-re{re/1e6:.2f}M-3d'] = tb
 # The tailplane gets the 2-D section: AeroModel.TailSections rescales any 2-D hStab table to the stab system's
 # finite span itself (DATCOM/Helmbold). The fin does not (yet), so its table is pre-scaled here the same way.
 tp = polar('fx71l150', 0.6e6)
@@ -625,16 +665,16 @@ CG_DEFAULT = [r4(CG_D[0]), 0.0, r4(CG_D[2])]
 # EYES: the own model's PROPOSALS (Codex lane, docs/models/grob103-own-PROVENANCE.md: "Datum-relative body-axis eye
 # proposals are front (1.15,0,-.40) and rear (-.04,0,-.45)", head clearance checked against the model's own canopy
 # glass). The model's origin is this config's origin (the datum), +x forward both, so they go in unchanged. NOT
-# approved by Ty. Open question in the derivation: the [FM] arms are the pilots' MASS stations, and a reclined pilot's
+# approved by Ty. Open question in the derivation: the seat arms are the pilots' MASS stations, and a reclined pilot's
 # eye is usually 0.3-0.4 m aft of where his mass acts.
 FRONT_EYE = [1.15, 0.0, -0.40]
 REAR_EYE = [-0.04, 0.0, -0.45]
 cfg = {
     'schemaVersion': 1,
     'id': 'glider-grob103-acro-like',
-    'displayName': 'Twin II Acro-like Aerobatic Two-Seater',
+    'displayName': 'Twin III Acro-like Aerobatic Two-Seater',
     '_source': 'tools/aircraft_builder/build_grob103.py -- docs/aircraft/grob103-acro-DERIVATION.md. Do not hand-edit.',
-    'spawnIasMs': 26.4,             # [FM] IV.9 "approach at 95 km/h"
+    'spawnIasMs': round(96 / 3.6, 2),   # [POH] 4.5.4 "recommended normal approach speed is 96 km/h"
     'spinAero': {'rollDueToSideslip': 'monoplane'},
     'mass': {'massKg': round(M_D, 1), 'cg': CG_DEFAULT,
              'inertia': {k: round(v) for k, v in I_D.items()}},
@@ -665,14 +705,18 @@ cfg = {
                                'planCenterX': round(centroid_x(1), 2), 'sideArea': round(SIDE_A, 2),
                                'sideCenterX': round(centroid_x(2), 2), 'cd': 1.2, 'lengthM': LENGTH}},
     'propulsion': None,
+    'retractableGear': False,       # [POH] 1.4 "non-retractable tandem landing gear"
+    # FIXED tandem gear -- main wheel with disc brake, nose wheel, tail wheel, no retraction ([POH] 1.4 "the
+    # non-retractable tandem landing gear"; [TCDS] N.III.2 "fixed tandem landing gear with brake"). The nose wheel is
+    # steerable from s/n 34171 ([TCDS]); it is modelled unsteered, as on the earlier airframes.
     'gear': [
-        {'pos': [r4(body_x_from_nose(3.022)), 0.0, 0.69], 'springN': 60000, 'dampNs': 3000, 'brake': True,
+        {'pos': [r4(MAIN_X), 0.0, 0.69], 'springN': 60000, 'dampNs': 3000, 'brake': True,
          'isTailwheel': False, 'isSteerable': False, 'maxSteerRad': 0.0, 'tireMu': 0.8, 'corneringStiffnessN': 5000,
          'rollResistN': 40, 'tireRadiusM': 0.20},
-        {'pos': [r4(body_x_from_nose(0.858)), 0.0, 0.69], 'springN': 40000, 'dampNs': 2500, 'brake': False,
+        {'pos': [r4(NOSE_X), 0.0, 0.69], 'springN': 40000, 'dampNs': 2500, 'brake': False,
          'isTailwheel': False, 'isSteerable': False, 'maxSteerRad': 0.0, 'tireMu': 0.6, 'corneringStiffnessN': 1500,
          'rollResistN': 30, 'tireRadiusM': 0.13},
-        {'pos': [r4(body_x_from_nose(7.335)), 0.0, 0.33], 'springN': 15000, 'dampNs': 2000, 'brake': False,
+        {'pos': [r4(TAIL_X), 0.0, 0.33], 'springN': 15000, 'dampNs': 2000, 'brake': False,
          'isTailwheel': True, 'isSteerable': False, 'maxSteerRad': 0, 'tireMu': 0.5, 'corneringStiffnessN': 800,
          'rollResistN': 30, 'tireRadiusM': 0.105},
         {'pos': [0.0, -HALF + 0.1, round(-(HALF - 0.1) * math.tan(DIHEDRAL) + 0.04, 3)], 'springN': 4000, 'dampNs': 120,
@@ -683,29 +727,38 @@ cfg = {
          'corneringStiffnessN': 300, 'rollResistN': 60, 'gearType': 'tip-skid'},
     ],
     'limits': {
-        # Acrobatic category with OTM 315-66 [OTM][BGA]: +6.5/-4.0 to VA 180 km/h, +5.3/-3.0 at VNE 250 km/h.
-        'vneMs': round(250 / 3.6, 6), 'gMax': 6.5, 'gMin': -4.0,
-        'vaMs': 50.0, 'gMaxAtVne': 5.3, 'gMinAtVne': -3.0,
-        # [FM] II.4: VNE (IAS) with altitude
-        # (ft -> m x 0.3048. The 19000 ft column is cut off in the scan after '20'; 201 km/h continues the table's
-        # own step of 12 km/h per 3000-3500 ft and is an EXTRAPOLATION, flagged in the derivation.)
-        'vneByAltitude': [[0.0, round(250 / 3.6, 6)], [1981.2, round(250 / 3.6, 6)], [3048.0, round(237 / 3.6, 6)],
-                          [3962.4, round(225 / 3.6, 6)], [5029.2, round(213 / 3.6, 6)], [5791.2, round(201 / 3.6, 6)]],
-        # wing-root bending is n x (weight of the non-lifting parts): [FM] II.6 400 kg
+        # Acrobatic category ([TCDS] N.I.3), fuselage reinforcement OSB 315-66 installed ([POH] 2.2, 2.9):
+        # +6.5/-4.0 at VA 185 km/h, +5.3/-3.0 at VNE 280 km/h, a straight line between.
+        'vneMs': round(280 / 3.6, 6), 'gMax': 6.5, 'gMin': -4.0,
+        'vaMs': round(185 / 3.6, 6), 'gMaxAtVne': 5.3, 'gMinAtVne': -3.0,
+        # [POH] 2.2 / 4.5.7: VNE (IAS) with altitude, OSB 315-66 column -- 280 to 2000 m, 265 to 3000, 240 to 5000,
+        # 215 to 7000, 190 to 9000, 165 to 11000 m.
+        'vneByAltitude': [[0.0, round(280 / 3.6, 6)], [2000.0, round(280 / 3.6, 6)], [3000.0, round(265 / 3.6, 6)],
+                          [5000.0, round(240 / 3.6, 6)], [7000.0, round(215 / 3.6, 6)], [9000.0, round(190 / 3.6, 6)],
+                          [11000.0, round(165 / 3.6, 6)]],
+        # wing-root bending is n x (weight of the non-lifting parts): [POH] 2.6 420 kg
         'maxNonLiftingMassKg': MAX_NLP, 'liftingMassKg': M_WINGS,
-        # brakes out: CS 22.345 -- "manoeuvring load factors from -1.5 to 3.5" with the brakes anywhere from shut to full at speeds to VD (the certification basis; the type's manual quotes only brakes-closed figures)
+        # brakes out: [POH] 2.9 "Max. manoeuvring load factor with airbrakes extended at VNE n = +3.5" (and 4.5.9 "The
+        # pull-out loads with extended airbrakes must not exceed +3.5 g"). The [POH] gives no negative figure: -1.5 is
+        # CS 22.345's (the type was certificated to the LFSM, [TCDS] N.II.2) -- KEPT, flagged.
         'airbrakeGMax': 3.5, 'airbrakeGMin': -1.5,
-        'categories': [
-            {'name': 'utility', 'vaMs': round(170 / 3.6, 6), 'gMax': 5.3, 'gMin': -2.65, 'gMaxAtVne': 4.0, 'gMinAtVne': -1.5},
-        ],
+        # No second category: at 18 m the Twin III Acro is certificated Acrobatic only ([TCDS] N.I.3; Utility is the
+        # 20 m SB 315-59 wingtips, not modelled) and the [POH] gives one set of load factors. The Twin II's utility
+        # envelope does not apply.
+        'categories': [],
+        '_comment': 'Not wired (the sim has no field for them): VRA 200, VT 185, VW 140 km/h ([POH] 2.2, [TCDS] '
+                    'N.III.7). Without OSB 315-66: VNE 250, VA = VRA = VT 170 km/h, no aerobatics ([POH] 2.2A) -- not '
+                    'modelled.',
     },
     'wakeBlanketMaxLoss': 0.65,
     'stallDynamics': {'stripSepTau': 0.15, 'stripReattachTau': 0.6, 'wakeGrowTau': 0.25, 'wakeDecayTau': 1.0, 'wakeSpreadDeg': 6.0},
     'verticalBlanketFactor': 0.8,
-    # nose hook for aerotow (body x at the nose wheel bay front), weak link at the TCDS maximum 630 daN
-    'towHook': {'pos': [r4(body_x_from_nose(0.55)), 0, 0.45], 'weakLinkN': 6300, 'canRelease': True},
+    # nose hook for aerotow (body x at the nose wheel bay front), weak link at [TCDS] N.III.6 "max. 845 daN" (winch and
+    # aerotow alike; [POH] 4.5.1). NOTE: AircraftConfig has no towHook field, so the sim does not read this block (the
+    # aerotow's weak link is AeroTow's own); it is kept as the record of the type's figure.
+    'towHook': {'pos': [r4(body_x_from_nose(0.55)), 0, 0.45], 'weakLinkN': 8450, 'canRelease': True},
     'loading': {
-        'emptyMassKg': round(M_E, 1), 'maxGrossMassKg': MTOM, 'cgForwardLimitM': -0.260, 'cgAftLimitM': -0.460,
+        'emptyMassKg': round(M_E, 1), 'maxGrossMassKg': MTOM, 'cgForwardLimitM': -0.270, 'cgAftLimitM': -0.480,
         'seats': [
             {'id': 'front', 'label': 'Front seat', 'station': [SEAT1[0], 0.0, SEAT1[2]], 'maxKg': 110.0,
              'referenceKg': PILOT_SOLO, 'eye': FRONT_EYE},
@@ -713,14 +766,17 @@ cfg = {
              'referenceKg': 0.0, 'eye': REAR_EYE},
         ],
         'baggage': [
-            {'id': 'baggage', 'label': 'Baggage', 'station': [-0.45, 0.0, 0.15], 'maxKg': 10.0, 'referenceKg': 0.0},
-            {'id': 'trim-ballast', 'label': 'Trim ballast (front)', 'station': [SEAT1[0], 0.0, 0.40], 'maxKg': 5.6,
+            {'id': 'baggage', 'label': 'Baggage', 'station': [r4(-31.89 * 0.0254), 0.0, 0.15], 'maxKg': 10.0,
+             'referenceKg': 0.0},
+            {'id': 'trim-ballast', 'label': 'Trim weights (front)', 'station': [1.543, 0.0, 0.40], 'maxKg': 11.2,
              'referenceKg': 0.0},
         ],
-        '_comment': 'Arms: [FM] V.2 / FAA TCDS G39EU, seat 1 1150 mm in front of the datum, seat 2 40 mm behind; '
-                    'datum = wing root leading edge = body x 0. Max seat loads 110 kg, baggage 10 kg, trim ballast '
-                    '5.6 kg in the front cockpit when the front pilot is under 70 kg ([FM] II.8). CG range 260-460 mm '
-                    'aft of datum = 24.7-43.6 % MAC. Eye points are derived, not published (derivation sec. 7).',
+        '_comment': 'Arms: [N41KP] weighing, front seat 1132 mm in front of the datum, rear 35 mm behind, baggage 810 '
+                    'mm behind; datum = wing root leading edge = body x 0 ([POH] 2.7). Max seat loads 110 kg, min '
+                    'front 70 kg ([POH] 2.10); baggage 10 kg ([POH] 2.6). Trim weights: up to two of 5.6 kg at 1543 mm '
+                    '(one) / 1560 mm (two) in front of the datum ([POH] 6.4). CG range 270-480 mm aft of datum '
+                    '([POH] 2.7). No water ballast ([POH] 7.10: removable ballast is the trim weights only). Eye points '
+                    'are derived, not published (derivation sec. 7).',
     },
 }
 os.makedirs(os.path.dirname(OUT), exist_ok=True)

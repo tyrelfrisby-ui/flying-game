@@ -470,15 +470,15 @@
   {
     "Id": "glider-grob103-acro-like",
     "Flaps": 0,
-    "VsoKt": 33.51,
-    "SpeedKt": 43.57,
-    "GlideDeg": 3.945,
-    "GlideRatio": 14.501,
-    "SinkFpm": 303.5,
-    "AlphaDeg": 3.716,
-    "PitchDeg": -0.228,
-    "ElevatorDeg": -1.128,
-    "TrimStick": -0.0821
+    "VsoKt": 34.35,
+    "SpeedKt": 44.66,
+    "GlideDeg": 3.842,
+    "GlideRatio": 14.893,
+    "SinkFpm": 303,
+    "AlphaDeg": 2.252,
+    "PitchDeg": -1.59,
+    "ElevatorDeg": -0.2,
+    "TrimStick": -0.0393
   },
   {
     "Id": "glider-swift-s1-like",

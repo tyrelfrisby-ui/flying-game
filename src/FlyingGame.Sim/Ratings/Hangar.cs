@@ -30,7 +30,7 @@ public static class Hangar
         new() { Id = "boeing-737-200-like", Name = "737-200-like, steam gauges (coming soon)", WantedFor = "the airline track" },
     };
 
-    /// <summary>The aeroplanes the aerobatic glider stage accepts. The Grob 103 Twin II Acro is built (2026-11-01,
+    /// <summary>The aeroplanes the aerobatic glider stage accepts. The Grob G 103 C Twin III Acro is built (2026-11-01, re-based from the Twin II 2026-11-04;
     /// configs/aircraft/glider-grob103-acro-like.json), so the stage can be flown; the DG is still a placeholder. The
     /// Swift S-1 is an aerobatic glider but it is not a Grob 103 Acro or a DG, so it is deliberately not on this list.</summary>
     public static readonly string[] AerobaticGliders = { "glider-grob103-acro-like", "glider-dg-acro-like" };

@@ -1,293 +1,252 @@
-# Grob G 103A Twin II Acro — `glider-grob103-acro-like` — derivation
+# Grob G 103 C Twin III Acro — `glider-grob103-acro-like` — derivation
 
-Lane `lane/claude-grob103`, 2026-11-01. Ty's brief: build the aerobatic two-seat trainer **from first principles** —
-published geometry, standard aerodynamics, no fudge factors — and use the published performance **for validation
-only**. Nothing in the config was adjusted toward a performance figure. Where a number is not published it is
-measured off the type's own three-view, derived from a stated design rule, or marked ASSUMED; each is listed under
+Lane `lane/claude-grob103`. Built 2026-11-01 as the G 103A Twin II Acro; **re-based on the G 103 C Twin III Acro
+2026-11-04** on Ty's call: the Twin III Acro, with its fixed tandem gear (main, nose and tail wheel, none retracting).
+The id stays `glider-grob103-acro-like`. Ty's brief still holds: build it **from first principles** — published geometry,
+standard aerodynamics, no fudge factors — and use the published performance **for validation only**. Nothing in the
+config was adjusted toward a performance figure. Where a number is not published for the Twin III it is either carried
+over from the Twin II and **flagged**, derived from a stated design rule, or marked ASSUMED; each is listed under
 [Gaps](#gaps).
 
 The config is generated. Do not hand-edit it:
 
 ```
-XFOIL=/path/to/xfoil python3 tools/aircraft_builder/grob103_xfoil.py   # E603 + FX 71-L-150/30 polars -> data/grob103_xfoil.json
-python3 tools/aircraft_builder/grob103_threeview.py                    # the manual's three-view, measured -> data/grob103_threeview.json (needs Pillow, pdftoppm)
+XFOIL=/path/to/xfoil python3 tools/aircraft_builder/grob103_xfoil.py   # E583 (+ E603) + FX 71-L-150/30 polars -> data/grob103_xfoil.json
+python3 tools/aircraft_builder/grob103_threeview.py                    # the TWIN II manual's three-view, measured -> data/grob103_threeview.json
 python3 tools/aircraft_builder/build_grob103.py                        # -> configs/aircraft/glider-grob103-acro-like.json, prints every derivation
+cp configs/aircraft/glider-grob103-acro-like.json unity/Assets/StreamingAssets/aircraft/   # the committed ConfigSync mirror
 GROB_PROBE=1 dotnet test tools/FlightTests --filter Grob103Probe       # the validation numbers below
+GROB_RIG=1 dotnet test tools/FlightTests --filter Grob103Rigging       # the stabiliser-incidence rig point
 ```
 
 ## Sources
 
 | key | document |
 |---|---|
-| [FM] | Flight Manual GROB G 103 TWIN II, FAA-English edition Sept 1981, LBA revisions to March 1982. <https://esgc.co.uk/wp-content/uploads/2014/01/Grob103_Flight_Manual.pdf> |
-| [TCDS-FAA] | FAA TCDS G39EU (Grob G 103 / G 103A): datum, CG range, seat arms, control-surface travel |
-| [TCDS-EASA] | EASA TCDS A.250 Issue 04 (21 Dec 2011), Section L "G 103 A Twin II Acro": category Utility and Acrobatic, VA 170 / 180, VNE 250, VT 170, VW 120, max mass 580 kg, NLP 400 kg, "airbrakes on upper wing surface". <https://www.easa.europa.eu/en/downloads/7216/en> |
-| [MSB] | Grob MSB 315-65/1 (9 Feb 2006): restricts Twin II Acros to "simple aerobatics" (loop, turn, lazy eight, chandelle, spin); the acrobatics handbook becomes invalid. <https://ltb-lindner.com/wp-content/uploads/bsk-pdf-manager/2021/04/315-65-1-new-limits.pdf> |
-| [OTM] | Grob OTM 315-66/1: fuselage stiffeners restore full aerobatics, placard VA 180, VRA 180, VFE 250. <https://ltb-lindner.com/wp-content/uploads/bsk-pdf-manager/2021/04/315-66-1-betriebsgrenzen-modofikation.pdf> |
-| [BGA] | BGA data sheet, Grob 103 Twin II Acro (snippet only; the PDF returns 403): "+6.5 & -4 up to 97 knots, +5.3 & -3 to VNE. Otherwise semi-aerobatic." |
-| [CS-22] | CS 22.147 (roll reversal 45-45 within b/3 s at 1.4 VS1), CS 22.75 (brakes out: glide no flatter than 1:7 at 1.3 VS0, max weight), CS 22.345 (brakes out: -1.5 to +3.5 g), UK CAA regulatory library |
-| [UIUC] | UIUC Airfoil Coordinates Database (E603, FX 71-L-150/30 coordinates); UIUC "Incomplete Guide to Airfoil Usage" lists E603 root and tip for the Twin II |
-| [Hoerner] | S. F. Hoerner, *Fluid-Dynamic Drag* (1965): flat plates normal to the flow (ch. 3), junctions (8-11), wheels (13) |
-| [Raymer] | D. Raymer, *Aircraft Design: A Conceptual Approach*: fuselage form factor (eq. 12.31) |
+| [POH] | Pilot's Operating Handbook **G 103 C TWIN III ACRO**, Burkhart Grob, issue January 1989, revision 6 / 16.10.2003 (the s/n 34197 G-CLXH copy). <https://pilots.scottishglidingcentre.co.uk/_media/aircraft/twinastir/grob103c_poh.pdf>. Where it gives two sets of limits, the config takes the **OSB 315-66 fuselage reinforcement installed** set — the airframe aerobatics are approved for ([POH] 2.11). |
+| [TCDS] | EASA TCDS **A.250** Issue 04 (21 Dec 2011), **Section N "GROB G 103 C TWIN III ACRO"**. <https://www.easa.europa.eu/en/downloads/7216/en>. (Ty's brief said A.024; the Twin III Acro is Section N of A.250, the Grob sailplanes sheet.) |
+| [UIUC] | UIUC *Incomplete Guide to Airfoil Usage*: "Grob 103C Twin III Acro — Eppler 583 — Eppler 583" (root, tip). Coordinates from the UIUC Airfoil Coordinates Database (`e583.dat`). |
+| [N41KP] | Statement of weight and balance, Grob 103C Twin III **N41KP**, 29 Sep 2010 (Norcal Soaring). <https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/kp_weight_and_balance.pdf>. One weighed airframe: empty 969.3 lb / CG 28.69 in, front pilot −44.57 in, rear pilot 1.38 in, baggage 31.89 in, datum to main gear 21.25 in, to tail wheel 192.00 in. |
+| [FM-II] | Flight Manual GROB G 103 TWIN II, Sept 1981 (the 2026-11-01 build's source). Used now **only** for what the Twin III has no figure of its own for: the three-view the planform and tail are measured from, tyre sizes. |
+| [TCDS-FAA] | FAA TCDS G39EU (G 103 / G 103A — the **Twin II**): control-surface travel, airbrake height. Kept and flagged. |
+| [CS-22] | CS 22.147 (roll reversal 45–45 within b/3 s at 1.4 VS1), CS 22.75 (brakes out: no flatter than 1:7 at 1.3 VS0, max weight), CS 22.345 (brakes out −1.5 g). The type's own basis is the LFSM 1975 ([TCDS] N.II.2). |
+| [Hoerner], [Raymer] | as before: flat plates, junctions, wheels; fuselage form factor |
+
+## 0. What changed from the Twin II build, and from where
+
+| quantity | Twin II (2026-11-01) | Twin III Acro (2026-11-04) | source |
+|---|---|---|---|
+| span | 17.5 m | **18.0 m** | [POH] 1.4; [TCDS] N.III.4 |
+| wing area | 17.8 m² | **17.5 m²** | [POH] 1.4 |
+| aspect ratio | 17.21 | **18.51** (b²/S; [POH] "18.5") | [POH] 1.4 |
+| length / height | 8.18 / 1.55 m | 8.18 / 1.55 m (unchanged) | [POH] 1.4 |
+| wing section | E603 (19.8 %) | **E583 (16.5 % at 0.41 c)** | [UIUC]; thickness from the coordinates |
+| MAC | 1.058 m published, 1.062 modelled | **1.015 m, not published** (planform integral) | — |
+| empty mass | 380 kg | **399 kg** | [POH] 5.3.2: D-4279 "flight weight = empty weight + 180 kg = 579 kg" |
+| empty CG | 738 mm (mid of 720–757) | **729 mm** | [N41KP] 28.69 in |
+| MTOM | 580 kg | **600 kg** | [POH] 2.6; [TCDS] N.III.9 |
+| max non-lifting parts | 400 kg | **420 kg** (wings 600 − 420 = 180 kg, unchanged) | [POH] 2.6; [TCDS] N.III.9 |
+| aerobatic-category mass | — | **600 kg** (no separate figure: one maximum mass) | [POH] 2.6 |
+| CG range | 260–460 mm | **270–480 mm** aft of datum | [POH] 2.7; [TCDS] N.III.10 |
+| seat arms | 1150 fwd / 40 aft mm | **1132 fwd / 35 aft mm** | [N41KP] |
+| baggage | 10 kg at 450 mm aft (arm unsourced) | **10 kg at 810 mm aft** | [POH] 2.6 / 7.5; [N41KP] 31.89 in |
+| trim weights | 5.6 kg at the front seat arm | **up to 2 × 5.6 kg at 1543 mm fwd** (1560 for two) | [POH] 6.4 |
+| min / max seat loads | 70 / 110 / 110 kg | 70 / 110 / 110 kg | [POH] 2.10 |
+| water ballast | none | **none** ([POH] 7.10.1: removable ballast = trim weights only) | [POH] 7.10 |
+| VNE | 250 km/h | **280 km/h** | [POH] 2.2; [TCDS] N.III.7 |
+| VNE with altitude | 250/237/225/213/201 (6500–19000 ft, last extrapolated) | **280 to 2000 m, 265 (3000), 240 (5000), 215 (7000), 190 (9000), 165 (11000 m)** — nothing extrapolated | [POH] 2.2, 4.5.7 |
+| VA | 180 km/h | **185 km/h** | [POH] 2.2; [TCDS] |
+| VRA | 180 | **200 km/h** (not wired) | [POH] 2.2; [TCDS] |
+| VT (aerotow) | 170 | **185 km/h** (not wired) | [POH] 2.2 ("185 kts" in the table is a misprint for km/h; [TCDS] 185 km/h) |
+| VW (winch) | 120 | **140 km/h** (not wired) | [POH] 2.2, 4.5.1; [TCDS] |
+| acrobatic load factors | +6.5/−4.0 at VA, +5.3/−3.0 at VNE (BGA snippet) | **+6.5/−4.0 at VA 185, +5.3/−3.0 at VNE 280** | [POH] 2.9 |
+| brakes-out load factor | −1.5/+3.5 (CS 22.345) | **+3.5** [POH] 2.9 / 4.5.9; −1.5 kept from CS 22.345 (flagged) | [POH]; [CS-22] |
+| utility category | +5.3/−2.65 at VA 170, +4.0/−1.5 at VNE | **none**: Acrobatic only at 18 m ([TCDS] N.I.3); the Twin II envelope removed | [TCDS] |
+| weak link | 630 daN | **845 daN** (record only: the sim does not read `towHook`) | [TCDS] N.III.6; [POH] 4.5.1 |
+| approach / spawn speed | 95 km/h | **96 km/h** | [POH] 2.3, 4.5.4 |
+| main / tail wheel station | 705 / 5018 mm aft (Twin II drawing) | **540 / 4877 mm aft** | [N41KP] |
+| airbrakes | upper surface, "Schempp-Hirth type" | **upper surface only, "Type GROB"**; no flaps | [POH] 1.4, 7.4; [TCDS] N.III.2 |
+| airbrake local velocity Ue/V | 1.42 (E603 XFOIL dump) | **1.40** (E583 XFOIL dump, rerun) | XFOIL, §6 |
+| rigging: wing incidence | 1.89° (CL 0.60) | **2.78°** (CL 0.761 = 579 kg at 95 km/h) | design rule on [POH] 5.3.2 |
+| rigging: stab incidence | −1.53° | **−0.68°** (re-solved at 375 mm, 579 kg, 95 km/h) | design rule, `Grob103Rigging` |
+| cd0Area | 0.0563 m² | **0.0523 m²** (thinner root junction, Re at 95 km/h) | build-up §3 |
+| default load | 470 kg, CG 377 mm | **489 kg** (399 + 90 kg solo), **CG 386 mm** | build-up §4 |
+| display name | "Twin II Acro-like Aerobatic Two-Seater" | **"Twin III Acro-like Aerobatic Two-Seater"** | — |
 
 ## 1. Geometry
 
-### Published
+### Published ([POH] 1.4)
 
-Span 17.5 m, wing area 17.8 m², length 8.18 m, height 1.55 m, max 580 kg, "Aspect Ratio 17.1" ([FM] I.5). b²/S is
-**17.21**; the manual's 17.1 is its own rounding. Mid wing, T-tail, upper-surface Schempp-Hirth-type airbrakes,
-fixed tandem gear (main 6.00-6, nose 260×85, tail 210×65, [FM] p.10). MAC: [FM] II.7 puts 260–460 mm aft of the
-datum at "24.7 % to 43.6 % of the M.A.C." — 200 mm / 0.189 = **1.058 m**, with its leading edge at the datum.
+Span 18.0 m, wing area 17.5 m², aspect ratio 18.5 (b²/S 18.51), length 8.18 m, height 1.55 m, max flight weight 600 kg,
+max wing loading 34.3 kg/m². Two-seat mid-wing, damped T-tail, "the 2-section wing is triple tapered with airbrakes (Type
+GROB) on the upper side", tandem seats, "non-retractable tandem landing gear", main wheel with a hydraulic disc brake,
+nose wheel steerable from s/n 34171 ([TCDS] N.III.2: "fixed tandem landing gear with brake and steerable nose wheel").
 
-### Measured off the manual's three-view ([FM] p.5)
+### Planform — the Twin II's shape, stretched (ASSUMED)
 
-The only three-view of the type found free; it has no dimension lines. `grob103_threeview.py` renders it at 400 dpi
-and reads every edge at the **centre** of its drawn line. Scales: plan and front views by the 17.5 m span (both
-2523 px, 6.936 mm/px); side view by the 8.18 m length (1172 px, 6.980 mm/px). The plan view's fuselage is drawn
-2.7 % short of 8.18 m, so stations **along the fuselage** come from the side view (and plan-view x stations are
-stretched by 8.18/7.956) and the plan view gives only the planform shapes.
+The Twin III's three-view ([POH] 1.6) is a small scanned drawing with no dimension lines, too small to measure the way
+the Twin II's was. So the Twin II planform measured off [FM-II] p.5 (`grob103_threeview.py`, unchanged) is used for its
+SHAPE: every spanwise station (chords, aileron, airbrake box, strip edges) is stretched by 18.0/17.5 = **1.0286**, and the
+chords then scaled to the published area (×0.9692). That gives root 1.251 m, y 4.89 m 1.008, y 8.23 m 0.641, tip
+0.524 m; MAC 1.015 m. **The Twin III's own triple-taper break stations are lost** — a gap Ty can close with a
+measurement of the real wing or a better drawing.
 
-| item | measured | how |
-|---|---|---|
-| wing planform | root 1.309, y 4.75: 1.055, y 8.0: 0.671, tip 0.548 m (double trapezoid, break ~4.8 m) | chord at 0.25 m bins, both halves averaged; area 17.554 m² → chords ×1.0140 to the published 17.8 (protocol: keep the distribution, scale to the published total) |
-| MAC | **1.062 m** (published 1.058, +0.4 %) | ∫c²dy/S of the scaled planform — the independent check that the measured planform is right |
-| leading edge | straight, unswept (±0.03 m tip to root once the drawing's tilt cancels) | LE line centres |
-| dihedral | **2.92°** | front view, upper-surface line fitted on each half; the drawing is rotated 0.64°, which the two halves' average removes |
-| ailerons | y 5.03 → 8.44 m, **E = c_a/c = 0.258** | the hinge line drawn on the plan view |
-| airbrake box | y 2.36 → 3.80 m (1.44 m a side), at **x/c 0.423** | the slot line drawn on the plan view |
-| tailplane | span 3.35 m, root 0.78 m, tip ~0.43 m; area **2.155 m²**; straight hinge; elevator **0.259** of the area | plan view; chords × the wing's 1.0140 |
-| fin / rudder | fin LE 6.80 → 7.30 m from the nose (22.6° sweep), hinge 7.55 → 7.82 m, rudder TE 7.95 → 8.15 m, rudder foot z +0.21 to stab z −1.17; **fin 0.734 m², rudder 0.504 m²** | side view row scans |
-| tailplane height | z **−1.20 m** (on the fin top) | side view |
-| wheels | main **3.022 m** from the nose (Ø 0.42 drawn = the 6.00-6), nose **0.858 m** (Ø 0.31 ≈ 260×85), tail **7.335 m** (Ø 0.21 = 210×65); main and nose bottoms level | side view; the diameters match the published tyres, which checks the scale |
-| datum | wing-root LE **2.317 m** aft of the nose | plan view, stretched |
-| fuselage | widths and depths at 22 stations (`PROFILE` in the builder): max 0.73 m wide × 1.04 m deep | plan widths less one line width, side depths keel to canopy |
+Carried over from the Twin II drawing unchanged (no Twin III figure): dihedral 2.92°, aileron chord ratio E 0.258
+(span now y 5.17–8.68 m), airbrake box at x/c 0.423 (span now y 2.43–3.91 m), straight unswept leading edge, the tail
+(stab 2.155 m², elevator 0.259 of it, z −1.20 m; fin 0.734 + rudder 0.504 m²) and the fuselage profile. The tail keeps
+the Twin II drawing's own chord correction (×1.0140), not the wing's stretched one.
 
-**Frame.** Body origin = the [FM]/[TCDS] datum (wing-root LE) on the root chord line, +x forward, +y right, +z down.
-A station s mm aft of the datum is body x = −s/1000, so the published arms go in unconverted, and the own model
-(Codex lane), whose origin is the same point, needs no offset.
-
-Tail volumes: V_h = S_h·l_h/(S·c̄) = 2.155 × 5.00 / (17.8 × 1.058) = **0.57**; V_v ≈ 1.24 × 5.4 / (17.8 × 17.5) = **0.021**.
+**Frame.** Body origin = the datum, "wing leading edge at the root rib" ([POH] 2.7; [TCDS] N.III.11), on the root chord
+line, +x forward, +y right, +z down. A station s mm aft of the datum is body x = −s/1000.
 
 ## 2. Sections — XFOIL 6.99, run here
 
-XFOIL is not in Homebrew; it was built from the MIT source (`xfoil6.99.tgz`) with Homebrew gfortran 16, its X11
-plot driver stubbed (no plotting is used), and checked against NACA 0012 at Re 10⁶, α 4° (CL 0.428, CD 0.0073 —
-the known values). Settings: 200 panels, free transition, **Ncrit 9**, Mach 0, α swept out from 0 in 0.25° steps.
+XFOIL 6.99 built from the MIT source (Homebrew gfortran 16, plot driver stubbed), checked again 2026-11-04 on NACA 0012
+at Re 10⁶, α 4°: CL 0.4278, CD 0.00728 (the known values). Settings unchanged: 200 panels, free transition, **Ncrit 9**,
+Mach 0, α swept out from 0 in 0.25° steps (`grob103_xfoil.py`, scratch files in a temp dir).
 
-**Wing: Eppler E603** ([UIUC]: root and tip of the Twin II), 19.8 % thick.
+**Wing: Eppler E583** ([UIUC]: root and tip of the Twin III Acro), **16.5 % thick at 0.41 c** (from the coordinates).
 
 | Re | a₀ /rad | α₀ | cl_max (at α) | cd_min | cm₀ |
 |---|---|---|---|---|---|
-| 0.6 M | 6.645 | −3.70° | 1.406 (17.5°) | 0.00876 | −0.082 |
-| 1.0 M | 6.714 | −3.80° | 1.454 (19.2°) | 0.00709 | −0.082 |
-| 1.5 M | 6.769 | −3.83° | 1.503 (20.0°) | 0.00606 | −0.083 |
-| 2.0 M | 6.802 | −3.86° | 1.538 (20.0°) | 0.00551 | −0.083 |
-| 2.5 M | 6.818 | −3.90° | 1.563 (20.0°) | 0.00511 | −0.084 |
+| 0.6 M | 6.300 | −4.62° | 1.422 (15.8°) | 0.00825 | −0.104 |
+| 0.8 M | 6.387 | −4.67° | 1.439 (18.0°) | 0.00719 | −0.103 |
+| 1.0 M | 6.435 | −4.68° | 1.461 (18.2°) | 0.00660 | −0.103 |
+| 1.25 M | 6.447 | −4.71° | 1.483 (18.5°) | 0.00606 | −0.103 |
+| 1.5 M | 6.465 | −4.73° | 1.501 (19.0°) | 0.00569 | −0.103 |
+| 2.0 M | 6.490 | −4.76° | 1.528 (19.0°) | 0.00520 | −0.103 |
 
-(0.8 and 1.25 M are in `data/grob103_xfoil.json` too.)
+The **2.5 M sweep did not converge past 13.5°** (its "cl_max" 1.457 is where XFOIL stopped, not a stall), so the family
+ends at 2.0 M and is held there above it; the 2.5 M points stay in `data/grob103_xfoil.json` for the record. The E603
+polars stay in the file too but are no longer flown.
 
-**Tail: Wortmann FX 71-L-150/30, ASSUMED** — the Twin II's tail section is not published; this is the flapped
-15 % tail section of its period. Symmetric: a₀ 6.51/rad, α₀ 0, cl_max 1.17 at Re 0.8 M.
+**Tail: Wortmann FX 71-L-150/30, ASSUMED** (unchanged; no Twin II or Twin III tail section is published).
 
 ### From section to wing
 
-- **Lift-curve slope**: Glauert's monoplane equation (41 odd terms) on the measured planform with its washout:
-  a_3D = **5.977/rad = 0.883 × a₀**. Each wing table is XFOIL's, with α stretched about the zero-lift angle by
-  1/0.883 (the whole wing's downwash), XFOIL's profile cd and cm unchanged.
-- **Induced drag** is the sim's own per-strip CL²/(π·AR·e), with **e = 0.984** — the lifting line's span efficiency
-  of this planform (0.983–0.984 over CL 0.54–0.96). It is the planform's, not an Oswald factor: the lift-dependent
-  PROFILE drag is already in XFOIL's polar.
-- **Reynolds number**: the seven E603 tables are one family (`AirfoilTableData.ReynoldsFamily`, new in
-  `AeroModel.SampleAtReynolds`). Each strip flies the family at its own Re = V·c/ν, interpolated in log Re, so
-  profile drag falls with speed and the short tip chords have their own drag and stall. Held at the ends (0.6 and
-  2.5 M); ν from μ = 1.789×10⁻⁵ Pa·s and the local density.
-- **Post-stall**: blended over 12° into a flat plate, CN = CD90·sin α with CD90 = 1.20 (Hoerner, AR 10–20), and the
-  fleet's reversed-flow treatment (`reversed_flow.py`).
-- The lifting line puts the first section to reach cl_max at y = 1.17 m, with local cl 1.062 × CL: the wing's
-  CL_max is below the section's. Strip theory loads every strip at the wing's α, so the sim does not see this
-  (see Validation, stall).
-- Tail: the tailplane takes the 2-D table and `AeroModel.TailSections` rescales it to its finite span itself
-  (DATCOM/Helmbold). The fin is not rescaled by the code yet, so its table is pre-scaled the same way: effective AR
-  1.38²/1.24 × 1.55 (end plate) = **2.38**, slope **2.97/rad = 0.456 × a₀**.
+Glauert lifting line on the stretched planform with its washout: a_3D **5.782/rad = 0.894 a₀**, span efficiency
+**e 0.982**; the first section to reach cl_max is at y 1.20 m at 1.056 × CL. Everything else (Reynolds family per
+strip, flat-plate post-stall, the fin's pre-scaled table) is as in the Twin II build.
 
 ### Rigging (unpublished; design rules, not fits)
 
-- **Washout 1.5° linear, root to tip — ASSUMED** (the middle of the 1–2° glass two-seaters of the period carry).
-- **Wing incidence 1.89°**: the wing's own α at CL 0.60 (580 kg at the published best-glide speed), so the fuselage
-  meets the air nose-on at best glide, which is what a sailplane's rigging is set for.
-- **Stabiliser incidence −1.53°**: the elevator streamlined at the mid-envelope CG (360 mm) at best glide (580 kg,
-  105 km/h), so the spring trim's travel is shared out either side. Solved in the sim (`GROB_RIG=1 Grob103Rigging`):
-  at 0° the elevator trims at −2.31°; ×0.53 (= 0.85·τ(0.259), the elevator's section effectiveness) → −1.22°, which
-  re-trims at −0.59° (the downwash moves with it); one more step → −1.53°, residual −0.16°.
+- **Washout 1.5° linear — ASSUMED** (unchanged).
+- **Wing incidence 2.78°**: the wing's own α at the published best-glide point — [POH] 5.3.2, 579 kg at 95 km/h,
+  CL = 2W/(ρV²S) = **0.761** — so the fuselage meets the air nose-on at best glide.
+- **Stabiliser incidence −0.68°**: the elevator streamlined at the mid-envelope CG ((270 + 480)/2 = 375 mm) at that
+  best-glide point. Solved in the sim (`GROB_RIG=1 Grob103Rigging`), stepping stab += 0.53 × elevator from the Twin
+  II's −1.53°: elevator +1.29° → −0.85°; +0.33° → −0.68°; residual +0.09°.
 
-## 3. Parasite drag — build-up, each term stated
+## 3. Parasite drag
 
-| term | drag area m² | arithmetic |
-|---|---|---|
-| fuselage skin friction | 0.0311 | S_wet 11.79 m² (elliptical sections through the 22 measured stations, less the wing and fin footprints); Re_L = 29.2 × 8.18 / 1.46×10⁻⁵ = 1.63×10⁷; Prandtl–Schlichting C_F 0.00278 turbulent, Schlichting mixed-flow correction for transition at the canopy's front frame (1.0 m) → **0.00241**; form factor (Raymer 12.31) at fineness 8.18/0.867 = 9.43 → **1.095** |
-| wing–fuselage junction | 0.0095 | Hoerner 8-11, per side ΔC_D·t² = 0.75 t/c − 0.0003/(t/c)², t/c 0.198, t = 0.259 m; **halved** for the moulded root fairing |
-| fin–tailplane and fin–fuselage junctions | 0.0026 | same formula, t/c 0.15, no fillets drawn |
-| wheels | 0.0115 | Hoerner 13: a wheel half in a well, C_D ≈ 0.25 on the exposed frontal area — main 0.15 × 0.21, nose 0.085 × 0.10, tail 0.065 × 0.09 m |
-| canopy frames, vents, hooks, pitot, gaps | 0.0016 | Thomas's ~5 % of the fuselage term |
-| **cd0Area** | **0.0563** | (wing and tail profile drag are the strips' own XFOIL tables) |
+The build-up is the Twin II's, re-run: fuselage skin friction 0.0318 m² (S_wet 11.83, Re_L at the [POH] best-glide 95
+km/h, transition at the canopy frame), wing–fuselage junction **0.0048** (E583's t/c 0.165 on the 1.251 m root, halved
+for the fillet), tail junctions 0.0026, wheels 0.0115 (Hoerner, half in a well — the fixed wheels in their fairings),
+misc 0.0016 → **cd0Area 0.0523 m²** (was 0.0563).
 
-## 4. Mass, CG and inertia — component build-up
+## 4. Mass, CG and inertia
 
-| component | kg | where | why |
-|---|---|---|---|
-| wings | 180 (90 a side) | spanwise ∝ c², chordwise at 0.40 c | [FM]: max non-lifting parts 400 kg is the wing-root bending design point n·(W − W_wing) at MTOM, so W_wing = 580 − 400 |
-| tailplane + elevators | 10.8 | tail MAC, z −1.20 | 5.0 kg/m² of GFRP sandwich planform |
-| fin + rudder | 6.8 | fin centroid | 5.5 kg/m² |
-| main wheel, brake, axle, mount | 12 | main wheel | |
-| nose wheel / tail wheel | 3 / 2 | wheels | |
-| canopies | 9 + 9 | each canopy | |
-| panels + instruments | 6 + 5 | each panel | |
-| seats, harnesses, sticks, pedals | 8 + 7 | each seat | |
-| wing-root fittings + main frame | 15 | x −0.35 | |
-| control runs, airbrake and trim linkage | 6 | 3.6 m from the nose | |
-| fuselage shell | 100.4 | over the wetted area, see below | the rest of the published 380 kg |
+Wings **180 kg** = MTOM 600 − max non-lifting 420 ([POH] 2.6), the same rule as before. Tail, concentrated items: as in
+the Twin II build, with the main and tail wheel masses moved to the [N41KP] stations. The shell takes the rest of the
+**399 kg** ([POH] 5.3.2 polar airframe) and its areal-density ramp is solved onto the [N41KP] empty CG, **729 mm**:
+spread uniformly it would sit at 660 mm; k = 0.70 (tail-end laminate 1.64 × the nose's). **Flag**: 399 kg is D-4279's
+empty mass and 729 mm is N41KP's empty CG (a 440 kg airframe with equipment); no single document gives both for one
+airframe, and the [POH] gives no type empty-CG range (it is in the Maintenance Manual, Sec. 7, not available).
 
-**The empty CG is published** — [FM] p.31: 720–757 mm aft of the datum at 380 kg. Spreading the shell **uniformly**
-over its wetted area puts it at **668 mm, 52 mm forward of the range**, and then a legal 2 × 100 kg crew would sit
-forward of the 260 mm limit — so uniform is wrong (protocol 1c: if the CG misses, the positions are wrong). A boom
-carries the whole tail's bending and torsion in a small perimeter, so its laminate is heavier per m² than the
-cockpit's. The shell's areal density is modelled as rising linearly along the fuselage and its slope **solved** for
-the middle of the published range (738 mm): **k = 0.85, tail-end laminate 1.78 × the nose's** — a believable ratio.
-
-Checks that are NOT inputs:
-
-| loading | mass | CG mm aft | %MAC | |
+| loading | mass | CG mm aft | %MAC (1.015) | |
 |---|---|---|---|---|
-| empty | 380 | 738 | — | [FM] p.31: 720–757 ✓ |
-| 70 kg solo (the minimum front-seat load) | 450 | 445 | 42.0 | inside the 460 mm aft limit ✓ — and 55 kg solo is aft of it, which is what the placard is for |
-| **90 kg solo — the default** | **470** | **377** | **35.6** | the [FM]'s "single seater" stall-speed weight |
-| 110 kg solo | 490 | 315 | 29.7 | inside ✓ |
-| 2 × 100 kg | 580 | 292 | 27.6 | inside ✓ |
-| 2 × 110 kg | 600 | 264 | 25.0 | inside the CG range, but 20 kg over MTOM |
+| empty | 399 | 729 | — | [N41KP] 729 |
+| 70 kg solo (min front load) | 469 | 451 | 44.4 | inside 480 ✓; 55 kg solo is aft of it, and 2 trim weights bring it back ✓ |
+| **90 kg solo — the default** | **489** | **386** | 38.1 | |
+| 110 kg solo | 509 | 327 | 32.2 | inside ✓ |
+| 2 × 100 kg | 599 | 302 | 29.8 | inside ✓, under MTOM ✓ |
+| 2 × 110 kg | 619 | 275 | 27.1 | inside the CG range, 19 kg over MTOM |
 
-Seat arms ([FM] V.2, [TCDS-FAA]): front 1150 mm ahead of the datum, rear 40 mm behind; pilots at z +0.25/+0.24
-(hips ~0.2 m above the keel). The 5.6 kg front trim ballast ([FM] II.8) is a baggage station at the front seat.
+Default-load inertia **Ixx 3296, Iyy 1260, Izz 4458, Ixz 114 kg·m²**.
 
-Inertia, default load: **Ixx 3116, Iyy 1198, Izz 4220, Ixz 114 kg·m²**; radii of gyration R̄x 0.294, R̄y 0.390,
-R̄z 0.467 (the protocol's bands are for powered light aircraft; a sailplane's R̄z runs high because the wing mass is
-far out). The wing is the roll inertia: 180 kg spread ∝ c² gives 3,056 of the 3,116.
+## 5. Controls — the Twin II's travels, KEPT
 
-## 5. Controls
+[TCDS] N.III.13 refers the Twin III's control-surface deflections to its Maintenance Manual, which is not available. The
+Twin II's [TCDS-FAA] travels, read as the chord of the arc, are kept: aileron 25.0 up / 13.8 down (flown as their 19.4°
+mean), elevator 23.3 up / 18.2 down, rudder ±30.0°. [POH] 4.5.9 confirms the Twin III has differential ailerons ("the
+aileron differentiation"); the sim still flies the mean. Wheel brake on the end of the airbrake travel ([POH] 7.4 "With
+the airbrakes fully extended, the wheel brake is activated"): `wheelBrakeFromSpoiler` 0.9.
 
-[TCDS-FAA] gives travel as a distance at a radius. Read as the **chord of the arc**, 2·asin(d/2r):
+## 6. Airbrakes
 
-| surface | published | angle | sim |
-|---|---|---|---|
-| aileron | 90 up / 50 down mm at 208 mm (inboard end) | **25.0° / 13.8°** | ±19.4° (the mean: the aileron axis is symmetric; GAP) |
-| elevator | 3.82 in up / 2.99 in down at 9.45 in | **23.3° / 18.2°** | `maxDeflNegRad` 23.3° up, `maxDeflRad` 18.2° down |
-| rudder | ±233 mm at 450 mm | **±30.0°** | ±30.0° |
+"Airbrake system of type GROB … mounted on the upper side of the wing" ([POH] 7.4); "airbrakes on upper wing surface"
+([TCDS] N.III.2). **No flaps** (the [POH] 4.5.3 sentence "up to VNE the flaps may be extended" is boilerplate about the
+airbrakes; there are none). Ty's brief said "Schempp-Hirth type upper/lower airbrakes": the [POH] and [TCDS] both say
+upper surface only and Grob's own type, so the model is upper-surface only — **question for Ty** below.
 
-The chord-of-arc reading is the one that gives the round numbers a designer specifies (25.0° and 30.0°); asin(d/r)
-gives 25.6° and 31.2°. Control power from the measured chord ratios through τ(E) (docs/CONTROL-SURFACES.md):
-aileron E 0.258 → τ 0.618 → fixed-strip gain 0.360; elevator E 0.259 → 0.360; rudder E 0.407 → 0.393. Trim: spring
-([TCDS-EASA] Note 8). Wheel brake on the end of the airbrake lever ([FM] IV.1 "Airbrake lever and wheelbrake"; IV.9
-"strong effect of the wheel-brake" at full extension): `wheelBrakeFromSpoiler` 0.9, as on the 2-33.
+The physical model is unchanged (lift aft of the plate lost on the strips under it, plate C_D 1.2 in the local
+dynamic pressure). The local velocity was re-measured on the E583, as CLAUDE.md requires of any number credited to a
+tool: XFOIL DUMP at Re 1.5 M, nearest panel x/c 0.434, **Ue/V 1.326 / 1.398 / 1.464 / 1.531 at CL 0.21 / 0.57 / 0.92 /
+1.25**; the middle, **1.40**, so the plate sees 1.96 q. Height 170 mm and one blade: the Twin II's, flagged.
 
-## 6. Airbrakes — a physical model on the strips (new)
-
-The sim's spoiler was one flat-plate area hung on the aeroplane, drag only. `SpoilerConfig.Physical`
-(`dragOnly: false` + plate geometry) flies the brakes on the wing strips they sit on:
-
-- **Lift**: a plate at x_b = 0.423 c separates the flow behind it; the upper surface aft of it sits at the wake's
-  base pressure, so the section keeps the circulation of the chord **ahead** of the plate: Cl × x_b, i.e. 58 % of
-  the lift of those strips gone at full extension, in proportion at part extension. The lost lift also takes its
-  own induced drag with it; the rest of the wing flies at a higher α to make it up and pays that instead.
-- **Drag**: a flat plate normal to the flow, C_D **1.2** on its own frontal area (Hoerner, plate of aspect ratio
-  5–10: span 1.44 m over twice the 0.17 m height, the wing being its reflection plane), in the local dynamic
-  pressure over the upper surface. **Ue/V = 1.42** from XFOIL's boundary-layer dump at x/c 0.428 (1.351 at CL 0.21,
-  1.422 at CL 0.57, 1.489 at CL 0.92, 1.554 at CL 1.25): the middle of the dive-to-approach range, so the plate sees
-  2.02 q.
-- Brake span and position from the three-view (2.36–3.80 m, 0.423 c); height 170 mm [TCDS-FAA]; **one blade,
-  upper surface — the blade count is not published (GAP)**.
-
-## 7. Limits (new optional fields in `LimitsConfig`, wired into `StructuralState`)
+## 7. Limits
 
 | | value | source |
 |---|---|---|
-| category flown | **acrobatic** (OTM 315-66 airframe) | [TCDS-EASA] category U and A; [OTM] |
-| acrobatic | **+6.5 / −4.0 to VA 180 km/h, +5.3 / −3.0 at VNE**, straight line between | [BGA] snippet (no mass given); VA 180 [TCDS-EASA]/[OTM] |
-| utility (`categories[utility]`) | +5.3 / −2.65 at VA 170, +4.0 / −1.5 at VNE | [FM] II.5 |
-| brakes out | −1.5 to +3.5 | [CS-22] 22.345 (the manual quotes brakes-closed only) |
-| mass | full limits to 400 kg of non-lifting parts; above it × 400/(m − 180) | [FM] II.6; wing-root bending is n × that weight |
-| VNE | 250 km/h to 6500 ft, 237 (10 000), 225 (13 000), 213 (16 500), **201 (19 000, extrapolated)** | [FM] II.4 (the 19 000 ft column is cut off in the scan after "20") |
-| VFE | 250 (= VNE) | [OTM] placard |
-| VT / VW | 170 / 120 km/h | [TCDS-EASA] (not wired: the sim has no tow-speed limit) |
-| weak link | 6300 N | [TCDS-EASA] maximum 630 daN (845 with SB 315-19) |
-
-The groan and the wing failure stay on the VA limits × the owner's 1.5 / 2.0 factors (bending strength does not
-depend on speed); `StructuralState.LimitAt(ias, brakes)` / `OverLimitAt` give the speed- and brake-dependent
-envelope for grading exceedances. **Approved manoeuvres** [FM] IV.8: loop 180 km/h (~3 g), stall turn 180, spin 80,
-chandelle 170, lazy eight 140. **[MSB] 315-65 restricts many Twin II Acros to "simple aerobatics"** (loop, turn,
-lazy eight, chandelle, spin) and invalidates the acrobatics handbook until [OTM] 315-66 is embodied.
+| category | **Acrobatic** (18 m); aerobatics only with OSB 315-66 | [TCDS] N.I.3; [POH] 2.8, 2.11 |
+| approved manoeuvres | positive loop, turn, lazy eight, chandelle, spin, slow roll, Immelmann, split S, inverted flight, inverted spin | [POH] 2.8 |
+| load factors | **+6.5/−4.0 at VA 185, +5.3/−3.0 at VNE 280**, straight line between | [POH] 2.9 |
+| brakes out | **+3.5**; −1.5 | [POH] 2.9, 4.5.9; [CS-22] 22.345 (flagged) |
+| mass | full limits to 420 kg non-lifting; above, × 420/(m − 180) | [POH] 2.6 |
+| VNE | 280 to 2000 m, 265 / 240 / 215 / 190 / 165 at 3000 / 5000 / 7000 / 9000 / 11000 m | [POH] 2.2, 4.5.7 |
+| VRA / VT / VW | 200 / 185 / 140 km/h (recorded in `limits._comment`, not wired) | [POH] 2.2; [TCDS] N.III.7 |
+| without OSB 315-66 | VNE 250, VA = VRA = VT 170, VW 140; no aerobatics, no cloud | [POH] 2.2A, 2.11 (not modelled) |
+| weak link | 845 daN | [TCDS] N.III.6 |
 
 ## Validation (predicted vs published — nothing fitted)
 
-Sea level ISA, the trim solver with the elevator balancing pitch; loadings through the load sheet.
+Sea level ISA, the trim solver with the elevator balancing pitch; loadings through the load sheet; "aft"/"forward" CG
+rows flown at the [POH] 2.7 limits.
 
 | quantity | published | sim | error | test band | |
 |---|---|---|---|---|---|
-| best L/D, 580 kg | 37 at 105 km/h | **33.1 at 96.3** | −10.5 % / −8.3 % | ±12 % / +5 −15 % | pass, low |
-| min sink, 580 kg | 0.70 m/s at 85 km/h | **0.706 at 75.6** | +0.9 % / −11 % | ±12 % | pass |
-| best L/D, 450 kg | 36.5 at 95 km/h | **33.5 at 84.6** | −8.2 % / −11 % | ±12 % / +5 −15 % | pass, low |
-| min sink, 450 kg | 0.64 m/s at 80 km/h | **0.604 at 64.8** | −5.6 % / −19 % | ±12 % | pass (speed not banded) |
-| V(best L/D) 580/450 | √(580/450) = 1.135 | 1.138 | +0.3 % | ±4 % | pass |
-| stall, 470 kg clean | 66 km/h | **59.9** | −9.2 % | +5 −15 % | pass, low |
-| stall, 580 kg clean | 75 km/h | **68.9** | −8.1 % | +5 −15 % | pass, low |
-| stall, 470 kg brakes | 75 km/h | **63.0** | −16 % | +5 −20 % | pass, LOW |
-| stall, 580 kg brakes | 85 km/h | **72.2** | −15 % | +5 −20 % | pass, LOW |
-| 45° dive, brakes, 580 kg | under VNE 250 km/h [FM] IV.7 | **248** | — | < 250 | **pass** |
-| brakes, 1.3 VS0, 580 kg | 1:7 or steeper [CS-22] 22.75 | **1:7.98** | — | (printed) | **NOT MET** |
-| brakes, 95 km/h, 470 kg | "sufficiently powerful for steep approaches" | 1:7.04 (clean 1:32.7) | — | | |
-| 45–45 reversal, 1.4 Vs, 470 kg | ≤ b/3 = 5.83 s [CS-22] 22.147 | **4.70 s** | — | 3.6–5.83 | pass |
-| 45–45 reversal, 1.4 Vs, 580 kg | ≤ 5.83 s | **4.24 s** | — | 3.6–5.83 | pass |
-| spin, aft CG (70 kg solo) | "aft C.G. only … one turn every 3 s … about 60 m per turn" | **3.3 s/turn, 55 m/turn** | | 2–4 s, 35–85 m | pass |
-| spin, forward CG (110 kg solo) | does not spin | 0.5 turns in 12 s, no spin | | < 1 turn | pass |
-| spin recovery | "standard recovery" | rotation 1.17 → 0.32 rad/s after 6 s | | slows ≥ ⅓ | **GAP**: not a prompt stop |
+| best L/D, 579 kg | 37.5 at 95 km/h [POH] 5.3.2 | **35.8 at 94.5** | −4.5 % / −0.5 % | ±12 % / +5 −15 % | pass |
+| min sink, 579 kg | 0.64 m/s at 80 km/h | **0.656 at 75.6** | +2.5 % / −5.5 % | ±12 % | pass |
+| V(best L/D) 579/469 | √(579/469) = 1.111 | 1.094 | −1.5 % | ±4 % | pass |
+| stall, 450 kg aft | 61 / 66 km/h (clean / brakes) [POH] 5.2.2 | **59.6 / 62.8** | −2 % / −5 % | +5 −15 / +5 −20 % | pass |
+| stall, 530 kg aft | 66 / 72 | **64.6 / 68.0** | −2 % / −6 % | | pass |
+| stall, 600 kg forward | 72 / 80 | **70.2 / 73.8** | −2.5 % / −8 % | | pass |
+| stall, 470 kg solo | 62 / 68 [POH] 4.5.3 | **61.0 / 64.3** | −1.6 % / −5 % | | pass |
+| full brakes, 96 km/h | 1:6.6 [POH] 4.5.4 | **1:7.27** (489 kg) | +10 % flatter | (printed) | **NOT MET** |
+| full brakes, 1.3 VS0, 600 kg | 1:7 or steeper [CS-22] 22.75 | **1:8.84** | | (printed) | **NOT MET** |
+| 54° dive, full brakes, 600 kg | terminal = VNE 280 km/h [POH] 4.5.3 | **266 km/h** | −5 % | ≤ 280, > 238 | pass |
+| 45–45 reversal, 1.4 Vs | 4.5 s max [POH] 4.5.3; CS 22.147 ≤ 6.0 s | **4.64 s** (489 kg), **4.32 s** (579 kg) | +3 % / −4 % | 4.5 ±15 % | pass |
+| spin, aft CG (70 kg solo) | 2–6 s/turn, 80–120 m/turn [POH] 4.5.9 | **3.5 s, 61 m** | height −24 % | 2–6 s; 52–120 m | rate pass, **height NOT MET** |
+| spin, forward limit (270 mm) | "will hardly spin" / no stationary spin [POH] 4.5.9, 3.5 | 0.69 turns in 12 s | | < 1 turn | pass |
+| spin recovery | "terminated" by the standard recovery | 1.17 → 0.32 rad/s in 6 s | | slows ≥ ⅓ | **GAP** (not a prompt stop) |
 
-Roll floor (strip-theory bound): Cl_δa = 2·a·τ_eff·∫c·y dy/(S·b) = 2 × 5.98 × 0.525 × 18.5 / (17.8 × 17.5) = 0.37/rad;
-Cl_p = −(a/12)(1+3λ)/(1+λ) = −0.79 (λ 0.42); pb/2V = 0.37 × 0.34 / 0.79 = 0.16 → 25°/s at 23.3 m/s, 90° in 3.6 s.
+### What the results say
 
-### What the misses say
-
-- **Best L/D 8–10 % low, and L/D at almost the same CL for both masses.** The drag build-up's unpublished terms
-  (fuselage transition, the junction, wheels: ±25 % on cd0Area) and XFOIL at Ncrit 9 against a real wing (±8 %)
-  span the gap; the derivation did not choose the favourable end of any of them.
-- **Stall 8–9 % slow, min-sink speed 11–19 % slow, best-glide speed 8–11 % slow** — all one thing: the model reaches
-  a trimmed CL_max of 1.42–1.53 (580 / 470 kg) where the manual's stall speeds imply 1.20–1.26. XFOIL's cl_max for a 20 % laminar
-  section is optimistic, strip theory loads every strip at the wing's α (the lifting line has the first section at
-  1.06 × CL), and the thick root's junction separates early on the real wing.
-- **Brakes**: the plates' DRAG is right (the 45° dive is held under VNE as the manual says); their LIFT loss is too
-  small (stall rises 5 % against 13 %; CS 22.75's 1:7 not met). The chord-ahead-of-the-plate lift model is the
-  suspect; a measured spoiler ΔCl(h/c, x/c) table would replace it.
-- **Spin**: entry, rate and height per turn match the manual; the developed mode is flat (α 60–100°) and slow to
-  stop under the manual's recovery. That is the fleet's open spin-model item (docs/CALIBRATION-2-33.md,
-  SPIN-ROTARY-DATA.md), not a Twin II number to tune.
+- **The polar and the clean stall are close** (best L/D −4.5 %, min sink +2.5 %, clean stalls 1.6–2.5 % low), much
+  closer than the Twin II build was against its own manual. The E583 is a better match than the Twin II's E603 was for
+  that manual, and the [POH]'s 1986 polar is a measured flight test of a 579 kg airframe — the same loading the model
+  is tested at.
+- **The brakes' drag is right and their lift loss too small, as before**: the dive is held 5 % under the book's
+  point, but the brakes raise the stall 5 % where the [POH] says 8–11 %, and the approach glide is 10 % flatter than
+  1:6.6. The chord-ahead-of-the-plate lift model is still the suspect.
+- **Spin height per turn 24 % low** — the developed spin is flatter than the real one (the fleet's open spin item).
+  Asserted at what the model gives, with the book printed beside it.
 
 ## Gaps
 
-- **Not published, measured off the drawing**: planform, ailerons, brake box, tail and fin geometry, wheel stations,
-  datum position — one undimensioned 1981 three-view, ±1–2 %.
-- **Not published, ASSUMED**: tail section (FX 71-L-150/30), washout (1.5°), airbrake blade count (one), tail and
-  fin areal masses, every concentrated mass in §4.
-- **Design rule, not published**: wing incidence (fuselage nose-on at best glide), stab incidence (elevator
-  streamlined at mid-CG best glide), shell density slope (solved for the published empty-CG range).
-- **Enlarged tailplane**: [TCDS-EASA] Note 8 fits an enlarged tailplane from s/n 33879 — the airframes VA 180 is
-  quoted for — and [TCDS-FAA]'s 9.45 in elevator radius exceeds the drawn elevator's ~0.20 m chord. The drawn
-  (original) tail is modelled; the enlarged one's size is not published.
-- **Aerobatic g limits**: +6.5/−4.0 → +5.3/−3.0 is from the BGA card's snippet; the Feb 1984 *Flight handbook for
-  acrobatics* is not online, and no aerobatic mass limit was found (none in the TCDS: 580 kg for both categories).
-- **Differential ailerons** fly as their ±19.4° mean: the rolling moment is right, the differential's adverse-yaw
-  benefit is lost (`ControlAxisConfig` has one symmetric aileron travel).
-- **Airbrake lift loss** (above). **Spin recovery** (above). **CL_max** (above).
-- **VNE above 16 500 ft**: the 19 000 ft value (201 km/h) is an extrapolation; the scan is cut off.
-- **Wet / iced wing**: [FM] III.3 "raises the stall speed by about 6 knots" — not modelled.
-- **Flutter**: not modelled (the VNE altitude table is the manual's protection against it; it is wired for grading).
-- **Viscosity** is the sea-level value at every height (≈ −2 % per 1000 m on ν·ρ); density carries the altitude.
-- **Winch hook / CG hook**: only the nose (aerotow) hook is modelled; VW is not wired.
-- **Eye points**: the own model's proposals (Codex) at the seat arms, z −0.40/−0.45 — unapproved; the [FM] arms are
-  the pilots' mass stations and a reclined pilot's eye is normally 0.3–0.4 m aft of that.
+- **Planform**: the Twin II's measured shape, stretched to 18.0 m and scaled to 17.5 m² — the Twin III's own triple-taper
+  break stations are not modelled. Aileron and airbrake spans are stretched with it.
+- **Carried over from the Twin II, unverified for the Twin III**: dihedral, aileron chord ratio, airbrake x/c, height
+  (170 mm) and blade count, the whole tail (tailplane, fin, rudder) and the tail section, the fuselage profile and the
+  datum's place on it, the nose-wheel station, tyre sizes, control travel, every concentrated mass, the spring trim.
+- **Design rule, not published**: wing and stab incidence, the shell density ramp, washout (1.5° ASSUMED).
+- **Mixed-airframe mass data**: 399 kg empty (D-4279) with N41KP's 729 mm empty CG and arms.
+- **No MAC published**: %MAC is of the planform's own integral.
+- **Airbrakes**: −1.5 g brakes-out limit from CS 22.345 (the [POH] gives none); lift loss too small (above).
+- **Not wired**: VRA, VT, VW; the weak link (the sim does not read `towHook`); the without-OSB 315-66 envelope; the 20 m
+  SB 315-59 wingtips; the steerable nose wheel (s/n 34171 on).
+- **Spin height and recovery** (above). **Differential ailerons** flown as their mean. **Inverted flight** is not
+  validated (the [POH] gives inverted stalls of 112–125 km/h, 4.5.9 / 5.2.2 — a test to add).
+- **Viscosity** sea level at every height; **flutter** not modelled (the VNE table is the protection); wet wing not
+  modelled.
+- **Eye points**: still the own model's (Codex) unapproved proposals at the Twin II seat arms.

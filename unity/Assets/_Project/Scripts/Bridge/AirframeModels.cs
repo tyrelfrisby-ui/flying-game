@@ -142,7 +142,7 @@ namespace FlyingGame.Bridge
             // tools/own_models/build_grob103.py (Codex lane, docs/models/grob103-own-RIG.md): nose -X / up +Y in native
             // glTF, origin at the DATUM (wing-root leading edge) -- the same point as the config's body origin -- and its
             // ailerons, elevators, rudder and airbrake paddles are meshes of their own with <Name>_HingeAxis markers, so
-            // the rig hangs them whole (namedSurfaces). There is no downloaded Twin II: until the GLB is in the build the
+            // the rig hangs them whole (namedSurfaces). There is no downloaded Twin III: until the GLB is in the build the
             // procedural style draws it (AirframeVisual.StyleFor), after that this IS the aeroplane, as for the Great Lakes.
             { "glider-grob103-acro-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
             // tools/own_models/build_great_lakes.py (docs/models/great-lakes-own-PROVENANCE.md): our clean-room

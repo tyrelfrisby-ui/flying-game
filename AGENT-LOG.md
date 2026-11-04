@@ -1,4 +1,78 @@
 ## NEEDS YOU
+- **2026-11-04 lane/claude-grob103 — GROB RE-BASED ON THE G 103 C TWIN III ACRO (FIXED TANDEM GEAR), NOT THE TWIN II
+  (Claude). Local commit __HASH__; not merged. No gate marked approved. Nothing built: no Unity, no deploy.sh (Ty's
+  instruction).** Ty decided 2026-11-04 that the aerobatic two-seater is the Twin III Acro with fixed main, nose and
+  tail wheels. The id `glider-grob103-acro-like` is kept; the display name is now "Twin III Acro-like Aerobatic
+  Two-Seater". Every number and its source is in `docs/aircraft/grob103-acro-DERIVATION.md` §0; the builder cites each
+  one where it is used.
+  1. **Sources.** [POH] *Pilot's Operating Handbook G 103 C TWIN III ACRO*, Jan 1989 rev. 6 / 16.10.2003 (the s/n 34197
+     copy, Scottish Gliding Centre); limits taken from its "OSB 315-66 installed" column. [TCDS] **EASA A.250 Issue 04,
+     Section N**. Ty's note said A.024, but the Twin III Acro is Section N of A.250. [UIUC] airfoil guide: the Twin III
+     Acro's wing is the **Eppler E583**, not the Twin II's E603. [N41KP] one weighing record of a Twin III (empty CG,
+     arms, wheel stations).
+  2. **Numbers changed** (old → new, source):
+     | quantity | old | new | source |
+     |---|---|---|---|
+     | span / area / AR | 17.5 m / 17.8 m² / 17.21 | **18.0 m / 17.5 m² / 18.51** | [POH] 1.4 (AR "18.5"); [TCDS] N.III.4 |
+     | wing section | E603 | **E583**, 16.5 % thick; new XFOIL polars, Re 0.6–2.0 M (the 2.5 M sweep failed past 13.5°, so it is dropped) | [UIUC]; XFOIL run here |
+     | empty / MTOM / non-lifting | 380 / 580 / 400 kg | **399 / 600 / 420 kg** (wings 180, unchanged) | [POH] 5.3.2 (D-4279: 579 = empty + 180), 2.6; [TCDS] N.III.9 |
+     | aerobatic-category mass | — | 600 kg (only one maximum mass is published) | [POH] 2.6 |
+     | empty CG | 738 mm | **729 mm** | [N41KP] 28.69 in |
+     | CG range | 260–460 mm | **270–480 mm** | [POH] 2.7; [TCDS] N.III.10 |
+     | seat arms | 1150 fwd / 40 aft | **1132 fwd / 35 aft mm** | [N41KP] |
+     | baggage | 10 kg at 450 mm aft | 10 kg **at 810 mm aft** | [POH] 2.6; [N41KP] |
+     | trim weights | 5.6 kg at the seat arm | **up to 11.2 kg (2 × 5.6) at 1543 mm fwd** | [POH] 6.4 |
+     | water ballast | none | **none** (the only removable ballast is the trim weights) | [POH] 7.10.1 |
+     | VNE | 250 km/h | **280 km/h** | [POH] 2.2; [TCDS] N.III.7 |
+     | VNE by altitude | 250/237/225/213/201 (to 19000 ft, last value extrapolated) | **280 (to 2000 m)/265/240/215/190/165 (11000 m)**, none extrapolated | [POH] 2.2, 4.5.7 |
+     | VA | 180 (vaMs 50.0) | **185 km/h** | [POH] 2.2 |
+     | VRA / VT / VW | 180 / 170 / 120 | **200 / 185 / 140 km/h** (in `limits._comment`; not wired) | [POH] 2.2; [TCDS] |
+     | g limits | +6.5/−4.0 at VA, +5.3/−3.0 at VNE (BGA snippet) | the same figures, **at VA 185 and VNE 280** | [POH] 2.9 |
+     | brakes-out limit | +3.5 / −1.5 (CS 22.345) | **+3.5** from [POH] 2.9; −1.5 kept, flagged | [POH]; CS 22.345 |
+     | utility category | +5.3/−2.65 at 170, +4.0/−1.5 at VNE | **removed**: at 18 m the type is Acrobatic only | [TCDS] N.I.3 |
+     | weak link | 6300 N | **8450 N** (record only: the sim does not read `towHook`) | [TCDS] N.III.6 |
+     | spawn / approach speed | 26.4 m/s (95 km/h) | **26.67 m/s (96 km/h)** | [POH] 4.5.4 |
+     | main / tail wheel x | −0.705 / −5.018 m | **−0.540 / −4.877 m** | [N41KP] 21.25 / 192.00 in |
+     | retractableGear | (unset) | **false**, written out | [POH] 1.4; [TCDS] N.III.2 |
+     | airbrakes | upper surface ("Schempp-Hirth type") | upper surface only, **"Type GROB"**, no flaps | [POH] 1.4, 7.4; [TCDS] N.III.2 |
+     | airbrake Ue/V | 1.42 | **1.40** (XFOIL DUMP on E583: 1.326/1.398/1.464/1.531 at CL 0.21/0.57/0.92/1.25) | XFOIL |
+     | airbrake box | y 2.36–3.80 m | y 2.43–3.91 m (stretched, flagged) | Twin II drawing × 18/17.5 |
+     | wing incidence | 1.89° (CL 0.60) | **2.78°** (CL 0.761 = 579 kg at 95 km/h) | design rule on [POH] 5.3.2 |
+     | stab incidence | −1.53° | **−0.68°** (re-solved at 375 mm, 579 kg, 95 km/h; residual +0.09°) | design rule, `GROB_RIG` |
+     | cd0Area | 0.0563 | **0.0523 m²** | build-up (thinner root, Re at 95 km/h) |
+     | default mass / CG | 470 kg / 377 mm | **489 kg / 386 mm** (90 kg solo) | build-up |
+     | default inertia | 3116 / 1198 / 4220 / 114 | **3296 / 1260 / 4458 / 114** kg·m² | build-up |
+  3. **Kept, flagged (no Twin III figure found):** the wing **planform shape** (the Twin II drawing stretched ×1.0286
+     and scaled to 17.5 m², so the Twin III's triple-taper breaks are not modelled), dihedral, aileron chord ratio,
+     airbrake x/c, height 170 mm and blade count, the whole tail and its section, the fuselage profile, the nose-wheel
+     station, tyre sizes, control travel (in the Twin III Maintenance Manual, which I don't have), washout, the spring
+     trim. The %MAC figures use the planform's own 1.015 m MAC, because none is published.
+  4. **Validation** (nothing fitted): best L/D 35.8 at 94.5 km/h against [POH] 37.5 at 95; min sink 0.656 at 75.6 km/h
+     against 0.64 at 80; clean stalls 1.6–2.5 % low and brakes-out stalls 5–8 % low across [POH] 5.2.2's 450 aft, 530
+     aft and 600 fwd rows; a 54° brakes-out dive at 600 kg holds at 266 km/h against the book's 280 = VNE; the 45–45
+     reversal takes 4.3–4.6 s against the book's 4.5 s. Forward-limit CG does not spin, as the book says. **NOT MET:**
+     brakes-out approach 1:7.27 against the book's 1:6.6 at 96 km/h, and CS 22.75 (1:8.84 against 1:7 at 600 kg): the
+     brakes' lift loss is too small, as before. Spin height is 61 m per turn against 80–120. Both are asserted at what
+     the model gives, with the book figure printed beside it.
+  5. **Files.** `build_grob103.py` (Twin III inputs), `grob103_xfoil.py` + `data/grob103_xfoil.json` (E583 added),
+     the config + its StreamingAssets mirror (byte-identical), `configs/glide-table.json` + `docs/GLIDE-TABLE.md`
+     (regenerated; only the Grob row changed), `Grob103Tests` (Twin III literals; new `TheGearIsFixedTandem` and
+     `ThereIsNoUtilityCategory`; the dive test is now the [POH]'s 54°/280 point), `Grob103Probe` (Twin III loadings;
+     `LoadedAtCg`), the derivation doc. Text only: `configs/progression.json` `_stages`, `Hangar.cs`, Badge/Progression
+     test comments, and in Unity a `SessionSettings` label ("Twin III Acro-like") plus comments in `AirframeVisual` /
+     `AirframeModels`. **The Unity side is not compiled**, because Ty said no Unity run. Those edits are one string
+     literal and comments, but CLAUDE.md wants a batch run with 0 `error CS` before merge.
+  6. **Tests.** Full suite (tools/FlightTests), branch point d7962cd: **1131 passed / 171 failed / 3 skipped of 1305 (130 unique failing names)**. After: **1180 / 124 / 3 of 1307 (119 unique)**. The diff gives 2 "introduced" names, `ChallengeTests.HardBankScoresLow` and `FloatsOnLandTests.SlidesToAStopOnPavement`; **both pass run alone (3/3)**, so they come from the suite coupling CLAUDE.md describes. 13 names that failed at the branch point pass here (LandingGear, Spin, ReversibleControl and others), by order. `GlideTableTests.CreditsReachTheUser` fails at both (j3-cub LICENSE.txt, not this lane). **Grob103Tests 21/21 pass.** Other sessions were running suites in other worktrees during both runs, so the raw counts are not trustworthy on their own.
+  7. **[claude -> codex] HANDOFF** (lane/codex-grob103): the airframe is now 18.0 m span (the GLB is 17.5). The
+     airbrake box is y 2.43–3.91 m, the ailerons y 5.17–8.68 m, the main wheel contact x −0.540, the tail wheel x
+     −4.877. The tip skids are at y ±8.9. The fuselage, tail and nose wheel are unchanged. Please rebuild the wing at
+     18 m and move the main and tail wheels before the GLB is used with this config.
+  8. **Questions for Ty.** (a) Airbrakes: your brief said "Schempp-Hirth type upper/lower". The Twin III Acro POH (1.4,
+     7.4) and the TCDS both say **upper surface only, Grob's own type**, so I built upper-only. Is your airframe
+     different? (b) Is the airframe you mean OSB 315-66 reinforced (280 km/h, full aerobatics, as built) or not (250
+     km/h, no aerobatics)? (c) Do you have the Twin III's empty mass and empty CG for one airframe, its control
+     travels, or its wing station chords? Each would replace a flagged value. (d) Should the nose wheel steer (standard
+     from s/n 34171)?
 - **GROB G 103 ACRO (TWIN II ACRO) — AEROBATIC GLIDER, IN PROGRESS, REVIEW BEFORE MERGE (Grok Bot, 2026-11-01,
   lane/claude-grob103 + lane/codex-grob103, both off d0986c0):** Ty chose to keep the progression blocked until a
   real aerobatic glider exists and asked for it to be built; the Grob 103 Acro is the pick (two seats, instructor

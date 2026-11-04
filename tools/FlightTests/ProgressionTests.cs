@@ -80,7 +80,7 @@ public class ProgressionTests
     [Fact]
     public void APlaceholderHasNoConfigSoNothingCanTryToLoadIt()
     {
-        // The Grob 103 Twin II Acro came off this list on 2026-11-01 when its config was built; the DG is still on it.
+        // The Grob 103 Acro (now the Twin III Acro) came off this list on 2026-11-01 when its config was built; the DG is still on it.
         Assert.Equal(new[] { "glider-dg-acro-like", "beech18-like", "boeing-737-200-like" },
                      Hangar.Placeholders.Select(p => p.Id).ToArray());
         foreach (PlaceholderAircraft p in Hangar.Placeholders)

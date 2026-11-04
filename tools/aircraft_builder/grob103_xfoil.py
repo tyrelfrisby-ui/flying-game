@@ -1,4 +1,4 @@
-"""XFOIL polars for the Grob G 103 Twin II's sections (2026-11-01, lane/claude-grob103).
+"""XFOIL polars for the Grob G 103 sections (2026-11-01, lane/claude-grob103; E583 added 2026-11-04 for the Twin III Acro).
 
     XFOIL=/path/to/xfoil python3 tools/aircraft_builder/grob103_xfoil.py
 
@@ -21,12 +21,16 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 OUT = os.path.join(HERE, 'data', 'grob103_xfoil.json')
 XFOIL = os.environ.get('XFOIL', 'xfoil')
 FOILS = {
-    # wing: Eppler E603 (Twin Astir / Twin II wing section)
+    # wing: Eppler E603 (Twin Astir / Twin II wing section) -- kept for the record, no longer flown
     'e603': 'https://m-selig.ae.illinois.edu/ads/coord/e603.dat',
+    # wing: Eppler E583, the G 103 C Twin III Acro's root and tip section (UIUC "Incomplete Guide to Airfoil Usage":
+    # "Grob 103C Twin III Acro  Eppler 583  Eppler 583")
+    'e583': 'https://m-selig.ae.illinois.edu/ads/coord/e583.dat',
     # tail: Wortmann FX 71-L-150/30, a flapped-tail section of the period (see the derivation doc for the assumption)
     'fx71l150': 'https://m-selig.ae.illinois.edu/ads/coord/fx71l150.dat',
 }
 RES = {'e603': [0.6e6, 0.8e6, 1.0e6, 1.25e6, 1.5e6, 2.0e6, 2.5e6],
+       'e583': [0.6e6, 0.8e6, 1.0e6, 1.25e6, 1.5e6, 2.0e6, 2.5e6],
        'fx71l150': [0.4e6, 0.6e6, 0.8e6, 1.0e6, 1.25e6]}   # tail chords 0.3-0.8 m
 NCRIT = 9
 

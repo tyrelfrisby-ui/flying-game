@@ -3864,7 +3864,7 @@ namespace FlyingGame.Bridge
                 case "glider-grob103-acro-like":
                     return new Style
                     {
-                        // Grob G 103 Twin II Acro (2026-11-01): drawn until the own GLB is in the build. Tandem two-seat
+                        // Grob G 103 C Twin III Acro (2026-11-01, re-based 2026-11-04): drawn until the own GLB is in the build. Tandem two-seat
                         // pod and boom from the flight manual's side and plan views (tools/aircraft_builder/build_grob103.py
                         // PROFILE, half-widths; depth/width ~1.35 in the cockpit), long two-piece canopy, mid wing, T-tail.
                         BodyAxisZ = 0.0f, BodyHeightScale = 1.35f,
