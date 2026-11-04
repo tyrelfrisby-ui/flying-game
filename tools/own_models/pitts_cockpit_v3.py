@@ -22,6 +22,14 @@ are static textured faces). Eye_Rear is added at the existing config eye.
 The added release knob is 20 mm diameter at the front LEFT sill. Its 3 mm cable
 follows the left sill aft and the retained rear bow onto the existing black
 rear latch knob; existing jettison nodes/maps remain untouched.
+
+v3.1 (Ty 2026-11-03: "The two in back are good but lower the panel 2 inches and make the tubes conform to the
+panel so there is less forward obstruction"): the rear panel assembly goes a further 50.8 mm down (77.8 mm in
+all; eye unchanged). The two rear bows stay, rebuilt so that from the rear eye each one lies just under the
+lowered rim's silhouette (the rim outline projected from the eye onto the bow's station, inset by the tube
+radius + 1 mm): seen from the seat they trace the panel's top edge instead of standing 50 mm above it. Their ends
+still land on the sill rails. The rear latch block, pin, knob and placards ride down with the bows, and the
+release cable follows the new rear bow.
 """
 import argparse,json,math,subprocess,tempfile
 from pathlib import Path
@@ -41,7 +49,23 @@ EYE=np.array((-1.325,0,.300))
 COWL=np.array((.100,0,.222))
 RIM_TOP=.2968333333
 RAY_Z=EYE[2]+(COWL[2]-EYE[2])*(-.808-EYE[0])/(COWL[0]-EYE[0])
-LOWER=next(mm/1000 for mm in range(0,101) if RIM_TOP-mm/1000<RAY_Z-.001)
+LOWER_V3=next(mm/1000 for mm in range(0,101) if RIM_TOP-mm/1000<RAY_Z-.001)
+LOWER=LOWER_V3+.0508  # v3.1: Ty's further 2 in
+RIM_X,RIM_R=-.808,.0025
+
+def conform_bow(bx):
+ """Rear bow centreline at station bx: the lowered rim outline seen from the rear eye, projected onto bx and
+ inset by the tube radius + 1 mm, kept above the sill rail and joined to it at both ends (as bow_points)."""
+ from vr_phase2 import panel_curve,BOW_RADIUS
+ yz=panel_curve(-.80);k=(bx-EYE[0])/(RIM_X-EYE[0])
+ yz=np.column_stack((k*yz[:,0],EYE[2]+k*(yz[:,1]-LOWER+RIM_R-EYE[2])))
+ # Inset along the curve's own normal (a vertical drop under-clears the sloping shoulders).
+ tangent=np.gradient(yz,axis=0);normal=np.column_stack((tangent[:,1],-tangent[:,0]));normal/=np.linalg.norm(normal,axis=1)[:,None]
+ yz=yz-(BOW_RADIUS+.001)*normal
+ pts=np.column_stack((np.full(len(yz),bx),yz))
+ rail_z=sill(bx)+.006;rail_y=skin_y(bx,sill(bx))-.004
+ pts=pts[pts[:,2]>rail_z]
+ return np.vstack(((bx,rail_y,rail_z),pts,(bx,-rail_y,rail_z)))
 
 def baseline(path):
  return subprocess.run(['git','show',BASE+':'+str(path.relative_to(ROOT))],cwd=ROOT,check=True,capture_output=True).stdout
@@ -73,6 +97,16 @@ def build(g,rig,switch_groups=False):
   if c['seat']=='Rear':
    c['pivot_gltf']=(np.array(c['pivot_gltf'])+gl((0,0,-LOWER))).tolist()
    nodes[names[c['node']]]['extras']['interaction']=c
+ # v3.1: rear bows on the lowered panel's silhouette; the latch hardware rides down with them.
+ from vr_phase2 import tube_path,panel_curve,BOW_X,BOW_RADIUS,BOW_OFFSET
+ bowmat=g.doc['meshes'][nodes[names['Canopy_Bow_F']]['mesh']]['primitives'][0]['material']
+ bowmat=g.doc['materials'][bowmat]['name'];tops=[]
+ for label,bx in zip('FR',BOW_X):
+  sh=Shape();pts=tube_path(conform_bow(bx))
+  for a,b in zip(pts,pts[1:]):sh.tube(a,b,BOW_RADIUS,10)
+  put('Canopy_Bow_'+label,[(bowmat,sh,None)],parent='Canopy');tops.append(pts[:,2].max())
+ latch_dz=float(np.mean(tops))-float(panel_curve(-.80,BOW_OFFSET)[:,1].max())
+ for name in ('Canopy_Latch_Block','Canopy_Latch_Bracket','Canopy_Latch_Pin','Canopy_Latch_Knob','Canopy_Latch_Placard','Canopy_Latch_Placard_White'):move(name,latch_dz)
  # Retain indices and all front latch/hinge/jettison nodes.
  for name in ('Canopy_Bow_F_Front','Canopy_Bow_R_Front'):nodes[names[name]].pop('mesh',None)
  # Front-left corner follows the measured sill, +Y is pilot LEFT.
@@ -83,10 +117,9 @@ def build(g,rig,switch_groups=False):
  stem=Shape();stem.tube(rail(-.150),P,.0035,10)
  put('Pitts_Release_Knob_Left',[ (black,knob,None),(black,stem,None)],parent='Canopy')
  route=[P,rail(-.15),*[rail(x) for x in np.linspace(-.15,-.875,35)[1:]]]
- from vr_phase2 import bow_points
- bow=bow_points(-.875,-.80)
+ bow=conform_bow(BOW_X[1])
  route += [q+np.array((-.006,0,0)) for q in bow if q[1]>=-.0381]
- route += [np.array((-.881,-.0381,.3213)),np.array((-.877,-.0381,.3413333333))]
+ route += [np.array((-.881,-.0381,.3213+latch_dz)),np.array((-.877,-.0381,.3413333333+latch_dz))]
  cable=Shape()
  for a,b in zip(route,route[1:]):cable.tube(a,b,.0015,8)
  put('Pitts_Release_Cable_Left',[ (black,cable,None)],parent='Canopy')
@@ -127,7 +160,7 @@ def build(g,rig,switch_groups=False):
    for name in [c['node'],'Mount_'+c['grip'][5:]]:nodes[names[name]]['translation']=gl(P).tolist()
    nodes[names[c['node']]]['extras']['interaction']=c;rr[c['node']]['pivot_gltf']=c['pivot_gltf']
  rig['controls']=controls
- g.doc['extras']['pittsCockpitV3']=dict(rear_panel_lower_m=LOWER,eye_builder=EYE.tolist(),switch_groups=switch_groups,removed_meshes=['Canopy_Bow_F_Front','Canopy_Bow_R_Front'],cowl_reference=COWL.tolist())
+ g.doc['extras']['pittsCockpitV3']=dict(rear_panel_lower_m=LOWER,rear_panel_lower_v3_m=LOWER_V3,rear_bows='v3.1: on the lowered rim silhouette from the rear eye',rear_latch_dz_m=latch_dz,eye_builder=EYE.tolist(),switch_groups=switch_groups,removed_meshes=['Canopy_Bow_F_Front','Canopy_Bow_R_Front'],cowl_reference=COWL.tolist())
  # Every affected metadata row is checked against the actual world pivot.
  W=g.world_matrices()
  for c in controls:

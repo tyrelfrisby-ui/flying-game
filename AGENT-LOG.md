@@ -1,4 +1,32 @@
 ## NEEDS YOU
+- **NEEDS YOU — PITTS REAR PANEL 2 IN LOWER, REAR BOWS KEPT AND CONFORMED TO IT (Claude, 2026-11-03,
+  lane/claude-quest-cockpit-switches, v3.1 on 5e2ed1b1).** Ty: "The two in back are good but lower the panel 2 inches
+  and make the tubes conform to the panel so there is less forward obstruction." BUILT, NOT INSTALLED (no device
+  touched): Quest `[QuestBuild] Quest build SUCCEEDED` (21:51, build-only, 0 error CS); iOS `deploy.sh NOINSTALL` `** BUILD SUCCEEDED **` (21:55, 0 error CS; "installed on 0 of 1 device(s)": NOINSTALL).
+  Renders, rear-seat eye, Quest 3S per-eye FOV, before (5e2ed1b1) / after:
+  `~/Developer/flying-game-worktrees/_xfer/quest-switches/v2/` (README.txt lists all 8). Please look at:
+  1. **Panel** (pitts_rear_panel): the whole rear panel assembly is 50.8 mm lower (77.8 mm in all with v3's 27 mm):
+     rim top 0.2968 -> 0.2190 m. Switch row, placards, gauges, card, COM/XPDR faceplates moved with it; the eye is
+     unchanged. From the eye the panel top is now 8.9 deg below the horizon (v3: 3.3 deg).
+  2. **Bows** (pitts_rear_bows, pitts_rear_bows_up): both rear bows stay. They are rebuilt so that from your eye
+     each one runs just UNDER the panel's top edge (the rim outline projected from the eye onto the bow, inset by
+     the tube), so you see the panel edge, not a hoop above it (crowns 0.321 -> 0.222 / 0.228 m). The latch block,
+     pin and black knob came down 96 mm with them; the release cable follows the new rear bow. Because the lowered
+     panel's shoulders are now below the sill, each bow ends in a short level foot (~7 cm) out to its sill rail:
+     visible either side of the panel. Is that acceptable, or should the bows meet the rails some other way?
+  3. **Over the nose** (pitts_rear_nose; ray cast through the GLB, tools/own_models/check_pitts_rear_view.py):
+     the cowling top edge is 1.9 deg below the horizon, the same before and after (the eye and cowling don't move).
+     Before, the rear latch block sat right on the horizon line straight ahead. Now the cowling is visible from
+     -1.9 down to -3.35 deg dead ahead, where the FRONT cockpit's canopy latch block (left on the front panel
+     crown when v3 removed the front bows) is the next thing in the way. 3 deg either side of centre, cowling is
+     visible down to -4.9 deg (was -3.4). Should that front latch block go, or move?
+  4. **Nothing pokes out** (new check_pitts_rear_view.py, all four liveries): every rear-panel, bow, latch, cable
+     and rear control vertex is inside the fuselage skin (min 2.6 mm), the panel clears the rear stick's full
+     envelope by 35.5 mm, the pedals by 376 mm and the rear pilot's legs by 125 mm. New
+     tools/FlightTests/PittsRearViewTests.cs pins the numbers as literals. check_vr_phase2.py (broken since v3
+     dropped the front bows) checks the v3.1 bows again; check_vr_phase3 PASS.
+  Tests: the Pitts/cockpit classes pass (133); failures are the same pre-existing ones as at 2be16316: ModelRigTests
+  glider air brake and the 3 AerobatGroundHandling Pitts landing tests. Nothing approved.
 - **QUEST COCKPIT SWITCHES: GREAT LAKES v7 MERGED IN, PITTS + EXTRA SWITCHES IN ONE ROW ON THE PANEL, EXTRA PANEL/STICK
   RESIZED, PITTS CANOPY/NOSE VIEW, NO HEADSET CORD (Claude, 2026-11-03, lane/claude-quest-cockpit-switches off the Quest
   lane 2be16316).** Owner pt502u + three add-ons. BUILT, NOT INSTALLED (no device touched): Quest APK

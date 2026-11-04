@@ -104,13 +104,21 @@ def main():
             counts[path.name]=sum(g.doc['accessors'][p['indices']]['count']//3 if 'indices' in p else g.doc['accessors'][p['attributes']['POSITION']]['count']//3 for n in g.doc['nodes'] if 'mesh' in n for p in g.doc['meshes'][n['mesh']]['primitives'])
     g=Glb(MODELS/'pitts-s2b-like/pitts-s2b-like-own.glb')
     # Dense centreline samples, <= 1 mm step; subtract radius + 0.5 mm sampling bound.
+    # Pitts v3 (Ty 2026-11-03) dropped the two FRONT bows' meshes; v3.1 rebuilt the two rear ones on the lowered
+    # rear panel's silhouette from the rear eye (pitts_cockpit_v3.conform_bow). Check each against its own source.
+    v3=bool(g.doc['extras'].get('pittsCockpitV3'))
+    if v3:
+        from pitts_cockpit_v3 import conform_bow
+        nodes={n['name']:n for n in g.doc['nodes']}
+        assert not any('mesh' in nodes[n] for n in ('Canopy_Bow_F_Front','Canopy_Bow_R_Front'))
     pts=[]
-    for xp in PANEL_STATIONS.values():
+    for seat,xp in PANEL_STATIONS.items():
+        if v3 and seat=='Front':continue
         for x in (xp-.035,xp-.075):
-            b=bow_points(x,xp)
+            b=conform_bow(x) if v3 else bow_points(x,xp)
             for u,v in zip(b,b[1:]):pts.extend(np.linspace(u,v,int(np.ceil(np.linalg.norm(v-u)/.001))+1))
     pts=np.array(pts);clear={}
-    bow_names=['Canopy_Bow_F','Canopy_Bow_R','Canopy_Bow_F_Front','Canopy_Bow_R_Front']
+    bow_names=['Canopy_Bow_F','Canopy_Bow_R']+([] if v3 else ['Canopy_Bow_F_Front','Canopy_Bow_R_Front'])
     for name in bow_names:
         actual=triangles(g,name).reshape(-1,3)
         for p in actual:
@@ -167,7 +175,7 @@ def main():
     for seat,xp in PANEL_STATIONS.items():
         panel=triangles(g,'RearPanel_Rounded' if seat=='Rear' else 'FrontPanel_Arched')
         suffix='' if seat=='Rear' else '_Front'
-        v=np.concatenate([triangles(g,n+suffix).reshape(-1,3) for n in ('Canopy_Bow_F','Canopy_Bow_R','Canopy_Latch_Block','Canopy_Latch_Knob')])
+        v=np.concatenate([triangles(g,n+suffix).reshape(-1,3) for n in ('Canopy_Bow_F','Canopy_Bow_R','Canopy_Latch_Block','Canopy_Latch_Knob') if n+suffix in bow_names or not n.startswith('Canopy_Bow')])
         sweeps.append((panel[:,:,0].min()-v[:,0].max())*1000)
     assert min(sweeps)>0,sweeps
     # X separation proves helmet clearance throughout the full fore-aft-axis sweep.
@@ -187,7 +195,7 @@ def main():
     assert sweep_sticks>0,sweep_sticks
     report['pitts_open_full_stick_envelope_mm']=float(sweep_sticks*1000)
     report['pitts_open_helmet_x_separation_mm']=float(helmet_sweep*1000)
-    report['bows']=dict(x_m=BOW_X,tube_radius_m=BOW_RADIUS,normal_offset_mm=22,pin_length_m=.012,panel_crowns_m={seat:float(panel_curve(x)[:,1].max()) for seat,x in PANEL_STATIONS.items()},min_rear_gauge_outline_margin_mm=min(margins)*1000,closed_conservative_clearance_mm=clear,open_sweep_panel_separating_axis_min_mm=min(sweeps),sweep='continuous X separation for each panel and its bows/block/knob; aft slide increases separation')
+    report['bows']=dict(x_m=BOW_X,tube_radius_m=BOW_RADIUS,shape='Pitts v3.1: rear bows on the lowered rear rim silhouette from the rear eye; front bows removed' if v3 else 'normal offset 22 mm from the panel outline',pin_length_m=.012,panel_crowns_m={seat:float(panel_curve(x)[:,1].max()) for seat,x in PANEL_STATIONS.items()},min_rear_gauge_outline_margin_mm=min(margins)*1000,closed_conservative_clearance_mm=clear,open_sweep_panel_separating_axis_min_mm=min(sweeps),sweep='continuous X separation for each panel and its bows/block/knob; aft slide increases separation')
     report['extra_latch']=extra_checks(Glb(MODELS/'extra-300-like/extra-300-like-own.glb'))
     assert min(clear.values())>0,clear
     # Sights are specified floating visual references INSIDE wingtip, not structural wingtip hardware.
