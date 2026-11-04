@@ -1,4 +1,16 @@
 ## NEEDS YOU
+- **TRIGGER TOE BRAKES (Claude, 2026-11-04, lane/claude-trigger-brakes off lane/claude-island-nav, local only, not
+  merged into either lane — the parity rule needs it merged into BOTH island-nav and quest-islandnav).** Decide / test:
+  1. 8BitDo (iOS/Mac/Quest): LT = LEFT wheel brake, RT = RIGHT wheel brake, analog. The old "RT − LT = rudder" is gone
+     (left stick X is still full rudder). X button still = both brakes.
+  2. Quest Touch: triggers = left / right wheel brake. DISPLACED: right trigger guns -> RIGHT GRIP (held, where guns are
+     hot; elsewhere the grip is still smoke toggle — modal, check you like it); left trigger collective brake -> split.
+  3. Quest menu: the always-shown MENU tab is hidden by logic (QuestRig MenuTabEnabled=false, art untouched); opens from
+     the left ☰ button (left stick click held 1 s still works too — say if you want it gone). Inside: sticks move,
+     A/X select, B/Y back; trigger-pointing is off for controllers, kept only for tracked hands (no sticks). iOS
+     on-screen menu button is a different component, untouched. Meta's right ☰/Meta button is system-reserved, not used.
+  4. Not built (Unity build not run by me); fly-test on iPhone + Quest.
+
 <!-- parity-merge needs-you -->
 - **PARITY MERGE (Claude, 2026-11-04, Ty approved 07:29: "merge both ways, get them in parity and then lock them in
   parity"). IN PROGRESS. Nothing approved by me; every conflict call is in the Log entry "parity merge".**
@@ -8283,3 +8295,14 @@ Ty reviewed the gl7 renders (xfer/gl7: side-by-side, photo comparison, rear cons
 
 ## 2026-11-03 14:42 PST - Great Lakes wing surfaces: Ty approved (voice call)
 Ty reviewed xfer/glwing close-ups and approved: one aileron per side per wing (4 total), slave struts tying upper to lower, no extra surfaces. Upper-aileron removal question closed.
+
+## 2026-11-04 trigger toe brakes (Claude, lane/claude-trigger-brakes)
+Found: gamepad mapping in unity/Assets/_Project/Scripts/Bridge/GamepadInput.cs Read() (LT/RT fed GamepadShaping.Rudder as
+a second rudder; X = Brakes held); Quest pad -> QuestGamepadMap.ToFrame (src/FlyingGame.Core/Vr/QuestControls.cs), Touch
+LT = c.Brake, RT = c.Fire; QuestMenu selected with trigger > 0.6 and a pointer laser; QuestMenuTabView = always-shown tab.
+Sim already has differential braking (Aircraft.BrakeInput + BrakeBias, LandingGear.Compute; PedalBlend.ToSim/FromSim).
+Changed: GamepadShaping.StickRudder / TriggerBrakes / CombineWheelBrakes (Core, shared); GamepadInput Frame.BrakeLeft/
+Right; TouchFlightControls folds pad + Quest per-wheel brakes into BrakeInput/BrakeBias (max per wheel, like pedals);
+QuestControlMapper BrakeLeft/Right from triggers, Fire = right grip; Bridge grip = guns if FireAvailable else smoke;
+QuestMenu: no trigger select, pointing only HandsOnly; QuestRig tab disabled. Tests: GamepadShapingTests (+2),
+QuestStickFeelTests updated. GamepadShaping.Rudder(lx,lt,rt) left in place (tests/replication use it).

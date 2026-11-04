@@ -30,6 +30,8 @@ namespace FlyingGame.Bridge
         {
             public bool Connected;
             public float Roll, Pitch, Rudder, Throttle;
+            /// <summary>Toe brakes from the triggers, 0..1 each (LT = left wheel, RT = right wheel).</summary>
+            public float BrakeLeft, BrakeRight;
             public bool ThrottleUp, ThrottleDown, TrimNoseDown, TrimNoseUp, Brakes, Fire;
             public bool FlapsUpPressed, FlapsDownPressed, SmokePressed, ViewPressed, MenuPressed, RecordPressed;
             /// <summary>COCKPIT LOOK (Ty, 2026-11-02). No flight axis ever moves the view. The optional look is the
@@ -93,7 +95,8 @@ namespace FlyingGame.Bridge
 
         // THE MAPPING (Ty, 2026-11-02: "the right hand on the stick"), on every platform:
         //   RIGHT stick         roll and pitch (expo)
-        //   LEFT stick X        rudder (expo), plus RT − LT, summed and clamped
+        //   LEFT stick X        rudder (expo)
+        //   LT / RT (analog)    LEFT / RIGHT wheel brake (toe brakes, proportional; 2026-11-04 — were RT − LT rudder)
         //   LEFT stick Y        throttle as a RATE (linear, no expo): up = more power, down = less, let go = holds
         //   RB / LB (held)      throttle up / down too, at a fixed rate
         //   d-pad up / down     pitch trim nose down / nose up (held)    d-pad right / left   flaps down / up a step
@@ -108,7 +111,9 @@ namespace FlyingGame.Bridge
             Vector2 r = p.rightStick.ReadValue(), l = p.leftStick.ReadValue();
             var (roll, pitch) = GamepadShaping.Stick(r.x, r.y);
             f.Roll = (float)roll; f.Pitch = (float)pitch;
-            f.Rudder = (float)GamepadShaping.Rudder(l.x, p.leftTrigger.ReadValue(), p.rightTrigger.ReadValue());
+            f.Rudder = (float)GamepadShaping.StickRudder(l.x);
+            var (bl, br) = GamepadShaping.TriggerBrakes(p.leftTrigger.ReadValue(), p.rightTrigger.ReadValue());
+            f.BrakeLeft = (float)bl; f.BrakeRight = (float)br;
             f.Throttle = (float)GamepadShaping.ThrottleRate(l.y);
             f.ThrottleUp = p.rightShoulder.isPressed;
             f.ThrottleDown = p.leftShoulder.isPressed;

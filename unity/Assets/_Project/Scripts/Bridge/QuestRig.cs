@@ -335,7 +335,10 @@ namespace FlyingGame.Bridge
             QuestFlightCommand c = _system.Step(f, Time.unscaledDeltaTime, 0.0);
             if (c.Recentre) RecentreNow();
             // The MENU tab on the panel: cockpit view, in flight, menu closed (QuestMenuTabView, QuestMenuTab).
-            bool tabShown = !XrHeadset.MenuOpen && !SessionSettings.MenuOpen && ChaseCamera.InCockpit;
+            // Ty 2026-11-04: the always-shown MENU tab (and its point-and-trigger) is off; the menu opens from the left ☰
+            // button (or the left stick click held 1 s). The tab code stays, hidden.
+            const bool MenuTabEnabled = false;
+            bool tabShown = MenuTabEnabled && !XrHeadset.MenuOpen && !SessionSettings.MenuOpen && ChaseCamera.InCockpit;
             QuestMenuTrigger tab = _tab.Tick(this, f, tabShown, Time.unscaledDeltaTime);
             QuestMenuTrigger by = c.Menu ? c.MenuBy : tab;
             if (by != QuestMenuTrigger.None) ToggleMenu(by);

@@ -17,7 +17,7 @@ namespace FlyingGame.Core;
 ///    0…1 the slope (1 − e) + 3e·x² is never negative, so more stick never gives less control.
 ///
 /// The mapping (Ty, 2026-11-02, "the right hand on the stick"): RIGHT stick = roll and pitch, LEFT stick X = rudder
-/// (triggers as a second rudder), LEFT stick Y = throttle as a rate (<see cref="ThrottleRate"/>). Expo on the three
+/// (the triggers are the LEFT / RIGHT toe brakes since 2026-11-04; they were a second rudder), LEFT stick Y = throttle as a rate (<see cref="ThrottleRate"/>). Expo on the three
 /// flight controls only. This file is shared by every platform (iOS, Mac, Quest).
 ///
 /// Sign conventions are the PAD'S: stick right and stick up (pushed away from you) are positive, triggers 0…1.
@@ -81,6 +81,29 @@ public static class GamepadShaping
         double s = DeadZone(leftStickX, stickDeadZone);
         double t = DeadZone(Math.Clamp(rightTrigger, 0.0, 1.0), triggerDeadZone) - DeadZone(Math.Clamp(leftTrigger, 0.0, 1.0), triggerDeadZone);
         return Math.Clamp(Expo(s, expo) + Expo(t, expo), -1.0, 1.0);
+    }
+
+    /// <summary>The rudder from the LEFT stick's X alone (Ty 2026-11-04: the triggers are now the toe brakes, see
+    /// <see cref="TriggerBrakes"/>; the stick was already full rudder by itself, so nothing is lost).</summary>
+    public static double StickRudder(double leftStickX, double stickDeadZone = DefaultStickDeadZone, double expo = DefaultExpo)
+        => Expo(DeadZone(leftStickX, stickDeadZone), expo);
+
+    /// <summary>
+    /// The triggers as TOE BRAKES (Ty 2026-11-04, 8BitDo on iOS / Mac / Quest): LEFT trigger = LEFT wheel brake,
+    /// RIGHT trigger = RIGHT wheel brake, proportional — trigger travel is brake pressure. Dead zone then linear
+    /// (no expo: like a pedal, half pull is half brake).
+    /// </summary>
+    public static (double Left, double Right) TriggerBrakes(double leftTrigger, double rightTrigger,
+        double triggerDeadZone = DefaultTriggerDeadZone)
+        => (DeadZone(Math.Clamp(leftTrigger, 0.0, 1.0), triggerDeadZone), DeadZone(Math.Clamp(rightTrigger, 0.0, 1.0), triggerDeadZone));
+
+    /// <summary>Add separate left / right wheel brakes (triggers) to a (brake, bias) pair the sim already has: each
+    /// wheel gets the harder of the two, the same rule as the rudder pedals (<see cref="PedalBlend.Combine"/>).</summary>
+    public static (double Brake, double Bias) CombineWheelBrakes(double brake, double bias, double left, double right)
+    {
+        if (left <= 0.0 && right <= 0.0) return (brake, bias);
+        var (l, r) = PedalBlend.FromSim(brake, bias);
+        return PedalBlend.ToSim(Math.Max(l, left), Math.Max(r, right));
     }
 
     /// <summary>
