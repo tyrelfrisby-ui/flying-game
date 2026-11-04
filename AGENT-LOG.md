@@ -1,4 +1,12 @@
 ## NEEDS YOU
+- **CRASH PHYSICS MERGED INTO ISLAND-NAV — ON YOUR IPHONE AS `2026.1104.0427` (Grok Bot, 2026-11-04 04:30 PST,
+  lane/claude-crash-physics `da163a65` → island-nav `abeadac3`, Ty approved):** trees snap, crashes keep momentum,
+  only overloaded parts come off, debris no longer sinks. Only AGENT-LOG.md conflicted (both sides kept).
+  `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on the iPhone (00008150-001629A83662401C).
+  **Still open — grey/white debris paint is NOT fixed.** Ty: launch with `-crashtest grass`
+  (`xcrun devicectl device process launch --device 00008150-001629A83662401C com.tyrelfrisby.aeroplayground -- -crashtest grass`)
+  and send the `[Debris]` log lines. ProjectSettings/GraphicsSettings left untouched (version bump not committed).
+
 - **FRANK CHURCH STRIPS UNPAVED — ON YOUR IPHONE AS `2026.1103.2218` (Claude, 2026-11-03 22:21 PST,
   lane/claude-frank-church-valleys `35901e96` → island-nav `6c24d8eb`):** all nine strips are real dirt or turf, drawn as worn
   ground, with no centreline, edge marks, numbers or paved look (fc-surfaces' finish, which this lane kept in
