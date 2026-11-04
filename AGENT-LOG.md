@@ -1,4 +1,46 @@
 ## NEEDS YOU
+- **PARITY + GREAT LAKES WINDSHIELDS + BAIL-OUT HUD + CHUTE ONE-LINER (Claude, 2026-11-04 ~06:45 PST, lane/claude-parity,
+  off island-nav aeb9695a; local commits only, NOT merged anywhere, nothing installed). NEEDS YOU:**
+  1. **Pick a Great Lakes windshield.** Renders: `~/Developer/flying-game-worktrees/_xfer/gl-windshields/compare_*.png`
+     (IOS 3f9406b8 | QUEST AS FLOWN 13c47afb | QUEST NEXT f1618036 = GL v7 from lane/claude-quest-cockpit-switches),
+     per seat from the config eye (level ~Quest FOV, and the exact iOS camera), close-ups of each screen, exterior 3/4.
+     **Why both Quest seats show the same squared-off panel:** it is the GLB, no code. The Quest lane's GLB was rebuilt by
+     `tools/own_models/vr_phase3c.py` (d936b103 + 147d2682, Quest lane only): it strips the iOS framed screens
+     (`Windscreen_Frame` + `Windscreen_Glass`, dark frame, blue tint) and adds `Windscreen_Front`/`Windscreen_Rear` from ONE
+     loop — a clear half-ellipse band with a flat top edge and square ends, white acrylic at 28 % + 68 % bright edges — so
+     both seats get the same shape. No runtime code substitutes, hides or adds a windshield on any lane (README.txt).
+  2. **Eye point — decide.** Position is the SAME on both platforms (config eye: rear (-1.96,0,-0.305), front
+     (-1.193,0,-0.293); iOS ChaseCamera.cs:236-245, Quest QuestRig.CaptureOrigin + XrHeadPose, head 1:1 from the recentre
+     pose, clamp +0.15 m up). What differs: (a) the Quest front glass top is only **3 mm** above the front eye (+0.6°, on
+     the horizon) against 26 mm (+10°) on iOS — d936b103 lowered it, the eye was tuned 11-01 on the old screen; rear
+     39 vs 40 mm; QUEST NEXT 48 / 61 mm; (b) iOS looks 4° down with a 72° vertical FOV, the headset looks level;
+     (c) a recentre while slumped makes sitting up carry the head up to +0.15 m. Seat tub 0.834 / 0.804 m under the eyes on
+     all three GLBs. Full table in the README. (Also: the config `_eyeNote` angles leave out the +0.025 m placement offset.)
+     No eye changed.
+  3. **Approve the parity rule** (CLAUDE.md top, docs/PARITY.md) **and the merges it calls for.** `tools/check-parity.sh`
+     now: **FAIL** — 42 island-nav commits not in the Quest lane; WARN 57 Quest-lane commits on shared paths not on iOS;
+     GLBs 13 identical / 14 different / 2 Quest-only (island-nav changed NO GLB since 510f987c: every difference is Quest
+     art); 21 art lanes in neither (the Pitts panel/canopy Ty is missing on the Quest is lane/claude-quest-cockpit-switches
+     62c54a41 + 033dd76d, on neither lane). `deploy.sh` prints it (never blocks). Convergence plan in docs/PARITY.md.
+  4. **For the coordinator:** after merging lane/claude-parity into the Quest lane, apply
+     `~/Developer/flying-game-worktrees/_xfer/parity/quest-followup.patch` (deploy-quest.sh refuses while parity fails,
+     PARITY_OVERRIDE=1 forces; VrMode hook for the world-space one-liner incl. Cardboard). `git apply --check` OK on
+     d784b102 and on d784b102 + this lane. The trial merge conflicts in HudOverlay.cs: keep BOTH lines (README there).
+  **Fixed (shared, all platforms):** HUD after bail-out — `HudOverlay` (the green HUD) had no pilot-out gate, and on the
+  Quest its only gate (`QuestCockpit.ShowHud`) allows it whenever the camera is not in the cockpit, which it is not once
+  it follows the jumper. New Core rule `PilotOutRules.ShowHud` (only `Aboard`), read through `PilotEgress.HudAllowed` by
+  HudOverlay (lines, labels, engine readouts), AnalogGauges, FlightHud and FlightPathVector from the moment a bail-out
+  starts until the next flight. The Quest's hand-climb bail-out sets Phase.FreeFall too, so no Quest hook is needed.
+  **Chute one-liner on the Quest:** it was there — on PilotEgress's OnGUI status line, which a headset never sees — and
+  PilotVoice speaks only on iOS/Mac (no Android speech). Now, where the flat overlay cannot be seen (stereo camera), the
+  same label + quote float 2 m ahead of the eyes, 8° low, lazily following the head (`PilotOutRules.ShowRemark /
+  RemarkInWorld / RemarkText`). Still silent on the Quest: Android text-to-speech is an open question, not done.
+  **Tests:** PilotOutRulesTests 7/7, ParityCheckTests 8/8 (targeted; no full suite). **Build:** `FG_CACHE_KEEP=9 zsh tools/deploy/deploy.sh NOINSTALL` → `** BUILD SUCCEEDED **`, 0 `error CS`, bundleVersion 2026.1104.0640, installed nowhere; the bump and the regenerated StreamingAssets/GraphicsSettings were NOT committed.
+  **Note:** this worktree's unity/Library was a symlink to island-nav's cache, not a clone; a first deploy start ran
+  ~20 s (Unity started, no export) against that shared cache before I stopped it — it deleted only the per-build caches
+  every deploy deletes (PlayerDataCache, Bee, il2cpp_cache, BuildPlayerData). The lane now has its own APFS clone
+  (unity-Library-claude-parity); built with FG_CACHE_KEEP=9 so no other lane's cache was pruned.
+  Commits: 2f36e413 (HUD + one-liner), 11d4686c (check-parity + test + deploy.sh), 305d49b4 (PARITY.md + CLAUDE.md).
 - **CRASH PHYSICS MERGED INTO ISLAND-NAV — ON YOUR IPHONE AS `2026.1104.0427` (Grok Bot, 2026-11-04 04:30 PST,
   lane/claude-crash-physics `da163a65` → island-nav `abeadac3`, Ty approved):** trees snap, crashes keep momentum,
   only overloaded parts come off, debris no longer sinks. Only AGENT-LOG.md conflicted (both sides kept).
