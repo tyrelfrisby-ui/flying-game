@@ -39,17 +39,20 @@ public class CombatTests : IDisposable
         double roll = -60 * Math.PI / 180;
         var att = new Quat(Math.Sin(roll / 2), 0, 0, Math.Cos(roll / 2));
         double lowest = double.MaxValue;
-        foreach (var p in AirframeContact.BuildPoints(c)) lowest = Math.Min(lowest, -att.Rotate(p.Body - c.Mass.CgVec()).Z);
+        // The propeller disc holds nothing up (2026-11-03): place the aeroplane by its hard points.
+        foreach (var p in AirframeContact.BuildPoints(c)) if (!p.PropDisc) lowest = Math.Min(lowest, -att.Rotate(p.Body - c.Mass.CgVec()).Z);
         var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, lowest - 0.05), att, att.Conjugate().Rotate(new Vec3(0, 0, 6)), Vec3.Zero), ControlDeflections.Neutral);
         var sim = new SimLoop(ac);
         for (double t = 0; t < 0.3; t += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1));
         _out.WriteLine("lost: " + string.Join(", ", ac.LostComponents));
-        Assert.True(ac.IsLost(AirframeComponent.WingLeftOuter));
+        // A tip strike takes the panel outboard of the wing's structural station (Ty 2026-11-03; WingStructure) — its
+        // rows and its aileron — and nothing inboard of it.
+        Assert.True(ac.IsLost(AirframeComponent.WingTipLeft));
         Assert.False(ac.IsLost(AirframeComponent.WingLeftInner));
         Assert.False(ac.IsLost(AirframeComponent.WingLeft));
-        double semi = WingPanels.Semispan(c);
-        Assert.True(MaskedCount(ac, (sf, st) => sf.Id == "wing" && st.Pos[1] < -WingPanels.OuterFraction * semi) > 0, "outer wing strips masked");
-        Assert.Equal(0, MaskedCount(ac, (sf, st) => sf.Id == "wing" && st.Pos[1] > -WingPanels.OuterFraction * semi && st.Pos[1] < -0.3));
+        double station = ac.Panels.First(p => p.Component == AirframeComponent.WingTipLeft).BreakY;
+        Assert.True(MaskedCount(ac, (sf, st) => sf.Id == "wing" && st.Pos[1] < -station) > 0, "outer wing strips masked");
+        Assert.Equal(0, MaskedCount(ac, (sf, st) => sf.Id == "wing" && st.Pos[1] > -station && st.Pos[1] < -0.3));
     }
 
     [Fact]

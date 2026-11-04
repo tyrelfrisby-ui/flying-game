@@ -9,8 +9,6 @@ namespace FlyingGame.Bridge
     /// </summary>
     public static class SceneBootstrap
     {
-        private const float LetterDistanceM = 2500f;
-        private const float LetterAltitudeM = 600f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Build()
@@ -26,32 +24,41 @@ namespace FlyingGame.Bridge
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             // The Aero Widget build (owner 2026-10-07): no world, no game — two transparent scenarios for Glass Overlay.
             if (FlyingGame.Bridge.Widget.AeroWidget.IsWidget) { FlyingGame.Bridge.Widget.AeroWidget.Create(); return; }
+            // The first frame on the Quest is one 3.5–7.4 s SLOW FRAME, and the log could only bracket it by the
+            // timestamps of unrelated lines (docs/quest-performance.md, *The startup frame*): say where it goes.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             WorldBuilder.BuildAll();   // terrain (valley + 3 canyon steps), water, 4 airports, ridge lift
+            double tWorld = sw.Elapsed.TotalMilliseconds;
             new GameObject("Soaring").AddComponent<SoaringScenery>();
             BuildCardinalLetters();
             BuildSun();
+            double tScenery = sw.Elapsed.TotalMilliseconds;
             GameObject aircraft = BuildAircraft();
+            double tAircraft = sw.Elapsed.TotalMilliseconds;
             BuildCameraAndHud(aircraft);
+            double tAll = sw.Elapsed.TotalMilliseconds;
+            Debug.Log($"[Startup] scene built in {tAll:F0} ms: world {tWorld:F0}, soaring + sun {tScenery - tWorld:F0}, "
+                    + $"aircraft {tAircraft - tScenery:F0} (its airframe: see [Airframe] … model ready), camera + HUD {tAll - tAircraft:F0}");
         }
 
         private static void BuildCardinalLetters()
         {
-            // Unity +z is sim north (CoordinateMap).
-            (string letter, Vector3 dir)[] cards =
+            // Placement, size and default live in Core CardinalLetters: drawn as if at infinity (they ride with the
+            // camera's position, a few degrees above the horizon) and only when the setting is on (off by default).
+            foreach ((string letter, FlyingGame.Core.MathTypes.Vec3 d) in FlyingGame.Core.CardinalLetters.Cards)
             {
-                ("N", Vector3.forward), ("S", Vector3.back), ("E", Vector3.right), ("W", Vector3.left),
-            };
-            foreach ((string letter, Vector3 dir) in cards)
-            {
+                var dir = new Vector3((float)d.X, (float)d.Y, (float)d.Z);
                 var go = new GameObject($"Cardinal-{letter}");
-                go.transform.position = dir * LetterDistanceM + Vector3.up * LetterAltitudeM;
+                go.transform.position = dir * (float)FlyingGame.Core.CardinalLetters.RangeM;
                 go.transform.rotation = Quaternion.LookRotation(dir, Vector3.up); // face inward text side
                 var text = go.AddComponent<TextMesh>();
                 text.text = letter;
                 text.fontSize = 40;
-                text.characterSize = 40f; // ~large enough to read at 2.5 km
+                text.characterSize = 1f;   // the glyph is scaled to CardinalLetters.CardHeightM when first drawn
                 text.anchor = TextAnchor.MiddleCenter;
                 text.color = new Color(1f, 1f, 1f, 0.9f);
+                go.GetComponent<MeshRenderer>().enabled = SessionSettings.ShowCardinalLetters;
+                go.AddComponent<CardinalLetterVisibility>().Direction = dir;
             }
         }
 
@@ -133,6 +140,14 @@ namespace FlyingGame.Bridge
             cam.clearFlags = RenderSettings.skybox != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f); // clear sky
             var chase = cam.gameObject.AddComponent<ChaseCamera>();
+            // The stereo rig rides the same camera and only wakes up when VR is switched on; off, it
+            // costs one disabled component and the mono view is untouched.
+            cam.gameObject.AddComponent<VrRig>();
+            // And the native-headset rig (Meta Quest through OpenXR): inert unless an XR runtime is up, which only an
+            // Android build with the OpenXR loader can start. It makes this same camera the XR camera.
+            cam.gameObject.AddComponent<QuestRig>();
+            // The pilot's hands on the aeroplane's own controls, and his visible body: inert unless the headset is on.
+            cam.gameObject.AddComponent<VrCockpitHands>();
             cam.gameObject.AddComponent<AudioListener>();
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();

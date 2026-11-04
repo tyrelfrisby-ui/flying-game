@@ -466,7 +466,11 @@ internal static class IslandHeightIndex
             var delta=p-c; double ad=delta.Dot(f.U),cr=delta.Dot(f.V);
             double da=Math.Max(0,Math.Abs(ad)-l/2-f.EndShoulder/1000),db=Math.Max(0,Math.Abs(cr)-f.Width/2000-f.Shoulder/1000),dd=Math.Sqrt(da*da+db*db);
             if(dd>=f.Blend/1000) continue;
-            double a=1-Smooth(dd/(f.Blend/1000)),zz=f.Elevation+Math.Clamp(ad,-l/2,l/2)*1000*f.Slope/100-(f.Surface=="water"?WaterOffset:0)+StripShape(f,ad,cr);
+            // At the blend's very edge Smooth can round to 1 while dd is still under the blend: a zero weight. Skipped,
+            // or a lone such pad left sumW 0 and the ground NaN (0/0 mixed in at weight 0) — found 2026-11-03 on four of
+            // the Frank Church strips' approaches, and present before them at the old Sulphur Creek too.
+            if(Smooth(dd/(f.Blend/1000))>=1) continue;
+            double a=1-Smooth(dd/(f.Blend/1000)),zz=f.Elevation+Math.Clamp(ad,-l/2-f.SlopeShoulder/1000,l/2+f.SlopeShoulder/1000)*1000*f.Slope/100-(f.Surface=="water"?WaterOffset:0)+StripShape(f,ad,cr);
             if(dd<nearest||(dd==nearest&&a<bestA)) { nearest=dd; bestA=a; bestZ=zz; }
             maxA=Math.Max(maxA,a); if(dd>0) { double wt=a/(dd*dd); sumW+=wt; sumZ+=wt*zz; }
         }

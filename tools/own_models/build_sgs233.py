@@ -108,14 +108,17 @@ def loft_secs(name, secs, cap_end=True):
 CAN = [(279, 225.8), (285, 219.7), (293, 213.3), (301, 208.5), (309, 204.8), (317, 202.1), (325, 199.5),
        (333, 197.9), (341, 196.3), (349, 195.7), (357, 195.2), (362, 194.5)]
 P['Canopy_Glass'] = loft_secs('Canopy_Glass', [sec(px, tp) for px, tp in CAN], cap_end=False)
-bm = bmesh.new()   # frame: bows at the windscreen arch, mid (door/canopy split) and the aft edge, plus sill rails
+bm = bmesh.new()   # frame: bows at the mid (door/canopy split) and the aft edge, plus sill rails aft of the split
+# v11 (Ty t295u, 2026-11-02): NO windscreen-arch bow and NO sill rails ahead of the split. The real front canopy is
+# clear all the way down to the fuselage, with no painted band or frame strip (check_sgs233_canopy.py).
+CLEAR_FROM = 6   # CAN[:CLEAR_FROM+1] is the clear front bubble (CAN[6] carries the split bow)
 def bow(bm, px, tp, wdt=1.3, grow=0.008):
     pa = sec(px + wdt, tp, grow=grow); pb = sec(px - wdt, tp, grow=grow)
     va = [bm.verts.new(p) for p in pa]; vb = [bm.verts.new(p) for p in pb]
     for i in range(len(va) - 1): bm.faces.new((va[i], va[i + 1], vb[i + 1], vb[i]))
-for px, tp in (CAN[1], CAN[6], CAN[-1]): bow(bm, px, tp)
+for px, tp in (CAN[CLEAR_FROM], CAN[-1]): bow(bm, px, tp)
 for k in (0, -1):   # sill rails along both canopy edges
-    pts = [sec(px, tp, grow=0.008)[k] for px, tp in CAN]
+    pts = [sec(px, tp, grow=0.008)[k] for px, tp in CAN[CLEAR_FROM:]]
     for p0, p1 in zip(pts, pts[1:]):
         v = [bm.verts.new(q) for q in (p0, p1, (p1[0], p1[1], p1[2] + 0.035), (p0[0], p0[1], p0[2] + 0.035))]
         bm.faces.new(v)

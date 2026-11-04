@@ -159,15 +159,28 @@ public struct RigInputs
     public double FuelSelector;
     /// <summary>Ignition key position: 0 OFF, 1 R, 2 L, 3 BOTH, 4 START.</summary>
     public double Magneto;
+    /// <summary>J-3 primer plunger: 0 in and locked .. 1 pulled out 50 mm. No priming system reads it yet; it stays 0
+    /// (in) unless a hand pulls the knob (Ty 2026-11-02, v18).</summary>
+    public double Primer;
     /// <summary>Battery master, 0 or 1.</summary>
     public double Master;
 
     /// <summary>0..1 canopy, 1 = fully open.</summary>
     public double CanopyOpen;
+    /// <summary>The seat harness (CONTRACT.md phase 2): 0 latched .. 1 released; the straps fall open on it.</summary>
+    public double HarnessLatch;
     /// <summary>0 or 1, 1 = locked.</summary>
     public double CanopyLock;
     /// <summary>0..1 pull of the emergency release.</summary>
     public double CanopyJettison;
+    /// <summary>The canopy latch, 0 locked .. 1 fully open (the Pitts' ball slid left) / squeezed (the Extra's two
+    /// handles) — CONTRACT.md `canopy_latch`, driven by the hand that holds it (Core/Vr/CanopyLatch.cs).</summary>
+    public double CanopyLatch;
+
+    /// <summary>The `canopy_latch` a cockpit draws: the hand's own latch where there is one (0 pinned .. 1 released), and
+    /// otherwise Codex's visual contract, the inverse of the lock (0 locked, 1 released).</summary>
+    public static double CanopyLatchFor(bool locked, double? handLatch01) =>
+        handLatch01 ?? (locked ? 0.0 : 1.0);
 
     /// <summary>Indicated airspeed in KNOTS (the Extra's ASI is in kt; the 2-33's in mph — both are here
     /// because the dial art is drawn in one or the other and converting in the rig would hide it).</summary>
@@ -187,6 +200,12 @@ public struct RigInputs
     public double GLoad;
     /// <summary>The accelerometer's tell-tales: the running maximum and minimum since they were last reset.</summary>
     public double GMaxSeen, GMinSeen;
+    /// <summary>Attitude, degrees: bank + = right wing down (-180..180), pitch + = nose up (-90..90). What an
+    /// attitude indicator shows.</summary>
+    public double BankDeg, PitchDeg;
+    /// <summary>Floatplane water-rudder retract, 0 = down (spring; the J-3's red handle let go on the floor) .. 1 = up
+    /// (handle hung on its hook). Aircraft.WaterRudderUp01: the blade's own travel, slewed, not the switch.</summary>
+    public double WaterRudderUp;
 
     /// <summary>COM, MHz: the tuned (active) and the standby frequency.</summary>
     public double ComFreqMhz, ComStandbyMhz;
@@ -276,10 +295,13 @@ public struct RigInputs
             case "mixture": value = Mixture; return true;
             case "fuel_selector": value = FuelSelector; return true;
             case "magneto": value = Magneto; return true;
+            case "primer": value = Primer; return true;
             case "master": value = Master; return true;
             case "canopy_open": value = CanopyOpen; return true;
             case "canopy_lock": value = CanopyLock; return true;
             case "canopy_jettison": value = CanopyJettison; return true;
+            case "canopy_latch": value = CanopyLatch; return true;
+            case "harness_latch": value = HarnessLatch; return true;
             case "airspeed_kias": value = AirspeedKias; return true;
             case "vsi_fpm": value = VsiFpm; return true;
             case "rpm": value = Rpm; return true;
@@ -293,6 +315,9 @@ public struct RigInputs
             case "g_load": value = GLoad; return true;
             case "g_max_seen": value = GMaxSeen; return true;
             case "g_min_seen": value = GMinSeen; return true;
+            case "bank_deg": value = BankDeg; return true;
+            case "pitch_deg": value = PitchDeg; return true;
+            case "water_rudder_up": value = WaterRudderUp; return true;
             case "com_freq_mhz": value = ComFreqMhz; return true;
             case "com_standby_mhz": value = ComStandbyMhz; return true;
             case "com_volume": value = ComVolume; return true;
@@ -309,11 +334,14 @@ public sealed class ModelRig
 {
     public readonly string Model;
     public readonly IReadOnlyList<RigNode> Nodes;
+    /// <summary>The table's `controls`: the switches and knobs a hand works (Codex's Ctl_* nodes), or none.</summary>
+    public readonly IReadOnlyList<FlyingGame.Core.Vr.PanelControlSpec> Controls;
 
-    public ModelRig(string model, IReadOnlyList<RigNode> nodes)
+    public ModelRig(string model, IReadOnlyList<RigNode> nodes, IReadOnlyList<FlyingGame.Core.Vr.PanelControlSpec>? controls = null)
     {
         Model = model ?? "";
         Nodes = nodes ?? Array.Empty<RigNode>();
+        Controls = controls ?? Array.Empty<FlyingGame.Core.Vr.PanelControlSpec>();
     }
 
     public RigNode? Find(string node)

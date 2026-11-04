@@ -2,6 +2,9 @@
   "schemaVersion": 1,
   "id": "c172-like",
   "displayName": "172-like Trainer",
+  "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 2.553 },
+  "wingBreakStationSource": "Wing-strut attach at WS 100.50 in = 2.553 m from the fuselage centreline (Cessna wing stations are measured from BL 0). Cessna Model 172 Series 1969-1976 Service Manual, Fig. 1-2 Reference Stations p.1-3 (wing stations 23.62 root rib ... 100.50 ... 208.00 tip). 100.50 is the heavy rib at the strut fitting: the SRM wing-twist check uses WS 39.00/100.50/207.00 and the sibling 182 strut-attach doubler sits 'between WS 90 and WS 110' with its strap at WS 100.50 (CASA AD/CESSNA 180/79). A 1956 172 three-view scales to ~91 in but its views disagree in scale; WS 100.50 chosen.",
   "spawnIasMs": 50,
   "mass": {
     "massKg": 1043,

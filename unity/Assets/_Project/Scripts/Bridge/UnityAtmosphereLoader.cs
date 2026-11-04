@@ -21,8 +21,7 @@ namespace FlyingGame.Bridge
 
         public static AtmosphereFieldConfig Load()
         {
-            string path = Path.Combine(Application.streamingAssetsPath, "atmosphere", FileName);
-            return JsonConvert.DeserializeObject<AtmosphereFieldConfig>(File.ReadAllText(path), Settings)
+            return JsonConvert.DeserializeObject<AtmosphereFieldConfig>(StreamingFiles.ReadAllText("atmosphere/" + FileName), Settings)
                 ?? throw new InvalidDataException("Regional atmosphere config deserialized to null.");
         }
     }

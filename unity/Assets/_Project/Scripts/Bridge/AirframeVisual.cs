@@ -85,15 +85,6 @@ namespace FlyingGame.Bridge
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
-            // A model that brought its own rig moves ITS parts — the same control positions, so the drawn
-            // surfaces and the cockpit always agree with the aeroplane the sim is flying.
-            if (_builder.HasOwnRig)
-                _builder.SetRig(RigInputsNow(_driver.Sim.Aircraft,
-                                             DebugDeflect.HasValue
-                                                 ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
-                                                 : d,
-                                             Time.deltaTime),
-                                Time.deltaTime);
             var acp = _driver.Sim.Aircraft;
             float rpm = DebugRpm ?? (acp.EngineStopped ? 0f : (float)acp.EngineRpm);
             _builder.SpinProps(i =>
@@ -104,18 +95,32 @@ namespace FlyingGame.Bridge
             }, Time.deltaTime);
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
             // A model that brought its own rig moves ITS parts — the same control positions the aero model is
-            // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown.
-            if (_builder.HasOwnRig)
+            // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown. A model whose
+            // cockpit was drawn as pictures (the Pitts, the Extra's rear panel) has them made live by CockpitLiveParts
+            // from the same readings. ONCE a frame: this used to run twice, and the second pass saw no time pass, so it
+            // dragged the vario and the turn needle back toward zero every frame.
+            if (_builder.ModelRoot != null && !_live.Bound) _live.Bind(this, AirframeModels.PlacedOwnName(_driver.AircraftId));
+            if (_builder.HasOwnRig || _live.Active)
             {
                 var rd = DebugDeflect.HasValue
                     ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
                     : d;
-                _builder.SetRig(RigInputsNow(acp, rd, Time.deltaTime), Time.deltaTime);
+                FlyingGame.Core.RigInputs rig = RigInputsNow(acp, rd, Time.deltaTime);
+                if (_builder.HasOwnRig) _builder.SetRig(rig, Time.deltaTime);
+                _live.Update(rig);
                 // The red handle, pulled all the way: the canopy is gone the moment the rig says so, whether
                 // the hand on it was the player's or the bailout's.
                 if (Cockpit.CanopyPull01 >= 0.999f && !Cockpit.CanopyGone) JettisonRigPart(_driver.WorldVelocityUnity);
-                // The panel's own glass and paper: the two avionics LCDs, and the sequence card in its holder.
-                _displays.Bind(FindInModel);
+                // The water-rudder cable follows the handle the rig just placed (floats J-3 only; nothing elsewhere).
+                if (_builder.HasOwnRig && !_waterRudder.Bound) _waterRudder.Bind(_builder.ModelRoot);
+                _waterRudder.LateUpdate();
+            }
+            if (_builder.ModelRoot != null)
+            {
+                // The panel's own glass and paper: the two avionics LCDs, and the sequence card in its holder — on
+                // every placed model, rigged or not (the Pitts has a card holder and no rig, so its card never got
+                // the anti-flicker separation).
+                _displays.Bind(FindInModel, transform);
                 _displays.Update(_lastRig);
                 Card.Bind(this, _driver.AircraftId);
             }
@@ -130,6 +135,10 @@ namespace FlyingGame.Bridge
         /// <summary>The avionics LCDs and the sequence card holder, where the model has them.</summary>
         private readonly CockpitDisplays _displays = new();
         public readonly SequenceCard Card = new();
+        /// <summary>The painted parts of a cockpit made to move: live dials, cut-out sticks and pedals, an added
+        /// throttle (FlyingGame.Core.CockpitLive says which, per model).</summary>
+        private readonly CockpitLiveParts _live = new();
+        private readonly CockpitWaterRudder _waterRudder = new();     // the J-3 floats' red retract handle's cable
 
 
         private FlyingGame.Core.RigInputs _lastRig;
@@ -141,6 +150,12 @@ namespace FlyingGame.Bridge
         /// <summary>A named node inside the placed model — the eye points, the display faces, the sequence card.
         /// null for the procedural shell, or where the model has no such node.</summary>
         public Transform FindInModel(string node) => _builder.FindInModel(node);
+
+        /// <summary>The placed model's root, or null where the aeroplane on screen is the procedural shell.</summary>
+        public Transform ModelRoot => _builder.ModelRoot;
+
+        /// <summary>True when the placed model brought its own rig (its stick, pedals and needles move by it).</summary>
+        public bool HasOwnRig => _builder.HasOwnRig;
 
         private bool _rigPartGone;
 
@@ -184,6 +199,46 @@ namespace FlyingGame.Bridge
             Cockpit.CanopyGone = true;
             _rigPartGone = true;
             return true;
+        }
+
+        /// <summary>
+        /// THE CANOPY LEAVES ON ITS OWN PHYSICS (the headset's hands-on canopy, Core Vr.CanopyDynamics: torn off its
+        /// hinges above the failure speed, or jettisoned). The part is CONTRACT's `Canopy_Detachable` (the whole moving
+        /// canopy and nothing of the airframe), else the node the rig marks jettisonable, else the Pitts' `Canopy_Slide`
+        /// or the `Canopy`. It is detached with everything under it and flown by <see cref="CanopyFlight"/>, a Core
+        /// <see cref="FlyingGame.Core.Vr.CanopyFreeBody"/> with the canopy's own mass, drag and lift. Torn hinges show
+        /// Codex's `Canopy_Hinge_Broken_*` fittings. Returns the part's centre (world), or null where the model has no
+        /// canopy to lose (the procedural shell gets its stand-in, as the menu's bail-out does).
+        /// </summary>
+        public Vector3? DetachCanopy(FlyingGame.Core.Vr.CanopyDynamics canopy, Vector3 velocityWorld, Vector3 upWorld,
+                                     Vector3 spinWorld, bool hingesBroke)
+        {
+            if (Cockpit.CanopyGone) return null;
+            AirframeRig rig = _builder.Rig;
+            Transform part = FindInModel("Canopy_Detachable");
+            if (part == null && rig != null) part = rig.Jettisonable().T;
+            if (part == null) part = FindInModel("Canopy_Slide") ?? FindInModel("Canopy");
+            Cockpit.CanopyGone = true;
+            _rigPartGone = true;
+            if (part == null)
+            {
+                Transform shell = transform.Find("Canopy");
+                CanopyJettison.Spawn(_driver, shell);
+                if (shell != null && shell.TryGetComponent(out Renderer r)) r.enabled = false;
+                return null;
+            }
+            if (hingesBroke && _builder.ModelRoot != null)
+                foreach (Transform t in _builder.ModelRoot.GetComponentsInChildren<Transform>(true))
+                    if ((t.name.StartsWith("Model:") ? t.name.Substring(6) : t.name).StartsWith("Canopy_Hinge_Broken")) t.gameObject.SetActive(true);
+
+            Bounds b = PartBounds(part);
+            rig?.Release(part);
+            ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
+            part.SetParent(null, true);
+            static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
+            var body = new FlyingGame.Core.Vr.CanopyFreeBody(canopy, C(b.center), C(velocityWorld), C(upWorld), C(transform.forward), C(spinWorld));
+            part.gameObject.AddComponent<CanopyFlight>().Init(body, b.center, Mathf.Max(0.1f, b.extents.y * 0.5f));
+            return b.center;
         }
 
         /// <summary>World bounds of a part and everything under it, or a canopy-sized box where it has no
@@ -258,6 +313,7 @@ namespace FlyingGame.Bridge
             // stayed at idle however the player flew; the prop and mixture levers sat full AFT; and every needle
             // the rig drives from an engine reading pointed at zero.
             Cockpit.Fill(ref r, _driver, ac, d, dt);
+            r.WaterRudderUp = ac.WaterRudderUp01;    // the blade's slewed travel (Aircraft.Step); 0 on anything without a retract
             _lastRig = r;      // what the avionics displays and the sequence card read, one frame's state
             return r;
         }
@@ -272,11 +328,108 @@ namespace FlyingGame.Bridge
         {
             _componentsDetached = true;
             if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return null; }
+            // A wing panel that was bent first: its pieces are already on their own pivot — that pivot is the debris.
+            if (_bentPanels.TryGetValue(comp, out Transform bent) && bent != null)
+            {
+                _bentPanels.Remove(comp);
+                GameObject rest = DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
+                if (rest != null) for (int i = rest.transform.childCount - 1; i >= 0; i--) rest.transform.GetChild(i).SetParent(bent, true);
+                if (rest != null) Object.Destroy(rest);
+                // The debris object's origin is the aeroplane's CG at the break (WingDebris carries it rigidly with its sim
+                // piece), so the pivot goes under a parent posed there, keeping its offset and its bend.
+                var wrap = new GameObject("Debris-" + comp);
+                wrap.transform.SetPositionAndRotation(transform.position, transform.rotation);
+                bent.SetParent(wrap.transform, true);
+                float sd = TipSide(comp);
+                return LaunchDebris(wrap, worldVelocityUnity + transform.right * (4f * sd) + transform.up * 3f, transform.right * sd, -sd);
+            }
             return DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
         }
 
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, Transform> _bentPanels = new();
+
+        private static bool IsTipPanel(FlyingGame.Core.AirframeComponent c) =>
+            c is FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipRight
+              or FlyingGame.Core.AirframeComponent.WingTipLowerLeft or FlyingGame.Core.AirframeComponent.WingTipLowerRight;
+        private static float TipSide(FlyingGame.Core.AirframeComponent c) =>
+            c is FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipLowerLeft ? -1f : 1f;
+
+        /// <summary>
+        /// Which side of a tip panel's cut a triangle is on: outboard of its station on its side and, on a biplane, on its
+        /// own wing's side of the height midway between the two wings at the station (root-local y = −sim z).
+        /// </summary>
+        private static System.Func<Vector3, bool> TipPanelTest(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        {
+            float side = p.Side, cut = (float)p.BreakY;
+            float? midUp = null;
+            if (cfg != null)
+                foreach (FlyingGame.Core.WingPanel q in FlyingGame.Core.WingStructure.Build(cfg))
+                    if (q.Side == p.Side && q.SurfaceId != p.SurfaceId) midUp = (float)(-(p.BreakZ + q.BreakZ) * 0.5);
+            bool lower = p.Lower;
+            return c => c.x * side > cut && (midUp == null || (lower ? c.y < midUp.Value : c.y > midUp.Value));
+        }
+
+        private static void SplitBy(Mesh src, Transform part, Transform root, System.Func<Vector3, bool> lostTest, out Mesh lost, out Mesh kept)
+        {
+            lost = null; kept = src;
+            if (src == null || !src.isReadable) return;
+            Vector3[] v = src.vertices;
+            if (v.Length == 0) return;
+            var r = new Vector3[v.Length];
+            Matrix4x4 m = root.worldToLocalMatrix * part.localToWorldMatrix;
+            for (int i = 0; i < v.Length; i++) r[i] = m.MultiplyPoint3x4(v[i]);
+            DebrisMesh.Split(src, (a, b, c) => lostTest((r[a] + r[b] + r[c]) / 3f), out lost, out kept);
+        }
+
+        /// <summary>
+        /// A wing panel bent by a strike, or flexing under a tip contact (contact damage): on first call its triangles move
+        /// onto a pivot on the station line, which then turns about the flight axis by the panel's set plus its elastic flex. PLACEHOLDER — static
+        /// meshes only, the aileron meshes stay where they are (AGENT-LOG NEEDS-Codex).
+        /// </summary>
+        public void ShowPanelBend(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        {
+            if (_builder == null) return;
+            if (!_bentPanels.TryGetValue(p.Component, out Transform pivot) || pivot == null)
+            {
+                var go = new GameObject("Bent-" + p.Component);
+                pivot = go.transform;
+                pivot.SetParent(transform, false);
+                pivot.localPosition = new Vector3(p.Side * (float)p.BreakY, (float)-p.BreakZ, 0f);
+                pivot.localRotation = Quaternion.identity;
+                System.Func<Vector3, bool> test = TipPanelTest(p, cfg);
+                foreach (GameObject part in new List<GameObject>(_builder.WingParts))
+                {
+                    if (part == null) continue;
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null || mf.name.ToLowerInvariant().Contains("aileron")) continue;
+                        // Only what is on screen moves onto the pivot (the hidden procedural shell would appear in its own paint).
+                        if (!_builder.IsDebrisSource(mf)) continue;
+                        SplitBy(mf.sharedMesh, mf.transform, transform, test, out Mesh lost, out Mesh kept);
+                        if (lost == null) continue;
+                        AddPiece(pivot, mf.name + "-bent", lost, mf.GetComponent<Renderer>()?.sharedMaterials,
+                            pivot.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(pivot.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (kept == null && !IsModelMesh(mf)) mf.gameObject.SetActive(false); else mf.sharedMesh = kept;
+                    }
+                }
+                _bentPanels[p.Component] = pivot;
+            }
+            // Root-local x = sim y, y = up, z = sim x: tip up is +angle about +z on the right, − on the left.
+            pivot.localRotation = Quaternion.AngleAxis(p.Side * (float)((p.BendRad + p.ElasticRad) * 180.0 / System.Math.PI), Vector3.forward);
+        }
+
         /// <summary>Detach a component's visual parts as tumbling debris — shared by the player's airframe and the
-        /// target drones (any AirframeBuilder-built airframe).</summary>
+        /// target drones (any AirframeBuilder-built airframe).
+        ///
+        /// WHAT THE DEBRIS IS CUT FROM (owner 2026-11-03: "When the pitts crashes and breaks apart it turns into the old
+        /// pitts render not the new one"). Under a placed model the procedural shell is still built, hidden, because the
+        /// hinges, gear travel and this bookkeeping hang off it — and every piece of it that broke off used to be handed
+        /// to AddPiece, which gave it a NEW, ENABLED renderer: the old red procedural Pitts fell out of the new one. Only
+        /// what is on screen is a source now (<see cref="AirframeBuilder.IsDebrisSource"/>); the hidden shell's lost parts
+        /// still leave the airframe, unseen. And every cut carries the source's UVs, colours and material slots
+        /// (<see cref="DebrisMesh"/>), so a piece is painted exactly as it was on the aeroplane, in the livery it wore.
+        /// Where the placed GLB has a prebuilt debris set (<see cref="AirframeBuilder.TakePrebuiltDebris"/>) its pieces are
+        /// dropped instead and the runtime split only takes the part off the aeroplane.</summary>
         public static GameObject DetachStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfg, FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
         {
             if (comp == FlyingGame.Core.AirframeComponent.Cabin || comp == FlyingGame.Core.AirframeComponent.Propeller) return null;   // the break-up arrives as Nose + TailBoom events
@@ -293,11 +446,20 @@ namespace FlyingGame.Bridge
             bool aileron = comp is FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.AileronRight;
             bool elevator = comp is FlyingGame.Core.AirframeComponent.ElevatorLeft or FlyingGame.Core.AirframeComponent.ElevatorRight;
             bool rudder = comp == FlyingGame.Core.AirframeComponent.Rudder;
-            float side = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingLeftInner
+            bool tailH = comp == FlyingGame.Core.AirframeComponent.TailHorizontal, tailV = comp == FlyingGame.Core.AirframeComponent.TailVertical;
+            bool tip = IsTipPanel(comp);
+            System.Func<Vector3, bool> tipTest = null;
+            if (tip && cfg != null)
+                foreach (FlyingGame.Core.WingPanel wp in FlyingGame.Core.WingStructure.Build(cfg))
+                    if (wp.Component == comp) tipTest = TipPanelTest(wp, cfg);
+            float side = tip ? TipSide(comp) : comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingLeftInner
                       or FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.ElevatorLeft ? -1f : 1f;
+            if (leftWing) side = -1f;
             float semi = cfg != null ? (float)FlyingGame.Core.WingPanels.Semispan(cfg) : 5f;
             float cutAbs = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingRightOuter
                 ? (float)FlyingGame.Core.WingPanels.OuterFraction * semi : 0.3f;
+            float bodyHalf = BodyHalf(cfg);
+            (float zLo, float zHi) band = WingBand(cfg);
             // Fuselage sections: the body mesh is cut at the nose / tail station (root-local z = sim x).
             float noseCut = 0f, tailCut = 0f;
             if ((nose || tailBoom) && cfg != null)
@@ -307,7 +469,7 @@ namespace FlyingGame.Bridge
             }
             bool Matches(string n)
             {
-                string l = n.ToLowerInvariant();
+                string l = BaseName(n);
                 return comp switch
                 {
                     FlyingGame.Core.AirframeComponent.TailHorizontal => l.StartsWith("stab") || l.StartsWith("hstab") || l.StartsWith("elevator"),
@@ -318,130 +480,244 @@ namespace FlyingGame.Bridge
                     _ => false,
                 };
             }
+            // Prebuilt pieces for exactly this model in exactly this livery, when there are any. They are what falls; the
+            // runtime split below still runs, to take the same part off the aeroplane, but drops nothing of its own.
+            bool prebuilt = _builder != null && _builder.TakePrebuiltDebris(comp, debris.transform) >= 0;
+            var seen = new HashSet<MeshFilter>();
+            var gone = new List<GameObject>();
+            // One mesh's lost share, as a piece: only when that mesh was on screen, and with every material it had.
+            void Emit(MeshFilter mf, Mesh lost, string name)
+            {
+                if (prebuilt || lost == null || _builder == null || !_builder.IsDebrisSource(mf)) return;
+                AddPiece(debris.transform, name, lost, mf.GetComponent<Renderer>()?.sharedMaterials,
+                    root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+            }
+            // What stays. A model's mesh object is never destroyed — its children are other parts of the model (the J-3's
+            // elevators hang under its Stab) and the model's own rig may be driving it — it just draws what is left.
+            void Keep(MeshFilter mf, Mesh kept)
+            {
+                if (kept == null && !IsModelMesh(mf)) gone.Add(mf.gameObject);
+                else mf.sharedMesh = kept;
+            }
+
             List<GameObject> parts;
-            if (leftWing || rightWing || panel) parts = new List<GameObject>(_builder.WingParts);
+            var legTaken = new HashSet<GameObject>();
+            if (leftWing || rightWing || panel || tip) parts = new List<GameObject>(_builder.WingParts);
             else if (gearLeg)
             {
                 parts = _builder.TakeLegParts(comp);
                 // A 3-D model's own wheel, fairing and leg go too (owner 2026-10-11: the 172's wheels stayed on, drawn through the
                 // runway, after a hard landing broke its gear).
-                foreach (var (pn, pm, pmat, pp, pr, ps) in _builder.CutModelLeg(parts, root)) AddPiece(debris.transform, pn, pm, pmat, pp, pr, ps);
+                foreach (var (mf, lost) in _builder.CutModelLeg(parts, root)) Emit(mf, lost, mf.name + "-leg");
             }
             else
             {
                 parts = new List<GameObject>(_builder.Parts);
-                if (tailBoom) parts.AddRange(_builder.TakeLegParts(FlyingGame.Core.AirframeComponent.GearTail));   // the tailwheel rides the boom
-                if (nose) parts.AddRange(_builder.TakeLegParts(FlyingGame.Core.AirframeComponent.GearNose));
+                List<GameObject> legs = tailBoom ? _builder.TakeLegParts(FlyingGame.Core.AirframeComponent.GearTail)   // the tailwheel rides the boom
+                                      : nose ? _builder.TakeLegParts(FlyingGame.Core.AirframeComponent.GearNose) : null;
+                if (legs != null) { parts.AddRange(legs); legTaken.UnionWith(legs); }
             }
-            var gone = new List<GameObject>();
+            var shellTail = new List<GameObject>();   // the hidden procedural stab/fin: where a one-mesh model's tail is
+            bool modelNamed = false;                  // the model has a mesh of its own for this part
             foreach (GameObject part in parts)
             {
                 if (part == null) continue;
                 bool modelPart = part.name.StartsWith("Model:");
-                float bodyHalf = cfg != null ? (float)((cfg.Fuselage.Crossflow?.BodyRadiusM > 0 ? cfg.Fuselage.Crossflow.BodyRadiusM : 0.5) + 0.15) : 0.7f;
+                string lname = BaseName(part.name);
                 if ((nose || tailBoom) && (part.name == "Fuselage" || modelPart))
                 {
                     // Cut the body at the station: the section beyond it leaves, the rest stays on the airframe.
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
-                        if (mf == null || mf.sharedMesh == null) continue;
+                        if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
                         SplitByStation(mf.sharedMesh, mf.transform, root, nose ? noseCut : tailCut, out Mesh fwd, out Mesh aft);
                         Mesh lost = nose ? fwd : aft, kept = nose ? aft : fwd;
                         if (lost == null) continue;
-                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
-                        AddPiece(debris.transform, mf.name + (nose ? "-Nose" : "-TailBoom"), lost, mr != null ? mr.sharedMaterial : null,
-                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
-                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                        Emit(mf, lost, mf.name + (nose ? "-Nose" : "-TailBoom"));
+                        Keep(mf, kept);
                     }
                     continue;
                 }
                 if ((leftWing || rightWing) && modelPart)
                 {
-                    // A real model is one mesh: the wing is what lies outboard of the body — cut there, keep the fuselage.
+                    // A real model's wing is what lies outboard of the body, along the wing's own chord band — cut there,
+                    // keep the fuselage (and the tailplane, whose tips are outboard of the body too, and the gear).
+                    if (NotWing(lname)) continue;
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
-                        if (mf == null || mf.sharedMesh == null) continue;
-                        SplitBySide(mf.sharedMesh, mf.transform, root, leftWing ? -1f : 1f, bodyHalf, out Mesh lost, out Mesh kept);
+                        if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
+                        SplitBySide(mf.sharedMesh, mf.transform, root, side, bodyHalf, NamedWing(lname) ? NoBand : band, out Mesh lost, out Mesh kept);
                         if (lost == null) continue;
-                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
-                        AddPiece(debris.transform, mf.name, lost, mr != null ? mr.sharedMaterial : null,
-                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
-                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                        Emit(mf, lost, mf.name);
+                        Keep(mf, kept);
                     }
                 }
-                else if ((aileron || elevator || rudder) && modelPart) { /* a single-mesh model has no separate control surfaces: aero is lost, nothing to drop */ }
+                else if (tip)
+                {
+                    // The panel outboard of its wing's structural station (and, on a biplane, only that wing's) — cut with
+                    // every UV and material slot, dropped only where that mesh was on screen.
+                    if (tipTest == null) continue;
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
+                        SplitBy(mf.sharedMesh, mf.transform, root, tipTest, out Mesh lost, out Mesh kept);
+                        if (lost == null) continue;
+                        Emit(mf, lost, mf.name + "-" + comp);
+                        Keep(mf, kept);
+                    }
+                }
+                else if ((aileron || elevator || rudder) && modelPart && !lname.Contains(aileron ? "aileron" : elevator ? "elevator" : "rudder"))
+                {
+                    /* a model with no mesh of its own for this surface: aero is lost, nothing to drop */
+                }
                 else if (leftWing || rightWing)
                 {
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
-                        if (mf == null || mf.sharedMesh == null) continue;
+                        if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
                         SplitBySpan(mf.sharedMesh, mf.transform, root, out Mesh lMesh, out Mesh rMesh);
                         Mesh lost = leftWing ? lMesh : rMesh, kept = leftWing ? rMesh : lMesh;
                         if (lost == null) continue;
-                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
-                        AddPiece(debris.transform, mf.name, lost, mr != null ? mr.sharedMaterial : null,
-                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
-                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                        Emit(mf, lost, mf.name);
+                        Keep(mf, kept);
                     }
                 }
-                else if (panel || ((aileron || elevator) && part.name.ToLowerInvariant().Contains(aileron ? "aileron" : "elevator")) || (rudder && part.name.ToLowerInvariant().Contains("rudder")))
+                else if (panel || ((aileron || elevator) && lname.Contains(aileron ? "aileron" : "elevator")) || (rudder && lname.Contains("rudder")))
                 {
+                    if (panel && modelPart && NotWing(lname)) continue;
                     // Cut at the spanwise station on this side: the piece beyond it leaves (a control surface: its whole side).
                     float cut = rudder ? -1f : (aileron || elevator) ? 0f : (modelPart ? Mathf.Max(cutAbs, bodyHalf) : cutAbs);
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
-                        if (mf == null || mf.sharedMesh == null) continue;
+                        if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
                         Mesh lost, kept;
                         if (rudder) { lost = mf.sharedMesh; kept = null; }
-                        else SplitBySide(mf.sharedMesh, mf.transform, root, side, cut, out lost, out kept);
+                        else SplitBySide(mf.sharedMesh, mf.transform, root, side, cut, panel && modelPart && !NamedWing(lname) ? band : NoBand, out lost, out kept);
                         if (lost == null) continue;
-                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
-                        AddPiece(debris.transform, mf.name + "-" + comp, lost, mr != null ? mr.sharedMaterial : null,
-                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
-                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                        if (modelPart) modelNamed = true;
+                        Emit(mf, lost, mf.name + "-" + comp);
+                        Keep(mf, kept);
                     }
                 }
-                else if (gearLeg || Matches(part.name))
+                else if (gearLeg || legTaken.Contains(part) || Matches(part.name))
                 {
+                    if (modelPart) modelNamed = true;
+                    else if (tailH || tailV) shellTail.Add(part);
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
-                        if (mf == null || mf.sharedMesh == null) continue;
-                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
-                        AddPiece(debris.transform, mf.name, mf.sharedMesh, mr != null ? mr.sharedMaterial : null,
-                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
+                        Emit(mf, mf.sharedMesh, mf.name);
+                        if (IsModelMesh(mf)) mf.sharedMesh = null;
                     }
-                    gone.Add(part);
+                    if (!modelPart) gone.Add(part);
                 }
             }
+            // A downloaded model is one or a few meshes with no stabiliser or fin of its own: cut its triangles out of the space
+            // the hidden procedural surface occupies (as a broken leg is cut, CutModelLeg) — the tail cone through the middle of
+            // the stabiliser, and the fuselage under the fin, stay.
+            if ((tailH || tailV) && !modelNamed && _builder.UsedModel && AirframeBuilder.BoundsOf(shellTail, root, out Vector3 lo, out Vector3 hi))
+            {
+                float floorY = lo.y;
+                lo -= new Vector3(0.15f, tailH ? 0.12f : 0f, 0.15f); hi += new Vector3(0.15f, 0.15f, 0.15f);
+                System.Func<Vector3, bool> ok = tailH ? c => Mathf.Abs(c.x) > 0.18f : c => c.y > floorY + 0.05f;
+                foreach (var (mf, lost) in _builder.CutModelBox(lo, hi, root, ok)) Emit(mf, lost, mf.name + "-" + comp);
+            }
+            // The livery's laid-on markings ride on what they were painted on: a wing's lettering with that wing, the fin's
+            // logo with the fin.
+            if (_builder != null)
+            {
+                float markCut = leftWing || rightWing ? bodyHalf : panel ? cutAbs : 0f;
+                foreach (GameObject mark in _builder.TakeMarks(m =>
+                    {
+                        Vector3 p = root.InverseTransformPoint(m.transform.position);
+                        if (m.name == "Decal:fin") return tailV || tailBoom;
+                        if (m.name == "Decal:fuselage" || m.name == "Decal:sweep") return false;
+                        return (leftWing || rightWing || panel) && p.x * side > markCut;
+                    }))
+                    mark.transform.SetParent(debris.transform, true);
+            }
             _builder.Forget(gone);
-            foreach (GameObject g in gone) if (g != null) Object.Destroy(g);
+            foreach (GameObject g in gone) if (g != null) Gone(g);
             Vector3 sideDir = (leftWing || side < 0f) ? -root.right : root.right;
-            Vector3 kick = leftWing || rightWing || panel ? sideDir * 4f + root.up * 3f
+            Vector3 kick = leftWing || rightWing || panel || tip ? sideDir * 4f + root.up * 3f
                 : gearLeg ? -root.forward * 2f - root.up * 1f + (comp == FlyingGame.Core.AirframeComponent.GearLeft ? -root.right : root.right) * 1.5f
                 : tailBoom ? -root.forward * 3f + root.up * 2.5f
                 : nose ? root.forward * 2f + root.up * 3f
                 : -root.forward * 3f + root.up * 4f;
-            return LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
+            return LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel || tip ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
+        }
+
+        /// <summary>A mesh object of the placed model (TryPlaceModel prefixes every one).</summary>
+        private static bool IsModelMesh(MeshFilter mf) => mf != null && mf.name.StartsWith("Model:");
+
+        /// <summary>A part's name as a model's node or the procedural shell spells it: no "Model:" prefix, no glTFast
+        /// per-primitive "_1" suffix, lower case.</summary>
+        private static string BaseName(string n)
+        {
+            if (n.StartsWith("Model:")) n = n.Substring(6);
+            return System.Text.RegularExpressions.Regex.Replace(n, @"_\d+$", "").ToLowerInvariant();
+        }
+
+        /// <summary>Model meshes that are never wing, though they reach outboard of the body: the tailplane, the gear,
+        /// the propeller (a named model's own nodes; a one-mesh model is held to the wing's chord band instead).</summary>
+        private static bool NotWing(string baseName) =>
+            baseName.StartsWith("stab") || baseName.StartsWith("hstab") || baseName.StartsWith("elevator") || baseName.StartsWith("fin")
+            || baseName.StartsWith("rudder") || baseName.StartsWith("gear") || baseName.Contains("wheel") || baseName.Contains("pant")
+            || baseName.StartsWith("oleo") || baseName.StartsWith("prop") || baseName.StartsWith("spinner") || baseName.StartsWith("blade")
+            || baseName.StartsWith("float") || baseName.StartsWith("ski");
+
+        /// <summary>A model node named for the wing (Wing_Upper, Wing.L, Aileron_UL, Strut_Interplane ...): it is the wing
+        /// by name, so it is not held to the config's chord band — a model placed a little off its config still loses
+        /// all of its wing.</summary>
+        private static bool NamedWing(string baseName) =>
+            baseName.Contains("wing") || baseName.Contains("aileron") || baseName.Contains("flap") || baseName.Contains("strut")
+            || baseName.Contains("slat") || baseName.Contains("spoiler");
+
+        private static float BodyHalf(AircraftConfig cfg) =>
+            cfg != null ? (float)((cfg.Fuselage.Crossflow?.BodyRadiusM > 0 ? cfg.Fuselage.Crossflow.BodyRadiusM : 0.5) + 0.15) : 0.7f;
+
+        private static readonly (float, float) NoBand = (float.NegativeInfinity, float.PositiveInfinity);
+
+        /// <summary>The wings' chord band along the body (root-local z, which is sim x from the CG), from trailing edge to
+        /// leading edge of every wing strip, with 0.3 m either side: a one-mesh model's tailplane tips lie outboard of the
+        /// body too, and must not go with a wing.</summary>
+        private static (float, float) WingBand(AircraftConfig cfg)
+        {
+            if (cfg == null) return NoBand;
+            double lo = double.MaxValue, hi = double.MinValue, cgx = cfg.Mass.CgVec().X;
+            foreach (FlyingGame.Core.DataContracts.SurfaceConfig sf in cfg.Surfaces)
+            {
+                if (!sf.Id.ToLowerInvariant().Contains("wing")) continue;
+                foreach (FlyingGame.Core.DataContracts.StripConfig st in sf.Strips)
+                {
+                    lo = System.Math.Min(lo, st.Pos[0] - 0.75 * st.Chord);
+                    hi = System.Math.Max(hi, st.Pos[0] + 0.25 * st.Chord);
+                }
+            }
+            if (lo > hi) return NoBand;
+            return ((float)(lo - cgx) - 0.3f, (float)(hi - cgx) + 0.3f);
         }
 
         /// <summary>Split a part's mesh on one side of the centreline at a spanwise station (root-local x = sim y):
-        /// triangles with centroid sign·x > cutAbs go to `lost`, the rest to `kept`.</summary>
+        /// triangles with centroid sign·x > cutAbs (and, where a band is given, centroid z inside it) go to `lost`, the
+        /// rest to `kept`. Every vertex attribute and submesh survives (DebrisMesh.Split).</summary>
         private static void SplitBySide(Mesh src, Transform part, Transform root, float sign, float cutAbs, out Mesh lost, out Mesh kept)
+            => SplitBySide(src, part, root, sign, cutAbs, NoBand, out lost, out kept);
+
+        private static void SplitBySide(Mesh src, Transform part, Transform root, float sign, float cutAbs, (float lo, float hi) band, out Mesh lost, out Mesh kept)
         {
-            lost = null; kept = null;
-            Vector3[] v = src.vertices; int[] t = src.triangles;
-            if (v.Length == 0 || t.Length == 0) return;
-            var x = new float[v.Length];
-            for (int i = 0; i < v.Length; i++) x[i] = root.InverseTransformPoint(part.TransformPoint(v[i])).x * sign;
-            var lt = new List<int>(t.Length); var kt = new List<int>(t.Length);
-            for (int i = 0; i + 2 < t.Length; i += 3)
+            lost = null; kept = src;
+            if (src == null || !src.isReadable) return;
+            Vector3[] v = src.vertices;
+            if (v.Length == 0) return;
+            var x = new float[v.Length]; var z = new float[v.Length];
+            Matrix4x4 m = root.worldToLocalMatrix * part.localToWorldMatrix;
+            for (int i = 0; i < v.Length; i++) { Vector3 q = m.MultiplyPoint3x4(v[i]); x[i] = q.x * sign; z[i] = q.z; }
+            DebrisMesh.Split(src, (a, b, c) =>
             {
-                float cx = (x[t[i]] + x[t[i + 1]] + x[t[i + 2]]) / 3f;
-                List<int> dst = cx > cutAbs ? lt : kt;
-                dst.Add(t[i]); dst.Add(t[i + 1]); dst.Add(t[i + 2]);
-            }
-            if (lt.Count > 0) lost = CloneMesh(v, lt.ToArray());
-            if (kt.Count > 0) kept = CloneMesh(v, kt.ToArray());
+                float cz = (z[a] + z[b] + z[c]) / 3f;
+                return (x[a] + x[b] + x[c]) / 3f > cutAbs && cz >= band.lo && cz <= band.hi;
+            }, out lost, out kept);
         }
 
         /// <summary>Prop strike: each blade is shortened and its outer half folded back ~50°, the disc goes away.</summary>
@@ -453,6 +729,9 @@ namespace FlyingGame.Bridge
                 if (part == null) continue;
                 if (part.name == "PropDisc") { part.SetActive(false); continue; }
                 if (part.name != "Blade") continue;
+                // Not the hidden procedural blades under a model: their bent tips would be new, visible cubes in the shell's
+                // paint. The model's own propeller stays as it is (FreezeRig has stopped it).
+                if (!_builder.IsDebrisSource(part.GetComponent<MeshFilter>())) continue;
                 Vector3 sc = part.transform.localScale;
                 // Keep the inner 55 %, add a bent outer tip folded aft (local -z is aft for a blade in the yz plane).
                 part.transform.localScale = new Vector3(sc.x * 0.55f, sc.y, sc.z);
@@ -475,6 +754,7 @@ namespace FlyingGame.Bridge
 
         private void Rebuild()
         {
+            QuestRig.Note($"airframe rebuild {_driver.AircraftId}");
             _builtId = _driver.AircraftId;
             _builtModels = SessionSettings.UseAirframeModels;
             _builtOwn = SessionSettings.UseOwnModels;
@@ -485,6 +765,8 @@ namespace FlyingGame.Bridge
             Cockpit.Reset();
             _displays.Forget();
             Card.Forget();
+            _live.Forget();
+            _waterRudder.Forget();
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
             foreach (var sights in GetComponentsInChildren<CockpitSights>(true)) sights.BindLocal(_driver);
             GetComponent<GroundShadow>()?.Refresh();
@@ -510,54 +792,71 @@ namespace FlyingGame.Bridge
         public (GameObject left, GameObject right) DetachWings(Vector3 worldVelocityUnity)
         {
             if (_wingsDetached) return (null, null);
-            _builder.FreezeRig();
             _wingsDetached = true;
+            return DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity);
+        }
+
+        /// <summary><see cref="DetachWings"/> for any AirframeBuilder-built airframe (the editor's DebrisPaintCheck too).
+        /// What falls is what was on screen, painted as it was (see <see cref="DetachStatic"/>).</summary>
+        public static (GameObject left, GameObject right) DetachWingsStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfgM, Vector3 worldVelocityUnity)
+        {
+            _builder.FreezeRig();
             List<GameObject> parts = _builder.TakeWingParts();
             if (parts.Count == 0) return (null, null);
 
-            Transform root = transform;
             GameObject left = new GameObject("WingDebris-L");
             GameObject right = new GameObject("WingDebris-R");
             left.transform.SetPositionAndRotation(root.position, root.rotation);
             right.transform.SetPositionAndRotation(root.position, root.rotation);
+            // Prebuilt wings for this model and livery, where the GLB has them: the split below then only takes them off.
+            bool preL = _builder.TakePrebuiltDebris(FlyingGame.Core.AirframeComponent.WingLeft, left.transform) >= 0;
+            bool preR = _builder.TakePrebuiltDebris(FlyingGame.Core.AirframeComponent.WingRight, right.transform) >= 0;
+            float bodyHalf = BodyHalf(cfgM);
+            (float, float) band = WingBand(cfgM);
 
             var seen = new HashSet<MeshFilter>();
             foreach (GameObject part in parts)
             {
                 if (part == null) continue;
+                bool modelPart = part.name.StartsWith("Model:");
+                if (modelPart && NotWing(BaseName(part.name))) continue;   // a named model's tailplane, gear and prop stay
+                (float, float) partBand = modelPart && NamedWing(BaseName(part.name)) ? NoBand : band;
                 foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                 {
                     if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
-                    MeshRenderer mr = mf.GetComponent<MeshRenderer>();
-                    Material mat = mr != null ? mr.sharedMaterial : null;
+                    bool src = _builder.IsDebrisSource(mf);   // never the hidden procedural shell under a model
+                    Material[] mats = mf.GetComponent<Renderer>()?.sharedMaterials;
                     Vector3 localPos = root.InverseTransformPoint(mf.transform.position);
                     Quaternion localRot = Quaternion.Inverse(root.rotation) * mf.transform.rotation;
                     Vector3 scale = mf.transform.lossyScale;
-                    if (part.name.StartsWith("Model:"))
+                    if (modelPart)
                     {
                         // One-mesh model: both wings leave outboard of the body; the fuselage stays on the airframe.
-                        var cfgM = _driver?.Sim?.Aircraft?.Config;
-                        float bodyHalf = cfgM != null ? (float)((cfgM.Fuselage.Crossflow?.BodyRadiusM > 0 ? cfgM.Fuselage.Crossflow.BodyRadiusM : 0.5) + 0.15) : 0.7f;
-                        SplitBySide(mf.sharedMesh, mf.transform, root, -1f, bodyHalf, out Mesh lost1, out Mesh kept1);
-                        if (lost1 != null) AddPiece(left.transform, mf.name, lost1, mat, localPos, localRot, scale);
+                        SplitBySide(mf.sharedMesh, mf.transform, root, -1f, bodyHalf, partBand, out Mesh lost1, out Mesh kept1);
+                        if (lost1 != null && src && !preL) AddPiece(left.transform, mf.name, lost1, mats, localPos, localRot, scale);
                         // A mesh lying wholly on the left (an own model's left ailerons and their interconnect strut) has
                         // nothing to keep: it went with the debris above, so it must leave the airframe too. It used to keep
                         // its mesh, and the left ailerons stayed on the fuselage while a copy tumbled away with the wing.
                         if (kept1 == null) mf.sharedMesh = null;
                         else
                         {
-                            SplitBySide(kept1, mf.transform, root, 1f, bodyHalf, out Mesh lost2, out Mesh kept2);
-                            if (lost2 != null) AddPiece(right.transform, mf.name, lost2, mat, localPos, localRot, scale);
+                            SplitBySide(kept1, mf.transform, root, 1f, bodyHalf, partBand, out Mesh lost2, out Mesh kept2);
+                            if (lost2 != null && src && !preR) AddPiece(right.transform, mf.name, lost2, mats, localPos, localRot, scale);
                             mf.sharedMesh = kept2;
                         }
                         continue;
                     }
                     SplitBySpan(mf.sharedMesh, mf.transform, root, out Mesh lMesh, out Mesh rMesh);
-                    if (lMesh != null) AddPiece(left.transform, mf.name, lMesh, mat, localPos, localRot, scale);
-                    if (rMesh != null) AddPiece(right.transform, mf.name, rMesh, mat, localPos, localRot, scale);
+                    if (!src) continue;
+                    if (lMesh != null && !preL) AddPiece(left.transform, mf.name, lMesh, mats, localPos, localRot, scale);
+                    if (rMesh != null && !preR) AddPiece(right.transform, mf.name, rMesh, mats, localPos, localRot, scale);
                 }
             }
-            foreach (GameObject part in parts) if (part != null && !part.name.StartsWith("Model:")) Object.Destroy(part);
+            foreach (GameObject part in parts) if (part != null && !part.name.StartsWith("Model:")) Gone(part);
+            // The wings' laid-on lettering goes with them.
+            foreach (GameObject mark in _builder.TakeMarks(m => m.name != "Decal:fin" && m.name != "Decal:fuselage" && m.name != "Decal:sweep"
+                                                              && Mathf.Abs(root.InverseTransformPoint(m.transform.position).x) > bodyHalf))
+                mark.transform.SetParent(root.InverseTransformPoint(mark.transform.position).x < 0f ? left.transform : right.transform, true);
 
             // Ballistic tumble: inherit the aircraft's velocity, kick outward and up, spin about a random axis
             // biased to the span (a freed wing pinwheels), each side its own way.
@@ -567,9 +866,15 @@ namespace FlyingGame.Bridge
             return (l, r);
         }
 
+        /// <summary>Destroy, or DestroyImmediate outside play mode (the editor checks run the break-up in edit mode).</summary>
+        private static void Gone(Object o)
+        {
+            if (Application.isPlaying) Object.Destroy(o); else Object.DestroyImmediate(o);
+        }
+
         private static GameObject LaunchDebris(GameObject go, Vector3 velocity, Vector3 spanAxis, float sign)
         {
-            if (go.transform.childCount == 0) { Object.Destroy(go); return null; }
+            if (go.transform.childCount == 0) { Gone(go); return null; }
             WingDebris d = go.AddComponent<WingDebris>();
             d.Velocity = velocity;
             Vector3 tumble = (spanAxis * 2.5f + Random.onUnitSphere).normalized;
@@ -577,8 +882,16 @@ namespace FlyingGame.Bridge
             return go;
         }
 
-        private static void AddPiece(Transform parent, string name, Mesh mesh, Material mat, Vector3 localPos, Quaternion localRot, Vector3 scale)
+        /// <summary>A debris piece: the mesh, drawn with the source renderer's own materials, one per submesh
+        /// (DebrisMesh.ForPiece drops empty submeshes and their materials together).</summary>
+        private static void AddPiece(Transform parent, string name, Mesh mesh, Material[] mats, Vector3 localPos, Quaternion localRot, Vector3 scale)
         {
+            (mesh, mats) = DebrisMesh.ForPiece(mesh, mats);
+            if (mesh == null) return;
+            // What each piece draws with, in the device log (Ty 2026-11-03: pieces grey and white on the iPhone, painted in
+            // the editor): material, shader, texture, whether the mesh still has UVs and can still be read.
+            Debug.Log($"[Debris] piece '{name}': {mesh.vertexCount} verts, uv0={mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.TexCoord0)}, readable={mesh.isReadable}, mats=" +
+                string.Join(" | ", System.Linq.Enumerable.Select(mats, m => m == null ? "NULL" : $"{m.name}[{(m.shader != null ? m.shader.name : "no shader")}] tex={(m.mainTexture != null ? m.mainTexture.name : "none")}")));
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
@@ -586,46 +899,37 @@ namespace FlyingGame.Bridge
             go.transform.localScale = scale;
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>();
-            if (mat != null) mr.sharedMaterial = mat;
+            if (mats.Length > 0) mr.sharedMaterials = mats;
         }
 
         /// <summary>
         /// Split a part's mesh at the aircraft centreline (root-local x = sim y): triangles whose centroid is
         /// left go to `left`, right to `right`. A part sitting wholly on one side (aileron half, strut, slat)
         /// is handed over unsplit. Vertices are kept in the part's own local space so the piece reuses the
-        /// part's transform.
+        /// part's transform, and every vertex attribute and submesh survives (DebrisMesh.Split).
         /// </summary>
         private static void SplitBySpan(Mesh src, Transform part, Transform root, out Mesh left, out Mesh right)
         {
             left = null; right = null;
+            if (src == null || !src.isReadable) return;
             Vector3[] v = src.vertices;
-            int[] t = src.triangles;
-            if (v.Length == 0 || t.Length == 0) return;
+            if (v.Length == 0) return;
             var x = new float[v.Length];
             float minX = float.MaxValue, maxX = float.MinValue;
+            Matrix4x4 m = root.worldToLocalMatrix * part.localToWorldMatrix;
             for (int i = 0; i < v.Length; i++)
             {
-                x[i] = root.InverseTransformPoint(part.TransformPoint(v[i])).x;
+                x[i] = m.MultiplyPoint3x4(v[i]).x;
                 if (x[i] < minX) minX = x[i];
                 if (x[i] > maxX) maxX = x[i];
             }
             bool spansCentre = minX < -0.15f && maxX > 0.15f;
             if (!spansCentre)
             {
-                Mesh whole = CloneMesh(v, t);
-                if ((minX + maxX) * 0.5f < 0f) left = whole; else right = whole;
+                if ((minX + maxX) * 0.5f < 0f) left = src; else right = src;
                 return;
             }
-            var lt = new List<int>(t.Length);
-            var rt = new List<int>(t.Length);
-            for (int i = 0; i + 2 < t.Length; i += 3)
-            {
-                float cx = (x[t[i]] + x[t[i + 1]] + x[t[i + 2]]) / 3f;
-                List<int> dst = cx < 0f ? lt : rt;
-                dst.Add(t[i]); dst.Add(t[i + 1]); dst.Add(t[i + 2]);
-            }
-            if (lt.Count > 0) left = CloneMesh(v, lt.ToArray());
-            if (rt.Count > 0) right = CloneMesh(v, rt.ToArray());
+            DebrisMesh.Split(src, (a, b, c) => (x[a] + x[b] + x[c]) / 3f < 0f, out left, out right);
         }
 
         /// <summary>Split a part's mesh at a longitudinal station (root-local z = sim x): triangles whose centroid is
@@ -633,55 +937,44 @@ namespace FlyingGame.Bridge
         private static void SplitByStation(Mesh src, Transform part, Transform root, float cutZ, out Mesh fwd, out Mesh aft)
         {
             fwd = null; aft = null;
+            if (src == null || !src.isReadable) return;
             Vector3[] v = src.vertices;
-            int[] t = src.triangles;
-            if (v.Length == 0 || t.Length == 0) return;
+            if (v.Length == 0) return;
             var z = new float[v.Length];
             float minZ = float.MaxValue, maxZ = float.MinValue;
+            Matrix4x4 m = root.worldToLocalMatrix * part.localToWorldMatrix;
             for (int i = 0; i < v.Length; i++)
             {
-                z[i] = root.InverseTransformPoint(part.TransformPoint(v[i])).z;
+                z[i] = m.MultiplyPoint3x4(v[i]).z;
                 if (z[i] < minZ) minZ = z[i];
                 if (z[i] > maxZ) maxZ = z[i];
             }
-            if (minZ >= cutZ) { fwd = CloneMesh(v, t); return; }
-            if (maxZ <= cutZ) { aft = CloneMesh(v, t); return; }
-            var ft = new List<int>(t.Length);
-            var at = new List<int>(t.Length);
-            for (int i = 0; i + 2 < t.Length; i += 3)
-            {
-                float cz = (z[t[i]] + z[t[i + 1]] + z[t[i + 2]]) / 3f;
-                List<int> dst = cz > cutZ ? ft : at;
-                dst.Add(t[i]); dst.Add(t[i + 1]); dst.Add(t[i + 2]);
-            }
-            if (ft.Count > 0) fwd = CloneMesh(v, ft.ToArray());
-            if (at.Count > 0) aft = CloneMesh(v, at.ToArray());
-        }
-
-        private static Mesh CloneMesh(Vector3[] v, int[] t)
-        {
-            var m = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-            m.SetVertices(v);
-            m.SetTriangles(t, 0);
-            m.RecalculateNormals();
-            m.RecalculateBounds();
-            return m;
+            if (minZ >= cutZ) { fwd = src; return; }
+            if (maxZ <= cutZ) { aft = src; return; }
+            DebrisMesh.Split(src, (a, b, c) => (z[a] + z[b] + z[c]) / 3f > cutZ, out fwd, out aft);
         }
     }
 
     /// <summary>
     /// A separated piece of airframe. When the crash physics owns it (<see cref="Piece"/> set by StructuralDamage) it
-    /// simply sits where the sim's wreck piece is — falling, striking, plunging, floating, sinking: all of that is
-    /// FlyingGame.Core.Wreck.WreckSim, and this is only its picture. Otherwise (combat drones, the widget) it falls back to
-    /// simple kinematic ballistics — gravity, a drag-ish velocity damping (a loose panel flutters down at ~15 m/s rather
-    /// than streamlining), a decaying tumble — until it reaches the ground or 30 s pass.
+    /// simply sits where the sim's wreck piece is — falling, striking, sliding, plunging, floating, sinking: all of that is
+    /// FlyingGame.Core.Wreck.WreckSim (box-corner ground contact with Coulomb friction against the island's own ground),
+    /// and this is only its picture. Otherwise (combat drones, the widget, a part the sim has no volumes for) it runs the
+    /// same kind of contact itself: gravity, a drag-ish damping, a decaying tumble, and the ground under its lowest vertex.
+    ///
+    /// Ty 2026-11-03 (iPhone 2026.1103.2111): "the detached wings sink below the ground surface and disappear". The fallback
+    /// used to DESTROY a piece the moment its origin — the aeroplane's CG at the break, well above the piece's lowest point —
+    /// came within 0.3 m of the ground: the mesh was already half under the grass when it vanished. Now nothing is removed
+    /// for reaching the ground; it lands, slides and comes to rest on it, and stays until the next flight clears the wreck.
+    /// And whichever drives it, no vertex of a piece is ever drawn below the ground under it (<see cref="KeepAboveGround"/>).
     /// </summary>
     public sealed class WingDebris : MonoBehaviour
     {
         public Vector3 Velocity;
         public Vector3 AngularVelocityDeg;
-        public float LifeSec = 30f;
-        /// <summary>The sim piece this is the picture of (null = the old free ballistics).</summary>
+        /// <summary>Only a piece that is still falling is ever removed by time (lost off a cliff, into the sea's floor).</summary>
+        public float LifeSec = 600f;
+        /// <summary>The sim piece this is the picture of (null = its own contact below).</summary>
         public FlyingGame.Core.Wreck.WreckPiece Piece;
         /// <summary>The piece's CG relative to the aeroplane's CG, body frame: this object's origin is the aeroplane's
         /// CG at the moment of the break, carried rigidly with the piece.</summary>
@@ -690,6 +983,12 @@ namespace FlyingGame.Bridge
         private const float GravityMs2 = 9.80665f;
         private const float DragPerSec = 0.65f;     // terminal ≈ g/drag ≈ 15 m/s
         private const float SpinDecayPerSec = 0.25f;
+        /// <summary>Metal on grass/asphalt sliding (the hard-structure coefficients, AirframeContact.SlidingMu), and the
+        /// bounce a crumpling panel keeps.</summary>
+        private const float SlideMu = 0.5f, Restitution = 0.2f;
+
+        // A sample of the piece's vertices in its own frame (at most ~300): the lowest of them meets the ground.
+        private Vector3[] _probe;
 
         private void Update()
         {
@@ -698,6 +997,7 @@ namespace FlyingGame.Bridge
                 FlyingGame.Core.RigidBodyState s = Piece.State;
                 FlyingGame.Core.MathTypes.Vec3 origin = s.Position - s.Attitude.Rotate(PieceOffsetBody);
                 transform.SetPositionAndRotation(CoordinateMap.ToUnity(origin), CoordinateMap.ToUnity(s.Attitude));
+                KeepAboveGround(out _);   // the sim's boxes hold it; this only guards the drawn mesh against their difference
                 return;
             }
             float dt = Time.deltaTime;
@@ -706,14 +1006,63 @@ namespace FlyingGame.Bridge
             transform.position += Velocity * dt;
             transform.Rotate(AngularVelocityDeg * dt, Space.World);
             AngularVelocityDeg *= Mathf.Max(0f, 1f - SpinDecayPerSec * dt);
-
-            LifeSec -= dt;
-            FlyingGame.Core.MathTypes.Vec3 sim = CoordinateMap.ToSim(transform.position);
-            float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(sim.X, sim.Y);
-            if (LifeSec <= 0f || transform.position.y <= ground + 0.3f)
+            if (KeepAboveGround(out float pushed) && Velocity.y < 0f)
             {
-                Destroy(gameObject);
+                // Contact: the normal speed bounces back at the restitution, friction takes μ·N·dt off the sliding speed
+                // (N ≈ the weight while resting, the arrival's impulse on the step it lands), and the tumble dies.
+                float vn = -Velocity.y;
+                Velocity.y = vn * Restitution;
+                var h = new Vector3(Velocity.x, 0f, Velocity.z);
+                float slide = h.magnitude, dv = SlideMu * (GravityMs2 * dt + vn * (1f + Restitution));
+                Velocity = slide > dv ? new Vector3(Velocity.x * (1f - dv / slide), Velocity.y, Velocity.z * (1f - dv / slide)) : new Vector3(0f, Velocity.y, 0f);
+                AngularVelocityDeg *= Mathf.Max(0f, 1f - 6f * dt);
+                return;
             }
+            if (pushed <= 0f) LifeSec -= dt;
+            if (LifeSec <= 0f) Destroy(gameObject);
+        }
+
+        /// <summary>Lift the piece so its lowest vertex is on the ground under that vertex (the island's height field — the
+        /// surface the aeroplane rolls on). True when it was touching; <paramref name="pushed"/> = how far it was lifted.</summary>
+        public bool KeepAboveGround(out float pushed)
+        {
+            pushed = 0f;
+            _probe ??= Probe();
+            if (_probe.Length == 0) return false;
+            Vector3 low = Vector3.zero; float lowY = float.MaxValue;
+            Matrix4x4 m = transform.localToWorldMatrix;
+            foreach (Vector3 v in _probe) { Vector3 w = m.MultiplyPoint3x4(v); if (w.y < lowY) { lowY = w.y; low = w; } }
+            FlyingGame.Core.MathTypes.Vec3 sim = CoordinateMap.ToSim(low);
+            float ground = (float)FlyingGame.Core.WorldTerrain.HardPointGroundAt(sim.X, sim.Y, -sim.Z);
+            if (lowY > ground + 0.01f) return false;
+            pushed = ground - lowY;
+            if (pushed > 0f) transform.position += Vector3.up * pushed;
+            return true;
+        }
+
+        private Vector3[] Probe()
+        {
+            var pts = new System.Collections.Generic.List<Vector3>();
+            Matrix4x4 toLocal = transform.worldToLocalMatrix;
+            foreach (MeshFilter mf in GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh mesh = mf.sharedMesh;
+                if (mesh == null) continue;
+                Matrix4x4 toMe = toLocal * mf.transform.localToWorldMatrix;
+                if (mesh.isReadable)
+                {
+                    Vector3[] v = mesh.vertices;
+                    int step = Mathf.Max(1, v.Length / 300);
+                    for (int i = 0; i < v.Length; i += step) pts.Add(toMe.MultiplyPoint3x4(v[i]));
+                }
+                else
+                {
+                    Bounds b = mesh.bounds;   // an unreadable mesh: its bounding box's corners
+                    for (int k = 0; k < 8; k++)
+                        pts.Add(toMe.MultiplyPoint3x4(b.center + Vector3.Scale(b.extents, new Vector3((k & 1) == 0 ? -1 : 1, (k & 2) == 0 ? -1 : 1, (k & 4) == 0 ? -1 : 1))));
+                }
+            }
+            return pts.ToArray();
         }
     }
 
@@ -1630,7 +1979,10 @@ namespace FlyingGame.Bridge
             {
                 if (g == null) continue;
                 var mr = g.transform.parent != null ? g.transform.parent.GetComponent<MeshRenderer>() : null;
-                if (mr != null) mr.enabled = true;
+                // Only a rigid copy that was on screen before its skin took over comes back — never anything the
+                // placement hid (the procedural shell, a livery's hidden pieces): a revived shell part is the old
+                // red/white procedural Pitts appearing in the wreck (Ty 2026-11-03).
+                if (mr != null && !_hiddenAtPlace.Contains(mr)) mr.enabled = true;
                 Kill(g);
             }
             _rigged.Clear();
@@ -1670,20 +2022,33 @@ namespace FlyingGame.Bridge
             _rig = null;
             _modelRoot = null;
             UsedModel = false;
+            // A rebuild (new type, new livery, a fresh flight) starts with nothing hidden and no debris set looked up.
+            _hiddenAtPlace.Clear();
+            PlacedModelPath = null;
+            _modelRepainted = false;
+            _debrisSet = null; _debrisLooked = false;
+            _debrisUsed.Clear();
         }
 
         /// <summary>Visual parts of each landing-gear leg (wheel + strut), by component — a torn-off leg becomes debris.</summary>
         private readonly Dictionary<FlyingGame.Core.AirframeComponent, List<GameObject>> _legParts = new();
 
         /// <summary>A broken-off leg's share of the 3-D model: the triangles wholly inside the leg's space (its procedural parts'
-        /// bounds, grown a little — the model's gear seldom sits exactly on the config's leg) leave the model; returned as debris
-        /// pieces (name, mesh, material, root-local position/rotation, scale). The body's triangles straddle the box and stay.</summary>
-        public List<(string, Mesh, Material, Vector3, Quaternion, Vector3)> CutModelLeg(List<GameObject> legParts, Transform root)
+        /// bounds, grown a little — the model's gear seldom sits exactly on the config's leg) leave the model; returned as the
+        /// mesh each came from and its lost share (the caller makes the debris piece, with that mesh's own materials). The
+        /// body's triangles straddle the box and stay.</summary>
+        public List<(MeshFilter mf, Mesh lost)> CutModelLeg(List<GameObject> legParts, Transform root)
         {
-            var outp = new List<(string, Mesh, Material, Vector3, Quaternion, Vector3)>();
-            if (_modelParts.Count == 0 || legParts == null) return outp;
-            bool any = false; Vector3 lo = Vector3.zero, hi = Vector3.zero;
-            foreach (GameObject g in legParts)
+            if (_modelParts.Count == 0 || legParts == null || !BoundsOf(legParts, root, out Vector3 lo, out Vector3 hi)) return new List<(MeshFilter, Mesh)>();
+            lo -= new Vector3(0.35f, 0.3f, 0.35f); hi += new Vector3(0.35f, 0f, 0.35f);   // never up into the body
+            return CutModelBox(lo, hi, root);
+        }
+
+        /// <summary>Root-space bounds of some parts' meshes (from each mesh's own box corners). false when none has a mesh.</summary>
+        public static bool BoundsOf(IEnumerable<GameObject> parts, Transform root, out Vector3 lo, out Vector3 hi)
+        {
+            bool any = false; lo = Vector3.zero; hi = Vector3.zero;
+            foreach (GameObject g in parts)
             {
                 var gmf = g != null ? g.GetComponent<MeshFilter>() : null;
                 if (gmf == null || gmf.sharedMesh == null) continue;
@@ -1695,46 +2060,155 @@ namespace FlyingGame.Bridge
                     if (!any) { lo = hi = q; any = true; } else { lo = Vector3.Min(lo, q); hi = Vector3.Max(hi, q); }
                 }
             }
-            if (!any) return outp;
-            lo -= new Vector3(0.35f, 0.3f, 0.35f); hi += new Vector3(0.35f, 0f, 0.35f);   // never up into the body
+            return any;
+        }
+
+        /// <summary>Cut out of the placed model every triangle wholly inside the root-space box [lo, hi] (and whose centroid
+        /// passes <paramref name="centroidOk"/>): the model keeps the rest, every attribute and material slot intact
+        /// (DebrisMesh.Split); returned per mesh as its lost share.</summary>
+        public List<(MeshFilter mf, Mesh lost)> CutModelBox(Vector3 lo, Vector3 hi, Transform root, System.Func<Vector3, bool> centroidOk = null)
+        {
+            var outp = new List<(MeshFilter, Mesh)>();
+            var seen = new HashSet<MeshFilter>();
             foreach (GameObject part in _modelParts)
             {
                 if (part == null) continue;
                 foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                 {
                     Mesh src = mf != null ? mf.sharedMesh : null;
-                    if (src == null || !src.isReadable) continue;
+                    if (src == null || !src.isReadable || !seen.Add(mf)) continue;
                     Vector3[] v = src.vertices;
-                    var inside = new bool[v.Length];
+                    var q = new Vector3[v.Length]; var inside = new bool[v.Length];
+                    Matrix4x4 m = root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
                     for (int i = 0; i < v.Length; i++)
                     {
-                        Vector3 q = root.InverseTransformPoint(mf.transform.TransformPoint(v[i]));
-                        inside[i] = q.x >= lo.x && q.x <= hi.x && q.y >= lo.y && q.y <= hi.y && q.z >= lo.z && q.z <= hi.z;
+                        Vector3 p = q[i] = m.MultiplyPoint3x4(v[i]);
+                        inside[i] = p.x >= lo.x && p.x <= hi.x && p.y >= lo.y && p.y <= hi.y && p.z >= lo.z && p.z <= hi.z;
                     }
-                    Mesh kept = Object.Instantiate(src); kept.name = src.name + "-legcut";
-                    var lostT = new List<int>();
-                    for (int sm = 0; sm < src.subMeshCount; sm++)
-                    {
-                        int[] t = src.GetTriangles(sm); var keep = new List<int>(t.Length);
-                        for (int k = 0; k + 2 < t.Length; k += 3)
-                        {
-                            if (inside[t[k]] && inside[t[k + 1]] && inside[t[k + 2]]) { lostT.Add(t[k]); lostT.Add(t[k + 1]); lostT.Add(t[k + 2]); continue; }
-                            keep.Add(t[k]); keep.Add(t[k + 1]); keep.Add(t[k + 2]);
-                        }
-                        kept.SetTriangles(keep, sm);
-                    }
-                    if (lostT.Count == 0) { Object.Destroy(kept); continue; }
-                    var lost = new Mesh { name = src.name + "-leg", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-                    lost.vertices = v; var n = src.normals; if (n != null && n.Length == v.Length) lost.normals = n;
-                    var uv = src.uv; if (uv != null && uv.Length == v.Length) lost.uv = uv;
-                    lost.SetTriangles(lostT, 0); lost.RecalculateBounds();
-                    mf.sharedMesh = kept;
-                    var mr = mf.GetComponent<MeshRenderer>();
-                    outp.Add((mf.name + "-leg", lost, mr != null ? mr.sharedMaterial : null, root.InverseTransformPoint(mf.transform.position),
-                        Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale));
+                    DebrisMesh.Split(src, (a, b, c) => inside[a] && inside[b] && inside[c] && (centroidOk == null || centroidOk((q[a] + q[b] + q[c]) / 3f)),
+                        out Mesh lost, out Mesh kept);
+                    if (lost == null) continue;
+                    mf.sharedMesh = kept;   // null when all of it went
+                    outp.Add((mf, lost));
                 }
             }
             return outp;
+        }
+
+        // ---- what the break-up may draw (owner 2026-11-03) ---------------------------------------------------------
+        /// <summary>Renderers that were switched off when the model took over (the procedural shell, and anything of the
+        /// model's own the livery hides): never a source of debris, because they were never on screen.</summary>
+        private readonly HashSet<Renderer> _hiddenAtPlace = new();
+
+        /// <summary>Is this mesh something the player sees, and so something that may fall off as debris? The procedural
+        /// shell under a placed model is not: it stays built, hidden, for the hinges and the bookkeeping, and every one
+        /// of its lost parts used to come back as a fresh, enabled renderer — the old procedural Pitts falling out of
+        /// the new one. A model's rigid copies, hidden only while their skinned twins draw, count (FreezeRig shows
+        /// them again before anything is cut).</summary>
+        public bool IsDebrisSource(MeshFilter mf)
+        {
+            if (mf == null || mf.sharedMesh == null) return false;
+            Renderer r = mf.GetComponent<Renderer>();
+            return r != null && !_hiddenAtPlace.Contains(r);
+        }
+
+        /// <summary>The placed model's Resources path (Models/&lt;id&gt;/&lt;file&gt;, the livery's own GLB), null when the
+        /// aeroplane on screen is the procedural shell.</summary>
+        public string PlacedModelPath { get; private set; }
+        // The placed model's pose under the root, which a prebuilt debris set shares (same axes, units and origin).
+        private Vector3 _modelPos, _modelScale = Vector3.one; private Quaternion _modelRot = Quaternion.identity;
+        // The model's materials were changed at run time (the Talk Flying 172, a recoloured 2-33): a debris set exported
+        // from the file would not wear the livery on screen.
+        private bool _modelRepainted;
+
+        /// <summary>Where a prebuilt debris set is looked up: Resources.Load unless a check substitutes its own.</summary>
+        public static System.Func<string, GameObject> DebrisPrefabLoader;
+        private GameObject _debrisSet; private bool _debrisLooked;
+        private readonly HashSet<string> _debrisUsed = new();
+
+        /// <summary>The pieces a component's loss drops from a prebuilt set: WingLeft takes the panels and aileron if the
+        /// set is cut that way, TailHorizontal its elevators, the tail boom the whole empennage and tailwheel, the nose its
+        /// propeller and nose leg.</summary>
+        private static string[] PrebuiltCarries(FlyingGame.Core.AirframeComponent c) => c switch
+        {
+            FlyingGame.Core.AirframeComponent.WingLeft => new[] { "WingLeft", "WingLeftInner", "WingLeftOuter", "AileronLeft" },
+            FlyingGame.Core.AirframeComponent.WingRight => new[] { "WingRight", "WingRightInner", "WingRightOuter", "AileronRight" },
+            FlyingGame.Core.AirframeComponent.WingLeftInner => new[] { "WingLeftInner", "WingLeftOuter", "AileronLeft" },   // an inner panel takes its outer with it
+            FlyingGame.Core.AirframeComponent.WingRightInner => new[] { "WingRightInner", "WingRightOuter", "AileronRight" },
+            FlyingGame.Core.AirframeComponent.WingLeftOuter => new[] { "WingLeftOuter", "AileronLeft" },
+            FlyingGame.Core.AirframeComponent.WingRightOuter => new[] { "WingRightOuter", "AileronRight" },
+            FlyingGame.Core.AirframeComponent.TailHorizontal => new[] { "TailHorizontal", "ElevatorLeft", "ElevatorRight" },
+            FlyingGame.Core.AirframeComponent.TailVertical => new[] { "TailVertical", "Rudder" },
+            FlyingGame.Core.AirframeComponent.TailBoom => new[] { "TailBoom", "TailHorizontal", "ElevatorLeft", "ElevatorRight", "TailVertical", "Rudder", "GearTail" },
+            FlyingGame.Core.AirframeComponent.Nose => new[] { "Nose", "Propeller", "GearNose" },
+            _ => new[] { c.ToString() },
+        };
+
+        /// <summary>
+        /// PREBUILT DEBRIS (lane/codex-pitts-debris; nothing installed until Ty approves the renders). A debris set is a
+        /// GLB beside the placed one, named for it plus "-debris" — Models/pitts-s2b-like/pitts-s2b-like-own-n1191-debris
+        /// for the N1191 Pitts — in the intact GLB's axes, units and origin, with one node per piece named
+        /// "Debris.&lt;AirframeComponent&gt;.&lt;label&gt;". Only the set for the GLB actually placed is ever looked up, so
+        /// it cannot be another livery's or another type's; none is used for the procedural shell or for a model repainted
+        /// at run time. The component's pieces are instantiated under <paramref name="holder"/> exactly where the intact
+        /// model's geometry was, and each piece drops once.
+        /// </summary>
+        /// <returns>The number of pieces dropped (0 when this component's pieces already fell), or -1 when there is no set
+        /// or it has nothing for this component: the runtime split makes the debris.</returns>
+        public int TakePrebuiltDebris(FlyingGame.Core.AirframeComponent comp, Transform holder)
+        {
+            if (PlacedModelPath == null || _modelRepainted || _root == null || holder == null) return -1;
+            if (!_debrisLooked)
+            {
+                _debrisLooked = true;
+                string path = PlacedModelPath + "-debris";
+                _debrisSet = DebrisPrefabLoader != null ? DebrisPrefabLoader(path) : Resources.Load<GameObject>(path);
+                if (_debrisSet != null) Debug.Log($"[Airframe] prebuilt debris: {path}");
+            }
+            if (_debrisSet == null) return -1;
+            string[] carries = PrebuiltCarries(comp);
+            static string ComponentOf(string n)
+            {
+                if (!n.StartsWith("Debris.")) return null;
+                int dot = n.IndexOf('.', 7);
+                return dot > 7 ? n.Substring(7, dot - 7) : n.Substring(7);
+            }
+            bool any = false;
+            foreach (Transform t in _debrisSet.GetComponentsInChildren<Transform>(true))
+                if (System.Array.IndexOf(carries, ComponentOf(t.name)) >= 0) { any = true; break; }
+            if (!any) return -1;
+            // Placed as the intact model is, then each wanted piece handed over where it lies.
+            GameObject inst = Object.Instantiate(_debrisSet, _root, false);
+            inst.transform.localPosition = _modelPos; inst.transform.localRotation = _modelRot; inst.transform.localScale = _modelScale;
+            foreach (Collider col in inst.GetComponentsInChildren<Collider>(true)) Kill(col);
+            int n = 0;
+            foreach (Transform t in inst.GetComponentsInChildren<Transform>(true))
+            {
+                string c = ComponentOf(t.name);
+                if (c == null || System.Array.IndexOf(carries, c) < 0 || _debrisUsed.Contains(c)) continue;
+                if (t.parent != null && ComponentOf(t.parent.name) == c) continue;   // goes with its parent piece
+                t.SetParent(holder, true);
+                n++;
+            }
+            foreach (string c in carries) _debrisUsed.Add(c);
+            Kill(inst);
+            return n;
+        }
+
+        /// <summary>Hand over the livery's laid-on markings (Decal:*) that <paramref name="take"/> picks — visible ones
+        /// only, never the hidden shell's — so they leave with the part they are painted on.</summary>
+        public List<GameObject> TakeMarks(System.Func<GameObject, bool> take)
+        {
+            var taken = new List<GameObject>();
+            foreach (GameObject p in _parts)
+            {
+                if (p == null || !p.name.StartsWith("Decal:")) continue;
+                Renderer r = p.GetComponentInChildren<Renderer>(true);
+                if (r == null || _hiddenAtPlace.Contains(r) || !r.enabled || !take(p)) continue;
+                taken.Add(p);
+            }
+            Forget(taken);
+            return taken;
         }
 
         /// <summary>Hand over one leg's parts (removed from the builder's bookkeeping; the caller owns them).</summary>
@@ -1768,10 +2242,14 @@ namespace FlyingGame.Bridge
         public List<GameObject> TakeWingParts()
         {
             var taken = new List<GameObject>(_wingParts);
-            var set = new HashSet<GameObject>(_wingParts);
+            // A placed model's meshes are listed as wing parts so that the wing can be cut out of them, but only their
+            // wing share leaves: the rest of each mesh (the fuselage, the tail, the gear) is still on the aeroplane, and
+            // a nose or tail break after a wing failure has to find it there. They used to leave the part list with
+            // the wings, and the model's nose then never came off.
+            var set = new HashSet<GameObject>(_wingParts.Where(p => p != null && !_modelParts.Contains(p)));
             _parts.RemoveAll(p => p == null || set.Contains(p));
             _controls.RemoveAll(c => c.T == null || set.Contains(c.T.gameObject) || (c.T.parent != null && set.Contains(c.T.parent.gameObject)));
-            _wingParts.Clear();
+            _wingParts.RemoveAll(p => p == null || set.Contains(p));
             return taken;
         }
 
@@ -2059,14 +2537,21 @@ namespace FlyingGame.Bridge
         private void TryPlaceModel(Transform root, AircraftConfig cfg)
         {
             UsedModel = false;
+            // Timed (Quest, 2026-11-02: 4.2 s between the [Livery] line and the model's [Airframe] line on the first
+            // build of the 2-33's own model, inside the startup SLOW FRAME). Has() is where the first Resources.Load is.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             if (!SessionSettings.UseAirframeModels || Paint.HasValue || !AirframeModels.Has(cfg.Id)) return;
+            double tFound = sw.Elapsed.TotalMilliseconds;
             GameObject inst = AirframeModels.Place(root, cfg.Id, cfg, out _);
+            Debug.Log($"[Airframe] {cfg.Id}: model ready in {sw.Elapsed.TotalMilliseconds:F0} ms (found / loaded {tFound:F0}, placed {sw.Elapsed.TotalMilliseconds - tFound:F0})");
             if (inst == null) return;
             UsedModel = true;
             _modelRoot = inst.transform;
+            PlacedModelPath = AirframeModels.PlacedResourcePath(cfg.Id);
+            _modelPos = inst.transform.localPosition; _modelRot = inst.transform.localRotation; _modelScale = inst.transform.localScale;
             // The stock C172 remains the base geometry. Only this explicitly selected scheme repaints it.
             bool talk172 = cfg.Id == "c172-like" && _livery.Id == "talk-flying";
-            if (talk172) PaintTrainerModel(inst);
+            if (talk172) { PaintTrainerModel(inst); _modelRepainted = true; }
             // The Extra (our EA300) and the Pitts (our S-2B) have their paint baked in, one GLB per livery
             // (AirframeModels.OwnSuffix): nothing to do here.
             if (cfg.Id == "glider-2-33-like")
@@ -2090,6 +2575,7 @@ namespace FlyingGame.Bridge
                     Material[] mats = r.sharedMaterials;
                     for (int i = 0; i < mats.Length; i++) mats[i] = UnlitMat(colour);
                     r.sharedMaterials = mats;
+                    _modelRepainted = true;
                 }
             }
             // The procedural shell goes invisible (its parts stay for hinges, gear travel and debris bookkeeping) — except
@@ -2124,6 +2610,10 @@ namespace FlyingGame.Bridge
                 if (p != null && (p.name.StartsWith("Decal:") || p.name == "TailSign" || p.name == "LightningBolt")) continue;
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
             }
+            // WHAT IS ON SCREEN NOW is what the break-up may drop. Everything switched off above (the shell) or by the
+            // livery (the 2-33's factory pieces) is remembered, before the carve hides the model's rigid meshes behind
+            // their skins (those come back on at FreezeRig, and are debris sources).
+            foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true)) if (!r.enabled) _hiddenAtPlace.Add(r);
             // A model we drew ourselves may bring its OWN rig (docs/models/<model>-rig.json): every moving
             // part already a separate node with its origin on its pivot. Bind it here, on the untouched
             // instance, so each node's imported pose is its rest pose.
@@ -3989,11 +4479,15 @@ namespace FlyingGame.Bridge
                         Fuselage = white, Wing = white, TailColor = white, Control = red,
                     };
                 default: // glider-2-33-like (and anything unknown): high-wing strut-braced tandem trainer
+                    // Schweizer yellow all over (255,204,0, the Commons 2-33A 3-view). This was red and cream -- the
+                    // red-and-white 2-33 Ty removed on 2026-11-02; the 2-33 now always draws our own yellow model, and
+                    // if that ever fails to load, this fallback is yellow too.
+                    Color sgsYellow = new(1f, 0.8f, 0f);
                     return new Style
                     {
                         BodyAxisZ = 0.15f, Body = new[] { (2.2f, 0.05f), (1.9f, 0.25f), (1.2f, 0.45f), (0.3f, 0.48f), (-0.8f, 0.38f), (-2.0f, 0.24f), (-3.5f, 0.14f), (-5.0f, 0.09f), (-5.7f, 0.06f) },
                         Canopy = (1.0f, -0.42f, 1.6f, 0.8f, 0.55f), HighWingStruts = true, Tail = null,
-                        Fuselage = red, Wing = cream, TailColor = cream, Control = red,
+                        Fuselage = sgsYellow, Wing = sgsYellow, TailColor = sgsYellow, Control = sgsYellow,
                     };
             }
         }

@@ -27,6 +27,16 @@
         ],
         "approved_by": "Ty",
         "approved_on": "2026-10-31"
+      },
+      "v6": {
+        "position_body": [
+          0.971,
+          0.0,
+          -0.136
+        ],
+        "approved_by": "Ty (asked for it; value measured against the model)",
+        "approved_on": "2026-11-02",
+        "supersedes_note": "Raised 25 mm (z -0.111 -> -0.136, +z down) after Ty asked for the 2-33 eye 'a touch higher (about 2-3 cm)'. Canopy clearance measured against glider-2-33-like-own.glb and -own-tf.glb with the canopy glass counted: straight up 0.344 -> 0.319 m, nearest geometry in any direction 0.249 -> 0.246 m; no skin within 12 cm. Still above the forward fuselage top line (higher only helps). The rear seat is unchanged."
       }
     },
     {

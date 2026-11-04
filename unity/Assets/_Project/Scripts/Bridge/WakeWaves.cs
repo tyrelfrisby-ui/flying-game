@@ -78,6 +78,7 @@ namespace FlyingGame.Bridge
             _prev = Make(tw, th); _curr = Make(tw, th); _next = Make(tw, th);
             if (_foamSim != null) { _foam = Make(tw, th); _foamNext = Make(tw, th); _foamSim.SetFloat("_Cell", _cell); }
             _lake = lake; _acc = 0f;
+            QuestRig.Note($"wake field {tw}x{th} allocated");
             Shader.SetGlobalVector(WakeRectId, new Vector4(_min.x, _min.y, 1f / _width, 1f / _depth));
             Shader.SetGlobalVector(WakeTexelId, new Vector4(1f / tw, 1f / th, _cell, 0));
             Shader.SetGlobalFloat(WakeYId, c.y);

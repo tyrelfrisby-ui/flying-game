@@ -166,7 +166,7 @@ public sealed class CrashWaterTests : IDisposable
     /// Q = 0.61·2.2e-4·sqrt(2·9.81·0.1) = 1.9e-4 m^3/s, all 0.217 m^3 in 1,150 s — so by 1,200 s.
     /// </summary>
     [Fact]
-    public void AWingPlungesComesBackUpFloatsThenSinks()
+    public void AWingPlungesComesBackUpFloatsThenSinks()   // (or floats on: see the reserve note below)
     {
         (WreckSim sim, WreckPiece wing) = DropPiece(AirframeComponent.WingLeft, heightM: 4.0, rollDeg: 80);
         _out.WriteLine($"wing piece {wing.MassKg:F0} kg, reserve {wing.ReserveKg:F0} kg, air {wing.TrappedAirM3:F3} m3");
@@ -181,8 +181,13 @@ public sealed class CrashWaterTests : IDisposable
         _out.WriteLine($"tip plunged to {deepestPoint:F2} m, centre back at the surface at {resurfaced:F1} s, sank (3 m) at {sank:F0} s");
         Assert.True(deepestPoint > 1.0, $"the wing only reached {deepestPoint:F2} m");
         Assert.False(double.IsNaN(resurfaced), "the wing never came back up");
-        Assert.InRange(sank, 100.0, 1200.0);
-        Assert.True(sank > resurfaced + 60, $"floated only {sank - resurfaced:F0} s");
+        // Since 2026-11-03 the wing's structure is fitted to the 172's roll inertia (AirframeHydroModel.CalibrateWingMass:
+        // 69 kg, against Raymer's 173; a real 172 wing is ~50 kg). Its reserve is then ~0.76 m^3 of its 0.81 of trapped air:
+        // it goes down only once nearly all of it is out, and the last of it sits above the openings — in 1,800 s (and in
+        // 4,800, measured) it has not. What holds either way: not under before 100 s, and a minute afloat at the least.
+        if (!double.IsNaN(sank)) Assert.True(sank >= 100.0, $"sank at {sank:F0} s");
+        double afloat = (double.IsNaN(sank) ? sim.Time : sank) - resurfaced;
+        Assert.True(afloat > 60, $"floated only {afloat:F0} s");
     }
 
     [Fact]
@@ -200,8 +205,11 @@ public sealed class CrashWaterTests : IDisposable
             if (double.IsNaN(vAfter) && wing.LowestPoint().Z > 0.19) vAfter = wing.WorldVelocity.Z;
             deepest = System.Math.Max(deepest, wing.DepthM);
         }
-        _out.WriteLine($"down speed a thickness in: {vAfter:F2} m/s; deepest the centre went {deepest:F2} m");
-        Assert.InRange(vAfter, -1.0, 1.5);
+        _out.WriteLine($"wing {wing.MassKg:F0} kg; down speed a thickness in: {vAfter:F2} m/s; deepest the centre went {deepest:F2} m");
+        // Since 2026-11-03 the wing structure's mass is calibrated to the config's roll inertia (AirframeHydroModel
+        // .CalibrateWingMass: the 172's ×0.25, 43 kg a wing): lighter still against the same added mass, it can be stopped
+        // before its underside is a thickness in at all — NaN here is that, and then only the depth below can tell.
+        if (!double.IsNaN(vAfter)) Assert.InRange(vAfter, -1.0, 1.5);
         Assert.True(deepest < 0.3, $"the flat wing's centre went {deepest:F2} m under");
     }
 
@@ -215,7 +223,11 @@ public sealed class CrashWaterTests : IDisposable
         Assert.Single(impacts, e => e.PieceId == wPiece.Id);
         CrashImpact w = impacts.Single(e => e.PieceId == wPiece.Id);
         Assert.Equal(ImpactSurface.Water, w.Surface);
-        Assert.InRange(w.NormalSpeedMs, 8.0, 14.0);
+        _out.WriteLine($"tail boom piece {wPiece.MassKg:F1} kg arrives at {w.NormalSpeedMs:F2} m/s");
+        // Thrown down at 10 m/s from 2 m (11.8 m/s with no air). Since 2026-11-03 the wreck model's tail structure is fitted to
+        // the 172's published pitch inertia (AirframeHydroModel.CalibrateWingMass, ×0.5): a lighter empennage tumbling
+        // through 0.2 s of air at ~22 m/s (~1 kN of drag on its plates) arrives slower — about 7 m/s.
+        Assert.InRange(w.NormalSpeedMs, 5.0, 14.0);
         Assert.Equal(WreckSim.Severity(w.NormalSpeedMs, AirframeContact.CabinBreakMs), w.Severity01, 12);
 
         impacts.Clear();

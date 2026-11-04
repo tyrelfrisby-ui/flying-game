@@ -179,7 +179,7 @@ namespace FlyingGame.Bridge
         /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
             (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like" || modelId == "great-lakes-like"
-                || (modelId == "glider-2-33-like" && (SessionSettings.LiveryFor(modelId) is "factory" or "talk-flying"))
+                || modelId == "glider-2-33-like"   // ours always: yellow, the only 2-33 (LiveryChoice, Ty 2026-11-02)
                 || modelId == "j3-cub-like" || modelId == "j3-cub-floats-like")   // ours always: wheels and floats (Ty 2026-11-02)
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
@@ -223,6 +223,19 @@ namespace FlyingGame.Bridge
             return Specs.ContainsKey(m) && Resources.Load<GameObject>($"Models/{m}/{m}") != null;
         }
 
+        private static string ResourcePath(string modelId, bool own) => own ? $"Models/{modelId}/{modelId}{OwnSuffix(modelId)}" : $"Models/{modelId}/{modelId}";
+
+        /// <summary>The Resources path of the file <see cref="Place"/> loads for this type in its current livery
+        /// (Models/pitts-s2b-like/pitts-s2b-like-own-n1191 for the N1191 Pitts) — the name a prebuilt debris set is filed
+        /// beside, so the set looked up is always the one cut from the aeroplane on screen. null when no model is placed.</summary>
+        public static string PlacedResourcePath(string id)
+        {
+            string m = ModelId(id);
+            if (m == null) return null;
+            bool own = PickOwn(m);
+            return own || Specs.ContainsKey(m) ? ResourcePath(m, own) : null;
+        }
+
         /// <summary>Instantiate the model under <paramref name="parent"/>, oriented, scaled to the config span and grounded
         /// on the wheels. Returns the instance (null if none) and its local bounds after placement.</summary>
         public static GameObject Place(Transform parent, string id, AircraftConfig cfg, out Bounds bounds)
@@ -231,7 +244,8 @@ namespace FlyingGame.Bridge
             bool ownGear = UsesOwnGear(id);
             id = ModelId(id);
             bool own = PickOwn(id);
-            var prefab = Resources.Load<GameObject>(own ? $"Models/{id}/{id}{OwnSuffix(id)}" : $"Models/{id}/{id}");
+            QuestRig.Note($"model {id}{(own ? " (own)" : "")} loaded");
+            var prefab = Resources.Load<GameObject>(ResourcePath(id, own));
             if (prefab == null || !(own ? OwnSpecs : Specs).TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);
             inst.name = "Model";

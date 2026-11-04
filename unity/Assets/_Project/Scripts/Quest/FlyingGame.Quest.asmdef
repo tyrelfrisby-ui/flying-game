@@ -1,0 +1,21 @@
+{
+    "name": "FlyingGame.Quest",
+    "rootNamespace": "FlyingGame.Quest",
+    "references": [
+        "FlyingGame.Bridge",
+        "Unity.XR.OpenXR",
+        "Unity.XR.Hands"
+    ],
+    "includePlatforms": [
+        "Android",
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

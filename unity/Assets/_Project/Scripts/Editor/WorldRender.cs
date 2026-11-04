@@ -461,13 +461,13 @@ namespace FlyingGame.EditorTools
                 // The sites from their low (downhill) ends, looking up the landing direction (§12.4).
                 ("46-high-snow-patch-SP1", A(-3.15, 6.39, 60), A(-3.15, 6.55, 0), 45),
                 ("47-steep-snow-patch-SP4", A(-5.37, -5.6, 50), A(-5.2, -5.6, 0), 45),
-                ("48-ledge-LD1-flat", A(4.44, -0.85, 45), A(4.6, -0.85, 0), 45),
-                ("49-ledge-LD4-sloped", A(4.0, -6.87, 55), A(4.0, -6.7, 0), 45),
+                ("48-ledge-LD1-flat", A(4.49, -0.85, 45), A(4.65, -0.85, 0), 45),
+                ("49-ledge-LD4-sloped", A(4.7, -2.88, 55), A(4.7, -3.05, 0), 45),
                 ("50-1000ft-agl-fairweather-glacier", A(-0.6, 4.2, 305), A(-0.6, 6.4, 0), 60),
                 ("51-1000ft-agl-central-icefield", A(0.3, -1.0, 305), A(-1.0, 1.5, 0), 60),
                 ("52-1000ft-agl-southern-glacier", A(-4.5, -1.6, 305), A(-4.8, -4.5, 0), 60),
                 ("53-1000ft-agl-knik-face", A(-7.2, -0.6, 305), A(-4.6, -1.0, 0), 60),
-                ("54-ledge-LD5-rounded", A(4.75, -2.21, 50), A(4.75, -2.05, 0), 45),
+                ("54-ledge-LD6-rounded", A(-0.05, -6.07, 50), A(-0.05, -5.9, 0), 45),
                 ("55-snow-patches-SP1-SP3-fairweather-shoulder", A(-2.4, 5.6, 450), A(-3.15, 6.6, 0), 50),
                 // Every glacier landing site, before/after Ty's 2026-11-03 "glacier landings are just on snow":
                 // a low approach along the landing direction and an overview from the side.
@@ -475,8 +475,8 @@ namespace FlyingGame.EditorTools
                 ("61-lz-knik-overview", A(-6.9, -0.9, 450), A(-6.2, 0.1, 0), 50),
                 ("62-lz-fairweather-approach-from-nw", A(-4.9, 5.3, 150), A(-3.9, 4.7, 0), 45),
                 ("63-lz-fairweather-overview", A(-3.0, 3.6, 500), A(-3.9, 4.7, 0), 50),
-                ("64-lz-SP2-approach", A(-2.8, 5.85, 60), A(-2.8, 6.25, 0), 45),
-                ("65-lz-SP3-approach", A(-3.25, 6.6, 60), A(-3.25, 7.0, 0), 45),
+                ("64-lz-SP3-approach", A(-2.8, 5.85, 60), A(-2.8, 6.25, 0), 45),
+                ("65-lz-SP2-approach", A(-3.25, 6.6, 60), A(-3.25, 7.0, 0), 45),
                 // Grass strips lying naturally (Ty 2026-11-03): from a pilot's eye at the threshold, and from the side.
                 ("70-strip-AP8-crest-from-threshold", A(-8.248, 3.207, 2.0), A(-8.152, 3.993, .5), 30),
                 ("71-strip-AP8-crest-from-the-side", A(-7.853, 3.557, 60), A(-8.2, 3.6, 0), 45),

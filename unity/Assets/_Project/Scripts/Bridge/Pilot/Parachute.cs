@@ -3,49 +3,36 @@ using UnityEngine;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// Round personal canopy (28 ft / 8.5 m C-9 style) — the DEPLOYMENT MODEL and the visual dome.
+    /// The pilot's round emergency canopy — the visual dome, lines and pilot chute, around the DEPLOYMENT MODEL in Core
+    /// (<see cref="FlyingGame.Core.Vr.CanopyOpening"/>, docs/vr-cockpit.md phase 2), which both ways out share (the
+    /// menu's timed BAIL OUT and the headset's hands-on exit):
     ///
-    /// Deployment timeline (t from the pilot chute leaving the pack):
-    ///   0 – 0.6 s   LINE STRETCH: pilot chute + bag pay the lines out; drag area rises 0 → 1.5 m².
-    ///   0.6 s → +tf INFLATION: drag area grows on an S-curve (smoothstep: ~t² early, easing at the end)
-    ///               from 1.5 m² to the full CdS. tf = n·D0/v (Knacke, n ≈ 8 for a solid flat circular
-    ///               canopy) clamped to 1.8–2.5 s, so a fast opening at 60 m/s fills in 1.8 s and a
-    ///               glider-speed one in 2.5 s.
-    ///   end of fill OPENING SHOCK: the canopy over-inflates — CdS peaks at 1.3× steady for 0.3 s
-    ///               (visually the dome overshoots to 108 % diameter and settles).
+    ///   pins clear → pilot chute (spring 8 m/s, CdS 0.41 m²) pays out bridle + lines (8.5 m) → LINE STRETCH at speed
+    ///   V_ls → INFLATION over t_f = n·D0 / V_ls (Knacke, n ≈ 8), drag area growing as (t/t_f)² to the full
+    ///   Cd0·S0 = 0.80 · π · 7.925² / 4 = 39.5 m² (a 26 ft round: the Strong Para-Cushion's).
     ///
-    /// Steady CdS = 0.75 · π(8.5/2)² = 42.6 m² (Cd referred to the nominal flat area). Sea-level sink for
-    /// 105 kg under it (plus ≈0.5 m² for the hanging pilot):
-    ///   v = sqrt(2·m·g / (ρ·CdS)) = sqrt(2·105·9.81 / (1.225·43.1)) = 6.2 m/s
-    /// — a C-9 is quoted at ~20 ft/s (6.1 m/s) at 250 lb, so the number checks out; at 2000 m (ρ = 1.007)
-    /// it is 6.9 m/s. Forward drive 3 m/s (steering slots), yaw rate up to 30°/s on aileron.
-    ///
-    /// Pure C#; owns its GameObjects (dome, pilot chute, 8 suspension lines + bridle) and is ticked/placed
-    /// by <see cref="PilotBody"/>.
+    /// The OPENING SHOCK is no longer a 1.3× bump put on the drag area (it was, before 2026-11-02): it comes out of
+    /// PilotBody's integration with a drag area that grows while the speed is still high — ≈ 6.7 g from 120 mph at sea
+    /// level. Steady sink for 105 kg: √(2·105·9.81 / (1.225·(39.5 + 0.5))) = 6.5 m/s at sea level, 7.2 m/s at 2000 m.
+    /// Forward drive 2.7 m/s (the Para-Cushion's "forward speed of about 6 MPH", its steering vents), yaw up to 30°/s.
     ///
     /// The dome is a GORED canopy (owner request 2026-09-08): <see cref="Gores"/> panels from apex to skirt,
     /// alternately WHITE and RED — two sub-meshes on one lofted mesh, one Unlit/Color material each (iOS-safe;
     /// Unlit/Color has no vertex colour). The skirt is pulled in 6 % at every seam so the gores read as
     /// separate panels in silhouette too. Inflation scales the mesh (r, h, r) and the landing collapse lerps
-    /// the same transform, so both work unchanged on the new mesh.
+    /// the same transform, so both work unchanged on the new mesh. Codex's pilot-gear Parachute_Canopy, where the
+    /// build has it, is driven by the same <see cref="Fill"/> (its "Inflate" shape key; VrCockpitHands).
     /// </summary>
     internal sealed class Parachute
     {
-        public const int Gores = 28;                  // C-9 style; EVEN so the colours alternate all the way round
-        public const float NominalDiameterM = 8.5f;
-        public const float CanopyCd = 0.75f;
-        public static readonly float CdSFull = CanopyCd * Mathf.PI * NominalDiameterM * NominalDiameterM * 0.25f; // ≈ 42.6 m²
-        public const float LineStretchSec = 0.6f;
-        public const float LineStretchCdS = 1.5f;
-        public const float FillConstant = 8f;
-        public const float FillTimeMinSec = 1.8f, FillTimeMaxSec = 2.5f;
-        public const float ShockPeak = 1.3f;
-        public const float ShockSec = 0.3f;
-        public const float LineLengthM = 7f;          // skirt → confluence
+        public const int Gores = 28;                  // EVEN so the colours alternate all the way round
+        public const float NominalDiameterM = (float)FlyingGame.Core.Vr.CanopyOpening.NominalDiameterM;
+        public static readonly float CdSFull = (float)FlyingGame.Core.Vr.CanopyOpening.FullCdS;   // ≈ 39.5 m²
+        public const float LineLengthM = (float)FlyingGame.Core.Vr.CanopyOpening.LinesM;   // skirt → confluence
         public const float RiserM = 0.6f;             // confluence above the pilot's centre
-        public const float ProjectedRadiusM = 2.9f;   // inflated projected diameter ≈ 0.68·D0
-        public const float DomeHeightM = 2.2f;
-        public const float DriveMs = 3f;
+        public const float ProjectedRadiusM = 2.7f;   // inflated projected diameter ≈ 0.68·D0
+        public const float DomeHeightM = 2.1f;
+        public const float DriveMs = 2.7f;            // "a forward speed of about 6 MPH" (Para-Cushion manual)
         public const float TurnRateDegPerSec = 30f;
         public const float CollapseSec = 2f;
         private const int Lines = 8;
@@ -54,14 +41,14 @@ namespace FlyingGame.Bridge
         public float Fill { get; private set; }         // 0 (streamer) .. 1 (full canopy)
         public float CdS { get; private set; }          // current drag area, m² (includes the shock)
         public bool Inflated { get; private set; }
-        public bool LinesStretched => _t >= LineStretchSec;
-        public float FillTimeSec => _fillTime;
-        public float TimeSec => _t;
+        public bool LinesStretched => _open.Phase >= FlyingGame.Core.Vr.OpeningPhase.Inflating;
+        public float FillTimeSec => (float)_open.FillTimeSec;
+        public float TimeSec => (float)_open.TimeSec;
+        private readonly FlyingGame.Core.Vr.CanopyOpening _open = new();
 
         private static Mesh _dome, _goredDome;         // plain dome for the pilot chute; gored (2 sub-meshes) for the canopy
         private readonly GameObject _root, _canopy, _pilotChute, _bridle;
         private readonly GameObject[] _lines = new GameObject[Lines];
-        private float _t, _fillTime, _overshoot = 1f;
         // collapse (after landing)
         private bool _collapsing;
         private float _collapseT;
@@ -88,30 +75,15 @@ namespace FlyingGame.Bridge
             _bridle = EgressAir.Prim(PrimitiveType.Cylinder, "Bridle", _root.transform, Vector3.zero, Vector3.one, line);
         }
 
-        /// <summary>Advance the deployment model. `airspeedAtDeploy` sets the fill time (Knacke).</summary>
-        public void Tick(float dt, float airspeedAtDeploy)
+        /// <summary>Advance the deployment model at the pilot's CURRENT airspeed and the air's density.</summary>
+        public void Tick(float dt, float airspeedMs, float rho)
         {
             if (_collapsing) return;
-            _t += dt;
-            if (_t < LineStretchSec)
-            {
-                Fill = 0f;
-                CdS = LineStretchCdS * (_t / LineStretchSec);
-                return;
-            }
-            if (_fillTime <= 0f)
-            {
-                _fillTime = Mathf.Clamp(FillConstant * NominalDiameterM / Mathf.Max(airspeedAtDeploy, 5f), FillTimeMinSec, FillTimeMaxSec);
-            }
-            float s = Mathf.Clamp01((_t - LineStretchSec) / _fillTime);
-            Fill = s * s * (3f - 2f * s);                                   // S-curve: ~s² early, eases into full
-            float steady = LineStretchCdS + (CdSFull - LineStretchCdS) * Fill;
-            // Opening shock: a half-sine bump centred on the moment of full inflation.
-            float tau = _t - LineStretchSec - _fillTime + ShockSec * 0.5f;   // 0 .. ShockSec across the bump
-            float shock = tau > 0f && tau < ShockSec ? 1f + (ShockPeak - 1f) * Mathf.Sin(Mathf.PI * tau / ShockSec) : 1f;
-            CdS = steady * shock;
-            _overshoot = 1f + 0.08f * (shock - 1f) / (ShockPeak - 1f);       // dome visibly over-inflates then settles
-            if (!Inflated && s >= 1f) Inflated = true;
+            if (_open.Phase == FlyingGame.Core.Vr.OpeningPhase.Packed) _open.Deploy(airspeedMs);
+            _open.Step(dt, airspeedMs, rho);
+            Fill = (float)_open.Inflate01;
+            CdS = (float)_open.CdS;
+            if (!Inflated && _open.Phase == FlyingGame.Core.Vr.OpeningPhase.Open) Inflated = true;
         }
 
         /// <summary>
@@ -122,8 +94,9 @@ namespace FlyingGame.Bridge
         public void Place(Vector3 harness, Vector3 hangDir, Vector3 heading, float bank)
         {
             if (_collapsing) return;
-            float stretch = Mathf.Clamp01(_t / LineStretchSec);
-            float r = Mathf.Lerp(0.15f, ProjectedRadiusM, Fill) * _overshoot;     // streamer → dome
+            float stretch = Mathf.Clamp01((float)(_open.SeparationM / (FlyingGame.Core.Vr.CanopyOpening.BridleM + FlyingGame.Core.Vr.CanopyOpening.LinesM)));
+            if (LinesStretched) stretch = 1f;
+            float r = Mathf.Lerp(0.15f, ProjectedRadiusM, Fill);                  // streamer → dome
             float h = Mathf.Lerp(2.6f, DomeHeightM, Fill);
             float baseDist = stretch * Mathf.Sqrt(Mathf.Max(1f, LineLengthM * LineLengthM - r * r));
 
@@ -193,6 +166,12 @@ namespace FlyingGame.Bridge
         public void Destroy()
         {
             if (_root != null) Object.Destroy(_root);
+        }
+
+        /// <summary>Hide the primitive dome and lines (Codex's own Parachute_Deployed is drawn instead).</summary>
+        public void SetVisible(bool on)
+        {
+            if (_root != null && _root.activeSelf != on) _root.SetActive(on);
         }
 
         private static void SetLine(GameObject go, Vector3 a, Vector3 b, float thickness)

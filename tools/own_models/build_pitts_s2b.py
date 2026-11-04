@@ -10,7 +10,7 @@ published dimensions (wingspan, length, chords, stagger, gear track; see the dim
 docs/models/pitts-s2b-own-PROVENANCE.md).  No third-party or GPL mesh, UV or texture is read or imported.
 v4 geometry (Ty): fin/rudder side profile and stab/elevator planform re-traced from the Aviat factory three-view (scaled
 to the published 5.71 m length; other S-2B three-views used as checks). v11 (Ty): slave struts 10 in inboard of the I-struts, pinned to aileron horns just
-ahead of the aileron leading edge.
+ahead of the aileron leading edge. v13: both horns forward and 20 deg below the chord, parallel (S-1-11 drawing; see the v13 comment).
 v4 paint: the Aviat factory sunburst scheme, re-created procedurally below from published painted three-views (Horizons
 NZ, AirshowModels, Munden S-2C; looked at by eye only - nothing traced, sampled or copied into the textures): red base,
 sunburst on the top of both wings and on the stab/elevators, white fuselage stripes + nose diamond, white turtledeck
@@ -60,6 +60,7 @@ assert LIV_ID in _SCHEME, LIV_ID
 LIV = _SCHEME[LIV_ID]            # paint scheme + prop
 UNMARKED = LIV_ID.endswith('-UNMARKED')
 OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own%s.glb' % ('' if LIV_ID == 'N31DG' else '-' + LIV_ID.lower()))
+OUT = os.environ.get('PITTS_OUT', OUT)   # scratch builds (review renders) must not overwrite the committed, offline-updated GLBs
 TEX = '/tmp/own_pitts_tex_' + LIV_ID.lower(); os.makedirs(TEX, exist_ok=True)
 print('LIVERY', LIV_ID, 'scheme', LIV, 'unmarked', UNMARKED)
 RED, WHITE, NAVY = (200, 24, 36), (246, 246, 246), (22, 26, 62)
@@ -445,29 +446,38 @@ for sy in (1, -1):
         xcl - c_end / 2, xcl + c_end / 2, -F_SP * CH, -R_SP * CH))
 P['Strut_Interplane'] = link('Strut_Interplane', bm)
 # v11 (Ty): aileron slave struts 10 in (0.254 m) inboard of the I-struts, same lean as the I-struts. Each end pins to an
-# aileron horn: a fitting fixed to the aileron that projects forward of the aileron leading edge, into the wing just ahead
-# of it, hanging below the upper wing / standing above the lower wing; the strut pin is just ahead of the aileron LE.
-# The horns are part of the aileron meshes, so they deflect with the ailerons about the hinge line.
+# aileron horn, a fitting fixed to the aileron. The horns are part of the aileron meshes, so they deflect with the ailerons
+# about the hinge line.
+# v13 (2026-11-03, the REAL horns): both horns run FORWARD from the hinge line into the fixed wing's trailing-edge cove, the
+# pin a little BELOW the chord line, and the strut passes through the skin to reach it (the lower wing's top skin, the upper
+# wing's bottom skin). Source: Pitts S-1-11 factory drawing Detail A (11-510-53 link fork on an AN3-6 bolt just ahead of the
+# 11-460 lower aileron's nose; biplaneforum.com thread 20836): the hinge-to-pin line runs ~20 deg below the forward chord.
+# The upper horn is the SAME vector: a parallelogram, so the uppers move 1:1 with the lowers (owners rig them together;
+# "the bends in the arms line up the two arcs", thread 19463). Before v13 the lower horn stood ABOVE the lower wing and
+# the upper hung BELOW the upper one: across the strut's ~25 deg stagger lean that moves the uppers at ~0.1 of the lowers.
+# Sim twin: configs/aircraft/pitts-s2b-like.json slaveStrut (hornArmM 0.072, driven/slavedHornDownDeg 20).
 Y_SL_U, Y_SL_L = YI_U - 0.254, YI_L - 0.254
-SL_PIN, HORN_FWD, HORN_AFT, HORN_H, HORN_T = 0.040, 0.065, 0.035, 0.040, 0.008
-def horn(obj, Hf, y, upper):
-    """fitting on the aileron at span y: from HORN_AFT aft of the hinge to HORN_FWD ahead of it, HORN_H outside the skin"""
-    xa, xf = float(Hf(y)) - HORN_AFT, float(Hf(y)) + HORN_FWD
-    fa, ff = HF + HORN_AFT / CH, HF - HORN_FWD / CH
-    sk = (lambda f: wl_low(y, f)[0]) if upper else (lambda f: wl_low(y, f)[1])
-    o = -1 if upper else 1                                    # outward from the skin (down under the upper wing)
-    pts = [(xa, sk(fa) - o * 0.006), (xf, sk(ff) - o * 0.006), (xf - 0.012, sk(ff) + o * HORN_H), (xa, sk(fa) + o * 0.5 * HORN_H)]
+SL_ARM, SL_DOWN, HORN_AFT, HORN_W, HORN_T = 0.072, math.radians(20.0), 0.035, 0.022, 0.008
+def chord_z(W_, y, f):   # chord-line z of wing W_ at span y, chord fraction f (inboard of the tip arc: chord = CH)
+    return float(W_.z(y) - f * CH * math.sin(W_.inc) + yc(f, W_.m) * CH)
+def horn(obj, W_, Hf, y):
+    """horn on the aileron at span y: a plate from HORN_AFT aft of the hinge (on the chord line) forward to the pin,
+    SL_ARM along SL_DOWN below the forward chord; returns the pin (x, z)"""
+    xh, zh = float(Hf(y)), chord_z(W_, y, HF)
+    d = np.array((math.cos(SL_DOWN), -math.sin(SL_DOWN)))          # build frame: +x forward, +z up
+    nrm = np.array((-d[1], d[0])); a = np.array((xh, zh)) - HORN_AFT * d; pin = np.array((xh, zh)) + SL_ARM * d
+    e = pin + 0.012 * d                                              # eye round the pin
+    pts = [tuple(a - 0.5 * HORN_W * nrm), tuple(e - 0.5 * HORN_W * nrm), tuple(e + 0.5 * HORN_W * nrm), tuple(a + 0.5 * HORN_W * nrm)]
     bm = bmesh.new(); bm.from_mesh(obj.data)
     vs = [[bm.verts.new((x_, y + dy, z_)) for x_, z_ in pts] for dy in (-0.5 * HORN_T, 0.5 * HORN_T)]
     bm.faces.new(vs[0][::-1]); bm.faces.new(vs[1])
     for i in range(4):
         j = (i + 1) % 4; bm.faces.new((vs[0][i], vs[0][j], vs[1][j], vs[1][i]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[-6:]); bm.to_mesh(obj.data); bm.free(); obj.data.update()
-    xp = float(Hf(y)) + SL_PIN
-    return (xp, sk(HF - SL_PIN / CH) + o * (HORN_H - 0.010))  # strut pin: near the outer edge of the horn
-for side, sy in (('L', 1), ('R', -1)):   # aileron slave struts (upper aileron drives the lower)
-    xu, zu = horn(P['Aileron_U' + side], HU, sy * Y_SL_U, True)
-    xl, zl = horn(P['Aileron_L' + side], HL, sy * Y_SL_L, False)
+    return (float(pin[0]), float(pin[1]))
+for side, sy in (('L', 1), ('R', -1)):   # aileron slave struts (the stick drives the LOWER ailerons; the uppers follow)
+    xu, zu = horn(P['Aileron_U' + side], WU, HU, sy * Y_SL_U)
+    xl, zl = horn(P['Aileron_L' + side], WL, HL, sy * Y_SL_L)
     bm = bmesh.new()
     blade_strut(bm, (xu, sy * Y_SL_U, zu), (xl, sy * Y_SL_L, zl), [0.040] * 3, 0.016)
     P['Strut_Slave_' + side] = link('Strut_Slave_' + side, bm)
@@ -961,3 +971,7 @@ bpy.ops.object.select_all(action='DESELECT')
 for o in P.values(): o.select_set(True)
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_yup=True, export_apply=True)
 print('WROTE', OUT, os.path.getsize(OUT))
+
+# Phase 1 shared geometry path (also works without Blender after a base export).
+from vr_cockpit import update as vr_phase1_update
+vr_phase1_update(OUT)

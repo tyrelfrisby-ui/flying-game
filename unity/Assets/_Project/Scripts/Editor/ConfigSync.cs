@@ -61,6 +61,7 @@ namespace FlyingGame.EditorTools
             new("configs/atmosphere", "atmosphere", "*.json"),
             new("configs/glide-table.json", "glide-table.json"),
             new("configs/progression.json", "progression.json"),
+            new("configs/vr-cardboard.json", "vr-cardboard.json"),   // the Cardboard viewer profile (VR)
             new("docs/CREDITS.md", "credits.md"),
             // The model rigs: every moving part of a model we drew ourselves, written beside the GLB by that model's
             // Blender build script. Matches nothing on this branch yet — the rig tables arrive with

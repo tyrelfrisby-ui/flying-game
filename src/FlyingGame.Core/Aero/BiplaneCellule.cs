@@ -396,8 +396,10 @@ public sealed class BiplaneCellule
     public bool Covers(string surfaceId)
     {
         if (!IsCellule || surfaceId is null) return false;
-        foreach (string w in WingIds)
-            if (surfaceId.StartsWith(w, StringComparison.OrdinalIgnoreCase)) return true;
+        // An index loop: foreach over the IReadOnlyList allocates an enumerator, and this runs for every surface at every
+        // aerodynamic evaluation (on the Quest, the largest source of the sim's garbage in a biplane: QuestFrameBudgetProbe).
+        for (int i = 0; i < WingIds.Count; i++)
+            if (surfaceId.StartsWith(WingIds[i], StringComparison.OrdinalIgnoreCase)) return true;
         return false;
     }
 

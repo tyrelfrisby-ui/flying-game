@@ -91,7 +91,7 @@ public class OwnPittsModelTests
     }
 
     /// <summary>A node's transform all the way up to the scene root, column-major like glTF's own.</summary>
-    private static double[] World(JsonElement nodes, int[] parent, int i)
+    internal static double[] World(JsonElement nodes, int[] parent, int i)
     {
         double[] m = Local(nodes[i]);
         for (int p = parent[i]; p >= 0; p = parent[p]) m = Mul(Local(nodes[p]), m);

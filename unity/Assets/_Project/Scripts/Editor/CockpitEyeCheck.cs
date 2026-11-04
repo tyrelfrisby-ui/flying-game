@@ -100,7 +100,7 @@ namespace FlyingGame.EditorTools
                             continue;
                         }
                         int before = _failures;
-                        view.SelectSeat(i);
+                        view.SelectSeat(i, remember: false);
                         lateUpdate?.Invoke(chase, null);
 
                         Vector3 want = CoordinateMap.ToUnity(seat.EyeVec());

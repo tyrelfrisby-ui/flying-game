@@ -22,6 +22,9 @@ namespace FlyingGame.Bridge
             private readonly List<Vector3> _v = new(); private readonly List<Vector3> _n = new(); private readonly List<Color> _c = new(); private readonly List<int> _t = new();
             public int Count => _v.Count;
 
+            /// <summary>Empty it for another mesh, keeping the lists' capacity (the forest streamer reuses one).</summary>
+            public void Clear() { _v.Clear(); _n.Clear(); _c.Clear(); _t.Clear(); }
+
             public void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color col)
             {
                 Vector3 n = Vector3.Cross(b - a, d - a).normalized;

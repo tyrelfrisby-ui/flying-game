@@ -309,13 +309,13 @@ public static class RigTable
         new("great-lakes-like", true, 1, 0.4407, 0.3651, 0.9891, 108.47),
         new("hang-glider-like", false, 0, 0.0000, 0.0000, -15.5066, 21.38),
         new("hughes-h4-like", true, 1, 0.0325, 0.0172, -0.3059, 150.70),
-        new("j3-cub-floats-like", true, 1, 0.3529, 0.4624, -1.8070, 55.48),
-        new("j3-cub-like", true, 1, 0.2457, 0.3296, 0.0026, 65.46),
+        new("j3-cub-floats-like", true, 1, 0.3528, 0.4623, -1.7778, 55.49),   // 2026-11-03 stab raised to its real height (TaildraggerNoTipStrikeTests)
+        new("j3-cub-like", true, 1, 0.2457, 0.3295, 0.0306, 65.47),           // ditto
         new("jn4-jenny-like", true, 1, 0.4470, 0.5949, 0.1081, 52.41),
         new("p51d-like", true, 1, 0.4737, 0.1280, -1.1620, 209.10),
-        new("pa18-bush-like", true, 1, 0.2123, 0.2405, 0.9029, 92.46),
-        new("pa18-cub-like", true, 1, 0.1998, 0.2255, 1.1384, 95.56),
-        new("pa18-floats-like", true, 1, 0.2338, 0.2637, 0.4265, 88.25),
+        new("pa18-bush-like", true, 1, 0.2123, 0.2404, 0.9291, 92.47),        // 2026-11-03 stab raised (as the J-3)
+        new("pa18-cub-like", true, 1, 0.1998, 0.2255, 1.1637, 95.56),         // ditto
+        new("pa18-floats-like", true, 1, 0.2337, 0.2636, 0.4550, 88.25),      // ditto
         new("pa25-pawnee-like", true, 1, 0.2216, 0.2116, 1.2851, 110.14),
         new("pa28-archer-like", true, 1, 0.2663, 0.1884, 0.6448, 108.59),
         new("paraglider-en-b-like", false, 0, 0.0000, 0.0000, 9.5338, 19.74),

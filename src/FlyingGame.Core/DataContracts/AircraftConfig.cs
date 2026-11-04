@@ -98,6 +98,29 @@ public sealed class AircraftConfig
     /// null on everything with a stick connected to something.</summary>
     public WeightShiftConfig? WeightShift { get; set; }
 
+    /// <summary>Where each wing's outboard panel joins the structure that holds it (<see cref="FlyingGame.Core.WingStructure"/>):
+    /// |y| in metres, keyed by surface id ("wing", "wing-upper", "wing-lower"). A biplane's is the interplane strut, a
+    /// strut-braced wing's the lift-strut attach, measured from the type's own model. Absent = the aileron's inboard end
+    /// (the cantilever rule).</summary>
+    public Dictionary<string, double>? WingBreakStationY { get; set; }
+
+    /// <summary>Where <see cref="WingBreakStationY"/> comes from: the document, figure and inch figure (JSON has no comments).</summary>
+    public string WingBreakStationSource { get; set; } = "";
+
+    /// <summary>A strut-braced wing's lift-strut FUSELAGE fitting, body frame [x, y, z] m (+x forward, +y right, +z down;
+    /// the right-hand fitting — the left is its mirror), converted from the type's station / butt line / height datum
+    /// as described in <see cref="LiftStrutFuselageAttachSource"/>. Reference geometry: nothing in the flight model reads it.</summary>
+    public double[]? LiftStrutFuselageAttach { get; set; }
+    public string LiftStrutFuselageAttachSource { get; set; } = "";
+
+    /// <summary>How the wing is held up outboard of the cabin: "strut" (lift struts) or "" (a cantilever, or a biplane,
+    /// which is braced by its cellule anyway). A braced spar runs on through its station at the section its inboard bay
+    /// needs (<see cref="FlyingGame.Core.WingStructure.EnsureStrength"/>).</summary>
+    public string WingBracing { get; set; } = "";
+
+    /// <summary>The rigid slave strut joining a biplane's upper and lower ailerons on each side (null = none).</summary>
+    public SlaveStrutConfig? SlaveStrut { get; set; }
+
     // (The 2026-10-30 `LoadingConfig? Loading` stood here, from the load-sheet implementation that collided with
     // this one. Only one may own AircraftConfig.Loading. See the note in StartMenu.cs and e4755c9.)
 }
@@ -457,6 +480,35 @@ public sealed class CockpitOpeningConfig
     public bool IsOpen => string.Equals(Enclosure, "open", StringComparison.OrdinalIgnoreCase);
 }
 
+/// <summary>
+/// An aileron interconnect: a rigid strut, one each side, pinned to a horn on each aileron. The stick drives the
+/// <see cref="DrivenSurface"/> rows; the <see cref="SlavedSurface"/> rows go wherever the strut puts them. The strut runs
+/// between the two hinge lines at span |y| <see cref="DrivenY"/> / <see cref="SlavedY"/>. Each horn points from its hinge
+/// line to its pin at <see cref="DrivenHornDownDeg"/> / <see cref="SlavedHornDownDeg"/> below body +x (forward) in the
+/// x–z plane, <see cref="HornArmM"/> long (or its own <see cref="DrivenHornArmM"/> / <see cref="SlavedHornArmM"/>).
+/// The slaved aileron turns with the driven one in the ratio of the two horns' arms measured across the strut, so two
+/// parallel equal horns (a parallelogram) move the ailerons 1:1. Without a horn angle both horns stand PERPENDICULAR to
+/// the strut, pointing forward (the pre-2026-11-03 stand-in, which also gives 1:1).
+/// </summary>
+public sealed class SlaveStrutConfig
+{
+    public string DrivenSurface { get; set; } = "";
+    public string SlavedSurface { get; set; } = "";
+    public double DrivenY { get; set; }
+    public double SlavedY { get; set; }
+    public double HornArmM { get; set; } = 0.07;
+    /// <summary>Driven (stick) aileron's horn: hinge → pin direction, degrees below body +x (+ = pin below the hinge line).
+    /// Null = the perpendicular-to-the-strut stand-in.</summary>
+    public double? DrivenHornDownDeg { get; set; }
+    /// <summary>Slaved aileron's horn direction, as <see cref="DrivenHornDownDeg"/>.</summary>
+    public double? SlavedHornDownDeg { get; set; }
+    /// <summary>Each horn's own hinge-to-pin length, m (0 = <see cref="HornArmM"/>).</summary>
+    public double DrivenHornArmM { get; set; }
+    public double SlavedHornArmM { get; set; }
+    /// <summary>Where the horn geometry comes from (JSON has no comments).</summary>
+    public string Source { get; set; } = "";
+}
+
 /// <summary>Per-type switches for the wing cellule of a multi-wing aeroplane.</summary>
 public sealed class CelluleConfig
 {
@@ -639,6 +691,33 @@ public sealed class FloatsConfig
     public double AfterbodyKeelDeg { get; set; } = 4.0;  // keel rises toward the stern behind the step
     public double WaterRudderAreaM2 { get; set; } = 0.05;
     public double WaterRudderMaxRad { get; set; } = 0.6;
+    /// <summary>
+    /// The DRAWN water-rudder blade (Ty 2026-11-02, t278u: a hydrodynamic surface from first principles, no fudge).
+    /// When <see cref="WaterRudderChordM"/> is above zero, FloatHydro models the blade as an elliptic flat plate of this
+    /// chord (fore-aft) and span (vertical): its immersed area comes from where the blade really is relative to the
+    /// water, its lift-curve slope from its immersed aspect ratio (Helmbold), and its force is ½ρV²·S·a·α. Zero keeps
+    /// the older lumped model (WaterRudderAreaM2 with its ×2.5 factor) for the seaplanes that have not been drawn.
+    /// </summary>
+    public double WaterRudderChordM { get; set; }
+    public double WaterRudderSpanM { get; set; }
+    /// <summary>The steering post / retract hinge, where the DRAWN one is (the yoke on the drawn float's stern, as the
+    /// game places the model): x forward and z down in the config datum frame like <see cref="BowX"/> and
+    /// <see cref="KeelZ"/>, and y the lateral offset of its float's centreline (always positive; the left float's rudder
+    /// is at −y). Drawn, not on the physics float, because its height above the water is what decides how much of the
+    /// blade is wet: on the J-3 the hinge rides ~10 cm above the water at rest and only the blade's lower part dips.</summary>
+    public double WaterRudderPivotX { get; set; }
+    public double WaterRudderPivotY { get; set; }
+    public double WaterRudderPivotZ { get; set; }
+    /// <summary>The blade's ellipse centre from the pivot with the blade DOWN and straight: metres aft, metres below.</summary>
+    public double WaterRudderBladeAftM { get; set; }
+    public double WaterRudderBladeBelowM { get; set; }
+    /// <summary>Only the LEFT float carries a water rudder (the J-3's Edo 60-1320s, as drawn: one rudder, on the left
+    /// float). Read from <see cref="WaterRudderSides"/>, which is what the config states.</summary>
+    public bool WaterRudderLeftOnly => WaterRudderSides == "left";
+    /// <summary>The pilot can raise it (a cable to the cockpit, spring-loaded down). The retract angle at full pull,
+    /// radians: the blade swings up and aft about its hinge (its bottom goes aft, then up), out of the water.</summary>
+    public bool WaterRudderRetractable { get; set; }
+    public double WaterRudderRetractRad { get; set; } = 1.5707963267948966;
     /// <summary>Shape taper (owner 2026-10-02: displacement must be right). The forebody keeps full beam/depth for this
     /// fraction of its length from the step, then narrows to the bow; the afterbody narrows from the step to the stern.</summary>
     public double ForebodyFullFraction { get; set; } = 0.4;
@@ -657,10 +736,10 @@ public sealed class FloatsConfig
     public double[][]? Stations { get; set; }
     /// <summary>The step's x (datum frame) for <see cref="Stations"/>; null = BowX − StepFraction·LengthM.</summary>
     public double? StepX { get; set; }
-    /// <summary>Water rudder blade, when down: x of its centre, its span (top to tip) and the tip's z (down), datum frame.
+    /// <summary>Water rudder blade without a drawn pivot (<see cref="WaterRudderChordM"/> 0), when down: x of its centre
+    /// and the tip's z (down), datum frame, with <see cref="WaterRudderSpanM"/> as its span (top to tip).
     /// 0 span = the old default (a blade at the stern keel, area WaterRudderAreaM2, span from √(2·area)).</summary>
     public double WaterRudderX { get; set; }
-    public double WaterRudderSpanM { get; set; }
     public double WaterRudderTipZ { get; set; }
     /// <summary>Which floats carry a water rudder: "both" (default) or "left" / "right" (the J-3's 60-1320 installation:
     /// the RH float assembly is listed "less water rudder", Kenmore Air Harbor EDO 60-1320 parts list, Figure 1).</summary>

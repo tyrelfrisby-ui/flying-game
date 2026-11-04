@@ -38,6 +38,11 @@ Shader "FlyingGame/Water"
             sampler2D _WakeTex, _WakeFoamTex;
             float4 _WakeRect, _WakeTexel;
             float _WakeOn, _WakeY;
+            // Headset only (QuestRig / QuestRecorder; 0 everywhere else, so nothing changes on a phone or the desktop):
+            // _WaterDepthErrK ≈ the depth buffer's error in metres per metre² of distance, so the depth term below lets
+            // go where it is noise instead of flickering; _WaterSceneDepthOff = 1 while a camera with no depth
+            // texture of its own (the clip recorder's) renders, which would otherwise read another camera's.
+            float _WaterDepthErrK, _WaterSceneDepthOff;
             float4 _FoamOrigins[2], _FoamMotion[2];
 
             float hash(float2 p) { return frac(sin(dot(p, float2(127.1,311.7))) * 43758.5453); }
@@ -196,6 +201,9 @@ Shader "FlyingGame/Water"
                 float sceneZ = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.sp)));
                 float surfaceZ = -mul(UNITY_MATRIX_V, float4(i.wp,1)).z;
                 float depth = max(0, sceneZ - surfaceZ) * max(.05, v.y);
+                // Out where the buffer cannot resolve the seabed from the surface, read it as deep water, smoothly.
+                depth = lerp(depth, 12, saturate(surfaceZ * surfaceZ * _WaterDepthErrK - .25));
+                if (_WaterSceneDepthOff > .5) depth = 12;
                 float3 deep = lerp(_Color.rgb * float3(.50,.72,.64), float3(.025,.045,.06), _SunsetOn);
                 float3 shallow = lerp(_Color.rgb * float3(.72,1.0,.80), float3(.16,.14,.105), _SunsetOn);
                 if (scenery > .5)

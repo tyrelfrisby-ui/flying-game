@@ -282,7 +282,9 @@ public static class Surfaces
             if (best < 0) continue;
             int next = (j + Grid.DJ[best]) * g.W + i + Grid.DI[best];
             // Melt seen below the snowline while riding this cell (m of ice), toward the ridge height.
-            double melt = m.Snow[k] > .5 ? 0 : Math.Max(0, -m.Balance[k]) / .9 * Grid.DL[best] * g.CellM / u[k];
+            // (u is 0 on an ice node with no routed thickness; 0/0 there was NaN, which the blur below spread over
+            // whole rows of the island the first time the relief put such a node on a rock-shed path, 2026-11-03.)
+            double melt = m.Snow[k] > .5 || u[k] <= 0 ? 0 : Math.Max(0, -m.Balance[k]) / .9 * Grid.DL[best] * g.CellM / u[k];
             load[next] = Math.Max(load[next], load[k]);
             exposure[next] = Math.Max(exposure[next], exposure[k] + melt);
         }

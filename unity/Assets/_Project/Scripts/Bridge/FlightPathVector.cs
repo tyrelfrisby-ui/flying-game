@@ -14,7 +14,7 @@ namespace FlyingGame.Bridge
         public float HorizonSec = 3f;   // owner 2026-09-10: three seconds
         public int Segments = 40;
         public Color Colour = new(0.25f, 1f, 0.35f, 0.95f);   // owner 2026-09-14: green, no arrowhead
-        public Color GroundColour = new(1f, 0.2f, 0.95f, 0.95f);   // magenta: the ground track, below 500 ft AGL
+        public Color GroundColour = new(1f, 0.2f, 0.95f, 0.95f);   // magenta: the ground track (CAM: TRACK)
         private Material _targetMat;
 
         private LineRenderer _line;
@@ -105,18 +105,20 @@ namespace FlyingGame.Bridge
 
         private void LateUpdate()
         {
-            bool show = SessionSettings.ShowFlightPath && Driver != null && Driver.Sim != null && !SessionSettings.MenuOpen && !(GetComponent<PilotEgress>()?.PilotOut ?? false);
+            bool show = SessionSettings.ShowFlightPath && Driver != null && Driver.Sim != null && !SessionSettings.MenuOpen && PilotEgress.HudAllowed(Driver);
             _line.enabled = show; _cone.SetActive(false);   // no arrowhead (owner)
             if (!show) { _havePrev = false; _target.SetActive(false); return; }
 
             // AIR-relative (owner): the path through the air, not over the ground — the wind is left out, so in a
             // crosswind the vector points where the nose is going through the air mass.
             Vector3 pos = transform.position;
-            // ... except in ground-reference mode (runway lessons, low altitude), where the path over the GROUND is what counts.
-            bool ground = Driver.GroundReference;
+            // ... except in TRACK (the CAM button, Ty 2026-11-03; or a runway lesson forcing it), where the path over the
+            // GROUND is what counts. No automatic switch below 500 ft any more: the marker follows the button.
+            var camMode = FlyingGame.Core.CameraReference.Effective(SessionSettings.CameraReferenceMode, Driver.GroundReferenceForced);
+            bool ground = FlyingGame.Core.CameraReference.MarkerUsesGroundTrack(camMode);
             Vector3 vel = ground ? Driver.WorldVelocityUnity : Driver.AirVelocityUnity;
-            // Owner 2026-10-05: green through the air; MAGENTA once it switches to the ground track below 500 ft AGL (the point-of-impact
-            // target shows only then) — so the change is unmistakable.
+            // Owner 2026-10-05: green through the air; MAGENTA on the ground track (CAM: TRACK since Ty 2026-11-03; was automatic below 500 ft AGL) — the
+            // point-of-impact target shows only then — so the change is unmistakable.
             Color col = ground ? GroundColour : Colour;
             if (_line.startColor != col) { _line.startColor = _line.endColor = col; _line.sharedMaterial.color = col; _targetMat.color = col; }
             float dt = Time.deltaTime;
@@ -156,7 +158,7 @@ namespace FlyingGame.Bridge
             _cone.transform.position = pts[n];
             _cone.transform.rotation = Quaternion.LookRotation(tipDir, Vector3.up);
             _cone.transform.localScale = Vector3.one * (width * 3.2f);
-            if (ground) UpdateImpact(pos, Driver.WorldVelocityUnity);   // the impact point is where the GROUND track meets the surface — below 500 ft only
+            if (ground) UpdateImpact(pos, Driver.WorldVelocityUnity);   // the impact point is where the GROUND track meets the surface — TRACK only
             else _target.SetActive(false);
         }
 

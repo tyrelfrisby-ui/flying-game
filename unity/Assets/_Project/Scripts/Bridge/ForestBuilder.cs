@@ -33,6 +33,8 @@ namespace FlyingGame.Bridge
 
         private static Vector3 U(double x, double y, double up) => new((float)y, (float)up, (float)x);
 
+        private static readonly SeasideBuilder.Batch ChunkBatch = new();
+
         public static int ChunkOf(double v) => (int)System.Math.Floor(v / ChunkM);
 
         /// <summary>
@@ -42,7 +44,10 @@ namespace FlyingGame.Bridge
         public static GameObject BuildChunk(WorldTerrain t, Transform parent, int ci, int cj, bool detail)
         {
             double x0 = ci * ChunkM, y0 = cj * ChunkM;
-            var b = new SeasideBuilder.Batch();
+            // One batch, reused: its four lists used to regrow from empty for every chunk (several a second of flying),
+            // hundreds of KB of garbage each time for a headset's collector. Main thread only, as every caller is.
+            SeasideBuilder.Batch b = ChunkBatch;
+            b.Clear();
             int n = 0;
             foreach (Forest.Tree tr in Forest.InRect(x0, y0, x0 + ChunkM, y0 + ChunkM))
             {
@@ -195,7 +200,11 @@ namespace FlyingGame.Bridge
             }
             if (_want.Count == 0) return;
             bool starved = Time.unscaledTime - _lastBuiltAt > StarveAfterS;
-            if (!starved && Time.unscaledDeltaTime * 1000.0 > StallGuardMs) return;
+            // In a headset "a frame and a half" is 20.8 ms at 72 Hz, not the phone's 24: a frame that missed its
+            // vsync must not be followed by a chunk build as well.
+            float hz = XrHeadset.Active ? XrHeadset.CurrentRefreshHz : 0f;
+            double guardMs = hz > 1f ? System.Math.Min(StallGuardMs, 1500.0 / hz) : StallGuardMs;
+            if (!starved && Time.unscaledDeltaTime * 1000.0 > guardMs) return;
 
             double began = Time.realtimeSinceStartupAsDouble * 1000.0;
             for (int k = 0; k < MaxPerFrame && _want.Count > 0; k++)

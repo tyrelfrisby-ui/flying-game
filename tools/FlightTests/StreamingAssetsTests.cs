@@ -190,4 +190,28 @@ public class StreamingAssetsTests
             Assert.Contains("ConfigSync.SyncAndRequireComplete()", cs[at..next]);
         }
     }
+
+    /// <summary>
+    /// On Android StreamingAssets is not a folder: <c>Application.streamingAssetsPath</c> is a <c>jar:file://…!/assets</c>
+    /// URL into the APK, and System.IO cannot open it. The first Quest build read the aircraft config with
+    /// File.ReadAllText, so FlightSimDriver.Spawn threw, the aeroplane never left the world origin, and pressing FLY in
+    /// the headset left Ty "on top of a mountain looking around" (2026-11-02). Every runtime read goes through
+    /// Bridge/StreamingFiles.cs, which reads inside the APK; this holds every other runtime script to that.
+    /// Editor scripts run on the Mac against a real folder and are exempt.
+    /// </summary>
+    [Fact]
+    public void RuntimeCodeReadsStreamingAssetsOnlyThroughStreamingFiles()
+    {
+        string scripts = Path.Combine(Repo, "unity", "Assets", "_Project", "Scripts");
+        string editor = Path.Combine(scripts, "Editor") + Path.DirectorySeparatorChar;
+        var offenders = Directory.EnumerateFiles(scripts, "*.cs", SearchOption.AllDirectories)
+            .Where(p => !p.StartsWith(editor) && Path.GetFileName(p) != "StreamingFiles.cs")
+            .Where(p => File.ReadAllText(p).Contains("streamingAssetsPath"))
+            .Select(p => Path.GetRelativePath(scripts, p))
+            .ToArray();
+        Assert.True(offenders.Length == 0,
+            "these read Application.streamingAssetsPath directly, which System.IO cannot open on Android (Quest): "
+            + string.Join(", ", offenders) + ". Use StreamingFiles.ReadAllText / TryReadAllText.");
+        Assert.True(File.Exists(Path.Combine(scripts, "Bridge", "StreamingFiles.cs")), "Bridge/StreamingFiles.cs is gone");
+    }
 }
