@@ -73,6 +73,7 @@
      km/h, no aerobatics)? (c) Do you have the Twin III's empty mass and empty CG for one airframe, its control
      travels, or its wing station chords? Each would replace a flagged value. (d) Should the nose wheel steer (standard
      from s/n 34171)?
+     **Answer (a), Ty 2026-11-04 15:44 PT: upper surface airbrakes only, as built.**
 - **GROB G 103 ACRO (TWIN II ACRO) — AEROBATIC GLIDER, IN PROGRESS, REVIEW BEFORE MERGE (Grok Bot, 2026-11-01,
   lane/claude-grob103 + lane/codex-grob103, both off d0986c0):** Ty chose to keep the progression blocked until a
   real aerobatic glider exists and asked for it to be built; the Grob 103 Acro is the pick (two seats, instructor
