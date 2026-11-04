@@ -13,16 +13,20 @@
 #   3. Every GLB under unity/Assets/_Project/Resources/Models, blob against blob.  WARN; FAIL with --strict.
 #   4. Cockpit/art lanes with commits in NEITHER lane (info: art waiting to be merged into both).
 #
+#   tools/check-parity.sh --hook   the parity LOCK, run by tools/githooks/pre-commit and pre-merge-commit on the commit
+#                                  being made (see the --hook block below and docs/PARITY.md, "The lock").
+#
 # Branches: arguments, else $PARITY_IOS_BRANCH / $PARITY_QUEST_BRANCH, else lane/claude-island-nav and
 # lane/claude-quest-islandnav. Art lanes: local lane/* branches matching $PARITY_ART_RE.
 # Exit: 0 in sync (warnings allowed), 1 out of sync, 2 a branch does not exist.
 set -u
-STRICT=0; BRIEF=0; ARGS=()
+STRICT=0; BRIEF=0; HOOK=0; ARGS=()
 for a in "$@"; do
   case "$a" in
     --strict) STRICT=1 ;;
     --brief) BRIEF=1 ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    --hook) HOOK=1 ;;
+    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
     *) ARGS+=("$a") ;;
   esac
 done
@@ -32,7 +36,45 @@ ART_RE=${PARITY_ART_RE:-'cockpit|instrument|pitts|greatlakes|great-lakes|grob|ex
 MODELS=unity/Assets/_Project/Resources/Models
 
 QUEST_ONLY_RE='^(unity/Assets/XR/|unity/Assets/Plugins/Android/|unity/Assets/_Project/Scripts/Quest/|unity/Assets/_Project/Scripts/Bridge/(Quest|Vr|Xr|UnityVrLens)[^/]*$|unity/Assets/_Project/Scripts/Editor/(Quest|Vr)[^/]*$|unity/Packages/|unity/ProjectSettings/XR|tools/deploy/[^/]*quest[^/]*$)'
-SHARED_RE='^(configs/|src/|unity/Assets/_Project/Resources/Models/|tools/own_models/|docs/models/[^/]*rig[^/]*\.json$|unity/Assets/_Project/Scripts/|unity/Assets/_Project/Shaders/|unity/Assets/Plugins/iOS/|unity/Assets/Plugins/macOS/)'
+SHARED_RE='^(configs/|src/|unity/Assets/StreamingAssets/aircraft/|unity/Assets/_Project/Resources/Models/|tools/own_models/|docs/models/[^/]*rig[^/]*\.json$|unity/Assets/_Project/Scripts/|unity/Assets/_Project/Shaders/|unity/Assets/Plugins/iOS/|unity/Assets/Plugins/macOS/)'
+
+# ---- --hook: the parity lock (tools/githooks/pre-commit and pre-merge-commit) ----------------------------------------
+# Runs on a commit being made, against the INDEX. No-op on every branch but the two lanes. On lane X (the other lane Y):
+#   allow  the commit changes no shared path (logs, docs, renders, Quest-only files);
+#   allow  it merges Y's tip in (MERGE_HEAD == Y): that is how the lanes are synced, so it can never deadlock;
+#   allow  its shared paths come out identical to Y's;
+#   allow  X and Y were identical in shared paths before it (a lead commit: Y must merge X next);
+#   BLOCK  otherwise: X already differs from Y in shared code and this commit adds more. Merge Y into X (or X into Y)
+#          first. Never bypass with --no-verify (docs/PARITY.md).
+if [ "$HOOK" = 1 ]; then
+  branch=$(git symbolic-ref -q --short HEAD) || exit 0
+  if [ "$branch" = "$IOS" ]; then other=$QUEST; elif [ "$branch" = "$QUEST" ]; then other=$IOS; else exit 0; fi
+  if ! git rev-parse -q --verify "$other^{commit}" >/dev/null; then echo "parity hook: $other does not exist; not checked" >&2; exit 0; fi
+  git rev-parse -q --verify HEAD >/dev/null || exit 0
+  shared() { grep -Ev "$QUEST_ONLY_RE" | grep -E "$SHARED_RE"; }
+  changed=$(git diff --cached --name-only HEAD | shared)
+  [ -z "$changed" ] && exit 0
+  mh=$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null)
+  [ -n "$mh" ] && [ "$mh" = "$(git rev-parse "$other")" ] && exit 0
+  after=$(git diff --cached --name-only "$other" | shared)
+  [ -z "$after" ] && exit 0
+  before=$(git diff --name-only HEAD "$other" | shared)
+  if [ -z "$before" ]; then
+    echo "parity hook: $branch leads $other by this commit's shared change ($(printf '%s\n' "$after" | grep -c .) file(s))." >&2
+    echo "parity hook: merge $branch into $other next (git -C <$other worktree> merge --no-ff $branch); until then" >&2
+    echo "parity hook: $branch takes no further shared change. docs/PARITY.md" >&2
+    exit 0
+  fi
+  {
+    echo "PARITY HOOK: BLOCKED — $branch already differs from $other in shared code, and this commit changes shared"
+    echo "paths too. Every commit to either lane must keep them in sync (docs/PARITY.md)."
+    echo "  shared files that differ from $other now ($(printf '%s\n' "$before" | grep -c .)):"
+    printf '%s\n' "$before" | head -10 | sed 's/^/      /'
+    echo "  To sync: commit nothing shared here; in the $other worktree run  git merge --no-ff $branch"
+    echo "  (or here:  git merge --no-ff $other), resolve, commit. Then commit this change. Never --no-verify."
+  } >&2
+  exit 1
+fi
 
 for b in "$IOS" "$QUEST"; do
   if ! git rev-parse -q --verify "$b^{commit}" >/dev/null; then echo "check-parity: no such branch '$b'" >&2; exit 2; fi

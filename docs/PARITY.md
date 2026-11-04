@@ -33,6 +33,31 @@ This is a standing rule, not a lane. `tools/check-parity.sh` measures it, and th
 
 Anything else (AGENT-LOG.md, other docs, renders) is neutral.
 
+## The lock (Ty 2026-11-04 07:29: "lock them in parity from then on")
+
+Every commit to either lane must keep the two lanes in sync. A git hook enforces it:
+
+- `tools/githooks/pre-commit` and `tools/githooks/pre-merge-commit` (tracked) run `tools/check-parity.sh --hook` on the
+  commit being made. `tools/githooks/install.sh` puts a small dispatcher for each in the repository's COMMON hooks
+  directory (`$(git rev-parse --git-common-dir)/hooks`), which every worktree shares. The dispatcher runs the
+  worktree's own `tools/githooks/<hook>` if the checkout has one and does nothing otherwise. `core.hooksPath` is not
+  used. `install.sh --check` says whether it is installed.
+- It does nothing on any branch but `lane/claude-island-nav` and `lane/claude-quest-islandnav`. On lane X (other lane Y),
+  "shared" means the paths in the table above, plus `unity/Assets/StreamingAssets/aircraft/`, minus the Quest-only ones.
+  - **allowed:** a commit that changes no shared path (logs, docs, renders, Quest-only files);
+  - **allowed:** a commit that merges Y's tip in (`MERGE_HEAD` = Y). That is how the lanes are synced, so the lock can
+    never deadlock;
+  - **allowed:** a commit whose shared paths come out identical to Y's;
+  - **allowed, with a message:** a commit while X and Y are identical in shared paths. X now leads, and Y must merge X
+    next;
+  - **BLOCKED:** a shared change while X already differs from Y. Merge the lanes first; the message says how.
+- So the lanes are never more than one shared change apart. The normal flow is: land the change on one lane (directly
+  or by merging a feature lane into it), then `git merge --no-ff <that lane>` in the other lane's worktree, the same
+  day. Once both lanes hold the same tree, fast-forwarding one to the other is also fine.
+- **Never bypass it with `--no-verify`.** If the hook blocks, sync the lanes. If a Quest-only experiment really cannot
+  wait, put it in a Quest-only path or behind `#if UNITY_ANDROID`, and log it.
+- Not covered: fast-forward merges and `git reset`/`update-ref` run no commit hook. Do not move a lane's ref by hand.
+
 ## How to check
 
 ```

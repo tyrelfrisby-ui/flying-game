@@ -2931,6 +2931,17 @@ the pilot is leaving/has left (`PilotEgress.HudAllowed`). KEPT BOTH early-return
 README said the same). AGENT-LOG.md both sides. Then applied `_xfer/parity/quest-followup.patch` as its README says
 (deploy-quest.sh refuses while check-parity fails unless PARITY_OVERRIDE=1; VrMode hook
 `PilotEgress.FlatOverlayVisible = () => !SuppressFlatOverlays`); `git apply --check` clean.
+
+**Step 6 — the lock.** `tools/check-parity.sh --hook` + `tools/githooks/{pre-commit,pre-merge-commit,install.sh}`;
+`install.sh` writes a dispatcher per hook into the COMMON `.git/hooks` (every worktree), which runs the checked-out
+`tools/githooks/<hook>` if there is one, else nothing: every other lane is unaffected (no `core.hooksPath`, which would
+have disabled .git/hooks repo-wide). Rule text in docs/PARITY.md ("The lock"), CLAUDE.md, a new AGENTS.md. Shared now also
+counts `unity/Assets/StreamingAssets/aircraft/`. Tested in a scratch repository (/tmp/pm-hooktest, deleted after): other
+branch shared commit OK; lead commit while in sync OK (with "merge into the other lane next"); a second shared commit
+BLOCKED (exit 1); docs-only and Quest-only commits while out of sync OK; the other lane's own shared commit while behind
+BLOCKED; merging the other lane's tip OK both as an automatic merge (pre-merge-commit) and as a conflicted merge
+finished with `git commit` (pre-commit, MERGE_HEAD); merging a feature lane while in sync OK (lead), while behind BLOCKED.
+Known gap, documented: a fast-forward or `update-ref` runs no commit hook.
 <!-- /parity-merge entry -->
 ### 2026-11-03 21:30 PST — Claude · lane/claude-quest-cockpit-switches (off lane/claude-quest-islandnav 2be16316) · switches on the panels on the Quest, GL v7, Pitts/Extra rows, Extra panel + stick, Pitts canopy + nose, headset cord
 Owner pt502u: "the pitts and the great lakes have switches outside of the panel on the meta quest version use the new

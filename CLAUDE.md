@@ -12,6 +12,11 @@ this file is the standing guidance that does not belong to any one lane.
 - Art for both platforms comes from one GLB and one config. A "Quest-only" windshield is a fork.
 - Run `tools/check-parity.sh` before any deploy. `deploy.sh` prints it (never blocks iOS); `deploy-quest.sh` refuses
   while it fails unless `PARITY_OVERRIDE=1`, and any override gets an AGENT-LOG line.
+- **The lanes are LOCKED in parity** (Ty 2026-11-04 07:29). Every commit to either lane must keep them in sync:
+  `tools/githooks/pre-commit` / `pre-merge-commit` → `tools/check-parity.sh --hook` (installed for all worktrees by
+  `tools/githooks/install.sh`). A shared change is allowed only while the lanes are identical, and the other lane must
+  then merge it; merging the other lane's tip is always allowed. Platform-only code goes only behind `#if UNITY_IOS` /
+  `UNITY_ANDROID` or in the documented platform folders. Never `--no-verify`. docs/PARITY.md, "The lock".
 
 ## How work lands here
 
@@ -454,3 +459,11 @@ had the same shape (`melt / u` with u = 0), and its box blur spread the NaN over
 weight, not the result. When a terrain change makes far-off ground go strange, scan for NaN before suspecting the
 change. And expect a regenerated relief to re-pick every generator-chosen site (snow patches, ledges, boulders): that
 search is a global ranking, so its literal tests must be re-copied from the new report, not "fixed".
+
+### A test filter that matches nothing is not a passing run, and a poll that waits for a pass never ends
+Re-running the merge's failures, the names were cut out of the log with `sed 's/^\s*Failed //'`. BSD sed has no `\s`,
+so every name kept its `  Failed ` prefix and ` [6 s]` suffix, the `--filter` matched no test, `dotnet test` never
+printed `Passed!`/`Failed!`, and the loop waiting for that line polled until the session was killed. Use `[[:space:]]`
+(or perl), print the filter's first entry before launching it, and make any wait loop also stop when the process it
+waits on has exited. Related: building a worktree through `/tmp/...` failed with `CS0006 ... obj~/... not found` while
+the same build through `/private/tmp/...` succeeded. Give dotnet the resolved path.
