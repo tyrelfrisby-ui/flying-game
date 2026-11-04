@@ -10,7 +10,7 @@ namespace FlyingGame.EditorTools
     /// Review plates for the Frank Church strips (2026-11-03, lane/claude-frank-church-valleys). Cameras come from
     /// FrankChurch.Strips themselves, so the same file shoots any version of the island from the equivalent places:
     ///   overhead  straight down from 1.6 km above the strip, its landing heading up the picture;
-    ///   approach  a pilot's short final: 900 m before the landing threshold on the landing heading (uphill; the
+    ///   approach  a pilot's short final: 900 m (or -fcApproachM) before the landing threshold on the landing heading (uphill; the
     ///             one-way heading where there is one), 4 degrees above it, looking at the far end;
     ///   low       the surface close up: 150 m before the landing threshold, 3 m above it, looking down the strip;
     ///   surface   on the strip, 20 m past the threshold, 8 m up, looking at the ground ahead;
@@ -25,6 +25,8 @@ namespace FlyingGame.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             int tagAt = System.Array.IndexOf(args, "-fcTag");
             string tag = tagAt >= 0 && tagAt + 1 < args.Length ? args[tagAt + 1] : "after";
+            int distAt = System.Array.IndexOf(args, "-fcApproachM");
+            double approachM = distAt >= 0 && distAt + 1 < args.Length ? double.Parse(args[distAt + 1], System.Globalization.CultureInfo.InvariantCulture) : 900;
             string outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/frank-church", tag));
             Directory.CreateDirectory(outDir);
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -78,8 +80,8 @@ namespace FlyingGame.EditorTools
                 var centre = S(s.X, s.Y, s.ElevationM);
                 // Overhead: straight down, the landing heading up the picture.
                 Shoot($"{slug}-overhead", S(s.X, s.Y, s.ElevationM + 1600), centre, S(s.X + ux, s.Y + uy, 0) - S(s.X, s.Y, 0), 50, centre);
-                // Short final: 900 m out, 4 degrees up from the threshold (never inside the ground).
-                double ex = tx - ux * 900, ey = ty - uy * 900, ez = System.Math.Max(tz + 900 * System.Math.Tan(4 * System.Math.PI / 180), H(ex, ey) + 25);
+                // Short final: 900 m out (-fcApproachM to change it), 4 degrees up from the threshold (never inside the ground).
+                double ex = tx - ux * approachM, ey = ty - uy * approachM, ez = System.Math.Max(tz + approachM * System.Math.Tan(4 * System.Math.PI / 180), H(ex, ey) + 25);
                 Shoot($"{slug}-approach", S(ex, ey, ez), S(fx, fy, fz), Vector3.up, 55, S(s.X, s.Y, s.ElevationM));
                 // Low: the surface itself. 150 m before the landing threshold, 3 m above it, looking down the strip.
                 double lx = tx - ux * 150, ly = ty - uy * 150, lz = System.Math.Max(tz, H(lx, ly)) + 3;
