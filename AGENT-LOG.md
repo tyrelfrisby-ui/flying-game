@@ -4528,3 +4528,6 @@ Keep: flush instruments with four corner screws, level AI airplane, top-view DG 
 
 ## 2026-11-03 16:26 PST - 172 turn coordinator marks (Ty)
 NEEDS YOU: approve v3. TC standard-rate L and R marks must sit on the exact radial the rear-view airplane's wing reaches at 3°/s (about 20° down from level, as on real Cessna TCs), so the wing lies exactly parallel on the mark at standard rate; verify the overlay. The rear-view airplane's wings must be perfectly symmetric about the centre pivot (one wing looks longer). Add close-ups of the TC at standard rate left and right.
+
+## 2026-11-03 16:28 PST - 172 panel layout (Ty)
+NEEDS YOU: approve v3 layout. Tachometer directly under the VSI. One vertical engine column between the flight instruments and the radio stack, top to bottom: oil pressure, oil temp, fuel (taken as FUEL PRESSURE/FLOW — fuel quantity goes under the TC; Ty to confirm), ammeter, EGT. Suction gauge under the DG. Two fuel quantity gauges under the TC, L and R tanks. Six-pack stays the standard T; keep every earlier fix. Wants a full-panel pilot-eye render plus a labeled layout diagram.
