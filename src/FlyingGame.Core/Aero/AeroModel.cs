@@ -83,7 +83,17 @@ public static class AeroModel
     /// finite-span slope — DATCOM/Helmbold a = 2πA / (2 + √(A²/κ² + 4)), κ = a₀/2π; fins take A × 1.55 (end-plate effect
     /// of the stab and fuselage). The 2-D slope made every type's tail ~1.7× too strong: stick-fixed static margins of
     /// 25–70 % MAC (real light aircraft 5–20 %), over-damped pitch, and elevator power riding on the stab's inflated slope.
-    /// Wing tables are already finite-span polars (clarkY-like 4.4/rad) and are left alone.
+    /// WINGS go through the same test (2026-11-01). When this was written every wing polar in the fleet was
+    /// finite-span (clarkY-like 4.47/rad) so wings were skipped; nine wing surfaces authored or rebuilt since
+    /// carry 2-D section data instead — Pitts 6.30, Great Lakes 6.19, Extra / Cassutt / Swift S-1 / drone 5.82,
+    /// 737 5.53 — and on a wing a 2-D slope overstates the lift AND the roll damping together. Note what that
+    /// means for roll RATE: steady p is aileron power over roll damping and both scale with the section slope,
+    /// so the error largely CANCELS in the steady rate and shows up in the time constant instead (the Pitts'
+    /// time to 90 % went 0.35 s to 0.50 s when this was applied). It is the lift, the stall and the damping
+    /// that were wrong, not primarily the roll rate.
+    /// Biplanes take each wing's own geometric AR, because wing-upper and wing-lower are separate systems here.
+    /// Interference between the two (Munk's biplane theory: each wing in the other's upwash/downwash behaves as
+    /// though of lower effective AR) is NOT modelled and would reduce both wings' slopes further.
     /// Returns the table key for a tail surface's strips, or null (use the strip's own airfoil).
     /// </summary>
     public static string? SectionTableKey(AircraftConfig config, int surfaceIndex) => TailSections(config).Keys[surfaceIndex];
@@ -139,10 +149,109 @@ public static class AeroModel
         return x;
     }
 
+    /// <summary>
+    /// How much of a FIXED strip's span actually has a hinged surface behind it, 0..1.
+    ///
+    /// A deflection cambers the fixed strip ahead of the control (gain g, docs/CONTROL-SURFACES.md) — but only
+    /// over the span the control really occupies. Where an aileron stops short of the band the fixed strip
+    /// covers, the camber was still being applied across the WHOLE band, which buys rolling moment the aeroplane
+    /// has no aileron to produce. It inflates roll POWER without inflating roll DAMPING, so it goes straight
+    /// into the steady roll rate.
+    ///
+    /// Coverage is measured as the hinged strip's span divided by the fixed strip's, both as area/chord — the
+    /// same rasterised silhouette the configs were built from, so a control that ends mid-band contributes only
+    /// the span it occupies. For 28 of the fleet's 32 aileron and elevator systems this is 1.000 to three
+    /// decimals and nothing changes. It is NOT 1 for exactly the surfaces rebuilt from their GLB models on
+    /// 2026-10-28 — Pitts upper wing 0.681 and lower 0.719, Extra 300 wing 0.826, Great Lakes lower wing 0.877,
+    /// and the Pitts, Extra, Great Lakes and Jenny elevators 0.90–0.96 — where the measured fixed rows run
+    /// past the ends of the control surface.
+    ///
+    /// Scaling the gain rather than splitting the strip: in the linear range the camber lift over a band is
+    /// proportional to the flapped fraction of it, so the two are equivalent, and scaling leaves the station
+    /// list, the strip count, the load points, the aspect ratios and <see cref="WeightAndBalance"/>'s
+    /// <c>>= 0.9</c> hinged-row test all untouched. Only the fixed row is scaled; the hinged row is the surface
+    /// itself and keeps its gain of 1.
+    /// </summary>
+    public static double ControlSpanCoverage(AircraftConfig config, int stripIndex)
+    {
+        double[] c = _coverage.GetValue(config, BuildCoverage);
+        return stripIndex >= 0 && stripIndex < c.Length ? c[stripIndex] : 1.0;
+    }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _coverage = new();
+    private static double[] BuildCoverage(AircraftConfig cfg)
+    {
+        var all = new List<(StripConfig st, string key, bool hinged, double width)>();
+        foreach (SurfaceConfig sf in cfg.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+                all.Add((st, SystemKey(sf.Id), st.Control is not null && Math.Abs(st.Control.Gain) >= 0.9,
+                         st.Chord > 1e-9 ? st.Area / st.Chord : 0.0));
+        var cov = new double[all.Count];
+        for (int i = 0; i < cov.Length; i++) cov[i] = 1.0;
+        for (int i = 0; i < all.Count; i++)
+        {
+            var (st, key, hinged, width) = all[i];
+            if (st.Control is null || hinged || width <= 1e-9) continue;   // hinged rows and plain strips: unscaled
+            // The hinged strip of the same system and surface nearest this station, as LoadPoint pairs them.
+            double y = st.Pos[1]; int best = -1; double bestD = double.MaxValue;
+            for (int j = 0; j < all.Count; j++)
+            {
+                var o = all[j];
+                if (!o.hinged || o.key != key || o.st.Control is null || o.st.Control.Surface != st.Control.Surface) continue;
+                double d = Math.Abs(o.st.Pos[1] - y);
+                if (d < 0.6 * Math.Max(width, o.width) && d < bestD) { bestD = d; best = j; }
+            }
+            if (best < 0) continue;
+            double c = Math.Clamp(all[best].width / width, 0.0, 1.0);
+            // DEADBAND: these spans come from a rasterised silhouette and are not accurate to better than
+            // about a per cent, so anything within 1 % of full is full. Without it the fleet's exactly-tiled
+            // surfaces measure 0.999 instead of 1.000 and every one of them shifts its trim in the fourth
+            // decimal — churn in the generated glide table for no physics. It leaves the four surfaces this
+            // is actually about (0.68–0.88) untouched.
+            cov[i] = c >= 0.99 ? 1.0 : c;
+        }
+        return cov;
+    }
+
+    /// <summary>
+    /// The chord ratio E = c_hinged / (c_fixed + c_hinged) of the aileron SECTION a strip belongs to (fixed row or hinged
+    /// row, paired as <see cref="LoadPoint"/> pairs them), or NaN where an aileron strip has no partner — the
+    /// paraglider's brake-line strips, which are not a hinged section and keep the old per-strip treatment.
+    /// </summary>
+    public static double AileronSectionE(AircraftConfig config, int stripIndex)
+    {
+        double[] e = _aileronE.GetValue(config, BuildAileronE);
+        return stripIndex >= 0 && stripIndex < e.Length ? e[stripIndex] : double.NaN;
+    }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _aileronE = new();
+    private static double[] BuildAileronE(AircraftConfig cfg)
+    {
+        var all = new List<(StripConfig st, string key, bool hinged, double width)>();
+        foreach (SurfaceConfig sf in cfg.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+                all.Add((st, SystemKey(sf.Id), st.Control is not null && Math.Abs(st.Control.Gain) >= 0.9,
+                         st.Chord > 1e-9 ? st.Area / st.Chord : 0.0));
+        var e = new double[all.Count];
+        for (int i = 0; i < e.Length; i++) e[i] = double.NaN;
+        for (int i = 0; i < all.Count; i++)
+        {
+            var (st, key, hinged, width) = all[i];
+            if (st.Control is null || st.Control.Surface != "aileron" || width <= 1e-9) continue;
+            int best = -1; double bestD = double.MaxValue;
+            for (int j = 0; j < all.Count; j++)
+            {
+                var o = all[j];
+                if (j == i || o.hinged == hinged || o.key != key || o.st.Control is null || o.st.Control.Surface != "aileron") continue;
+                double d = Math.Abs(o.st.Pos[1] - st.Pos[1]);
+                if (d < 0.6 * Math.Max(width, o.width) && d < bestD) { bestD = d; best = j; }
+            }
+            if (best < 0) continue;
+            double ch = hinged ? st.Chord : all[best].st.Chord, cf = hinged ? all[best].st.Chord : st.Chord;
+            e[i] = ch / (ch + cf);
+        }
+        return e;
+    }
+
     public const double FinEndPlateFactor = 1.55;
-    /// <summary>Tail dynamic-pressure ratio η_t = q_tail / q∞ (DATCOM: 0.85–0.95 for a conventional tail in the wing and
-    /// fuselage wake; the propeller slipstream raises it separately under power).</summary>
-    public const double TailDynamicPressureRatio = 0.9;
 
     /// <summary>Gilruth & White fuselage pitch factor, 57.3·K_f·w²·L (m³): M_y = this · q · ½ sin 2α. K_f against the wing
     /// root quarter-chord's distance from the nose as a fraction of body length (NACA TR 711, fig. 13).</summary>
@@ -174,7 +283,14 @@ public static class AeroModel
         for (int i = 0; i < cfg.Surfaces.Count; i++)
         {
             string key = SystemKey(cfg.Surfaces[i].Id);
-            if (key != "hStab") continue;   // (fins + rudders: staged — the vertical tail keeps its own tables until its own validation, 2026-10-06)
+            // Horizontal tails and WINGS. (Fins + rudders: staged — the vertical tail keeps its own tables
+            // until its own validation, 2026-10-06.) Wings were left out when this was written because the
+            // fleet's wing polars were finite-span already (clarkY-like 4.47/rad); they are not all finite-span
+            // any more. The nine wing surfaces rebuilt or authored since carry 2-D section data — Pitts 6.30,
+            // Great Lakes 6.19, Extra / Cassutt / Swift / drone 5.82, 737 5.53 — and a 2-D slope on a wing
+            // overstates its lift AND its roll damping, the same way it overstated every tail in 2026-10-06.
+            // The a0 >= 5.5 test below is what decides; a wing already on a finite-span polar is untouched.
+            if (key != "hStab") continue;
             int fixedIdx = cfg.Surfaces.FindIndex(sf => sf.Id == key);
             if (fixedIdx < 0) fixedIdx = i;   // all-moving (stabilator): the surface is its own section
             if (cfg.Surfaces[fixedIdx].Strips.Count == 0) continue;
@@ -188,16 +304,50 @@ public static class AeroModel
             double a = 2 * Math.PI * ar / (2 + Math.Sqrt(ar * ar / (kappa * kappa) + 4));
             double scale = a / a0;
             string dKey = $"{baseAf}@{key}-3d";
-            if (!map.Derived.ContainsKey(dKey))
-            {
-                var t = new double[data.AlphaRad.Length];
-                for (int k = 0; k < t.Length; k++) t[k] = data.AlphaRad[k] / scale;   // Cl(α) of the finite surface = Cl₂D(α·a/a₀)
-                map.Derived[dKey] = new AirfoilTableData { AlphaRad = t, Cl = data.Cl, Cd = data.Cd, Cm = data.Cm };
-            }
+            if (!map.Derived.ContainsKey(dKey)) map.Derived[dKey] = FiniteSpanSection(data, a0, a);
             map.Keys[i] = dKey;
         }
         return map;
     });
+
+    /// <summary>
+    /// The finite surface's table from a 2-D section table: each point moves to the geometric angle at which the surface
+    /// makes that section lift, α = α₂D + Cl₂D(α₂D)·(1/a − 1/a₀), the induced angle of its own lift (nonlinear lifting-line,
+    /// Sivells &amp; Neely, NACA Report 865, 1947; Anderson, Fundamentals of Aerodynamics §5.4). In the linear range it is exactly
+    /// the Helmbold rescale α₂D·a₀/a this replaced. The rescale stretched the WHOLE axis, so on the Pitts (a/a₀ 0.51) the
+    /// table's 90° point sat at 177° and a stab broadside to the flow read the section at 51°: Cl 0.95 instead of 0, a
+    /// normal force flat at ~0.83 from 35° to 90° instead of rising to the table's 1.19, and an elevator that moved nothing
+    /// there (owner 2026-11-03: "the elevator control is also weak at high aoa"). The induced angle goes with the lift, so
+    /// broadside it is zero and the post-stall data — already a finite-aspect-ratio plate in these tables (Cd 1.19 at 90°,
+    /// Viterna &amp; Corrigan's 1.11 + 0.018·AR) — stays where it was measured.
+    /// Where the section's lift falls faster than 1/(1/a − 1/a₀) past the stall, the mapping folds back on itself: two
+    /// section states at one geometric angle, which is the finite wing's stall jump. The table keeps the attached branch to
+    /// the furthest angle it reaches and the separated branch from there on.
+    /// </summary>
+    public static AirfoilTableData FiniteSpanSection(AirfoilTableData data, double a0, double a)
+    {
+        double k = 1.0 / a - 1.0 / a0;
+        int n = data.AlphaRad.Length;
+        var geo = new double[n];
+        for (int i = 0; i < n; i++) geo[i] = data.AlphaRad[i] + data.Cl[i] * k;
+        // Outward from the point nearest zero, both ways, keeping only points that advance.
+        int z = 0;
+        for (int i = 1; i < n; i++) if (Math.Abs(data.AlphaRad[i]) < Math.Abs(data.AlphaRad[z])) z = i;
+        var keep = new List<int> { z };
+        for (int i = z + 1; i < n; i++) if (geo[i] > geo[keep[^1]]) keep.Add(i);
+        var neg = new List<int>();
+        double last = geo[z];
+        for (int i = z - 1; i >= 0; i--) if (geo[i] < last) { neg.Add(i); last = geo[i]; }
+        neg.Reverse();
+        neg.AddRange(keep);
+        return new AirfoilTableData
+        {
+            AlphaRad = neg.Select(i => geo[i]).ToArray(),
+            Cl = neg.Select(i => data.Cl[i]).ToArray(),
+            Cd = neg.Select(i => data.Cd[i]).ToArray(),
+            Cm = neg.Select(i => data.Cm[i]).ToArray(),
+        };
+    }
 
     /// <summary>Lift slope of a table about zero alpha (per rad).</summary>
     public static double SectionSlope(AirfoilTableData t)
@@ -211,7 +361,7 @@ public static class AeroModel
         return (Cl(0.06) - Cl(-0.06)) / 0.12;
     }
 
-    internal static string SystemKey(string id)
+    public static string SystemKey(string id)
     {
         if (id.EndsWith("-aileron", StringComparison.OrdinalIgnoreCase)) return id[..^"-aileron".Length];
         if (id.Equals("elevator", StringComparison.OrdinalIgnoreCase)) return "hStab";
@@ -297,18 +447,13 @@ public static class AeroModel
         // hysteresis — separated wakes develop fast and wash out slowly). Negative = instantaneous.
         WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg, wakeStalledFracOverride, surfaceMask, stripMask, airfoilTables);
 
-        // NACA TN-1045/1329 stab-wake rudder shielding: in steep/vertical flow the horizontal tail
-        // sheds a wake wedge (60-deg line from its LE, 30-deg from its TE); fin/rudder area inside is
-        // blanked. Precompute stab position/chord for the per-strip test on vertical surfaces.
-        double stabX = 0, stabZ = 0, stabChord = 0; int stabN = 0;
-        foreach (SurfaceConfig sf in config.Surfaces)
-        {
-            if (sf.Id.Contains("hStab", StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (StripConfig st in sf.Strips) { stabX += st.PosVec().X; stabZ += st.PosVec().Z; stabChord += st.Chord; stabN++; }
-            }
-        }
-        if (stabN > 0) { stabX /= stabN; stabZ /= stabN; stabChord /= stabN; }
+        // The downwash the tail flies in (below, per strip) is also the flow the wakes are carried in.
+        double epsTail = (config.StallDynamics.DownwashLagEnabled && flowState is not null
+            ? flowState.DownwashEpsLagged
+            : 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction));
+        epsTail = (epsTail + 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction)) * gePhi;
+        // Every wing and stabiliser section's own wake (TailWake): where it goes, how wide and how deep.
+        TailWake.Field wakes = TailWake.Prepare(config, airfoilTables, bodyVelocity - windBody, bodyRates, cg, flowState, surfaceMask, stripMask, epsTail);
 
         // THE WING'S OWN STALLED FRACTION, area-weighted, accumulated as the strips are flown. It gates the
         // separated-wing rolling moment at the bottom of this method; see ApplyWingSideslipRoll.
@@ -347,6 +492,12 @@ public static class AeroModel
                 }
             }
 
+            // BIPLANE MUTUAL INDUCTION on the rolling loads (BiplaneCellule.RollDampingInduction / AileronInduction): a
+            // cellule's two wings each fly in the other's induced field, which takes a share of the load a roll rate or an
+            // aileron puts on them. 1 on every monoplane and every surface outside the cellule.
+            BiplaneCellule? cellule = isWing ? BiplaneCellule.For(config) : null;
+            bool inCellule = cellule is not null && cellule.Covers(surface.Id);
+
             foreach (StripConfig strip in surface.Strips)
             {
                 int idx = stripIndex++; // counted for EVERY strip, including low-speed skips
@@ -357,9 +508,15 @@ public static class AeroModel
                 }
                 Vec3 stripAt = LoadPoint(config, idx, strip);   // a hinged section's loads act at the SECTION quarter-chord
                 Vec3 r = stripAt - cg;
-                Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
+                // The induction is a property of ATTACHED circulation (it is the lattice's), so it fades with this strip's
+                // own separation: a stalled, spinning cellule is left exactly as it was.
+                double stripAttached = flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0;
+                Vec3 rollRates = bodyRates;
+                if (inCellule) rollRates = new Vec3(bodyRates.X * (1.0 - (1.0 - cellule!.RollDampingInduction) * stripAttached), bodyRates.Y, bodyRates.Z);
+                Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(rollRates, r);
                 // The air is not the same across the airframe (regional atmosphere): the strip sees the wind where IT is.
                 if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
+                Vec3 vAirStrip = vLocal;   // the relative wind here before the slipstream: what carries the wakes over this strip
 
                 // Propeller slipstream: tail surfaces inside the (contracted) prop wash see the accelerated
                 // flow — this is why a prop aircraft has elevator and rudder authority at low speed (taxi,
@@ -453,6 +610,10 @@ public static class AeroModel
                 }
 
                 double controlDeflRad = strip.Control is null ? 0.0 : controls.GetDeflection(strip.Control.Surface);
+                // RIGGING (RigConfig): the ailerons' neutral sits AileronRad off the stick's, and the whole fin, rudder and
+                // all, is set FinOffsetRad to the centreline. Built into the airframe; zero on an unrigged type.
+                if (strip.Control is not null && strip.Control.Surface == "aileron") controlDeflRad += config.Rig.AileronRad;
+                double stripIncidence = strip.IncidenceRad + (isVertical ? config.Rig.FinOffsetRad : 0.0);
                 string sectionKey = SectionTableKey(config, surfaceIndex) ?? strip.Airfoil;
                 if (!airfoilTables.TryGetValue(sectionKey, out AirfoilTable? table))
                 {
@@ -502,7 +663,42 @@ public static class AeroModel
                     double rotGate = Math.Clamp(Math.Sqrt(bodyRates.X * bodyRates.X + bodyRates.Z * bodyRates.Z) / 1.5, 0.0, 1.0);
                     deflEff *= 1.0 - 0.3 * rotGate;   // was 0.5 (owner 2026-09-08: spins too flat, no elevator authority)
                 }
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * deflEff * chordwiseFactor;
+                // Spare per-axis multiplier on the commanded incidence. Default 1.0 and unused by every aircraft
+                // in the fleet. This is NOT the flap effectiveness τ — τ is already carried by the fixed row's
+                // gain g = 0.85·τ(E) (docs/CONTROL-SURFACES.md), so a factor here would count it twice. It does
+                // not touch `deltaGeom` below: the surface still sticks out as far as it ever did, so its
+                // pressure drag and the adverse yaw are unchanged.
+                double controlEff = strip.Control is null
+                    ? 1.0
+                    : config.Controls.AxisFor(strip.Control.Surface)?.Effectiveness ?? 1.0;
+                // SPAN COVERAGE: the fixed row is cambered only over the span the control actually occupies
+                // (ControlSpanCoverage). 1.0 for almost the whole fleet; it is the aircraft rebuilt from their
+                // models in 2026-10-28 whose fixed rows run past the ends of their ailerons.
+                double controlDeltaAlpha = strip.Control is null
+                    ? 0.0
+                    : strip.Control.Gain * deflEff * chordwiseFactor * controlEff * ControlSpanCoverage(config, idx);
+                // AILERON SECTIONS (owner 2026-11-02, "the roll rate is way too high"; DATCOM 6.1.1.1 / Torenbeek). An
+                // aileron is the aft E of ONE aerofoil, not an aerofoil of its own: the hinged row used to fly its table at
+                // α + δ, which at full travel is past the section's stall (the Pitts at 2° + 25°), and then UN-stalled as the
+                // roll itself unloaded it — 24 % more rolling moment at the steady roll than at the first instant of the
+                // input, which is the opposite of how a plain flap separates (off the hinge knuckle, set by δ, not by the
+                // section's α). The section's lift now moves by Δα = τ(E)·η_δ(E, δ)·δ on BOTH rows: τ the thin-aerofoil flap
+                // effectiveness for the section's own chord ratio, η_δ the empirical plain-flap (sealed gap) lift
+                // effectiveness, which carries the viscous small-δ loss and the large-deflection fall-off together
+                // (PlainFlap). It replaces the authored fixed-row gain (0.45 hand-set across most of the fleet; derived as
+                // 0.85·τ on the Pitts, Extra and Great Lakes) for ailerons only; elevators and rudders are unchanged. The
+                // hinged row's DRAG stays sampled at its geometric α + δ: the deflected surface's pressure drag, the source
+                // of the adverse yaw, is not what this corrects.
+                double sectionE = strip.Control is not null && strip.Control.Surface == "aileron" ? AileronSectionE(config, idx) : double.NaN;
+                double hingedDragDelta = double.NaN;
+                if (!double.IsNaN(sectionE))
+                {
+                    if (Math.Abs(strip.Control!.Gain) >= 0.9) hingedDragDelta = controlDeltaAlpha;
+                    controlDeltaAlpha = Math.Sign(strip.Control.Gain) * PlainFlap.LiftEffectiveness(sectionE, deflEff) * deflEff
+                                        * chordwiseFactor * controlEff * ControlSpanCoverage(config, idx);
+                }
+                if (inCellule && strip.Control is not null && strip.Control.Surface == "aileron")
+                    controlDeltaAlpha *= 1.0 - (1.0 - cellule!.AileronInduction) * stripAttached;
 
                 // AILERONS in separated flow (owner directive): a deflected aileron on a stalled wing
                 // section stops commanding lift but KEEPS its pressure drag — so roll authority fades
@@ -519,6 +715,7 @@ public static class AeroModel
                     // momentarily reattaches — kills the inverted reattachment-grab magnitudes.
                     double yawGate = Math.Clamp(Math.Abs(bodyRates.Z) / 1.2, 0.0, 1.0);
                     controlDeltaAlpha *= 1.0 - 0.5 * yawGate * wake.StalledFraction;
+                    if (!double.IsNaN(hingedDragDelta)) hingedDragDelta *= (1.0 - 0.85 * sep) * (1.0 - 0.5 * yawGate * wake.StalledFraction);
                     double deltaGeom = strip.Control!.Gain * controlDeflRad;
                     cdDeflection = 1.2 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * 1.5 * sep; // separated flow ONLY — attached aileron drag stays the induced-drag asymmetry the polar already gives
                 }
@@ -542,7 +739,7 @@ public static class AeroModel
                     flapStallShift = 0.2 * strip.Flap.MaxDeltaAlphaRad * ff; // stalls ~3° earlier at full flap
                 }
 
-                double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
+                double alpha = alphaBase + stripIncidence + controlDeltaAlpha;
 
                 // WING SWEEP: only the chord-normal flow component makes lift (independence principle).
                 // A swept strip at geometric alpha behaves like a straight strip at a reduced effective
@@ -555,6 +752,10 @@ public static class AeroModel
                 }
 
                 AeroCoefficients coeffs = table.Sample(alpha);
+                // The hinged aileron row's drag: its own deflected-surface value, as before (see AILERON SECTIONS above).
+                double hingedCd = double.NaN;
+                if (!double.IsNaN(hingedDragDelta))
+                    hingedCd = table.Sample((alphaBase + stripIncidence + hingedDragDelta) * (cosSweep < 0.9999 ? cosSweep : 1.0)).Cd;
 
                 // Two-branch stall: blend the ATTACHED branch (linear lift carried past the static
                 // stall — capped dynamic overshoot) with the SEPARATED branch (the table's post-stall
@@ -594,6 +795,8 @@ public static class AeroModel
                         coeffs = new AeroCoefficients(cl, cd, cm);
                     }
                 }
+
+                if (!double.IsNaN(hingedCd)) coeffs = new AeroCoefficients(coeffs.Cl, hingedCd, coeffs.Cm);
 
                 // BIPLANE CELLULE (owner 2026-10-28). Two wings one above the other never make what two isolated
                 // wings of the same area would: each flies in the other's field. BiplaneCellule measures the gap,
@@ -650,40 +853,11 @@ public static class AeroModel
                     }
                 }
 
-                // Tail blanketing: strips of non-wing surfaces sitting inside the stalled wing's
-                // separated wake lose dynamic pressure. In a spin this is what stops the tail from
-                // producing near-CLmax upload and lets the nose ride high.
-                // Vertical surfaces cross the (horizontal) wake slab edge-on and span beyond it, so they
-                // lose only ~half the dynamic pressure a horizontal surface loses (tunnel-calibrated:
-                // CR-3099 yaw damping stays linear to Om=0.85 — the fin keeps working in the spin).
-                double blanketLoss = isVertical ? config.VerticalBlanketFactor * config.WakeBlanketMaxLoss : config.WakeBlanketMaxLoss;
-                double qFactor = isWing ? 1.0 : (isVertical ? 1.0 : TailDynamicPressureRatio) * wake.DynamicPressureFactor(strip.PosVec(), blanketLoss);
-
-                // Stab-wake shielding of the fin/rudder (NACA spin-recovery geometry). Ramps in as
-                // the tail-region flow steepens (none below 30-deg flow, full by 60-deg — the NACA
-                // construction assumes near-vertical spin flow). A strip ABOVE the stab plane is
-                // inside the wedge unless it lies aft of the 30-deg trailing-edge line; strips
-                // BELOW the stab (the 2-33's low rudder) are never shielded.
-                if (isVertical && stabN > 0)
-                {
-                    double flowSteep = Math.Clamp((Math.Abs(wake.FlowAlpha) - 30.0 * Math.PI / 180.0) / (30.0 * Math.PI / 180.0), 0.0, 1.0);
-                    if (flowSteep > 0)
-                    {
-                        double up = stabZ - strip.PosVec().Z;                   // + when strip is above the stab (z down)
-                        double aftOfTe = (stabX - 0.75 * stabChord) - strip.PosVec().X; // + when strip is aft of stab TE
-                        // The wedge lies DOWNSTREAM of the stab: above it when the flow comes from below (upright spin),
-                        // below it when the flow comes from the canopy side (inverted spin) — an inverted spin's fin, above
-                        // the stab, is upstream of it and unshielded (2026-10-12, rotary-balance audit).
-                        double downstream = wake.FlowAlpha >= 0 ? up : -up;
-                        bool inWedge = downstream > 0 && (aftOfTe < downstream / Math.Tan(30.0 * Math.PI / 180.0));
-                        if (inWedge)
-                        {
-                            // Half the fin's wake loss again (owner 2026-09-08: the rudder kept ~8 % of its power in
-                            // the Extra's spin — the stab wedge on top of the wing wake over-shielded it).
-                            qFactor *= 1.0 - 0.5 * config.VerticalBlanketFactor * config.WakeBlanketMaxLoss * flowSteep;
-                        }
-                    }
-                }
+                // Tail strips fly in whatever wing or stabiliser wake reaches them (TailWake: each section's own wake, NACA
+                // Report 648 width and depth from that section's drag). It replaces the single-wing wake band, its 0.45
+                // maximum loss, the fin's 0.5 of it, the stab wedge's extra half, and the flat η_t = 0.9 (DATCOM's typical
+                // value, which is this same wake averaged over a typical tail).
+                double qFactor = isWing ? 1.0 : TailWake.QFactor(wakes, stripAt, vAirStrip, isVertical);
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
                 if (!isWing && !isVertical && strip.PosVec().X < -1.0 && ForceDebug.Samples is not null)
@@ -699,7 +873,7 @@ public static class AeroModel
                     // Reversible controls: the flow a free surface trails in — the fixed surface's local angle (downwash,
                     // slipstream, sideslip, rates all included), sign-reversed in tail-first flow, and its own q. Not capped at the
                     // stall any more (owner 2026-10-12): past it the free surface weathervanes (Aircraft.HingeTerms).
-                    flowState.HingeAlphaRad[idx] = Math.Clamp(alphaBase + strip.IncidenceRad, -0.5 * Math.PI, 0.5 * Math.PI) * chordwiseFactor;
+                    flowState.HingeAlphaRad[idx] = Math.Clamp(alphaBase + stripIncidence, -0.5 * Math.PI, 0.5 * Math.PI) * chordwiseFactor;
                     flowState.HingeQ[idx] = q;
                     flowState.HingeFlowDir[idx] = chordwiseFactor;
                 }
@@ -746,84 +920,25 @@ public static class AeroModel
     }
 
     /// <summary>
-    /// Geometry of the stalled wing's separated wake (NACA spin-research style). The wake sheds from
-    /// the wing and convects downstream with the flow: in body axes it occupies the angular band
-    /// between the wing chord plane (elevation ~0) and the freestream direction (elevation ~alpha),
-    /// growing with a spread margin. Strength scales with the stalled fraction of wing area.
+    /// The wing's separation state as a whole: the freestream angle of attack and the stalled fraction of wing area (lagged by
+    /// the caller for stall hysteresis). It sets the downwash collapse and the spin-rotation control cuts; where the wakes go
+    /// and what they do to the tail is TailWake's, per section.
     /// </summary>
     private readonly struct WingWake
     {
         private const double StallAlphaRad = 15.0 * Math.PI / 180.0;
-        private readonly double _spreadRad;
-
-        private readonly Vec3 _origin;        // area-weighted wing quarter-chord position
-        private readonly double _flowAlpha;   // wake convection elevation (freestream alpha)
+        private readonly double _flowAlpha;   // freestream alpha
         private readonly double _stalledFrac; // stalled wing area / total wing area
 
-        public WingWake(Vec3 origin, double flowAlpha, double stalledFrac, double spreadRad)
+        public WingWake(double flowAlpha, double stalledFrac)
         {
-            _origin = origin;
             _flowAlpha = flowAlpha;
             _stalledFrac = stalledFrac;
-            _spreadRad = spreadRad;
         }
 
         public static double StallAlpha => StallAlphaRad;
         public double StalledFraction => _stalledFrac;
         public double FlowAlpha => _flowAlpha;
-
-        /// <summary>1 = clean air; down to (1 - maxLoss) fully inside a fully-stalled wing's wake.</summary>
-        public double DynamicPressureFactor(Vec3 stripPos, double maxLoss)
-        {
-            if (_stalledFrac <= 0.0 || maxLoss <= 0.0)
-            {
-                return 1.0;
-            }
-
-            double aft = _origin.X - stripPos.X;   // distance behind the wing (+x forward)
-            if (aft < 0.1)
-            {
-                return 1.0;                        // ahead of / on the wing: no wake
-            }
-
-            // Elevation of the strip above the wing plane, seen from the wake origin (+z is down,
-            // so "up" is -z). The wake band spans elevation [0, flowAlpha] +/- spread.
-            double elevation = Math.Atan2(-(stripPos.Z - _origin.Z), aft);
-            // The separated wake thickens with stall depth: the lower boundary grows below the chord
-            // plane, blanketing the stab (which sits just below the wing plane). Stable ONLY with the
-            // hysteretic (lagged) stalled fraction supplied by Aircraft — with the instantaneous
-            // fraction this band flickers and drives a relaxation limit cycle (owner goal: 200 ft/turn).
-            double lo = Math.Min(0.0, _flowAlpha) - _spreadRad - 0.45 * Math.Abs(_flowAlpha) * _stalledFrac;   // was 0.65 (thinner wake: stab keeps more upload, steeper spin)
-            double hi = Math.Max(0.0, _flowAlpha) + _spreadRad;
-            // HIGH α (flat spin, 2026-10-13, owner: the Extra's flat spin settled nose-HIGH): the band from the chord plane up
-            // to the freestream holds while the separated region still reaches the chord plane behind the trailing edge. With the
-            // flow more and more normal to the chord, both shear layers leave the plate along the freestream (the normal-plate
-            // wake: Hoerner, Fluid-Dynamic Drag ch. 3; Roshko 1954) — the wake rises away along the flow and a tail sitting aft
-            // in the chord plane is in clean air, which is why spin research credits the stab with full nose-down in a flat
-            // spin. So between 45° and 75° the chord-plane edge turns up to the freestream line (same spread and thickening).
-            double aAbs = Math.Abs(_flowAlpha), fPlate = Math.Clamp((aAbs - 45.0 * Math.PI / 180.0) / (30.0 * Math.PI / 180.0), 0.0, 1.0);
-            fPlate = fPlate * fPlate * (3.0 - 2.0 * fPlate);
-            if (fPlate > 0.0)
-            {
-                double thick = 0.45 * aAbs * _stalledFrac;
-                if (_flowAlpha > 0) lo = (1.0 - fPlate) * lo + fPlate * (_flowAlpha - _spreadRad - thick);
-                else hi = (1.0 - fPlate) * hi + fPlate * (_flowAlpha + _spreadRad + thick);
-            }
-
-            // Smooth edge falloff over the spread margin.
-            double inside;
-            if (elevation <= lo || elevation >= hi)
-            {
-                inside = 0.0;
-            }
-            else
-            {
-                double edgeDist = Math.Min(elevation - lo, hi - elevation);
-                inside = Math.Clamp(edgeDist / _spreadRad, 0.0, 1.0);
-            }
-
-            return 1.0 - maxLoss * _stalledFrac * inside;
-        }
     }
 
     /// <summary>Instantaneous stalled fraction of wing area — callers integrate this with an
@@ -842,7 +957,7 @@ public static class AeroModel
             ? Math.Atan2(freestream.Z, freestream.X)
             : 0.0;
 
-        double totalArea = 0.0, stalledArea = 0.0, sumX = 0.0, sumZ = 0.0;
+        double totalArea = 0.0, stalledArea = 0.0;
         for (int si = 0; si < config.Surfaces.Count; si++)
         {
             SurfaceConfig surface = config.Surfaces[si];
@@ -860,8 +975,6 @@ public static class AeroModel
                 Vec3 vLocal = freestream + Vec3.Cross(bodyRates, pos - cg);
                 double localAlpha = Math.Atan2(vLocal.Z, vLocal.X) + strip.IncidenceRad;
                 totalArea += strip.Area;
-                sumX += pos.X * strip.Area;
-                sumZ += pos.Z * strip.Area;
                 // WingWake.StallAlpha is a single calibrated angle, applied to |alpha| so either sign counts.
                 // That is right for a symmetric section but not for a cambered one, which reaches its inverted
                 // stall sooner: a Clark Y wing stalls at -13.0 deg, so a 15 deg threshold meant an inverted
@@ -882,11 +995,11 @@ public static class AeroModel
 
         if (totalArea <= 0.0)
         {
-            return new WingWake(Vec3.Zero, 0.0, 0.0, config.StallDynamics.WakeSpreadDeg * Math.PI / 180.0);
+            return new WingWake(0.0, 0.0);
         }
 
         double frac = stalledFracOverride >= 0.0 ? stalledFracOverride : stalledArea / totalArea;
-        return new WingWake(new Vec3(sumX / totalArea, 0, sumZ / totalArea), flowAlpha, frac, config.StallDynamics.WakeSpreadDeg * Math.PI / 180.0);
+        return new WingWake(flowAlpha, frac);
     }
 
     private static void ApplySpoilerDrag(AircraftConfig config, Vec3 bodyVelocity, double airDensity, ControlDeflections controls, ref Vec3 totalForce, bool[]? surfaceMask = null)
@@ -1111,3 +1224,50 @@ public readonly struct WindGradient
     public WindGradient(Vec3 perX, Vec3 perY) { PerX = perX; PerY = perY; Active = true; }
 }
 
+/// <summary>
+/// Plain trailing-edge flap (and aileron) lift effectiveness, sealed gap: Δcl = η_δ · τ · cl_α · δ, with τ = 1 − (θf − sin θf)/π,
+/// cos θf = 2E − 1, Glauert's thin-aerofoil result (ARC R&amp;M 1095, 1927), and η_δ the empirical factor that takes the
+/// boundary-layer de-cambering at small δ and the flow separating off the flap at large δ. η_δ is read off Olson,
+/// "Semi-Empirical Prediction of Aircraft Low-Speed Aerodynamic Characteristics", AIAA 2015-0011 (NASA NTRS 20150006019),
+/// Fig. 3(a) "Plain flaps with sealed gap", data from Torenbeek, Synthesis of Subsonic Airplane Design (1982) — the
+/// same plain-flap correction DATCOM 6.1.1.1 builds from its (cl_δ/cl_δ,theory) and K' charts. Digitised 2026-11-02 at
+/// the plotted markers (every 10°) and on the curves between them at 5°, 15° and 25°; read to about ±0.01.
+/// </summary>
+public static class PlainFlap
+{
+    public static readonly double[] ChordRatios = { 0.1, 0.2, 0.3, 0.4 };
+    public static readonly double[] DeflectionsDeg = { 0, 5, 10, 15, 20, 25, 30, 40, 50, 60 };
+    /// <summary>η_δ[chord ratio][deflection], rows as <see cref="ChordRatios"/>, columns as <see cref="DeflectionsDeg"/>.</summary>
+    public static readonly double[][] EtaTable =
+    {
+        new[] { 0.760, 0.760, 0.735, 0.660, 0.570, 0.495, 0.440, 0.385, 0.365, 0.350 },
+        new[] { 0.855, 0.860, 0.833, 0.740, 0.617, 0.535, 0.475, 0.420, 0.385, 0.360 },
+        new[] { 0.905, 0.910, 0.880, 0.775, 0.640, 0.555, 0.500, 0.435, 0.395, 0.370 },
+        new[] { 0.920, 0.920, 0.885, 0.785, 0.650, 0.560, 0.500, 0.435, 0.400, 0.370 },
+    };
+
+    /// <summary>Glauert's thin-aerofoil flap effectiveness τ = ∂α₀/∂δ for chord ratio E.</summary>
+    public static double Tau(double e)
+    {
+        double th = Math.Acos(Math.Clamp(2 * e - 1, -1, 1));
+        return 1 - (th - Math.Sin(th)) / Math.PI;
+    }
+
+    /// <summary>η_δ at chord ratio E and deflection δ (rad, either sign), bilinear in the table, clamped to its edges.</summary>
+    public static double Eta(double e, double deltaRad)
+    {
+        double d = Math.Min(Math.Abs(deltaRad) * 180.0 / Math.PI, DeflectionsDeg[^1]);
+        double ec = Math.Clamp(e, ChordRatios[0], ChordRatios[^1]);
+        int i = 0; while (i < ChordRatios.Length - 2 && ec > ChordRatios[i + 1]) i++;
+        int j = 0; while (j < DeflectionsDeg.Length - 2 && d > DeflectionsDeg[j + 1]) j++;
+        double fe = (ec - ChordRatios[i]) / (ChordRatios[i + 1] - ChordRatios[i]);
+        double fd = (d - DeflectionsDeg[j]) / (DeflectionsDeg[j + 1] - DeflectionsDeg[j]);
+        double a = EtaTable[i][j] + fd * (EtaTable[i][j + 1] - EtaTable[i][j]);
+        double b = EtaTable[i + 1][j] + fd * (EtaTable[i + 1][j + 1] - EtaTable[i + 1][j]);
+        return a + fe * (b - a);
+    }
+
+    /// <summary>∂α₀/∂δ of the section as a secant at this deflection: τ(E)·η_δ(E, δ). The section's lift moves as though its
+    /// incidence moved by this times δ.</summary>
+    public static double LiftEffectiveness(double e, double deltaRad) => Tau(e) * Eta(e, deltaRad);
+}

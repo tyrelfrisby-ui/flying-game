@@ -260,7 +260,7 @@ namespace FlyingGame.EditorTools
         // SceneBootstrap/BubbleField/SoaringScenery look up.
         private static void EnsureAlwaysIncludedShaders()
         {
-            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Decal", "FlyingGame/Airframe", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/PowellSandstone", "FlyingGame/Spray", "FlyingGame/Smoke", "FlyingGame/Water", "FlyingGame/Waterfall", "FlyingGame/Glass", "FlyingGame/PropBlur", "GUI/3D Text Shader", "FlyingGame/WorldText", "Hidden/FlyingGame/WaveSim", "Hidden/FlyingGame/WakeFoam", "FlyingGame/SunsetSky", "FlyingGame/AirportSurface", "FlyingGame/AirportGlow", "FlyingGame/UrbanFacade", "FlyingGame/XrOverlay", "Hidden/FlyingGame/QuestRecordPack" };
+            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Decal", "FlyingGame/Airframe", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/PowellSandstone", "FlyingGame/Spray", "FlyingGame/Smoke", "FlyingGame/Water", "FlyingGame/FuelSlick", "FlyingGame/Waterfall", "FlyingGame/Glass", "FlyingGame/PropBlur", "GUI/3D Text Shader", "FlyingGame/WorldText", "Hidden/FlyingGame/WaveSim", "Hidden/FlyingGame/WakeFoam", "FlyingGame/SunsetSky", "FlyingGame/AirportSurface", "FlyingGame/AirportGlow", "FlyingGame/UrbanFacade", "FlyingGame/XrOverlay", "Hidden/FlyingGame/QuestRecordPack" };
             var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
             SerializedProperty arr = so.FindProperty("m_AlwaysIncludedShaders");
             foreach (string name in names)
@@ -384,6 +384,13 @@ namespace FlyingGame.EditorTools
             // nobody. Both transports, because it uses TCP and UDP (Plugins/iOS/AeroPeer.mm, "aeroplay").
             bonjour.AddString("_aeroplay._tcp");
             bonjour.AddString("_aeroplay._udp");
+            // GAMEPADS (Ty 2026-11-02, an 8BitDo Pro 2): the game reads MFi / Xbox / PlayStation pads through the
+            // Input System (Bridge/GamepadInput.cs). iOS delivers a pad's input without these keys; they declare
+            // that the app is driven by one — the App Store's "Game Controllers" badge, and the system leaves the
+            // pad's buttons to the game instead of offering them to its own UI.
+            plist.root.SetBoolean("GCSupportsControllerUserInteraction", true);
+            var pads = plist.root.CreateArray("GCSupportedGameControllers");
+            pads.AddDict().SetString("ProfileName", "ExtendedGamepad");
             plist.WriteToFile(plistPath);
             Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");
             string projPath = PBXProject.GetPBXProjectPath(path);
@@ -396,7 +403,8 @@ namespace FlyingGame.EditorTools
             // and without them the player fails at the LINK, not the compile — "_OBJC_CLASS_$_PDFDocument,
             // referenced from:" with nothing to say which plugin wanted it (2026-10-30).
             foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework", "Network.framework",
-                                         "MultipeerConnectivity.framework", "PDFKit.framework", "UniformTypeIdentifiers.framework" })
+                                         "MultipeerConnectivity.framework", "PDFKit.framework", "UniformTypeIdentifiers.framework",
+                                         "GameController.framework" })   // (gamepads: Unity usually links it already; this makes sure)
                 proj.AddFrameworkToProject(fw, f, false);
             // The encoder guards its AVAssetWriter appends with @try (an append exception would otherwise abort the app);
             // Unity builds plugins with Objective-C exceptions off, so turn them on for that file.

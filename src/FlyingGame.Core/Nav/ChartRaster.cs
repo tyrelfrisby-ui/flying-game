@@ -190,6 +190,8 @@ public static class ChartRaster
             WorldTerrain.Surface.Snow => ((byte)238, (byte)242, (byte)248),
             // A graded landing zone reads bluer than the snow round it, the way packed ice does.
             WorldTerrain.Surface.PackedGlacierSnow => ((byte)214, (byte)228, (byte)244),
+            // Bare glacier ice: greyer and bluer than snow, as on a sectional's glacier tint.
+            WorldTerrain.Surface.GlacierIce => ((byte)196, (byte)214, (byte)228),
             _ => ((byte)124, (byte)124, (byte)86),
         };
 

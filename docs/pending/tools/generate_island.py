@@ -5,6 +5,7 @@ The binary is a documented review interchange, not an existing engine import for
 """
 import argparse, base64, hashlib, html, itertools, json, math, os, struct, subprocess, tempfile, zlib
 from pathlib import Path
+import island_relief
 ROOT=Path(__file__).resolve().parents[1]
 S=json.loads((ROOT/'island-spec.json').read_text()); W=S['world']; FT=.3048
 
@@ -44,6 +45,40 @@ for a in W['airparks']:
   q=a['float_pond'];FIELDS.append(dict(q,id=q.get('numbers_magnetic','35W/17W'),field=a['id'],key=a['id']+' float pond',start_group=None,elevation_ft=q['elevation_ft'],shore_class=a['shore_class']))
 for a in W['backcountry_strips']+W.get('landable_beaches',[]):FIELDS.append(dict(a,field=a['id'],key=a['id'],start_group=None))
 
+# Natural lie of unbuilt landing surfaces (Ty 2026-11-03), mirrored term for term from NaturalShapeParams and
+# IslandHeightIndex.NaturalShape/StripShape (src/FlyingGame.Core): grass/turf strips and the ski zones.
+def _shape_hash(sid,k):
+ h=2166136261
+ for ch in sid:h=((h^ord(ch))*16777619)&0xffffffff
+ h=((h^k)*2246822519)&0xffffffff;h^=h>>15;return (h&0xffffff)/0xffffff
+def shape_params(sid,length_m,width_m,kind):
+ H=lambda k:_shape_hash(sid,k)
+ if kind==0:amp=min(max(.0018*length_m,.4),2.0)*(.75+.5*H(1))
+ elif kind==1:amp=min(max(.0025*length_m,.6),2.8)*(.8+.4*H(1))
+ else:amp=.3+.2*H(1)
+ return dict(kind=kind,amp=amp,sweep=min(.8,.015*width_m)*(.4+.6*H(2))*(-1 if H(3)<.5 else 1),l1=100+60*H(4),l2=220+120*H(5),ph1=6.283*H(6),ph2=6.283*H(7),skew=(H(8)-.5)*1.2)
+def natural_shape(s,t,u,along_m):
+ if s is None:return 0
+ t=max(-.5,min(.5,t));u=max(-1,min(1,u));e=math.cos(math.pi*t)*math.cos(math.pi*t)
+ if s['kind']==0:return -s['amp']*e+s['sweep']*u*e*math.sin(2*math.pi*t)
+ if s['kind']==1:return s['amp']*e*(1+s['skew']*2*t)
+ return e*(s['amp']*(.6*math.sin(2*math.pi*along_m/s['l1']+s['ph1'])+.4*math.sin(2*math.pi*along_m/s['l2']+s['ph2']))+s['sweep']*.5*u*math.sin(2*math.pi*along_m/s['l2']+s['ph1']))
+_SHAPED=[r['key'] for r in FIELDS if ('grass' in r['surface'] or r['surface']=='turf') and r['field']!='DRAKE']
+def strip_shape(r,along,cross):
+ if r['key'] not in _SHAPED:return 0
+ L=r.get('length_m',r.get('length_ft',0)*FT);Wm=r.get('width_m',r.get('width_ft',0)*FT)
+ s=shape_params(r['key'],L,Wm,_SHAPED.index(r['key'])%3);half=Wm/2000
+ taper=1-smooth((abs(cross)-half)/max(.001,r['pad']['shoulder_m']/1000))
+ return natural_shape(s,along*1000/L,cross/half,along*1000)*taper
+def ski_shape(p):
+ h=0
+ for i,gl in enumerate(W['glaciers']):
+  z=gl['ski_zone'];c=z['centre'];a0,a1=gl['path'][-2],gl['path'][-1];ax=(a1[0]-a0[0],a1[1]-a0[1]);n=math.hypot(*ax);ax=(ax[0]/n,ax[1]/n)
+  d=(p[0]-c[0],p[1]-c[1]);al=(d[0]*ax[0]+d[1]*ax[1])*1000;ac=(d[0]*ax[1]-d[1]*ax[0])*1000
+  s=shape_params('ski:'+gl['id'],z['length_m'],z['width_m'],i%3)
+  h+=natural_shape(s,al/z['length_m'],ac/(z['width_m']/2),al)*(1-smooth((math.hypot(*d)-.15)/.25))
+ return h
+
 def dimensions(r):return r.get('length_m',r.get('length_ft',0)*FT)/1000,r.get('width_m',r.get('width_ft',0)*FT)/1000
 
 def local(p,r):
@@ -79,24 +114,14 @@ def height(x,y):
   dd=shore(p,poly)
   if dd>d:d=dd;outer_owner=i
  if d<-.35:return -30.
- if dc>dm:
-  h=30*FT
- else:
-  h=(30+4570*smooth(dm/2))*FT
- for region in W['height_field'].get('regional_overrides',[]):
-  rr=math.hypot((x-region['centre'][0])/region['radii_km'][0],(y-region['centre'][1])/region['radii_km'][1]);a=1-smooth(rr);h=h*(1-a)+region['elevation_ft']*FT*a
- # Compact raised envelopes. Each reaches zero relief smoothly at radius.
- for q in W['height_field']['crests']:
-  dd,t=pathnear(p,q['path']);a=1-smooth(dd/q['width_km']);h=max(h,h+(q['top_ft']*FT-h)*a)
- for q in W['height_field']['peaks']:
-  a=1-smooth(dist(p,q['centre'])/q['radius_km']);h=max(h,h+(q['top_ft']*FT-h)*a)
+ # Natural relief (tools/island/TerrainGen, 2026-11-02) replaces the coast ramp, regional envelope,
+ # crest ribbons and radial peaks; every authored layer below still runs on it.
+ h=island_relief.height(x,y)
  # Lakes cut bed; independent water surfaces are recorded in the spec.
  for lake in W['water']:
   rx,ry=lake['radii_km'];cx,cy=lake['centre'];u=vec(lake.get('long_axis_true_deg',90));dx=x-cx;dy=y-cy;rr=math.hypot((dx*u[0]+dy*u[1])/rx,(dx*u[1]-dy*u[0])/ry);a=1-smooth((rr-.85)/.45)
   h=h*(1-a)+min(h,lake['elevation_ft']*FT-lake['depth_m'])*a
  for g in W['glaciers']:
-  dd,t=pathnear(p,g['path']);a=(1-smooth((dd-g['half_width_m']/1000)/.3))*smooth(t/.12)
-  z=(g['head_ft']*(1-t)+g['ski_zone']['elevation_ft']*t)*FT;h=h*(1-a)+z*a
   q=g['ski_zone'];a=1-smooth((dist(p,q['centre'])-.15)/.25);h=h*(1-a)+q['elevation_ft']*FT*a
  for c in W['canyons']:
   lengths=[dist(a,b) for a,b in zip(c['path'],c['path'][1:])];total=sum(lengths);run=0
@@ -152,16 +177,18 @@ def height(x,y):
   if e['kind']=='airway':
    dd,_=seg(p,e['a'],e['b']);alpha=1-smooth((dd-e['width'])/e['blend']);cap=e['cap_m']
   else:
-   u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cross=abs(dx*v[0]+dy*v[1]);width=.15+.05*max(0,ad)
-   dd=max(-ad-.25,ad-e['length']-.25,cross-width-.25,0);alpha=1-smooth(dd/e['blend']);cap=e['elevation_m']+max(0,ad)*1000/e['ratio']-30
+   u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cross=abs(dx*v[0]+dy*v[1]);width=.15+.05*max(0,ad);g0=e.get('guard_km',.25)
+   dd=max(-ad-g0,ad-e['length']-g0,cross-width-g0,0);alpha=1-smooth(dd/e['blend']);cap=e['elevation_m']+max(0,ad)*1000/e['ratio']-e.get('margin_m',30)
   if alpha>0:h=h*(1-alpha)+min(h,cap)*alpha
  # Restore finite box-canyon floors and headwalls; real clearance conflicts are reported.
  for lesson in W['lesson_terrain']:
   dd,t=pathnear(p,lesson['box_path']);a=1-smooth((dd-lesson['floor_half_width_m']/1000)/(lesson['outer_blend_m']/1000));z=lesson['saddle_ft']*FT+lesson['box_floor_rise_m']*t;h=h*(1-a)+z*a
   q=lesson['headwall_geometry'];a=1-smooth((dist(p,q['centre'])-q['core_radius_m']/1000)/(q['blend_m']/1000));h=max(h,h+(q['top_ft']*FT-h)*a)
+ # The ski zones' natural lie, added after the floors that hold them (IslandHeightIndex, after the lessons).
+ h+=ski_shape(p)
  # Preserve all authored peak heights after erosional cuts, with continuous compact influence.
  for q in W['height_field']['peaks']:
-  rr=dist(p,q['centre']);a=1-smooth((rr-.12)/.28);h=h*(1-a)+q['top_ft']*FT*a
+  rr=dist(p,q['centre']);a=1-smooth((rr-.12)/.28);h=h*(1-a)+island_relief.height(x,y)*a
  # McCall box bench is a detail reservation, reasserted after broad terrain cuts.
  b=W['aerobatic_boxes'][2];a=1-smooth((max(abs(x-b['centre'][0]),abs(y-b['centre'][1]))-.5)/.15);h=h*(1-a)+b['centre_ground_ft']*FT*a
  # Exact Drake roof/crown envelope; the intentional northcliff has a height-aware opening.
@@ -199,7 +226,7 @@ def height(x,y):
    r=dict(r,length_m=drake['exterior_strip_m'],centre=[r['centre'][0]+offset*u[0],r['centre'][1]+offset*u[1]])
   along,cross=local(p,r);l,b=dimensions(r);pad=r['pad'];da=max(0,abs(along)-l/2-pad.get('end_shoulder_m',60)/1000);db=max(0,abs(cross)-b/2-pad['shoulder_m']/1000);dd=math.hypot(da,db);blend=pad['blend_m']/1000
   if dd<blend:
-   z=r['elevation_ft']*FT+max(-l/2,min(l/2,along))*1000*r.get('slope_percent',0)/100-(W['height_field']['water_lane_bed_offset_m'] if r['surface']=='water' else 0)
+   z=r['elevation_ft']*FT+max(-l/2,min(l/2,along))*1000*r.get('slope_percent',0)/100-(W['height_field']['water_lane_bed_offset_m'] if r['surface']=='water' else 0)+strip_shape(r,along,cross)
    claims.append((dd,1-smooth(dd/blend),z,r['key']))
  if claims:
   dd,a,z,_=min(claims)
@@ -214,8 +241,8 @@ def height(x,y):
    if protected_volcano:continue
    if e['kind']=='airway':
     d0,_=seg(p,e['a'],e['b']);alpha=(1-smooth((d0-e['width'])/e['blend']))*smooth(dd/.03)*clipweight;h=h*(1-alpha)+min(h,e['cap_m'])*alpha;continue
-   u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cr=abs(dx*v[0]+dy*v[1]);ww=.15+.05*max(0,ad)
-   d0=max(-ad-.25,ad-e['length']-.25,cr-ww-.25,0);alpha=1-smooth(d0/e['blend']);cap=e['elevation_m']+ad*1000/e['ratio']
+   u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cr=abs(dx*v[0]+dy*v[1]);ww=.15+.05*max(0,ad);g0=e.get('guard_km',.25)
+   d0=max(-ad-g0,ad-e['length']-g0,cr-ww-g0,0);alpha=1-smooth(d0/e['blend']);cap=e['elevation_m']+ad*1000/e['ratio']
    alpha*=smooth(dd/.03)*clipweight;h=h*(1-alpha)+min(h,cap)*alpha
  # Airway budget is a continuous global layer, not conditional on a pad claim.
  # Protect exact fieldplanes and authored peakcores; fade at actual2nm boundary.
@@ -271,11 +298,11 @@ def runway_finals():
    if r['field']=='DRAKE' and sign==1:continue  # Ty: single portal, no reverse final.
    c=(r['heading_true_deg']+(180 if sign==1 else 0))%360;th=[r['centre'][0]+sign*u[0]*l/2,r['centre'][1]+sign*u[1]*l/2]
    z=r['elevation_ft']+sign*l*500*r.get('slope_percent',0)/100/FT;v=vec(c)
-   out.append(dict(airport=r['field'],title=r['key']+(' end A' if sign==-1 else ' end B'),threshold=th,outer=[th[0]-v[0]*7.408,th[1]-v[1]*7.408],course_true_deg=c,elevation_ft=z,precision=False,source='all-runway-end 20:1 design protection'))
+   out.append(dict(airport=r['field'],title=r['key']+(' end A' if sign==-1 else ' end B'),threshold=th,outer=[th[0]-v[0]*VFR_SURFACE_KM,th[1]-v[1]*VFR_SURFACE_KM],length_km=VFR_SURFACE_KM,course_true_deg=c,elevation_ft=z,precision=False,source='FAA Part 77 visual runway approach surface, 20:1 for 5,000 ft'))
  return out
 
 def finalpoly(f):
- u=vec(f['course_true_deg']);v=(u[1],-u[0]);a=f['threshold'];b=f['outer'];w=.15+.05*7.408
+ u=vec(f['course_true_deg']);v=(u[1],-u[0]);a=f['threshold'];b=f['outer'];w=.15+.05*f.get('length_km',7.408)
  return [[a[0]-v[0]*.15,a[1]-v[1]*.15],[a[0]+v[0]*.15,a[1]+v[1]*.15],[b[0]+v[0]*w,b[1]+v[1]*w],[b[0]-v[0]*w,b[1]-v[1]*w]]
 
 # World-shaping reservations derive from unchanged supplied IFR and runway geometry.
@@ -287,11 +314,20 @@ def airway_segments():
    if a in nav and b in nav:out.append(dict(id=r['id']+' '+a+'-'+b,a=nav[a],b=nav[b],mea_ft=r['mea_ft_targets'][min(i,len(r['mea_ft_targets'])-1)]))
  return out
 CLEARANCE_ENVELOPES=[]
+VFR_SURFACE_KM=1.524
+# Ground is held 10 m (33 ft) under a visual surface, so blends and the 100 m review bake never touch it;
+# the 60 m end shoulders are the level primary surface Part 77 puts beyond a runway end.
+VFR_MARGIN_M=10
 if W['height_field'].get('clearance_envelopes'):
  for r in airway_segments():CLEARANCE_ENVELOPES.append(dict(kind='airway',a=r['a'],b=r['b'],width=3.854,blend=.3,cap_m=(r['mea_ft']-2025)*FT))
  route=W['perimeter_traffic_reservation']
  for i,(a,b) in enumerate(zip(route['path'],route['path'][1:])):CLEARANCE_ENVELOPES.append(dict(kind='airway',a=a,b=b,width=3.854,blend=.3,cap_m=(route['mea_ft_targets'][i]-2025)*FT))
- for f in finals()+runway_finals():CLEARANCE_ENVELOPES.append(dict(kind='final',a=f['threshold'],u=vec(f['course_true_deg']),length=7.408,blend=.2,elevation_m=f['elevation_ft']*FT,ratio=34 if f['precision'] else 20))
+ for f in finals():CLEARANCE_ENVELOPES.append(dict(kind='final',a=f['threshold'],u=vec(f['course_true_deg']),length=7.408,blend=.2,elevation_m=f['elevation_ft']*FT,ratio=34 if f['precision'] else 20))
+ # Visual-only runway ends (2026-11-02, Claude, lane/claude-island-terrain): the FAA Part 77 visual runway
+ # approach surface -- 20:1 for 5,000 ft (1.524 km) from the runway end, at the runway end's own elevation,
+ # no constant guard, and a 10 m margin instead of the instrument finals' 30 m. The former 7.408 km fans
+ # on every runway end covered most of the island interior and cut it into flat-floored trenches.
+ for f in runway_finals():CLEARANCE_ENVELOPES.append(dict(kind='final',a=f['threshold'],u=vec(f['course_true_deg']),length=VFR_SURFACE_KM,blend=.1,elevation_m=f['elevation_ft']*FT,ratio=20,guard_km=0,margin_m=VFR_MARGIN_M))
 
 def measure():
  from fit_revision import measure_revision

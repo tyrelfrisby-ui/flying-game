@@ -118,6 +118,7 @@ class Glb:
 def checker_update(path):
     from PIL import Image
     """Same projections as build_pitts_s2b.py; only replace previously plain red undersides."""
+    from PIL import Image
     glb = Glb(path)
     if glb.doc.get('extras',{}).get('iacCheckerUndersides'): return
     q = 1.016 / 4

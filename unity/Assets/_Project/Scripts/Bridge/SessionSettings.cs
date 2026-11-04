@@ -68,6 +68,17 @@ namespace FlyingGame.Bridge
         /// what a player sees, and this is how we look at ours beside it.</summary>
         public static bool UseOwnModels = false;
 
+        /// <summary>Stick-free controls with a gamepad connected (OPTIONS › Controls; Ty 2026-11-02). Off unless the player
+        /// turns it on (GamepadShaping.DefaultGamepadStickFree); the choice is saved at once and wins from then on. Touch-only
+        /// play always lets released controls float, as before.</summary>
+        public static bool GamepadStickFree
+        {
+            get { if (!_gpFreeLoaded) { _gpFree = PlayerPrefs.GetInt(PrefGamepadStickFree, FlyingGame.Core.GamepadShaping.DefaultGamepadStickFree ? 1 : 0) == 1; _gpFreeLoaded = true; } return _gpFree; }
+            set { _gpFree = value; _gpFreeLoaded = true; PlayerPrefs.SetInt(PrefGamepadStickFree, value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+        private const string PrefGamepadStickFree = "set.gamepadStickFree";
+        private static bool _gpFree, _gpFreeLoaded;
+
         /// <summary>WHICH SEAT the cockpit view sits in, for a model that was drawn with more than one eye point
         /// (the Extra 300's Eye_Front / Eye_Rear). Aerobatic two-seaters are flown SOLO FROM THE REAR, which is
         /// why the model marks Eye_Rear `default_view: true` — so Rear is the default here, and the front seat is

@@ -33,22 +33,22 @@ public class ForestTests : System.IDisposable
     public void Dispose() { WorldTerrain.Active = null; WorldSolids.Boxes.Clear(); WorldSolids.Shapes.Clear(); }
 
     [Fact]
-    public void TheTreeLineFallsGoingNorthAndRisesWhereTheGroundFacesTheSun()
+    public void TheTreeLineIsTheSummerIsothermAndRisesWhereTheGroundFacesTheSun()
     {
-        // Latitude: 16 km of northing is 900 m of treeline, which is the whole reason to fly the length of
-        // the world. Measured on flat ground down the middle so only x is changing.
-        double south = Forest.TreeLineAt(-6500, -5000, 0), north = Forest.TreeLineAt(8500, -5000, 0);
-        _o.WriteLine($"treeline: {south:0} m ({south * 3.28084:0} ft) at the south end, {north:0} m ({north * 3.28084:0} ft) at the north");
-        Assert.True(south - north > 600, $"the line only falls {south - north:0} m over the world");
-        for (double x = -6500; x <= 8500; x += 1500)
-            Assert.True(Forest.TreeLineAt(x, -5000, 0) > Forest.TreeLineAt(x + 1200, -5000, 0),
-                        $"the line should keep falling northward, and does not at x {x:0}");
+        // The island (2026-11-02, docs/pending/ISLAND-TERRAIN-CLAUDE.md): an 18 C sea-level summer cooling
+        // 6.5 K/km puts the 8.5 C isotherm at (18 - 8.5) / 6.5 = 1.46 km. The island spans 25 km of northing,
+        // 0.2 degrees of latitude: a tenth of a kelvin, so the line no longer falls going north. (The legacy
+        // world's 600 m fall over 16 km was a lapse invented for a plateau world.)
+        double south = Forest.TreeLineAt(-9000, 0, 0), north = Forest.TreeLineAt(7500, 0, 0);
+        _o.WriteLine($"treeline: {south:0} m ({south * 3.28084:0} ft) in the south, {north:0} m ({north * 3.28084:0} ft) in the north");
+        for (double x = -9000; x <= 7500; x += 1500)
+            Assert.InRange(Forest.TreeLineAt(x, 0, 0), 1460 - 36, 1460 + 36);   // the line +/- its 70 m wander band
 
         // Aspect: the same spot, once with the ground falling away south and once north. dh/dx > 0 means the
         // ground rises to the north, so the face looks south, into the sun, and carries trees higher.
         double sunny = Forest.TreeLineAt(0, -5000, 0.8), shady = Forest.TreeLineAt(0, -5000, -0.8);
         _o.WriteLine($"same spot: {sunny:0} m on the sun-facing side, {shady:0} m on the shaded side — {sunny - shady:0} m apart");
-        Assert.True(sunny - shady > 200, $"aspect is worth only {sunny - shady:0} m");
+        Assert.InRange(sunny - shady, 259, 261);   // 2 x 130 m: a sun-facing slope is a few kelvin warmer
     }
 
     [Fact]

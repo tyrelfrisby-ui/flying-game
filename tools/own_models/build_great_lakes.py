@@ -1109,7 +1109,7 @@ def _img(fn): return bpy.data.images.load(os.path.join(paint.ART, fn), check_exi
 CK_COL = {'ck_wall': ('Cockpit_side_panel', (150, 160, 172)), 'ck_floor': ('Cockpit_floor_plywood', (196, 138, 72)), 'ck_tube': ('Cockpit_tube', (196, 200, 205)),
           'ck_seat': ('Cockpit_seat_shell', (150, 154, 160)), 'ck_cushion': ('Cockpit_cushion', (44, 42, 42)), 'ck_belt': ('Cockpit_harness', (30, 32, 36)),
           'ck_belt2': ('Cockpit_lap_belt', (58, 62, 72)), 'ck_buckle': ('Cockpit_hardware', (200, 202, 206)), 'ck_panel': ('Cockpit_panel', (22, 22, 24)),
-          'ck_bezel': ('Cockpit_bezel', (30, 30, 32)), 'ck_needle': ('Cockpit_needle', (236, 236, 230)), 'ck_telltale': ('Cockpit_telltale', (232, 190, 40)),
+          'ck_bezel': ('Cockpit_bezel', (30, 30, 32)), 'ck_bezel_chrome': ('Cockpit_bezel_chrome', (208, 212, 218)), 'ck_needle': ('Cockpit_needle', (236, 236, 230)), 'ck_telltale': ('Cockpit_telltale', (232, 190, 40)),
           'ck_hub': ('Cockpit_hub', (20, 20, 22)), 'ck_ball': ('Cockpit_tc_ball', (16, 16, 18)), 'ck_lubber': ('Cockpit_lubber', (230, 110, 30)),
           'ck_plug': ('Cockpit_blank_plug', (34, 34, 36)), 'ck_placard': ('Cockpit_placard_blank', (226, 222, 206)), 'ck_lamp': ('Cockpit_lamp_red', (200, 30, 22)),
           'ck_stick': ('Cockpit_stick_tube', (186, 188, 192)), 'ck_grip': ('Cockpit_black', (22, 22, 24)), 'ck_knob_red': ('Cockpit_knob_red', (180, 30, 26)),
@@ -1122,9 +1122,13 @@ for k_, (nm_, col_) in CK_COL.items():
         if _nd.type == 'BSDF_PRINCIPLED':
             for _k in ('Specular IOR Level', 'Specular'):
                 if _k in _nd.inputs: _nd.inputs[_k].default_value = 0.0
-for k_ in ('asi', 'alt', 'vsi', 'tach', 'mp', 'oil', 'cht', 'g', 'tc', 'hobbs', 'mag'):
+for k_ in ('asi', 'alt', 'vsi', 'tach', 'mp', 'oil', 'oilpress', 'cht', 'g', 'tc', 'hobbs', 'mag'):
     M['dial_' + k_] = paint.mat_image('Dial_' + k_.upper(), _img('gl-dial-%s.png' % k_), 0.5)
 M['compass'] = paint.mat_image('Compass_Card', _img('gl-compass-band.png'), 0.5)
+# Front wet compass (2026-11-01, Ty's photo): its own band and a static case/window overlay with the lubber
+# line. The face is RGBA -- the window and everything outside the housing are transparent.
+M['compass_f'] = paint.mat_image_lit('Compass_Card_Front', _img('gl-front-compass-band.png'), 0.5)
+M['compass_face_f'] = paint.mat_image_alpha('Compass_Face_Front', _img('gl-front-compass-face.png'), 0.4)
 for k_ in ('com', 'xpdr'): M['avx_' + k_] = paint.mat_image('Avionics_Face_' + k_.upper(), _img('gl-avx-%s.png' % k_), 0.5)   # v13.1
 for n_, tg_ in CK_TAGS.items():
     u_ = list(dict.fromkeys(tg_)); setm(P[n_], u_)

@@ -167,7 +167,9 @@ public class BrsTests : IDisposable
         WorldTerrain.Active = t;
         Atmosphere.SteadyWind = Vec3.Zero;
         AircraftConfig c = Load(Cirrus);
-        var state = new RigidBodyState(new Vec3(0, 0, -2500), Quat.Identity, new Vec3(c.SpawnIasMs, 0, 0), Vec3.Zero);
+        // Over open water 18 km east of the origin: the origin is the Frank Church summit (2,460 m since the
+        // 2026-11-02 terrain), and fifty seconds under the canopy from 2,500 m would put the aeroplane on it.
+        var state = new RigidBodyState(new Vec3(0, 18000, -2500), Quat.Identity, new Vec3(c.SpawnIasMs, 0, 0), Vec3.Zero);
         var ac = new Aircraft(c, state, new ControlDeflections(0, 0, 0, 0));
         var loop = new SimLoop(ac);
         ac.DeployBrs(2500);

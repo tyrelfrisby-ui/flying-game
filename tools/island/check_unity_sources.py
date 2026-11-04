@@ -22,7 +22,7 @@ public static class CoordinateMap {public static FlyingGame.Core.MathTypes.Vec3 
 public sealed class PlaygroundRuntime:MonoBehaviour {public static readonly List<Transform> SpinRings=new();}
 }''')
  refs=''.join(f'<Reference Include="{q.stem}"><HintPath>{q}</HintPath></Reference>' for q in engine.glob('*.dll'))
- files=[q for q in bridge.glob('*Builder.cs') if q.name!='PlaygroundBuilder.cs']+[p/'PlaygroundGeometry.cs',p/'Adapters.cs']+[bridge/f for f in ['PylonTopBurst.cs','Spin.cs','Windsock.cs']]+[ROOT/'unity/Assets/_Project/Scripts/Editor/WorldRender.cs']
+ files=[q for q in bridge.glob('*Builder.cs') if q.name!='PlaygroundBuilder.cs']+[p/'PlaygroundGeometry.cs',p/'Adapters.cs']+[bridge/f for f in ['PylonTopBurst.cs','Spin.cs','Windsock.cs','IslandTerrainMesh.cs']]+[ROOT/'unity/Assets/_Project/Scripts/Editor/WorldRender.cs']
  includes=''.join(f'<Compile Include="{q}"/>' for q in files)
  (p/'Check.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><EnableDefaultCompileItems>false</EnableDefaultCompileItems><Nullable>disable</Nullable></PropertyGroup><ItemGroup>'+refs+f'<Reference Include="FlyingGame.Core"><HintPath>{ROOT}/src/FlyingGame.Core/bin~/Debug/net8.0/FlyingGame.Core.dll</HintPath></Reference>'+includes+'</ItemGroup></Project>')
  env=dict(os.environ,DOTNET_CLI_HOME=str(Path(os.environ.get('TMPDIR','/tmp'))/'island-dotnet'))

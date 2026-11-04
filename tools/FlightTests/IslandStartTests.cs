@@ -240,9 +240,20 @@ public sealed class IslandStartTests : IDisposable
                 Assert.False(double.IsNaN(alt), $"{id}: NaN after ditching");
             }
             double rest = -loop.Aircraft.State.Position.Z;
-            _out.WriteLine($"{id,-16} ditched at 25 m/s: lowest {lowest,8:F1} m, at rest {rest,8:F1} m after 20 s");
+            // One that is sinking gets up to another 40 s to reach the bottom (a 30 m fall through water).
+            for (int i = 0; i < (int)(40 / dt) && rest < -10 && loop.Aircraft.State.Velocity.Length >= 0.1; i++)
+            {
+                loop.RunFor(dt, ControlInputs.Neutral);
+                lowest = Math.Min(lowest, -loop.Aircraft.State.Position.Z);
+                rest = -loop.Aircraft.State.Position.Z;
+            }
+            double speed = loop.Aircraft.State.Velocity.Length;
+            _out.WriteLine($"{id,-16} ditched at 25 m/s: lowest {lowest,8:F1} m, at rest {rest,8:F1} m (20-60 s), speed {speed:F2} m/s, lost {string.Join(",", loop.Aircraft.LostComponents)}");
             Assert.True(lowest > -30, $"{id} went through the sea bed: {lowest:F0} m");
-            Assert.True(rest > -10, $"{id} did not come to rest at the surface: {rest:F0} m");
+            // Since 2026-11-02 (lane/claude-crash-water) the water holds an aeroplane up by its own volumes and floods it
+            // through its openings, so a 25 m/s vertical arrival that breaks it up may sink it: it must then lie ON the
+            // bed (-30 m here), stopped — afloat or on the bottom, never through it and never still falling.
+            Assert.True(rest > -10 || (rest > -30 && speed < 0.5), $"{id} neither afloat nor at rest on the bed: {rest:F0} m, {speed:F1} m/s");
         }
         finally { WorldTerrain.Active = null; }
     }

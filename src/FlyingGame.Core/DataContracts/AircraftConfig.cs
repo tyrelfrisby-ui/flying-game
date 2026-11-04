@@ -53,7 +53,15 @@ public sealed class AircraftConfig
     public List<SurfaceConfig> Surfaces { get; set; } = new();
     public Dictionary<string, AirfoilTableData> AirfoilTables { get; set; } = new();
     public ControlsConfig Controls { get; set; } = new();
+    /// <summary>How the airframe is RIGGED: the aileron neutral offset and the fin offset that make it fly straight hands
+    /// off at the rig condition (owner 2026-11-02: level at 75 % power). Fixed geometry, solved by RigSolver and written
+    /// here by RigTool; absent = an unrigged, symmetric airframe.</summary>
+    public RigConfig Rig { get; set; } = new();
     public FuselageConfig Fuselage { get; set; } = new();
+    /// <summary>How the airframe is built, for what a crash in water does to it (Core/Wreck): skin covering and
+    /// cockpit openings. Optional; absent means a riveted aluminium skin and an enclosed cabin with a windshield and
+    /// two doors.</summary>
+    public ConstructionConfig Construction { get; set; } = new();
     public PropulsionConfig? Propulsion { get; set; }
 
     /// <summary>Airshow smoke exhaust (optional; owner 2026-10-12, the Extra: "the exhaust location … 4 ft from the nose on
@@ -83,17 +91,6 @@ public sealed class AircraftConfig
     /// oscillation damping of the deep spin lives here, not in gains/areas.</summary>
     public StallDynamicsConfig StallDynamics { get; set; } = new();
 
-    /// <summary>
-    /// Max fraction of dynamic pressure the tail loses when fully inside a fully-stalled wing's wake
-    /// (tail blanketing — the mechanism that lets a spin's nose ride high). 0 disables. Optional,
-    /// schema-safe default.
-    /// </summary>
-    public double WakeBlanketMaxLoss { get; set; } = 0.45;
-
-    /// <summary>Fraction of blanket loss applied to VERTICAL surfaces (fin crosses the wake slab
-    /// edge-on; tall fins keep ~half their q per CR-3099 yaw-damping linearity; short fins that sit
-    /// fully in the wake keep 1.0). Data-scoped per aircraft.</summary>
-    public double VerticalBlanketFactor { get; set; } = 0.5;
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
 
@@ -269,12 +266,54 @@ public sealed class AirfoilTableData
     public double[] Cm { get; set; } = System.Array.Empty<double>();
 }
 
+/// <summary>
+/// The airframe's RIGGING (owner 2026-11-02: "trim/rig all of the airplanes for hands off level 75% power"). These are
+/// angles the aeroplane is built with, like a real one's — not a control input and not a controller:
+///  - <see cref="AileronRad"/>: where both ailerons sit, relative to the stick, with the stick centred. Same sign as the
+///    aileron deflection (positive = the deflection a positive stick commands). It is what bending the aileron's
+///    fixed tab, or re-rigging the aileron neutral, does on the real aeroplane.
+///  - <see cref="FinOffsetRad"/>: the fin's (and the rudder hinged to it) incidence to the centreline. Positive =
+///    leading edge LEFT, trailing edge RIGHT, which pushes the tail left and yaws the nose RIGHT — the offset a
+///    clockwise-from-behind propeller needs.
+/// Both are solved together with the elevator trim by RigSolver for steady, straight, level flight at
+/// <see cref="ThrottleFraction"/> of rated power at <see cref="AltitudeM"/> ISA, with the stick and rudder centred,
+/// zero sideslip and zero rates; RigTool writes the result here. The remaining fields record that condition and the
+/// solution so a reader can see what the rig was set for; the sim reads only the two angles.
+/// </summary>
+public sealed class RigConfig
+{
+    public double AileronRad { get; set; }
+    public double FinOffsetRad { get; set; }
+
+    /// <summary>Shaft power fraction the rig is set for (PropModel: power = MaxPowerW × throttle; a jet's thrust).</summary>
+    public double ThrottleFraction { get; set; }
+    /// <summary>ISA pressure altitude of the rig condition, m.</summary>
+    public double AltitudeM { get; set; }
+    /// <summary>The solved condition: true airspeed (m/s), angle of attack, elevator, and the bank that balances the
+    /// fin's small side force with zero sideslip (all rad). The elevator here is the hands-off trim at that condition.</summary>
+    public double TasMs { get; set; }
+    public double AlphaRad { get; set; }
+    public double ElevatorTrimRad { get; set; }
+    public double BankRad { get; set; }
+}
+
 public sealed class ControlsConfig
 {
     public ControlAxisConfig Aileron { get; set; } = new();
     public ControlAxisConfig Elevator { get; set; } = new();
     public ControlAxisConfig Rudder { get; set; } = new();
     public SpoilerConfig Spoiler { get; set; } = new();
+
+    /// <summary>The axis a strip's <see cref="StripControlConfig.Surface"/> name belongs to, or null if it names
+    /// nothing (a flap or spoiler row, which have their own models). Mirrors
+    /// <c>ControlDeflections.GetDeflection</c>'s names.</summary>
+    public ControlAxisConfig? AxisFor(string? surface) => surface switch
+    {
+        "aileron" => Aileron,
+        "elevator" => Elevator,
+        "rudder" => Rudder,
+        _ => null,
+    };
 }
 
 public sealed class ControlAxisConfig
@@ -300,6 +339,25 @@ public sealed class ControlAxisConfig
 
     /// <summary>The bigger of the two stops: a search bound, not a limit to deflect to.</summary>
     public double MaxTravelRad => Math.Max(MaxDeflRad, MaxDeflNegRad);
+
+    /// <summary>
+    /// A spare per-axis multiplier on the INCIDENCE a deflection commands. <b>Default 1.0, and every aircraft in
+    /// the fleet leaves it there</b> — it is a hook for a future, physically-derived loss, not a tuning knob.
+    ///
+    /// <b>It is NOT the flap effectiveness τ.</b> τ is already in the model, and in the right place: a control
+    /// splits into a HINGED row that turns to its full geometric angle (gain ±1, because the surface really does
+    /// sit at α + δ) and a FIXED row ahead of it that is merely cambered by it (gain g = 0.85·τ(E), E = c_f/c).
+    /// The section's response is τ = E + (1 − E)·g by construction — see docs/CONTROL-SURFACES.md. Putting a
+    /// chord-ratio factor here as well counts it TWICE, which is exactly the mistake 4e5e1a7 made: it set 0.66 on
+    /// the Pitts, called it τ, and claimed thin-aerofoil theory corroborated it. It did not. The Pitts' own
+    /// authored gain of 0.356 already carries its chord ratio, and the number was only ever the ratio needed to
+    /// reach a published roll rate. It was removed on 2026-11-01.
+    ///
+    /// If you are about to set this to anything but 1.0, the question to answer first is which PHYSICAL loss it
+    /// stands for and what independent calculation predicts that value. A loss that only ever equals the number
+    /// you tuned it to belongs in neither this field nor this model.
+    /// </summary>
+    public double Effectiveness { get; set; } = 1.0;
 
     public double RateRadPerSec { get; set; } = 1000; // effectively unlimited unless configured
     public double Expo { get; set; }
@@ -370,6 +428,33 @@ public sealed class FuselageConfig
     /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
     /// </summary>
     public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+/// <summary>How the airframe is built (crash-in-water damage, Core/Wreck/AirframeHydroModel).</summary>
+public sealed class ConstructionConfig
+{
+    /// <summary>"metal" (riveted 2024-T3 sheet, the default) or "fabric" (doped fabric over a steel-tube fuselage and
+    /// wooden or metal wings).</summary>
+    public string Covering { get; set; } = "metal";
+    /// <summary>Cockpit openings in the top of the fuselage. Empty = an enclosed cabin (windshield and two doors).</summary>
+    public List<CockpitOpeningConfig> Cockpits { get; set; } = new();
+    public bool IsFabric => string.Equals(Covering, "fabric", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>One cockpit opening in the fuselage top deck, body frame (+x forward), measured from the type's model.</summary>
+public sealed class CockpitOpeningConfig
+{
+    /// <summary>Forward edge of the opening, body x, m.</summary>
+    public double FrontX { get; set; }
+    /// <summary>Aft edge of the opening, body x, m.</summary>
+    public double AftX { get; set; }
+    /// <summary>Plan area of the opening, m^2.</summary>
+    public double AreaM2 { get; set; }
+    /// <summary>Width of the opening, m (the span of a canopy over it).</summary>
+    public double WidthM { get; set; }
+    /// <summary>"open" (nothing over it: always an opening) or "canopy" (acrylic over it: an opening once it breaks).</summary>
+    public string Enclosure { get; set; } = "open";
+    public bool IsOpen => string.Equals(Enclosure, "open", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Per-type switches for the wing cellule of a multi-wing aeroplane.</summary>
@@ -472,7 +557,6 @@ public sealed class StallDynamicsConfig
     public double StripReattachTau { get; set; } = 0.6;  // s, per-strip reattachment
     public double WakeGrowTau { get; set; } = 0.25;      // s, whole-wing wake development
     public double WakeDecayTau { get; set; } = 1.0;      // s, wake washout
-    public double WakeSpreadDeg { get; set; } = 6.0;     // wake band edge softness
 
     /// <summary>Proposal 1: downwash transport lag (Cm-alphadot). Off = instantaneous downwash.</summary>
     public bool DownwashLagEnabled { get; set; }
@@ -576,8 +660,8 @@ public sealed class FloatsConfig
     public double WaterRudderBladeAftM { get; set; }
     public double WaterRudderBladeBelowM { get; set; }
     /// <summary>Only the LEFT float carries a water rudder (the J-3's Edo 60-1320s, as drawn: one rudder, on the left
-    /// float). False = one on each float, as before.</summary>
-    public bool WaterRudderLeftOnly { get; set; }
+    /// float). Read from <see cref="WaterRudderSides"/>, which is what the config states.</summary>
+    public bool WaterRudderLeftOnly => WaterRudderSides == "left";
     /// <summary>The pilot can raise it (a cable to the cockpit, spring-loaded down). The retract angle at full pull,
     /// radians: the blade swings up and aft about its hinge (its bottom goes aft, then up), out of the water.</summary>
     public bool WaterRudderRetractable { get; set; }
@@ -593,6 +677,21 @@ public sealed class FloatsConfig
     public int Count { get; set; } = 2;
     /// <summary>Flying boats: the small wingtip floats (SpreadM = tip-to-tip spacing). They touch only when the hull heels.</summary>
     public FloatsConfig? TipFloats { get; set; }
+    /// <summary>The DRAWN hull, when there is one (owner 2026-11-02): stations bow first, each [x, y0, z0, y1, z1, …, 0,
+    /// zKeel] — x and z (down) in the config datum frame, the half-section points (y ≥ 0 from the float's own centreline)
+    /// from the deck edge down to the keel. Null = the block float made from the parameters above (FloatHull.Parametric).
+    /// The J-3's are cut out of its own GLB, as placed, by tools/own_models/j3_float_stations.py.</summary>
+    public double[][]? Stations { get; set; }
+    /// <summary>The step's x (datum frame) for <see cref="Stations"/>; null = BowX − StepFraction·LengthM.</summary>
+    public double? StepX { get; set; }
+    /// <summary>Water rudder blade without a drawn pivot (<see cref="WaterRudderChordM"/> 0), when down: x of its centre
+    /// and the tip's z (down), datum frame, with <see cref="WaterRudderSpanM"/> as its span (top to tip).
+    /// 0 span = the old default (a blade at the stern keel, area WaterRudderAreaM2, span from √(2·area)).</summary>
+    public double WaterRudderX { get; set; }
+    public double WaterRudderTipZ { get; set; }
+    /// <summary>Which floats carry a water rudder: "both" (default) or "left" / "right" (the J-3's 60-1320 installation:
+    /// the RH float assembly is listed "less water rudder", Kenmore Air Harbor EDO 60-1320 parts list, Figure 1).</summary>
+    public string WaterRudderSides { get; set; } = "both";
 }
 
 public sealed class GearConfig

@@ -34,6 +34,7 @@ namespace FlyingGame.Bridge
         /// <summary>Is the range receiver switched on? It is the oldest box in the panel and the loudest.</summary>
         public static bool RangeOn;
         public static bool Shown = true;
+        private bool _expanded;
 
         /// <summary>The elapsed-time clock a dead-reckoning leg is timed on. Seconds.</summary>
         public static double LegSeconds;
@@ -127,7 +128,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.019f);
+            int fs = UiLayout.MinText;
             if (_label != null && fs == _fs) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.03f, 0.05f, 0.07f, 0.8f));
@@ -136,7 +137,7 @@ namespace FlyingGame.Bridge
             _amber ??= Solid(new Color(1f, 0.72f, 0.2f));
             Font f = UiFont.Get();
             _label = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.85f, 0.92f, 1f) } };
-            _small = new GUIStyle(_label) { fontSize = Mathf.RoundToInt(fs * 0.82f) };
+            _small = new GUIStyle(_label) { fontSize = UiLayout.MinText };
             _flag = new GUIStyle(_label) { fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.55f, 0.3f) } };
             var btnBg = Solid(new Color(0.18f, 0.24f, 0.32f, 0.95f));
             _sbtn = new GUIStyle(_small) { normal = { textColor = Color.white, background = btnBg }, active = { textColor = Color.white, background = btnBg } };
@@ -158,20 +159,24 @@ namespace FlyingGame.Bridge
             double altM = -p.Z;
             double heading = Heading();
 
-            // One block in the shared stack, so it can never land on a dial, a button or a lesson line.
+            float toggleW = UiLayout.S * .19f;
+            Rect toggle = new Rect(Screen.width - UiLayout.SafeRight - UiLayout.Margin - toggleW,
+                UiLayout.ToolbarBottom + UiLayout.Gap, toggleW, UiLayout.ButtonH * .7f);
+            if (UiLayout.Button(toggle, _expanded ? "CLOSE RADIOS" : "RADIOS", _sbtn)) _expanded = !_expanded;
+            if (!_expanded) return;
+            UiLayout.ModalShown();
+            // Explicitly opened navigation panel; two columns preserve readable receiver controls.
+            float w = Mathf.Min(Screen.width - UiLayout.SafeLeft - UiLayout.SafeRight - UiLayout.Margin * 2, _fs * 44f);
             float h = _fs * 5.6f;
-            Rect blk = UiLayout.NextBlock(h);
-            float w = Mathf.Min(blk.width, _fs * 66f);
-            var box = new Rect(blk.center.x - w * 0.5f, blk.y, w, h);
+            var box = new Rect((Screen.width - w) / 2, UiLayout.ToolbarBottom + _fs * 1.6f, w, h * 3);
             GUI.DrawTexture(box, _bg);
-
-            float cw = w / 6f;
+            float cw = w / 2;
             DrawReceiver(new Rect(box.x, box.y, cw, h), 0, t, p.X, p.Y, altM);
             DrawReceiver(new Rect(box.x + cw, box.y, cw, h), 1, t, p.X, p.Y, altM);
-            DrawAdf(new Rect(box.x + cw * 2, box.y, cw, h), t, p.X, p.Y, altM, heading);
-            DrawRange(new Rect(box.x + cw * 3, box.y, cw, h), t, p.X, p.Y, altM);
-            DrawHeading(new Rect(box.x + cw * 4, box.y, cw, h), heading);
-            DrawClock(new Rect(box.x + cw * 5, box.y, cw, h));
+            DrawAdf(new Rect(box.x, box.y + h, cw, h), t, p.X, p.Y, altM, heading);
+            DrawRange(new Rect(box.x + cw, box.y + h, cw, h), t, p.X, p.Y, altM);
+            DrawHeading(new Rect(box.x, box.y + h * 2, cw, h), heading);
+            DrawClock(new Rect(box.x + cw, box.y + h * 2, cw, h));
         }
 
         private double Heading()

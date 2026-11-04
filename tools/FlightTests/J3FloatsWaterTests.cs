@@ -65,8 +65,10 @@ public class J3FloatsWaterTests
             _out.WriteLine($"J-3 floats at rest: CG {cgAbove:F3} m above the water, physics draft at the step {draft:F3} m, "
                            + $"pitch {Pitch(s):F1}, roll {Roll(s):F1}, buoyancy {FloatHydro.LastReport.BuoyancyN:F0} N vs weight {cfg.Mass.MassKg * 9.81:F0} N; "
                            + $"drawn float: keel {DrawnKeelAtStepM - cgAbove:F3} m under, deck {cgAbove - DrawnDeckAtStepM:F3} m clear");
-            // 9e3b5db7 sized the floats to float on 23.3 cm of a 36.5 cm float.
-            Assert.InRange(draft, 0.18, 0.30);
+            // The drawn EDO 60-1320 (lane/claude-hydro, 2026-11-02): at 1,300 lb the level waterline is 0.285 m above the
+            // keel at the step (hand: bisection of the drawn sections for 589.7 kg / 2 of fresh water each); it rests
+            // ~2 deg bow-up, which puts the step a centimetre deeper.
+            Assert.InRange(draft, 0.26, 0.32);
             Assert.InRange(Pitch(s), -6, 6);
             Assert.InRange(Math.Abs(Roll(s)), 0, 2);
             Assert.InRange(FloatHydro.LastReport.BuoyancyN, cfg.Mass.MassKg * 9.81 * 0.9, cfg.Mass.MassKg * 9.81 * 1.1);
@@ -122,31 +124,44 @@ public class J3FloatsWaterTests
     private const double TaxiPower = 0.10;
 
     /// <summary>
-    /// RED, and skipped so the suite still says what it says about everything else. Found 2026-11-02 while writing the
-    /// taxi test: FULL rudder on a 10-30 % power taxi (5.5-7.3 m/s) whips the J-3 round 115-170 deg in 2 s, the speed
-    /// RISES to ~10 m/s in the turn on the same power, and it rolls over (|roll| 180) within 4-6 s. The Super Cub on
-    /// floats does the same, and so does lane/claude-crash-water a1e97493, which owns FloatHydro, so this is the water
-    /// model and not the J-3's float block. Half rudder turns it cleanly. Also seen: at idle neither seaplane moves at
-    /// all (0.00 m/s after 30 s), where a real one creeps at a few knots. Reported in AGENT-LOG, not fixed here.
+    /// Ty 2026-11-02: no flip at idle or low power on full rudder. Found red on lane/claude-vr-quest (full rudder at a
+    /// 10-30 % taxi whipped it round and capsized it in 4-6 s, speed RISING in the turn): the old water model's fudged
+    /// keel and crossflow terms. With the first-principles side force (slender-body lift at mid-draft + crossflow) and
+    /// the drawn floats, full right rudder at 10, 20 and 30 % power (6-11 mph), with full aileron either way, in calm
+    /// air and in 15 kt from the right, must not roll it past 15 deg and must not speed it up. A capsize in a fast plow
+    /// turn IS real: measured 2026-11-02, 60 % power (13 mph) in 15 kt with aileron out of the turn rolls it to 79 deg.
     /// </summary>
-    [Fact(Skip = "water-model defect, reported to lane/claude-crash-water (AGENT-LOG 2026-11-02): full rudder at a taxi capsizes every float type")]
-    public void FullRudderOnATaxiDoesNotCapsizeIt()
+    [Theory]
+    [InlineData(0.10)]
+    [InlineData(0.20)]
+    [InlineData(0.30)]
+    public void FullRudderOnATaxiDoesNotCapsizeIt(double power)
     {
         FloatHydro.FlatWaterOverride = 0.0;
         try
         {
             AircraftConfig cfg = Load();
-            (Aircraft ac, SimLoop sim) = Afloat(cfg);
-            for (double t = 0; t < 30; t += 0.1) sim.RunFor(0.1, new ControlInputs(0, -0.6, 0, Lever(TaxiPower)));
-            double maxRoll = 0, v0 = ac.State.Velocity.Length, vMax = 0;
-            for (double t = 0; t < 20; t += 0.1)
-            {
-                sim.RunFor(0.1, new ControlInputs(0, -0.6, 1.0, Lever(TaxiPower)));
-                maxRoll = Math.Max(maxRoll, Math.Abs(Roll(ac.State))); vMax = Math.Max(vMax, ac.State.Velocity.Length);
-            }
-            _out.WriteLine($"full right rudder from {v0:F2} m/s: max |roll| {maxRoll:F0}, max speed {vMax:F1} m/s");
-            Assert.True(maxRoll < 15, $"rolled to {maxRoll:F0} deg");
-            Assert.True(vMax < v0 + 1.0, $"sped up from {v0:F1} to {vMax:F1} m/s in a turn on the same power");
+            foreach (double wind in new[] { 0.0, 7.72 })
+                foreach (double ail in new[] { 0.0, 1.0, -1.0 })
+                {
+                    Atmosphere.SteadyWind = new Vec3(0, -wind, 0);
+                    try
+                    {
+                        (Aircraft ac, SimLoop sim) = Afloat(cfg);
+                        sim.RunFor(30, new ControlInputs(0, -0.6, 0, Lever(power)));
+                        double maxRoll = 0, v0 = ac.State.Velocity.Length, vMax = 0;
+                        for (double t = 0; t < 20; t += 0.1)
+                        {
+                            sim.RunFor(0.1, new ControlInputs(ail, -0.6, 1.0, Lever(power)));
+                            Assert.False(double.IsNaN(ac.State.Position.Z), $"NaN at t={t:F1}");
+                            maxRoll = Math.Max(maxRoll, Math.Abs(Roll(ac.State))); vMax = Math.Max(vMax, ac.State.Velocity.Length);
+                        }
+                        _out.WriteLine($"power {power:P0}, wind {wind / 0.5144:F0} kt, aileron {ail:+0;-0;0}: from {v0:F2} m/s, max |roll| {maxRoll:F1}, max speed {vMax:F2} m/s");
+                        Assert.True(maxRoll < 15, $"power {power:P0} wind {wind:F1} ail {ail}: rolled to {maxRoll:F0} deg");
+                        Assert.True(vMax < v0 + 0.5, $"sped up from {v0:F2} to {vMax:F2} m/s in a turn on the same power");
+                    }
+                    finally { Atmosphere.SteadyWind = Vec3.Zero; }
+                }
         }
         finally { FloatHydro.FlatWaterOverride = null; }
     }
@@ -159,24 +174,35 @@ public class J3FloatsWaterTests
         {
             AircraftConfig cfg = Load();
             (Aircraft ac, SimLoop sim) = Afloat(cfg);
-            double airborneAt = -1, maxPitch = 0, runM = 0;
-            for (double t = 0; t < 60; t += 0.1)
+            double airborneAt = -1, maxPitch = 0, runM = 0, peak = -99, integ = 0;
+            bool easedOver = false;
+            for (double t = 0; t < 60; t += 0.05)
             {
-                // FloatTests' technique: full back through the hump, hold about 5 deg on the step, rotate to fly it off.
-                double v = ac.State.Velocity.Length, pitchDeg = Pitch(ac.State), q = ac.State.Rates.Y;
-                double target = v < 20 ? 5.0 : 9.0;
-                double stick = v < 6 ? -0.38 : Math.Clamp(-0.08 - 0.155 * (target - pitchDeg) + 0.39 * q, -0.9, 0.7);
-                sim.RunFor(0.1, new ControlInputs(0, stick, 0, Lever(1.0)));
+                // Seaplane technique: full power, stick FULL back until the nose has risen and starts down by itself (over
+                // the hump), then ease forward to the planing attitude (6 deg) and hold it smoothly, raise it 4 deg past
+                // 40 mph and let it fly; rudder holds the heading. (The old test's stiff attitude hold pumped the stick
+                // stop to stop and porpoised the new float model into the water: pilot-induced, not physics.)
+                RigidBodyState s0 = ac.State;
+                double v = s0.Velocity.Length, pitchDeg = Pitch(s0), q = s0.Rates.Y * 57.3, stick;
+                if (!easedOver) { stick = -1; if (pitchDeg > peak) peak = pitchDeg; else if (peak > 6 && pitchDeg < peak - 1) easedOver = true; }
+                else
+                {
+                    double target = v < 18 ? 6.0 : 10.0;
+                    integ = Math.Clamp(integ + (target - pitchDeg) * 0.05, -20, 20);
+                    stick = Math.Clamp(-0.15 - 0.10 * (target - pitchDeg) - 0.03 * integ + 0.04 * q, -1, 1);
+                }
+                double rud = Math.Clamp(-0.08 * Yaw(s0) - 0.6 * s0.Rates.Z, -1, 1), ail = Math.Clamp(-0.05 * Roll(s0) - 0.3 * s0.Rates.X, -1, 1);
+                sim.RunFor(0.05, new ControlInputs(ail, stick, rud, Lever(1.0)));
                 RigidBodyState s = ac.State;
                 Assert.False(double.IsNaN(s.Position.Z), $"NaN at t={t:F1}");
                 maxPitch = Math.Max(maxPitch, Math.Abs(Pitch(s)));
-                if ((int)(t * 10) % 30 == 0)
+                if ((int)Math.Round(t * 20) % 60 == 0)
                     _out.WriteLine($"t={t,4:F1} V={v,5:F1} cg={-s.Position.Z,5:F2} pitch={Pitch(s),5:F1} draft={FloatHydro.LastReport.DraftAtStepM:F2} lift={FloatHydro.LastReport.PlaningLiftN:F0} buoy={FloatHydro.LastReport.BuoyancyN:F0}");
-                if (-s.Position.Z > 4.0 && FloatHydro.LastReport.BuoyancyN < 1 && FloatHydro.LastReport.PlaningLiftN < 1)
+                if (!FloatHydro.Floats[0].Wet && !FloatHydro.Floats[1].Wet && -s.Position.Z > 1.6)
                 { airborneAt = t; runM = s.Position.X; break; }
             }
             _out.WriteLine($"airborne at {airborneAt:F1} s after {runM:F0} m, max |pitch| {maxPitch:F1}");
-            Assert.True(airborneAt > 0 && airborneAt < 50, $"did not get airborne (airborneAt={airborneAt})");
+            Assert.True(airborneAt > 0 && airborneAt < 30, $"did not get airborne (airborneAt={airborneAt})");
             Assert.True(maxPitch < 25, $"porpoised / pitched to {maxPitch:F0} deg");
         }
         finally { FloatHydro.FlatWaterOverride = null; }

@@ -87,6 +87,79 @@ def check(path):
         across = [lateral('%s_%s' % (l, seat)) for l in ('Throttle', 'Prop', 'Mixture')]
         assert across[0] > across[1] > across[2], (
             seat, 'lever order is not throttle, prop, mixture left to right', across)
+
+    # THE FRONT PANEL, from Ty's photograph of the real front cockpit (art/GL-FRONT-PANEL-AUDIT.md): ONE ROW OF
+    # SIX, left to right as the pilot sees it -- altimeter, airspeed, the small centre instrument, the combined
+    # oil temp/pressure, the SEPARATE chrome-bezel oil pressure, tachometer. Same lateral convention as the
+    # levers above: the glTF lateral axis runs to the pilot's LEFT, so left-to-right is DESCENDING.
+    front_row = ['Needle_Alt100_F', 'Needle_ASI_F', 'TC_Symbol_F', 'Needle_OilP_F', 'Needle_OilP2_F', 'Needle_Tach_F']
+    for name in front_row:
+        assert name in names, ('front panel', name, 'missing')
+    seen = [lateral(n) for n in front_row]
+    for a, b, lo, hi in zip(front_row, front_row[1:], seen, seen[1:]):
+        assert lo > hi, ('front row out of order left to right', a, lo, b, hi)
+
+    # AND NO TWO OF THEM MAY OCCUPY THE SAME SPACE. Ty saw the chrome bezel on the oil pressure gauge in
+    # pieces (2026-11-01): it was whole, and the tachometer's face was cutting into it. Every adjacent pair in
+    # the row interpenetrated, by 8 to 16 mm, because the spacing had been scaled down to a 290 mm row while the
+    # instruments kept real diameters. Only the bright ring showed it. Measured here off the exported faces, so
+    # the next person to move a gauge finds out from a test and not from a render.
+    bin_at = 20 + size
+    blen = struct.unpack_from('<I', raw, bin_at)[0]
+    bin_ = raw[bin_at + 8:bin_at + 8 + blen]
+
+    def verts(accessor):
+        a = doc['accessors'][accessor]
+        v = doc['bufferViews'][a['bufferView']]
+        stride = v.get('byteStride', 12)
+        off = v.get('byteOffset', 0) + a.get('byteOffset', 0)
+        return [struct.unpack_from('<3f', bin_, off + k * stride) for k in range(a['count'])]
+
+    interior = names['Cockpit_Interior']
+    xshift = position(interior)[0]
+    discs = {}
+    for prim in doc['meshes'][nodes[interior]['mesh']]['primitives']:
+        mat = doc['materials'][prim['material']].get('name', '')
+        if not mat.startswith('Dial_'):
+            continue
+        # Both panels share a material per instrument type, so split them: the FRONT panel is the one nearer
+        # the pilot, at the smaller export x of the two.
+        front = [v for v in verts(prim['attributes']['POSITION']) if v[0] + xshift < 1.2]
+        if not front:
+            continue
+        lat = [v[2] for v in front]
+        discs[mat] = ((min(lat) + max(lat)) / 2, (max(lat) - min(lat)) / 2)
+    order = ['Dial_ALT', 'Dial_ASI', 'Dial_TC', 'Dial_OIL', 'Dial_OILPRESS', 'Dial_TACH']
+    missing = [m for m in order if m not in discs]
+    assert not missing, ('front panel dial faces missing', missing)
+    for a, b in zip(order, order[1:]):
+        (ca, fa), (cb, fb) = discs[a], discs[b]
+        # A face is 0.9 of the instrument's radius and the bezel ring stands 1.5 mm proud of it, so the case's
+        # outer radius is face / 0.9 + 0.0015. Two cases must not touch.
+        ra, rb = fa / 0.9 + 0.0015, fb / 0.9 + 0.0015
+        gap = abs(ca - cb) - ra - rb
+        assert gap > 0.002, ('front row instruments interpenetrate', a, b, 'overlap_mm', -1000 * gap)
+
+    # Above centre is a WET COMPASS, not a G-meter. Ty's photo settles it, and the G hands are gone from the
+    # front panel entirely -- the rear keeps its own G-meter and its own compass.
+    assert 'Compass_Card_F' in names, 'front wet compass missing'
+    for gone in ('Needle_G_F', 'Needle_GMax_F', 'Needle_GMin_F'):
+        assert gone not in names, (gone, 'the front G-meter was replaced by the compass')
+    for kept in ('Needle_G_R', 'Compass_Card_R'):
+        assert kept in names, (kept, 'the REAR G-meter and compass must survive')
+
+    def height(node_name):
+        i = names[node_name]
+        lo, hi = [], []
+        for prim in doc['meshes'][nodes[i]['mesh']]['primitives']:
+            a = doc['accessors'][prim['attributes']['POSITION']]
+            lo.append(a['min'][1]); hi.append(a['max'][1])
+        return (min(lo) + max(hi)) / 2 + position(i)[1]
+
+    assert height('Compass_Card_F') > height('TC_Symbol_F') + 0.03, 'the front compass must sit ABOVE the row'
+    # ...and it is above the CENTRE of the panel, not out by the airspeed indicator where the G-meter used to be.
+    assert lateral('Needle_OilP_F') < lateral('Compass_Card_F') < lateral('Needle_ASI_F'), (
+        'the front compass should sit above centre, between the ASI and the combined oil gauge')
     # Export frame: prop ahead of tail along -x, vertical tail above the gear, span along z.
     assert position(names['Rudder_Pivot'])[0] > position(names['Prop'])[0]
     assert position(names['Rudder_HingeAxis'])[1] > position(names['Gear_Pivot_L'])[1]

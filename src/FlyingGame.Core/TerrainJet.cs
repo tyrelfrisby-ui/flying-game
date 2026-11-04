@@ -68,6 +68,11 @@ internal readonly struct TerrainJet
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TerrainJet Smooth(TerrainJet t) { t=Clamp(t,0,1); return t*t*(3-2*t); }
+    public const double PI=Math.PI;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static TerrainJet Sin(TerrainJet a) { double c=Math.Cos(a.Value); return new TerrainJet(Math.Sin(a.Value),a.E*c,a.N*c); }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static TerrainJet Cos(TerrainJet a) { double s=-Math.Sin(a.Value); return new TerrainJet(Math.Cos(a.Value),a.E*s,a.N*s); }
 }
 
 internal readonly struct TerrainJetPoint

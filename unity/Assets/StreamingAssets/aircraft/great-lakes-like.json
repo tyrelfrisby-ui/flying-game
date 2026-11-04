@@ -1346,6 +1346,16 @@
       ]
     }
   },
+  "rig": {
+    "aileronRad": 0.007692,
+    "finOffsetRad": 0.006372,
+    "throttleFraction": 0.75,
+    "altitudeM": 1219.2,
+    "tasMs": 55.804,
+    "alphaRad": -0.042543,
+    "elevatorTrimRad": 0.017263,
+    "bankRad": 0.006979
+  },
   "controls": {
     "aileron": {
       "maxDeflRad": 0.4014,
@@ -1394,6 +1404,14 @@
   "spinAero": {
     "rollDueToSideslip": "biplane"
   },
+  "construction": {
+    "_comment": "Crash-in-water damage (Core/Wreck, lane/claude-crash-water 2026-11-02). Welded steel-tube fuselage and wooden wings, doped fabric covering. Two tandem OPEN cockpits, measured from the own model (tools/own_models/build_great_lakes.py CKP, v6 off the N3765F three-view; docs/models/great-lakes-own-PROVENANCE.md): elliptical openings, front x -0.97..-1.33 half-width 0.19 m, rear x -1.64..-2.08 half-width 0.215 m; area pi*a*b.",
+    "covering": "fabric",
+    "cockpits": [
+      { "frontX": -0.97, "aftX": -1.33, "widthM": 0.38, "areaM2": 0.1074, "enclosure": "open" },
+      { "frontX": -1.64, "aftX": -2.08, "widthM": 0.43, "areaM2": 0.1486, "enclosure": "open" }
+    ]
+  },
   "fuselage": {
     "cd0Area": 0.62,
     "sideForceArea": 4.783,
@@ -1432,11 +1450,8 @@
     "stripSepTau": 0.15,
     "stripReattachTau": 0.6,
     "wakeGrowTau": 0.25,
-    "wakeDecayTau": 1.0,
-    "wakeSpreadDeg": 6.0
+    "wakeDecayTau": 1.0
   },
-  "wakeBlanketMaxLoss": 0.45,
-  "verticalBlanketFactor": 0.5,
   "gear": [
     {
       "pos": [

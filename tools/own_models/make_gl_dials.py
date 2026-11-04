@@ -64,6 +64,18 @@ for v in range(100, 251, 10): tick(d, at(v), 236 - (30 if v % 50 == 0 else 16), 
 for v in (100, 150, 200, 250): label(d, at(v), 160, str(v), 36)
 d.line([pol(-90, 236), pol(90, 236)], fill=(70, 70, 74), width=4)
 label(d, 0, 72, 'OIL PSI', 26); label(d, 180, 72, 'OIL F', 26); save(im, 'gl-dial-oil.png')
+# Separate front-panel oil pressure. Face only: Claude supplies the chrome bezel,
+# glass, hub and moving needle. OILP2 shares oil_press_psi with the combined gauge.
+# Bands/limits are typical estimates (E), not an assertion of this aircraft's limits.
+a = A('OILP2'); im, d = base()
+arc(d, a(25), a(60), 212, 18, YEL); arc(d, a(60), a(90), 212, 18, GRN)
+for v in range(0, 121, 5):
+    tick(d, a(v), 236 - (32 if v % 20 == 0 else 22 if v % 10 == 0 else 13), 236,
+         5 if v % 20 == 0 else 3)
+for v in range(0, 121, 20): label(d, a(v), 164, str(v), 36)
+for v in (25, 115): tick(d, a(v), 190, 238, 9, RED)
+label(d, 0, 76, 'OIL PRESS', 27); label(d, 180, 92, 'PSI', 27)
+save(im, 'gl-dial-oilpress.png')
 # CHT (F)
 a = A('CHT'); im, d = base()
 arc(d, a(200), a(435), 212, 20, GRN); arc(d, a(435), a(500), 212, 20, YEL); tick(d, a(500), 190, 236, 10, RED)
@@ -109,6 +121,44 @@ for h in range(0, 360, 5):
         if h % 30 == 0:
             s_ = names.get(h, str(h // 10)); bb = d.textbbox((0, 0), s_, font=f); d.text((x - (bb[2] - bb[0]) / 2, 34), s_, fill=WH, font=f)
 im.save(os.path.join(ART, 'gl-compass-band.png')); print('wrote gl-compass-band.png')
+# FRONT wet compass: independent assets; leave the existing rear card unchanged.
+# gl-front-compass-band.png is the MOVING, horizontally repeating card (no lubber
+# line). 2048 x 160; one full 360-degree turn, 2048/360 px per degree.
+# Image x increases to pilot's right; h(x) = (-360*x/2048) mod 360.
+# N at x=0 (wrap seam), E=1536, S=1024, W=512. For a scrolling flat window,
+# sample x = (-heading_deg*2048/360 + local_x) mod 2048, where local_x=0
+# at the fixed lubber line. Thus increasing heading moves the card RIGHT.
+# Equivalently center U=(-heading_deg/360) mod 1, U increasing to screen right.
+# Use repeat U / clamp V, and image-top=UV v=1; do not reverse U a second time.
+# A drum can use the same mapping; check N/E/S/W at the line before wiring.
+FW, FH = 2048, 160
+im = Image.new('RGB', (FW, FH), (24, 24, 26)); d = ImageDraw.Draw(im)
+for h in range(0, 360, 5):
+    x0 = (-h * FW / 360) % FW
+    for x in (x0 - FW, x0, x0 + FW):
+        d.line([(x, 12), (x, 50 if h % 30 == 0 else 38 if h % 10 == 0 else 28)],
+               fill=WH, width=4 if h % 30 == 0 else 2)
+        if h % 30 == 0:
+            s_ = names.get(h, str(h // 10)); f = font(48)
+            bb = d.textbbox((0, 0), s_, font=f)
+            d.text((x - (bb[2] - bb[0]) / 2, 65 - bb[1]), s_, fill=WH, font=f)
+save(im, 'gl-front-compass-band.png')
+# gl-front-compass-face.png is a STATIC RGBA overlay, never driven by heading.
+# Transparent exterior and rounded card window (66,202)..(446,310); the thin
+# ivory lubber line stays in front of the card. Housing silhouette is a compact
+# rectangular wet-compass case, not a circular accelerometer. Put the card behind
+# this window on a separate surface, mask it to the window and keep glass separate.
+# At native card scale the 380 px window spans 66.796875 degrees. To fit all 160
+# card rows into its 108 px height, scale vertically only (or use equivalent UVs).
+im = Image.new('RGBA', (S, S), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+d.rounded_rectangle((28, 130, 484, 386), 48, fill=(18, 18, 20, 255), outline=(62, 62, 66, 255), width=6)
+d.rounded_rectangle((54, 190, 458, 322), 22, fill=(8, 8, 9, 255), outline=(90, 90, 92, 255), width=4)
+d.rounded_rectangle((66, 202, 446, 310), 12, fill=(0, 0, 0, 0))
+d.line([(256, 204), (256, 308)], fill=WH + (255,), width=3)
+for x in (66, 446):
+    d.ellipse((x - 8, 348, x + 8, 364), fill=(90, 90, 92, 255))
+    d.line([(x - 5, 356), (x + 5, 356)], fill=(18, 18, 20, 255), width=2)
+save(im, 'gl-front-compass-face.png')
 # v13.1 compact panel-mount avionics faces (Ty, 2026-10-30): plain faces, no maker text, no legends. 10 px per mm over
 # the real 63 x 44 mm control-head face (TY91/TY96-style radio head, TT21/TT22-style transponder head: Trig datasheets);
 # the layouts (display window, knob seats, button row) are our estimates (E). The LCD itself is a separate mesh node.

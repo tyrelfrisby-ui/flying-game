@@ -35,6 +35,8 @@ namespace FlyingGame.Bridge
         private WindSynth _wind;
         private SurfaceSynth _surface;
         private OneShotSynth _fx;
+        private volatile CrashSoundMixer _crashes;
+        private CrashWaterVisuals _crashVisuals;
         private volatile EngineSynth _engine;
         private volatile bool _ready;
         private float _fs;
@@ -89,6 +91,35 @@ namespace FlyingGame.Bridge
             _delayed.Add((kind, level, Time.unscaledTime + d / SpeedOfSoundMs));
         }
 
+        private float DistanceTo(Vector3 point)
+        {
+            _egress ??= GetComponent<PilotEgress>();
+            bool pilotOut = _egress != null && _egress.PilotTransform != null &&
+                (SessionSettings.ReplayActive ? FlightReplay.ReplayPilotOut : _egress.PilotOut);
+            return Vector3.Distance(pilotOut ? _egress.PilotTransform.position : transform.position, point);
+        }
+
+        private readonly Dictionary<int, float> _waterImpactTimes = new();
+        private void OnCrashImpact(FlyingGame.Core.CrashImpact impact)
+        {
+            if (impact.Surface == FlyingGame.Core.ImpactSurface.Water && !_waterImpactTimes.ContainsKey(impact.PieceId))
+                _waterImpactTimes.Add(impact.PieceId, Time.unscaledTime);
+            Vector3 point = CoordinateMap.ToUnity(impact.Position);
+            float distance = DistanceTo(point);
+            _crashes?.Impact(impact.Surface == FlyingGame.Core.ImpactSurface.Water, (float)impact.Severity01,
+                (float)impact.MassKg, (float)impact.NormalSpeedMs, DistanceGain(distance), distance / SpeedOfSoundMs);
+        }
+
+        private void OnFlood(FlyingGame.Core.FloodState state)
+        {
+            // No impact means no audible flooding; later updates cannot re-arm an expired piece.
+            if (!_waterImpactTimes.TryGetValue(state.PieceId, out float first)) return;
+            float age = Time.unscaledTime - first;
+            Vector3 point = CoordinateMap.ToUnity(state.Position);
+            _crashes?.Flood(state.PieceId, (float)state.AirEscapeM3s, (float)state.TrappedAirM3,
+                (float)state.DepthM, DistanceGain(DistanceTo(point)), age);
+        }
+
         private static float DistanceGain(float d) => d <= 0f ? 1f : ReferenceDistanceM / (ReferenceDistanceM + d);
         /// <summary>A bullet landing on something (a drone, a ground target): metallic ping, weight 0..1.</summary>
         public void BulletHit(float severity) { _fx?.Trigger(FxKind.BulletHit, severity); }
@@ -123,6 +154,8 @@ namespace FlyingGame.Bridge
             _wind = new WindSynth(_fs);
             _surface = new SurfaceSynth(_fs);
             _fx = new OneShotSynth(_fs);
+            _crashes = new CrashSoundMixer(_fs);
+            _crashVisuals = gameObject.AddComponent<CrashWaterVisuals>();
             RebuildEngine();
             PushTelemetry();
 
@@ -150,16 +183,28 @@ namespace FlyingGame.Bridge
 
         private void OnEnable()
         {
+            FlyingGame.Core.CrashEvents.Impact += OnCrashImpact;
+            FlyingGame.Core.CrashEvents.Flood += OnFlood;
+            if (_crashes != null) _crashes = new CrashSoundMixer(_fs);
+            _ready = _crashes != null;
+            if (_crashVisuals != null) _crashVisuals.enabled = true;
             if (_driver != null) _driver.AircraftChanged += OnAircraftChanged;
         }
 
         private void OnDisable()
         {
+            FlyingGame.Core.CrashEvents.Impact -= OnCrashImpact;
+            FlyingGame.Core.CrashEvents.Flood -= OnFlood;
+            _delayed.Clear();
+            _ready = false;
+            if (_crashVisuals != null) _crashVisuals.enabled = false;
             if (_driver != null) _driver.AircraftChanged -= OnAircraftChanged;
         }
 
         private void OnDestroy()
         {
+            FlyingGame.Core.CrashEvents.Impact -= OnCrashImpact;
+            FlyingGame.Core.CrashEvents.Flood -= OnFlood;
             _ready = false;
             SaveMaster();
             if (_clip != null) Destroy(_clip);
@@ -177,7 +222,7 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetFloat(PrefKey, Mathf.Clamp01(MasterVolume));
         }
 
-        private void OnAircraftChanged() => RebuildEngine();
+        private void OnAircraftChanged() { _waterImpactTimes.Clear(); RebuildEngine(); }
 
         private void RebuildEngine()
         {
@@ -240,7 +285,7 @@ namespace FlyingGame.Bridge
                 float gs = (float)System.Math.Sqrt(vW.X * vW.X + vW.Y * vW.Y);
                 var surf = FlyingGame.Core.WorldTerrain.SurfaceAt(st.Position.X, st.Position.Y);
                 if (surf == FlyingGame.Core.WorldTerrain.Surface.Gravel) gravel = gs;
-                else if (surf == FlyingGame.Core.WorldTerrain.Surface.Rough) rough = gs;
+                else if (surf == FlyingGame.Core.WorldTerrain.Surface.Rough || surf == FlyingGame.Core.WorldTerrain.Surface.GlacierIce) rough = gs;
             }
             _tele.GravelSpeed = gravel; _tele.RoughSpeed = rough;
             _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume);
@@ -279,12 +324,16 @@ namespace FlyingGame.Bridge
             _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered && !t.PilotOut, t.CockpitAir);
             _fx.Prepare(ias, t.GroanSeverity, acGain);
             _surface.Prepare(t.GravelSpeed, t.RoughSpeed);
+            CrashSoundMixer crashes = _crashes;
+            crashes.Prepare();
             engine?.Prepare(rpm, thr);
 
             // Fully ducked and settled: emit silence without rendering.
             if (masterTarget <= 0f && _gain < 1e-4f)
             {
                 _gain = 0f;
+                // Keep flood expiry and impact delays advancing while the menu mutes the output.
+                for (int f = 0; f < frames; f++) crashes.Next();
                 for (int i = 0; i < data.Length; i++) data[i] = 0f;
                 return;
             }
@@ -311,7 +360,7 @@ namespace FlyingGame.Bridge
                 _surface.Next(out float sl, out float sr);
                 float el = 0f, er = 0f;
                 engine?.Next(out el, out er);
-                float fx = _fx.Next() * FxMix;
+                float fx = (_fx.Next() + crashes.Next()) * FxMix;
 
                 float l = Dsp.SoftClip((wl * WindMix + (el * EngineMix + sl) * acGain + fx + gun) * _gain);
                 float r = Dsp.SoftClip((wr * WindMix + (er * EngineMix + sr) * acGain + fx + gun) * _gain);

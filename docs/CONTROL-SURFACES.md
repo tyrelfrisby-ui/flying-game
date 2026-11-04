@@ -454,3 +454,215 @@ The configs carry C_hα −0.12…−0.20, C_hδ −0.30…−0.45: the values o
   needs. A weight-and-balance breakdown per the protocol's step 1c would settle it.
 - Seminole: the real aircraft has an all-moving stabilator with an anti-servo tab; it is modelled as stab + elevator.
 - Hinge coefficients per type from each surface's balance (none / horn / overhang / Frise / anti-servo tab).
+
+
+## Roll authority: the cambered span, and two fudges that were rejected (2026-11-01)
+
+Owner: *"NO fudge factors tuned to published numbers; published roll rates are VALIDATION ONLY."*
+
+The Pitts rolled **391.6 deg/s** at 160 mph IAS with full aileron, against the owner's (ex-Unlimited, S-1S)
+**260–300**. Two attempts to close that were both the same mistake and both were thrown away:
+
+1. **Shrinking the travel**, 25° → 16.5°. That is less aileron travel than this model gives a J-3 Cub, and
+   `maxDeflRad` is not a free parameter: it is FAA TCDS A8SO Rev. 21 p. 9, *ailerons symmetrical 25° ± 2°*.
+2. **`controls.aileron.effectiveness = 0.66`, called τ** (commit 4e5e1a7). τ is ALREADY in the model, as the
+   fixed row's camber gain `g = 0.85·τ(E)` — the table at the top of this document. A second chord-ratio factor
+   counts it twice. The "corroboration" offered at the time (thin-aerofoil τ ≈ 0.60 against 0.66) was comparing
+   the number to a quantity the model had already applied. Removed; the field survives as a documented hook at
+   its default of 1.0, used by nothing, and explicitly **not** τ.
+
+### What was actually wrong: camber applied past the end of the aileron
+
+A deflection cambers the FIXED strip ahead of the control. That camber was applied across the strip's whole
+span — including the part with no aileron behind it. It adds roll POWER without adding roll DAMPING, so it goes
+straight into the steady rate.
+
+`AeroModel.ControlSpanCoverage` now scales the fixed row's gain by the fraction of its span the control
+actually occupies, measured as `area/chord` on both rows from the same rasterised silhouette the configs were
+built from. **Scaling the gain rather than splitting the strip** keeps the station list, strip count, load
+points, aspect ratios and `WeightAndBalance.MacGeom`'s `>= 0.9` hinged-row test all untouched, and in the
+linear range the two are equivalent.
+
+Coverage within **1 %** of full is taken as full: these spans come from a rasterised silhouette and are not
+accurate to better than that, and without the deadband the exactly-tiled surfaces measure 0.999 and shift
+every type's trim in the fourth decimal for no physics. Coverage is then **1.000 for 28 of the fleet's 32
+aileron and elevator systems**, which are bit-for-bit unchanged.
+It is not 1 for exactly the surfaces rebuilt from their GLB models on 2026-10-28:
+
+| surface | aileron span (m) | cambered span (m) | coverage |
+|---|---|---|---|
+| Pitts wing-upper | 2.875 | 4.225 | 0.681 |
+| Pitts wing-lower | 2.943 | 4.090 | 0.719 |
+| Extra 300 wing | 5.569 | 6.740 | 0.826 |
+| Great Lakes wing-lower | 4.289 | 4.890 | 0.877 |
+| Pitts / Extra / Great Lakes / Jenny elevators | — | — | 0.90–0.96 |
+
+### The tail's finite-span table past the stall (2026-11-03)
+
+The 2026-10-06 rescale built each tail table as Cl₂D(α·a/a₀): the whole α axis stretched by a₀/a. In the linear
+range that is Helmbold. Past the stall it is not anything: on the Pitts (a/a₀ ≈ 0.51) the table's 90° point sat at
+177°, so a stab broadside to the flow read the section at ~51°: Cl 0.95 where a plate has 0, a normal force flat at
+~0.83 from 35° to 90° where the section data rises to 1.19, and an axial force of −0.99 (leading-edge suction on a
+fully separated plate). The elevator moves the tail by changing the normal force, and with CN flat it moved nothing:
+full up against full down was **0.00** of its α 0 pitch authority at α 45 (owner: "the elevator control is also weak
+at high aoa").
+
+`AeroModel.FiniteSpanSection` now moves each table point by its own lift's induced angle,
+α = α₂D + Cl₂D·(1/a − 1/a₀) (nonlinear lifting line, Sivells & Neely, NACA Report 865): exactly the old rescale in
+the linear range, zero where the lift is zero, so the post-stall data — already a finite-AR plate in these tables
+(Cd 1.19 at 90°, Viterna & Corrigan's 1.11 + 0.018·AR) — stays where it was measured. Where the section's lift falls
+faster than the induced angle grows, the mapping folds; the table keeps the attached branch to its furthest angle (the
+finite surface's stall jump). The Pitts tail's stall angle moves 27.6° → 24.9°.
+
+| Pitts, static, β 0 | α 30 | α 45 | α 60 | α 75 |
+|---|---|---|---|---|
+| elevator ΔCm, stretched table (× its α 0 value) | 0.108 (0.17) | 0.003 (0.00) | 0.112 (0.18) | 0.075 (0.12) |
+| elevator ΔCm, induced-angle table | 0.106 (0.16) | 0.135 (0.21) | 0.046 (0.07) | 0.013 (0.02) |
+
+What is left small is physical: broadside, turning a separated section changes its normal force very little. At α 30
+the tail sits just past its own stall jump. `TailSectionTests` pins the broadside values, the linear-range
+equivalence, monotonic tables fleet-wide (32 of them), and the α 45 authority.
+
+### Wings on 2-D tables: BUILT, MEASURED, and NOT shipped
+
+The 2026-10-06 work rescaled 2-D TAIL tables to the DATCOM/Helmbold finite-span slope and left wings alone
+because every wing polar was finite-span then (clarkY-like 4.47/rad). That is no longer true. Nine wing
+surfaces authored or rebuilt since carry 2-D section data:
+
+| surface | 2-D a₀ | Helmbold a (if applied) |
+|---|---|---|
+| Pitts wing-upper / lower | 6.30 | 4.56 / 4.55 |
+| Great Lakes wing-upper / lower | 6.17 | 4.72 |
+| Extra 300 wing | 5.82 | 4.27 |
+| Swift S-1 wing | 5.82 | 5.08 |
+| Cassutt / target drone wing | 5.82 | — |
+| 737 wing | 5.53 | 4.60 |
+
+The rescale was implemented, run against the fleet, and then **taken back out**. Helmbold stretches the alpha
+axis, so CLmax survives but more incidence is needed to reach any given lift — and a taildragger on its wheels
+is pinned at its ground attitude, so that goes straight into the lift-off speed:
+
+| | lift-off, as shipped | lift-off, with the rescale | real |
+|---|---|---|---|
+| Pitts S-2B | 34.0 m/s (76 mph) | 40.2 m/s (90 mph) | ~60–70 mph |
+| Extra 300 | 38.7 m/s (87 mph) | 44.7 m/s (100 mph) | ~60–70 mph |
+
+An 18 % move the wrong way on a number checked against the books, in exchange for 7 % on the roll rate that
+was the point — and in the wrong direction there too (the Pitts goes 291 → 311 deg/s, out of the owner's
+260–300). `AerobatGroundHandlingTests.TakeoffRollIsTheBooks` fails for both types with it in and passes with it
+out.
+
+The slope is still wrong. What the measurement says is that these configs' wing area, incidence, CLmax and
+ground attitude were authored against a 2-D slope and silently absorb it, so the table cannot be corrected on
+its own — the wing has to be re-derived as a whole. That is its own job.
+`PittsRollRateTests.TheseWingsStillCarryTwoDimensionalSectionTables` keeps the list so it cannot be lost, and
+asserts the rescale stays off until then. **Biplanes** would take each wing's own geometric AR (upper and lower
+are separate systems here); Munk interference between them is not modelled and would lower both further.
+
+### Large-deflection saturation: already present, and already stronger than DATCOM
+
+An added `tanh` for ailerons (the elevator has one) would have been the third version of the same error. The
+hinged strip already samples its section table at α + δ, and at 25° that is well past the table's stall — the
+Pitts' own wing table gives Cl 1.05 at 12° and 0.514 at 25°. Measured as the ratio of the section's actual ΔCl
+to its small-deflection linear value:
+
+| aileron deflection | Pitts, modelled | DATCOM plain flap, c_f/c 0.25 |
+|---|---|---|
+| 5–10° | 1.00 | ~1.00 |
+| 15° | 0.94 | ~0.90 |
+| 20° | 0.67 | ~0.82 |
+| 25° | **0.63** | **~0.75** |
+
+So the model saturates **18 % harder** than DATCOM, not less. Adding a second factor would have taken it to
+~0.47. Left alone, and recorded as an open question: forcing it to the DATCOM curve would put the Pitts at
+roughly 369 deg/s, above the owner's band, which says the remaining error is somewhere else (biplane
+interference, the Pitts' own section table) rather than in the saturation.
+
+### Hinge-gap / flex loss: deliberately NOT added
+
+A ~0.9 for an unsealed hinge gap is real physics, but this fleet has no sealed-vs-unsealed datum anywhere in
+its configs, so the factor would be chosen rather than derived — the same move as the 0.66 with a different
+name. Not added. It needs a per-aircraft physical input first.
+
+### Extra 300 spades: a stick-force device, already modelled as one
+
+The Extra's aileron spades are aerodynamic balances on arms ahead of and below the hinge line. With the
+ailerons neutral they lie along the airstream and do nothing; deflected, the spade's load acts about the HINGE
+and reduces the stick force. They are not a lift-producing surface of any consequence — the roll moment is the
+aileron's. No public source gives spade chord, span or area for the Extra 300 (searched: manufacturer manual,
+the Roskam-method hinge-moment study of the Extra-300, owner forums), so no geometry could be authored without
+inventing it. The effect is already in the config where it belongs: the Extra's aileron carries the BALANCED
+hinge coefficients `hingeChAlpha -0.10 / hingeChDelta -0.30` against a plain unbalanced surface's `-0.20 /
+-0.45` (the 172). Nothing was changed.
+
+Sources: Extra 300/SC Information Manual (flight control system); *Hinge Moment Coefficient Prediction Tool and
+Control Force Analysis of Extra-300 Aerobatic Aircraft* (Roskam method; max lateral wheel force ~341 N in
+aileron roll); Wikipedia *Aileron* (spades vs. mass balances).
+
+
+## Roll rate, fleet-wide: aileron sections, biplane induction, and what lifting-surface theory says (2026-11-02)
+
+Owner: *"the roll rate is way too high"* — target for the Pitts S-2B **225 deg/s at 160 mph IAS, full aileron** — and
+then *"they all roll too fast, so whatever physics solution you come up with, apply it to all of the airplanes."*
+Nothing below is per-type; every number comes from each config's own strips.
+
+### Which half of the balance was wrong
+
+Steady p is the aileron's rolling moment over the roll damping. `RollDerivativeProbe` (ROLL_PROBE=1) splits them off
+`AeroModel.Compute`. It found that the flown roll (Pitts 284 deg/s) was much FASTER than the static balance at p = 0
+(194 deg/s) — because the rolling moment from full aileron was 0.140 at the first instant and **0.174 at the steady roll
+(+24 %)**. The hinged row flew its own section table at α + δ, past the stall at 25°, and the roll's own p·y/V unloaded it
+back out of the stall. A plain flap does not separate that way: it separates off the hinge knuckle as a function of δ.
+
+### Fix (2): an aileron is the aft E of one aerofoil
+
+`AeroModel` (AILERON SECTIONS) and `PlainFlap`: a fixed row and the hinged row behind it are one section, and a deflection
+moves the whole section's lift by **Δα = τ(E)·η_δ(E, δ)·δ** on both rows —
+
+* τ = 1 − (θf − sin θf)/π, cos θf = 2E − 1: Glauert, ARC R&M 1095 (1927); E the section's own measured chord ratio
+  (`AeroModel.AileronSectionE`: Pitts 0.248 / 0.236, Extra 0.271, matching the table above);
+* η_δ: empirical plain-flap lift effectiveness, **sealed gap**, Olson, *Semi-Empirical Prediction of Aircraft Low-Speed
+  Aerodynamic Characteristics*, AIAA 2015-0011, NASA NTRS 20150006019, Fig. 3(a) (data from Torenbeek, *Synthesis of
+  Subsonic Airplane Design*, 1982), digitised into `PlainFlap.EtaTable`: e.g. 0.86 at small δ and 0.535 at 25° for
+  E = 0.2. It carries the viscous small-δ loss (the old 0.85) and the large-deflection fall-off together.
+
+It replaces the authored fixed-row gain magnitude for ailerons (0.45 hand-set on most of the fleet). Elevators and rudders
+are unchanged (their saturation is calibrated in `StallAuthorityTests`; the same treatment would apply but is a separate
+change). The hinged row's DRAG is still sampled at its geometric α + δ, so adverse yaw is not altered by this.
+
+### Fix (1): biplane mutual induction on the rolling loads
+
+`BiplaneCellule` builds a horseshoe-vortex lattice on the config's wing sections (one chordwise panel; the control point
+a0·c/4π behind the bound vortex so an isolated section keeps its own slope) and gives the cellule's rolling moment over the
+sum of its wings alone, for a roll-rate loading and an aileron loading (Prandtl NACA Rep. 116; Munk NACA Rep. 151).
+`AeroModel` scales the p part of the cellule's strip velocities and its aileron incidence by them, faded by each strip's
+separation. Exactly 1 for monoplanes.
+
+| cellule | gap/c | stagger/c | roll damping | aileron | lift slope (upper / lower) |
+|---|---|---|---|---|---|
+| Pitts S-2B | 1.23 | +0.61 | 0.848 | 0.842 | 0.826 (0.925 / 0.713) |
+| Great Lakes | 1.24 | +0.40 | 0.849 | 0.880 | 0.866 (0.940 / 0.765) |
+| Stearman | 0.75 | +0.31 | 0.796 | 0.868 | 0.782 (0.879 / 0.684) |
+| Jenny | 1.10 | +0.29 | 0.883 | 0.901 | 0.859 (0.917 / 0.779) |
+
+It removes ~15 % of BOTH halves of the roll balance, so it cannot lower the steady rate: on the Pitts the two cancel
+(+4 %), and where the ailerons are on one wing only (Great Lakes, Stearman lower; Jenny upper) the rate goes UP slightly.
+The **lift-slope** factor is computed and reported but NOT applied to the symmetric lift: the cellule's lift is carried by
+section tables fitted to the book stalls (BiplaneCellule's 2026-10-28 note), and this would count it twice.
+Decalage changes incidence, not these perturbation loads, so it does not enter.
+
+### (3) Checks: lifting-surface theory, struts and wires, hinge gaps
+
+* **Strip theory vs the lattice** (`BiplaneCellule.LiftingSurfaceOverStrip`, check only): for every monoplane the strip
+  model's steady pb/2V is within −8 %..+3 % of lifting-surface theory, because the aileron load and the damping lose
+  nearly the same share to induction. The DAMPING itself is 1.5–2.6× the lattice's (strip theory has no downwash), which
+  makes the roll reach its rate too quickly but does not set the rate. For the Pitts the lattice says +9 % on the steady
+  rate (self-induction of two low-AR wings, ailerons outboard of the strip-theory centroid). Not applied — see AGENT-LOG.
+* **Struts and wires.** A roll moves each strut and wire at p·y normal to the flow. Interplane and cabane struts are
+  near-vertical, so that motion is along their length and they make no damping. A streamline flying or landing wire acts
+  as a tiny wing of chord c_w ≈ 13 mm: per unit length 2π·c_w·cos²φ against the wing's a·c ≈ 6.3 × 1.05 m, i.e. ~1.2 %
+  per metre with φ ≈ 35°, on ~1.3 m of span per wire, 4 wires a side, sitting inboard where y² is small — about 0.25 % of
+  the Pitts' roll damping. Negligible; not modelled.
+* **Hinge gap.** Real and not small: in flight on a Fairchild 22, sealing the hinge gap bought about a third more
+  effectiveness on 0.09c ailerons and about a fifth on 0.18c (Soulé & Gracey, NACA TN 632, 1938). The η_δ above is the
+  SEALED value. No config records a gap, and the Pitts' real gap is not known here, so no loss is applied.

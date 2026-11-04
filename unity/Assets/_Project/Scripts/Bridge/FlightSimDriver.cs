@@ -119,7 +119,24 @@ namespace FlyingGame.Bridge
 
         public const double DogfightHalfSeparationM = 1200, DogfightLateralOffsetM = 60, DogfightAglM = 1500;
 
+        /// <summary>
+        /// Build the aeroplane for the session's start, then put the inputs the sim will fly on the HANDS-OFF trim of that
+        /// start (stick and rudder centred, elevator on the trim, the start's power). Until TouchFlightControls publishes
+        /// its first frame, <see cref="Inputs"/> would otherwise still be the PREVIOUS flight's last frame -- whatever the
+        /// stick, the pad and the power were doing when the menu opened (the controls stop publishing while it is open) --
+        /// and nothing orders this Update before the controls' (owner 2026-11-02: the Pitts went left on one launch, right
+        /// on another). The first frame after a respawn is a long one, so that was up to MaxCatchUpSec = 0.05 s, ten sim
+        /// steps, of the last flight's stick on the new one: enough on its own to pick the spiral's direction.
+        /// </summary>
         private void Spawn()
+        {
+            SpawnAircraft();
+            double lever = Powered ? (GroundStart || IdleStart ? 1.0 : 1.0 - 2.0 * RigSolver.RigThrottle)   // idle, or the air start's 75 %
+                : GroundStart ? 1.0 : IdleStart ? StartSpoilerFraction : 0.0;                              // glider: spoilers as TouchFlightControls.PresetTrim sets them
+            Inputs = new ControlInputs(0, TrimStick, 0, lever);
+        }
+
+        private void SpawnAircraft()
         {
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
             SessionSettings.ApplyFeel(config);   // the user's expo / dead-zone tuning (OPTIONS)
@@ -276,29 +293,13 @@ namespace FlyingGame.Bridge
                 spawnX = authored.Value.X; spawnY = authored.Value.Y; spawnAlt = authored.Value.AltitudeM;
                 spawnHdg = authored.Value.HeadingTrueDeg * System.Math.PI / 180;
             }
-            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, spawnAlt);
-            TrimStick = trim.Converged ? Aircraft.StickForDeflection(trim.ElevatorRad, config.Controls.Elevator) : 0.0;
-            if (!trim.Converged)
-            {
-                Debug.LogError("Spawn trim failed to converge; starting from level attitude.");
-            }
-
-            double half = trim.ThetaRad / 2.0;
-            var pitchQ = new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half));
-            var yawQ = new Quat(0, 0, System.Math.Sin(spawnHdg / 2), System.Math.Cos(spawnHdg / 2));
-            var attitude = Quat.Multiply(yawQ, pitchQ);
-            // Spawn with the trimmed speed relative to the AIR: ground velocity = air velocity + local wind, so in
-            // a crosswind the aircraft starts in a coordinated crab (zero sideslip, camera on the tail) instead of
-            // a 12° sideslip that takes seconds to weathervane out.
-            var spawnPos = new Vec3(spawnX, spawnY, -spawnAlt);
-            var velocityBody = new Vec3(
-                SpawnIasMs * System.Math.Cos(trim.AlphaRad), 0, SpawnIasMs * System.Math.Sin(trim.AlphaRad))
-                + attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(spawnPos));
-            var airState = new RigidBodyState(spawnPos, attitude, velocityBody, Vec3.Zero);
-
-            var deflections = new ControlDeflections(0, trim.ElevatorRad, 0, 0);
-            Sim = new SimLoop(new Aircraft(config, airState, deflections));
-            if (config.RetractableGear) Sim.Aircraft.SetGear(false, immediate: true);   // airborne start: wheels up
+            // Start HANDS OFF at the type's rig condition (owner 2026-11-02): level at 75 % power on the rig, trimmed, or a glider
+            // at best glide. FlyingGame.Sim.AirStart is the whole computation, engine-free, so LaunchReplicationTests fly
+            // exactly this launch.
+            AirStart.Plan start = AirStart.Compute(config, spawnX, spawnY, spawnAlt, spawnHdg, SpawnIasMs);
+            if (start.Warning != null) Debug.LogWarning(start.Warning);
+            TrimStick = start.TrimStick;
+            Sim = new SimLoop(AirStart.Build(config, start));
             ApplyFixedSlats(config);
             ApplyStateToTransform();
         }
@@ -347,7 +348,8 @@ namespace FlyingGame.Bridge
         public static int CatchUpCappedFrames;
 
         /// <summary>Stopwatch ticks spent inside <see cref="SimLoop.Advance(double, ControlInputs, ref double, double)"/>
-        /// by every driver, summed (the [QuestPerf] line reports it per frame beside SimProfile's breakdown).</summary>
+        /// by every driver, summed (the [QuestPerf] line and the AERO_SELFTEST=perf line report it per frame beside
+        /// SimProfile's breakdown / the frame time).</summary>
         public static long SimAdvanceTicks;
 
         private void Update()

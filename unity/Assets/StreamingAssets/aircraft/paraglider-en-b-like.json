@@ -487,13 +487,22 @@
     "stripSepTau": 0.2,
     "stripReattachTau": 0.8,
     "wakeGrowTau": 0.3,
-    "wakeDecayTau": 1.2,
-    "wakeSpreadDeg": 8.0
+    "wakeDecayTau": 1.2
   },
   "limits": {
     "vneMs": 14.0,
     "gMax": 5.5,
     "gMin": -1.0
+  },
+  "rig": {
+    "aileronRad": 0,
+    "finOffsetRad": 0,
+    "throttleFraction": 0,
+    "altitudeM": 1219.2,
+    "tasMs": 10.156,
+    "alphaRad": -0.008597,
+    "elevatorTrimRad": 0.166396,
+    "bankRad": 0
   },
   "controls": {
     "aileron": {

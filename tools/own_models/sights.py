@@ -30,8 +30,9 @@ def parts(g):
             yield n['name'],p,a,ids
 
 # AirframeModels.OwnSpecs sitHighM, copied by hand: the model is drawn this much higher than lowest-point-on-the-
-# deepest-contact puts it (the J-3 on floats is held at its landplane's height; check_eye_interiors.py asserts it).
-SIT_HIGH={'j3-cub-floats-like':0.0454}
+# deepest-contact puts it. None now: the J-3 on floats was held 0.0454 up until its float-keel contacts moved onto the
+# drawn keel (2026-11-02, lane/claude-hydro); check_eye_interiors.py asserts the two J-3 airframes still coincide.
+SIT_HIGH={}
 
 def placement(g,aircraft):
     """Reproduce readable-vertex AirframeModels.Place for these non-alias own models."""

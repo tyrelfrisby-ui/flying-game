@@ -29,6 +29,13 @@ ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 LIVERY = os.environ.get('EA_LIVERY', 'tf'); assert LIVERY in ('tf', 'n300uy', 'unmarked'), LIVERY
 UNMARKED = LIVERY == 'unmarked'
 OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own%s.glb' % ('' if LIVERY == 'tf' else '-' + LIVERY))
+# For a scoped wing rebuild retain the already-approved non-wing GLB content.
+# A temporary copy is outside the worktree and removed after export.
+import tempfile
+_WING_BASE = None
+if '--wing-only' in sys.argv:
+    _WING_BASE = tempfile.NamedTemporaryFile(suffix='.glb')
+    _WING_BASE.write(open(OUT, 'rb').read()); _WING_BASE.flush()
 TEX = '/tmp/own_ea300_tex'; os.makedirs(TEX, exist_ok=True)
 NAVY, RED, WHITE = (27, 42, 74), (200, 24, 36), (246, 246, 246)
 NICKEL, TYRE, CABIN = (205, 208, 212), (88, 90, 96), (44, 56, 92)   # v3: navy cabin, not grey
@@ -270,7 +277,7 @@ class Surf:
     def section(self, s, x_from=None, x_to=None, sgn=1, axis='y', n=22):
         le, te, up, dn = self.at(s); xa = le if x_from is None else x_from; xb = te if x_to is None else x_to
         xq = xa + (xb - xa) * (1 - np.cos(np.linspace(0, math.pi, n))) / 2
-        fx = le - FR * (le - te)                       # decreasing x
+        fx = le - getattr(self, 'fr', FR) * (le - te)                       # decreasing x
         u = np.interp(-xq, -fx, up); d = np.interp(-xq, -fx, dn)
         loop = list(zip(xq, u)) + list(zip(xq[::-1], d[::-1]))
         if x_from is None: loop = loop[:-1]            # shared LE point
@@ -292,7 +299,7 @@ class Hinge:
         self.f, self.h = surf, hinge
         a, b = np.polyfit(spans, [self._ud(s, self.xh(s), mid=True) for s in spans], 1); self.c = lambda s: a * abs(s) + b
     def _ud(self, s, x, mid=False):
-        le, te, up, dn = self.f.at(s); fx = le - FR * (le - te)
+        le, te, up, dn = self.f.at(s); fx = le - getattr(self.f, 'fr', FR) * (le - te)
         u, d = float(np.interp(-x, -fx, up)), float(np.interp(-x, -fx, dn)); return 0.5 * (u + d) if mid else (u, d)
     def xh(self, s):                  # hinge x, or just behind the LE where the LE is aft of the hinge (rudder foot)
         return min(self.h(s), self.f.at(s)[0] - 0.0005)
@@ -303,7 +310,8 @@ class Hinge:
         return max(rr)
     def x_to(self, s): return self.xh(s) + self.r(s) + self.CLEAR
     def ring(self, s, sgn=1, axis='y', n=22, nn=9):
-        le, te, up, dn = self.f.at(s); fx = le - FR * (le - te); x0 = self.xh(s); c = self.c(s); r = self.r(s)
+        if hasattr(self.f, 'fr'): n = 81
+        le, te, up, dn = self.f.at(s); fx = le - getattr(self.f, 'fr', FR) * (le - te); x0 = self.xh(s); c = self.c(s); r = self.r(s)
         xq = x0 + (te - x0) * (1 - np.cos(np.linspace(0, math.pi, n))) / 2
         u = np.interp(-xq, -fx, up); d = np.interp(-xq, -fx, dn)
         w = np.clip(1 - (x0 - xq) / 0.02, 0, 1)                       # fade the skin onto the nose over 20 mm
@@ -318,9 +326,32 @@ class Hinge:
         p = lambda s: (self.h(s), sgn * s, self.c(s)) if axis == 'y' else (self.h(s), self.c(s), s)
         return p(s0), p(s1)
 HINGES = {}
-W = Surf(R['wing']); HW = W.hinge_line(); A_IN, A_OUT = R['aileron_span']; W_TIP = W.s.max()
+# B is vendored byte-for-byte from lane/claude-inertia 90d0e85.
+sys.path.insert(0, os.path.join(ROOT, 'tools/aircraft_builder'))
+import extra_sections as wing_b
+class WingB(Surf):
+    def __init__(self, tab):
+        super().__init__(tab)
+        self.fr = np.array(wing_b.grid())
+        self.sections = {}
+    def at(self, s):
+        le, te, up, dn = super().at(s)
+        if abs(s) not in self.sections:
+            # Preserve the original LE/TE centre plane (position and dihedral), zero incidence.
+            z = 0.25 * (up[0] + dn[0] + up[-1] + dn[-1])
+            h = wing_b.half(wing_b.station(min(abs(s), 4.0))[2], 'B')
+            hh = (le - te) * np.array([h(float(x)) for x in self.fr])
+            self.sections[abs(s)] = (le, te, z + hh, z - hh)
+        return self.sections[abs(s)]
+    def section(self, *args, **kwargs):
+        kwargs['n'] = 161
+        return super().section(*args, **kwargs)
+W_original = Surf(R['wing'])
+W = WingB(R['wing']); HW = W.hinge_line(); A_IN, A_OUT = R['aileron_span']; W_TIP = W.s.max()
 wing = []
 AS = L(A_IN + 0.008, W_TIP - 0.004, 22); HA = Hinge(W, HW, AS)
+# Keep the rig's original straight axis even though B is symmetric.
+HA.c = Hinge(W_original, HW, AS).c
 def prism(bm, xy, z0, z1, sg=1):       # vertical extrusion of a plan outline (y mirrored by sg)
     pts = xy if sg > 0 else xy[::-1]
     loft_rings(bm, [[(x, sg * y, z0) for x, y in pts], [(x, sg * y, z1) for x, y in pts]])
@@ -546,7 +577,7 @@ P['Engine'] = link('Engine', _all)
 X0, X1, Z0p, Z1p = -5.40, 2.45, -1.45, 1.45
 XT = RX.min()                                   # tail cone end
 YR = RW_.max() * 0.95                           # wing/fuselage junction span
-LE_R, TE_R_, UP_R, DN_R = W.at(YR)
+LE_R, TE_R_, UP_R, DN_R = W_original.at(YR)   # paint placement stays at the approved baseline
 XWR = TE_R_                                     # wing-root trailing edge
 ZWT = float(np.interp(0.30, FR, UP_R))          # wing-root top
 XW, ZW = XWR + 0.15, ZWT + 0.03
@@ -739,6 +770,11 @@ for o in list(P.values()) + EXTRA: o.select_set(True)
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_yup=True, export_apply=True, export_extras=True)
 print('WROTE', OUT, os.path.getsize(OUT))
 
+if _WING_BASE is not None:
+    from ea300_wing_export import replace_wings
+    replace_wings(_WING_BASE.name, OUT, OUT)
+    _WING_BASE.close()
+    print('PRESERVED non-wing baseline; replaced Wing + Aileron_L/R')
 # Phase 1 shared geometry path (also works without Blender after a base export).
 from vr_cockpit import update as vr_phase1_update
 vr_phase1_update(OUT)

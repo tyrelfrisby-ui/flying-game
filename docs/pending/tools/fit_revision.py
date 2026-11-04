@@ -155,6 +155,21 @@ class Grid:
       if diff>best[0]:best=(diff,list(p[:2]))
   return {'maximum_m':round(best[0],4),'location':best[1],'minimum_height_m':round(minimum,4),'triangles':count}
 
+def exact_rescreen(g,poly,surface,fields):
+ xs=[p[0] for p in poly];ys=[p[1] for p in poly];best=(-1e12,None);n=0
+ pads=[g.rect(r,True) for r in fields if r['field']!='DRAKE']
+ x=math.floor(min(xs)/.025)*.025
+ while x<=max(xs):
+  y=math.floor(min(ys)/.025)*.025
+  while y<=max(ys):
+   p=(x,y)
+   if g.inside(p,poly) and not any(g.inside(p,q) for q in pads):
+    n+=1;d=g.height(x,y)-surface(p)
+    if d>best[0]:best=(d,[x,y])
+   y+=.025
+  x+=.025
+ return {'bake_maximum_m':None,'maximum_m':round(best[0],4),'location':best[1],'exact_points':n,'screen':'exact evaluator, 25 m lattice'}
+
 def padheight(g,r,p):
  l,b=g.dimensions(r);t,c=g.local(p,r)
  return r['elevation_ft']*g.FT+max(-l/2,min(l/2,t))*1000*r.get('slope_percent',0)/100
@@ -222,6 +237,11 @@ def measure_revision(g):
   u=g.vec(f['course_true_deg']);ratio=34 if f['precision'] else 20
   def surface(p):return f['elevation_ft']*g.FT-((p[0]-f['threshold'][0])*u[0]+(p[1]-f['threshold'][1])*u[1])*1000/ratio
   poly=g.finalpoly(f);result=grid.sweep(poly,surface,mask_pads=True);padbest=(-1e12,None)
+  # 2026-11-02 (Claude): a flag from the 100 m bake is re-screened against the exact evaluator on a 25 m
+  # lattice over the same polygon, pads masked. Bilinear bake triangles that span a pad edge and the capped
+  # ground beside it report metres of 'penetration' the continuous ground does not have.
+  if result['maximum_m']>.05:
+   ex=exact_rescreen(g,poly,surface,F);ex['bake_maximum_m']=result['maximum_m'];result.update(ex)
   for r in F:
    if r['field']=='DRAKE':continue
    pp=clip([tuple(p) for p in g.rect(r,True)],poly)

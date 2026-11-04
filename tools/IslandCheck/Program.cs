@@ -75,7 +75,7 @@ foreach (var f in IslandTerrain.Fields)
     foreach (double a in new[] { -.5, 0, .5 }) foreach (double c in new[] { -.5, 0, .5 })
     {
         var p = f.Centre + f.U * (a * f.Length / 1000) + f.V * (c * f.Width / 1000);
-        double expected = f.Plane(p) - (f.Surface == "water" ? 3 : 0);
+        double expected = f.SurfaceHeight(p) - (f.Surface == "water" ? 3 : 0);   // its plane plus its natural lie (grass/turf)
         Check(Math.Abs(terrain.HeightAt(p.X, p.Y) - expected) < .05, "Pad plane " + f.Id);
     }
 }

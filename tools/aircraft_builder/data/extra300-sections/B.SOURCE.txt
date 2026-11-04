@@ -1,0 +1,16 @@
+CANDIDATE B -- Extra-style "ice cream cone": geometric reshape of Eppler E473/E472 from UIUC, lane-owner algorithm
+ab_sections.py, NOT a published section (lane/claude-inertia run 5d, 2026-11-02).
+Files B-root.dat, B-st1..st8.dat, B-tip.dat (Selig order, 160 cosine panels a surface; exactly what XFOIL was given).
+Base: candidate A's E473 root / E472 tip (published, UIUC Airfoil Coordinates Database via airfoiltools.com; see
+../e473-il.dat.SOURCE.txt, ../e472-il.dat.SOURCE.txt). Reshape (the lane owner's, from
+~/Developer/agent-lanes/aero-playground/extra-airfoil-AB/ab_sections.py, ported to tools/aircraft_builder/extra_sections.py
+reshape()): (1) x-warp x' = x + c x (1-x) moving the maximum thickness to 17.0 % c (root) / 15.5 % c (tip);
+(2) aft sag -A sin^2(pi u) aft of it, A solved so the surface dips 0.30 % c below the straight line from the maximum-
+thickness point to the trailing edge; (3) ordinates rescaled to the base t/c (16.19 % / 12.10 %).
+Root: warp c -0.2522, sag A 0.00632; tip: warp c -0.1745, sag A 0.00880.
+Differences from ab_sections.py (so A and B differ only by the reshape): the base is A's smooth spline in sqrt(x), not a
+linear interpolation of the 61 published points, and the warped section is evaluated exactly. Result: root 16.19 % at
+17.0 % c, y(1.25 %) 2.77 % c (ab_sections: 16.18 % at 16.8 %, 2.74 %); tip 12.10 % at 15.5 % c, y(1.25 %) 2.42 % c
+(ab_sections: 12.10 % at 15.3 %, 2.32 %).
+Stations: the B root and B tip blended with candidate A's weights w.
+Derivation: docs/aircraft/extra-300-airfoil-DERIVATION.md section 1.

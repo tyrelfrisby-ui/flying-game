@@ -28,7 +28,7 @@ namespace FlyingGame.Bridge
 
             // Scale text to the device: OnGUI uses native pixels, so a fixed 16 px is invisible on a
             // ~2600 px Retina phone. Size off the short screen edge (matches the touch buttons).
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.024f);
+            int fs = UiLayout.MinText;
             // From scratch (no GUI.skin base): the built-in skin is stripped on iOS and NREs.
             _style ??= new GUIStyle
             {
@@ -45,8 +45,6 @@ namespace FlyingGame.Bridge
             if (UiLayout.Modal) return;
             // Status line: its own row in the shared text stack, shrunk to fit (no-overlap rule). The keyboard hints only
             // where there is a keyboard (the Mac app).
-            if (!Practice.PracticeController.AnyActive)   // in a lesson the lesson's own lines take the stack (it ran down onto the aircraft)
-                UiLayout.Label(UiLayout.NextLine(lh), $"{Driver.AircraftName}  ·  build {Application.version}  ·  β {Driver.BetaDeg:+0.0;-0.0}°", _style);
             // Mac: the key list gets its own line (sharing the status line shrank both to unreadable).
             if (TouchFlightControls.DeskMode)
                 UiLayout.Label(UiLayout.NextLine(lh), "arrows stick · A/D rudder · W/S power · =/- trim · F flaps · L gear · T turb · C challenge · Y tow / G release · V view lock · R reset", _style);
