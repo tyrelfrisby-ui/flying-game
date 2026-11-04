@@ -24,7 +24,7 @@ namespace FlyingGame.Bridge
     public static class InstrumentLighting
     {
         private static Material _template;
-        private static bool _looked;
+        private static bool _failed;
         /// <summary>One lit copy per source material, kept for the session: every livery of a model shares its dial
         /// materials, and an aeroplane is rebuilt on every respawn.</summary>
         private static readonly Dictionary<Material, Material> Cache = new();
@@ -33,14 +33,14 @@ namespace FlyingGame.Bridge
         {
             get
             {
-                if (!_looked)
+                // Unity-null as well as never loaded: an asset unload (a new scene, Resources.UnloadUnusedAssets) destroys it.
+                if (_template == null && !_failed)
                 {
-                    _looked = true;
                     _template = Resources.Load<Material>("Materials/Instrument");
                     if (_template == null || _template.shader == null || !_template.shader.isSupported)
                     {
                         Debug.LogWarning("[Instruments] Resources/Materials/Instrument (FlyingGame/Instrument) missing or unsupported: instruments keep their glTF materials");
-                        _template = null;
+                        _template = null; _failed = true;
                     }
                 }
                 return _template;
@@ -53,6 +53,8 @@ namespace FlyingGame.Bridge
         public static int Apply(GameObject root)
         {
             if (root == null || Template == null) return 0;
+            // Diagnostics (before/after renders): INSTRUMENT_LIGHT=off leaves the glTF materials as they import.
+            if (System.Environment.GetEnvironmentVariable("INSTRUMENT_LIGHT") == "off") return 0;
             int changed = 0;
             foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
             {
@@ -75,7 +77,10 @@ namespace FlyingGame.Bridge
         public static Material Lit(Material src)
         {
             if (src == null || Template == null || src.shader == Template.shader || !InstrumentFaces.IsInstrument(src.name)) return src;
-            if (Cache.TryGetValue(src, out Material done)) return done;
+            // A cached copy can have been destroyed by an asset unload since (it is not an asset; nothing references it
+            // between aeroplanes): Unity-null then, so make it again. Found by CockpitEyeShots, whose NewScene per shot
+            // left every aeroplane after the first with its glTF dials and no word in the log.
+            if (Cache.TryGetValue(src, out Material done) && done != null) return done;
 
             // glTFast's names (baseColorTexture/Factor, alphaCutoff); anything else through Unity's main texture/colour.
             string texProp = src.HasProperty("baseColorTexture") ? "baseColorTexture" : src.HasProperty("_MainTex") ? "_MainTex" : null;
