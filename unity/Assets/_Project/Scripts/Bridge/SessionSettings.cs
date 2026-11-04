@@ -59,6 +59,8 @@ namespace FlyingGame.Bridge
         public static bool BubbleInstancing = true;
         /// <summary>Magenta 5-second flight path vector with a cone at its tip (owner 2026-09-10).</summary>
         public static bool ShowFlightPath = false;        // owner 2026-10-28: off until asked for
+        /// <summary>The floating N / S / E / W letters above the horizon (Ty 2026-11-03: a setting, off by default).</summary>
+        public static bool ShowCardinalLetters = FlyingGame.Core.CardinalLetters.DefaultShown;
         /// <summary>Real 3-D airframe models where one exists (AirframeModels); off = the procedural airframes.</summary>
         public static bool UseAirframeModels = true;
 
@@ -476,6 +478,7 @@ namespace FlyingGame.Bridge
             BubbleInstancing   = GetBool("set.bubbleInstancing", BubbleInstancing);
             BubbleStreaks      = (Streaks)PlayerPrefs.GetInt("set.bubbleStreaks", (int)BubbleStreaks);
             ShowFlightPath     = GetBool("set.flightPath", ShowFlightPath);
+            ShowCardinalLetters = GetBool(FlyingGame.Core.CardinalLetters.PrefKey, ShowCardinalLetters);
             ShowForceVectors   = GetBool("set.forceVectors", ShowForceVectors);
             FlightTestData     = GetBool("set.flightTestData", FlightTestData);
             ShowAtmosphereMap  = GetBool("set.atmosphereMap", ShowAtmosphereMap);
@@ -514,6 +517,7 @@ namespace FlyingGame.Bridge
             SetBool("set.bubbleInstancing", BubbleInstancing);
             PlayerPrefs.SetInt("set.bubbleStreaks", (int)BubbleStreaks);
             SetBool("set.flightPath", ShowFlightPath);
+            SetBool(FlyingGame.Core.CardinalLetters.PrefKey, ShowCardinalLetters);
             SetBool("set.forceVectors", ShowForceVectors);
             SetBool("set.flightTestData", FlightTestData);
             SetBool("set.atmosphereMap", ShowAtmosphereMap);

@@ -1,4 +1,13 @@
 ## NEEDS YOU
+- **N/S/E/W LETTERS: A SETTING, OFF BY DEFAULT, AND AT INFINITY WHEN ON; BUILT 2026.1103.2040, NOT INSTALLED (Claude,
+  2026-11-03, lane/claude-nsew-toggle `07558784`, from island-nav `e8fd1370`):** OPTIONS › Aids › "N / S / E / W
+  letters on the horizon", off by default, saved as `set.cardinalLetters`. When on, each letter rides with the
+  camera's position (not its rotation) 15 km out on its bearing, lower edge 2° and top 5° above horizontal, so you
+  cannot fly up to one and it keeps the same size at any altitude. Arena 1 "Cardinal turn" does not need them: it is
+  scored on heading and sideslip, so with letters off you fly it on the HUD heading / heading card / dials.
+  `** BUILD SUCCEEDED **`, 0 `error CS`. Not looked at in a render yet: **please switch them on and check the size
+  and height above the horizon.** Not merged; ProjectSettings/GraphicsSettings changes from the build not committed.
+
 - **FRANK CHURCH VALLEYS MERGED AND INSTALLED: `2026.1103.2022` (Grok Bot, 2026-11-03 20:28 PST, lane/claude-island-nav
   `d9730e24`, merge of lane/claude-frank-church-valleys `a0949d92`):** Ty approved the renders ("Yes, merge the Frank Church
   valleys and install"). All nine strips are now on the river floor or low benches with 239-711 m canyon walls; one-way:
@@ -1516,6 +1525,48 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 — Claude · lane/claude-nsew-toggle · N/S/E/W letters: a setting, off by default, drawn at infinity
+Ty: make the floating N/S/E/W letters a toggle in Settings, OFF by default, persisted; added scope: when on they must
+always sit far away just above the horizon, never close to the aeroplane — at effectively infinite distance,
+following the camera's position but not its rotation, the same angular size at any altitude.
+
+**Before:** four TextMeshes fixed 2.5 km from the world origin at 600 m, always on. Fly 2.5 km north and you were in
+the N; climb past 600 m and the letters sat below you.
+
+**Now:**
+- `FlyingGame.Core.CardinalLetters`: `DefaultShown = false`, `PrefKey = "set.cardinalLetters"`, and the placement.
+  Card centre = camera + (dir·15 000 m, up), with `up` chosen so the card's lower edge is 2° and its top 5° above
+  true horizontal. The visible horizon dips below horizontal as you climb, so the letters are always above it. The
+  offset does not depend on the camera at all, so bearing, elevation and angular size are the same everywhere.
+  15 km sits inside the main camera's 20 km far plane; relief inside 15 km still hides a letter as a ridge would.
+- `CardinalLetterVisibility` (one per letter): moves the letter in `Camera.onPreCull` for `Camera.main` (after
+  ChaseCamera/CockpitView have placed the camera), scales the glyph to the card height from the renderer's local
+  bounds, and switches the RENDERER on the setting. It switches the renderer rather than the GameObject because
+  Side2DView hides the letters by deactivating them and restores only the ones it turned off.
+- `SessionSettings.ShowCardinalLetters` is loaded/saved with the other `set.*` prefs. A fresh install and anyone
+  with saved prefs but no `set.cardinalLetters` key get off. The row is on OPTIONS › Aids, next to the other
+  visual aids.
+
+**Challenge lessons:** the only lesson with cardinal callouts is Arena 1 `a1c3-cardinal-turn` (callouts "West turn
+left to north", "Roll out north"). It is scored from the aircraft state: `headingRad` (setup: hold current, ±8°;
+rollout: 000°, ±6°) and `betaRad`. No challenge, lesson or practice looks up the letters (the only other reference is
+Side2DView hiding them). With letters off the lesson behaves exactly the same; the pilot reads heading off the HUD
+tape/readout, the nav-radio heading card (on by default) or the dials, and the live band strip shows in/out of band.
+
+**Tests:** `CardinalLettersTests` (5, literal values): default off and the key; N/E/S/W bearings 0/90/180/−90; lower
+and upper edges 2° and 5° and 15 000 m range from three camera positions (ground, 3 048 m, far off origin); offset
+independent of camera position, far corner < 20 000 m; a1c3 graded on `headingRad, headingRad, betaRad` with its two
+callout keys. `CardinalLettersTests|ChallengeTests`: 8/8 passed.
+
+**Build:** deploy.sh's build steps (Unity export + xcodebuild), with lane-private `/private/tmp/flyinggame-ios-nsew`
+and `-dd-nsew` and no install step, as asked. Waited for claude-ski-physics' Unity batch to finish first.
+0 `error CS`, `** BUILD SUCCEEDED **`, bundle 2026.1103.2040, not installed. The bundleVersion bump and the
+GraphicsSettings change from the build are not committed. unity/Library is a symlink to an APFS clone of island-nav's
+cache (`unity-Library-claude-nsew-toggle`).
+
+**Not done:** no seat-eye render of the letters, so their on-screen size and the 2° clearance are checked by
+arithmetic only. No gate approved.
+
 ### 2026-11-03 — Claude · lane/claude-pitts-spin (run #4) · flat-spin aileron upright/inverted: the separated aileron load, the mirror test
 Ty, on 2026.1103.1622: "the inverted flat isn't quite flat enough now and full opposite aileron actually reduces the spin
 rate and lowers the nose which is not correct". Upright flat feels good, keep it. Ty suspected Cm(β). Merged
