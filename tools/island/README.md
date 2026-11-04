@@ -42,3 +42,12 @@ frame/predicate behavior, the Bighorn Crown bank profile, and zero allocations a
 water timings and normal/predicate timings at fresh coordinates (five trials; median), plus the
 north-3245-m cliff profile. [Recorded query validation](../../docs/pending/island-water-normal-checks.json).
 The required Unity/iOS deploy build is still a separate gate; a .NET test or source compile is not that build.
+
+Frank Church valleys (2026-11-03, lane/claude-frank-church-valleys): the nine Middle Fork strips and their "C2-*"
+river canyons are authored by `python3 tools/island/frank_church_layout.py` (run from the repo root; it rewrites
+those entries of `docs/pending/island-spec.json` in place and prints each strip's bench above its river). Then run
+`generate_runtime.py`, the TerrainGen `generate`, and `FrankChurchTests`. Backcountry strips carry no Part 77 visual
+surface (`generate_island.runway_finals`): their approaches follow the canyon, and `FrankChurchTests` asserts the
+approach corridors instead. TerrainGen holds a canyon with "walls" up beside its floor as a lower bound, holds an
+"exact" floor at its grade, leans the walls back within 400 m of a canyon strip, and raises a headwall past each
+one-way strip's high end (`Constraints.WallFloor`).

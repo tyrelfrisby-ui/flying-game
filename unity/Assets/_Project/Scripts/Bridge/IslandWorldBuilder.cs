@@ -108,8 +108,10 @@ namespace FlyingGame.Bridge
                 double length = f.Length, offset = 0; // Interior runway paint/deck stays beneath the opaque rock roof.
                 Color surface = f.Surface == "asphalt" || f.Surface == "paved" ? new Color(.15f, .17f, .18f) : f.Surface.Contains("grass") || f.Surface == "turf" ? new Color(.44f, .50f, .27f) : f.Surface == "hard sand" ? Sand : new Color(.58f, .54f, .45f);
                 SurfaceQuad(b, f, length, f.Width, f.Elevation + .04, surface, offset);
-                // Shoulder planes are authored at the exact field datum,60m beyond both edges.
-                foreach (int side in new[] { -1, 1 }) SurfaceQuad(b, f, length, 60, f.Elevation + .025, new Color(.47f, .49f, .32f), offset, side * (f.Width / 2 + 30));
+                // Shoulder planes are authored at the exact field datum, the pad's own flat shoulder beyond both edges
+                // (60 m everywhere but the Frank Church canyon strips, whose 30-40 m shoulders end at the river bank:
+                // a 60 m plane there hung in the air over the bank).
+                foreach (int side in new[] { -1, 1 }) SurfaceQuad(b, f, length, f.Shoulder, f.Elevation + .025, new Color(.47f, .49f, .32f), offset, side * (f.Width / 2 + f.Shoulder / 2));
                 for (double a = -f.Length / 2 + 40; a < -f.Length / 2 + length - 20; a += 60) SurfaceQuad(b, f, 30, .9, f.Elevation + .06, White, a);
                 string[] nums = f.Numbers.Split('/');
                 for (int end = 0; end < (f.Field == "DRAKE" ? 1 : 2); end++)

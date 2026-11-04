@@ -69,7 +69,7 @@ public sealed class Constraints
             }
             var d = p - c; double ad = d.Dot(f.U), cr = d.Dot(f.V);
             if (Math.Abs(ad) <= l / 2 + f.EndShoulder / 1000 && Math.Abs(cr) <= f.Width / 2000 + f.Shoulder / 1000)
-                SetFix(k, f.Elevation + Math.Clamp(ad, -l / 2, l / 2) * 1000 * f.Slope / 100 - (f.Surface == "water" ? W["height_field"].N("water_lane_bed_offset_m") : 0));
+                SetFix(k, f.Elevation + Math.Clamp(ad, -l / 2 - f.SlopeShoulder / 1000, l / 2 + f.SlopeShoulder / 1000) * 1000 * f.Slope / 100 - (f.Surface == "water" ? W["height_field"].N("water_lane_bed_offset_m") : 0));
         }
         foreach (var q in W["mesa_pads"].Items)
         {
@@ -123,7 +123,11 @@ public sealed class Constraints
                 double len = (path[i].Point - path[i - 1].Point).Length; var (d, t0) = IslandTerrain.Segment(p, path[i - 1].Point, path[i].Point);
                 double t = (run + t0 * len) / total; run += len;
                 double floorW = fw[0].Number() + (fw[^1].Number() - fw[0].Number()) * t;
-                if (d * 1000 <= floorW / 2) SetHi(k, (zf[0].Number() + (zf[^1].Number() - zf[0].Number()) * t) * Ft);
+                // A canyon whose floor is "exact" (the Frank Church strip reaches) holds its floor AT the authored grade,
+                // so the erosion cannot dig the river below its strips' benches or leave a hump in it; the others (and the
+                // gorges where a river leaves for lower ground) keep the floor as a ceiling only.
+                double fz = (zf[0].Number() + (zf[^1].Number() - zf[0].Number()) * t) * Ft;
+                if (d * 1000 <= floorW / 2) { if (q.S("floor") == "exact") SetFix(k, fz); else SetHi(k, fz); }
             }
         }
         // Clearance budgets, exactly where the runtime would cap (including its outer blend), with a
@@ -146,5 +150,86 @@ public sealed class Constraints
             // one (whose surface starts level with the runway end, so a bigger margin would dig a moat round it).
             if (dd < e.N("blend")) SetHi(k, e.N("elevation_m") + Math.Max(0, along) * 1000 / e.N("ratio") - margin - (margin > 0 ? 8 : 2));
         }
+        // Beside a canyon strip the wall leans back: within 400 m of its pad the ground stands no higher than the pad's
+        // plane plus 0.7 m a metre (35 degrees), so the pad's blend meets a slope, not the foot of a cliff. (Without
+        // it the blend's outer edge met walls rising 20 m in 5 m beside Sulphur Creek.) Not past a one-way strip's high
+        // end, where the wall is the point.
+        foreach (var f in IslandTerrain.Fields)
+        {
+            if (!f.Definition.Has("river")) continue;
+            var d = p - f.Centre; double ad = d.Dot(f.U), cr = d.Dot(f.V);
+            double da = Math.Max(0, Math.Abs(ad) - f.Length / 2000 - f.EndShoulder / 1000), db = Math.Max(0, Math.Abs(cr) - f.Width / 2000 - f.Shoulder / 1000);
+            double dd = Math.Sqrt(da * da + db * db) * 1000; if (dd <= 0 || dd > 400) continue;
+            if (f.Definition.Has("one_way_true_deg") && ad > f.Length / 2000) continue;
+            SetHi(k, f.Plane(p) + 25 + .7 * dd);
+        }
+        // Canyon walls, and the headwall past a one-way strip: floors, never ceilings, and kept 25 m under any
+        // runtime ceiling so the runtime cap never has a wall to shave.
+        double sides = WallFloor(p);
+        if (double.IsFinite(sides)) SetLo(k, Math.Min(sides, Hi[k] - 25));
+    }
+
+    // ---- The Frank Church valleys (2026-11-03, lane/claude-frank-church-valleys) ------------------------------
+    // Ty, flying the island: the backcountry strips sat on mesa tops, "always deep in the valleys" in the real
+    // place. A canyon used to hold only its THALWEG down (the floor is a ceiling above) and leave its walls to the
+    // erosion, and between 1,400 m plateau and a membrane through strip anchors the erosion made a shallow dish.
+    // A canyon that carries "walls" now also holds its sides UP: within run_m of the floor's edge the ground may not
+    // stand lower than a smoothstep from the floor to top_ft, and it stays at least top_ft for crest_m more; past
+    // that the relief is free again, so the walls end in ridges, not a table. It is a lower bound only — the
+    // erosion still cuts gullies into anything above it — and it is measured from the NEAREST walled thalweg, so
+    // a tributary's wall never stands on the main stem's floor at a junction.
+    sealed record WallCanyon(IslandPoint A, IslandPoint B, double Z0, double Z1, double Fw0, double Fw1, double Top, double Run, double Crest);
+    static readonly WallCanyon[] WallCanyons = W["canyons"].Items.Where(q => q.Has("walls")).SelectMany(q =>
+    {
+        var path = q["path"].Items; var fw = q["floor_width_m"].Items; var zf = q["floor_ft"].Items; var w = q["walls"];
+        double total = 0; for (int i = 1; i < path.Length; i++) total += (path[i].Point - path[i - 1].Point).Length;
+        var list = new List<WallCanyon>(); double run = 0;
+        for (int i = 1; i < path.Length; i++)
+        {
+            double len = (path[i].Point - path[i - 1].Point).Length, t0 = run / total, t1 = (run + len) / total; run += len;
+            double Z(double t) => (zf[0].Number() + (zf[^1].Number() - zf[0].Number()) * t) * Ft;
+            double F(double t) => fw[0].Number() + (fw[^1].Number() - fw[0].Number()) * t;
+            list.Add(new WallCanyon(path[i - 1].Point, path[i].Point, Z(t0), Z(t1), F(t0), F(t1), w.N("top_ft") * Ft, w.N("run_m"), w.N("crest_m")));
+        }
+        return list;
+    }).ToArray();
+    /// <summary>The one-way strips: landing heading (uphill), the high end, and its elevation.</summary>
+    sealed record OneWay(IslandField F, IslandPoint High, double HighZ);
+    static readonly OneWay[] OneWays = IslandTerrain.Fields.Where(f => f.Definition.Has("one_way_true_deg"))
+        .Select(f => new OneWay(f, f.Centre + f.U * (f.Length / 2000), f.Elevation + f.Length / 2 * f.Slope / 100)).ToArray();
+
+    static double WallFloor(IslandPoint p)
+    {
+        double lo = double.NegativeInfinity;
+        if (WallCanyons.Length > 0)
+        {
+            double best = double.PositiveInfinity; WallCanyon? near = null; double nt = 0;
+            foreach (var c in WallCanyons) { var (d, t) = IslandTerrain.Segment(p, c.A, c.B); if (d < best) { best = d; near = c; nt = t; } }
+            double dm = best * 1000, z = near!.Z0 + (near.Z1 - near.Z0) * nt, half = (near.Fw0 + (near.Fw1 - near.Fw0) * nt) / 2;
+            if (dm > half && dm < half + near.Run + near.Crest)
+                lo = z - 30 + (Math.Max(z, near.Top) - z + 30) * Smooth((dm - half) / near.Run);
+        }
+        // Never bury a landing site: within a kilometre of any pad the floor gives way to the pad's own plane plus
+        // half the distance outside its shoulders, so the wall rises behind a strip instead of standing on it.
+        if (double.IsFinite(lo))
+            foreach (var f in IslandTerrain.Fields)
+            {
+                var d = p - f.Centre; double ad = d.Dot(f.U), cr = d.Dot(f.V);
+                double da = Math.Max(0, Math.Abs(ad) - f.Length / 2000 - f.EndShoulder / 1000), db = Math.Max(0, Math.Abs(cr) - f.Width / 2000 - f.Shoulder / 1000);
+                double dd = Math.Sqrt(da * da + db * db) * 1000; if (dd > 1000) continue;
+                lo = Math.Min(lo, f.Plane(p) + .5 * dd);
+            }
+        // A one-way strip lands uphill INTO the ground: past its high end, within a cone about its axis, the ground
+        // climbs at least 0.6 m a metre for 600 m (31 degrees). That is the wall that makes a go-around impossible.
+        foreach (var o in OneWays)
+        {
+            var d = p - o.High; double along = d.Dot(o.F.U) * 1000, cross = Math.Abs(d.Dot(o.F.V)) * 1000;
+            // Continuous everywhere: it rises from the end shoulder, falls away to either side of the axis and fades out
+            // past 650 m, so it never switches off into a step (a hard cone edge made a 30 m cliff beside Dewey Moore).
+            double from = o.F.EndShoulder; if (along < from) continue;
+            double head = o.HighZ + .6 * Math.Min(along - from, 600) - 1.2 * Math.Max(0, cross - 60 - .3 * along) - 1.2 * Math.Max(0, along - 650);
+            lo = Math.Max(lo, head);
+        }
+        return lo;
     }
 }

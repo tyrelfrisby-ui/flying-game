@@ -17,9 +17,10 @@ namespace FlyingGame.Core;
 /// friendly one in the trees, and Dewey Moore still slopes.
 ///
 /// THE COUNTRY. A canyon system cut a kilometre into the plateau, the way the Middle Fork cuts the Salmon
-/// River mountains, with a river in the bottom. Some strips are benches on the canyon walls, some are down on
-/// the bars beside the water, and the high ones — Chamberlain, Big Creek, Thomas Creek — are up on the
-/// plateau itself, which is what makes the altitude difference between them worth flying.
+/// River mountains, with a river in the bottom. (That was the legacy world below, whose canyon this class still
+/// computes for the legacy terrain. On the ISLAND, which is what is flown, the strips come from island-spec.json
+/// and the canyons are the island's own "C2-*" valleys; there, since 2026-11-03, none of them is up on a plateau
+/// or a rim: every one is down on its river — see <see cref="Strips"/>.)
 /// </summary>
 public static class FrankChurch
 {
@@ -56,16 +57,32 @@ public static class FrankChurch
 
         /// <paramref name="depthBelowRimM"/>: how far below the plateau rim the strip sits, 0 for one up on the
         /// rim itself. Depth, not elevation, so that raising the plateau raises the whole canyon with it.
+        /// <summary>The river whose valley floor the strip lies on (island-spec.json "river").</summary>
+        public readonly string River;
+        /// <summary>What a briefing reads: the headings you may land on and take off on, and whether a go-around
+        /// exists once committed. A one-way strip lands uphill on <see cref="OneWayInHeadingDeg"/> toward a closing
+        /// wall and leaves downhill, down-canyon, on the reciprocal; a two-way strip goes either way.</summary>
+        public readonly double[] LandingHeadingsDeg, TakeoffHeadingsDeg;
+        public readonly string GoAround;
+
         public Strip(string name, double x, double y, double headingDeg, double lengthM, double widthM,
                      double depthBelowRimM, double slopePercent, Ground surface, double? oneWayInHeadingDeg,
-                     string character)
+                     string character, string river = "")
         {
             Name = name; X = x; Y = y; HeadingDeg = headingDeg; LengthM = lengthM; WidthM = widthM;
             ElevationM = RimM - depthBelowRimM; SlopePercent = slopePercent; Surface = surface;
-            OneWayInHeadingDeg = oneWayInHeadingDeg; Character = character;
+            OneWayInHeadingDeg = oneWayInHeadingDeg; Character = character; River = river;
+            LandingHeadingsDeg = oneWayInHeadingDeg is double w ? new[] { w } : new[] { headingDeg, (headingDeg + 180) % 360 };
+            TakeoffHeadingsDeg = oneWayInHeadingDeg is double v ? new[] { (v + 180) % 360 } : LandingHeadingsDeg;
+            GoAround = oneWayInHeadingDeg.HasValue ? "none once committed: land uphill toward the closing wall, take off downhill and down-canyon"
+                                                   : "down-canyon either way";
         }
 
         public bool OneWay => OneWayInHeadingDeg.HasValue;
+        /// <summary>A one-way strip has no go-around past its decision point.</summary>
+        public bool NoGoAround => OneWay;
+        /// <summary>The one direction a one-way strip is left in: downhill, the reciprocal of the landing heading.</summary>
+        public double? TakeoffHeadingDeg => OneWayInHeadingDeg is double w ? (w + 180) % 360 : (double?)null;
         public double LengthFt => LengthM * 3.28084;
 
         /// <summary>Along the strip (0 at the threshold you land on, 1 at the far end) and across it.</summary>
@@ -101,22 +118,21 @@ public static class FrankChurch
     public const double BlendM = 240;
 
     /// <summary>
-    /// Ten of the famous ones. Lengths and slopes are the real strips'; the elevations are this world's.
-    /// </summary>
-    /// <summary>
-    /// Ten of the famous ones. Lengths and slopes are the real strips'; the positions were not chosen on a map
-    /// but MEASURED against the canyon — every one sits where the ground can actually hold it. Four are up on
-    /// the plateau rim at 7,000 ft, four are benches cut into the canyon walls, and two are bars down beside
-    /// the water, which is roughly how the real ones are distributed.
+    /// The nine Middle Fork strips of the island (island-spec.json "backcountry_strips"; Johnson Creek is 3U2).
+    /// Lengths are the real strips'. Since 2026-11-03 (lane/claude-frank-church-valleys) every one lies DEEP in a
+    /// river valley, as the real ones do — Ty, who flew them on the plateau: "always deep in the valleys". Each is on
+    /// the floor beside its river or a low bench above it (5-60 m), with canyon walls rising hundreds of metres on
+    /// both sides. The rivers are the "C2-*" canyons: the Middle Fork with Sulphur Creek and Big Creek coming in,
+    /// and Chamberlain Creek under Frank Church's south face; each falls downstream, and so do the strips on it.
     ///
-    /// The one-way strips point up the FALL LINE of their wall, 20° off it: the far end climbs into the
-    /// mountain and the approach end hangs over the canyon, so there is no going around. That is Soldier Bar
-    /// and Dewey Moore exactly.
+    /// Three are ONE-WAY: Cabin Creek, Soldier Bar and Dewey Moore. You land uphill (4.5-7 %) on
+    /// <see cref="Strip.OneWayInHeadingDeg"/>, toward a canyon head or wall that closes past the far end, so there
+    /// is no go-around once committed; you take off the other way, downhill and down-canyon.
     /// </summary>
     public static readonly Strip[] Strips = IslandTerrain.World["backcountry_strips"].Items.Select(d =>
         new Strip(d.S("id"),d["centre"].Point.X,d["centre"].Point.Y,d.N("heading_true_deg"),d.N("length_m"),d.N("width_m"),
             RimM-d.N("elevation_ft")*IslandTerrain.Feet,d.N("slope_percent"),d.S("surface")=="dirt"?Ground.Dirt:(d.S("surface")=="turf"||d.S("surface").Contains("grass"))?Ground.Turf:Ground.Gravel,
-            d.Has("one_way_true_deg")?d.N("one_way_true_deg"):(double?)null,"Approved island Middle Fork strip; see island-spec.json.")).ToArray();
+            d.Has("one_way_true_deg")?d.N("one_way_true_deg"):(double?)null,"Approved island Middle Fork strip; see island-spec.json.",d.S("river"))).ToArray();
 
     /// <summary>How far outside the block the canyon's own ground still wins — the footprint it FLATTENS.</summary>
     public const double FootprintPadM = 400;

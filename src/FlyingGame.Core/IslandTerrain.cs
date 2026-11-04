@@ -210,11 +210,17 @@ public sealed class IslandField
     public readonly string Id, Field, Surface, Numbers;
     public readonly IslandPoint Centre, U, V;
     public readonly double Heading, Length, Width, Elevation, Slope, Shoulder, EndShoulder, Blend;
+    /// <summary>How far past each end (m) the strip's slope carries on through its end shoulder: 0 (the shoulder is
+    /// level at the end's height) unless the pad says "sloped_end_shoulders". The Frank Church canyon strips say so
+    /// (2026-11-03): at 4.5-7 % a level shoulder put a kink on the threshold that a 25 m mesh triangle cut across,
+    /// up to 0.4 m off the ground the wheels use, burying the threshold paint at the low end.</summary>
+    public readonly double SlopeShoulder;
     public IslandField(IslandValue d)
     {
         Definition = d; Id = d.S("key"); Field = d.S("field"); Centre = d["centre"].Point; Heading = d.N("heading_true_deg"); U = IslandPoint.Heading(Heading); V = new(U.N, -U.E);
         Surface = d.S("surface"); Numbers = d.S("numbers_magnetic", d.S("id")); Length = d.N("length_m", d.N("length_ft") * IslandTerrain.Feet); Width = d.N("width_m", d.N("width_ft") * IslandTerrain.Feet);
         Elevation = d.N("elevation_ft") * IslandTerrain.Feet; Slope = d.N("slope_percent"); Shoulder = d["pad"].N("shoulder_m", 60); EndShoulder = d["pad"].N("end_shoulder_m", 60); Blend = d["pad"].N("blend_m", 250);
+        SlopeShoulder = d["pad"]["sloped_end_shoulders"].Flag() ? EndShoulder : 0;
         // Grass and turf strips lie the way the field lies (NaturalShapeParams); paved, gravel, dirt and sand stay
         // planes, and so does Drake's, whose strip runs on into the cave under an authored rock roof.
         Shape = (Surface.Contains("grass") || Surface == "turf") && Field != "DRAKE" ? NaturalShapeParams.For(Id, Length, Width) : NaturalShapeParams.Flat;
@@ -224,5 +230,5 @@ public sealed class IslandField
     /// <summary>The strip's surface at p: its plane plus its natural shape (IslandHeightIndex.StripShape).</summary>
     public double SurfaceHeight(IslandPoint p) { var d = p - Centre; return Plane(p) + IslandHeightIndex.StripShape(this, d.Dot(U), d.Dot(V)); }
     public bool Contains(IslandPoint p, double margin = 0) { var d = p - Centre; return Math.Abs(d.Dot(U)) <= Length / 2000 + margin / 1000 && Math.Abs(d.Dot(V)) <= Width / 2000 + margin / 1000; }
-    public double Plane(IslandPoint p) => Elevation + Math.Clamp((p - Centre).Dot(U) * 1000, -Length / 2, Length / 2) * Slope / 100;
+    public double Plane(IslandPoint p) => Elevation + Math.Clamp((p - Centre).Dot(U) * 1000, -Length / 2 - SlopeShoulder, Length / 2 + SlopeShoulder) * Slope / 100;
 }
