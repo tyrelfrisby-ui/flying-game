@@ -181,4 +181,43 @@ public sealed class TvLayoutTests
     [Fact]
     public void ANothingBoxGivesNoCells()
         => Assert.Empty(TvPadLayout.Layout(TvPadLayout.Groups(true, true, true, true), false, 0, 0, 0, 500, 4));
+
+    // ---- the TV's analog engine row: below the aeroplane (Ty 2026-11-04 07:33) ----
+    //
+    // 1920 × 1080: s = 1080; title-safe 27 px top and bottom, 48 px at the sides; Margin = 0.018 s = 19.44;
+    // Gap = 0.012 s = 12.96. Pad sizes (no sticks on a TV): RowWidth = min(avail, 820/1206 s) = 734.33;
+    // EngineBlockHeight = 2 × 67.5/1206 s + max(22, 33/1206 s) × 1.05 = 120.896 + 31.030 = 151.925.
+
+    [Fact]
+    public void OnA1080pTvTheEngineRowSitsAlongTheBottomEdge()
+    {
+        double avail = 1920 - 2 * 48 - 2 * 19.44;
+        var (x, y, w, h) = TvEngineRow.Below(1920, 1080, 1080, 27, 19.44, 12.96, avail, flightRowBottom: 300);
+        Assert.Equal(734.33, w, 2);
+        Assert.Equal(151.925, h, 3);
+        Assert.Equal((1920 - 734.33) / 2, x, 2);         // centred
+        Assert.Equal(1080 - 27 - 19.44 - 151.925, y, 3);  // = 881.635: its bottom on the title-safe margin
+    }
+
+    [Fact]
+    public void TheEngineRowIsBelowTheMiddleOfThePictureWhereTheChaseCameraHoldsTheAeroplane()
+    {
+        foreach (var (w, h) in new[] { (1920, 1080), (1920, 1200), (1920, 1440), (1920, 804) })
+        {
+            double s = Math.Min(w, h), ins = 0.025 * h, m = 0.018 * s;
+            var r = TvEngineRow.Below(w, h, s, ins, m, 0.012 * s, w - 2 * 0.025 * w - 2 * m, flightRowBottom: 0.3 * h);
+            Assert.True(r.Y > h * 0.6, $"{w}×{h}: engine row top {r.Y:F0} is not in the bottom part of the picture");
+            Assert.True(r.Y + r.H <= h - ins + 1e-6, $"{w}×{h}: past the title-safe margin");
+            Assert.True(r.X >= 0.025 * w && r.X + r.W <= w - 0.025 * w, $"{w}×{h}: outside the side margins");
+        }
+    }
+
+    [Fact]
+    public void OnAPictureTooShortForBothItNeverOverlapsTheFlightRow()
+    {
+        // A 360 px tall picture: the bottom-edge position, 360 − 10 − 7.2 − (40.30 + 23.10) = 279.4, would be above the
+        // flight row's bottom (300), so it stops a gap (4.8) under it instead.
+        var (_, y, _, _) = TvEngineRow.Below(1920, 360, 360, 10, 7.2, 4.8, 1800, flightRowBottom: 300);
+        Assert.Equal(304.8, y, 6);
+    }
 }

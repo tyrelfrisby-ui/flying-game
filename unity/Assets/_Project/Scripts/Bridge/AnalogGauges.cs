@@ -214,6 +214,15 @@ namespace FlyingGame.Bridge
             bool glider = aircraft.Config.Propulsion == null;
             // Owner 2026-11-02: the engine row goes BELOW the airplane where the controls layout published room for it.
             Rect engineBelow = UiLayout.EngineRowRect;
+            if (UiSurface.IsTv)
+            {
+                // TV MODE (Ty 2026-11-04 07:33: "the engine instruments must go BELOW the airplane, not above — too crowded
+                // above"): the flight row keeps the top, the engine row the TV's bottom edge (Core TvEngineRow).
+                var (ex, ey, ew, eh) = FlyingGame.Core.TvEngineRow.Below(UiSurface.Width, UiSurface.Height, s, UiLayout.SafeBottom,
+                    UiLayout.Margin, UiLayout.Gap, UiSurface.Width - UiLayout.SafeLeft - UiLayout.SafeRight - 2f * UiLayout.Margin,
+                    FlyingGame.Core.HudInstrumentLayout.Bottom(UiLayout.ToolbarBottom, UiLayout.Gap, s, true, false));
+                engineBelow = new Rect((float)ex, (float)ey, (float)ew, (float)eh);
+            }
             bool belowPlane = !glider && engineBelow.width > 0f && !ChaseCamera.InCockpit;
             UiLayout.EngineRowShown = !glider && !belowPlane;
             Vector2 asi, alt, gc, vc;

@@ -1,4 +1,15 @@
 ## NEEDS YOU
+- **TV MODE: ENGINE DIALS NOW BELOW THE AIRPLANE ON THE TV (Ty 07:33) — BUILT, NOT INSTALLED, NOT MERGED (Claude,
+  2026-11-04, lane/claude-tv-companion).** With analog instruments in TV mode the flight row (ASI, ALT, G, VSI) keeps the
+  top of the TV and the engine row (TACH, THR, FLOW, FUEL) is centred along the TV's bottom edge inside the title-safe
+  margin, below the aircraft. The cockpit view and the phone are unchanged. `deploy.sh` `** BUILD SUCCEEDED **` (stamp
+  `2026.1104.0737`), 0 `error CS`; placeholder UDID, so installed on **no** device. Before and after renders:
+  `renders/tv/v1/tv-tv-touch-analog-landscape.png` → `renders/tv/v2/tv-tv-touch-analog-landscape.png`.
+  **Parity:** `tools/check-parity.sh` is not on this branch; run from `lane/claude-parity` against
+  `lane/claude-quest-islandnav` it reports **FAIL**: 45 commits not on the Quest lane, 42 of them island-nav's own backlog
+  (same as this morning's audit). Nothing to fix in this lane; the Quest lane needs the island-nav merge, and later
+  this lane's.
+
 - **TV MODE (AirPlay / HDMI): GAME ON THE TV, PHONE AS THE CONTROLLER; TV + PAD BUTTON GRID — BUILT, NOT INSTALLED,
   NOT MERGED (Claude, 2026-11-04, lane/claude-tv-companion `e5051bdc`, plan `docs/TV-COMPANION-PLAN.md` `63c858c4`).**
   `deploy.sh` `** BUILD SUCCEEDED **` (stamp `2026.1104.0658`), 0 `error CS`; run with a placeholder UDID so it installed
@@ -1843,6 +1854,20 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 07:45 — Claude · lane/claude-tv-companion · TV mode: analog engine row below the airplane (Ty 07:33)
+- **Ask:** "in TV mode with analog instruments, the engine instruments must go BELOW the airplane/main view, not above
+  (too crowded above)."
+- **Done:** Core `TvEngineRow.Below` places the TV's engine row centred on its bottom edge inside the title-safe margin,
+  at the full-width (pad) sizes, and never above the flight row. `AnalogGauges` uses it in the TV pass through its
+  existing "engine row below the airplane" path; the phone and the cockpit view are untouched.
+- **Tests:** FlightTests `TvLayoutTests` 42/42 (+3: 1080p literals worked by hand, i.e. the row is 734.33 × 151.925 at
+  y 881.635; bottom part of the picture for 16:9, 16:10, 4:3 and 21:9; never overlaps the flight row on a short picture).
+  Unity EditMode 7/7. Two of my first literals were wrong (rounding, and a "short" picture that was not short enough);
+  the code was right, and I corrected the test arithmetic.
+- **Build:** `deploy.sh` `** BUILD SUCCEEDED **` `2026.1104.0737`, 0 `error CS`, installed on no device.
+  ProjectSettings/GraphicsSettings and the StreamingAssets re-sync were restored and not committed.
+- **Renders** (`AERO_SELFTEST=tvshots`, temporary Mono capture player, not committed): `renders/tv/v2/`. I looked at the TV
+  analog, gamepad-analog and cockpit frames: the engine row is under the aircraft and the top holds only the flight row.
 ### 2026-11-04 — Claude · lane/claude-tv-companion (off island-nav aeb9695a) · TV mode: game on the TV, phone as the controller
 - **Ask** (Ty): AirPlay/HDMI mirroring clean; game full size on a second screen with the phone as a full-screen touch
   controller; the same with a Bluetooth pad (phone becomes a button pad); a Mac companion over the LAN following Glass's

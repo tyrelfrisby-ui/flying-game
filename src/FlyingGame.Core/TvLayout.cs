@@ -175,3 +175,28 @@ public static class TvPadLayout
         _ => b.ToString().ToUpperInvariant(),
     };
 }
+
+/// <summary>
+/// Where the analog ENGINE row goes on the TV (Ty, 2026-11-04 07:33: "in TV mode with analog instruments, the engine
+/// instruments must go BELOW the airplane/main view, not above — too crowded above"). The flight row keeps the top;
+/// the engine row is centred along the TV's bottom edge inside the title-safe margin, at the full-width sizes the phone
+/// uses with a pad (there are no sticks on a TV). The chase camera holds the aeroplane in the middle of the picture, so
+/// the bottom edge is below it. GUI coordinates (top-left origin), px.
+/// </summary>
+public static class TvEngineRow
+{
+    /// <summary>
+    /// The engine row's box on a <paramref name="tvW"/> × <paramref name="tvH"/> picture whose short edge is
+    /// <paramref name="s"/>. <paramref name="flightRowBottom"/> is the bottom of the flight row (dials and their value
+    /// line): on a picture too short for both, the engine row stops a <paramref name="gap"/> under it rather than
+    /// overlapping it. <paramref name="availableWidth"/> is the width inside the side margins.
+    /// </summary>
+    public static (double X, double Y, double W, double H) Below(double tvW, double tvH, double s, double safeBottom,
+        double margin, double gap, double availableWidth, double flightRowBottom)
+    {
+        double w = HudInstrumentLayout.RowWidth(s, availableWidth, gamepad: true);
+        double h = HudInstrumentLayout.EngineBlockHeight(s, gamepad: true);
+        double y = Math.Max(flightRowBottom + gap, tvH - safeBottom - margin - h);
+        return ((tvW - w) / 2, y, w, h);
+    }
+}
