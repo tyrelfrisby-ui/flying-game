@@ -1,4 +1,19 @@
 ## NEEDS YOU
+- **TY'S DECISION (2026-11-03): "Grob looks good add it" — MERGE NOT DONE, QUESTION FOR TY (Claude, lane/claude-island-nav
+  `73c3ad9d`):** Asked to merge lane/codex-grob103 `919da6c7` (Florian Blanc Twin III Acro model, renders/grob/v-fix).
+  Stopped before merging because that branch carries more than the Grob:
+  - it is built on **lane/claude-cert-restructure** (`1161db31`..`d0986c0c`, 5 commits), which this log still lists as
+    "REVIEW BEFORE MERGE": the new levels, **save-data migration of old saves** (PilotRecord, SaveMigrationTests), the
+    737-800 retired from progression and pickers, and the rewritten progression.json. Merging the Grob would install
+    all of that on the iPhone, and a save migration cannot be undone on the device;
+  - it is the **model only** (GLBs, rig, provenance). The flight config, airbrakes, tests and the aerobatic-glider stage
+    are on **lane/claude-grob103** (`d7962cdd`), also off `d0986c0c`, and that config is the Twin II Acro while the
+    approved model is the Twin III Acro. Merged alone, the GLBs sit in Resources with no config to fly them.
+  **Ty, which one?** (a) also merge the cert restructure + lane/claude-grob103 config (full Grob, new progression);
+  (b) cherry-pick only the Grob onto island-nav without the restructure (needs the config rebased off the old levels,
+  and its stage wiring dropped or redone); (c) merge the model only, not yet flyable. No merge, build or install was
+  done; island-nav unchanged apart from this entry. ProjectSettings/GraphicsSettings left untouched.
+
 - **TY'S DECISION (2026-11-03 21:01 PST): MERGE THE PITTS CRASH DEBRIS INTO THE PLAYABLE LANE (Grok Bot, lane/claude-island-nav).**
   Ty approved merging lane/claude-pitts-debris `d8ab9861` (lane-private build `2026.1103.1929`) into lane/claude-island-nav and
   installing it on his iPhone. Merged here (AGENT-LOG conflict only: both NEEDS YOU entries kept). Install: `tools/deploy/deploy.sh`
