@@ -1,4 +1,21 @@
 ## NEEDS YOU
+- **PITTS SPIN #4: INVERTED FLAT + FLAT-SPIN AILERON FIXED; BUILT 2026.1103.1941, NOT INSTALLED (Claude, 2026-11-03,
+  lane/claude-pitts-spin `fe232151`, island-nav `510f987c` merged in first):** cause: a deflected aileron in separated flow
+  was a DRAG along the wind, even in δ. It slowed the spin with either stick, and its chordwise push on a cellule above the
+  CG pitched the nose body-up: up when upright, DOWN when inverted. Now it is the plate's normal force tilted with the
+  surface, a yaw couple toward the down aileron, mirrored by sign(α). No α/β/p sign error anywhere (mirror test). Your
+  Cm(β) is the body camber term: body-fixed, already flattening when inverted, small. Pitts, full aileron against the roll:
+  - **inverted 40 % R, stick forward:** α −32.9 → **−90.9**, nose −55.7° → **+1.6°**, 154 → **235 deg/s (1.53 s/turn)**;
+  - **upright 40 % L:** α 91.8 → 98.3, 190 → 248 deg/s.
+  Ailerons neutral, every spin is unchanged (≤ 0.1°, 1 deg/s). **Please fly:**
+  - inverted 40 % power, right rudder, right aileron;
+  - the upright flat WITH out-spin aileron, which is now flatter and faster than before: idle left goes flat (α 89.5),
+    full-power left goes past flat (α 107, nose +17°, gyrating).
+  Open: the idle inverted spin flattens but turns slower with the aileron; full-power inverted right + right aileron still
+  gyrates out (run #3's gyro yaw). StallAuthority SR22/Jenny is from run #1's tail wakes (d54a06e5), not run #3. The
+  calibration fix moves the SR22 book stall 70 → 68 kt, so it was not shipped. New tests pass, no newly failing names in
+  the 18 flight classes. No gate approved.
+
 - **ISLAND-NAV `2026.1103.1622` IS ON THE IPHONE (island surfaces + Pitts spin #3 merged); ONE TEST HANGS ON THE MERGED TREE
   (Grok Bot, 2026-11-03 16:55 PST, lane/claude-island-nav `ce53d62e`):** `deploy.sh 00008150-001629A83662401C` →
   `** BUILD SUCCEEDED **`, 0 `error CS`, installed and launched on Ty's iPhone 16:28 (ProjectSettings bump not committed).
@@ -1454,6 +1471,126 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-03 — Claude · lane/claude-pitts-spin (run #4) · flat-spin aileron upright/inverted: the separated aileron load, the mirror test
+Ty, on 2026.1103.1622: "the inverted flat isn't quite flat enough now and full opposite aileron actually reduces the spin
+rate and lowers the nose which is not correct". Upright flat feels good, keep it. Ty suspected Cm(β). Merged
+lane/claude-island-nav `510f987c` first (fast-forward). The worktree's uncommitted GraphicsSettings shader line
+(`5fda959b…`) collided with island-nav's committed one (`6c1e7a2f…`): I took the merge and put the uncommitted line back
+under it. Both lines are there, nothing staged.
+
+**Method: the mirror test** (`SpinBalanceProbe`, parts `mirror`, `mirrorfly`). Turning the aeroplane over (180° about x)
+maps (α, β, p, q, r) → (−α, −β, p, −q, −r) and (L, M, N) → (L, −M, −N). Every symmetric term maps exactly: inertia
+couples, prop gyro (h stays along +x), torque, P-factor, swirl, symmetric sections. δa is unchanged, so the mirror of an
+upright LEFT spin with right stick is an inverted RIGHT spin with right stick. I held a developed spin and its flipped
+state, with strip separation memory copied left↔right (the 11–16° band is hysteretic, so a fresh aircraft starts those
+strips attached and reads ~40 % low on the TR-379 slip roll), and compared part by part.
+- **No sign error.** Audited α/β/p use in AeroModel (strip loop, ApplyWingSideslipRoll, fuselage, elevator anti-spin
+  stall, downwash, wake and stall gating), PropModel (P-factor, gyro, swirl) and RigidBody6DOF (Stevens & Lewis
+  equations, (Izz−Ixx)pr and Ixz terms). All mirror.
+- **Ty's Cm(β):** it exists as the turtle-deck/cowl SECTION CAMBER (`ApplyFuselage`, keys `sectionCamber*`/`cowlCamber*`,
+  Ty's own "sideslip → nose down" of 2026-11-01). It is body-fixed, which is right for a body's camber, so inverted it
+  pitches toward FLATTER (larger |α|), the sense Ty asked for; upright it is slightly steepening. It is small: −100..−400
+  N·m against the stab's 3–7 kN. Not the cause; unchanged.
+- **What does not mirror is geometry.** The fin is on top: inverted it is out of every wake and damps more (−452 vs −299
+  N·m at 40 % R). The spiral slipstream hits that fin: a constant ~−425 N·m yaw at full power, pro-spin upright left and
+  anti-spin inverted right. The upper wing is 0.81 m above the CG, the lower 0.25 m below. Ixz. The camber above.
+  Removing the swirl yaw alone (`SPINBAL_SLIPK=0`) does not stop the inverted roll-out.
+- **The inverted flat is a stable state.** Started at the mirror of the upright 40 % flat, it holds at α −84, θ −5, 184
+  deg/s. The inverted 40 % R entry never got there: it sat at α −33.
+
+**Cause: the aileron's separated-flow load.** `AeroModel` added `1.2·sin²δ·1.5·sep` to every aileron strip's DRAG, along
+the local wind. Full aileron against the roll at the developed state (`aildelta`, `ailbal`):
+- It is even in δ, so it is rotary damping. The spin slowed with either stick: inverted idle R 164 → 154 deg/s, upright
+  idle L 183 → 165.
+- At spin α its chordwise part pushes aft on a cellule above the CG: +156 N·m body nose-up upright (flatter) and +268
+  N·m inverted, where body nose-up is the nose going DOWN. That was "lowers the nose".
+
+The A/B toggles separated it: drag off → most of the rate loss goes; both stall cuts off → it flattens but slows further.
+**Fix (fe232151):** in separated flow a plate's pressure acts normal to the plate (Hoerner ch. 3). The deflected aileron's
+share of the section normal force tilts with it: a chordwise `CN·sin δ` on the hinged row's area, aft on the surface
+deflected into the windward side, forward on the other. Odd in δ: a yaw couple toward the down aileron (post-stall
+adverse yaw) and no net drag, mirrored by sign(α). The roll part is unchanged. Hinged row only; every type but the
+paraglider has one (the paraglider loses its separated brake-drag term). docs/CONTROL-SURFACES.md § "The aileron in
+separated flow".
+
+**Table** (Pitts, `SpinBalanceProbe` flatgrid). Developed spin: stall, then 45 s of stick full aft (upright) or full
+forward (inverted) and full rudder, mean of the last 20 s; α range shown where it spans > 15°. "Against roll" = upright,
+away from the rudder; inverted, toward it. Before = 510f987c (what Ty flew), after = fe232151. θ is the nose attitude,
+Ω the rotation about the vertical.
+
+| spin | aileron | before: θ / α / Ω deg/s / s per turn | after: θ / α / Ω deg/s / s per turn |
+|---|---|---|---|
+| inverted idle R | neutral | -59.6 / -29.4 / 164 / 2.20 | -59.5 / -29.4 / 164 / 2.20 |
+| inverted idle R | full R (against roll) | -59.3 / -29.3 / 154 / 2.34 | -51.6 / -36.3 / 132 / 2.74 |
+| inverted idle L | neutral | -57.3 / -31.0 (-43..-20) / 219 / 1.64 | -57.3 / -30.9 (-43..-20) / 220 / 1.64 |
+| inverted idle L | full L (against roll) | -55.8 / -32.5 (-46..-21) / 204 / 1.77 | -56.7 / -30.9 / 202 / 1.78 |
+| inverted 40% R | neutral | -56.4 / -32.7 / 165 / 2.19 | -56.3 / -32.8 / 164 / 2.19 |
+| inverted 40% R | full R (against roll) | -55.7 / -32.9 / 154 / 2.33 | 1.6 / -90.9 / 235 / 1.53 |
+| inverted 40% L | neutral | -58.6 / -29.6 (-41..-21) / 273 / 1.32 | -58.7 / -29.6 (-41..-21) / 274 / 1.32 |
+| inverted 40% L | full L (against roll) | 0.5 / 89.3 / 189 / 1.91 | -55.6 / -31.6 (-44..-23) / 257 / 1.40 |
+| inverted full R | neutral | -34.3 / -25.4 (-86..87) / 147 / 2.45 | -34.5 / -25.3 (-86..88) / 147 / 2.45 |
+| inverted full R | full R (against roll) | -35.9 / -22.2 (-86..89) / 139 / 2.58 | -24.1 / -28.0 (-175..170) / 152 / 2.37 |
+| inverted full L | neutral | -60.3 / -28.4 (-37..-21) / 351 / 1.03 | -60.3 / -28.3 (-37..-21) / 351 / 1.03 |
+| inverted full L | full L (against roll) | 0.7 / 88.0 (70..103) / 135 / 2.67 | -57.5 / -30.3 / 340 / 1.06 |
+| upright idle L | neutral | -56.9 / 31.8 / 183 / 1.97 | -56.9 / 31.8 / 183 / 1.97 |
+| upright idle L | full R (against roll) | -56.7 / 31.8 / 165 / 2.19 | -0.3 / 89.5 / 248 / 1.45 |
+| upright idle R | neutral | -57.3 / 30.9 / 245 / 1.47 | -57.4 / 30.9 / 245 / 1.47 |
+| upright idle R | full L (against roll) | -57.6 / 30.4 / 228 / 1.58 | -51.4 / 35.9 / 223 / 1.61 |
+| upright 40% L | neutral | 3.9 / 92.9 / 201 / 1.79 | 4.0 / 93.0 / 201 / 1.79 |
+| upright 40% L | full R (against roll) | 2.8 / 91.8 / 190 / 1.90 | 9.0 / 98.3 / 248 / 1.45 |
+| upright 40% R | neutral | -57.6 / 30.8 / 318 / 1.13 | -57.7 / 30.7 / 318 / 1.13 |
+| upright 40% R | full L (against roll) | -57.7 / 30.5 / 295 / 1.22 | -54.5 / 32.4 / 293 / 1.23 |
+| upright full L | neutral | 3.5 / 90.4 (71..107) / 126 / 2.85 | 3.6 / 90.5 (71..108) / 126 / 2.85 |
+| upright full L | full R (against roll) | 2.7 / 90.0 (70..105) / 124 / 2.91 | 17.4 / 107.2 (81..128) / 149 / 2.41 |
+| upright full R | neutral | -58.5 / 29.9 / 399 / 0.90 | -58.5 / 29.8 / 399 / 0.90 |
+| upright full R | full L (against roll) | -50.0 / 6.9 / 149 / 2.41 | -54.9 / 32.8 / 389 / 0.93 |
+
+**Pitch budget** (`ailbal`, N·m, body +M = nose up, held at each developed state). **Inverted 40 % R** before, neutral →
+aileron: stab 6233 → 5399, wings 1039 → 1101, Munk −3055 → −2581, gyro −2237 → −2068, inertial (Izz−Ixx)pr −2447 → −2156,
+Ixz −132 → −127, camber −151 → −143. **After**, neutral → aileron: stab 6177 → 2780, wings 1030 → 1105, Munk −3031 → 21,
+gyro −2255 → −5687, inertial −2461 → +283, Ixz −129 → 809, camber −157 → −17. The flat inverted state is held by the gyro,
+exactly as the upright flat is. **Upright mirror 40 % L** after, neutral → aileron: gyro 4854 → 5928, inertial −545 →
+−1877, stab −2931 → −2767. The yaw at the inverted idle spin shows the limit: the aileron's wing yaw goes +258 → +1036
+pro-spin, but β grows −12 → −18 and the fin (−386 → −663), rudder (543 → 21) and crossflow (−679 → −950) absorb it.
+
+**What Ty should feel.** Inverted, 40 % power, right rudder, stick forward, right aileron: a real inverted flat, nose on
+the horizon, 1.5 s/turn. Upright, ailerons neutral: unchanged (within 0.1°, 1 deg/s). **Upright WITH out-spin aileron
+changes**, in the direction Ty described, but by more than before:
+- idle L goes flat, α 31.8 → 89.5;
+- 40 % L: α 98, 248 deg/s;
+- full L: α 107 (81..128), nose +17°, tail-low and gyrating. Please fly this one.
+
+Aileron WITH the roll now un-flattens a flat spin (upright 40 % L α 93 → 30): TR 1329, fuselage-loaded. Inverted 40 %/full
+LEFT with left aileron used to roll over into an UPRIGHT flat; it now stays inverted at α −31.
+
+**Open.** (1) Inverted idle R: nose up and flatter with the aileron (θ −59.6 → −51.6, α −29 → −36), but slower (164 →
+132). It stays at α −36, where the wing's autorotation drives the roll and the aileron fights it; its upright mirror goes
+flat. The geometry above, not a sign. (2) Inverted full R + R aileron (Ty's run #3 case) still does not hold: gyrates
+α −175..+170 (was −86..+89). Run #3's gyro-yaw departure; `PittsPowerSpinTargetTests` stays skipped. (3) Inverted LEFT and
+upright RIGHT (gyro-adverse senses) do not go flat with power.
+
+**StallAuthorityTests.FullAftHoldsJustPastTheStallForEveryAircraft** (SR22 14.5°, Jenny 13.0° vs 16.5°):
+- Not run #3's tail tables. Bisected: passes at d54a06e5^ (16.0 / 16.0), fails at **d54a06e5** (run #1, "Tail wakes
+  from each section's own geometry", 14.5 / 13.5). 453aba6e moved Jenny another −0.5°.
+- Island-nav's log blames spin #3; it is run #1. It passed on island-nav before because island-nav had none of this lane.
+- The protocol fix (`CALIBRATE_STALL=1 CALIBRATE_ONLY=…`) gives SR22 saturation 7.9 → 17.8 and Jenny 12.4 → 23.6. Rig
+  stays green, but the glide table moves the book-checked numbers the wrong way: SR22 clean stall 70 → 68 kt (POH 70
+  KIAS), best glide 91 → 88 kt; Jenny 34 → 33 kt.
+- Not shipped (CLAUDE.md: measure the validated numbers too). Reverted. It wants the tail-wake change and the two
+  saturations looked at together.
+
+**Tests.** New `PittsFlatSpinAileronTests` (5 + a 4-case pin, literals from this table). Same 18 classes on both trees
+(AdverseYaw, AerobatGround, AileronHighAlpha, ControlTravel, GlideTable, PittsRollRate, PittsFlatSpin, PittsPowerSpin,
+Reversible, RigTests, RollPhysics, RollRate, SpinTests, StallAuthority, StallBreak, TailSection, TailWake,
+WingAileronBreakup), 350 tests:
+- base 510f987c + the new test file: 338 passed, 10 failed, 2 skipped;
+- after: **342 passed, 6 failed, 2 skipped**;
+- by name: nothing fails after that passed before. The 4 new tests fail on base and pass after;
+- the 6 failing on both, all pre-existing: AerobatGroundHandling Pitts ×3, SpinTests.ProSpinDepartsAndSustainsRotation,
+  GlideTableTests.CreditsReachTheUser (j3 LICENSE), StallAuthority above.
+
+**Build:** `zsh tools/deploy/deploy.sh NOINSTALL` → `** BUILD SUCCEEDED **`, 0 `error CS`, bundleVersion **2026.1103.1941**. Not installed (deploy.sh read "NOINSTALL" as a device name: "installed on 0 of 1 device(s)"). ProjectSettings bump not committed.
+
 ### 2026-11-03 16:55 PST — Grok Bot · lane/claude-island-nav `ce53d62e` · merged-tree suite vs base, build 1622, iPhone install
 - **Suites** (`--filter FullyQualifiedName!~IslandDroneProbe`): merged ran in `/tmp/islandnav_full/merged.log` and was aborted at
   1194/~1640 (107 failed, 1082 passed, 5 skipped) by the LaunchReplication hang. Base `da807576` ran in `/tmp/islandnav_cmp/base.log`,
