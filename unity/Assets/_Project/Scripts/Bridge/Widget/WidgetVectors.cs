@@ -389,7 +389,10 @@ namespace FlyingGame.Bridge.Widget
             if (cfg.Propulsion != null && cfg.Propulsion.PropDiameterM > 0 && cfg.Engines.Count == 0)
             {
                 double thr01 = w.Shown?.AcThrottle ?? w.Ac.Throttle01, alt = -(s.Position.Z - (w.Shown?.AltShift ?? 0));
-                FlyingGame.Core.PropModel.Compute(cfg.Propulsion, thr01, s.Velocity, s.Rates, Atmosphere.DensityAtAltitude(alt), out pic.Prop);
+                // What the prop is really doing (a stopped or windmilling prop draws no torque, P-factor or swirl), live only:
+                // a reviewed frame keeps the throttle law it was recorded with.
+                var drive = w.Shown == null ? w.Ac.Drive : FlyingGame.Core.PropModel.PropDrive.Running;
+                FlyingGame.Core.PropModel.Compute(cfg.Propulsion, thr01, s.Velocity, s.Rates, Atmosphere.DensityAtAltitude(alt), drive, out pic.Prop);
                 pic.HasProp = true; pic.ThrustAt = thrustPos;
             }
             // Wing winds at mid-semispan (ω × r).

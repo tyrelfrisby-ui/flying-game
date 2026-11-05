@@ -167,7 +167,7 @@ def normal_png(kind, size=256, seed=7, soft=False):
     b = io.BytesIO(); img.save(b, 'PNG', optimize=True); return b.getvalue()
 
 # ---------------------------------------------------------------- body
-def body(bones, v3=False):
+def body(bones, v3=False, v4=False):
     """bones: [(name, head, tail, parent)] in builder frame. Returns {material: Acc}.
     v3: feet flat on the pedal face with a heel / sole / toe-box boot and laces, deltoid + trapezius shoulders, knuckled
     gloves with cuff straps, folds at the elbows / knees / waist, a zip and chest pockets."""
@@ -229,8 +229,18 @@ def body(bones, v3=False):
         S = H[side + '_UpperArm']; E = H[side + '_LowerArm']; W = H[side + '_Hand']; G = T[side + '_Hand']
         def arm(f, upper):
             return (.058 - .010 * f / .54) if upper else (.047 - .011 * min(1, (f - .54) / .46))
+        arm_start = len(suit.p)
         limb(suit, J, (S, E, W), (side + '_UpperArm', side + '_LowerArm'), arm, 16, .05, 0.9, 0.3,
              (0, 0, 1), end_trim=.040 if v3 else .012, start_extend=.0, folds=.07 if v3 else 0.0)
+        if v4:
+            # Preserve the v3 elbow fold exactly; split only its LowerArm influence.
+            axis = unit(W-E); length = np.linalg.norm(W-E)
+            for i in range(arm_start, len(suit.p)):
+                k = float(smoothstep(.05, length-.035, np.dot(suit.p[i]-E, axis)))
+                jj = list(suit.j[i]); ww = list(suit.w[i])
+                lower = ww[1]
+                jj[2] = J[side+'_ForearmTwist']; ww[1] = lower*(1-k); ww[2] = lower*k
+                suit.j[i], suit.w[i] = tuple(jj), tuple(ww)
         if v3:
             # Deltoid: a rounded cap over the shoulder joint, blending the shoulder (chest side) into the upper arm.
             d = unit(E - S); out = unit(np.array((0, sy, 0)) - np.dot((0, sy, 0), d) * d)
@@ -239,10 +249,17 @@ def body(bones, v3=False):
             wts = [((J[side + '_Shoulder'], J[side + '_UpperArm']), (1 - k, k)) for k in ks]
             loft(suit, cs, frames(cs, out), rs, wts, 16, cap_start=.7, cap_end=None, aspect=[(1.0, .92)] * 4, uv_tile=.06)
         # Glove gauntlet over the sleeve's cuff, blending forearm -> hand at the wrist.
+        cuff_starts = [(acc, len(acc.p)) for acc in (glove, strap, metal)]
         fwd = unit(W - E); hd = unit(G - W); cs = [W - fwd * .065, W - fwd * .035, W - fwd * .01, W + hd * .012]
-        rs = [.047, .045, .040, .035]; wts = []
+        rs = [.047, .045, .040, .035]
+        if v4:
+            # Two extra stations supporting a fuller cuff across the 30 mm wrist blend.
+            cs = [W-fwd*d for d in (.065, .035, .020, .010, 0)] + [W+hd*.012]
+            rs = [.047, .046, .044, .043, .041, .037]
+        wts = []
         for c in cs:
-            k = float(smoothstep(-.03, .01, np.dot(c - W, fwd))); wts.append(((J[side + '_LowerArm'], J[side + '_Hand']), (1 - k, k)))
+            k = float(smoothstep(-.020 if v4 else -.03, .010 if v4 else .01, np.dot(c - W, fwd)))
+            wts.append(((J[side + ('_ForearmTwist' if v4 else '_LowerArm')], J[side + '_Hand']), (1 - k, k)))
         fr = frames(cs, (0, 0, 1))
         loft(glove, [cs[0]] + cs, [fr[0]] + fr, [.034] + rs, [wts[0]] + wts, 14, cap_start=None, cap_end=None, uv_tile=.04)
         if v3:
@@ -252,6 +269,16 @@ def body(bones, v3=False):
             sn = W - fwd * .048 + unit(np.cross(fwd, (0, sy, 0))) * 0; up_c = unit(np.array((0, 0, 1)) - np.dot((0, 0, 1), fwd) * fwd)
             sn = W - fwd * .048 + up_c * .050; sfr = frames([sn - up_c * .004, sn + up_c * .004], fwd)
             loft(metal, [sn - up_c * .004, sn + up_c * .004], sfr, [.007, .006], [wts[0]] * 2, 10, cap_start=0, cap_end=.4, uv_tile=.02)
+        if v4:
+            # Match the sleeve's longitudinal twist field at the overlapping gauntlet,
+            # strap and snap; retain the independent 30 mm twist-to-hand blend.
+            for acc, start in cuff_starts:
+                for i in range(start, len(acc.p)):
+                    jj, ww = list(acc.j[i]), list(acc.w[i])
+                    if jj[0] != J[side+'_ForearmTwist']: continue
+                    k = float(smoothstep(.05, np.linalg.norm(W-E)-.035, np.dot(acc.p[i]-E, fwd)))
+                    jj[2] = J[side+'_LowerArm']; ww[2] = ww[0]*(1-k); ww[0] *= k
+                    acc.j[i], acc.w[i] = tuple(jj), tuple(ww)
         # Palm: a rounded block, wrist -> knuckles.
         side_v = unit(np.cross((0, 0, 1), hd)); up = unit(np.cross(hd, side_v))
         cs = [W + hd * s for s in (-.005, .02, .05, .075, .092)]
