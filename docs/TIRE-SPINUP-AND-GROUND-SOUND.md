@@ -383,6 +383,15 @@ bearing noise is too loud".
   after below; the harness renders tyre voices and the unchanged rolling voices only, no engine).
 - Not changed: the rolling (ground) voices in `SurfaceSynth`, the brake scrape/squeal, the unused `FxKind.TireChirp`.
 
+### 7c. All ground contact −4 dB (Ty 2026-11-05 08:48, lane/claude-ground-volume)
+
+Ty: "the tire screeching and scraping is pretty good just a little too loud so lower all ground contact volume a bit".
+One shared gain, `GroundSoundMix.OutputGainDb = −4` (linear 0.630957), applied after the synths so no level, pitch or
+filter inside them moves: `FlightAudio.Render` multiplies the ground bus (`SurfaceSynth` rolling voices +
+`TyreBrakeSynth`: squeal, scrub, whir, brake scrape/squeal, thump, flat-tyre slap, burst, water splash/hiss/spray,
+ski hiss, float keel scrape) by it, and `ContactEffects` multiplies the airframe-scrape voices by the same constant.
+Not touched: engine, wind, one-shots (`OneShotSynth`, incl. the unused `FxKind.TireChirp`) and crash impacts.
+
 ## 8. Tyre wear, burst and the flat tyre (Ty 2026-11-04 20:21, Q026 item 1)
 
 Ty: keep the 172's full-pedal main-wheel lock-up (it is real), and let a locked tyre screech, smoke and wear through to a
