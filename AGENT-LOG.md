@@ -1,5 +1,25 @@
 ## NEEDS YOU
 
+## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
+- Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
+  (card centred; ASI over g-meter left; altimeter over turn coordinator right; Trig radio/xpdr left; 3-in-1 oil P / oil T /
+  FUEL FLOW right, green 0-35 gph, red at 35; tach, MP, totalizer, ammeter low row; one switch row)
+  and that the C172 and Pitts cockpits look unchanged. Nothing approved; no gate marked.
+
+### 2026-11-04 Extra phase 2 + FUEL FLOW merged into both lanes (Grok Bot + Claude, lane/claude-extra-integrate)
+- lane/claude-extra-integrate from island-nav bb519c72: merge 284c7706 (lane/claude-extra-cockpit-shared b65e3b98, incl.
+  db87f77c skin-break fix, 8a5737c9/217a0847 cockpit, ea2a0ebc fuel flow), then 1b80dff6 (73d7702b) and ef478e53 (crash-reset 65f431be).
+- Conflicts: text files kept both sides. 13 GLBs: took island-nav's versions, re-ran fix_aileron_junctions.py on the 10
+  non-Extra GLBs and extra_cockpit_shared.py pass on the Extra GLBs (reproduced the Extra lane's GLBs + rig JSON byte for byte).
+  Inventory diff vs bb519c72: non-Extra GLBs differ only in aileron (C172 also wing) arrays + junction extras; C172 suction
+  0-10 green 4.5-5.4 red 4.5/5.4 and +60 mm yoke intact; Pitts v3.1 intact. check_aileron_junction: 0 faults.
+- Tests (FlightTests filter Extra|Cockpit|Gauge|Pilot|C172|Pitts|SharedPanel|Rig|Fuel|Junction): base bb519c72 723/729,
+  merged 738/744; same 4 failures both (DronePilot aerobatic, MazeTow branch, AerobatGroundHandling PittsNeedsQuickFeet,
+  ModelRig FullAirBrakeStopsTheGlider), 2 skipped (Pitts power spin). No new failures; ExtraFuelFlowGaugeTests passes (22.5 gph full throttle).
+- Renders: ~/Developer/agent-lanes/renders/extra-integrate/contact-sheet.png (Extra front/rear Unity, Pitts Unity, C172 Blender;
+  C172 Unity shot shows no interior = the transparent-172 bug the crash-reset lane addressed, not from this merge).
+- Build/install NOT done at merge time (other builds queued; smoke-thicker builds next). Build byproducts left uncommitted.
+
 ## NEEDS YOU — C172 yoke on devices (Grok Bot, 2026-11-04 17:02 PST)
 - Ty: fly the C172 on iPad mini (2026.1104.1648) / Quest 3S (2026.1104.1656): check yoke horns clear the thighs at full
   deflection and the 1 in suction gauge reads right (green 4.5-5.4, red at 4.5 and 5.4). Not approved in-game yet.
@@ -421,6 +441,26 @@
   every deploy deletes (PlayerDataCache, Bee, il2cpp_cache, BuildPlayerData). The lane now has its own APFS clone
   (unity-Library-claude-parity); built with FG_CACHE_KEEP=9 so no other lane's cache was pruned.
   Commits: 2f36e413 (HUD + one-liner), 11d4686c (check-parity + test + deploy.sh), 305d49b4 (PARITY.md + CLAUDE.md).
+- **EXTRA 300 COCKPIT AS YOU LAID IT OUT — ONE COCKPIT FOR iPHONE/MAC AND QUEST (Claude, 2026-11-04, lane/claude-extra-cockpit-shared
+  `217a0847`, built `2026.1104.0831` (`deploy.sh 00000000-NOINSTALL`: ** BUILD SUCCEEDED **, 0 error CS), NOT installed, NOT merged).** Instrument lighting (approved) plus, from your 07:33 list:
+  1. **Panel:** IAC card CENTRED; left column airspeed over G meter, right column altimeter over turn coordinator (3-1/8);
+     Trig-style 2-1/4 COM and transponder heads on the left (their own knobs, LCDs showing the frequency / code); 3-1/8
+     three-in-one oil P / oil T / fuel P on the right; lower row tach, MP, fuel computer (FF gph / gallons used) and ammeter.
+     EGT/CHT and both fuel-quantity gauges are gone ("that is it"). Shorter stick kept.
+  2. **One switch row along the panel bottom** (z 0.075 m): mag, master, fuel pump, alt air, mixture, prop | trim, fuel
+     selector, smoke, nav, strobe, landing. Nothing below the panel any more (the radio subpanel by your knees is gone), and
+     no switch in the 17 cm behind the stick and your hand. Panel bottom edge is 30 mm lower to fit it.
+  3. **Ailerons hinge at 30 % of their chord** with a round nose in a matching cove: TE down 30° and the nose stands
+     ~49 mm above the upper skin (`renders/extra-cockpit-shared/aileron/extra-aileron-L-section--30.jpg`). Looks only —
+     the flight model is unchanged (the honest lift change measured 239 → 193 deg/s; written up, not applied).
+  4. **Wing-skin break at the aileron fixed** on the Extra (16.8 mm step → 1.3), 172 (wing skin z-fighting under the whole
+     aileron → re-cut), Great Lakes, J-3 wheels + floats, Pitts (4 liveries); 2-33 34 mm → 2.6 mm (0.1 over my 2.5 mark,
+     a small shoulder left a quarter of the way back on its aileron — say if it bothers you).
+  **Ty:** look at `renders/extra-cockpit-shared/eye/extra-quest-rear-sun.png`, `…-rear-night.png`, `extra-ios-rear-sun.png`,
+  `…-night.png`. Then: OK to merge into island-nav and build for the phone / Quest? Two things to confirm: the fuel-pressure
+  green band I drew is 18–30 psi (unsourced — what does your panel say?), and the radio heads' knobs are visual only on the
+  phone (on the Quest your hand works them).
+
 - **CRASH PHYSICS MERGED INTO ISLAND-NAV — ON YOUR IPHONE AS `2026.1104.0427` (Grok Bot, 2026-11-04 04:30 PST,
   lane/claude-crash-physics `da163a65` → island-nav `abeadac3`, Ty approved):** trees snap, crashes keep momentum,
   only overloaded parts come off, debris no longer sinks. Only AGENT-LOG.md conflicted (both sides kept).
@@ -3666,6 +3706,75 @@ foot and make the fuel valve a push pull control with the red knob not a lever."
   The install on Frisby_801C_EFB then stopped right after `== install` with no devicectl output, and the script
   exited 1: check the build stamp on the phone before trusting it. The bundleVersion bump was not committed.
   No Quest APK and no adb from this lane.
+### 2026-11-04 08:40 — Claude · lane/claude-extra-cockpit-shared (phase 2) · Ty's Extra panel, one switch row, 30 % aileron hinge, skin breaks fixed
+- **Ask** (Ty 07:33, via the coordinator): lighting approved; the LAYOUT still wrong and must be in the next build (card centred;
+  ASI over G left; ALT over TC right; Trig radio + xpdr left; 3-in-1 right; lower row tach / MP / fuel computer / ammeter; all
+  switches and knobs in one row on the panel bottom; keep the shorter stick); aileron hinge 30 % with the nose poking up; the
+  wing-skin break fixed on every model; cockpit renders from the pilot eye, sun and night. Done by Claude, not Codex.
+- **Done** (8a5737c9, db87f77c, 217a0847): `tools/own_models/extra_cockpit_shared.py` (pass 11, all three Extra liveries:
+  layout with a no-overlap / clear-of-card assertion that caught two real overlaps while laying it out, three-in-one with its
+  own art and three needles, fuel-computer and Trig heads with LCDs and 0.45-scale knobs, panel 0.055–0.360 m, the switch row,
+  retired gauges as `Legacy_P3g_*`, card centred, ailerons re-hinged at 30 % with an arc nose and matching cove, nose skins
+  filled to the wing's lip); `tools/own_models/fix_aileron_junctions.py` (pass 12: 172 bay re-cut, GL, J-3 ×2, 2-33 ×2,
+  Pitts ×4); `render_aileron_deflect.py`; `SharedPanelRigTests` pins the 14 instrument nodes per seat.
+- **Measured** (`check_aileron_junction.py`, worst at neutral): Extra 16.8 mm / 29.6° → 1.3 mm / 3.6°; 172 coplanar → 2.4 mm,
+  no overlap; GL 6.1 mm + 15 mm gap → 1.9 mm / 5 mm; J-3 6.6 mm + 15 mm → 1.7 / 5; Pitts 3.8 → 1.5; 2-33 33.9 → 2.6 mm
+  (FAIL by 0.1 mm at one tip station; a shoulder at ~25 % of its aileron chord is visible in the section render). Legacy GL
+  GLBs (unused) and 12 runtime-carved models untouched.
+- **Checks:** cockpit tests 68/68; model/rig tests: every failing name also fails on aeb9695a (HydroJ3 porpoise, J3FloatsWater
+  landing, PlateauCopy ×5, the terrain/nav names of a coupled run, ModelRig air brake, AerobatGround Pitts). CockpitEyeShots
+  PASS 7/7. Build `2026.1104.0831` BUILD SUCCEEDED, 0 error CS, not installed; ProjectSettings and the stale StreamingAssets
+  mirror restored, not committed. `tools/check-parity.sh` does not exist in this tree: not run.
+- **Renders:** `renders/extra-cockpit-shared/` (README.md): eye/ (Quest + iPhone, sun + night), aileron/ (−30/0/+30 section),
+  junction-before/ and junction-after/.
+- **Caveats:** the passes edit GLBs in place; a full rebuild of any of these models drops them (docs/SHARED-COCKPIT.md).
+  Fuel-pressure dial bands unsourced. The Quest lane must take these GLBs by merging island-nav, not edit them. No gate approved.
+
+### 2026-11-04 06:40 — Claude · lane/claude-extra-cockpit-shared (phase 1 of 3) · one Extra cockpit for iOS/Mac and Quest, legible instruments, aileron junction checker, Codex spec
+- **Ask** (Ty, 05:35, msg pt534u, after flying the Extra on the Quest): stick too tall (stick + hand hide the
+  instruments); switches and knobs still by his knees, not one row along the panel bottom; a break in the wing skin
+  where the aileron begins "on most models"; aileron hinge at 30 % of the aileron chord so the nose rises when
+  deflected; instruments dark — make them legible full time; the panel laid out round a centred sequence card; and
+  the same on Quest and iOS/Mac. Phase 1 = engine/config/logic + integration; no agent launched, nothing installed.
+- **Root cause of two cockpits:** lane history, not code. island-nav still had the pre-VR Extra (130 nodes); the Quest
+  lane had P3a–P3e; P3f (60f3ff48, one switch row, sticks −0.06 m) was only on lane/claude-quest-cockpit-switches.
+  island-nav has not touched the Extra since 510f987c, which the Quest lane merged at 2be16316 (wing-B, sights and
+  card holder transplanted then), so the switches-lane GLB is the superset.
+- **Done (commits 35179373, 6898f355, a7803dde, 1b882cf1, 651b1692):**
+  1. The P3f Extra (3 GLBs, rig json, provenance, vr_* / extra_panel_p3f / cockpit_controls_v2 / check tools,
+     ExtraRearPanelTopTests, CockpitControlInteriorTests (Extra rows), CockpitEyeShots) by whole-file checkout from
+     033dd76d — byte-identical to the Quest lane. `docs/SHARED-COCKPIT.md`: what is shared, both platforms' paths,
+     the GLB pass order (0–10, 11 = Codex), merge notes for the Quest lane.
+  2. **Instrument lighting, both platforms:** `FlyingGame/Instrument` (albedo × (max(sun+sky, 0.32) + 0.30)) on every
+     instrument material (`InstrumentFaces`, fleet-wide) from `AirframeBuilder.TryPlaceModel`, shipped via
+     `Resources/Materials/Instrument.mat` (glTFast's emission is a stripped `shader_feature`). Night panel: illegible →
+     readable, faces stay black. A cache bug (destroyed materials returned after an asset unload) found by the render
+     batch and fixed before commit.
+  3. **Dead needles:** the Extra's ammeter, EGT and fuel needles were on rig params no code knew (both platforms). Added
+     amps, fuel_press_psi, egt_f, fuel_wing_gal, fuel_akro_gal, fuel_flow_gph, fuel_used_gal; CockpitRigState fills
+     them; `Totalizer_Display_R` LCD (fuel computer) ready for Codex's node.
+  4. **30 % hinge — physics measured, NOT applied:** `controls.aileron.hingeSetBackFrac` + AileronSectionE support.
+     With E from the chord aft of the hinge: Extra 238.8 → 192.5 deg/s (published ~340–400, already low), Pitts 218.2 →
+     173.1, C172 83.4 → 66.6. Set nowhere: the sealed-gap η table cannot represent an offset hinge's open nose gap,
+     so one half would move the Extra further wrong (docs/CONTROL-SURFACES.md "Set-back hinges", with the fleet list).
+     The hinge moves in the model and rig only (Codex).
+  5. **Skin break, measured** (`tools/own_models/check_aileron_junction.py`, every GLB): Extra wing-B thicker than the
+     aileron at the split, steps −16.8/+15.4 mm at the root → −6.8/+7.7 mm at the tip, 22–30° slope break; 2-33 lower
+     step −24…−34 mm; C172 wing skin coplanar under the whole aileron (z-fighting, visible in the render); Great Lakes
+     and J-3 upper step ~−6 mm + 13–15 mm gap; Pitts ~−3 mm (marginal). 12 downloaded/carved GLBs: ailerons cut at
+     runtime, not measurable here.
+  6. Renders and spec in `~/Developer/flying-game-worktrees/_xfer/extra-cockpit-shared/` (before/README.txt,
+     CODEX-SPEC.md, junction-findings.txt/.json).
+- **Checks:** targeted tests 130/130 (PittsRollRate, RollPhysics, InstrumentFaces, SharedPanelRig, CockpitControlInterior,
+  ExtraRearPanelTop); RigTests.ModelStillAsksForTheSameRig 34/34 (rig unchanged). ModelRigTests
+  FullAirBrakeStopsTheGliderSooner and AerobatGroundHandling PittsNeedsQuickFeet fail on the branch point aeb9695a too.
+  Unity batch CockpitEyeShots PASS 9/9 twice, 0 `error CS`. `deploy.sh 00000000-NOINSTALL`: `** BUILD SUCCEEDED **`, 0 `error CS`, bundleVersion 2026.1104.0648, installed nowhere (ProjectSettings bump and GraphicsSettings not committed).
+- **Noticed, not changed:** island-nav's committed StreamingAssets/aircraft mirror is stale against configs/ (16 files,
+  e.g. c172 wingBracing) — ConfigSync rewrites them on every Unity run; restored here, not committed. One Unity batch
+  of mine started at load 14 (the gate check was read, not enforced); later runs waited for load < 8.
+- **Open:** fuel-pressure dial markings for the 3-in-1 (Ty's panel); whether the Pitts / 172 should also get offset-hinge
+  geometry; the set-back lift effect waits for a sourced gapped-aileron η. No gate approved.
+
 ### 2026-11-03 22:21 — Claude · lane/claude-frank-church-valleys → island-nav · unpaved Frank Church strips, v2 renders, installed
 - **Ask** (Ty via Grok Bot, 21:55): all nine strips real dirt or turf, with no centreline, edge marking or paved
   look; render each approach into `renders/frankchurch/v2/`; then merge and install (Ty approved).
