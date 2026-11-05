@@ -242,12 +242,12 @@ public sealed class LocalMultiplayerTests
     }
 
     [Fact]
-    public void SurfaceStartIsInTrailOnTheCentreline()
+    public void SurfaceStartIsInLineAheadOnTheCentreline()
     {
-        var o = FormationSlot.For(1, 10.7, 6.8, onSurface: true);
-        Assert.Equal(-66.8, o.ForwardM, 9); Assert.Equal(0.0, o.RightM);
+        var o = FormationSlot.For(1, 10.7, 6.8, onSurface: true);   // ahead: behind the threshold is off the runway
+        Assert.Equal(66.8, o.ForwardM, 9); Assert.Equal(0.0, o.RightM);
         var (dx, dy) = FormationSlot.World(o, 0.0);
-        Assert.Equal(-66.8, dx, 9); Assert.Equal(0.0, dy, 9);
+        Assert.Equal(66.8, dx, 9); Assert.Equal(0.0, dy, 9);
         Assert.Equal(0.0, FormationSlot.For(0, 10.7, 6.8, false).RightM);   // P1 is where the game puts it
     }
 
@@ -311,5 +311,63 @@ public sealed class LocalMultiplayerTests
         Assert.Equal(0.5, LocalPadPilot.NextFlap(0.0, 1)); Assert.Equal(1.0, LocalPadPilot.NextFlap(0.5, 1));
         Assert.Equal(1.0, LocalPadPilot.NextFlap(1.0, 1)); Assert.Equal(0.5, LocalPadPilot.NextFlap(1.0, -1));
         Assert.Equal(0.0, LocalPadPilot.NextFlap(0.3, -1)); Assert.Equal(0.3, LocalPadPilot.NextFlap(0.3, 0));
+    }
+
+    // ---- LAN / room spawn spread -------------------------------------------------------------------------------
+
+    private static SpawnSpread.Other O(string id, double x, double y, double z, double? age) => new(id, x, y, z, age);
+
+    [Fact]
+    public void NewcomerOnTopOfAPilotAlreadyFlyingMoves_ThePilotFlyingDoesNot()
+    {
+        double clear = SpawnSpread.ClearRadiusM(10.7);   // 25.7 m
+        Assert.Equal(25.7, clear, 9);
+        var flying = new[] { O("aaaa", 3, 2, -1200, 120.0) };
+        Assert.True(SpawnSpread.ShouldMove("zzzz", 0.5, 0, 0, -1200, flying, clear));
+        // ...and the one flying, seeing the newcomer (age 0.5) beside him, never moves: he is past his window.
+        Assert.False(SpawnSpread.ShouldMove("aaaa", 120.0, 3, 2, -1200, new[] { O("zzzz", 0, 0, -1200, 0.5) }, clear));
+    }
+
+    [Fact]
+    public void TwoNewcomersAgreeThatExactlyOneMoves()
+    {
+        double clear = SpawnSpread.ClearRadiusM(10.7);
+        bool a = SpawnSpread.ShouldMove("4f2a91c0", 1.0, 0, 0, -1200, new[] { O("b7e01d33", 0, 0, -1200, 1.2) }, clear);
+        bool b = SpawnSpread.ShouldMove("b7e01d33", 1.2, 0, 0, -1200, new[] { O("4f2a91c0", 0, 0, -1200, 1.0) }, clear);
+        Assert.False(a); Assert.True(b);
+    }
+
+    [Fact]
+    public void AnOlderBuildWithNoAgeCountsAsFlyingAlready()
+    {
+        Assert.True(SpawnSpread.ShouldMove("0000", 0.2, 0, 0, -800, new[] { O("ffff", 0, 0, -800, null) }, 25.7));
+    }
+
+    [Fact]
+    public void FarApartOrPastTheWindowNobodyMoves()
+    {
+        Assert.False(SpawnSpread.ShouldMove("zzzz", 0.5, 0, 0, -1200, new[] { O("aaaa", 30, 0, -1200, 120.0) }, 25.7));   // 30 m clear
+        Assert.False(SpawnSpread.ShouldMove("zzzz", 0.5, 0, 0, -1200, new[] { O("aaaa", 0, 0, -1240, 120.0) }, 25.7));   // 40 m above
+        Assert.False(SpawnSpread.ShouldMove("zzzz", 4.5, 0, 0, -1200, new[] { O("aaaa", 0, 0, -1200, 120.0) }, 25.7));   // window gone
+    }
+
+    [Fact]
+    public void TheMoverTakesTheFirstFreeSlotAbreast()
+    {
+        double clear = SpawnSpread.ClearRadiusM(10.7);
+        // Heading north; one pilot at the start, one already in slot 1 (40.7 m east): slot 2 is 81.4 m east.
+        var others = new[] { O("a", 0, 0, -1200, 60.0), O("b", 0, 40.7, -1200, 60.0) };
+        Assert.Equal(2, SpawnSpread.PickSlot(others, 0, 0, -1200, 0.0, 10.7, 6.8, onSurface: false, clear));
+        Assert.Equal(1, SpawnSpread.PickSlot(new[] { O("a", 0, 0, -1200, 60.0) }, 0, 0, -1200, 0.0, 10.7, 6.8, false, clear));
+    }
+
+    [Fact]
+    public void OnTheRunwayTheMoverLinesUpAhead()
+    {
+        double clear = SpawnSpread.ClearRadiusM(10.7);
+        int k = SpawnSpread.PickSlot(new[] { O("a", 0, 0, -450, 10.0) }, 0, 0, -450, 0.0, 10.7, 6.8, onSurface: true, clear);
+        Assert.Equal(1, k);
+        var (dx, dy) = FormationSlot.World(FormationSlot.For(k, 10.7, 6.8, true), 0.0);
+        Assert.Equal(66.8, dx, 9); Assert.Equal(0.0, dy, 9);
     }
 }

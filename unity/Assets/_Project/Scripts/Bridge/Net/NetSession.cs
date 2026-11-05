@@ -111,6 +111,56 @@ namespace FlyingGame.Bridge.Net
         private void Awake()
         {
             _driver = GetComponent<FlightSimDriver>();
+            if (_driver != null) _driver.AirframeReplaced += OnNewFlight;
+        }
+
+        // ---- the spawn spread (Core LocalMp.SpawnSpread): nobody starts inside somebody else ----
+        private float _flightT = -1e9f, _spreadT0 = -1e9f;
+        private bool _spreadDone = true;
+        private readonly List<FlyingGame.Core.LocalMp.SpawnSpread.Other> _others = new();
+        /// <summary>A LAN finds its pilots by sweeping the subnet, a relay by connecting: the spread's window opens when
+        /// the first other pilot is seen, if that is within this long of FLY. Later than that, this pilot is flying.</summary>
+        public const float SpreadDiscoverS = 15f;
+
+        private void OnNewFlight() { _flightT = _spreadT0 = Time.realtimeSinceStartup; _spreadDone = false; }
+
+        /// <summary>The age this pilot reports (NetFlags.a): from the moment the window opened while it is open, from FLY after.</summary>
+        private float FlightAgeS(float now) => now - (_spreadDone ? _flightT : _spreadT0);
+
+        /// <summary>In the first seconds of a flight, if this aeroplane is on top of another pilot and it is ours to
+        /// move, move to the first free formation slot (abreast in the air, in line ahead on a runway). Once a flight.</summary>
+        private void SpreadAtSpawn(float now)
+        {
+            if (_spreadDone || _driver == null || _driver.Sim == null || SessionSettings.MenuOpen) return;
+            if (SelfId == null || _remotes.Count == 0)
+            {
+                // Nobody seen yet: hold the window shut until somebody is, for as long as discovery can take.
+                if (now - _flightT > SpreadDiscoverS) _spreadDone = true; else _spreadT0 = now;
+                return;
+            }
+            float age = now - _spreadT0;
+            if (age > FlyingGame.Core.LocalMp.SpawnSpread.WindowS) { _spreadDone = true; return; }
+            _others.Clear();
+            foreach (var kv in _remotes)
+            {
+                RemoteAircraft r = kv.Value;
+                if (r == null || !r.HasPose) continue;
+                var p = CoordinateMap.ToSim(r.transform.position);
+                float? a = r.FlightAgeS;
+                _others.Add(new FlyingGame.Core.LocalMp.SpawnSpread.Other(kv.Key, p.X, p.Y, p.Z, a.HasValue ? a.Value : (double?)null));
+            }
+            if (_others.Count == 0) return;
+            var s = _driver.Sim.Aircraft.State;
+            var (span, length) = FlyingGame.Core.LocalMp.FormationSlot.SizeOf(_driver.Sim.Aircraft.Config);
+            double clear = FlyingGame.Core.LocalMp.SpawnSpread.ClearRadiusM(span);
+            if (!FlyingGame.Core.LocalMp.SpawnSpread.ShouldMove(SelfId, age, s.Position.X, s.Position.Y, s.Position.Z, _others, clear)) return;
+            _spreadDone = true;
+            bool surface = _driver.OnGround;
+            int k = FlyingGame.Core.LocalMp.SpawnSpread.PickSlot(_others, s.Position.X, s.Position.Y, s.Position.Z, _driver.HeadingRad, span, length, surface, clear);
+            if (k < 0) { Debug.Log("[Net] spawn spread: on top of another pilot and no free slot within 8; staying"); return; }
+            var d = FlyingGame.Core.LocalMp.FormationSlot.World(FlyingGame.Core.LocalMp.FormationSlot.For(k, span, length, surface), _driver.HeadingRad);
+            _driver.MoveBy(d.Dx, d.Dy);
+            Debug.Log($"[Net] spawn spread: started on top of another pilot; moved to slot {k} ({(surface ? "in line ahead" : "abreast right")}, {System.Math.Sqrt(d.Dx * d.Dx + d.Dy * d.Dy):F0} m) at {age:F1} s");
         }
 
         /// <summary>Start (or restart) the session for the room chosen on the landing page.</summary>
@@ -230,6 +280,7 @@ namespace FlyingGame.Bridge.Net
             _client.Service();
             int drained = 0;
             while (drained++ < 512 && _client.TryDequeue(out NetMsg m)) Handle(m);
+            SpreadAtSpawn(now);
 
             // ---- the bill. Unscaled: the relay keeps the room awake while the pilot reads the menu, and
             // wall-clock time is what it charges for.
@@ -293,7 +344,9 @@ namespace FlyingGame.Bridge.Net
 
         private void StartConnect()
         {
-            string name = string.IsNullOrEmpty(SessionSettings.PilotName) ? "Pilot" : SessionSettings.PilotName;
+            // No name typed (always so in a headset, which has no keyboard): "Pilot" and the first four of this install's id, so
+            // two headsets in one room are told apart on their name tags.
+            string name = string.IsNullOrEmpty(SessionSettings.PilotName) ? $"Pilot {SessionSettings.DeviceId.Substring(0, 4).ToUpperInvariant()}" : SessionSettings.PilotName;
             string ac = _driver != null ? _driver.AircraftId : SessionSettings.AircraftId;
             _joinedAc = ac; _joinedName = SessionSettings.PilotName;
             SelfId = null;
@@ -471,6 +524,7 @@ namespace FlyingGame.Bridge.Net
             if (_egress == null) _egress = GetComponent<PilotEgress>();
             _out.f.w = _damage != null && _damage.WingsGone ? 1 : 0;
             _out.f.o = _egress != null && _egress.PilotOut ? 1 : 0;
+            _out.f.a = Mathf.Clamp(Mathf.FloorToInt(FlightAgeS(Time.realtimeSinceStartup) * 10f), 0, 999999);
             _client.Send(_out.ToJson());
         }
 
@@ -503,6 +557,7 @@ namespace FlyingGame.Bridge.Net
 
         private void OnDestroy()
         {
+            if (_driver != null) _driver.AirframeReplaced -= OnNewFlight;
             Active = false;
             DropConnection();
             DestroyRemotes();

@@ -1406,7 +1406,7 @@ namespace FlyingGame.Bridge
             if (JoystickInput.Held("trimDown")) _pitchTrim = Mathf.Clamp(_pitchTrim + 0.5f * dt, -1f, 1f);
             if (jp.RudderTrim.Set) { float rt = jp.RudderTrim.Value(); _rudderTrim = Mathf.Clamp(_rudderTrim + rt * Mathf.Abs(rt) * 0.083f * dt, -1f, 1f); }   // the rocker runs the rudder trim, progressive and slow (∝ deflection², centre → full ~12 s); it stays
             if (JoystickInput.Pressed("reset")) DoReset();
-            if (JoystickInput.Pressed("view")) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
+            if (JoystickInput.Pressed("view")) (LocalSplit.Active ? LocalPlayerView.ChaseFor(_driver) : (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>()))?.NextView();
             if (JoystickInput.Pressed("smoke") && SmokeAvailable) _smoke.Toggle();
             if (JoystickInput.Pressed("apDisconnect")) Object.FindFirstObjectByType<Widget.GameAeroHost>()?.Autopilot?.Off(disconnect: true);
             if (JoystickInput.Pressed("pause")) Object.FindFirstObjectByType<FlightReplay>()?.Enter();
@@ -1499,7 +1499,7 @@ namespace FlyingGame.Bridge
                 _deskFlapStep = Mathf.Clamp(at + (gp.FlapsDownPressed ? 1 : -1), 0, 2); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps);
             }
             if (gp.SmokePressed && SmokeAvailable) _smoke.Toggle();
-            if (gp.ViewPressed) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
+            if (gp.ViewPressed) (LocalSplit.Active ? LocalPlayerView.ChaseFor(_driver) : (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>()))?.NextView();
         }
 
         private static float SafeAxis(string name)

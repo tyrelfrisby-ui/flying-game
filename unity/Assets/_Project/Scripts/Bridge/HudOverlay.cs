@@ -29,6 +29,13 @@ namespace FlyingGame.Bridge
         private System.Collections.Generic.List<Sym> _labels = new();
         private System.Collections.Generic.List<Sym> _clipLabels = new();   // the same symbology computed for the clip camera
 
+        /// <summary>Split screen: this camera's player (null in single-player, where everything is as it always was).</summary>
+        private LocalPlayerView View => LocalSplit.Active ? LocalPlayerView.Of(this) : null;
+        /// <summary>This camera's view is in the cockpit (single-player: the static, as always).</summary>
+        private bool InCockpitHere => View?.InCockpit ?? ChaseCamera.InCockpit;
+        /// <summary>The engine band and the touch tray belong to the first player's screen.</summary>
+        private bool SecondaryView => View != null && View.PlayerIndex != 0;
+
         private void Awake()
         {
             _cam = _liveCam = GetComponent<Camera>();
@@ -112,7 +119,7 @@ namespace FlyingGame.Bridge
             float s = Mathf.Min(vw, vh);
             _w = Mathf.Max(1.5f, s * LineWidthFrac);
             Rect engineBand = UiLayout.EngineRowRect;
-            _lineFloor = _cam.targetTexture == null && engineBand.width > 0f && !ChaseCamera.InCockpit
+            _lineFloor = _cam.targetTexture == null && engineBand.width > 0f && !InCockpitHere && !SecondaryView
                 ? Mathf.Max(0f, Screen.height - engineBand.y - _cam.pixelRect.y) : 0f;
             float u = s * 0.01f; // 1 % of the short edge — symbol unit
 
@@ -253,7 +260,7 @@ namespace FlyingGame.Bridge
         {
             var ac = Driver?.Sim?.Aircraft;
             Rect band = UiLayout.EngineRowRect;
-            if (ac?.Config?.Propulsion == null || band.width <= 0f || ChaseCamera.InCockpit ||
+            if (ac?.Config?.Propulsion == null || band.width <= 0f || InCockpitHere || SecondaryView ||
                 SessionSettings.MenuOpen || SessionSettings.ReplayActive || UiLayout.Modal ||
                 SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud || !PilotEgress.HudAllowed(Driver)) return;
 
@@ -298,7 +305,7 @@ namespace FlyingGame.Bridge
                 float px = l.Pos.x + vp.x, py = l.Pos.y + vp.y;
                 float x = l.Anchor is TextAnchor.MiddleRight ? px - w : l.Anchor is TextAnchor.MiddleCenter ? px - w * 0.5f : px;
                 var rect = new Rect(x, screenH - py - h * 0.5f, w, h);
-                if (ReferenceEquals(labels, _labels) && UiLayout.EngineRowRect.width > 0f && !ChaseCamera.InCockpit &&
+                if (ReferenceEquals(labels, _labels) && UiLayout.EngineRowRect.width > 0f && !InCockpitHere && !SecondaryView &&
                     rect.yMax > UiLayout.EngineRowRect.y) continue;
                 GUI.Label(rect, l.Text, st);
             }

@@ -26,7 +26,14 @@ namespace FlyingGame.Bridge
         public enum View { RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby, RelativeWindAhead, Locked }
         public static readonly string[] ViewNames = { "Relative wind", "Cockpit", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by", "Relative wind, ahead", "Direction lock" };
         /// <summary>The camera is in the cockpit this frame (instruments become a panel, nothing is "kept out" of the view).</summary>
+        /// The FIRST player's camera (the only one, unless split screen is on): a second player's camera never writes it.
         public static bool InCockpit { get; private set; }
+        /// <summary>THIS camera is in the cockpit this frame. For the first player's camera the same as <see cref="InCockpit"/>.</summary>
+        public bool IsInCockpit => _inCockpit;
+        private bool _inCockpit;
+        /// <summary>LOCAL 2-PLAYER: 0 = the first player's camera; 1 = the second player's (split screen).</summary>
+        public int PlayerIndex;
+        private void SetInCockpit(bool v) { _inCockpit = v; if (PlayerIndex == 0) InCockpit = v; }
         /// <summary>Re-evaluated per camera render: stale InCockpit cannot leak sights after a view change.</summary>
         public bool CockpitSightsAllowed(FlightSimDriver owner) => isActiveAndEnabled && owner != null
             && Driver == owner && Target == owner.transform && OverrideTarget == null
@@ -57,15 +64,21 @@ namespace FlyingGame.Bridge
             // A broken-off piece on land or water (2026-11-05). On land the view used to stay on the flight path, which for
             // a cartwheeling wreck is its bounces and then its nose, not a direction to look along.
             if (FlyingGame.Core.CrashFraming.OpensCrashView(hit) == false || Target == null) return;
+            // Split screen: crash events carry no aircraft, so each camera takes only the pieces near its own aeroplane
+            // (the other player's crash must not swing this player's view onto his wreck).
+            if (LocalSplit.Active && (CoordinateMap.ToUnity(hit.Position) - Target.position).sqrMagnitude > SplitCrashRadiusM * SplitCrashRadiusM) return;
             _crashView = true;
             _crashAircraft = Driver?.Sim?.Aircraft;
         }
+
+        /// <summary>Split screen: how near this camera's aeroplane a broken-off piece must land to open its crash view.</summary>
+        public const float SplitCrashRadiusM = 400f;
 
         private void OnDisable()
         {
             FlyingGame.Core.CrashEvents.Impact -= CrashImpact;
             _crashView = _crashStarted = false;
-            InCockpit = false;
+            SetInCockpit(false);
             SetCockpitExtras(false);
         }
 
@@ -430,7 +443,7 @@ namespace FlyingGame.Bridge
         /// </summary>
         private void KeepAboveSurface()
         {
-            if (InCockpit) return;
+            if (_inCockpit) return;
             Vector3 pos = transform.position;
             // Unity (east, up, north) → sim (north, east, up).
             double simX = pos.z, simY = pos.x;
@@ -445,7 +458,7 @@ namespace FlyingGame.Bridge
             Transform tgt = OverrideTarget != null ? OverrideTarget : Target;
             if (tgt != null)
             {
-                Vector3 look = (_crashStarted && !InCockpit && OverrideTarget == null ? _crashFocus : tgt.position) - pos;
+                Vector3 look = (_crashStarted && !_inCockpit && OverrideTarget == null ? _crashFocus : tgt.position) - pos;
                 if (look.sqrMagnitude > 1e-4f) transform.rotation = Quaternion.LookRotation(look, Vector3.up);
             }
         }
@@ -458,7 +471,8 @@ namespace FlyingGame.Bridge
             _cam ??= GetComponent<Camera>();
             if (_cam != null)
             {
-                Rect vp = ScreenLayout.CameraViewport;
+                // Split screen (LocalSplit): each player's half; the touch tray is the first player's and is hidden with pads.
+                Rect vp = LocalSplit.Active ? LocalSplit.ViewportFor(PlayerIndex) : ScreenLayout.CameraViewport;
                 if (_cam.rect != vp) _cam.rect = vp;
             }
 
@@ -468,12 +482,12 @@ namespace FlyingGame.Bridge
             Transform tgt = ovr ? OverrideTarget : Target;
             if (tgt == null)
             {
-                InCockpit = false;
+                SetInCockpit(false);
                 SetCockpitExtras(false);
                 return;
             }
             bool cockpit = !ovr && !SideView && CurrentView == View.Cockpit;
-            InCockpit = cockpit;
+            SetInCockpit(cockpit);
             SetCockpitExtras(cockpit);
             if (_cam != null && CurrentView != View.Flyby && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
             if (_crashView && !ReferenceEquals(_crashAircraft, Driver?.Sim?.Aircraft)) _crashView = _crashStarted = false;
