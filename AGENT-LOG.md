@@ -16,7 +16,11 @@ rotation rate". Physics change, approved for merge + install.
   spot's edge now reaches the tyre's and leg's dampers (d(drop)/dt), `TyreWear.FlatSpots()` reads spots off the strips,
   and Quest controllers knock on each thump. The phone has no haptics path in the game, so none was added.
   docs/TIRE-SPINUP-AND-GROUND-SOUND.md §9; tests tools/FlightTests/FlatSpotTests.
-- Builds / merges / installs: branch iOS BUILD SUCCEEDED 14:00 (0 error CS); merged island-nav + quest-islandnav; device stamps below when installed.
+- Builds / merges / installs: branch iOS BUILD SUCCEEDED 14:00 (0 error CS). Merged island-nav **a2dc4765**, quest-islandnav
+  **2d916858** (PARITY: OK). Installed (by the bend-damage lane's deploys from those same trees, not built twice):
+  iPhone + iPad mini **2026.1105.1414** (confirmed on both with
+  devicectl; the iPhone was locked, so it did not launch; the EFB iPad Air refused it); Quest 3S **2026.1105.1426**
+  (install Success, launched). Nothing here is an approved gate.
 
 ## NEEDS YOU — wings bend before they break (Claude, 2026-11-05, lane/claude-bend-damage)
 <!-- bend-damage needs-you -->
