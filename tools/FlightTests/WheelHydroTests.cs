@@ -116,7 +116,7 @@ public class WheelHydroTests : IDisposable
         GearConfig main = cub.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         double psi = WheelHydro.TirePressurePsi(cub, main), vp = WheelHydro.HydroplaneSpeedMs(psi);
         double load = cub.Mass.MassKg * 9.81 * 0.88 / 2;
-        double r = LandingGear.TireRadiusOf(cub, main), b = 2 * r * WheelHydro.WidthPerDiameter;
+        double r = LandingGear.TireRadiusOf(cub, main), b = WheelHydro.WidthOf(cub, main);
         double hSlow = RideDepth(cub, main, load, 0.8 * vp), hVp = RideDepth(cub, main, load, vp), hFast = RideDepth(cub, main, load, 1.5 * vp);
         _o.WriteLine($"ride depth under {load:F0} N: {hSlow * 1000:F0} mm at 0.8 Vp, {hVp * 1000:F0} at Vp, {hFast * 1000:F0} at 1.5 Vp");
         Assert.True(hSlow > hVp && hVp > hFast, "faster rides higher");
@@ -154,15 +154,16 @@ public class WheelHydroTests : IDisposable
     [Fact]
     public void TheTyrePressureTableFollowsTheOwnersRuleAndTheBooks()
     {
-        // The rule: psi = gross lb / 100, and half that on bushwheels. Read per 100 lb rather than per 10,
-        // because per 10 would put a 1,750 lb Cub at 175 psi and per 100 lands on the POH's 18.
+        // The rule: psi = gross lb / 100. Read per 100 lb rather than per 10, because per 10 would put a 1,750 lb Cub
+        // at 175 psi and per 100 lands on the POH's 18. Since 2026-11-04 the configs STATE the pressure on each leg
+        // (the book figures and the rule's values were copied into them as they were), so this holds the configs to it.
         AircraftConfig cub = Cub();
         GearConfig main = cub.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         double lb = cub.Mass.MassKg * 2.20462;
         _o.WriteLine($"Cub gross {lb:0} lb");
 
         cub.Bushwheels = false;
-        double std = TirePressure.Psi(cub, main, false);
+        double std = TirePressure.Psi(cub, main);
         _o.WriteLine($"  standard: {std:0.0} psi → planes at {WheelHydro.HydroplaneSpeedMs(std) / 0.514444:0} kt");
         Assert.Equal(18, std, 0);                           // the PA-18 POH figure, from the table
 
@@ -170,9 +171,19 @@ public class WheelHydroTests : IDisposable
         var noBook = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "decathlon-8kcab-like.json"));
         GearConfig dm = noBook.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         double dLb = noBook.Mass.MassKg * 2.20462;
-        Assert.Equal(dLb / 100.0, TirePressure.Psi(noBook, dm, false), 1);
-        Assert.Equal(dLb / 200.0, TirePressure.Psi(noBook, dm, true), 1);
-        _o.WriteLine($"Decathlon gross {dLb:0} lb → {dLb / 100:0.0} psi standard, {dLb / 200:0.0} on bushwheels");
+        // The rule's 18 psi left the Decathlon's 6.00-6 below its rated deflection once pressure became the tyre's
+        // spring (2026-11-04), so its config states the pressure that puts it there (TR R-64 eq. 27): 21.0, never
+        // below the rule's figure.
+        Assert.Equal(21.0, TirePressure.Psi(noBook, dm), 1);
+        Assert.True(TirePressure.Psi(noBook, dm) >= dLb / 100.0 - 0.05);
+        // The old bushwheel rule (gross / 200) is retired: the option fits a real tundra tyre at the pressure that puts
+        // it at its rated deflection, inside its own range (TireCatalog.PressureForLoadPsi).
+        noBook.Bushwheels = true;
+        TireSpec tundra = TireCatalog.Of(dm)!;
+        double bushPsi = TirePressure.Psi(noBook, dm);
+        Assert.True(tundra.Tundra, $"the option should fit a tundra tyre, got {tundra.Id}");
+        Assert.InRange(bushPsi, tundra.MinPsi, tundra.MaxPsi);
+        _o.WriteLine($"Decathlon gross {dLb:0} lb → {dLb / 100:0.0} psi standard; bushwheels: {tundra.Id} at {bushPsi:0.0} psi");
     }
 
     /// <summary>Ty 2026-11-04: above V_p every aeroplane can ski unless its load beats the water. That needs V_p to be a
@@ -210,17 +221,23 @@ public class WheelHydroTests : IDisposable
     }
 
     [Fact]
-    public void BushwheelsDoubleTheTyreHalveThePressureAndPlaneSlower()
+    public void BushwheelsFitATundraTyreRunSofterAndPlaneSlower()
     {
-        // The option the owner wants on every aeroplane: twice the tyre, half the pressure, and the whole
-        // point of it — it stays on top of the water down to a much lower speed.
+        // The option the owner wants on every aeroplane: since 2026-11-04 a real tundra tyre from the catalog (it used
+        // to be twice the tyre at half the pressure), and the whole point of it — it stays on top of the water down to a
+        // much lower speed.
         var plain = Cub();
         var bush = Cub();
         bush.Bushwheels = true;
         GearConfig gp = plain.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         GearConfig gb = bush.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
 
-        Assert.Equal(LandingGear.TireRadiusOf(plain, gp) * 2, LandingGear.TireRadiusOf(bush, gb), 4);
+        TireSpec fitted = TireCatalog.Of(gb)!;
+        Assert.True(fitted.Tundra);
+        Assert.Equal(fitted.RadiusM, LandingGear.TireRadiusOf(bush, gb), 9);
+        Assert.True(LandingGear.TireRadiusOf(bush, gb) > 1.25 * LandingGear.TireRadiusOf(plain, gp), "a tundra tyre is a much bigger tyre");
+        // On the same axle: the contact point drops by the difference in radius.
+        Assert.Equal(gp.Pos[2] + fitted.RadiusM - LandingGear.TireRadiusOf(plain, gp), gb.Pos[2], 9);
 
         double pPlain = WheelHydro.TirePressurePsi(plain, gp), pBush = WheelHydro.TirePressurePsi(bush, gb);
         Assert.True(pBush < pPlain * 0.6, $"bushwheels should run much softer ({pBush:0.0} vs {pPlain:0.0} psi)");

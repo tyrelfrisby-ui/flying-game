@@ -1548,7 +1548,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tireRadiusM": 0.31, "wheelMassKg": 13
+      "tire": "legacy-stearman-main", "tirePressurePsi": 26.5
     },
     {
       "pos": [
@@ -1564,7 +1564,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tireRadiusM": 0.31, "wheelMassKg": 13
+      "tire": "legacy-stearman-main", "tirePressurePsi": 26.5
     },
     {
       "pos": [
@@ -1580,7 +1580,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "tireRadiusM": 0.11, "wheelMassKg": 2.0,
+      "tire": "legacy-stearman-tail", "tirePressurePsi": 21.2,
       "steerSpringNmPerRad": 20
     }
   ],

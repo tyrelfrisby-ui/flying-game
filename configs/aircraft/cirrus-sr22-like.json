@@ -1539,7 +1539,7 @@
       "maxSteerRad": 0.5,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "tireRadiusM": 0.18, "wheelMassKg": 4.6
+      "tire": "5.00-5", "tirePressurePsi": 26.5
     },
     {
       "pos": [
@@ -1555,7 +1555,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "tireRadiusM": 0.19, "wheelMassKg": 7.0
+      "tire": "legacy-sr22-main", "tirePressurePsi": 33.1
     },
     {
       "pos": [
@@ -1571,7 +1571,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "tireRadiusM": 0.19, "wheelMassKg": 7.0
+      "tire": "legacy-sr22-main", "tirePressurePsi": 33.1
     }
   ],
   "limits": {

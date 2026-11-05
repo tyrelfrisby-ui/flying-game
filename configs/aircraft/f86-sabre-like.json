@@ -1869,8 +1869,7 @@
       "maxSteerRad": 0.6,
       "tireMu": 0.8,
       "corneringStiffnessN": 15000,
-      "wheelMassKg": 15,
-      "tireRadiusM": 0.3
+      "tire": "legacy-f86-nose", "tirePressurePsi": 121.7
     },
     {
       "pos": [
@@ -1886,8 +1885,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 25000,
-      "wheelMassKg": 35,
-      "tireRadiusM": 0.33
+      "tire": "legacy-f86-main", "tirePressurePsi": 152.1
     },
     {
       "pos": [
@@ -1903,8 +1901,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 25000,
-      "wheelMassKg": 35,
-      "tireRadiusM": 0.33
+      "tire": "legacy-f86-main", "tirePressurePsi": 152.1
     }
   ],
   "limits": {

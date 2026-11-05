@@ -1215,7 +1215,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.28, "wheelMassKg": 10
+      "tire": "legacy-geebee-main", "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1231,7 +1231,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.28, "wheelMassKg": 10
+      "tire": "legacy-geebee-main", "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1247,7 +1247,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.8,
       "corneringStiffnessN": 2000,
-      "tireRadiusM": 0.1, "wheelMassKg": 1.5,
+      "tire": "legacy-geebee-tail", "tirePressurePsi": 22.9,
       "steerSpringNmPerRad": 120
     }
   ],

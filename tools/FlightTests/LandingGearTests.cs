@@ -144,20 +144,21 @@ public class LandingGearTests
     [Fact]
     public void TaildraggerMainTouchdownPitchesNoseUp()
     {
-        (double maxQ, double minQ, Aircraft ac) Run(bool prespun)
+        (double maxQ, double minQ, Aircraft ac, double[] q) Run(bool prespun)
         {
             var ac = MainsAboutToTouch("pa18-cub-like", 6, 1.5, 25);
             var sim = new SimLoop(ac);
             sim.RunFor(0.005, new ControlInputs(0, 0, 0, 0));
             if (prespun) for (int g = 0; g < ac.Config.Gear.Count; g++) ac.Wheels[g].OmegaRadS = 25 / ac.Wheels[g].RadiusM;
-            double maxQ = -9, minQ = 9;
+            double maxQ = -9, minQ = 9; var q = new double[80];
             for (int i = 0; i < 80; i++)
             {
                 sim.RunFor(0.005, new ControlInputs(0, 0, 0, 0));
                 maxQ = System.Math.Max(maxQ, ac.State.Rates.Y);
                 minQ = System.Math.Min(minQ, ac.State.Rates.Y);
+                q[i] = ac.State.Rates.Y;
             }
-            return (maxQ, minQ, ac);
+            return (maxQ, minQ, ac, q);
         }
         var warm = Run(true);
         var cold = Run(false);
@@ -169,10 +170,15 @@ public class LandingGearTests
         {
             if (c.Gear[g].IsTailwheel) continue;
             h += (c.Gear[g].PosVec() - c.Mass.CgVec()).Z; n++;
-            imp += WheelSpin.InertiaOf(c, c.Gear[g]) / System.Math.Pow(cold.ac.Wheels[g].RadiusM, 2) * 25;
+            imp += WheelSpin.InertiaOf(c, c.Gear[g]) / System.Math.Pow(cold.ac.Wheels[g].RollingRadiusM, 2) * 25;
         }
         double dqWant = imp * (h / n) / cold.ac.MassProperties.Iyy;
-        double dqGot = warm.maxQ - cold.maxQ;
+        // The spin-up's pitch is the largest gap between the two arrivals' pitch rates over the same instants. (It was
+        // the gap between their PEAKS, which is the same thing while the spin-up is over before the bounce peaks; since
+        // 2026-11-04 the tyre is in series with the bungee, the load and so the spin-up take ~50 ms rather than ~25, and
+        // the two overlap.)
+        double dqGot = 0;
+        for (int i = 0; i < warm.q.Length; i++) dqGot = System.Math.Max(dqGot, warm.q[i] - cold.q[i]);
         Assert.InRange(dqGot, 0.5 * dqWant, 1.5 * dqWant);
     }
 
