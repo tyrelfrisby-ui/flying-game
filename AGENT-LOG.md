@@ -1,3 +1,20 @@
+## NEEDS YOU — Great Lakes panels v2 + Extra no-diagonals / compact front IAC: fly-check on the iPhone (Claude, 2026-11-05 15:31 PT)
+Ty approved the visuals (GL ~10:56 PT; Extra ~13:19 PT, Q109/Q117). Nothing flight-approved by me. Please fly-check.
+- Merged into lane/claude-island-nav: GL a3602b44 → 84357223; Extra b9228089 → **2710033d**. Quest lane:
+  9365fe27, **0cebf235**. `tools/check-parity.sh --strict` PARITY OK (GLBs: all 31 identical).
+- The Extra merge also brings what b9228089 was built on: **cockpit-common** (IAC deck + 2026 Knowns, Kollsman
+  altimeter, g followers, J-3 fuel wire, cockpit taps, no belts/cords) and **Extra cockpit v3 + canopy seal**. Their
+  questions (Q057–Q060, Q071, Q072) are still open.
+- Conflicts resolved: PilotEgress (kept crash-bailout's canopy stepping/CanopyClear/ghost chute, added the one-press VR
+  `_autoChute`); ModelRig/CockpitRigState (kept GL `fuel_top_wing_frac` and cockpit-common `fuel` + `KollsmanInHg`).
+- iOS `deploy.sh 00008150-001629A83662401C` ** BUILD SUCCEEDED **, 0 error CS, **2026.1105.1525 installed and launched
+  on Ty's iPhone 17 Pro** (devicectl confirms). iPad/Quest not installed this run. The version bump is not committed.
+- Targeted tests (NoRed233/GreatLakes/Extra/CockpitCommon/BeltsAndCords/Magneto/Rig): 438/444 pass, 2 skipped, 4 fail. All 4 fail on the
+  base too: NoRed233.ResourcesHoldOnlyTheYellowGlbs (its "grob" regex matches the Grob 103 Acro GLBs, Q104),
+  RigTests.EveryConfigIsInTheTable, the glider air-brake test, and AerobatGroundHandling Pitts 12 m/s (fails alone on 690ddae2 as well).
+- Fly-test: GL rear panel (centred IAC card, MAG L/R, switch labels, fuel sight ball); GL both-mags-off stops the
+  engine; Extra rear view with no diagonals; Extra small front IAC card.
+
 ## NEEDS YOU — flat-spotted tyres: fly-check (Claude, 2026-11-05)
 <!-- flat-spot needs-you -->
 Lane lane/claude-flat-spot. Ty (08:53): "model flat spotted tires even if they don't pop ... the longer it locks up the
