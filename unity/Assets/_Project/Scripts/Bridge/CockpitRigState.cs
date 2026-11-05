@@ -149,6 +149,10 @@ namespace FlyingGame.Bridge
             Climb.Reset();
         }
 
+        /// <summary>The Pitts' blue prop lever's blade, 0 down (locked) .. 1 horizontal (released): the hand's, drawn in
+        /// both seats. It is a cockpit state, not the sim's: only the slide (Aircraft.PropLever) reaches the engine.</summary>
+        public double PropLock01;
+
         /// <summary>Clear the accelerometer's max / min tell-tales (the knob on a real one).</summary>
         public void ResetGTellTales() { _gMax = _gMin = 0.0; }
 
@@ -178,15 +182,22 @@ namespace FlyingGame.Bridge
 
             // The verniers, the key and the switches. The sim flies with the engine running, the fuel on and
             // both magnetos live, so that is where the cockpit's levers sit; a type without an engine shows
-            // the key off rather than pretending.
+            // the key off rather than pretending. The prop lever and the electrical switches are the sim's own
+            // (Aircraft.PropLever, Aircraft.Electrics), so the front seat's and the rear's read the same state.
             bool engine = cfg != null && cfg.Propulsion != null && cfg.Propulsion.MaxPowerW > 0.0;
             // The prop and mixture levers are the sim's own now (Aircraft.PropLever / MixtureLever, Ty 2026-11-04): drawn
             // where the pilot left them, whatever the engine is doing.
             r.PropLever = ac.HasPropLever ? ac.PropLever : 1.0;
             r.Mixture = engine ? ac.MixtureLever : 0.0;
             r.FuelSelector = 1.0;
+            r.FuelValve = ac.FuelValveOpen ? 1.0 : 0.0;   // the valve's one shaft: both cockpits' levers read it
+            r.CowlFlap = ac.CowlFlap01;
+            r.PropLock = PropLock01;
             r.Magneto = engine && !ac.EngineStopped ? 3.0 : 0.0;
-            r.Master = 1.0;
+            FlyingGame.Core.Engine.ElectricalSystem el = ac.Electrics;
+            r.Master = el.Master ? 1.0 : 0.0;
+            r.Alternator = el.Alternator ? 1.0 : 0.0;
+            r.FuelPump = el.FuelPump ? 1.0 : 0.0;
 
             // ---- read the way an instrument reads ----------------------------------------------------
             // Vertical speed, lagged like the leak on a real VSI (2 s; a certificated one is nearer 6, which
@@ -291,7 +302,7 @@ namespace FlyingGame.Bridge
                 EngineRpm = r.Rpm,
                 AmbientPressurePa = Atmosphere.PressureAt(s.Position),
                 AmbientTempK = Atmosphere.TemperatureAtPosition(s.Position),
-                BusVolts = r.Master > 0.5 ? (turning ? 14.2 : 12.4) : 0.0,
+                BusVolts = ac.Electrics.BusVolts,
             };
             WorldTerrain t = WorldTerrain.Active;
             bool fresh = _c172 == null;
@@ -334,7 +345,8 @@ namespace FlyingGame.Bridge
 
             // Oil and cylinder-head temperature: first-order, toward what the power setting holds.
             double oilTarget = firing ? 150.0 + 60.0 * thr : 100.0;
-            double chtTarget = firing ? 260.0 + 160.0 * thr : 200.0;
+            // An open cowl flap (Aircraft.CowlFlap01) takes (E) 60 F off the heads at any power.
+            double chtTarget = FlyingGame.Core.Engine.EngineTemperatures.ChtTargetF(firing, thr, ac.CowlFlap01);
             if (dt > 1e-4f)
             {
                 _oilTempF += (oilTarget - _oilTempF) * (1.0 - System.Math.Exp(-dt / 150.0));
@@ -370,10 +382,9 @@ namespace FlyingGame.Bridge
             if (dt > 1e-4f) _fuelUsedGal += r.FuelFlowGph * dt / 3600.0;
             r.FuelUsedGal = _fuelUsedGal;
 
-            // Presentation (P), no sim behind them, aimed at the middles of the markings the shared panel's dials are
-            // drawn with (CODEX-SPEC, the ammeter; to be checked against Ty's own panel): the alternator's charge,
-            // EGT with power.
-            r.Amps = running ? 3.0 : r.Master > 0.5 ? -4.0 : 0.0;
+            // The ammeter is the bus's (ElectricalSystem: + charging, − the battery carrying the load); EGT is
+            // presentation (P), aimed at the middle of the markings the shared panel's dial is drawn with.
+            r.Amps = ac.Electrics.Amps;
             r.EgtF = running ? 1200.0 + 250.0 * thr : 100.0;
         }
 

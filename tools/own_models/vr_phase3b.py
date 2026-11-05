@@ -5,6 +5,7 @@ import json, math, tempfile
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+from instrument_face_style import font, finish
 from vr_cockpit import Author, Shape, Glb, ROOT, gl, builder
 from vr_phase2e import compact
 from drop_card_slot import validate
@@ -28,7 +29,6 @@ ARCS={'G':[(-5,8,'#45d765'),(8,10,'#ffe044'),(10,10,'#ff4040')], 'MP':[(10,25,'#
 def angle(k,v):return float(np.interp(v,SCALES[k][1],SCALES[k][2]))
 def art(key,needles,path):
  im=Image.new('RGB',(1024,1024),(12,16,20));d=ImageDraw.Draw(im)
- font=lambda n:ImageFont.truetype('/System/Library/Fonts/Supplemental/Arial.ttf',n)
  def point(a,r):a=math.radians(a);return (512+r*math.sin(a),512-r*math.cos(a))
  dual=key in ('Oil','Temps')
  for k in needles:
@@ -54,7 +54,7 @@ def art(key,needles,path):
   # Match the real slip-ball centre's 25 mm radius about the gauge pivot.
   radius=512*.025/(3.125*.0254/2-.0005)
   d.line([(512+radius*math.sin(t),512+radius*math.cos(t)) for t in np.linspace(-math.radians(18),math.radians(18),80)],fill='#dce2dc',width=100)
- im.save(path)
+ finish(im).save(path)
 
 def update(path):
  if path.parent.name!='extra-300-like':return

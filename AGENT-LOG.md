@@ -78,6 +78,31 @@ because another lane's build had deleted the shared /tmp/flyinggame-dd .app mean
 **On the devices at 23:58:** iPhone 2026.1104.2323 and Quest 3S 2026.1104.2337 (grob103's builds, installed after mine
 and built from the lanes AFTER this merge, so they carry all of it), iPad mini 2026.1104.2346 (mine).
 <!-- /quest-feedback needs-you -->
+## NEEDS YOU — Pitts cockpit + shared instrument style (Claude, lane/claude-pitts-panel, 2026-11-04)
+Nothing approved by me; every (E) number below is mine to be checked, not a book value.
+- **Look at the renders** (Unity, seat eye): ~/Developer/agent-lanes/renders/instrument-style/ — Pitts front and rear seat,
+  the rear levers at rest and "moved", the right wall (fuel valve ON / OFF), the floor, and contact-sheet.png of every
+  modelled panel. Reference photos side by side: pitts-vs-reference.png.
+- **What is wired (lane/claude-pitts-panel 61b280bc..4971541b, Codex bf61f0aa + 585aa94b merged):** the four rear switches on a real bus (Core ElectricalSystem: master off =
+  dead bus, smoke and boost pump stop, engine runs on its mags; alternator off = the battery runs flat; FUEL PUMP is only
+  a 3 A load because the engine-driven pump never fails in this sim); ALTERNATOR made a real switch (Codex drew it static);
+  the front and rear prop levers and the red mixture drive quest-feedback's engine (Aircraft.PropLever / MixtureLever, already on both lanes: governor 0.7 MaxRpm .. governed rpm, MixtureModel lean/rough/cut-off); my own first-cut prop-lever and mixture model were dropped in its favour at the merge; the blue rear prop lever turns DOWN = locked to
+  HORIZONTAL = released and only then slides; fuel valve UP ON / forward OFF (starves in 4 s, relights 2 s after: the Extra lane's code, ported
+  verbatim); trim lever = the pitch trim; cowl flap CLOSED/MID/OPEN (-60 F CHT open, 0.02 m2 drag). Front seat: ASI, ALT,
+  G, TACH only, throttle + prop lever linked to the rear (one sim state), stick, rudder, no switches.
+- **Removed:** a SECOND rear throttle the game added at runtime on the left wall (CockpitLive's pre-rig LeverAdd), dead
+  stick/pedal cuts, and the invisible panel PROP / MIXTURE / FUEL SELECTOR rows a hand could still grab.
+- **Super Cub:** its downloaded dial maps are now the cream variant (not its attitude gyro). Say if "Cub" meant the J-3 only.
+- **Questions:** Q044, Q046-Q048 in agent-lanes/QUESTIONS-FOR-TY.md (renders, prop/trim lever motion, electrics/cowl (E) values, Super Cub cream); Q045 withdrawn.
+- **Not right yet, said plainly:** the rear panel's instrument ARRANGEMENT is Codex's (MP and altimeter sit elsewhere in your photo); the C172 and Swift are not in the Unity contact sheet (the shot tool drew no 172 cabin from its seat; the Swift has no approved eye, Q001); the PA-18 tile is its dial maps, its OBJ panel is too dark to read from any eye I tried. The Extra lane is NOT merged here (still running): see the merge note.
+- **Tests:** EditMode (new assembly unity/Assets/_Project/Tests/EditMode) 20/20; .NET PittsPanelSystemsTests 23, related suites 198/198; ModelRigTests.FullAirBrakeStops... and two StreamingAssetsTests fail identically on the branch point 0bb87c67 (pre-existing).
+- **Build / install:** lane build 2026.1104.2310 ** BUILD SUCCEEDED **, 0 error CS (no device, dummy id). INSTALL_STATUS
+- **Merge note for lane/claude-extra-front-seat:** it conflicts with this lane in VrCockpitHands.Panel.cs (both extend
+  SimParams/Initial/UpdatePanelPoints: keep both), CockpitControlInteriorTests (Pitts 13 and Extra 40), RigInputs
+  (identical FuelValve/Alternator lines: check for a duplicate field after the merge, the merge is clean but may not
+  compile), and the three Extra GLBs: take that lane's GLBs, then run
+  `nice /usr/bin/python3 tools/own_models/style_fleet_instruments.py` (idempotent) so its faces get the shared style.
+
 
 ## NEEDS YOU — CARDBOARD VR ON THE iPHONE 17 PRO (Claude, 2026-11-04 ~20:00 PST, lane/claude-vr-stereo-merge)
 Ty 19:39: "I have the cardboard vr headsets for the iphone now". lane/codex-vr-stereo (lens-distortion compositor,
@@ -250,6 +275,49 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   here: same wrong analytic gradient on the base commit; adding a field shifted the test's every-11th sampling onto it. Reported, not fixed.
 - Not here: the legacy AlaskaRange world (WheelSkiTests/GlacierLandingZoneTests "Knik") is a different, unbuilt world; untouched.
   No spawn, lesson or challenge referenced the Knik ski zone; gameplay-inventory text re-pointed.
+## 2026-11-04 — Pitts pass 3 geometry (Codex, uncommitted)
+- Latest Pitts notes and both photos read. Four liveries: red push-pull Mixture aft/below throttle,
+  outboard left; obsolete panel mixture meshes removed. CowlFlap lower left with CLOSED / MID / OPEN gate.
+- Restored floor_windows.py from 8890328f (312885a8 Lexan/Frame material implementation): real skin,
+  tub and wing cutouts, both clear panes, retaining strips/screws and tubes. Floor_Frame parent aliases
+  existing Floor_Window_Frame; material names Lexan / Floor_Frame preserved for runtime material mapping.
+- Wiring handoff nodes: Mixture (fore/aft push-pull), CowlFlap, Floor_Frame. Static only; rig JSON,
+  simulation and Glass Overlay unchanged. Rear switch meshes exactly MASTER / ALTERNATOR / FUEL PUMP / SMOKE.
+- All four GLBs: graph/material/node/switch checks PASS; offline instrument checks PASS, diff --check PASS.
+  Fixed empty comparison-sheet sample handling in the checker. CPU renders in renders/instrument-style/
+  pitts-pass3-*.png; no runtime transparency/lighting claims. No builds and no commit attempted, per Ty.
+
+## 2026-11-04 — Pitts photo visual follow-up (Codex)
+- Read Pitts notes and both photos; all four liveries updated with staggered panels, black crinkle finish,
+  blue left prop in locked/down pose, right fuel valve ON/up, long forward left trim and sidewall markings.
+- Static visual models only; retained rig maps / simulation / Glass Overlay unchanged. Broader reference
+  requests for functional controls, mixture, cowl flap and floor window are outside this follow-up.
+- `pitts_reference_visuals.py` integrated after v4 for regeneration. CPU renders in `renders/instrument-style/`.
+- Offline style/graph/face-clearance checks PASS. No build, push, forced add or gate approval.
+- Local commit blocked again: git add cannot create external shared Git index.lock under sandbox permissions.
+  Tracked-ignore check empty; changes left in worktree.
+
+## 2026-11-04 — shared instrument paint + Pitts panels (Codex, lane/codex-instrument-style)
+- Ty 19:22: all aircraft instruments bold/high contrast like Extra; Cub/Super Cub keep cream; Pitts front four
+  dials only, throttle/prop levers, rear MASTER/ALTERNATOR/FUEL PUMP/SMOKE only plus retained engine/fuel controls.
+- Common generator: `tools/own_models/instrument_face_style.py`; builders and GLB save path use it. Palette generated
+  into InstrumentFaces for the shared floating gauges (including aircraft without modelled cockpit dials). Black/white
+  or Cub cream/black; existing arc pixels, scale positions, ranges and retained rig maps preserved. 172 vector paint
+  also boldened and included in instrument lighting. Glass Overlay and aircraft configs untouched.
+- Pitts: `pitts_panel_v4.py`, called after the existing v3 builder, preserves node indices; retires obsolete controls,
+  adds four front faces with live needle bindings and a front prop lever. Rear alternator is a labelled visual switch;
+  no new electrical simulation. All four Pitts liveries regenerated. Front faces checked in front of bezel caps.
+- Validation: `nice /usr/bin/python3 tools/own_models/check_instrument_style.py` PASS: Python syntax, GLB graph,
+  idempotent paint, front face clearance, layout, retained rig data; 164 face textures, 844,237 saturated coloured
+  pixels exactly preserved, texture alpha preserved. Updated relevant C# expectations; NOT run (no build requested).
+- Review: `renders/instrument-style/face-comparison.png`, `pitts-rear.png`, `pitts-front.png`; opened and inspected.
+  Rear camera is the GLB Eye_Rear; front is a panel inspection camera. CPU texture/geometry render only: Blender
+  crashed at startup in this sandbox. Lighting/device readability is still pending Claude's build; no gate approved.
+- Handoff: shared style owns no Extra layout. When merging the parallel Extra cockpit work, keep that lane's Extra
+  GLBs/layout and run `nice /usr/bin/python3 tools/own_models/style_fleet_instruments.py` after its final model pass.
+  Merge into both locked platform lanes the same day. No Unity/Xcode/dotnet build, push or main change; playable
+  worktree build leftovers untouched. Git staging/commit BLOCKED: sandbox cannot create index.lock in the shared
+  Git metadata directory outside writable roots. No commits created; all changes remain in this worktree. More detail: `docs/models/instrument-style.md`.
 
 ## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
 - Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
