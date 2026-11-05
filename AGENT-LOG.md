@@ -1,5 +1,31 @@
 ## NEEDS YOU
 
+## NEEDS YOU — Flight recorder / multitrack sessions: review the design + UI (Claude, 2026-11-05 01:15 PST, lane/claude-flight-recorder)
+- Ty: read `docs/FLIGHT-RECORDER.md` (design, file format, sizes, determinism, multitrack, UI proposal) and answer
+  Q036-Q040 in ~/Developer/agent-lanes/QUESTIONS-FOR-TY.md (name: "REC" is taken by the clip recorder; UI placement;
+  collision damage; save-from-REPLAY; count-in/slot defaults). NOT merged into either playable lane, NOT installed,
+  nothing reachable in the game changed. Nothing approved; no gate marked.
+
+### 2026-11-05 flight recorder phase 1: core + tests + unwired Bridge (Claude, lane/claude-flight-recorder off d0db5af1)
+- Core, shared (src/FlyingGame.Sim/Replay/): FlightTrack (54-byte quantised frames at a fixed 30 Hz: pos, quat, body vel,
+  rates, surfaces, flap/slat/spoiler, throttle, gear, rpm, g, wind, flags smoke/pilot-out/lights/guns/on-ground; PartLost
+  and SmokeColour events; Hermite position, slerp attitude), TrackRecorder (resamples any display rate onto the grid),
+  FlightSession (N tracks on one timeline, mute/solo, nudge, join pose), RecordingTake (count-in, new ship in a slot on the
+  lead, punch-in overdub, commit/cancel), RecordingCodec (.fgrec binary, trailer-checked), RecordingLibrary
+  (persistentDataPath/Recordings: save/list/rename/delete), ReplayPlayback (placement Original / AtMyPosition, loop, start
+  offset, several sessions at once; each ship a real Aircraft via SetReplayPose, gun target ids 1000+, crippled -> physics
+  wreck with recorded momentum -> settled; collision detection, recorded-vs-recorded off by default).
+- Size: 1,620 B/s a ship = 97 kB/min, 5.8 MB/h; a 5-min 6-ship show 2.9 MB.
+- Bridge/RecordedShips.cs: draws ships (surfaces, gear, props, damage FX, detached parts), drives takes, exposes gun targets.
+  NOT attached to any scene/menu; CombatController hook not wired (shared playable code). No #if: iOS/Mac/Quest identical.
+- Tests: FlightRecorderTests 23/23 (dotnet, filter FlightRecorderTests). Full suite NOT run (no existing code changed;
+  only new files).
+- iOS deploy.sh: ** BUILD SUCCEEDED **, 0 error CS, build stamp 2026.1105.0100, installed on NO device (dummy UDID on
+  purpose: a feature-lane build must not replace Ty's). Quest build not run (no platform code; the shared code is compiled
+  for Android only by deploy-quest.sh on the Quest lane, at merge time). bundleVersion/StreamingAssets byproducts uncommitted.
+- Found on the way: build-slot wait loops matching each other (lost 4 h) -> CLAUDE.md lesson; SimLoop.RunFor rounds to
+  whole 5 ms steps (RunFor(1/60) = 15 ms), noted in the design doc.
+
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
   Extra to full aileron and check the down-going aileron's nose stands proud of the wing (~50 mm), and roll the Great
