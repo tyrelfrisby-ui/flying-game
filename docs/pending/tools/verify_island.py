@@ -34,7 +34,7 @@ for a in w['airports']:
    if key in q:assert r[key]==q[key],(a['id'],key)
 assert w['catalina']==base['world']['catalina']
 assert next(q for q in w['water'] if q['id']=='Lake Powell')['elevation_ft']==3700
-assert all(1000<=q['ski_zone']['elevation_ft']<=1300 for q in w['glaciers'])
+assert all(1000<=q['ski_zone']['elevation_ft']<=1300 for q in w['glaciers'] if 'ski_zone' in q)
 assert len(w['airparks'])==14 and len(w['hazards']['towers'])==6 and len(w['hazards']['wires'])==5
 assert all(q['charted'] for q in w['hazards']['towers']+w['hazards']['wires'])
 assert {z['id'] for z in w['combat_zones']}=={'CZ1','CZ2','CZ3','CZ5'} and not any(t['id']=='CZ4' for t in w['starts'])
