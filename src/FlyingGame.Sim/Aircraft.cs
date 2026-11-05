@@ -452,7 +452,12 @@ public sealed partial class Aircraft
             if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0 || _noseLost) return 0.0;   // stopped: burns nothing
             double bsfc = Config.Propulsion.BsfcKgPerWs;
             if (bsfc <= 0.0) return 0.0;
-            return Config.Propulsion.MaxPowerW * Math.Clamp(_throttle01, 0.0, 1.0) * bsfc;
+            // A dead engine burns nothing; a running one burns what the mixture meters (full rich: as it always did) at
+            // the power the governor lets it make.
+            if (!EngineRunning) return 0.0;
+            double meter = HasMixture ? Core.Engine.MixtureModel.FuelFraction(MixtureLever) : 1.0;
+            double gov = HasPropLever ? GovernorPowerFactor() : 1.0;
+            return Config.Propulsion.MaxPowerW * Math.Clamp(_throttle01, 0.0, 1.0) * bsfc * meter * gov;
         }
     }
 
@@ -487,18 +492,15 @@ public sealed partial class Aircraft
         {
             PropulsionConfig p = Config.Propulsion!;
             if (p is null || _noseLost) return 0.0;   // engine stopped (prop strike)
+            // Not running (cut-off, too lean): the air turns the prop, or nothing does. The throttle has no say.
+            if (!EngineRunning) return WindmillRpm;
             double idle = p.IdleRpm, max = p.MaxRpm, thr = _throttle01;
-            if (p.ConstantSpeed)
-            {
-                double gov = Math.Clamp(p.GovernedRpm, idle, max);
-                double finePitch = idle + (Math.Min(gov, 1800.0) - idle) * Math.Min(1.0, thr / 0.3);
-                if (thr < 0.3) return finePitch;
-                double t = Math.Clamp((thr - 0.9) / 0.1, 0.0, 1.0);
-                return gov + (max - gov) * t * t * (3 - 2 * t);
-            }
+            if (p.ConstantSpeed) return GovernedRpmAt(_propLever);   // the governor holds what the prop lever sets
+            // Fixed pitch: rpm follows the power the engine really makes (the mixture's share; full rich = the throttle).
+            if (HasMixture) thr *= PowerScale;
             double vRef = Config.SpawnIasMs > 1 ? Config.SpawnIasMs : 30.0;
             double speedFactor = 0.82 + 0.18 * Math.Clamp(State.Velocity.Length / vRef, 0.0, 1.0);
-            return idle + (max - idle) * Math.Pow(thr, 0.8) * speedFactor;
+            return idle + (max - idle) * Math.Pow(Math.Max(0.0, thr), 0.8) * speedFactor;
         }
     }
 
@@ -835,7 +837,11 @@ public sealed partial class Aircraft
         Hydro.Prepare(State, w);
     }
     private Vec3 _noseBody = new(1.5, 0, 0);
-    /// <summary>True once the propeller has hit the ground (or the nose is gone): engine stopped, no thrust.</summary>
+    private PropModel.PropDrive _drive = PropModel.PropDrive.Running;
+    /// <summary>The wash over the tail the last step flew with (axial m/s, tube radius m, swirl m/s): 0 with no prop turning.</summary>
+    public (double DeltaU, double Radius, double Swirl) LastTailSlipstream { get; private set; }
+    /// <summary>True once the propeller has hit the ground (or the nose is gone): engine stopped, no thrust. DAMAGE only:
+    /// an engine stopped by its mixture is <see cref="EngineStarved"/>; <see cref="EngineRunning"/> covers both.</summary>
     public bool EngineStopped => _noseLost;
     /// <summary>Strip-level aero mask (AeroModel strip order), null while every component is attached.</summary>
     public bool[]? StripMask => _stripMask;
@@ -1150,8 +1156,13 @@ public sealed partial class Aircraft
         for (int i = 0; i < Config.Surfaces.Count; i++) stripCount += Config.Surfaces[i].Strips.Count;
         _flowState.EnsureSize(stripCount);
 
-        // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R.
-        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, State.Velocity, State.Rates, airDensity);
+        // The engine's own state (mixture, governor, quit / caught again) before anything reads it.
+        UpdateEngine(dt, airDensity);
+        _drive = Drive;
+        // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R. From what the prop
+        // is really doing, not the throttle: a stopped or missing prop blows nothing (Ty 2026-11-04, the Extra's strike).
+        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, State.Velocity, State.Rates, airDensity, _drive, _noseLost);
+        LastTailSlipstream = (slipDu, slipR, slipSwirl);
 
         // Ground contact, once a step instead of at each of RK4's four stages (Quest 3S, 2026-11-02: below 60 m the
         // contact queries took the headset from 72 fps to 20, and to 8 on the ground). If the airframe and its wheels are
@@ -1293,7 +1304,7 @@ public sealed partial class Aircraft
             }
             if (Config.Propulsion is not null)
             {
-                (Vec3 pF, Vec3 pM) = PropulsionForces(Config, _throttle01, s.Velocity, s.Rates, airDensity, _noseLost, _noseBody, _propThrustScale);
+                (Vec3 pF, Vec3 pM) = PropulsionForces(Config, _throttle01, s.Velocity, s.Rates, airDensity, _noseLost, _noseBody, _propThrustScale, _drive);
                 totalF += pF;
                 totalM += pM;
             }
@@ -1449,13 +1460,36 @@ public sealed partial class Aircraft
     /// Static so RigSolver evaluates exactly what the sim flies.
     /// </summary>
     public static (double DeltaU, double Radius, double Swirl) TailSlipstream(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity)
+        => TailSlipstream(config, throttle01, velocity, rates, airDensity, PropModel.PropDrive.Running, propGone: false);
+
+    /// <summary>The same from what the propeller is really doing (<paramref name="drive"/>). A running engine: exactly the
+    /// throttle law above (the multi-engine types' failed engines, ThrottleScale 0, no longer count). Gone (prop strike,
+    /// nose lost): nothing. Dead and windmilling: the prop takes energy OUT of the air, so the tail sits in a slightly SLOWER
+    /// wake (V_slip² = V² + 2T/(ρA) with the windmill's negative T) swirling the other way — small, and never a blast.</summary>
+    public static (double DeltaU, double Radius, double Swirl) TailSlipstream(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
+        PropModel.PropDrive drive, bool propGone)
     {
-        if (config.Propulsion is null || config.Propulsion.PropDiameterM <= 0.0) return (0.0, 0.0, 0.0);
+        if (config.Propulsion is null || config.Propulsion.PropDiameterM <= 0.0 || propGone) return (0.0, 0.0, 0.0);
         double vNow = velocity.Length;
-        (Vec3 tF, _) = PropModel.Compute(config.Propulsion, throttle01, velocity, rates, airDensity);
-        double thrust = System.Math.Max(0.0, tF.X);
+        double thr = throttle01;
+        if (config.Engines.Count > 0)
+        {
+            double scale = 0.0; int n = 0;
+            foreach (EngineMount m in config.Engines) { if (!m.Feathered) scale += m.ThrottleScale; n++; }
+            thr *= n > 0 ? scale / n : 1.0;
+        }
+        (Vec3 tF, _) = PropModel.Compute(config.Propulsion, thr, velocity, rates, airDensity, drive);
         double radius = config.Propulsion.PropDiameterM * 0.5;
         double disc = System.Math.PI * radius * radius;
+        if (!drive.EngineRunning)
+        {
+            double t = System.Math.Min(0.0, tF.X);
+            double v2 = System.Math.Max(0.0, vNow * vNow + 2.0 * t / (airDensity * disc));
+            double deficit = 0.9 * (System.Math.Sqrt(v2) - vNow);   // <= 0
+            if (deficit == 0.0) return (0.0, 0.0, 0.0);
+            return (deficit, 0.7 * radius, SwirlFactor * deficit * config.Propulsion.RotationSign);
+        }
+        double thrust = System.Math.Max(0.0, tF.X);
         double vSlip = System.Math.Sqrt(vNow * vNow + 2.0 * thrust / (airDensity * disc));
         double du = 0.9 * System.Math.Max(0.0, vSlip - vNow);
         return (du, 0.7 * radius, SwirlFactor * du * config.Propulsion.RotationSign);
@@ -1469,16 +1503,22 @@ public sealed partial class Aircraft
     /// </summary>
     public static (Vec3 Force, Vec3 Moment) PropulsionForces(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
         bool noseLost = false, Vec3 noseBody = default, double[]? thrustScale = null)
+        => PropulsionForces(config, throttle01, velocity, rates, airDensity, noseLost, noseBody, thrustScale, PropModel.PropDrive.Running);
+
+    /// <summary>The same with the engine's real state: a dead engine makes no power whatever the throttle says (torque,
+    /// P-factor, spiral slipstream and the gyro at the windmill's rpm, not the lever's).</summary>
+    public static (Vec3 Force, Vec3 Moment) PropulsionForces(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
+        bool noseLost, Vec3 noseBody, double[]? thrustScale, PropModel.PropDrive drive)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         if (config.Propulsion is null) return (totalF, totalM);
         if (config.Engines.Count == 0 && !noseLost)   // a prop torn off with the nose makes neither thrust nor drag
         {
-            (Vec3 pF, Vec3 pM) = PropModel.Compute(config.Propulsion, throttle01, velocity, rates, airDensity);
+            (Vec3 pF, Vec3 pM) = PropModel.Compute(config.Propulsion, throttle01, velocity, rates, airDensity, drive);
             // Blade tips curled by a prop strike (Aircraft.PropStrike): a smaller disc at the same power.
             if (thrustScale is { Length: > 0 } && thrustScale[0] != 1.0) { pF *= thrustScale[0]; pM *= thrustScale[0]; }
             ForceDebug.Add(noseBody, pF, pM, "thrust");
-            if (ForceDebug.Samples != null) ForceDebug.Add(noseBody, Vec3.Zero, PropModel.GyroMoment(config.Propulsion, throttle01, rates), "gyro");   // (already in "thrust"'s moment: a breakdown only)
+            if (ForceDebug.Samples != null) ForceDebug.Add(noseBody, Vec3.Zero, PropModel.GyroMoment(config.Propulsion, throttle01, rates, drive), "gyro");   // (already in "thrust"'s moment: a breakdown only)
             return (pF, pM);
         }
         var basePropCfg = config.Propulsion;
@@ -1495,10 +1535,10 @@ public sealed partial class Aircraft
                 PFactorK = basePropCfg.PFactorK, SlipstreamK = basePropCfg.SlipstreamK,
                 IdleDragCd = basePropCfg.IdleDragCd, DesignSpeedMs = basePropCfg.DesignSpeedMs
             };
-            (Vec3 eF, Vec3 eM) = PropModel.Compute(engCfg, throttle01 * m.ThrottleScale, velocity, rates, airDensity);
+            (Vec3 eF, Vec3 eM) = PropModel.Compute(engCfg, throttle01 * m.ThrottleScale, velocity, rates, airDensity, drive);
             if (thrustScale is not null && ei < thrustScale.Length && thrustScale[ei] != 1.0) { eF *= thrustScale[ei]; eM *= thrustScale[ei]; }
             ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), eF, eM, "thrust");
-            if (ForceDebug.Samples != null) ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), Vec3.Zero, PropModel.GyroMoment(engCfg, throttle01 * m.ThrottleScale, rates), "gyro");
+            if (ForceDebug.Samples != null) ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), Vec3.Zero, PropModel.GyroMoment(engCfg, throttle01 * m.ThrottleScale, rates, drive), "gyro");
             totalF += eF;
             totalM += eM + Vec3.Cross(m.PosVec() - config.Mass.CgVec(), eF);
         }

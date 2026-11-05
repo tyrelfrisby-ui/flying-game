@@ -61,3 +61,27 @@ rear panel and new truss. Samples are <=3 mm apart with another 1.5 mm subtracte
 checks enclose the limb cylinders. The torso surface additionally checks vertex distances and
 edge intersections. These do not certify body self-collision, full motion ranges or the Extra pose. Intended hand/control and sole/pedal contacts are excluded.
 Exact current numbers are in `vr-cockpit-phase1-checks.json`; negative numbers are failures.
+
+## v4 candidate (not shipped) — 2026-11-04
+
+`python3 tools/own_models/pilot_body.py --offline --v4` writes only
+`unity/Assets/_Project/PilotBodyCandidates/pilot-body-own-v4.glb`.
+**14,368 triangles, 51 joints**, one skinned mesh and the same six materials.
+The original 49 bone names, parents, rest transforms and inverse bind matrices are unchanged.
+L/R_ForearmTwist are appended as LowerArm children, halfway from elbow to wrist,
+with tails at the wrist and the same identity rest orientation as LowerArm.
+
+The sleeve retains v3's UpperArm/LowerArm elbow fold weights; its LowerArm influence
+splits smoothly into the twist joint beyond the fold. The gauntlet, strap and snap
+follow the same twist field. A 30 mm smoothstep blends twist into Hand at the wrist.
+Two extra cuff loft rings and a fuller wrist profile support bending. All geometry
+remains procedural and original; no external art was imported.
+
+`check_pilot_v4.py` validates the exported graph, original rig preservation, joint
+membership, triangle indices and normalized weights, and renders actual CPU linear-blend
+skinning at 0/45/90 degrees (twist joint at half the Hand angle), plus 40 degree flexion
+and deviation. The Hand is still a LowerArm child; these are explicit review poses,
+not a runtime integration. Device appearance and deformation approval remain open.
+The existing `check_vr_phase1.py` hard-codes 49 joints and cannot check this candidate.
+Default v3 output was rebuilt to `/tmp` using the optional `--output` flag and byte-compared
+with the shipped Resources GLB: identical. Resources was never written.
