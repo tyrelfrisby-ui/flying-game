@@ -5,6 +5,7 @@ using FlyingGame.Core.Aero;
 using FlyingGame.Core.Aero.Wake;
 using FlyingGame.Core.MathTypes;
 using FlyingGame.Sim;
+using FlyingGame.Sim.Replay;
 using UnityEngine;
 
 namespace Aero.Wake

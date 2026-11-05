@@ -59,3 +59,26 @@ compilation, runtime screenshots, stereo QA and device timing remain lane A gate
 this sandbox, so lane B cannot establish an idle build slot and did not launch Unity/xcodebuild.
 No renders generated. Requested render destination is outside this lane's permitted writable roots; lane A must
 save actual Unity renders to ~/Developer/agent-lanes/renders/clouds-wake/ before seeking Ty's render approval.
+
+## Integration (lane A, Claude, 2026-11-05)
+
+Committed from lane/codex-clouds as ca9c48f7 (Codex's files unchanged), merged into lane/claude-wake-vortex, then:
+
+- **Stub gone.** `WakeFieldStub.cs` deleted; `Aero.Wake.WakeField` is the real one (Bridge/Wake/WakeField.cs,
+  docs/WAKE-VORTEX.md). `WriteToTexture` keeps Codex's packing exactly (RG = X/Z velocity, B = |ω|, A = Y velocity,
+  linear ARGBHalf, UV (0,0) = region min X/Z, sheet at bounds centre Y) and is evaluated on the GPU
+  (`Hidden/FlyingGame/WakeFieldBake`) from the 64 strongest segments nearest the sheet plus 16 slipstream pieces.
+  A vortex core (0.5–1.5 m) is still under the 2 m texel: thin cores alias into a line of holes, which reads well.
+- **Moved into the Bridge** so the game can build it: `Scripts/Bridge/Clouds/CloudPlayground.cs`, materials in
+  `Resources/Clouds/` (GUIDs kept). `IslandWorldBuilder.Build` calls `CloudPlayground.Attach`. The camera is
+  `Camera.main` (the XR camera on the Quest); the wind is the atmosphere's mean wind at the eye.
+- **Banks placed for this island.** It is ~30 km across and 2.4 km high within ~8 km of the centre, so the original
+  rings (2.4/3.85/5.3 km, bases 350/1100/2050 m) stood inside the mountains. Now an amphitheatre: 2050 m at 6 km
+  (12 sectors), 1100 m at 11 km (16), 450 m at 16.5 km over the coast and sea (20), one sector in four left open, radius
+  jittered ±0.9 km, and every bank lifted to 200 m above the highest ground under it. 36 banks, 720 quads, 36 draws.
+  Whole-bank fade 15–18 km, CPU cull 19 km, secondary lobes 6–7.5 km.
+- **Layers visible from afar.** `FlyingGame/CloudWispFar`: one 44 km quad per layer with the patch's own seed and the
+  same wind drift (`_WispDrift`, also added to the advection seed), handing over to the wake-reactive patch with
+  exactly the patch's edge fade (`_WispPatch`). Before this the layers existed only within 220 m of their height.
+- `StepForTesting` / `WakeTextureForTesting` / `DensityForTesting` for the render tool (Editor/CloudWakeRender.cs);
+  `OnDestroy` uses DestroyImmediate outside play mode.

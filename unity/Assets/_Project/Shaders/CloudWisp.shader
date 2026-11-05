@@ -2,7 +2,7 @@ Shader "FlyingGame/CloudWisp"
 {
  Properties { _MainTex("Density",2D)="black" {} }
  SubShader {
- Tags { "Queue"="Transparent-10" "RenderType"="Transparent" }
+ Tags { "Queue"="Transparent+7" "RenderType"="Transparent" }
  Blend SrcAlpha OneMinusSrcAlpha
  Cull Off ZWrite Off
  Pass {

@@ -1,4 +1,27 @@
 ## NEEDS YOU
+- **CLOUD PLAYGROUND + WAKE VORTICES: LOOK AT THE RENDERS (Claude, lane A, 2026-11-05; lane/claude-wake-vortex, NOT merged,
+  NOT built for a device, NOT installed. Nothing approved by me.)** Spec: prompts/ty-clouds-wake-spec-1105.md. Docs:
+  `docs/WAKE-VORTEX.md` (physics), `docs/CLOUDS-WAKE-VISUALS.md` (Codex's visuals + my integration section).
+  Renders and plots: `~/Developer/agent-lanes/renders/clouds-wake/` (clouds_*.png, wisps_*.png, wake_wisps_*.png, wake_*.png).
+  - **Wake physics (emergent).** Every aeroplane (player, tug, combat drones, recorded ships, network peers) sheds two
+    trailing lines with Γ = L/(ρVb₀) from its ACTUAL lift: no lift, no vortex; 2 g, twice the vortex. The lines sink on
+    each other's induction, drift with the wind, spread over the ground, and die sooner in turbulence. Nothing applies a
+    "wake force": a follower's own strips meet the moved air. WakeVortexTests 11/11 (hand literals): follower on a
+    line rolls in the vortex's sense at 0.094 rad/s vs strip theory 0.091; descent 0.387 vs Γ₀/(2πb₀) 0.392; 2-33
+    61 m behind a Pawnee gets ±80 °/s² of roll on either line (full aileron 106) and quiet air a few metres above:
+    boxing the wake emerges. Plots: wake_tow_box.png, wake_follower_roll.png, wake_decay_descent.png.
+  - **Wisps react to it.** wake_wisps_hard_turn_60deg_n2.png: a 2 g turn cuts a ring through the 650 m layer;
+    wake_wisps_turn_30deg_n1.15.png: a fainter arc; wake_wisps_zero_lift_pass_n0.png: the same pass with no lift
+    leaves nothing. *_wake_sheet.png is the field the wisps read (R horizontal, G vertical, B vorticity).
+  - **Codex's clouds, integrated.** Committed from lane/codex-clouds (ca9c48f7), merged here. Banks re-placed round this
+    island (it is ~30 km, 2.4 km high: the original rings sat inside the mountains): 2050 m at 6 km, 1100 m at 11 km,
+    450 m at 16.5 km, lifted clear of the ground; layers made patchy and visible from afar; drawn after the water (the
+    sea was painting over them). Unity batch: 0 error CS. check-parity --strict at 07:55: FAIL on the playable lanes (island-nav not yet merged into quest-islandnav by another lane; not this lane's change, which touches neither).
+  - **Known faults in the renders:** (1) a rectangular seam in clouds_mid_band_1250m.png cuts a bank and the layer
+    (cause not found: not the training boxes, not the wisp patch); (2) the lobes still read somewhat as soft spheres
+    close up; (3) wisp layers are a flat sheet: seen edge-on they vanish.
+  - **Not measured:** Quest 90 Hz / iPhone 60 Hz with clouds (fill rate is the risk), the wake's CPU on device (bench
+    worst case +50 ms per sim-second for a follower in four wakes). Questions Q073-Q075 in the queue.
 - **CLOUD PLAYGROUND — lane/codex-clouds, 2026-11-05, UNCOMMITTED; no gate approved.** Lane A review/integration needed:
   `Assets/Scripts/Clouds/CloudPlayground.cs` + three serialized materials, guarded zero-wake stub, three shared shaders.
   27 billowing horseshoe banks at three altitude bands, real gaps/canyons, distance detail fade/culling; local thin
