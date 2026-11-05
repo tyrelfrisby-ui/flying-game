@@ -42,7 +42,7 @@ row('C172_NAV1_GS_flag','nav1_gs_flag','rot',X,[[0,90],[1,0]],"NAV1 GS flag: upr
 row('C172_ADF_bearing','adf_needle_deg','rot',X,[[0,35],[360,395]],"ADF needle: relative bearing clockwise from 12 o'clock; drawn at -35 deg, hence the 35 offset; "+CW,wrap=360,model=-35)
 row('C172_ADF_card_adjust','adf_card_deg','rot',X,[[0,0],[360,360]],"ADF card knob, 1:1 with the card (the ADF face's card is drawn fixed; no rotating card node yet)",wrap=360)
 row('C172_Compass_card','compass_card_deg','rot',Y,[[0,0],[360,360]],"whisky compass card about the vertical: relative to the case it turns anticlockwise-from-above by the reading (it holds north while the aeroplane turns); +deg = right-handed about up",wrap=360)
-row('C172_Suction_needle','suction_inhg','rot',X,[[0,0],[10,270]],"suction gauge (1 in, yoke-v1): 0-10 inHg over 270 deg = 27 deg/inHg clockwise from 7:30; green 4.5-5.5 with red radials at both ends; drawn at 0 inHg",model=0)
+row('C172_Suction_needle','suction_inhg','rot',X,[[0,0],[10,270]],"suction gauge (1 in, yoke-v1): 0-10 inHg over 270 deg = 27 deg/inHg clockwise from 7:30; green 4.5-5.4 with red radials at both ends; drawn at 0 inHg",model=0)
 # ---- the rest of the six-pack and the engine cluster, from the params the sim already supplies ----------------
 row('C172_Airspeed_needle','airspeed_mph','rot',X,[[0,55],[200,415]],"ASI, MPH face: 1.8 deg/mph from 12 o'clock (labels every 20 mph at 36 deg, arcs at tau*v/200); drawn at -55 deg",model=-55/1.8)
 row('C172_Altimeter_needle','altitude_ft','rot',X,[[0,0],[1000,360]],"altimeter long hand, 1 turn per 1,000 ft (unbounded); drawn at 0",extrap=1)

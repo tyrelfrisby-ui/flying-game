@@ -186,8 +186,8 @@ knob('ADF_card_adjust',x-.026,z-.03,.005)
 # SUCTION (Ty, 2026-11-04 14:58: "put the suction gage as a tiny instrument with a green range and two red lines, one
 # too low and one too high ... Usually the suction gage is a tiny 1 inch instrument"). A 1 in face (radius 12.7 mm),
 # still straight under the DG, now in the 60 mm between the DG's mount and the raised yoke shaft. 0-10 inHg over 270
-# degrees, 27 deg/inHg clockwise from 7:30; green 4.5-5.5 inHg with a red radial at each end (C172R AFM supplement
-# STC SA2196CE: suction green arc 4.5 to 5.5 in. Hg; the 1980 172N manual gives 4.5 to 5.4). VacuumSystem regulates
+# degrees, 27 deg/inHg clockwise from 7:30; green 4.5-5.4 inHg with a red radial at each end (Ty 2026-11-04 16:42: use
+# the 1980 172N manual's 4.5 to 5.4; the C172R AFM supplement STC SA2196CE says 4.5-5.5). VacuumSystem regulates
 # at 5.0, mid-arc.
 SUCTION_R,SUCTION_Z=.0127,.145
 for n,x,z,r,labs in [('Tach',-.219,.113,.040,[0,5,10,15,20,25,30,35]),('Suction',-.321,SUCTION_Z,SUCTION_R,None),('Fuel_L',-.450,.113,.020,['E','1/4','1/2','3/4','F']),('Fuel_R',-.396,.113,.020,['E','1/4','1/2','3/4','F']),('Oil_press',ENGINE_X,.333,.026,[0,25,50,75,100]),('Oil_temp',ENGINE_X,.253,.026,[75,100,150,200,245]),('Ammeter',ENGINE_X,.173,.026,[-60,-30,0,30,60]),('EGT',ENGINE_X,.093,.026,[8,10,12,14,16])]:
@@ -201,8 +201,8 @@ for n,x,z,r,labs in [('Tach',-.219,.113,.040,[0,5,10,15,20,25,30,35]),('Suction'
   def suction_point(v,rr):
    a=math.radians(-135+27*v);return (x+math.sin(a)*rr,.2658,z+math.cos(a)*rr)
   for v in range(11):line('Suction_tick',suction_point(v,r*.92),suction_point(v,r*(.62 if v%5==0 else .78)),.0004,white)
-  for k in range(10):line('Suction_green_arc',suction_point(4.5+k*.1,r*.85),suction_point(4.6+k*.1,r*.85),.0009,green)
-  for v in (4.5,5.5):line('Suction_red_radial',suction_point(v,r*.98),suction_point(v,r*.60),.0005,limit_red)
+  for k in range(9):line('Suction_green_arc',suction_point(4.5+k*.1,r*.85),suction_point(4.6+k*.1,r*.85),.0009,green)
+  for v in (4.5,5.4):line('Suction_red_radial',suction_point(v,r*.98),suction_point(v,r*.60),.0005,limit_red)
   # No numerals: at the panel's 4.6 mm minimum legend height they collide with the ticks on a 1 in face. Long
   # ticks mark 0, 5 and 10; the placard below names it.
   needle(n+'_needle',x,z,135,r*.72,f=.251,width=.0012)
