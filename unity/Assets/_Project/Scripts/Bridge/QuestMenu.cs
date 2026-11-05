@@ -254,7 +254,7 @@ namespace FlyingGame.Bridge
                 d => CycleSetting(Flow.ReliabilityItems(), d, id => Flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id))), () => OnLanding);
             AddRow(() => WeightLine(), null, visible: () => OnLanding && Flow.WeightBalance != null);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
-            AddRow(() => $"Seat:  {SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId))}",
+            AddRow(() => $"Seat:  {(OnLanding && Flow.Seats.FirstOrDefault(x => x.Occupant == Occupant.Me) is SeatRow me ? me.Label : SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId)))}",
                 () => CycleSeat(1), CycleSeat, () => SeatsOf(SeatAircraftId).Count > 1);
             // VIEWS (Ty 2026-11-04: "no views are available except 'outside' which is actually cockpit"). The row used to
             // be a two-way toggle labelled from ChaseCamera.InCockpit; now it cycles the views a headset can stand
