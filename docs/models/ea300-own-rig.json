@@ -6891,8 +6891,8 @@
    "material": "SequenceCard_Face",
    "centre_gltf": [
     0.1525,
-    0.275,
-    -0.195
+    0.3,
+    -0.19275
    ],
    "facing_gltf": [
     1.0,
@@ -6900,13 +6900,13 @@
     -0.0
    ],
    "size_m": [
-    0.10795,
-    0.1397
+    0.0593725,
+    0.076835
    ],
    "aspect": "8.5x11 portrait",
    "uv": "one quad, UV 0..1: (0,0) bottom-left, (1,1) top-right as the pilot sees it (u to the pilot's right, v up); material SequenceCard_Face",
    "default_texture": "tools/own_models/art/sequence-card-sportsman-known-2026.png",
-   "note": "extra_cockpit_v3: front seat, right of the sub-panel; shows the rear selection (Ty 2026-11-05)"
+   "note": "Ty Q070 2026-11-05: compact card + backing right of front subpanel; same rear selection"
   }
  ],
  "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.",

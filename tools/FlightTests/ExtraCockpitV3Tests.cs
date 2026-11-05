@@ -13,7 +13,7 @@ namespace FlyingGame.FlightTests;
 ///   "Fuel valve rod ... must run FORWARD to the engine firewall past the front seat, with handles in both seats" ->
 ///     the rod reaches the firewall (x +0.57 or more) and runs aft no further than the rear handle (x -1.42), and both
 ///     handles (x -1.40, -0.50) sit on its line.
-///   "Front panel: an IAC card somewhere visible" -> FrontPanel_SequenceCard_Face, 108 x 140 mm portrait, on the front
+///   "Front panel: an IAC card somewhere visible" -> FrontPanel_SequenceCard_Face, 59 x 77 mm portrait (Ty Q070 compact front card), on the front
 ///     panel plane (x -0.15), facing the front pilot.
 /// </summary>
 public class ExtraCockpitV3Tests
@@ -107,14 +107,19 @@ public class ExtraCockpitV3Tests
 
     [Theory]
     [MemberData(nameof(Files))]
-    public void The_front_panel_has_a_half_letter_IAC_card_facing_the_front_pilot(string file)
+    public void The_front_card_and_backing_fit_the_normal_panel_height_right_of_the_gauges(string file)
     {
         var m = Load(file);
         Assert.True(m.Verts.TryGetValue("FrontPanel_SequenceCard_Face", out var f), "no FrontPanel_SequenceCard_Face");
         double w = f.Max(p => p.y) - f.Min(p => p.y), h = f.Max(p => p.z) - f.Min(p => p.z), dx = f.Max(p => p.x) - f.Min(p => p.x);
-        Assert.InRange(w, 0.106, 0.110);          // 4.25 in
-        Assert.InRange(h, 0.138, 0.142);          // 5.5 in
+        Assert.InRange(w, 0.0592, 0.0596);         // Q070: compact front card; rear stays half-letter
+        Assert.InRange(h, 0.0766, 0.0770);
         Assert.True(dx < 0.001, "the card is not flat in the panel plane");
+        foreach (var part in m.Verts.Where(kv => kv.Key.StartsWith("FrontPanel_SequenceCard_")))
+            Assert.All(part.Value, p => {
+                Assert.InRange(p.z, .245, .355);  // existing front subpanel height, hand-copied
+                Assert.InRange(p.y, -.24, -.14);  // right of 3-gauge subpanel, clear of its altimeter
+            });
         double cx = f.Average(p => p.x), cz = f.Average(p => p.z);
         Assert.InRange(cx, -0.16, -0.14);         // on the front panel (x -0.150), ahead of the front eye
         Assert.True(cz < 0.537 && cz > 0.15, $"card centre z {cz:F3} is not below the eye and above the stick");

@@ -381,6 +381,9 @@ def update(path, doc):
               "ball, fuel rod forward to the firewall, front IAC card, canopy sealed to the fuselage (side liners)",
         grip_from_shoulder=GRIP_FROM_SHOULDER.tolist(), throttle_y=THROTTLE_Y, rear_drop=REAR_DROP, front_knob_r=FRONT_KNOB_R,
         fuel_rod=report['fuel_rod'], card_centre=CARD_C.tolist(), report=report)
+    # Q070: front card may be smaller; keep the rear card at half-letter size.
+    from extra_front_iac_small import apply
+    apply(g)
     compact(g); validate(g, path); g.save(path)
     print('EXTRA', path.name, json.dumps(report))
     return True
@@ -392,3 +395,6 @@ if __name__ == '__main__':
     for k, p in enumerate(sorted((MODELS / 'extra-300-like').glob('*own*.glb'))):
         wrote |= update(p, doc if k == 0 else json.loads(base))
     if wrote: rigpath.write_text(json.dumps(doc, indent=1) + '\n')
+
+    from extra_front_iac_small import update_rig
+    update_rig()
