@@ -417,7 +417,11 @@ public sealed partial class Aircraft
     /// rad/s; the tips curl back by the depth they went in (the disc shrinks to R − d, thrust at the same power by momentum
     /// theory ∝ R^(2/3)) and the engine runs on. A blade that keeps digging — a nose-over, a collapsed leg — brakes the
     /// rotor below a quarter of idle in a fraction of a second: sudden stoppage, the engine stops and the prop is bent.
-    /// A blade that meets the WATER while turning stops the engine outright (a ditching).
+    /// A blade in the WATER is the same rotor with a different brake (Ty 2026-11-04: water contact applies real
+    /// hydrodynamic forces, damage only when loads exceed limits — never "touched water, so it stopped"): the dipped
+    /// blades drag at ½ρ_w(ωR)² on their wetted area (<see cref="WaterBladeTorque"/>), so a tip brushing the water at
+    /// power throws spray and runs on, while a dip at idle, or a deeper one, brakes the rotor through the same quarter-idle
+    /// stoppage. Water does not curl the tips: only a solid surface's depth is kept for <see cref="ShrinkDisc"/>.
     /// </summary>
     private void PropStrike(double dt)
     {
@@ -425,14 +429,18 @@ public sealed partial class Aircraft
         for (int e = 0; e < _propPatch.Length; e++)
         {
             if (_propStopped[e] || _noseLost) continue;
-            double dMax = 0, muN = 0; bool water = false; ContactPoint? at = null;
+            double dMax = 0, dSolid = 0, dWater = 0, muN = 0; ContactPoint? at = null;
             for (int i = 0; i < _contacts.Count; i++)
             {
                 ContactPoint p = _contacts[i];
                 if (!p.PropDisc || p.Patch != _propPatch[e] || p.DepthM <= 0) continue;
                 if (p.DepthM > dMax) { dMax = p.DepthM; at = p; }
-                if (p.SurfaceCode == ContactPoint.SurfaceWater) water = true;
-                else muN += (p.SurfaceCode >= 0 ? AirframeContact.SlidingMu((WorldTerrain.Surface)p.SurfaceCode) : AirframeContact.FrictionMu) * p.NormalN;
+                if (p.SurfaceCode == ContactPoint.SurfaceWater) dWater = Math.Max(dWater, p.DepthM);
+                else
+                {
+                    dSolid = Math.Max(dSolid, p.DepthM);
+                    muN += (p.SurfaceCode >= 0 ? AirframeContact.SlidingMu((WorldTerrain.Surface)p.SurfaceCode) : AirframeContact.FrictionMu) * p.NormalN;
+                }
             }
             if (dMax <= 0)
             {
@@ -453,14 +461,14 @@ public sealed partial class Aircraft
                 _propOmega[e] = rpm * Math.PI / 30.0;
                 Raise(ContactEventKind.PropStrike, "prop-tip", AirframeComponent.Propeller, at, muN * _propRadius[e], dMax);
             }
-            _propStrikeDepth[e] = Math.Max(_propStrikeDepth[e], dMax);
+            _propStrikeDepth[e] = Math.Max(_propStrikeDepth[e], dSolid);
             double inertia = pc.PropInertia > 0 ? pc.PropInertia : 1.0;
             double wIdle = Math.Max(1.0, pc.IdleRpm * Math.PI / 30.0);
             double throttle = _throttle01 * (Config.Engines.Count > e ? Config.Engines[e].ThrottleScale : 1.0);
             double qEngine = pc.MaxPowerW * throttle / Math.Max(_propOmega[e], wIdle);
-            double qGround = muN * _propRadius[e];
+            double qGround = muN * _propRadius[e] + WaterBladeTorque(_propRadius[e], dWater, _propOmega[e]);
             _propOmega[e] = Math.Min(rpm * Math.PI / 30.0, _propOmega[e] + (qEngine - qGround) / inertia * dt);
-            if (water || _propOmega[e] < 0.25 * wIdle)
+            if (_propOmega[e] < 0.25 * wIdle)
             {
                 _propStopped[e] = true;
                 Raise(ContactEventKind.PropStoppage, "prop-tip", AirframeComponent.Propeller, at, qGround, rpm);
@@ -473,6 +481,28 @@ public sealed partial class Aircraft
                 }
             }
         }
+    }
+
+    /// <summary>Blade geometry the configs do not carry, typical of the fleet's metal props: two blades, a tip chord of
+    /// 0.12 R (11-12 cm on a 76-80 in prop), and an in-plane force coefficient of 0.2 — a thin blade at the tip's ~6°
+    /// incidence in water (normal force 2π·sin 6° ≈ 0.7) resolved into the plane of rotation through its ~18° blade angle.</summary>
+    public const int WaterBladeCount = 2;
+    public const double WaterBladeTipChordOverR = 0.12, WaterBladeInPlaneCoeff = 0.2;
+
+    /// <summary>The mean torque the water puts on a disc of radius R whose lowest tip is <paramref name="depth"/> under the
+    /// surface, turning at ω. Each blade spends acos(1 − d/R)/π of a turn in the wet arc, with on average ⅔·d of its tip
+    /// under (a parabolic segment), moving at ωR through water of ρ_w: Q = n·(arc/π)·½ρ_w(ωR)²·c·(⅔d)·C·(R − ⅓d).
+    /// On an SR22's 0.99 m blades at 2700 rpm (its engine makes ~820 N·m there) a 5 mm brush costs ~200 N·m and a 2 cm dip
+    /// ~1,560 (the rotor runs on, slowed to the speed where the two balance, ~2,200 rpm); at idle the same 2 cm costs ~105
+    /// against an idling engine's next to nothing, and the rotor stops.</summary>
+    public static double WaterBladeTorque(double radius, double depth, double omega)
+    {
+        if (depth <= 0 || omega <= 0 || radius <= 0) return 0;
+        double d = Math.Min(depth, radius);
+        double duty = Math.Acos(1.0 - d / radius) / Math.PI;
+        double wet = 2.0 / 3.0 * d, u = omega * radius;
+        double force = 0.5 * FloatHydro.WaterDensity * u * u * WaterBladeTipChordOverR * radius * wet * WaterBladeInPlaneCoeff;
+        return WaterBladeCount * duty * force * (radius - 0.5 * wet);
     }
 
     private void ShrinkDisc(int e, double r1)
