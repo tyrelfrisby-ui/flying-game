@@ -1,4 +1,34 @@
 ## NEEDS YOU
+<!-- airport-lighting needs-you -->
+- **AIRPORT LIGHTING: code + tests done (Claude, 2026-11-05, lane/claude-windsocks 0c73b1b6+). Renders and BUILD: see the
+  status line below. NOT merged, NOT installed.** Ty 08:44: "only airports with instrument approaches have vasi or papi
+  make sure both are represented at one airport or more the rest of the airports have no visual aids and roughly half
+  have runway lights for night flying". Doc: docs/AIRPORT-LIGHTING.md.
+  - **Ty, please look at** `renders/airport-lighting/`: papi-{slightly-high,on-path,slightly-low,low}-{tele,pilot},
+    vasi-{on-path,low,high}-{tele,pilot}, night-{panc,patk,ap10,3u2}-final; `cameras.txt` lists each eye's angle and
+    the colour every box computed for it. Questions Q110-Q113 in the queue.
+  - **Who has what.** Instrument approach yes/no per airport (`AirportLighting.Table`, 39 airports;
+    `WorldTerrain.Airport.InstrumentApproach`), from the island's ifr.approaches: PANC KSNA PHDH KMYL KMEV KPGA KAVX
+    PATK. PAPI at the first six, **2-bar VASI at KAVX and PATK**, on each runway end a procedure leads to (KAVX's VOR-A
+    is circling: both ends). Every other airport: no aid. **Runway lights at 19 of 39**: the 8 + PALH SITX TERN NHVN
+    KITE RIME + AP1 AP3 AP8 AP10 AP12 (1,224 lamps on 22 runways; KMEV's grass 13G/31G unlit).
+  - **Colour is emergent.** Each PAPI box / VASI bar is white above its setting angle, red below (PAPI 3°30' 3°10'
+    2°50' 2°30', 3' pink band; VASI 2.75° near / 3.25° far), from the angle between its lens and the camera, every
+    frame. Lit toward its approach only (±10°, gone by 15°). Edge lights: white MIRL, 200 ft max spacing; yellow over
+    the last 2,000 ft each way on instrument runways; green-out / red-in threshold and end bars.
+  - **One shared part each**: Core `PapiPart`, `VasiPart`, `EdgeLightPart`; `Bridge/AirportLights.cs` is the only
+    drawer (`AirportLightingTests.EachAidIsOneSharedPart`). AirportLightingTests 20/20.
+  - Findings (not changed): **the game has no night** (always day; halos only under the debug sunset), so the runway
+    lights can't be flown at night yet (Q112). The VASI angles are not from a document I read (Q113).
+  - Step 1 grep (what existed): `Bridge/AirportVisuals.cs` (OLD world, not built since the island) had a static
+    2-red/2-white PAPI (not angle-sensitive) and white edge / green-red end lamps on every paved strip, with AirportGlow
+    halos. Both removed now (the old world keeps its taxi lamps). `Editor/WorldRender.cs` has old runway-papi-*
+    capture cameras (left alone). The island drew no runway lamps at all. ILS `HasGlideslope` exists on navaids
+    (Navaid.cs, NavReceiver) but there was no airport flag; no VASI code anywhere.
+  - Status: <!-- airport-lighting status -->Unity batch renders + `deploy.sh NOINSTALL` gated on the build slot (busy at 11:12).
+  - Not an approved gate.
+
+## NEEDS YOU
 <!-- windsocks needs-you -->
 - **WINDSOCKS: code + tests done, NOT built, NOT rendered (Claude, 2026-11-05, lane/claude-windsocks 872fd1a3+).**
   Ty 08:43: "every airport has a wind sock off to the side of the runway at each end and in the middle".
