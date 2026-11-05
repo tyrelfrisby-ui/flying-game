@@ -702,6 +702,7 @@ public static class LandingGear
                     ws.SlipRatio = res.SlipRatio; ws.SlipPowerW = res.SlipPowerW; ws.Locked = res.Locked;
                     ws.BrakeTorqueNm = brakeForceN * ws.RollingRadiusM;
                     ws.SlipEnergyJ += res.SlipEnergyJ; ws.SlipTimeS += res.SlipTimeS; ws.SlipImpulseNs += res.SlipImpulseNs;
+                    ws.SlipUnderSquealJ += res.SlipUnderSquealJ; ws.SlipUnderScrubJ += res.SlipUnderScrubJ;
                 }
                 if (ws != null && ws.IsWheel && dt > 0)
                 {
@@ -714,6 +715,10 @@ public static class LandingGear
                 // The friction circle, with the wheel's own slip first (it is the wheel's equation that decides it) and
                 // what is left for cornering; a locked tyre corners with only what its sliding slip points sideways.
                 double latCap = System.Math.Sqrt(System.Math.Max(0.0, muLimit * fall * muLimit * fall - fx * fx));
+                // How hard the slip angle asks against what the tyre has left sideways: 1 at the friction peak (the
+                // slip angle where the linear cornering force meets the cap), more once the patch is sliding. The
+                // sound only: a tyre still under its peak grips and is quiet (GroundSoundMix.SideSquealOnset).
+                double latDemand = latCap > 1e-9 ? System.Math.Abs(lateralN) / latCap : (System.Math.Abs(lateralN) > 1e-9 ? 1e3 : 0.0);
                 lateralN = System.Math.Clamp(lateralN, -latCap, latCap);
                 double longN = fx - rollN * fwdSign;
                 double longBudget = System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));
@@ -726,6 +731,11 @@ public static class LandingGear
                     double pSide = System.Math.Abs(lateralN * vSide);
                     ws.SideSlipEnergyJ += pSide * dt;
                     ws.SideSlipImpulseNs += System.Math.Abs(lateralN) * dt;
+                    if (double.IsFinite(latDemand))
+                    {
+                        ws.SideSlipUnderSquealJ += pSide * dt * (1 - GroundSoundMix.SideSquealOnset(latDemand));
+                        ws.SideSlipUnderScrubJ += pSide * dt * (1 - GroundSoundMix.SideScrubOnset(latDemand));
+                    }
                     if (pSide > WheelSpin.AudibleSlipPowerW) ws.SideSlipTimeS += dt;
                 }
             }
