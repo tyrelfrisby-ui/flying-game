@@ -37,6 +37,18 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   installed). Nothing here is an approved gate.
 
 ## NEEDS YOU
+- **EXTRA: REAR DIAGONALS DELETED + PANEL INSIDE DASH BEVELS — RENDERS FOR TY REVIEW, NOT MERGED / INSTALLED**
+  (Codex, 2026-11-05, lane/codex-extra-remove-diagonals). Ty's 10:56 instruction supersedes Q095 repositioning.
+  Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/codex-extra-remove-diagonals/`. Question Q109.
+  - All three Extra liveries: both rear diagonal nodes, meshes, unused materials and binary geometry removed, not hidden.
+    Pass 13 no longer creates them; pass 16 compatibility entry runs removal. No matching rig/physics/contact entries.
+  - Rear panel shoulders clipped inside the existing dash's 110:90 bevel, 2 mm inset, top half-width 281.1 mm.
+    Lower wall attachments retained. Front subpanel already fits inside its dash; unchanged. No instruments or controls moved.
+  - CPU graph validation + idempotency pass on all three; other 218 mesh nodes' attributes, indices and materials unchanged.
+    Canopy seal (3 degree grid, both seats, all liveries) PASS, parity --strict PASS.
+    Blender rear/front eyes, both junction close-ups, overhead and 3/4 opened and reviewed. Unity shots/tests/iOS build pending
+    machine-wide build slot (water-fix + bend-damage already running); update below when finished. No gate marked approved.
+
 - **EXTRA 300 REAR DIAGONALS (Ty 2026-11-05 08:37: "in the same plane as the upper longerons ... they go in toward the
   center") — RENDERS FOR APPROVAL, NOT MERGED, NOT INSTALLED (Claude, 2026-11-05 09:35, lane/claude-extra-cockpit-v3).
   Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/diagonals/` (rear-eye-iphone,

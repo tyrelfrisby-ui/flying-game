@@ -12,7 +12,7 @@ the verniers on the left wall, a pistol-grip throttle and the linked fuel shut-o
   Rear panel: grey (the AirSpace 300L's); ONLY six switches, labelled on placards beneath: MASTER, ALT, FUEL PUMP | NAV,
    STROBE, SMOKE (an ALTERNATOR toggle added, cloned from MASTER); magneto, alternate air, trim and landing light gone;
    no unlabelled knobs (the COM/XPDR heads keep their own knobs: they are the radios, legended on the head); EGT/CHT
-   added (2-1/4 in, lower right); grey-padded diagonal tubes from the panel's upper corners down to the side rails.
+   added (2-1/4 in, lower right). Rear diagonal tubes removed by Ty 2026-11-05.
   Prop and mixture: vernier push-pulls stacked vertically on the left wall BESIDE the throttle, outboard of it, knobs
    aft (prop blue above, mixture red below), IN = forward.
   Throttle (both seats): a ribbed black pistol grip with a rubber boot and an end button, canted aft from the arm
@@ -59,8 +59,7 @@ VERNIER_TRAVEL = .045
 # Fuel valve: GL type (gl_quadrant_v3.build_linkages), right wall, one rod.
 VALVE_Y, VALVE_Z = -.284, .045
 VALVE_X = {'Rear': -1.400, 'Front': -.500}
-# Diagonal padded tubes: panel upper corner -> side rail (both sides).
-DIAG = ((-1.185, .335, .345), (-1.360, .365, .200))   # superseded by pass 16 (extra_rear_diagonals.py): in the longeron plane, inboard
+# Ty 2026-11-05: rear diagonal tubes removed completely.
 GRIP_CANT_DEG, GRIP_LEN = 15.0, .110
 
 
@@ -189,7 +188,7 @@ def update(path, doc):
     bezel = mat_index(g, 'P3b_Bezel'); needle_w = mat_index(g, 'P3b_Needle'); orange = mat_index(g, 'P3b_SecondNeedle')
     metal = mat_index(g, 'P3_ControlMetal'); black = mat_index(g, 'Cockpit_black'); red = mat_index(g, 'Cockpit_knob_red')
     mix_red = mat_index(g, 'P3_MixtureRed'); prop_blue = mat_index(g, 'P3_PropBlue'); nut = mat_index(g, 'P3_ControlBlack')
-    pad = g.material('P3h_Padding', (.12, .125, .135)); button = g.material('P3h_GripButton', (.32, .32, .34))
+    button = g.material('P3h_GripButton', (.32, .32, .34))
     temps_mat = mat_index(g, 'P3b_Dial_Temps')
 
     # ---------------- FRONT SEAT ----------------
@@ -287,11 +286,7 @@ def update(path, doc):
         a.rig[-1].update(unit=unit, model=model); a.rig[-1]['extra']['rig_dial_ang0_deg'] = init
         row['needles'].append(name)
     rear['gauges'].append(row)
-    # The diagonal tubes, grey-padded, both sides.
-    for sgn in (1, -1):
-        (x0, y0, z0), (x1, y1, z1) = DIAG; sh = Shape(); sh.tube((x0, sgn * y0, z0), (x1, sgn * y1, z1), .013, 16)
-        sh.sphere((x0, sgn * y0, z0), .013, 16, 8); sh.sphere((x1, sgn * y1, z1), .013, 16, 8)
-        g.mesh('Tube_P3h_PanelDiagonal_' + ('L' if sgn > 0 else 'R'), [gl(q) for q in sh.v], sh.t, pad)
+    # Ty 2026-11-05: no rear diagonal tubes.
 
     # ---------------- VERNIERS (rear, left wall) ----------------
     bracket = Shape(); bracket.box((VERNIER_X + .003, VERNIER_Y + .002, .183), (.006, .044, .090))
@@ -384,7 +379,7 @@ def update(path, doc):
     doc['controls'] = controls; doc['phase3b'] = meta
     g.doc['extras']['extraFrontSeat'] = dict(
         owner='Ty 2026-11-04 19:05-19:14: front seat ASI/G/ALT + throttle, stick, rudder, fuel valve; rear: grey panel, six labelled '
-              'switches, no unlabelled knobs, EGT/CHT, diagonal tubes; verniers beside the throttle; pistol-grip throttle; linked fuel valve',
+              'switches, no unlabelled knobs, EGT/CHT; verniers beside the throttle; pistol-grip throttle; linked fuel valve',
         front_row=FRONT_ROW, row_z_rear=ROW_Z_REAR, toggle_scale=TOGGLE_SCALE, front_v=FRONT_V, front_sub=FRONT_SUB, switches=[lab for _, lab, _ in places], temps=TEMPS,
         verniers=dict(x=VERNIER_X, y=VERNIER_Y, z=VERNIERS, travel=VERNIER_TRAVEL), valve=dict(x=VALVE_X, y=VALVE_Y, z=VALVE_Z),
         report=report)
