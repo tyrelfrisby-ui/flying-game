@@ -228,23 +228,23 @@
     1.0
    ],
    "pivot_gltf": [
-    0.4,
-    -0.18,
-    0.2679972883068913
+    0.425,
+    -0.29,
+    0.238
    ],
    "map": [
     [
      0,
-     0
+     -25
     ],
     [
      1,
-     50
+     25
     ]
    ],
-   "model": 0.0,
+   "model": 0.5,
    "unit": "0..1",
-   "desc": "Estimated visual travel; needs Ty review",
+   "desc": "Pitts v2 (Ty 2026-11-05): black cylinder knob on a 160 mm quadrant arm, modelled at mid travel; idle -25 deg (knob aft) .. full +25 deg (knob forward) about the lateral axis (E)",
    "extra": {},
    "link": "",
    "note": ""
@@ -332,23 +332,23 @@
     1.0
    ],
    "pivot_gltf": [
-    1.12,
-    -0.18,
-    0.22354792851489283
+    1.145,
+    -0.29,
+    0.238
    ],
    "map": [
     [
      0,
-     0
+     -25
     ],
     [
      1,
-     50
+     25
     ]
    ],
-   "model": 0.0,
+   "model": 0.5,
    "unit": "0..1",
-   "desc": "Estimated visual travel; needs Ty review",
+   "desc": "Pitts v2 (Ty 2026-11-05): black cylinder knob on a 160 mm quadrant arm, modelled at mid travel; idle -25 deg (knob aft) .. full +25 deg (knob forward) about the lateral axis (E)",
    "extra": {},
    "link": "",
    "note": ""
