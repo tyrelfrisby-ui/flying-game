@@ -26,12 +26,7 @@ WH = (236, 236, 230)
 COPY = ['ea-dial-asi', 'gl-dial-asi', 'ea-dial-alt', 'ea-dial-g', 'ea-dial-tach', 'ea-dial-oil', 'ea-dial-mp', 'ea-dial-fuel']
 
 
-def font(sz):
-    for p in ('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/System/Library/Fonts/Helvetica.ttc'):
-        if os.path.exists(p):
-            return ImageFont.truetype(p, sz)
-    return ImageFont.load_default()
-
+from instrument_face_style import font, finish
 
 def pol(th, r):
     t = math.radians(th)
@@ -93,10 +88,10 @@ def attitude_card():
 def main():
     os.makedirs(OUT, exist_ok=True)
     for n in COPY:
-        shutil.copyfile(os.path.join(ART, n + '.png'), os.path.join(OUT, n + '.png'))
+        finish(Image.open(os.path.join(ART, n + '.png'))).save(os.path.join(OUT, n + '.png'))
         print('copied', n)
-    compass_card().save(os.path.join(OUT, 'live-compass-card.png'))
-    attitude_card().save(os.path.join(OUT, 'live-attitude.png'))
+    finish(compass_card()).save(os.path.join(OUT, 'live-compass-card.png'))
+    finish(attitude_card()).save(os.path.join(OUT, 'live-attitude.png'))
     print('wrote live-compass-card, live-attitude ->', os.path.normpath(OUT))
 
 

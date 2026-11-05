@@ -75,6 +75,7 @@ public class CockpitControlInteriorTests
         {
             string name = nodes[i].GetProperty("name").GetString()!;
             if (!name.StartsWith("Ctl_") && !name.StartsWith("Mount_")) continue;
+            if (nodes[i].TryGetProperty("extras", out JsonElement ex) && ex.TryGetProperty("retiredPittsPanelV4", out _)) continue;
             controls++;
             double[] m = OwnPittsModelTests.World(nodes, parent, i);
             double x = -m[12], y = m[14], z = m[13];                       // glTF -> builder
@@ -104,7 +105,7 @@ public class CockpitControlInteriorTests
         }
         _o.WriteLine($"{file}: {controls} controls, {failures.Count} off-panel");
         foreach (string f in failures.Take(20)) _o.WriteLine("  " + f);
-        Assert.Equal(model == "great-lakes-like" ? 90 : 88, controls);   // GL v7: + an alternator switch per seat (no Mount_ twin)
+        Assert.Equal(model == "great-lakes-like" ? 90 : model == "pitts-s2b-like" ? 12 : 88, controls);   // GL v7: + an alternator switch per seat (no Mount_ twin)
         Assert.Empty(failures);
     }
 

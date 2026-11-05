@@ -7,14 +7,7 @@ import sys, os, math, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 OUT = sys.argv[1] if len(sys.argv) > 1 else '.'; os.makedirs(OUT, exist_ok=True)
 FD = '/usr/share/fonts/truetype/dejavu/'
-def F(sz, bold=True):
-    # Preserve DejaVu where installed; macOS ships Arial in Supplemental.
-    names = [FD + ('DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf'),
-             '/System/Library/Fonts/Supplemental/Arial Bold.ttf' if bold else
-             '/System/Library/Fonts/Supplemental/Arial.ttf']
-    for name in names:
-        if os.path.isfile(name): return ImageFont.truetype(name, sz)
-    raise FileNotFoundError('Install DejaVu Sans or Arial: ' + ', '.join(names))
+from instrument_face_style import font as F, finish
 def FC(sz): return F(sz)
 CREAM, INK, RED, GRN = (245, 232, 195), (5, 5, 5), (196, 36, 26), (40, 150, 60)
 S = 512                                   # one gauge cell (face disc fills the cell); atlas 5 cells + placard row
@@ -115,7 +108,7 @@ D.text((320, S + 42), 'REAR SEAT FOR', font=FC(46), fill=INK, anchor='mm'); D.te
 # subtle face grain / ageing so the cream is not flat
 arr = np.asarray(A).astype(np.float32); rng = np.random.default_rng(3)
 arr += rng.normal(0, 2.5, arr.shape[:2])[..., None]; A = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
-A.save(os.path.join(OUT, 'j3_panel_atlas.png'))
+finish(A, cream=True).save(os.path.join(OUT, 'j3_panel_atlas.png'))
 # ---- prop wood: u = blade radial coordinate y in [-R, R], v = chordwise z in [-ZH, ZH] (planar projection, both faces) ----
 R, ZH, IN = 36 * 0.0254, 0.10, 0.0254
 W, H = 4096, 512

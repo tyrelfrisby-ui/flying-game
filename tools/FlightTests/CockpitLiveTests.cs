@@ -101,11 +101,18 @@ public sealed class CockpitLiveTests
     // ---- which model gets what ----
 
     [Fact]
-    public void ThePittsGetsSevenLiveDialsBothSticksFourPedalsAndAThrottle()
+    public void ThePittsGetsSevenRearAndFourFrontLiveDials()
     {
         CockpitLiveSpec p = CockpitLive.For("pitts-s2b-like-own");
         // rear_panel.py LAYOUTS['pitts-s2b-like']: seven dials.
-        Assert.Equal(7, p.Dials.Count);
+        Assert.Equal(11, p.Dials.Count);
+        foreach (string name in new[] { "Airspeed", "Altimeter", "G_meter", "Tachometer" })
+        {
+            var front = Dial(p, $"FrontPanel_{name}_Face");
+            var rear = Dial(p, $"RearPanel_{name}_Face");
+            Assert.Equal(rear.Art, front.Art);
+            Assert.Same(rear.Needles, front.Needles);
+        }
         foreach (string n in new[] { "Airspeed", "Altimeter", "G_meter", "Tachometer", "Oil_pressure", "Oil_temperature", "Compass" })
             Assert.Contains(p.Dials, d => d.Face == $"RearPanel_{n}_Face");
         Assert.Equal("gl-dial-asi", Dial(p, "RearPanel_Airspeed_Face").Art);     // the Pitts' ASI is in mph
