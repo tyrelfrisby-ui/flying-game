@@ -215,7 +215,7 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   Any of those lanes must merge island-nav before it builds. Details in the Log entry "kill red 2-33".
 <!-- /kill-red-233 needs-you -->
 ## NEEDS YOU — fly-check the Extra FRONT seat, rear switches, verniers, throttle grip and fuel valve (Claude, 2026-11-04 22:55 PST)
-- Ty: on the iPhone / iPad mini (2026.1105.0002) and the Quest, fly the Extra 300 and check: FRONT seat = small sub-panel
+- Ty: on the iPhone / iPad mini (2026.1105.0022) and the Quest 3S (2026.1105.0035), fly the Extra 300 and check: FRONT seat = small sub-panel
   with ASI / G / ALT only + throttle, stick, rudder and the red fuel-valve lever (right wall); REAR panel grey, only
   MASTER / ALT / FUEL PUMP / NAV / STROBE / SMOKE with legible placards beneath, no unlabelled knobs, EGT/CHT lower right,
   padded diagonal tubes; prop (blue) / mixture (red) verniers on the left wall beside the rear throttle, knobs aft;
@@ -254,6 +254,10 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   rear_panel.py table, whose Hide list switched off the renderers of Needle_ASI_R / Alt / G / Tach / MP / OilP / OilT,
   i.e. the LIVE rear panel's needles. The Extra now gets an empty spec (its own rig does everything);
   CockpitLiveTests.TheExtraIsLeftToItsOwnRig. Seen only because CockpitEyeShots now runs CockpitLiveParts like the game.
+- iOS deploy.sh from this lane (= island-nav f3fec13a + this work + the needle fix): ** BUILD SUCCEEDED ** 2026.1105.0022,
+  0 error CS, installed iPhone + iPad mini. Merged: island-nav 5eda6050, Quest lane 41a91a68 (PARITY: OK, 35 leftover
+  build files untouched in each). Quest deploy-quest.sh from 41a91a68: 2026.1105.0035, 0 error CS, installed + launched
+  on the Quest 3S. Not in the iOS build: crash-reset a641dccb (merged after it; in the Quest build).
 
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
