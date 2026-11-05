@@ -1,7 +1,8 @@
 ## NEEDS YOU
 <!-- airport-lighting needs-you -->
-- **AIRPORT LIGHTING: code + tests done (Claude, 2026-11-05, lane/claude-windsocks 0c73b1b6+). Renders and BUILD: see the
-  status line below. NOT merged, NOT installed.** Ty 08:44: "only airports with instrument approaches have vasi or papi
+- **AIRPORT LIGHTING: built and rendered, waiting for Ty's look (Claude, 2026-11-05, lane/claude-windsocks 0c73b1b6+).
+  `** BUILD SUCCEEDED **` (deploy.sh NOINSTALL, 13:42, stamp 2026.1105.1334, not installed); Unity batch 0 error CS.
+  NOT merged, NOT installed.** Ty 08:44: "only airports with instrument approaches have vasi or papi
   make sure both are represented at one airport or more the rest of the airports have no visual aids and roughly half
   have runway lights for night flying". Doc: docs/AIRPORT-LIGHTING.md.
   - **Ty, please look at** `renders/airport-lighting/`: papi-{slightly-high,on-path,slightly-low,low}-{tele,pilot},
@@ -25,19 +26,23 @@
     halos. Both removed now (the old world keeps its taxi lamps). `Editor/WorldRender.cs` has old runway-papi-*
     capture cameras (left alone). The island drew no runway lamps at all. ILS `HasGlideslope` exists on navaids
     (Navaid.cs, NavReceiver) but there was no airport flag; no VASI code anywhere.
-  - Status: <!-- airport-lighting status -->**NOT rendered, NOT built.** The gate (3 idle minutes, no Unity/xcodebuild/il2cpp/deploy)
-    waited 11:12-13:12 and never opened (other lanes' deploys back to back); it hit the 2 h background limit before
-    Unity started. **Next owner**, in this worktree, when the slot is free:
-    `/tmp/airport-lighting-gate.sh` (or by hand: `Unity -batchmode -quit -projectPath unity -buildTarget iOS -executeMethod
-    FlyingGame.EditorTools.AirportLightingShots.Render`, then `zsh tools/deploy/deploy.sh NOINSTALL`). The Unity side
-    (AirportLights.cs, AirportLightingShots.cs) has never been compiled: expect to fix `error CS`. LOOK at the renders
-    (lens winding, PAPI colours vs cameras.txt, night halos) before showing Ty. Restore the ConfigSync StreamingAssets
-    mirrors and the bundleVersion bump afterwards; do not commit them.
+  - Status: <!-- airport-lighting status -->Rendered 13:33 and LOOKED AT: every plate matches what Core computed
+    (cameras.txt). PAPI at PHDH 26, 1 NM: 3.35° R W W W, 3.00° R R W W, 2.65° R R R W, 2.20° all red (red always
+    nearest the runway, row left of the runway). VASI at PATK 2: on path far bar red over near bar white, 2.4° all red,
+    3.7° all white. Night: PANC, PATK and AP10 show white edges, green threshold, red far end and the PAPI/VASI glow;
+    3U2 (unlit) is dark. Notes on the plates: in the 40° pilot views at 1 NM the boxes are a few pixels (real size;
+    the 3-4° telephotos show them). The red-white pole in the PAPI telephoto is the end windsock ~80 m beyond the row
+    (depth compressed). **Night plates are a stand-in**: the terrain shaders ignore sun and ambient, so the ground stays
+    day-bright under a black sky, and at 3 km the 200 ft-spaced edge lights merge into solid bars (the shared
+    AirportGlow halo's pixel floor, not changed here). The AP10 camera sits low over a glacier.
   - Not an approved gate.
 
 ## NEEDS YOU
 <!-- windsocks needs-you -->
-- **WINDSOCKS: code + tests done, NOT built, NOT rendered (Claude, 2026-11-05, lane/claude-windsocks 872fd1a3+).**
+- **WINDSOCKS: built and rendered, waiting for Ty's look (Claude, 2026-11-05, lane/claude-windsocks 872fd1a3+).**
+  Update 13:42: WindsockShots ran (0 error CS) -> `renders/windsocks/`, and the lane's deploy.sh NOINSTALL reached
+  `** BUILD SUCCEEDED **` (stamp 2026.1105.1334, same build as the airport lighting). Looked at: the sock hangs at calm,
+  fills throat-first and sags at 7 kt, no winding faults. The "NOT done" lines below are superseded.
   Ty 08:43: "every airport has a wind sock off to the side of the runway at each end and in the middle".
   - Done: one shared part (`src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs`); 3 per runway
     on all 43 airport runways (129), abeam each end and midfield, 12 m outside the FAA RSA (sock 30.3 / 34.9 / 88.2 m
