@@ -1,4 +1,36 @@
 ## NEEDS YOU
+<!-- merge-tundra-recorder needs-you -->
+- **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
+  05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
+  On devices (built by the next lanes' deploys from trees that contain both merges, so not built twice):
+  iPhone 17 Pro, iPad mini and EFB iPad Air **2026.1105.0746** (island-nav 0180edd5); Quest 3S **2026.1105.0751** (quest-islandnav 7b19f987, install Success, launched).
+  Nothing here is an approved gate. Queue: Q036-Q040 moved to Answered, Q064 open (this list).**
+  Defaults taken (none of these was built new; where the lane gave no default I took the choice that changes nothing):
+  1. **Super Cub look vs. tyre:** the bush Super Cub FLIES on the 35 in lightweight tundra tyre you approved, but its
+     3-D model still SHOWS the 31 in tyres. The model was not changed. (Lane gave no default.)
+  2. **Gear-leg springs:** NOT re-derived. Every leg keeps its old spring, which was set for leg + tyre together, so with
+     the tyre now a spring of its own the gear is a little softer (the Super Cub's 3 m/s level-drop prop strike).
+  3. **Glasair thrust line:** NOT set. Its propeller already sat 4 cm below its wheels; on the new soft tyre it touches
+     at full power, and the "every powered type rolls" test stays red until someone gives it its real thrust line.
+  4. **Wheels on snow:** the lane's reference tyre is kept (a 6.00-6 at 30 psi, 4 kN). The Cub's tyre floats a bit better
+     on snow, so skis vs. wheels sits at 0.62 against a 0.6 limit (Cub) and 0.606 (Beaver, new after the merge).
+  5. **Estimated wheel/disc weights:** the lane's estimates are kept as written (Cleveland wheels 4.0–4.5 lb, discs 2.5,
+     HD 40-134 13.5 lb, the bushwheel ply/load ratings, 8.50-6 16 lb, the Scott 8 in 3 lb 13 oz, tyre damping 0.05,
+     snow crust 125 kPa). Anything you know beats them.
+  6. **Flight recorder name (Q036):** FLIGHTS (the clip recorder keeps REC).
+  7. **Recorder UI (Q037):** as proposed: FLIGHTS toolbar button in flight, RECORDINGS on the landing page, a session
+     "mixer" page, the same as a Quest menu tab. NOT built yet: phase 1 has no UI and nothing a pilot can reach changed.
+  8. **Hitting a recorded ship (Q038):** (a) both take real contact damage. Phase 1 only detects the hit.
+  9. **Save the last N minutes of replay as a recording (Q039):** NOT NOW. The lane proposed no default, so the choice
+     that adds no new work; ask again for phase 2.
+  10. **Count-in and start slot (Q040):** 5 s count-in, new ship echelon right, one span back and one span out.
+  Merge notes: the tundra tyre's deflected rolling radius now combines with the flat-tyre lane's drop (a flat does not
+  change the brake's torque); the water lane's footprint pressure floor is kept for planing speed; the Grob 103 Acro,
+  which arrived after the catalog, got legacy catalog tyres with exactly its old sizes, mass and 8.6 psi.
+  Red tests (targeted tyre classes, merged vs both parents): the lane's own reds stay red as it reported (tailwheel
+  rest load, Cub skim, J-3 below planing, Cub skis vs wheels); island-nav's base reds stay (two Knik ski tests, and
+  `NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs`, whose `grob` pattern catches the approved Grob 103 Acro files — the
+  2-33 itself is yellow only; the test was not touched). New after the merge: Beaver skis vs wheels on snow (0.606).
 
 ## NEEDS YOU — crash flight-path camera shoots to sky: fly-test (Claude, 2026-11-05)
 <!-- crash-camera-flightpath needs-you -->
@@ -4268,6 +4300,17 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-05 08:05 PST — Claude · merge-tundra-recorder (Ty approved 05:36) · tundra tyres + flight recorder into both lanes
+- Merged in throwaway worktrees so the merge worktrees' uncommitted ConfigSync/ProjectSettings leftovers were never
+  touched (byte-checked against a tarball in agent-lanes/backups/merge-tundra-recorder before and after).
+- island-nav: 04278266 (lane/claude-tundra-tires 0677e614; conflicts in LandingGear/WheelSpin/WheelHydro/TyreWear
+  resolved against the tyre-wear and wheel-water lanes; Grob 103 legacy tyres), 23922ee1 (lane/claude-flight-recorder
+  d6d5f884; CLAUDE.md both sides kept). Quest: 221db87f. `tools/check-parity.sh --strict`: PARITY: OK.
+- Builds: my own gated deploy never got a free slot; the next lanes' deploys built trees that contain both merges, so I
+  verified those instead of building twice: iOS 2026.1105.0746 (island-nav 0180edd5, BUILD SUCCEEDED, 0 error CS,
+  installed 3 of 3: iPhone 17 Pro, iPad mini, EFB iPad Air, which was locked so it did not launch); Quest 2026.1105.0751
+  (quest-islandnav 7b19f987, 0 error CS, Success on 340YC10GBK0TYV).
+- Tests (targeted tyre/wheel/NoRed/recorder classes, merged vs both parents): see NEEDS YOU. Full suite not run.
 ### 2026-11-05 01:56 PST — Claude · lane/claude-wheel-hydroplane · Q024 rulings, merge into both lanes, installs
 - **Ty 2026-11-04 20:27 (Q024):** a hooked water rudder that stays wet is correct; the J-3's idle turn of 254°/20 s is OK;
   an SR22/Glasair prop strike on water is OK, but it must come from the prop's own geometry in the water, with real
