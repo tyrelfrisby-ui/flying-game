@@ -41,7 +41,7 @@ def main():
             if path.parent.name=='pitts-s2b-like':
                 nodes={n['name']:n for n in g.doc['nodes']};controls=g.doc['extras']['vrCockpitPhase3a']['controls']
                 assert not any(c['seat']=='Front' for c in controls)
-                assert {c['grip'][5:] for c in controls}=={'Master','Alternator','FuelPump','Smoke','Prop','Mixture','FuelSelector'}
+                assert {c['node'] for c in controls}=={'Ctl_Toggle_Master','Ctl_Toggle_Alternator','Ctl_Toggle_FuelPump','Ctl_Toggle_Smoke','PropLever_Rear','Mixture','FuelValve_Rear','TrimLever_Rear','CowlFlap'}  # pitts_controls_live.py
                 for key in ['Airspeed','Altimeter','G_meter','Tachometer']:
                     face=nodes['FrontPanel_'+key+'_Face'];bezel=nodes['FrontPanel_'+key+'_Bezel']
                     fv=g.array(g.doc['meshes'][face['mesh']]['primitives'][0]['attributes']['POSITION'])
@@ -56,12 +56,15 @@ def main():
                     if row['node'] in maps:assert row==maps[row['node']],row['node']
     # Visual source-art comparison; Cub first cell is a complete cream dial.
     out=ROOT/'renders/instrument-style';out.mkdir(parents=True,exist_ok=True)
-    sheet=Image.new('RGB',(1000,max(1,300*len(samples))),(75,75,75));draw=ImageDraw.Draw(sheet)
+    if not samples:
+        print('PASS: Python syntax, GLB graph, paint, texture preservation, Pitts face clearance and retained rig maps; no comparison-sheet samples in changed assets.')
+        return
+    sheet=Image.new('RGB',(1000,300*len(samples)),(75,75,75));draw=ImageDraw.Draw(sheet)
     for i,(title,a,b) in enumerate(samples):
         draw.text((10,i*300+10),title+'   original / shared style',fill='white')
         if title.startswith('j3-'):a=a.crop((0,0,512,512));b=b.crop((0,0,512,512))
         sheet.paste(a.resize((260,260)),(150,i*300+30));sheet.paste(b.resize((260,260)),(550,i*300+30))
-    if samples: sheet.save(out/'face-comparison.png')   # nothing changed with an ASI face: keep the last sheet
+    sheet.save(out/'face-comparison.png')
     print('PASS: Python syntax; GLB graph; idempotent paint; Pitts front face clearance, layout and retained rig maps.')
     print(f'PASS: {total} embedded textures preserve {colors} saturated arc/horizon pixels exactly.')
 

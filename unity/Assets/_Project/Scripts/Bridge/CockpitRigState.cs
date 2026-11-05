@@ -149,6 +149,10 @@ namespace FlyingGame.Bridge
             Climb.Reset();
         }
 
+        /// <summary>The Pitts' blue prop lever's blade, 0 down (locked) .. 1 horizontal (released): the hand's, drawn in
+        /// both seats. It is a cockpit state, not the sim's: only the slide (Aircraft.PropLever01) reaches the engine.</summary>
+        public double PropLock01;
+
         /// <summary>Clear the accelerometer's max / min tell-tales (the knob on a real one).</summary>
         public void ResetGTellTales() { _gMax = _gMin = 0.0; }
 
@@ -182,8 +186,11 @@ namespace FlyingGame.Bridge
             // (Aircraft.PropLever01, Aircraft.Electrics), so the front seat's and the rear's read the same state.
             bool engine = cfg != null && cfg.Propulsion != null && cfg.Propulsion.MaxPowerW > 0.0;
             r.PropLever = ac.PropLever01;
-            r.Mixture = engine && !ac.EngineStopped ? 1.0 : 0.0;
+            r.Mixture = engine ? ac.Mixture01 : 0.0;
             r.FuelSelector = 1.0;
+            r.FuelValve = ac.FuelValveOpen ? 1.0 : 0.0;   // the valve's one shaft: both cockpits' levers read it
+            r.CowlFlap = ac.CowlFlap01;
+            r.PropLock = PropLock01;
             r.Magneto = engine && !ac.EngineStopped ? 3.0 : 0.0;
             FlyingGame.Core.Engine.ElectricalSystem el = ac.Electrics;
             r.Master = el.Master ? 1.0 : 0.0;
@@ -332,7 +339,8 @@ namespace FlyingGame.Bridge
 
             // Oil and cylinder-head temperature: first-order, toward what the power setting holds.
             double oilTarget = running ? 150.0 + 60.0 * thr : 100.0;
-            double chtTarget = running ? 260.0 + 160.0 * thr : 200.0;
+            // An open cowl flap (Aircraft.CowlFlap01) takes (E) 60 F off the heads at any power.
+            double chtTarget = FlyingGame.Core.Engine.EngineTemperatures.ChtTargetF(running, thr, ac.CowlFlap01);
             if (dt > 1e-4f)
             {
                 _oilTempF += (oilTarget - _oilTempF) * (1.0 - System.Math.Exp(-dt / 150.0));

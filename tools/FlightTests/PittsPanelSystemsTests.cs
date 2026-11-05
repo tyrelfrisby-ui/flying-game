@@ -187,6 +187,114 @@ public sealed class PittsPanelSystemsTests
         Assert.Equal(1.0, master);
     }
 
+    // ---- the blue prop lever: turn to release, then slide (Ty 2026-11-04 19:27) ----
+
+    [Fact]
+    public void LockedThePropLeverDoesNotSlide()
+    {
+        var lever = new PropLockLever(slide01: 1.0);
+        Assert.False(lever.Released);
+        Assert.False(lever.Move(0.0, 0.3));      // hanging down: the slot's teeth hold it
+        Assert.Equal(1.0, lever.Slide01, 12);
+        Assert.False(lever.Move(0.8, 0.3));      // nearly up is still locked
+        Assert.Equal(1.0, lever.Slide01, 12);
+    }
+
+    [Fact]
+    public void ReleasedTheSlideIsTheRpmAndLockingItHoldsIt()
+    {
+        var lever = new PropLockLever(slide01: 1.0);
+        Assert.True(lever.Move(1.0, 0.3));       // turned up to horizontal and pulled back in one motion
+        Assert.Equal(0.3, lever.Slide01, 12);
+        Assert.True(lever.Move(0.9, 0.6));
+        Assert.Equal(0.6, lever.Slide01, 12);
+        Assert.False(lever.Move(0.0, 0.1));      // turned back down: the rpm stays where it was set
+        Assert.Equal(0.6, lever.Slide01, 12);
+
+        Aircraft ac = Pitts(0.7);                // and that slide is the governor's rpm: 2000 + 0.6 x 700
+        ac.PropLever01 = lever.Slide01;
+        Assert.Equal(2420.0, ac.EngineRpm, 6);
+    }
+
+    // ---- the fuel valve and the mixture: both starve the engine ----
+
+    private static void Fly(Aircraft ac, double seconds, double lever = -0.4)
+    {
+        var loop = new SimLoop(ac, 1.0 / 200.0);
+        for (int i = 0; i < (int)(seconds * 200); i++) loop.RunFor(1.0 / 200.0, new ControlInputs(0, 0, 0, lever));
+    }
+
+    [Fact]
+    public void FuelValveOffStarvesTheEngineAndOnRelightsIt()
+    {
+        Aircraft ac = Pitts(0.7);
+        ac.FuelValveOpen = false;
+        Fly(ac, 3.0);
+        Assert.False(ac.EngineStopped);          // 4 s of fuel in the lines (Aircraft.FuelLinesSec)
+        Fly(ac, 1.5);
+        Assert.True(ac.EngineStopped);
+        Assert.Equal(0.0, ac.EngineRpm, 9);
+        Assert.Equal(0.0, ac.FuelFlowKgPerSec, 12);
+        ac.FuelValveOpen = true;
+        Fly(ac, 2.5);                            // 2 s to refill (Aircraft.FuelRelightSec)
+        Assert.False(ac.EngineStopped);
+        Assert.True(ac.EngineRpm > 2000);
+    }
+
+    [Fact]
+    public void FullyPulledMixtureIsIdleCutOff()
+    {
+        Aircraft ac = Pitts(0.7);
+        ac.Mixture01 = 0.0;
+        Assert.True(ac.MixtureCutOff);
+        Fly(ac, 5.0);
+        Assert.True(ac.EngineStopped);
+        ac.Mixture01 = 1.0;
+        Fly(ac, 2.5);
+        Assert.False(ac.EngineStopped);
+    }
+
+    [Fact]
+    public void LeaningCostsPowerOnlyPastTheLeanLimit()
+    {
+        Aircraft ac = Pitts(0.7);
+        Assert.Equal(1.0, ac.MixturePowerScale, 12);   // full rich
+        ac.Mixture01 = 0.6;
+        Assert.Equal(1.0, ac.MixturePowerScale, 12);   // leaned to 0.6: nothing lost
+        ac.Mixture01 = 0.325;                           // half way from 0.6 to the cut-off at 0.05: 0.55 + 0.45 / 2
+        Assert.Equal(0.775, ac.MixturePowerScale, 9);
+        double rich = Pitts(0.7).FuelFlowKgPerSec;
+        Assert.Equal(0.775 * rich, ac.FuelFlowKgPerSec, 12);
+        Assert.False(ac.MixtureCutOff);
+    }
+
+    // ---- the cowl flap ----
+
+    [Fact]
+    public void AnOpenCowlFlapCoolsTheHeads()
+    {
+        double closed = EngineTemperatures.ChtTargetF(true, 0.75, 0.0), open = EngineTemperatures.ChtTargetF(true, 0.75, 1.0);
+        Assert.Equal(380.0, closed, 9);           // 260 + 160 x 0.75
+        Assert.Equal(320.0, open, 9);             // 60 F cooler
+        Assert.Equal(350.0, EngineTemperatures.ChtTargetF(true, 0.75, 0.5), 9);
+        Assert.Equal(200.0, EngineTemperatures.ChtTargetF(false, 0.75, 1.0), 9);   // a stopped engine is cold either way
+    }
+
+    [Fact]
+    public void AnOpenCowlFlapAddsALittleDrag()
+    {
+        static double SpeedAfter(double flap)
+        {
+            Aircraft ac = Pitts(0.7);
+            ac.CowlFlap01 = flap;
+            Fly(ac, 2.0);
+            return ac.State.Velocity.Length;
+        }
+        double closed = SpeedAfter(0.0), open = SpeedAfter(1.0);
+        Assert.True(open < closed, $"open {open:F3} vs closed {closed:F3}");
+        Assert.True(closed - open < 0.5, $"a cowl flap is a little drag, not an airbrake ({closed - open:F3} m/s in 2 s)");
+    }
+
     [Fact]
     public void ALeverFollowsItsArcAndNeverFlips()
     {

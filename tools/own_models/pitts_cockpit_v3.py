@@ -188,3 +188,5 @@ if __name__=='__main__':
  finish_panel()
  from pitts_alternator_live import main as live_alternator   # ALTERNATOR as a working switch (ElectricalSystem)
  live_alternator()
+ from pitts_controls_live import main as live_controls   # prop lock/slide, mixture, fuel valve, trim, cowl flap working
+ live_controls()

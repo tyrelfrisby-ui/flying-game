@@ -1450,6 +1450,206 @@
    "extra": {},
    "link": "",
    "note": ""
+  },
+  {
+   "node": "PropLever_Rear_Slide",
+   "param": "prop",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.08,
+    -0.125,
+    0.275
+   ],
+   "map": [
+    [
+     0,
+     -0.04
+    ],
+    [
+     1,
+     0.04
+    ]
+   ],
+   "model": 0.5,
+   "unit": "0..1",
+   "desc": "(E) 80 mm prop slot; forward = fine (high rpm); moves only with the blade released",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "PropLever_Rear",
+   "param": "prop_lock",
+   "parent": "PropLever_Rear_Slide",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.08,
+    -0.125,
+    0.275
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "blade DOWN = locked .. HORIZONTAL forward = released (Ty); forward is (E)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Mixture",
+   "param": "mixture",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.205,
+    -0.275,
+    0.302
+   ],
+   "map": [
+    [
+     0,
+     0.05
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 1.0,
+   "unit": "0..1",
+   "desc": "(E) 50 mm push-pull: in = rich, out = lean, fully out = idle cut-off",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "FuelValve_Rear",
+   "param": "fuel_valve",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.97,
+    -0.16,
+    -0.277
+   ],
+   "map": [
+    [
+     0,
+     90
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "model": 1.0,
+   "unit": "0..1",
+   "desc": "UP = ON, turned forward to horizontal = OFF (Ty; the OFF legend is forward of the valve)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "TrimLever_Rear",
+   "param": "trim",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.24,
+    -0.24,
+    0.27
+   ],
+   "map": [
+    [
+     -1,
+     -0.05
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.05
+    ]
+   ],
+   "model": 0.0,
+   "unit": "-1..1",
+   "desc": "(E) +-50 mm along the wall ticks: aft = NOSE UP, forward = NOSE DOWN (the legends)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "CowlFlap",
+   "param": "cowl_flap",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.26,
+    -0.445,
+    0.245
+   ],
+   "map": [
+    [
+     0,
+     -35
+    ],
+    [
+     0.5,
+     0
+    ],
+    [
+     1,
+     35
+    ]
+   ],
+   "model": 0.5,
+   "unit": "0..1",
+   "desc": "(E) +-35 deg over the gate: CLOSED aft, MID, OPEN forward",
+   "extra": {},
+   "link": "",
+   "note": ""
   }
  ],
  "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.",
@@ -1603,19 +1803,53 @@
    "label": "SMOKE"
   },
   {
-   "node": "Ctl_PushPull_Mixture",
+   "node": "PropLever_Rear",
+   "param": "prop_lock",
+   "kind": "Lever",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.08,
+    -0.125,
+    0.275
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "label": "PROP"
+  },
+  {
+   "node": "Mixture",
    "param": "mixture",
    "kind": "PushPull",
    "seat": "Rear",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    0.809,
-    -0.2178,
-    0.319
+    1.205,
+    -0.275,
+    0.302
    ],
    "travel": 50,
    "travel_unit": "mm",
@@ -1628,82 +1862,122 @@
    "spring_return": false,
    "spring_return_from": 1,
    "spring_return_to": 0,
-   "poke": "Poke_Mixture",
-   "grip": "Grip_Mixture",
+   "poke": "",
+   "grip": "",
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "label": "MIXTURE"
   },
   {
-   "node": "Ctl_PushPull_Prop",
-   "param": "prop",
-   "kind": "PushPull",
-   "seat": "Rear",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.809,
-    -0.2178,
-    -0.35
-   ],
-   "travel": 50,
-   "travel_unit": "mm",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [],
-   "detent_count": 0,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_Prop",
-   "grip": "Grip_Prop",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector",
-   "param": "fuel_selector",
+   "node": "FuelValve_Rear",
+   "param": "fuel_valve",
    "kind": "Rotary",
    "seat": "Rear",
    "axis_gltf": [
-    -1.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.97,
+    -0.16,
+    -0.277
+   ],
+   "travel": 90,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "",
+   "grip": "",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "label": "FUEL"
+  },
+  {
+   "node": "TrimLever_Rear",
+   "param": "trim",
+   "kind": "PushPull",
+   "seat": "Rear",
+   "axis_gltf": [
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    0.809,
-    -0.2178,
-    -0.226
+    1.24,
+    -0.24,
+    0.27
    ],
-   "travel": 180,
+   "travel": 100,
+   "travel_unit": "mm",
+   "sim_ends": [
+    -1,
+    1
+   ],
+   "detents": [],
+   "detent_count": 0,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": -1,
+   "poke": "",
+   "grip": "",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "label": "TRIM"
+  },
+  {
+   "node": "CowlFlap",
+   "param": "cowl_flap",
+   "kind": "Lever",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.26,
+    -0.445,
+    0.245
+   ],
+   "travel": 70,
    "travel_unit": "deg",
    "sim_ends": [
     0,
-    2
+    1
    ],
    "detents": [
     0,
-    1,
-    2
+    0.5,
+    1
    ],
    "detent_count": 3,
    "spring_return": false,
    "spring_return_from": 1,
    "spring_return_to": 0,
-   "poke": "Poke_FuelSelector",
-   "grip": "Grip_FuelSelector",
+   "poke": "",
+   "grip": "",
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "label": "COWL FLAP"
   }
  ],
  "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."

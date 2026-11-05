@@ -33,11 +33,17 @@ namespace FlyingGame.Bridge
             public HingedLever Lever;
             public SlideKnob Slide;
             public Grabbable Id;
+            /// <summary>The Pitts' blue prop lever: the blade (this slot's Lever, param prop_lock) rides a slide (its own
+            /// rig node, param prop) and only slides while released.</summary>
+            public PropLockLever Lock;
+            public RigHandle SlideH;
+            public Vector3 SlidePivotAtBind;
         }
 
         private readonly List<PanelSlot> _panel = new();
         private SmokeController _smoke;
-        private static readonly HashSet<string> SimParams = new() { "trim", "smoke", "water_rudder_up", "prop", "master", "alternator", "fuel_pump" };
+        private static readonly HashSet<string> SimParams = new()
+            { "trim", "smoke", "water_rudder_up", "prop", "master", "alternator", "fuel_pump", "mixture", "fuel_valve", "cowl_flap", "prop_lock" };
 
         private void BindPanel(string seatFull)
         {
@@ -73,12 +79,25 @@ namespace FlyingGame.Bridge
                     slot.Slide = new SlideKnob(C(Local(h.KnobWorld(h.V0))), C(Local(h.KnobWorld(h.V1))));
                     pulls++;
                 }
+                if (spec.Param == "prop_lock")
+                {
+                    // The slide the blade rides: the rig's <node>_Slide, moved by the sim's prop lever.
+                    RigHandle sh = RigHandle.Find(_visual.Rig, spec.Node + "_Slide", null);
+                    if (sh != null)
+                    {
+                        slot.SlideH = sh;
+                        slot.SlidePivotAtBind = Local(sh.T.position);
+                        slot.Slide = new SlideKnob(C(Local(sh.KnobWorld(sh.V0))), C(Local(sh.KnobWorld(sh.V1))));
+                        slot.Lock = new PropLockLever(_driver.Sim.Aircraft.PropLever01, slot.C.Value);
+                    }
+                    else missing.Add(spec.Node + "_Slide");
+                }
                 else rotaries++;
                 _panel.Add(slot);
             }
             Debug.Log($"[VrCockpit] {_driver.AircraftId} {seatFull} panel: {_panel.Count} controls ({toggles} toggles, {rotaries} knobs, {pulls} push-pull, {levers} levers)" +
                       (unbound > 0 || missing.Count > 0 ? $"; MISSING {string.Join(", ", missing)}" : "") +
-                      "; into the sim: trim, smoke, water rudder, prop, master, alternator, fuel pump; the rest visual only (no system in the sim yet)");
+                      "; into the sim: trim, smoke, water rudder, prop (and its lock), master, alternator, fuel pump, mixture, fuel valve, cowl flap; the rest visual only (no system in the sim yet)");
         }
 
         /// <summary>The seat's rows of the table, and a PROP lever the rig draws but the table does not list: the Pitts'
@@ -87,13 +106,13 @@ namespace FlyingGame.Bridge
         private IEnumerable<PanelControlSpec> SeatControls(ModelRig table, string seatFull)
         {
             bool prop = false;
+            string node = "PropLever_" + seatFull;
             foreach (PanelControlSpec spec in table.Controls)
             {
                 if (spec.Seat != seatFull) continue;
-                prop |= spec.Param == "prop";
+                prop |= spec.Param == "prop" || spec.Node == node;
                 yield return spec;
             }
-            string node = "PropLever_" + seatFull;
             if (prop || _visual.Rig.Find(node) == null) yield break;
             yield return new PanelControlSpec
             {
@@ -111,7 +130,8 @@ namespace FlyingGame.Bridge
                 case "trim": return _touch != null ? _touch.PitchTrimLever : 0.0;
                 case "smoke": return _smoke != null && _smoke.On ? 1.0 : 0.0;
                 case "water_rudder_up": return _driver.Sim.Aircraft.WaterRudderUp01;
-                case "prop": case "master": case "alternator": case "fuel_pump": return FromSim(spec.Param);
+                case "prop": case "master": case "alternator": case "fuel_pump":
+                case "mixture": case "fuel_valve": case "cowl_flap": case "prop_lock": return FromSim(spec.Param);
                 case "fuel_valve": return 1.0;
                 case "com_volume": return 0.5;
                 case "xpdr_squawk": return spec.Short switch { "XpdrDigit1" => 1, "XpdrDigit2" => 2, _ => 0 };   // 1200
@@ -130,6 +150,7 @@ namespace FlyingGame.Bridge
                     else if (p.C.Spec.Param == "water_rudder_up") p.C.SetFromSim(_driver.Sim.Aircraft.WaterRudderUp01);
                     else if (SimParams.Contains(p.C.Spec.Param) && p.C.Spec.Param != "trim" && p.C.Spec.Param != "smoke")
                         p.C.SetFromSim(FromSim(p.C.Spec.Param));
+                    p.Lock?.SetFromSim(_driver.Sim.Aircraft.PropLever01);
                 }
                 _grab.Set(p.Id, C(PanelPoint(p)), true);
             }
@@ -146,6 +167,10 @@ namespace FlyingGame.Bridge
                 case "alternator": return ac.Electrics.Alternator ? 1.0 : 0.0;
                 case "fuel_pump": return ac.Electrics.FuelPump ? 1.0 : 0.0;
                 case "water_rudder_up": return ac.WaterRudderUp01;
+                case "mixture": return ac.Mixture01;
+                case "fuel_valve": return ac.FuelValveOpen ? 1.0 : 0.0;
+                case "cowl_flap": return ac.CowlFlap01;
+                case "prop_lock": return _visual.Cockpit.PropLock01;
                 default: return 0.0;
             }
         }
@@ -166,7 +191,7 @@ namespace FlyingGame.Bridge
             if (p == null) return false;
             p.C.Grab(_hands[(int)side].Rotation);
             if (p.Lever != null) p.Lever.Grab(hand, p.C.T);
-            if (p.Slide != null) p.Slide.Grab(hand, p.C.T);
+            if (p.Slide != null) p.Slide.Grab(hand, p.Lock != null ? p.Lock.Slide01 : p.C.T);
             if (p.C.Spec.Param == "water_rudder_up") CockpitWaterRudder.Hold(_driver.Sim.Aircraft, p.C.Value);
             return true;
         }
@@ -180,6 +205,21 @@ namespace FlyingGame.Bridge
                 if (_grab.IsHeldBy(p.Id, out HandSide side))
                 {
                     HandPose h = _hands[(int)side];
+                    if (p.Lock != null)
+                    {
+                        // The blade's arc is about the spindle where the slide has taken it, so the hand is measured from there.
+                        Vector3 moved = Local(p.SlideH.T.position) - p.SlidePivotAtBind;
+                        double lockT = p.Lever.Follow(h.Position - C(moved));
+                        ev = p.C.FollowTravel(lockT);
+                        if (p.Lock.Move(p.C.Value, p.Slide.Follow(h.Position)))
+                        {
+                            _driver.Sim.Aircraft.PropLever01 = p.Lock.Slide01;
+                            ev |= PanelEvent.Changed;
+                        }
+                        Feel(side, ev);
+                        if ((ev & PanelEvent.Changed) != 0) Apply(p);
+                        continue;
+                    }
                     ev = p.Lever != null ? p.C.FollowTravel(p.Lever.Follow(h.Position))
                        : p.Slide != null ? p.C.FollowTravel(p.Slide.Follow(h.Position))
                        : p.C.FollowTwist(h.Rotation, C(Quaternion.Inverse(_air.rotation) * p.H.HingeWorld));
@@ -252,6 +292,25 @@ namespace FlyingGame.Bridge
                     Debug.Log($"[VrCockpit] {s.Short} {(on ? "ON" : "OFF")} by hand → bus {el.BusVolts:0.0} V, {el.Amps:+0.0;-0.0} A");
                     return;
                 }
+                case "mixture":
+                {
+                    Aircraft ac = _driver.Sim.Aircraft;
+                    bool was = ac.MixtureCutOff;
+                    ac.Mixture01 = v;
+                    if (was != ac.MixtureCutOff) Debug.Log($"[VrCockpit] mixture {(ac.MixtureCutOff ? "IDLE CUT-OFF: the engine will stop" : "back in from cut-off")} by hand");
+                    return;   // continuous: a log line only at the cut-off
+                }
+                case "fuel_valve":
+                    _driver.Sim.Aircraft.FuelValveOpen = v > 0.5;
+                    Debug.Log($"[VrCockpit] fuel valve {(v > 0.5 ? "ON" : "OFF: the engine will starve")} by hand");
+                    return;
+                case "cowl_flap":
+                    _driver.Sim.Aircraft.CowlFlap01 = v;
+                    Debug.Log($"[VrCockpit] cowl flap {(v < 0.25 ? "CLOSED" : v > 0.75 ? "OPEN" : "MID")} by hand");
+                    return;
+                case "prop_lock":
+                    _visual.Cockpit.PropLock01 = v;
+                    return;   // continuous; the rpm it lets through is Aircraft.PropLever01
                 case "com_volume":
                     return;
             }

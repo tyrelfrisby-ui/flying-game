@@ -105,8 +105,10 @@ namespace FlyingGame.EditModeTests
             // (Aircraft.Throttle01, Aircraft.PropLever01), so moving either seat's moves the other's.
             ModelRig rig = Rig();
             Assert.AreEqual("throttle", rig.Nodes.Single(n => n.Node == "Throttle_Rear").Param);
-            Assert.AreEqual("prop", rig.Controls.Single(c => c.Seat == "Rear" && c.Kind == PanelKind.PushPull && c.Node == "Ctl_PushPull_Prop").Param);
+            // The rear's prop is the blue lever on its slide (the slide is the rpm; the blade is its lock).
+            Assert.AreEqual("prop", rig.Nodes.Single(n => n.Node == "PropLever_Rear_Slide").Param);
             Assert.AreEqual("prop", rig.Nodes.Single(n => n.Node == "PropLever_Front").Param);
+            Assert.AreEqual(1, rig.Nodes.Count(n => n.Param == "throttle" && n.Node.EndsWith("_Rear")), "one throttle in the rear cockpit");
         }
 
         // ---- the rear switches ----
@@ -142,7 +144,46 @@ namespace FlyingGame.EditModeTests
                 CollectionAssert.IsEmpty(orphans, Path.GetFileName(g.Path) + " draws controls nothing can work");
             }
             CollectionAssert.AreEquivalent(new[] { "Ctl_Toggle_Master", "Ctl_Toggle_Alternator", "Ctl_Toggle_FuelPump", "Ctl_Toggle_Smoke",
-                                                   "Ctl_PushPull_Mixture", "Ctl_PushPull_Prop", "Ctl_Rotary_FuelSelector" }, table);
+                                                   "PropLever_Rear", "Mixture", "FuelValve_Rear", "TrimLever_Rear", "CowlFlap" }, table);
+        }
+
+        /// <summary>Ty 19:27-19:31: the blue PROP lever (lock, then slide), the red MIXTURE push-pull, the FUEL valve, the
+        /// long TRIM lever and the COWL FLAP, each working and drawn, on the param the sim reads.</summary>
+        [Test]
+        public void TheRearCockpitControlsTyNamedAreWorkedByHand()
+        {
+            ModelRig rig = Rig();
+            var want = new Dictionary<string, (string Param, PanelKind Kind)>
+            {
+                ["PropLever_Rear"] = ("prop_lock", PanelKind.Lever), ["Mixture"] = ("mixture", PanelKind.PushPull),
+                ["FuelValve_Rear"] = ("fuel_valve", PanelKind.Rotary), ["TrimLever_Rear"] = ("trim", PanelKind.PushPull),
+                ["CowlFlap"] = ("cowl_flap", PanelKind.Lever),
+            };
+            foreach (var kv in want)
+            {
+                PanelControlSpec c = rig.Controls.Single(x => x.Node == kv.Key);
+                Assert.AreEqual(kv.Value.Param, c.Param, kv.Key);
+                Assert.AreEqual(kv.Value.Kind, c.Kind, kv.Key);
+                Assert.AreEqual("Rear", c.Seat, kv.Key);
+                Assert.IsTrue(rig.Nodes.Any(n => n.Node == kv.Key && n.Param == kv.Value.Param), kv.Key + " has no rig row");
+            }
+            CollectionAssert.AreEqual(new[] { 0.0, 0.5, 1.0 }, rig.Controls.Single(x => x.Node == "CowlFlap").Detents, "CLOSED / MID / OPEN");
+            CollectionAssert.AreEqual(new[] { 0.0, 1.0 }, rig.Controls.Single(x => x.Node == "FuelValve_Rear").Detents, "OFF / ON");
+            foreach (GlbFile g in Glbs())
+                foreach (string n in want.Keys)
+                    Assert.Greater(g.Vertices(n), 0, $"{Path.GetFileName(g.Path)}: {n} draws nothing");
+        }
+
+        /// <summary>Ty 19:31: the Pitts has the Lexan floor window the other types have (floor_windows.py).</summary>
+        [Test]
+        public void ThePittsHasTheClearLexanFloor()
+        {
+            foreach (GlbFile g in Glbs())
+            {
+                Assert.Greater(g.Vertices("Floor_Frame"), 0, Path.GetFileName(g.Path) + ": no Floor_Frame");
+                Assert.IsTrue(g.Materials.Any(m => ((string)m["name"] ?? "").IndexOf("Lexan", System.StringComparison.OrdinalIgnoreCase) >= 0),
+                              Path.GetFileName(g.Path) + ": no Lexan material");
+            }
         }
     }
 }
