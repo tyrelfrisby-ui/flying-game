@@ -528,6 +528,7 @@ items.append(('fin+rudder', M_VT, x_vt, 0, -0.55, (M_VT * 1.38 ** 2 / 12, M_VT *
 MAIN_X = -21.25 * 0.0254
 TAIL_X = -192.00 * 0.0254
 NOSE_X = body_x_from_nose(0.858)
+NOSE_STEER = 25.0 * D2R                     # ESTIMATED nose-wheel steering lock (no published figure; FLAGGED)
 gear = [('main wheel, brake, axle, mount', 12.0, MAIN_X, 0, 0.49),
         ('nose wheel', 3.0, NOSE_X, 0, 0.56),
         ('tail wheel', 2.0, TAIL_X, 0, 0.23)]
@@ -708,13 +709,17 @@ cfg = {
     'retractableGear': False,       # [POH] 1.4 "non-retractable tandem landing gear"
     # FIXED tandem gear -- main wheel with disc brake, nose wheel, tail wheel, no retraction ([POH] 1.4 "the
     # non-retractable tandem landing gear"; [TCDS] N.III.2 "fixed tandem landing gear with brake"). The nose wheel is
-    # steerable from s/n 34171 ([TCDS]); it is modelled unsteered, as on the earlier airframes.
+    # steerable from s/n 34171 ([TCDS]) and is modelled steered (Ty 2026-11-04 16:04 PT): linked to the rudder pedals,
+    # so LandingGear.Compute points it at -rudder/maxRudder x NOSE_STEER (right pedal, wheel right). It only steers
+    # while it carries load -- an unloaded wheel makes no tyre force at all -- and it scrubs through the same
+    # load-scaled cornering and friction circle as every other tyre. NOSE_STEER is ESTIMATED: no steering angle is
+    # published for the Twin III, so +-25 deg (inside the nose bay's width at the drawn 260x85 tyre) is a FLAGGED guess.
     'gear': [
         {'pos': [r4(MAIN_X), 0.0, 0.69], 'springN': 60000, 'dampNs': 3000, 'brake': True,
          'isTailwheel': False, 'isSteerable': False, 'maxSteerRad': 0.0, 'tireMu': 0.8, 'corneringStiffnessN': 5000,
          'rollResistN': 40, 'tireRadiusM': 0.20},
         {'pos': [r4(NOSE_X), 0.0, 0.69], 'springN': 40000, 'dampNs': 2500, 'brake': False,
-         'isTailwheel': False, 'isSteerable': False, 'maxSteerRad': 0.0, 'tireMu': 0.6, 'corneringStiffnessN': 1500,
+         'isTailwheel': False, 'isSteerable': True, 'maxSteerRad': round(NOSE_STEER, 4), 'tireMu': 0.6, 'corneringStiffnessN': 1500,
          'rollResistN': 30, 'tireRadiusM': 0.13},
         {'pos': [r4(TAIL_X), 0.0, 0.33], 'springN': 15000, 'dampNs': 2000, 'brake': False,
          'isTailwheel': True, 'isSteerable': False, 'maxSteerRad': 0, 'tireMu': 0.5, 'corneringStiffnessN': 800,

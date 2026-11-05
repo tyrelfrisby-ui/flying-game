@@ -129,7 +129,6 @@ public class Grob103Tests
     public void ControlTravelsAreTheCertificatesConvertedToAngles()
     {
         AircraftConfig c = Grob103.Load();
-        double Deg(double r) => r * 180 / Math.PI;
         // The Twin III's travels are in its Maintenance Manual ([TCDS] N.III.13), which is not available; these are the
         // TWIN II's, kept and flagged. [TCDS-FAA] travels are linear distances at a radius, i.e. the CHORD of the arc:
         // 2 asin(d / 2r).
@@ -413,5 +412,135 @@ public class Grob103Tests
         _out.WriteLine($"developed spin {omSpin:F2} rad/s; after 6 s of recovery {omRec:F2} rad/s");
         Assert.True(omSpin > 1.0, $"no developed spin to recover from ({omSpin:F2} rad/s)");
         Assert.True(omRec < 0.67 * omSpin, $"recovery controls must slow the rotation: {omSpin:F2} -> {omRec:F2} rad/s");
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // Nose wheel steering (Ty 2026-11-04 16:04 PT: "the nose wheel steers", standard from s/n 34171 per [TCDS])
+    // ---------------------------------------------------------------------------------------------------------------
+
+    /// <summary>Main wheel to nose wheel, m: the [N41KP] main station (21.25 in aft) and the Twin II drawing's nose
+    /// station (TheGearIsFixedTandem), copied by hand.</summary>
+    private const double Wheelbase = 1.4595 + 0.5397;
+    /// <summary>ESTIMATED steering lock: no Twin III figure is published, so +-25 deg is a flagged guess.</summary>
+    private const double SteerLockDeg = 25.0;
+
+    private static void CalmGround()
+    {
+        WorldTerrain.Active = null; WorldTerrain.SurfaceOverride = null;
+        Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; Atmosphere.Field = null;
+        WorldDecks.All.Clear(); WorldSolids.Shapes.Clear(); WorldSolids.Boxes.Clear();
+    }
+
+    private static double Deg(double r) => r * 180 / Math.PI;
+    private static double Yaw(Quat q) => Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
+
+    /// <summary>Rolls the glider on paved ground at `v` m/s (held by a push through the CG, as a ground crew or a
+    /// retrieve car would) with the pedals at `rudder` (+1 = full right), and returns the steady yaw rate (rad/s, +
+    /// right), the ground speed, and the nose wheel's mean load over the measuring window.</summary>
+    private static (double YawRate, double Speed, double NoseLoadN, double SteerRad) Taxi(AircraftConfig c, double rudder, double v = 3.0)
+    {
+        CalmGround();
+        RigidBodyState rest = LandingGear.RestingState(c, 0, 0, 0);
+        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, new Vec3(v, 0, 0), Vec3.Zero));
+        var sim = new SimLoop(ac);
+        ac.ExternalForcePointBody = c.Mass.CgVec();
+        AircraftConfig noseOnly = SingleWheel(c, c.Gear.FindIndex(g => !g.IsTailwheel && g.Pos[0] > 0));
+        double yawRate = 0, speed = 0, noseN = 0; int n = 0;
+        for (int i = 0; i < 400; i++)                         // 20 s at 0.05 s; the last 5 s are measured
+        {
+            Vec3 vw = ac.State.Attitude.Rotate(ac.State.Velocity);
+            double vg = Math.Sqrt(vw.X * vw.X + vw.Y * vw.Y);
+            Vec3 fwd = ac.State.Attitude.Rotate(new Vec3(1, 0, 0)); fwd = new Vec3(fwd.X, fwd.Y, 0); fwd /= fwd.Length;
+            ac.ExternalForceWorld = fwd * (c.Mass.MassKg * (0.05 * 9.81 + 1.5 * (v - vg)));
+            sim.RunFor(0.05, new ControlInputs(0, 0, rudder, 0));
+            if (i >= 300)
+            {
+                Vec3 om = ac.State.Attitude.Rotate(ac.State.Rates);
+                yawRate += om.Z; speed += vg; n++;
+                (Vec3 fl, _) = LandingGear.Compute(noseOnly, ac.State, rudder, 0);
+                noseN += -fl.Z;
+            }
+        }
+        CalmGround();
+        return (yawRate / n, speed / n, noseN / n, ac.NoseWheelSteerRad);
+    }
+
+    /// <summary>The config with only gear leg `k`, so LandingGear.Compute gives that one wheel's force.</summary>
+    private static AircraftConfig SingleWheel(AircraftConfig c, int k)
+    {
+        AircraftConfig one = Grob103.Load();
+        one.Mass = c.Mass; one.Gear = new List<GearConfig> { c.Gear[k] };
+        return one;
+    }
+
+    [Fact]
+    public void TheNoseWheelIsSteeredByThePedals()
+    {
+        AircraftConfig c = Grob103.Load();
+        GearConfig nose = c.Gear.Single(g => !g.IsTailwheel && g.Pos[0] > 0);
+        Assert.True(nose.IsSteerable, "the nose wheel steers (standard from s/n 34171)");
+        Assert.Equal(SteerLockDeg, Deg(nose.MaxSteerRad), 2);
+        Assert.False(c.Gear.Single(g => g.IsTailwheel && g.GearType != "tip-skid").IsSteerable, "the tail wheel does not");
+        // The angle the visual rig is given is the angle the tyre is steered by: right pedal, wheel right.
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -1), new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero),
+                              new ControlDeflections(0, 0, c.Controls.Rudder.MaxDeflRad, 0));
+        Assert.Equal(SteerLockDeg, Deg(ac.NoseWheelSteerRad), 2);
+    }
+
+    /// <summary>On the ground at taxi speed, full pedal turns the glider the pedal's way, about the main wheel, on the
+    /// radius the geometry gives: wheelbase / tan(lock) = 2.00 / tan 25 = 4.29 m for a tyre that does not slip; real
+    /// tyres slip, so the circle is somewhat wider, never tighter. Half pedal: the same rule at the angle the wheel is
+    /// steered to (less than half the lock, through the rudder axis's expo).</summary>
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(-1.0)]
+    [InlineData(0.5)]
+    public void PedalsSteerTheNoseWheelOnTheGround(double rudder)
+    {
+        AircraftConfig c = Grob103.Load();                     // 489 kg, 90 kg in front: CG ahead of the main wheel
+        (double r, double v, double noseN, double steer) = Taxi(c, rudder);
+        (double r0, _, _, _) = Taxi(c, 0.0);
+        // The geometry at the angle the wheel is actually steered to: the rudder axis has expo, so half pedal is less
+        // than half the lock. At full pedal that is the lock itself.
+        double geometric = Wheelbase / Math.Tan(Math.Abs(steer));
+        if (Math.Abs(rudder) == 1.0) Assert.Equal(SteerLockDeg * Math.Sign(rudder), Deg(steer), 2);
+        double radius = v / Math.Abs(r);
+        _out.WriteLine($"pedal {rudder:+0.0;-0.0}: yaw rate {Deg(r):F1} deg/s at {v:F2} m/s -> radius {radius:F2} m " +
+                       $"(geometry {geometric:F2} m); wheel steered {Deg(steer):F1} deg; pedals neutral {Deg(r0):F2} deg/s; nose wheel load {noseN:F0} N");
+        Assert.True(noseN > 200, $"the nose wheel must be carrying load in this loading ({noseN:F0} N)");
+        Assert.True(Math.Sign(r) == Math.Sign(rudder), $"the glider must turn the pedal's way: yaw rate {Deg(r):F1} deg/s");
+        Assert.InRange(radius, 0.98 * geometric, 1.25 * geometric);
+        Assert.True(Math.Abs(r0) < 0.1 * Math.Abs(r), $"pedals neutral should roll straight ({Deg(r0):F2} deg/s)");
+    }
+
+    /// <summary>Airborne the pedals swing the nose wheel (it is linked to them) but it carries nothing and so makes no
+    /// force: the gear's yawing moment is the same, zero, at any pedal.</summary>
+    [Fact]
+    public void AirbornePedalsDoNotSteer()
+    {
+        CalmGround();
+        AircraftConfig c = Grob103.Load();
+        RigidBodyState rest = LandingGear.RestingState(c, 0, 0, 0);
+        var up = new RigidBodyState(rest.Position + new Vec3(0, 0, -1.5), rest.Attitude, new Vec3(26.67, 0, 0), Vec3.Zero);
+        foreach (double rudder in new[] { -1.0, 0.0, 1.0 })
+        {
+            (Vec3 f, Vec3 m) = LandingGear.Compute(c, up, rudder, 0);
+            Assert.Equal(0.0, f.Length, 9); Assert.Equal(0.0, m.Length, 9);
+        }
+    }
+
+    /// <summary>Off the nose wheel, no steering. The EMPTY glider's CG ([N41KP] 729 mm aft of the datum) is behind the
+    /// main wheel (540 mm), so it sits on its main and tail wheels with the nose wheel in the air -- as a real empty
+    /// Twin III does. Full pedal at taxi speed must then do next to nothing (only the rudder's own air load, at 3 m/s).</summary>
+    [Fact]
+    public void NoSteeringWithTheNoseWheelOffTheGround()
+    {
+        AircraftConfig loaded = Grob103.Load();
+        AircraftConfig empty = Grob103.LoadedAtCg(0, 0, 729);
+        (double rLoaded, _, _, _) = Taxi(loaded, 1.0);
+        (double rEmpty, double v, double noseN, _) = Taxi(empty, 1.0);
+        _out.WriteLine($"full right pedal at 3 m/s: loaded {Deg(rLoaded):F1} deg/s, empty (nose wheel up) {Deg(rEmpty):F2} deg/s at {v:F2} m/s; nose wheel load {noseN:F1} N");
+        Assert.True(noseN < 1.0, $"the empty glider's nose wheel should be in the air ({noseN:F1} N)");
+        Assert.True(Math.Abs(rEmpty) < 0.1 * Math.Abs(rLoaded), $"no nose wheel on the ground, no steering: {Deg(rEmpty):F2} deg/s");
     }
 }

@@ -82,6 +82,16 @@ max wing loading 34.3 kg/m². Two-seat mid-wing, damped T-tail, "the 2-section w
 GROB) on the upper side", tandem seats, "non-retractable tandem landing gear", main wheel with a hydraulic disc brake,
 nose wheel steerable from s/n 34171 ([TCDS] N.III.2: "fixed tandem landing gear with brake and steerable nose wheel").
 
+**Nose wheel steering** (Ty 2026-11-04 16:04 PT: "the nose wheel steers"). Linked to the rudder pedals: the sim points the
+nose tyre at −(rudder deflection / rudder max) × 25° (right pedal, wheel right; `LandingGear.SteerRad`), and the tyre
+then makes its force through the same load-scaled cornering stiffness and friction circle as every other wheel. It
+steers only while loaded, because an unloaded wheel makes no force. The **±25° lock is ESTIMATED and FLAGGED**: no
+Twin III steering angle is published. The check (`Grob103Tests.PedalsSteerTheNoseWheelOnTheGround`) uses the wheelbase
+main-to-nose 2.00 m, so the no-slip radius is 2.00 / tan 25° = 4.29 m. The sim turns on 4.52 m at 3 m/s (tyre slip,
++5 %). At half pedal the wheel is at 9.1° (rudder expo): 12.50 m geometric, 13.05 m flown. The empty glider (CG 729 mm,
+behind the main wheel) sits on its tail wheel with the nose wheel up, and there full pedal gives 0.27°/s against 39°/s
+loaded.
+
 ### Planform — the Twin II's shape, stretched (ASSUMED)
 
 The Twin III's three-view ([POH] 1.6) is a small scanned drawing with no dimension lines, too small to measure the way
@@ -244,7 +254,8 @@ rows flown at the [POH] 2.7 limits.
 - **No MAC published**: %MAC is of the planform's own integral.
 - **Airbrakes**: −1.5 g brakes-out limit from CS 22.345 (the [POH] gives none); lift loss too small (above).
 - **Not wired**: VRA, VT, VW; the weak link (the sim does not read `towHook`); the without-OSB 315-66 envelope; the 20 m
-  SB 315-59 wingtips; the steerable nose wheel (s/n 34171 on).
+  SB 315-59 wingtips.
+- **Nose wheel steering lock** ±25° ESTIMATED (no published figure).
 - **Spin height and recovery** (above). **Differential ailerons** flown as their mean. **Inverted flight** is not
   validated (the [POH] gives inverted stalls of 112–125 km/h, 4.5.9 / 5.2.2 — a test to add).
 - **Viscosity** sea level at every height; **flutter** not modelled (the VNE table is the protection); wet wing not

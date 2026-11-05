@@ -173,6 +173,18 @@ public sealed class Aircraft
     private readonly ImpactRecorder _impacts = new();
     /// <summary>Castoring tailwheel yaw (LandingGear.TailwheelState); null for types without a steerable tailwheel.</summary>
     public LandingGear.TailwheelState? Tailwheel { get; }
+    /// <summary>The rudder-linked nosewheel's yaw (rad, + = turned RIGHT, the way right pedal turns it), exactly the angle
+    /// LandingGear.Compute steers the tyre by; 0 for a type whose nosewheel does not steer. For the visual rig.</summary>
+    public double NoseWheelSteerRad
+    {
+        get
+        {
+            double cmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
+            foreach (GearConfig g in Config.Gear)
+                if (g.IsSteerable && !g.IsTailwheel && g.Pos[0] > Config.Mass.Cg[0]) return -LandingGear.SteerRad(g, cmd);
+            return 0.0;
+        }
+    }
     private bool[]? _surfaceMask;
     private bool[]? _stripMask;                 // per-strip aero mask (broken-off components), AeroModel strip order
     private readonly List<ContactPoint> _contacts;

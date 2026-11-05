@@ -444,7 +444,7 @@ public static class LandingGear
             // Steer frame: + points the tyre LEFT. A trailing TAILWHEEL steered by right rudder points left (pushes the
             // tail left, nose right); a NOSEWHEEL steered by right rudder must point RIGHT — it was applied mirrored
             // (right rudder turned the 172 and Seminole left on the ground).
-            double steer = castoring ? tailwheel!.AngleRad : g.IsSteerable ? (g.IsTailwheel ? 1.0 : -1.0) * rudderCmd * g.MaxSteerRad : 0.0;
+            double steer = castoring ? tailwheel!.AngleRad : SteerRad(g, rudderCmd);
             Vec3 tireFwd = fwdGround * System.Math.Cos(steer) + rightGround * System.Math.Sin(steer);
             Vec3 tireRight = Vec3.Cross(groundUp, tireFwd);
 
@@ -512,6 +512,12 @@ public static class LandingGear
 
         return (totalForce, totalMoment);
     }
+
+    /// <summary>A rudder-linked (not castoring) wheel's yaw in Compute's steer frame, + = tyre pointed LEFT: a nosewheel
+    /// turns with the pedal (right rudder, wheel right), a trailing tailwheel against it. 0 for a wheel that does not
+    /// steer. The linkage turns the wheel whether or not it is on the ground; it only makes a force while loaded.</summary>
+    public static double SteerRad(GearConfig g, double rudderCmd) =>
+        g.IsSteerable ? (g.IsTailwheel ? 1.0 : -1.0) * rudderCmd * g.MaxSteerRad : 0.0;
 
     /// <summary>True if any wheel is in contact with the ground (for on-ground state / challenge logic).</summary>
     public static bool OnGround(AircraftConfig config, RigidBodyState s, double groundZ = 0.0)
