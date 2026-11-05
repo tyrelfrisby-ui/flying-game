@@ -11,6 +11,8 @@ public interface IWreckWorld
     double GroundUpAt(double x, double y);
     /// <summary>What the ground is at (x, y): it decides how a piece slides on it (<see cref="AirframeContact.SlidingMu"/>).</summary>
     WorldTerrain.Surface SurfaceAt(double x, double y, double up);
+    /// <summary>The water's own motion over a body <paramref name="halfSpanM"/> in size at (x, y) (<see cref="WaterCurrent"/>).</summary>
+    WaterCurrent.Local CurrentAround(double x, double y, double halfSpanM);
 }
 
 /// <summary>The game world: FloatHydro's water (which honours its test override) over WorldTerrain's ground.</summary>
@@ -21,13 +23,18 @@ public sealed class LiveWreckWorld : IWreckWorld
     public double GroundUpAt(double x, double y) => WorldTerrain.GroundHeightAt(x, y);
     public WorldTerrain.Surface SurfaceAt(double x, double y, double up) =>
         WorldTerrain.SurfaceOverride ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(x, y, up) : WorldTerrain.Surface.Paved);
+    public WaterCurrent.Local CurrentAround(double x, double y, double halfSpanM) => WaterCurrent.Around(x, y, halfSpanM);
 }
 
-/// <summary>Flat test world: water at a fixed height (or none) over flat ground.</summary>
+/// <summary>Flat test world: water at a fixed height (or none) over flat ground, still unless given a <see cref="Current"/>.</summary>
 public sealed class FlatWreckWorld : IWreckWorld
 {
     public double? Water; public double Ground;
     public WorldTerrain.Surface Surface = WorldTerrain.Surface.Paved;
+    /// <summary>The water's velocity (world NED, m/s) at (x, y, depth below the surface); null = still water.</summary>
+    public System.Func<double, double, double, Vec3>? Current;
+    public WaterCurrent.Local CurrentAround(double x, double y, double halfSpanM) =>
+        Current is null ? WaterCurrent.Local.None : WaterCurrent.Local.Of(Current);
     public FlatWreckWorld(double? waterUp, double groundUp) { Water = waterUp; Ground = groundUp; }
     public double? WaterUpAt(double x, double y, double up) => Water.HasValue && Water.Value > Ground ? Water : null;
     public double GroundUpAt(double x, double y) => Ground;
@@ -89,6 +96,7 @@ public sealed class WreckPiece
             izz += e.MassKg * ((h.X * h.X + h.Y * h.Y) / 3 + r.X * r.X + r.Y * r.Y);
         }
         Inertia = new Vec3(System.Math.Max(ixx, 1e-3), System.Math.Max(iyy, 1e-3), System.Math.Max(izz, 1e-3));
+        foreach (HydroElement e in elements) ReachM = System.Math.Max(ReachM, (e.Centre - CgBody).Length + e.Half.Length);
         double pxy = 0, pxz = 0, pyz = 0;
         foreach (HydroElement e in elements) { Vec3 r = e.Centre - CgBody; pxy += e.MassKg * r.X * r.Y; pxz += e.MassKg * r.X * r.Z; pyz += e.MassKg * r.Y * r.Z; }
         Products = new Vec3(pxy, pxz, pyz);
@@ -97,6 +105,8 @@ public sealed class WreckPiece
     /// <summary>Products of inertia about the CG (Ixy, Ixz, Iyz = Σm·x·y …): the boxes' parallel-axis shares. A wing
     /// panel is long in y and swept or dihedralled, so they are not zero.</summary>
     public Vec3 Products { get; }
+    /// <summary>How far the piece reaches from its CG, m (the span its current is sampled over).</summary>
+    public double ReachM { get; }
     /// <summary>The full rigid-body mass properties about the piece's CG.</summary>
     public MassProperties MassProps => new(MassKg, Inertia.X, Inertia.Y, Inertia.Z, Products.Y, Products.X, Products.Z);
 
@@ -232,7 +242,10 @@ public sealed class WreckSim
         }
 
         MassProperties mp = p.MassProps;
-        WaterCoeffs before = HydroBody.Coefficients(p.Elements, p.CgBody, s, waterUp, airDrag: true);
+        // The river, the tide: the piece's drag, slam and added mass are all from its velocity through the water, so a
+        // floating piece is carried at the water's speed and one across a shear is turned by it (HydroBody).
+        WaterCurrent.Local flow = water ? World.CurrentAround(s.Position.X, s.Position.Y, p.ReachM) : WaterCurrent.Local.None;
+        WaterCoeffs before = HydroBody.Coefficients(p.Elements, p.CgBody, s, waterUp, airDrag: true, flow);
         Vec3 gWorld = new(0, 0, p.MassKg * WaterPhysics.G);
         (Vec3, Vec3) Forces(RigidBodyState st)
         {
@@ -240,7 +253,7 @@ public sealed class WreckSim
             return (f + st.Attitude.Conjugate().Rotate(gWorld), m);
         }
         RigidBodyState after = RigidBody6DOF.IntegrateRK4(s, dt, mp, Forces);
-        WaterCoeffs now = HydroBody.Coefficients(p.Elements, p.CgBody, after, waterUp, airDrag: true);
+        WaterCoeffs now = HydroBody.Coefficients(p.Elements, p.CgBody, after, waterUp, airDrag: true, flow);
         s = HydroBody.Correct(s, after, p.MassKg, p.Inertia, before, now, dt);
 
         // First touch of the water: the lowest point has gone below the surface.
@@ -265,7 +278,7 @@ public sealed class WreckSim
         p.State = s;
 
         // The piece's own arrival can burst its skin too (the same pressure rule as the airframe's).
-        if (water) WaterSlam.Damage(p.Elements, p.CgBody, s, waterUp);
+        if (water) WaterSlam.Damage(p.Elements, p.CgBody, s, waterUp, flow);
         foreach (HydroElement e in p.Elements) e.Flood(p.CgBody, s, waterUp, dt);
 
         // Bookkeeping.

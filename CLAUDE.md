@@ -554,3 +554,18 @@ those very words. The Extra front-seat render waited 40 minutes behind nothing. 
 `pgrep -f "^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity"`, `pgrep -x xcodebuild`,
 `pgrep -f "^zsh tools/deploy/deploy"`. And require a few consecutive idle polls before starting: three lanes whose gates
 all saw the same idle second started three iOS builds into the same /private/tmp/flyinggame-* at once.
+
+### A new input can make a dormant singularity the normal case
+Savitsky's trim was the keel's slope measured ALONG THE FLOW, which goes to 90° when the water comes square across the
+keel. Over the ground that only happened for an instant, so nothing ever hit it. With a current (`WaterCurrent`) it is
+how a floatplane SITS in a cross-current, and the first step went NaN (tan 90°). When a change moves an input into a
+region the old code never visited — sideways flow, zero speed, a negative depth — look for divisions and angles that
+were only ever safe because the input stayed away, and state the model's own validity limit
+(`FloatHydro.PlaningMaxSideslipRad`) instead of guarding the symptom.
+
+### A time-varying field puts the sim clock into every initial condition
+The sea's tidal stream (`WaterCurrent`) is a function of `Atmosphere.SimTimeSec`, a process-wide clock that every
+step advances. `GroundContactCullTests` flies the same flight twice, culled and not, and demands identical results:
+near the sea the second run started a flight's length later in the tide and differed in the 14th digit — which
+first looked like an order-dependent cache. Before blaming a cache for "same inputs, different answer", list every
+global the new code READS, and reset the clock (`Atmosphere.SimTimeSec = 0`) when a test compares two runs.
