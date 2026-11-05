@@ -31,7 +31,9 @@ public class ExtraRearDiagonalTests
         Assert.All(panel, p => Assert.True(Math.Abs(p.z) <= .200 + (.428 - p.y) * (110.0 / 90.0) - .0019,
             $"{file}: panel extends outside the dash diagonal at y={p.z}, z={p.y}"));
         Assert.InRange(panel.Where(p => p.y > .359).Max(p => Math.Abs(p.z)), .2809, .2813);
-        Assert.True(panel.Where(p => p.y < .1).Max(p => Math.Abs(p.z)) > .36, "lower panel still meets side walls");
+        // Original GLB literals: 293.5 mm halfwidth at the bottom, 391.0 mm at the side-wall attachment.
+        Assert.InRange(panel.Where(p => p.y < .1).Max(p => Math.Abs(p.z)), .2934, .2936);
+        Assert.InRange(panel.Where(p => p.y > .18 && p.y < .21).Max(p => Math.Abs(p.z)), .3908, .3912);
         // Front subpanel has no dash hood and already fits within its small rectangular outline.
         Assert.All(m["Panel_P3b_F"], p => Assert.InRange(Math.Abs(p.z), 0, .12501));
     }
