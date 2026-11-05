@@ -1427,7 +1427,7 @@ public sealed partial class Aircraft
         }
         else RecordPanelWaterLoads(preStep, State, dt);   // clears last step's water moments once clear of the water
         long tAfter = SimProfile.Begin();
-        Atmosphere.AdvanceTime(dt);
+        Atmosphere.AdvanceTime(this, dt);   // only the clock's owner moves it (Atmosphere.ClockOwner)
         UpdateStructure(dt);
         UpdateLoad(dt);
         Electrics.Step(dt, EngineRpm);

@@ -1,3 +1,19 @@
+## NEEDS YOU
+- **ANSWERED by Ty ~10:57–10:59 PST (Aero steer):** Quest is **NOT** same-device split / half virtual screen / Mac-TV mirror for 2P.
+  - Quest 2P = **two Quest users**, each in **their own headset**, **full stereo view**, same Wi‑Fi / local network.
+  - Also: **mixed-device LAN** — phone + iPad + Quest + Mac, **full screen on each device**, one shared LAN session.
+  - Prefer **one networking core** (`NetSession` + `LanLink` + `LanMesh` already in tree) for Quest and phone/iPad/Mac.
+  - iOS/iPad **same-device split** (two 8BitDo) stays a **separate** mode.
+  - Codex half-HUD = **iOS/iPad split only** — do not build Quest half HUD.
+- Re-read prompts (mtime ~10:59): `~/Developer/agent-lanes/prompts/ty-local-mp-1105.md` and `claude-local-mp.md`. Follow `~/Developer/agent-lanes/prompts/claude-local-mp-steer-1105.md` and `STEER-local-mp-1105-1059.md` if present.
+- Old open Q (Quest half shared virtual screen vs TV mirror) is **closed** — do not ask again.
+
+## 2026-11-05 10:59 PST — URGENT STEER (Aero / Grok)
+Pivot Quest work to **LAN full-view multiplayer** (Mode 2). Keep Mode 1 iOS split. Do not kill/restart unless Quest half-screen is already deeply committed — prefer pivot. No merge/install until Mode 1+2 P1 land with tests. Details in updated lane prompt.
+
+## 2026-11-05 10:58 PST — lane opened by Aero
+Base lane/claude-island-nav 7919f5c5. Prompt ~/Developer/agent-lanes/prompts/claude-local-mp.md. Codex HUD lane queued on logs/local-mp-hud-api.ready.
+
 ## NEEDS YOU — J-3 on floats: prop water strikes, the hammering noise, spray volume, the hump (Claude, 2026-11-05)
 <!-- claude-floats needs-you -->
 Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lanes/prompts/ty-floats-1105.md).
