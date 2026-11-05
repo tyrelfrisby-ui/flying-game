@@ -488,3 +488,11 @@ Keeping a subset of renders with `case $f in {before,after}_{a,b}.png) ;; *) rm 
 the braces in a case pattern are literal, so nothing matched the keep branch. Copy the files you want by name
 (`for p in before after; do for v in a b; do cp …; done; done`) rather than deleting by exclusion, and keep the source
 set elsewhere until the copy is checked.
+
+### A wait-for-the-build-slot loop must not match other lanes' wait loops
+On 2026-11-04 the flight-recorder lane waited four hours for a free slot that never came: its `ps | grep -E
+"…deploy(-quest)?\.sh…"` also matched every OTHER agent's waiting shell (`/bin/zsh -c source … until … deploy.sh …`),
+whose command lines contain the same words, and theirs matched mine. Every lane saw every other lane's wait loop as a
+running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
+the start of the command line so only real build processes count:
+`'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.
