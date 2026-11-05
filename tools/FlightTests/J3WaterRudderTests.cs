@@ -90,8 +90,10 @@ public class J3WaterRudderTests
     }
 
     /// <summary>Down and wholly under water (the hull pushed 0.3 m deeper than it floats, so every cell is wet), straight
-    /// ahead with full right pedal: no sideslip and no yaw rate, so α = δ = 25° and the lift is exactly ½ρV²·S·a·δ with the
-    /// drawn blade's S and Helmbold a. 3 m/s: ½·1000·9·0.04452·1.9318·0.4363 = 168.9 N.</summary>
+    /// ahead with full right pedal: no sideslip and no yaw rate, so α = δ = 25° and the lift is q̄·S·a·δ with the drawn
+    /// blade's S and Helmbold a. In open water q̄ would be ½ρV², 3 m/s: ½·1000·9·0.04452·1.9318·0.4363 = 168.9 N; the
+    /// blade's top hangs 1.7 cm under the keel, inside the hull's 6 cm boundary layer, so it is a little less (2026-11-05:
+    /// the float's wake, J3WaterRudderWakeTests).</summary>
     [Fact]
     public void WhollyUnderItsLiftIsHalfRhoVSquaredSAAlpha()
     {
@@ -109,7 +111,9 @@ public class J3WaterRudderTests
             Assert.Equal(0.2459, r.ImmersedSpanM, 3);
             Assert.Equal(A, r.LiftSlopePerRad, 2);
             Assert.Equal(-25.0, r.AlphaRad * 180 / System.Math.PI, 1);    // flow onto the blade's left face
-            Assert.Equal(168.9, -r.LiftN, 0);
+            Assert.Equal(0.5 * Rho * 9.0, r.FreeStreamPressurePa, 6);
+            Assert.Equal(r.DynamicPressurePa * r.ImmersedAreaM2 * r.LiftSlopePerRad * r.AlphaRad, r.LiftN, 6);
+            Assert.InRange(-r.LiftN, 0.97 * 168.9, 168.9);                // the wake only shaves its top
             Assert.True(r.SideForceBodyN < 0, "TE right must push the stern left");
             Assert.True(r.YawMomentNm > 0, "and yaw the nose right");
         }
@@ -118,7 +122,7 @@ public class J3WaterRudderTests
 
     /// <summary>Down, afloat as it really floats, straight ahead at taxi speeds with full right pedal. The hinge rides
     /// above the water and only the blade's lower part is wet, so S_imm and a are the wetted part's, and the lift is
-    /// ½ρV²·S_imm·a(AR_imm)·δ. The numbers the report quotes.</summary>
+    /// q̄·S_imm·a(AR_imm)·δ, q̄ the wetted cells' mean ½ρw² (a little under ½ρV²: the hull's wake). The numbers the report quotes.</summary>
     [Fact]
     public void AfloatItsForceIsHalfRhoVSquaredOnTheWettedPart()
     {
@@ -136,7 +140,8 @@ public class J3WaterRudderTests
                 Assert.InRange(r.ImmersedAreaM2, 0.2 * S, S);
                 double ar = r.ImmersedSpanM * r.ImmersedSpanM / r.ImmersedAreaM2;
                 Assert.Equal(2 * System.Math.PI * ar / (2 + System.Math.Sqrt(ar * ar + 4)), r.LiftSlopePerRad, 9);
-                Assert.Equal(-0.5 * Rho * v * v * r.ImmersedAreaM2 * r.LiftSlopePerRad * System.Math.Abs(r.AlphaRad), r.LiftN, 6);
+                Assert.Equal(-r.DynamicPressurePa * r.ImmersedAreaM2 * r.LiftSlopePerRad * System.Math.Abs(r.AlphaRad), r.LiftN, 6);
+                Assert.InRange(r.DynamicPressurePa, 0.9 * 0.5 * Rho * v * v, 0.5 * Rho * v * v);   // the hull's wake: a little under ½ρV²
                 Assert.Equal(MaxDelta, System.Math.Abs(r.AlphaRad), 1);   // straight ahead: α is the pedal's δ (±the hull's slight trim)
                 Assert.True(r.SideForceBodyN < 0 && r.YawMomentNm > 0);
             }
