@@ -233,11 +233,11 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   Any of those lanes must merge island-nav before it builds. Details in the Log entry "kill red 2-33".
 <!-- /kill-red-233 needs-you -->
 ## NEEDS YOU — fly-check the Extra FRONT seat, rear switches, verniers, throttle grip and fuel valve (Claude, 2026-11-04 22:55 PST)
-- Ty: on the iPhone / iPad mini (2026.1105.0022) and the Quest 3S (2026.1105.0035), fly the Extra 300 and check: FRONT seat = small sub-panel
+- Ty: on the iPhone / iPad mini (2026.1105.0048) and the Quest 3S (see below), fly the Extra 300 and check: FRONT seat = small sub-panel
   with ASI / G / ALT only + throttle, stick, rudder and the red fuel-valve lever (right wall); REAR panel grey, only
   MASTER / ALT / FUEL PUMP / NAV / STROBE / SMOKE with legible placards beneath, no unlabelled knobs, EGT/CHT lower right,
   padded diagonal tubes; prop (blue) / mixture (red) verniers on the left wall beside the rear throttle, knobs aft;
-  ribbed pistol-grip throttle; on the Quest turn either cockpit's fuel lever 90 deg inboard: the other lever follows and
+  ribbed pistol-grip throttle; the clear Lexan floor panel in EACH cockpit (ground under your feet); on the Quest turn either cockpit's fuel lever 90 deg inboard: the other lever follows and
   the engine stops ~4 s later, relights ~2 s after ON. Nothing approved; no gate marked. Questions Q033-Q035 in the queue
   (front G-meter vs the AirSpace 300L's two-gauge front panel; trim knob gone; valve timings).
 - Renders (Unity batch, seat eye): ~/Developer/agent-lanes/renders/extra-front-seat/front.png, rear.png (iPhone 72 deg), front-quest.png, rear-quest.png (Quest eye),
@@ -276,6 +276,14 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   0 error CS, installed iPhone + iPad mini. Merged: island-nav 5eda6050, Quest lane 41a91a68 (PARITY: OK, 35 leftover
   build files untouched in each). Quest deploy-quest.sh from 41a91a68: 2026.1105.0035, 0 error CS, installed + launched
   on the Quest 3S. Not in the iOS build: crash-reset a641dccb (merged after it; in the Quest build).
+- Ty 19:32 follow-up, CLEAR FLOOR both cockpits: floor_windows.py's Extra entry gains a FRONT pane (x -0.520..+0.140,
+  |y| 0.170) beside the rear (x -1.492..-0.950); run on the three liveries (belly, old belly glass, Cabin box, tub and
+  footwell floor clipped to each outline; Lexan glass, Floor_Frame strip + 79 screws, floor tubes; +2258 tris).
+  FloorWindowMaterials + FlyingGame/Lexan (lane/claude-floor-windows 8890328f, never merged before) ported: the panes
+  get the real Lexan shader on both platforms (the Pitts too). ExtraFloorWindowTests (6) pass. Renders: floor-rear.png,
+  floor-front.png, front/rear now 40 deg down. Most of the rear pane lies under the rear seat pan (as floor_windows.py
+  noted): from the rear eye only its forward part shows. iOS deploy.sh ** BUILD SUCCEEDED ** 2026.1105.0048, 0 error
+  CS, installed iPhone + iPad mini.
 
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
