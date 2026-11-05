@@ -1,3 +1,41 @@
+## NEEDS YOU — J-3 on floats: prop water strikes, the hammering noise, spray volume, the hump (Claude, 2026-11-05)
+<!-- claude-floats needs-you -->
+Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lanes/prompts/ty-floats-1105.md).
+- **Ty, please fly-check on the J-3 floats:** (1) dig the prop into the water: shallow at power should bend a tip, keep the
+  engine running, cost a little thrust and buzz once a revolution (cockpit view shakes a few mm on the iPhone, the engine
+  note throbs; the Quest gets only the sound). Deep, or anything at idle past ~2 cm, stops it and shows the bent blades.
+  (2) The hammering is gone (below). (3) Spray/splash/hiss are -4 dB with the tyres. (4) The water run: Q097.
+- **Hammering noise = the float splash voice.** `TyreBrakeSynth` played the float/wheel water splash as low-passed noise
+  gated by a FIXED 4.5 Hz sine at 66 % depth: a steady thump-thump through every taxi and the displacement part of every
+  water take-off (it is loud there, level 0.6-0.97). Measured off the device with the new `tools/FloatAudio` harness: before,
+  strongest envelope line 4.5 Hz at 66 %; after, a broad 1.1 Hz swell at 4 %, same rms (0.079 vs 0.077). Nothing else
+  retriggers on a water run (FloatsHammerProbe: no HardImpact, CrashImpact, contact event or tyre thump). f9738633.
+- **Spray volume:** water splash/hiss/spray are on the shared ground bus, so the ground-volume lane's -4 dB (fa4d96f3, built
+  by that lane, 0 error CS) covers them; fast-forwarded into this lane, so it lands with this merge.
+- **Prop water strike, root cause:** `AirframeContact` returns "no contact" for every point of a FLOATPLANE over water (the
+  floats carry the hull), and that included the propeller disc, so no floatplane's prop could touch the water at all.
+  The disc stations now read the water. Then (158c955c, all emergent, no surface rule): engine torque is flat
+  (P_max/w_max x throttle, or the share that holds idle) against the prop's own w^2 load (it was P/w, which grew without
+  bound as the prop slowed); the water's blade drag is unchanged; below half of idle the engine stops. Each blade bends only
+  when it sweeps the wet/struck arc, by the depth past the point where the tip load at 0.75 R reaches the blade section's
+  yield (2025-T6; 0.6 mm at full rpm, 6.2 mm at idle on the J-3). Thrust = mean of the blades' (R/R0)^(2/3); unequal blades
+  shake at 1x rpm. J-3, hand-worked and matched: 4 cm at full power slows to 682 rpm (sim 685) and runs on; 15 cm stops it;
+  at idle 5 mm runs (558 rpm), 2 cm stops. The model draws each blade's outer quarter folded aft by its own bend.
+  NOT checked by a render: the bent-blade drawing (AirframeBuilder.BendBlades) compiles and runs only on the device; please
+  look at it after a strike. Estimates stated in code: blade chord 0.12 R, t/c 0.08, outer quarter 15 % of blade mass,
+  prop-to-seat arm 2 m. The queued claude-prop-damage lane extends this (wood/composite, curl direction, sounds).
+- **The hump (Q097):** on the island's own water, spawned as the game does, the J-3 gets off in 19-21 s with the seaplane
+  technique (full back until the nose stops rising, then ~6 deg), hump 14.6 mph, step 21, unstick 48: the book's numbers.
+  Held FULL BACK the whole run it parks on the hump at 14-15 mph and 15-18 deg nose-up with the float heels and the tail
+  in the water (the plowing training texts describe), and that is what I think you saw. No hydro change made for it.
+  Tried and REVERTED: the airframe's tail-cone box counts a tilted box's water share as if spread evenly over its height
+  (4.5 % wet for a 7 cm corner dip vs 0.4 % exact); the exact share did not free the full-back hump (the nose just rose
+  higher) and broke four wreck tests (drift, turn, sink, momentum), so it is left for a wreck lane with the measurement.
+- Tests: PropWaterStrikeTests (new), FloatsIslandTakeoffProbe (island water, asserts 15-25 s), FloatsHammerProbe;
+  ContactPatchTests.APropBrushCurls... is now per blade. Water/wreck/contact/prop/engine/tree/ground suites vs the base
+  6a42a199: 0 new failures, 1 fewer (39 vs 40 red, all pre-existing). iOS BUILD SUCCEEDED 2026.1105.1015 (lane, not
+  installed). Nothing here is an approved gate.
+
 ## NEEDS YOU
 <!-- merge-tundra-recorder needs-you -->
 - **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved

@@ -23,6 +23,18 @@ public static class PropModel
     /// and the gyroscopic moment. <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double)"/> is their sum.</summary>
     public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw; public Vec3 Gyro; }
 
+    /// <summary>The static thrust <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double, PropDrive, out Parts)"/>
+    /// caps the thrust at (momentum theory × the static figure of merit, sea level), N.</summary>
+    public static double StaticThrustN(PropulsionConfig prop, double throttle01, double airDensity = 1.225)
+    {
+        if (prop.PropDiameterM <= 0) return prop.MaxPowerW * Math.Clamp(throttle01, 0, 1);
+        double powerW = prop.MaxPowerW * Math.Clamp(throttle01, 0, 1), r = 0.5 * prop.PropDiameterM;
+        return StaticFigureOfMerit * Math.Pow(powerW * powerW * 2.0 * airDensity * Math.PI * r * r, 1.0 / 3.0);
+    }
+
+    /// <summary>Real fixed-pitch/CS props make ~55-65 % of the ideal (momentum-theory) thrust at zero airspeed.</summary>
+    public const double StaticFigureOfMerit = 0.6;
+
     public static (Vec3 Force, Vec3 Moment) Compute(
         PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity)
         => Compute(prop, throttle01, bodyVelocity, bodyRates, airDensity, out _);
@@ -87,8 +99,7 @@ public static class PropModel
         double discArea = Math.PI * radius * radius;
         // Ideal (momentum-theory) static thrust × a static figure of merit: real fixed-pitch/CS props make
         // ~55-65 % of the ideal at zero airspeed (a 180 hp 172 ≈ 2.7 kN, not the 5 kN momentum theory gives).
-        const double staticFigureOfMerit = 0.6;
-        double staticThrust = staticFigureOfMerit * Math.Pow(powerW * powerW * 2.0 * airDensity * discArea, 1.0 / 3.0);
+        double staticThrust = StaticFigureOfMerit * Math.Pow(powerW * powerW * 2.0 * airDensity * discArea, 1.0 / 3.0);
         // Propeller efficiency falls off below the design speed (owner 2026-09-15: the sim climbed at 1.6× the book with a
         // flat 0.78). A fixed-pitch cruise prop makes ~85 % of its peak efficiency at Vy and ~60 % near the stall; a
         // constant-speed prop holds its efficiency down to about 60 kt.

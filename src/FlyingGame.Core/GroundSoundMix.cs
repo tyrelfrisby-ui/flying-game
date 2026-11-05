@@ -15,6 +15,14 @@ namespace FlyingGame.Core;
 public sealed class GroundSoundMix
 {
     public const int Keys = GroundMaterials.Count;
+    /// <summary>One gain on everything the ground makes heard: the rolling voices, the tyre's squeal and scrub, the
+    /// bearing whir, the brakes, a worn or flat tyre, water and ski contact, a float keel, and the airframe's own scrape
+    /// (ContactEffects). FlightAudio multiplies the ground bus by it after the synths, so every level above keeps its
+    /// meaning and no pitch or filter moves. Ty 2026-11-05 ("just a little too loud so lower all ground contact
+    /// volume a bit"): −4 dB.</summary>
+    public const double OutputGainDb = -4.0;
+    /// <summary><see cref="OutputGainDb"/> as a linear factor (10^(−4/20) ≈ 0.631).</summary>
+    public static readonly float OutputGain = (float)System.Math.Pow(10.0, OutputGainDb / 20.0);
     /// <summary>Stereo position of a side wheel, −1..1 (Ty: about half-way, from the cockpit).</summary>
     public const double PanWidth = 0.5;
     /// <summary>Bearing whir frequency per wheel revolution per second: the cage and rolling-element passing tones of a

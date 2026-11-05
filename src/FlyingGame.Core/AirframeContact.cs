@@ -713,6 +713,10 @@ public static class AirframeContact
             Vec3 normal = new(0, 0, -1);   // outward (NED up)
             double depth;
             bool onWater = false;
+            // The floats carry the airframe on the water (FloatHydro), not its propeller: a blade-tip station reads the
+            // water it is in. Skipping it with the rest of a floatplane left every floatplane's prop unable to touch the
+            // water at all, so no water strike could slow or stop it (Ty 2026-11-05, the J-3 on floats).
+            bool carried = floatsCarryWater && !p.PropDisc;
             double groundH = double.NegativeInfinity;   // the ditching bed below needs it; unset only where onWater stays false
             if (groundClear || (cull && stage > 0 && p.StageClearM > p.StageMarginM))
             {
@@ -741,7 +745,7 @@ public static class AirframeContact
             // being over the sea. Water now pushes back on an airframe that cannot float, at a tenth of the ground's
             // stiffness and three times its damping: an arrival, not a trampoline, and not a runway either.
             depth = onWater
-                ? (floatsCarryWater ? -1.0 : (w.Z + surfaceOffsetZ) - (-waterH!.Value))
+                ? (carried ? -1.0 : (w.Z + surfaceOffsetZ) - (-waterH!.Value))
                 : (w.Z + surfaceOffsetZ) - (-groundH);
             if (cull && stage == 0)
             {
@@ -776,7 +780,7 @@ public static class AirframeContact
                 for (int j = idx; j < points.Count && points[j].Patch == p.Patch; j++)
                 {
                     Vec3 wj = s.Position + s.Attitude.Rotate(points[j].Body - cg);
-                    double topJ = patchWater.HasValue && patchWater.Value > patchGround && !floatsCarryWater ? patchWater.Value : patchGround;
+                    double topJ = patchWater.HasValue && patchWater.Value > patchGround && !carried ? patchWater.Value : patchGround;
                     if ((wj.Z + surfaceOffsetZ) + topJ > 0.0) shareCount++;
                 }
                 if (shareCount < 1) shareCount = 1;
@@ -784,7 +788,7 @@ public static class AirframeContact
             double share = p.Patch >= 0 && p.Patch == sharePatch ? 1.0 / shareCount : 1.0;
 
             double closing = -Vec3.Dot(vel, normal);          // + = moving INTO the surface
-            bool ditching = onWater && !floatsCarryWater && !solidWins;
+            bool ditching = onWater && !carried && !solidWins;
             if (!p.Touching)
             {
                 p.Touching = true;
@@ -792,7 +796,7 @@ public static class AirframeContact
                 // On water whose forces are the airframe's own (waterByHydro) the break-up is load-based
                 // (Wreck/AirframeFlooding.CheckJoints): a closing speed at first touch says nothing about the load once
                 // the water's added mass has taken it up. A propeller blade in the water still bends.
-                bool loadRuled = onWater && !floatsCarryWater && !solidWins && waterByHydro && p.Component != AirframeComponent.Propeller;
+                bool loadRuled = onWater && !carried && !solidWins && waterByHydro && p.Component != AirframeComponent.Propeller;
                 if (broken is not null && p.BreakSpeedMs > 0 && closing > p.BreakSpeedMs && !loadRuled)
                 {
                     if (!p.ArrivalPending || closing > p.ArrivalMs)
