@@ -140,4 +140,44 @@ public class J3WaterRudderWakeTests
         }
         finally { FloatHydro.FlatWaterOverride = null; }
     }
+
+    /// <summary>A current moves the water, not the blade (lane/claude-river-current: FloatHydro runs on the velocity
+    /// through the water, float by float). Sat still over the ground in a 3 m/s current from ahead, the blade, lowered or
+    /// hooked, makes exactly the force it makes taxiing at 3 m/s through still water; drifting with a current it makes
+    /// none. The current is the float's own (at its step), so the blade's shear below it is not taken.</summary>
+    [Fact]
+    public void ACurrentMovesTheWaterNotTheBlade()
+    {
+        FloatHydro.FlatWaterOverride = 0.0;
+        try
+        {
+            AircraftConfig cfg = Load();
+            Aircraft ac = Afloat(cfg);
+            Vec3 aheadW = ac.State.Attitude.Rotate(new Vec3(1, 0, 0));
+            aheadW = new Vec3(aheadW.X, aheadW.Y, 0).Normalized();
+            Vec3 taxiB = ac.State.Attitude.Conjugate().Rotate(aheadW * 3.0);     // level, as the current runs
+            foreach (double up in new[] { 0.0, 1.0 })
+            {
+                WaterCurrent.Override = null;
+                FloatHydro.Compute(cfg, Moving(ac.State, taxiB), 1.0, up);
+                FloatHydro.WaterRudderReport still = FloatHydro.LastWaterRudder;
+                double swStill = Swing(cfg, Moving(ac.State, taxiB), up);
+                WaterCurrent.Override = WaterCurrent.Uniform(-3.0 * aheadW.X, -3.0 * aheadW.Y);   // the water coming at the bow
+                FloatHydro.Compute(cfg, Moving(ac.State, Vec3.Zero), 1.0, up);
+                FloatHydro.WaterRudderReport moored = FloatHydro.LastWaterRudder;
+                double swMoored = Swing(cfg, Moving(ac.State, Vec3.Zero), up);
+                WaterCurrent.Override = WaterCurrent.Uniform(2.0 * aheadW.X, 2.0 * aheadW.Y);     // drifting with it
+                Vec3 driftB = ac.State.Attitude.Conjugate().Rotate(aheadW * 2.0);
+                FloatHydro.Compute(cfg, Moving(ac.State, driftB), 1.0, up);
+                FloatHydro.WaterRudderReport drift = FloatHydro.LastWaterRudder;
+                _out.WriteLine($"up {up}: taxiing 3 m/s in still water lift {still.LiftN:F2} N, swing {swStill:F1} N·m; moored in a 3 m/s current {moored.LiftN:F2} N, {swMoored:F1} N·m; drifting with a 2 m/s current {drift.LiftN:F4} N");
+                Assert.True(System.Math.Abs(still.LiftN) > 1.0);
+                Assert.Equal(still.LiftN, moored.LiftN, 3);
+                Assert.Equal(still.WakeSpeedRatio, moored.WakeSpeedRatio, 6);
+                Assert.Equal(swStill, swMoored, 2);
+                Assert.Equal(0.0, drift.LiftN, 6);
+            }
+        }
+        finally { WaterCurrent.Override = null; FloatHydro.FlatWaterOverride = null; }
+    }
 }
