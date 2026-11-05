@@ -279,8 +279,9 @@ namespace FlyingGame.Bridge
         public static string RoomCode = "";                // 6 × [A-Z0-9] for PrivateRoom; "ffa" is the well-known free-for-all
         public static string PilotName = "";               // shown on the name tag over your aircraft
 
-        /// <summary>BUSHWHEELS (owner 2026-10-16): any aeroplane can go on big soft tyres — twice the tyre,
-        /// no wheel pants, half the pressure, and it will skim water a Cub on hard tyres could not.</summary>
+        /// <summary>BUSHWHEELS (owner 2026-10-16): any aeroplane can go on big soft tyres — since 2026-11-04 a real
+        /// Alaskan Bushwheel from the tyre catalog on each main wheel, at its own pressure (TireFit) — and it will skim
+        /// water a Cub on hard tyres could not.</summary>
         public static bool Bushwheels;
 
         /// <summary>WHEEL-SKIS (owner 2026-10-16: "a Super Cub, a Beaver and an Aircam that can land on the

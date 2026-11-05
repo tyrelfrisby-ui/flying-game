@@ -3446,17 +3446,18 @@ namespace FlyingGame.Bridge
                     continue;
                 }
 
-                // One rule for the tyre's size, shared with the physics (LandingGear.TireRadiusOf), so what you
-                // see is what the wheel actually is — including the bushwheel option, which doubles it.
+                // One rule for the tyre's size, shared with the physics (LandingGear.TireRadiusOf: the catalog tyre on
+                // the leg, which the bushwheel option swaps for a real tundra tyre), so what you see is what the wheel is.
                 float r = (float)FlyingGame.Core.LandingGear.TireRadiusOf(cfg, g);
+                FlyingGame.Core.TireSpec tyreSpec = FlyingGame.Core.TireCatalog.Of(g);
                 int firstGearPart = _parts.Count;
                 GameObject wheel;
-                if (g.GearType == "bushwheel")
+                if (tyreSpec != null && tyreSpec.Tundra)
                 {
                     // Low-pressure balloon tyre for sand (owner 2026-10-05: "rounded … fat, round sidewalls, not flat-sided"): a
-                    // torus — 35 in tall and ~15 in wide (a 35×15 tundra tyre), the tread one round curve from rim to rim — on a
-                    // small 6 in hub.
-                    float tube = Mathf.Min(r * 0.43f, 0.19f);
+                    // torus as tall and as wide as the catalog's tundra tyre (a 35×15 is 35 in by 15 in), the tread one
+                    // round curve from rim to rim, on its hub.
+                    float tube = Mathf.Min((float)tyreSpec.SectionWidthM * 0.5f, r * 0.45f);
                     wheel = new GameObject("Wheel");
                     Attach(wheel, "Wheel");
                     wheel.transform.localPosition = U(gx, gy, gz - r);
@@ -3478,7 +3479,9 @@ namespace FlyingGame.Bridge
                     Attach(wheel, "Wheel");
                     wheel.transform.localPosition = U(gx, gy, gz - r);
                     wheel.transform.localRotation = Quaternion.Euler(0f, 0f, 90f); // cylinder axis y → x (sideways)
-                    wheel.transform.localScale = new Vector3(r * 2f, r * 0.3f, r * 2f);
+                    // A catalog tyre is as wide as its section; a leg with none keeps the old proportion.
+                    float width = tyreSpec != null ? (float)(tyreSpec.SectionWidthM * tyreSpec.Count) : r * 0.6f;
+                    wheel.transform.localScale = new Vector3(r * 2f, width * 0.5f, r * 2f);
                     wheel.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(tire);
                 }
 

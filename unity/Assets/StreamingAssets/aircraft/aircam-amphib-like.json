@@ -1634,7 +1634,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 3000,
-      "tireRadiusM": 0.15, "wheelMassKg": 3.5
+      "tire": "legacy-aircam-amphib-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1650,7 +1650,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 3000,
-      "tireRadiusM": 0.15, "wheelMassKg": 3.5
+      "tire": "legacy-aircam-amphib-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1666,7 +1666,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "tireRadiusM": 0.21, "wheelMassKg": 7.0
+      "tire": "legacy-aircam-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1682,7 +1682,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "tireRadiusM": 0.21, "wheelMassKg": 7.0
+      "tire": "legacy-aircam-main", "tirePressurePsi": 19.4
     }
   ],
   "limits": {

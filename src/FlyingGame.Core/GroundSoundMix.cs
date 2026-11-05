@@ -128,7 +128,7 @@ public sealed class GroundSoundMix
             double rim = System.Math.Abs(w.RimSpeedMs);
             if (!quietBearing && rim > 0.2 && w.RadiusM > 0)
             {
-                double revS = rim / (2 * System.Math.PI * w.RadiusM);
+                double revS = rim / (2 * System.Math.PI * w.RollingRadiusM);
                 double g = WhirGainAtRef * System.Math.Pow(rim / WhirRefSpeedMs, 1.5);
                 AddSide(WhirGain, pl, pr, g);
                 double hz = WhirHzPerRevS * revS;
