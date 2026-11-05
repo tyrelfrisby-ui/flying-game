@@ -280,7 +280,8 @@ namespace FlyingGame.EditorTools
 
             // The levers between their poses.
             foreach ((string node, string state) in new[] { ("Canopy_Latch_Knob_Front", "latch"), ("Canopy_Latch_Knob", "latch"),
-                                                             ("TrimLever_Rear", "moved"), ("PropLever_Rear", "moved"), ("FuelValve_Rear", "moved") })
+                                                             ("TrimLever_Rear", "moved"), ("PropLever_Rear", "moved"), ("FuelValve_Rear", "moved"),
+                                                             ("Throttle_Rear", "moved"), ("Throttle_Front", "moved") })
             {
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 var root = new GameObject("Aircraft");
