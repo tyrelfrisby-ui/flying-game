@@ -60,6 +60,11 @@ namespace FlyingGame.Bridge
         private void OnDisable()
         {
             CrashEvents.Impact -= Impact; CrashEvents.Flood -= Flood;
+            ClearAll();
+        }
+        /// <summary>Spray, foam, bubbling vents and rings all gone (a new aeroplane, or switched off).</summary>
+        public void ClearAll()
+        {
             if (_spray != null) _spray.Clear(); if (_foam != null) _foam.Clear();
             for (int i = 0; i < _vents.Length; i++) _vents[i].Active = false;
             for (int i = 0; i < _rings.Length; i++) if (_rings[i].Line != null) _rings[i].Line.enabled = false;

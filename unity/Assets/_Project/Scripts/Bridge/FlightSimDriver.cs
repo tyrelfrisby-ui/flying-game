@@ -32,10 +32,22 @@ namespace FlyingGame.Bridge
             get => _sim;
             private set
             {
+                Aircraft before = _sim?.Aircraft;
                 _sim = value;
                 if (_sim?.Aircraft != null) SessionSettings.ApplyLoadTo(AircraftId, _sim.Aircraft);
+                if (_sim?.Aircraft != null && !ReferenceEquals(before, _sim.Aircraft)) AirframeReplaced?.Invoke();
             }
         }
+
+        /// <summary>
+        /// THE ONE RESET (Ty 2026-11-04: "I crashed and every time I restart it is still crashed, even at different locations
+        /// or in different airplanes"). Raised the moment a NEW sim Aircraft is installed — every Restart, Relocate, aircraft
+        /// change and challenge / practice spawn goes through <see cref="Sim"/>'s setter, so nothing can miss it — before the
+        /// new aeroplane takes a single step. Anything that keeps crash state for the aeroplane on screen (the wreck drawn on
+        /// the model, debris, the crash relay, crash sounds) clears it here; nothing may wait to see what the new aeroplane
+        /// does first, because by then it may already have touched something.
+        /// </summary>
+        public event System.Action AirframeReplaced;
 
         /// <summary>Optional constraint applied after each frame's sim steps (wing runner).</summary>
         public System.Action<Aircraft> PostStep;
