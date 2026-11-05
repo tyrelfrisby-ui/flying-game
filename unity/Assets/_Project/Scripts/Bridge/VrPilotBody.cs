@@ -271,8 +271,18 @@ namespace FlyingGame.Bridge
 
         private void PoseSkinned(in Pose p)
         {
-            Limb("L_UpperArm", "L_LowerArm", "L_Hand", p.ShoulderL, p.ElbowL, p.WristL);
-            Limb("R_UpperArm", "R_LowerArm", "R_Hand", p.ShoulderR, p.ElbowR, p.WristR);
+            // Body forward from the shoulders (its right × up), for an arm held dead straight.
+            Vector3 fwd = Vector3.Cross(p.ShoulderR - p.ShoulderL, p.Up);
+            if (LegacyArmsForTesting)
+            {
+                Limb("L_UpperArm", "L_LowerArm", "L_Hand", p.ShoulderL, p.ElbowL, p.WristL);
+                Limb("R_UpperArm", "R_LowerArm", "R_Hand", p.ShoulderR, p.ElbowR, p.WristR);
+            }
+            else
+            {
+                ArmLimb("L_", p.ShoulderL, p.ElbowL, p.WristL, PalmFor(p.JointsL, p.HandRotL, true), _palmL, fwd);
+                ArmLimb("R_", p.ShoulderR, p.ElbowR, p.WristR, PalmFor(p.JointsR, p.HandRotR, false), _palmR, fwd);
+            }
             Limb("L_UpperLeg", "L_LowerLeg", "L_Foot", p.HipL, p.KneeL, p.AnkleL);
             Limb("R_UpperLeg", "R_LowerLeg", "R_Foot", p.HipR, p.KneeR, p.AnkleR);
             Aim(B("L_Hand"), B("L_Middle1"), p.WristL, p.JointsL != null ? p.JointsL[12] : p.GripL);
@@ -299,6 +309,56 @@ namespace FlyingGame.Bridge
             }
             Aim(B(side + "Thumb1"), B(side + "Thumb2"), j[2], j[3]);
             Aim(B(side + "Thumb2"), B(side + "Thumb3"), j[3], j[4]);
+        }
+
+        /// <summary>Share of a forearm's twist (pronation / supination) the forearm carries; the wrist takes the rest.
+        /// The radius turns about the ulna along the whole forearm, so most of a hand's roll belongs there, not at the
+        /// wrist (Ty 2026-11-04: "the wrists are super unrealistic ... look really weird").</summary>
+        public const float ForearmTwistShare = 0.75f;
+        /// <summary>EDITOR TOOLS ONLY (VrArmCheck "before" renders): the arms aimed the pre-2026-11-04 way (shortest-arc
+        /// bones, all the hand's roll at the wrist). Never set in the game.</summary>
+        public static bool LegacyArmsForTesting;
+        /// <summary>The most a forearm turns from its rest, either way: past it the wrist takes the remainder.</summary>
+        public const float MaxForearmTwistDeg = 85f;
+
+        /// <summary>
+        /// An arm on the skinned asset, without the twists the plain <see cref="Aim"/> left in it:
+        ///  - the UPPER ARM is placed by its direction AND its bend: the asset's rest elbow bends one way (its rest pose is
+        ///    seated, elbows bent); that bend is turned onto the solved one, so the elbow hinges in its own plane instead
+        ///    of rolling by whatever a shortest-arc rotation happened to leave;
+        ///  - the FOREARM follows the hinge, then turns about its own axis by <see cref="ForearmTwistShare"/> of the roll
+        ///    the hand needs (with a <c>ForearmTwist</c> bone, half on it and half on the forearm);
+        ///  - the hand is then aimed and rolled absolutely, as before, so only what is left is twist at the wrist.
+        /// </summary>
+        private void ArmLimb(string side, Vector3 shoulder, Vector3 elbow, Vector3 wrist, Vector3 palmWant, Vector3 palmLocal, Vector3 fwd)
+        {
+            Transform u = B(side + "UpperArm"), l = B(side + "LowerArm"), e = B(side + "Hand");
+            if (u == null || l == null || e == null) return;
+            // Rest (PlaceRoot has just put every bone back): direction and the way the elbow bends.
+            Vector3 d0 = l.position - u.position, f0 = e.position - l.position;
+            Vector3 b0 = Vector3.ProjectOnPlane(f0, d0);
+            if (b0.sqrMagnitude < 1e-6f * f0.sqrMagnitude) b0 = Vector3.ProjectOnPlane(fwd, d0);
+            Vector3 d = elbow - shoulder, fore = wrist - elbow;
+            Vector3 b = Vector3.ProjectOnPlane(fore, d);
+            if (b.sqrMagnitude < 1e-6f * fore.sqrMagnitude) b = Vector3.ProjectOnPlane(fwd, d);
+            if (d0.sqrMagnitude < 1e-10f || d.sqrMagnitude < 1e-10f || b0.sqrMagnitude < 1e-12f || b.sqrMagnitude < 1e-12f)
+            { Aim(u, l, shoulder, elbow); Aim(l, e, elbow, wrist); return; }
+            u.rotation = Quaternion.LookRotation(d, b) * Quaternion.Inverse(Quaternion.LookRotation(d0, b0)) * u.rotation;
+            Aim(l, e, elbow, wrist);   // in the hinge's plane now: a pure bend
+            // Twist: how far the hand would have to roll about the forearm to face its palm where it is wanted.
+            Vector3 axis = e.position - l.position;
+            if (palmWant.sqrMagnitude < 1e-8f || axis.sqrMagnitude < 1e-10f) return;
+            Vector3 have = Vector3.ProjectOnPlane(e.rotation * palmLocal, axis), want = Vector3.ProjectOnPlane(palmWant, axis);
+            if (have.sqrMagnitude < 1e-8f || want.sqrMagnitude < 1e-8f) return;
+            float twist = Mathf.Clamp(Vector3.SignedAngle(have, want, axis) * ForearmTwistShare, -MaxForearmTwistDeg, MaxForearmTwistDeg);
+            Transform tw = B(side + "ForearmTwist");
+            if (tw != null)
+            {
+                // Two bones share it: the forearm half, the twist bone (a child) the other half on top.
+                l.rotation = Quaternion.AngleAxis(0.5f * twist, axis) * l.rotation;
+                tw.rotation = Quaternion.AngleAxis(0.5f * twist, axis) * tw.rotation;
+            }
+            else l.rotation = Quaternion.AngleAxis(twist, axis) * l.rotation;
         }
 
         private void Limb(string upper, string lower, string end, Vector3 a, Vector3 b, Vector3 c)
