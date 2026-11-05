@@ -12,7 +12,7 @@ def mat(n,c,metal=0):
  m=bpy.data.materials.new('172_'+n);m.diffuse_color=(*c,1);m.use_nodes=True
  bs=m.node_tree.nodes.get('Principled BSDF');bs.inputs['Base Color'].default_value=(*c,1);bs.inputs['Metallic'].default_value=metal;bs.inputs['Roughness'].default_value=.48 if metal else .76
  return m
-black=mat('charcoal',(.018,.022,.021)); face=mat('instrument_black',(.006,.009,.009)); ivory=mat('warm_ivory',(.73,.65,.48)); white=mat('markings',(.98,.98,.90)); metal=mat('brushed_metal',(.30,.33,.32),.7); tan=mat('saddle_vinyl',(.29,.13,.055)); cloth=mat('woven_ochre',(.48,.31,.14)); carpet=mat('brown_carpet',(.065,.043,.025)); red=mat('mixture_red',(.52,.025,.012)); orange=mat('amber_digits',(.95,.36,.045)); blue=mat('gyro_sky',(.09,.31,.48)); earth=mat('gyro_earth',(.30,.15,.065)); green=mat('normal_arc',(.04,.38,.13)); yellow=mat('caution',(.85,.57,.04))
+black=mat('charcoal',(.018,.022,.021)); face=mat('instrument_black',(.006,.009,.009)); ivory=mat('warm_ivory',(.73,.65,.48)); white=mat('markings',(.98,.98,.90)); metal=mat('brushed_metal',(.30,.33,.32),.7); tan=mat('saddle_vinyl',(.29,.13,.055)); cloth=mat('woven_ochre',(.48,.31,.14)); carpet=mat('brown_carpet',(.065,.043,.025)); red=mat('mixture_red',(.52,.025,.012)); orange=mat('amber_digits',(.95,.36,.045)); blue=mat('gyro_sky',(.09,.31,.48)); earth=mat('gyro_earth',(.30,.15,.065)); green=mat('normal_arc',(.04,.38,.13)); yellow=mat('caution',(.85,.57,.04)); limit_red=mat('limit_red',(.80,.035,.02))
 tube_glass=mat('inclinometer_glass',(.33,.43,.42),.25)
 tube_glass.node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=.12
 def finish(o,n,m):
@@ -41,8 +41,8 @@ def parent(child,par):
  bpy.context.view_layer.update()
  world=child.matrix_world.copy();child.parent=par;child.matrix_world=world
  return child
-def needle(n,x,z,angle=0,length=.028,m=white,f=.251):
- a=math.radians(angle);o=box(n,(x,f,z),(.002,.001,length),m,.0003)
+def needle(n,x,z,angle=0,length=.028,m=white,f=.251,width=.002):
+ a=math.radians(angle);o=box(n,(x,f,z),(width,.001,length),m,.0003)
  # Put origin on gauge centre, mesh extends upwards at zero.
  for v in o.data.vertices:v.co.z+=length*.35
  o.rotation_euler.x=-a
@@ -73,7 +73,7 @@ def dial(n,x,z,r=.040,labels=None):
  DIALS.append((n,x,z,r,len(CREATED)))
  case=cyl(n+'_case',(x,.286,z),r+.004,.018,metal);case['layout']=json.dumps(dict(name=n,x=x,z=z,half_extent=r+.005));cyl(n+'_bezel',(x,.274,z),r+.002,.010,black);cyl(n+'_face',(x,.267,z),r,.002,face)
  for i in range(60):
-  if n in ('Turn_coordinator','VSI') or (n=='Attitude' and i not in [0,5,10,50,55]):continue
+  if n in ('Turn_coordinator','VSI','Suction') or (n=='Attitude' and i not in [0,5,10,50,55]):continue
   a=math.tau*i/60;rr=r*.88;l=r*(.14 if i%5==0 else .065)
   line(n+'_tick', (x+math.sin(a)*rr,.264,z+math.cos(a)*rr),(x+math.sin(a)*(rr-l),.264,z+math.cos(a)*(rr-l)),.0005,white)
  if labels and n!='DG' and not n.startswith('NAV'):
@@ -183,13 +183,29 @@ for detail in [tail,head]:
  detail.rotation_euler.x=-math.radians(35);parent(detail,adf)
 knob('ADF_card_adjust',x-.026,z-.03,.005)
 # Requested third row and a single engine column between the NAV heads and the radios.
-for n,x,z,r,labs in [('Tach',-.219,.113,.040,[0,5,10,15,20,25,30,35]),('Suction',-.321,.113,.028,[0,2,4,6,8]),('Fuel_L',-.450,.113,.020,['E','1/4','1/2','3/4','F']),('Fuel_R',-.396,.113,.020,['E','1/4','1/2','3/4','F']),('Oil_press',ENGINE_X,.333,.026,[0,25,50,75,100]),('Oil_temp',ENGINE_X,.253,.026,[75,100,150,200,245]),('Ammeter',ENGINE_X,.173,.026,[-60,-30,0,30,60]),('EGT',ENGINE_X,.093,.026,[8,10,12,14,16])]:
+# SUCTION (Ty, 2026-11-04 14:58: "put the suction gage as a tiny instrument with a green range and two red lines, one
+# too low and one too high ... Usually the suction gage is a tiny 1 inch instrument"). A 1 in face (radius 12.7 mm),
+# still straight under the DG, now in the 60 mm between the DG's mount and the raised yoke shaft. 0-10 inHg over 270
+# degrees, 27 deg/inHg clockwise from 7:30; green 4.5-5.5 inHg with a red radial at each end (C172R AFM supplement
+# STC SA2196CE: suction green arc 4.5 to 5.5 in. Hg; the 1980 172N manual gives 4.5 to 5.4). VacuumSystem regulates
+# at 5.0, mid-arc.
+SUCTION_R,SUCTION_Z=.0127,.145
+for n,x,z,r,labs in [('Tach',-.219,.113,.040,[0,5,10,15,20,25,30,35]),('Suction',-.321,SUCTION_Z,SUCTION_R,None),('Fuel_L',-.450,.113,.020,['E','1/4','1/2','3/4','F']),('Fuel_R',-.396,.113,.020,['E','1/4','1/2','3/4','F']),('Oil_press',ENGINE_X,.333,.026,[0,25,50,75,100]),('Oil_temp',ENGINE_X,.253,.026,[75,100,150,200,245]),('Ammeter',ENGINE_X,.173,.026,[-60,-30,0,30,60]),('EGT',ENGINE_X,.093,.026,[8,10,12,14,16])]:
  dial(n,x,z,r,labs if n!='Ammeter' else None)
  if n=='Ammeter':
   # A true centre-zero semicircular scale, -60 left, zero up, +60 right.
   for v in [-60,-30,0,30,60]:
    a=math.radians(v*1.5);text('Amps_number',str(v) if v<=0 else '+'+str(v),(x+math.sin(a)*r*.48,.2658,z+math.cos(a)*r*.48),.0072)
   needle(n+'_needle',x,z,0,r*.7,f=.251)
+ elif n=='Suction':
+  def suction_point(v,rr):
+   a=math.radians(-135+27*v);return (x+math.sin(a)*rr,.2658,z+math.cos(a)*rr)
+  for v in range(11):line('Suction_tick',suction_point(v,r*.92),suction_point(v,r*(.62 if v%5==0 else .78)),.0004,white)
+  for k in range(10):line('Suction_green_arc',suction_point(4.5+k*.1,r*.85),suction_point(4.6+k*.1,r*.85),.0009,green)
+  for v in (4.5,5.5):line('Suction_red_radial',suction_point(v,r*.98),suction_point(v,r*.60),.0005,limit_red)
+  # No numerals: at the panel's 4.6 mm minimum legend height they collide with the ticks on a 1 in face. Long
+  # ticks mark 0, 5 and 10; the placard below names it.
+  needle(n+'_needle',x,z,135,r*.72,f=.251,width=.0012)
  else:needle(n+'_needle',x,z,35,r*.7,f=.251)
  if n=='Tach':text('tach_hours','RPM x100',(x+.006,.2658,z-.008),.0063)
  label={'Tach':'TACHOMETER','Suction':'SUCTION','Fuel_L':'FUEL QTY L','Fuel_R':'FUEL QTY R','Oil_press':'OIL PRESS','Oil_temp':'OIL TEMP','Ammeter':'AMPS','EGT':'EGT'}[n]
@@ -294,13 +310,22 @@ PEDAL_PIVOT=(.546,-.505)                                          # rudder bar /
 HINGE={}
 def pedal_box(n,x,c,s,m,bevel):
  o=box(n,(x,c[0],c[1]),s,m,bevel);o.rotation_euler.y=math.radians(90-PEDAL_TILT);return o
+# YOKES (Ty, 2026-11-04 14:58: "Move the yoke up ... where it does not touch the thighs with full deflection"). With
+# the column at z .040 the pilot's right horn, at 90 degrees of wheel, reached 17 mm into the seated mannequin's right
+# thigh (29 mm at full left rudder with the column forward, where the thigh rises to its pedal). The whole yoke (column,
+# hub, horns) now stands YOKE_RAISE higher; nothing else about it changed: same 0.27 m span, same +/-90 degree wheel,
+# same +/-70 mm column. The column tube is 0.12 m longer forward, so it runs into the panel at full aft as
+# well (it used to stop 37 mm short of the face at neutral and 107 mm at full aft). The column takes the place under the DG that the 2-1/4 in suction gauge had, as in a real 172,
+# whose shaft comes out of the panel straight below the six-pack; the suction gauge is now the 1 in instrument beside
+# the fuel gauges (below). Measured by check_c172_pedal_fit.py and C172YokeClearanceTests (docs/models/c172-yoke-v1.md).
+YOKE_RAISE=.060;YOKE_Z=.040+YOKE_RAISE                   # m; column centre .040 -> .100
 for side,x in [('L',-.30),('R',.30)]:
- col=cyl('Yoke_'+side+'_pitch',(x,.125,.040),.013,.27,metal);rig(col,'translation','+X',[-.07,.07],'elevator')
- yoke=box('Yoke_'+side+'_roll',(x,-.025,.040),(.120,.046,.066),black,.016);rig(yoke,'rotation','+X',[-90,90],'aileron');parent(yoke,col)
+ col=cyl('Yoke_'+side+'_pitch',(x,.185,YOKE_Z),.013,.39,metal);rig(col,'translation','+X',[-.07,.07],'elevator')   # tube fwd -.01 ... .38
+ yoke=box('Yoke_'+side+'_roll',(x,-.025,YOKE_Z),(.120,.046,.066),black,.016);rig(yoke,'rotation','+X',[-90,90],'aileron');parent(yoke,col)
  for s in [-1,1]:
-  a=line('Yoke_'+side+'_bar',(x,-.030,.019),(x+s*.135,-.030,-.002),.012,black);parent(a,yoke)
-  a=line('Yoke_'+side+'_grip',(x+s*.135,-.030,-.002),(x+s*.135,-.030,.095),.014,black);parent(a,yoke)
- parent(text('Yoke_badge','TRAINER',(x,-.0482,.041),.009,ivory),yoke)
+  a=line('Yoke_'+side+'_bar',(x,-.030,YOKE_Z-.021),(x+s*.135,-.030,YOKE_Z-.042),.012,black);parent(a,yoke)
+  a=line('Yoke_'+side+'_grip',(x+s*.135,-.030,YOKE_Z-.042),(x+s*.135,-.030,YOKE_Z+.055),.014,black);parent(a,yoke)
+ parent(text('Yoke_badge','TRAINER',(x,-.0482,YOKE_Z+.001),.009,ivory),yoke)
  for s,tag in [(-1,'L'),(1,'R')]:
   xx=x+s*.083;o=pedal_box('Pedal_'+side+'_'+tag,xx,PEDAL_PAD,(.125,.020,.065),black,.004);rig(o,'rotation','-Y',[-18,18],'rudder');HINGE[o.name]=xyz((xx,*PEDAL_PIVOT))
   toe=pedal_box('Toe_brake_'+side+'_'+tag,xx,PEDAL_TOE,(.11,.020,.035),metal,.002);rig(toe,'rotation','-Y',[0,15],'brake.'+tag);parent(toe,o)
