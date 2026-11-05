@@ -34,7 +34,10 @@ namespace FlyingGame.Bridge
             /// sibling's does: the J-3 on floats is held at the landplane's height, so its cabin -- and the eye Ty approved
             /// in it -- is the same in both (see the J-3 entries in OwnSpecs).</summary>
             public readonly float SitHighM;
-            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false, float sitHighM = 0f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; SitHighM = sitHighM; }
+            /// <summary>The model is drawn in the config's own frame and at true size (its origin IS the config datum the
+            /// eyes, gear and hinges are given in): place it there, unscaled, instead of fitting span and length.</summary>
+            public readonly bool AtDatum;
+            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false, float sitHighM = 0f, bool atDatum = false) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; SitHighM = sitHighM; AtDatum = atDatum; }
             /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y (then the three-point fix).</summary>
             public Quaternion Rotation => Quaternion.AngleAxis(PitchDownDeg, Vector3.right) * Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
         }
@@ -109,7 +112,14 @@ namespace FlyingGame.Bridge
         /// these Specs differ from the downloaded model's for the same aeroplane.</summary>
         public static readonly Dictionary<string, Spec> OwnSpecs = new()
         {
-            { "c172-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/model_c172.py exports the 172 with its nose at glTF +X (spinner x +2.5 m, fin x -5.5 m), the OPPOSITE of
+            // every other own model here, so after glTFast's x-negation the nose is the instance's -x. Vector3.right
+            // (until 2026-11-04) placed it TAIL FIRST, the pilot's eye between the fin and the stabiliser; nobody saw it
+            // because the 172 drew the downloaded OBJ unless "own models" was on (AGENT-LOG 2026-11-03 "nose at glTF +X").
+            // AtDatum: model_c172.py draws it in the config's frame ("x here is +forward from the CG, matching the config"),
+            // true size, and its wing is two sections (root and tip), so the outer-wing alignment finds no vertices and
+            // the length-centre fallback moved it 1.73 m aft: the approved eye (-0.346 m) landed ahead of the windscreen.
+            { "c172-like", new Spec(Vector3.left, Vector3.up, atDatum: true) },
             // tools/own_models/build_ea300.py (docs/models/ea300-own-PROVENANCE.md): our mid-wing EA 300, drawn
             // level, glTF Y-up, paint baked in. THE Extra for every livery (Ty 2026-10-27) -- see PickOwn.
             // v14 (Ty 2026-10-29) has REAL hinged surfaces: Rudder, Elevator_L/R and Aileron_L/R are separate
@@ -178,9 +188,9 @@ namespace FlyingGame.Bridge
         /// but is never loaded. The Pitts likewise (Ty 2026-10-27, approved own S-2B v10.1): there is no downloaded
         /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
-            (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like" || modelId == "great-lakes-like"
-                || modelId == "glider-2-33-like"   // ours always: yellow, the only 2-33 (LiveryChoice, Ty 2026-11-02)
-                || modelId == "j3-cub-like" || modelId == "j3-cub-floats-like")   // ours always: wheels and floats (Ty 2026-11-02)
+            // The "ours always" types (Extra, Pitts, Great Lakes, 2-33, J-3 x2, and since 2026-11-04 the 172, whose cabin
+            // exists only in our GLB) live in FlyingGame.Core.LiveryChoice.OwnModelAlways so FlightTests can hold the list.
+            (SessionSettings.UseOwnModels || FlyingGame.Core.LiveryChoice.OwnModelAlways(modelId))
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
 
@@ -254,6 +264,14 @@ namespace FlyingGame.Bridge
             inst.transform.localPosition = Vector3.zero;
             inst.transform.localRotation = spec.Rotation;
             inst.transform.localScale = Vector3.one;
+            if (spec.AtDatum)
+            {
+                inst.transform.localScale = Vector3.one * spec.ScaleTrim;
+                inst.transform.localPosition = new Vector3(0f, spec.SitHighM, 0f);
+                Debug.Log($"[Airframe] {id}: placed at the config datum, true size (drawn in the config's frame)");
+                bounds = LocalBounds(inst, parent);
+                return inst;
+            }
             // Bounds in the parent's frame (after rotation, unit scale).
             Bounds b = LocalBounds(inst, parent);
             float span = 2f * HalfSpan(cfg);
