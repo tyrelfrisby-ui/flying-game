@@ -87,6 +87,11 @@ namespace FlyingGame.Bridge
         private Vector3 _footOffL, _footOffR;
         private Vector3 _latchLocked;
         private CanopyLatchKind _latchKind;
+        /// <summary>The Pitts: this seat's own black lever (front or rear, one cable), as a hand turns it: the rig's
+        /// Canopy_Latch_Knob[_Front] (canopy_latch 0 forward .. 1 back), else a proxy 2 in lever about a lateral pivot.</summary>
+        private HingedLever _pittsLever;
+        private RigHandle _pittsLeverRig;
+        private PittsLatchLever _pittsSeatLever;
         private static readonly HashSet<string> Warned = new();
 
         private void OnEnable() => Current = this;
@@ -120,7 +125,7 @@ namespace FlyingGame.Bridge
             Active = Resolve();
             if (!Active)
             {
-                if (was) { _grab.ReleaseAll(); (_visual?.Cockpit.HandLatch as PittsCanopyLatch)?.Release(); ReleaseHands(); }
+                if (was) { _grab.ReleaseAll(); (_visual?.Cockpit.HandLatch as PittsCanopyLatch)?.Release(_pittsSeatLever); ReleaseHands(); }
                 _maskRight = false;
                 TickJumper();
                 return;
@@ -258,8 +263,21 @@ namespace FlyingGame.Bridge
             _latchNode = _latchAftNode = _latchFwdNode = null;
             if (_latchKind != CanopyLatchKind.None && cockpit != null)
             {
-                if (_latchKind == CanopyLatchKind.SlideBall)
-                    _latchNode = Contract("Grip_Canopy_Latch") ?? Contract("Canopy_Latch_Knob");
+                if (_latchKind == CanopyLatchKind.CableLever)
+                {
+                    // v2 (Ty 2026-11-05): each cockpit's own black lever on the left canopy frame; the cable joins them.
+                    _pittsSeatLever = seatId == "front" ? PittsLatchLever.Front : PittsLatchLever.Rear;
+                    string sfx = seatId == "front" ? "_Front" : "";
+                    Transform grip = Node("Grip_Canopy_Latch" + sfx);
+                    _pittsLeverRig = RigHandle.Find(_visual?.Rig, "Canopy_Latch_Knob" + sfx, grip);
+                    if (_pittsLeverRig != null && (_pittsLeverRig.Slide || System.Math.Abs(_pittsLeverRig.V1 - _pittsLeverRig.V0) < 45.0))
+                    {
+                        // The superseded ball's slide row: not this lever. Proxy it until the model's lever row is in.
+                        Debug.Log($"[VrCockpit] {id}: Canopy_Latch_Knob{sfx} still carries the v1 ball's rig row ({(_pittsLeverRig.Slide ? "slide" : $"{_pittsLeverRig.V1 - _pittsLeverRig.V0:F0}°")}); latch lever proxied");
+                        _pittsLeverRig = null;
+                    }
+                    _latchNode = _pittsLeverRig != null ? grip ?? _pittsLeverRig.T : null;
+                }
                 else
                 {
                     // Extra v2 (CONTRACT "Extra latch v2"): a fixed rear and a sliding front handle on the canopy frame,
@@ -271,14 +289,23 @@ namespace FlyingGame.Bridge
                     // paddles, not the pair, so the pair is the proxy too (it must stay between the handles it grabs).
                     _latchNode = _latchAftNode != null || _latchFwdNode != null ? Contract("Grip_Canopy_Latch" + sfx) : null;
                 }
-                // The Pitts' ball is on the REAR panel whichever seat you are in.
-                Vector3 anchor = _eye;
-                if (_latchKind == CanopyLatchKind.SlideBall)
-                    foreach (StationConfig s in cv.Seats)
-                        if (s.Id == "rear") anchor = Local(_air.TransformPoint(CoordinateMap.ToUnity(s.EyeVec())));
-                _latchLocked = anchor + U(_proxy.LatchLocked);
-                bool fits = _latchKind == CanopyLatchKind.SlideBall ? cockpit.HandLatch is PittsCanopyLatch : cockpit.HandLatch is ExtraCanopyLatch;
-                if (!fits) cockpit.HandLatch = _latchKind == CanopyLatchKind.SlideBall ? new PittsCanopyLatch() : new ExtraCanopyLatch();
+                _latchLocked = _eye + U(_proxy.LatchLocked);
+                if (_latchKind == CanopyLatchKind.CableLever)
+                {
+                    // The lever the hand turns: the rig's (its own hinge, knob at forward and at back), else the proxy:
+                    // a 2 in lever pivoting about the lateral axis, knob forward when latched and straight up when back.
+                    if (_pittsLeverRig != null)
+                        _pittsLever = new HingedLever(C(Local(_pittsLeverRig.PivotWorld)), C(Local(_pittsLeverRig.KnobWorld(_pittsLeverRig.V0))),
+                                                      C(Local(_pittsLeverRig.KnobWorld(_pittsLeverRig.V1))),
+                                                      C(Quaternion.Inverse(_air.rotation) * _pittsLeverRig.HingeWorld));
+                    else
+                    {
+                        Vector3 lp = _latchLocked - Vector3.forward * (float)PittsCanopyLatch.ArmM;
+                        _pittsLever = new HingedLever(C(lp), C(_latchLocked), C(lp + Vector3.up * (float)PittsCanopyLatch.ArmM), new Vec3(1, 0, 0));
+                    }
+                }
+                bool fits = _latchKind == CanopyLatchKind.CableLever ? cockpit.HandLatch is PittsCanopyLatch : cockpit.HandLatch is ExtraCanopyLatch;
+                if (!fits) cockpit.HandLatch = _latchKind == CanopyLatchKind.CableLever ? new PittsCanopyLatch() : new ExtraCanopyLatch();
             }
             else if (cockpit != null) cockpit.HandLatch = null;
 
@@ -349,8 +376,8 @@ namespace FlyingGame.Bridge
         private Vector3 LatchPoint(CockpitRigState cockpit)
         {
             if (_latchNode != null) return Local(_latchNode.position);
-            if (cockpit.HandLatch is PittsCanopyLatch p)
-                return OnCanopy(_latchLocked - Vector3.right * (float)(PittsCanopyLatch.TravelM - p.PositionM));
+            if (cockpit.HandLatch is PittsCanopyLatch p && _pittsLever != null)
+                return OnCanopy(U(_pittsLever.GripAt(p.Latch01)));
             if (cockpit.HandLatch is ExtraCanopyLatch x)
                 return OnCanopy(_latchLocked - Vector3.forward * (float)(0.5 * x.S * ExtraCanopyLatch.TravelM));
             return OnCanopy(_latchLocked);
@@ -385,7 +412,12 @@ namespace FlyingGame.Bridge
                     case Grabbable.Stick: _stick.Grab(h); break;
                     case Grabbable.Throttle: _lever.Lever.Grab(h, _lever.TFor(_driver.Sim.Aircraft.Throttle01)); break;
                     case Grabbable.CanopyLatch:
-                        if (_visual.Cockpit.HandLatch is PittsCanopyLatch p) p.Grab(h.X);
+                        if (_visual.Cockpit.HandLatch is PittsCanopyLatch p && _pittsLever != null)
+                        {
+                            p.Grab(_pittsSeatLever);
+                            // The lever rides the canopy: measure the hand in the canopy's shut frame, like the knob.
+                            _pittsLever.Grab(OffCanopy(h), p.Latch01);
+                        }
                         break;
                     default:
                         if (!GrabGlider(side, _grab.Held(side), h) && !GrabPanel(side, _grab.Held(side), h))
@@ -394,7 +426,7 @@ namespace FlyingGame.Bridge
                 }
             }
             if ((ev & GrabEvents.Released) != 0 && !_grab.IsHeld(Grabbable.CanopyLatch))
-                (_visual?.Cockpit.HandLatch as PittsCanopyLatch)?.Release();
+                (_visual?.Cockpit.HandLatch as PittsCanopyLatch)?.Release(_pittsSeatLever);
         }
 
         // ---- 4: the held controls follow the hands ----
@@ -427,8 +459,14 @@ namespace FlyingGame.Bridge
             if (cockpit?.HandLatch == null) return;
             bool lh = _grab.IsHeldBy(Grabbable.CanopyLatch, out HandSide lside);
             bool click = false;
-            if (cockpit.HandLatch is PittsCanopyLatch pitts && lh)
-                click = pitts.Follow(_hands[(int)lside].Position.X);
+            if (cockpit.HandLatch is PittsCanopyLatch pitts)
+            {
+                if (lh && _pittsLever != null)
+                    click = pitts.Follow(_pittsSeatLever, _pittsLever.Follow(OffCanopy(_hands[(int)lside].Position)) * PittsCanopyLatch.ThrowDeg);
+                // The hook against the canopy's state before this frame's canopy step (DriveBailout runs after).
+                CanopyDynamics pcd = cockpit.HandCanopy;
+                pitts.Update(pcd != null ? pcd.Shut : cockpit.CanopyOpen01 < 0.01f);
+            }
             else if (cockpit.HandLatch is ExtraCanopyLatch extra)
             {
                 // The pair in one hand, squeezed by its trigger; or a hand on each handle (or on the front one alone),
