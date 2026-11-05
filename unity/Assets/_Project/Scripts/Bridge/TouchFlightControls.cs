@@ -58,13 +58,14 @@ namespace FlyingGame.Bridge
         /// <summary>Elevator bias from the trim slider alone (stick units) — what the abandoned aircraft keeps.</summary>
         public float TrimElevator => (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority;
 
-        // Fleet the on-screen "Aircraft" button cycles through (matches KeyboardTestControls 1-0/F1-F2).
+        // Fleet the on-screen "Aircraft" button cycles through (matches KeyboardTestControls 1-0/F1-F2). The retired
+        // 737-800 is not on it (owner 2026-11-01).
         private static readonly string[] Fleet =
         {
-            "glider-2-33-like", "glider-eb29r-like", "glider-swift-s1-like", "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pitts-s2b-like", "stearman-pt17-like", "jn4-jenny-like",
+            "glider-2-33-like", "glider-eb29r-like", "glider-swift-s1-like", "glider-grob103-acro-like", "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pitts-s2b-like", "stearman-pt17-like", "jn4-jenny-like",
             "cassutt-f1-like", "geebee-r2-like", "glasair3-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
-            "dc3-like", "boeing-737-like", "hughes-h4-like", "pa18-cub-like", "dhc2-beaver-like", "dhc2-beaver-floats-like", "decathlon-8kcab-like",
+            "dc3-like", "hughes-h4-like", "pa18-cub-like", "dhc2-beaver-like", "dhc2-beaver-floats-like", "decathlon-8kcab-like",
         };
 
         private FlightSimDriver _driver;
@@ -216,7 +217,15 @@ namespace FlyingGame.Bridge
                 return;   // landing page owns the screen
             }
             ApplyTouchSticksHidden();
-            ReadPointers();
+            // Cardboard: nothing here is drawn (OnGUI stands down), and the only touch a pilot in the viewer can make
+            // is its trigger, which VrRig reads as a recentre. An invisible RESET or BAIL must not take it.
+            if (VrMode.On)
+            {
+                _brakeHeld = false;
+                _leftFinger = _rightFinger = _trimFinger = _ailTrimFinger = _rudTrimFinger = _fireFinger = _ejectFinger = int.MinValue;
+                _ejectHold = 0f; _lookFinger = int.MinValue; _lookDir = 0;
+            }
+            else ReadPointers();
             if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
             GamepadFlight();
             QuestInput();   // last: in the headset the Touch controllers and the hands own the controls they move

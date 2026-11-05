@@ -1825,7 +1825,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "rollResistN": 40
+      "tireRadiusM": 0.19, "wheelMassKg": 6.0
     },
     {
       "pos": [
@@ -1841,7 +1841,7 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 800,
-      "rollResistN": 30
+      "tireRadiusM": 0.105, "wheelMassKg": 1.0
     },
     {
       "pos": [
@@ -1857,7 +1857,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.4,
       "corneringStiffnessN": 300,
-      "rollResistN": 60,
       "gearType": "tip-skid"
     },
     {
@@ -1874,7 +1873,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.4,
       "corneringStiffnessN": 300,
-      "rollResistN": 60,
       "gearType": "tip-skid"
     },
     {
@@ -1891,7 +1889,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 600,
-      "rollResistN": 250,
       "gearType": "nose-skid",
       "tireRadiusM": 0.06
     }

@@ -34,7 +34,10 @@ namespace FlyingGame.Bridge
             /// sibling's does: the J-3 on floats is held at the landplane's height, so its cabin -- and the eye Ty approved
             /// in it -- is the same in both (see the J-3 entries in OwnSpecs).</summary>
             public readonly float SitHighM;
-            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false, float sitHighM = 0f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; SitHighM = sitHighM; }
+            /// <summary>The model is drawn in the config's own frame and at true size (its origin IS the config datum the
+            /// eyes, gear and hinges are given in): place it there, unscaled, instead of fitting span and length.</summary>
+            public readonly bool AtDatum;
+            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false, float sitHighM = 0f, bool atDatum = false) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; SitHighM = sitHighM; AtDatum = atDatum; }
             /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y (then the three-point fix).</summary>
             public Quaternion Rotation => Quaternion.AngleAxis(PitchDownDeg, Vector3.right) * Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
         }
@@ -53,8 +56,9 @@ namespace FlyingGame.Bridge
             { "boeing-737-like", new Spec(Vector3.forward, Vector3.up, largestIsSpan: false, scaleTrim: 1.158f, groundClearanceM: 0.53f) },
             { "geebee-r2-like", new Spec(Vector3.right, Vector3.up) },
             { "seminole-like", new Spec(Vector3.right, Vector3.up) },
-            // glider-2-33-like: model OFF (owner 2026-10-06: "the skin for the schweitzer 2-33 is way off — go back to your initial
-            // drawing until we find a good skin"); the procedural trainer is drawn. Re-add { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) }.
+            // glider-2-33-like: NO downloaded model, ever. The Grob Astir that sat in its folder (a red-and-white stand-in) was
+            // deleted on 2026-11-04 (Ty: "the red 2-33 ... delete it permanently"); the 2-33 is always our own yellow GLB
+            // (PickOwn), and its procedural fallback is yellow too. Do not add a 2-33 entry here (NoRed233Tests).
             // Sketchfab GLBs (owner 2026-10-02; licences + credits in each folder's LICENSE.txt), imported by glTFast.
             // Extra (downloaded; NOT LOADED since 2026-10-27, ours replaces it -- see PickOwn): exported in the three-point attitude (its tailwheel 0.11 m below its mains) — levelled 11° nose-down
             // (build/cg-check.csv: drawn wing, prop hub and gear then line up with the sim's).
@@ -109,7 +113,14 @@ namespace FlyingGame.Bridge
         /// these Specs differ from the downloaded model's for the same aeroplane.</summary>
         public static readonly Dictionary<string, Spec> OwnSpecs = new()
         {
-            { "c172-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/model_c172.py exports the 172 with its nose at glTF +X (spinner x +2.5 m, fin x -5.5 m), the OPPOSITE of
+            // every other own model here, so after glTFast's x-negation the nose is the instance's -x. Vector3.right
+            // (until 2026-11-04) placed it TAIL FIRST, the pilot's eye between the fin and the stabiliser; nobody saw it
+            // because the 172 drew the downloaded OBJ unless "own models" was on (AGENT-LOG 2026-11-03 "nose at glTF +X").
+            // AtDatum: model_c172.py draws it in the config's frame ("x here is +forward from the CG, matching the config"),
+            // true size, and its wing is two sections (root and tip), so the outer-wing alignment finds no vertices and
+            // the length-centre fallback moved it 1.73 m aft: the approved eye (-0.346 m) landed ahead of the windscreen.
+            { "c172-like", new Spec(Vector3.left, Vector3.up, atDatum: true) },
             // tools/own_models/build_ea300.py (docs/models/ea300-own-PROVENANCE.md): our mid-wing EA 300, drawn
             // level, glTF Y-up, paint baked in. THE Extra for every livery (Ty 2026-10-27) -- see PickOwn.
             // v14 (Ty 2026-10-29) has REAL hinged surfaces: Rudder, Elevator_L/R and Aileron_L/R are separate
@@ -129,9 +140,8 @@ namespace FlyingGame.Bridge
             // so carving by the config cut into the wings, stab and fin (namedSurfaces).
             { "pitts-s2b-like", new Spec(Vector3.right, Vector3.up, scaleTrim: 6.094f / 5.996f, namedSurfaces: true) },
             // Same convention, same build script family: tools/model_glider233.py puts the nose at +x and
-            // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. The
-            // downloaded 2-33 is switched off (see Specs above), so this picks ours over the procedural
-            // trainer -- and ours is 0.55 m short in the side view, which is why the switch exists.
+            // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. There is
+            // no downloaded 2-33 (see Specs above): this yellow model is the only 2-33 drawn.
             { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
             // tools/model_pa44.py. The downloaded seminole-like.obj is a Piper PA-23 Apache/Aztec -- a
             // different aeroplane with a conventional tail -- which is why ours exists.
@@ -144,6 +154,16 @@ namespace FlyingGame.Bridge
             // drawn procedurally, and the procedural airframe follows the config, which puts the tailplane
             // on the boom centreline. The photographs say CRUCIFORM, half way up the fin.
             { "glider-swift-s1-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/own_models/build_grob103.py (Codex lane, docs/models/grob103-own-RIG.md): nose -X / up +Y in native
+            // glTF, origin at the DATUM (wing-root leading edge) -- the same point as the config's body origin -- and its
+            // ailerons, elevators, rudder and airbrake paddles are meshes of their own with <Name>_HingeAxis markers, so
+            // the rig hangs them whole (namedSurfaces). There is no downloaded Twin III: until the GLB is in the build the
+            // procedural style draws it (AirframeVisual.StyleFor), after that this IS the aeroplane, as for the Great Lakes.
+            // 2026-11-04: Codex's Blanc conversion rebuilt at 18.000 m, authored on the datum with the config's own wheel
+            // stations (nose +1.4595, main -0.5397, tail -4.8768), so it is placed AtDatum, at true size. Its tyre bottoms
+            // are 0.600 m below the datum against the config's 0.69, so it is drawn 90 mm LOW (sitHighM -0.090) to stand
+            // on the config's wheels: the seat eyes carry that same drop (Grob103ModelTests). A recorded disagreement.
+            { "glider-grob103-acro-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true, sitHighM: -0.090f, atDatum: true) },
             // tools/own_models/build_great_lakes.py (docs/models/great-lakes-own-PROVENANCE.md): our clean-room
             // 2T-1A-2, same export convention as the Pitts and the EA300 (nose +x after import, glTF Y-up), drawn
             // level on the thrust line with its origin at the upper-wing centre-section LE. There is no downloaded
@@ -178,9 +198,9 @@ namespace FlyingGame.Bridge
         /// but is never loaded. The Pitts likewise (Ty 2026-10-27, approved own S-2B v10.1): there is no downloaded
         /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
-            (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like" || modelId == "great-lakes-like"
-                || modelId == "glider-2-33-like"   // ours always: yellow, the only 2-33 (LiveryChoice, Ty 2026-11-02)
-                || modelId == "j3-cub-like" || modelId == "j3-cub-floats-like")   // ours always: wheels and floats (Ty 2026-11-02)
+            // The "ours always" types (Extra, Pitts, Great Lakes, 2-33, J-3 x2, and since 2026-11-04 the 172, whose cabin
+            // exists only in our GLB) live in FlyingGame.Core.LiveryChoice.OwnModelAlways so FlightTests can hold the list.
+            (SessionSettings.UseOwnModels || FlyingGame.Core.LiveryChoice.OwnModelAlways(modelId))
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
 
@@ -249,11 +269,20 @@ namespace FlyingGame.Bridge
             if (prefab == null || !(own ? OwnSpecs : Specs).TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);
             inst.name = "Model";
+            FloorWindowMaterials.Apply(inst);   // the Lexan floor panes (Pitts, Extra): FlyingGame/Lexan, satin frame
             CockpitSights.Install(inst);   // hidden immediately, for EVERY model consumer
             foreach (Collider c in inst.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);
             inst.transform.localPosition = Vector3.zero;
             inst.transform.localRotation = spec.Rotation;
             inst.transform.localScale = Vector3.one;
+            if (spec.AtDatum)
+            {
+                inst.transform.localScale = Vector3.one * spec.ScaleTrim;
+                inst.transform.localPosition = new Vector3(0f, spec.SitHighM, 0f);
+                Debug.Log($"[Airframe] {id}: placed at the config datum, true size (drawn in the config's frame)");
+                bounds = LocalBounds(inst, parent);
+                return inst;
+            }
             // Bounds in the parent's frame (after rotation, unit scale).
             Bounds b = LocalBounds(inst, parent);
             float span = 2f * HalfSpan(cfg);

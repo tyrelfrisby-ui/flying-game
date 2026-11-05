@@ -37,5 +37,5 @@ public static class SylStd
     public static Criterion HeadingDrift => new("Heading held with rudder", "entry heading", "°", 5, 10, 20, "Engine out: rudder stops the yaw — 'dead foot, dead engine'.");
     public static Criterion BankIntoGood => new("Bank into the good engine", "2–3°", "° off", 2, 4, 7, "Two to three degrees toward the live engine with the ball half out: the least sideslip, the least drag, the lowest Vmc.");
     public static Criterion VmcRecoveryHeading => new("Recovered at the first loss of control", "≤ 20° off heading", "°", 10, 20, 30, "At the first sign that full rudder no longer holds the heading (or a stall warning), power back on the good engine and lower the nose.");
-    public static Criterion Recognition => new("Recovery started at the first indication", "≤ 1 s", "s", 1, 2, 3, "ATP: at the stick shaker or buffet, recover — don't wait for the stall.");
+    public static Criterion Recognition => new("Recovery started at the first indication", "≤ 1 s", "s", 1, 2, 3, "Airline standard: at the stick shaker or buffet, recover — don't wait for the stall.");
 }

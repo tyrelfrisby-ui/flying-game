@@ -47,6 +47,7 @@ public static partial class IslandTerrain
         foreach (var q in World["water"].Items) h = Mix(h, Math.Min(h, q.N("elevation_ft") * Feet - q.N("depth_m")), 1 - Smooth((EllipseRadius(p, q) - .85) / .45));
         foreach (var q in World["glaciers"].Items)
         {
+            if (!q.Has("ski_zone")) continue;
             var ski = q["ski_zone"];
             h = Mix(h, ski.N("elevation_ft") * Feet, 1 - Smooth(((p - ski["centre"].Point).Length - .15) / .25));
         }
@@ -114,6 +115,7 @@ public static partial class IslandTerrain
         }
         foreach (var q in World["glaciers"].Items)
         {
+            if (!q.Has("ski_zone")) continue;
             var ski = q["ski_zone"]; var path = q["path"].Items; var ax = path[^1].Point - path[^2].Point; ax = ax * (1 / ax.Length);
             var dz = p - ski["centre"].Point; double zl = ski.N("length_m"), zw = ski.N("width_m");
             double al = dz.Dot(ax) * 1000, ac = (dz.E * ax.N - dz.N * ax.E) * 1000;
@@ -186,7 +188,7 @@ public static partial class IslandTerrain
         if (e.S("kind") == "airway") { alpha = 1 - Smooth((Segment(p, e["a"].Point, e["b"].Point).d - e.N("width")) / e.N("blend")); cap = e.N("cap_m"); }
         else
         {
-            var u = e["u"].Point; var dp = p - e["a"].Point; double ad = -dp.Dot(u), cross = Math.Abs(dp.E * u.N - dp.N * u.E), width = .15 + .05 * Math.Max(0, ad);
+            var u = e["u"].Point; var dp = p - e["a"].Point; double ad = -dp.Dot(u), cross = Math.Abs(dp.E * u.N - dp.N * u.E), width = e.N("half_width_km", .15) + e.N("widen", .05) * Math.Max(0, ad);
             double guard = e.N("guard_km", .25), margin = e.N("margin_m", 30);
             double dd = Math.Max(0, Math.Max(Math.Max(-ad - guard, ad - e.N("length") - guard), cross - width - guard));
             alpha = 1 - Smooth(dd / e.N("blend")); cap = e.N("elevation_m") + (broad ? Math.Max(0, ad) : ad) * 1000 / e.N("ratio") - (broad ? margin : 0);

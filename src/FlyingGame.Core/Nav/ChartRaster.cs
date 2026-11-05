@@ -182,7 +182,7 @@ public static class ChartRaster
         double dzdy = (At(g, col + 1, row) - At(g, col - 1, row)) / (2 * g.MetresPerPixelY);
         double slope = System.Math.Sqrt(dzdx * dzdx + dzdy * dzdy);
 
-        (byte r, byte gr, byte b) c = (WorldTerrain.Surface)g.Surface[i] switch
+        (byte r, byte gr, byte b) c = WorldTerrain.Coarse((WorldTerrain.Surface)g.Surface[i]) switch
         {
             WorldTerrain.Surface.Paved => ((byte)62, (byte)62, (byte)66),
             WorldTerrain.Surface.Gravel => ((byte)140, (byte)132, (byte)120),

@@ -21,6 +21,8 @@ public class InstrumentFacesTests
     [InlineData("P3b_Telltale")] [InlineData("Dial_ASI")] [InlineData("Dial_HOBBS")] [InlineData("Cockpit_needle")]
     [InlineData("Cockpit_telltale")] [InlineData("Cockpit_lubber")] [InlineData("Cockpit_tc_ball")] [InlineData("Compass_Card")]
     [InlineData("Compass_Card_Front")] [InlineData("Compass_Face_Front")] [InlineData("Cockpit_gauge_face")]
+    [InlineData("172_markings")] [InlineData("172_instrument_black")] [InlineData("172_normal_arc")]
+    [InlineData("FrontPanel_Airspeed_Face")] [InlineData("FrontPanel_Tachometer_Face")]
     // Pitts painted faces
     [InlineData("RearPanel_Airspeed_Face")] [InlineData("RearPanel_G_meter_Face")]
     // 2-33, J-3

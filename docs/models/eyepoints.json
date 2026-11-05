@@ -237,6 +237,64 @@
         "approved_by": "Ty",
         "approved_on": "2026-10-31"
       }
+    },
+    {
+      "aircraft_id": "glider-grob103-acro-like",
+      "seat_id": "front",
+      "primary": true,
+      "v6": {
+        "position_body": [
+          1.15,
+          0.0,
+          -0.07
+        ],
+        "position_model_gltf": [
+          -1.15,
+          0.16,
+          0.0
+        ],
+        "frame_note": "Body = the model's Pilot_Eye_front node where AirframeModels.Place puts it: AtDatum, scale 1, dropped 0.090 m to stand the model's 0.600 m tyre bottoms on the config's 0.69 m wheel contacts.",
+        "approved_by": "Ty",
+        "approved_on": "2026-11-03",
+        "approval_source": "lane/codex-grob103 AGENT-LOG 2026-11-04: \"Ty approved the Blanc conversion and eyes on 2026-11-03\"; body coordinates derived by Claude 2026-11-04"
+      },
+      "v5": {
+        "position_body": [
+          1.15,
+          0,
+          -0.4
+        ],
+        "status": "proposed, superseded by v6"
+      }
+    },
+    {
+      "aircraft_id": "glider-grob103-acro-like",
+      "seat_id": "rear",
+      "primary": false,
+      "v6": {
+        "position_body": [
+          -0.04,
+          0.0,
+          -0.13
+        ],
+        "position_model_gltf": [
+          0.04,
+          0.22,
+          0.0
+        ],
+        "frame_note": "Body = the model's Pilot_Eye_rear node where AirframeModels.Place puts it: AtDatum, scale 1, dropped 0.090 m to stand the model's 0.600 m tyre bottoms on the config's 0.69 m wheel contacts.",
+        "approved_by": "Ty",
+        "approved_on": "2026-11-03",
+        "approval_source": "lane/codex-grob103 AGENT-LOG 2026-11-04: \"Ty approved the Blanc conversion and eyes on 2026-11-03\"; body coordinates derived by Claude 2026-11-04"
+      },
+      "v5": {
+        "position_body": [
+          -0.04,
+          0,
+          -0.45
+        ],
+        "status": "proposed, superseded by v6"
+      }
     }
   ]
 }

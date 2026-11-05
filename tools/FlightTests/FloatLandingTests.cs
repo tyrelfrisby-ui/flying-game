@@ -18,7 +18,8 @@ namespace FlyingGame.FlightTests;
 /// the water at 32 m/s and the 9 g engine-mount check (AirframeFlooding.CheckJoints) correctly tore the nose off —
 /// "Nose broken off in the water: 12.4 kN along the fuselage against 12.1" (32 m/s, 2 m/s sink, −2° pitch, deep sea).
 /// The joint rule, the hard points and the crash relay were all doing their jobs on a wrong input. The planing τ is
-/// now the wetted bottom's: the steeper of the keel line and the chord to where the keel meets the water.
+/// now the wetted bottom's below zero: it moves to the chord to where the keel meets the water over the first
+/// degree of negative trim (every positive-trim state, the validated ones, unchanged).
 ///
 /// THE THRESHOLD. A float's ultimate water load, 14 CFR 23.527 (Aircraft.FloatUltimateWaterLoadN): for the J-3 floats
 /// n_w = 4.12 (V_S0 38 kt, β 18.8°, half of 1,301 lb per float), 17.9 kN ultimate per float. Measured (26 m/s, +5°,
@@ -151,7 +152,7 @@ public class FloatLandingTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    /// <summary>A step taxi at 30–40 mph: from rest, full power until 35 mph, then power to hold it, a little back stick.
+    /// <summary>A step taxi at 30–40 mph: from rest, full power until 35 mph, then power to hold it at a 7° attitude.
     /// It stays on the step — no porpoising worth the name, never airborne, nothing damaged.</summary>
     [Fact]
     public void AStepTaxiAt35MphIsStable()
@@ -171,7 +172,11 @@ public class FloatLandingTests
                 double v = ac.State.Velocity.Length;
                 if (!reached && v >= target) reached = true;
                 if (reached) thr = Math.Clamp(0.45 + 0.15 * (target - v), 0.0, 1.0);
-                sim.RunFor(0.01, new ControlInputs(0, -0.15, 0, 1.0 - 2.0 * thr));
+                // Held at a 7° attitude, as a step taxi is flown: below about 4° this float porpoises at these speeds
+                // (the validated lower-limit porpoise, HydroJ3Tests.PorpoisesAtTooLowATrim…).
+                Quat a = ac.State.Attitude; double pNow = Math.Asin(Math.Clamp(2 * (a.W * a.Y - a.Z * a.X), -1, 1)) * 57.3;
+                double st = reached ? Math.Clamp(-0.12 * (7.0 - pNow) + 0.03 * ac.State.Rates.Y * 57.3, -1, 1) : -0.15;
+                sim.RunFor(0.01, new ControlInputs(0, st, 0, 1.0 - 2.0 * thr));
                 if (!reached) continue;
                 total += 0.01;
                 FloatHydro.Report rep = FloatHydro.LastReport;

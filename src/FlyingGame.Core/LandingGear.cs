@@ -128,6 +128,10 @@ public static class LandingGear
         // 0.053 for water above hydroplaning speed — its lowest coefficient. NASA TP-2917 measured the same 737s at
         // ~0.5 dry, the reference this table is a fraction of.
         WorldTerrain.Surface.GlacierIce => WetIceWheelBrakingCoefficient / DryWheelBrakingCoefficient,
+        // Dry packed dirt holds about as well as firm gravel (μ 0.55-0.65 against 0.8 dry tarmac); hard, wet-packed
+        // beach sand a little less (≈ 0.55 absolute).
+        WorldTerrain.Surface.Dirt => 0.75,
+        WorldTerrain.Surface.Sand => 0.55 / 0.8,
         _ => 0.55,
     };
 
@@ -368,7 +372,7 @@ public static class LandingGear
     public static (Vec3 Force, Vec3 Moment) Compute(
         AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ, double brakeBias,
         IReadOnlyCollection<AirframeComponent>? lostLegs, List<AirframeComponent>? broken, bool[]? touching, ImpactRecorder? impacts,
-        TailwheelState? tailwheel, bool wheelsUp, int stage, double dt, double[]? stageClear)
+        TailwheelState? tailwheel, bool wheelsUp, int stage, double dt, double[]? stageClear, WheelState[]? wheels = null)
     {
         Vec3 totalForce = Vec3.Zero, totalMoment = Vec3.Zero;
         bool cull = AirframeContact.StageCullEnabled && stage >= 0 && stageClear != null && stageClear.Length >= 2 * config.Gear.Count;
@@ -379,10 +383,11 @@ public static class LandingGear
 
         Vec3 cg = config.Mass.CgVec();
         // Brake capacity per braked wheel (owner 2026-10-07: "make sure brakes are accurately modeled and traction is
-        // accurately modeled"): the pedal sets a brake TORQUE — a force the wheel asks of the tyre — sized so full pedal at
-        // the static load on dry pavement uses 0.675 of the grip (the owner's 2026-09-13 tune). The tyre gives at most μ·N
-        // of its ACTUAL load: lightly loaded (three-point with the wing still lifting) or on grass, the same pedal locks the
-        // wheel and it skids at μ_k ≈ 0.8 μ — braking falls off and the locked tyre can no longer corner.
+        // accurately modeled"): the pedal sets a brake TORQUE on the wheel, sized so full pedal at the static load on dry
+        // pavement uses 0.675 of the grip (the owner's 2026-09-13 tune). The tyre gives at most μ·N of its ACTUAL load:
+        // lightly loaded (three-point with the wing still lifting) or on grass, the same torque stops the wheel and it
+        // skids at μ_k ≈ 0.8 μ — braking falls off and the locked tyre can no longer corner. Since 2026-11-04 that is
+        // the wheel's own equation (WheelSpin), not a branch.
         int braked = 0; foreach (GearConfig gb in config.Gear) if (gb.Brake) braked++;
         double staticLoadN = config.Mass.MassKg * 9.81 * 0.88 / System.Math.Max(1, braked);
 
@@ -399,6 +404,20 @@ public static class LandingGear
                               : brakeCmd;
             Vec3 rBody = g.PosVec() - cg;
             Vec3 wheelWorld = s.Position + s.Attitude.Rotate(rBody);
+            // The wheel's spin (WheelSpin): advanced once a step, on its first stage, which also records what this
+            // leg is doing for the sound. No state (a direct call), or not a wheel: its steady state instead.
+            WheelState? ws = wheels != null && gi < wheels.Length ? wheels[gi] : null;
+            bool firstStage = stage <= 0;
+            if (ws != null && firstStage)
+            {
+                ws.ClearContact();
+                // The tyre's own shape this step (TyreWear): a worn strip or a flat under the axle stands it lower. The
+                // work the axle does dropping into it or climbing out is the thump you hear.
+                double drop = ws.Tyre != null ? ws.Tyre.Drop(-ws.AngleRad) : 0.0;
+                if (ws.TyreLoadN > 0) ws.ThumpJ += ws.TyreLoadN * System.Math.Abs(drop - ws.DropM);
+                ws.DropM = drop;
+            }
+            double tyreDrop = ws?.DropM ?? 0.0;
             if (cull && stage > 0 && stageClear![2 * gi] > stageClear[2 * gi + 1])
             {
                 // In the air all step: what the queries below would have found (penetration <= 0, no water to touch).
@@ -450,6 +469,12 @@ public static class LandingGear
                         tyreDepth = 0.5 * (lo + hi);
                     }
                     Vec3 hydro = WheelHydro.Force(config, g, tyreDepth, vWater, out _, out Vec3 cpOffset, out _);
+                    if (ws != null && firstStage)
+                    {
+                        ws.InContact = true; ws.OverWater = true; ws.LoadN = -hydro.Z;
+                        ws.VFwdMs = System.Math.Sqrt(vWater.X * vWater.X + vWater.Y * vWater.Y);
+                        ws.Material = GroundMaterial.Water; ws.Brake01 = wheelBrake;
+                    }
                     totalForce += hydro;
                     totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody) + cpOffset, hydro);
                     if (touching != null && gi < touching.Length) touching[gi] = true;
@@ -458,7 +483,9 @@ public static class LandingGear
                 if (waterH.Value - groundH > tyreR * 2) continue;
             }
             double localGroundZ = groundZ - groundH;
-            double penetration = wheelWorld.Z - localGroundZ; // >0 = wheel below ground surface (compressed)
+            // >0 = wheel below ground surface (compressed). The gear point is a sound tyre's bottom; a worn or flat one's
+            // is higher by its drop.
+            double penetration = wheelWorld.Z - localGroundZ - tyreDrop;
             if (penetration <= 0.0)
             {
                 if (touching != null && gi < touching.Length) touching[gi] = false;
@@ -494,6 +521,16 @@ public static class LandingGear
             double normalN = g.SpringN * penetration + g.DampNs * System.Math.Max(0, compressionRate);
             normalN = System.Math.Max(0.0, normalN);
             Vec3 normalForce = groundUp * normalN;
+            if (ws != null && firstStage)
+            {
+                // A wheel standing in shallow water on the bed is still in the water to the ear.
+                bool onDeck = WorldDecks.All.Count > 0 && WorldDecks.DeckUnder(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z, out double deckTop)
+                              && deckTop > WorldTerrain.GroundHeightAt(wheelWorld.X, wheelWorld.Y) + 1;
+                ws.InContact = true; ws.LoadN = normalN; ws.Surface = surface; ws.Brake01 = wheelBrake;
+                ws.TyreLoadN = normalN; ws.PatchWorld = wheelWorld;
+                ws.OverWater = overWater;
+                ws.Material = GroundMaterials.Of(surface, onDeck, overWater);
+            }
 
             if (g.GearType == "float-keel")
             {
@@ -530,7 +567,7 @@ public static class LandingGear
             // Steer frame: + points the tyre LEFT. A trailing TAILWHEEL steered by right rudder points left (pushes the
             // tail left, nose right); a NOSEWHEEL steered by right rudder must point RIGHT — it was applied mirrored
             // (right rudder turned the 172 and Seminole left on the ground).
-            double steer = castoring ? tailwheel!.AngleRad : g.IsSteerable ? (g.IsTailwheel ? 1.0 : -1.0) * rudderCmd * g.MaxSteerRad : 0.0;
+            double steer = castoring ? tailwheel!.AngleRad : SteerRad(g, rudderCmd);
             Vec3 tireFwd = fwdGround * System.Math.Cos(steer) + rightGround * System.Math.Sin(steer);
             Vec3 tireRight = Vec3.Cross(groundUp, tireFwd);
 
@@ -545,6 +582,7 @@ public static class LandingGear
             // left the heavier types with a fifth of their friction budget and they skated sideways (owner).
             double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
             bool onSki = OnSki(config, g, surface);
+            if (ws != null && firstStage) { ws.OnSki = onSki; ws.VFwdMs = vFwd; }
             double cornerPerLoad = onSki ? SkiCorneringPerLoad : (g.IsTailwheel ? TailwheelCorneringPerLoad : CorneringPerLoad);
             double cornering = onSki ? cornerPerLoad * normalN
                                      : System.Math.Max(g.CorneringStiffnessN, cornerPerLoad * normalN);
@@ -552,40 +590,71 @@ public static class LandingGear
             double muLimit = onSki
                            ? (SkiLateralCoefficient(surface) + SkiStaticExcess(surface, speed)) * normalN
                            : g.TireMu * (g.IsTailwheel ? TailwheelMuScale : 1.0) * SurfaceGrip(surface) * normalN;
-            lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 
-            // Longitudinal: rolling resistance + braking, opposing forward motion, sharing the μ budget.
-            // A brake on a runway is TORQUE-limited (the pedal asks the tyre for a force). A brake inside a ski is
-            // LOAD-limited instead: it can only work through the share of the weight the wheel still carries
-            // through the ski's hole, times what the tyre can get out of snow.
-            double brakeDemandN = !g.Brake ? 0.0
-                                : onSki ? wheelBrake * SkiLateralCoefficient(surface) * normalN * SkiWheelLoadShare
-                                        : wheelBrake * g.TireMu * staticLoadN * 0.675;
-            // Rolling resistance = μ_r · wheel load, μ_r by surface (paved 0.025 … rough ground 0.15).
+            // Longitudinal. On a ski: its own rolling drag and a load-limited brake, as before (no wheel turns against
+            // the snow). On a tyre: the WHEEL's force (WheelSpin) — spin-up, braking, lock-up all from its slip — plus
+            // the rolling resistance, a direct force at the patch (most of it is the tyre ploughing the ground).
             double rollN = (onSki ? SkiRolling(surface, vFwd) : SnowSinkageRolling(config, surface, staticLoadN)) * normalN;
+            // A soft or flat tyre is squashed further and loses more to its own hysteresis (TyreWear).
+            if (!onSki && ws?.Tyre != null) rollN += ws.Tyre.ExtraRollingCoefficient(WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Paved)) * normalN;
+            // Math.Sign THROWS on NaN, and this is reached four times a step. An aeroplane deep inside geometry
+            // used to arrive here with a non-finite forward speed, and the throw left FlightSimDriver.Update
+            // without its ApplyStateToTransform — a frozen aeroplane with dead controls, which is what the owner
+            // saw. A sign is a sign: it cannot be the thing that stops the game.
+            double fwdSign = System.Math.Sign(double.IsFinite(vFwd) && vFwd != 0 ? vFwd : 1);
             Vec3 tireForce;
-            // A ski is ALREADY sliding on its own bottom, so there is no wheel to lock: the locked branch is for
-            // tyres only. (It used to catch skis too, and since its 0.8 × muLimit came out below the ski's own
-            // rolling drag, touching the brake on snow made the slide LONGER.)
-            if (g.Brake && !onSki && brakeDemandN > muLimit && speed > 0.3)
+            if (onSki)
             {
-                // LOCKED: the brake holds the wheel and the tyre slides — kinetic friction against the whole sliding
-                // velocity (no separate cornering force: a skidding tyre goes where it is going).
-                tireForce = velGround * (-0.8 * muLimit / speed);
-            }
-            else
-            {
-                // Math.Sign THROWS on NaN, and this is reached four times a step. An aeroplane deep inside geometry
-                // used to arrive here with a non-finite forward speed, and the throw left FlightSimDriver.Update
-                // without its ApplyStateToTransform — a frozen aeroplane with dead controls, which is what the owner
-                // saw. A sign is a sign: it cannot be the thing that stops the game.
-                double longN = -(rollN + brakeDemandN) * System.Math.Sign(double.IsFinite(vFwd) && vFwd != 0 ? vFwd : 1);
+                lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
+                // A brake inside a ski is LOAD-limited: it can only work through the share of the weight the wheel still
+                // carries through the ski's hole, times what the tyre can get out of snow.
+                double brakeDemandN = g.Brake ? wheelBrake * SkiLateralCoefficient(surface) * normalN * SkiWheelLoadShare : 0.0;
                 // A ski's friction is ANISOTROPIC: it slides forwards on its own base (SkiRollingCoefficient) and
                 // holds sideways only by its length in the snow (SkiGripScale). So the forward drag is not capped by
                 // the lateral budget — on snow that budget (0.8 × 0.20 × 0.33 = 0.053) is actually SMALLER than the
                 // ski's own forward drag (0.055), and clamping to it quietly threw the ski's drag away.
-                double longBudget = onSki ? rollN + brakeDemandN
-                                          : System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));
+                double longN = -(rollN + brakeDemandN) * fwdSign;
+                tireForce = tireRight * lateralN + tireFwd * longN;
+            }
+            else
+            {
+                // The lateral demand in units of the grip: a tyre already cornering hard has less to give fore and aft.
+                double sigmaY = muLimit > 1e-9 ? System.Math.Abs(lateralN) / muLimit : 0.0;
+                double fx, fall;
+                // Full pedal at the static load on dry pavement asks for 0.675 of the grip (the owner's 2026-09-13 tune):
+                // that is the brake's TORQUE, T = 0.675·μ·W_static·r, the same at every load. Lightly loaded (three-point
+                // with the wing still lifting) or on grass, the same pedal asks for more than the tyre can give and the
+                // wheel stops: lock-up, from the wheel's own equation.
+                double brakeForceN = g.Brake ? wheelBrake * g.TireMu * staticLoadN * 0.675 : 0.0;
+                if (ws != null && ws.IsWheel && firstStage && dt > 0)
+                {
+                    double omega0 = ws.OmegaRadS, rRoll = ws.RollingRadiusM;
+                    WheelSpin.StepResult res = WheelSpin.Advance(ref ws.OmegaRadS, ws.InertiaKgM2, rRoll, muLimit, vFwd, sigmaY,
+                                                                 brakeForceN * ws.RadiusM, ws.BearingTorqueNm, dt);
+                    // The friction work went into the tread under the patch (TyreWear: wear, heat, a burst).
+                    ws.Wear(res.SlipEnergyJ, System.Math.Abs(vFwd - ws.OmegaRadS * rRoll), normalN,
+                            ws.AngleRad, ws.AngleRad + 0.5 * (omega0 + ws.OmegaRadS) * dt, dt);
+                    ws.Advanced = true;
+                    ws.ForcePerLoad = normalN > 1e-9 && double.IsFinite(res.ForceN / normalN) ? res.ForceN / normalN : 0.0;
+                    ws.FallFactor = res.FallFactor;
+                    ws.SlipRatio = res.SlipRatio; ws.SlipPowerW = res.SlipPowerW; ws.Locked = res.Locked;
+                    ws.BrakeTorqueNm = brakeForceN * ws.RadiusM;
+                    ws.SlipEnergyJ += res.SlipEnergyJ; ws.SlipTimeS += res.SlipTimeS;
+                }
+                if (ws != null && ws.IsWheel && dt > 0)
+                {
+                    // Each stage applies the step's force per newton to its own load: zero if the wheel was in the air
+                    // at the step's start (it is advanced from the next one).
+                    fx = ws.Advanced ? ws.ForcePerLoad * normalN : 0.0;
+                    fall = ws.Advanced ? ws.FallFactor : 1.0;
+                }
+                else fx = WheelSpin.QuasiStatic(vFwd, sigmaY, muLimit, brakeForceN, out _, out fall);
+                // The friction circle, with the wheel's own slip first (it is the wheel's equation that decides it) and
+                // what is left for cornering; a locked tyre corners with only what its sliding slip points sideways.
+                double latCap = System.Math.Sqrt(System.Math.Max(0.0, muLimit * fall * muLimit * fall - fx * fx));
+                lateralN = System.Math.Clamp(lateralN, -latCap, latCap);
+                double longN = fx - rollN * fwdSign;
+                double longBudget = System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));
                 longN = System.Math.Clamp(longN, -longBudget, longBudget);
                 tireForce = tireRight * lateralN + tireFwd * longN;
             }
@@ -597,6 +666,21 @@ public static class LandingGear
         }
 
         return (totalForce, totalMoment);
+    }
+
+    /// <summary>A rudder-linked (not castoring) wheel's yaw in Compute's steer frame, + = tyre pointed LEFT: a nosewheel
+    /// turns with the pedal (right rudder, wheel right), a trailing tailwheel against it. 0 for a wheel that does not
+    /// steer. The linkage turns the wheel whether or not it is on the ground; it only makes a force while loaded.</summary>
+    public static double SteerRad(GearConfig g, double rudderCmd) =>
+        g.IsSteerable ? (g.IsTailwheel ? 1.0 : -1.0) * rudderCmd * g.MaxSteerRad : 0.0;
+
+    /// <summary>The steering lock of a type's rudder-linked NOSE wheel (a steerable non-tailwheel ahead of the CG), rad;
+    /// 0 when it has none. RigInputs.NoseWheelSteerDeg is the rudder fraction times this.</summary>
+    public static double NoseWheelSteerMaxRad(AircraftConfig config)
+    {
+        foreach (GearConfig g in config.Gear)
+            if (g.IsSteerable && !g.IsTailwheel && g.Pos[0] > config.Mass.Cg[0]) return g.MaxSteerRad;
+        return 0.0;
     }
 
     /// <summary>True if any wheel is in contact with the ground (for on-ground state / challenge logic).</summary>

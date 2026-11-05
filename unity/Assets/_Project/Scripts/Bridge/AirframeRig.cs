@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using FlyingGame.Core;
+using FlyingGame.Core.MathTypes;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -53,6 +54,16 @@ namespace FlyingGame.Bridge
         private float _t;
         private readonly HashSet<string> _warned = new();
 
+        /// <summary>A slave strut riding between two rigged surfaces (the Great Lakes' Strut_Slave_L/R): not a rig row
+        /// of its own, because where it goes is decided by its two pins, which the rig has already moved.</summary>
+        private sealed class Strut
+        {
+            public Transform T, PinUpper, PinLower;
+            public Vector3 RestUpper, RestLower, RestPos;
+            public Quaternion RestRot;
+        }
+        private readonly List<Strut> _struts = new();
+
         // The two frame conversions live on RigNode (engine-free, so they are tested): see the class note.
         private static Vector3 Axis(RigNode n)
         {
@@ -92,10 +103,63 @@ namespace FlyingGame.Bridge
                 bound._bound.Add(new Bound(n, t, Axis(n), wool ? 1.1f : 0f, wool ? 0.37f * link++ : 0f));
             }
             if (bound._bound.Count == 0) return null;
+            bound.BindStruts(byName, modelId);
             Debug.Log($"[Airframe] {modelId}: the model's own rig drives {bound._bound.Count} of {rig.Nodes.Count} nodes"
                       + (bound._missing.Count > 0 ? $"; MISSING from the model: {string.Join(", ", bound._missing)}" : "")
-                      + $" (params {string.Join(", ", rig.Params())})");
+                      + $" (params {string.Join(", ", rig.Params())})"
+                      + (bound._struts.Count > 0 ? $"; {bound._struts.Count} slave strut(s) follow their pins" : ""));
             return bound;
+        }
+
+        /// <summary>Strut_Slave_&lt;s&gt; with its Strut_Slave_&lt;s&gt;_PinUpper / _PinLower (children of the upper and lower
+        /// ailerons in the GLB, so the rig carries them). Rest pins and pose are taken in the strut's PARENT frame from
+        /// local transforms: the aeroplane is routinely kilometres from the origin, where world positions round.</summary>
+        private void BindStruts(Dictionary<string, Transform> byName, string modelId)
+        {
+            foreach (string side in new[] { "L", "R" })
+            {
+                string n = "Strut_Slave_" + side;
+                if (!byName.TryGetValue(n, out Transform t) || t == null) continue;
+                byName.TryGetValue(n + "_PinUpper", out Transform pu);
+                byName.TryGetValue(n + "_PinLower", out Transform pl);
+                if (pu == null || pl == null)
+                {
+                    Debug.LogWarning($"[Airframe] {modelId}: {n} has no {(pu == null ? n + "_PinUpper" : n + "_PinLower")} — it will stay at its rest pose while the ailerons move.");
+                    continue;
+                }
+                _struts.Add(new Strut
+                {
+                    T = t, PinUpper = pu, PinLower = pl,
+                    RestUpper = PointIn(pu, t.parent), RestLower = PointIn(pl, t.parent),
+                    RestPos = t.localPosition, RestRot = t.localRotation,
+                });
+            }
+        }
+
+        /// <summary>A transform's origin in <paramref name="frame"/>'s local space, composed from local transforms where
+        /// the frame is one of its ancestors (always, in our GLBs).</summary>
+        private static Vector3 PointIn(Transform t, Transform frame)
+        {
+            Vector3 p = Vector3.zero;
+            Transform x = t;
+            for (; x != null && x != frame; x = x.parent) p = x.localPosition + x.localRotation * Vector3.Scale(x.localScale, p);
+            if (x == frame) return p;
+            return frame != null ? frame.InverseTransformPoint(t.position) : t.position;
+        }
+
+        private static Vec3 V(Vector3 v) => new Vec3(v.x, v.y, v.z);
+
+        /// <summary>Put each slave strut back between its pins: origin on the upper pin, long axis at the lower one.</summary>
+        private void FollowStruts()
+        {
+            foreach (Strut s in _struts)
+            {
+                if (s.T == null || s.PinUpper == null || s.PinLower == null) continue;
+                SlaveStrut.Pose p = SlaveStrut.Solve(V(s.RestUpper), V(s.RestLower), V(s.RestPos),
+                                                     V(PointIn(s.PinUpper, s.T.parent)), V(PointIn(s.PinLower, s.T.parent)));
+                s.T.localPosition = new Vector3((float)p.Origin.X, (float)p.Origin.Y, (float)p.Origin.Z);
+                s.T.localRotation = new Quaternion((float)p.Turn.X, (float)p.Turn.Y, (float)p.Turn.Z, (float)p.Turn.W) * s.RestRot;
+            }
         }
 
         /// <summary>The table this was bound from (its rows and its `controls`).</summary>
@@ -181,6 +245,7 @@ namespace FlyingGame.Bridge
                     b.T.localRotation = b.RestRot * Quaternion.AngleAxis(deg, b.Axis);
                 }
             }
+            FollowStruts();
         }
 
         // ---- the table ---------------------------------------------------------------------------------------
@@ -284,7 +349,9 @@ namespace FlyingGame.Bridge
                     Semantics = c["semantics"]?.Value<string>() ?? "absolute",
                     Grip = c["grip"]?.Value<string>() ?? "",
                     Poke = c["poke"]?.Value<string>() ?? "",
-                    Kind = kind == "Toggle" ? FlyingGame.Core.Vr.PanelKind.Toggle : kind == "PushPull" ? FlyingGame.Core.Vr.PanelKind.PushPull : FlyingGame.Core.Vr.PanelKind.Rotary,
+                    Label = c["label"]?.Value<string>() ?? "",
+                    Kind = kind == "Toggle" ? FlyingGame.Core.Vr.PanelKind.Toggle : kind == "PushPull" ? FlyingGame.Core.Vr.PanelKind.PushPull
+                         : kind == "Lever" ? FlyingGame.Core.Vr.PanelKind.Lever : FlyingGame.Core.Vr.PanelKind.Rotary,
                 };
                 if (c["sim_ends"] is JArray ends && ends.Count == 2) { spec.Lo = ends[0].Value<double>(); spec.Hi = ends[1].Value<double>(); }
                 if (c["detents"] is JArray det)

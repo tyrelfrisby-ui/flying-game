@@ -144,34 +144,35 @@ public class J3WaterRudderTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    /// <summary>Hung on the hook: the blade is out of the water and the pedals make no water-rudder force at all.</summary>
+    /// <summary>Hung on the hook. Ty 2026-11-04 (Q024): the retracted blade's tip still in the water at rest is real — the
+    /// drawn hinge sits at the keel line at the heel, and the drawn Edo float rests bow-up with the heel ~8 cm deep. So up
+    /// is not "no force": it is the same ½ρV²·S·a·α on whatever stays wet, and that is a small fraction of the down
+    /// blade's — under a quarter of the pedal authority at 3 m/s, and nothing wet at all by a 5.5 m/s taxi.</summary>
     [Fact]
-    public void UpItMakesNoForce()
+    public void UpOnlyItsTipStaysWetAndThePedalsDoLittle()
     {
         FloatHydro.FlatWaterOverride = 0.0;
         try
         {
             AircraftConfig cfg = Load();
             (Aircraft ac, _) = Afloat(cfg);
-            RigidBodyState m = Moving(ac.State, 4.0);
-            (Vec3 fL, Vec3 mL) = FloatHydro.Compute(cfg, m, -1.0, 1.0);
-            Assert.Equal(0.0, FloatHydro.LastWaterRudder.ImmersedAreaM2);
-            (Vec3 fR, Vec3 mR) = FloatHydro.Compute(cfg, m, 1.0, 1.0);
-            Assert.Equal(0.0, FloatHydro.LastWaterRudder.ImmersedAreaM2);
-            Assert.Equal(0.0, FloatHydro.LastWaterRudder.LiftN);
-            Assert.Equal(0.0, (fL - fR).Length, 9);
-            Assert.Equal(0.0, (mL - mR).Length, 9);
-            // and down, the same pedal swing is a real yaw moment
-            (_, Vec3 mLd) = FloatHydro.Compute(cfg, m, -1.0, 0.0);
-            (_, Vec3 mRd) = FloatHydro.Compute(cfg, m, 1.0, 0.0);
-            Vec3 dmB = ac.State.Attitude.Conjugate().Rotate(mRd - mLd);
-            _out.WriteLine($"4 m/s: full left to full right pedal changes the yaw moment by {dmB.Z:F0} N·m down, 0 up");
-            Assert.True(dmB.Z > 150, $"down, the pedals moved the yaw moment by only {dmB.Z:F0} N·m");
-            // half up: partly out of the water, less area
-            FloatHydro.Compute(cfg, m, 1.0, 0.5);
-            double half = FloatHydro.LastWaterRudder.ImmersedAreaM2;
-            _out.WriteLine($"half retracted (45 deg): S_imm {half:F5} m²");
-            Assert.InRange(half, 0.0, S * 0.999);
+            double Swing(double v, double retract01)
+            {
+                RigidBodyState m = Moving(ac.State, v);
+                (_, Vec3 mL) = FloatHydro.Compute(cfg, m, -1.0, retract01);
+                (_, Vec3 mR) = FloatHydro.Compute(cfg, m, 1.0, retract01);
+                return ac.State.Attitude.Conjugate().Rotate(mR - mL).Z;
+            }
+            double down3 = Swing(3.0, 0.0), up3 = Swing(3.0, 1.0);
+            FloatHydro.Compute(cfg, Moving(ac.State, 3.0), 1.0, 1.0); double upWet = FloatHydro.LastWaterRudder.ImmersedAreaM2;
+            FloatHydro.Compute(cfg, Moving(ac.State, 3.0), 1.0, 0.0); double downWet = FloatHydro.LastWaterRudder.ImmersedAreaM2;
+            FloatHydro.Compute(cfg, Moving(ac.State, 3.0), 1.0, 0.5); double halfWet = FloatHydro.LastWaterRudder.ImmersedAreaM2;
+            _out.WriteLine($"3 m/s, full left to full right pedal: yaw moment swing {down3:F0} N·m down, {up3:F0} up; wet {downWet:F5} / {halfWet:F5} (half up) / {upWet:F5} m² up");
+            Assert.True(down3 > 150, $"down, the pedals moved the yaw moment by only {down3:F0} N·m");
+            Assert.True(upWet > 0, "at rest attitude the hooked blade's tip is in the water (Ty: real)");
+            Assert.True(upWet < 0.5 * downWet, $"hooked, {upWet:F5} m² wet against {downWet:F5} down");
+            Assert.InRange(halfWet, upWet, downWet);
+            Assert.True(System.Math.Abs(up3) < 0.25 * down3, $"hooked, the pedals still swing {up3:F0} N·m against {down3:F0} down");
         }
         finally { FloatHydro.FlatWaterOverride = null; }
     }
@@ -199,11 +200,12 @@ public class J3WaterRudderTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    /// <summary>An idle taxi turn on full right pedal: down, the water rudder adds its yaw moment to the air rudder's in the
-    /// slipstream; up, only the air rudder turns it. At ~3 m/s the half-wet blade makes ~28 N (~60 N·m about the CG), a
-    /// real but modest addition: the honest number from ½ρV²·S·a·α, not the old ×2.5 lumped blade on both floats.</summary>
+    /// <summary>An idle taxi turn on full right pedal, water rudder down and up. At ~1.5 m/s the blade's ½ρV² is small,
+    /// so the turn is mostly the air rudder in the slipstream and the floats' own yaw: down turns a little tighter, never
+    /// less. Ty 2026-11-04 20:27 (Q024): 254° in 20 s with the rudder UP is acceptable; he will fly it. The 254 is that
+    /// figure, copied here by hand.</summary>
     [Fact]
-    public void ATaxiTurnsTighterWithTheRudderDown()
+    public void AnIdleTaxiTurnIsAirRudderLedAndTheBladeOnlyAdds()
     {
         FloatHydro.FlatWaterOverride = 0.0;
         try
@@ -224,18 +226,19 @@ public class J3WaterRudderTests
                 return turned;
             }
             double down = Turn(false), up = Turn(true);
-            Assert.True(down > up + 8, $"down turned {down:F0} deg, up {up:F0} deg");
+            Assert.True(down > up, $"down turned {down:F0} deg, up {up:F0} deg");
+            Assert.InRange(up, 254.0 - 15.0, 254.0 + 15.0);
         }
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    /// <summary>Hooked, the blade has swung 90° up and aft about its hinge and stands behind the post (v18, t286u; v17's
-    /// blade had a forward lobe ahead of the post that swung DOWN as it went up, so it needed 140°): no part of it in the
-    /// water at rest or at a 5.5 m/s taxi, for any pedal (the drawn hinge rides only ~6 cm above the water at rest).
-    /// Plowing through the hump (30% power, ~9° nose-up) the hull's stern squats the hinge itself under, and that is
-    /// reported, not hidden.</summary>
+    /// <summary>Hooked, the blade has swung 90° up and aft about its hinge and stands behind the post (v18, t286u). The
+    /// hinge is drawn at the keel line at the heel, so at rest — float bow-up, heel ~8 cm deep — the hooked blade's lowest
+    /// few centimetres stay wet (Ty 2026-11-04, Q024: real). Taxiing at ~5.5 m/s the float rides up and it is dry for any
+    /// pedal; down, a good part of the blade is wet in both. Plowing through the hump the stern squats the hinge itself
+    /// under, and that is reported, not hidden.</summary>
     [Fact]
-    public void HookedItIsOutOfTheWaterAtRestAndTaxiing()
+    public void HookedOnlyItsTipIsWetAtRestAndItIsDryTaxiing()
     {
         FloatHydro.FlatWaterOverride = 0.0;
         try
@@ -250,14 +253,17 @@ public class J3WaterRudderTests
             foreach ((string what, RigidBodyState st) in new[] { ("rest", rest), ("taxi", taxi) })
                 foreach (double cmd in new[] { -1.0, 0.0, 1.0 })
                 {
-                    FloatHydro.Compute(cfg, st, cmd, 1.0);
-                    Assert.Equal(0.0, FloatHydro.LastWaterRudder.ImmersedAreaM2);
                     FloatHydro.Compute(cfg, st, cmd, 0.0);
-                    Assert.True(FloatHydro.LastWaterRudder.ImmersedAreaM2 > 0.3 * S, $"{what}: down, only {FloatHydro.LastWaterRudder.ImmersedAreaM2:F4} m² wet");
+                    double down = FloatHydro.LastWaterRudder.ImmersedAreaM2;
+                    FloatHydro.Compute(cfg, st, cmd, 1.0);
+                    double up = FloatHydro.LastWaterRudder.ImmersedAreaM2;
+                    _out.WriteLine($"{what}, pedal {cmd:+0;-0;0}: wet {down:F5} m² down, {up:F5} hooked");
+                    Assert.True(down > 0.3 * S, $"{what}: down, only {down:F4} m² wet");
+                    Assert.InRange(up, 1e-6, 0.5 * down);
                 }
             for (double t = 0; t < 30; t += 0.1) sim.RunFor(0.1, new ControlInputs(0, -0.6, 0, Lever(0.30)));
             FloatHydro.Compute(cfg, ac.State, 0.0, 1.0);
-            _out.WriteLine($"hooked: rest pitch {Pitch(rest):F1} deg and taxi ({taxi.Velocity.X:F1} m/s, pitch {Pitch(taxi):F1}) dry; plowing ({ac.State.Velocity.X:F1} m/s, pitch {Pitch(ac.State):F1}) {FloatHydro.LastWaterRudder.ImmersedAreaM2:F4} m² wet");
+            _out.WriteLine($"hooked: rest pitch {Pitch(rest):F1} deg, taxi ({taxi.Velocity.X:F1} m/s, pitch {Pitch(taxi):F1}); plowing ({ac.State.Velocity.X:F1} m/s, pitch {Pitch(ac.State):F1}) {FloatHydro.LastWaterRudder.ImmersedAreaM2:F4} m² wet");
         }
         finally { FloatHydro.FlatWaterOverride = null; }
     }

@@ -38,7 +38,7 @@ namespace FlyingGame.Bridge
 
         public static RatingBook Book { get { Load(); return _book; } }
 
-        /// <summary>The non-licence badges earned, short labels. Public.</summary>
+        /// <summary>The achievement badges earned, short labels. Public.</summary>
         public static readonly List<string> Awards = new();
 
         /// <summary>Where this pilot stands on each board. Public; comes from the server when there is one.</summary>
@@ -50,7 +50,16 @@ namespace FlyingGame.Bridge
             _loaded = true;
             _book = RatingBook.Default();
             SessionSettings.LoadBadgePrefs();
-            _log = PilotLog.Deserialize(PlayerPrefs.GetString(PrefLog, ""));
+            // An older build's log is carried over to the current ladder by Deserialize (SaveMigration); write it
+            // straight back so the carried-over stages are on disk and the migration never runs again.
+            string saved = PlayerPrefs.GetString(PrefLog, "");
+            _log = PilotLog.Deserialize(saved);
+            if (!string.IsNullOrEmpty(saved) && !saved.Contains("#v="))
+            {
+                PlayerPrefs.SetString(PrefLog, _log.Serialize());
+                PlayerPrefs.Save();
+                Debug.Log($"PilotRecord: lesson log carried over to the {PilotLog.CurrentVersion} ladder -> {Certificate.Describe(RatingResolver.Resolve(_log, _book))}");
+            }
             foreach (string a in PlayerPrefs.GetString(PrefAwards, "").Split(';'))
                 if (!string.IsNullOrEmpty(a)) Awards.Add(a);
             // Board placings are the server's to tell us; until there is one, anything stored locally is a
@@ -76,21 +85,30 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>
-        /// A lesson has finished. Records it against the class the aeroplane belongs to, and says whether
-        /// that moved the badge — which is the only thing worth announcing.
+        /// A lesson has finished. Records it against the aeroplane and the class it belongs to, and returns what
+        /// to say out loud if that moved the pilot on — a new level, a stage passed, or a class on the badge —
+        /// or null if it did not, which is most of the time.
         /// </summary>
-        public static bool RecordLesson(string aircraftId, string lessonId, double score)
+        public static string RecordLesson(string aircraftId, string lessonId, double score)
         {
             Load();
+            // A retired type (the 737-800) cannot be picked, but a flight already under way in one must not
+            // count toward the progression either: it is recorded against nothing.
+            if (Hangar.IsRetired(aircraftId)) return null;
             RatingClass cls = ClassOf(aircraftId);
-            string before = Certificate.ShortBadge(RatingResolver.Resolve(_log, _book));
-            _log.Record(cls, lessonId, score);
+            PilotStanding before = RatingResolver.Resolve(_log, _book);
+            _log.Record(aircraftId, cls, lessonId, score);
             Save();
-            string after = Certificate.ShortBadge(RatingResolver.Resolve(_log, _book));
-            return before != after;
+            PilotStanding after = RatingResolver.Resolve(_log, _book);
+            if (after.Level != before.Level) return $"New level. You are now: {Certificate.LevelName(after.Level)}.";
+            foreach (string st in after.Stages)
+                if (!before.Stages.Contains(st)) return $"Stage passed: {_book.Stage(st)?.Title ?? st}.";
+            foreach (RatingClass c in after.Classes)
+                if (!before.Classes.Contains(c)) return $"New class on your badge: {Certificate.ClassAbbrev(c)}.";
+            return null;
         }
 
-        /// <summary>Award a non-licence badge, if it is not already held.</summary>
+        /// <summary>Award an achievement badge, if it is not already held.</summary>
         public static bool Award(string label)
         {
             Load();
@@ -100,8 +118,8 @@ namespace FlyingGame.Bridge
             return true;
         }
 
-        /// <summary>The ratings held, by class.</summary>
-        public static Dictionary<RatingClass, CertLevel> Held()
+        /// <summary>Where the pilot stands: level, stages, classes.</summary>
+        public static PilotStanding Held()
         {
             Load();
             return RatingResolver.Resolve(_log, _book);
@@ -134,13 +152,13 @@ namespace FlyingGame.Bridge
         public static double OwnScore() => PilotScore.Combined(Placings);
 
         /// <summary>
-        /// What is still outstanding for the next rating in a class. The pilot's own screen only — this is
+        /// The stages open now and what is still outstanding in each. The pilot's own screen only — this is
         /// precisely the information the owner said nobody else needs.
         /// </summary>
-        public static (CertLevel next, List<(string lesson, double need, double have)> missing) NextStep(RatingClass cls)
+        public static List<(Stage stage, List<(string lesson, double need, double have)> missing)> NextStages()
         {
             Load();
-            return RatingResolver.NextStep(_log, _book, cls);
+            return RatingResolver.Next(_log, _book);
         }
 
         /// <summary>Wipe it. Offered because a shared iPad is a real thing and somebody else's badge is not yours.</summary>

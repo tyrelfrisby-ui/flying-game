@@ -66,25 +66,32 @@ namespace FlyingGame.Bridge
         public void Bind(AirframeVisual visual, string ownModelName)
         {
             if (_looked || visual == null || visual.ModelRoot == null) return;
+            Bind(visual.transform, visual.HasOwnRig, visual.FindInModel, ownModelName);
+        }
+
+        /// <summary>The same, from parts: for an editor tool that builds the aeroplane with AirframeBuilder and has no
+        /// AirframeVisual (CockpitEyeShots; CLAUDE.md "an editor batch tool has to drive the component itself").</summary>
+        public void Bind(Transform air, bool hasOwnRig, System.Func<string, Transform> find, string ownModelName)
+        {
+            if (_looked || air == null || find == null) return;
             _looked = true;
             CockpitLiveSpec spec = FlyingGame.Core.CockpitLive.For(ownModelName);
             if (spec.IsEmpty)
             {
                 Debug.Log($"[Cockpit] {ownModelName ?? "(not one of our own models)"}: nothing to cut or make live here; " +
-                          (visual.HasOwnRig ? "the model's own rig moves its stick, pedals and needles" : "no rig: the cockpit is static"));
+                          (hasOwnRig ? "the model's own rig moves its stick, pedals and needles" : "no rig: the cockpit is static"));
                 return;
             }
-            Transform air = visual.transform;
             foreach (string n in spec.Hide)
             {
-                Transform t = visual.FindInModel(n);
+                Transform t = find(n);
                 if (t == null) continue;
                 foreach (Renderer r in t.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
             }
             int dials = 0;
-            foreach (LiveDial d in spec.Dials) if (BindDial(visual, air, d)) dials++;
-            string cuts = CutParts(visual, air, spec);
-            AddThrottles(visual, air, spec);
+            foreach (LiveDial d in spec.Dials) if (BindDial(find, air, d)) dials++;
+            string cuts = CutParts(find, air, spec);
+            AddThrottles(find, air, spec);
             Debug.Log($"[Cockpit] {ownModelName}: {dials} of {spec.Dials.Count} dials live, {cuts}, " +
                       $"{spec.Throttles.Count} throttle lever(s) added, {spec.Hide.Count} orphaned rig needles hidden");
         }
@@ -137,9 +144,9 @@ namespace FlyingGame.Bridge
 
         // ---- dials ----
 
-        private bool BindDial(AirframeVisual visual, Transform air, LiveDial spec)
+        private bool BindDial(System.Func<string, Transform> find, Transform air, LiveDial spec)
         {
-            Transform face = visual.FindInModel(spec.Face);
+            Transform face = find(spec.Face);
             if (face == null || face.parent == null || !face.TryGetComponent(out MeshFilter mf) || mf.sharedMesh == null
                 || !face.TryGetComponent(out Renderer rend)) return false;
             var art = Resources.Load<Texture2D>("CockpitDials/" + spec.Art);
@@ -266,10 +273,10 @@ namespace FlyingGame.Bridge
             return m;
         }
 
-        private string CutParts(AirframeVisual visual, Transform air, CockpitLiveSpec spec)
+        private string CutParts(System.Func<string, Transform> find, Transform air, CockpitLiveSpec spec)
         {
             if (spec.Sticks.Count == 0 && spec.Pedals.Count == 0) return "no parts to cut";
-            Transform cockpit = visual.FindInModel("Cockpit");
+            Transform cockpit = find("Cockpit");
             if (cockpit == null) return "NO Cockpit node to cut sticks and pedals from: they stay put";
 
             // Every mesh the cockpit node draws with: its own and its primitives' children (not ours, not a carve's skin).
@@ -413,10 +420,10 @@ namespace FlyingGame.Bridge
 
         // ---- a throttle lever the model does not have ----
 
-        private void AddThrottles(AirframeVisual visual, Transform air, CockpitLiveSpec spec)
+        private void AddThrottles(System.Func<string, Transform> find, Transform air, CockpitLiveSpec spec)
         {
             if (spec.Throttles.Count == 0) return;
-            Transform cockpit = visual.FindInModel("Cockpit");
+            Transform cockpit = find("Cockpit");
             if (cockpit == null) return;
             float metre = 1f / Mathf.Max(1e-4f, cockpit.lossyScale.x);
             Quaternion axes = Quaternion.Inverse(cockpit.rotation) * air.rotation;

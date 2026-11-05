@@ -63,7 +63,8 @@ namespace FlyingGame.Bridge.Net
         /// </summary>
         public void SetBadge(string badge, double score)
         {
-            Badge = badge ?? "";
+            // A pilot on an older build still publishes the old words ("ASEL PVT"); draw them in the current ones.
+            Badge = FlyingGame.Sim.Ratings.LegacyLevels.UpgradeBadge(badge);
             BoardScore = score;
             SetName(PilotName);     // redraw the tag
         }

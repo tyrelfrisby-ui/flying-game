@@ -4,10 +4,8 @@ Angles are clockwise from 12 o'clock as seen by the pilot; the needles in build_
 import math, os
 from PIL import Image, ImageDraw, ImageFont
 ART = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'art'); S = 512; C = S / 2
-def font(sz):
-    for p in ('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/System/Library/Fonts/Helvetica.ttc'):
-        if os.path.exists(p): return ImageFont.truetype(p, sz)
-    return ImageFont.load_default()
+from instrument_face_style import font, finish
+
 def pol(th, r): t = math.radians(th); return (C + r * math.sin(t), C - r * math.cos(t))
 def base():
     im = Image.new('RGB', (S, S), (14, 14, 16)); d = ImageDraw.Draw(im)
@@ -25,21 +23,21 @@ arc(d, asi(38), asi(65), 214, 18, (40, 170, 60)); arc(d, asi(65), asi(98), 214, 
 tick(d, asi(98), 196, 236, 8, (220, 40, 40))
 for v in range(20, 161, 5): tick(d, asi(v), 236 - (30 if v % 10 == 0 else 16), 236, 5 if v % 10 == 0 else 3)
 for v in range(40, 161, 20): label(d, asi(v), 160, str(v))
-label(d, 180, 70, 'MPH', 30); im.save(os.path.join(ART, 'sgs-dial-asi.png'))
+label(d, 180, 70, 'MPH', 30); finish(im).save(os.path.join(ART, 'sgs-dial-asi.png'))
 # altimeter: 0..9 (x100 ft), long hand 1 turn / 1000 ft, short hand 1 turn / 10000 ft
 im, d = base()
 for i in range(50): tick(d, i * 7.2, 236 - (32 if i % 5 == 0 else 16), 236, 5 if i % 5 == 0 else 3)
 for i in range(10): label(d, i * 36, 166, str(i), 44)
 label(d, 180, 80, 'ALT', 30); label(d, 0, 80, '100 FT', 22)
 d.rectangle((C + 70, C - 18, C + 140, C + 18), fill=(0, 0, 0), outline=(120, 120, 120), width=2); label(d, 90, 105, '29.9', 24)
-im.save(os.path.join(ART, 'sgs-dial-alt.png'))
+finish(im).save(os.path.join(ART, 'sgs-dial-alt.png'))
 # variometer, knots: 0 at 9 o'clock, climb clockwise (up), +-10 kt over +-150 deg
 va = lambda v: -90 + 15 * v
 im, d = base()
 for v in range(-10, 11): tick(d, va(v), 236 - (32 if v % 5 == 0 else 16), 236, 5 if v % 5 == 0 else 3)
 for v in (-10, -5, 0, 5, 10): label(d, va(v), 168, str(abs(v)), 40)
 label(d, 0, 70, 'UP', 28); label(d, 180, 70, 'DN', 28); label(d, 90, 70, 'KTS', 24)
-im.save(os.path.join(ART, 'sgs-dial-vario.png'))
+finish(im).save(os.path.join(ART, 'sgs-dial-vario.png'))
 # compass card band: heading runs right-to-left (u = 1 - h/360) so the aft face of the drum reads like a real
 # wet compass: heading under the lubber line, the next-higher numbers to the LEFT, glyphs upright
 W_, H_ = 1024, 96; im = Image.new('RGB', (W_, H_), (24, 24, 26)); d = ImageDraw.Draw(im); f = font(34)
@@ -49,7 +47,7 @@ for h in range(0, 360, 5):
     d.line([(x, 0), (x, 22 if h % 10 == 0 else 12)], fill=(240, 240, 240), width=3 if h % 30 == 0 else 2)
     if h % 30 == 0:
         s = names.get(h, str(h // 10)); bb = d.textbbox((0, 0), s, font=f); d.text((x - (bb[2] - bb[0]) / 2, 34), s, fill=(240, 240, 240), font=f)
-im.save(os.path.join(ART, 'sgs-compass-band.png'))
+finish(im).save(os.path.join(ART, 'sgs-compass-band.png'))
 # ---- v8 panel face (photo-matched black D panel). Texture spans y +PW..-PW (pilot's left -> right) and z_b..z_b+PH.
 # Positions (metres from the panel bottom centre, +y = pilot's left) are shared with sgs233_cockpit.py PANEL_LAYOUT.
 PW, PH = 0.31, 0.2325; TW, TH = 2048, 768; PPM = TW / (2 * PW)

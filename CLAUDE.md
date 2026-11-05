@@ -3,6 +3,20 @@
 Working notes for agents on this repo. `AGENT-LOG.md` is the running log and carries **NEEDS YOU** at the top;
 this file is the standing guidance that does not belong to any one lane.
 
+## THE RED 2-33 IS BANNED: never reintroduce it (Ty, 2026-11-04)
+
+- Ty has removed the red-and-white (red / white / cream) 2-33 three times: 2026-11-02, 11-03 and 11-04 18:35 ("delete
+  it permanently, the damn thing won't die"). Only the yellow SGS 2-33 exists: `glider-2-33-like-own-tf.glb` (default)
+  and `glider-2-33-like-own.glb` (factory yellow), on every platform. No downloaded 2-33 model, no red or white livery,
+  tint, procedural fallback or generator entry, and no picker for it.
+- `tools/FlightTests/NoRed233Tests` holds this: the iOS and Quest catalogs, livery resolution, the GLB skin, the
+  Resources folder, the procedural fallback and the factory tint. Never weaken it to make a merge pass.
+- **Old lanes bring it back.** The fix reached island-nav only on 2026-11-04 (08:10 parity merge), so every lane forked
+  before that still draws the red trainer. Building and installing such a lane puts it back on Ty's device. Merge
+  `lane/claude-island-nav` into an old lane BEFORE you build it. When merging, never take the old side of
+  `AirframeVisual.StyleFor`, `Livery.cs`, `LiveryChoice.cs`, `AirframeModels.PickOwn/Specs` or
+  `Resources/Models/glider-2-33-like/`. Re-adding the Grob Astir files is the same bug.
+
 ## QUESTIONS FOR TY go in ONE queue (Ty, 2026-11-04)
 
 - Any question/decision/approval you need from Ty: APPEND one line to the Open section of
@@ -489,6 +503,58 @@ the braces in a case pattern are literal, so nothing matched the keep branch. Co
 (`for p in before after; do for v in a b; do cp …; done; done`) rather than deleting by exclusion, and keep the source
 set elsewhere until the copy is checked.
 
+### Set the opacity people see, not the opacity of one particle
+Ty asked for less see-through smoke; 899ada84 raised each puff's alpha to 0.98 and made the puffs bigger, and Ty
+reported it disappearing faster. Per puff it WAS denser, but what anyone sees is the column — the product of every
+puff a ray crosses — and that was still governed by a 10–30 s life law nobody had measured: 0.65 coverage at 5 s,
+0.11 at 20 s, gone by 30 s, now spread over a wider and paler trail. Measure the composite (render the particles
+alone, white on black, and read the coverage across the column at several ages), set THAT as the design target,
+and derive each particle's share from its overlap (`SmokeTrail.PuffAlphaFor`). A crossfade between two particle
+sets must be done in optical depth too; crossfading alphas leaves a see-through band.
+
+### A number attributed to a tool must have come out of the tool
+Building the Grob 103's airbrakes I wrote "XFOIL's edge velocity at 0.42 c runs 1.20-1.30 V" into the builder and
+used 1.25 -- before running XFOIL for it. When I did (`DUMP`, x/c 0.428), the E603's rooftop runs 1.35-1.55 V: the
+plate's dynamic pressure was 29 % low, and it decided whether the brakes hold a 45-degree dive under VNE as the manual
+says. A full suite run was thrown away. If a comment says where a number came from, produce the number from there
+first, and print the reading beside it in the builder.
+
+Related, for anyone running XFOIL from a script: it writes its scratch files (`:00.bl`) into the CURRENT directory.
+Run it with `cwd=` a temp dir, not the worktree.
+
+### CPU GLB export preserves the winding you supply
+The Grob CPU first pass showed cockpit controls through its opaque exterior: the parametric shell's
+faces were inward, and a single-sided renderer correctly culled them. Fix winding at the source, before
+material splitting, and inspect an exterior as well as a seat-eye render. Whole closed parts can use
+signed volume; an open cockpit shell also needs an explicit outside-view check. Do not hide the error
+by making every opaque material double-sided.
+
+
+### Cockpit pair clearance does not prove containment in the airframe
+The Grob's seat/floor and low trim handle passed instrument/control pair checks but protruded through
+the fuselage. An exterior-envelope check against exported fuselage/glass triangles caught it. Check
+both neighboring parts AND the host shell; leave only deliberate mechanical mount contacts exempt.
+### A rig row turns its node about the node's origin, not about `pivot_gltf`
+`AirframeRig` sets `localRotation = rest * angle`; `pivot_gltf` is a record, never applied. Codex built the Pitts' mixture
+and cowl flap with their origin on the pivot and they worked; the fuel valve and the blue prop blade were baked at the
+model origin, so the first Unity render showed them perfectly at rest and simply gone when moved (swung about a point
+a metre away). Every assertion passed. A part that turns must have its node AT the pivot with its vertices relative
+to it (`pitts_controls_live.recentre`), and a render of the moved pose, not only the rest pose, is what catches it.
+
+### Run a script through its shebang: zsh's `path` is `$PATH`
+`zsh tools/check-parity.sh` printed `command not found: git/awk/grep` and a FAIL, because the bash script does
+`read -r path blob` and in zsh `path` is the array tied to `PATH`. Run it as `./tools/check-parity.sh` (it is bash),
+and treat any "command not found" in a checker's output as a broken run, not a verdict.
+
+
+### Other agents' prompts are in `ps` too
+A "wait until no build is running" gate written as `ps aux | grep -E "Unity|xcodebuild"` (or `pgrep -f "tools/deploy/deploy.sh"`)
+never goes idle on this machine: every `claude -p` lane has its whole prompt on its command line, and the prompts quote
+those very words. The Extra front-seat render waited 40 minutes behind nothing. Match the EXECUTABLE, anchored:
+`pgrep -f "^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity"`, `pgrep -x xcodebuild`,
+`pgrep -f "^zsh tools/deploy/deploy"`. And require a few consecutive idle polls before starting: three lanes whose gates
+all saw the same idle second started three iOS builds into the same /private/tmp/flyinggame-* at once.
+
 ### A new input can make a dormant singularity the normal case
 Savitsky's trim was the keel's slope measured ALONG THE FLOW, which goes to 90° when the water comes square across the
 keel. Over the ground that only happened for an instant, so nothing ever hit it. With a current (`WaterCurrent`) it is
@@ -496,11 +562,6 @@ how a floatplane SITS in a cross-current, and the first step went NaN (tan 90°)
 region the old code never visited — sideways flow, zero speed, a negative depth — look for divisions and angles that
 were only ever safe because the input stayed away, and state the model's own validity limit
 (`FloatHydro.PlaningMaxSideslipRad`) instead of guarding the symptom.
-
-### `tools/check-parity.sh` is a bash script: run it with bash
-Run under `zsh` it prints "command not found: git/awk/grep" and then `PARITY: FAIL`: its `read -r path` assigns zsh's
-`path` array, which IS `$PATH`. Use `bash tools/check-parity.sh --strict` (or `./tools/check-parity.sh`, which honours
-the shebang), and do not read a FAIL from a run that also printed "command not found".
 
 ### A time-varying field puts the sim clock into every initial condition
 The sea's tidal stream (`WaterCurrent`) is a function of `Atmosphere.SimTimeSec`, a process-wide clock that every
