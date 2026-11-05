@@ -6,6 +6,7 @@ set -euo pipefail
 cd "${0:A:h:h:h}"
 export EXTRA_VERIFY_RESERVATION_PID=$$
 mkdir -p build
+extra_verify_tests_rc=0
 case "${1:-all}" in
  all) ;;
  ios)
@@ -31,6 +32,7 @@ if [[ "${1:-all}" == all ]]; then
 if nice -n 5 "$HOME/.dotnet/dotnet" test tools/FlightTests --filter 'FullyQualifiedName~ExtraRearDiagonalTests|FullyQualifiedName~ExtraCanopySealTests|FullyQualifiedName~ExtraCockpitV3Tests|FullyQualifiedName~NoRed233Tests' > build/extra-tests.log 2>&1; then
  echo "Targeted tests PASS"
 else
+ extra_verify_tests_rc=$?
  echo "Targeted tests RED: inspect build/extra-tests.log; no passing gate claimed"
 fi
 wait_slot
@@ -41,3 +43,6 @@ nice -n 5 /Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Un
 fi
 wait_slot
 nice -n 5 zsh tools/deploy/deploy.sh NOINSTALL > build/extra-ios.log 2>&1
+
+# A successful export does not turn a red test run into a passing verification.
+exit "$extra_verify_tests_rc"

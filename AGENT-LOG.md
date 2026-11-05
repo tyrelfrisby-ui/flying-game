@@ -1,3 +1,29 @@
+## NEEDS YOU — EXTRA: no rear diagonals, panel follows dash, compact front IAC (Codex 2026-11-05)
+- **VISUAL REVIEW PENDING; NO MERGE / INSTALL.** Lane `lane/codex-extra-remove-diagonals`, local commits
+  `eccfb4f3` (rear diagonals + panel) and `be7b89c2` (Ty Q070 compact front IAC).
+- Renders: `~/Developer/agent-lanes/renders/cockpit-1105/codex-extra-remove-diagonals/` (rear, Q109),
+  `front-iac-small/` beneath it (new front eye + close-up, Q117). Older oversized front-card images superseded.
+- All three liveries: rear diagonal nodes/meshes/materials/binary geometry deleted; generators cannot recreate them.
+  Rear panel upper shoulders continue the dash's 110:90 bevel with 2 mm inset, top half-width 281.1 mm; lower side
+  attachments retained. No instruments, controls, eyes or physics changed.
+- Q070: FRONT paper 59.37 x 76.84 mm; backing 79.2 x 91.3 mm. All five card parts scaled to 55%, raised 25 mm,
+  kept RIGHT of the 3-gauge subpanel within its unchanged 245..355 mm vertical envelope. Rear card stays half-letter;
+  front/rear selection binding preserved, front card-slot dimensions/centre updated. No panel enlargement.
+- CPU: all 3 graphs valid; passes idempotent; all 214 other mesh nodes unchanged by card edit. Rear/front Blender
+  eyes and close-ups opened and inspected. Initial canopy seal checker PASS, strict parity PASS.
+- Post-change focused Extra checks 24/24 PASS. Selected suite: 28 pass / 1 fail vs pre-visual merge baseline
+  `23b8d72c`: 31 pass / SAME sole fail `NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs` (existing Grob103 filename match).
+  No new failing names; NoRed test unchanged. Exact final bytes restored after baseline comparison.
+- Unity CockpitEyeShots PASS 8/8, 0 error CS; rear iPhone/Quest, both junctions and compact front iPhone/Quest/close-up
+  opened and inspected. Completed editor hung in CoreShutdown -> PreloadManager::Stop after Exit(0); sampled and stopped
+  ONLY own completed editor, then resumed iOS under reserved deploy gate. Existing edit-mode Destroy cleanup messages logged.
+- iOS `2026.1105.1221` (app inputs at `fb191e4e`): ** BUILD SUCCEEDED ** (Unity export 4984 MB / 421 s, Xcode complete 12:32), NOINSTALL,
+  installed on 0 devices. Unity shot/build logs both 0 error CS. Final `check-parity.sh --strict`: PARITY OK.
+  Generated StreamingAssets copies / GraphicsSettings / version + build-number bumps restored only in this worktree.
+- Remaining: Ty's visual review Q109 / Q117. Existing NoRed233 resource-name failure remains RED on both baseline and
+  final state; never weakened. No other-lane worktrees/processes altered, no delivery merge / install / push.
+  EXTRA-REMOVE-DIAGONALS-DONE / EXTRA-FRONT-IAC-SMALL-DONE.
+
 ## NEEDS YOU — J-3 on floats: prop water strikes, the hammering noise, spray volume, the hump (Claude, 2026-11-05)
 <!-- claude-floats needs-you -->
 Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lanes/prompts/ty-floats-1105.md).
@@ -37,19 +63,8 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   installed). Nothing here is an approved gate.
 
 ## NEEDS YOU
-- **EXTRA: REAR DIAGONALS DELETED + PANEL INSIDE DASH BEVELS — RENDERS FOR TY REVIEW, NOT MERGED / INSTALLED**
-  (Codex, 2026-11-05, lane/codex-extra-remove-diagonals). Ty's 10:56 instruction supersedes Q095 repositioning.
-  Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/codex-extra-remove-diagonals/`. Question Q109.
-  - All three Extra liveries: both rear diagonal nodes, meshes, unused materials and binary geometry removed, not hidden.
-    Pass 13 no longer creates them; pass 16 compatibility entry runs removal. No matching rig/physics/contact entries.
-  - Rear panel shoulders clipped inside the existing dash's 110:90 bevel, 2 mm inset, top half-width 281.1 mm.
-    Lower wall attachments retained. Front subpanel already fits inside its dash; unchanged. No instruments or controls moved.
-  - CPU graph validation + idempotency pass on all three; other 218 mesh nodes' attributes, indices and materials unchanged.
-    Canopy seal (3 degree grid, both seats, all liveries) PASS, parity --strict PASS.
-    Blender rear/front eyes, both junction close-ups, overhead and 3/4 opened and reviewed. Unity shots/tests/iOS build pending
-    machine-wide build slot (water-fix + bend-damage already running); update below when finished. No gate marked approved.
-
-- **EXTRA 300 REAR DIAGONALS (Ty 2026-11-05 08:37: "in the same plane as the upper longerons ... they go in toward the
+- **SUPERSEDED by Ty's complete removal request (current entry above) — EXTRA 300 REAR DIAGONALS
+  (Ty 2026-11-05 08:37: "in the same plane as the upper longerons ... they go in toward the
   center") — RENDERS FOR APPROVAL, NOT MERGED, NOT INSTALLED (Claude, 2026-11-05 09:35, lane/claude-extra-cockpit-v3).
   Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/diagonals/` (rear-eye-iphone,
   rear-eye-quest, look-left/right along each tube, top-down, measured plan/side before-after). Question Q095.**

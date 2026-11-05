@@ -585,3 +585,21 @@ whose command lines contain the same words, and theirs matched mine. Every lane 
 running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
 the start of the command line so only real build processes count:
 `'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.
+
+### Reserve the whole verification workflow, including the headless tests
+A Unity-only idle poll let other lanes start their exports while the Extra's .NET tests were running.
+Keep the lane's complete verification visible to the existing deploy gates, including tests and gaps between stages;
+`tools/deploy/deploy-extra-verification.sh` does this and excludes only its own reservation PID. Leave other active
+builds visible to the gate and let their owners release them.
+
+### A completed shot tool can wait forever during Unity shutdown
+The Extra tool wrote all eight PNGs, logged PASS and called Exit(0), then waited in CoreShutdown -> PreloadManager::Stop.
+A sample distinguished completed work from an incomplete export. Preserve the logs, inspect the PNGs and sample the
+owned process before stopping it; an idle log alone is not proof of completion. The Extra verifier's guarded `ios`
+resume reuses only a completed eight-shot / zero-C#-error log and retains the deploy reservation.
+
+### Measure where a panel actually meets the wall before asserting its width
+The Extra's new test assumed its bottom 100 mm had the 391 mm half-width of the wall attachment. The unchanged original
+is 293.5 mm there; its widest attachment is at z 195 mm. All three liveries failed the new test despite unchanged
+lower geometry. Compare original and edited sections at the actual attachment stations, then copy those measured
+literals into the regression check.
