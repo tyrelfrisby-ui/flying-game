@@ -1,6 +1,7 @@
 ## NEEDS YOU
 - **WHEEL SKI SWEEP vs TY'S V_p RULE (Claude, 2026-11-04, lane/claude-wheel-hydroplane; local only, not merged, not
-  installed; iOS build: see the Log entry). Two of the rule's halves hold, one does not. Nothing approved by me.**
+  installed; iOS 2026.1104.1624 ** BUILD SUCCEEDED **, 0 error CS). Two of the rule's halves hold, one does not.
+  Nothing approved by me.**
   1. **Above V_p, every type with prop and tail clear of the water skis, and where it goes over it is load or moment.**
      The Extra and the Pitts "went over above V_p" because their V_p was wrong, not their water: your weight rule gave
      them 18 and 16 psi, a 47 in² footprint on a tyre with 28 in² of planform, i.e. a tyre flat on its rim. Fixed with
@@ -2973,6 +2974,10 @@
 - **Not done:** no cut-off at V_p for the sub-V_p skiing (NEEDS YOU 3); low prop clearances and the DC-3's 255 psi are
   config questions (NEEDS YOU 4, 5). 737 and Seminole "slowed" at 40 % power: not enough thrust against the water drag
   at that setting, not a nose-over.
+- **Build:** deploy.sh's two steps into lane-private /private/tmp/wh-ios and /private/tmp/wh-dd, started only once no
+  Unity/xcodebuild was running (waited out c172-yoke's): parity OK, Unity iOS export 0 `error CS`, xcodebuild
+  `** BUILD SUCCEEDED **`, 2026.1104.1624. Not installed. Reverted, not committed: the bundleVersion bump and the same
+  16 StreamingAssets/aircraft re-copies as the 11:30 entry.
 ### 2026-11-04 11:30 PST — Claude · lane/claude-wheel-hydroplane · float hydrodynamics spec (Ty, agent-lanes/float-hydro-spec.txt)
 - **Merged lane/claude-island-nav (b7d1a680) into this lane** (only AGENT-LOG conflicted: both sides kept). It brought
   the drawn, retractable water rudder (lane/claude-j3-water-rudder), the crash/contact-patch work and an intermediate copy
