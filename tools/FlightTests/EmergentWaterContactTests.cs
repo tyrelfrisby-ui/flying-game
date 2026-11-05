@@ -69,7 +69,7 @@ public class EmergentWaterContactTests
     }
 
     /// <summary>No code decides a crash because the surface is water: the prop's stoppage is the rotor's speed alone, and
-    /// the camera's crash view goes through <see cref="CrashEvents.OpensWaterCrashView"/>.</summary>
+    /// the camera's crash view goes through <see cref="CrashFraming.OpensCrashView"/> (a broken-off piece, land or water).</summary>
     [Fact]
     public void NoTouchRuleIsLeft()
     {
@@ -79,6 +79,6 @@ public class EmergentWaterContactTests
         Assert.DoesNotContain("if (water ||", prop);
         Assert.Contains("WaterBladeTorque(", prop);
         string cam = File.ReadAllText(Path.Combine(d.FullName, "unity", "Assets", "_Project", "Scripts", "Bridge", "ChaseCamera.cs"));
-        Assert.Contains("CrashEvents.OpensWaterCrashView(hit)", cam);
+        Assert.Contains("CrashFraming.OpensCrashView(hit)", cam);
     }
 }
