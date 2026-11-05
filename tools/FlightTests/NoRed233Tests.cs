@@ -155,9 +155,11 @@ public sealed class NoRed233Tests
     public void TheFallbacksAreYellow()
     {
         string models = Bridge("AirframeModels.cs");
-        // PickOwn: ours always, for every livery (the red trainer was the "type" livery's fallback).
+        // PickOwn: ours always, for every livery (the red trainer was the "type" livery's fallback). The list lives in
+        // Core since 2026-11-04 (LiveryChoice.OwnModelAlways), and PickOwn must still read it.
+        Assert.True(LiveryChoice.OwnModelAlways(G), "the 2-33 must always draw our own (yellow) model");
         string pick = models.Substring(models.IndexOf("static bool PickOwn", StringComparison.Ordinal), 600);
-        Assert.Matches(new Regex(@"\|\|\s*modelId == ""glider-2-33-like""\s*(//[^\n]*)?\n"), pick);
+        Assert.Contains("LiveryChoice.OwnModelAlways(modelId)", pick);
         // No downloaded 2-33 (the Grob Astir) in the downloaded-model table.
         string specs = Block(models, "public static readonly Dictionary<string, Spec> Specs");
         Assert.DoesNotMatch(new Regex(@"^\s*\{\s*""glider-2-33-like""", RegexOptions.Multiline), specs);

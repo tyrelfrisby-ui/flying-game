@@ -2620,6 +2620,8 @@ namespace FlyingGame.Bridge
             // The stock C172 remains the base geometry. Only this explicitly selected scheme repaints it.
             bool talk172 = cfg.Id == "c172-like" && _livery.Id == "talk-flying";
             if (talk172) { PaintTrainerModel(inst); _modelRepainted = true; }
+            // Instruments readable in any light, the same on the phone and in the headset (InstrumentLighting).
+            InstrumentLighting.Apply(inst);
             // The Extra (our EA300) and the Pitts (our S-2B) have their paint baked in, one GLB per livery
             // (AirframeModels.OwnSuffix): nothing to do here.
             if (cfg.Id == "glider-2-33-like")

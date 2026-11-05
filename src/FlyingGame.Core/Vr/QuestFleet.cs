@@ -70,7 +70,7 @@ namespace FlyingGame.Core.Vr
         /// <summary>Why a type with an approved eye point is NOT listed (shown in the log, so the reason travels with it).</summary>
         public static readonly IReadOnlyDictionary<string, string> HiddenBecause = new Dictionary<string, string>
         {
-            ["c172-like"] = "draws the downloaded 172, not our own interior; its eye has not been checked against that model",
+            ["c172-like"] = "draws our own 172 (since 2026-11-04) but its eye has not been checked against that model in check_eye_interiors.py",
         };
 
         /// <summary>The default for a headset when the saved aircraft is not listed: the first listed type.</summary>
