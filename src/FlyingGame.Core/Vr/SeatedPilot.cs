@@ -58,8 +58,8 @@ namespace FlyingGame.Core.Vr
         public readonly Vec3 FootL, FootR;
         public readonly double PedalTravelM;
         public readonly CanopyLatchKind Latch;
-        /// <summary>The latch's grab point at its LOCKED position (Pitts: the ball fully right; Extra: between the
-        /// two handles). For the Pitts it is relative to the REAR seat's eye: the ball is on the rear panel.</summary>
+        /// <summary>The latch's grab point at its LOCKED position, relative to the seat's eye (Pitts: the knob of that
+        /// cockpit's own black lever, pushed forward; Extra: between the two handles).</summary>
         public readonly Vec3 LatchLocked;
 
         public CockpitProxy(Vec3 stickPivot, double stickLengthM, double rollMaxDeg, double aftMaxDeg, double fwdMaxDeg,
@@ -83,12 +83,13 @@ namespace FlyingGame.Core.Vr
         {
             string id = aircraftId ?? "";
             CanopyLatchKind latch = LatchFor(id);
-            // Pitts: the ball on top of the rear panel, centre-line, fully right = locked (+x = right).
+            // Pitts: each cockpit's black lever on the LEFT canopy frame, forward-left of that pilot's head (Ty 2026-11-05;
+            // the offset is E until the model's Canopy_Latch_Lever_* nodes are bound: 0.30 left, 0.05 below, 0.20 ahead).
             // Extra: midway between the fore-aft pair of handles on the LEFT canopy frame, measured off Codex's P2c rear
             // pair (Grip_Canopy_Latch_Aft/Fwd at 0.105 / 0.195 m ahead of Eye_Rear, 0.329 left, 0.325 below); the
             // front cockpit's pair sits within 3 cm of the same offsets from Eye_Front.
-            Vec3 latchAt = latch == CanopyLatchKind.SlideBall
-                ? new Vec3(PittsCanopyLatch.TravelM * 0.5, -0.15, 0.55)
+            Vec3 latchAt = latch == CanopyLatchKind.CableLever
+                ? new Vec3(-0.30, -0.05, 0.20)
                 : new Vec3(-0.329, -0.325, 0.150);
             return new CockpitProxy(
                 stickPivot: new Vec3(0.0, -1.05, 0.42), stickLengthM: 0.55, rollMaxDeg: 18.0, aftMaxDeg: 18.0, fwdMaxDeg: 12.0,
@@ -102,7 +103,7 @@ namespace FlyingGame.Core.Vr
         public static CanopyLatchKind LatchFor(string aircraftId)
         {
             string id = aircraftId ?? "";
-            if (id.StartsWith("pitts")) return CanopyLatchKind.SlideBall;
+            if (id.StartsWith("pitts")) return CanopyLatchKind.CableLever;
             if (id.StartsWith("extra")) return CanopyLatchKind.Squeeze;
             return CanopyLatchKind.None;
         }

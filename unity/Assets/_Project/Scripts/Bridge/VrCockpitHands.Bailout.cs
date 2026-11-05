@@ -123,7 +123,7 @@ namespace FlyingGame.Bridge
             // ball latch grip's, which rides between the bows), else 0.30 m ahead of the eye (E). Extra: the model's own
             // right-sill emergency release, CanopyRelease_R / _F, on the airframe; none if the model has none.
             _jettisonNode = null;
-            bool pitts = _latchKind == CanopyLatchKind.SlideBall;
+            bool pitts = _latchKind == CanopyLatchKind.CableLever;
             if (pitts && full != null)
             {
                 _jettisonNode = Contract("Grip_Canopy_Jettison_" + full) ?? Contract("Canopy_Jettison_Knob_" + full);
@@ -198,6 +198,16 @@ namespace FlyingGame.Bridge
             CanopyDynamics c = _visual != null ? _visual.Cockpit.HandCanopy : null;
             if (c == null || c.Departed) return shut;
             return U(c.PointOnCanopy(C(shut), C(HingeShut())));
+        }
+
+        /// <summary>A point fixed to the canopy where it is NOW, taken back to where it is with the canopy shut (the
+        /// inverse of <see cref="OnCanopy"/>): a hand measured in the canopy's own frame, for a lever that rides it.</summary>
+        private Vec3 OffCanopy(Vec3 now)
+        {
+            CanopyDynamics c = _visual != null ? _visual.Cockpit.HandCanopy : null;
+            if (c == null || c.Departed) return now;
+            Vec3 h = C(HingeShut());
+            return CanopyDynamics.PointOnCanopy(now + new Vec3(0, 0, c.SlideM), h, 0.0, -c.AngleDeg);
         }
 
         /// <summary>The jettison knob / release: its node, else (Pitts) the proxy on the canopy.</summary>
