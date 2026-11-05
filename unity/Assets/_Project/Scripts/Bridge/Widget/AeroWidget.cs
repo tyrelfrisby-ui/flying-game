@@ -555,7 +555,7 @@ namespace FlyingGame.Bridge.Widget
             double xmin = double.MaxValue, xmax = double.MinValue;
             foreach (var sf in Config.Surfaces) foreach (var st in sf.Strips) { xmin = System.Math.Min(xmin, st.Pos[0] - st.Chord * 0.75); xmax = System.Math.Max(xmax, st.Pos[0] + st.Chord * 0.25); }
             LengthM = xmax > xmin ? (float)(xmax - xmin) : SpanM * 0.8f;
-            _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer);
+            _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer, alphaCapture: true);
             var ex = SmokeTrail.ExhaustsFor(Config, AircraftId, _builder.PropHubsBody(), LengthM, (float)(Config.Fuselage?.Crossflow?.BodyRadiusM ?? 0.5), out var jet);
             // A config'd exhaust is measured on the MODEL itself (owner 2026-10-12: "4 ft after the spinner … out of the belly
             // just ahead of the landing gear"): so far aft of the model's spinner tip, on its belly surface at the centreline.
