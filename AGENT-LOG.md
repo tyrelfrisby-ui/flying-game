@@ -25,7 +25,14 @@
     halos. Both removed now (the old world keeps its taxi lamps). `Editor/WorldRender.cs` has old runway-papi-*
     capture cameras (left alone). The island drew no runway lamps at all. ILS `HasGlideslope` exists on navaids
     (Navaid.cs, NavReceiver) but there was no airport flag; no VASI code anywhere.
-  - Status: <!-- airport-lighting status -->Unity batch renders + `deploy.sh NOINSTALL` gated on the build slot (busy at 11:12).
+  - Status: <!-- airport-lighting status -->**NOT rendered, NOT built.** The gate (3 idle minutes, no Unity/xcodebuild/il2cpp/deploy)
+    waited 11:12-13:12 and never opened (other lanes' deploys back to back); it hit the 2 h background limit before
+    Unity started. **Next owner**, in this worktree, when the slot is free:
+    `/tmp/airport-lighting-gate.sh` (or by hand: `Unity -batchmode -quit -projectPath unity -buildTarget iOS -executeMethod
+    FlyingGame.EditorTools.AirportLightingShots.Render`, then `zsh tools/deploy/deploy.sh NOINSTALL`). The Unity side
+    (AirportLights.cs, AirportLightingShots.cs) has never been compiled: expect to fix `error CS`. LOOK at the renders
+    (lens winding, PAPI colours vs cameras.txt, night halos) before showing Ty. Restore the ConfigSync StreamingAssets
+    mirrors and the bundleVersion bump afterwards; do not commit them.
   - Not an approved gate.
 
 ## NEEDS YOU
