@@ -296,6 +296,15 @@ public sealed class AirfoilTableData
     public double[] Cl { get; set; } = System.Array.Empty<double>();
     public double[] Cd { get; set; } = System.Array.Empty<double>();
     public double[] Cm { get; set; } = System.Array.Empty<double>();
+
+    /// <summary>REYNOLDS FAMILY (optional; Grob G 103, 2026-11-01). Tables that are the same section measured (or run
+    /// through XFOIL) at different chord Reynolds numbers share a <see cref="ReynoldsFamily"/> name and each carries its
+    /// own <see cref="ReynoldsNumber"/>. A strip whose table belongs to a family is flown on the family, interpolated in
+    /// log Re at the strip's own Reynolds number, V c / nu -- so a sailplane's profile drag falls as it flies faster and
+    /// its tip strips (short chord) have the drag and CLmax of their own Re, as the real wing does. Empty = a single
+    /// table, which is every type before this one.</summary>
+    public string ReynoldsFamily { get; set; } = "";
+    public double ReynoldsNumber { get; set; }
 }
 
 /// <summary>
@@ -443,6 +452,43 @@ public sealed class SpoilerConfig
     /// <summary>Handle position at which that brake is full on.</summary>
     public double WheelBrakeFullSpoiler { get; set; } = 1.0;
 
+    /// <summary>PHYSICAL AIRBRAKES (Grob G 103, 2026-11-01). With <see cref="DragOnly"/> false and a plate height and a
+    /// span given, the brakes act on the wing strips they actually sit on, instead of as one flat-plate area hung on
+    /// the aeroplane: the strips inside [<see cref="BrakeSpanInnerM"/>, <see cref="BrakeSpanOuterM"/>] (|y|, each side)
+    /// lose lift and gain the plate's drag. Two physical terms, nothing fitted:
+    ///  - LIFT. A plate standing out of the upper surface at x_b = <see cref="BrakeChordFraction"/> of the chord
+    ///    separates the flow behind it, and the upper surface aft of it sits at the base pressure of the wake: the
+    ///    section's circulation is what the chord AHEAD of the plate can carry, so its lift falls to x_b of the
+    ///    clean value (the Kutta point moves forward to the plate). At part deflection the loss is in proportion.
+    ///  - DRAG. The plate is a flat plate normal to the flow: CD 1.2 on its own frontal area (Hoerner, Fluid-Dynamic
+    ///    Drag ch. 3, a plate of aspect ratio 5-10 -- the brake's span over twice its height, the wing being its
+    ///    reflection plane), in the local dynamic pressure over the upper surface at x_b, (Ue/V)^2 q, Ue/V being
+    ///    <see cref="BrakeLocalVelocityRatio"/> from the section's own pressure distribution.
+    /// Because each strip's lift is lost where it really is, the spanwise loading dips over the brake span, the rest of
+    /// the wing flies at a higher angle to make it up, and the induced drag the strips already carry rises with it.
+    /// <see cref="PlateAreaM2"/> is not used.</summary>
+    public double BrakeSpanInnerM { get; set; }
+    public double BrakeSpanOuterM { get; set; }
+    /// <summary>Chordwise position of the brake plate, fraction of the local chord from the leading edge.</summary>
+    public double BrakeChordFraction { get; set; } = 0.5;
+    /// <summary>Plate height at full extension, m.</summary>
+    public double BrakeHeightM { get; set; }
+    /// <summary>Edge velocity over the upper surface at the plate, as a fraction of the free stream.</summary>
+    public double BrakeLocalVelocityRatio { get; set; } = 1.0;
+    /// <summary>Flat plate normal to the flow, aspect ratio 5-10 (Hoerner).</summary>
+    public const double BrakePlateCd = 1.2;
+
+    /// <summary>True when the brakes are modelled on the wing strips (see <see cref="BrakeSpanInnerM"/>).</summary>
+    public bool Physical => !DragOnly && BrakeHeightM > 0.0 && BrakeSpanOuterM > BrakeSpanInnerM;
+
+    /// <summary>The fraction of a strip of this width, centred at |y|, that lies inside the brake span.</summary>
+    public double SpanOverlap(double absY, double width)
+    {
+        if (!Physical || width <= 0.0) return 0.0;
+        double lo = Math.Max(absY - 0.5 * width, BrakeSpanInnerM), hi = Math.Min(absY + 0.5 * width, BrakeSpanOuterM);
+        return hi > lo ? (hi - lo) / width : 0.0;
+    }
+
     /// <summary>The wheel brake the handle itself is applying at this deflection, 0..1.</summary>
     public double BrakeFromHandle(double spoilerFraction)
     {
@@ -573,6 +619,11 @@ public sealed class SmokeConfig
     public double PipeDiameterIn { get; set; } = 4;
     /// <summary>The exhaust gas temperature at the pipe's exit (K).</summary>
     public double ExhaustTempK { get; set; } = 900;
+    /// <summary>Cylinders feeding the smoke pipe's engine: a four-stroke's pipe sees cylinders / 2 exhaust pulses per
+    /// revolution (<see cref="Aero.ExhaustPulse"/>). 6 when not given (the AEIO-540s).</summary>
+    public int Cylinders { get; set; } = 6;
+    /// <summary>Compression ratio, for the part-throttle residual gas (<see cref="Aero.ExhaustJet.ExitVelocity(double, double, double, double, double, double, double, double, double)"/>).</summary>
+    public double CompressionRatio { get; set; } = 8.7;
 }
 
 public sealed class EngineMount
@@ -775,9 +826,13 @@ public sealed class GearConfig
     public double MaxSteerRad { get; set; } = 0.5;    // steering authority when steerable
     public double TireMu { get; set; } = 0.8;         // dry tarmac friction (limits tire force)
     public double CorneringStiffnessN { get; set; } = 6000; // side force per rad slip (before mu limit)
-    public double RollResistN { get; set; } = 40;     // rolling resistance at full load
     public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
-    public double TireRadiusM { get; set; }           // visual tire size (0 = auto from fuselage length); 0.445 = 35" bushwheel
+    public double TireRadiusM { get; set; }           // tyre's free radius, the visual and the rolling one (0 = auto from fuselage length); 0.445 = 35" bushwheel
+    // The wheel's SPIN (2026-11-04, WheelSpin): what has to be spun up from rest at touchdown and stopped by the brake.
+    // WheelMassKg is the ROTATING mass of one wheel — tyre, tube, wheel halves and brake disc (the caliper does not turn);
+    // 0 = estimated from the tyre size (WheelSpin.MassOf). WheelInertiaKgM2 overrides the I = 0.65·m·r² it implies.
+    public double WheelMassKg { get; set; }
+    public double WheelInertiaKgM2 { get; set; }
     // Tyre pressure (psi), which is what decides when a wheel hydroplanes: V_p (kt) = 9√p. 0 = estimate it
     // from the tyre's size and the aeroplane's weight (WheelHydro.TirePressurePsi).
     public double TirePressurePsi { get; set; }
@@ -848,4 +903,94 @@ public sealed class LimitsConfig
     /// this is deliberately more forgiving than the certification basis, so a pilot who overstresses it gets a band
     /// of noise to react in. Optional, schema-safe default.</summary>
     public double UltimateFactor { get; set; } = 2.0;
+
+    // ---- The rest of a sailplane's flight envelope (Grob G 103, 2026-11-01). All optional: a type that sets none of
+    // ---- these has exactly the fixed GMax/GMin it always had.
+
+    /// <summary>VA, the manoeuvring speed (IAS, m/s) up to which <see cref="GMax"/>/<see cref="GMin"/> hold. 0 = they hold
+    /// all the way to VNE.</summary>
+    public double VaMs { get; set; }
+    /// <summary>Limit load factors at VNE; 0 = the same as at VA. Between VA and VNE the limit is the straight line a
+    /// flight manual's two quoted points imply (CS 22.333's flight envelope, A to D and G to E).</summary>
+    public double GMaxAtVne { get; set; }
+    public double GMinAtVne { get; set; }
+    /// <summary>VNE (IAS, m/s) against pressure altitude (m), ascending rows [altitude, vne]; empty = <see cref="VneMs"/>
+    /// at every height. Sailplane VNE falls with altitude to keep the TRUE airspeed below the flutter speed.</summary>
+    public double[][] VneByAltitude { get; set; } = Array.Empty<double[]>();
+    /// <summary>The certificated maximum mass of the NON-LIFTING PARTS -- fuselage, tail, occupants, ballast: everything
+    /// the wings carry. Wing-root bending is n x that weight, so the limit load factors hold only up to it, and above it
+    /// the same bending moment arrives at a proportionally lower n. 0 = not stated.</summary>
+    public double MaxNonLiftingMassKg { get; set; }
+    /// <summary>The mass of the lifting parts (the wings), to subtract from the total to get the non-lifting mass.</summary>
+    public double LiftingMassKg { get; set; }
+    /// <summary>Limit load factors with the airbrakes out (CS 22.345: -1.5 to +3.5). 0/0 = no separate limit.</summary>
+    public double AirbrakeGMax { get; set; }
+    public double AirbrakeGMin { get; set; }
+    /// <summary>Other certificated categories this airframe may be flown in (e.g. "utility" beside the "acrobatic"
+    /// figures at the top level). <see cref="Category"/> picks one; empty = the top-level figures.</summary>
+    public List<LoadCategoryConfig> Categories { get; set; } = new();
+    public string Category { get; set; } = "";
+
+    /// <summary>The category being flown: the named one, or the top-level figures.</summary>
+    public LoadCategoryConfig Active()
+    {
+        if (!string.IsNullOrEmpty(Category))
+            foreach (LoadCategoryConfig c in Categories)
+                if (string.Equals(c.Name, Category, StringComparison.OrdinalIgnoreCase)) return c;
+        return new LoadCategoryConfig { Name = "", VaMs = VaMs, GMax = GMax, GMin = GMin, GMaxAtVne = GMaxAtVne, GMinAtVne = GMinAtVne };
+    }
+
+    /// <summary>VNE (IAS, m/s) at this pressure altitude.</summary>
+    public double VneAt(double altitudeM)
+    {
+        if (VneByAltitude == null || VneByAltitude.Length == 0) return VneMs;
+        if (altitudeM <= VneByAltitude[0][0]) return VneByAltitude[0][1];
+        for (int i = 0; i < VneByAltitude.Length - 1; i++)
+        {
+            double[] a = VneByAltitude[i], b = VneByAltitude[i + 1];
+            if (altitudeM <= b[0]) return a[1] + (b[1] - a[1]) * (altitudeM - a[0]) / (b[0] - a[0]);
+        }
+        return VneByAltitude[^1][1];
+    }
+
+    /// <summary>How much of the limit load factor the wings can give at this total mass: 1 up to the certificated
+    /// non-lifting mass, MaxNonLifting / (mass - wings) above it (the same root bending moment).</summary>
+    public double NonLiftingFactor(double massKg)
+    {
+        if (MaxNonLiftingMassKg <= 0.0) return 1.0;
+        double nonLifting = massKg - LiftingMassKg;
+        return nonLifting > MaxNonLiftingMassKg ? MaxNonLiftingMassKg / nonLifting : 1.0;
+    }
+
+    /// <summary>The limit load factors (positive, negative) at this indicated airspeed, airbrake deflection and total
+    /// mass: the active category's envelope, the airbrake envelope when they are out, and the wing-bending mass limit.</summary>
+    public (double Pos, double Neg) LimitAt(double iasMs, double spoilerFraction, double massKg)
+    {
+        LoadCategoryConfig c = Active();
+        double pos = c.GMax, neg = c.GMin;
+        if (c.VaMs > 0.0 && VneMs > c.VaMs && iasMs > c.VaMs)
+        {
+            double t = Math.Clamp((iasMs - c.VaMs) / (VneMs - c.VaMs), 0.0, 1.0);
+            pos += t * ((c.GMaxAtVne > 0.0 ? c.GMaxAtVne : c.GMax) - c.GMax);
+            neg += t * ((c.GMinAtVne < 0.0 ? c.GMinAtVne : c.GMin) - c.GMin);
+        }
+        if (spoilerFraction > 0.02 && AirbrakeGMax > 0.0)
+        {
+            pos = Math.Min(pos, AirbrakeGMax);
+            neg = Math.Max(neg, AirbrakeGMin);
+        }
+        double f = NonLiftingFactor(massKg);
+        return (pos * f, neg * f);
+    }
+}
+
+/// <summary>One certificated category's manoeuvring envelope (see <see cref="LimitsConfig.Categories"/>).</summary>
+public sealed class LoadCategoryConfig
+{
+    public string Name { get; set; } = "";
+    public double VaMs { get; set; }
+    public double GMax { get; set; }
+    public double GMin { get; set; }
+    public double GMaxAtVne { get; set; }
+    public double GMinAtVne { get; set; }
 }

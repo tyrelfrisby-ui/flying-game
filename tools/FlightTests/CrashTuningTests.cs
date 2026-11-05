@@ -34,19 +34,21 @@ public class CrashTuningTests : IDisposable
     [Fact]
     public void SlidingCoefficientsAreMetalOnGround()
     {
-        // Literals: metal on asphalt 0.55, gravel 0.50, dry grass 0.35, the island's green pasture (Rough) 0.45, snow 0.10.
-        Assert.Equal(0.55, AirframeContact.SlidingMu(WorldTerrain.Surface.Paved));
-        Assert.Equal(0.50, AirframeContact.SlidingMu(WorldTerrain.Surface.Gravel));
-        Assert.Equal(0.35, AirframeContact.SlidingMu(WorldTerrain.Surface.Grass));
-        Assert.Equal(0.45, AirframeContact.SlidingMu(WorldTerrain.Surface.Rough));
-        Assert.Equal(0.10, AirframeContact.SlidingMu(WorldTerrain.Surface.Snow));
+        // Literals (wreck table, Ty 2026-11-04 18:31 "slides too far"; AirframeContact.SlidingMu): torn structure on
+        // asphalt 0.60, gravel 0.75, grass 0.65, pasture (Rough) 0.75, snow 0.40. The float keel keeps its own table.
+        Assert.Equal(0.60, AirframeContact.SlidingMu(WorldTerrain.Surface.Paved));
+        Assert.Equal(0.75, AirframeContact.SlidingMu(WorldTerrain.Surface.Gravel));
+        Assert.Equal(0.65, AirframeContact.SlidingMu(WorldTerrain.Surface.Grass));
+        Assert.Equal(0.75, AirframeContact.SlidingMu(WorldTerrain.Surface.Rough));
+        Assert.Equal(0.40, AirframeContact.SlidingMu(WorldTerrain.Surface.Snow));
+        Assert.Equal(0.35, WorldTerrain.KeelSlidingCoefficient(WorldTerrain.Surface.Grass));   // floats unchanged
     }
 
     /// <summary>A Pitts fuselage with its wings, gear and propeller gone, put down level at 60 kt (30.87 m/s): Coulomb says
-    /// it slides v²/(2μg) — 138.8 m on grass (μ 0.35), 88.3 m on asphalt (0.55). Its own air drag shortens that a little.</summary>
+    /// it slides v²/(2μg) — 74.7 m on grass (μ 0.65), 80.9 m on asphalt (0.60). Its own air drag shortens that a little.</summary>
     [Theory]
-    [InlineData(WorldTerrain.Surface.Grass, 138.8)]
-    [InlineData(WorldTerrain.Surface.Paved, 88.3)]
+    [InlineData(WorldTerrain.Surface.Grass, 74.7)]
+    [InlineData(WorldTerrain.Surface.Paved, 80.9)]
     public void ASixtyKnotSlideGoesAsFarAsCoulombSays(WorldTerrain.Surface surface, double coulombM)
     {
         WorldTerrain.SurfaceOverride = surface;
@@ -77,7 +79,7 @@ public class CrashTuningTests : IDisposable
     }
 
     /// <summary>A wreck piece (a 500 kg engine-sized block) slides on the SURFACE it is on: on grass at 60 kt it goes
-    /// roughly v²/(2·0.35·g) = 138.8 m, less its air drag. With the old μ 0.7 everywhere it stopped in under 69.4 m.</summary>
+    /// roughly v²/(2·0.65·g) = 74.7 m, less its air drag (the keel μ 0.35 it had until 2026-11-04 18:31 gave 138.8 m).</summary>
     [Fact]
     public void AWreckPieceSlidesOnItsOwnSurfacesFriction()
     {
@@ -87,7 +89,7 @@ public class CrashTuningTests : IDisposable
         for (int i = 0; i < 6000 && !(p.Phase == WreckPhase.OnLand && p.WorldVelocity.Length < 0.05); i++) w.StepOnce();
         double dist = Horizontal(p.State.Position, p0);
         _o.WriteLine($"block slid {dist:F1} m, phase {p.Phase}, asleep {p.Asleep}");
-        Assert.InRange(dist, 115.0, 140.0);
+        Assert.InRange(dist, 62.0, 76.0);
     }
 
     /// <summary>Restitution 0.2 above 1 m/s: a block arriving flat at 5 m/s leaves at 1–1.3 m/s (each corner bounces at 0.2 of
@@ -160,7 +162,7 @@ public class CrashTuningTests : IDisposable
             "pitts-s2b-like", "stearman-pt17-like",
         };
         var wood = new SortedSet<string> { "hughes-h4-like", "jn4-jenny-like" };
-        var composite = new SortedSet<string> { "cirrus-sr22-like", "glasair3-like", "glider-eb29r-like", "glider-swift-s1-like", "paraglider-en-b-like", "target-drone-like" };
+        var composite = new SortedSet<string> { "cirrus-sr22-like", "glasair3-like", "glider-eb29r-like", "glider-grob103-acro-like", "glider-swift-s1-like", "paraglider-en-b-like", "target-drone-like" };
         string dir = Path.Combine(AppContext.BaseDirectory, "TestData");
         int n = 0;
         foreach (string f in Directory.GetFiles(Path.GetFullPath(Path.Combine(dir, "..", "..", "..", "..", "..", "..", "configs", "aircraft")), "*.json"))
@@ -175,7 +177,7 @@ public class CrashTuningTests : IDisposable
             Assert.True(want == t, $"{id}: {t}, expected {want}");
             n++;
         }
-        Assert.Equal(34, n);
+        Assert.Equal(35, n);
     }
 
     /// <summary>The crush law per type: δ = 0.15·(v²/v_b² − 1); one arrival breaks a section at v_b·√(1 + capacity/0.15).</summary>

@@ -42,6 +42,16 @@ def check(path):
    else:v=builder(world[idx[name]][:3,3])
    # Sweep bound (E): +/- 170mm stick fore/aft, +/- 130mm lateral; throttle 110mm fore/aft.
    extent=np.array((.17,.13,.025)) if label=='Stick' else np.array((.11,.01,.03))
+   if label=='Throttle' and c.get('placement','').startswith('extra_front_seat: vernier'):
+    # Ty 2026-11-04 19:13: the verniers sit BESIDE the throttle, outboard of it. The lever only swings in its own
+    # vertical plane and the knob only slides fore/aft, so the clearance is the lateral gap between the knob's
+    # outline and the grip's (measured from the meshes), with a 10 mm minimum for a gloved hand.
+    ky=[builder(q)[1] for pr in g.doc['meshes'][n['mesh']]['primitives'] for q in g.array(pr['attributes']['POSITION'])@world[idx[c['node']]][:3,:3].T+world[idx[c['node']]][:3,3]]
+    tn='Throttle_'+seat[0];ti=idx[tn]
+    ty=[builder(q)[1] for pr in g.doc['meshes'][nodes[tn]['mesh']]['primitives'] for q in g.array(pr['attributes']['POSITION'])@world[ti][:3,:3].T+world[ti][:3,3]]
+    gap=min(ky)-max(ty)-.010
+    obstacles.append((label+'_beside',centre+np.array((gap+radius,0,0)),0))
+    continue
    delta=np.maximum(np.abs(centre-v)-extent,0)
    gap=np.linalg.norm(delta)-radius-.018
    obstacles.append((label+'_sweep',centre+np.array((gap+radius,0,0)),0))

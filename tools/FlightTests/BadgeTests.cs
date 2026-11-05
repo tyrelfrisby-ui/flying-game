@@ -6,7 +6,7 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 /// <summary>
-/// The badge system: the rating ladder, the awards that are not licences, the leaderboard score, the air a
+/// The badge system: the level ladder, the awards that are not levels, the leaderboard score, the air a
 /// scored contest is locked into, and the privacy line that runs through all of it.
 ///
 /// The owner's brief, across four messages on 2026-10-18, comes down to five rules, and each one gets a
@@ -20,11 +20,33 @@ public class BadgeTests
 
     private static readonly RatingBook Book = RatingBook.Default();
 
-    /// <summary>Fly every lesson a step asks for, at a given score.</summary>
-    private static void FlyAll(PilotLog log, RatingClass cls, CertLevel level, double score)
+    private const string Glider = "glider-2-33-like", Cub = "j3-cub-like", Decathlon = "decathlon-8kcab-like",
+                         GreatLakes = "great-lakes-like", AcroGlider = "glider-grob103-acro-like", C172 = "c172-like";
+
+    /// <summary>Fly a list of lessons in one aeroplane, at a given score.</summary>
+    private static void Fly(PilotLog log, string aircraft, RatingClass cls, string[] lessons, double score)
     {
-        RatingStep step = Book.For(cls, level)!;
-        foreach (string lesson in step.Lessons) log.Record(cls, lesson, score);
+        foreach (string lesson in lessons) log.Record(aircraft, cls, lesson, score);
+    }
+
+    /// <summary>Fly the ladder from the bottom up to and including a stage, every lesson at the same score.</summary>
+    internal static PilotLog Through(string stage, double score = 99, string pilotIn = Decathlon)
+    {
+        var log = new PilotLog();
+        string[] order = { RatingBook.GliderSolo, RatingBook.CubSolo, RatingBook.PilotStage, RatingBook.AerobaticGlider,
+                           RatingBook.InstrumentStage, RatingBook.CommercialStage, RatingBook.InstructorStage };
+        foreach (string id in order)
+        {
+            Stage st = Book.Stage(id)!;
+            if (id == RatingBook.GliderSolo) Fly(log, Glider, RatingClass.Glider, st.Lessons, score);
+            else if (id == RatingBook.CubSolo) Fly(log, Cub, RatingClass.Asel, st.Lessons, score);
+            else if (id == RatingBook.PilotStage) Fly(log, pilotIn, RatingClass.Asel, st.Lessons, score);
+            // The aerobatic glider stage is flown in the Grob G 103 C Twin III Acro (built 2026-11-01, re-based 2026-11-04).
+            else if (id == RatingBook.AerobaticGlider) Fly(log, AcroGlider, RatingClass.Glider, st.Lessons, score);
+            else Fly(log, pilotIn, RatingClass.Asel, st.Lessons, score);
+            if (id == stage) break;
+        }
+        return log;
     }
 
     // ---------------------------------------------------------------- the ladder
@@ -33,65 +55,189 @@ public class BadgeTests
     public void FlyingSomethingMakesYouAPreSoloStudentAndNothingMore()
     {
         var log = new PilotLog();
-        log.Record(RatingClass.Asel, "Straight", 95);
-        var held = RatingResolver.Resolve(log, Book);
-        _o.WriteLine(Certificate.Describe(held));
-        Assert.Equal(CertLevel.StudentPreSolo, held[RatingClass.Asel]);
-        Assert.Equal("ASEL STUDENT", Certificate.ShortBadge(held));
-        // And only in that class: nothing flown in a glider, no glider badge.
-        Assert.False(held.ContainsKey(RatingClass.Glider));
+        log.Record(C172, RatingClass.Asel, "Straight", 95);
+        PilotStanding s = RatingResolver.Resolve(log, Book);
+        _o.WriteLine(Certificate.Describe(s));
+        Assert.Equal(CertLevel.StudentPreSolo, s.Level);
+        Assert.Equal("STUDENT", Certificate.ShortBadge(s));
+        Assert.Equal("Student pilot, pre-solo", Certificate.Describe(s));
+        Assert.Empty(s.Stages);
+        Assert.Empty(s.Classes);
     }
 
     [Fact]
     public void YouCannotSkipARung()
     {
-        // Fly the FULL syllabus to an ATP standard but leave ONE pre-solo lesson unflown: the ladder has a
-        // missing rung, so there is no certificate above it however well everything else went.
+        // The whole syllabus at 99 % in the Decathlon, with no glider solo and no Cub solo behind it: the
+        // ladder has missing rungs, so it is worth nothing above a pre-solo student however well it went.
         var log = new PilotLog();
-        RatingStep atp = Book.For(RatingClass.Asel, CertLevel.Atp)!;
-        foreach (string lesson in atp.Lessons)
-            if (lesson != "LandingRudder") log.Record(RatingClass.Asel, lesson, 99);
-        var held = RatingResolver.Resolve(log, Book);
-        _o.WriteLine($"everything but one landing lesson, at 99 %: {Certificate.Describe(held)}");
-        Assert.Equal(CertLevel.StudentPreSolo, held[RatingClass.Asel]);
+        Fly(log, Decathlon, RatingClass.Asel, RatingBook.Full, 99);
+        PilotStanding s = RatingResolver.Resolve(log, Book);
+        _o.WriteLine($"Decathlon only, at 99 %: {Certificate.Describe(s)}");
+        Assert.Equal(CertLevel.StudentPreSolo, s.Level);
+        Assert.DoesNotContain(RatingBook.PilotStage, s.Stages);
 
-        // Fly that one and the whole ladder arrives at once, up to the standard actually flown. (A score can
-        // only ever go UP — the log keeps the best — so the way to test a missing rung is to leave it out,
-        // not to fly it badly afterwards.)
-        log.Record(RatingClass.Asel, "LandingRudder", 99);
-        held = RatingResolver.Resolve(log, Book);
-        _o.WriteLine($"with it flown to 99 %: {Certificate.Describe(held)}");
-        Assert.Equal(CertLevel.Atp, held[RatingClass.Asel]);
+        // Glider solo: Student solo. Still no Pilot — the Cub solo is in between.
+        Fly(log, Glider, RatingClass.Glider, RatingBook.GliderPreSolo, 99);
+        s = RatingResolver.Resolve(log, Book);
+        _o.WriteLine($"+ glider solo: {Certificate.Describe(s)}");
+        Assert.Equal(CertLevel.StudentSolo, s.Level);
+        Assert.Equal(new[] { RatingBook.GliderSolo }, s.Stages);
+
+        // And the Cub solo, which makes the Decathlon flying already in the log count all at once.
+        Fly(log, Cub, RatingClass.Asel, RatingBook.PreSolo, 99);
+        s = RatingResolver.Resolve(log, Book);
+        _o.WriteLine($"+ Cub solo: {Certificate.Describe(s)}");
+        Assert.Equal(CertLevel.Pilot, s.Level);
+        Assert.Equal(new[] { RatingBook.GliderSolo, RatingBook.CubSolo, RatingBook.PilotStage }, s.Stages);
+    }
+
+    [Fact]
+    public void TheCubSoloHasToBeFlownInTheCubAndTheGliderSoloInTheTwoThirtyThree()
+    {
+        // The same lessons in the wrong aeroplanes: a 172 is not a Cub and the Swift is not a 2-33.
+        var log = new PilotLog();
+        Fly(log, "glider-swift-s1-like", RatingClass.Glider, RatingBook.GliderPreSolo, 99);
+        Fly(log, C172, RatingClass.Asel, RatingBook.PreSolo, 99);
+        Assert.Equal(CertLevel.StudentPreSolo, RatingResolver.Resolve(log, Book).Level);
+        Fly(log, Glider, RatingClass.Glider, RatingBook.GliderPreSolo, 99);
+        Assert.Equal(new[] { RatingBook.GliderSolo }, RatingResolver.Resolve(log, Book).Stages);
+    }
+
+    [Theory]
+    [InlineData("decathlon-8kcab-like")]
+    [InlineData("great-lakes-like")]
+    public void ThePilotStageIsTheDecathlonOrTheGreatLakesAndThePlayersChoiceIsKept(string choice)
+    {
+        PilotStanding s = RatingResolver.Resolve(Through(RatingBook.PilotStage, 80, choice), Book);
+        _o.WriteLine($"{choice}: {Certificate.Describe(s)}, flown in {s.PilotAircraft}");
+        Assert.Equal(CertLevel.Pilot, s.Level);
+        Assert.Equal(choice, s.PilotAircraft);
+        // Anything else is not the choice on offer.
+        PilotStanding other = RatingResolver.Resolve(Through(RatingBook.PilotStage, 80, "extra-300-like"), Book);
+        Assert.Equal(CertLevel.StudentSolo, other.Level);
+        Assert.Null(other.PilotAircraft);
+    }
+
+    [Fact]
+    public void EveryLessonOfAStageHasToBeFlownInTheSameAeroplane()
+    {
+        // Half the syllabus in the Decathlon and the other half in the Great Lakes is not a Pilot stage in either.
+        PilotLog log = Through(RatingBook.CubSolo, 99);
+        string[] full = RatingBook.Full;
+        Fly(log, Decathlon, RatingClass.Asel, full.Take(full.Length / 2).ToArray(), 99);
+        Fly(log, GreatLakes, RatingClass.Asel, full.Skip(full.Length / 2).ToArray(), 99);
+        Assert.Equal(CertLevel.StudentSolo, RatingResolver.Resolve(log, Book).Level);
     }
 
     [Fact]
     public void TheSameLessonsToATighterStandardIsWhatTheLadderIs()
     {
-        // 78 % is a private pilot, 88 % is a commercial, 93 % is an ATP — the same manoeuvres each time.
-        foreach (var (score, expect) in new[] { (72.0, CertLevel.StudentSolo), (80.0, CertLevel.Private),
-                                               (90.0, CertLevel.Commercial), (95.0, CertLevel.Atp) })
+        // 70 % solos, 78 % is Pilot, 83 % is Blind Flying, 88 % Commercial, 93 % Flight Instructor — the same
+        // manoeuvres each time. (Via the aerobatic glider stage, flown in the Grob 103 Twin III Acro.)
+        foreach (var (score, expect) in new[] { (72.0, CertLevel.StudentSolo), (80.0, CertLevel.Pilot),
+                                               (85.0, CertLevel.Instrument), (90.0, CertLevel.Commercial),
+                                               (95.0, CertLevel.FlightInstructor) })
         {
-            var log = new PilotLog();
-            FlyAll(log, RatingClass.Asel, CertLevel.Atp, score);
-            var held = RatingResolver.Resolve(log, Book);
-            _o.WriteLine($"  everything at {score:F0} % -> {Certificate.Describe(held)}");
-            Assert.Equal(expect, held[RatingClass.Asel]);
+            PilotStanding s = RatingResolver.Resolve(Through(RatingBook.InstructorStage, score), Book);
+            _o.WriteLine($"  everything at {score:F0} % -> {Certificate.Describe(s)}");
+            Assert.Equal(expect, s.Level);
         }
+    }
+
+    [Fact]
+    public void OnThisBuildTheLadderContinuesPastPilotViaTheGrob()
+    {
+        // Until 2026-11-01 the ladder stopped at Pilot: Blind Flying is gated behind the aerobatic glider stage and
+        // both of its aeroplanes were placeholders. The Grob 103 Twin III Acro is built now, so the stage is flyable,
+        // and passing it in the Grob is what opens Blind Flying. The Swift S-1 stands in beside it (2026-11-04).
+        Stage acro = Book.Stage(RatingBook.AerobaticGlider)!;
+        Assert.Equal(new[] { "glider-grob103-acro-like", "glider-dg-acro-like", "glider-swift-s1-like" }, acro.Aircraft);
+        Assert.True(RatingResolver.Flyable(acro));
+        Assert.True(Hangar.IsPickable("glider-grob103-acro-like"));
+        Assert.False(Hangar.IsPickable("glider-dg-acro-like"));    // the DG is still a placeholder
+
+        // Through Pilot at 80 %. The EB29R is a glider but not an aerobatic one: the glider syllabus at 99 % in it
+        // still leaves the aerobatic glider stage next.
+        PilotLog log = Through(RatingBook.PilotStage, 80);
+        Fly(log, "glider-eb29r-like", RatingClass.Glider, RatingBook.GliderFull, 99);
+        Assert.Equal(CertLevel.Pilot, RatingResolver.Resolve(log, Book).Level);
+        Assert.Equal(new[] { RatingBook.AerobaticGlider }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+
+        // The same syllabus flown in the Grob to the stage's 78 % passes it, and the next rung is Blind Flying (83 %).
+        Fly(log, AcroGlider, RatingClass.Glider, RatingBook.GliderFull, 80);
+        PilotStanding s = RatingResolver.Resolve(log, Book);
+        _o.WriteLine(Certificate.Describe(s));
+        Assert.Equal(CertLevel.Pilot, s.Level);    // the aerobatic glider stage is a gate, it grants no level itself
+        Assert.Equal(new[] { RatingBook.InstrumentStage }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+    }
+
+    /// <summary>Owner, 2026-11-04 16:05 PT: "the Swift S-1 counts as a stand-in aerobatic glider so Blind Flying is
+    /// reachable". The aerobatic glider syllabus flown in the Swift passes the stage, and with the glider solo stage
+    /// already behind the player, Blind Flying is the next rung and is reached by flying it.</summary>
+    [Fact]
+    public void TheSwiftStandsInForTheAerobaticGliderAndOpensBlindFlying()
+    {
+        PilotLog log = Through(RatingBook.PilotStage, 80);
+        Assert.Equal(new[] { RatingBook.AerobaticGlider }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+
+        // Under the stage's 78 % in the Swift: not yet.
+        Fly(log, "glider-swift-s1-like", RatingClass.Glider, RatingBook.GliderFull, 77);
+        Assert.Equal(new[] { RatingBook.AerobaticGlider }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+
+        // At 78 % it passes; both of Blind Flying's gates (glider solo, aerobatic glider) are now behind the player.
+        Fly(log, "glider-swift-s1-like", RatingClass.Glider, RatingBook.GliderFull, 78);
+        Stage inst = Book.Stage(RatingBook.InstrumentStage)!;
+        Assert.Equal(new[] { RatingBook.GliderSolo, RatingBook.AerobaticGlider }, inst.Requires);
+        Assert.Equal(new[] { RatingBook.InstrumentStage }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+        Assert.Equal(CertLevel.Pilot, RatingResolver.Resolve(log, Book).Level);
+
+        // And Blind Flying is reachable: its syllabus at 85 % in a powered aeroplane gives it.
+        Fly(log, Decathlon, RatingClass.Asel, inst.Lessons, 85);
+        PilotStanding s = RatingResolver.Resolve(log, Book);
+        _o.WriteLine(Certificate.Describe(s));
+        Assert.Equal(CertLevel.Instrument, s.Level);
+        Assert.Equal("Blind Flying", Certificate.LevelName(s.Level));
+    }
+
+    [Fact]
+    public void BlindFlyingNeedsBothTheGliderAndTheAerobaticGliderStages()
+    {
+        Stage inst = Book.Stage(RatingBook.InstrumentStage)!;
+        Assert.Equal(new[] { RatingBook.GliderSolo, RatingBook.AerobaticGlider }, inst.Requires);
+        Assert.Equal(CertLevel.Instrument, inst.Grants);
+        Assert.Equal("Blind Flying", Certificate.LevelName(CertLevel.Instrument));
+        Assert.Equal("Blind Flying", inst.Title);
+        // Flown to standard, with the aerobatic glider: Blind Flying.
+        Assert.Equal(CertLevel.Instrument, RatingResolver.Resolve(Through(RatingBook.InstrumentStage, 85), Book).Level);
+    }
+
+    [Fact]
+    public void AFlightInTheRetired737CountsForNothingOnTheLadder()
+    {
+        // Blind Flying and up take "any powered aeroplane" — but not a retired one.
+        PilotLog log = Through(RatingBook.AerobaticGlider, 80);   // under the 83 % Blind Flying asks for
+        Fly(log, "boeing-737-like", RatingClass.Amel, RatingBook.Full, 99);
+        Assert.Equal(CertLevel.Pilot, RatingResolver.Resolve(log, Book).Level);
+        Fly(log, "dc3-like", RatingClass.Amel, RatingBook.Full, 85);
+        Assert.Equal(CertLevel.Instrument, RatingResolver.Resolve(log, Book).Level);
     }
 
     [Fact]
     public void AGliderHasItsOwnShorterListBecauseItCannotClimb()
     {
-        RatingStep glider = Book.For(RatingClass.Glider, CertLevel.Private)!;
-        RatingStep power = Book.For(RatingClass.Asel, CertLevel.Private)!;
-        _o.WriteLine($"glider private asks for {glider.Lessons.Length} lessons, ASEL for {power.Lessons.Length}");
-        Assert.True(glider.Lessons.Length < power.Lessons.Length);
-        Assert.DoesNotContain("ClimbVyRear", glider.Lessons);
+        Stage glider = Book.Stage(RatingBook.GliderSolo)!;
+        Stage cub = Book.Stage(RatingBook.CubSolo)!;
+        _o.WriteLine($"glider solo asks for {glider.Lessons.Length} lessons, Cub solo for {cub.Lessons.Length}");
+        Assert.True(glider.Lessons.Length < cub.Lessons.Length);
         Assert.DoesNotContain("ClimbLevelDescend", glider.Lessons);
-        // And flying the glider list in a glider earns the glider badge.
+        Assert.DoesNotContain("ClimbVyRear", RatingBook.GliderFull);
+        // And flying the whole glider list in a glider puts GLIDER on the badge.
         var log = new PilotLog();
-        FlyAll(log, RatingClass.Glider, CertLevel.Private, 80);
-        Assert.Equal("GLIDER PVT", Certificate.ShortBadge(RatingResolver.Resolve(log, Book)));
+        Fly(log, Glider, RatingClass.Glider, RatingBook.GliderFull, 80);
+        PilotStanding s = RatingResolver.Resolve(log, Book);
+        Assert.Equal(CertLevel.StudentSolo, s.Level);
+        Assert.Equal("SOLO · GLIDER", Certificate.ShortBadge(s));
     }
 
     // ---------------------------------------------------------------- the class comes from the aeroplane
@@ -115,62 +261,60 @@ public class BadgeTests
     }
 
     [Fact]
-    public void FlyingTheSyllabusTwiceInTwoAeroplanesEarnsTwoBadges()
+    public void FlyingTheSyllabusInTwoClassesPutsBothOnTheBadge()
     {
         // Which is exactly what happens to a real pilot who adds a seaplane rating.
-        var log = new PilotLog();
-        FlyAll(log, RatingClass.Asel, CertLevel.Commercial, 90);
-        FlyAll(log, RatingClass.Ases, CertLevel.Private, 80);
-        FlyAll(log, RatingClass.Glider, CertLevel.StudentSolo, 75);
-        var held = RatingResolver.Resolve(log, Book);
-        _o.WriteLine(Certificate.Describe(held));
-        Assert.Equal(CertLevel.Commercial, held[RatingClass.Asel]);
-        Assert.Equal(CertLevel.Private, held[RatingClass.Ases]);
-        Assert.Equal(CertLevel.StudentSolo, held[RatingClass.Glider]);
-        // The badge leads with the highest and fits what it can into a tag.
-        string shortBadge = Certificate.ShortBadge(held);
-        _o.WriteLine($"short badge: '{shortBadge}' ({shortBadge.Length} chars)");
-        Assert.StartsWith("ASEL COMM", shortBadge);
-        Assert.True(shortBadge.Length <= 26);
+        PilotLog log = Through(RatingBook.PilotStage, 90);
+        Fly(log, "pa18-floats-like", RatingClass.Ases, RatingBook.Full, 80);
+        PilotStanding s = RatingResolver.Resolve(log, Book);
+        _o.WriteLine(Certificate.Describe(s));
+        Assert.Equal(CertLevel.Pilot, s.Level);
+        Assert.Equal(new HashSet<RatingClass> { RatingClass.Asel, RatingClass.Ases }, s.Classes);
+        Assert.Equal("PILOT · ASEL ASES", Certificate.ShortBadge(s));
+        Assert.Equal("Pilot · ASEL ASES", Certificate.Describe(s));
         // A landing flown on floats does nothing for the land rating, and vice versa.
         Assert.True(log.Best(RatingClass.Asel, "Flare") > 0);
         Assert.Equal(-1, log.Best(RatingClass.Amel, "Flare"));
     }
 
     [Fact]
-    public void AnAtpIsWrittenTheWayItIsSpoken()
+    public void TheLevelLeadsTheTagAndTheClassesFollowOnlyIfTheyFitWhole()
     {
-        var log = new PilotLog();
-        FlyAll(log, RatingClass.Asel, CertLevel.Atp, 95);
-        FlyAll(log, RatingClass.Amel, CertLevel.Atp, 95);
-        string badge = Certificate.ShortBadge(RatingResolver.Resolve(log, Book));
-        _o.WriteLine(badge);
-        Assert.Equal("ATP ASEL AMEL", badge);
+        var s = new PilotStanding { Level = CertLevel.Instrument };
+        foreach (RatingClass c in Certificate.BadgeOrder) s.Classes.Add(c);
+        string tag = Certificate.ShortBadge(s);
+        _o.WriteLine($"'{tag}' ({tag.Length})");
+        Assert.Equal("BLIND FLYING · GLIDER ASEL", tag);
+        Assert.True(tag.Length <= 26);
+        Assert.Equal("INSTRUCTOR", Certificate.ShortBadge(new PilotStanding { Level = CertLevel.FlightInstructor }));
     }
 
     [Fact]
     public void ABadDayDoesNotCostYouARating()
     {
-        var log = new PilotLog();
-        FlyAll(log, RatingClass.Asel, CertLevel.Private, 80);
-        Assert.Equal(CertLevel.Private, RatingResolver.Resolve(log, Book)[RatingClass.Asel]);
-        // Fly one of them badly afterwards. The log keeps the BEST, so the certificate stands.
-        log.Record(RatingClass.Asel, "Flare", 3);
-        Assert.Equal(CertLevel.Private, RatingResolver.Resolve(log, Book)[RatingClass.Asel]);
+        PilotLog log = Through(RatingBook.PilotStage, 80);
+        Assert.Equal(CertLevel.Pilot, RatingResolver.Resolve(log, Book).Level);
+        // Fly one of them badly afterwards. The log keeps the BEST, so the level stands.
+        log.Record(Decathlon, RatingClass.Asel, "Flare", 3);
+        Assert.Equal(CertLevel.Pilot, RatingResolver.Resolve(log, Book).Level);
     }
 
     [Fact]
     public void TheOwnersOwnScreenSaysWhatIsStillOutstanding()
     {
-        var log = new PilotLog();
-        FlyAll(log, RatingClass.Asel, CertLevel.StudentSolo, 75);
-        var (next, missing) = RatingResolver.NextStep(log, Book, RatingClass.Asel);
-        _o.WriteLine($"next: {next}; {missing.Count} lessons short");
-        foreach (var m in missing.Take(4)) _o.WriteLine($"   {m.lesson,-20} need {m.need:F0}, best {m.have:F0}");
-        Assert.Equal(CertLevel.Private, next);
-        Assert.NotEmpty(missing);
-        // The ones already flown to the private standard are not listed; the ones below it are.
-        Assert.Contains(missing, m => m.lesson == "ClimbVyRear" && m.have < 0);
+        PilotLog log = Through(RatingBook.GliderSolo, 75);
+        var next = RatingResolver.Next(log, Book);
+        foreach (var (st, missing) in next) _o.WriteLine($"next: {st.Id}; {missing.Count} lessons short");
+        var (stage, miss) = Assert.Single(next);
+        Assert.Equal(RatingBook.CubSolo, stage.Id);
+        Assert.Equal(RatingBook.PreSolo.Length, miss.Count);
+        Assert.Contains(miss, m => m.lesson == "ClimbLevelDescend" && m.have < 0 && m.need == 70);
+        // After the Cub solo, the open stage is the Pilot stage, in the aeroplane of the player's choice.
+        log = Through(RatingBook.CubSolo, 75);
+        Fly(log, GreatLakes, RatingClass.Asel, new[] { "Straight" }, 80);
+        var (pilot, short2) = Assert.Single(RatingResolver.Next(log, Book));
+        Assert.Equal(RatingBook.PilotStage, pilot.Id);
+        Assert.Equal(RatingBook.Full.Length - 1, short2.Count);   // the Great Lakes is closest: one lesson done
     }
 
     // ---------------------------------------------------------------- privacy
@@ -206,7 +350,7 @@ public class BadgeTests
     [Fact]
     public void TheHandleIsTheOneThingAViewerCannotTurnOff()
     {
-        var id = new PilotIdentity { Handle = "Ty", Badge = "ASEL COMM", Score = 420, Awards = new[] { "SPORTSMAN" } };
+        var id = new PilotIdentity { Handle = "Ty", Badge = "COMMERCIAL · ASEL", Score = 420, Awards = new[] { "SPORTSMAN" } };
         string[] shown = id.TagLines(true);
         string[] hidden = id.TagLines(false);
         _o.WriteLine("shown:  " + string.Join(" / ", shown));
@@ -214,7 +358,7 @@ public class BadgeTests
         Assert.Contains("Ty", shown[0]);
         Assert.Single(hidden);
         Assert.Equal("Ty", hidden[0]);
-        Assert.Contains("ASEL COMM", string.Join(" ", shown));
+        Assert.Contains("COMMERCIAL · ASEL", string.Join(" ", shown));
         Assert.Contains("SPORTSMAN", string.Join(" ", shown));
         Assert.DoesNotContain("ASEL", string.Join(" ", hidden));
     }
@@ -394,14 +538,13 @@ public class BadgeTests
     [Fact]
     public void TheIdentityIsBuiltFromTheLogAndCarriesOnlyTheResult()
     {
-        var log = new PilotLog();
-        FlyAll(log, RatingClass.Asel, CertLevel.Commercial, 90);
+        PilotLog log = Through(RatingBook.CommercialStage, 90);
         var placings = new[] { new BoardPlacing("event:stol", "pa18-bush-like", 1),
                                new BoardPlacing("event:race", "pitts-s2b-like", 4) };
         PilotIdentity id = PilotIdentity.From("Ty", log, Book, new[] { "SPORTSMAN", "STOL GOLD" }, placings);
         _o.WriteLine($"{id.Handle} | {id.Badge} | {string.Join(" ", id.Awards)} | {id.Score:F0}");
         Assert.Equal("Ty", id.Handle);
-        Assert.Equal("ASEL COMM", id.Badge);
+        Assert.Equal("COMMERCIAL · GLIDER ASEL", id.Badge);
         Assert.Equal(125, id.Score, 6);                 // 100 + 25
         Assert.Equal(2, id.Awards.Length);
         Assert.Equal("125", PilotScore.Format(id.Score));
@@ -412,8 +555,9 @@ public class BadgeTests
     [Fact]
     public void AnEmptyLogIsAStudentAndNotAnError()
     {
-        var held = RatingResolver.Resolve(new PilotLog(), Book);
-        Assert.Empty(held);
+        PilotStanding held = RatingResolver.Resolve(new PilotLog(), Book);
+        Assert.Equal(CertLevel.None, held.Level);
+        Assert.Empty(held.Stages);
         Assert.Equal("NO RATING", Certificate.Describe(held));
         Assert.Equal("STUDENT", Certificate.ShortBadge(held));
         PilotIdentity id = PilotIdentity.From("", new PilotLog(), Book,
@@ -445,15 +589,14 @@ public class BadgeTests
     [Fact]
     public void AnUnpublishedBadgeIsNotSentRatherThanNotDrawn()
     {
-        var log = new PilotLog();
-        FlyAll(log, RatingClass.Asel, CertLevel.Commercial, 90);
+        PilotLog log = Through(RatingBook.CommercialStage, 90);
         PilotIdentity full = PilotIdentity.From("Ty", log, Book, new[] { "SPORTSMAN" },
                                                 new[] { new BoardPlacing("event:stol", "pa18-bush-like", 1) });
-        Assert.Equal("ASEL COMM", full.Badge);
+        Assert.Equal("COMMERCIAL · GLIDER ASEL", full.Badge);
         Assert.Equal(100, full.Score, 6);
 
         PilotIdentity published = full.Published(true);
-        Assert.Equal("ASEL COMM", published.Badge);
+        Assert.Equal("COMMERCIAL · GLIDER ASEL", published.Badge);
         Assert.Equal(100, published.Score, 6);
         Assert.Single(published.Awards);
 
@@ -470,7 +613,7 @@ public class BadgeTests
         Assert.Equal(new[] { "Ty" }, withheld.TagLines(false));
 
         // The pilot's own copy is untouched: it is still on their profile.
-        Assert.Equal("ASEL COMM", full.Badge);
+        Assert.Equal("COMMERCIAL · GLIDER ASEL", full.Badge);
         Assert.Equal(100, full.Score, 6);
     }
 
@@ -478,7 +621,7 @@ public class BadgeTests
     public void TheHandleIsNotOnAnyOfTheThreeSwitches()
     {
         // Whichever way all three go, you always get to know who is in the circuit with you.
-        var id = new PilotIdentity { Handle = "Ty", Badge = "ATP ASEL", Score = 900 };
+        var id = new PilotIdentity { Handle = "Ty", Badge = "INSTRUCTOR · ASEL", Score = 900 };
         foreach (bool publish in new[] { true, false })
             foreach (bool view in new[] { true, false })
             {

@@ -8,10 +8,8 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from ea_dialmaps import DIALS, ang, VS0, VNO, VNE, RPM_G0, RPM_Y, RPM_MAX
 ART = os.path.join(HERE, 'art'); S = 512; C = S / 2
 WH, GRN, YEL, RED = (238, 238, 232), (40, 170, 60), (232, 190, 30), (220, 40, 40)
-def font(sz):
-    for p in ('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/System/Library/Fonts/Helvetica.ttc'):
-        if os.path.exists(p): return ImageFont.truetype(p, sz)
-    return ImageFont.load_default()
+from instrument_face_style import font, finish
+
 def pol(th, r): t = math.radians(th); return (C + r * math.sin(t), C - r * math.cos(t))
 def base(bg=(18, 18, 20)):
     im = Image.new('RGB', (S, S), (10, 10, 11)); d = ImageDraw.Draw(im)
@@ -22,7 +20,7 @@ def label(d, th, r, s, sz=34, col=WH):
     d.text((x - (bb[2] - bb[0]) / 2, y - (bb[3] - bb[1]) / 2 - bb[1]), s, fill=col, font=f)
 def arc(d, th0, th1, r, w, col):
     a0, a1 = sorted((th0, th1)); d.arc((C - r, C - r, C + r, C + r), a0 - 90, a1 - 90, fill=col, width=w)
-def save(im, n): im.save(os.path.join(ART, n)); print('wrote', n)
+def save(im, n): finish(im).save(os.path.join(ART, n)); print('wrote', n)
 A = lambda k: (lambda v: ang(k, v))
 # airspeed (KIAS)
 a = A('ASI'); im, d = base()

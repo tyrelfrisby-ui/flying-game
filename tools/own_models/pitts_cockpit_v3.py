@@ -182,4 +182,11 @@ def main():
  RIG.write_text(json.dumps(result,indent=1)+'\n')
  print('rear panel lowering',LOWER,'rim top',RIM_TOP,'->',RIM_TOP-LOWER,'cowl ray height at panel',RAY_Z)
  print('rear eye unchanged',EYE.tolist(),'panel angle',math.degrees(math.atan2(RIM_TOP-EYE[2],-.808-EYE[0])),'->',math.degrees(math.atan2(RIM_TOP-LOWER-EYE[2],-.808-EYE[0])),'cowl angle',math.degrees(math.atan2(COWL[2]-EYE[2],COWL[0]-EYE[0])))
-if __name__=='__main__':main()
+if __name__=='__main__':
+ main()
+ from pitts_panel_v4 import main as finish_panel
+ finish_panel()
+ from pitts_alternator_live import main as live_alternator   # ALTERNATOR as a working switch (ElectricalSystem)
+ live_alternator()
+ from pitts_controls_live import main as live_controls   # prop lock/slide, mixture, fuel valve, trim, cowl flap working
+ live_controls()

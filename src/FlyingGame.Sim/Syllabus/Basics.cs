@@ -132,7 +132,7 @@ public abstract class TurnSequence : Maneuver
 }
 
 // ======================================================================================================================
-// THE BASICS — the glider and private courses both start here (owner: "they are learning in the glider first").
+// THE BASICS — the glider and first powered courses both start here (owner: "they are learning in the glider first").
 // ======================================================================================================================
 
 public sealed class TurnsToHeadings : TurnSequence
@@ -163,7 +163,7 @@ public sealed class ClimbingDescendingTurns : TurnSequence
 {
     public override string Id => "p-climb-descend-turns";
     public override string Title => "Climbing and descending turns";
-    public override Course Course => Course.Private;
+    public override Course Course => Course.Pilot;
     public override string Goal => "Climbing turn at Vy with full power, descending turn on reduced power, at 20° of bank: hold the bank and the speed, keep the ball centred, roll out on the heading.";
     public override string Instructions => "Full power and a climbing turn to the left, one hundred and eighty degrees at twenty degrees of bank, pitching for V Y. Then reduce the power and descend in a turn to the right, one hundred and eighty degrees at twenty degrees of bank, pitching for the descent speed. Level off at the end. In the climb, the slipstream and P factor want left rudder in a left turn less, and right rudder more: watch the ball.";
     protected override IReadOnlyList<Leg> Legs { get; } = new[]
@@ -207,10 +207,10 @@ public sealed class SteepTurns : TurnSequence
 {
     private readonly Course _course; private readonly double _bank;
     public SteepTurns(Course course, double bank) { _course = course; _bank = bank; }
-    public override string Id => _course switch { Course.Commercial => "c-steep-turns", Course.Atp => "a-steep-turns", Course.Glider => "g-steep-turns", _ => "p-steep-turns" };
+    public override string Id => _course switch { Course.Commercial => "c-steep-turns", Course.Airline => "a-steep-turns", Course.Glider => "g-steep-turns", _ => "p-steep-turns" };
     public override string Title => $"Steep turns ({_bank:0}°)";
     public override Course Course => _course;
-    public override string? Aircraft => _course == Course.Atp ? "boeing-737-like" : null;
+    public override string? Aircraft => _course == Course.Airline ? AirlineAircraft : null;
     public override string Goal => $"A 360° turn at {_bank:0}° of bank each way, back to back: hold the bank (±5°), the altitude (±100 ft) and the speed (±10 kt), and roll out on the entry heading (±10°).";
     public override string Instructions => $"At or below manoeuvring speed. Roll into {_bank:0} degrees of bank to the left, adding back pressure and a little power as the bank passes thirty degrees: the load factor at {_bank:0} degrees is {1 / Math.Cos(_bank * Math.PI / 180):0.0} g. Hold the bank and the altitude all the way around; the nose sits a little above the horizon. Begin the roll-out {_bank / 2:0} degrees before the entry heading and roll straight into the turn to the right, then roll out on the entry heading. If the nose drops, shallow the bank first, then raise the nose.";
     public override (string, string)[] Pages => new[]
@@ -372,16 +372,16 @@ public sealed class StallRecovery : Maneuver
 {
     private readonly Course _course; private readonly bool _powerOn;
     public StallRecovery(Course c, bool powerOn) { _course = c; _powerOn = powerOn; }
-    public override string Id => (_course switch { Course.Glider => "g", Course.Atp => "a", _ => "p" }) + (_powerOn ? "-stall-power-on" : "-stall-power-off");
-    public override string Title => _course == Course.Atp ? "Approach to stall — recovery" : _powerOn ? "Power-on stall (departure)" : _course == Course.Glider ? "Stall and recovery" : "Power-off stall (approach to landing)";
+    public override string Id => (_course switch { Course.Glider => "g", Course.Airline => "a", _ => "p" }) + (_powerOn ? "-stall-power-on" : "-stall-power-off");
+    public override string Title => _course == Course.Airline ? "Approach to stall — recovery" : _powerOn ? "Power-on stall (departure)" : _course == Course.Glider ? "Stall and recovery" : "Power-off stall (approach to landing)";
     public override Course Course => _course;
-    public override string? Aircraft => _course == Course.Atp ? "boeing-737-like" : null;
-    private bool Atp => _course == Course.Atp;
-    public override string Goal => Atp
+    public override string? Aircraft => _course == Course.Airline ? AirlineAircraft : null;
+    private bool AirlineCourse => _course == Course.Airline;
+    public override string Goal => AirlineCourse
         ? "Slowing in level flight at idle: at the FIRST indication (buffet) recover — nose down to unload, wings level, thrust — with the least altitude lost."
         : _powerOn ? "Full power, nose up until it stalls; recover — angle of attack first — with the wings level and the least altitude lost, then climb."
         : "In the approach configuration at idle, raise the nose to the landing attitude and hold it until it stalls; recover — angle of attack first — wings level, least altitude lost, no secondary stall.";
-    public override string Instructions => Atp
+    public override string Instructions => AirlineCourse
         ? "Idle thrust, hold the altitude and let the speed decay. At the first buffet: push to unload the wing until the buffet stops, roll the wings level, then advance the thrust and return to the altitude. Recovery is angle of attack first, always."
         : _powerOn ? "Full power. Raise the nose smoothly to about twenty degrees and hold it: the speed bleeds away and the left-turning tendencies grow — keep the ball centred with right rudder. At the break, lower the nose to reduce the angle of attack, level the wings with coordinated aileron and rudder, and climb away at V Y."
         : "Set the approach configuration and glide at idle. Level off and keep raising the nose toward the landing attitude, as in a flare that goes on too long. Keep the wings level with coordinated rudder and aileron. At the break, lower the nose to reduce the angle of attack, add full power, level the wings, and climb away — easing out of the descent so it doesn't stall again.";
@@ -390,7 +390,7 @@ public sealed class StallRecovery : Maneuver
         ("A stall is angle of attack", "The wing stalls at its critical angle of attack, at any speed, any attitude, any power. The recovery is always the same first step: reduce the angle of attack. Power, wings level and the climb come after."),
         ("The wing drop", "Near the stall, one wing usually stalls first and drops. Aileron on that wing increases its angle of attack and deepens the stall. First unload the wing; then level it with coordinated controls."),
     };
-    public override ManeuverSetup Setup(FlightNow f) => Atp
+    public override ManeuverSetup Setup(FlightNow f) => AirlineCourse
         ? new() { AglM = 1219, Speed = x => 1.45 * x.Vs1 }
         : _powerOn ? new() { AglM = 1066, Speed = x => 1.3 * x.Vs1 }
         : new() { AglM = 1066, Speed = x => 1.3 * x.Vso, Flaps = 1.0, Power = 0 };
@@ -403,29 +403,29 @@ public sealed class StallRecovery : Maneuver
         _wings = SylStd.WingsLevelAtStall; r.Live.Add(_wings);
         _ball = SylStd.Ball; r.Live.Add(_ball);
         _time = SylStd.StallBreakTime; r.Live.Add(_time);
-        if (Atp) { _rec = SylStd.Recognition; r.Moments.Add(_rec); }
+        if (AirlineCourse) { _rec = SylStd.Recognition; r.Moments.Add(_rec); }
         _loss = SylStd.StallAltitudeLoss; r.Moments.Add(_loss);
         _second = SylStd.SecondaryStall; r.Moments.Add(_second);
         return r;
     }
     private int _ph = -1; private double _t0, _hRef, _onsetAgl = double.NaN, _minAgl, _stalledT, _thetaCmd, _warnT = -1;
     private bool _secondary, _lossJudged;
-    private bool Indication(FlightNow f) => Atp ? f.StalledFraction > 0.04 : f.Stalled;
+    private bool Indication(FlightNow f) => AirlineCourse ? f.StalledFraction > 0.04 : f.Stalled;
     public override void Advance(FlightNow f)
     {
         if (Done) return;
-        if (_ph < 0) { _ph = 0; _hRef = f.StartAgl; _thetaCmd = f.Pitch; Say(Atp ? "Idle — hold the altitude, let it slow" : _powerOn ? "Full power — raise the nose to about 20°" : "Approach glide at idle"); _t0 = f.T; }
+        if (_ph < 0) { _ph = 0; _hRef = f.StartAgl; _thetaCmd = f.Pitch; Say(AirlineCourse ? "Idle — hold the altitude, let it slow" : _powerOn ? "Full power — raise the nose to about 20°" : "Approach glide at idle"); _t0 = f.T; }
         switch (_ph)
         {
             case 0:
-                if (!_powerOn && !Atp && f.T - _t0 > 5) Go(f, 1, "Level off — keep raising the nose to the landing attitude");
-                else if (_powerOn || Atp) Go(f, 1, Cue);
+                if (!_powerOn && !AirlineCourse && f.T - _t0 > 5) Go(f, 1, "Level off — keep raising the nose to the landing attitude");
+                else if (_powerOn || AirlineCourse) Go(f, 1, Cue);
                 break;
             case 1:
-                if (Indication(f)) { _onsetAgl = f.Agl; _minAgl = f.Agl; _warnT = f.T; Go(f, 2, Atp ? "Buffet — push to unload, wings level, thrust" : "STALL — nose down, full power, wings level"); }
+                if (Indication(f)) { _onsetAgl = f.Agl; _minAgl = f.Agl; _warnT = f.T; Go(f, 2, AirlineCourse ? "Buffet — push to unload, wings level, thrust" : "STALL — nose down, full power, wings level"); }
                 break;
             case 2:
-                if (!f.Stalled && f.T - _t0 > 0.8 && f.Ias > 1.2 * (Atp ? f.Vs1 : _powerOn ? f.Vs1 : f.Vso)) Go(f, 3, Atp ? "Return to the altitude" : "Climb away at Vy — ease out, no secondary stall");
+                if (!f.Stalled && f.T - _t0 > 0.8 && f.Ias > 1.2 * (AirlineCourse ? f.Vs1 : _powerOn ? f.Vs1 : f.Vso)) Go(f, 3, AirlineCourse ? "Return to the altitude" : "Climb away at Vy — ease out, no secondary stall");
                 break;
             case 3:
                 if (f.T - _t0 > 4 && f.Hdot > 0.5) { Done = true; Say("Done."); }
@@ -441,9 +441,9 @@ public sealed class StallRecovery : Maneuver
         switch (_ph)
         {
             case 0:
-                ele = Atp ? L.Altitude(f, _hRef) : L.Speed(f, 1.3 * f.Vso); lever = Laws.Idle(f); break;
+                ele = AirlineCourse ? L.Altitude(f, _hRef) : L.Speed(f, 1.3 * f.Vso); lever = Laws.Idle(f); break;
             case 1:
-                if (Atp) { ele = L.Altitude(f, _hRef); lever = Laws.Idle(f); }
+                if (AirlineCourse) { ele = L.Altitude(f, _hRef); lever = Laws.Idle(f); }
                 else if (_powerOn)
                 {
                     _thetaCmd = Math.Min(_thetaCmd + 3 * FlightNow.D2R * f.Dt, (f.T - _t0 > 20 ? 30 : 20) * FlightNow.D2R);
@@ -456,9 +456,9 @@ public sealed class StallRecovery : Maneuver
                 }
                 break;
             case 2:
-                ele = L.PitchTo(f, (Atp ? -3 : -6) * FlightNow.D2R, 2.5); lever = Atp && f.T - _t0 < 1.0 ? Laws.Idle(f) : Laws.Full(f); break;
+                ele = L.PitchTo(f, (AirlineCourse ? -3 : -6) * FlightNow.D2R, 2.5); lever = AirlineCourse && f.T - _t0 < 1.0 ? Laws.Idle(f) : Laws.Full(f); break;
             default:
-                if (Atp) { ele = L.Altitude(f, _hRef); lever = L.PowerForSpeed(f, 1.6 * f.Vs1); }
+                if (AirlineCourse) { ele = L.Altitude(f, _hRef); lever = L.PowerForSpeed(f, 1.6 * f.Vs1); }
                 else { ele = L.Speed(f, f.Glider ? f.BestGlide : Math.Max(f.Vy, 1.3 * f.Vso)); lever = Laws.Full(f); }
                 break;
         }
@@ -471,7 +471,7 @@ public sealed class StallRecovery : Maneuver
         if (_ph == 1 || (_ph == 2 && f.T - _t0 < 1.5)) W(_wings, f.BankDeg);
         if (_ph == 1) W(_ball, f.Beta * FlightNow.R2D);
         if (_ph == 2) { if (f.Stalled) _stalledT += f.Dt; W(_time, _stalledT); }
-        if (_ph == 2 && Atp && _rec != null && j.Moments.All(m => m.name != _rec.Name))
+        if (_ph == 2 && AirlineCourse && _rec != null && j.Moments.All(m => m.name != _rec.Name))
         {
             // Recognition: from the first indication to the stick moving forward (nose-down pitch rate).
             if (f.Q < -2 * FlightNow.D2R) j.Moment(_rec, f.T - _warnT, $"{f.T - _warnT:F1} s");

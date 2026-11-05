@@ -1,0 +1,21 @@
+Requested launch attempted 2026-11-04:
+nice -n 5 /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/build_grob103_blanc.py -- --python /tmp/airfoil-plot-venv/bin/python
+
+Result: exit 139 before Python. Initial output:
+nice: setpriority: Operation not permitted
+Blender 5.2.2 LTS (hash d13f752e3b9c built 2026-09-15)
+Writing: .../T/blender.crash.txt
+
+Relevant crash stack:
+_platform_strstr
+blender::gpu::supports_barycentric_whitelist
+blender::gpu::MTLBackend::metal_is_supported
+blender::GPU_backend_type_selection_detect
+blender::wm_homefile_read_ex
+blender::WM_init
+main
+
+Temporary launch workarounds also failed to reach Python. No application or
+system installation changed. Export conversion and review rendering used the
+repository's NumPy/GLB tools and CPU rasterizer. Blender studio renders remain
+outstanding; these CPU review images do not claim Blender or Unity validation.

@@ -84,6 +84,32 @@ public static class LiveryChoice
         return IsOption(aircraftId, resolved) ? resolved : o[0].Id;
     }
 
+    /// <summary>
+    /// The types whose OWN model (Models/&lt;id&gt;/&lt;id&gt;-own*.glb) the game draws whatever the "own models" option says
+    /// (AirframeModels.PickOwn). Every other type draws its downloaded model unless SessionSettings.UseOwnModels is on,
+    /// and that option is OFF by default.
+    ///
+    /// c172-like joined 2026-11-04. Ty, 5:25 PM PT, on the iPhone (set.ownModels=0): "The Cessna 172 cockpit is
+    /// TRANSPARENT, with NO interior at all." With the option off the 172 drew the downloaded c172-like.obj, an exterior
+    /// shell with no cabin, whose outward-facing faces are back-face culled from the eye, so the pilot looked straight
+    /// through the aeroplane. The period panel, the four-place cabin, the rig and the raised yoke that Ty approved in
+    /// renders (OwnRigCheck forces own models on) had only ever been in our GLB, which the game never placed by default.
+    /// </summary>
+    private static readonly HashSet<string> OwnAlways = new(StringComparer.Ordinal)
+    {
+        "extra-300-like",       // our EA300 for every livery (Ty 2026-10-27)
+        "pitts-s2b-like",       // our S-2B for every livery (Ty 2026-10-27)
+        "great-lakes-like",     // there is no downloaded Great Lakes
+        "glider-2-33-like",     // yellow, the only 2-33 (Ty 2026-11-02)
+        "j3-cub-like",          // wheels and floats (Ty 2026-11-02)
+        "j3-cub-floats-like",
+        "c172-like",            // its cabin and panel exist only in our GLB (Ty 2026-11-04, see above)
+        "glider-grob103-acro-like",   // there is no downloaded Twin III (2026-11-04)
+    };
+
+    /// <summary>Does the game draw our own model of this type even with the "own models" option off?</summary>
+    public static bool OwnModelAlways(string? modelId) => modelId != null && OwnAlways.Contains(modelId);
+
     /// <summary>The GLB suffix for our own model in a livery (Models/&lt;id&gt;/&lt;id&gt;&lt;suffix&gt;). Our 2-33, Extra and
     /// Pitts have their paint baked in, one GLB per livery. 2-33 (tools/own_models/build_sgs233.py, SGS_LIVERY=talk-flying):
     /// the plain factory yellow, and the same yellow with Talk Flying trim and lettering. Extra

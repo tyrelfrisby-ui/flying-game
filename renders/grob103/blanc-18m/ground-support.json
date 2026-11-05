@@ -1,0 +1,21 @@
+{
+  "nose_main": {
+    "ground_z_m": -0.6,
+    "tail_clearance_m": 0.34
+  },
+  "main_tail": {
+    "pitch_relative_to_level_deg": 4.487085620770549,
+    "nose_clearance_normal_m": 0.15668204337383346,
+    "contacts_author_xz_m": {
+      "main": [
+        -0.5569115658278232,
+        -0.5993256984526768
+      ],
+      "tail": [
+        -4.88501461096328,
+        -0.2596781742615048
+      ]
+    }
+  },
+  "scope": "Rigid rounded tyre symmetry circles, no compression; not a dynamics simulation"
+}

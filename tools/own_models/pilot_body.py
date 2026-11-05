@@ -79,10 +79,17 @@ def definition(kind='pitts',v3=False):
         bone(side+'_Toes',ball,ball+(sole_frame()[0]*TOES if v3 else np.array((.075,0,0))),side+'_Foot',.040,2)
     return bones,parts,segments,grips
 
-def offline(v3=True):
+def offline(v3=True, v4=False, output=None):
     """One skinned, smooth-shaded, normal-mapped mesh (pilot_body_smooth), the same 49-bone skeleton."""
     from pilot_body_smooth import body, normal_png
-    bones,parts,segments,grips=definition(v3=v3);g=Glb();out=OUT if v3 else OUT_V2
+    bones,parts,segments,grips=definition(v3=v3)
+    if v4:
+        assert v3, 'v4 extends v3'
+        original = {b[0]: b for b in bones}
+        for side in 'LR':
+            _, a, b, _ = original[side+'_LowerArm']
+            bones.append((side+'_ForearmTwist', (a+b)/2, b.copy(), side+'_LowerArm'))
+    g=Glb();out=Path(output) if output else (OUT_V2.with_name('pilot-body-own-v4.glb') if v4 else OUT if v3 else OUT_V2)
     samplers=g.doc.setdefault('samplers',[]);samplers.append(dict(magFilter=9729,minFilter=9987,wrapS=10497,wrapT=10497))
     def material(name,rgb,rough,metal=0.0,normal=None,scale=1.0):
         m=dict(name=name,doubleSided=False,pbrMetallicRoughness=dict(baseColorFactor=[*rgb,1],metallicFactor=metal,roughnessFactor=rough))
@@ -106,7 +113,7 @@ def offline(v3=True):
         if parent:g.doc['nodes'][lookup[parent]].setdefault('children',[]).append(i)
         else:roots.append(i)
     prims=[];tris=0
-    for key,acc in body(bones,v3=v3).items():
+    for key,acc in body(bones,v3=v3,v4=v4).items():
         p,nrm,tan,sign,uv,j,w,t=acc.arrays();tris+=len(t)
         P=np.array([gl(v) for v in p]);N=np.array([gl(v) for v in nrm]);TA=np.array([gl(v) for v in tan])
         attrs=dict(POSITION=g.accessor(P,'VEC3'),NORMAL=g.accessor(N,'VEC3'),
@@ -129,6 +136,7 @@ def offline(v3=True):
     g.doc['skins']=[dict(name='Pilot_Skeleton',joints=list(range(len(bones))),skeleton=lookup['Hips'],inverseBindMatrices=acc)]
     g.doc['extras']=dict(originalGeometry=True,build='CPU builder pilot_body_smooth: one skinned mesh, smooth normals, blended joint weights, procedural normal maps; same numeric skeleton as Blender builder',triangles=tris,bones=len(bones),anthropometry='NRC 1983 civilian male 50th: stature 1.736 m, sitting shoulder .594 m; segment estimates documented in PROVENANCE')
     if v3: g.doc['extras']['version']='v3 candidate: feet flat on the pedal face (sole lean 13 deg), heel/sole/toe-box boots with laces, deltoid+trapezius shoulders, knuckled gloves with cuff straps, elbow/knee/waist folds, zip and chest pockets, softer normal maps, lighter suit'
+    if v4: g.doc['extras']['version']='v4 candidate (not shipped): forearm twist skin and fuller wrist cuff'
     out.parent.mkdir(parents=True,exist_ok=True);g.save(out);print('PILOT',tris,'triangles',len(bones),'bones',len(prims),'materials',out)
     return tris
 
@@ -159,7 +167,8 @@ def build(kind='pitts',export=True):
     return obj
 
 if __name__=='__main__':
-    if '--offline' in sys.argv: offline(v3='--v2' not in sys.argv)
+    if '--offline' in sys.argv: offline(v3='--v2' not in sys.argv, v4='--v4' in sys.argv,
+        output=sys.argv[sys.argv.index('--output')+1] if '--output' in sys.argv else None)
     else:
         import bpy
         bpy.ops.wm.read_factory_settings(use_empty=True);build()

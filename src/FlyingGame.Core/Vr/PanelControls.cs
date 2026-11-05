@@ -4,7 +4,9 @@ using FlyingGame.Core.MathTypes;
 
 namespace FlyingGame.Core.Vr
 {
-    public enum PanelKind { Toggle, Rotary, PushPull }
+    /// <summary>Lever: a hinged lever moved continuously along its arc, like a push-pull but swung (the Pitts' front
+    /// PROP lever beside the throttle, Ty 2026-11-04). It never flips and has nothing to poke.</summary>
+    public enum PanelKind { Toggle, Rotary, PushPull, Lever }
 
     /// <summary>
     /// ONE COCKPIT SWITCH OR KNOB as Codex's rig table describes it (`controls` in docs/models/*-own-rig.json,
@@ -15,6 +17,8 @@ namespace FlyingGame.Core.Vr
     public sealed class PanelControlSpec
     {
         public string Node = "", Param = "", Seat = "Rear", Semantics = "absolute", Grip = "", Poke = "";
+        /// <summary>The placard text beside the control ("MASTER"), or "" where the table gives none.</summary>
+        public string Label = "";
         public PanelKind Kind;
         public double Lo, Hi = 1.0;
         public double[] Detents = Array.Empty<double>();
@@ -28,9 +32,13 @@ namespace FlyingGame.Core.Vr
         {
             get
             {
-                string n = Node.StartsWith("Ctl_", StringComparison.Ordinal) ? Node.Substring(4) : Node;
-                int u = n.IndexOf('_');
-                if (u >= 0) n = n.Substring(u + 1);
+                string n = Node;
+                if (n.StartsWith("Ctl_", StringComparison.Ordinal))
+                {
+                    n = n.Substring(4);
+                    int u = n.IndexOf('_');
+                    if (u >= 0) n = n.Substring(u + 1);
+                }
                 return n.EndsWith("_Front", StringComparison.Ordinal) ? n.Substring(0, n.Length - 6) : n;
             }
         }

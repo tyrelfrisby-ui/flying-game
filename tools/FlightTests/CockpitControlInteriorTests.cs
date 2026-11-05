@@ -35,6 +35,7 @@ public class CockpitControlInteriorTests
     {
         "Cockpit_panel", "Avionics_Face_COM", "Avionics_Face_XPDR", "Cockpit_blank_plug", "Dial_MAG",
         "P3e_Subpanel", "P3b_Panel", "P2c_Panel_White",
+        "Pitts_Black_Crinkle",   // the Pitts' panels since pitts_reference_visuals.py (Ty's photos, 2026-11-04)
     };
 
     // model, file, rear panel face x, front panel face x (builder metres: x forward, y left, z up)
@@ -75,6 +76,7 @@ public class CockpitControlInteriorTests
         {
             string name = nodes[i].GetProperty("name").GetString()!;
             if (!name.StartsWith("Ctl_") && !name.StartsWith("Mount_")) continue;
+            if (nodes[i].TryGetProperty("extras", out JsonElement ex) && ex.TryGetProperty("retiredPittsPanelV4", out _)) continue;
             controls++;
             double[] m = OwnPittsModelTests.World(nodes, parent, i);
             double x = -m[12], y = m[14], z = m[13];                       // glTF -> builder
@@ -82,6 +84,19 @@ public class CockpitControlInteriorTests
             if (model == "great-lakes-like" && (name.Contains("_Prop") || name.Contains("_Mixture")))
             {
                 if (!InGreatLakesQuadrant(x, y, z, face)) failures.Add($"{name}: ({x:F3},{y:F3},{z:F3}) not in the left-sidewall quadrant");
+                continue;
+            }
+            // Ty 2026-11-04 19:06-19:13 (extra_front_seat.py): the Extra's verniers are on the LEFT wall beside the rear
+            // throttle, outboard of it, and its fuel valve is the Great Lakes' lever on the RIGHT wall, one per cockpit.
+            if (model == "extra-300-like" && (name.Contains("_Prop") || name.Contains("_Mixture")))
+            {
+                if (!(x > -1.33 && x < -1.25 && y > 0.30 && y < 0.35 && z > 0.12 && z < 0.24)) failures.Add($"{name}: ({x:F3},{y:F3},{z:F3}) not beside the rear throttle");
+                continue;
+            }
+            if (model == "extra-300-like" && name.Contains("FuelSelector"))
+            {
+                double vx = name.EndsWith("_Front") ? -0.50 : -1.40;
+                if (!(Math.Abs(x - vx) < 0.03 && y > -0.30 && y < -0.26 && z > 0.0 && z < 0.08)) failures.Add($"{name}: ({x:F3},{y:F3},{z:F3}) not on the right wall");
                 continue;
             }
             if (model == "great-lakes-like" && x < face - 0.008)
@@ -104,7 +119,11 @@ public class CockpitControlInteriorTests
         }
         _o.WriteLine($"{file}: {controls} controls, {failures.Count} off-panel");
         foreach (string f in failures.Take(20)) _o.WriteLine("  " + f);
-        Assert.Equal(model == "great-lakes-like" ? 90 : 88, controls);   // GL v7: + an alternator switch per seat (no Mount_ twin)
+        // GL v7: + an alternator switch per seat (no Mount_ twin). Pitts v4 (Ty 2026-11-04): six rear controls and their
+        // mounts, plus the ALTERNATOR toggle (pitts_alternator_live.py, the master's copy: no Mount_ twin) = 13. Extra
+        // (Ty 2026-11-04 19:05-19:14): the rear seat's six labelled switches, the COM/XPDR heads' 12 knobs, two verniers and
+        // the fuel valve (19 controls); the front seat only its fuel-valve lever. Each with its Mount_ = 40.
+        Assert.Equal(model == "great-lakes-like" ? 90 : model == "pitts-s2b-like" ? 13 : model == "extra-300-like" ? 40 : 88, controls);
         Assert.Empty(failures);
     }
 

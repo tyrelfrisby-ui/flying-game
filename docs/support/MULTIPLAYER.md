@@ -6,7 +6,7 @@ start settings.
 
 | | What it uses | Needs the internet | Needs the Pass |
 |---|---|---|---|
-| **Online** (public or private room) | our relay, `wss://mp.aeroplayground.app` | Yes | Yes (see PURCHASES.md) |
+| **Online** (free-for-all or room by code) | our relay, `wss://mp.aeroplayground.app` | Yes | Yes (see PURCHASES.md) |
 | **Same network** | plain Wi-Fi, device to device | No | **No** |
 | **Same network → "No wifi router"** | Apple peer-to-peer, no access point at all | No | **No** |
 
@@ -16,7 +16,7 @@ the middle; and **nothing about any of it is stored anywhere but on the device**
 
 ## Online rooms
 
-- **A private room is a 6-letter/digit code.** One person taps **Create** and reads the code out; everybody
+- **A room by code is a 6-letter/digit code.** One person taps **Create** and reads the code out; everybody
   else types it. Codes are case-insensitive as typed and the field only accepts letters and digits.
 - **A challenge, race or lesson always flies solo.** This is by design, not a fault: picking a challenge puts
   the session into single player. If somebody says "we joined the same room but can't see each other", ask

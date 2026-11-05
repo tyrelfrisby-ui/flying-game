@@ -101,33 +101,38 @@ public sealed class CockpitLiveTests
     // ---- which model gets what ----
 
     [Fact]
-    public void ThePittsGetsSevenLiveDialsBothSticksFourPedalsAndAThrottle()
+    public void ThePittsGetsSevenRearAndFourFrontLiveDials()
     {
         CockpitLiveSpec p = CockpitLive.For("pitts-s2b-like-own");
         // rear_panel.py LAYOUTS['pitts-s2b-like']: seven dials.
-        Assert.Equal(7, p.Dials.Count);
+        Assert.Equal(11, p.Dials.Count);
+        foreach (string name in new[] { "Airspeed", "Altimeter", "G_meter", "Tachometer" })
+        {
+            var front = Dial(p, $"FrontPanel_{name}_Face");
+            var rear = Dial(p, $"RearPanel_{name}_Face");
+            Assert.Equal(rear.Art, front.Art);
+            // The same needle maps (CockpitLive's dials are built fresh on every read, so compare them, not the instances).
+            Assert.Equal(rear.Needles.Select(n => (n.Param, n.Ang0Deg, n.Shape)), front.Needles.Select(n => (n.Param, n.Ang0Deg, n.Shape)));
+            foreach (double at in new[] { 0.0, 1.0, 55.0, 120.0, 2500.0 })
+                Assert.Equal(rear.Needles.Select(n => n.AngleDeg(at)), front.Needles.Select(n => n.AngleDeg(at)));
+        }
         foreach (string n in new[] { "Airspeed", "Altimeter", "G_meter", "Tachometer", "Oil_pressure", "Oil_temperature", "Compass" })
             Assert.Contains(p.Dials, d => d.Face == $"RearPanel_{n}_Face");
         Assert.Equal("gl-dial-asi", Dial(p, "RearPanel_Airspeed_Face").Art);     // the Pitts' ASI is in mph
-        Assert.Equal(2, p.Sticks.Count);
-        Assert.Equal(4, p.Pedals.Count);
-        Assert.Equal(2, p.Pedals.Count(x => x.Right));
-        Assert.Single(p.Throttles);
-        Assert.Equal(80, p.StickTris);
-        Assert.Equal(12, p.PedalTris);
+        // The model rigs its own sticks, pedals and throttles (since v3): nothing is cut out or added.
+        Assert.Empty(p.Sticks);
+        Assert.Empty(p.Pedals);
+        Assert.Empty(p.Throttles);
     }
 
+    /// <summary>The Extra's panels have been its own rig's since vr_phase3b: nothing to make live, and above all nothing to
+    /// hide. The old table hid Needle_ASI_R, Needle_G_R, Needle_Tach_R ... which are the live rear panel's needles.</summary>
     [Fact]
-    public void TheExtraHidesItsOrphanedRearNeedlesAndKeepsItsRig()
+    public void TheExtraIsLeftToItsOwnRig()
     {
         CockpitLiveSpec e = CockpitLive.For("extra-300-like-own");
-        Assert.Equal(9, e.Dials.Count);
-        Assert.Equal("ea-dial-asi", Dial(e, "RearPanel_Airspeed_Face").Art);
-        Assert.Contains("Needle_ASI_R", e.Hide);
-        Assert.Contains("TC_Ball_R", e.Hide);
-        Assert.DoesNotContain("Needle_ASI_F", e.Hide);    // the front panel's needles sit on their dials and stay
-        Assert.Empty(e.Sticks);                           // its rig already moves its sticks, pedals and throttles
-        Assert.Empty(e.Throttles);
+        Assert.True(e.IsEmpty);
+        Assert.DoesNotContain("Needle_ASI_R", e.Hide);
     }
 
     [Fact]
@@ -138,32 +143,20 @@ public sealed class CockpitLiveTests
         Assert.True(CockpitLive.For("").IsEmpty);
     }
 
-    // ---- the cut volumes, against the Pitts build script ----
+    // ---- the Pitts rigs its own sticks, pedals and throttles ----
 
+    /// <summary>The cut volumes and the added throttle were for a Pitts whose one Cockpit mesh carried its sticks and
+    /// pedals and had no throttle. Since v3 the model rigs them all, so nothing may be cut or added: an added lever stood on
+    /// the left wall as a second rear throttle (2026-11-04). Node names copied by hand from docs/models/pitts-s2b-own-rig.json.</summary>
     [Fact]
-    public void PittsStickVolumesHoldTheShaftAndGripButNotTheBoot()
+    public void ThePittsRigsItsOwnSticksPedalsAndThrottles()
     {
-        // build_pitts_s2b.py ck_stick(-0.93, ZFL = -0.58, 0.55), glTF x = -builder x, y = builder z.
-        StickCut rear = CockpitLive.Pitts().Sticks.Single(s => s.Name == "Stick_R");
-        Assert.True(rear.Contains(0.93 + 0.01, -0.53, 0.0));         // shaft foot, on its radius
-        Assert.True(rear.Contains(0.975, -0.12, 0.0));               // shaft top
-        Assert.True(rear.Contains(0.985, -0.03, 0.016));             // grip top, on its radius
-        Assert.False(rear.Contains(0.93 + 0.034, -0.55, 0.0));       // the boot (r 0.034) stays in the floor
-        Assert.False(rear.Contains(0.93, -0.58, 0.0));               // the floor
-    }
-
-    [Fact]
-    public void PittsPedalBoxesSitEitherSideOfTheCentreline()
-    {
-        // ck_box('ck_stick', (xa + 0.30, ±0.13, ZFL + 0.10), ...) for the rear pedals: glTF (0.80, -0.48, ±0.13).
-        var pedals = CockpitLive.Pitts().Pedals;
-        PedalCut rl = pedals.Single(p => p.Name == "Pedal_R_L"), rr = pedals.Single(p => p.Name == "Pedal_R_R");
-        Assert.True(rl.Contains(0.80, -0.48, 0.13));
-        Assert.True(rr.Contains(0.80, -0.48, -0.13));
-        Assert.False(rl.Right);                                       // +z is the pilot's LEFT in glTF
-        Assert.True(rr.Right);
-        Assert.False(rl.Contains(0.80, -0.48, -0.13));
-        Assert.False(rl.Contains(0.80, -0.585, 0.13));                // the cockpit floor
+        CockpitLiveSpec p = CockpitLive.Pitts();
+        Assert.Empty(p.Sticks); Assert.Empty(p.Pedals); Assert.Empty(p.Throttles);
+        string rig = File.ReadAllText(Path.Combine(OwnPittsModelTests.Repo, "docs", "models", "pitts-s2b-own-rig.json"));
+        foreach (string n in new[] { "Stick_Rear", "StickRoll_Rear", "Stick_Front", "StickRoll_Front", "Pedal_L_Rear", "Pedal_R_Rear",
+                                     "Pedal_L_Front", "Pedal_R_Front", "Throttle_Rear", "Throttle_Front" })
+            Assert.Contains($"\"node\": \"{n}\"", rig);
     }
 
     // ---- motion signs ----
