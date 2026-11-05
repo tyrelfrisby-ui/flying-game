@@ -546,3 +546,11 @@ to it (`pitts_controls_live.recentre`), and a render of the moved pose, not only
 `read -r path blob` and in zsh `path` is the array tied to `PATH`. Run it as `./tools/check-parity.sh` (it is bash),
 and treat any "command not found" in a checker's output as a broken run, not a verdict.
 
+
+### Other agents' prompts are in `ps` too
+A "wait until no build is running" gate written as `ps aux | grep -E "Unity|xcodebuild"` (or `pgrep -f "tools/deploy/deploy.sh"`)
+never goes idle on this machine: every `claude -p` lane has its whole prompt on its command line, and the prompts quote
+those very words. The Extra front-seat render waited 40 minutes behind nothing. Match the EXECUTABLE, anchored:
+`pgrep -f "^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity"`, `pgrep -x xcodebuild`,
+`pgrep -f "^zsh tools/deploy/deploy"`. And require a few consecutive idle polls before starting: three lanes whose gates
+all saw the same idle second started three iOS builds into the same /private/tmp/flyinggame-* at once.
