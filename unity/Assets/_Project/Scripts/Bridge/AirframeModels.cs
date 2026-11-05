@@ -154,6 +154,16 @@ namespace FlyingGame.Bridge
             // drawn procedurally, and the procedural airframe follows the config, which puts the tailplane
             // on the boom centreline. The photographs say CRUCIFORM, half way up the fin.
             { "glider-swift-s1-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/own_models/build_grob103.py (Codex lane, docs/models/grob103-own-RIG.md): nose -X / up +Y in native
+            // glTF, origin at the DATUM (wing-root leading edge) -- the same point as the config's body origin -- and its
+            // ailerons, elevators, rudder and airbrake paddles are meshes of their own with <Name>_HingeAxis markers, so
+            // the rig hangs them whole (namedSurfaces). There is no downloaded Twin III: until the GLB is in the build the
+            // procedural style draws it (AirframeVisual.StyleFor), after that this IS the aeroplane, as for the Great Lakes.
+            // 2026-11-04: Codex's Blanc conversion rebuilt at 18.000 m, authored on the datum with the config's own wheel
+            // stations (nose +1.4595, main -0.5397, tail -4.8768), so it is placed AtDatum, at true size. Its tyre bottoms
+            // are 0.600 m below the datum against the config's 0.69, so it is drawn 90 mm LOW (sitHighM -0.090) to stand
+            // on the config's wheels: the seat eyes carry that same drop (Grob103ModelTests). A recorded disagreement.
+            { "glider-grob103-acro-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true, sitHighM: -0.090f, atDatum: true) },
             // tools/own_models/build_great_lakes.py (docs/models/great-lakes-own-PROVENANCE.md): our clean-room
             // 2T-1A-2, same export convention as the Pitts and the EA300 (nose +x after import, glTF Y-up), drawn
             // level on the thrust line with its origin at the upper-wing centre-section LE. There is no downloaded

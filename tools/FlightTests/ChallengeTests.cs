@@ -11,6 +11,10 @@ namespace FlyingGame.FlightTests;
 /// as a simple, deterministic autopilot (hold trim = wings level = high score).</summary>
 public class ChallengeTests
 {
+    /// <summary>The challenges fly in an empty, calm sky. In the full suite this class inherited the island and its
+    /// solids from ModelRigTests / PlaygroundTests, the rolling glider hit them and sat still, and "scored 100"
+    /// (2026-11-04). Calm the world first rather than trust the order.</summary>
+    public ChallengeTests() { SimGlobals.Calm(); }
     private static ChallengeDefinition Load(string id) =>
         ChallengeLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "challenges", id + ".json"));
 
@@ -50,7 +54,7 @@ public class ChallengeTests
             runner.Tick(aircraft, 0.1);
         }
         Assert.True(runner.Complete);
-        Assert.False(runner.Passed, $"Rolling away must fail; scored {runner.Score:F0}.");
+        Assert.False(runner.Passed, $"Rolling away must fail; scored {runner.Score:F0}; world: " + SimGlobals.Describe());
     }
 
     [Fact]

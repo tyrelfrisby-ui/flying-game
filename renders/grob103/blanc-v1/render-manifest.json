@@ -1,0 +1,130 @@
+{
+  "renderer": "Blender 5.2.2 CPU Cycles, 32 samples, exported GLB reimport",
+  "views": [
+    [
+      "side",
+      [
+        1.6,
+        -22,
+        0.25
+      ],
+      [
+        1.6,
+        0,
+        0.25
+      ],
+      9.4
+    ],
+    [
+      "three-quarter",
+      [
+        -13,
+        -17,
+        8
+      ],
+      [
+        1,
+        0,
+        0.2
+      ],
+      19.3
+    ],
+    [
+      "front",
+      [
+        -22,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0.2
+      ],
+      19.3
+    ],
+    [
+      "gear-main",
+      [
+        -0.3,
+        -2.7,
+        -0.4
+      ],
+      [
+        0.4,
+        0,
+        -0.43
+      ],
+      1.4
+    ],
+    [
+      "gear-nose",
+      [
+        -2.4,
+        -2,
+        -0.35
+      ],
+      [
+        -1.7,
+        0,
+        -0.4
+      ],
+      0.9
+    ],
+    [
+      "gear-tail",
+      [
+        4.2,
+        -2,
+        -0.15
+      ],
+      [
+        4.6,
+        0,
+        -0.19
+      ],
+      0.85
+    ],
+    [
+      "canopy",
+      [
+        -3.5,
+        -4,
+        2.6
+      ],
+      [
+        -0.6,
+        0,
+        0.12
+      ],
+      3.9
+    ],
+    [
+      "top",
+      [
+        1,
+        0,
+        24
+      ],
+      [
+        1,
+        0,
+        0
+      ],
+      19.3
+    ]
+  ],
+  "model_sha256": "6c779c6299a479ec64c53afcf7c556dd04e6e48c06f01ed5f94f2ee5d2d86d59",
+  "visual_approval": "PENDING",
+  "images": {
+    "gear-main.png": "d4b4db170ccb9c5c76c88175c0ef5f7bb9c26159b920e7035aef2161bc988263",
+    "side-poh-overlay.png": "3f900983958c4184d8eeffa3060aad139d7ec079246e1ce242fe0d9bf69433e0",
+    "side.png": "67127f7f35e6272226f45906496b8a8a6afa78f2de716674b94bf09ad4380c06",
+    "three-quarter.png": "4dfd6308fa6aab785ce4d526c15f9d75aa964761379749638adec86ecc8109c8",
+    "gear-nose.png": "1f94353a83e107a34df9be83241201e4d61a894e9d9298ef37cb1540475fab0e",
+    "gear-tail.png": "02ccbe5d134654cbd1fb034b85d838e287c0f1922119e4f80f181d34ec2b27b8",
+    "top.png": "bf6203f76ca24db96679d86a69b18875893a4326180b95ed7ac6e3654cdbb9f1",
+    "canopy.png": "504fd127f48c68292652b6f105c9dd4c4fb5fdffa63a920ef8e2778b3489a5fb",
+    "front.png": "f5cbe8cec6df5cda77bc50f72bc3e6d013ec1531d31d021af6974e2f1cb77056"
+  }
+}

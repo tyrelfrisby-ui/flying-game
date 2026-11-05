@@ -104,6 +104,7 @@ public static class LiveryChoice
         "j3-cub-like",          // wheels and floats (Ty 2026-11-02)
         "j3-cub-floats-like",
         "c172-like",            // its cabin and panel exist only in our GLB (Ty 2026-11-04, see above)
+        "glider-grob103-acro-like",   // there is no downloaded Twin III (2026-11-04)
     };
 
     /// <summary>Does the game draw our own model of this type even with the "own models" option off?</summary>

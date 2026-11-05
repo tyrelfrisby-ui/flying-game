@@ -72,8 +72,8 @@ namespace FlyingGame.Bridge
             catch (System.Exception e)
             {
                 _text = "The credits file could not be read, which is a bug — every 3-D model in this game is used "
-                        + "under a licence that requires its author to be credited here.\n\nThe full list is in "
-                        + "docs/CREDITS.md in the project, and in a LICENSE.txt beside each model.\n\n(StreamingAssets/credits.md: " + e.Message + ")";
+                        + "on terms that require its author to be credited here.\n\nThe full list is in "
+                        + "docs/CREDITS.md in the project, and in a text file beside each model.\n\n(StreamingAssets/credits.md: " + e.Message + ")";
             }
         }
 
