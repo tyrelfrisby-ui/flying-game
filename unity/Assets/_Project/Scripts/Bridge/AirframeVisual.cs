@@ -202,8 +202,8 @@ namespace FlyingGame.Bridge
         /// its frame and both lock levers, because they are its children in the GLB. The real part leaves, not a
         /// stand-in: it is detached from the aeroplane with the airframe's own velocity plus the kick a canopy
         /// gets off its hinge, the rig stops driving it, and the aeroplane stays canopy-less until the next
-        /// flight's rebuild. false where this model has nothing to lose, which is when the procedural stand-in
-        /// (<see cref="CanopyJettison"/>) is still the right answer.</summary>
+        /// flight's rebuild. false where this model's rig has nothing to lose. (The headset's canopy pull; a bail-out
+        /// goes through <see cref="JettisonCanopy"/>, which finds this part too.)</summary>
         public bool JettisonRigPart(Vector3 worldVelocityUnity)
         {
             AirframeRig rig = _builder.Rig;
@@ -230,6 +230,67 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>
+        /// THE BAIL-OUT'S CANOPY OR DOOR (Ty 2026-11-05 06:37: "use the real canopy or door unless it is a cub or Great Lakes
+        /// etc where they don't need to be removed to get out. Not the phony clear canopy"). The model's own parts leave —
+        /// whatever Core <see cref="FlyingGame.Core.CanopyEgress"/> names from its nodes: the one-piece canopy, the 2-33's
+        /// and the Grob's frame + glass + hardware together, the 172's right door with its glass and latch — detached with
+        /// everything under them and flown off as one <see cref="DebrisBody"/>. The procedural shell's own Canopy part is
+        /// its real canopy and leaves the same way. An open cockpit, the Cub's fold-out door, or a model with no separate
+        /// canopy: nothing leaves, and nothing is spawned in its place. Returns what left ("" for nothing).
+        /// </summary>
+        public string JettisonCanopy(Vector3 worldVelocityUnity)
+        {
+            if (Cockpit.CanopyGone) return "";
+            var parts = new System.Collections.Generic.List<Transform>();
+            if (_builder.ModelRoot != null)
+            {
+                var byName = new System.Collections.Generic.Dictionary<string, Transform>();
+                foreach (Transform t in _builder.ModelRoot.GetComponentsInChildren<Transform>(true))
+                {
+                    string bare = FlyingGame.Core.CanopyEgress.Bare(t.name);
+                    if (!byName.ContainsKey(bare)) byName[bare] = t;
+                }
+                foreach (string n in FlyingGame.Core.CanopyEgress.PartsToJettison(byName.Keys)) parts.Add(byName[n]);
+                // A part under another part that leaves goes with it, not twice.
+                Transform[] all = parts.ToArray();
+                parts.RemoveAll(p => System.Array.Exists(all, q => q != p && p.IsChildOf(q)));
+            }
+            else
+            {
+                Transform shell = transform.Find("Canopy");
+                if (shell != null) parts.Add(shell);
+            }
+            if (parts.Count == 0) return "";
+
+            Bounds b = PartBounds(parts[0]);
+            for (int i = 1; i < parts.Count; i++) b.Encapsulate(PartBounds(parts[i]));
+            // One body for the lot, at their middle, in the aeroplane's attitude.
+            var go = new GameObject("JettisonedCanopy");
+            go.transform.SetPositionAndRotation(b.center, transform.rotation);
+            AirframeRig rig = _builder.Rig;
+            var names = new System.Text.StringBuilder();
+            foreach (Transform part in parts)
+            {
+                rig?.Release(part);
+                ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
+                part.SetParent(go.transform, true);
+                if (names.Length > 0) names.Append(" + ");
+                names.Append(FlyingGame.Core.CanopyEgress.Bare(part.name));
+            }
+            var body = go.AddComponent<DebrisBody>();
+            body.MassKg = 15f;                                           // a canopy, glass and frame; a cabin door is about the same
+            body.CdA = Mathf.Clamp(0.9f * b.size.x * b.size.z, 0.4f, 3f); // a scoop broadside to the flow
+            body.Velocity = worldVelocityUnity + transform.up * 6f - transform.forward * 2f;
+            body.AngularVelocityRad = new Vector3(5f, 1.2f, 3f);         // pitches over backwards as it leaves
+            body.RestHeightM = Mathf.Max(0.1f, b.extents.y * 0.5f);
+            body.LifeSec = 45f;
+
+            Cockpit.CanopyGone = true;
+            _rigPartGone = true;
+            return names.ToString();
+        }
+
+        /// <summary>
         /// THE CANOPY LEAVES ON ITS OWN PHYSICS (the headset's hands-on canopy, Core Vr.CanopyDynamics: torn off its
         /// hinges above the failure speed, or jettisoned). The part is CONTRACT's `Canopy_Detachable` (the whole moving
         /// canopy and nothing of the airframe), else the node the rig marks jettisonable, else the Pitts' `Canopy_Slide`
@@ -250,9 +311,10 @@ namespace FlyingGame.Bridge
             _rigPartGone = true;
             if (part == null)
             {
-                Transform shell = transform.Find("Canopy");
-                CanopyJettison.Spawn(_driver, shell);
-                if (shell != null && shell.TryGetComponent(out Renderer r)) r.enabled = false;
+                // No canopy node in a model: the procedural shell's own Canopy part, or nothing (never a stand-in).
+                Cockpit.CanopyGone = false;
+                _rigPartGone = false;
+                JettisonCanopy(velocityWorld);
                 return null;
             }
             if (hingesBroke && _builder.ModelRoot != null)

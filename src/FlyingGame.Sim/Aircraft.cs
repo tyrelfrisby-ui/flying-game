@@ -1185,6 +1185,7 @@ public sealed partial class Aircraft
     /// </summary>
     public void StepWithDeflectionTargets(ControlDeflections targets, double dt)
     {
+        BeginOccupantStep();
         _aileronRad = SlewTo(_aileronRad, targets.AileronRad, Config.Controls.Aileron.RateRadPerSec, dt);
         _elevatorRad = SlewTo(_elevatorRad, targets.ElevatorRad, Config.Controls.Elevator.RateRadPerSec, dt);
         _rudderRad = SlewTo(_rudderRad, targets.RudderRad, Config.Controls.Rudder.RateRadPerSec, dt);
@@ -1519,6 +1520,7 @@ public sealed partial class Aircraft
             _flowState.Separation[i] = s0 + (target - s0) * (1.0 - Math.Exp(-dt / tauSec));
         }
         _wheelsUnseeded = false;   // the State writes above are the step's own
+        EndOccupantStep(dt);       // what the step did to the pilot in his seat (AircraftOccupant)
         SimProfile.End(SimProfile.Scope.AfterStep, tAfter);
         SimProfile.End(SimProfile.Scope.Step, tStep);
     }

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using UnityEngine;
+using LandingOutcome = FlyingGame.Core.LandingOutcome;
 
 namespace FlyingGame.Bridge
 {
@@ -38,20 +39,19 @@ namespace FlyingGame.Bridge
         }
     }
 
-    /// <summary>How the pilot came out of the landing, from the hardest hit he took (initial impact or any tumble).</summary>
-    public enum LandingOutcome { Unhurt, Bruised, Injured, Dead }
-
-    /// <summary>What the pilot says, by outcome. Water softens the hit; a tumble down a slope gets its own lines.</summary>
+    /// <summary>What the pilot says, by outcome (Core <see cref="FlyingGame.Core.LandingOutcome"/>: the worse of the crash
+    /// and the parachute landing). Water softens the hit; a tumble down a slope gets its own lines; a pilot the crash
+    /// killed says something about where he is going instead (<see cref="Heaven"/>).</summary>
     internal static class PilotPhrases
     {
-        // Impact-speed thresholds (m/s) on land; a canopy landing is ~5 m/s, a good PLF walks away from 6.
-        public const float BruisedMs = 6f, InjuredMs = 9f, DeadMs = 14f;
-        public const float WaterSoftening = 1.6f;   // water: the same outcome needs this much more speed
+        /// <summary>The parachute landing's own grade (Core <see cref="FlyingGame.Core.ParachuteLanding"/>, unchanged).</summary>
+        public static LandingOutcome Outcome(float maxImpactMs, bool water) => FlyingGame.Core.ParachuteLanding.Outcome(maxImpactMs, water);
 
-        public static LandingOutcome Outcome(float maxImpactMs, bool water)
+        /// <summary>The ghost's farewell (Core <see cref="FlyingGame.Core.PilotOutRules.HeavenLines"/>).</summary>
+        public static string Heaven()
         {
-            float v = water ? maxImpactMs / WaterSoftening : maxImpactMs;
-            return v < BruisedMs ? LandingOutcome.Unhurt : v < InjuredMs ? LandingOutcome.Bruised : v < DeadMs ? LandingOutcome.Injured : LandingOutcome.Dead;
+            string[] set = FlyingGame.Core.PilotOutRules.HeavenLines;
+            return set[Random.Range(0, set.Length)];
         }
 
         private static readonly string[] Unhurt =

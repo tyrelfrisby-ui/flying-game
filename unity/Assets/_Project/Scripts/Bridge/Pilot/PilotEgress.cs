@@ -1,6 +1,7 @@
 using System;
 using FlyingGame.Sim;
 using UnityEngine;
+using LandingOutcome = FlyingGame.Core.LandingOutcome;
 
 namespace FlyingGame.Bridge
 {
@@ -28,7 +29,7 @@ namespace FlyingGame.Bridge
     [RequireComponent(typeof(FlightSimDriver))]
     public sealed class PilotEgress : MonoBehaviour
     {
-        public enum Phase { InCockpit, BailingOut, CanopyGone, FreeFall, ChuteDeploying, UnderCanopy, Tumbling, Landed }
+        public enum Phase { InCockpit, BailingOut, CanopyGone, FreeFall, ChuteDeploying, UnderCanopy, Tumbling, Landed, Ascending }
 
         public Phase Current { get; private set; } = Phase.InCockpit;
         public bool PilotOut => Current >= Phase.FreeFall;
@@ -52,6 +53,7 @@ namespace FlyingGame.Bridge
             Phase.BailingOut or Phase.CanopyGone => FlyingGame.Core.PilotOutRules.Stage.Egressing,
             Phase.FreeFall or Phase.ChuteDeploying => FlyingGame.Core.PilotOutRules.Stage.FreeFall,
             Phase.UnderCanopy => FlyingGame.Core.PilotOutRules.Stage.UnderCanopy,
+            Phase.Ascending => FlyingGame.Core.PilotOutRules.Stage.Ascending,
             _ => FlyingGame.Core.PilotOutRules.Stage.Landed,   // Tumbling, Landed
         };
 
@@ -94,7 +96,6 @@ namespace FlyingGame.Bridge
         private TouchFlightControls _touch;
         private ChaseCamera _cam;
         private PilotBody _pilot;
-        private Renderer _hiddenCanopy;
         private ControlInputs _abandoned = ControlInputs.Neutral;
 
         private float _t;                 // seconds since BailOut()/Eject()
@@ -103,6 +104,13 @@ namespace FlyingGame.Bridge
         private string _status = "";
         // Landing outcome (owner 2026-09-09): grunts/winces on every ground strike, a one-liner once he's at rest.
         public LandingOutcome Outcome { get; private set; }
+        /// <summary>What the CRASH did to him, taken from the aeroplane (Sim Aircraft.Occupant, Core OccupantInjury) the
+        /// moment he leaves it (Ty 2026-11-05: bailing out of a wreck read as walking away). Unhurt for a pilot who left a
+        /// flying aeroplane, so a normal bail-out is graded on the landing alone, as before.</summary>
+        public LandingOutcome CrashOutcome { get; private set; }
+        /// <summary>The crash killed him: he climbs out translucent, his canopy opens and carries him UP, and he says
+        /// something about where he is going (Core PilotOutRules.GhostAscends / HeavenLines).</summary>
+        public bool IsGhost { get; private set; }
         public string LastLine { get; private set; } = "";
         private float _restT = -1f, _voiceT = -1f, _voiceSeverity;
         private bool _voiceWince, _spoken;
@@ -155,6 +163,7 @@ namespace FlyingGame.Bridge
                 withSeat: true, seatUp: ac.up, initialRotation: ac.rotation);
             _pilot.Hit += OnPilotHit;
             PilotTransform = _pilot.Transform;
+            TakeCrashVerdict();
             AbandonAircraft();
             Current = Phase.FreeFall;
             Log("EJECT");
@@ -168,12 +177,12 @@ namespace FlyingGame.Bridge
             _pilot?.Destroy();
             _pilot = null;
             PilotTransform = null;
-            if (_hiddenCanopy != null) _hiddenCanopy.enabled = true;
-            _hiddenCanopy = null;
             Current = Phase.InCockpit;
             _t = 0f;
             _eject = _canopyDone = _pilotDone = _pilotLeftFired = _seatDone = _chuteDone = false;
             HandsOn = false;
+            IsGhost = false;
+            CrashOutcome = LandingOutcome.Unhurt;
             _status = ""; LastLine = ""; _restT = _voiceT = -1f; _spoken = false;
             PilotVoice.Stop();
             UpdateRemark();   // takes the world-space one-liner down
@@ -219,17 +228,24 @@ namespace FlyingGame.Bridge
 
         // ---- sequence --------------------------------------------------------------------------------
 
-        private void Update()
+        private void Update() => Tick(Time.deltaTime);
+
+        /// <summary>One frame of the sequence with a stated dt: for an editor batch tool, where Update never fires
+        /// (BailoutHeavenCheck).</summary>
+        public void TickForTesting(float dt) => Tick(dt);
+
+        private void Tick(float dt)
         {
             if (Current == Phase.InCockpit) return;
-            float dt = Time.deltaTime;
             _t += dt;
 
             if (!_eject)
             {
                 if (!_canopyDone && _t >= BailCanopySec) JettisonCanopy();
                 if (!_pilotDone && _t >= BailJumpSec) JumpOverTheSide();
-                if (_pilotDone && !_chuteDone && !HandsOn && _t - _pilotLeftT >= BailChuteSec) DeployChute();
+                // A ghost's opens by itself, soon, even after a hands-on exit: nobody pulls a ripcord on the way up.
+                float chuteSec = IsGhost ? (float)FlyingGame.Core.PilotOutRules.GhostChuteSec : BailChuteSec;
+                if (_pilotDone && !_chuteDone && (!HandsOn || IsGhost) && _t - _pilotLeftT >= chuteSec) DeployChute();
             }
             else
             {
@@ -253,10 +269,17 @@ namespace FlyingGame.Bridge
 
             if (Current == Phase.ChuteDeploying && _pilot.Chute != null && _pilot.Chute.Inflated)
             {
-                Current = Phase.UnderCanopy;
-                Log($"canopy full — fill {_pilot.Chute.FillTimeSec:F1} s, sink {_pilot.SinkMs:F1} m/s");
+                Current = IsGhost ? Phase.Ascending : Phase.UnderCanopy;
+                Log($"canopy full — fill {_pilot.Chute.FillTimeSec:F1} s, {(IsGhost ? "rising" : "sink")} {Mathf.Abs(_pilot.SinkMs):F1} m/s");
                 ChuteInflated?.Invoke();
                 GetComponent<FlightAudio>()?.ChuteInflate();
+                if (IsGhost)
+                {
+                    // Up he goes, and says so once the canopy has him.
+                    Outcome = LandingOutcome.Dead;
+                    LastLine = PilotPhrases.Heaven();
+                    _restT = 0f; _spoken = false;
+                }
             }
             if (_pilot.Tumbling && Current != Phase.Tumbling)
             {
@@ -266,10 +289,11 @@ namespace FlyingGame.Bridge
             if (_pilot.Landed && Current != Phase.Landed)
             {
                 Current = Phase.Landed;
-                Outcome = PilotPhrases.Outcome(_pilot.MaxImpactMs, _pilot.LandedOnWater);
+                LandingOutcome landing = PilotPhrases.Outcome(_pilot.MaxImpactMs, _pilot.LandedOnWater);
+                Outcome = FlyingGame.Core.PilotOutRules.Combined(CrashOutcome, landing);   // the crash's injuries came down with him
                 LastLine = PilotPhrases.Pick(Outcome, _pilot.LandedOnWater, _pilot.TumbleHits);
                 _restT = 0f; _spoken = false;
-                Log($"pilot down {(_pilot.LandedOnWater ? "in the water" : "on the ground")} at {_pilot.LandingSpeedMs:F1} m/s, hardest hit {_pilot.MaxImpactMs:F1} m/s, {_pilot.TumbleHits} tumble hits → {Outcome}");
+                Log($"pilot down {(_pilot.LandedOnWater ? "in the water" : "on the ground")} at {_pilot.LandingSpeedMs:F1} m/s, hardest hit {_pilot.MaxImpactMs:F1} m/s, {_pilot.TumbleHits} tumble hits → landing {landing}, crash {CrashOutcome} → {Outcome}");
             }
             // Grunt/wince a beat after the thud; the one-liner once he has caught his breath.
             if (_voiceT >= 0f && (_voiceT -= dt) < 0f)
@@ -280,7 +304,8 @@ namespace FlyingGame.Bridge
             if (_restT >= 0f && !_spoken && (_restT += dt) > (Outcome == LandingOutcome.Dead ? 1.6f : 1.0f))
             {
                 _spoken = true;
-                PilotVoice.Say(LastLine, rate: Outcome == LandingOutcome.Dead ? 0.42f : 0.5f, pitch: Outcome == LandingOutcome.Injured ? 0.85f : 0.92f);
+                if (IsGhost) PilotVoice.Say(LastLine, rate: 0.48f, pitch: 1.05f);   // cheerful about it
+                else PilotVoice.Say(LastLine, rate: Outcome == LandingOutcome.Dead ? 0.42f : 0.5f, pitch: Outcome == LandingOutcome.Injured ? 0.85f : 0.92f);
             }
             UpdateStatus();
         }
@@ -302,23 +327,17 @@ namespace FlyingGame.Bridge
         {
             _canopyDone = true;
             if (Current == Phase.BailingOut) Current = Phase.CanopyGone;
-            // A model that brought its own rig has a REAL canopy — one node, with its glass, frame and both
-            // lock levers under it, on the hinge its draughtsman put it on. That one leaves; there is no
-            // stand-in to spawn and nothing to hide, and the aeroplane stays canopy-less (AirframeVisual).
+            // The aeroplane's REAL canopy or door leaves (Ty 2026-11-05 06:37): the model's own parts, or the procedural
+            // shell's own canopy; an open cockpit or a fold-out door loses nothing. Never a stand-in (AirframeVisual.JettisonCanopy).
             var visual = GetComponent<AirframeVisual>();
             if (visual != null) visual.Cockpit.PullCanopyRelease();   // the red handle moves, wherever the hand came from
-            if (visual != null && visual.JettisonRigPart(_driver.WorldVelocityUnity))
+            string gone = visual != null ? visual.JettisonCanopy(_driver.WorldVelocityUnity) : "";
+            if (gone.Length == 0)
             {
-                Log("canopy jettisoned");
-                CanopyJettisoned?.Invoke();
-                GetComponent<FlightAudio>()?.CanopyJettison();
+                Log("nothing to jettison: open cockpit, a door that folds out of the way, or no separate canopy on this model");
                 return;
             }
-            Transform part = _driver.transform.Find("Canopy");
-            if (part != null) ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aircraft until the jettison, in the replay too
-            CanopyJettison.Spawn(_driver, part);
-            if (part != null && part.TryGetComponent(out Renderer r)) { r.enabled = false; _hiddenCanopy = r; }
-            Log("canopy jettisoned");
+            Log($"canopy jettisoned: {gone}");
             CanopyJettisoned?.Invoke();
             GetComponent<FlightAudio>()?.CanopyJettison();
         }
@@ -334,9 +353,24 @@ namespace FlyingGame.Bridge
                 withSeat: false, seatUp: Vector3.up, initialRotation: ac.rotation * Quaternion.Euler(0f, 0f, -60f));
             _pilot.Hit += OnPilotHit;
             PilotTransform = _pilot.Transform;
+            TakeCrashVerdict();
             AbandonAircraft();
             Current = Phase.FreeFall;
             FirePilotLeft();
+        }
+
+        /// <summary>
+        /// The crash's verdict, read off the aeroplane as he leaves it (whatever it does after that is not done to him):
+        /// the worst his seat took, through the body's own dynamics, and how far the cabin folded round him. A fatal one
+        /// makes him a ghost from this moment.
+        /// </summary>
+        private void TakeCrashVerdict()
+        {
+            FlyingGame.Core.OccupantInjury occ = _driver.Sim?.Aircraft?.Occupant;
+            CrashOutcome = occ != null ? occ.Level : LandingOutcome.Unhurt;
+            IsGhost = FlyingGame.Core.PilotOutRules.GhostAscends(CrashOutcome);
+            Log($"crash verdict at exit: {(occ != null ? occ.Describe() : "no sim")}{(IsGhost ? " — leaving as a ghost" : "")}");
+            if (IsGhost) _pilot.SetGhost();
         }
 
         /// <summary>
@@ -359,6 +393,7 @@ namespace FlyingGame.Bridge
             _pilot.TumbleSec = (float)FlyingGame.Core.Vr.JumperAero.StabiliseSec;
             _pilot.Hit += OnPilotHit;
             PilotTransform = _pilot.Transform;
+            TakeCrashVerdict();
             AbandonAircraft();
             Current = Phase.FreeFall;
             Log($"pilot climbed out by hand at {(vel - _driver.WorldVelocityUnity).magnitude:F1} m/s relative to the aircraft");
@@ -479,7 +514,7 @@ namespace FlyingGame.Bridge
                 _remark.alignment = TextAlignment.Center;
                 _remark.color = new Color(1f, 0.85f, 0.3f, 1f);   // the status line's colour
             }
-            string text = FlyingGame.Core.PilotOutRules.RemarkText(PilotPhrases.Label(Outcome), LastLine);
+            string text = FlyingGame.Core.PilotOutRules.RemarkText(Label(), LastLine);
             if (_remark.text != text) _remark.text = text;
             if (!_remarkGo.activeSelf) _remarkGo.SetActive(true);
 
@@ -500,12 +535,21 @@ namespace FlyingGame.Bridge
 
         // ---- status line ---------------------------------------------------------------------------
 
+        private string Label() => IsGhost ? FlyingGame.Core.PilotOutRules.GhostLabel : PilotPhrases.Label(Outcome);
+
         private void UpdateStatus()
         {
             switch (Current)
             {
                 case Phase.BailingOut: _status = $"BAIL OUT  canopy in {Mathf.Max(0f, BailCanopySec - _t):F1} s"; break;
                 case Phase.CanopyGone: _status = $"CANOPY GONE  jump in {Mathf.Max(0f, BailJumpSec - _t):F1} s"; break;
+                case Phase.FreeFall when IsGhost:
+                case Phase.ChuteDeploying when IsGhost:
+                    _status = $"{FlyingGame.Core.PilotOutRules.GhostLabel}  {_pilot.HeightAglM:F0} m and climbing";
+                    break;
+                case Phase.Ascending:
+                    _status = _spoken ? $"{Label()}  “{LastLine}”" : $"{Label()}  {_pilot.HeightAglM:F0} m and climbing";
+                    break;
                 case Phase.FreeFall:
                     float tChute = _eject ? EjectChuteSec - _t : BailChuteSec - (_t - _pilotLeftT);
                     _status = HandsOn ? $"FREE FALL  {_pilot.AirspeedMs:F0} m/s  pull the ripcord"
