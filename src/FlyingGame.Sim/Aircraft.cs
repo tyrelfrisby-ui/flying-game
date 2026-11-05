@@ -345,7 +345,7 @@ public sealed partial class Aircraft
     {
         get
         {
-            if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0) return 0.0;
+            if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0 || _noseLost) return 0.0;   // stopped: burns nothing
             double bsfc = Config.Propulsion.BsfcKgPerWs;
             if (bsfc <= 0.0) return 0.0;
             return Config.Propulsion.MaxPowerW * Math.Clamp(_throttle01, 0.0, 1.0) * bsfc;

@@ -239,7 +239,7 @@ namespace FlyingGame.Bridge
             // Fuel: the loading's own tanks where it has fuel in them (the loading page), by tank id. The reference
             // loading carries NO fuel on most types (the open W&B decision in AGENT-LOG) and the engine runs anyway,
             // so an empty loading reads FULL rather than showing empty tanks under a running engine.
-            const double KgPerUsGal = 2.7216;                     // avgas, 6.0 lb per US gallon
+            const double KgPerUsGal = RigInputs.KgPerUsGal;       // avgas, 6.0 lb per US gallon
             AircraftLoad load = ac.Load;
             bool loaded = load != null && load.FuelKg > 1e-6;
             double Gal(string id)
@@ -251,15 +251,15 @@ namespace FlyingGame.Bridge
             r.FuelCentreFrac = loaded && load.FuelCapacityKg > 0.0 ? load.FuelKg / load.FuelCapacityKg : 1.0;
             r.FuelWingGal = Gal("wingLeft") + Gal("wingRight");
             r.FuelAkroGal = Gal("centre");
-            // The fuel computer: the sim's own burn (BSFC x shaft power, Aircraft.FuelFlowKgPerSec), and its total.
-            r.FuelFlowGph = running ? ac.FuelFlowKgPerSec * 3600.0 / KgPerUsGal : 0.0;
+            // The fuel computer and the three-in-one's FUEL FLOW needle: the sim's own burn (BSFC x shaft power,
+            // Aircraft.FuelFlowKgPerSec), and its total.
+            r.FuelFlowGph = running ? RigInputs.GphFromKgPerSec(ac.FuelFlowKgPerSec) : 0.0;
             if (dt > 1e-4f) _fuelUsedGal += r.FuelFlowGph * dt / 3600.0;
             r.FuelUsedGal = _fuelUsedGal;
 
             // Presentation (P), no sim behind them, aimed at the middles of the markings the shared panel's dials are
-            // drawn with (CODEX-SPEC, the three-in-one and the ammeter; to be checked against Ty's own panel):
-            // fuel pressure with the engine-driven pump turning, the alternator's charge, EGT with power.
-            r.FuelPressPsi = running ? 18.0 + 10.0 * thr : 0.0;
+            // drawn with (CODEX-SPEC, the ammeter; to be checked against Ty's own panel): the alternator's charge,
+            // EGT with power.
             r.Amps = running ? 3.0 : r.Master > 0.5 ? -4.0 : 0.0;
             r.EgtF = running ? 1200.0 + 250.0 * thr : 100.0;
         }

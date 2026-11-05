@@ -34,7 +34,7 @@ BOTTOM, TOP = .055, .360           # panel face: 30 mm lower than P3f so the low
 LAYOUT = {
     'ASI': (-.115, .316), 'G': (-.115, .2255),                     # left column, 3-1/8
     'Altimeter': (.115, .316), 'TC': (.115, .2255),                # right column, 3-1/8
-    'Oil': (.215, .271),                                          # the 3-in-1 (oil P / oil T / fuel P), 3-1/8, right
+    'Oil': (.215, .271),                                          # the 3-in-1 (oil P / oil T / fuel flow), 3-1/8, right
     'Tach': (-.140, .135), 'MP': (-.045, .135),                   # lower row, 3-1/8
     'FuelComputer': (.040, .135), 'Amps': (.110, .135),           # lower row, 2-1/4
 }
@@ -60,12 +60,15 @@ LCD = {'Radio_Display': ('COM', (.032, .019), .004), 'Xpdr_Display': ('XPDR', (.
 SCALES3 = {
     'OilP': ('oil_press_psi', [0, 120], [-150, -30], 'psi'),
     'OilT': ('oil_temp_f', [50, 250], [30, 150], 'degF'),
-    'FuelP': ('fuel_press_psi', [0, 40], [210, 150], 'psi'),
+    # Ty 2026-11-04 15:23: the real 300L (EASA.A.362, AEIO-540-L1B5) has no fuel pressure gauge; its UI6331 is MP/FF.
+    # POH: fuel flow green arc 0-35 gal/h, red radial at 35, no yellow. Full power is about 23 gph low down.
+    'FuelF': ('fuel_flow_gph', [0, 40], [210, 150], 'gph'),
 }
 ARCS3 = {'OilP': [(0, 25, '#ff4040'), (25, 55, '#ffe044'), (55, 95, '#45d765'), (95, 115, '#ffe044'), (115, 120, '#ff4040')],
          'OilT': [(50, 140, '#ffe044'), (140, 210, '#45d765'), (210, 245, '#ffe044'), (245, 250, '#ff4040')],
-         'FuelP': [(0, 14, '#ff4040'), (14, 18, '#ffe044'), (18, 30, '#45d765'), (30, 35, '#ffe044'), (35, 40, '#ff4040')]}
-TICKS3 = {'OilP': [0, 30, 60, 90, 120], 'OilT': [50, 100, 150, 200, 250], 'FuelP': [0, 10, 20, 30, 40]}
+         'FuelF': [(0, 35, '#45d765')]}
+RADIALS3 = {'FuelF': [(35, '#ff4040')]}                            # red radial lines, across the arc band
+TICKS3 = {'OilP': [0, 30, 60, 90, 120], 'OilT': [50, 100, 150, 200, 250], 'FuelF': [0, 10, 20, 30]}   # no 40: it sat on OIL T's 250
 HINGE_FRAC = .30                   # of the aileron's own chord, aft of its nose
 
 
@@ -81,14 +84,16 @@ def art_three_in_one(path):
     for k, (param, vals, angs, unit) in SCALES3.items():
         for lo, hi, col in ARCS3[k]:
             d.line([point(a, 445) for a in np.linspace(ang3(k, lo), ang3(k, hi), 60)], fill=col, width=12)
+        for v, col in RADIALS3.get(k, []):
+            a = ang3(k, v); d.line([point(a, 425), point(a, 468)], fill=col, width=10)
         for v in TICKS3[k]:
             a = ang3(k, v); d.line([point(a, 412), point(a, 462)], fill='#f2f2f2', width=6)
             d.text(point(a, 362), str(v), font=font(44), anchor='mm', fill='#f2f2f2')
     d.text((300, 370), 'OIL P', font=font(46), anchor='mm', fill='#f2f2f2')
     d.text((724, 370), 'OIL T', font=font(46), anchor='mm', fill='#f2f2f2')
-    d.text((512, 700), 'FUEL P', font=font(46), anchor='mm', fill='#f2f2f2')
+    d.text((512, 700), 'FUEL FLOW', font=font(46), anchor='mm', fill='#f2f2f2')
     d.text((300, 425), 'PSI', font=font(34), anchor='mm', fill='#f2f2f2'); d.text((724, 425), '°F', font=font(34), anchor='mm', fill='#f2f2f2')
-    d.text((512, 755), 'PSI', font=font(34), anchor='mm', fill='#f2f2f2')
+    d.text((512, 755), 'GPH', font=font(34), anchor='mm', fill='#f2f2f2')
     im.save(path)
 
 
@@ -325,8 +330,8 @@ def update(path, doc):
             # 2. The three-in-one: the old oil face takes the new art, and three needles from one pivot.
             oil = next(r for r in keep if r['gauge'] == 'Oil'); u, v = LAYOUT['Oil']
             fi = idx(g, oil['face']); g.doc['meshes'][g.doc['nodes'][fi]['mesh']]['primitives'][0]['material'] = m_three
-            rr = R318 - .0035; oil['gauge_label'] = 'three-in-one: oil P / oil T / fuel P'
-            for j, k in enumerate(('OilP', 'OilT', 'FuelP')):
+            rr = R318 - .0035; oil['gauge_label'] = 'three-in-one: oil P / oil T / fuel flow'
+            for j, k in enumerate(('OilP', 'OilT', 'FuelF')):
                 name = 'Needle_' + k + '_' + sfx; pivot = np.array((x - .0008, -u, v))
                 shn = Shape(); length = rr * .80
                 shn.add([pivot + (0, -.0013, -.004), pivot + (0, .0013, -.004), pivot + (0, 0, length)], [(0, 2, 1), (0, 1, 2)])

@@ -13142,8 +13142,8 @@
    "note": ""
   },
   {
-   "node": "Needle_FuelP_R",
-   "param": "fuel_press_psi",
+   "node": "Needle_FuelF_R",
+   "param": "fuel_flow_gph",
    "parent": null,
    "kind": "rot",
    "axis_gltf": [
@@ -13167,7 +13167,7 @@
     ]
    ],
    "model": 0,
-   "unit": "psi",
+   "unit": "gph",
    "desc": "three-in-one (Ty 2026-11-04): its own third of the dial; E scale",
    "extra": {
     "rig_dial_ang0_deg": 210
@@ -13244,8 +13244,8 @@
    "note": ""
   },
   {
-   "node": "Needle_FuelP_F",
-   "param": "fuel_press_psi",
+   "node": "Needle_FuelF_F",
+   "param": "fuel_flow_gph",
    "parent": null,
    "kind": "rot",
    "axis_gltf": [
@@ -13269,7 +13269,7 @@
     ]
    ],
    "model": 0,
-   "unit": "psi",
+   "unit": "gph",
    "desc": "three-in-one (Ty 2026-11-04): its own third of the dial; E scale",
    "extra": {
     "rig_dial_ang0_deg": 210
@@ -15273,9 +15273,9 @@
       "needles": [
        "Needle_OilP_R",
        "Needle_OilT_R",
-       "Needle_FuelP_R"
+       "Needle_FuelF_R"
       ],
-      "gauge_label": "three-in-one: oil P / oil T / fuel P"
+      "gauge_label": "three-in-one: oil P / oil T / fuel flow"
      },
      {
       "gauge": "Amps",
@@ -15662,9 +15662,9 @@
       "needles": [
        "Needle_OilP_F",
        "Needle_OilT_F",
-       "Needle_FuelP_F"
+       "Needle_FuelF_F"
       ],
-      "gauge_label": "three-in-one: oil P / oil T / fuel P"
+      "gauge_label": "three-in-one: oil P / oil T / fuel flow"
      },
      {
       "gauge": "Amps",

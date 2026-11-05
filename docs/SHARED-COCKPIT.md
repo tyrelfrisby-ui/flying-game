@@ -45,8 +45,8 @@ the same `Ctl_*` from the sim where the rig gives them a param it knows.
 
 Rig params a model names but the sim does not supply are reported once at bind and stay at rest — that is how the
 Extra's ammeter, EGT and fuel needles sat dead on BOTH platforms until 2026-11-04 (now `amps`, `egt_f`, `fuel_wing_gal`,
-`fuel_akro_gal`, plus `fuel_press_psi`, `fuel_flow_gph`, `fuel_used_gal`; `SharedPanelRigTests` fails if an instrument
-node's param is unknown). The switch params (`nav_lights`, `strobe`, `smoke`, …) are still unknown on iOS: those
+`fuel_akro_gal`, plus `fuel_flow_gph`, `fuel_used_gal`; `SharedPanelRigTests` fails if an instrument
+node's param is unknown). The three-in-one's FUEL FLOW needle and the fuel computer both read `fuel_flow_gph` = `RigInputs.GphFromKgPerSec(Aircraft.FuelFlowKgPerSec)`, the sim's own burn (BSFC × MaxPowerW × throttle): 22.5 gph wide open against the POH's 23.3, zero once the engine has stopped. That burn has no altitude, rpm or mixture term and reads 0 at a closed throttle, so it is right at full power low down and not elsewhere. The switch params (`nav_lights`, `strobe`, `smoke`, …) are still unknown on iOS: those
 toggles sit where the model draws them; on the Quest the hands move them.
 
 ## Instrument lighting (both platforms)
@@ -80,7 +80,7 @@ offline pass"). To regenerate reproducibly, from the approved GLBs, NumPy/Pillow
 | 8 | `vr_phase3e.py` | rear throttle on the left wall with a gate, canopy handles | d0517239 |
 | 9 | island-nav wing transplant: `ea300_wing_export.replace_wings` | airfoil-B `Wing`/`Aileron_L/R` into the VR GLBs | 2be16316 |
 | 10 | `extra_panel_p3f.py` | panels out to the walls, 0.275 m tall, one switch row, radio subpanel, sticks −0.06 m | 60f3ff48 |
-| 11 | `extra_cockpit_shared.py` (`/usr/bin/python3`: NumPy + Pillow) | Ty's panel: card centred, ASI/G left, ALT/TC right, Trig-style COM + XPDR heads left, 3-in-1 right, lower row tach / MP / fuel computer / ammeter; panel 0.055–0.360 m; one switch row (z 0.075, none within 85 mm of the stick); radio subpanel gone; aileron hinge at 30 % chord with an arc nose and matching cove; aileron nose skins filled to the wing lip | 8a5737c9 |
+| 11 | `extra_cockpit_shared.py` (`/usr/bin/python3`: NumPy + Pillow) | Ty's panel: card centred, ASI/G left, ALT/TC right, Trig-style COM + XPDR heads left, 3-in-1 right (oil P / oil T / FUEL FLOW gph, green 0–35, red radial 35: Ty 2026-11-04 15:23, the real 300L has no fuel pressure gauge), lower row tach / MP / fuel computer / ammeter; panel 0.055–0.360 m; one switch row (z 0.075, none within 85 mm of the stick); radio subpanel gone; aileron hinge at 30 % chord with an arc nose and matching cove; aileron nose skins filled to the wing lip | 8a5737c9 |
 | 12 | `fix_aileron_junctions.py` (other models, not the Extra) | wing/aileron skin break at neutral: 172 bay re-cut, GL / J-3 / 2-33 / Pitts nose skins + gap | db87f77c |
 
 After any pass: `drop_card_slot.validate` on the node graph, `check_vr_phase3.py`, `check_aileron_junction.py`, then
