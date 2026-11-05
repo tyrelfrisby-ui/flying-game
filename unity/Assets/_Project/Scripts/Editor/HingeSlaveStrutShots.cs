@@ -55,6 +55,7 @@ namespace FlyingGame.EditorTools
                     AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("extra-300-like");
                     root = new GameObject("extra-300-like");
                     builder.Build(root.transform, cfg);
+                    Vector3 mid = BoundsOf(root.transform).center;
                     float max = (float)cfg.Controls.Aileron.MaxDeflRad;
                     Transform al = Find(root, "Aileron_L"), ar = Find(root, "Aileron_R");
                     if (al == null || ar == null) throw new InvalidOperationException("Extra: no Aileron_L / Aileron_R in the placed model");
@@ -68,11 +69,22 @@ namespace FlyingGame.EditorTools
                         {
                             if (tag == "right-roll" && side == "R" || tag == "left-roll" && side == "L") continue;
                             Bounds b = BoundsOf(a);
-                            float sx = side == "L" ? -1f : 1f;
-                            // Along the span from outboard, a little aft and above: the aileron's profile, nose and cove.
-                            Vector3 at = Vector3.Lerp(b.center, new Vector3(b.center.x + sx * b.extents.x, b.center.y, b.center.z), 0.55f);
-                            Shot(cam, rt, at, new Vector3(sx * 1f, 0.35f, -0.25f), 1.1f, Path.Combine(outDir, $"extra_{tag}_aileron{side}_span.png"));
-                            Shot(cam, rt, b.center, new Vector3(sx * 0.35f, 0.55f, -1f), 2.6f, Path.Combine(outDir, $"extra_{tag}_aileron{side}_aft.png"));
+                            // Outboard is whichever way the part lies from the aeroplane's centre: measured, not assumed
+                            // (the glTF-to-Unity conversion is a reflection, and the first shots guessed it wrong).
+                            float sx = Mathf.Sign(b.center.x - mid.x);
+                            // A section through the wing and aileron 40 % out along the aileron, seen from outboard with
+                            // only a 60 mm slab drawn: the aileron's nose against the wing's cove, nothing in front of it.
+                            float x = b.center.x + sx * b.extents.x * 0.2f;
+                            // The hinge is swept: find it at this station between the pivot and the build's tip marker.
+                            Transform tipMark = Find(root, "Aileron_" + side + "_HingeAxis");
+                            Vector3 hinge = a.position;
+                            if (tipMark != null && Mathf.Abs(tipMark.position.x - a.position.x) > 0.1f)
+                                hinge = Vector3.LerpUnclamped(a.position, tipMark.position, (x - a.position.x) / (tipMark.position.x - a.position.x));
+                            else Debug.LogWarning($"HINGE extra: no Aileron_{side}_HingeAxis marker; the section is centred on the pivot");
+                            Debug.Log($"HINGE extra {tag} {side}: section at x {x:F2}, hinge {hinge:F3}");
+                            Slab(cam, rt, hinge + Vector3.back * 0.08f, new Vector3(sx, 0f, 0f), 0.30f, 0.03f,
+                                 Path.Combine(outDir, $"extra_{tag}_aileron{side}_section.png"));
+                            Shot(cam, rt, b.center + Vector3.up * 0.1f, new Vector3(sx * 0.25f, 0.9f, -1f), 2.2f, Path.Combine(outDir, $"extra_{tag}_aileron{side}_aft.png"));
                         }
                     }
                     builder.Clear(); Object.DestroyImmediate(root); root = null;
@@ -82,6 +94,7 @@ namespace FlyingGame.EditorTools
                     AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("great-lakes-like");
                     root = new GameObject("great-lakes-like");
                     builder.Build(root.transform, cfg);
+                    Vector3 mid = BoundsOf(root.transform).center;
                     float max = (float)cfg.Controls.Aileron.MaxDeflRad;
                     var ends = new Dictionary<string, (Transform strut, Transform pu, Transform pl, Vector3 lowerLocal, Vector3 restPu)>();
                     builder.SetDeflections(0f, 0f, 0f, 0f);
@@ -105,9 +118,11 @@ namespace FlyingGame.EditorTools
                             Debug.Log($"STRUT {s} {tag} (stick {stick:+0;-0;0}): upper end {upOff:F2} mm and lower end {loOff:F2} mm off their pins; upper pin moved {moved:F0} mm");
                             if (upOff > 3f || loOff > 3f) ok = false;
                             Bounds b = BoundsOf(e.strut);
-                            float sx = s == "L" ? -1f : 1f;
-                            Shot(cam, rt, b.center, new Vector3(sx * 0.9f, 0.15f, -1f), 1.6f, Path.Combine(outDir, $"greatlakes_{tag}_strut{s}_aft.png"));
-                            Shot(cam, rt, b.center, new Vector3(sx * 1f, 0.05f, 0.05f), 1.4f, Path.Combine(outDir, $"greatlakes_{tag}_strut{s}_side.png"));
+                            float sx = Mathf.Sign(b.center.x - mid.x);
+                            // From outboard, only a 0.5 m slab around the strut: both ailerons in section, the strut pin to pin.
+                            Slab(cam, rt, b.center, new Vector3(sx, 0f, 0f), 0.95f, 0.25f, Path.Combine(outDir, $"greatlakes_{tag}_strut{s}_side.png"));
+                            // From behind (looking forward), everything drawn: the strut between the two trailing edges.
+                            Slab(cam, rt, b.center, Vector3.back, 0.95f, 4f, Path.Combine(outDir, $"greatlakes_{tag}_strut{s}_aft.png"));
                         }
                     }
                     builder.Clear(); Object.DestroyImmediate(root); root = null;
@@ -150,6 +165,17 @@ namespace FlyingGame.EditorTools
             return b;
         }
 
+        /// <summary>Orthographic, looking along -<paramref name="dir"/> at <paramref name="at"/>, drawing only what lies
+        /// within <paramref name="halfDepth"/> of it along that line.</summary>
+        private static void Slab(Camera cam, RenderTexture rt, Vector3 at, Vector3 dir, float halfHeight, float halfDepth, string path)
+        {
+            const float back = 20f;
+            cam.orthographic = true; cam.orthographicSize = halfHeight;
+            cam.nearClipPlane = back - halfDepth; cam.farClipPlane = back + halfDepth;
+            Shot(cam, rt, at, dir, back, path);
+            cam.orthographic = false; cam.nearClipPlane = 0.02f; cam.farClipPlane = 200f;
+        }
+
         private static void Shot(Camera cam, RenderTexture rt, Vector3 at, Vector3 dir, float dist, string path)
         {
             cam.transform.position = at + dir.normalized * dist;
@@ -160,7 +186,7 @@ namespace FlyingGame.EditorTools
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
             File.WriteAllBytes(path, tex.EncodeToPNG());
             Object.DestroyImmediate(tex);
-            Debug.Log("HingeSlaveStrutShots: wrote " + path);
+            Debug.Log($"HingeSlaveStrutShots: wrote {path} (camera {cam.transform.position:F2} looking at {at:F2})");
         }
     }
 }
