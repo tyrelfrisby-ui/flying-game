@@ -530,7 +530,7 @@ public static class AeroModel
                 // Propeller slipstream: tail surfaces inside the (contracted) prop wash see the accelerated
                 // flow — this is why a prop aircraft has elevator and rudder authority at low speed (taxi,
                 // takeoff roll, floats on the hump, STOL). Wing strips are left alone (small span fraction).
-                if (slipstreamDeltaU > 0.0 && !isWing && System.Math.Abs(strip.PosVec().Y) < slipstreamRadius)
+                if (slipstreamDeltaU != 0.0 && !isWing && System.Math.Abs(strip.PosVec().Y) < slipstreamRadius)   // < 0: a windmilling prop's slower wake
                 {
                     vLocal = new Vec3(vLocal.X + slipstreamDeltaU, vLocal.Y, vLocal.Z);
                     // Swirl (owner 2026-10-09): the slipstream rotates with the prop, so the two stab halves see the

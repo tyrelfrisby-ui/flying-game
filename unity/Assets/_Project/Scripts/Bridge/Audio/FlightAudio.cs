@@ -285,8 +285,11 @@ namespace FlyingGame.Bridge
             _tele.IasMs = (float)d.IasMs;
             _tele.AlphaDeg = (float)d.AlphaDeg;
             _tele.BetaDeg = (float)d.BetaDeg;
-            _tele.Throttle01 = (float)d.Throttle01;
-            _tele.EngineRpm = (float)d.EngineRpm;
+            // What the engine is really doing, not the lever: a dead engine (prop strike, idle cut-off, too lean) makes no
+            // engine note, however far forward the throttle is (Ty 2026-11-04).
+            bool running = aircraft == null || aircraft.EngineRunning;
+            _tele.Throttle01 = aircraft != null ? (float)aircraft.ShaftPower01 : (float)d.Throttle01;
+            _tele.EngineRpm = running ? (float)d.EngineRpm : 0f;
             _tele.Spoiler01 = aircraft != null ? (float)aircraft.CurrentDeflections.SpoilerFraction : 0f;
             _tele.OnGround = d.OnGround;
             _tele.TurbulenceLevel = SessionSettings.TurbulenceLevel;

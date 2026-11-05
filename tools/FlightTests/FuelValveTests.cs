@@ -39,20 +39,26 @@ public class FuelValveTests
 
             ac.FuelValveOpen = false;
             Fly(ac, 2.0);                                           // still running on the fuel in the lines (4 s)
-            Assert.False(ac.EngineStopped);
+            Assert.True(ac.EngineRunning);
             Assert.True(ac.FuelFlowKgPerSec > 0.0);
             Fly(ac, 2.5);
-            Assert.True(ac.EngineStopped, "the engine still runs 4.5 s after the valve was shut");
+            // Dead for want of fuel, like a cut-off mixture (AircraftEngine): not damage, so EngineStopped stays false and
+            // the prop windmills.
+            Assert.False(ac.EngineRunning, "the engine still runs 4.5 s after the valve was shut");
             Assert.True(ac.FuelStarved);
-            Assert.Equal(0.0, ac.EngineRpm, 12);
+            Assert.True(ac.EngineStarved);
+            Assert.False(ac.EngineStopped);
             Assert.Equal(0.0, ac.FuelFlowKgPerSec, 12);
-            Assert.Equal(0.0, ac.Throttle01, 12);                   // full throttle, no power
+            Assert.Equal(0.0, ac.ShaftPower01, 12);                 // full throttle, no power
+            Assert.Equal(ac.WindmillRpm, ac.EngineRpm, 6);
+            Assert.True(ac.EngineRpm < 2600, $"a dead engine at {ac.EngineRpm:F0} rpm");
 
             ac.FuelValveOpen = true;
             Fly(ac, 1.0);
-            Assert.True(ac.EngineStopped, "relit before the fuel could reach the injectors (2 s)");
+            Assert.False(ac.EngineRunning, "relit before the fuel could reach the injectors (2 s)");
             Fly(ac, 1.5);
-            Assert.False(ac.EngineStopped);
+            Assert.True(ac.EngineRunning);
+            Assert.False(ac.FuelStarved);
             Assert.True(ac.EngineRpm > 2600, $"did not come back to full power: {ac.EngineRpm:F0} rpm");
         }
         finally { WorldTerrain.Active = oldTerrain; FloatHydro.FlatWaterOverride = oldWater; }

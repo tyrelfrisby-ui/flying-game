@@ -17,7 +17,10 @@ namespace FlyingGame.Bridge
     /// <see cref="TouchFlightControls.PitchTrimLever"/>, the smoke switch is <see cref="SmokeController"/>, the J-3 floats' WATER RUDDER handle is
     /// <see cref="CockpitWaterRudder"/> (held: the blade follows the hand; let go near the hook it hangs there, else the
     /// spring takes it down). Everything
-    /// else (magnetos, master, fuel pump, lights, mixture, prop, alternate air / carb heat, fuel selector, radio,
+    /// else, and the MIXTURE and PROP levers go to <see cref="Aircraft.MixtureLever"/> / <see cref="Aircraft.PropLever"/>
+    /// (Ty 2026-11-04: "the prop control lever moves but doesn't change rpm, and the mixture is stuck at full rich" — they
+    /// used to be visual only, the cockpit drawing both at 1.0 whatever the hand did). Everything
+    /// else (magnetos, master, fuel pump, lights, alternate air / carb heat, fuel selector, radio,
     /// transponder) has no system in this sim yet: it moves, clicks, stays where it is left and says so in the log
     /// (`[VrCockpit] … visual only`). Drawn by this class after the rig, so the knob shows the hand's value.
     /// </summary>
@@ -35,7 +38,7 @@ namespace FlyingGame.Bridge
 
         private readonly List<PanelSlot> _panel = new();
         private SmokeController _smoke;
-        private static readonly HashSet<string> SimParams = new() { "trim", "smoke", "water_rudder_up", "fuel_valve" };
+        private static readonly HashSet<string> SimParams = new() { "trim", "smoke", "water_rudder_up", "mixture", "prop", "fuel_valve" };
 
         private void BindPanel(string seatFull)
         {
@@ -77,7 +80,7 @@ namespace FlyingGame.Bridge
             }
             Debug.Log($"[VrCockpit] {_driver.AircraftId} {seatFull} panel: {_panel.Count} controls ({toggles} toggles, {rotaries} knobs, {pulls} push-pull)" +
                       (unbound > 0 || missing.Count > 0 ? $"; MISSING {string.Join(", ", missing)}" : "") +
-                      "; into the sim: trim, smoke, water rudder, fuel valve; the rest visual only (no system in the sim yet)");
+                      "; into the sim: trim, smoke, water rudder, mixture, prop (constant-speed), fuel valve; the rest visual only (no system in the sim yet)");
         }
 
         /// <summary>Where a control starts: the sim's own value for the trim and the smoke, the parked cockpit
@@ -89,6 +92,8 @@ namespace FlyingGame.Bridge
                 case "trim": return _touch != null ? _touch.PitchTrimLever : 0.0;
                 case "smoke": return _smoke != null && _smoke.On ? 1.0 : 0.0;
                 case "water_rudder_up": return _driver.Sim.Aircraft.WaterRudderUp01;
+                case "mixture": return _driver.Sim.Aircraft.MixtureLever;
+                case "prop": return _driver.Sim.Aircraft.PropLever;
                 case "fuel_valve": return _driver.Sim.Aircraft.FuelValveOpen ? 1.0 : 0.0;
                 case "com_volume": return 0.5;
                 case "xpdr_squawk": return spec.Short switch { "XpdrDigit1" => 1, "XpdrDigit2" => 2, _ => 0 };   // 1200
@@ -105,6 +110,8 @@ namespace FlyingGame.Bridge
                     if (p.C.Spec.Param == "trim" && _touch != null) p.C.SetFromSim(_touch.PitchTrimLever);
                     else if (p.C.Spec.Param == "smoke" && _smoke != null) p.C.SetFromSim(_smoke.On ? 1.0 : 0.0);
                     else if (p.C.Spec.Param == "water_rudder_up") p.C.SetFromSim(_driver.Sim.Aircraft.WaterRudderUp01);
+                    else if (p.C.Spec.Param == "mixture") p.C.SetFromSim(_driver.Sim.Aircraft.MixtureLever);
+                    else if (p.C.Spec.Param == "prop") p.C.SetFromSim(_driver.Sim.Aircraft.PropLever);
                     // The two cockpits' valve levers are on one shaft: the other seat's lever moves this one.
                     else if (p.C.Spec.Param == "fuel_valve") p.C.SetFromSim(_driver.Sim.Aircraft.FuelValveOpen ? 1.0 : 0.0);
                 }
@@ -201,6 +208,24 @@ namespace FlyingGame.Bridge
                 case "water_rudder_up":
                     if (p.C.Held) CockpitWaterRudder.Hold(_driver.Sim.Aircraft, v);
                     return;   // continuous while held; the one log line is on the release
+                case "mixture":
+                {
+                    Aircraft ac = _driver.Sim.Aircraft;
+                    bool was = ac.EngineRunning;
+                    ac.MixtureLever = v;
+                    if (p.C.Held && Time.frameCount % 36 == 0 || !p.C.Held)
+                        Debug.Log($"[VrCockpit] mixture {v:0.00} by hand → φ {ac.MixturePhi:0.00}, {(was ? "running" : "not running")}, rpm {ac.EngineRpm:F0}, EGT {ac.EgtF:F0} °F");
+                    return;
+                }
+                case "prop":
+                {
+                    Aircraft ac = _driver.Sim.Aircraft;
+                    ac.PropLever = v;
+                    if (!ac.HasPropLever) { Debug.Log($"[VrCockpit] prop lever {v:0.00}: {_driver.AircraftId} is fixed-pitch, nothing to govern"); return; }
+                    if (p.C.Held && Time.frameCount % 36 == 0 || !p.C.Held)
+                        Debug.Log($"[VrCockpit] prop lever {v:0.00} by hand → governor {ac.EngineRpm:F0} rpm");
+                    return;
+                }
                 case "com_volume":
                     return;
                 case "fuel_valve":

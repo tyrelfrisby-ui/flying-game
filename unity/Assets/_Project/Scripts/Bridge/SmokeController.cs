@@ -45,8 +45,8 @@ namespace FlyingGame.Bridge
                 FlyingGame.Sim.Aircraft ac = Driver?.Sim?.Aircraft;
                 if (!On || ac == null) return 0f;
                 if (ac.Config.Propulsion == null) return 1f;                  // wingtip canisters
-                if (ac.EngineRpm < 100) return 0f;                            // nothing turning, nothing to carry it
-                return (float)(0.25 + 0.75 * Mathf.Clamp01((float)ac.Throttle01));
+                if (!ac.EngineRunning || ac.EngineRpm < 100) return 0f;       // no exhaust (a windmilling dead engine has none)
+                return (float)(0.25 + 0.75 * Mathf.Clamp01((float)ac.ShaftPower01));
             }
         }
 
@@ -128,7 +128,8 @@ namespace FlyingGame.Bridge
             PropulsionConfig pr = ac.Config.Propulsion;
             if (pr == null) return 0;
             if (pr.PropDiameterM <= 0) return 25.0 * Mathf.Clamp01((float)ac.Throttle01);
-            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(ac.Config.Smoke, pr, ac.EngineRpm, ac.Throttle01, Atmosphere.DensityAtAltitude(altM));
+            // The smoke lane's exhaust model, fed what the engine really does (a dead engine blows no exhaust).
+            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(ac.Config.Smoke, pr, ac.EngineRunning ? ac.EngineRpm : 0.0, ac.ShaftPower01, Atmosphere.DensityAtAltitude(altM));
         }
 
         // LateUpdate, so the sample is the pose the camera is about to see rather than one frame behind it.
