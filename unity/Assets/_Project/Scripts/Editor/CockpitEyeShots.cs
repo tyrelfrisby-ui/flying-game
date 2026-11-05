@@ -3,6 +3,7 @@ using System.IO;
 using FlyingGame.Bridge;
 using FlyingGame.Core;
 using FlyingGame.Core.DataContracts;
+using FlyingGame.Core.MathTypes;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -71,18 +72,32 @@ namespace FlyingGame.EditorTools
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
             if (cfg == null) { Debug.LogError($"[CockpitEye] {id}: no config"); return false; }
-            StationConfig seat = cfg.Loading.Seats.Find(s => s.Id == seatId);
-            if (seat == null) { Debug.LogError($"[CockpitEye] {id}: no seat '{seatId}'"); return false; }
+            // "@x,y,z": an eye given in the body frame (metres, +x fwd, +y right, +z down) for a type with no authored seat.
+            Vec3? at = null;
+            if (seatId.StartsWith("@"))
+            {
+                string[] p = seatId.Substring(1).Split(',');
+                at = new Vec3(F(p[0]), F(p[1]), F(p[2]));
+            }
+            StationConfig seat = at.HasValue ? null : cfg.Loading.Seats.Find(s => s.Id == seatId);
+            if (seat == null && !at.HasValue) { Debug.LogError($"[CockpitEye] {id}: no seat '{seatId}'"); return false; }
 
             var root = new GameObject("Aircraft");
             root.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
             var builder = new AirframeBuilder();
             builder.Build(root.transform, cfg);
-            builder.SetRig(new RigInputs
+            var reading = new RigInputs
             {
-                Throttle = 0.6, PropLever = 1.0, Mixture = 1.0, Magneto = 3.0, Master = 1.0, Rpm = 2300,
-                OilPressPsi = 70, OilTempF = 185, AirspeedMph = 120, AltitudeFt = 2500, GLoad = 1.0,
-            }, 0.02f);
+                Throttle = 0.6, PropLever = 1.0, Mixture = 1.0, Magneto = 3.0, Master = 1.0, Alternator = 1.0, Rpm = 2300,
+                OilPressPsi = 70, OilTempF = 185, AirspeedMph = 120, AirspeedKias = 104, AltitudeFt = 2500, GLoad = 1.0,
+                GMaxSeen = 4.5, GMinSeen = -1.5, ManifoldInHg = 24, FuelCentreFrac = 0.8, HeadingDeg = 30,
+            };
+            builder.SetRig(reading, 0.02f);
+            // The painted panels the game makes live (the Pitts' and the Extra's: CockpitLive's dial art and needles), as
+            // AirframeVisual does in flight, so the shot shows what the pilot sees rather than the GLB's own pictures.
+            var live = new CockpitLiveParts();
+            live.Bind(root.transform, builder.HasOwnRig, builder.FindInModel, AirframeModels.PlacedOwnName(id));
+            live.Update(reading);
 
             var displays = new CockpitDisplays();
             displays.Bind(builder.FindInModel);
@@ -119,7 +134,7 @@ namespace FlyingGame.EditorTools
             var gm = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard")) { color = new Color(0.36f, 0.45f, 0.30f) };
             ground.GetComponent<Renderer>().sharedMaterial = gm;
 
-            Vector3 eye = CoordinateMap.ToUnity(seat.EyeVec());
+            Vector3 eye = CoordinateMap.ToUnity(at ?? seat.EyeVec());
             var camGo = new GameObject("Eye");
             Camera cam = camGo.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = sky;
