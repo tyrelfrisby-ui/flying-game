@@ -1,7 +1,10 @@
 """Measure where each library instrument mounts in a model (tools/own_models/instruments): the dial centre (the old needle's
 pivot, or the old face's centre), the face radius, and how far in front of the centre the nearest thing the library cannot
 switch off reaches. The numbers are copied by hand into FlyingGame.Core.Instruments.InstrumentLibrary; InstrumentLibraryTests
-holds the table against the GLBs.    /usr/bin/python3 tools/own_models/instruments/measure_mounts.py
+holds the table against the GLBs.
+CAUTION: this samples VERTICES. A face that is one big quad or a closed disc (the Great Lakes' Dial_* discs, 3 mm thick,
+pilot face 3.0 mm proud) has none inside the radius and reads as "nothing in front": check the old dial's own
+triangles before trusting frontVisible (2026-11-05: the first GL library faces sat 2.4 mm behind the old ones).    /usr/bin/python3 tools/own_models/instruments/measure_mounts.py
 """
 import sys,json,numpy as np
 from pathlib import Path

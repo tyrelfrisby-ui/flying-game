@@ -271,23 +271,25 @@ public static class InstrumentLibrary
             new[] { "Bezel_P3b_Altimeter_F", "Face_P3b_Altimeter_F", "Needle_Alt100_F", "Needle_Alt1000_F" }),
     };
 
-    /// <summary>The Great Lakes (gl_cockpit.py): faces and bezels are in Cockpit_Interior, so the panel's bezels stay and
-    /// the library face sits 0.6 mm in front of the painted one, inside the bezel's lip; the needles are switched off.
+    /// <summary>The Great Lakes (gl_cockpit.py): faces and bezels are in Cockpit_Interior, so the panel's bezels stay. Each
+    /// old dial is a closed DISC 3 mm thick whose pilot-side face is 3.0 mm in front of the pivot (measured on the Dial_*
+    /// triangles; a vertex sample missed it, and the first library faces sat behind it), so the library face sits 3.5 mm
+    /// in front: clear of it, inside the bezel's lip (6.5 mm), under the panel's own Kollsman window (3.8 mm).
     /// Faces 0.9 x the case radius: 3-1/8 in cases 35.7 mm (front) / 36 mm (rear), the front TC a 2-1/4 in case.</summary>
     public static IReadOnlyList<InstrumentMount> GreatLakes() => new[]
     {
-        AsiMount("ASI_F", GreatLakesAsi, true, 0.9680, 0.0300, 0.1113, 1, 0.03573, 0.0006, false, "Needle_ASI_F"),
-        new InstrumentMount("ALT_F", InstrumentKind.Altimeter, true, 0.9680, 0.0300, 0.2336, 1, 0, 0, 0.03573, 0.0006, false,
+        AsiMount("ASI_F", GreatLakesAsi, true, 0.9680, 0.0300, 0.1113, 1, 0.03573, 0.0035, false, "Needle_ASI_F"),
+        new InstrumentMount("ALT_F", InstrumentKind.Altimeter, true, 0.9680, 0.0300, 0.2336, 1, 0, 0, 0.03573, 0.0035, false,
             new[] { "Needle_Alt100_F", "Needle_Alt1000_F" }),
-        new InstrumentMount("TC_F", InstrumentKind.TurnCoordinator, true, 0.9680, 0.0300, 0.0073, 1, 0, 0, 0.02574, 0.0006, false,
+        new InstrumentMount("TC_F", InstrumentKind.TurnCoordinator, true, 0.9680, 0.0300, 0.0073, 1, 0, 0, 0.02574, 0.0035, false,
             new[] { "TC_Symbol_F", "TC_Ball_F" }),
-        AsiMount("ASI_R", GreatLakesAsi, false, 1.6380, 0.0590, 0.1180, 1, 0.0360, 0.0006, false, "Needle_ASI_R"),
-        new InstrumentMount("ALT_R", InstrumentKind.Altimeter, false, 1.6380, 0.0590, 0.2090, 1, 0, 0, 0.0360, 0.0006, false,
+        AsiMount("ASI_R", GreatLakesAsi, false, 1.6380, 0.0590, 0.1180, 1, 0.0360, 0.0035, false, "Needle_ASI_R"),
+        new InstrumentMount("ALT_R", InstrumentKind.Altimeter, false, 1.6380, 0.0590, 0.2090, 1, 0, 0, 0.0360, 0.0035, false,
             new[] { "Needle_Alt100_R", "Needle_Alt1000_R" }),
-        new InstrumentMount("TC_R", InstrumentKind.TurnCoordinator, false, 1.6380, -0.0320, 0.2090, 1, 0, 0, 0.0360, 0.0006, false,
+        new InstrumentMount("TC_R", InstrumentKind.TurnCoordinator, false, 1.6380, -0.0320, 0.2090, 1, 0, 0, 0.0360, 0.0035, false,
             new[] { "TC_Symbol_R", "TC_Ball_R" }),
         // The panel's own reset knob (G_meter_Reset, lower left) stays.
-        new InstrumentMount("G_R", InstrumentKind.GMeter, false, 1.6380, -0.0320, 0.1180, 1, 0, 0, 0.0360, 0.0006, false,
+        new InstrumentMount("G_R", InstrumentKind.GMeter, false, 1.6380, -0.0320, 0.1180, 1, 0, 0, 0.0360, 0.0035, false,
             new[] { "Needle_G_R", "Needle_GMax_R", "Needle_GMin_R" }, faceArt: GMeterFace("great-lakes-like")),
     };
 
