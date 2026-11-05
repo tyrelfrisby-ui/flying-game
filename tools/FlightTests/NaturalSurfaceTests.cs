@@ -151,9 +151,11 @@ public class NaturalSurfaceTests : IDisposable
     [Fact]
     public void TheSkiZonesLieLikeGlacierSnow()
     {
-        // Knik banana (0.97 m sag) and Fairweather crest (1.15 m), along each glacier's path through the zone: at the
-        // centre the snow is 0.97 m below / 1.15 m above the zone's authored elevation, and the added grade is gentle.
-        foreach (var (id, ft, centre) in new[] { ("Knik", 1100.0, -.97), ("Fairweather", 1300.0, 1.15) })
+        // Fairweather crest (1.15 m), along the glacier's path through the zone: at the centre the snow is 1.15 m above
+        // the zone's authored elevation, and the added grade is gentle. (The Knik's banana zone was removed 2026-11-04,
+        // Ty: its landing is the gravel strip in the valley. Fairweather keeps its crest: the shape is chosen by the
+        // glacier's own place in the list, which did not change.)
+        foreach (var (id, ft, centre) in new[] { ("Fairweather", 1300.0, 1.15) })
         {
             var q = IslandTerrain.World["glaciers"].Items.Single(g => g.S("id") == id); var c = q["ski_zone"]["centre"].Point;
             Assert.Equal(centre < 0 ? "banana" : "crest", NaturalShapeParams.SkiZone(id, 450, 100).Name);

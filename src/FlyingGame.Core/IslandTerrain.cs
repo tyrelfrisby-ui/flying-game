@@ -153,7 +153,9 @@ internal static class SurfaceTables
         public readonly IslandPoint Centre, U; public readonly double HalfLengthKm, HalfWidthKm;
         public MesaPad(IslandValue q) { Centre = q["centre"].Point; U = IslandPoint.Heading(q.N("heading_true_deg")); HalfLengthKm = q.N("length_m") / 2000; HalfWidthKm = q.N("width_m") / 2000; }
     }
-    public static readonly Glacier[] Glaciers = IslandTerrain.World["glaciers"].Items.Select(q => new Glacier(q)).ToArray();
+    // Only the glaciers that still carry a ski zone: the Knik's was removed (Ty 2026-11-04 — its landing site is the
+    // Knik River bar strip on the valley floor), Fairweather's stays.
+    public static readonly Glacier[] Glaciers = IslandTerrain.World["glaciers"].Items.Where(q => q.Has("ski_zone")).Select(q => new Glacier(q)).ToArray();
     public static readonly MesaPad[] MesaPads = IslandTerrain.World["mesa_pads"].Items.Select(q => new MesaPad(q)).ToArray();
 }
 

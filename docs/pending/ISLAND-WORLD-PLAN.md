@@ -85,7 +85,7 @@ Outer-island contributions fade independently into the ocean and combine by cont
 
 | Glacier | Path | Ski-zone centre | Ski-zone ft MSL |
 | --- | --- | --- | --- |
-| Knik | [[-5.4, -1.4], [-6, 0.1], [-6.5, 0.1]] | [-6.2, 0.1] | 1100 |
+| Knik | [[-5.4, -1.4], [-6, 0.1], [-6.5, 0.1]] | — (removed 2026-11-04: Knik River bar strip, bush_strips) | — |
 | Fairweather | [[-1.2, 5.6], [-3.0, 4.15], [-3.9, 4.7]] | [-3.9, 4.7] | 1300 |
 
 | Canyon | Path | Rim widths m | Floor widths m | Floor ft MSL |
@@ -433,13 +433,13 @@ The race course keeps all 12 original gates/pylons and moves offshore to (10,-13
 | strip:Dewey Moore | Dewey Moore | C2 Middle Fork | Codex; FrankChurch.Strips |
 | strip:Indian Creek | Indian Creek | C2 Middle Fork | Codex; FrankChurch.Strips |
 | strip:Mackay Bar | Mackay Bar | C2 Middle Fork | Codex; FrankChurch.Strips |
-| extra:59 | aerotow and tow hookup | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:60 | float bases ramps buoy lanes | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:61 | glacier ski landings and icebergs | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:62 | sloped grass Snoopy swoop training lane | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:63 | waterfalls and plunge pools | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:64 | river road bridge | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:65 | hidden school interior shell and outdoor historic gliders | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:59 | aerotow and tow hookup | AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:60 | float bases ramps buoy lanes | AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:61 | glacier ski landings and icebergs | AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:62 | sloped grass Snoopy swoop training lane | AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:63 | waterfalls and plunge pools | AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:64 | river road bridge | AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:65 | hidden school interior shell and outdoor historic gliders | AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
 | gunnery:targets | Island ground bullseyes and target drones | 3 groundtargets ineachCZ1-CZ3,2 inCZ5;3 dronesperzone; HOT3Dentry only | Codex target geometry; Claude AI/hit/event logic; Combat/Gunnery.cs CombatZone.BuildGroundTargets; CombatController |
 | combat:concealment | six legacy puffy combat clouds / concealment | CZ1-CZ3 weather volumes proposed; Claude-owned | Claude weather; no world cloud implementation; Combat/Gunnery.cs CombatZone.Clouds |
 
