@@ -56,6 +56,7 @@ namespace FlyingGame.Bridge
         private FlyingGame.Sim.Aircraft _builtFor;
         private readonly List<SmokeTrail.Sample> _hist = new();
         private Camera _cam;
+        private double _thinnedT = double.NegativeInfinity;   // when the ring was last thinned (SmokeTrail.ThinRing)
         private double _crank, _crankT = double.NaN;   // the crank's revolutions, integrated from the live rpm: times the exhaust pulses
 
         private void Start()
@@ -150,11 +151,13 @@ namespace FlyingGame.Bridge
                 Crank = _crank, Rpm = ac.Config.Propulsion != null && ac.Config.Propulsion.PropDiameterM > 0 ? (float)ac.EngineRpm : 0f,   // (a jet has no pulses)
             });
 
-            // Drop what has aged out, oldest first. The ring is about 30 s at the frame rate - a couple of thousand
-            // samples - so this stays bounded however long the flight is.
+            // Drop what has aged out, oldest first. The ring is 90 s (SmokeTrail.LifeMaxS), so this stays bounded however
+            // long the flight is; and once a second the samples the trail would skip are dropped (SmokeTrail.ThinRing:
+            // past 2 s it draws one per 1/30 s), which keeps it to ~2,700 instead of 8,100 at the Quest's 90 Hz.
             int drop = 0;
             while (drop < _hist.Count && now - _hist[drop].T > SmokeTrail.LifeMaxS) drop++;
             if (drop > 0) _hist.RemoveRange(0, drop);
+            if (System.Math.Abs(now - _thinnedT) > 1.0) { _thinnedT = now; SmokeTrail.ThinRing(_hist, now); }
 
             // Nothing in the air and the switch off: do not walk the ring every frame for puffs that cannot exist.
             if (!On && !AnyFlow()) { _smoke.Hide(); return; }
