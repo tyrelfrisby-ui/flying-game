@@ -127,6 +127,8 @@ namespace FlyingGame.Bridge
                 LandingSession.ApplyPreview(flow);   // the saved load the next spawn reads
             }
             BuildFigures(flow);
+            // Time of day lights the real scene at once, so the preview shows it (lighting only).
+            TimeOfDayLighting.Apply(flow.TimeOfDay);
         }
 
         /// <summary>Half the airframe's size, from its renderers (excluding our own).</summary>

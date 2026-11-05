@@ -13,11 +13,12 @@ SHOTS=${SHOTS:-$HOME/Developer/agent-lanes/renders/landing-v2/claude}
 MODE=${1:-both}
 mkdir -p build/landing "$SHOTS"
 if [[ -z "$SKIP_BUILD" ]]; then
-  # One Unity/xcodebuild at a time, machine-wide: three idle polls in a row (CLAUDE.md, "Other agents' prompts are in ps").
+  # One Unity/xcodebuild at a time, machine-wide: two idle polls in a row (CLAUDE.md, "Other agents' prompts are in ps").
   idle=0
-  while (( idle < 3 )); do
-    if pgrep -f "^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity" >/dev/null || pgrep -x xcodebuild >/dev/null || pgrep -f "^zsh tools/deploy/deploy" >/dev/null; then idle=0; else idle=$((idle+1)); fi
-    sleep 45
+  # (a deploy that is only installing to devices holds no build slot, so deploy.sh itself is not matched)
+  while (( idle < 2 )); do
+    if pgrep -f "^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity" >/dev/null || pgrep -x xcodebuild >/dev/null; then idle=0; else idle=$((idle+1)); fi
+    sleep 20
   done
   rm -rf "$OUT"
   FLYINGGAME_MAC_OUT=$OUT nice -n 10 "$UNITY" -batchmode -quit -projectPath "$REPO/unity" -buildTarget OSXUniversal \

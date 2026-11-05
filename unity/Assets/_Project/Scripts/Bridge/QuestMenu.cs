@@ -240,17 +240,17 @@ namespace FlyingGame.Bridge
             // LANDING V2 (Ty 2026-11-05, docs/LANDING-V2.md): on the landing page the rows step through the same flow the
             // flat page does (LandingSession.Flow), one < > row per menu. Free flight only in here (a lesson's cards are
             // OnGUI), and the headset's own fleet (QuestFleet).
-            AddRow(() => $"Aircraft:  {Flow.HeroTitle}   < >", () => CycleFlow(PickerKind.Aircraft, 1), d => CycleFlow(PickerKind.Aircraft, d), () => OnLanding);
-            AddRow(() => $"Configuration:  {Flow.Gear.Name}" + (Flow.IsFixed(PickerKind.Configuration) ? "" : "   < >"),
+            AddRow(() => $"Aircraft:  {Flow.HeroTitle}", () => CycleFlow(PickerKind.Aircraft, 1), d => CycleFlow(PickerKind.Aircraft, d), () => OnLanding);
+            AddRow(() => $"Configuration:  {Flow.Gear.Name}" ,
                 () => CycleFlow(PickerKind.Configuration, 1), d => CycleFlow(PickerKind.Configuration, d), () => OnLanding);
-            AddRow(() => $"Location:  {Flow.Location?.Name}   < >", () => CycleFlow(PickerKind.Location, 1), d => CycleFlow(PickerKind.Location, d), () => OnLanding);
-            AddRow(() => $"Passenger:  {PassengerLine()}   < >", () => CyclePassenger(), _ => CyclePassenger(), () => OnLanding && Flow.Seats.Any(x => x.Occupant != Occupant.Me));
-            AddRow(() => $"Fuel:  {Flow.FuelFraction * 100:0} %   < >", () => StepFuel(1), StepFuel, () => OnLanding && Flow.Stations.Any(x => x.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel));
-            AddRow(() => $"Time of day:  {Flow.TimeItems().First(i => i.Selected).Title}   < >", () => CycleSetting(Flow.TimeItems(), 1, id => Flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id))),
+            AddRow(() => $"Location:  {Flow.Location?.Name}", () => CycleFlow(PickerKind.Location, 1), d => CycleFlow(PickerKind.Location, d), () => OnLanding);
+            AddRow(() => $"Passenger:  {PassengerLine()}", () => CyclePassenger(), _ => CyclePassenger(), () => OnLanding && Flow.Seats.Any(x => x.Occupant != Occupant.Me));
+            AddRow(() => $"Fuel:  {Flow.FuelFraction * 100:0} %", () => StepFuel(1), StepFuel, () => OnLanding && Flow.Stations.Any(x => x.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel));
+            AddRow(() => $"Time of day:  {Flow.TimeItems().First(i => i.Selected).Title}", () => CycleSetting(Flow.TimeItems(), 1, id => Flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id))),
                 d => CycleSetting(Flow.TimeItems(), d, id => Flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id))), () => OnLanding);
-            AddRow(() => $"Weather:  {Flow.WeatherItems().First(i => i.Selected).Title}   < >", () => CycleSetting(Flow.WeatherItems(), 1, Flow.SetWeather),
+            AddRow(() => $"Weather:  {Flow.WeatherItems().First(i => i.Selected).Title}", () => CycleSetting(Flow.WeatherItems(), 1, Flow.SetWeather),
                 d => CycleSetting(Flow.WeatherItems(), d, Flow.SetWeather), () => OnLanding);
-            AddRow(() => $"Engine:  {Flow.ReliabilityItems().First(i => i.Selected).Title}   < >", () => CycleSetting(Flow.ReliabilityItems(), 1, id => Flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id))),
+            AddRow(() => $"Engine:  {Flow.ReliabilityItems().First(i => i.Selected).Title}", () => CycleSetting(Flow.ReliabilityItems(), 1, id => Flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id))),
                 d => CycleSetting(Flow.ReliabilityItems(), d, id => Flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id))), () => OnLanding);
             AddRow(() => WeightLine(), null, visible: () => OnLanding && Flow.WeightBalance != null);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
@@ -748,9 +748,9 @@ namespace FlyingGame.Bridge
             if (seat == null) return "";
             string who = seat.Occupant switch
             {
-                Occupant.DefaultPerson => "passenger", Occupant.InvitedPlayer => seat.Role == SeatRole.DualControl ? "invited, on the controls" : "invited, passenger", _ => "empty",
+                Occupant.DefaultPerson => "passenger", Occupant.InvitedPlayer => seat.Role == SeatRole.DualControl ? "friend, flying" : "friend, riding", _ => "empty",
             };
-            return $"{seat.Label}: {who}";
+            return $"{seat.SeatId} - {who}";
         }
 
         private static void StepFuel(int step) => Flow.SetFuelFraction(System.Math.Round(Flow.FuelFraction * 4 + step) / 4.0);
@@ -759,7 +759,7 @@ namespace FlyingGame.Bridge
         {
             var wb = Flow.WeightBalance;
             if (wb == null) return "";
-            return $"   {wb.TotalKg:0} kg" + (wb.HasGross ? $" of {wb.MaxGrossKg:0}" : "") + (wb.InLimits ? "   in limits" : "   " + wb.Warnings[0]);
+            return $"   {wb.TotalKg:0}" + (wb.HasGross ? $" / {wb.MaxGrossKg:0} kg" : " kg") + (wb.InLimits ? "   in limits" : wb.OverGross ? $"   OVER GROSS {wb.TotalKg - wb.MaxGrossKg:0} kg" : "   CG OUT OF LIMITS");
         }
 
         private static void CycleAircraft(int step)
@@ -809,6 +809,8 @@ namespace FlyingGame.Bridge
             var seats = SeatsOf(id);
             if (seats.Count < 2) return;
             SessionSettings.ChooseSeat(id, SeatChoice.Cycle(seats, SessionSettings.SeatIdFor(id), step));
+            // On the landing page my seat is also the flow's "me" seat, so the Passenger row and the W&B follow.
+            if (OnLanding && id == Flow.AircraftId) Flow.SetSeat(SessionSettings.SeatIdFor(id), Occupant.Me);
         }
 
         /// <summary>The green HUD in the cockpit view (off by default in a headset). Turning it on also selects the

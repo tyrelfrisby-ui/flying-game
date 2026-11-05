@@ -1,6 +1,41 @@
 ## NEEDS YOU
 <!-- landing-v2 needs-you -->
-- **LANDING V2 (Claude, lane/claude-landing-v2, IN PROGRESS 2026-11-05).** Nothing to review yet; summary lands here when done.
+- **LANDING PAGE V2: PLEASE LOOK AT THE RENDERS (Claude, lane/claude-landing-v2, 2026-11-05 09:40; Ty's 05:48 spec + 05:50
+  addendum). Local commits only: NOT merged, NOT pushed, NOT installed on any device. Nothing approved by me.**
+  Renders (29): `~/Developer/agent-lanes/renders/landing-v2/claude/` — `iphone-land-*` (2556x1180) and `ipad-land-*` (1180x820), each page and every open
+  menu; `quest-landing-*` (the headset panel); `thumbs-*` none (no Pillow here: open
+  `unity/Assets/_Project/Resources/LandingThumbs/` instead). Codex's 48 design boards: `../codex/mockups/`. iPad
+  PORTRAIT was not rendered: the Mac player's window opened on the 1024x600 second display and could not take the shape.
+  - **The flow.** Page 1, CHOOSE: the live aeroplane in the middle (the last one you launched; the yellow 2-33 the first
+    time), Aircraft / Configuration / Location / Viewpoint tiles on the left, each opening a sideways strip of picture
+    cards; Challenges and Lessons on the right. A lesson or challenge shrinks the left-hand lists (lessons: trainers,
+    standard gear, the lesson's own start; a config challenge: its own aeroplane; the box: aerobats; scored contests:
+    standard gear and locked weather). NEXT. Page 2, LOAD & LAUNCH: seats (tap: empty → passenger → friend riding →
+    friend on the other controls, where the seat has controls; ± kg), fuel (Empty/¼/Tabs/Full + per station), baggage,
+    the W&B plot (loaded point, zero-fuel point, the burn line; warning text, LAUNCH never blocked), and time of day /
+    weather / reliability cards. The old chapters are behind "More settings" (instruments, multiplayer, runway, livery,
+    tow plane, exact wind, lesson options), so nothing the old page did is gone.
+  - **Visual feedback (addendum).** The preview is the REAL airframe re-spawned at its launch pose on every change:
+    floats, skis, tyres are the real models; occupied seats get a seated figure; time of day relights the scene at once
+    (midday = today's sun, unchanged for everyone else). Floats get 1.2 x the wheel gross (J-3: 553 → 664 kg) on the
+    plot only.
+  - **Never touched = as authored.** A type nobody has loaded opens at exactly its authored mass and CG (test on 5 real
+    configs), so this page does not move anyone's book numbers. Physics code untouched.
+  - **Thumbnails.** Captured on the device whenever a card has no picture (aeroplane from the preview, location from
+    the actual launch view, again on the first frame after LAUNCH); 106 bench captures ship as the fallback (74 aircraft
+    cards, 32 any-aircraft location views; 8.8 MB of PNG, no mipmaps). `AERO_SELFTEST=landing-thumbs` + 
+    `tools/landing-v2/import-thumbs.sh` regenerate them.
+  - **Quest:** the VR panel's landing rows step the same flow (aircraft, configuration, location, passenger, fuel, time,
+    weather, engine, W&B line); FLY there is the flow's LAUNCH. The Seat row moves "me" in the flow too.
+  - **Decisions queued: Q088–Q094** (two pages vs Codex's three; lesson trainer list; floats on ANY airframe needs a
+    float kit; reliability is saved but EngineReliability is not wired to the sim; most configs' envelopes are in datum
+    inches and not read, so the plot says "no envelope authored"; no night lighting; which transport the invite uses).
+  - **Checks:** LandingFlowTests 21/21 (.NET); LandingV2Tests 6/6 EditMode; Unity batch 0 error CS (EditMode run, the Mac
+    IL2CPP player twice, the Quest shot batch); `check-parity` hook passed on commit; ignore check clean.
+    **NOT run:** `deploy.sh` (iOS BUILD SUCCEEDED is still needed before merge: src/ changed), an Android/Quest player
+    build, the full .NET suite (only the Landing, AircraftLoad, SeatChoice and config classes; 133 tests green).
+  - **Codex:** its 05:51 handoff (LandingVisuals.cs, docs/landing-v2, tools/landing-v2) is committed unchanged; nothing
+    newer appeared in its worktree. LandingView.cs is the functional baseline it is to restyle (contract above).
 <!-- /landing-v2 needs-you -->
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS

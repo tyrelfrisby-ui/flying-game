@@ -174,7 +174,7 @@ namespace FlyingGame.Bridge
             var pic = new Rect(r.x + pad, r.y + pad, picW, picH);
             DrawPicture(pic, cur, kind);
             float tx = pic.xMax + pad, tw = r.xMax - tx - pad;
-            UiLayout.Label(new Rect(tx, r.y + pad, tw, r.height * 0.3f), head + (fixedOne ? "" : "  ▸"), _head);
+            UiLayout.Label(new Rect(tx, r.y + pad, tw, r.height * 0.3f), head, _head);
             UiLayout.Label(new Rect(tx, r.y + r.height * 0.32f, tw, r.height * 0.34f), cur?.Title ?? "-", _label);
             UiLayout.Label(new Rect(tx, r.y + r.height * 0.64f, tw, r.height * 0.3f), fixedOne && kind == PickerKind.Viewpoint && flow.Rules.FixedViewpointNote != null ? "set by the activity" : cur?.Subtitle ?? "", _small);
             if (!fixedOne && GUI.Button(r, GUIContent.none, GUIStyle.none)) { flow.Open(kind); _stripScroll = 0f; ScrollToSelected(flow); }
@@ -330,13 +330,15 @@ namespace FlyingGame.Bridge
                 {
                     Occupant.Me => "You",
                     Occupant.DefaultPerson => "Passenger",
-                    Occupant.InvitedPlayer => (s.InviteName ?? "Invite a player") + (s.Role == SeatRole.DualControl ? "  ·  on the controls" : "  ·  passenger"),
+                    Occupant.InvitedPlayer => (s.InviteName ?? "Friend") + (s.Role == SeatRole.DualControl ? " · flying" : " · riding"),
                     _ => "Empty",
                 };
                 var seatR = new Rect(inner.x, y, inner.width - 2 * stepW - _gap * 0.6f, row);
                 GUI.DrawTexture(seatR, s.Occupant == Occupant.Me ? _btnOnBg : s.Occupant == Occupant.Empty ? _btnBg : _cardBg);
-                UiLayout.Label(new Rect(seatR.x + _gap * 0.4f, seatR.y, seatR.width * 0.42f, row), s.Label, _small);
-                UiLayout.Label(new Rect(seatR.x + seatR.width * 0.42f, seatR.y, seatR.width * 0.58f - _gap * 0.3f, row), s.Occupant == Occupant.Empty ? who : $"{who}  {s.Kg:0} kg", _label);
+                // The seat's own name, short ("Rear seat (solo)" → "Rear"), then who sits there.
+                string seatName = s.Label.Split(' ')[0];
+                UiLayout.Label(new Rect(seatR.x + _gap * 0.4f, seatR.y, seatR.width * 0.26f, row), seatName, _small);
+                UiLayout.Label(new Rect(seatR.x + seatR.width * 0.28f, seatR.y, seatR.width * 0.72f - _gap * 0.3f, row), s.Occupant == Occupant.Empty ? who : $"{who}  {s.Kg:0} kg", _label);
                 if (s.Occupant != Occupant.Me && GUI.Button(seatR, GUIContent.none, GUIStyle.none)) flow.CycleSeat(s.SeatId);
                 if (s.Occupant != Occupant.Empty)
                 {
@@ -433,9 +435,11 @@ namespace FlyingGame.Bridge
                     var col = Color.Lerp(new Color(0.15f, 0.12f, 0.30f), new Color(0.55f, 0.78f, 1f), (float)lt);
                     var g = GUI.color; GUI.color = col; GUI.DrawTexture(Inset(cr, it.Selected ? _gap * 0.3f : 1f), _white); GUI.color = g;
                 }
-                var ts = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter, fontStyle = it.Selected ? FontStyle.Bold : FontStyle.Normal, normal = { textColor = it.Selected && !timeTint ? new Color(0.1f, 0.1f, 0.1f) : Color.white } };
+                // Dark text on a light card (a selected card, a bright time of day), white on a dark one.
+                bool lightCard = (it.Selected && !timeTint) || (timeTint && LandingCatalog.TimesOfDay.First(t => t.t.ToString() == it.Id).light > 0.75);
+                var ts = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter, fontStyle = it.Selected ? FontStyle.Bold : FontStyle.Normal, normal = { textColor = lightCard ? new Color(0.1f, 0.1f, 0.1f) : Color.white } };
                 UiLayout.Label(new Rect(cr.x, cr.y, cr.width, cr.height * 0.6f), it.Title, ts);
-                var ss = new GUIStyle(_tiny) { alignment = TextAnchor.UpperCenter, wordWrap = false, normal = { textColor = it.Selected && !timeTint ? new Color(0.15f, 0.15f, 0.15f) : new Color(0.85f, 0.88f, 0.92f) } };
+                var ss = new GUIStyle(_tiny) { alignment = TextAnchor.UpperCenter, wordWrap = false, normal = { textColor = lightCard ? new Color(0.15f, 0.15f, 0.15f) : new Color(0.85f, 0.88f, 0.92f) } };
                 GUI.Label(new Rect(cr.x, cr.y + cr.height * 0.55f, cr.width, cr.height * 0.45f), it.Subtitle, ss);
                 if (it.Enabled && GUI.Button(cr, GUIContent.none, GUIStyle.none)) pick(it.Id);
             }

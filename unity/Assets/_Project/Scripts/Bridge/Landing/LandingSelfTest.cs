@@ -55,7 +55,7 @@ namespace FlyingGame.Bridge
             var flow = LandingSession.Flow;
             var shapes = new (string name, int w, int h, bool iphone, bool ipad)[]
             {
-                ("iphone-land", 2556, 1179, true, false), ("ipad-land", 2360, 1640, true, true), ("ipad-port", 1640, 2360, true, true),
+                ("iphone-land", 2556, 1179, true, false), ("ipad-land", 1180, 820, true, true), ("ipad-port", 820, 1180, true, true),   // iPad Air in points: the Mac window cannot open at its pixels
             };
             foreach (var sh in shapes)
             {
