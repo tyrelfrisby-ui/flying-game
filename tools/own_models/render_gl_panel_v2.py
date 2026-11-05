@@ -27,6 +27,7 @@ CAMERAS = [
     ('switch_console_rear_on', (-1.90, .12, .12), (-1.963, .305, -.111), 30, 'on'),
     ('mag_switches_close_off', (-1.96, .21, .01), (-2.0155, .305, -.111), 45, ''),
     ('mag_switches_close_on', (-1.96, .21, .01), (-2.0155, .305, -.111), 45, 'on'),
+    ('switch_console_rear_pilot_eye_on', (-1.95, 0, .29), (-1.98, .305, -.111), 40, 'on'),
     ('switch_console_front', (-1.23, .12, .14), (-1.293, .305, -.091), 30, ''),
     ('sight_tube_full', (-1.22, 0, .27), TUBE, 55, 'fuel=1'),
     ('sight_tube_half', (-1.22, 0, .27), TUBE, 55, 'fuel=0.5'),

@@ -2,7 +2,8 @@
 - **GREAT LAKES PANELS v2: CENTRED IAC CARD, DECLUTTERED REAR PANEL, MAG L / MAG R, LABELLED SWITCHES, FUEL SIGHT GAUGE,
   FRONT CARD (Claude, 2026-11-05, lane/claude-greatlakes-panel-v2; Ty's spec 05:07, GREAT LAKES section). NOT merged,
   NOT approved: renders for Ty first. Renders + README: ~/Developer/agent-lanes/renders/cockpit-1105/claude-greatlakes-panel-v2/.
-  Questions Q065-Q068 in the queue. iOS NOINSTALL build + Unity shots: PENDING (machine queue; stamp added when done).**
+  Questions Q065-Q068 in the queue. iOS NOINSTALL 2026.1105.0947 ** BUILD SUCCEEDED **, 0 error CS, not installed. Unity shots (GreatLakesPanelV2Shots, PASS:
+  the rig moves the sight ball 0.590 / 0.536 / 0.498 m at fuel 1.0 / 0.5 / 0.15) in renders/.../unity/.**
   - **Card centred, and a test that fails without it** (8aa5ab74). `tools/own_models/gl_panel_v2.py` is the last step of
     the GL build (from 6f659d0d's export, deterministic). Rear SequenceCard_* on the panel's centre line, flush, 108 x
     139.7 mm portrait. `GreatLakesCardSpaceTests` reads the GLB: present, full size, portrait, on the panel, within 5 mm
