@@ -64,6 +64,12 @@ public sealed class AircraftConfig
     public string StructureType { get; set; } = "";
     /// <summary>Where <see cref="StructureType"/> came from (type certificate, maintenance manual, builder's notes).</summary>
     public string StructureTypeSource { get; set; } = "";
+    /// <summary>How the WING is built, which decides how its panels bend and how far before they let go (Ty 2026-11-05,
+    /// <see cref="FlyingGame.Core.MemberMaterials"/>): "wood" (spruce spars, fabric), "aluminumFabric" (aluminium spars,
+    /// fabric), "aluminum" (stressed aluminium skin), "composite". Empty = what the fuselage implies (steel tube or wood →
+    /// wood, composite → composite, otherwise aluminium skin).</summary>
+    public string WingSpar { get; set; } = "";
+    public string WingSparSource { get; set; } = "";
 
     public MassConfig Mass { get; set; } = new();
     /// <summary>Seats, tanks and baggage, and the weight-and-balance envelope. Optional; absent means the authored

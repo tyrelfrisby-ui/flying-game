@@ -284,6 +284,9 @@ public sealed class WheelState
     /// a wheel nobody advanced coast in its bearings.</summary>
     public bool Advanced;
 
+    /// <summary>Set by the gear when this leg touched down faster than its break sink (and cleared by the aeroplane, which
+    /// decides whether it bends or breaks, MemberMaterials.CrushCapacityM): the arrival and the break sink, m/s.</summary>
+    public double ArrivalMs, ArrivalBreakMs;
     public bool InContact, OnSki, OverWater, Locked;
     public double LoadN, VFwdMs, SlipRatio, SlipPowerW, Brake01, BrakeTorqueNm;
     public WorldTerrain.Surface Surface;

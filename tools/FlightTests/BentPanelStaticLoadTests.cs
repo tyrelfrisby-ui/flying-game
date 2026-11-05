@@ -9,11 +9,11 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 /// <summary>
-/// Ty's answer to contact-patch decision 1 (2026-11-03): STATIC load counts. The aeroplane's own weight resting on a bent
-/// wing panel is load like any other, so the bent-panel rule (5° at 1 g, +10° per g, snaps past 15° = 2 g, where "g" is
-/// the station moment over its 1 g flight moment M1) applies to it, and a bent panel can snap under the aeroplane sitting
-/// on it. An intact panel is held to its limit and ultimate moments as before, so the same rest that snaps a bent panel
-/// does not break an intact one.
+/// Ty's answer to contact-patch decision 1 (2026-11-03): STATIC load counts. The aeroplane's own weight resting on a wing
+/// panel is load like any other, and goes into the panel's plastic hinges (Ty 2026-11-05, <see cref="PlasticHinge"/>):
+/// a panel weakened by an earlier strike bends further under the aeroplane lying on it, and one already bent nearly to
+/// tearing goes. (Until 11-05 a bent panel snapped past 2 × its 1 g moment, a fifth of its ultimate; under that rule the
+/// PA-18 lying on two tips bent 5° lost both.)
 /// </summary>
 [Collection("WorldTerrainActive")]
 public class BentPanelStaticLoadTests : IDisposable
@@ -67,19 +67,33 @@ public class BentPanelStaticLoadTests : IDisposable
     }
 
     [Fact]
-    public void ThePa18OnTwoBentTipsSnapsThemUnderItsOwnWeight()
+    public void ThePa18LyingOnTwoBentTipsBendsThemFurtherAndTheyHold()
     {
         var c = Load("pa18-cub-like");
         // Both tips bent 5° UP by upright wingtip strikes (a ground loop, a dropped wing), then over onto its back: inverted,
-        // body "up" is toward the ground, so it lies on the two bent tips and its fin, set down level on all three. (Bent the
-        // other way — by a strike while inverted — the tips stand 16 cm clear and it lies on its fin and cabin instead.)
+        // body "up" is toward the ground, so it lies on the two bent tips and its fin, set down level on all three.
         var ac = InvertedOnItsTips(c, 0.005, WingStructure.BentSetRad);
         Settle(ac, 3.0);
-        // Lying on it the weight puts more than 2 × M1 on each station, and the bent rule takes it past 15°.
-        Assert.True(ac.IsLost(AirframeComponent.WingTipLeft), "left bent panel held the aeroplane's weight");
-        Assert.True(ac.IsLost(AirframeComponent.WingTipRight), "right bent panel held the aeroplane's weight");
-        Assert.All(ac.Panels.Where(p => p.Component is AirframeComponent.WingTipLeft or AirframeComponent.WingTipRight),
-            p => Assert.True(p.PeakContactNm > WingStructure.SnapLoadFactor * p.M1Nm));
+        // Its weight asks each station for more than its bent spars have left (aluminium past its 0.02 rad peak: 58 % of
+        // the ultimate at 0.087 rad), so they fold further toward the ground — and the folding takes the weight off them
+        // onto what is left (the buckled spar's 50 % residual), and they stay on.
+        foreach (WingPanel p in ac.Panels.Where(p => p.Component is AirframeComponent.WingTipLeft or AirframeComponent.WingTipRight))
+        {
+            Assert.False(ac.IsLost(p.Component), $"{p.Component} held the weight on what was left of it");
+            Assert.True(p.PeakContactNm > 2.0 * p.M1Nm);
+            Assert.True(p.BendRad < WingStructure.BentSetRad - 3.0 * Math.PI / 180, $"{p.Component} was pushed back by more than 3°");
+        }
+    }
+
+    [Fact]
+    public void ThePa18LyingOnTipsBentNearlyToTearingLosesThem()
+    {
+        var c = Load("pa18-cub-like");
+        // Bent 19° (0.33 rad: the tension flange tears at 0.36, MemberMaterials), it lies on them: they go.
+        var ac = InvertedOnItsTips(c, 0.005, 19.0 * Math.PI / 180);
+        Settle(ac, 3.0);
+        Assert.True(ac.IsLost(AirframeComponent.WingTipLeft));
+        Assert.True(ac.IsLost(AirframeComponent.WingTipRight));
     }
 
     [Fact]
@@ -94,5 +108,8 @@ public class BentPanelStaticLoadTests : IDisposable
         Assert.False(ac.IsLost(AirframeComponent.WingTipRight));
         Assert.All(ac.Panels.Where(p => p.Component is AirframeComponent.WingTipLeft or AirframeComponent.WingTipRight),
             p => Assert.True(p.PeakContactNm < p.UltimateNm));
+        // The weight is past their yield, short of their ultimate: a set of a fraction of a degree, no crack.
+        Assert.All(ac.Panels.Where(p => p.Component is AirframeComponent.WingTipLeft or AirframeComponent.WingTipRight),
+            p => { Assert.True(Math.Abs(p.BendRad) < 0.5 * Math.PI / 180); Assert.False(p.Bending!.Damaged); });
     }
 }

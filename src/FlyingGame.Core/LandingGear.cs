@@ -539,7 +539,11 @@ public static class LandingGear
                 touching[gi] = true;
                 impacts?.Record(compressionRate, leg.ToString());
                 double breakSink = (g.BreakSinkMs > 0 ? g.BreakSinkMs : g.IsTailwheel ? DefaultTailwheelBreakSinkMs : DefaultBreakSinkMs) * config.ImpactStrength;
-                if (broken != null && compressionRate > breakSink && !broken.Contains(leg)) broken.Add(leg);
+                if (broken != null && compressionRate > breakSink && !broken.Contains(leg))
+                {
+                    broken.Add(leg);
+                    if (ws != null && compressionRate > ws.ArrivalMs) { ws.ArrivalMs = compressionRate; ws.ArrivalBreakMs = breakSink; }
+                }
             }
 
             // The tyre's reaction is along the GROUND NORMAL whatever the aircraft's pitch (the body axis here gives a

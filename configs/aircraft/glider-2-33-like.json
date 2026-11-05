@@ -4,6 +4,8 @@
   "displayName": "2-33-like Trainer Glider",
   "structureType": "steelTube",
   "structureTypeSource": "Schweizer SGS 2-33: welded steel-tube fuselage, fabric covered; aluminium wing (FAA TCDS G16EA; Schweizer 2-33 maintenance manual).",
+  "wingSpar": "aluminum",
+  "wingSparSource": "Schweizer SGS 2-33: all-metal aluminium wing (FAA TCDS G16EA; Schweizer 2-33 maintenance manual).",
   "wingBracing": "strut",
   "wingBreakStationY": { "wing": 3.13 },
   "wingBreakStationSource": "Lift-strut wing attach |y| 3.13 m (123.2 in) from the centreline: our own SGS 2-33 model (tools/own_models/build_sgs233.py, single strut per side, at 30 % chord). Check: a 2019 three-view (Wikimedia Commons, scaled to the 51 ft span) gives ~125 in (+/-6). The Schweizer 2-33 Flight-Erection-Maintenance Manual gives the strut bolts (AN7) but no station.",

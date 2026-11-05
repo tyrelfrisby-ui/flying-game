@@ -139,10 +139,12 @@ namespace FlyingGame.Bridge
                 if (LostLine == null || !LostLine.Contains(what)) LostLine = LostLine == null ? what : LostLine + ", " + what;
                 return;
             }
-            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent) return;
+            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent && e.Kind != FlyingGame.Core.ContactEventKind.MemberBent) return;
             FlyingGame.Core.CrashEvents.RaiseImpact(new FlyingGame.Core.CrashImpact(FlyingGame.Core.ImpactSurface.Land, e.PositionWorld, e.VelocityWorld,
                 e.VelocityWorld.Length, _watched.MassProperties.MassKg, System.Math.Clamp(e.Intensity, 0.2, 1.0), -1));
-            string name = PanelName(e.Component);
+            // A panel reports again every further 5° it folds (the crunch each time); the line names it once.
+            string name = e.Kind == FlyingGame.Core.ContactEventKind.PanelBent ? PanelName(e.Component) : e.Component.ToString().ToUpperInvariant();
+            if (LostLine != null && LostLine.Contains(name)) return;
             LostLine = LostLine == null ? "BENT: " + name : LostLine + ", BENT " + name;
         }
 
@@ -226,11 +228,11 @@ namespace FlyingGame.Bridge
 
             // The wreck and the airframe's flooding, in step with the game clock.
             _relay?.Step(Time.deltaTime);
-            // Bent wing panels follow their deflection (it grows with the load factor until they snap).
+            // Bent wing panels follow their shape: the plastic set and twist, and the elastic flex under a tip contact.
             if (_visual == null) _visual = GetComponent<AirframeVisual>();
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)
-                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003) _visual.ShowPanelBend(p, ac.Config);
+                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003 || (p.State != FlyingGame.Core.PanelState.Broken && _visual.HasBentPanel(p.Component))) _visual.ShowPanelBend(p, ac.Config);
             // A crushed tail boom or engine mount bends on the model too.
             if (_visual != null && (ac.Crush.TailCrushM > 0 || ac.Crush.NoseCrushM > 0)) _visual.ShowFuselageBend(ac.Crush, ac.Config);
 

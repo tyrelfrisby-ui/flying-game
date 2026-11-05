@@ -457,10 +457,25 @@ namespace FlyingGame.Bridge
             DebrisMesh.Split(src, (a, b, c) => lostTest((r[a] + r[b] + r[c]) / 3f), out lost, out kept);
         }
 
+        /// <summary>A bent panel's mesh piece, kept with its straight vertices (in the airframe root's frame) so each new shape
+        /// is drawn from the straight wing, not from the last bend.</summary>
+        private sealed class BentPiece
+        {
+            public MeshFilter Filter;
+            public Vector3[] StraightRoot;
+            public Matrix4x4 RootToLocal;
+        }
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, List<BentPiece>> _bentPieces = new();
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, Vector3> _bentShown = new();
+        /// <summary>The panel has been drawn bent or flexed this flight (so it is redrawn when the flex comes off).</summary>
+        public bool HasBentPanel(FlyingGame.Core.AirframeComponent c) => _bentPieces.ContainsKey(c);
+
         /// <summary>
         /// A wing panel bent by a strike, or flexing under a tip contact (contact damage): on first call its triangles move
-        /// onto a pivot on the station line, which then turns about the flight axis by the panel's set plus its elastic flex. PLACEHOLDER — static
-        /// meshes only, the aileron meshes stay where they are (AGENT-LOG NEEDS-Codex).
+        /// onto a pivot on the station line; each time its shape changes every vertex is put where the physics puts that
+        /// point of the wing (<see cref="FlyingGame.Core.WingPanel.Deform"/>: twisted about the flexural axis, then turned
+        /// about the station by the set plus the elastic flex), so the drawn panel is bent and twisted exactly as the one
+        /// that flies. PLACEHOLDER — static meshes only, the aileron meshes stay where they are (AGENT-LOG NEEDS-Codex).
         /// </summary>
         public void ShowPanelBend(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
         {
@@ -489,9 +504,38 @@ namespace FlyingGame.Bridge
                     }
                 }
                 _bentPanels[p.Component] = pivot;
+                var pieces = new List<BentPiece>();
+                foreach (MeshFilter mf in pivot.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (mf == null || mf.sharedMesh == null || !mf.sharedMesh.isReadable) continue;
+                    Matrix4x4 toRoot = transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                    Vector3[] v = mf.sharedMesh.vertices;
+                    for (int i = 0; i < v.Length; i++) v[i] = toRoot.MultiplyPoint3x4(v[i]);
+                    pieces.Add(new BentPiece { Filter = mf, StraightRoot = v, RootToLocal = toRoot.inverse });
+                }
+                _bentPieces[p.Component] = pieces;
+                _bentShown.Remove(p.Component);
             }
-            // Root-local x = sim y, y = up, z = sim x: tip up is +angle about +z on the right, − on the left.
-            pivot.localRotation = Quaternion.AngleAxis(p.Side * (float)((p.BendRad + p.ElasticRad) * 180.0 / System.Math.PI), Vector3.forward);
+            var shape = new Vector3((float)(p.BendRad + p.ElasticRad), (float)p.TwistRad, 0f);
+            if (_bentShown.TryGetValue(p.Component, out Vector3 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f && Mathf.Abs(shape.y - shown.y) < 1e-3f) return;
+            _bentShown[p.Component] = shape;
+            if (!_bentPieces.TryGetValue(p.Component, out List<BentPiece> list)) return;
+            foreach (BentPiece bp in list)
+            {
+                if (bp.Filter == null || bp.Filter.sharedMesh == null) continue;
+                var v = new Vector3[bp.StraightRoot.Length];
+                for (int i = 0; i < v.Length; i++)
+                {
+                    // Root-local x = sim y, y = up (−sim z), z = sim x.
+                    Vector3 r = bp.StraightRoot[i];
+                    FlyingGame.Core.MathTypes.Vec3 d = p.Deform(new FlyingGame.Core.MathTypes.Vec3(r.z, r.x, -r.y), p.ElasticRad);
+                    v[i] = bp.RootToLocal.MultiplyPoint3x4(new Vector3((float)d.Y, (float)-d.Z, (float)d.X));
+                }
+                Mesh m = bp.Filter.sharedMesh;
+                m.vertices = v;
+                m.RecalculateNormals();
+                m.RecalculateBounds();
+            }
         }
 
         /// <summary>Detach a component's visual parts as tumbling debris — shared by the player's airframe and the
@@ -840,6 +884,8 @@ namespace FlyingGame.Bridge
             _componentsDetached = false;
             _fuselageBent = false;
             _bentPanels.Clear();
+            _bentPieces.Clear();
+            _bentShown.Clear();
             _rigPartGone = false;
             Cockpit.Reset();
             _displays.Forget();
