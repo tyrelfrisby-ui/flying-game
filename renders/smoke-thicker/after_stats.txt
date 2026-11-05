@@ -1,0 +1,6 @@
+tag after: Pitts, straight and level at 60 m/s, 300 m above the field, 4 m/s crosswind, 2565 rpm / throttle 0.85 (flow 0.89), shown 100 s after the smoke went on; camera 80 m abeam, fov 50
+  age0: peak coverage 1.000  width >50% 0.9 m  coverage-metres 0.9  | quads 876  fill 0.26 screens/pass  build 2.67 ms (editor)
+  age5: peak coverage 0.947  width >50% 4.4 m  coverage-metres 4.2  | quads 876  fill 0.23 screens/pass  build 2.66 ms (editor)
+  age20: peak coverage 0.825  width >50% 5.3 m  coverage-metres 4.6  | quads 876  fill 0.49 screens/pass  build 2.63 ms (editor)
+  age45: peak coverage 0.657  width >50% 4.2 m  coverage-metres 3.8  | quads 517  fill 0.40 screens/pass  build 2.24 ms (editor)
+  close10: peak coverage 0.899  width >50% 3.5 m  coverage-metres 3.2  | quads 719  fill 0.67 screens/pass  build 2.51 ms (editor)

@@ -11,6 +11,12 @@ namespace FlyingGame.Core.Aero;
 /// leaving the pipe hot (ρ_e = p / (R · T_e)) through its area A:  U₀ = ṁ / (ρ_e · A).
 /// The Extra's 540 in³ at 2,700 rpm, VE 0.85, full power (AFR 12.5): 0.224 kg/s; at 900 K (ρ_e 0.39) through 4 in (81 cm²)
 /// → U₀ ≈ 70 m/s. Manifold pressure follows the throttle (≈ 0.3 atm closed → ambient open).
+/// PUMPING (2026-11-04): part throttle also leaves more burnt gas behind in each cylinder — the exhaust is pushed out
+/// against the ambient while the charge is drawn in against the throttled manifold — so the fresh charge (and with it the
+/// mass through the pipe) falls by more than MAP alone: residual fraction x_r = (1/r_c)·(p_exh/p_man)^(1/γ), γ 1.35, and
+/// the fresh charge ∝ (1 − x_r) against its value wide open (where the VE above was measured). r_c defaults to 8.7 (the
+/// AEIO-540); at idle MAP that is a further 0.81, wide open exactly 1. The pulse train this mean is spread over is
+/// <see cref="ExhaustPulse"/>.
 ///
 /// THE JET AFTER THE PIPE: a Lagrangian jet element (Lee &amp; Cheung's JETLAG method). The element carries its EXCESS
 /// velocity w over the local air; it entrains ambient air two ways and keeps its momentum M·w:
@@ -26,16 +32,28 @@ public static class ExhaustJet
 
     /// <summary>Exit velocity (m/s) of a piston engine's exhaust pipe.</summary>
     public static double ExitVelocity(double displacementM3, double rpm, double throttle01, double airDensity, double pipeDiameterM,
-                                      double exhaustTempK = 900, double volumetricEfficiency = 0.85, double airFuelRatio = 12.5)
+                                      double exhaustTempK = 900, double volumetricEfficiency = 0.85, double airFuelRatio = 12.5,
+                                      double compressionRatio = 8.7)
     {
         if (displacementM3 <= 0 || pipeDiameterM <= 0 || rpm <= 0) return 0;
         double mapRatio = 0.3 + 0.7 * System.Math.Clamp(throttle01, 0, 1);
-        double mAir = airDensity * volumetricEfficiency * mapRatio * displacementM3 * rpm / 120.0;
+        double rc = System.Math.Max(2, compressionRatio);
+        double fresh = (1 - System.Math.Pow(1 / mapRatio, 1 / 1.35) / rc) / (1 - 1 / rc);
+        double mAir = airDensity * volumetricEfficiency * fresh * mapRatio * displacementM3 * rpm / 120.0;
         double m = mAir * (1 + 1 / airFuelRatio);
         double p = airDensity * GasR * 288.15;   // (the pipe exits to the ambient pressure)
         double rhoE = p / (GasR * exhaustTempK);
         double area = System.Math.PI * pipeDiameterM * pipeDiameterM / 4;
         return m / (rhoE * area);
+    }
+
+    /// <summary>A type's mean exit velocity from its smoke and engine configs (the displacement estimated from the power,
+    /// ≈ 0.556 hp/in³, when the smoke config does not give it).</summary>
+    public static double ExitVelocity(DataContracts.SmokeConfig? sm, DataContracts.PropulsionConfig pr, double rpm, double throttle01, double airDensity)
+    {
+        double cuIn = sm != null && sm.DisplacementCuIn > 0 ? sm.DisplacementCuIn : pr.MaxPowerW / 745.7 / 0.556;
+        return ExitVelocity(cuIn * 16.387e-6, rpm, throttle01, airDensity, (sm?.PipeDiameterIn ?? 4) * 0.0254, sm?.ExhaustTempK ?? 900,
+                            compressionRatio: sm?.CompressionRatio ?? 8.7);
     }
 
     /// <summary>A jet element leaving the pipe: its excess velocity, mass, thickness and radius.</summary>

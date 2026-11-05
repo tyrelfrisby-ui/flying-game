@@ -1802,16 +1802,8 @@
           ]
         ],
         "head_ft": 6000,
-        "ski_zone": {
-          "centre": [
-            -6.2,
-            0.1
-          ],
-          "elevation_ft": 1100,
-          "length_m": 450,
-          "width_m": 100
-        },
-        "half_width_m": 200
+        "half_width_m": 200,
+        "landing": "Knik River bar strip (bush_strips), on the C4 valley floor 0.2 km below the glacier terminus; the glacier itself has no landing zone (Ty 2026-11-04)"
       },
       {
         "id": "Fairweather",
@@ -5822,49 +5814,49 @@
       {
         "id": "extra:59",
         "name": "aerotow and tow hookup",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:60",
         "name": "float bases ramps buoy lanes",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:61",
         "name": "glacier ski landings and icebergs",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:62",
         "name": "sloped grass Snoopy swoop training lane",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:63",
         "name": "waterfalls and plunge pools",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:64",
         "name": "river road bridge",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:65",
         "name": "hidden school interior shell and outdoor historic gliders",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Fairweather ski; Knik River bar strip; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
@@ -7416,6 +7408,53 @@
         "elevation_ft": 4075,
         "blend_m": 150,
         "clean_lane_width_m": 46
+      }
+    ],
+    "bush_strips": [
+      {
+        "id": "Knik River",
+        "name": "Knik River bar strip",
+        "centre": [
+          -5.15,
+          -0.74
+        ],
+        "heading_true_deg": 108,
+        "numbers_magnetic": "10/28",
+        "surface": "gravel",
+        "length_ft": 1200,
+        "width_ft": 60,
+        "elevation_ft": 103,
+        "slope_percent": 0,
+        "gear": "tundra tires (wheels on the bar; no skis)",
+        "one_way_true_deg": 108,
+        "landing_true_deg": [
+          108
+        ],
+        "takeoff_true_deg": [
+          288
+        ],
+        "go_around": "none once committed: the glacier's snout is on the floor 0.1 km past the east end and the canyon closes at the face; take off down-valley, 288",
+        "pad": {
+          "shoulder_m": 15,
+          "end_shoulder_m": 50,
+          "blend_m": 40
+        },
+        "shore_class": "inland",
+        "note": "Ty 2026-11-04: the Knik landing site is a gravel strip in the valley, not on the glacier. Modelled on the Knik River gravel bars used at the base of the real Knik Glacier (Knik Glacier area CTAF 122.7): a 1,200 x 60 ft bar strip on the C4 floor beside the river, 3 ft above the canyon floor and the river beside it, laid along the valley. Approach from the west down the valley floor and over the Knik ice lake, landing up-valley toward the glacier; Part 77 visual surface on that end only.",
+        "visual_surface": {
+          "start_beyond_end_m": 50,
+          "margin_m": 0,
+          "inner_half_width_m": 38.1,
+          "widen": 0.1,
+          "note": "FAA Part 77 utility visual runway approach surface (14 CFR 77.19(d)): 20:1 for 5,000 ft from the end of the primary surface (here the 50 m end shoulder) at strip elevation, 250 ft wide there widening to 1,250 ft. Margin 0: the canyon floor it starts over is 0.9 m below the strip."
+        },
+        "buildings": {
+          "hangars": 0,
+          "houses": 0,
+          "parked_aircraft": 0,
+          "note": "a bare river-bar strip: windsock only"
+        },
+        "beside": "the Knik River (canyon C4); deliberately not a \"river\" key, which TerrainGen reads as a Frank Church canyon strip and leans its walls back"
       }
     ]
   },

@@ -111,7 +111,7 @@ public static class IslandGeometry
                 continue;
             }
             var u = e["u"].Point; var d = p - e["a"].Point; double along = -d.Dot(u), cross = Math.Abs(d.E * u.N - d.N * u.E);
-            if (along + radiusKm < 0 || along - radiusKm > e.N("length") || cross - radiusKm > .15 + .05 * Math.Max(0, along + radiusKm)) continue;
+            if (along + radiusKm < 0 || along - radiusKm > e.N("length") || cross - radiusKm > e.N("half_width_km", .15) + e.N("widen", .05) * Math.Max(0, along + radiusKm)) continue;
             cap = Math.Min(cap, e.N("elevation_m") + Math.Max(0, along - radiusKm) * 1000 / e.N("ratio") - 3);
         }
         return cap;
@@ -391,7 +391,7 @@ public static class IslandGeometry
         foreach (var e in W["clearance_budgets"].Items)
         {
             if (e.S("kind") != "final") continue; var d = p - e["a"].Point; var u = e["u"].Point; double ad = -d.Dot(u), cr = Math.Abs(d.E * u.N - d.N * u.E);
-            if (ad >= -.2 && ad <= e.N("length") && cr <= .20 + .05 * ad) return false;
+            if (ad >= -.2 && ad <= e.N("length") && cr <= e.N("half_width_km", .15) + .05 + e.N("widen", .05) * ad) return false;
         }
         foreach (var f in W["features"].Items)
         {

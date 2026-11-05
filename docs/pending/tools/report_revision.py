@@ -35,7 +35,7 @@ def write_report(s,w,m,root):
  table(['Peak','Centre E,N km','Top ft MSL','Envelope radius km'],[(q['id'],q['centre'],q['top_ft'],q['radius_km']) for q in w['height_field']['peaks']])
  table(['Crest','Path E,N km','Top ft','Width km'],[(q['id'],q['path'],q['top_ft'],q['width_km']) for q in w['height_field']['crests']])
  table(['Water','Centre E,N km','Surface ft MSL','Radii km'],[(q['id'],q['centre'],q['elevation_ft'],q['radii_km']) for q in w['water']])
- table(['Glacier','Path','Ski-zone centre','Ski-zone ft MSL'],[(q['id'],q['path'],q['ski_zone']['centre'],q['ski_zone']['elevation_ft']) for q in w['glaciers']])
+ table(['Glacier','Path','Ski-zone centre','Ski-zone ft MSL'],[(q['id'],q['path'],q.get('ski_zone',{}).get('centre','—'),q.get('ski_zone',{}).get('elevation_ft','—')) for q in w['glaciers']])
  table(['Canyon','Path','Rim widths m','Floor widths m','Floor ft MSL'],[(q['id'],q['path'],q['rim_width_m'],q['floor_width_m'],q['floor_ft']) for q in w['canyons']])
  title('Airports, runway planes and shore classes')
  line('Each listed runway has 60 m shoulders; exact planes/slopes override the coarse review grid. Coastal ends require ≥0.3 km from the shore; inland fields/airparks/backcountry ends require ≥2 km. The PANC–PALH 0.8 km centre-spacing waiver is the only spacing exception. Eight original airport starts remain; PALH is a PANC float variant and every outer field is a non-start.');line()

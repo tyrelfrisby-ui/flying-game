@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "great-lakes-like",
   "displayName": "Great Lakes 2T-1A-2-like Biplane",
+  "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break station = the N-strut on both wings, |y| 2.875 (tools/own_models/build_great_lakes.py YI). The own model has four ailerons and slave struts, but this flight config carries aileron rows on the LOWER wing only, so there is no slaved aileron to model here: see AGENT-LOG NEEDS YOU.",
+  "wingBreakStationY": { "wing-upper": 2.875, "wing-lower": 2.875 },
   "spawnIasMs": 44,
   "mass": {
     "massKg": 816,
@@ -1467,7 +1469,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40,
+      "wheelMassKg": 7.6,
       "tireRadiusM": 0.222
     },
     {
@@ -1484,7 +1486,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40,
+      "wheelMassKg": 7.6,
       "tireRadiusM": 0.222
     },
     {
@@ -1501,7 +1503,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "rollResistN": 20,
+      "wheelMassKg": 1.3,
       "steerSpringNmPerRad": 25,
       "tireRadiusM": 0.1
     }

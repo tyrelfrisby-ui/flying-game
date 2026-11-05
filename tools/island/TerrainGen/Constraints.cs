@@ -92,6 +92,7 @@ public sealed class Constraints
         }
         foreach (var q in W["glaciers"].Items)
         {
+            if (!q.Has("ski_zone")) continue;   // the Knik's landing is the Knik River bar strip (a field) since 2026-11-04
             var s = q["ski_zone"]; if ((p - s["centre"].Point).Length <= .15) SetFix(k, s.N("elevation_ft") * Ft);
         }
         // Lesson terrain: the escape saddle is a ceiling, the box floor and headwall are exact.
@@ -145,7 +146,7 @@ public sealed class Constraints
             // instrument finals 7.408 km with a 0.25 km guard and 30 m margin; visual runway ends 1.524 km, none.
             var u = e["u"].Point; var dp = p - e["a"].Point; double along = -dp.Dot(u), cross = Math.Abs(dp.E * u.N - dp.N * u.E);
             double guard = e.N("guard_km", .25), margin = e.N("margin_m", 30), length = e.N("length");
-            double dd = Math.Max(0, Math.Max(Math.Max(-along - guard, along - length - guard), cross - (.15 + .05 * Math.Max(0, along)) - guard));
+            double dd = Math.Max(0, Math.Max(Math.Max(-along - guard, along - length - guard), cross - (e.N("half_width_km", .15) + e.N("widen", .05) * Math.Max(0, along)) - guard));
             // Generation margin under the runtime ceiling: 8 m below an instrument surface, 2 m below a visual
             // one (whose surface starts level with the runway end, so a bigger margin would dig a moat round it).
             if (dd < e.N("blend")) SetHi(k, e.N("elevation_m") + Math.Max(0, along) * 1000 / e.N("ratio") - margin - (margin > 0 ? 8 : 2));

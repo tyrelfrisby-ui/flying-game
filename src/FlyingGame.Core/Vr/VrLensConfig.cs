@@ -59,7 +59,8 @@ public sealed class VrLensConfig
     public double CaRedScale { get; set; } = 0.994;
     public double CaBlueScale { get; set; } = 1.006;
 
-    /// <summary>What the VR HUD draws: "none", "minimal" (speed/altitude) or "full". Codex owns the drawing.</summary>
+    /// <summary>VR HUD: "off" hides it; "minimal" shows IAS kt, altitude ft MSL and true heading.
+    /// Unknown values hide it. Rendered binocularly in the world before lens correction.</summary>
     public string HudMode { get; set; } = "minimal";
 
 #if !UNITY_5_3_OR_NEWER

@@ -541,7 +541,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.9,
       "corneringStiffnessN": 1200,
-      "rollResistN": 900
+      "gearType": "feet"
     }
   ]
 }

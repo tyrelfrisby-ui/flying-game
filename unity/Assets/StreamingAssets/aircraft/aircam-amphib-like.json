@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "aircam-amphib-like",
   "displayName": "AirCam-like (amphib)",
+  "wingBracing": "strut",
   "spawnIasMs": 31.0,
   "mass": {
     "massKg": 880.0,
@@ -1537,7 +1538,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1554,7 +1554,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1571,7 +1570,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1588,7 +1586,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1605,7 +1602,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1622,7 +1618,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1639,7 +1634,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 3000,
-      "rollResistN": 35
+      "tireRadiusM": 0.15, "wheelMassKg": 3.5
     },
     {
       "pos": [
@@ -1655,7 +1650,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 3000,
-      "rollResistN": 35
+      "tireRadiusM": 0.15, "wheelMassKg": 3.5
     },
     {
       "pos": [
@@ -1671,7 +1666,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "rollResistN": 40
+      "tireRadiusM": 0.21, "wheelMassKg": 7.0
     },
     {
       "pos": [
@@ -1687,7 +1682,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "rollResistN": 40
+      "tireRadiusM": 0.21, "wheelMassKg": 7.0
     }
   ],
   "limits": {

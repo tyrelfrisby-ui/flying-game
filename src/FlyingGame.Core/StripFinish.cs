@@ -27,12 +27,21 @@ public static class StripFinish
     /// <summary>Grass and turf lie the way a field lies (NaturalShapeParams); everything else is a plane.</summary>
     public static bool LiesNaturally(string surface) => Of(surface) == Kind.Turf;
 
-    /// <summary>What the wheels find. The ground model has no separate dirt: a dirt strip rolls like gravel (hard,
-    /// unpaved), turf like grass. Sand and the land under a water lane keep the gravel they always had.</summary>
+    /// <summary>The coarse class of the ground, which the terrain paint is drawn against: dirt and sand are gravel to
+    /// it, turf is grass. The land under a water lane is gravel. (What a TYRE finds is <see cref="Wheels"/>.)</summary>
     public static WorldTerrain.Surface Rolls(string surface) => Of(surface) switch
     {
         Kind.Paved => WorldTerrain.Surface.Paved,
         Kind.Turf => WorldTerrain.Surface.Grass,
         _ => WorldTerrain.Surface.Gravel,
+    };
+
+    /// <summary>What the wheels find (2026-11-04): a dirt strip is <see cref="WorldTerrain.Surface.Dirt"/> and a
+    /// sand one <see cref="WorldTerrain.Surface.Sand"/>; everything else as <see cref="Rolls"/>.</summary>
+    public static WorldTerrain.Surface Wheels(string surface) => Of(surface) switch
+    {
+        Kind.Dirt => WorldTerrain.Surface.Dirt,
+        Kind.Sand => WorldTerrain.Surface.Sand,
+        _ => Rolls(surface),
     };
 }

@@ -1442,7 +1442,7 @@
       "lengthM": 6.83
     }
   },
-  "smoke": {"aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.568]},
+  "smoke": {"cylinders": 4, "compressionRatio": 6.3, "aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.568]},
   "propulsion": {
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
@@ -1476,7 +1476,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1493,7 +1492,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1510,7 +1508,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1527,7 +1524,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1544,7 +1540,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1561,7 +1556,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     }
   ],
