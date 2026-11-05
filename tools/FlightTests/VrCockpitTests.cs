@@ -150,58 +150,87 @@ public sealed class VrCockpitTests
         Assert.Equal(0.6, l.Follow(new Vec3(0, 0.1879385, 0.0684040)), 4);
     }
 
-    // ---- the Pitts' sliding ball ----
+    // ---- the Pitts' latch v2: a black lever in each cockpit, one cable (Ty 2026-11-05) ----
+    // Throw 90°, forward = latched; over-centre detent: snaps home inside 6°, breaks out at 12° back.
 
     [Fact]
-    public void PittsStartsLockedFullyRight()
+    public void PittsStartsLatchedForward()
     {
-        var b = new PittsCanopyLatch();
-        Assert.True(b.Locked);
-        Assert.Equal(0.0762, b.PositionM, P);
-        Assert.Equal(0.0, b.Latch01, P);
+        var l = new PittsCanopyLatch();
+        Assert.True(l.Locked);
+        Assert.True(l.HookHome);
+        Assert.Equal(0.0, l.LeverDeg, P);
+        Assert.Equal(0.0, l.Latch01, P);
+        Assert.Equal(90.0, PittsCanopyLatch.ThrowDeg, P);
+        Assert.Equal(0.0508, PittsCanopyLatch.ArmM, P);
     }
 
     [Fact]
-    public void PittsDetentHoldsUntilTheBreakout()
+    public void PittsLeverPulledBackUnlatchesPastTheBreakout()
     {
-        var b = new PittsCanopyLatch();
-        b.Grab(0.0);
-        b.Follow(-0.005);                         // 5 mm left: inside the 10 mm breakout
-        Assert.True(b.Locked);
-        Assert.Equal(0.0762, b.PositionM, P);
-        b.Follow(-0.011);                         // 11 mm: out of the detent, at 76.2 − 11 = 65.2 mm
-        Assert.False(b.Locked);
-        Assert.Equal(0.0652, b.PositionM, P);
-        Assert.Equal(0.1443570, b.Latch01, 6);    // 1 − 65.2/76.2
-        b.Follow(-0.2);                           // against the left end
-        Assert.Equal(0.0, b.PositionM, P);
-        Assert.Equal(1.0, b.Latch01, P);
+        var l = new PittsCanopyLatch();
+        l.Grab(PittsLatchLever.Front);
+        l.Follow(PittsLatchLever.Front, 11.0);    // inside the 12° breakout: still over centre
+        Assert.True(l.Locked);
+        Assert.Equal(0.0, l.LeverDeg, P);
+        l.Follow(PittsLatchLever.Front, 30.0);    // out: the hook swings clear
+        Assert.False(l.Locked);
+        Assert.Equal(30.0, l.LeverDeg, P);
+        l.Follow(PittsLatchLever.Front, 200.0);   // against the back stop
+        Assert.Equal(90.0, l.LeverDeg, P);
+        Assert.Equal(1.0, l.Latch01, P);
     }
 
     [Fact]
-    public void PittsStaysWhereItWasLeft()
+    public void PittsCableMakesEitherLeverWorkTheOneLatch()
     {
-        var b = new PittsCanopyLatch();
-        b.Grab(0.0);
-        b.Follow(-0.04);
-        b.Release();
-        Assert.False(b.Follow(0.5));              // not held: nothing moves it
-        Assert.Equal(0.0362, b.PositionM, P);
-        Assert.False(b.Locked);
+        // Rear lever pulled back: the front one (same angle, same Latch01 into the rig) is back too.
+        var l = new PittsCanopyLatch();
+        l.Grab(PittsLatchLever.Rear);
+        l.Follow(PittsLatchLever.Rear, 90.0);
+        Assert.False(l.Locked);
+        l.Release(PittsLatchLever.Rear);
+        // A hand that is not on the driving lever moves nothing.
+        Assert.False(l.Follow(PittsLatchLever.Front, 0.0));
+        Assert.Equal(90.0, l.LeverDeg, P);
+        // The front pilot pushes his lever forward: latched for both.
+        l.Grab(PittsLatchLever.Front);
+        Assert.True(l.Follow(PittsLatchLever.Front, 3.0));
+        Assert.True(l.Locked);
+        // Two hands: the last to grab drives; the first letting go does not drop the second.
+        l.Grab(PittsLatchLever.Rear);
+        l.Follow(PittsLatchLever.Front, 60.0);
+        Assert.True(l.Locked);
+        l.Release(PittsLatchLever.Front);
+        Assert.Equal(PittsLatchLever.Rear, l.HeldBy);
     }
 
     [Fact]
-    public void PittsClicksHomeIntoTheDetentOnce()
+    public void PittsLeverStaysWhereLeftAndClicksHomeOnce()
     {
-        var b = new PittsCanopyLatch();
-        b.Grab(0.0); b.Follow(-0.2); b.Release(); // open, at 0
-        b.Grab(0.0);
-        Assert.False(b.Follow(0.070));            // 70 mm: short of the 72.2 mm capture
-        Assert.False(b.Locked);
-        Assert.True(b.Follow(0.0725));            // 72.5 mm: inside 4 mm of the end → snaps home, click
-        Assert.True(b.Locked);
-        Assert.Equal(0.0762, b.PositionM, P);
-        Assert.False(b.Follow(0.0725));           // one click only
+        var l = new PittsCanopyLatch();
+        l.Grab(PittsLatchLever.Front);
+        l.Follow(PittsLatchLever.Front, 45.0);
+        l.Release(PittsLatchLever.Front);
+        Assert.False(l.Follow(PittsLatchLever.Front, 0.0));   // not held
+        Assert.Equal(45.0, l.LeverDeg, P);
+        l.Grab(PittsLatchLever.Front);
+        Assert.False(l.Follow(PittsLatchLever.Front, 7.0));   // 7°: short of the 6° capture
+        Assert.False(l.Locked);
+        Assert.True(l.Follow(PittsLatchLever.Front, 5.0));    // inside it: snaps home, one click
+        Assert.False(l.Follow(PittsLatchLever.Front, 5.0));
+        Assert.Equal(0.0, l.LeverDeg, P);
+    }
+
+    [Fact]
+    public void PittsHookHomeOnlyLocksAShutCanopy()
+    {
+        var l = new PittsCanopyLatch();
+        Assert.True(l.Update(canopyShut: false));   // slid back: the hook is in free air
+        Assert.False(l.Locked);
+        Assert.True(l.HookHome);
+        Assert.True(l.Update(canopyShut: true));    // slid shut onto it: rides the keeper's ramp and locks
+        Assert.True(l.Locked);
     }
 
     // ---- the Extra's canopy latch, v2: fixed rear handle, spring-loaded front handle, pins (Ty 2026-11-02) ----
@@ -528,7 +557,7 @@ public sealed class VrCockpitTests
     [Fact]
     public void LatchKindsAreTheOnesTyDescribed()
     {
-        Assert.Equal(CanopyLatchKind.SlideBall, CockpitProxy.LatchFor("pitts-s2b-like"));
+        Assert.Equal(CanopyLatchKind.CableLever, CockpitProxy.LatchFor("pitts-s2b-like"));
         Assert.Equal(CanopyLatchKind.Squeeze, CockpitProxy.LatchFor("extra-300-like"));
         Assert.Equal(CanopyLatchKind.None, CockpitProxy.LatchFor("great-lakes-like"));   // open cockpits
         Assert.Equal(CanopyLatchKind.None, CockpitProxy.LatchFor("j3-cub-like"));        // a door, not a canopy

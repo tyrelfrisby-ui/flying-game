@@ -35,6 +35,12 @@ Lettering art: tools/own_models/art/pitts-*.png, our own renders of OFL fonts (L
   PITTS_LIVERY=CHECKER-UNMARKED | FACTORY-UNMARKED : the same schemes with no registration (Ty 2026-10-28)
 """
 import sys, os
+if '--cockpit-1105' in sys.argv:
+    # Scoped rebuild of the current postprocessed assets; retain all later rig/paint passes.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from pitts_cockpit_v2 import main as cockpit_1105
+    cockpit_1105()
+    sys.exit(0)
 if '--offline-update' in sys.argv:
     from glb_visuals import checker_update
     from sequence_card import offline_update
