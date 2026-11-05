@@ -132,7 +132,6 @@ namespace FlyingGame.Bridge
                 case "water_rudder_up": return _driver.Sim.Aircraft.WaterRudderUp01;
                 case "prop": case "master": case "alternator": case "fuel_pump":
                 case "mixture": case "fuel_valve": case "cowl_flap": case "prop_lock": return FromSim(spec.Param);
-                case "fuel_valve": return 1.0;
                 case "com_volume": return 0.5;
                 case "xpdr_squawk": return spec.Short switch { "XpdrDigit1" => 1, "XpdrDigit2" => 2, _ => 0 };   // 1200
             }

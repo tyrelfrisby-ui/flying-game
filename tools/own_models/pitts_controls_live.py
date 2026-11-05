@@ -17,8 +17,12 @@ forward on the gate). Travels are (E): the blade's 90 deg, an 80 mm prop slot, 5
 +-35 deg of cowl flap; Ty's to move. The panel's old push-pull PROP, MIXTURE and rotary FUEL SELECTOR rows leave the
 table: pitts_reference_visuals.py already took their geometry away (a hand could otherwise grab an invisible knob).
 
-Rig rows turn a node about pivot_gltf, so no mesh moves: only the prop blade is split off its mount (a new node for
-its shaft and blade under a new slide node; node indices are preserved, two nodes are appended). Idempotent.
+The rig turns a node about its OWN ORIGIN (AirframeRig: localRotation = rest * angle; pivot_gltf is only a record), so a
+part that turns must sit with its origin on its pivot. Codex built the mixture and cowl flap that way; the fuel valve
+and the prop blade were baked at the model origin, and on the first render they swung about a point a metre away and
+vanished. recentre() moves their vertices to the pivot and their node there. The prop blade is also split off its
+mount (a new node for its shaft and blade under a new slide node; node indices are preserved, two nodes are
+appended). Idempotent.
 Run with /usr/bin/python3 (numpy).
 """
 import copy, json
@@ -72,8 +76,29 @@ def rows(nodes_by):
     return rig, ctl
 
 
+def recentre(g, name, pivot):
+    """Vertices of the node's mesh minus the pivot, and the node at the pivot: drawn where it was, turning about it."""
+    import numpy as np
+    n = next(x for x in g.doc['nodes'] if x['name'] == name)
+    assert not n.get('translation') or not any(n['translation']), (name, n.get('translation'))
+    for p in g.doc['meshes'][n['mesh']]['primitives']:
+        a = g.array(p['attributes']['POSITION']) - np.array(pivot)
+        p['attributes']['POSITION'] = g.accessor(a, 'VEC3')
+    n['translation'] = list(pivot)
+
+
 def update(g):
     nodes = g.doc['nodes']; by = {n['name']: i for i, n in enumerate(nodes)}
+    live = g.doc.get('extras', {}).get('pittsControlsLive')
+    if live is not None and not live.get('recentred'):
+        # The slide node carries the pivot; the blade under it is drawn relative to it.
+        recentre(g, 'FuelValve_Rear', VALVE_P)
+        recentre(g, 'PropLever_Rear', PROP_P)
+        blade = nodes[by['PropLever_Rear']]; blade['translation'] = [0.0, 0.0, 0.0]
+        nodes[by['PropLever_Rear_Slide']]['translation'] = list(PROP_P)
+        live['recentred'] = True
+        validate(g, ROOT / 'pitts-controls-live')
+        return True
     if 'PropLever_Rear' in by: return False
     # The prop blade (shaft + blue handle) leaves its mount for a node of its own, under the slide.
     mount = nodes[by['Pitts_Prop_Left_Locked']]
@@ -96,8 +121,7 @@ def update(g):
     controls = g.doc['extras']['vrCockpitPhase3a']['controls']
     controls[:] = [c for c in controls if c['node'] not in RETIRED_ROWS] + ctl
     g.doc['extras']['pittsControlsLive'] = {'controls': [c['node'] for c in ctl], 'retired_rows': sorted(RETIRED_ROWS)}
-    validate(g, ROOT / 'pitts-controls-live')
-    return True
+    return update(g) or True   # and recentre the parts that turn
 
 
 def update_rig(rig, g):
