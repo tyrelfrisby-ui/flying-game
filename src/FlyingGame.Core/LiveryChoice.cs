@@ -105,6 +105,7 @@ public static class LiveryChoice
         "j3-cub-floats-like",
         "c172-like",            // its cabin and panel exist only in our GLB (Ty 2026-11-04, see above)
         "glider-grob103-acro-like",   // there is no downloaded Twin III (2026-11-04)
+        "dhc2-beaver-like",     // beaver-v2, our L-20A-traced airframe (Ty 2026-11-05: "Swap")
     };
 
     /// <summary>Does the game draw our own model of this type even with the "own models" option off?</summary>
