@@ -33,6 +33,7 @@ namespace FlyingGame.EditorTools
             try
             {
                 Directory.CreateDirectory(outDir);
+                ConfigSync.Sync();   // the configs and rigs every build ships (StreamingAssets is generated)
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 SessionSettings.UseAirframeModels = true;
                 sunGo = new GameObject("Sun");
