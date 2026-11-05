@@ -35,6 +35,9 @@ namespace FlyingGame.Bridge
         public bool PilotOut => Current >= Phase.FreeFall;
         /// <summary>He left by hand (headset): first person, ripcord by hand, no automatic opening.</summary>
         public bool HandsOn { get; private set; }
+        /// <summary>The chute opens by itself BailChuteSec after he leaves: the button bail-out (glass, keyboard, the headset's
+        /// menu). Not after a climb-out by hand, where the ripcord is his.</summary>
+        private bool _autoChute;
         /// <summary>The pilot's world velocity (m/s) once out; zero in the cockpit.</summary>
         public Vector3 PilotVelocity => _pilot != null ? _pilot.Velocity : Vector3.zero;
         /// <summary>0 packed / streaming .. 1 full canopy.</summary>
@@ -144,6 +147,7 @@ namespace FlyingGame.Bridge
             Current = Phase.BailingOut;
             _t = 0f;
             _eject = false;
+            _autoChute = true;
             Log("BAIL OUT — canopy in 3 s, over the side in 5 s");
             BailOutStarted?.Invoke();
         }
@@ -247,8 +251,9 @@ namespace FlyingGame.Bridge
                 StepCanopy(dt);
                 if (!_pilotDone && _t >= BailJumpSec && CanopyClear) JumpOverTheSide();   // not through a canopy still on
                 // A ghost's opens by itself, soon, even after a hands-on exit: nobody pulls a ripcord on the way up.
+                // A one-press VR bail-out (_autoChute) is hands-on but still opens on its own if he does not pull it.
                 float chuteSec = IsGhost ? (float)FlyingGame.Core.PilotOutRules.GhostChuteSec : BailChuteSec;
-                if (_pilotDone && !_chuteDone && (!HandsOn || IsGhost) && _t - _pilotLeftT >= chuteSec) DeployChute();
+                if (_pilotDone && !_chuteDone && (!HandsOn || IsGhost || _autoChute) && _t - _pilotLeftT >= chuteSec) DeployChute();
             }
             else
             {
@@ -408,12 +413,24 @@ namespace FlyingGame.Bridge
             Vector3 vel = _driver.WorldVelocityUnity + ac.right * 3f + ac.up * 1.5f;
             _pilot = new PilotBody(pos, vel, new Vector3(1.5f, 2.5f, 1.0f), ac.eulerAngles.y,
                 withSeat: false, seatUp: Vector3.up, initialRotation: ac.rotation * Quaternion.Euler(0f, 0f, -60f));
+            // In a headset the view goes with him (the one-press bail-out, Ty 2026-11-05: "Bailout is just a button press and
+            // it happens"): first person, as if he had climbed out himself, and the ripcord is in reach — but the chute still
+            // opens on its own BailChuteSec later if he does not pull it (_autoChute), the same as on the glass.
+            VrCockpitHands vr = VrCockpitHands.Current;
+            bool firstPerson = vr != null && vr.Active && XrHeadset.Active;
+            if (firstPerson)
+            {
+                HandsOn = true;
+                _pilot.FirstPerson = true;
+                _pilot.TumbleSec = (float)FlyingGame.Core.Vr.JumperAero.StabiliseSec;
+            }
             _pilot.Hit += OnPilotHit;
             PilotTransform = _pilot.Transform;
             TakeCrashVerdict();
             AbandonAircraft();
             Current = Phase.FreeFall;
             FirePilotLeft();
+            if (firstPerson) vr.FollowJump(pos, ac.eulerAngles.y);
         }
 
         /// <summary>
@@ -440,6 +457,7 @@ namespace FlyingGame.Bridge
         {
             if (Current != Phase.InCockpit) return;
             HandsOn = true;
+            _autoChute = false;
             _eject = false;
             _t = 0f;
             _canopyDone = true;

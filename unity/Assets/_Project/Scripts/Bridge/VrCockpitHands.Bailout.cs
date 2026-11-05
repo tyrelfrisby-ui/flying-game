@@ -143,7 +143,8 @@ namespace FlyingGame.Bridge
             else if (cockpit.HandJettison == null || System.Math.Abs(cockpit.HandJettison.TravelM - jp.TravelM) > 1e-6) cockpit.HandJettison = jp;
 
             // The belts: the type's set (Core SeatHarness.For), plus a lap belt where Codex models one on a single-release type.
-            cockpit.Harness ??= SeatHarness.For(id);
+            // No belts (Ty 2026-11-05; Core BeltsAndCords): an empty harness, so nothing holds him in the seat.
+            cockpit.Harness ??= SeatHarness.ForCockpit(id);
             _relMainNode = full != null ? Contract("Grip_Harness_Release_" + full) : null;
             _relLapNode = full != null ? Node("Grip_Harness_Release_Lap_" + full) : null;
             if (_relLapNode != null && cockpit.Harness.Releases.Count == 1)
@@ -531,6 +532,20 @@ namespace FlyingGame.Bridge
             Debug.Log($"[VrEgress] OUT to the {climb.Side}{(climb.PulledOut ? ", pulled off the sill by the slipstream" : "")} at {_driver.IasMs * 1.9438445:F0} KIAS; " +
                       $"exit velocity = aircraft {vPoint.magnitude:F1} m/s + push {JumperAero.PushOutMs:F1} out / {JumperAero.PushUpMs:F1} up");
             _egress.LeaveByHand(now, U(v), yaw);
+            BeginJumper(eyeNow, yaw);
+        }
+
+        /// <summary>The one-press bail-out (PilotEgress.BailOut, from the menu / glass / keyboard) put him over the side with
+        /// a headset on: the head goes with the body, exactly as after a climb-out by hand. <paramref name="body"/> is the
+        /// jumper's centre (world).</summary>
+        public void FollowJump(Vector3 body, float yawDeg)
+        {
+            Debug.Log($"[VrEgress] OUT by the bail-out button at {(_driver != null ? _driver.IasMs * 1.9438445 : 0):F0} KIAS: first person, the ripcord on the left chest strap (the chute also opens by itself {PilotEgress.BailChuteSec:F0} s after leaving)");
+            BeginJumper(body + Vector3.up * 0.30f, yawDeg);
+        }
+
+        private void BeginJumper(Vector3 eyeNow, float yaw)
+        {
             // First person from here: level, on the heading he left on (a one-time snap of any bank: see docs, comfort).
             _jumper = true;
             _jRot = Quaternion.Euler(0f, yaw, 0f);
