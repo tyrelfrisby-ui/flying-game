@@ -439,7 +439,7 @@ public sealed partial class Aircraft
                 else
                 {
                     dSolid = Math.Max(dSolid, p.DepthM);
-                    muN += (p.SurfaceCode >= 0 ? AirframeContact.SlidingMu((WorldTerrain.Surface)p.SurfaceCode) : AirframeContact.FrictionMu) * p.NormalN;
+                    muN += (p.SurfaceCode >= 0 ? WorldTerrain.KeelSlidingCoefficient((WorldTerrain.Surface)p.SurfaceCode) : AirframeContact.FrictionMu) * p.NormalN;   // a blade tip is smooth metal, not a ploughing wreck (AirframeContact.SlidingMu)
                 }
             }
             if (dMax <= 0)
