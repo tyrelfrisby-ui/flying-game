@@ -34,7 +34,11 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
 - Tests: PropWaterStrikeTests (new), FloatsIslandTakeoffProbe (island water, asserts 15-25 s), FloatsHammerProbe;
   ContactPatchTests.APropBrushCurls... is now per blade. Water/wreck/contact/prop/engine/tree/ground suites vs the base
   6a42a199: 0 new failures, 1 fewer (39 vs 40 red, all pre-existing). iOS BUILD SUCCEEDED 2026.1105.1015 (lane, not
-  installed). Nothing here is an approved gate.
+  installed). Merged: island-nav 1cfc96ef, Quest dc14600e (PARITY OK). ON DEVICES (built by the next deploys from trees
+  that contain this merge, so not built twice): iPhone 17 Pro and iPad mini **2026.1105.1140** (island-nav aa662650,
+  ground-volume's deploy, 0 error CS; the iPhone refused it asleep with 4016 and I installed the same .app at 12:10; the
+  iPad's launch hit "Locked"); Quest 3S **2026.1105.1147** (quest-islandnav 256e0363, installed 12:04). Nothing here is
+  an approved gate.
 
 ## NEEDS YOU
 <!-- ground-volume needs-you -->
