@@ -1750,6 +1750,7 @@
     "rollDueToSideslip": "monoplane"
   },
   "smoke": {
+    "cylinders": 6,
     "aftOfNoseM": 1.22,
     "downDeg": 30,
     "displacementCuIn": 540,

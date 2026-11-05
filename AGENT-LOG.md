@@ -1,4 +1,10 @@
 ## NEEDS YOU
+- **SMOKE THICKER AND LASTING — LANE lane/claude-smoke-volume (Claude, 2026-11-04 21:00 PST; Ty's 18:27 report "disappears way
+  too quickly … even more transparent … should stick around longer and be thicker, more white"):** the trail now holds
+  0.95 coverage at 5 s, 0.83 at 20 s, 0.66 at 45 s and fades out in patches over 55–85 s (899ada84: 0.65 / 0.11 / 0.00).
+  Before/after plates: `renders/smoke-thicker/contact_sheet.png`. Build numbers and installs are in the Log entry below.
+  **Ty, please fly a loop with smoke on and tell us** whether 45–60 s is long enough and whether the white is right in
+  your sunset/overcast light (the smoke is unlit, so it is the same white at any time of day).
 
 <!-- kill-red-233 needs-you -->
 - **RED 2-33 REMOVED FOR GOOD; DON'T INSTALL OLD LANES (Claude, 2026-11-04 ~19:00 PST, lane/claude-kill-red-233; merged
@@ -3111,6 +3117,57 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 21:00 — Claude · lane/claude-smoke-volume · smoke that stays: a column depth law, 90 s of trail, whiter
+- **Ask** (Ty, 18:27, on 899ada84): "The smoke seems to disappear way too quickly and I think it is even more
+  transparent, not less transparent like I asked for. Smoke should stick around longer and be thicker, more white,
+  less transparent."
+- **Measured first** (new editor tool `SmokeAgeRender`: a straight pass at 60 m/s in a 4 m/s crosswind, camera 80 m
+  abeam of the stretch laid N s ago; a second render of the puffs alone, white on a black ground with alpha 1, gives
+  the real coverage across the column). 899ada84 and its parent were rendered through the same flight from temporary
+  copies of their own SmokeTrail and shader (`git show 899ada84^:…` / `899ada84:…`, renamed, deleted afterwards).
+  Peak coverage across the trail:
+
+  | age | parent (aeb9695a) | 899ada84 | this fix |
+  |---|---|---|---|
+  | 0 s | 0.39 | 0.82 | 1.00 |
+  | 5 s | 0.23 | 0.65 | 0.95 |
+  | 20 s | 0.03 | 0.11 | 0.83 |
+  | 45 s | 0.00 | 0.00 | 0.66 |
+  | 30 m from the 10 s trail | 0.12 | 0.39 | 0.90 |
+
+- **ROOT CAUSE.** I could NOT reproduce "more transparent than before" as coverage: 899ada84 is denser than its parent
+  at every age and view measured. What is wrong, in both, is the LIFETIME LAW, which 899ada84 left alone while making
+  the puffs bigger: each puff's alpha was `0.98 × (1 − age/life)^1.3 × 2·d0/d` with a life of only 10–30 s, so a puff
+  was ~0.2 by 5 s and ~0.02 by 20 s, half the trail was gone by 20 s and all of it by 30 s (LifeMaxS 30, ring 30 s).
+  899ada84 made the early trail denser but also 55 % WIDER (growth 2.2 → 3.4 m/√s), so the same fast-falling coverage
+  was spread over a bigger, paler column: at 20 s no part of it was above 50 % (width >50 % = 0 m). Three smaller
+  things in 899ada84 made it read thinner still in the game:
+  1. camera-proximity thinning was 0.8–4 puff diameters, and diameters grew 55 %: every grown puff within ~35–70 m
+     of the camera was faded — exactly the smoke you fly back into round a loop (0.39 at 30 m, vs 0.65 at 80 m);
+  2. the tube→puff handover crossfaded the ALPHAS, leaving ~0.75 of an opaque column for half a second behind the
+     aeroplane;
+  3. the underside shading went to 0.42 grey, so a denser trail over terrain read grey, not white.
+  Ruled out: dropping the shader's two capture passes in game. Pass 2 adds white where destination alpha < 1, but
+  the sky, terrain, clouds and open water all write alpha 1 (only shallow scenery water does not); the plate
+  `parent_water20.png` shows the mechanism over an alpha-blended stand-in. iOS and Quest run the same SmokeTrail,
+  shader and SmokeController (Quest multiview renders the shader per eye), so none of this differs between them.
+- **Fix (SmokeTrail / SmokeController only; no src/ or configs/ change):**
+  - The trail's coverage is now set for the COLUMN, not the puff: optical depth across it `τ = 17 × (0.45…1 by flow)
+    × d0/d` (the oil per metre is fixed; spreading it over a wider column thins it as 1/d), and each puff gets the
+    share of τ its overlap with its neighbours leaves it (`PuffAlphaFor`). So the density no longer depends on how
+    many puffs stand along it, through either thinning stage or the tube handover (now in optical depth).
+  - Lives 55–85 s (was 10–30), fading only over the last 35 % of each; `LifeMaxS` 30 → 90 s.
+  - Growth 3.4 → 2.6 m/√s: ~7 m across at 5 s, ~13 m at 20 s, ~19 m at 45 s. Wind drift unchanged (it was there).
+  - Proximity thinning only inside 0.5–1.5 diameters. Underside 0.80 (was 0.42), tint 0.99/0.99/1.0 (was 0.96).
+  - Cost (Quest): a second puff-thinning stage over 18–26 s (7.5 puffs a second past it); the ring is thinned once a
+    second to the one sample per 1/30 s slot the trail draws past 2 s (`SmokeTrail.ThinRing`: identical plates, and
+    ~2,700 samples instead of 8,100 at 90 Hz); the airframe-flow cache keeps only the last step of a spent puff.
+    Measured in the editor: 876 quads vs 445, fill 0.23–0.67 screens/pass vs 0.34–1.00 (one pass in game, as
+    899ada84), rebuild 2.65 ms vs 1.66 ms (editor Mono, not the device). Not measured on the headset.
+- Plates: `renders/smoke-thicker/{parent,before,after}_age{0,5,20,45}.png`, `_close10`, `_water20`, the `_cover`
+  coverage images, `*_stats.txt`, and `contact_sheet.png` (3 columns × 5 rows). Regenerate:
+  `Unity -batchmode -quit -projectPath unity -executeMethod FlyingGame.EditorTools.SmokeAgeRender.Render -smokeTag after`.
+- Gliders' canister stream: life 14–18 → 30–45 s, density law unchanged.
 
 ### 2026-11-04 18:36– PST — Claude · lane/claude-kill-red-233 · kill red 2-33 (Ty 18:35, "delete it permanently")
 - **Why it kept coming back.** The red-and-white 2-33 had two sources. (a) The procedural trainer (red fuselage, cream
