@@ -173,10 +173,10 @@ public sealed class VrBailoutTests
         // The calibration, re-run: the peak load at the stop lug when flung open at 80 KIAS (Extra) and 80 mph = 69.5 KIAS
         // (Pitts) is the strength the fittings were given, to within the 100 N it was rounded to.
         Assert.Equal(15100.0, CanopySpec.For("extra-300-like").FittingStrengthN, 6);
-        Assert.Equal(11000.0, CanopySpec.For("pitts-s2b-like").FittingStrengthN, 6);
+        Assert.Equal(11500.0, CanopySpec.For("pitts-s2b-like").FittingStrengthN, 6);
         Assert.InRange(CanopyDynamics.PeakStopLoadN(CanopySpec.For("extra-300-like"), Q(80)), 15050.0, 15150.0);
-        // The Pitts' is the peak hinge reaction as its frame slams onto the stop tab (v2): 10,990 N at 69.5 KIAS.
-        Assert.InRange(CanopyDynamics.PeakStopLoadN(CanopySpec.For("pitts-s2b-like"), Q(69.5)), 10950.0, 11050.0);
+        // The Pitts' is the peak hinge reaction as its frame slams onto the stop tab (v2): 11,481 N at 69.5 KIAS.
+        Assert.InRange(CanopyDynamics.PeakStopLoadN(CanopySpec.For("pitts-s2b-like"), Q(69.5)), 11450.0, 11550.0);
     }
 
     [Fact]
@@ -207,11 +207,11 @@ public sealed class VrBailoutTests
         Assert.Equal(0.0, c.SlideM, 9);
         Assert.Equal(0.0, c.AngleDeg, 9);
         // Unlatched on the ground, hand on the rail, 5.08 cm aft: half the 10.16 cm slide. v2 rig: canopy_slide is the
-        // slide over the whole 33.02 cm track (0.0508 / 0.3302 = 0.153846), canopy_open the swing alone (still 0).
+        // slide over the whole 15.24 cm track (0.0508 / 0.1524 = 0.333333), canopy_open the swing alone (still 0).
         c.Grab(hand, Hinge);
         c.Step(0.005, 0.0, Level1G, false, new Vec3(-0.35, 0.0, -0.0508), Hinge);
         Assert.Equal(0.0508, c.SlideM, 6);
-        Assert.Equal(0.153846, c.Slide01, 6);
+        Assert.Equal(0.333333, c.Slide01, 6);
         Assert.Equal(0.0, c.Open01, 9);
         Assert.Equal(0.0, c.AngleDeg, 9);
         c.Step(0.005, 0.0, Level1G, false, new Vec3(-0.35, 0.0, -0.12), Hinge);
@@ -370,7 +370,7 @@ public sealed class VrBailoutTests
     [Fact]
     public void JettisonedAndUnlatchedThePittsCanopyRunsOffTheTabAndLeaves()
     {
-        // v2 (Ty 2026-11-05): the pull frees the track; the canopy's own drag runs it the whole 13 in aft, its front edge
+        // v2 (Ty 2026-11-05): the pull frees the track; the canopy's own drag runs it the whole 6 in aft, its front hoop
         // passes the tab, nothing stops the swing, and past 150° the hinges let go. 70 and 120 kt: gone within 1.1 s.
         foreach (double kt in new[] { 70.0, 120.0 })
         {
@@ -380,7 +380,7 @@ public sealed class VrBailoutTests
             Assert.True(c.Departed, $"{kt} kt");
             Assert.Equal(CanopyDeparture.Jettisoned, c.DepartedBy);
             Assert.True((ev & CanopyEvents.Departed) != 0);
-            Assert.Equal(0.3302, c.SlideM, 6);
+            Assert.Equal(0.1524, c.SlideM, 6);
             Assert.Equal(0.0, c.PeakTabForceN, 9);   // it never touched the tab
         }
         // 40 kt is below the suction's lift-off (46 kt): it runs back to the end of the track and stays down there.
@@ -388,7 +388,7 @@ public sealed class VrBailoutTests
         slow.ReleaseHingePins();
         Run(slow, Q(40), locked: false, 3.0);
         Assert.False(slow.Departed);
-        Assert.Equal(0.3302, slow.SlideM, 6);
+        Assert.Equal(0.1524, slow.SlideM, 6);
         Assert.Equal(0.0, slow.AngleDeg, 9);
     }
 
@@ -417,7 +417,7 @@ public sealed class VrBailoutTests
         var hold = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
         Run(hold, Q(60), locked: false, 3.0);
         Assert.False(hold.Departed);
-        Assert.InRange(hold.AngleDeg, 127.5, 128.5);   // flung open, resting on the stop tab
+        Assert.InRange(hold.AngleDeg, 96.6, 97.6);   // flung open, resting on the stop tab
         Assert.True(hold.TabForceN > 0.0);
         var go = new CanopyDynamics(CanopySpec.For("pitts-s2b-like"));
         Run(go, Q(75), locked: false, 3.0);

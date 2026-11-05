@@ -105,7 +105,9 @@ namespace FlyingGame.Bridge
             if (_latchKind != CanopyLatchKind.None)
             {
                 CanopySpec spec = CanopySpec.For(id);
-                if (cockpit.HandCanopy == null || cockpit.HandCanopy.Spec.Motion != spec.Motion || System.Math.Abs(cockpit.HandCanopy.Spec.LengthM - spec.LengthM) > 1e-3)
+                spec = WithModelStopTab(spec);
+                if (cockpit.HandCanopy == null || cockpit.HandCanopy.Spec.Motion != spec.Motion || System.Math.Abs(cockpit.HandCanopy.Spec.LengthM - spec.LengthM) > 1e-3
+                    || !SameTab(cockpit.HandCanopy.Spec.StopTab, spec.StopTab))
                     cockpit.HandCanopy = new CanopyDynamics(spec);
                 if (_railNode == null) Contract("Grip_Canopy_Rail");
             }
@@ -169,6 +171,49 @@ namespace FlyingGame.Bridge
             Debug.Log($"[VrEgress] {id}: canopy {(cd == null ? _openCockpit ? "none (open cockpit)" : "not hands-on for this type" : $"{cd.Spec.Motion}, ΔCp {cd.Bubble.NetCp:F3} on {cd.Bubble.PlanAreaM2:F2} m², flings open unlatched above {Kt(cd.FlipOpenQ(0)):F0} KIAS, held shut by a hand to {Kt(cd.FlipOpenQ(CanopyDynamics.HandForceN)):F0}, fittings {cd.Spec.FittingStrengthN:F0} N; jettison {(cockpit.HandJettison == null ? "none" : _jettisonNode != null ? "on its node" : "proxy")}")}; " +
                       $"belts {cockpit.Harness.Releases.Count} ({(_relMainNode != null ? "on the node" : "proxy")}); cord {HeadsetCord.DefaultLengthM:F1} m to the jack ({(_jackNode != null ? "node" : "proxy")})");
         }
+
+        /// <summary>
+        /// The Pitts' stop tab where the MODEL has it: Canopy_Stop_Rubber's meshes, as a capsule along their longest
+        /// extent (radius half the smaller ones), in the canopy's hinge-relative shut frame (cockpit axes, the hinge at the
+        /// Canopy node's origin), replacing Core's copy of the same numbers. Logged either way.
+        /// </summary>
+        private CanopySpec WithModelStopTab(CanopySpec spec)
+        {
+            if (spec.StopTab == null) return spec;
+            Transform rubber = Node("Canopy_Stop_Rubber");
+            var mf = rubber != null ? rubber.GetComponentsInChildren<MeshFilter>() : null;
+            if (mf == null || mf.Length == 0 || _canopyNode == null)
+            {
+                Debug.Log($"[VrEgress] {_driver.AircraftId}: no Canopy_Stop_Rubber mesh{(_canopyNode == null ? " (no Canopy node)" : "")}; the stop tab is Core's copy");
+                return spec;
+            }
+            Vector3 hinge = Local(_canopyNode.position);
+            Vector3 lo = Vector3.positiveInfinity, hi = Vector3.negativeInfinity;
+            foreach (MeshFilter f in mf)
+            {
+                if (f.sharedMesh == null) continue;
+                foreach (Vector3 v in f.sharedMesh.vertices)
+                {
+                    Vector3 p = Local(f.transform.TransformPoint(v)) - hinge;
+                    lo = Vector3.Min(lo, p); hi = Vector3.Max(hi, p);
+                }
+            }
+            Vector3 size = hi - lo, mid = 0.5f * (lo + hi);
+            int axis = size.x >= size.y && size.x >= size.z ? 0 : size.y >= size.z ? 1 : 2;
+            float len = size[axis];
+            float r = 0.25f * (size.x + size.y + size.z - len);   // half the mean of the two small extents
+            Vector3 dir = Vector3.zero; dir[axis] = 1f;
+            float half = Mathf.Max(0f, 0.5f * len - r);
+            Vec3 a = C(mid - dir * half), b = C(mid + dir * half);
+            CanopySpec s = spec.WithStopTab(spec.StopTab.WithTab(a, b, r));
+            Vec3 c0 = 0.5 * (spec.StopTab.Tab.A + spec.StopTab.Tab.B);
+            Debug.Log($"[VrEgress] {_driver.AircraftId}: stop tab from the model's Canopy_Stop_Rubber: {len * 1000:F0} mm × r {r * 1000:F1} mm at " +
+                      $"({mid.x:F3}, {mid.y:F3}, {mid.z:F3}) from the hinge (Core's copy {(C(mid) - c0).Length * 1000:F1} mm away); the canopy rests on it at {s.StopTab.RestAngleDeg(s.SlideM):F1}°");
+            return s;
+        }
+
+        private static bool SameTab(CanopyStopTab x, CanopyStopTab y) =>
+            x == null ? y == null : y != null && (x.Tab.A - y.Tab.A).Length < 1e-4 && (x.Tab.B - y.Tab.B).Length < 1e-4;
 
         private static double Kt(double q) => System.Math.Sqrt(2.0 * q / 1.225) * 1.9438445;
 

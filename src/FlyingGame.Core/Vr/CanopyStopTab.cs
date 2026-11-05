@@ -11,30 +11,29 @@ namespace FlyingGame.Core.Vr
     /// releases hinges and can tear away").
     ///
     /// There is no stop angle anywhere in this. The canopy's 3/8 in tube frame is a set of capsules fixed to the canopy;
-    /// the tab is a capsule fixed to the right upper wing; the wing's skin near its trailing edge is a surface. Every
-    /// substep CanopyDynamics carries the frame through its slide and swing (PointOnCanopy) and asks this class what it
-    /// is pressing on. A contact is a stiff spring-damper along the contact normal (rubber over a bent bar, E), with
-    /// Coulomb friction against the canopy's slide. Where the open canopy comes to rest, and whether it does, falls out of
-    /// where the tab is and how far the canopy has slid:
+    /// the tab's rubber is a capsule fixed to the airframe. CanopyDynamics carries the frame through its slide and swing
+    /// (PointOnCanopy); where the frame first touches the rubber at the present slide (<see cref="TouchAt"/>) is where it
+    /// stops, and whether it touches at all depends on how far it has slid:
     ///
-    ///   4 in of slide (the track's normal stop): the left sill tube (the free edge) still overlaps the tab chordwise and
-    ///          lands on it at 127.5° (<see cref="RestAngleDeg"/>), which the tests measure;
+    ///   4 in of slide (the track's normal stop): the front hoop comes over onto the rubber at about 100°
+    ///          (<see cref="RestAngleDeg"/>, the tests measure it);
     ///   jettisoned: the track's stop is pulled and the canopy runs on aft (its own drag, or a hand) a further
-    ///          <see cref="JettisonExtraSlideM"/>. Its front corner then passes behind the tab and the wing's trailing
-    ///          edge, nothing catches it, and past <see cref="HookReleaseDeg"/> the open hinge hooks lift off their pins.
+    ///          <see cref="JettisonExtraSlideM"/>; past about 1 in more the hoop passes behind the end of the tab, nothing
+    ///          catches it, and past <see cref="HookReleaseDeg"/> the open hinge hooks lift off their pins.
     ///
-    /// FRAME: cockpit axes (+x right, +y up, +z nose), metres from the hinge line with the canopy SHUT. Measured off
-    /// pitts-s2b-like-own.glb (glTF +x aft, −z right; hinge = the Canopy node's origin at glTF (0.8, 0.16, −0.36)):
-    /// sills at y 0.17 from glTF x 0.126 to 1.60, ±0.358; glass crown 0.549 at x 0.8 and 0.547 at 1.1, 0.429 at the tail;
-    /// the front edge low (0.222 at the centre-line). The two arcing top tubes are put at those two crown stations.
-    ///
-    /// THE WING is not simulated here: whether the swinging canopy clears the upper wing (through the entry cutout at
-    /// the root) and where it first comes down onto the right wing is measured against the model's own Wing_Upper mesh
-    /// by tools/own_models/check_pitts_canopy_swing.py. On lane/codex-pitts-cockpit-v2's model, slid the normal 4 in,
-    /// the canopy's front-left corner is the first thing to reach the right wing, at 129.5°, about 0.40 m right of the
-    /// hinge; slid 13 in (4 + 9) it clears the wing all the way over. The TAB stands on the skin there, under the front
-    /// edge's track, a bar's thickness proud of where the frame would otherwise land, so the frame meets the tab first
-    /// (that check fails if it does not). The Bridge replaces the default with the model's Canopy_Stop_Rubber node.
+    /// GEOMETRY, copied from lane/codex-pitts-cockpit-v2's pitts-s2b-like-own.glb (b221022a): glTF +x aft, y up, −z right;
+    /// the hinge is the Canopy node's origin at (0.8, 0.16, −0.36). Cockpit axes here: +x right, +y up, +z nose, metres
+    /// from the hinge with the canopy SHUT (<see cref="FromPittsGltf"/>).
+    ///   frame   Canopy_Frame: sills at y 0.153–0.17 from x 0.465 to 1.605, ±0.349; the FRONT HOOP at x 0.47 (it meets
+    ///           the fixed windshield), its centre-line through (|z|, y) = (0.36, 0.167) (0.30, 0.26) (0.24, 0.404)
+    ///           (0.18, 0.447) (0.12, 0.471) (0.06, 0.482) (0, 0.484); Canopy_TopTube_F / _R at x 0.77 / 1.12, crowns 0.55
+    ///           / 0.548; the tail at 1.605, the glass 0.429 there.
+    ///   tab     Canopy_Stop_Rubber: a fore-aft capsule from x 0.564 to 0.580 at y 0.658, z −0.721, radius 6 mm, on the
+    ///           end of Canopy_Stop_Tab, the bent bar that runs aft from the right upper wing past its trailing edge.
+    /// The wing itself is not simulated: the canopy is wholly aft of the upper wing's trailing edge, and
+    /// tools/own_models/check_pitts_canopy_swing.py sweeps the model's canopy meshes against its Wing_Upper mesh to show
+    /// it never touches it (shut, slid 4 in, and jettisoned). The Bridge takes the tab from the model's own
+    /// Canopy_Stop_Rubber node when there is one (<see cref="WithTab"/>).
     /// </summary>
     public sealed class CanopyStopTab
     {
@@ -46,10 +45,10 @@ namespace FlyingGame.Core.Vr
 
         /// <summary>The frame tube, 3/8 in diameter (Ty).</summary>
         public const double TubeRadiusM = 0.0047625;
-        /// <summary>1/4 in round stock (Ty) under about 1/16 in of rubber (E): 3.175 + 1.6 mm.</summary>
-        public const double TabRadiusDefaultM = 0.004775;
-        /// <summary>Contact stiffness, N/m (E: rubber pad and a short bent bar; a 400 J slam sinks it ~2.8 cm, at rest
-        /// it sinks well under a millimetre), damping ratio on the canopy's effective mass there, and the rubber's
+        /// <summary>The rubber over the 1/4 in round stock (Ty): Codex's Canopy_Stop_Rubber, 12 mm across.</summary>
+        public const double TabRadiusDefaultM = 0.006;
+        /// <summary>Contact stiffness, N/m (E: rubber and a bent bar; a slam sinks it a centimetre or two, at rest well
+        /// under a millimetre), damping ratio on the canopy's effective mass there, and the rubber's
         /// friction against the tube.</summary>
         public const double StiffnessNPerM = 1.0e6, DampingRatio = 0.3, RubberFriction = 0.8;
 
@@ -77,45 +76,29 @@ namespace FlyingGame.Core.Vr
         /// <summary>The S-2B as measured (class note).</summary>
         public static CanopyStopTab Pitts()
         {
-            const double sillY = 0.01, left = -0.712, right = 0.008, front = 0.674, aft = -0.80;
+            Vec3 G(double x, double y, double z) => FromPittsGltf(x, y, z);
+            const double sill = 0.16, front = 0.467, aft = 1.605;
             var f = new List<Segment>
             {
-                new(new Vec3(left, sillY, front), new Vec3(left, sillY, aft)),     // left sill: the free edge
-                new(new Vec3(right, sillY, front), new Vec3(right, sillY, aft)),   // right sill, on the hinge line
+                new(G(front, sill, 0.349), G(aft, sill, 0.349)),     // left sill: the free edge
+                new(G(front, sill, -0.349), G(aft, sill, -0.349)),   // right sill, on the hinge line
             };
-            // Front edge, the two arcing top tubes, the tail: half-ellipses from sill to sill (crowns above the hinge).
-            Arch(f, front, 0.062);
-            Arch(f, 0.0, 0.389);
-            Arch(f, -0.30, 0.387);
-            Arch(f, aft, 0.269);
-            // The bar's top run, fore-aft across the front edge's track, where the swing check puts the front-left corner
-            // on the wing: the front edge 0.62 m inboard of the hinge (shut), slid 4 in, at 127.5°, plus the two radii
-            // along the way it is swinging, so that is where they meet.
-            Vec3 corner = Pose(new Vec3(-0.62, ArchHeight(-0.62, 0.062), front), 0.1016, 127.5);
-            Vec3 swing = SwingDir(corner);
-            Vec3 c = corner + swing * (TabRadiusDefaultM + TubeRadiusM);
-            var tab = new Segment(c + new Vec3(0, 0, 0.02), c - new Vec3(0, 0, 0.02));   // 40 mm, fore-aft
-            return new CanopyStopTab(f.ToArray(), tab, TabRadiusDefaultM, jettisonExtraSlideM: 0.2286, hookReleaseDeg: 150.0);
-        }
-
-        /// <summary>The unit direction a point (airframe frame, hinge at its shut place) moves as the canopy opens.</summary>
-        private static Vec3 SwingDir(Vec3 p)
-        {
-            var d = new Vec3(p.Y, -p.X, 0.0);
-            return d / d.Length;
-        }
-
-        /// <summary>The height of an arch with this crown above the sill, at x (cockpit, hinge-relative, shut).</summary>
-        private static double ArchHeight(double x, double crown)
-        {
-            double c = Math.Clamp((x + 0.352) / 0.36, -1.0, 1.0);
-            return 0.01 + crown * Math.Sqrt(1.0 - c * c);
+            // The front hoop, measured, left to right.
+            double[] hz = { 0.36, 0.30, 0.24, 0.18, 0.12, 0.06, 0.0, -0.06, -0.12, -0.18, -0.24, -0.30, -0.36 };
+            double[] hy = { 0.167, 0.26, 0.404, 0.447, 0.471, 0.482, 0.484, 0.482, 0.471, 0.447, 0.404, 0.26, 0.167 };
+            for (int i = 1; i < hz.Length; i++) f.Add(new Segment(G(front, hy[i - 1], hz[i - 1]), G(front, hy[i], hz[i])));
+            // The two arcing top tubes and the tail: half-ellipses from sill to sill.
+            Arch(f, G(0.77, 0, 0).Z, 0.55 - sill);
+            Arch(f, G(1.12, 0, 0).Z, 0.548 - sill);
+            Arch(f, G(aft, 0, 0).Z, 0.429 - sill);
+            var tab = new Segment(G(0.564, 0.658, -0.721), G(0.580, 0.658, -0.721));
+            return new CanopyStopTab(f.ToArray(), tab, TabRadiusDefaultM, jettisonExtraSlideM: 0.0508, hookReleaseDeg: 150.0);
         }
 
         private static void Arch(List<Segment> f, double z, double crown)
         {
             const int n = 8;
-            const double cx = -0.352, w = 0.36, y0 = 0.01;
+            const double cx = -0.36, w = 0.349, y0 = 0.0;
             Vec3 prev = default;
             for (int i = 0; i <= n; i++)
             {

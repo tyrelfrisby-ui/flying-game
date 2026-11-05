@@ -40,12 +40,12 @@ public class PittsCanopyTabTests
     [Fact]
     public void TheNumbersTyGave()
     {
-        // 3/8 in tube, 1/4 in round stock (+ 1/16 in rubber, E), 4 in normal slide, 9 in more once jettisoned (E).
+        // 3/8 in tube, 12 mm of rubber on the 1/4 in stock (Codex's model), 4 in normal slide, 2 in more jettisoned (E).
         Assert.Equal(0.0047625, CanopyStopTab.TubeRadiusM, 9);
-        Assert.Equal(0.004775, CanopyStopTab.TabRadiusDefaultM, 9);
+        Assert.Equal(0.006, CanopyStopTab.TabRadiusDefaultM, 9);
         CanopySpec s = CanopySpec.For("pitts-s2b-like");
         Assert.Equal(0.1016, s.SlideM, 9);
-        Assert.Equal(0.3302, s.TrackM, 9);
+        Assert.Equal(0.1524, s.TrackM, 9);
         Assert.NotNull(s.StopTab);
         Assert.Null(CanopySpec.For("extra-300-like").StopTab);   // the Extra keeps its hinge stop
     }
@@ -54,13 +54,13 @@ public class PittsCanopyTabTests
     public void AfterTheNormalSlideTheFrameMeetsTheTabAndNothingElseStopsIt()
     {
         CanopyStopTab t = CanopySpec.For("pitts-s2b-like").StopTab!;
-        // Slid 4 in, the front-left corner reaches the tab at 127.5° (the swing check on the model puts the corner on the
-        // right wing at 129.5°: the tab, a bar's thickness proud of the skin, catches it first).
-        Assert.InRange(t.FirstTouchDeg(0.1016), 127.3, 127.8);
-        // Slid 6 in or more the front edge has passed it: no touch all the way to 180°.
+        // Slid 4 in, the front hoop comes over onto the rubber at 96.8° (Codex placed the rubber for 100° against the
+        // drawn hoop; the frame here follows the hoop's measured centre-line).
+        Assert.InRange(t.FirstTouchDeg(0.1016), 96.6, 97.0);
+        // The rubber is 28 mm long fore-aft: the hoop only finds it between about 3.5 and 4.75 in of slide. At the
+        // jettison's 6 in it has passed behind it: no touch all the way to 180°. Not slid, it is ahead of it.
+        Assert.True(double.IsNaN(t.FirstTouchDeg(0.1270)));
         Assert.True(double.IsNaN(t.FirstTouchDeg(0.1524)));
-        Assert.True(double.IsNaN(t.FirstTouchDeg(0.3302)));
-        // Shut and not slid it cannot reach it either (the front edge is 4 in forward of it).
         Assert.True(double.IsNaN(t.FirstTouchDeg(0.0)));
     }
 
@@ -73,7 +73,7 @@ public class PittsCanopyTabTests
         Assert.True((ev & CanopyEvents.HitStop) != 0);
         Assert.False(c.Departed);
         Assert.Equal(0.1016, c.SlideM, 6);
-        Assert.InRange(c.AngleDeg, 127.5, 128.5);
+        Assert.InRange(c.AngleDeg, 96.6, 97.6);
         Assert.True(c.TabForceN > 50.0, $"resting on the tab with {c.TabForceN:F0} N");
         Assert.True(c.PeakTabForceN > 5000.0, $"the slam: {c.PeakTabForceN:F0} N");
         Assert.True(c.PeakFittingLoadN < c.Spec.FittingStrengthN);
@@ -90,7 +90,7 @@ public class PittsCanopyTabTests
         Assert.Equal(0.1016, c.SlideM, 6);                                            // the track's normal stop
         Swing(c, 160.0, 3.0, -0.2);                                                   // aimed well past the tab
         Assert.False(c.Departed);
-        Assert.InRange(c.AngleDeg, 127.5, 129.0);
+        Assert.InRange(c.AngleDeg, 96.6, 98.0);
         Assert.True(c.TabForceN > 0.0);
     }
 
@@ -102,7 +102,7 @@ public class PittsCanopyTabTests
         var edge = new Vec3(-0.716, 0.0, 0.0);
         c.Grab(edge, Vec3.Zero);
         c.Step(0.005, 0.0, Level1G, false, edge + new Vec3(0, 0, -0.5), Vec3.Zero);   // pulled right back
-        Assert.Equal(0.3302, c.SlideM, 6);                                            // the whole freed track
+        Assert.Equal(0.1524, c.SlideM, 6);                                            // the whole freed track
         CanopyEvents ev = Swing(c, 160.0, 3.0, -0.5);
         Assert.True(c.Departed);
         Assert.Equal(CanopyDeparture.Jettisoned, c.DepartedBy);
@@ -124,7 +124,7 @@ public class PittsCanopyTabTests
         l.Follow(PittsLatchLever.Rear, 90.0);
         for (int i = 0; i < 600; i++) { l.Update(c.Shut); c.Step(0.005, Q(60), Level1G, l.Locked, Vec3.Zero, Vec3.Zero); }
         Assert.False(l.Locked);
-        Assert.InRange(c.AngleDeg, 127.5, 128.5);
+        Assert.InRange(c.AngleDeg, 96.6, 97.6);
         // Lever forward again with the canopy open: the hook swings in free air, nothing is locked.
         l.Follow(PittsLatchLever.Rear, 0.0);
         l.Update(c.Shut);
@@ -152,11 +152,11 @@ public class PittsCanopyTabTests
         // iOS / Mac (no hands): the 0..1 command slides the first fifth, then swings to the tab's angle.
         CanopySpec p = CanopySpec.For("pitts-s2b-like");
         (double s0, double o0) = CanopyDynamics.ScriptedRig(p, 0.1);
-        Assert.Equal(0.0508 / 0.3302, s0, 9);
+        Assert.Equal(0.0508 / 0.1524, s0, 9);
         Assert.Equal(0.0, o0, 9);
         (double s1, double o1) = CanopyDynamics.ScriptedRig(p, 1.0);
-        Assert.Equal(0.1016 / 0.3302, s1, 9);
-        Assert.InRange(o1 * 175.0, 127.3, 127.8);
+        Assert.Equal(0.1016 / 0.1524, s1, 9);
+        Assert.InRange(o1 * 175.0, 96.6, 97.0);
         // The Extra: the command is the swing.
         (double sx, double ox) = CanopyDynamics.ScriptedRig(CanopySpec.For("extra-300-like"), 0.6);
         Assert.Equal(0.0, sx, 9);

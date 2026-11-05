@@ -355,7 +355,7 @@
   },
   {
    "node": "Canopy_Slide",
-   "param": "canopy_open",
+   "param": "canopy_slide",
    "parent": "Canopy_Detachable",
    "kind": "move",
    "axis_gltf": [
@@ -374,17 +374,13 @@
      0
     ],
     [
-     0.2,
-     0.1016
-    ],
-    [
      1,
-     0.1016
+     0.1524
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "S-2B 4 inch estimated aft track; slide first, then hinge",
+   "desc": "Pitts v2 (2026-11-05): the slide alone, 0..1 of the 6 in track (4 in normal stop + 2 in once the jettison frees it, E); CanopyDynamics.Slide01",
    "extra": {},
    "link": "",
    "note": ""
@@ -410,17 +406,13 @@
      0
     ],
     [
-     0.2,
-     0
-    ],
-    [
      1,
-     100
+     175
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "Right side hinge; estimated 100 degree stop; first 20 percent is aft slide",
+   "desc": "Pitts v2 (2026-11-05): the swing alone, 0..1 = 0..175 deg (the hinge limit); the frame stops on Canopy_Stop_Rubber at ~97 deg (CanopyStopTab)",
    "extra": {
     "detachable_root": "Canopy_Detachable"
    },
@@ -428,51 +420,19 @@
    "note": ""
   },
   {
-   "node": "Canopy_Latch_Pin",
-   "param": "canopy_latch",
-   "parent": "Canopy",
-   "kind": "move",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.8550000000000001,
-    0.22039393939393942,
-    -0.0381
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     0.0762
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "Estimated visual travel; needs Ty review",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
    "node": "Canopy_Latch_Knob",
    "param": "canopy_latch",
    "parent": "Canopy",
-   "kind": "move",
+   "kind": "rot",
    "axis_gltf": [
     0.0,
     0.0,
     1.0
    ],
    "pivot_gltf": [
-    0.8770000000000001,
-    0.24539393939393944,
-    -0.0381
+    0.872,
+    0.1683,
+    0.278
    ],
    "map": [
     [
@@ -481,44 +441,12 @@
     ],
     [
      1,
-     0.0762
+     -90
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "Estimated visual travel; needs Ty review",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Canopy_Latch_Pin_Front",
-   "param": "canopy_latch",
-   "parent": "Canopy",
-   "kind": "move",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.19999999999999998,
-    0.2212222222222222,
-    -0.0381
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     0.0762
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "Estimated visual travel; needs Ty review",
+   "desc": "Pitts latch v2 (Ty 2026-11-05): black 2 in lever, knob FORWARD = latched (0), pulled BACK through 90 deg to point up = unlatched (1); both levers on one cable (PittsCanopyLatch)",
    "extra": {},
    "link": "",
    "note": ""
@@ -527,16 +455,16 @@
    "node": "Canopy_Latch_Knob_Front",
    "param": "canopy_latch",
    "parent": "Canopy",
-   "kind": "move",
+   "kind": "rot",
    "axis_gltf": [
     0.0,
     0.0,
     1.0
    ],
    "pivot_gltf": [
-    0.22199999999999998,
-    0.2462222222222222,
-    -0.0381
+    0.49,
+    0.1735,
+    0.316
    ],
    "map": [
     [
@@ -545,12 +473,12 @@
     ],
     [
      1,
-     0.0762
+     -90
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "Estimated visual travel; needs Ty review",
+   "desc": "Pitts latch v2 (Ty 2026-11-05): black 2 in lever, knob FORWARD = latched (0), pulled BACK through 90 deg to point up = unlatched (1); both levers on one cable (PittsCanopyLatch)",
    "extra": {},
    "link": "",
    "note": ""
@@ -1463,7 +1391,7 @@
    ],
    "pivot_gltf": [
     1.08,
-    -0.125,
+    0.025,
     0.275
    ],
    "map": [
@@ -1489,28 +1417,28 @@
    "parent": "PropLever_Rear_Slide",
    "kind": "rot",
    "axis_gltf": [
+    1.0,
     0.0,
-    0.0,
-    1.0
+    0.0
    ],
    "pivot_gltf": [
     1.08,
-    -0.125,
+    0.025,
     0.275
    ],
    "map": [
     [
      0,
-     0
+     -90
     ],
     [
      1,
-     -90
+     0
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "blade DOWN = locked .. HORIZONTAL forward = released (Ty); forward is (E)",
+   "desc": "Blue bar on the firewall rod (v2 model): hangs DOWN locked (0), turned about the rod to point inboard = released (1); then slides with PropLever_Rear_Slide",
    "extra": {},
    "link": "",
    "note": ""
@@ -1583,21 +1511,21 @@
    "node": "TrimLever_Rear",
    "param": "trim",
    "parent": null,
-   "kind": "move",
+   "kind": "rot",
    "axis_gltf": [
-    1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    1.24,
-    -0.24,
+    1.36,
+    -0.26,
     0.27
    ],
    "map": [
     [
      -1,
-     -0.05
+     12
     ],
     [
      0,
@@ -1605,12 +1533,12 @@
     ],
     [
      1,
-     0.05
+     -12
     ]
    ],
    "model": 0.0,
    "unit": "-1..1",
-   "desc": "(E) +-50 mm along the wall ticks: aft = NOSE UP, forward = NOSE DOWN (the legends)",
+   "desc": "Pitts v2 (Ty 2026-11-05): 16 in lever hinged near the hip, neutral straight forward; (E) +-12 deg, tip UP = nose up",
    "extra": {},
    "link": "",
    "note": ""
@@ -1808,13 +1736,13 @@
    "kind": "Lever",
    "seat": "Rear",
    "axis_gltf": [
+    1.0,
     0.0,
-    0.0,
-    1.0
+    0.0
    ],
    "pivot_gltf": [
     1.08,
-    -0.125,
+    0.025,
     0.275
    ],
    "travel": 90,
@@ -1833,7 +1761,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "placement": "Pitts cockpit v2 (Ty 2026-11-05): blue bar on the firewall rod, high on the left wall",
    "label": "PROP"
   },
   {
@@ -1910,20 +1838,20 @@
   {
    "node": "TrimLever_Rear",
    "param": "trim",
-   "kind": "PushPull",
+   "kind": "Lever",
    "seat": "Rear",
    "axis_gltf": [
-    1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    1.24,
-    -0.24,
+    1.36,
+    -0.26,
     0.27
    ],
-   "travel": 100,
-   "travel_unit": "mm",
+   "travel": 24,
+   "travel_unit": "deg",
    "sim_ends": [
     -1,
     1
@@ -1938,7 +1866,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Pitts v4 reference pass (Ty's photos 2026-11-04)",
+   "placement": "Pitts cockpit v2 (Ty 2026-11-05): hinged at the hip, 16 in, neutral forward",
    "label": "TRIM"
   },
   {

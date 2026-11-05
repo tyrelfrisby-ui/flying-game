@@ -78,9 +78,9 @@ namespace FlyingGame.Core.Vr
 
         /// <summary>Fitting strengths, N, from <see cref="CanopyDynamics.PeakStopLoadN"/> at the failure speeds Ty gave
         /// (80 KIAS Extra; 80 mph = 69.5 KIAS Pitts), rounded to 100 N. Re-derive if any canopy number changes. The Pitts'
-        /// is the peak HINGE reaction when the frame slams onto the stop tab (v2, 2026-11-05: 10,990 N); the Extra's the
+        /// is the peak HINGE reaction when the frame slams onto the stop tab (v2, 2026-11-05: 11,481 N); the Extra's the
         /// load at its stop lug.</summary>
-        public const double ExtraFittingN = 15100.0, PittsFittingN = 11000.0;
+        public const double ExtraFittingN = 15100.0, PittsFittingN = 11500.0;
     }
 
     /// <summary>
@@ -202,7 +202,7 @@ namespace FlyingGame.Core.Vr
     /// M_s + √(M_s² + 2 K E) (M_s the static moment there). Ty's rule — the canopy departs above 80 KIAS (Extra) and
     /// 80 mph (Pitts) when flung open, and stays on below — fixes the fittings' strength: it is the peak load at the
     /// stop at exactly that speed (<see cref="PeakStopLoadN"/>, which runs THIS dynamics), rounded:
-    /// Extra 15,100 N, Pitts 11,000 N (at its hinges, v2). A steady load at the stop (flying on faster with it open) breaks it too, at
+    /// Extra 15,100 N, Pitts 11,500 N (at its hinges, v2). A steady load at the stop (flying on faster with it open) breaks it too, at
     /// the speed where M_a + flutter alone reaches that.
     ///
     /// THE PITTS' SLIDE. It must slide 4 in aft before it can hinge (the mushroom buttons hold it in the track). By hand
@@ -213,11 +213,11 @@ namespace FlyingGame.Core.Vr
     ///
     /// THE PITTS' STOP (v2, Ty 2026-11-05). No stop angle: the frame lands on the tab on the right upper wing
     /// (<see cref="CanopyStopTab"/>), a one-sided spring-damper in the swing at the angle the geometry gives for the
-    /// present slide (127.5° after the normal 4 in). Its load on the hinges is the reaction R = m(α t_c − ω² r_c) − F_air −
+    /// present slide (96.8° after the normal 4 in). Its load on the hinges is the reaction R = m(α t_c − ω² r_c) − F_air −
     /// m g − F_tab (the canopy as a body on its hinge line), and the fittings fail when R passes their strength, which is
     /// calibrated to Ty's 80 mph exactly as before. JETTISONED, the Pitts' pull frees the track: the canopy runs on aft
     /// (its drag, or a hand) up to <see cref="CanopySpec.TrackM"/>, against the carriage's friction and the rubber's
-    /// while it presses the tab; past 6 in its front edge no longer meets the tab, so nothing stops the swing, and past
+    /// while it presses the tab; past 4.75 in its front hoop no longer meets the tab, so nothing stops the swing, and past
     /// <see cref="CanopyStopTab.HookReleaseDeg"/> the hinges let go. Whether it gets there before it lands on the tab is a
     /// race between the slide and the swing, not a rule.
     ///
