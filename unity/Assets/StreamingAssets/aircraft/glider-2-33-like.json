@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "id": "glider-2-33-like",
   "displayName": "2-33-like Trainer Glider",
+  "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 3.13 },
+  "wingBreakStationSource": "Lift-strut wing attach |y| 3.13 m (123.2 in) from the centreline: our own SGS 2-33 model (tools/own_models/build_sgs233.py, single strut per side, at 30 % chord). Check: a 2019 three-view (Wikimedia Commons, scaled to the 51 ft span) gives ~125 in (+/-6). The Schweizer 2-33 Flight-Erection-Maintenance Manual gives the strut bolts (AN7) but no station.",
+  "liftStrutFuselageAttach": [-0.07, 0.336, 0.754],
+  "liftStrutFuselageAttachSource": "Own 2-33 model (build_sgs233.py STRUT_FUS): lower fuselage side, 0.519 m (20.4 in) aft of the root wing LE, BL 0.336 m (13.2 in), 1.054 m (41.5 in) below the root chord line; put in this config's frame from its root wing LE (x 0.450) and chord line (z -0.30).",
   "spawnIasMs": 22,
   "mass": {
     "massKg": 350,
@@ -1586,7 +1591,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "rollResistN": 40
+      "tireRadiusM": 0.18, "wheelMassKg": 5.0
     },
     {
       "pos": [
@@ -1602,7 +1607,7 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 800,
-      "rollResistN": 30
+      "tireRadiusM": 0.075, "wheelMassKg": 0.6
     },
     {
       "pos": [
@@ -1618,7 +1623,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.4,
       "corneringStiffnessN": 400,
-      "rollResistN": 60,
       "gearType": "tip-skid"
     },
     {
@@ -1635,7 +1639,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.4,
       "corneringStiffnessN": 400,
-      "rollResistN": 60,
       "gearType": "tip-skid"
     },
     {
@@ -1652,7 +1655,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 600,
-      "rollResistN": 250,
       "gearType": "nose-skid",
       "tireRadiusM": 0.06
     }

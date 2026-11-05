@@ -276,9 +276,43 @@ public sealed class VrStereoTests
         foreach (double a in new[] { l, r, b, t })
         {
             Assert.True(double.IsFinite(a), "a non-finite frustum edge");
-            Assert.InRange(a, 1.0, 60.0);                    // never beyond what the lens can show
+            Assert.InRange(a, 1.0, 60.0 + 1e-9);             // never beyond what the lens can show
         }
         Assert.True(l > r, $"outboard {l:F1}° should see more than inboard {r:F1}°");
+    }
+
+    // The screen edges of an iPhone 17 Pro in landscape as VrStereoShots sizes it: 2532 x 1170 px on a 6.1"
+    // diagonal = 0.1406 x 0.0650 m. Every expected tangent below is Distort(reach / 0.0393) worked by hand,
+    // r(1 + 0.33582564 r² + 0.55348791 r⁴), then capped at tan 60°. Not recomputed through VrOptics.
+    private const double PhoneW = 0.1406, PhoneH = 0.0650;
+    private const double Tan60 = 1.7320508075688767;
+
+    /// <summary>Outer edge: (0.0703 − 0.03195) / 0.0393 = 0.97583 tangent of screen, SEEN at 1.7776 —
+    /// beyond the lens's 60°, so the lens is the limit. (Under the old Undistort it was 0.730, 36.1°.)</summary>
+    [Fact]
+    public void ThePhonesOuterEdgeIsCappedByTheLens()
+    {
+        var c = new VrLensConfig().Sane();
+        Assert.Equal(Tan60, VrOptics.EdgeTangent(c, VrOptics.Edge.Left, PhoneW, PhoneH), 7);
+    }
+
+    /// <summary>Inner edge: 0.03195 / 0.0393 = 0.8129771 tangent of screen, SEEN at 1.1899858 (49.96°) —
+    /// the SCREEN is the limit, and the edge must be the distorted reach, not the undistorted one (0.653).</summary>
+    [Fact]
+    public void ThePhonesInnerEdgeIsTheDistortedScreenReach()
+    {
+        var c = new VrLensConfig().Sane();
+        Assert.Equal(1.1899857961857687, VrOptics.EdgeTangent(c, VrOptics.Edge.Right, PhoneW, PhoneH), 9);
+    }
+
+    /// <summary>Bottom and top are screen-limited too: 0.035 / 0.0393 → 1.4378877 (55.18°) and
+    /// 0.030 / 0.0393 → 1.0562082 (46.56°).</summary>
+    [Fact]
+    public void ThePhonesBottomAndTopAreTheDistortedScreenReach()
+    {
+        var c = new VrLensConfig().Sane();
+        Assert.Equal(1.4378877138358093, VrOptics.EdgeTangent(c, VrOptics.Edge.Bottom, PhoneW, PhoneH), 9);
+        Assert.Equal(1.0562082437237161, VrOptics.EdgeTangent(c, VrOptics.Edge.Top, PhoneW, PhoneH), 9);
     }
 
     [Fact]

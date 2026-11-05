@@ -216,7 +216,15 @@ namespace FlyingGame.Bridge
                 return;   // landing page owns the screen
             }
             ApplyTouchSticksHidden();
-            ReadPointers();
+            // Cardboard: nothing here is drawn (OnGUI stands down), and the only touch a pilot in the viewer can make
+            // is its trigger, which VrRig reads as a recentre. An invisible RESET or BAIL must not take it.
+            if (VrMode.On)
+            {
+                _brakeHeld = false;
+                _leftFinger = _rightFinger = _trimFinger = _ailTrimFinger = _rudTrimFinger = _fireFinger = _ejectFinger = int.MinValue;
+                _ejectHold = 0f; _lookFinger = int.MinValue; _lookDir = 0;
+            }
+            else ReadPointers();
             if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
             GamepadFlight();
             QuestInput();   // last: in the headset the Touch controllers and the hands own the controls they move

@@ -52,7 +52,11 @@ public class StripFinishTests : IDisposable
             // The middle of the strip, unless another field's pad overlaps it there (crossing runways).
             var c = f.Centre;
             if (IslandTerrain.Fields.Any(g => g != f && g.Contains(c))) continue;
-            Assert.Equal(StripFinish.Rolls(f.Surface), WorldTerrain.SurfaceAt(c.N * 1000, c.E * 1000));
+            // The wheels find what the strip is (dirt, hard sand: their own surfaces since 2026-11-04); the terrain
+            // paint, which reads IslandTerrain.SurfaceAt, still finds the coarse class it was drawn against.
+            Assert.Equal(StripFinish.Wheels(f.Surface), WorldTerrain.SurfaceAt(c.N * 1000, c.E * 1000));
+            Assert.Equal(StripFinish.Rolls(f.Surface), IslandTerrain.SurfaceAt(c.N * 1000, c.E * 1000));
+            Assert.Equal(StripFinish.Rolls(f.Surface), WorldTerrain.Coarse(WorldTerrain.SurfaceAt(c.N * 1000, c.E * 1000)));
         }
         _o.WriteLine($"{painted} paved fields painted, {bare} unpaved fields bare");
         Assert.True(painted > 0, "the paved airports still have their markings");
