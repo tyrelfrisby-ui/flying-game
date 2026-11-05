@@ -1,4 +1,44 @@
 ## NEEDS YOU
+<!-- pitts-cockpit-v2 needs-you -->
+- **PITTS S-2B COCKPIT v2: REVIEW THE RENDERS BEFORE ANY MERGE (Claude, 2026-11-05; Ty's spec 05:07 PITTS section).
+  lane/claude-pitts-cockpit-v2 (Codex's model lane/codex-pitts-cockpit-v2 b221022a + ee566233 + a3278562 committed by me
+  and merged). NOT merged into island-nav or Quest. iOS 2026.1105.0701 ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL (installed nowhere). Nothing approved by me.**
+  Renders + what each shows: `~/Developer/agent-lanes/renders/cockpit-1105/claude-pitts-cockpit-v2/README.md` (31 Unity
+  shots: both seat eyes, close-ups of every spec item, levers in both poses).
+  1. **Canopy latch (Ty's lever):** a black 2 in lever in each cockpit on the left canopy frame (the front one at the
+     canopy's forward-left corner, beside the front pilot), joined by the cable along the left sill. One latch state:
+     either lever moves both. Forward = latched, pulled back 90 deg = unlatched; an over-centre detent at forward
+     (snaps home inside 6 deg, breaks out at 12 deg, E). Locked = hook home AND canopy shut. Replaces the v1 sliding ball.
+  2. **Stop tab, emergent:** no stop angle anywhere. The canopy's 3/8 in tube frame and the tab's rubber are capsules;
+     the canopy stops where its frame meets the rubber at its present slide. Slid the normal 4 in, the front hoop
+     lands on the rubber at 96.8 deg. In the rig's own drawn pose that is 9.5 mm between surface points (touching),
+     measured in Unity. The new canopy sits wholly aft of the upper wing's trailing edge, so it never touches the wing
+     (checked against the real mesh: `tools/own_models/check_pitts_canopy_swing.py` PASS on all four GLBs). **Q061:** is
+     a bent bar running aft from the right upper wing past the trailing edge your tab, and what angle does yours rest at?
+  3. **Jettison, emergent:** the pull frees the slide's stop. The canopy's own drag (or a hand) runs it 2 in further aft
+     (E); the rubber only catches between about 3.5 and 4.75 in of slide, so it misses the tab and swings on, and past
+     150 deg (E) the hinge hooks let go: free body (CanopyFreeBody, tail-strike check as before). 50–120 KIAS it is gone
+     in 0.6–1.6 s; below the suction's lift-off (46 kt) it runs back and stays down. With the latch locked it stays on.
+     **Q062** asks for the real numbers.
+  4. **Hinge strength re-calibrated** to your 80 mph rule on the new geometry: the load is now the canopy's own reaction
+     on its hinge line as it slams onto the tab. 11,481 N peak at 69.5 KIAS → fittings 11,500 N: holds at 65, tears away
+     at 75 (tests).
+  5. **Controls (rig rows in docs/models/pitts-s2b-own-rig.json):** fuel valve turns its firewall rod (up ON, left OFF →
+     Aircraft.FuelValveOpen). The blue prop bar turns about its firewall rod (down = locked) and slides fore-aft
+     (prop/prop_lock → Aircraft.PropLever). The 16 in trim lever is hinged at the hip, neutral straight forward,
+     ±12 deg, tip up = nose up (E, **Q063**) → pitch trim. Throttles: black cylinder + red button on a new 160 mm
+     quadrant arm (Codex), ±25 deg. All are Quest-hand operable through the existing panel/throttle binding.
+  6. **Not done / follow-ups:** (a) iOS/Mac has no touch-in-the-3D-cockpit for ANY type: there the trim, throttle and
+     canopy are the HUD's, as before. The Pitts' scripted (no-hands) canopy now slides 4 in then opens to the tab's
+     96.8 deg, so iOS shows the same resting pose. Touch levers would be a new shared feature. (b) The canopy's AIRLOAD
+     numbers (bubble 1.48 x 0.716 x 0.406 m) are the old canopy's. Codex's new canopy is 1.14 m (the front is now a
+     fixed windshield), so the bubble, its inertia and the 46 kt lift-off speed should be re-derived; the tab contact
+     uses the new frame. (c) The prop rod runs from the blue bar straight forward to the firewall and passes through
+     the rear panel's lower-left corner; see `rear-eye-forward.png`.
+  7. Tests: PittsCanopyTabTests (9, new), the latch-lever tests in VrCockpitTests, VrBailoutTests updated: 94/94 in
+     those classes. `ModelRigTests.FullAirBrakeStopsTheGliderSooner…` gives NaN (2-33 wheel brake): it fails the same way
+     on the branch point 6f659d0d, so it is not mine. `tools/check-parity.sh --strict`: PARITY OK. Unity batch: 0 error CS.
+<!-- /pitts-cockpit-v2 needs-you -->
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not
