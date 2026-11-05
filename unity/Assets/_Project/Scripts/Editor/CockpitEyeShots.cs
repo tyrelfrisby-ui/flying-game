@@ -16,6 +16,8 @@ namespace FlyingGame.EditorTools
     /// anchor on), level flight attitude, one eye of a Quest 3S: 90 deg vertical by ~96 deg horizontal, 1666 x 1500.
     /// A horizon plane 1.5 m below the CG stands in for the ground so "can I see over the nose" has an answer.
     ///
+    /// COCKPIT_OWN=default leaves "own models" OFF, the shipped default, so the shot shows what a player sees.
+    ///
     /// Shots come from COCKPIT_SHOTS, ';'-separated "name|aircraft-id|seat-id|yawDeg|pitchDeg[|vfovDeg]" (yaw + is
     /// to the pilot's RIGHT, pitch + is UP); PNGs go to COCKPIT_OUT (default ../logs/cockpit-eye).
     ///
@@ -35,7 +37,12 @@ namespace FlyingGame.EditorTools
             try
             {
                 Directory.CreateDirectory(outDir);
-                SessionSettings.UseAirframeModels = SessionSettings.UseOwnModels = true;
+                SessionSettings.UseAirframeModels = true;
+                // COCKPIT_OWN=default shoots what a player sees with the shipped settings ("own models" OFF, as on Ty's
+                // iPhone 2026-11-04, set.ownModels=0), so a type whose own model is not forced on draws its downloaded
+                // one. Anything else keeps the old behaviour: own models on.
+                SessionSettings.UseOwnModels = Environment.GetEnvironmentVariable("COCKPIT_OWN") != "default";
+                Debug.Log($"[CockpitEye] own models {(SessionSettings.UseOwnModels ? "ON (forced)" : "OFF (shipped default)")}");
                 foreach (string raw in spec.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
                 {
                     string[] f = raw.Trim().Split('|');
