@@ -76,6 +76,12 @@ namespace FlyingGame.Bridge
         private StickGimbal _stick;
         private VrControlBinding.Throttle _lever;
         private VrControlBinding.Stick _stickRig;
+        /// <summary>The cockpit's structure round this seat, for the elbows (ArmPose; Ty 2026-11-04: arms through the Great
+        /// Lakes' switch box). Built at bind.</summary>
+        private readonly VrArmClearance _clearance = new();
+        /// <summary>Each elbow's swing from its natural pole, degrees, eased so it never hops.</summary>
+        private readonly float[] _swivel = new float[2];
+        public const float SwivelRateDegPerSec = 240f;
         private bool _hasThrottle;
         private Transform _latchNode, _latchAftNode, _latchFwdNode, _footNodeL, _footNodeR;
         private Vector3 _footOffL, _footOffR;
@@ -283,6 +289,13 @@ namespace FlyingGame.Bridge
             BindGlider(brief);
             BindPanel(full);
             BindBailout(full);
+            // The arms' keep-out: the whole airframe round this seat but the stick and the throttle the hands hold.
+            var exclude = new System.Collections.Generic.List<Transform>();
+            if (_stickRig?.Pitch?.T != null) exclude.Add(_stickRig.Pitch.T);
+            if (_stickRig?.Roll?.T != null) exclude.Add(_stickRig.Roll.T);
+            if (_lever?.Node?.T != null) exclude.Add(_lever.Node.T);
+            _clearance.Build(_air, _eye, exclude, $"{id} {seatId}");
+            _swivel[0] = _swivel[1] = 0f;
         }
 
         private void BindFoot(string full, string brief, string side, out Transform node, out Vector3 offset)
@@ -458,8 +471,8 @@ namespace FlyingGame.Bridge
             Vector3 throttleGrip = _hasThrottle ? U(_lever.Lever.GripAt(_lever.TFor(_driver.Sim.Aircraft.Throttle01))) : hipL + new Vector3(0f, 0.08f, 0.35f);
             Vector3 stickGrip = U(_stick.Grip);
 
-            HandTarget(HandSide.Left, throttleGrip, out Vector3 gripL, out Quaternion rotL, out float curlL);
-            HandTarget(HandSide.Right, stickGrip, out Vector3 gripR, out Quaternion rotR, out float curlR);
+            HandTarget(HandSide.Left, throttleGrip, Grabbable.Throttle, out Vector3 gripL, out Quaternion rotL, out float curlL, out Vector3 axisL);
+            HandTarget(HandSide.Right, stickGrip, Grabbable.Stick, out Vector3 gripR, out Quaternion rotR, out float curlR, out Vector3 axisR);
 
             // Feet on the pedals: the pedal nodes when the model has them (the rig swings them with the rudder),
             // else the proxy, right rudder = right pedal forward, left pedal aft.
@@ -475,8 +488,8 @@ namespace FlyingGame.Bridge
             // A tracked hand is drawn from its own joints, and the forearm runs to its own wrist.
             _pose.JointsL = TrackedJointsWorld(0);
             _pose.JointsR = TrackedJointsWorld(1);
-            Arm(true, World(shL), World(gripL), airRot * rotL, curlL, World(_eye + U(SeatedPilot.ElbowPoleL)), _pose.JointsL);
-            Arm(false, World(shR), World(gripR), airRot * rotR, curlR, World(_eye + U(SeatedPilot.ElbowPoleR)), _pose.JointsR);
+            Arm(true, World(shL), World(gripL), airRot * rotL, curlL, World(_eye + U(SeatedPilot.ElbowPoleL)), _pose.JointsL, airRot * axisL, _clearance);
+            Arm(false, World(shR), World(gripR), airRot * rotR, curlR, World(_eye + U(SeatedPilot.ElbowPoleR)), _pose.JointsR, airRot * axisR, _clearance);
             Leg(true, World(hipL), World(ballL), World(ballL + heelL), World(_eye + U(SeatedPilot.KneePoleL)));
             Leg(false, World(hipR), World(ballR), World(ballR + heelR), World(_eye + U(SeatedPilot.KneePoleR)));
             _body.Apply(_pose);
@@ -486,10 +499,13 @@ namespace FlyingGame.Bridge
         /// <summary>Where a hand is drawn: ON the control it holds (the visible hand snaps to the grip), at the
         /// controller otherwise, and resting on its control when the controller is not tracked — the right hand on
         /// the stick, the left on the throttle — so a pilot who looks down always sees himself flying.</summary>
-        private void HandTarget(HandSide side, Vector3 restGrip, out Vector3 grip, out Quaternion rot, out float curl)
+        private void HandTarget(HandSide side, Vector3 restGrip, Grabbable restOn, out Vector3 grip, out Quaternion rot, out float curl, out Vector3 axis)
         {
             HandPose h = _hands[(int)side];
             Grabbable held = _grab.Held(side);
+            // The grip axis of the control the hand is closed on (cockpit frame), zero for anything else: a hand ON the
+            // stick or the throttle wraps that control's own axis (ArmPose), not the controller's roll in the real hand.
+            axis = Vector3.zero;
             rot = h.Tracked ? new Quaternion((float)h.Rotation.X, (float)h.Rotation.Y, (float)h.Rotation.Z, (float)h.Rotation.W) : VrPilotBody.RestGripRot(side == HandSide.Left);
             if (held != Grabbable.None)
             {
@@ -502,11 +518,22 @@ namespace FlyingGame.Bridge
                      : held >= Grabbable.PanelFirst && held <= Grabbable.PanelLast ? HeldPanelPoint(held)
                      : HeldBailoutPoint(held, h);
                 curl = held == Grabbable.CanopyLatch && _latchKind == CanopyLatchKind.Squeeze ? 0.6f + 0.4f * (float)h.Pinch : 1f;
+                axis = GripAxis(held);
                 return;
             }
             if (h.Tracked) { grip = U(h.Position); curl = (float)h.Grip; return; }
             grip = restGrip;
             curl = 1f;
+            axis = restOn == Grabbable.Throttle && !_hasThrottle ? Vector3.zero : GripAxis(restOn);
+        }
+
+        /// <summary>Up the stick's shaft (pivot → grip), or across the throttle knob (its lever's hinge), cockpit frame.</summary>
+        private Vector3 GripAxis(Grabbable g)
+        {
+            if (g == Grabbable.Stick && _stick != null) return U(_stick.Up);
+            // A throttle knob is held ACROSS its lever (fingers over the top): the hinge axis, thumb inboard.
+            if (g == Grabbable.Throttle && _lever != null) return U(ArmPose.KnobAxis(_lever.Lever.Axis, left: true));
+            return Vector3.zero;
         }
 
         private readonly Vector3[][] _jointsWorld = { new Vector3[HandJoint.Count], new Vector3[HandJoint.Count] };
@@ -519,19 +546,46 @@ namespace FlyingGame.Bridge
             return w;
         }
 
-        private void Arm(bool left, Vector3 shoulder, Vector3 grip, Quaternion handRot, float curl, Vector3 pole, Vector3[] joints = null)
+        /// <summary>
+        /// One arm (Core <see cref="ArmPose"/>). On a control (<paramref name="gripAxis"/> non-zero) the hand wraps that
+        /// control's own axis and the wrist sits behind the fist along the hand, so the wrist stays nearly straight and
+        /// the palm faces the grip (Ty 2026-11-04: "the wrists are super unrealistic"). The elbow swings, eased, to keep
+        /// the arm out of the structure (<paramref name="clearance"/>). A tracked hand keeps its own wrist; a free
+        /// controller hand keeps the old wrist law (a fist's depth toward the shoulder) and only the elbow is chosen.
+        /// </summary>
+        private void Arm(bool left, Vector3 shoulder, Vector3 grip, Quaternion handRot, float curl, Vector3 pole, Vector3[] joints = null,
+                         Vector3 gripAxis = default, IArmClearance clearance = null)
         {
             float upper = (float)SeatedPilot.UpperArmM, lower = (float)SeatedPilot.ForearmM;
             if (_body.TryChain(left ? "L_UpperArm" : "R_UpperArm", left ? "L_LowerArm" : "R_LowerArm", left ? "L_Hand" : "R_Hand",
                                out Vector3 root, out float u, out float l)) { shoulder = root; upper = u; lower = l; }
-            // The wrist sits a fist's depth back from the grip, toward the shoulder: the forearm points at the hand.
-            Vector3 toShoulder = shoulder - grip;
-            Vector3 wrist = grip + (toShoulder.sqrMagnitude > 1e-8f ? toShoulder.normalized : Vector3.zero) * (float)SeatedPilot.WristToGripM;
-            if (joints != null) { wrist = joints[HandJoint.Wrist]; grip = joints[HandJoint.Palm]; }
-            TwoBoneIk.Result r = TwoBoneIk.Solve(C(shoulder), C(wrist), upper, lower, C(pole));
-            Vector3 elbow = U(r.Middle), w = U(r.End);
-            // An unreachable control leaves the arm straight at it and the hand at the end of the arm, not floating.
-            Vector3 g = r.Reached ? grip : w + (grip - wrist);
+            int s = left ? 0 : 1;
+            if (clearance is VrArmClearance vc && !vc.Ready) clearance = null;
+            ArmPose.Result r;
+            if (joints == null && gripAxis.sqrMagnitude > 1e-6f)
+            {
+                // The left hand is on the throttle KNOB (Grabbable.Throttle) whenever it has an axis here: a knob tilts more.
+                r = ArmPose.OnGrip(left, C(shoulder), C(grip), C(gripAxis), upper, lower, C(pole), SeatedPilot.WristToGripM, clearance, _swivel[s],
+                                   left ? ArmPose.KnobTiltDeg : ArmPose.MaxTiltDeg);
+                Vector3 fwd = U(r.HandForward), palm = U(r.Palm);
+                // Grip-pose convention (VrPilotBody.PalmOf): +Z along the fist, the palm along −X (right) / +X (left).
+                Vector3 x = left ? palm : -palm;
+                handRot = Quaternion.LookRotation(fwd, Vector3.Cross(fwd, x));
+            }
+            else
+            {
+                Vector3 toShoulder = shoulder - grip;
+                Vector3 wrist0 = grip + (toShoulder.sqrMagnitude > 1e-8f ? toShoulder.normalized : Vector3.zero) * (float)SeatedPilot.WristToGripM;
+                if (joints != null) { wrist0 = joints[HandJoint.Wrist]; grip = joints[HandJoint.Palm]; }
+                r = ArmPose.Free(C(shoulder), C(wrist0), upper, lower, C(pole), clearance, _swivel[s]);
+                r.Grip = C(r.Reached ? grip : U(r.Wrist) + (grip - wrist0));
+            }
+            // Ease the elbow's swing toward the one chosen: a wall appearing beside the arm must not flick the elbow.
+            float dt = Mathf.Max(Time.unscaledDeltaTime, 0f);
+            _swivel[s] = dt > 0f ? Mathf.MoveTowards(_swivel[s], (float)r.SwivelDeg, SwivelRateDegPerSec * dt) : (float)r.SwivelDeg;
+            Vector3 w = U(r.Wrist);
+            Vector3 elbow = U(ArmPose.ElbowAt(r.Shoulder, r.Wrist, upper, lower, C(pole), _swivel[s]));
+            Vector3 g = U(r.Grip);
             if (left) { _pose.ShoulderL = shoulder; _pose.ElbowL = elbow; _pose.WristL = w; _pose.GripL = g; _pose.HandRotL = handRot; _pose.CurlL = curl; }
             else { _pose.ShoulderR = shoulder; _pose.ElbowR = elbow; _pose.WristR = w; _pose.GripR = g; _pose.HandRotR = handRot; _pose.CurlR = curl; }
         }

@@ -235,7 +235,10 @@ namespace FlyingGame.Bridge
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
             AddRow(() => $"Seat:  {SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId))}",
                 () => CycleSeat(1), CycleSeat, () => SeatsOf(SeatAircraftId).Count > 1);
-            AddRow(() => $"View:  {(ChaseCamera.InCockpit ? "Cockpit" : "Outside")}", ToggleView, _ => ToggleView());
+            // VIEWS (Ty 2026-11-04: "no views are available except 'outside' which is actually cockpit"). The row used to
+            // be a two-way toggle labelled from ChaseCamera.InCockpit; now it cycles the views a headset can stand
+            // (QuestViews) and says the one selected, whatever the camera did this frame.
+            AddRow(() => $"View:  {QuestViews.Label(Chase != null ? Chase.CurrentView : ChaseCamera.View.Cockpit)}   < >", () => CycleView(1), CycleView);
             // FLY BY HAND (Ty 2026-11-03): the pilot's body and his hands on the stick, throttle and handles. Off,
             // the controllers fly as they always have and no body is drawn.
             AddRow(() => $"Fly by hand:  {(XrHeadset.FlyByHand ? "On  (body + hands)" : "Off")}", ToggleFlyByHand, _ => ToggleFlyByHand());
@@ -742,10 +745,12 @@ namespace FlyingGame.Bridge
             Debug.Log($"[QuestMenu] fly by hand {(XrHeadset.FlyByHand ? "ON" : "OFF")}");
         }
 
-        private void ToggleView()
+        private void CycleView(int d)
         {
             if (Chase == null) return;
-            Chase.SetView(ChaseCamera.InCockpit ? ChaseCamera.View.RelativeWind : ChaseCamera.View.Cockpit);
+            ChaseCamera.View next = QuestViews.Next(Chase.CurrentView, d);
+            Chase.SetView(next);
+            Debug.Log($"[QuestInput] menu: view → {QuestViews.Label(next)}");
         }
 
         private string HandleName() => Controls == null ? "" : Controls.MenuHandleLabel;

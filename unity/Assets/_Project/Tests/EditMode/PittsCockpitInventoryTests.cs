@@ -102,7 +102,7 @@ namespace FlyingGame.EditModeTests
         public void FrontAndRearLeversReadTheSameSimState()
         {
             // Linked by construction: both seats' levers are rig nodes on ONE param, which the sim owns
-            // (Aircraft.Throttle01, Aircraft.PropLever01), so moving either seat's moves the other's.
+            // (Aircraft.Throttle01, Aircraft.PropLever), so moving either seat's moves the other's.
             ModelRig rig = Rig();
             Assert.AreEqual("throttle", rig.Nodes.Single(n => n.Node == "Throttle_Rear").Param);
             // The rear's prop is the blue lever on its slide (the slide is the rpm; the blade is its lock).

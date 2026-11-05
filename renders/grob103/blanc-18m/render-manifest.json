@@ -1,0 +1,171 @@
+{
+  "renderer": "Project CPU rasterizer fallback; Blender 5.2.2 crashes in Metal capability detection before Python",
+  "views": [
+    [
+      "side",
+      [
+        1,
+        0.25,
+        22
+      ],
+      [
+        1,
+        0.25,
+        0
+      ],
+      9.4,
+      [
+        0,
+        1,
+        0
+      ]
+    ],
+    [
+      "three-quarter",
+      [
+        -13,
+        8,
+        17
+      ],
+      [
+        1,
+        0.2,
+        0
+      ],
+      19.3,
+      [
+        0,
+        1,
+        0
+      ]
+    ],
+    [
+      "front",
+      [
+        -22,
+        1,
+        0
+      ],
+      [
+        0,
+        0.2,
+        0
+      ],
+      19.3,
+      [
+        0,
+        1,
+        0
+      ]
+    ],
+    [
+      "top",
+      [
+        1,
+        24,
+        0
+      ],
+      [
+        1,
+        0,
+        0
+      ],
+      19.3,
+      [
+        -1,
+        0,
+        0
+      ]
+    ],
+    [
+      "gear-main",
+      [
+        -0.2,
+        -0.4,
+        2.7
+      ],
+      [
+        0.5397,
+        -0.43,
+        0
+      ],
+      1.4,
+      [
+        0,
+        1,
+        0
+      ]
+    ],
+    [
+      "gear-nose",
+      [
+        -2.2,
+        -0.35,
+        2
+      ],
+      [
+        -1.4595,
+        -0.43,
+        0
+      ],
+      0.9,
+      [
+        0,
+        1,
+        0
+      ]
+    ],
+    [
+      "gear-nose-steered",
+      [
+        -2.2,
+        -0.35,
+        2
+      ],
+      [
+        -1.4595,
+        -0.43,
+        0
+      ],
+      0.9,
+      [
+        0,
+        1,
+        0
+      ]
+    ],
+    [
+      "gear-tail",
+      [
+        4.5,
+        -0.1,
+        2
+      ],
+      [
+        4.8768,
+        -0.19,
+        0
+      ],
+      0.85,
+      [
+        0,
+        1,
+        0
+      ]
+    ]
+  ],
+  "model_sha256": "b3f6afeba24a0c590ff935ca85863b1f4d631332baa90ff0ca18cf129d231543",
+  "visual_approval": "PENDING",
+  "images": {
+    "gear-main.png": "e3a82edb91f1e3bea9d1c213629db39f45d549e305dc652e551b39ec7e436276",
+    "side-poh-overlay.png": "f84d180e020d96a616b8c733ced07dd42800130169692d631a37058a43a6bdd3",
+    "side.png": "80f5b69d8c98914fcda3793083e9916eec2d95675396c30c4b13337c109e7ead",
+    "three-quarter.png": "6aa3ad337210c80f055efdb0529015d1e07d2fa67e8fac79b09811e88893d277",
+    "gear-nose.png": "0d1319263ff498f902ac7ba89b354279e6baa91e9aa02d322f4498a792355953",
+    "gear-nose-steered.png": "3cf086dadcc1926fed84561a7a1f0d172fba02d2fcea03345304a32e06c81cf4",
+    "gear-tail.png": "10e354ac2bdd43fa00613ab27948dcde7ca5b6d3413708e00da7a5c98369ec30",
+    "top.png": "1b0252073a9a01cf34eb14dc0d8e581f8d3ef8e02db5b8e00888b96f62b0375b",
+    "contact-sheet.png": "04bdcb2c2f15a19c04413f30d99be04c9fd067f959ab1a60861a0bafcd574c99",
+    "front.png": "13c9f4273f339bf15ea8b8a77bb8337ca059244e9d0bfd9e7ed7ae6474030a9f"
+  }
+}

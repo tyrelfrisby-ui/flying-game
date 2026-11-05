@@ -26,10 +26,10 @@ public sealed class PilotIdentity
     /// <summary>The name over the aeroplane. Always shown, never hidden, never optional.</summary>
     public string Handle = "";
 
-    /// <summary>The certificate badge, short form: "ASEL PVT", "ATP ASEL AMEL".</summary>
+    /// <summary>The level badge, short form: "PILOT · ASEL", "COMMERCIAL · GLIDER ASEL".</summary>
     public string Badge = "";
 
-    /// <summary>The non-licence badges, short: "SPORTSMAN", "SILVER C", "STOL GOLD".</summary>
+    /// <summary>The achievement badges, short: "SPORTSMAN", "SILVER C", "STOL GOLD".</summary>
     public string[] Awards = Array.Empty<string>();
 
     /// <summary>The combined leaderboard score. A result, so it is public.</summary>

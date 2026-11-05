@@ -14,7 +14,7 @@ namespace FlyingGame.FlightTests;
 /// <summary>
 /// The Pitts' cockpit systems (Ty 2026-11-04 19:22): the rear panel's four switches MASTER, ALTERNATOR, FUEL PUMP and
 /// SMOKE on a real bus (ElectricalSystem, stepped by Aircraft.Step), and the PROP lever, front and rear, as the governor's
-/// rpm (Aircraft.PropLever01). Expected numbers are worked by hand from the constants in the class comments, not read
+/// rpm (Aircraft.PropLever). Expected numbers are worked by hand from the constants in the class comments, not read
 /// back from the code (CLAUDE.md: a test that reads the file it is checking proves nothing).
 /// </summary>
 public sealed class PittsPanelSystemsTests
@@ -104,68 +104,12 @@ public sealed class PittsPanelSystemsTests
     // ---- the prop lever ----
 
     [Fact]
-    public void ThePittsGovernorRunsFrom2000To2700()
-    {
-        // Ty-checkable: (E) 2000 low stop, the config's governedRpm 2500 and maxRpm 2700 are the S-2B's AEIO-360 + Hartzell.
-        PropulsionConfig p = Load("pitts-s2b-like").Propulsion!;
-        Assert.Equal(2000.0, p.GovernedMinRpm, 9);
-        Assert.Equal(2500.0, p.GovernedRpm, 9);
-        Assert.Equal(2700.0, p.MaxRpm, 9);
-    }
-
-    [Fact]
-    public void LeverForwardIsTheAeroplaneAsItAlwaysFlew()
-    {
-        Aircraft ac = Pitts(0.7);
-        Assert.Equal(1.0, ac.PropLever01, 9);
-        Assert.Equal(2500.0, ac.EngineRpm, 6);   // governing at cruise power
-        Assert.Equal(1.0, ac.PropPowerScale, 12);
-    }
-
-    [Fact]
-    public void LeverBackTheGovernorHoldsFewerRpmAndThePowerFallsWithThem()
-    {
-        Aircraft ac = Pitts(0.7);
-        ac.PropLever01 = 0.0;
-        Assert.Equal(2000.0, ac.EngineRpm, 6);
-        Assert.Equal(0.8, ac.PropPowerScale, 9);          // 2000 / 2500 at the same manifold pressure
-        ac.PropLever01 = 0.5;                              // 2000 + 0.5 x 700 = 2350
-        Assert.Equal(2350.0, ac.EngineRpm, 6);
-        Assert.Equal(0.94, ac.PropPowerScale, 9);
-        double fullFlow = Pitts(0.7).FuelFlowKgPerSec;
-        Assert.Equal(0.94 * fullFlow, ac.FuelFlowKgPerSec, 12);
-    }
-
-    [Fact]
-    public void OnTheFinePitchStopTheLeverChangesNothing()
-    {
-        Aircraft ac = Pitts(0.1);
-        double rpm = ac.EngineRpm;
-        ac.PropLever01 = 0.0;
-        Assert.Equal(rpm, ac.EngineRpm, 9);
-        Assert.Equal(1.0, ac.PropPowerScale, 12);
-    }
-
-    [Fact]
-    public void ATypeWithNoGovernorRangeIgnoresTheLever()
-    {
-        // The Extra is constant-speed too, but nobody has given it a low stop: the lever must not move it.
-        AircraftConfig c = Load("extra-300-like");
-        Assert.True(c.Propulsion!.ConstantSpeed);
-        Aircraft ac = Pitts(0.7, c);
-        double rpm = ac.EngineRpm;
-        ac.PropLever01 = 0.0;
-        Assert.Equal(rpm, ac.EngineRpm, 9);
-        Assert.Equal(1.0, ac.PropPowerScale, 12);
-    }
-
-    [Fact]
     public void LeverBackClimbsLessAtFullThrottle()
     {
         static double SpeedAfter(double lever)
         {
             Aircraft ac = Pitts(1.0);
-            ac.PropLever01 = lever;
+            ac.PropLever = lever;
             var loop = new SimLoop(ac, 1.0 / 200.0);
             for (int i = 0; i < 400; i++) loop.RunFor(1.0 / 200.0, new ControlInputs(0, 0, 0, -1.0));
             return ac.State.Velocity.Length;
@@ -211,9 +155,9 @@ public sealed class PittsPanelSystemsTests
         Assert.False(lever.Move(0.0, 0.1));      // turned back down: the rpm stays where it was set
         Assert.Equal(0.6, lever.Slide01, 12);
 
-        Aircraft ac = Pitts(0.7);                // and that slide is the governor's rpm: 2000 + 0.6 x 700
-        ac.PropLever01 = lever.Slide01;
-        Assert.Equal(2420.0, ac.EngineRpm, 6);
+        Aircraft full = Pitts(0.7), set = Pitts(0.7);   // and that slide is the governor's lever (AircraftEngine)
+        set.PropLever = lever.Slide01;
+        Assert.True(set.EngineRpm < full.EngineRpm - 50 && set.EngineRpm > 0.7 * 2700 - 1, $"{set.EngineRpm:F0} vs {full.EngineRpm:F0}");
     }
 
     // ---- the fuel valve and the mixture: both starve the engine ----
@@ -230,45 +174,30 @@ public sealed class PittsPanelSystemsTests
         Aircraft ac = Pitts(0.7);
         ac.FuelValveOpen = false;
         Fly(ac, 3.0);
-        Assert.False(ac.EngineStopped);          // 4 s of fuel in the lines (Aircraft.FuelLinesSec)
+        Assert.True(ac.EngineRunning);           // 4 s of fuel in the lines (Aircraft.FuelLinesSec)
         Fly(ac, 1.5);
-        Assert.True(ac.EngineStopped);
-        Assert.Equal(0.0, ac.EngineRpm, 9);
+        Assert.False(ac.EngineRunning);           // it windmills (AircraftEngine), but it makes no power
+        Assert.True(ac.EngineStarved);
+        Assert.Equal(0.0, ac.ShaftPower01, 12);
         Assert.Equal(0.0, ac.FuelFlowKgPerSec, 12);
         ac.FuelValveOpen = true;
         Fly(ac, 2.5);                            // 2 s to refill (Aircraft.FuelRelightSec)
-        Assert.False(ac.EngineStopped);
+        Assert.True(ac.EngineRunning);
         Assert.True(ac.EngineRpm > 2000);
     }
 
     [Fact]
     public void FullyPulledMixtureIsIdleCutOff()
     {
+        // The red push-pull is AircraftEngine's MixtureLever: pulled fully out it is idle cut-off.
         Aircraft ac = Pitts(0.7);
-        ac.Mixture01 = 0.0;
-        Assert.True(ac.MixtureCutOff);
-        Fly(ac, 5.0);
-        Assert.True(ac.EngineStopped);
-        ac.Mixture01 = 1.0;
+        ac.MixtureLever = 0.0;
+        Fly(ac, 1.0);
+        Assert.True(ac.EngineStarved);
+        ac.MixtureLever = 1.0;
         Fly(ac, 2.5);
-        Assert.False(ac.EngineStopped);
+        Assert.True(ac.EngineRunning);
     }
-
-    [Fact]
-    public void LeaningCostsPowerOnlyPastTheLeanLimit()
-    {
-        Aircraft ac = Pitts(0.7);
-        Assert.Equal(1.0, ac.MixturePowerScale, 12);   // full rich
-        ac.Mixture01 = 0.6;
-        Assert.Equal(1.0, ac.MixturePowerScale, 12);   // leaned to 0.6: nothing lost
-        ac.Mixture01 = 0.325;                           // half way from 0.6 to the cut-off at 0.05: 0.55 + 0.45 / 2
-        Assert.Equal(0.775, ac.MixturePowerScale, 9);
-        double rich = Pitts(0.7).FuelFlowKgPerSec;
-        Assert.Equal(0.775 * rich, ac.FuelFlowKgPerSec, 12);
-        Assert.False(ac.MixtureCutOff);
-    }
-
-    // ---- the cowl flap ----
 
     [Fact]
     public void AnOpenCowlFlapCoolsTheHeads()

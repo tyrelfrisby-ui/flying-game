@@ -1,0 +1,16 @@
+{
+  "source_url": "https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/grob_g-103-c-twiniii-acro-poh.pdf",
+  "poh_sha256": "167d93cf73d8263f4efcf254ae59a525f8a642e201fce8d444ac85d14f5e5763",
+  "pdf_page": 14,
+  "printed_page": "1.6",
+  "pixels_per_metre": 47.44444444444444,
+  "nose_pixel": [
+    762,
+    708
+  ],
+  "model_nose_height_m": -0.23,
+  "rotation_deg": 0,
+  "axis_specific_scaling": false,
+  "reference_registration": "Approximate scan nose; level model axes. No contour fitting.",
+  "model_sha256": "6c779c6299a479ec64c53afcf7c556dd04e6e48c06f01ed5f94f2ee5d2d86d59"
+}

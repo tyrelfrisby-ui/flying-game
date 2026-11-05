@@ -512,6 +512,28 @@ alone, white on black, and read the coverage across the column at several ages),
 and derive each particle's share from its overlap (`SmokeTrail.PuffAlphaFor`). A crossfade between two particle
 sets must be done in optical depth too; crossfading alphas leaves a see-through band.
 
+### A number attributed to a tool must have come out of the tool
+Building the Grob 103's airbrakes I wrote "XFOIL's edge velocity at 0.42 c runs 1.20-1.30 V" into the builder and
+used 1.25 -- before running XFOIL for it. When I did (`DUMP`, x/c 0.428), the E603's rooftop runs 1.35-1.55 V: the
+plate's dynamic pressure was 29 % low, and it decided whether the brakes hold a 45-degree dive under VNE as the manual
+says. A full suite run was thrown away. If a comment says where a number came from, produce the number from there
+first, and print the reading beside it in the builder.
+
+Related, for anyone running XFOIL from a script: it writes its scratch files (`:00.bl`) into the CURRENT directory.
+Run it with `cwd=` a temp dir, not the worktree.
+
+### CPU GLB export preserves the winding you supply
+The Grob CPU first pass showed cockpit controls through its opaque exterior: the parametric shell's
+faces were inward, and a single-sided renderer correctly culled them. Fix winding at the source, before
+material splitting, and inspect an exterior as well as a seat-eye render. Whole closed parts can use
+signed volume; an open cockpit shell also needs an explicit outside-view check. Do not hide the error
+by making every opaque material double-sided.
+
+
+### Cockpit pair clearance does not prove containment in the airframe
+The Grob's seat/floor and low trim handle passed instrument/control pair checks but protruded through
+the fuselage. An exterior-envelope check against exported fuselage/glass triangles caught it. Check
+both neighboring parts AND the host shell; leave only deliberate mechanical mount contacts exempt.
 ### A rig row turns its node about the node's origin, not about `pivot_gltf`
 `AirframeRig` sets `localRotation = rest * angle`; `pivot_gltf` is a record, never applied. Codex built the Pitts' mixture
 and cowl flap with their origin on the pivot and they worked; the fuel valve and the blue prop blade were baked at the

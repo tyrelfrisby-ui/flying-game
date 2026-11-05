@@ -132,6 +132,9 @@ public struct RigInputs
     public double Rudder;
     /// <summary>0..1 dive-brake handle.</summary>
     public double Spoiler;
+    /// <summary>The rudder-linked nose wheel's yaw, degrees, + = turned RIGHT: the angle LandingGear steers the tyre by
+    /// (rudder x the type's steering lock), so the drawn fork and the sim's tyre cannot disagree. 0 without one.</summary>
+    public double NoseWheelSteerDeg;
     /// <summary>-1..+1, +1 = aft / nose up.</summary>
     public double Trim;
     /// <summary>0..1 release-knob pull.</summary>
@@ -281,16 +284,19 @@ public struct RigInputs
     /// aft as 29 up and every part-aft stick 17 % too far. 0 = symmetric, as every other type is.</summary>
     public static RigInputs FromDeflections(double aileronRad, double elevatorRad, double rudderRad, double spoilerFraction,
                                             double aileronMaxRad, double elevatorMaxRad, double rudderMaxRad,
-                                            double elevatorUpMaxRad = 0.0)
+                                            double elevatorUpMaxRad = 0.0, double noseSteerMaxRad = 0.0)
     {
         static double N(double v, double max) => max > 1e-6 ? Math.Clamp(v / max, -1.0, 1.0) : 0.0;
         double aft = -elevatorRad;   // + = trailing edge up = stick aft
+        double rudder = N(rudderRad, rudderMaxRad);
         return new RigInputs
         {
             Aileron = N(aileronRad, aileronMaxRad),
             Elevator = N(aft, aft > 0.0 && elevatorUpMaxRad > 1e-6 ? elevatorUpMaxRad : elevatorMaxRad),
-            Rudder = N(rudderRad, rudderMaxRad),
+            Rudder = rudder,
             Spoiler = Math.Clamp(spoilerFraction, 0.0, 1.0),
+            // The same product LandingGear.SteerRad makes (rudder deflection / rudder max x lock), sign + = right.
+            NoseWheelSteerDeg = rudder * noseSteerMaxRad * 180.0 / Math.PI,
         };
     }
 
@@ -300,6 +306,7 @@ public struct RigInputs
     {
         Aileron = controls.Aileron; Elevator = controls.Elevator;
         Rudder = controls.Rudder; Spoiler = controls.Spoiler;
+        NoseWheelSteerDeg = controls.NoseWheelSteerDeg;
     }
 
     /// <summary>A cockpit at rest on the ramp with the aeroplane ready to fly: the switches and levers where a
@@ -334,6 +341,7 @@ public struct RigInputs
             case "aileron": value = Aileron; return true;
             case "elevator": value = Elevator; return true;
             case "rudder": value = Rudder; return true;
+            case "nose_wheel_steer_deg": value = NoseWheelSteerDeg; return true;
             case "spoiler": value = Spoiler; return true;
             case "trim": value = Trim; return true;
             case "tow_release": value = TowRelease; return true;

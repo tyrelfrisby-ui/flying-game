@@ -16,11 +16,13 @@ namespace FlyingGame.Bridge
     /// INTO THE SIM where the sim has the system, through the same state everything else uses: the trim knob is
     /// <see cref="TouchFlightControls.PitchTrimLever"/>, the smoke switch is <see cref="SmokeController"/>, the J-3 floats' WATER RUDDER handle is
     /// <see cref="CockpitWaterRudder"/> (held: the blade follows the hand; let go near the hook it hangs there, else the
-    /// spring takes it down), the PROP lever is <see cref="Aircraft.PropLever01"/> (the governor's rpm), and MASTER,
-    /// ALTERNATOR and FUEL PUMP are <see cref="Aircraft.Electrics"/> (Ty 2026-11-04: the Pitts' four rear switches).
-    /// Because they live in the sim, the other seat's lever and switches follow. Everything else (magnetos, lights,
-    /// mixture, alternate air / carb heat, fuel selector, radio, transponder) has no system in this sim yet: it moves,
-    /// clicks, stays where it is left and says so in the log (`[VrCockpit] … visual only`). Drawn by this class after
+    /// spring takes it down), the MIXTURE and PROP levers go to <see cref="Aircraft.MixtureLever"/> / <see cref="Aircraft.PropLever"/>
+    /// (Ty 2026-11-04: "the prop control lever moves but doesn't change rpm, and the mixture is stuck at full rich"),
+    /// MASTER, ALTERNATOR and FUEL PUMP are <see cref="Aircraft.Electrics"/>, the FUEL valve is
+    /// <see cref="Aircraft.FuelValveOpen"/> and the COWL FLAP <see cref="Aircraft.CowlFlap01"/> (Ty 2026-11-04: the Pitts'
+    /// rear cockpit). Because they live in the sim, the other seat's levers and switches follow. Everything else
+    /// (magnetos, lights, alternate air / carb heat, fuel selector, radio, transponder) has no system in this sim yet: it
+    /// moves, clicks, stays where it is left and says so in the log (`[VrCockpit] … visual only`). Drawn by this class after
     /// the rig, so the knob shows the hand's value.
     /// </summary>
     public sealed partial class VrCockpitHands
@@ -88,7 +90,7 @@ namespace FlyingGame.Bridge
                         slot.SlideH = sh;
                         slot.SlidePivotAtBind = Local(sh.T.position);
                         slot.Slide = new SlideKnob(C(Local(sh.KnobWorld(sh.V0))), C(Local(sh.KnobWorld(sh.V1))));
-                        slot.Lock = new PropLockLever(_driver.Sim.Aircraft.PropLever01, slot.C.Value);
+                        slot.Lock = new PropLockLever(_driver.Sim.Aircraft.PropLever, slot.C.Value);
                     }
                     else missing.Add(spec.Node + "_Slide");
                 }
@@ -149,7 +151,7 @@ namespace FlyingGame.Bridge
                     else if (p.C.Spec.Param == "water_rudder_up") p.C.SetFromSim(_driver.Sim.Aircraft.WaterRudderUp01);
                     else if (SimParams.Contains(p.C.Spec.Param) && p.C.Spec.Param != "trim" && p.C.Spec.Param != "smoke")
                         p.C.SetFromSim(FromSim(p.C.Spec.Param));
-                    p.Lock?.SetFromSim(_driver.Sim.Aircraft.PropLever01);
+                    p.Lock?.SetFromSim(_driver.Sim.Aircraft.PropLever);
                 }
                 _grab.Set(p.Id, C(PanelPoint(p)), true);
             }
@@ -161,12 +163,12 @@ namespace FlyingGame.Bridge
             Aircraft ac = _driver.Sim.Aircraft;
             switch (param)
             {
-                case "prop": return ac.PropLever01;
+                case "prop": return ac.PropLever;
                 case "master": return ac.Electrics.Master ? 1.0 : 0.0;
                 case "alternator": return ac.Electrics.Alternator ? 1.0 : 0.0;
                 case "fuel_pump": return ac.Electrics.FuelPump ? 1.0 : 0.0;
                 case "water_rudder_up": return ac.WaterRudderUp01;
-                case "mixture": return ac.Mixture01;
+                case "mixture": return ac.MixtureLever;
                 case "fuel_valve": return ac.FuelValveOpen ? 1.0 : 0.0;
                 case "cowl_flap": return ac.CowlFlap01;
                 case "prop_lock": return _visual.Cockpit.PropLock01;
@@ -212,7 +214,7 @@ namespace FlyingGame.Bridge
                         ev = p.C.FollowTravel(lockT);
                         if (p.Lock.Move(p.C.Value, p.Slide.Follow(h.Position)))
                         {
-                            _driver.Sim.Aircraft.PropLever01 = p.Lock.Slide01;
+                            _driver.Sim.Aircraft.PropLever = p.Lock.Slide01;
                             ev |= PanelEvent.Changed;
                         }
                         Feel(side, ev);
@@ -278,9 +280,24 @@ namespace FlyingGame.Bridge
                 case "water_rudder_up":
                     if (p.C.Held) CockpitWaterRudder.Hold(_driver.Sim.Aircraft, v);
                     return;   // continuous while held; the one log line is on the release
+                case "mixture":
+                {
+                    Aircraft ac = _driver.Sim.Aircraft;
+                    bool was = ac.EngineRunning;
+                    ac.MixtureLever = v;
+                    if (p.C.Held && Time.frameCount % 36 == 0 || !p.C.Held)
+                        Debug.Log($"[VrCockpit] mixture {v:0.00} by hand → φ {ac.MixturePhi:0.00}, {(was ? "running" : "not running")}, rpm {ac.EngineRpm:F0}, EGT {ac.EgtF:F0} °F");
+                    return;
+                }
                 case "prop":
-                    _driver.Sim.Aircraft.PropLever01 = v;
-                    return;   // continuous: no log line per click
+                {
+                    Aircraft ac = _driver.Sim.Aircraft;
+                    ac.PropLever = v;
+                    if (!ac.HasPropLever) { Debug.Log($"[VrCockpit] prop lever {v:0.00}: {_driver.AircraftId} is fixed-pitch, nothing to govern"); return; }
+                    if (p.C.Held && Time.frameCount % 36 == 0 || !p.C.Held)
+                        Debug.Log($"[VrCockpit] prop lever {v:0.00} by hand → governor {ac.EngineRpm:F0} rpm");
+                    return;
+                }
                 case "master": case "alternator": case "fuel_pump":
                 {
                     FlyingGame.Core.Engine.ElectricalSystem el = _driver.Sim.Aircraft.Electrics;
@@ -290,14 +307,6 @@ namespace FlyingGame.Bridge
                     else el.FuelPump = on;
                     Debug.Log($"[VrCockpit] {s.Short} {(on ? "ON" : "OFF")} by hand → bus {el.BusVolts:0.0} V, {el.Amps:+0.0;-0.0} A");
                     return;
-                }
-                case "mixture":
-                {
-                    Aircraft ac = _driver.Sim.Aircraft;
-                    bool was = ac.MixtureCutOff;
-                    ac.Mixture01 = v;
-                    if (was != ac.MixtureCutOff) Debug.Log($"[VrCockpit] mixture {(ac.MixtureCutOff ? "IDLE CUT-OFF: the engine will stop" : "back in from cut-off")} by hand");
-                    return;   // continuous: a log line only at the cut-off
                 }
                 case "fuel_valve":
                     _driver.Sim.Aircraft.FuelValveOpen = v > 0.5;
@@ -309,7 +318,7 @@ namespace FlyingGame.Bridge
                     return;
                 case "prop_lock":
                     _visual.Cockpit.PropLock01 = v;
-                    return;   // continuous; the rpm it lets through is Aircraft.PropLever01
+                    return;   // continuous; the rpm it lets through is Aircraft.PropLever
                 case "com_volume":
                     return;
             }

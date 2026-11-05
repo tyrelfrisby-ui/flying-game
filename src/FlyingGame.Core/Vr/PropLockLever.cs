@@ -7,7 +7,7 @@ namespace FlyingGame.Core.Vr
     /// forward/aft to control rpm then rotates back down again." Two motions on one handle: the blade's turn about its
     /// spindle (<see cref="Lock01"/>: 0 hanging DOWN, locked .. 1 HORIZONTAL, released) and the slide along its slot
     /// (<see cref="Slide01"/>: 0 aft, full coarse .. 1 forward, full fine), which is the prop lever the sim reads
-    /// (Aircraft.PropLever01). The slide moves only while the blade is released, so the rpm cannot creep with the lever
+    /// (Aircraft.PropLever). The slide moves only while the blade is released, so the rpm cannot creep with the lever
     /// down. Engine-free; the hand code feeds it both motions every frame and draws what it says.
     /// </summary>
     public sealed class PropLockLever
