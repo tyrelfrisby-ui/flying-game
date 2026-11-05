@@ -107,13 +107,14 @@ namespace FlyingGame.Bridge
             {
                 float x = (1 - i) * 0.026f;
                 lamps[i] = Part(root, "SkiSelector_Lamp" + SkiSelectorPart.LampNames[i], PrimitiveType.Cylinder,
-                                new Vector3(x, h * 0.33f, 0.003f), Quaternion.Euler(90f, 0, 0), new Vector3(lampD, 0.003f, lampD), Color.black);
+                                new Vector3(x, h * 0.38f, 0.003f), Quaternion.Euler(90f, 0, 0), new Vector3(lampD, 0.003f, lampD), Color.black);
                 lamps[i].sharedMaterial = _lampOff;
-                Label(root, SkiSelectorPart.LampNames[i], new Vector3(x, h * 0.33f - 0.012f, 0.0012f), 0.0045f);
+                Label(root, SkiSelectorPart.LampNames[i], new Vector3(x, h * 0.38f - 0.011f, 0.0012f), 0.0042f);
             }
-            // The two lever positions, beside the gate.
-            Label(root, "WHEELS", new Vector3(-0.024f, 0.022f, 0.0012f), 0.006f);
-            Label(root, "SKIS", new Vector3(-0.024f, -0.036f, 0.0012f), 0.006f);
+            // The two lever positions, on the pilot's left of the gate (the plate's +x), clear of the lamp row.
+            Label(root, "UP", new Vector3(0.022f, 0.012f, 0.0012f), 0.006f);
+            Label(root, "DOWN", new Vector3(0.022f, -0.030f, 0.0012f), 0.006f);
+            Label(root, "SKIS", new Vector3(-0.024f, -0.009f, 0.0012f), 0.007f);
             return new Built { Root = root, Lever = lever, Knob = knob, Lamps = lamps };
         }
 
@@ -157,7 +158,7 @@ namespace FlyingGame.Bridge
         private static readonly Dictionary<Color, Material> Mats = new();
         private static Material Mat(Color c)
         {
-            if (Mats.TryGetValue(c, out Material m) && m != null) return m;
+            if (Mats.TryGetValue(c, out Material m) && m != null) return m;   // (unloaded on a scene change: made again)
             m = new Material(Shader.Find("FlyingGame/Lit") ?? Shader.Find("Unlit/Color")) { color = c };
             Mats[c] = m;
             return m;
@@ -165,7 +166,7 @@ namespace FlyingGame.Bridge
 
         private static void EnsureMaterials()
         {
-            if (_lampOff != null) return;
+            if (_lampOff != null && _lampGreen != null && _lampAmber != null) return;
             Shader unlit = Shader.Find("Unlit/Color");
             _lampOff = new Material(unlit) { color = new Color(0.08f, 0.10f, 0.08f) };
             _lampGreen = new Material(unlit) { color = new Color(0.25f, 1f, 0.35f) };

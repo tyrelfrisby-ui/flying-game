@@ -4199,7 +4199,8 @@ namespace FlyingGame.Bridge
 
         private static Material UnlitMat(Color c)
         {
-            if (!Mats.TryGetValue(c, out Material m))
+            // A cached material can have been unloaded (a scene change unloads unused assets): make it again.
+            if (!Mats.TryGetValue(c, out Material m) || m == null)
             {
                 m = new Material(Shader.Find("FlyingGame/Lit") ?? Shader.Find("Unlit/Color")) { color = c };
                 Mats[c] = m;

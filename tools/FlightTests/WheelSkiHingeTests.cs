@@ -367,6 +367,21 @@ public class WheelSkiHingeTests : IDisposable
         }
     }
 
+    [Theory]
+    // Anchors measured from the seat eye against the placed own GLB (WheelSkiShots WS_MEASURE, 12 mm proud of the hit),
+    // copied by hand: the C172's lower panel left of the yoke, the J-3's left cabin liner low beside the rear seat, the Pitts' rear
+    // panel under the G-meter, 3 cm further aft so its lamp row clears the panel's lip (render).
+    [InlineData("c172-like", "pilot", 0.288, -0.4, -0.073)]
+    [InlineData("j3-cub-like", "rear", -0.631, -0.299, -0.13)]
+    [InlineData("pitts-s2b-like", "rear", -0.843, -0.215, 0.135)]
+    public void TheReviewedCockpitsAuthorTheirAnchor(string id, string seat, double x, double y, double z)
+    {
+        SkiSelectorPart.Mount m = SkiSelectorPart.MountsFor(LoadAny(id, true)).Single();
+        Assert.True(m.Authored);
+        Assert.Equal(seat, m.SeatId);
+        Assert.Equal(x, m.Pos.X, 9); Assert.Equal(y, m.Pos.Y, 9); Assert.Equal(z, m.Pos.Z, 9);
+    }
+
     [Fact]
     public void TheDefaultMountIsUnderThePilotsLeftHand()
     {
@@ -375,8 +390,7 @@ public class WheelSkiHingeTests : IDisposable
         Assert.Empty(SkiSelectorPart.MountsFor(c));
         SkiSelectorPart.Mount m = SkiSelectorPart.MountsFor(c, new Vec3(-0.5, 0, -0.6)).Single();
         Vec3 d = m.Pos - m.Eye;
-        SkiSelectorPart.Mount j3 = SkiSelectorPart.MountsFor(Load("j3-cub-like", true)).Single();
-        Assert.Equal(-0.84 + 0.50, j3.Pos.X, 9);   // the J-3's front seat eye (configs: x −0.84) plus the offset
+
         Assert.Equal(0.50, d.X, 9);     // ahead
         Assert.Equal(-0.22, d.Y, 9);    // left
         Assert.Equal(0.32, d.Z, 9);     // below

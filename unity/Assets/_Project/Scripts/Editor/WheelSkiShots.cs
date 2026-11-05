@@ -37,6 +37,18 @@ namespace FlyingGame.EditorTools
                 Directory.CreateDirectory(outDir);
                 SessionSettings.Skis = true; SessionSettings.Bushwheels = false;
                 SessionSettings.UseAirframeModels = true; SessionSettings.UseOwnModels = true;
+                string measure = Environment.GetEnvironmentVariable("WS_MEASURE");
+                if (measure != null)
+                {
+                    // "id|dx,dy,dz;..." : cast from the first seat's eye along a body-frame direction against the placed
+                    // model and log where it lands — the number a seat's skiSelector anchor is authored from.
+                    foreach (string m in measure.Split(';'))
+                    {
+                        string[] f = m.Split('|'); string[] d = f[1].Split(',');
+                        if (!Measure(f[0], new Vec3(F(d[0]), F(d[1]), F(d[2])))) failures++;
+                    }
+                    return;
+                }
                 foreach (string id in (Environment.GetEnvironmentVariable("WS_EXT") ?? "pa18-cub-like,c172-like,j3-cub-like").Split(','))
                     shots += Exterior(id.Trim(), outDir, ref failures);
                 foreach (string id in (Environment.GetEnvironmentVariable("WS_COCKPIT") ?? "j3-cub-like,c172-like,pitts-s2b-like").Split(','))
@@ -80,6 +92,34 @@ namespace FlyingGame.EditorTools
             lever.Show(ac.Skis.Selector);
             Light(onGround);
             return (root, builder, cfg, ac);
+        }
+
+        private static double F(string x) => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture);
+
+        private static bool Measure(string id, Vec3 dirBody)
+        {
+            var (root, builder, cfg, ac) = Scene(id, 0.0, onGround: false);
+            if (root == null || cfg.Loading?.Seats == null || cfg.Loading.Seats.Count == 0) { Debug.LogError($"[WheelSkiShots] MEASURE {id}: no seat"); return false; }
+            foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>())
+            {
+                if (mf.sharedMesh == null || mf.name.StartsWith("SkiSelector") || !mf.GetComponent<Renderer>().enabled) continue;
+                var mc = mf.gameObject.AddComponent<MeshCollider>(); mc.sharedMesh = mf.sharedMesh;
+            }
+            Physics.SyncTransforms();
+            Vec3 eyeB = cfg.Loading.Seats[0].EyeVec();
+            Vector3 eye = root.transform.TransformPoint(CoordinateMap.ToUnity(eyeB));
+            Vector3 dir = root.transform.TransformDirection(CoordinateMap.ToUnity(dirBody)).normalized;
+            bool ok = Physics.Raycast(eye, dir, out RaycastHit hit, 2.0f);
+            if (ok)
+            {
+                Vec3 hitB = CoordinateMap.ToSim(root.transform.InverseTransformPoint(hit.point));
+                Vec3 back = hitB - (hitB - eyeB) * (0.012 / (hitB - eyeB).Length);
+                Debug.Log($"[WheelSkiShots] MEASURE {id}: from eye {eyeB.X:F3},{eyeB.Y:F3},{eyeB.Z:F3} along {dirBody.X},{dirBody.Y},{dirBody.Z} hit '{hit.collider.name}' " +
+                          $"at body {hitB.X:F3},{hitB.Y:F3},{hitB.Z:F3} ({hit.distance:F3} m); anchor 12 mm proud: [{back.X:F3}, {back.Y:F3}, {back.Z:F3}]");
+            }
+            else Debug.LogError($"[WheelSkiShots] MEASURE {id}: nothing within 2 m");
+            builder.Clear(); Object.DestroyImmediate(root);
+            return ok;
         }
 
         private static void Light(bool ground)
