@@ -796,7 +796,9 @@ public static class AirframeContact
                 kind = WorldTerrain.SurfaceOverride ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(w.X, w.Y, -w.Z) : WorldTerrain.Surface.Paved);
                 muSurface = SlidingMu(kind);
             }
-            Vec3 vt = vel - normal * Vec3.Dot(vel, normal);
+            // Ditched, the point slides against the WATER, which may itself be moving (a river, the tide: WaterCurrent).
+            Vec3 vSlide = ditching ? vel - WaterCurrent.At(w.X, w.Y, System.Math.Max(0.0, depth)) : vel;
+            Vec3 vt = vSlide - normal * Vec3.Dot(vSlide, normal);
             double vtLen = vt.Length;
             if (record)
             {

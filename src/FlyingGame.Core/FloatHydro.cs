@@ -74,6 +74,10 @@ public static class FloatHydro
     public const double HeaveDragCd = 1.2;                  // 2-D V-bottom / plate normal to the flow (Hoerner 1965)
     public const double PlateCrossflowCd = 1.2;             // water-rudder blade, flat plate normal to the flow (Hoerner 1965)
     public const double VentWetFT = 2.0, VentDryFT = 4.0;   // transom-draft Froude numbers: step wet / fully ventilated
+    /// <summary>Savitsky's planing (term 3) is a flow ALONG the keel. Past this sideslip of the water past the hull it is
+    /// not planing at all: the trim "along the flow" goes to 90° as the flow comes square across the keel, and tan τ with
+    /// it — a floatplane sat in a cross-current (WaterCurrent) is exactly that case. The crossflow terms (7) carry it.</summary>
+    public const double PlaningMaxSideslipRad = 60.0 * System.Math.PI / 180.0;
 
     /// <summary>
     /// Test hook: water everywhere at this height (m, up). Null = use the world terrain's water. Production never
@@ -265,7 +269,8 @@ public static class FloatHydro
 
     [ThreadStatic] private static (FloatsConfig f, double yF, int slot, bool rudder)[]? _set;
 
-    /// <summary>Total world-frame force and moment (about the CG) from all floats. Zero when clear of water.</summary>
+    /// <summary>Total world-frame force and moment (about the CG) from all floats. Zero when clear of water. The body's
+    /// velocity is taken relative to the water's own (<see cref="WaterCurrent"/>) float by float.</summary>
     public static (Vec3 Force, Vec3 Moment) Compute(AircraftConfig config, RigidBodyState s, double rudderCmd)
         => Compute(config, s, rudderCmd, 0.0);
 
@@ -329,6 +334,10 @@ public static class FloatHydro
         fs.StepWorld = pStep; fs.BowWorld = pBow; fs.SternWorld = pStern;
         if (wB is null && wS is null && wA is null) return (fs, totalF, totalM);
         double wb = wB ?? wS ?? wA!.Value, ws = wS ?? wb, wa = wA ?? ws;
+        // The water moves (WaterCurrent): every force below comes from the hull's velocity THROUGH THE WATER, not over the
+        // ground, the way the aero comes from the velocity through the air. One current per float, taken at its step half
+        // the step's draft down; the two floats of a pair each take their own, so a shear across the pair turns it.
+        s = WaterCurrent.Relative(s, WaterCurrent.At(pStep.X, pStep.Y, 0.5 * System.Math.Max(0.0, ws + pStep.Z)));
         // A float out of the water entirely (every keel point above the surface by more than its depth): nothing to do.
         double WaterAt(double x) => x >= h.StepX ? ws + (wb - ws) * (x - h.StepX) / System.Math.Max(h.BowX - h.StepX, 1e-6)
                                                  : ws + (wa - ws) * (h.StepX - x) / System.Math.Max(h.StepX - h.SternX, 1e-6);
@@ -488,7 +497,9 @@ public static class FloatHydro
             tauRad = keelPitch + sink; tauDeg = tauRad * 180 / System.Math.PI;
         }
         double rdeg = 0, lambda = 0, bw = b, lift = 0, sForeSav = 0, v1 = vH;
-        if (lk > 1e-3 && dStep > 0 && vH > 0.3 && tauDeg > 0.1)
+        double dkLen = System.Math.Sqrt(dk.X * dk.X + dk.Y * dk.Y);
+        bool alongKeel = vH > 1e-6 && System.Math.Abs(dkh) >= System.Math.Cos(PlaningMaxSideslipRad) * dkLen;
+        if (lk > 1e-3 && dStep > 0 && vH > 0.3 && tauDeg > 0.1 && alongKeel)
         {
             double tanT = System.Math.Tan(tauRad);
             double lc = lk - b * tanB / (System.Math.PI * tanT);
@@ -762,7 +773,18 @@ public static class FloatHydro
     /// handing it back. The same rule <c>HydroBody.Correct</c> uses for the airframe, extended to the rotations.
     /// </summary>
     public static RigidBodyState CorrectForAddedMass(RigidBodyState before, RigidBodyState after, MassProperties mp, AddedMass old, AddedMass now, double dt)
+        => CorrectForAddedMass(before, after, mp, old, now, dt, Vec3.Zero);
+
+    /// <param name="waterWorld">The water's velocity (world) under the floats (<see cref="WaterCurrent"/>). The entrained
+    /// water's momentum is relative to the water it came from, so the correction is made in the water's frame: water newly
+    /// picked up starts at the current's speed, not at rest over the ground.</param>
+    public static RigidBodyState CorrectForAddedMass(RigidBodyState before, RigidBodyState after, MassProperties mp, AddedMass old, AddedMass now, double dt, Vec3 waterWorld)
     {
+        if (waterWorld.LengthSquared > 0)
+        {
+            RigidBodyState c = CorrectForAddedMass(WaterCurrent.Relative(before, waterWorld), WaterCurrent.Relative(after, waterWorld), mp, old, now, dt, Vec3.Zero);
+            return new RigidBodyState(c.Position, c.Attitude, c.Velocity + c.Attitude.Conjugate().Rotate(waterWorld), c.Rates);
+        }
         if (now.Linear.LengthSquared + now.Angular.LengthSquared + old.Linear.LengthSquared + old.Angular.LengthSquared < 1e-12) return after;
         static double Axis(double vOld, double vRk, double m, double maOld, double maNew)
         {
@@ -820,6 +842,10 @@ public static class FloatHydro
             Vec3 pStep = s.Position + q.Rotate(new Vec3(h.StepX, yF, h.KeelZStep) - cg);
             double? w = WaterSurfaceAt(pStep.X, pStep.Y, -pStep.Z);
             if (w is null) continue;
+            // The jet leaves at the incoming speed relative to the WATER (it is the water's own flow round the hull), and
+            // is then carried with the water: relative velocities below, the current added back to the jet at the end.
+            Vec3 vCur = WaterCurrent.SurfaceAt(pStep.X, pStep.Y);
+            Vec3 vRel = s.Velocity - q.Conjugate().Rotate(vCur);
             for (int i = 0; i < n; i++)
             {
                 Vec3 rw = q.Rotate(new Vec3(h.X[i], yF, 0) - cg);
@@ -860,7 +886,7 @@ public static class FloatHydro
                     nrm = nrm.Normalized();
                     if (nrm.Y * side < 0 && System.Math.Abs(nrm.Y) > 1e-6) nrm = nrm * -1.0;    // outward
                     else if (System.Math.Abs(nrm.Y) <= 1e-6 && nrm.Z < 0) nrm = nrm * -1.0;
-                    Vec3 vPt = s.Velocity + Vec3.Cross(s.Rates, pBody - cg);   // body
+                    Vec3 vPt = vRel + Vec3.Cross(s.Rates, pBody - cg);         // body, through the water
                     Vec3 u = vPt * -1.0;                                        // water relative to the hull
                     double un = u.Dot(nrm);
                     if (un >= 0) continue;                                     // the water is not running into this facet
@@ -871,7 +897,7 @@ public static class FloatHydro
                     if (tIn.LengthSquared < 1e-12) continue;
                     Vec3 t = tIn.Normalized();
                     Vec3 jetRel = t * (2 * up.Dot(t)) - up;                    // reflection about the root line
-                    Vec3 jetWorld = q.Rotate(vPt + jetRel);
+                    Vec3 jetWorld = q.Rotate(vPt + jetRel) + vCur;
                     if (jetWorld.Z >= 0) continue;   // water that does not leave the surface upward is wave, not spray
                     double sinTf = -un / u.Length;
                     // 2-D chord of the cross-flow section that throws this jet: its wetted half-width at the root

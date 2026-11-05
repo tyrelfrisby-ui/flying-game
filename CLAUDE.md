@@ -488,3 +488,23 @@ Keeping a subset of renders with `case $f in {before,after}_{a,b}.png) ;; *) rm 
 the braces in a case pattern are literal, so nothing matched the keep branch. Copy the files you want by name
 (`for p in before after; do for v in a b; do cp …; done; done`) rather than deleting by exclusion, and keep the source
 set elsewhere until the copy is checked.
+
+### A new input can make a dormant singularity the normal case
+Savitsky's trim was the keel's slope measured ALONG THE FLOW, which goes to 90° when the water comes square across the
+keel. Over the ground that only happened for an instant, so nothing ever hit it. With a current (`WaterCurrent`) it is
+how a floatplane SITS in a cross-current, and the first step went NaN (tan 90°). When a change moves an input into a
+region the old code never visited — sideways flow, zero speed, a negative depth — look for divisions and angles that
+were only ever safe because the input stayed away, and state the model's own validity limit
+(`FloatHydro.PlaningMaxSideslipRad`) instead of guarding the symptom.
+
+### `tools/check-parity.sh` is a bash script: run it with bash
+Run under `zsh` it prints "command not found: git/awk/grep" and then `PARITY: FAIL`: its `read -r path` assigns zsh's
+`path` array, which IS `$PATH`. Use `bash tools/check-parity.sh --strict` (or `./tools/check-parity.sh`, which honours
+the shebang), and do not read a FAIL from a run that also printed "command not found".
+
+### A time-varying field puts the sim clock into every initial condition
+The sea's tidal stream (`WaterCurrent`) is a function of `Atmosphere.SimTimeSec`, a process-wide clock that every
+step advances. `GroundContactCullTests` flies the same flight twice, culled and not, and demands identical results:
+near the sea the second run started a flight's length later in the tide and differed in the 14th digit — which
+first looked like an order-dependent cache. Before blaming a cache for "same inputs, different answer", list every
+global the new code READS, and reset the clock (`Atmosphere.SimTimeSec = 0`) when a test compares two runs.

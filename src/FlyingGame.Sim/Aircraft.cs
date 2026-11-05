@@ -384,6 +384,10 @@ public sealed partial class Aircraft
 
     /// <summary>Commanded power 0..1 (0 for gliders).</summary>
     public double Throttle01 => _throttle01;
+    /// <summary>The water's own velocity under the aeroplane (world NED, m/s; <see cref="WaterCurrent"/>): zero on a lake,
+    /// the river's on a river. Over the ground the aeroplane moves at State's velocity, through the water at that minus
+    /// this, through the air at that minus the wind — three different speeds on a river with a breeze.</summary>
+    public Vec3 WaterVelocityWorld => WaterCurrent.SurfaceAt(State.Position.X, State.Position.Y);
 
     /// <summary>What is in the aeroplane: people, fuel, baggage. The loading page sets it before flight; in flight
     /// only the fuel changes, and the mass, CG and inertia follow it every step.</summary>
@@ -1284,7 +1288,8 @@ public sealed partial class Aircraft
             // The water the floats carry (FloatHydro.AddedMassOf): applied implicitly, like the airframe's below.
             FloatHydro.AddedMass am = FloatHydro.AddedMassOf(Config, State);
             RigidBodyState beforeAm = State;
-            State = FloatHydro.CorrectForAddedMass(preStep, State, MassProperties, _floatAddedMass, am, dt);
+            State = FloatHydro.CorrectForAddedMass(preStep, State, MassProperties, _floatAddedMass, am, dt,
+                WaterCurrent.SurfaceAt(State.Position.X, State.Position.Y));
             _floatAddedMass = am;
             CheckFloatWaterLoads(beforeAm, State, dt);
         }

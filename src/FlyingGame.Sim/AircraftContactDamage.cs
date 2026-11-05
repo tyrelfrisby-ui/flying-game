@@ -210,7 +210,7 @@ public sealed partial class Aircraft
                 double y0 = Math.Abs(e.Centre.Y) - e.Half.Y, y1 = Math.Abs(e.Centre.Y) + e.Half.Y;
                 if (y1 <= w.BreakY) continue;
                 double inner = Math.Max(y0, w.BreakY), frac = y1 > y0 ? (y1 - inner) / (y1 - y0) : 1.0;
-                Vec3 f = WaterSlam.ElementForce(e, cg, s0, s1, Hydro.WaterUp, dt) * frac;
+                Vec3 f = WaterSlam.ElementForce(e, cg, s0, s1, Hydro.WaterUp, dt, Hydro.Flow) * frac;
                 if (f.LengthSquared == 0) continue;
                 double ry = w.Side * (0.5 * (y1 + inner) - w.BreakY), rz = e.Centre.Z - w.BreakZ;
                 _panelWaterUp[k] += -w.Side * (ry * f.Z - rz * f.Y);
