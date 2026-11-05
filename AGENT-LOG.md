@@ -3986,6 +3986,22 @@ Analysis only, no physics or audio code changed. I added `docs/TIRE-SPINUP-AND-G
   coverage images, `*_stats.txt`, and `contact_sheet.png` (3 columns × 5 rows). Regenerate:
   `Unity -batchmode -quit -projectPath unity -executeMethod FlyingGame.EditorTools.SmokeAgeRender.Render -smokeTag after`.
 - Gliders' canister stream: life 14–18 → 30–45 s, density law unchanged.
+- **Merged and installed (2026-11-04):** lane/claude-smoke-volume `f42a15ff` → lane/claude-island-nav `662e1b5e`
+  (AGENT-LOG/CLAUDE.md conflicts only, both sides kept) → lane/claude-quest-islandnav `95b71cca` (by merging
+  island-nav, as the parity hook asks). `tools/check-parity.sh`: PARITY OK on both. Leftover build files in both
+  worktrees untouched.
+  - iOS `2026.1104.2107` from claude-island-nav-merge: `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed
+    and launched on **Ty's iPhone** (00008150-001629A83662401C) and **iPad mini** (00008130-001230A92678001C).
+  - Quest `2026.1104.2141` from claude-quest-islandnav: `deploy-quest.sh` exit 0, 0 `error CS`, `adb install`
+    Success and launched on the **Quest 3S** (340YC10GBK0TYV); the headset was asleep at launch. Another lane's
+    Unity batch (claude-tire-spinup) started one second after this build did and ran alongside it.
+  - ProjectSettings bundleVersion bumps not committed.
+- **Suite: NOT a complete run.** `dotnet test tools/FlightTests` on this lane was stopped by the 2 h tool limit
+  before it finished (machine loaded with other lanes' suites and builds); 72 failures by then, all world/terrain/
+  nav/ground classes (Alaska, RegionalAtmosphere, NavProcedure, GlacierLandingZone, ...), none smoke-, exhaust- or
+  airflow-related, and not compared with the base by name. Run alone: ExhaustPulse/ExhaustJet/AirframeFlow/Smoke/
+  StreamingAssets/AircraftConfig 69 / 71 pass; the 2 failing, `StreamingAssetsTests.EveryGeneratedPathIsIgnored` and
+  `NothingGeneratedIsCommitted`, fail identically on the branch point aeb9695a. A full by-name comparison is still owed.
 
 ### 2026-11-04 18:36– PST — Claude · lane/claude-kill-red-233 · kill red 2-33 (Ty 18:35, "delete it permanently")
 - **Why it kept coming back.** The red-and-white 2-33 had two sources. (a) The procedural trainer (red fuselage, cream
