@@ -157,7 +157,9 @@ def wing_surfaces(u):
 
 
 def update(g):
-    if g.doc.get('extras',{}).get('pittsCockpit1105'):return
+    if g.doc.get('extras',{}).get('pittsCockpit1105'):
+        followup(g)
+        return
     u=Upgrade(g)
     steel=u.material('Pitts1105_Steel',(.46,.49,.52),.85,.28)
     black=u.material('Pitts1105_Black',(.009,.010,.012),0,.55)
@@ -330,7 +332,48 @@ def update(g):
     g.doc['extras']['pittsCockpit1105']={'source':'ty-cockpit-spec-1105.md','tubeDiameterM':.009525,'cardSizeM':[CARD_W,CARD_H],
         'pivotsBuilder':{n:builder(u.world(n)[:3,3]).tolist() for n in updated},'stopRailPointBuilder':railpoint.tolist(),'stopContactBuilder':contact.tolist(),
         'normalSlideM':SLIDE,'normalOpenDeg':OPEN_DEG,'runtimeRigUpdateRequired':True}
+    followup(g)
     validate(g,ROOT/'pitts-cockpit-1105')
+
+
+def front_latch_clearance(g):
+    """Conservative capsule-to-triangle clearance, including sampling error.
+
+    The exported lever is a 6 mm radius tube. Centreline samples are <=0.5 mm
+    apart, so subtract another 0.25 mm to bound the unsampled segments.
+    """
+    from check_vr_phase1 import triangles,point_tri
+    u=Upgrade(g);p=builder(u.world('Canopy_Latch_Knob_Front')[:3,3])
+    fixed=np.concatenate([triangles(g,n) for n in ['Windshield_Trim','Windshield_Fixed']])
+    return [min(point_tri(p+direction*t,fixed) for t in np.linspace(0,.0508,103))-.006-.00025
+            for direction in [np.array([1.,0,0]),np.array([0.,0,1])]]
+
+
+def followup(g):
+    """Idempotent repair of both pass-1 assets and freshly generated geometry."""
+    if g.doc.get('extras',{}).get('pittsCockpit1105Followup'):return
+    u=Upgrade(g);u.hide('Pitts_Release_Knob_Left')
+    # Retain node identities, parents, children and the existing fore-aft hinge axis.
+    for name,target in [('Canopy_Hinge_Canopy_Front',(.515,.16,-.36)),
+                        ('Canopy_Hinge_Airframe_Front',(.551,.16,-.36))]:
+        n=u.node(name);parent=next(p['name'] for p in u.nodes if u.names[name] in p.get('children',[])) if any(u.names[name] in p.get('children',[]) for p in u.nodes) else None
+        n['translation']=(np.array(target)-(u.world(parent)[:3,3] if parent else 0)).tolist()
+    # Aft of the fixed trim with the entire 2-inch lever forward when latched.
+    p=np.array((-.55,skin_y(-.55,sill(-.55))-.014,sill(-.55)+.012))
+    black='Pitts1105_Black'
+    u.put('Canopy_Latch_Knob_Front',[(black,path_shape([p,p+(.0508,0,0)],.006),None)],p,'Canopy')
+    rear=builder(u.world('Canopy_Latch_Knob')[:3,3])
+    cable=[p,(p[0],p[1],sill(p[0])-.004)]
+    cable += [(x,skin_y(x,sill(x))-.014,sill(x)-.004) for x in np.linspace(p[0],rear[0],70)]
+    cable += [rear]
+    u.put('Pitts_Release_Cable_Left',[(black,path_shape(cable,.0015),None)],parent='Canopy')
+    for suffix in ['', '_Front']:
+        # Local glTF -X is builder forward; preserve the grip's orientation.
+        u.node('Grip_Canopy_Latch'+suffix)['translation']=[-.0508,0,0]
+    clearance=front_latch_clearance(g)
+    assert min(clearance)>=.005,('front latch windshield clearance',clearance)
+    g.doc['extras']['pittsCockpit1105Followup']={'frontLatchPivotGltf':gl(p).tolist(),
+        'frontLatchClearanceLowerBoundM':clearance}
 
 
 def main():

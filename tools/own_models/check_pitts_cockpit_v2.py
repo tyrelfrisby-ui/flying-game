@@ -21,6 +21,19 @@ def check(path):
     assert parents[u.names['Canopy_Frame']]=='Canopy'
     for name in ['Canopy_Frame','Canopy_TopTube_F','Canopy_TopTube_R']:
         assert u.node(name)['extras']['tubeDiameterM']==.009525
+    # Every descendant is measured in world space, including nested relics.
+    pending=list(u.node('Canopy').get('children',[]))
+    front_hoop=-.4652375  # front surface of the 3/8-inch hoop at builder X=-.470
+    while pending:
+        n=u.nodes[pending.pop()];pending.extend(n.get('children',[]))
+        if 'mesh' in n:
+            assert u.vertices(n['name'])[:,0].max()<=front_hoop+.030+1e-6,('ahead of front hoop',n['name'])
+    for suffix in ['', '_Front']:
+        lever='Canopy_Latch_Knob'+suffix;grip='Grip_Canopy_Latch'+suffix
+        assert parents[u.names[grip]]==lever
+        assert np.linalg.norm(u.world(grip)[:3,3]-u.world(lever)[:3,3])>=.040
+    from pitts_cockpit_v2 import front_latch_clearance
+    assert min(front_latch_clearance(g))>=.005
     assert 'mesh' not in u.node('Canopy_Jettison_Knob_Front')
     assert not any('mesh' in n and n['name'].startswith(('Harness_','Headset_')) for n in u.nodes)
     for prefix in ['', 'FrontPanel_']:
