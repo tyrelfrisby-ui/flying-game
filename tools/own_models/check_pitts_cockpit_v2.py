@@ -7,8 +7,57 @@ from check_vr_phase1 import triangles,point_tri
 from drop_card_slot import validate
 
 
+def throttle_clearances(g):
+    """Enclose exported parts in capsules; bound space/time sampling error.
+
+    Centreline spacing <=2 mm and angular spacing 1 degree. Subtract 1 mm
+    plus the maximum half-step arc displacement, so this bounds the full sweep.
+    """
+    u=Upgrade(g);result={}
+    obstacles={'wall':np.concatenate([triangles(g,n) for n in ['Fuselage_Painted','Cockpit']]),
+               'prop':np.concatenate([triangles(g,n) for n in ['PropLever_Rear','PropLever_Rear_Slide']]),
+               'trim':triangles(g,'TrimLever_Rear')}
+    for seat,x in [('Rear',-1.145),('Front',-.425)]:
+        name='Throttle_'+seat;pivot=np.array((x,.238,-.290))
+        assert np.allclose(builder(u.world(name)[:3,3]),pivot,atol=1e-7)
+        assert np.allclose(builder(u.world('Grip_Throttle_'+seat)[:3,3]),[x,.221,-.130],atol=1e-7)
+        assert u.names['Grip_Throttle_'+seat] in u.node(name)['children']
+        capsules=[(np.array((x,.238,-.290)),np.array((x,.238,-.130)),.009),
+                  (np.array((x,.260,-.130)),np.array((x,.182,-.130)),.021),
+                  (np.array((x,.182,-.130)),np.array((x,.178,-.130)),.008)]
+        primitives=g.doc['meshes'][u.node(name)['mesh']]['primitives']
+        assert len(primitives)==3
+        arm=u.vertices(name)
+        assert abs(arm[:,2].min()+.290)<1e-7
+        # Every exported vertex must be contained by its primitive's capsule.
+        for pr,(a,b,r) in zip(primitives,capsules):
+            v=g.array(pr['attributes']['POSITION']);w=u.world(name)
+            v=np.array([builder(q) for q in v@w[:3,:3].T+w[:3,3]])
+            d=b-a;t=np.clip((v-a)@d/(d@d),0,1)
+            assert np.linalg.norm(v-a-t[:,None]*d,axis=1).max()<=r+1e-7
+        gaps={k:float('inf') for k in obstacles}
+        for a,b,r in capsules:
+            samples=np.linspace(a,b,int(np.ceil(np.linalg.norm(b-a)/.002))+1)
+            reach=max(np.linalg.norm(a-pivot),np.linalg.norm(b-pivot))
+            error=.001+reach*np.deg2rad(.5)
+            for angle in np.deg2rad(np.linspace(-25,25,51)):
+                c,t=np.cos(angle),np.sin(angle)
+                rot=np.array([[c,0,t],[0,1,0],[-t,0,c]])
+                points=(samples-pivot)@rot.T+pivot
+                for key,tris in obstacles.items():
+                    # Distant triangles cannot violate the required 10 mm gap.
+                    lo=points.min(0)-r-error-.011;hi=points.max(0)+r+error+.011
+                    near=tris[(tris.max(1)>=lo).all(1)&(tris.min(1)<=hi).all(1)]
+                    gap=min(point_tri(q,near)-r-error for q in points) if len(near) else .011
+                    gaps[key]=min(gaps[key],gap)
+        assert min(gaps.values())>=.010,(name,gaps)
+        result[seat]={k:round(v*1000,3) for k,v in gaps.items()}
+    return result
+
+
 def check(path):
     g=Glb(path);u=Upgrade(g);validate(g,path)
+    throttle_gaps=throttle_clearances(g)
     assert len(u.names)==len(u.nodes),'duplicate node names'
     for n in u.nodes:
         if 'mesh' not in n:continue
@@ -80,7 +129,7 @@ def check(path):
     tank=u.vertices('FuelTank_Barrel');assert tank[:,2].min()<-.40 and tank[:,0].min()>-.15
     mat=next(m for m in g.doc['materials'] if m['name']=='Pitts1105_Bare_Aluminum')
     assert mat['pbrMetallicRoughness']['metallicFactor']>.8
-    return {'file':path.name,'card':'both centered, 108 x 140 mm, clear of gauges','stop_gap_mm':round(gap*1000,5),'trim_length_in':16,'windshield':'fixed; seam at -0.470 m','holes':'entry cutout + through-slot measured','finite_vertices':True}
+    return {'file':path.name,'throttle_clearance_lower_bounds_mm':throttle_gaps,'card':'both centered, 108 x 140 mm, clear of gauges','stop_gap_mm':round(gap*1000,5),'trim_length_in':16,'windshield':'fixed; seam at -0.470 m','holes':'entry cutout + through-slot measured','finite_vertices':True}
 
 
 if __name__=='__main__':
