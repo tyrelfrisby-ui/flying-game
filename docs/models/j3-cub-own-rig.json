@@ -963,6 +963,38 @@
    "link": "rudder springs; breaks out to full swivel beyond rig_deg (ground handling)",
    "note": "tailwheel swivel pivot: rotate about steer_axis (local origin on the kingpin). Steered by the rudder springs through about +/-30 deg (judgement), beyond that it breaks out and casters (full swivel) for ground handling",
    "extra": {}
+  },
+  {
+   "node": "FuelGauge_Wire",
+   "parent": "",
+   "param": "fuel",
+   "unit": "0 empty .. 1 full (nose tank)",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    -0.967,
+    0.3937,
+    0.0
+   ],
+   "map": [
+    [
+     0.0,
+     -0.221
+    ],
+    [
+     1.0,
+     0.0
+    ]
+   ],
+   "model": 1.0,
+   "desc": "nose-tank cork float wire, modelled at FULL (10 in showing above the cap crown); it slides down through the guide as the tank empties until only the hook rests on the guide (0.221 m of travel, build_j3_cub.py FUEL_TRAVEL)",
+   "link": "RigInputs.Fuel = the nose tank's fuel / its capacity, live from AircraftLoad (Ty 2026-11-05 ADDENDUM)",
+   "note": "",
+   "extra": {}
   }
  ],
  "static": [
@@ -985,11 +1017,6 @@
    "node": "DoorUpper_R",
    "param": "door_open",
    "why": "no door control in the sim; drawn closed"
-  },
-  {
-   "node": "FuelGauge_Wire",
-   "param": "fuel",
-   "why": "nose-tank float wire: no per-tank gauge feed for the J-3; drawn FULL"
   },
   {
    "node": "Prop",
