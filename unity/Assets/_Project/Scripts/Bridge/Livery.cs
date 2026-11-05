@@ -201,8 +201,11 @@ namespace FlyingGame.Bridge
                 new Decal(DecalPlace.FuselageBothSides, text: "TALKFLYING", colour: trim, heightFrac: 0.26f, italic: true),
             });
 
+        // The factory 2-33 is the plain SGS yellow (glider-2-33-like-own.glb). It was tinted white here, which is how a
+        // white 2-33 could still be asked for. Ty 2026-11-02 / 11-03 / 11-04: the red-and-white 2-33 is banned, only the
+        // yellow one exists (NoRed233Tests).
         public static readonly Livery Factory233 = new("factory", "Schweizer factory",
-            White, White, White, White);
+            SgsYellow, SgsYellow, SgsYellow, SgsYellow);
 
         // The Extra's paint is baked into its GLBs (tools/own_models/build_ea300.py), so its schemes carry no tints and
         // no markings. "unmarked" (the default, Ty 2026-10-28) loads extra-300-like-own-unmarked.glb: no N-number and no

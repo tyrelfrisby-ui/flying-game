@@ -2639,8 +2639,9 @@ namespace FlyingGame.Bridge
                     // Preserve glazing, cockpit upholstery, tyres and skid hardware.
                     if (n.StartsWith("Decal:") || n.StartsWith("Canopy") || n.StartsWith("Seat") || n.StartsWith("Cockpit")
                         || n.Contains("Wheel") || n.Contains("Skid")) continue;
-                    Color colour = n.StartsWith("Wing.") || n.StartsWith("Aileron.") || n == "Stab"
-                        ? new Color(0.98f, 0.76f, 0.03f) : Color.white;
+                    // SGS yellow all over, fuselage included: this painted the fuselage white, a yellow-and-white 2-33
+                    // (Ty: only the yellow 2-33 exists, NoRed233Tests).
+                    Color colour = new Color(1f, 0.8f, 0f);
                     if (n.StartsWith("Spoiler")) continue;
                     Material[] mats = r.sharedMaterials;
                     for (int i = 0; i < mats.Length; i++) mats[i] = UnlitMat(colour);

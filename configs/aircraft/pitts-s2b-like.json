@@ -2126,7 +2126,7 @@
   "spinAero": {
     "rollDueToSideslip": "biplane"
   },
-  "smoke": {"aftOfNoseM": 1.16, "downDeg": 14, "displacementCuIn": 541.5, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.727, -0.21, 0.63]},
+  "smoke": {"cylinders": 6, "aftOfNoseM": 1.16, "downDeg": 14, "displacementCuIn": 541.5, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.727, -0.21, 0.63]},
   "propulsion": {
     "maxPowerW": 194000,
     "propDiameterM": 1.98,

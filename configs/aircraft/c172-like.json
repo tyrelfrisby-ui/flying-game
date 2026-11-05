@@ -1507,7 +1507,7 @@
       "lengthM": 5.8
     }
   },
-  "smoke": {"aftOfNoseM": 1.01, "downDeg": 63, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [1.282, -0.203, 0.644]},
+  "smoke": {"cylinders": 4, "compressionRatio": 8.5, "aftOfNoseM": 1.01, "downDeg": 63, "displacementCuIn": 361, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [1.282, -0.203, 0.644]},
   "propulsion": {
     "maxPowerW": 134000,
     "propDiameterM": 1.9,

@@ -1,4 +1,50 @@
 ## NEEDS YOU
+- **SMOKE THICKER AND LASTING — LANE lane/claude-smoke-volume (Claude, 2026-11-04 21:00 PST; Ty's 18:27 report "disappears way
+  too quickly … even more transparent … should stick around longer and be thicker, more white"):** the trail now holds
+  0.95 coverage at 5 s, 0.83 at 20 s, 0.66 at 45 s and fades out in patches over 55–85 s (899ada84: 0.65 / 0.11 / 0.00).
+  Before/after plates: `renders/smoke-thicker/contact_sheet.png`. Build numbers and installs are in the Log entry below.
+  **Ty, please fly a loop with smoke on and tell us** whether 45–60 s is long enough and whether the white is right in
+  your sunset/overcast light (the smoke is unlit, so it is the same white at any time of day).
+
+<!-- kill-red-233 needs-you -->
+- **RED 2-33 REMOVED FOR GOOD; DON'T INSTALL OLD LANES (Claude, 2026-11-04 ~19:00 PST, lane/claude-kill-red-233; merged
+  into both lanes, NOT installed, nothing approved by me).** Ty 18:35: "The red 2-33 is back, delete it permanently."
+  Root cause: the yellow-only fix (5d028681, 11-02) reached island-nav only in the 08:10 parity merge today, and
+  22289144 (11-03, Grob deletion) was never merged. **109 of 136 local lanes still lack the fix** (35 of them touched in the last
+  48 h), among them every smoke lane, tv-companion, extra-cockpit-shared, grob103 and decathlon. Each one draws the red trainer if it is built and installed.
+  Any of those lanes must merge island-nav before it builds. Details in the Log entry "kill red 2-33".
+<!-- /kill-red-233 needs-you -->
+## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
+- Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
+  Extra to full aileron and check the down-going aileron's nose stands proud of the wing (~50 mm), and roll the Great
+  Lakes and check each slave strut stays pinned to both horns (upper and lower aileron) and swings with them.
+  Renders: renders/hinge-slavestruts/ in this lane. Nothing approved; no gate marked.
+
+### 2026-11-04 hinge + slave struts: diagnosis confirmed, fix (Claude, lane/claude-hinge-slavestruts off island-nav 0bb87c67)
+- **Missing Extra hinge on the Quest = a pre-merge APK.** Installed 2026.1104.1656 (lastUpdate 17:00:57) was built at
+  16:56 from quest HEAD without 8a5737c9 (it reached the Quest lane's first parent only at f99c2fc2, 18:48), so the APK's
+  assets/rigs/extra-300-like-own.json had the old leading-edge pivot x 0.8267. Since f99c2fc2 both lanes' docs/models rig
+  and Resources GLBs are identical and hinged at 30 %: measured in all three Extra GLBs, hinge chord fraction 0.26-0.31
+  per slice, mean 0.30 (the pre-8a5737c9 GLB measures 0.04-0.10); node origin = rig pivot; +51 mm nose rise at 30 deg TE
+  down. No GLB rebuild needed. The quest worktree's gitignored StreamingAssets/rigs copy is still stale (0.8267, mtime
+  10:02: a merge never touches it), but QuestBuild.BuildQuest / BuildScript call ConfigSync.SyncAndRequireComplete first,
+  so a rebuild regenerates it; the stale copy only matters to editor play. HingeSlaveStrutTests.TheStreamingRigCopyIsNotStale
+  now fails wherever a local SA copy disagrees with docs/models.
+- **Great Lakes struts "stuck in space" = no Unity follower.** The GLB rigs Strut_Slave_L/R with _PinUpper (child of
+  Aileron_U<s>) and _PinLower (child of Aileron_L<s>); AirframeRig moved the four ailerons (and so the pins) but nothing
+  re-aimed the strut (only gl_aileronpose.py did, in Blender). New: Core SlaveStrut.Solve (engine-free: origin carried to
+  the upper pin, shortest-arc turn so the long axis points at the lower pin) called by AirframeRig after every
+  Apply / SetControls, from parent-local transforms. Shared Bridge path: iOS, Mac editor and Quest identical.
+  Measured on the rig table: at full aileron the pins move 90-105 mm; strut upper end on its pin exactly, lower end within
+  0.05 mm (the upper aileron's solved constant-length table).
+- Tests: HingeSlaveStrutTests (11): EveryExtraGlbHingesItsAileronsAtThirtyPercentChord x3, TheExtrasRigPutsTheAileronHinge
+  OnTheThirtyPercentLine, TheExtrasAileronNoseRisesProudWhenTheTrailingEdgeGoesDown, TheStreamingRigCopyIsNotStale,
+  TheGreatLakesSlaveStrutsHangOnBothAileronHorns, TheGreatLakesSlaveStrutsFollowBothAileronsToFullTravel,
+  FromToTurnsOneDirectionOntoAnother. With ModelRigTests / ParityCheck: 30/31, the 1 = ModelRig FullAirBrakeStopsTheGlider
+  (pre-existing on base, listed above). Found, not changed: the -red-sunburst / -white-stripes Great Lakes GLBs are
+  legacy, unrigged, unloaded.
+- Editor tool HingeSlaveStrutShots (-out dir) renders and measures both in the engine (exits 1 if a strut end is > 3 mm
+  off its pin).
 
 ## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
 - Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
@@ -3071,6 +3117,100 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 21:00 — Claude · lane/claude-smoke-volume · smoke that stays: a column depth law, 90 s of trail, whiter
+- **Ask** (Ty, 18:27, on 899ada84): "The smoke seems to disappear way too quickly and I think it is even more
+  transparent, not less transparent like I asked for. Smoke should stick around longer and be thicker, more white,
+  less transparent."
+- **Measured first** (new editor tool `SmokeAgeRender`: a straight pass at 60 m/s in a 4 m/s crosswind, camera 80 m
+  abeam of the stretch laid N s ago; a second render of the puffs alone, white on a black ground with alpha 1, gives
+  the real coverage across the column). 899ada84 and its parent were rendered through the same flight from temporary
+  copies of their own SmokeTrail and shader (`git show 899ada84^:…` / `899ada84:…`, renamed, deleted afterwards).
+  Peak coverage across the trail:
+
+  | age | parent (aeb9695a) | 899ada84 | this fix |
+  |---|---|---|---|
+  | 0 s | 0.39 | 0.82 | 1.00 |
+  | 5 s | 0.23 | 0.65 | 0.95 |
+  | 20 s | 0.03 | 0.11 | 0.83 |
+  | 45 s | 0.00 | 0.00 | 0.66 |
+  | 30 m from the 10 s trail | 0.12 | 0.39 | 0.90 |
+
+- **ROOT CAUSE.** I could NOT reproduce "more transparent than before" as coverage: 899ada84 is denser than its parent
+  at every age and view measured. What is wrong, in both, is the LIFETIME LAW, which 899ada84 left alone while making
+  the puffs bigger: each puff's alpha was `0.98 × (1 − age/life)^1.3 × 2·d0/d` with a life of only 10–30 s, so a puff
+  was ~0.2 by 5 s and ~0.02 by 20 s, half the trail was gone by 20 s and all of it by 30 s (LifeMaxS 30, ring 30 s).
+  899ada84 made the early trail denser but also 55 % WIDER (growth 2.2 → 3.4 m/√s), so the same fast-falling coverage
+  was spread over a bigger, paler column: at 20 s no part of it was above 50 % (width >50 % = 0 m). Three smaller
+  things in 899ada84 made it read thinner still in the game:
+  1. camera-proximity thinning was 0.8–4 puff diameters, and diameters grew 55 %: every grown puff within ~35–70 m
+     of the camera was faded — exactly the smoke you fly back into round a loop (0.39 at 30 m, vs 0.65 at 80 m);
+  2. the tube→puff handover crossfaded the ALPHAS, leaving ~0.75 of an opaque column for half a second behind the
+     aeroplane;
+  3. the underside shading went to 0.42 grey, so a denser trail over terrain read grey, not white.
+  Ruled out: dropping the shader's two capture passes in game. Pass 2 adds white where destination alpha < 1, but
+  the sky, terrain, clouds and open water all write alpha 1 (only shallow scenery water does not); the plate
+  `parent_water20.png` shows the mechanism over an alpha-blended stand-in. iOS and Quest run the same SmokeTrail,
+  shader and SmokeController (Quest multiview renders the shader per eye), so none of this differs between them.
+- **Fix (SmokeTrail / SmokeController only; no src/ or configs/ change):**
+  - The trail's coverage is now set for the COLUMN, not the puff: optical depth across it `τ = 17 × (0.45…1 by flow)
+    × d0/d` (the oil per metre is fixed; spreading it over a wider column thins it as 1/d), and each puff gets the
+    share of τ its overlap with its neighbours leaves it (`PuffAlphaFor`). So the density no longer depends on how
+    many puffs stand along it, through either thinning stage or the tube handover (now in optical depth).
+  - Lives 55–85 s (was 10–30), fading only over the last 35 % of each; `LifeMaxS` 30 → 90 s.
+  - Growth 3.4 → 2.6 m/√s: ~7 m across at 5 s, ~13 m at 20 s, ~19 m at 45 s. Wind drift unchanged (it was there).
+  - Proximity thinning only inside 0.5–1.5 diameters. Underside 0.80 (was 0.42), tint 0.99/0.99/1.0 (was 0.96).
+  - Cost (Quest): a second puff-thinning stage over 18–26 s (7.5 puffs a second past it); the ring is thinned once a
+    second to the one sample per 1/30 s slot the trail draws past 2 s (`SmokeTrail.ThinRing`: identical plates, and
+    ~2,700 samples instead of 8,100 at 90 Hz); the airframe-flow cache keeps only the last step of a spent puff.
+    Measured in the editor: 876 quads vs 445, fill 0.23–0.67 screens/pass vs 0.34–1.00 (one pass in game, as
+    899ada84), rebuild 2.65 ms vs 1.66 ms (editor Mono, not the device). Not measured on the headset.
+- Plates: `renders/smoke-thicker/{parent,before,after}_age{0,5,20,45}.png`, `_close10`, `_water20`, the `_cover`
+  coverage images, `*_stats.txt`, and `contact_sheet.png` (3 columns × 5 rows). Regenerate:
+  `Unity -batchmode -quit -projectPath unity -executeMethod FlyingGame.EditorTools.SmokeAgeRender.Render -smokeTag after`.
+- Gliders' canister stream: life 14–18 → 30–45 s, density law unchanged.
+
+### 2026-11-04 18:36– PST — Claude · lane/claude-kill-red-233 · kill red 2-33 (Ty 18:35, "delete it permanently")
+- **Why it kept coming back.** The red-and-white 2-33 had two sources. (a) The procedural trainer (red fuselage, cream
+  wings) that the 2-33's "type" livery drew. (b) helijah's Grob Astir OBJ (white with red trim, DefaultWhite textures)
+  in `Resources/Models/glider-2-33-like/`. 5d028681 (11-02) fixed (a) on the Quest lanes: LiveryChoice.Only, PickOwn
+  always ours, procedural fallback yellow. It reached lane/claude-island-nav only through the parity merge 15442b87 at
+  08:10 today. 22289144 (11-03, lane/claude-233-launch) deleted (b) and made the factory tint yellow, but
+  `git branch --contains` shows only lane/claude-233-launch has it. It was never merged. So every lane forked from
+  island-nav before 08:10 today still draws the red trainer: 109 of 136 local lane branches (35 active in the last 48 h), including claude-smoke-volume,
+  -smoke-persist, codex-smoke, claude-tv-companion, claude-extra-cockpit-shared, claude-grob103 and codex-grob103.
+  Building and installing any of them puts the red one back on Ty's device. Merging one of them while taking its side
+  of the 2-33 code would put it back here.
+- **Removed / changed (shared, all platforms; nothing behind a platform #if):**
+  1. Grob Astir deleted from Resources: the .obj, .mtl, nine DefaultWhite_*.jpg, LICENSE.txt and all their metas
+     (the same file set 22289144 deleted). No asset referenced their GUIDs.
+  2. `Livery.Factory233`: White x4 -> SgsYellow x4 (from 22289144).
+  3. `AirframeVisual`: the flat recolour of a not-pre-painted 2-33 GLB painted the fuselage white. It is now SGS
+     yellow all over. The procedural StyleFor fallback was already yellow (5d028681).
+  4. `tools/talkflying_livery.py`: the grob-astir-like generator entry and its licence path (from 22289144).
+     `docs/CREDITS.md`: 2-33 line (from 22289144).
+  5. `AirframeModels`: comments now say there is no downloaded 2-33. There was no live Specs entry.
+  NOT taken from 22289144: FleetAllowList (iOS five-aircraft list, a separate decision), Glider233LaunchTests,
+  ClipSelfTest launch, SessionSettings / TouchFlightControls cycle. Its AirframeModels / AirframeVisual StyleFor
+  hunks were already here in 5d028681's form.
+  Already clean, not changed: configs/aircraft/glider-2-33-like.json (no paint fields), both own GLBs (skin yellow or
+  Paint_sgs textures), LiveryChoice (always talk-flying / factory), QuestFleet (one 2-33).
+  StreamingAssets/aircraft/glider-2-33-like.json is generated and uncommitted (ConfigSync). It carries no paint, and
+  I left the merge worktrees' copies alone.
+- **Guard:** `tools/FlightTests/NoRed233Tests` (5 facts). It checks:
+  - one 2-33 in QuestFleet, SessionSettings.Fleet, configs and StreamingAssets;
+  - every saved / env livery resolves to -own-tf / -own, and that GLB exists;
+  - the 2-33 Resources folder holds exactly the two own GLBs, with no grob / astir / 2-33 file elsewhere in Resources;
+  - the GLB skin primitives are yellow or Paint_sgs;
+  - PickOwn is unconditional, there is no downloaded Specs entry, the StyleFor fallback is sgsYellow x4 with no
+    red / cream / white, the recolour has no white / red, and Factory233 and the PerType 2-33 are SgsYellow x4.
+  Mutation check: with the old Livery.cs and the pre-11-02 AirframeVisual.cs swapped in, it FAILS. Restored, 18/18
+  (NoRed233 + LiveryPicker + QuestFleet).
+- CLAUDE.md / AGENTS.md: new section "THE RED 2-33 IS BANNED", which includes the warning that old lanes bring it back.
+- Build: iOS `deploy.sh NOINSTALL` `** BUILD SUCCEEDED **`, 0 `error CS`, stamp 2026.1104.2028, installed nowhere.
+  bundleVersion and StreamingAssets byproducts left uncommitted. Attempt 1 (19:22) was SIGTERMed at 20:01:47 while
+  it was in il2cpp. It had 0 error CS. Another lane's Unity (claude-hinge-*) started 4 s later. Someone is killing
+  other lanes' Unity jobs. NoRed233 / LiveryPicker / QuestFleet were 18/18 again after the build had regenerated
+  StreamingAssets.
 
 ### 2026-11-04 15:00– PST — Claude · lane/claude-c172-yoke · C172 yoke raised clear of the thighs; 1 in suction gauge
 Ty 14:58 (737 captain/CFI): "Move the yoke up ... It should go up where it does not touch the thighs with full
