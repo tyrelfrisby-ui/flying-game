@@ -306,11 +306,38 @@ public static class AirframeContact
         return (rootX + 0.25 * chord + 0.6, rootX - 0.75 * chord - 0.3);
     }
 
-    /// <summary>Contact friction of airframe structure (aluminium or steel skin, a wooden tip bow, a fabric-covered
-    /// panel's steel or wood edge) SLIDING on the surface: the published hard-structure-on-ground coefficients that the
-    /// float keel already uses (<see cref="WorldTerrain.KeelSlidingCoefficient"/>; metal on asphalt/concrete 0.5–0.6,
-    /// gravel 0.5, grass 0.35, snow 0.10, wind-polished glacier 0.04). Buildings keep <see cref="FrictionMu"/>.</summary>
-    public static double SlidingMu(WorldTerrain.Surface s) => WorldTerrain.KeelSlidingCoefficient(s);
+    /// <summary>
+    /// EFFECTIVE friction of a WRECKED airframe sliding on the surface: the fuselage, wing stubs and every wreck piece
+    /// (WreckSim uses it too). Ty 2026-11-04 6:31 PM PT: "after a crash the fuselage/cockpit wreck slides an
+    /// unrealistically long way."
+    ///
+    /// Until then this was the float-keel table (<see cref="WorldTerrain.KeelSlidingCoefficient"/>): a smooth keel strip
+    /// sliding along its length, grass 0.35, snow 0.10, glacier ice 0.03, which put a 30 m/s wreck 131 m down a grass
+    /// field, 459 m along a snowfield and 1.5 km across ice. A wreck is not a keel: torn skin, bent stringers, a broken
+    /// strut or a gear stub gouge pavement and PLOUGH soft ground, so the force is abrasion plus the soil pushed ahead.
+    /// Reference values: accident reconstruction tabulates a vehicle body sliding on its side or roof at 0.3-0.5 on dry
+    /// asphalt and 0.5-0.8 on grass and dirt, where the body digs in (e.g. Fricke, Traffic Accident Reconstruction,
+    /// Northwestern University Traffic Institute, drag-factor tables; the same order as the 0.4-0.6 metal-on-asphalt of
+    /// the Engineering ToolBox), and a gear-up light aircraft on grass typically stops in 40-60 m from 55 kt
+    /// (μ_eff ≈ 0.7). A crumpled airframe has more to dig with than a car's smooth flank, so it takes the upper half of
+    /// those bands; on snow it ploughs (vehicles on packed snow 0.2-0.3, loose snow more), on ice it barely can (vehicles
+    /// on ice 0.1-0.2). These are ESTIMATES inside published ranges, not measurements of an aircraft (AGENT-LOG,
+    /// Q for Ty). Coulomb stopping distance v²/(2μg) from 30 m/s: paved 76 m, gravel 61, dirt/sand 57, grass 71,
+    /// pasture 61, snow 115, packed snow 153, ice 229 — before drag, tumbling and parts digging in shorten it.
+    /// Floats keep the keel table (LandingGear), and buildings <see cref="FrictionMu"/>.
+    /// </summary>
+    public static double SlidingMu(WorldTerrain.Surface s) => s switch
+    {
+        WorldTerrain.Surface.Paved => 0.60,
+        WorldTerrain.Surface.Gravel => 0.75,
+        WorldTerrain.Surface.Dirt or WorldTerrain.Surface.Sand => 0.80,
+        WorldTerrain.Surface.Grass => 0.65,
+        WorldTerrain.Surface.Rough => 0.75,
+        WorldTerrain.Surface.Snow => 0.40,
+        WorldTerrain.Surface.PackedGlacierSnow => 0.30,
+        WorldTerrain.Surface.GlacierIce => 0.20,
+        _ => 0.75,
+    };
 
     /// <summary>
     /// Derive the hard points from the config geometry (Ty 2026-11-03: "the tip of every wing, tail and the prop").

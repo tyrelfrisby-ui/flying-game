@@ -70,9 +70,17 @@ namespace FlyingGame.Bridge
         private void OnAirframeReplaced()
         {
             if (_builder != null && _driver.Sim != null && ShowsDamage) Rebuild();
+            else _builtFor = _driver.Sim?.Aircraft;   // an intact model now belongs to the new aeroplane
         }
 
-        /// <summary>The aeroplane the model was last built for: its damage, if any, is that aeroplane's.</summary>
+        /// <summary>The aeroplane whose state the model shows: while intact it follows the aeroplane flying (set on every
+        /// AirframeReplaced and every intact frame), so damage drawn later is THAT aeroplane's and never looks foreign.
+        ///
+        /// GHOST AIRPLANE (Ty 2026-11-04): until this followed the flying aeroplane it was set only by Rebuild(), so after a
+        /// clean Restart / Relocate in the same type, or any challenge / practice spawn (AdoptSim), it still named the
+        /// previous Aircraft. The first part to break on the next flight made ShowsDamage true, the check below read that
+        /// damage as another aeroplane's and rebuilt a whole intact model on the wreck's transform at the crash site, next to
+        /// the debris already flying off. Once per flight, and only on flights not preceded by a rebuild: hence "random".</summary>
         private object _builtFor;
 
         /// <summary>True when the model shows any crash damage: wings off, parts off, the prop bent, a fuselage bend, a bent
@@ -95,8 +103,10 @@ namespace FlyingGame.Bridge
                 _damageFx.Update(acFx.Damage, _driver.WorldVelocityUnity);
             }
             if (_driver.Sim == null) return;
-            // Belt and braces for AirframeReplaced: damage drawn for any other aeroplane than the one flying goes.
-            if (ShowsDamage && !ReferenceEquals(_builtFor, _driver.Sim.Aircraft)) Rebuild();
+            // Belt and braces for AirframeReplaced: damage drawn for any other aeroplane than the one flying goes. While the
+            // model is intact it belongs to whatever is flying, so damage done from here on is never mistaken for an old one.
+            if (!ShowsDamage) _builtFor = _driver.Sim.Aircraft;
+            else if (!ReferenceEquals(_builtFor, _driver.Sim.Aircraft)) Rebuild();
             if (_builtModels != SessionSettings.UseAirframeModels || _builtOwn != SessionSettings.UseOwnModels) Rebuild();
             // A broken airframe keeps its pieces off until the next flight's fresh sim; the new livery waits for that rebuild.
             else if (!ShowsDamage && _builtLivery != SessionSettings.LiveryFor(_builtId)) Rebuild();
