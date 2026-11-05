@@ -1,5 +1,37 @@
 ## NEEDS YOU
 
+## 2026-11-04 — Pitts photo visual follow-up (Codex)
+- Read Pitts notes and both photos; all four liveries updated with staggered panels, black crinkle finish,
+  blue left prop in locked/down pose, right fuel valve ON/up, long forward left trim and sidewall markings.
+- Static visual models only; retained rig maps / simulation / Glass Overlay unchanged. Broader reference
+  requests for functional controls, mixture, cowl flap and floor window are outside this follow-up.
+- `pitts_reference_visuals.py` integrated after v4 for regeneration. CPU renders in `renders/instrument-style/`.
+- Offline style/graph/face-clearance checks PASS. No build, push, forced add or gate approval.
+- Local commit blocked again: git add cannot create external shared Git index.lock under sandbox permissions.
+  Tracked-ignore check empty; changes left in worktree.
+
+## 2026-11-04 — shared instrument paint + Pitts panels (Codex, lane/codex-instrument-style)
+- Ty 19:22: all aircraft instruments bold/high contrast like Extra; Cub/Super Cub keep cream; Pitts front four
+  dials only, throttle/prop levers, rear MASTER/ALTERNATOR/FUEL PUMP/SMOKE only plus retained engine/fuel controls.
+- Common generator: `tools/own_models/instrument_face_style.py`; builders and GLB save path use it. Palette generated
+  into InstrumentFaces for the shared floating gauges (including aircraft without modelled cockpit dials). Black/white
+  or Cub cream/black; existing arc pixels, scale positions, ranges and retained rig maps preserved. 172 vector paint
+  also boldened and included in instrument lighting. Glass Overlay and aircraft configs untouched.
+- Pitts: `pitts_panel_v4.py`, called after the existing v3 builder, preserves node indices; retires obsolete controls,
+  adds four front faces with live needle bindings and a front prop lever. Rear alternator is a labelled visual switch;
+  no new electrical simulation. All four Pitts liveries regenerated. Front faces checked in front of bezel caps.
+- Validation: `nice /usr/bin/python3 tools/own_models/check_instrument_style.py` PASS: Python syntax, GLB graph,
+  idempotent paint, front face clearance, layout, retained rig data; 164 face textures, 844,237 saturated coloured
+  pixels exactly preserved, texture alpha preserved. Updated relevant C# expectations; NOT run (no build requested).
+- Review: `renders/instrument-style/face-comparison.png`, `pitts-rear.png`, `pitts-front.png`; opened and inspected.
+  Rear camera is the GLB Eye_Rear; front is a panel inspection camera. CPU texture/geometry render only: Blender
+  crashed at startup in this sandbox. Lighting/device readability is still pending Claude's build; no gate approved.
+- Handoff: shared style owns no Extra layout. When merging the parallel Extra cockpit work, keep that lane's Extra
+  GLBs/layout and run `nice /usr/bin/python3 tools/own_models/style_fleet_instruments.py` after its final model pass.
+  Merge into both locked platform lanes the same day. No Unity/Xcode/dotnet build, push or main change; playable
+  worktree build leftovers untouched. Git staging/commit BLOCKED: sandbox cannot create index.lock in the shared
+  Git metadata directory outside writable roots. No commits created; all changes remain in this worktree. More detail: `docs/models/instrument-style.md`.
+
 ## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
 - Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
   (card centred; ASI over g-meter left; altimeter over turn coordinator right; Trig radio/xpdr left; 3-in-1 oil P / oil T /

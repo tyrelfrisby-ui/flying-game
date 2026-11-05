@@ -89,9 +89,9 @@ public sealed class LiveDial
     public readonly double CardSign;
     public readonly IReadOnlyList<DialNeedle> Needles;
 
-    public LiveDial(string name, string art, IReadOnlyList<DialNeedle> needles, string cardParam = "", double cardSign = 0.0)
+    public LiveDial(string name, string art, IReadOnlyList<DialNeedle> needles, string cardParam = "", double cardSign = 0.0, string facePrefix = "RearPanel_")
     {
-        Face = "RearPanel_" + name + "_Face";
+        Face = facePrefix + name + "_Face";
         Art = art; Needles = needles ?? Array.Empty<DialNeedle>(); CardParam = cardParam ?? ""; CardSign = cardSign;
     }
 
@@ -229,6 +229,10 @@ public static class CockpitLive
         Dials = new[]
         {
             AirspeedMph, Altimeter, GMeter, Tachometer, Oil("Oil_pressure"),
+            new LiveDial("Airspeed", AirspeedMph.Art, AirspeedMph.Needles, facePrefix: "FrontPanel_"),
+            new LiveDial("Altimeter", Altimeter.Art, Altimeter.Needles, facePrefix: "FrontPanel_"),
+            new LiveDial("G_meter", GMeter.Art, GMeter.Needles, facePrefix: "FrontPanel_"),
+            new LiveDial("Tachometer", Tachometer.Art, Tachometer.Needles, facePrefix: "FrontPanel_"),
             // The slot rear_panel.py labelled "oil temperature": the oil dial beside it already shows both oil
             // needles, so this one carries manifold pressure, the engine reading a constant-speed Pitts flies by.
             Manifold("Oil_temperature"), Compass,
