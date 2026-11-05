@@ -19,7 +19,7 @@ namespace FlyingGame.Bridge
             var root = new GameObject("IslandWorld-1B");
             root.AddComponent<IslandSceneryClock>();
             IslandGeometry.Build();
-            IslandTerrainMesh.Build(root.transform, WorldBuilder.Mat("FlyingGame/IslandTerrain", Color.white)); Water(root.transform); Runways(root.transform); StaticGeometry(root.transform); Windsock.Build(root.transform, IslandGeometry.Windsocks, Lit); Cavities(root.transform); SurfaceDetails(root.transform);
+            IslandTerrainMesh.Build(root.transform, WorldBuilder.Mat("FlyingGame/IslandTerrain", Color.white)); Water(root.transform); Runways(root.transform); StaticGeometry(root.transform); Windsock.Build(root.transform, IslandGeometry.Windsocks, Lit); AirportLights.Build(root.transform, Lit); Cavities(root.transform); SurfaceDetails(root.transform);
             SeasideBuilder.BuildCarrier(root.transform);
             foreach (var z in IslandGeometry.Zones) Zone(z, root.transform);
             ForestStreamer.Attach(WorldTerrain.Active, root.transform);
