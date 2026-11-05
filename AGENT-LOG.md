@@ -1,10 +1,4 @@
 ## NEEDS YOU
-- **SMOKE THICKER AND LASTING — LANE lane/claude-smoke-volume (Claude, 2026-11-04 21:00 PST; Ty's 18:27 report "disappears way
-  too quickly … even more transparent … should stick around longer and be thicker, more white"):** the trail now holds
-  0.95 coverage at 5 s, 0.83 at 20 s, 0.66 at 45 s and fades out in patches over 55–85 s (899ada84: 0.65 / 0.11 / 0.00).
-  Before/after plates: `renders/smoke-thicker/contact_sheet.png`. Build numbers and installs are in the Log entry below.
-  **Ty, please fly a loop with smoke on and tell us** whether 45–60 s is long enough and whether the white is right in
-  your sunset/overcast light (the smoke is unlit, so it is the same white at any time of day).
 
 ## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
 <!-- crash-reset needs-you -->
@@ -72,6 +66,14 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   installed + launched on the Quest 3S. Both builds were run by the smoke-volume
   lane's deploy script from the same worktrees right after my merges; I verified their logs instead of building the
   same commit twice. Build byproducts left uncommitted.
+
+## NEEDS YOU (continued)
+- **SMOKE THICKER AND LASTING — LANE lane/claude-smoke-volume (Claude, 2026-11-04 21:00 PST; Ty's 18:27 report "disappears way
+  too quickly … even more transparent … should stick around longer and be thicker, more white"):** the trail now holds
+  0.95 coverage at 5 s, 0.83 at 20 s, 0.66 at 45 s and fades out in patches over 55–85 s (899ada84: 0.65 / 0.11 / 0.00).
+  Before/after plates: `renders/smoke-thicker/contact_sheet.png`. Build numbers and installs are in the Log entry below.
+  **Ty, please fly a loop with smoke on and tell us** whether 45–60 s is long enough and whether the white is right in
+  your sunset/overcast light (the smoke is unlit, so it is the same white at any time of day).
 
 <!-- kill-red-233 needs-you -->
 - **RED 2-33 REMOVED FOR GOOD; DON'T INSTALL OLD LANES (Claude, 2026-11-04 ~19:00 PST, lane/claude-kill-red-233; merged
