@@ -489,3 +489,49 @@ Flat left main at rest: the 172 sits 2.3° left-wing-down; rolling at 8 m/s it d
 
 Not modelled: lateral (scrub) slip work does not wear the tread (only the longitudinal slip's); a flat's cornering stiffness is
 unchanged; the wheel visual does not show the flat (the aeroplane's sit and roll do); tyres are new at every spawn.
+
+## 9. Flat spots that do not pop (Ty 2026-11-05 08:53, lane/claude-flat-spot)
+
+Ty: "model flat spotted tires even if they don't pop. a tire that has been locked up introduces a flat spot that is felt
+as it rolls; the longer it locks up the deeper the flat spot, the more significant the bump as it rolls, and the frequency
+should be modeled after the actual tire rotation rate."
+
+**What was already there (§8, measured before changing anything).** A lock-up already IS a flat spot: the locked wheel puts
+all its slip work on the strips under the patch, the same wear law as everywhere else, and the worn strips stand the axle
+lower when they come round (`TyreWear.Drop` raises the gear's contact point). `WheelState.AngleRad` turns at the wheel's own
+ω, so the spot comes under the axle once a revolution at V/(2πr), and only if there is wear. Multiple lock-ups at different
+wheel angles leave separate spots; one at the same angle deepens the first. Wearing through still bursts. Tyres are new
+with every `Aircraft` (respawn, aeroplane change), and keep their spots for the flight.
+
+**What was missing, and what changed.**
+1. **A fast wheel could step over its own spot.** The drop was sampled at one wheel angle per 5 ms step. A 172 main at
+   28 m/s turns 0.65 rad a step, about the spot's own arc plus the patch, so at higher speed some revolutions would have
+   had no bump. `TyreWear.Drop(phiFrom, phiTo)` now averages the drop over the arc the wheel turns that step: each pass
+   lands in the step it happened in, with the impulse it really has (depth × the share of the step it was under the axle).
+2. **The dampers never saw the spot's edge.** The drop only moved the contact point (a height), so a 1 mm spot gave a
+   quasi-static ~25–45 N on the leg. The profile moves under the axle at d(drop)/dt; that is an opening of the contact
+   exactly as a dip in the ground is, so it now comes off the closing rate the tyre's and leg's dampers act on
+   (`WheelState.DropRateMs`). Measured against an identical twin with its tread made good: the load swing roughly
+   doubled (54–66 N), the vertical acceleration 0.008–0.013 g for a 1 mm spot.
+3. **`TyreWear.FlatSpots()`**: the spots read off the strips (centre angle, depth, length), for tests and anything that
+   wants to show them. Nothing new is stored.
+4. **Felt in a headset**: each thump is a short knock in the Touch controller on that side (`FlightAudio`, level √(J/30 J)
+   like the sound, gated on `XrHeadset.Active`). The phone has no haptics path in this game; there the bump is the
+   aeroplane's own bounce and the thump in the sound.
+
+**Measured (`tools/FlightTests/FlatSpotTests`, C172 at 15 m/s, full pedal, then released).**
+
+| locked | spot depth | spot length |
+|---|---|---|
+| 0.5 s | 0.11 mm | 8 cm |
+| 0.8 s | 0.70 mm | 12 cm |
+| 1.1 s | 1.27 mm | 10 cm |
+| 1.6 s | 2.00 mm | 8 cm |
+
+The depth grows faster than the lock time because the patch heats toward the rubber's reversion (§8: γ goes up 500×).
+With a 1.07 mm spot, rolling at 4 / 12 / 28 m/s: 9 / 21 / 42 bumps in 2 s against 8.3 / 20.1 / 42.7 revolutions of the
+wheel, at 4.17 / 10.10 / 21.35 Hz against 4.16 / 10.06 / 21.34 rev/s; thump 37 / 78 / 97 J; the sound twin 0 bumps, 0 J.
+
+Not modelled: no unsprung wheel mass, so at speed a spot's far edge does not strike the way a real wheel's does; the bump
+is honest geometry and damping, which keeps a 1 mm spot a tick you hear more than feel, and a 2–3 mm one (a long lock) more.
+The wheel visual does not show the spot.
