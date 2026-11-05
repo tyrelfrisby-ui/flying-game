@@ -1,3 +1,25 @@
+## NEEDS YOU — tyre squeal: higher threshold + fade-in, and why the Cessna still howls (Claude, 2026-11-05)
+<!-- ground-volume needs-you -->
+- **Ty to fly-check: (1) a crosswind takeoff in the 172, no brakes; (2) a locked-wheel skid still squeals; (3) answer
+  Q096.** You asked 08:50: "make the threshold higher on when the screetching starts and make it more of a fade in".
+  Shipped (lane/claude-ground-volume 2a20429a; island-nav 7919f5c5, Quest 77e5a3f4, PARITY OK): squeal now starts at
+  the TYRE MODEL's own friction peak and fades in. Sideways: smoothstep from 1× to 2× the peak slip angle (3.8° → 7.6°
+  on a main), scrub 0.75× → 1.5×, plus a per-wheel attack τ 0.2 s / release 0.1 s. Fore-aft: slip ratio over the
+  tyre's κ0, squeal 1.25 → 2.5 κ0 (≈ 0.10 → 0.20), no time smoothing (the touchdown chirp stays). Pitch still follows
+  slip speed and tyre size; the −4 dB ground bus (fa4d96f3) is kept. Docs §7d.
+  **Your Cessna will STILL howl in that crosswind.** It is the NOSE tyre, and it really skids: the 172 config links
+  the nosewheel to the pedals rigidly at ±29°, so holding the centreline in 15 kt (~0.6 left rudder, any pilot) steers
+  it ~17° and slides it at 3–4× its grip. Measured squeal peak 0.694 before, 0.693 after. With the POH's ±10° pedal
+  steering (test-only) the same roll holds the centreline as well and is silent: squeal 0.002, scrub ≤ 0.24.
+  Changing ground steering is a handling change, so it is **Q096**, not done. Locked main at 40 kt: squeal 1.06 at once.
+  Tests: TyreSquealOnsetTests 5/5; tyre/tire/wheel/brake/ground-sound set 103/104, the 1 red
+  (ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake) fails the same at the branch point.
+  Builds: lane iOS ** BUILD SUCCEEDED ** (0 error CS); merged island-nav aa662650 (contains 7919f5c5) iOS
+  ** BUILD SUCCEEDED ** **2026.1105.1140**: iPad mini installed (launch refused: device locked); iPhone refused (4016,
+  locked), then installed the same .app ~12:05 by the claude-floats session (its report, not re-checked by me).
+  Quest **2026.1105.1147** built from quest-islandnav 256e0363 (contains 77e5a3f4), installed 12:04 by claude-floats
+  (its report; build stamp confirmed in build/quest.log). Nothing here is an approved gate.
+
 ## NEEDS YOU — J-3 on floats: prop water strikes, the hammering noise, spray volume, the hump (Claude, 2026-11-05)
 <!-- claude-floats needs-you -->
 Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lanes/prompts/ty-floats-1105.md).
@@ -41,16 +63,6 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   an approved gate.
 
 ## NEEDS YOU
-<!-- ground-volume needs-you -->
-- **Ty to fly-check the quieter ground contact: ALL GROUND CONTACT −4 dB (Claude, 2026-11-05, lane/claude-ground-volume
-  fa4d96f3; you asked 08:48 "lower all ground contact volume a bit").** One shared gain,
-  `GroundSoundMix.OutputGainDb = −4` (linear 0.630957), on FlightAudio's ground bus (rolling ground voices, tyre squeal,
-  scrub, bearing whir, brake scrape/squeal, worn/flat-tyre thump and slap, burst, water splash/hiss/spray, ski hiss,
-  float keel) and on the airframe-scrape voices (ContactEffects). Pitch, filters and each sound's own balance unchanged;
-  engine, wind, one-shots and crash impacts untouched. Ground/tyre tests 40/40 green; iOS **BUILD SUCCEEDED**
-  2026.1105.0855 (build only, 0 error CS). **NOT merged and NOT installed** on purpose: your 08:50 crosswind note
-  (squeal threshold + fade-in) is queued as the follow-up session in this same lane, and it does the merge into both
-  lanes and the iPhone / iPad mini / Quest installs once, with both changes in. Nothing here is an approved gate.
 <!-- merge-tundra-recorder needs-you -->
 - **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
   05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
