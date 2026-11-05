@@ -23,6 +23,14 @@ public class GroundSoundMixTests
         return w;
     }
 
+    /// <summary>Ty 2026-11-05: every ground-contact voice −4 dB through one shared gain (literal copied by hand).</summary>
+    [Fact]
+    public void GroundBusIsFourDecibelsDown()
+    {
+        Assert.Equal(-4.0, GroundSoundMix.OutputGainDb);
+        Assert.Equal(0.630957, GroundSoundMix.OutputGain, 5);
+    }
+
     [Fact]
     public void CrossfadeWeightsSumToOneAndAreEqualPower()
     {
