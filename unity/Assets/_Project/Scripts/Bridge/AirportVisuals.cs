@@ -177,7 +177,6 @@ namespace FlyingGame.Bridge
                 Vector3 v=new Vector3(Mathf.Cos(t),0,Mathf.Sin(t));
                 b.Box(circle+v*12,new Vector3(2,.18f,.6f),Quaternion.Euler(0,-t*Mathf.Rad2Deg,0),white);
             }
-            Windsock(parent,a.X-650,a.Y+360,circle.y);
             // Fuel equipment and small service apron, on the existing apron footprint.
             Vector3 fuel=P(ax+125,ay+25);
             b.Box(fuel+new Vector3(1.8f,.07f,-.5f),new Vector3(11,.08f,12),new Color(.57f,.57f,.53f));
