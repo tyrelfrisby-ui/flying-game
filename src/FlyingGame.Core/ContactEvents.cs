@@ -9,9 +9,11 @@ public enum ContactEventKind
     ScrapeStart,
     /// <summary>It stopped: lifted clear, came to rest, or the part left.</summary>
     ScrapeStop,
-    /// <summary>A strike between the limit and ultimate moments bent a wing panel (the crunch). Value = bend, degrees.</summary>
+    /// <summary>A wing panel yielded (the crunch): raised when it first takes a set and again every further 5° of bend or
+    /// twist (<see cref="WingStructure"/>). Intensity = the demand over its ultimate; value = its bend, degrees.</summary>
     PanelBent,
-    /// <summary>A wing panel broke off (a hard strike, or a bent panel past 15°). Value = moment / ultimate, or the bend.</summary>
+    /// <summary>A wing panel broke off: one of its hinges turned through its rupture rotation (<see cref="PlasticHinge"/>).
+    /// Intensity and value = the last demand over its ultimate.</summary>
     PanelBroken,
     /// <summary>A propeller blade touched the ground. Value = penetration, m.</summary>
     PropStrike,
@@ -27,6 +29,9 @@ public enum ContactEventKind
     /// fabric, a struck propeller or a damaged control surface. Intensity = the energy the wood took out of the airframe, J;
     /// value = the branch diameter met, m.</summary>
     BranchDamage,
+    /// <summary>A tail surface, rudder, wing mid-span, nacelle or gear leg arrived over its break speed and bent instead of
+    /// breaking (<see cref="MemberMaterials.CrushCapacityM"/>). Intensity = arrival over break speed; value = its crush so far, m.</summary>
+    MemberBent,
 }
 
 /// <summary>One contact event, raised by <c>Aircraft.ContactEvent</c> after the step in which it happened.</summary>

@@ -18,16 +18,49 @@ public sealed partial class Aircraft
     private readonly Dictionary<ContactPoint, Vec3> _uncrushedBody = new();
     private Quat _tailBend = Quat.Identity, _noseBend = Quat.Identity;
 
-    /// <summary>Drop from <see cref="_pendingBreaks"/> every fuselage section that crushes instead of breaking this step.</summary>
+    /// <summary>Crush each struck member (tail surface, mid-span, nacelle, gear leg) has taken, m, and the energy it absorbed.</summary>
+    private readonly Dictionary<AirframeComponent, double> _memberCrushM = new();
+    /// <summary>Crush taken so far by a member that is not a fuselage section (MemberMaterials.CrushCapacityM), m.</summary>
+    public double MemberCrushM(AirframeComponent c) => _memberCrushM.TryGetValue(c, out double d) ? d : 0.0;
+
+    /// <summary>Drop from <see cref="_pendingBreaks"/> every fuselage section, and every other member, that crushes instead
+    /// of breaking this step.</summary>
     private void FilterFuselageBreaks()
     {
         for (int i = _pendingBreaks.Count - 1; i >= 0; i--)
         {
             AirframeComponent c = _pendingBreaks[i];
-            if (!FuselageStructure.IsSection(c) || _lost.Contains(c)) continue;
-            if (!SectionBreaksOnArrival(c)) _pendingBreaks.RemoveAt(i);
+            if (_lost.Contains(c)) continue;
+            if (FuselageStructure.IsSection(c) ? !SectionBreaksOnArrival(c) : !MemberBreaksOnArrival(c)) _pendingBreaks.RemoveAt(i);
         }
         for (int i = 0; i < _contacts.Count; i++) _contacts[i].ArrivalPending = false;
+        foreach (WheelState w in _wheels) { w.ArrivalMs = 0; w.ArrivalBreakMs = 0; }
+    }
+
+    /// <summary>A member that is not a fuselage section, struck over its break speed: it crushes by the fuselage's energy
+    /// rule and breaks only when its crush adds up past its capacity. A break with no arrival to go on (the water joints,
+    /// a tree, combat) is left as it was.</summary>
+    private bool MemberBreaksOnArrival(AirframeComponent c)
+    {
+        double cap = MemberMaterials.CrushCapacityM(c, Config);
+        if (cap <= 0) return true;
+        double arrive = 0, breakMs = 0; ContactPoint? hit = null;
+        for (int i = 0; i < _contacts.Count; i++)
+        {
+            ContactPoint p = _contacts[i];
+            if (p.ArrivalPending && p.Component == c && p.ArrivalMs > arrive) { arrive = p.ArrivalMs; breakMs = p.BreakSpeedMs; hit = p; }
+        }
+        if (c is AirframeComponent.GearLeft or AirframeComponent.GearRight or AirframeComponent.GearNose or AirframeComponent.GearTail)
+            for (int g = 0; g < _wheels.Length && g < Config.Gear.Count; g++)
+                if (_wheels[g].ArrivalBreakMs > 0 && AirframeContact.GearComponent(Config.Gear[g]) == c && _wheels[g].ArrivalMs > arrive)
+                { arrive = _wheels[g].ArrivalMs; breakMs = _wheels[g].ArrivalBreakMs; hit = null; }
+        if (arrive <= 0 || breakMs <= 0) return true;
+        double total = MemberCrushM(c) + FuselageStructure.CrushFrom(arrive, breakMs);
+        _memberCrushM[c] = total;
+        if (total > cap) return true;
+        Vec3 pos = hit?.WorldPos ?? State.Position, vel = hit?.WorldVel ?? State.Attitude.Rotate(State.Velocity);
+        Contact?.Invoke(new ContactEvent(ContactEventKind.MemberBent, hit?.Name ?? c.ToString(), c, hit?.SurfaceCode ?? ContactPoint.SurfaceNone, arrive / breakMs, total, pos, vel));
+        return false;
     }
 
     private bool SectionBreaksOnArrival(AirframeComponent c)
@@ -139,7 +172,8 @@ public sealed partial class Aircraft
         {
             string id = sf.Id.ToLowerInvariant();
             bool hTail = id == "hstab" || id == "elevator", vTail = id.Contains("vstab") || id.StartsWith("rudder") || id.Contains("fin");
-            foreach (Core.DataContracts.StripConfig _ in sf.Strips) inc[idx++] = hTail ? dStab : vTail ? dFin : 0.0;
+            // Only the tail's rows: a bent wing panel's twist is in the same array (AircraftContactDamage.SetBend).
+            foreach (Core.DataContracts.StripConfig _ in sf.Strips) { if (hTail) inc[idx] = dStab; else if (vTail) inc[idx] = dFin; idx++; }
         }
     }
 
