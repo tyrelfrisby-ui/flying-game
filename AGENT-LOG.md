@@ -1,4 +1,31 @@
 ## NEEDS YOU
+- **SHARED INSTRUMENT LIBRARY: ONE TURN COORDINATOR (AND ASI, ALTIMETER, G-METER, AI, VSI, DG) FOR EVERY AIRCRAFT — APPROVE THE
+  RENDERS (Claude, 2026-11-05 10:30, lane/claude-shared-instruments 4e0d8575; Ty 06:53 + 07:26). iOS 2026.1105.0921
+  ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL. check-parity --strict: PARITY OK. NOT merged into island-nav/Quest and
+  NOT installed: visual change, waiting for your approval (Q098). Nothing approved by me.** Doc: `docs/INSTRUMENT-LIBRARY.md`.
+  - **What it is.** One generator (`tools/own_models/instruments/`), one GLB per instrument
+    (`Resources/Models/instruments/`), one runtime (`Bridge/SharedInstruments.cs`, via CockpitLiveParts: iOS, Quest and the
+    shot tools), one table (`Core/Instruments/InstrumentLibrary.cs`). An aeroplane only says where each instrument sits and,
+    for the ASI and g-meter, its markings from its config (`instruments.airspeed`; g red lines = `limits.gMax/gMin`). The old
+    GLBs' own instrument parts are switched off at runtime, so no aircraft GLB was rebuilt (each has an owning lane).
+  - **TC:** the f2e544ee thin tapered wings (tip = the standard-rate index width), used in Ty's six: 172, Extra (3 liveries),
+    Great Lakes front + rear. lane/codex-turn-coord was a design reference only, not merged.
+  - **Migrated:** 172 whole six-pack (gyros still driven by C172Panel); Extra rear ASI/ALT/TC/G, front ASI/ALT/G; Great Lakes
+    front ASI/ALT/TC, rear ASI/ALT/TC/G; Pitts rear+front ASI/ALT/G. J-3 = PERIOD (keeps its own); gliders not yet (Q102).
+  - **Builders cut back** to the panel's part (bezel/case/knobs): c172_cockpit (+rig/checker), gl_cockpit, ea_cockpit,
+    vr_phase3b + rear_panel (blank faces kept for later passes), make_ea/gl/live_dials, build_ea300/great_lakes; old
+    per-aircraft ASI/ALT/VSI/TC/G art deleted. `InstrumentLibraryTests.NoAircraftBuilderDrawsItsOwnLibraryInstrument` fails
+    if any builder draws one again (period variants must be named in `InstrumentLibrary.PeriodVariants`).
+  - **Renders:** `~/Developer/agent-lanes/renders/shared-instruments/` before (island-nav 23922ee1) / after / compare.
+    `after/*-turn.png` pose 3 deg/s, ball right, 20 deg bank: wings on the R index, ball right, horizon right-side up, as
+    they should. Found and fixed on the way: the Great Lakes' old dial discs are 3 mm thick and hid the first library faces.
+  - **Decisions for you:** Q098 approve; Q099 Pitts ASI arcs (still the Great Lakes' mph arcs, as before); Q100 one g-meter
+    scale -10..+10 for all; Q101 Extra ASI now linear 40-260 kt; Q102 gliders to the library or keep.
+  - **Tests:** InstrumentLibraryTests 12/12, CockpitLiveTests + InstrumentFaces + CockpitCommon green. Cockpit/rig subset
+    552/562: the 10 red are also red at the pre-change merge 55b95ef6 (4 PittsRearView: `Canopy_Latch_Block` gone in Pitts
+    v2; 4 J3OwnModel V16/V17 rig counts after cockpit-common; 2 also red on island-nav 23922ee1). Not mine; the owning lanes'.
+  - Merged in first (step 1): pitts-cockpit-v2 a87a8ba7, greatlakes-panel-v2 c7d9bf4f, extra-cockpit-v3 da206b47,
+    cockpit-common 9a3d2011 (conflict: RigInputs fuel fields, both kept). Codex face polish (optional) not done.
 - **COCKPIT COMMON (Ty's 2026-11-05 spec: IAC CARD SYSTEM, ALL AIRCRAFT, ADDENDUM Cubs) — RENDERS FOR APPROVAL, NOT MERGED
   (Claude, 2026-11-05 06:05, lane/claude-cockpit-common c0fba85c / b0c35552 / cab6944d). Renders + README:
   `~/Developer/agent-lanes/renders/cockpit-1105/claude-cockpit-common/`. Write-up: `docs/COCKPIT-COMMON-1105.md`.
