@@ -34,6 +34,74 @@ namespace FlyingGame.EditorTools
             new(new FlyingGame.Sim.Aircraft(cfg, new RigidBodyState(new FlyingGame.Core.MathTypes.Vec3(0, 0, -500), FlyingGame.Core.MathTypes.Quat.Identity,
                 new FlyingGame.Core.MathTypes.Vec3(40, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero)));
 
+        /// <summary>
+        /// GHOST AIRPLANE (Ty 2026-11-04: "randomly a full-size intact copy of the airplane appears at the crash site").
+        /// Every type, three seeded crashes each, every one on a flight that began with a clean restart (a new Aircraft with
+        /// nothing to rebuild — the flights the ghost came on): break one to three parts through the real ComponentLost path
+        /// (StructuralDamage -> AirframeVisual.DetachComponent), run the visual's LateUpdate as a frame would, and require
+        /// that the model was NOT rebuilt during the crash (a marker child the rebuild would clear survives, the placed
+        /// "Model" is the same instance) and that the scene holds exactly one placed model. The headset draws this same
+        /// scene for both eyes and the clip camera; there is no second set of aircraft renderers to check.
+        /// </summary>
+        private static void GhostCheck()
+        {
+            var rng = new System.Random(20261104);
+            AirframeComponent[] parts = { AirframeComponent.TailHorizontal, AirframeComponent.WingLeft, AirframeComponent.WingRight,
+                AirframeComponent.Nose, AirframeComponent.GearLeft, AirframeComponent.TailVertical, AirframeComponent.WingTipLeft, AirframeComponent.TailBoom };
+            string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "aircraft");
+            int crashes = 0;
+            foreach (string f in System.IO.Directory.GetFiles(dir, "*.json").OrderBy(x => x))
+            {
+                string id = System.IO.Path.GetFileNameWithoutExtension(f);
+                AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
+                if (cfg == null) continue;
+                for (int seed = 0; seed < 3; seed++)
+                {
+                    var root = new GameObject("Aircraft");
+                    try
+                    {
+                        FlightSimDriver driver = root.AddComponent<FlightSimDriver>();
+                        SetId(driver, id);
+                        driver.AdoptSim(NewSim(cfg));
+                        AirframeVisual visual = root.AddComponent<AirframeVisual>();
+                        StructuralDamage damage = root.AddComponent<StructuralDamage>();
+                        Invoke(visual, "Awake"); Invoke(visual, "Start");
+                        Invoke(damage, "Awake"); Invoke(damage, "Start");
+                        driver.AdoptSim(NewSim(cfg));   // a clean Restart: nothing to rebuild
+                        var marker = new GameObject("GhostMarker"); marker.AddComponent<MeshFilter>(); marker.transform.SetParent(root.transform, false);
+                        Transform model = root.transform.Find("Model");
+                        int modelId = model != null ? model.GetInstanceID() : 0;
+                        int n = 1 + rng.Next(3);
+                        var lost = new System.Collections.Generic.List<AirframeComponent>();
+                        for (int k = 0; k < n; k++)
+                        {
+                            AirframeComponent c = parts[rng.Next(parts.Length)];
+                            if (lost.Contains(c)) continue;
+                            lost.Add(c);
+                            driver.Sim.Aircraft.LoseComponent(c);
+                        }
+                        Invoke(visual, "LateUpdate");
+                        crashes++;
+                        string what = $"{id} seed {seed} [{string.Join(",", lost)}]";
+                        Require(root.transform.Find("GhostMarker") != null, $"{what}: the model was REBUILT during the crash (a ghost intact copy at the crash site)");
+                        Transform after = root.transform.Find("Model");
+                        Require((after != null ? after.GetInstanceID() : 0) == modelId, $"{what}: the placed model was re-instantiated during the crash");
+                        int models = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Count(t => t.name == "Model");
+                        Require(models <= 1, $"{what}: {models} placed models in the scene");
+                    }
+                    finally
+                    {
+                        foreach (var d in Object.FindObjectsByType<WingDebris>(FindObjectsInactive.Include, FindObjectsSortMode.None)) Object.DestroyImmediate(d.gameObject);
+                        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                            if (t != null && t.parent == null && t.name.StartsWith("Debris-")) Object.DestroyImmediate(t.gameObject);
+                        Object.DestroyImmediate(root);
+                    }
+                }
+            }
+            Debug.Log($"[CrashReset] ghost check: {crashes} seeded crashes across the fleet");
+            Require(crashes >= 60, $"only {crashes} crashes ran");
+        }
+
         public static void Run()
         {
             _failures = 0;
@@ -76,6 +144,8 @@ namespace FlyingGame.EditorTools
                 }
             }
             catch (System.Exception e) { _failures++; Debug.LogError("[CrashReset] threw: " + e); }
+            try { GhostCheck(); }
+            catch (System.Exception e) { _failures++; Debug.LogError("[CrashReset] ghost check threw: " + e); }
             finally
             {
                 if (root != null) Object.DestroyImmediate(root);
