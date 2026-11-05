@@ -32,38 +32,55 @@ namespace FlyingGame.Core.Vr
         /// <summary>A jettison control the pilot can pull (Pitts knob; Extra emergency release). The Bridge clears it
         /// when the model provides none.</summary>
         public readonly bool HasJettison;
+        /// <summary>The Pitts: its frame, the stop tab on the right upper wing and the wing's skin, which together stop the
+        /// swing (<see cref="CanopyStopTab"/>); <see cref="StopDeg"/> is then only the hinge's own limit, never reached
+        /// while the tab catches it. Null (the Extra): the swing stops at <see cref="StopDeg"/>.</summary>
+        public readonly CanopyStopTab? StopTab;
 
         public CanopySpec(CanopyMotion motion, double massKg, double lengthM, double spanM, double heightM, double hingeOutboardM,
-                          double slideM, double stopDeg, double fittingStrengthN, bool hasJettison)
+                          double slideM, double stopDeg, double fittingStrengthN, bool hasJettison, CanopyStopTab? stopTab = null)
         {
             Motion = motion; MassKg = massKg; LengthM = lengthM; SpanM = spanM; HeightM = heightM; HingeOutboardM = hingeOutboardM;
-            SlideM = slideM; StopDeg = stopDeg; FittingStrengthN = fittingStrengthN; HasJettison = hasJettison;
+            SlideM = slideM; StopDeg = stopDeg; FittingStrengthN = fittingStrengthN; HasJettison = hasJettison; StopTab = stopTab;
         }
 
         /// <summary>Hinge line to the free (left) edge, where a hand holds it.</summary>
         public double FreeEdgeM => HingeOutboardM + 0.5 * SpanM;
 
         public CanopySpec WithJettison(bool has) =>
-            new(Motion, MassKg, LengthM, SpanM, HeightM, HingeOutboardM, SlideM, StopDeg, FittingStrengthN, has);
+            new(Motion, MassKg, LengthM, SpanM, HeightM, HingeOutboardM, SlideM, StopDeg, FittingStrengthN, has, StopTab);
+
+        public CanopySpec WithStopTab(CanopyStopTab? tab) =>
+            new(Motion, MassKg, LengthM, SpanM, HeightM, HingeOutboardM, SlideM, StopDeg, FittingStrengthN, HasJettison, tab);
+
+        public CanopySpec WithFittingStrength(double n) =>
+            new(Motion, MassKg, LengthM, SpanM, HeightM, HingeOutboardM, SlideM, StopDeg, n, HasJettison, StopTab);
+
+        /// <summary>The whole track the canopy can run aft on with the jettison pulled (Pitts), else the slide.</summary>
+        public double TrackM => SlideM + (StopTab?.JettisonExtraSlideM ?? 0.0);
 
         /// <summary>
         /// Extra 300 (one canopy over both seats): 2.12 m long, 0.78 m rim to rim, 0.48 m high, hinge line 0.343 m right
         /// of the centre-line (Codex's Canopy bounds and Canopy_HingeAxis); 14 kg (E); 100° stop (the rig, E); fittings
         /// 15,100 N (calibrated to let go at 80 KIAS); emergency release CanopyRelease_F/R (the model's).
-        /// Pitts S-2B: 1.48 × 0.716 × 0.406 m, hinge 0.36 m right (Codex's Canopy origin); 9 kg (E); 4 in of aft slide and
-        /// a 100° stop (Codex's rig, E); fittings 12,000 N (calibrated to 80 mph = 69.5 KIAS); the red jettison knob.
+        /// Pitts S-2B: 1.48 × 0.716 × 0.406 m, hinge 0.36 m right (Codex's Canopy origin); 9 kg (E); 4 in of aft slide
+        /// (Codex's rig, E); the swing stopped by the frame landing on the stop tab (<see cref="CanopyStopTab"/>; the hinge's
+        /// own limit 175°, E, is never reached while it does); fittings calibrated to 80 mph = 69.5 KIAS; the jettison.
         /// </summary>
         public static CanopySpec For(string aircraftId)
         {
             string id = aircraftId ?? "";
             if (id.StartsWith("pitts"))
-                return new CanopySpec(CanopyMotion.SlideThenHingeRight, 9.0, 1.48, 0.716, 0.406, 0.36, 0.1016, 100.0, PittsFittingN, true);
+                return new CanopySpec(CanopyMotion.SlideThenHingeRight, 9.0, 1.48, 0.716, 0.406, 0.36, 0.1016, 175.0, PittsFittingN, true,
+                                      CanopyStopTab.Pitts());
             return new CanopySpec(CanopyMotion.HingeRight, 14.0, 2.12, 0.78, 0.48, 0.343, 0.0, 100.0, ExtraFittingN, true);
         }
 
         /// <summary>Fitting strengths, N, from <see cref="CanopyDynamics.PeakStopLoadN"/> at the failure speeds Ty gave
-        /// (80 KIAS Extra; 80 mph = 69.5 KIAS Pitts), rounded to 100 N. Re-derive if any canopy number changes.</summary>
-        public const double ExtraFittingN = 15100.0, PittsFittingN = 12000.0;
+        /// (80 KIAS Extra; 80 mph = 69.5 KIAS Pitts), rounded to 100 N. Re-derive if any canopy number changes. The Pitts'
+        /// is the peak HINGE reaction when the frame slams onto the stop tab (v2, 2026-11-05: 11,481 N); the Extra's the
+        /// load at its stop lug.</summary>
+        public const double ExtraFittingN = 15100.0, PittsFittingN = 11500.0;
     }
 
     /// <summary>
@@ -185,7 +202,7 @@ namespace FlyingGame.Core.Vr
     /// M_s + √(M_s² + 2 K E) (M_s the static moment there). Ty's rule — the canopy departs above 80 KIAS (Extra) and
     /// 80 mph (Pitts) when flung open, and stays on below — fixes the fittings' strength: it is the peak load at the
     /// stop at exactly that speed (<see cref="PeakStopLoadN"/>, which runs THIS dynamics), rounded:
-    /// Extra 15,100 N, Pitts 12,000 N. A steady load at the stop (flying on faster with it open) breaks it too, at
+    /// Extra 15,100 N, Pitts 11,500 N (at its hinges, v2). A steady load at the stop (flying on faster with it open) breaks it too, at
     /// the speed where M_a + flutter alone reaches that.
     ///
     /// THE PITTS' SLIDE. It must slide 4 in aft before it can hinge (the mushroom buttons hold it in the track). By hand
@@ -194,7 +211,17 @@ namespace FlyingGame.Core.Vr
     /// times the net load on the buttons |lift − weight|. With these numbers it slides and flings at any flying speed
     /// — a question for Ty (does an unlatched S-2B canopy really run aft by itself?).
     ///
-    /// JETTISON. <see cref="ReleaseHingePins"/> pulls the hinge pins. With the latch still LOCKED the canopy is held at
+    /// THE PITTS' STOP (v2, Ty 2026-11-05). No stop angle: the frame lands on the tab on the right upper wing
+    /// (<see cref="CanopyStopTab"/>), a one-sided spring-damper in the swing at the angle the geometry gives for the
+    /// present slide (96.8° after the normal 4 in). Its load on the hinges is the reaction R = m(α t_c − ω² r_c) − F_air −
+    /// m g − F_tab (the canopy as a body on its hinge line), and the fittings fail when R passes their strength, which is
+    /// calibrated to Ty's 80 mph exactly as before. JETTISONED, the Pitts' pull frees the track: the canopy runs on aft
+    /// (its drag, or a hand) up to <see cref="CanopySpec.TrackM"/>, against the carriage's friction and the rubber's
+    /// while it presses the tab; past 4.75 in its front hoop no longer meets the tab, so nothing stops the swing, and past
+    /// <see cref="CanopyStopTab.HookReleaseDeg"/> the hinges let go. Whether it gets there before it lands on the tab is a
+    /// race between the slide and the swing, not a rule.
+    ///
+    /// JETTISON (Extra). <see cref="ReleaseHingePins"/> pulls the hinge pins. With the latch still LOCKED the canopy is held at
     /// the latch and stays on (its hinge side would lift by the latch's play; not drawn). Once the latch is open as well
     /// it is FREE: in the air (q above that of 20 kt) it departs at once at any speed; on the ground it sits loose
     /// until a hand lifts it 10°.
@@ -242,17 +269,46 @@ namespace FlyingGame.Core.Vr
             SlideM = 0.0; SlideSpeedMs = 0.0; AngleDeg = 0.0; RateDps = 0.0; Held = false;
             HingePinsOut = false; Departed = false; DepartedBy = CanopyDeparture.None;
             PeakFittingLoadN = 0.0; FittingLoadN = 0.0; _t = 0.0;
+            TabForceN = 0.0; PeakTabForceN = 0.0;
         }
 
         public bool SlidComplete => Spec.Motion == CanopyMotion.HingeRight || SlideM >= Spec.SlideM - 1e-6;
         public bool Shut => !Departed && AngleDeg < 0.5 && SlideM < 1e-3;
         public bool ClearToLeave => Departed || AngleDeg >= ClearToLeaveDeg;
 
-        /// <summary>The rig's `canopy_open` (CONTRACT / Codex's rigs): Extra 0..1 = 0..stop°; Pitts 0..0.2 = the slide,
-        /// 0.2..1 = 0..stop°.</summary>
-        public double Open01 => Spec.Motion == CanopyMotion.HingeRight
+        /// <summary>The rig's `canopy_open` (CONTRACT / Codex's rigs): Extra 0..1 = 0..stop°. Pitts with its stop tab
+        /// (v2): 0..1 = 0..the hinge's own limit (175°), the slide being `canopy_slide` (<see cref="Slide01"/>); a Pitts
+        /// without one keeps the v1 map, 0..0.2 = the slide, 0.2..1 = 0..stop°.</summary>
+        public double Open01 => Spec.Motion == CanopyMotion.HingeRight || Spec.StopTab != null
             ? Math.Clamp(AngleDeg / Spec.StopDeg, 0.0, 1.0)
             : (SlideM < Spec.SlideM - 1e-6 ? 0.2 * SlideM / Spec.SlideM : 0.2 + 0.8 * Math.Clamp(AngleDeg / Spec.StopDeg, 0.0, 1.0));
+
+        /// <summary>The rig's `canopy_slide`: 0..1 = 0..the whole track (<see cref="CanopySpec.TrackM"/>: the normal 4 in
+        /// plus what the jettison frees).</summary>
+        public double Slide01 => Spec.TrackM > 1e-9 ? Math.Clamp(SlideM / Spec.TrackM, 0.0, 1.0) : 0.0;
+
+        /// <summary>
+        /// The rig params for a canopy NOT stepped by this class (iOS / Mac, no hands: CockpitRigState's 1.6 s open/shut
+        /// command, 0..1). Extra: the command is the swing. Pitts v2: the first fifth slides it the normal 4 in, the rest
+        /// swings it to where its frame comes down on the stop tab (the geometry's own answer, <see cref="CanopyStopTab"/>),
+        /// so the scripted canopy rests where the physical one does.
+        /// </summary>
+        public static (double Slide01, double Open01) ScriptedRig(in CanopySpec s, double command01)
+        {
+            double c = Math.Clamp(command01, 0.0, 1.0);
+            if (s.StopTab == null) return (0.0, c);
+            double rest = s.StopTab.RestAngleDeg(s.SlideM);
+            if (double.IsNaN(rest)) rest = s.StopDeg;
+            double slide = Math.Min(1.0, c / 0.2) * s.SlideM, deg = Math.Max(0.0, (c - 0.2) / 0.8) * rest;
+            return (slide / s.TrackM, deg / s.StopDeg);
+        }
+
+        /// <summary>How far the track lets it run aft now: the normal stop, or the whole track once jettisoned.</summary>
+        public double SlideLimitM => HingePinsOut && Spec.StopTab != null ? Spec.TrackM : Spec.SlideM;
+
+        /// <summary>The canopy's frame on the stop tab this step (resting or slamming into it): the contact force, N.</summary>
+        public double TabForceN { get; private set; }
+        public double PeakTabForceN { get; private set; }
 
         /// <summary>Open-cockpit drag area, m² (E): Extra 0.15 (two seats under one opening), Pitts 0.12.</summary>
         public double OpenCockpitCdA => Spec.Motion == CanopyMotion.HingeRight ? 0.15 : 0.12;
@@ -349,8 +405,10 @@ namespace FlyingGame.Core.Vr
             if (dt <= 0.0 || Departed) return ev;
             if (locked && Shut) { RateDps = 0.0; SlideSpeedMs = 0.0; return ev; }
 
-            // Jettisoned and unlatched: nothing holds it. It goes in the air, or when a hand lifts it on the ground.
-            if (HingePinsOut && !locked && (q >= DepartMinQ || AngleDeg >= 10.0))
+            CanopyStopTab? tab = Spec.StopTab;
+            // Jettisoned and unlatched (Extra): nothing holds it. It goes in the air, or when a hand lifts it on the ground.
+            // The Pitts' jettison instead frees the track; its hinges let go only once it has opened past the tab (below).
+            if (tab == null && HingePinsOut && !locked && (q >= DepartMinQ || AngleDeg >= 10.0))
                 return Depart(CanopyDeparture.Jettisoned);
 
             // The Pitts' slide, while it is down on its track.
@@ -359,13 +417,14 @@ namespace FlyingGame.Core.Vr
                 bool was = SlidComplete;
                 if (Held && !locked)
                 {
-                    double s = Math.Clamp(_grabSlide + (_grabZ - hand.Z), 0.0, Spec.SlideM);
+                    double s = Math.Clamp(_grabSlide + (_grabZ - hand.Z), 0.0, SlideLimitM);
                     SlideSpeedMs = (s - SlideM) / dt;
                     SlideM = s;
                 }
                 else if (!locked) SlideInTheAir(dt, q, gApp);
                 if (!SlidComplete) { AngleDeg = 0.0; RateDps = 0.0; return ev; }
-                SlideSpeedMs = 0.0;
+                // At the normal stop it stops; jettisoned it runs on aft as it starts to swing.
+                if (!(tab != null && HingePinsOut) || Held) SlideSpeedMs = 0.0;
                 // Just reached the end of the track: re-take the hinge offset so the swing starts where the hand is.
                 if (!was && Held) _grabAngleOff = AngleDeg - HandAngle(hand, hinge);
             }
@@ -375,17 +434,19 @@ namespace FlyingGame.Core.Vr
             double rate = RateDps * Math.PI / 180.0, angle = AngleDeg * Math.PI / 180.0, stop = Spec.StopDeg * Math.PI / 180.0;
             double vTrue = Math.Sqrt(2.0 * Math.Max(0.0, q) / Rho0);
             double shedHz = Strouhal * vTrue / Math.Max(0.1, Spec.HeightM);
-            bool wasOpen = AngleDeg >= 0.9 * Spec.StopDeg, inContact = AngleDeg > Spec.StopDeg;
-            int n = Math.Max(1, (int)Math.Ceiling(dt / SubstepSec));
+            bool wasOpen = AngleDeg >= FlungOpenDeg, inContact = AngleDeg > Spec.StopDeg, onTab = TabForceN > 0.0;
+            // The tab is a much stiffer contact than the hinge's stop: a quarter of the step.
+            int n = Math.Max(1, (int)Math.Ceiling(dt / (tab != null ? TabSubstepSec : SubstepSec)));
             double h = dt / n;
             FittingLoadN = 0.0;
             for (int i = 0; i < n; i++)
             {
                 _t += h;
                 double deg = angle * 180.0 / Math.PI;
-                double ma = AeroMomentNm(q);
-                if (deg > ExposedDeg) ma *= 1.0 + SheddingAmp * Math.Sin(2.0 * Math.PI * shedHz * _t);
+                double shed = deg > ExposedDeg ? 1.0 + SheddingAmp * Math.Sin(2.0 * Math.PI * shedHz * _t) : 1.0;
+                double ma = AeroMomentNm(q) * shed;
                 double m = ma + GravityMomentNm(gApp, deg);
+                double mHand = 0.0;
                 if (Held)
                 {
                     // The hand is a stiff, bounded servo on the angle it points the edge at: critically damped at 12 rad/s
@@ -398,11 +459,48 @@ namespace FlyingGame.Core.Vr
                     {
                         Held = false;
                         ev |= CanopyEvents.TornFromHand;
-                        m += Math.Sign(need) * cap;   // he was still pushing this step
+                        mHand = Math.Sign(need) * cap;   // he was still pushing this step
                     }
-                    else m += need;
+                    else mHand = need;
+                    m += mHand;
                 }
                 m -= DampingNmsPerRad * rate;
+
+                // The frame on the tab (Pitts): the contact force, its moment about the hinge line, its push along the
+                // track, and the load it puts through the hinges.
+                Vec3 fc = Vec3.Zero;
+                double nTab = 0.0;
+                if (tab != null)
+                {
+                    CanopyStopTab.Touch t = tab.TouchAt(SlideM);
+                    if (t.Hits && deg > t.Deg)
+                    {
+                        // Past the touch by (β − β_t): the frame is that far into the rubber and bar along its swing.
+                        var hingeNow = new Vec3(0, 0, -SlideM);
+                        Vec3 r = t.Point - hingeNow;
+                        Vec3 tang = new Vec3(r.Y, -r.X, 0.0);   // d(point)/dβ
+                        double arm = tang.Length;
+                        double depth = (deg - t.Deg) * Math.PI / 180.0 * arm;
+                        double meff = I / Math.Max(0.0025, arm * arm);
+                        double f = CanopyStopTab.StiffnessNPerM * depth
+                                   + 2.0 * CanopyStopTab.DampingRatio * Math.Sqrt(CanopyStopTab.StiffnessNPerM * meff) * rate * arm;
+                        if (f > 0.0)
+                        {
+                            // Along the contact normal, whose moment about the hinge resists the swing (it is the swing's
+                            // own direction, reversed, for a head-on touch).
+                            Vec3 nc = t.Normal;
+                            double back = -nc.Dot(tang) / arm;
+                            if (back < 0.2) nc = -tang / arm;   // a grazing normal still has to stop it
+                            Vec3 fv = nc * f;
+                            fc += fv;
+                            m += fv.X * r.Y - fv.Y * r.X;
+                            nTab = f;
+                        }
+                    }
+                    if (nTab > 0.0 && !onTab && rate * 180.0 / Math.PI > 20.0) ev |= CanopyEvents.HitStop;
+                    onTab = nTab > 0.0;
+                    if (nTab > PeakTabForceN) PeakTabForceN = nTab;
+                }
 
                 // The open-stop: a one-sided spring-damper, and the load it puts through the lug.
                 double over = angle - stop;
@@ -426,18 +524,78 @@ namespace FlyingGame.Core.Vr
                 }
                 else inContact = false;
 
-                rate += m / I * h;
+                double alpha = m / I;
+                // Down on the sill, pressed onto it: the sill takes it, not the hinges.
+                bool onSill = angle <= 0.0 && alpha <= 0.0;
+                if (onSill) alpha = 0.0;
+                if (tab != null && !onSill)
+                {
+                    // The hinges' load: what the canopy's own acceleration needs beyond the forces on it (the airload on
+                    // its centre-line, its weight, the contacts; the hand's share left out — it is on the frame, not the
+                    // hinges): R = m (α t_c − ω² r_c) − F_air − m g − F_contact, in the plane of the swing.
+                    Vec3 nrm = Normal(deg), rc = Inboard(deg) * Spec.HingeOutboardM + nrm * Bubble.ComHeightM;
+                    double aNoHand = (m - mHand) / I;
+                    Vec3 acc = new Vec3(rc.Y, -rc.X, 0.0) * aNoHand - rc * (rate * rate);
+                    Vec3 rxn = acc * Spec.MassKg - nrm * (AeroNormalN(q) * shed) - new Vec3(gApp.X, gApp.Y, 0.0) * Spec.MassKg
+                               - new Vec3(fc.X, fc.Y, 0.0);
+                    double load = rxn.Length;
+                    if (load > FittingLoadN) FittingLoadN = load;
+                    if (load > PeakFittingLoadN) PeakFittingLoadN = load;
+                    TabForceN = nTab;
+                    if (load > Spec.FittingStrengthN)
+                    {
+                        AngleDeg = deg; RateDps = rate * 180.0 / Math.PI;
+                        return ev | Depart(CanopyDeparture.HingesFailed);
+                    }
+                    // Jettisoned, it runs on aft along the track while it swings: its drag against the carriage's and the
+                    // rubber's friction, and whatever the contacts push along it.
+                    if (HingePinsOut && !Held) SlideOpen(h, q, gApp, deg, nrm, shed, fc.Z, nTab);
+                }
+                else if (tab != null) TabForceN = 0.0;
+
+                rate += alpha * h;
                 angle += rate * h;
                 if (angle <= 0.0)
                 {
                     angle = 0.0;
                     if (rate < 0.0) rate = 0.0;
                 }
+                // Opened past the tab with the jettison pulled: the hinge hooks come off their pins.
+                if (tab != null && HingePinsOut && !locked && angle * 180.0 / Math.PI >= tab.HookReleaseDeg)
+                {
+                    AngleDeg = angle * 180.0 / Math.PI; RateDps = rate * 180.0 / Math.PI;
+                    return ev | Depart(CanopyDeparture.Jettisoned);
+                }
             }
             AngleDeg = angle * 180.0 / Math.PI;
             RateDps = rate * 180.0 / Math.PI;
-            if (!wasOpen && AngleDeg >= 0.9 * Spec.StopDeg && !Held) ev |= CanopyEvents.FlippedOpen;
+            if (!wasOpen && AngleDeg >= FlungOpenDeg && !Held) ev |= CanopyEvents.FlippedOpen;
             return ev;
+        }
+
+        /// <summary>"Flung open": 90 % of the stop (Extra), over the top past vertical (Pitts, whose tab is further).</summary>
+        private double FlungOpenDeg => Spec.StopTab != null ? 90.0 : 0.9 * Spec.StopDeg;
+
+        private const double TabSubstepSec = 0.00025;
+
+        /// <summary>The open, jettisoned Pitts canopy on its freed track, one substep: drag (shut bubble's plus the open
+        /// shell's as it stands up) aft; the carriage's friction on the net of airload and weight, and the rubber's on what
+        /// presses the tab; the contacts' own push along the track. It cannot run forward past the normal stop.</summary>
+        private void SlideOpen(double h, double q, Vec3 gApp, double deg, Vec3 nrm, double shed, double contactFwdN, double contactN)
+        {
+            double drive = q * (ShutCd + OpenShellCd * Math.Min(1.0, deg / 45.0)) * Bubble.FrontalAreaM2 - contactFwdN;
+            Vec3 press = nrm * (AeroNormalN(q) * shed) + new Vec3(gApp.X, gApp.Y, 0.0) * Spec.MassKg;
+            double friction = TrackFriction * press.Length + CanopyStopTab.RubberFriction * contactN;
+            double v = SlideSpeedMs, f;
+            if (Math.Abs(v) > 1e-6) f = drive - friction * Math.Sign(v);
+            else f = Math.Abs(drive) > friction ? drive - friction * Math.Sign(drive) : 0.0;
+            double vn = v + f / Spec.MassKg * h;
+            if (Math.Abs(v) > 1e-6 && Math.Sign(vn) != Math.Sign(v) && Math.Abs(drive) <= friction) vn = 0.0;   // friction stops it
+            double s = SlideM + vn * h;
+            if (s >= Spec.TrackM) { s = Spec.TrackM; vn = Math.Min(0.0, vn); }
+            if (s <= Spec.SlideM) { s = Spec.SlideM; vn = Math.Max(0.0, vn); }
+            SlideM = s;
+            SlideSpeedMs = vn;
         }
 
         private CanopyEvents Depart(CanopyDeparture why)
@@ -459,7 +617,9 @@ namespace FlyingGame.Core.Vr
             double f = v > 1e-6 ? drive - friction : drive > friction ? drive - friction : 0.0;
             v = Math.Max(0.0, v + f / Spec.MassKg * dt);
             double s = SlideM + v * dt;
-            if (s >= Spec.SlideM) { s = Spec.SlideM; v = 0.0; }
+            double end = SlideLimitM;
+            // At the normal stop it stops; on a freed track it reaches the normal stop still moving and runs on.
+            if (s >= end) { s = end; v = 0.0; }
             SlideM = s;
             SlideSpeedMs = v;
         }
@@ -471,8 +631,7 @@ namespace FlyingGame.Core.Vr
         /// </summary>
         public static double PeakStopLoadN(CanopySpec s, double q)
         {
-            var strong = new CanopySpec(s.Motion, s.MassKg, s.LengthM, s.SpanM, s.HeightM, s.HingeOutboardM, s.SlideM, s.StopDeg,
-                                        double.MaxValue, s.HasJettison);
+            CanopySpec strong = s.WithFittingStrength(double.MaxValue);
             var c = new CanopyDynamics(strong);
             var g = new Vec3(0, -9.80665, 0);
             for (int i = 0; i < 600; i++) c.Step(0.005, q, g, false, Vec3.Zero, Vec3.Zero);   // 3 s: slide, fling, slam, settle

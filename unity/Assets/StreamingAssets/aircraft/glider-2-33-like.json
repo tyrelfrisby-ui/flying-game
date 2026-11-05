@@ -1591,7 +1591,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "tireRadiusM": 0.18, "wheelMassKg": 5.0
+      "tire": "5.00-5", "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1607,7 +1607,7 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 800,
-      "tireRadiusM": 0.075, "wheelMassKg": 0.6
+      "tire": "legacy-233-tail", "tirePressurePsi": 6.2
     },
     {
       "pos": [

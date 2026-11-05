@@ -1689,7 +1689,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tireRadiusM": 0.222, "wheelMassKg": 7.6
+      "tire": "6.00-6", "tirePressurePsi": 21
     },
     {
       "pos": [
@@ -1705,7 +1705,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tireRadiusM": 0.222, "wheelMassKg": 7.6
+      "tire": "6.00-6", "tirePressurePsi": 21
     },
     {
       "pos": [
@@ -1721,7 +1721,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "tireRadiusM": 0.1, "wheelMassKg": 1.3,
+      "tire": "scott-8in", "tirePressurePsi": 28.6,
       "steerSpringNmPerRad": 15
     }
   ],

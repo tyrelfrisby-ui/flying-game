@@ -45,9 +45,16 @@ namespace FlyingGame.Core;
 public static class WheelHydro
 {
     public const double WaterDensityKgM3 = 1000.0;
-    /// <summary>Tyre width as a fraction of its diameter. A 31×13 bushwheel is 0.42; a 6.00-6 on a light
-    /// single is about 0.34; an 8.00-6 is 0.36. One number for all.</summary>
+    /// <summary>Tyre width as a fraction of its diameter, for a leg with no catalog tyre. A 31×13 bushwheel is 0.42; a
+    /// 6.00-6 on a light single is 0.36; an 8.00-6 is 0.41. A catalog tyre uses its own section width.</summary>
     public const double WidthPerDiameter = 0.38;
+
+    /// <summary>The width of tyre the water sees on this leg (all its tyres side by side).</summary>
+    public static double WidthOf(AircraftConfig c, GearConfig g)
+    {
+        TireSpec? t = TireCatalog.Of(g);
+        return t != null ? t.SectionWidthM * t.Count : 2 * LandingGear.TireRadiusOf(c, g) * WidthPerDiameter;
+    }
     /// <summary>The planing pressure coefficient behind Horne's law: ½ρV_p²·C = p with V_p = 9√p kt (see the class).</summary>
     public static readonly double PressureCoefficient = 2.0 * 6894.76 / (WaterDensityKgM3 * System.Math.Pow(9.0 * 0.514444, 2));
     /// <summary>Cross-flow drag coefficient of the tyre's wetted planform moving up or down through the surface.</summary>
@@ -60,19 +67,9 @@ public static class WheelHydro
     /// </summary>
     public static double TirePressurePsi(AircraftConfig c, GearConfig g)
     {
-        // The type's own table first — the AFM figure, or the owner's weight rule, and half of it on
-        // bushwheels. The size-based estimate below is only the last resort. Whichever it is, it is held to
-        // the least pressure that can carry the leg's load at all (FootprintFloorPsi).
-        double table = TirePressure.Psi(c, g, c.Bushwheels);
-        if (table > 0) return System.Math.Max(table, FootprintFloorPsi(c, g));
-        if (g.TirePressurePsi > 0) return System.Math.Max(g.TirePressurePsi, FootprintFloorPsi(c, g));
-        double r = LandingGear.TireRadiusOf(c, g);
-        double mass = c.Mass != null ? c.Mass.MassKg : 800;
-        double width = 2 * r * WidthPerDiameter;
-        double patchM2 = width * (0.55 * r);
-        double perWheelN = mass * 9.81 / 2.2;                  // the mains carry most of it
-        double pa = perWheelN / System.Math.Max(1e-4, patchM2);
-        return System.Math.Clamp(pa / 6894.76, 6.0, 260.0);    // Pa → psi, held to what tyres really run
+        // The leg's own figure (every config states one), else the catalog tyre's typical, else the owner's rule —
+        // held to the least pressure that can carry the leg's load at all (FootprintFloorPsi).
+        return System.Math.Max(TirePressure.Psi(c, g), FootprintFloorPsi(c, g));
     }
 
     /// <summary>
@@ -125,7 +122,7 @@ public static class WheelHydro
     /// √(2(W − ρ g b π r²/2)/(ρ C b r)).</summary>
     public static double DigInSpeedMs(AircraftConfig c, GearConfig g, double loadN)
     {
-        double r = LandingGear.TireRadiusOf(c, g), b = 2 * r * WidthPerDiameter;
+        double r = LandingGear.TireRadiusOf(c, g), b = WidthOf(c, g);
         double net = System.Math.Max(0.0, loadN - WaterDensityKgM3 * 9.81 * b * System.Math.PI * r * r / 2);
         return System.Math.Sqrt(2 * net / (WaterDensityKgM3 * PressureCoefficient * b * r));
     }
@@ -153,7 +150,7 @@ public static class WheelHydro
         if (depthM <= 0) return Vec3.Zero;
 
         double r = LandingGear.TireRadiusOf(c, g);
-        double b = 2 * r * WidthPerDiameter;
+        double b = WidthOf(c, g);
         double h = System.Math.Min(depthM, 2 * r);
         double cosPhi = System.Math.Clamp(1 - h / r, -1, 1);
         double phi = System.Math.Acos(cosPhi), sinPhi = System.Math.Sin(phi);

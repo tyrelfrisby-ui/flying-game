@@ -578,3 +578,10 @@ skin ran through the front cockpit: white and red outside paint, seen from insid
 what the eye sees, not only whether it can see out: cast rays from the seat eye and fail any that reach exterior paint
 without passing through glass first (`ExtraCanopySealTests`). And place the liner's top ON the glass edge — 2 mm short
 left a slot rays slipped through.
+### A wait-for-the-build-slot loop must not match other lanes' wait loops
+On 2026-11-04 the flight-recorder lane waited four hours for a free slot that never came: its `ps | grep -E
+"…deploy(-quest)?\.sh…"` also matched every OTHER agent's waiting shell (`/bin/zsh -c source … until … deploy.sh …`),
+whose command lines contain the same words, and theirs matched mine. Every lane saw every other lane's wait loop as a
+running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
+the start of the command line so only real build processes count:
+`'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.

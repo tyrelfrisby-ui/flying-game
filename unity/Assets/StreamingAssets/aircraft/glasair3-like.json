@@ -1409,7 +1409,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.18, "wheelMassKg": 4.6
+      "tire": "5.00-5", "tirePressurePsi": 19.2
     },
     {
       "pos": [
@@ -1425,7 +1425,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.18, "wheelMassKg": 5.6
+      "tire": "5.00-5", "tirePressurePsi": 44.7
     },
     {
       "pos": [
@@ -1441,7 +1441,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.18, "wheelMassKg": 5.6
+      "tire": "5.00-5", "tirePressurePsi": 44.7
     }
   ],
   "limits": {

@@ -1512,7 +1512,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "tireRadiusM": 0.28, "wheelMassKg": 10,
+      "tire": "8.00-6", "tirePressurePsi": 20,
       "gearType": "spring-steel"
     },
     {
@@ -1529,7 +1529,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "tireRadiusM": 0.28, "wheelMassKg": 10,
+      "tire": "8.00-6", "tirePressurePsi": 20,
       "gearType": "spring-steel"
     },
     {
@@ -1546,7 +1546,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "tireRadiusM": 0.1, "wheelMassKg": 1.5,
+      "tire": "scott-8in", "tirePressurePsi": 31.8,
       "steerSpringNmPerRad": 20
     }
   ],

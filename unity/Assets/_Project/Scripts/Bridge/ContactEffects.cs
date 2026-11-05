@@ -111,7 +111,7 @@ namespace FlyingGame.Bridge
                 float level = Level(s.PowerW);
                 (float pitch, Color dust) = Look(s.SurfaceCode);
                 _audio[i].transform.position = at;
-                _audio[i].volume = level * FlightAudio.MasterVolume;
+                _audio[i].volume = level * FlightAudio.MasterVolume * FlyingGame.Core.GroundSoundMix.OutputGain;   // the ground bus
                 _audio[i].pitch = pitch * (0.85f + 0.3f * Mathf.Clamp01((float)s.SlipMs / 40f));
                 if (!_audio[i].isPlaying) _audio[i].Play();
                 _dust[i].transform.position = at;
