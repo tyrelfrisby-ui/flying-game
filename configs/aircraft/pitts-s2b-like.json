@@ -2201,7 +2201,8 @@
   "limits": {
     "vneMs": 90,
     "gMax": 6.0,
-    "gMin": -3.0
+    "gMin": -5.0,
+    "gMinSource": "Ty 2026-11-05 06:29: 'Make the Pitts negative limit -5 so it is more fun the s2c was negative 5' (Pitts S-2C: +6 / -5 g aerobatic). Was -3.0 (S-2B)."
   },
   "loading": {
     "emptyMassKg": 0.0,

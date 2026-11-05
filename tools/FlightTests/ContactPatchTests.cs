@@ -218,23 +218,43 @@ public class ContactPatchTests : IDisposable
     [Fact]
     public void MediumTipStrikeLeavesASmallSetWithACrunch()
     {
-        // Between its yield (limit) and ultimate moments a spruce spar takes a set of a fraction of a degree (it is short
-        // of its peak, 0.007 rad, MemberMaterials) and stays on: Ty 2026-11-05 replaced the 11-03 fixed 5° set.
+        // Past 1.5 × its limit moment (Ty 2026-11-05: permanent deformation begins after 1.5 × limit) and short of its
+        // ultimate a spruce spar takes a set of a fraction of a degree (it is short of its peak, 0.007 rad,
+        // MemberMaterials) and stays on: Ty 2026-11-05 replaced the 11-03 fixed 5° set.
         var c = Load("pitts-s2b-like");
         WorldTerrain.Active = null;
-        var ac = BankedOntoRightTip(c, 35, 20.0, 0.8);
+        var ac = BankedOntoRightTip(c, 35, 20.0, SetSinkMs);
         var ev = new List<ContactEvent>(); ac.Contact += ev.Add;
         var sim = new SimLoop(ac);
         for (double t = 0; t < 0.6; t += 0.005) sim.RunFor(0.005, new ControlInputs(0, 0, 0, 1.0));
         WingPanel p = Panel(ac, AirframeComponent.WingTipLowerRight);
-        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against limit {p.LimitNm:F0}, ultimate {p.UltimateNm:F0}; bend {p.BendRad / Deg:F3}°, twist {p.TwistRad / Deg:F3}°; events {string.Join(" | ", ev)}");
+        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against limit {p.LimitNm:F0} (yield {p.Bending!.YieldNm:F0}), ultimate {p.UltimateNm:F0}; bend {p.BendRad / Deg:F3}°, twist {p.TwistRad / Deg:F3}°; events {string.Join(" | ", ev)}");
         Assert.Contains(ev, e => e.Kind == ContactEventKind.PanelBent && e.Component == AirframeComponent.WingTipLowerRight);
         Assert.Equal(PanelState.Bent, p.State);
-        Assert.InRange(p.PeakContactNm, p.LimitNm, p.UltimateNm);
+        Assert.InRange(p.PeakContactNm, 1.5 * p.LimitNm, p.UltimateNm);
         Assert.InRange(Math.Abs(p.BendRad) / Deg, 0.001, 0.4);
         Assert.False(p.Bending!.Damaged, "short of its ultimate the spar has not cracked");
         Assert.False(ac.IsLost(AirframeComponent.WingTipLowerRight));
         Assert.Equal(PanelState.Intact, Panel(ac, AirframeComponent.WingTipRight).State);   // the upper wing is untouched
+    }
+
+    private const double SetSinkMs = 1.0;
+
+    [Fact]
+    public void ATipStrikeBetweenTheLimitAndOnePointFiveTimesItIsElastic()
+    {
+        // Ty 2026-11-05: "After 1.5 limit load permanent deformation begins." The same touch at 0.8 m/s asks the Pitts'
+        // lower station for 1.37 × its limit moment: it flexes and springs back.
+        var c = Load("pitts-s2b-like");
+        WorldTerrain.Active = null;
+        var ac = BankedOntoRightTip(c, 35, 20.0, 0.8);
+        var sim = new SimLoop(ac);
+        for (double t = 0; t < 0.6; t += 0.005) sim.RunFor(0.005, new ControlInputs(0, 0, 0, 1.0));
+        WingPanel p = Panel(ac, AirframeComponent.WingTipLowerRight);
+        _out.WriteLine($"peak {p.PeakContactNm:F0} N·m against limit {p.LimitNm:F0}; bend {p.BendRad / Deg:F4}°");
+        Assert.InRange(p.PeakContactNm, p.LimitNm, 1.5 * p.LimitNm);
+        Assert.Equal(PanelState.Intact, p.State);
+        Assert.Equal(0.0, p.BendRad, 12);
     }
 
     [Fact]

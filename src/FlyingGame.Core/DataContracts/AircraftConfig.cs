@@ -917,6 +917,8 @@ public sealed class LimitsConfig
     /// <summary>LIMIT load factors (g): the loads the structure must carry without permanent deformation.</summary>
     public double GMax { get; set; } = 10;
     public double GMin { get; set; } = -10;
+    /// <summary>Where the limit load factors came from (documentation only).</summary>
+    public string GMinSource { get; set; } = "";
 
     /// <summary>Where the airframe starts to COMPLAIN, as a multiple of the limit load (owner 2026-10-31: "make the
     /// wings pop and groan above 1.5 limit load"). Real certification has no such band — a limit load is the load the
@@ -989,6 +991,28 @@ public sealed class LimitsConfig
         if (MaxNonLiftingMassKg <= 0.0) return 1.0;
         double nonLifting = massKg - LiftingMassKg;
         return nonLifting > MaxNonLiftingMassKg ? MaxNonLiftingMassKg / nonLifting : 1.0;
+    }
+
+    /// <summary>
+    /// How heavily the WINGS (and the horizontal tail) are loaded against what their limit load factors were rated for,
+    /// as a multiple (Ty 2026-11-05 overstress pattern: "this accounts for actual weight so it could be higher than
+    /// published if flying light weight"): the wing root bending is n x the weight it carries, so the same g at half the
+    /// weight is half the bending. A type that states its certificated non-lifting mass (a sailplane) is measured on that:
+    /// (m - wings) / max non-lifting. Otherwise m / gross, the gross being the placard's maximum take-off mass, else the
+    /// config's authored mass (which is the gross for every type that has no placard). 1 = exactly at gross.
+    /// </summary>
+    public double WingWeightRatio(double massKg, double grossKg)
+    {
+        if (MaxNonLiftingMassKg > 0.0) return Math.Max(0.0, massKg - LiftingMassKg) / MaxNonLiftingMassKg;
+        return grossKg > 1e-9 ? massKg / grossKg : 1.0;
+    }
+
+    /// <summary>The active category's limit load factors at or below VA, with no airbrake and no weight adjustment: the
+    /// published numbers the overstress pattern is measured against.</summary>
+    public (double Pos, double Neg) PublishedLimits()
+    {
+        LoadCategoryConfig c = Active();
+        return (c.GMax > 0.0 ? c.GMax : 10.0, c.GMin < 0.0 ? c.GMin : -10.0);
     }
 
     /// <summary>The limit load factors (positive, negative) at this indicated airspeed, airbrake deflection and total

@@ -385,7 +385,12 @@ namespace FlyingGame.Bridge
         /// all, <see cref="DetachComponent"/> finds the pivot in <see cref="_bentPanels"/> and lets it go as the debris.
         /// The tail's control surfaces stop following the stick once bent (the rig is frozen by the cut).
         /// </summary>
-        public void ShowFuselageBend(FlyingGame.Core.FuselageCrush crush, AircraftConfig cfg)
+        public void ShowFuselageBend(FlyingGame.Core.FuselageCrush crush, AircraftConfig cfg) => ShowFuselageBend(crush, cfg, crush?.NoseBendRad ?? 0.0);
+
+        /// <summary>The same, with the engine drooped by <paramref name="noseRad"/> about its station (+ = nose down): the crush's
+        /// bend plus the engine mount's overstress shape (Aircraft.EngineSagRad, Ty 2026-11-05). Once cut onto its pivot the
+        /// nose follows the droop back up when an elastic flex comes off.</summary>
+        public void ShowFuselageBend(FlyingGame.Core.FuselageCrush crush, AircraftConfig cfg, double noseRad)
         {
             if (_builder == null || cfg == null || crush == null) return;
             (double noseCut, double tailCut) = FlyingGame.Core.AirframeContact.FuselageStations(cfg);
@@ -397,11 +402,12 @@ namespace FlyingGame.Bridge
                 // Root-local x = sim y, y = up, z = sim x: the tail (toward −z) goes up for + about +x, right for − about +y.
                 if (t != null) t.localRotation = Quaternion.AngleAxis(-(float)crush.TailBendYawRad * Deg, Vector3.up) * Quaternion.AngleAxis((float)crush.TailBendPitchRad * Deg, Vector3.right);
             }
-            if (System.Math.Abs(crush.NoseBendRad) > 0.003
+            bool nosePivot = _bentPanels.TryGetValue(FlyingGame.Core.AirframeComponent.Nose, out Transform np) && np != null;
+            if ((System.Math.Abs(noseRad) > 0.003 || nosePivot)
                 && !(_driver?.Sim?.Aircraft?.LostComponents.Contains(FlyingGame.Core.AirframeComponent.Nose) ?? true))
             {
                 Transform t = BendPivot(FlyingGame.Core.AirframeComponent.Nose, noseCut, cfg);
-                if (t != null) t.localRotation = Quaternion.AngleAxis((float)crush.NoseBendRad * Deg, Vector3.right);   // nose (+z) down
+                if (t != null) t.localRotation = Quaternion.AngleAxis((float)noseRad * Deg, Vector3.right);   // nose (+z) down
             }
         }
 
@@ -516,7 +522,8 @@ namespace FlyingGame.Bridge
                 _bentPieces[p.Component] = pieces;
                 _bentShown.Remove(p.Component);
             }
-            var shape = new Vector3((float)(p.BendRad + p.ElasticRad), (float)p.TwistRad, 0f);
+            double flex = p.ElasticRad + p.FlightFlexRad;   // a tip contact's flex and the wings' flex under g (Ty 2026-11-05)
+            var shape = new Vector3((float)(p.BendRad + flex), (float)p.TwistRad, 0f);
             if (_bentShown.TryGetValue(p.Component, out Vector3 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f && Mathf.Abs(shape.y - shown.y) < 1e-3f) return;
             _bentShown[p.Component] = shape;
             if (!_bentPieces.TryGetValue(p.Component, out List<BentPiece> list)) return;
@@ -528,10 +535,75 @@ namespace FlyingGame.Bridge
                 {
                     // Root-local x = sim y, y = up (−sim z), z = sim x.
                     Vector3 r = bp.StraightRoot[i];
-                    FlyingGame.Core.MathTypes.Vec3 d = p.Deform(new FlyingGame.Core.MathTypes.Vec3(r.z, r.x, -r.y), p.ElasticRad);
+                    FlyingGame.Core.MathTypes.Vec3 d = p.Deform(new FlyingGame.Core.MathTypes.Vec3(r.z, r.x, -r.y), flex);
                     v[i] = bp.RootToLocal.MultiplyPoint3x4(new Vector3((float)d.Y, (float)-d.Z, (float)d.X));
                 }
                 Mesh m = bp.Filter.sharedMesh;
+                m.vertices = v;
+                m.RecalculateNormals();
+                m.RecalculateBounds();
+            }
+        }
+
+        /// <summary>A horizontal-tail mesh, kept with its straight vertices in the airframe root's frame.</summary>
+        private sealed class TailPiece
+        {
+            public MeshFilter Filter;
+            public Vector3[] StraightRoot;
+        }
+        private List<TailPiece> _tailPieces;
+        private float _tailShown;
+
+        /// <summary>
+        /// The horizontal tail bent by an overstress (Ty 2026-11-05; Aircraft.TailBendRad, + = tips up): every vertex of the
+        /// stabiliser and elevator meshes outboard of the centreline turns about the fore-and-aft line through the root,
+        /// by the same rotation the sim gives the tail's rows. The meshes are deformed in place (copies of their own, made
+        /// once), so the elevator keeps following the stick; a vertex is placed from the straight tail each time, through
+        /// the mesh's current pose, so the bend does not accumulate. PLACEHOLDER: a model whose tail is not a mesh of its own
+        /// (one-mesh downloads) does not bend.
+        /// </summary>
+        public void ShowTailBend(double rad)
+        {
+            if (_builder == null) return;
+            if (_tailPieces == null)
+            {
+                if (System.Math.Abs(rad) < 0.003) return;
+                _tailPieces = new List<TailPiece>();
+                foreach (GameObject part in new List<GameObject>(_builder.Parts))
+                {
+                    if (part == null) continue;
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null || !mf.sharedMesh.isReadable || !_builder.IsDebrisSource(mf)) continue;
+                        string l = BaseName(mf.name), pl = mf.transform.parent != null ? BaseName(mf.transform.parent.name) : "";
+                        bool tail = l.StartsWith("stab") || l.StartsWith("hstab") || l.StartsWith("elevator")
+                                    || pl.StartsWith("stab") || pl.StartsWith("hstab") || pl.StartsWith("elevator");
+                        if (!tail) continue;
+                        mf.sharedMesh = Object.Instantiate(mf.sharedMesh);   // our own copy: the model's mesh may be shared
+                        Matrix4x4 toRoot = transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                        Vector3[] v = mf.sharedMesh.vertices;
+                        for (int i = 0; i < v.Length; i++) v[i] = toRoot.MultiplyPoint3x4(v[i]);
+                        _tailPieces.Add(new TailPiece { Filter = mf, StraightRoot = v });
+                    }
+                }
+                _tailShown = 0f;
+            }
+            if (Mathf.Abs((float)rad - _tailShown) < 1e-3f) return;
+            _tailShown = (float)rad;
+            float c = Mathf.Cos((float)rad), sn = Mathf.Sin((float)rad);
+            foreach (TailPiece tp in _tailPieces)
+            {
+                if (tp.Filter == null || tp.Filter.sharedMesh == null) continue;
+                // Root-local x = sim y (right), y = up: a tip goes UP for + on both sides.
+                Matrix4x4 rootToLocal = (transform.worldToLocalMatrix * tp.Filter.transform.localToWorldMatrix).inverse;
+                var v = new Vector3[tp.StraightRoot.Length];
+                for (int i = 0; i < v.Length; i++)
+                {
+                    Vector3 r = tp.StraightRoot[i];
+                    float ay = Mathf.Abs(r.x), side = Mathf.Sign(r.x);
+                    v[i] = rootToLocal.MultiplyPoint3x4(new Vector3(side * ay * c, r.y + ay * sn, r.z));
+                }
+                Mesh m = tp.Filter.sharedMesh;
                 m.vertices = v;
                 m.RecalculateNormals();
                 m.RecalculateBounds();
@@ -886,6 +958,7 @@ namespace FlyingGame.Bridge
             _bentPanels.Clear();
             _bentPieces.Clear();
             _bentShown.Clear();
+            _tailPieces = null; _tailShown = 0f;
             _rigPartGone = false;
             Cockpit.Reset();
             _displays.Forget();

@@ -238,7 +238,7 @@ public sealed partial class Aircraft
         if (_panels.Count == 0) return;
         bool any = false;
         for (int i = 0; i < _panels.Count && !any; i++)
-            if (_panels[i].ContactRecorded || _panels[i].State == PanelState.Bent || (i < _panelWaterUp.Length && _panelWaterUp[i] != 0)) any = true;
+            if (_panels[i].ContactRecorded || StruckDamaged(_panels[i]) || (i < _panelWaterUp.Length && _panelWaterUp[i] != 0)) any = true;
         if (!any)
         {
             for (int i = 0; i < _panels.Count; i++) _panels[i].ElasticRad = 0.0;
@@ -252,7 +252,9 @@ public sealed partial class Aircraft
             double water = k < _panelWaterUp.Length ? _panelWaterUp[k] : 0.0;
             bool contact = w.ContactRecorded;
             bool touched = contact || water != 0;
-            bool damaged = w.State == PanelState.Bent;
+            // Damaged by a STRIKE (its hinges have yielded): the air's load then works on what the strike left. A panel
+            // only bent by an overstress is the wings' business (StructuralState.Wings), not its hinges' twice over.
+            bool damaged = StruckDamaged(w);
             double air = touched || damaged ? AeroLoadFactorZ * w.M1Nm : 0.0;
             double up = contact ? w.RawUpNm : 0.0, tw = contact ? w.RawTwistNm : 0.0;
             double kUp = contact ? w.KUpSpring + (dt > 0 ? w.KUpDamp / dt : 0.0) : 0.0;
@@ -295,6 +297,8 @@ public sealed partial class Aircraft
         }
     }
 
+    private static bool StruckDamaged(WingPanel w) => (w.Bending?.PathRad ?? 0.0) > 0.0 || (w.Twisting?.PathRad ?? 0.0) > 0.0;
+
     private static void ClearRecorded(WingPanel w)
     {
         w.ContactRecorded = false; w.RawUpNm = 0; w.RawTwistNm = 0; w.ContactScale = 1.0;
@@ -334,7 +338,8 @@ public sealed partial class Aircraft
     private void SetBend(int k)
     {
         WingPanel w = _panels[k];
-        w.BendRad = w.Bending?.SetRad ?? w.BendRad;
+        // The set is the hinges' (a strike) plus the wings' overstress set (StructuralState.Wings, AircraftOverstress).
+        w.BendRad = (w.Bending?.SetRad ?? 0.0) + w.OverstressSetRad;
         w.TwistRad = w.Twisting?.SetRad ?? w.TwistRad;
         foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Deform(b0);
         _flowState.BendRad ??= new double[_stripTotal];
@@ -347,8 +352,8 @@ public sealed partial class Aircraft
         {
             StripConfig st = _stripAt[i]!;
             Vec3 pos = st.PosVec();
-            _flowState.BendRad[i] = w.BendRad;
-            _flowState.BendOffset[i] = w.Deform(pos) - pos;
+            _flowState.BendRad[i] = w.BendRad + w.FlightFlexRad;
+            _flowState.BendOffset[i] = w.Deform(pos, w.FlightFlexRad) - pos;
             inc[i] = w.TwistRad * w.SpanFraction(Math.Abs(pos.Y));
             SetSkinDamage(i, skin);
         }
