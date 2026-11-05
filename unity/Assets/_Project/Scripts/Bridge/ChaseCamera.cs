@@ -65,7 +65,7 @@ namespace FlyingGame.Bridge
             // a cartwheeling wreck is its bounces and then its nose, not a direction to look along.
             if (FlyingGame.Core.CrashFraming.OpensCrashView(hit) == false || Target == null) return;
             // Split screen: crash events carry no aircraft, so each camera takes only the pieces near its own aeroplane
-            // (the other player's crash must not swing this player's view onto his wreck).
+            // (the other player's crash must not swing this player's view onto that wreck).
             if (LocalSplit.Active && (CoordinateMap.ToUnity(hit.Position) - Target.position).sqrMagnitude > SplitCrashRadiusM * SplitCrashRadiusM) return;
             _crashView = true;
             _crashAircraft = Driver?.Sim?.Aircraft;

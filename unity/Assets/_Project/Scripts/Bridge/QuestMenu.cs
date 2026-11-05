@@ -233,14 +233,14 @@ namespace FlyingGame.Bridge
             AddRow(() => $"Aircraft:  {AircraftName(SessionSettings.AircraftId)}" + (!OnLanding && Driver != null && Driver.AircraftId != SessionSettings.AircraftId ? "   (restart to fly it)" : ""),
                 () => CycleAircraft(1), CycleAircraft);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
-            // MULTIPLAYER (Ty 2026-11-05: "two Quest users on the same Wi-Fi, each in his own headset"): Solo or the
+            // MULTIPLAYER (Ty 2026-11-05: two Quest users on the same Wi-Fi, each in their own headset): Solo or the
             // "Same network" room, the one the phones, iPads and Macs join from their landing page (LanMesh: no
             // server, no internet, nothing billed). Each headset flies its own aeroplane with its own full view; the
             // others are drawn as they fly. Takes effect on FLY / restart. In flight the next row says who is there.
-            AddRow(() => $"Multiplayer:  {MultiplayerName()}" + (!OnLanding && Net != null && Net.Active != (SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo) ? "   (restart to join)" : ""),
+            AddRow(() => $"Multiplayer:  {MultiplayerName()}" + (!OnLanding && Session != null && Session.Active != (SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo) ? "   (restart to join)" : ""),
                 () => CycleMultiplayer(1), CycleMultiplayer);
-            AddRow(() => $"   {Net?.StatusLine ?? "Same network: starting"}", null,
-                visible: () => !OnLanding && Net != null && Net.Active);
+            AddRow(() => $"   {Session?.StatusLine ?? "Same network: starting"}", null,
+                visible: () => !OnLanding && Session != null && Session.Active);
             AddRow(() => $"Seat:  {SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId))}",
                 () => CycleSeat(1), CycleSeat, () => SeatsOf(SeatAircraftId).Count > 1);
             // VIEWS (Ty 2026-11-04: "no views are available except 'outside' which is actually cockpit"). The row used to
@@ -693,8 +693,8 @@ namespace FlyingGame.Bridge
             SessionSettings.AircraftId = fleet[((i < 0 ? 0 : i) + step + fleet.Length) % fleet.Length].id;
         }
 
-        private Net.NetSession _net;
-        private Net.NetSession Net => _net != null ? _net : Driver != null ? (_net = Driver.GetComponent<Net.NetSession>()) : null;
+        private FlyingGame.Bridge.Net.NetSession _net;
+        private FlyingGame.Bridge.Net.NetSession Session => _net != null ? _net : Driver != null ? (_net = Driver.GetComponent<FlyingGame.Bridge.Net.NetSession>()) : null;
 
         /// <summary>The headset offers Solo and the LAN room only: the online rooms are the relay's, chosen on a flat screen.</summary>
         private static string MultiplayerName() => SessionSettings.Multiplayer switch

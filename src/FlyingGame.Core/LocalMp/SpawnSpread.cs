@@ -7,11 +7,11 @@ namespace FlyingGame.Core.LocalMp;
 /// this the second pilot to arrive appeared in the first pilot's cockpit.
 ///
 /// No new protocol and no host: each state packet already carries flags, and a pilot's flags now carry how long ago
-/// he spawned (<c>NetFlags.a</c>). In the first <see cref="WindowS"/> seconds of a flight, a pilot who finds somebody
+/// the flight began (<c>NetFlags.a</c>). In the first <see cref="WindowS"/> seconds of a flight, a pilot who finds somebody
 /// within <see cref="ClearRadiusM"/> moves himself to the first free formation slot (<see cref="FormationSlot"/>:
 /// abreast on the right in the air, in line ahead on a runway or the water), once. Who moves:
 ///   • the newcomer, when the other has been flying longer than the window (or sends no age: an older build, or the
-///     relay of a room that drops it) — the pilot already flying is never moved under his hands;
+///     relay of a room that drops it) — the pilot already flying is never moved mid-flight;
 ///   • when both are new, the one whose id sorts LATER (ordinal), so exactly one of the two moves and both devices agree
 ///     without talking about it.
 /// </summary>
@@ -27,7 +27,7 @@ public static class SpawnSpread
     /// <summary>Closer than this, centre to centre, and the two are in each other's way: half a formation gap at the tips.</summary>
     public static double ClearRadiusM(double spanM) => Math.Max(1.0, spanM) + 0.5 * FormationSlot.WingtipGapM;
 
-    /// <summary>Another pilot: sim world position (x north, y east, z down) and his flight's age, if he sent one.</summary>
+    /// <summary>Another pilot: sim world position (x north, y east, z down) and the age of that pilot's flight, if it was sent.</summary>
     public readonly struct Other
     {
         public readonly string Id;
@@ -42,7 +42,7 @@ public static class SpawnSpread
         return dx * dx + dy * dy < clear * clear && Math.Abs(az - bz) < ClearHeightM;
     }
 
-    /// <summary>Should this pilot move? Only inside his window, only for someone near, and only if it is his turn.</summary>
+    /// <summary>Should this pilot move? Only inside this pilot's window, only for someone near, and only if it is this pilot's turn.</summary>
     public static bool ShouldMove(string selfId, double selfAgeS, double x, double y, double z, IReadOnlyList<Other> others, double clearM)
     {
         if (selfAgeS > WindowS) return false;
@@ -50,7 +50,7 @@ public static class SpawnSpread
         {
             if (!Near(x, y, z, o.X, o.Y, o.Z, clearM)) continue;
             bool otherIsNew = o.AgeS.HasValue && o.AgeS.Value <= WindowS;
-            if (!otherIsNew) return true;                                   // he was here first
+            if (!otherIsNew) return true;                                   // the other was here first
             if (string.CompareOrdinal(selfId, o.Id) > 0) return true;       // both new: the later id moves
         }
         return false;

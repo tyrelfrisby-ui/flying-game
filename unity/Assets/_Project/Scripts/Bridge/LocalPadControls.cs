@@ -3,7 +3,7 @@ using UnityEngine;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// LOCAL 2-PLAYER: the second player's hands — his gamepad (<see cref="GamepadInput.For"/>) and nothing else. The
+    /// LOCAL 2-PLAYER: the second player's hands — their gamepad (<see cref="GamepadInput.For"/>) and nothing else. The
     /// flying is <see cref="FlyingGame.Sim.LocalPadPilot"/> (Core-tested, the same numbers as the first player's pad
     /// path); this reads the pad, hands the result to the driver and works the buttons. Same mapping as P1's pad:
     /// right stick roll / pitch, left stick X + triggers rudder, left stick Y and RB / LB power, d-pad up / down trim,

@@ -5,7 +5,7 @@ namespace FlyingGame.Core.LocalMp;
 /// (x, y, w, h in 0..1, origin BOTTOM-left: Unity's <c>Camera.rect</c>).
 ///
 /// Landscape (every phone and iPad held for two pads): side by side, P1 on the LEFT, P2 on the right, each the full
-/// height — the two players sit side by side on the couch, so each looks at the half on his side, and an aeroplane's
+/// height — the two players sit side by side on the couch, so each looks at the half on their side, and an aeroplane's
 /// view is wider than tall anyway. Portrait: P1 on TOP, P2 below. One player: the whole screen
 /// (the single-player rect is whatever the caller already had).
 ///

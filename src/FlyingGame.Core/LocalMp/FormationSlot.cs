@@ -7,7 +7,7 @@ namespace FlyingGame.Core.LocalMp;
 /// In the air: abreast on the right, the same heading, height and speed, with <see cref="WingtipGapM"/> between the
 /// wingtips (centre to centre = span + gap). On a runway or on the water: in line on the same centreline,
 /// <see cref="TrailGapM"/> plus a length AHEAD — a runway is 20–45 m wide, so abreast would put one of them on the grass,
-/// and a lake's edge is closer than a span in places; and the first player starts at the threshold, so behind him is
+/// and a lake's edge is closer than a span in places; and the first player starts at the threshold, so behind that aeroplane is
 /// off the end of the runway. Every start the game makes on a surface faces down a runway or across open water.
 /// </summary>
 public static class FormationSlot

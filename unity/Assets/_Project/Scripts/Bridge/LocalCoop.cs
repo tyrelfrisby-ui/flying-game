@@ -8,8 +8,8 @@ namespace FlyingGame.Bridge
     /// player's flight starts with <see cref="LocalSplit.Enabled"/> on, and takes them away when it starts with it off.
     ///
     /// What the second player gets: a full aeroplane of the same type (its own FlightSimDriver, airframe, shadow, damage,
-    /// sound, smoke and seat) flown by his own pad (<see cref="LocalPadControls"/>); his own chase camera on his half
-    /// of the screen with its own views; the green HUD on his half when the instruments are set to HUD, and his line
+    /// sound, smoke and seat) flown by their own pad (<see cref="LocalPadControls"/>); their own chase camera on their half
+    /// of the screen with its own views; the green HUD on their half when the instruments are set to HUD, and their line
     /// (<see cref="LocalPlayerHud"/>). He starts abreast on the right, 30 m tip to tip (on a runway or the water: in
     /// trail; FormationSlot).
     ///
