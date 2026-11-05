@@ -226,18 +226,26 @@ namespace FlyingGame.EditorTools
                     {
                         ArmOut L = after ? al : bl, R = after ? ar : br;
                         VrPilotBody.LegacyArmsForTesting = !after;
-                        body.PlaceRoot(0.5f * (hipL + hipR), air.rotation);
+                        // A FRESH body for every picture: in a batch editor a SkinnedMeshRenderer skins once per editor
+                        // frame, so re-posing one body and rendering again shows its FIRST pose (the 2026-11-04 renders
+                        // came out identical that way while the bones measured right).
+                        var shot = new VrPilotBody();
+                        shot.SetVisible(true);
+                        shot.PlaceRoot(0.5f * (hipL + hipR), air.rotation);
                         var p = new VrPilotBody.Pose
                         {
                             Up = air.up, CurlL = 1f, CurlR = 1f,
                             ShoulderL = L.S, ElbowL = L.E, WristL = L.Wr, GripL = L.G, HandRotL = after ? L.Rot : VrPilotBody.RestGripRot(true),
                             ShoulderR = R.S, ElbowR = R.E, WristR = R.Wr, GripR = R.G, HandRotR = after ? R.Rot : VrPilotBody.RestGripRot(false),
                         };
-                        Legs(body, ref p, builder, seat.Id, eye, proxy, hipL, hipR);
-                        body.Apply(p);
-                        if (body.TryBone("R_LowerArm", out Vector3 bl0) && body.TryBone("R_Hand", out Vector3 bh0) && body.TryBone("L_LowerArm", out Vector3 bl1) && body.TryBone("L_Hand", out Vector3 bh1))
+                        Legs(shot, ref p, builder, seat.Id, eye, proxy, hipL, hipR);
+                        shot.Apply(p);
+                        if (shot.TryBone("R_LowerArm", out Vector3 bl0) && shot.TryBone("R_Hand", out Vector3 bh0) && shot.TryBone("L_LowerArm", out Vector3 bl1) && shot.TryBone("L_Hand", out Vector3 bh1))
                             Debug.Log($"[VrArms] {(after ? "after" : "before")} {id}/{seatId} {name}: posed bones vs solved joints — R elbow {Vector3.Distance(bl0, R.E) * 1000:F0} mm, R wrist {Vector3.Distance(bh0, R.Wr) * 1000:F0} mm, L elbow {Vector3.Distance(bl1, L.E) * 1000:F0} mm, L wrist {Vector3.Distance(bh1, L.Wr) * 1000:F0} mm");
+                        body.SetVisible(false);
                         Shoot(air, eye, p, $"{(after ? "after" : "before")}-{id}-{seatId}-{Slug(name)}", dir);
+                        shot.Destroy();
+                        body.SetVisible(true);
                     }
                     VrPilotBody.LegacyArmsForTesting = false;
                 }
