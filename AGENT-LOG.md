@@ -1,4 +1,57 @@
 ## NEEDS YOU
+- **ISLAND WEATHER: FOG SITS IN VALLEYS BY CONDITION, ONE SEEDED STATE, AIRPORT ASOS/AWOS STATIONS WITH METARs
+  (Claude, lane A, 2026-11-05; Ty 08:41 + 08:42; lane/claude-wake-vortex, NOT merged, NOT installed. Nothing approved
+  by me.)** Doc: `docs/weather-system.md`. Code: `src/FlyingGame.Core/Weather/`. Questions Q106-Q108 in the queue.
+  - **TWO QUESTIONS FOR YOU (Q106, Q107):** (1) **Which real-weather source** should bias the island: Open-Meteo (free,
+    no key, hourly T/Td/wind/pressure/cloud), NOAA aviationweather.gov METARs (no key, US stations only), or another?
+    Only an offline stub exists (`OfflineWeatherProvider`); no network code was written. (2) **Where is the island
+    notionally?** Give a lat/lon and time zone: they set the sun, the season, the METAR Z time and the default
+    real-weather place. The placeholder is 45 N 116 W, UTC-8 (Idaho-ish, to match Payette and Frank Church). Or should
+    the host's own location be used for the whole session?
+  - **Q108: the default session has almost no fog now.** Fog is decided by the conditions. The landing page's default
+    wind of 5 m/s mixes out radiation fog everywhere, so a default session shows fog only where advection fog forms. A
+    calm, humid morning shows valley fog. Should the island weather choose the default wind and temperature (and the
+    flight model read its temperature/QNH, doc W1), or should the fixed menu wind stay the default?
+  - **Fog (task a).** Fog can lie at 30 sites: every grass strip, every lake, and 7 valley floors found from the
+    terrain. The weather decides which carry fog, re-read every 5 s by GroundFog. Radiation fog needs a spread under
+    2.5 K, wind under ~4.5 m/s, a clear sky and the night's cooling. A calm, clear night pools up to 6 K of cold air in
+    a valley 220 m deep, and ridges drain it (up to +3 K). Lakes moisten the air over them. The sun burns the fog off
+    over 2.5 h at a 60° noon sun, 4.5 h in November at 45 N. Advection fog forms where the dewpoint is at or above the
+    water's temperature, with a breeze. Measured on seed 1103 at 07:00 (calm, clear, humid): fog 1.0 in the Frank
+    Church canyon strips and all 7 valley pools, 0.0 on the 1500 m plateau strips and the high cirque lakes. The valleys
+    are at 0.85 by 09:00 and clear by 10:00. A 6 m/s wind gives none. CloudWakeRender forces full fog, so its renders
+    still show the wake.
+  - **One island-wide state (task b).** Built from a seed and a date only. Six-hourly hashed air-mass draws, smoothly
+    blended and quantised; a diurnal temperature curve; dewpoint; an LCL cloud base; rain; visibility. When a regional
+    field exists, the wind comes from the air the aeroplane flies, so a station reports the wind the aeroplane will
+    meet. The real-weather bias moves each quantity only 60 % of the way to the observation, clamped (±12 hPa, ±8 K,
+    ±6 m/s, ±4 K spread), rate-limited hour to hour, and always coherent (Td ≤ T). Multiplayer: the host sends the seed,
+    including any bias, and clients never fetch, so one player's local weather cannot override the island's. No secrets
+    are logged.
+  - **NOT YET WIRED (W1):** the flight model still reads the menu's fixed ISA deviation and the field's configured QNH,
+    so a station's temperature and altimeter can differ from the aeroplane's air (by the diurnal swing, up to ±5 K, and
+    by the QNH draw). The wind already matches. Closing that changes density altitude in lessons and challenges, so it
+    waits for you (Q108).
+  - **Stations (08:42 addendum).** One per airport, 16: ASOS at the 8 airports the chart draws, AWOS-3 at the other 8.
+    Each has a unique 25 kHz channel in 118.000-135.975 MHz, clear of guard, ground, FSS, CTAF/UNICOM and 123.45
+    (KMYL 123.125, PHDH 120.900). The chart's airport tag now shows "ASOS 123.125". A report is sampled from the
+    island weather at the station's point and formatted to FMH-1 rules: wind with gusts, the ASOS visibility steps,
+    -RA/RA/+RA/SN/BR/FG, FEW/SCT/BKN/OVC/VV/CLR, T/Td, the altimeter in inHg (rounded down), the Z time. It comes as a raw
+    METAR, e.g. `METAR KMYL 051500Z AUTO 18007KT 10SM FEW021 00/M05 A2999 RMK AO2`, and as AWOS voice text. Tuning a
+    COM to the frequency and playing the voice is NOT built (doc S2). Convective weather (storms, rain shafts, virga,
+    microbursts in the shared flow field, gust fronts) is designed as phases C0-C7 and not implemented.
+  - **Tests:** EditMode `IslandWeatherTests` (14 tests: valley/ridge, spread threshold, wind/sun burn-off, advection,
+    determinism, bias clamps/offline, frequency uniqueness, report consistency for 4 seeds × 16 stations × 3 times,
+    determinism, METAR/voice formatting): 14/14 PASSED in a Unity EditMode batch (11:40). The same run had 29/30
+    overall: **WakeFieldTests.LevelPairPushesTheAirDownBetweenItsLinesInUnity FAILED** (vorticity 4.32 m off the line 0.42,
+    test wants > 1). That is the earlier wake commit's own EditMode test, apparently never run in EditMode before; it
+    reads nothing this lane changed. It is open, not fixed. xUnit CloudSitesTests 5/5 (updated literals: 30 sites,
+    7 valleys). Unrelated and failing before this lane: NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs (Q104),
+    StreamingAssetsTests.EveryGeneratedPathIsIgnored / NothingGeneratedIsCommitted (stray StreamingAssets files on the
+    base).
+  - **Build:** iOS 2026.1105.1234 `** BUILD SUCCEEDED **` (deploy.sh NOINSTALL, 0 error CS; bundleVersion bump not
+    committed). Quest not built (no Quest-only code; check-parity: PARITY OK). Not installed, not merged.
+
 - **LOW CLOUD PATCHES + GROUND FOG THAT THE WAKE STIRS + MID-BAND SEAM FIXED: LOOK AT THE RENDERS (Claude, lane A,
   2026-11-05 10:40; Ty 08:39 addendum; lane/claude-wake-vortex, NOT merged, NOT installed. Nothing approved by me.)**
   Renders: `~/Developer/agent-lanes/renders/clouds-wake/`. Ty's three: (a) `low_patch_puffy.png` (+ `low_patch_wisp.png`),

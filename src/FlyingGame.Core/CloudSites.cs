@@ -6,7 +6,9 @@ namespace FlyingGame.Core;
 /// <summary>
 /// Where the low weather goes (Ty 2026-11-05 08:39: "some of the whispy layers and puffy clouds at lower altitudes too
 /// just patches here and there ... some thin fog over some grass runways and lakes on occasion"). Pure placement, no
-/// rendering: the Bridge's CloudPlayground and GroundFog draw what this picks. Seeded and deterministic, so every
+/// rendering: the Bridge's CloudPlayground and GroundFog draw what this picks. The fog sites are only where fog CAN lie
+/// (every grass strip, every lake, the valley floors that pool cold air); whether it does, and how thick, is the island
+/// weather's call (Weather.FogModel, Ty 08:41: "fog tends to sit in valleys"). Seeded and deterministic, so every
 /// device (iOS, Mac, Quest) and every session sees the same sky. Positions are Unity world metres (x east, z north,
 /// y up = altitude MSL); headings are degrees true.
 /// </summary>
@@ -46,9 +48,10 @@ public static class CloudSites
         { Puffy = puffy; X = x; Z = z; BaseM = baseM; AglM = aglM; RadiusM = radiusM; PatchSeed = patchSeed; }
     }
 
-    /// <summary>Share of the grass/turf strips and of the lakes that carry fog ("on occasion"): that many of each, by
-    /// rank of their seeded hash, so the share is exact whatever the names.</summary>
-    public const double StripFogShare = 0.34, LakeFogShare = 0.5;
+    /// <summary>Valley pools: the deepest valley floors (≥ <see cref="ValleyMinDepthM"/> below their surroundings), at
+    /// most <see cref="ValleyMax"/>, <see cref="ValleySpacingM"/> apart and clear of the strips and lakes.</summary>
+    public const double ValleyMinDepthM = 80, ValleySpacingM = 3000, ValleyRadiusM = 700, ValleyGridM = 1000;
+    public const int ValleyMax = 8;
     public const double MinAglM = 150, MaxAglM = 600;
 
     /// <summary>Stable hash in [0, 1) of a name and the seed (FNV-1a; string.GetHashCode is randomised per process).</summary>
@@ -73,7 +76,7 @@ public static class CloudSites
         var list = new List<FogSite>();
         var strips = new List<IslandField>();
         foreach (IslandField f in IslandTerrain.Fields) if (StripFinish.LiesNaturally(f.Surface) && f.Field != "DRAKE") strips.Add(f);   // grass and turf; not the cave strip
-        foreach (IslandField f in Chosen(strips, f => f.Id, StripFogShare, 1))
+        foreach (IslandField f in strips)
         {
             // The strip and a margin round it, so the fog spills off the edges onto the field.
             double surface = WorldTerrain.Active != null ? WorldTerrain.GroundHeightAt(f.Centre.X, f.Centre.Y) : f.SurfaceHeight(f.Centre);
@@ -83,7 +86,7 @@ public static class CloudSites
         }
         var lakes = new List<IslandValue>();
         foreach (IslandValue q in IslandTerrain.World["water"].Items) if (q.Has("radii_km")) lakes.Add(q);
-        foreach (IslandValue q in Chosen(lakes, q => q.S("id"), LakeFogShare, 3))
+        foreach (IslandValue q in lakes)
         {
             string id = q.S("id");
             double rx = q["radii_km"][0].Number() * 1000, ry = q["radii_km"][1].Number() * 1000;
@@ -92,20 +95,55 @@ public static class CloudSites
             list.Add(new FogSite(id, true, c.E * 1000, c.N * 1000, rx, ry, q.N("long_axis_true_deg", 90),
                 q.N("elevation_ft") * IslandTerrain.Feet, depth));
         }
+        if (WorldTerrain.Active != null) list.AddRange(PickValleys(WorldTerrain.GroundHeightAt, list));
         return list;
     }
 
-    /// <summary>The <paramref name="share"/> of <paramref name="items"/> with the lowest seeded hash, in their own order.</summary>
-    private static List<T> Chosen<T>(List<T> items, Func<T, string> id, double share, int salt)
+    /// <summary>The valley floors where a calm, clear night pools its cold air (<see cref="Weather.FogModel.ValleyDepth"/>
+    /// on a 1 km grid over the main island, dry land only), deepest first. <paramref name="ground"/> is sim (north, east).
+    /// The rings are read off a 500 m grid of the ground sampled once (6,561 lookups, not the 40,000 the exact rings at
+    /// every node would cost: a build-time stall on the Quest); 500 m is well inside the rings' 1.5 and 3 km.</summary>
+    public static List<FogSite> PickValleys(Func<double, double, double> ground, List<FogSite> taken)
     {
-        int n = (int)Math.Round(items.Count * share);
-        var rank = new List<(double h, int i)>();
-        for (int i = 0; i < items.Count; i++) rank.Add((Hash01(id(items[i]), salt), i));
-        rank.Sort((a, b) => a.h.CompareTo(b.h));
-        var keep = new bool[items.Count];
-        for (int k = 0; k < n; k++) keep[rank[k].i] = true;
-        var o = new List<T>();
-        for (int i = 0; i < items.Count; i++) if (keep[i]) o.Add(items[i]);
+        const double half = 17000, step = 500, reach = half + Weather.FogModel.RingOuterM;
+        int n0 = (int)(2 * reach / step) + 1;
+        var g = new double[n0, n0];
+        for (int i = 0; i < n0; i++)
+        for (int j = 0; j < n0; j++)
+            g[i, j] = ground(-reach + i * step, -reach + j * step);
+        double Grid(double north, double east)
+        {
+            double fi = (north + reach) / step, fj = (east + reach) / step;
+            int i = Math.Clamp((int)Math.Floor(fi), 0, n0 - 2), j = Math.Clamp((int)Math.Floor(fj), 0, n0 - 2);
+            double ti = fi - i, tj = fj - j;
+            return (g[i, j] * (1 - tj) + g[i, j + 1] * tj) * (1 - ti) + (g[i + 1, j] * (1 - tj) + g[i + 1, j + 1] * tj) * ti;
+        }
+        var cand = new List<(double depth, double x, double z)>();
+        for (double n = -half; n <= half; n += ValleyGridM)
+        for (double e = -half; e <= half; e += ValleyGridM)
+        {
+            if (Grid(n, e) < 5 || IslandTerrain.WaterAt(n, e) != null) continue;
+            double d = Weather.FogModel.ValleyDepth(Grid, n, e);
+            if (d >= ValleyMinDepthM) cand.Add((d, e, n));
+        }
+        cand.Sort((a, b) => b.depth.CompareTo(a.depth));
+        var o = new List<FogSite>();
+        foreach (var c in cand)
+        {
+            if (o.Count >= ValleyMax) break;
+            bool clear = true;
+            foreach (FogSite f in taken) if (Math.Sqrt((f.X - c.x) * (f.X - c.x) + (f.Z - c.z) * (f.Z - c.z)) < ValleySpacingM / 2 + Math.Max(f.HalfLength, f.HalfWidth)) clear = false;
+            foreach (FogSite f in o) if (Math.Sqrt((f.X - c.x) * (f.X - c.x) + (f.Z - c.z) * (f.Z - c.z)) < ValleySpacingM) clear = false;
+            if (!clear) continue;
+            // The pool's surface is the floor's lowest ground: the fog fills it from the bottom, its top level.
+            double floor = double.MaxValue;
+            for (int i = -2; i <= 2; i++)
+            for (int j = -2; j <= 2; j++)
+                floor = Math.Min(floor, ground(c.z + i * ValleyRadiusM / 2, c.x + j * ValleyRadiusM / 2));
+            if (floor < 2) continue;   // the disc runs into the sea: a coast, not a pool
+            string id = $"Valley {o.Count + 1}";
+            o.Add(new FogSite(id, true, c.x, c.z, ValleyRadiusM, ValleyRadiusM, 0, floor, 8 + 4 * Hash01(id, 5)));
+        }
         return o;
     }
 

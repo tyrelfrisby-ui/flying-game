@@ -259,9 +259,15 @@ namespace FlyingGame.EditorTools
             VortexWake.Clear();
             GroundFog fog = cp.Fog;
             int si = -1;
-            // The first strip / the largest lake.
+            // AP4 (the strip of the first renders) / the largest lake (not a valley pool). Full fog whatever the
+            // weather: this tool shows what the wake does to it, not whether it formed.
+            GroundFog.AmountOverride = 1f;
             for (int i = 0; i < fog.SiteCount; i++)
-                if (fog.Site(i).Lake == lakeSite && (si < 0 || (lakeSite && fog.Site(i).HalfLength * fog.Site(i).HalfWidth > fog.Site(si).HalfLength * fog.Site(si).HalfWidth))) si = i;
+            {
+                CloudSites.FogSite c = fog.Site(i);
+                if (c.Id.StartsWith("Valley ")) continue;
+                if (!lakeSite ? c.Id == "AP4" : c.Lake && (si < 0 || c.HalfLength * c.HalfWidth > fog.Site(si).HalfLength * fog.Site(si).HalfWidth)) si = i;
+            }
             if (si < 0) return name + ": no such site";
             CloudSites.FogSite site = fog.Site(si);
             AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("c172-like");

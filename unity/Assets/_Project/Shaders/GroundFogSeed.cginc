@@ -7,6 +7,7 @@
 #include "CloudWispSeed.cginc"
 float4 _FogSite, _FogHalf;
 float4 _FogDrift;   // the fog's wind drift so far (world X/Z m)
+float _FogAmount;   // how much fog the island weather put here, 0..1 (GroundFog.PollWeather; docs/weather-system.md)
 
 // 0 outside the site, 1 well inside; a soft, noisy edge ~60 m wide.
 float FogSiteMask(float2 world)
@@ -36,7 +37,8 @@ float2 FogColumn(float2 world)
     // A fine octave (~8 m) so a stirred patch has texture to carry and the eye can see it move.
     float n4 = WispNoise(w * float2(.13, .17) + 5.1);
     float body = saturate(.40 + 1.1 * (n2 - .5) + .6 * (n1 - .5)) * (.6 + .25 * n3 + .3 * n4);
-    return float2(top, body * FogSiteMask(world));
+    // Thinner fog is shallower too: its top comes down with the amount, its density with it.
+    return float2(top * (.45 + .55 * _FogAmount), body * _FogAmount * FogSiteMask(world));
 }
 float FogProfile(float top, float h01) { return 1 - smoothstep(top * .55, top, h01); }
 // Fog density 0..1 at a world X/Z and h01, unstirred.

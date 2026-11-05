@@ -91,9 +91,11 @@ visible wake with vortex".
 
 - **Where (Core, `CloudSites`).** Seeded (1105), deterministic on every device. *Low patches:* a jittered 3.5 km grid
   over ±21 km, one cell in five used: 13 small puffy clusters and 13 wisp patches, each 150-600 m above the HIGHEST
-  ground under it (`CloudSitesTests` pins the counts and the AGL band). *Fog:* a third of the island's turf/grass strips
-  (4 of 13; Drake's cave strip excluded) and half of its lakes (5 of 10), chosen by rank of a stable FNV/murmur hash
-  of their names: AP4, AP5, AP14, Thomas Creek; Payette Lake, Lake Powell, Bighorn Larch, Bighorn Cirque, Bighorn Crown.
+  ground under it (`CloudSitesTests` pins the counts and the AGL band). *Fog:* (superseded 2026-11-05 by docs/weather-system.md
+  "Fog", Ty 08:41) the sites are now every place fog CAN lie: all 13 turf/grass strips (Drake's cave strip excluded),
+  all 10 lakes and the 6 deepest valley floors; the island weather (`IslandWeather.FogAt`) decides which carry fog and
+  how much, every 5 s. The first renders' seeded subset (AP4, AP5, AP14, Thomas Creek; Payette, Powell, three Bighorn
+  lakes) is gone; CloudWakeRender forces full fog on AP4 and the largest lake so its renders still show the wake.
 - **Low puffy patches** are 6-12 of the bank lobes in a heap a few hundred metres across, same material and fades as the
   banks (Codex's new lobe shape applies to both). **Low wisp patches** are sheet 4 of the wake-reactive machinery: the
   patch the eye is at (within its radius + 256 m, nearer in height than a layer, within 220 m) takes the one extra

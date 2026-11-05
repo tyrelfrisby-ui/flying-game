@@ -14,15 +14,34 @@ public class CloudSitesTests
     }
 
     [Fact]
-    public void FogLiesOnSomeGrassStripsAndSomeLakesNotAll()
+    public void FogCanLieOnEveryGrassStripEveryLakeAndTheValleyPools()
     {
-        var ids = WithIsland(() => { var l = new List<string>(); foreach (var f in CloudSites.Fog) l.Add((f.Lake ? "lake:" : "strip:") + f.Id); return l; });
+        // Where fog CAN lie; whether it does is the island weather's call (Weather.FogModel; IslandWeatherTests).
+        var ids = WithIsland(() => { var l = new List<string>(); foreach (var f in CloudSites.Fog) l.Add((f.Lake ? "pool:" : "strip:") + f.Id); return l; });
         Assert.Equal(new[] {
-            "strip:AP4", "strip:AP5", "strip:AP14", "strip:Thomas Creek",
-            "lake:Payette Lake", "lake:Lake Powell", "lake:Bighorn Larch", "lake:Bighorn Cirque", "lake:Bighorn Crown" }, ids);
-        // "On occasion": 14 turf/grass strips on the island (13 without Drake's cave strip), 10 lakes.
+            "strip:3U2 19/1", "strip:KMEV 13G/31G", "strip:AP1", "strip:AP3", "strip:AP4", "strip:AP5", "strip:AP6", "strip:AP8",
+            "strip:AP14", "strip:Chamberlain", "strip:Big Creek", "strip:Thomas Creek", "strip:Sulphur Creek",
+            "pool:Payette Lake", "pool:Lake Hood", "pool:Knik ice lake", "pool:Lake Powell", "pool:Bighorn Outlet", "pool:Bighorn Shelf",
+            "pool:Bighorn Larch", "pool:Bighorn Hidden", "pool:Bighorn Cirque", "pool:Bighorn Crown",
+            "pool:Valley 1", "pool:Valley 2", "pool:Valley 3", "pool:Valley 4", "pool:Valley 5", "pool:Valley 6", "pool:Valley 7" }, ids);
+        // 14 turf/grass strips on the island (13 without Drake's cave strip), 10 lakes.
         int turf = 0; foreach (var f in IslandTerrain.Fields) if (StripFinish.LiesNaturally(f.Surface)) turf++;
         Assert.Equal(14, turf);
+    }
+
+    [Fact]
+    public void ValleyPoolsSitOnTheDeepestValleyFloors()
+    {
+        var v = WithIsland(() => new List<CloudSites.FogSite>(CloudSites.Fog).FindAll(f => f.Id.StartsWith("Valley ")));
+        // (Unity x east, z north, floor m MSL), deepest first: 701, 510, 329, 220, 174, 156, 80 m below their surroundings.
+        var want = new (double x, double z, double floor)[] { (-5000, -1000, 30.5), (2000, -6000, 15.6), (3000, 4000, 231.1),
+            (-4000, 2000, 346.5), (-7000, -5000, 147.9), (-6000, 5000, 34.8), (7000, 1000, 85.3) };
+        Assert.Equal(want.Length, v.Count);
+        for (int i = 0; i < want.Length; i++)
+        {
+            Assert.Equal(want[i].x, v[i].X, 6); Assert.Equal(want[i].z, v[i].Z, 6); Assert.Equal(want[i].floor, v[i].SurfaceM, 1);
+            Assert.Equal(CloudSites.ValleyRadiusM, v[i].HalfLength, 6);
+        }
     }
 
     [Fact]

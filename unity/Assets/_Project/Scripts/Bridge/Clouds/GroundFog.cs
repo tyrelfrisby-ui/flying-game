@@ -2,14 +2,18 @@ using System.Collections.Generic;
 using Aero.Wake;
 using FlyingGame.Bridge;
 using FlyingGame.Core;
+using FlyingGame.Core.Weather;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace FlyingGame.Clouds
 {
     /// <summary>
-    /// Thin ground fog over some grass strips and lakes (Ty 2026-11-05 08:39; sites: <see cref="CloudSites.Fog"/>;
-    /// docs/CLOUDS-WAKE-VISUALS.md "Ground fog"). Every site is one box drawn by FlyingGame/GroundFog. The site nearest
+    /// Thin ground fog over grass strips, lakes and valley floors (Ty 2026-11-05 08:39; sites: <see cref="CloudSites.Fog"/>;
+    /// docs/CLOUDS-WAKE-VISUALS.md "Ground fog"). WHETHER a site has fog, and how thick, is the island weather's call
+    /// (Ty 08:41; <see cref="IslandWeather.FogAt"/>, docs/weather-system.md "Fog"), re-read every
+    /// <see cref="WeatherPollSec"/>: valleys on a calm, clear, humid morning, gone once the sun or the wind has had it.
+    /// Every site is one box drawn by FlyingGame/GroundFog. The site nearest
     /// the eye carries a 384 m wake-stirred patch: eight slices of fog density advected (MacCormack) through the real wake
     /// (<see cref="WakeField.WriteVolumeToTexture"/>) by Hidden/FlyingGame/GroundFogAdvect at 15 Hz, the wake re-baked
     /// at 7.5 Hz. The fog is only a tracer; what it shows is what the aeroplanes' lift and thrust did to the air.
@@ -28,12 +32,18 @@ namespace FlyingGame.Clouds
         public const float DrawRangeM = 14000f;
         /// <summary>How far ahead of the eye, along its horizontal look, the patch is centred (m).</summary>
         public const float LookAheadM = 80f;
+        /// <summary>How often the weather's fog amount per site is re-read (s), and the least amount drawn.</summary>
+        public const float WeatherPollSec = 5f, MinAmount = 0.02f;
+        /// <summary>Editor tools: a fixed fog amount for every site (negative = the island weather decides).</summary>
+        public static float AmountOverride = -1f;
 
         public Camera viewCamera;
         readonly List<Object> owned = new List<Object>();
         readonly List<Renderer> boxes = new List<Renderer>();
         readonly List<Material> mats = new List<Material>();
         readonly List<CloudSites.FogSite> sites = new List<CloudSites.FogSite>();
+        readonly List<float> amounts = new List<float>();
+        float nextPoll = float.MinValue;
         RenderTexture[] fogA = new RenderTexture[2], fogB = new RenderTexture[2];
         RenderTexture wake, hatA, hatB;
         Material advect;
@@ -46,6 +56,8 @@ namespace FlyingGame.Clouds
         public int SiteCount => sites.Count;
         public int ActiveSite => active;
         public CloudSites.FogSite Site(int i) => sites[i];
+        /// <summary>The fog amount (0..1) the weather gave site i at the last poll.</summary>
+        public float Amount(int i) => amounts[i];
         public RenderTexture WakeAtlasForTesting => wake;
         /// <summary>The active patch: origin X/Z, size, box height (the render material's _FogPatch).</summary>
         public Vector4 PatchForTesting => active >= 0 ? mats[active].GetVector("_FogPatch") : Vector4.zero;
@@ -82,6 +94,7 @@ namespace FlyingGame.Clouds
             foreach (CloudSites.FogSite s in CloudSites.Fog)
             {
                 sites.Add(s);
+                amounts.Add(0f);
                 var m = Own(new Material(draw));
                 SetSite(m, s);
                 m.SetVector("_FogPatch", new Vector4(0, 0, 0, BoxHeight(s)));
@@ -107,7 +120,25 @@ namespace FlyingGame.Clouds
             hatA = Target(Resolution, Resolution, "Ground fog predicted 0-3");
             hatB = Target(Resolution, Resolution, "Ground fog predicted 4-7");
             wake = Target(WakeTile * 4, WakeTile * 2, "Ground fog wake 4x2");
-            Debug.Log($"[Fog] {sites.Count} fog sites: {string.Join(", ", sites.ConvertAll(s => s.Id))}");
+            Debug.Log($"[Fog] {sites.Count} places fog can lie: {string.Join(", ", sites.ConvertAll(s => s.Id))}");
+        }
+
+        /// <summary>Re-read every site's fog amount from the island weather (at the sim clock).</summary>
+        void PollWeather()
+        {
+            IslandWeather w = IslandWeather.Current;
+            var foggy = new List<string>();
+            for (int i = 0; i < sites.Count; i++)
+            {
+                CloudSites.FogSite s = sites[i];
+                float a = AmountOverride >= 0 ? AmountOverride : (float)w.FogAt(s.Z, s.X, Atmosphere.SimTimeSec).density;   // sim (north, east)
+                if (a < MinAmount) a = 0;
+                if ((a > 0) != (amounts[i] > 0) && a > 0) foggy.Add(s.Id);
+                amounts[i] = a;
+                mats[i].SetFloat("_FogAmount", a);
+            }
+            if (active >= 0) advect.SetFloat("_FogAmount", amounts[active]);
+            if (foggy.Count > 0) Debug.Log($"[Fog] fog formed at {string.Join(", ", foggy)} (local {w.LocalHour(Atmosphere.SimTimeSec):F1} h)");
         }
 
         static void SetSite(Material m, CloudSites.FogSite s)
@@ -143,6 +174,7 @@ namespace FlyingGame.Clouds
         void Step(Camera cam, float now, float dt)
         {
             if (!built || !cam) return;
+            if (now >= nextPoll || now < nextPoll - WeatherPollSec * 2) { nextPoll = now + WeatherPollSec; PollWeather(); }
             Vector3 eye = cam.transform.position;
             // The fog drifts with the surface wind (half the wind aloft: it is the slow air at the bottom of the layer).
             Vector3 w = CoordinateMap.ToUnity(Atmosphere.MeanWindAtPosition(CoordinateMap.ToSim(new Vector3(eye.x, 10f, eye.z))));
@@ -155,15 +187,15 @@ namespace FlyingGame.Clouds
             {
                 CloudSites.FogSite s = sites[i];
                 float d = new Vector2(eye.x - (float)s.X, eye.z - (float)s.Z).magnitude;
-                boxes[i].enabled = d < DrawRangeM;
+                boxes[i].enabled = d < DrawRangeM && amounts[i] > 0;
                 float reach = d - (float)s.HalfLength;
-                if (reach < ActiveRangeM && eye.y - (float)s.SurfaceM < ActiveHeightM && reach < best) { best = reach; nearest = i; }
+                if (amounts[i] > 0 && reach < ActiveRangeM && eye.y - (float)s.SurfaceM < ActiveHeightM && reach < best) { best = reach; nearest = i; }
             }
             if (nearest != active)
             {
                 if (active >= 0) mats[active].SetVector("_FogPatch", new Vector4(0, 0, 0, BoxHeight(sites[active])));
                 active = nearest; initialized = false;
-                if (active >= 0) SetSite(advect, sites[active]);
+                if (active >= 0) { SetSite(advect, sites[active]); advect.SetFloat("_FogAmount", amounts[active]); }
             }
             if (active < 0 || now < nextStep) return;
             nextStep = now + StepSec;      // at most one step per tick; never catch up after a stalled frame
