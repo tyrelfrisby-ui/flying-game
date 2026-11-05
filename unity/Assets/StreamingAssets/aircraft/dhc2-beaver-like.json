@@ -2,6 +2,9 @@
   "schemaVersion": 1,
   "id": "dhc2-beaver-like",
   "displayName": "Beaver-like",
+  "wingBracing": "strut",
+  "wingBreakStationY": { "wing": 3.1 },
+  "wingBreakStationSource": "Lift-strut wing attach |y| ~122 in = 3.10 m from the centreline, scaled (+/-5 in) off the L-20A/DHC-2 three-view on Wikimedia Commons against its 48 ft 0 in span dimension (strut tops 209 / 213 px at 1.72 px/in). No published station found (DHC-2 PSM 1-2-2/1-2-4 not reachable). FAA AD 2018-19-11 rear-spar pieces WS 89.16-170.16 are root-rib stations (root rib ~BL 26 in) and put a spar splice at ~115 in from the centreline, near but not at the strut; the three-view figure is used.",
   "spawnIasMs": 50,
   "mass": {
     "massKg": 2040.0,
@@ -1499,7 +1502,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20554,
-      "rollResistN": 103
+      "tireRadiusM": 0.33, "wheelMassKg": 14
     },
     {
       "pos": [
@@ -1515,7 +1518,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20554,
-      "rollResistN": 103
+      "tireRadiusM": 0.33, "wheelMassKg": 14
     },
     {
       "pos": [
@@ -1531,7 +1534,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 5652,
-      "rollResistN": 51,
+      "tireRadiusM": 0.13, "wheelMassKg": 2.5,
       "steerSpringNmPerRad": 18.0
     }
   ],

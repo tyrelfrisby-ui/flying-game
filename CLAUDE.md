@@ -3,6 +3,20 @@
 Working notes for agents on this repo. `AGENT-LOG.md` is the running log and carries **NEEDS YOU** at the top;
 this file is the standing guidance that does not belong to any one lane.
 
+## THE RED 2-33 IS BANNED: never reintroduce it (Ty, 2026-11-04)
+
+- Ty has removed the red-and-white (red / white / cream) 2-33 three times: 2026-11-02, 11-03 and 11-04 18:35 ("delete
+  it permanently, the damn thing won't die"). Only the yellow SGS 2-33 exists: `glider-2-33-like-own-tf.glb` (default)
+  and `glider-2-33-like-own.glb` (factory yellow), on every platform. No downloaded 2-33 model, no red or white livery,
+  tint, procedural fallback or generator entry, and no picker for it.
+- `tools/FlightTests/NoRed233Tests` holds this: the iOS and Quest catalogs, livery resolution, the GLB skin, the
+  Resources folder, the procedural fallback and the factory tint. Never weaken it to make a merge pass.
+- **Old lanes bring it back.** The fix reached island-nav only on 2026-11-04 (08:10 parity merge), so every lane forked
+  before that still draws the red trainer. Building and installing such a lane puts it back on Ty's device. Merge
+  `lane/claude-island-nav` into an old lane BEFORE you build it. When merging, never take the old side of
+  `AirframeVisual.StyleFor`, `Livery.cs`, `LiveryChoice.cs`, `AirframeModels.PickOwn/Specs` or
+  `Resources/Models/glider-2-33-like/`. Re-adding the Grob Astir files is the same bug.
+
 ## QUESTIONS FOR TY go in ONE queue (Ty, 2026-11-04)
 
 - Any question/decision/approval you need from Ty: APPEND one line to the Open section of
@@ -488,3 +502,12 @@ Keeping a subset of renders with `case $f in {before,after}_{a,b}.png) ;; *) rm 
 the braces in a case pattern are literal, so nothing matched the keep branch. Copy the files you want by name
 (`for p in before after; do for v in a b; do cp …; done; done`) rather than deleting by exclusion, and keep the source
 set elsewhere until the copy is checked.
+
+### Set the opacity people see, not the opacity of one particle
+Ty asked for less see-through smoke; 899ada84 raised each puff's alpha to 0.98 and made the puffs bigger, and Ty
+reported it disappearing faster. Per puff it WAS denser, but what anyone sees is the column — the product of every
+puff a ray crosses — and that was still governed by a 10–30 s life law nobody had measured: 0.65 coverage at 5 s,
+0.11 at 20 s, gone by 30 s, now spread over a wider and paler trail. Measure the composite (render the particles
+alone, white on black, and read the coverage across the column at several ages), set THAT as the design target,
+and derive each particle's share from its overlap (`SmokeTrail.PuffAlphaFor`). A crossfade between two particle
+sets must be done in optical depth too; crossfading alphas leaves a see-through band.

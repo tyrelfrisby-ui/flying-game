@@ -45,20 +45,39 @@ namespace FlyingGame.Bridge
         private void Start()
         {
             _driver.AircraftChanged += OnAircraftChanged;
+            _driver.AirframeReplaced += OnAirframeReplaced;
             Rebuild();
         }
 
         private void OnDestroy()
         {
-            if (_driver != null) _driver.AircraftChanged -= OnAircraftChanged;
+            if (_driver != null) { _driver.AircraftChanged -= OnAircraftChanged; _driver.AirframeReplaced -= OnAirframeReplaced; }
         }
 
         private void OnAircraftChanged()
         {
-            // A fresh sim Aircraft is intact: put the wings back even when the type is unchanged — and the
-            // canopy, which a bailout threw away and nothing else would ever put back.
-            if (_driver.AircraftId != _builtId || _wingsDetached || _rigPartGone) Rebuild();
+            if (_driver.AircraftId != _builtId || ShowsDamage) Rebuild();
         }
+
+        /// <summary>A new sim Aircraft is intact, so a model still showing an old one's damage is rebuilt NOW, before the new
+        /// aeroplane's first step (<see cref="FlightSimDriver.AirframeReplaced"/>): the wings, the broken-off parts, the
+        /// bent tail and engine mount, bent wing panels, the struck propeller and the canopy all come back.
+        ///
+        /// Until 2026-11-04 the model was rebuilt only when the new aeroplane, a frame later, had lost nothing
+        /// (LostComponents.Count == 0, crush 0, wings intact). That compared the wrong things: a new aeroplane that touched
+        /// anything in its first frame kept the last one's wreck drawn on it, and a bent wing panel set no flag at all, so a
+        /// Restart in the same type always kept it.</summary>
+        private void OnAirframeReplaced()
+        {
+            if (_builder != null && _driver.Sim != null && ShowsDamage) Rebuild();
+        }
+
+        /// <summary>The aeroplane the model was last built for: its damage, if any, is that aeroplane's.</summary>
+        private object _builtFor;
+
+        /// <summary>True when the model shows any crash damage: wings off, parts off, the prop bent, a fuselage bend, a bent
+        /// wing panel or a lost canopy.</summary>
+        private bool ShowsDamage => _wingsDetached || _componentsDetached || _fuselageBent || _bentPanels.Count > 0 || _rigPartGone;
 
         private bool _componentsDetached;
         /// <summary>Self-test (AERO_SELFTEST=skins): hold these deflections (aileron, elevator, rudder rad) and this prop rpm.</summary>
@@ -76,13 +95,11 @@ namespace FlyingGame.Bridge
                 _damageFx.Update(acFx.Damage, _driver.WorldVelocityUnity);
             }
             if (_driver.Sim == null) return;
-            // Challenge spawns adopt a new sim without AircraftChanged — an intact sim airframe means rebuild.
-            if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();
-            if (_componentsDetached && _driver.Sim.Aircraft.LostComponents.Count == 0) Rebuild();
-            else if (_fuselageBent && _driver.Sim.Aircraft.Crush.TailCrushM == 0 && _driver.Sim.Aircraft.Crush.NoseCrushM == 0) Rebuild();   // a fresh airframe
+            // Belt and braces for AirframeReplaced: damage drawn for any other aeroplane than the one flying goes.
+            if (ShowsDamage && !ReferenceEquals(_builtFor, _driver.Sim.Aircraft)) Rebuild();
             if (_builtModels != SessionSettings.UseAirframeModels || _builtOwn != SessionSettings.UseOwnModels) Rebuild();
             // A broken airframe keeps its pieces off until the next flight's fresh sim; the new livery waits for that rebuild.
-            else if (!_wingsDetached && !_componentsDetached && _builtLivery != SessionSettings.LiveryFor(_builtId)) Rebuild();
+            else if (!ShowsDamage && _builtLivery != SessionSettings.LiveryFor(_builtId)) Rebuild();
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
@@ -804,6 +821,7 @@ namespace FlyingGame.Bridge
         {
             QuestRig.Note($"airframe rebuild {_driver.AircraftId}");
             _builtId = _driver.AircraftId;
+            _builtFor = _driver.Sim?.Aircraft;
             _builtModels = SessionSettings.UseAirframeModels;
             _builtOwn = SessionSettings.UseOwnModels;
             _builtLivery = SessionSettings.LiveryFor(_builtId);
@@ -2602,6 +2620,8 @@ namespace FlyingGame.Bridge
             // The stock C172 remains the base geometry. Only this explicitly selected scheme repaints it.
             bool talk172 = cfg.Id == "c172-like" && _livery.Id == "talk-flying";
             if (talk172) { PaintTrainerModel(inst); _modelRepainted = true; }
+            // Instruments readable in any light, the same on the phone and in the headset (InstrumentLighting).
+            InstrumentLighting.Apply(inst);
             // The Extra (our EA300) and the Pitts (our S-2B) have their paint baked in, one GLB per livery
             // (AirframeModels.OwnSuffix): nothing to do here.
             if (cfg.Id == "glider-2-33-like")
@@ -2619,8 +2639,9 @@ namespace FlyingGame.Bridge
                     // Preserve glazing, cockpit upholstery, tyres and skid hardware.
                     if (n.StartsWith("Decal:") || n.StartsWith("Canopy") || n.StartsWith("Seat") || n.StartsWith("Cockpit")
                         || n.Contains("Wheel") || n.Contains("Skid")) continue;
-                    Color colour = n.StartsWith("Wing.") || n.StartsWith("Aileron.") || n == "Stab"
-                        ? new Color(0.98f, 0.76f, 0.03f) : Color.white;
+                    // SGS yellow all over, fuselage included: this painted the fuselage white, a yellow-and-white 2-33
+                    // (Ty: only the yellow 2-33 exists, NoRed233Tests).
+                    Color colour = new Color(1f, 0.8f, 0f);
                     if (n.StartsWith("Spoiler")) continue;
                     Material[] mats = r.sharedMaterials;
                     for (int i = 0; i < mats.Length; i++) mats[i] = UnlitMat(colour);

@@ -56,6 +56,8 @@ namespace FlyingGame.Bridge
         private FlyingGame.Sim.Aircraft _builtFor;
         private readonly List<SmokeTrail.Sample> _hist = new();
         private Camera _cam;
+        private double _thinnedT = double.NegativeInfinity;   // when the ring was last thinned (SmokeTrail.ThinRing)
+        private double _crank, _crankT = double.NaN;   // the crank's revolutions, integrated from the live rpm: times the exhaust pulses
 
         private void Start()
         {
@@ -105,6 +107,8 @@ namespace FlyingGame.Bridge
             _smoke.Flow = new FlyingGame.Core.Aero.AirframeFlow(cfg, 0.4 * lengthM, bodyRadiusM);
             _smoke.PipeDiameterM = (cfg.Smoke?.PipeDiameterIn ?? 4) * 0.0254;
             _smoke.Stream = cfg.Propulsion == null;                           // a glider's canisters stream, they do not puff
+            _smoke.Cylinders = cfg.Smoke?.Cylinders ?? 6;
+            _crank = 0; _crankT = double.NaN;
         }
 
         /// <summary>The propeller hubs, for the exhausts that sit ahead of a tractor's disc. The visual knows them;
@@ -124,10 +128,8 @@ namespace FlyingGame.Bridge
             PropulsionConfig pr = ac.Config.Propulsion;
             if (pr == null) return 0;
             if (pr.PropDiameterM <= 0) return 25.0 * Mathf.Clamp01((float)ac.Throttle01);
-            SmokeConfig sm = ac.Config.Smoke;
-            double cuIn = sm != null && sm.DisplacementCuIn > 0 ? sm.DisplacementCuIn : pr.MaxPowerW / 745.7 / 0.556;
-            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(cuIn * 16.387e-6, ac.EngineRunning ? ac.EngineRpm : 0.0, ac.ShaftPower01,
-                Atmosphere.DensityAtAltitude(altM), (sm?.PipeDiameterIn ?? 4) * 0.0254, sm?.ExhaustTempK ?? 900);
+            // The smoke lane's exhaust model, fed what the engine really does (a dead engine blows no exhaust).
+            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(ac.Config.Smoke, pr, ac.EngineRunning ? ac.EngineRpm : 0.0, ac.ShaftPower01, Atmosphere.DensityAtAltitude(altM));
         }
 
         // LateUpdate, so the sample is the pose the camera is about to see rather than one frame behind it.
@@ -140,18 +142,23 @@ namespace FlyingGame.Bridge
 
             double now = Atmosphere.SimTimeSec;
             double altM = -ac.State.Position.Z;
+            if (!double.IsNaN(_crankT) && now > _crankT) _crank += ac.EngineRpm / 60.0 * (now - _crankT);
+            _crankT = now;
             _hist.Add(new SmokeTrail.Sample
             {
                 T = now, Pos = ac.State.Position, Att = ac.State.Attitude,
                 VelBody = ac.State.Velocity, Rates = ac.State.Rates, Flow = Flow,
                 JetU0 = JetU0(ac, altM), AirDensity = Atmosphere.DensityAtAltitude(altM),
+                Crank = _crank, Rpm = ac.Config.Propulsion != null && ac.Config.Propulsion.PropDiameterM > 0 ? (float)ac.EngineRpm : 0f,   // (a jet has no pulses)
             });
 
-            // Drop what has aged out, oldest first. The ring is about 30 s at the frame rate - a couple of thousand
-            // samples - so this stays bounded however long the flight is.
+            // Drop what has aged out, oldest first. The ring is 90 s (SmokeTrail.LifeMaxS), so this stays bounded however
+            // long the flight is; and once a second the samples the trail would skip are dropped (SmokeTrail.ThinRing:
+            // past 2 s it draws one per 1/30 s), which keeps it to ~2,700 instead of 8,100 at the Quest's 90 Hz.
             int drop = 0;
             while (drop < _hist.Count && now - _hist[drop].T > SmokeTrail.LifeMaxS) drop++;
             if (drop > 0) _hist.RemoveRange(0, drop);
+            if (System.Math.Abs(now - _thinnedT) > 1.0) { _thinnedT = now; SmokeTrail.ThinRing(_hist, now); }
 
             // Nothing in the air and the switch off: do not walk the ring every frame for puffs that cannot exist.
             if (!On && !AnyFlow()) { _smoke.Hide(); return; }

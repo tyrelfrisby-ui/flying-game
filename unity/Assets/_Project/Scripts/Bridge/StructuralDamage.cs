@@ -61,6 +61,7 @@ namespace FlyingGame.Bridge
         private void Start()
         {
             _driver.AircraftChanged += Repair;
+            _driver.AirframeReplaced += Repair;   // the one reset (FlightSimDriver.AirframeReplaced): before the new aeroplane steps
             _audio = GetComponent<FlightAudio>();
             _visual = GetComponent<AirframeVisual>();
             Repair();
@@ -68,7 +69,7 @@ namespace FlyingGame.Bridge
 
         private void OnDestroy()
         {
-            if (_driver != null) _driver.AircraftChanged -= Repair;
+            if (_driver != null) { _driver.AircraftChanged -= Repair; _driver.AirframeReplaced -= Repair; }
         }
 
         /// <summary>Restore an intact airframe (ResetFlight / aircraft switch).</summary>
@@ -86,6 +87,7 @@ namespace FlyingGame.Bridge
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;
             if (GetComponent<FuelSlickVisual>() == null) gameObject.AddComponent<FuelSlickVisual>();
             if (GetComponent<ContactEffects>() == null) gameObject.AddComponent<ContactEffects>();   // placeholder scrape sound + dust
+            if (GetComponent<TyreSmoke>() == null) gameObject.AddComponent<TyreSmoke>();             // rubber the tyres lose (Core TyreWear)
             LostLine = null;
             ReadLimits();
         }
@@ -93,18 +95,14 @@ namespace FlyingGame.Bridge
         /// <summary>HUD text naming what has broken off, null while intact.</summary>
         public string LostLine { get; private set; }
 
-        /// <summary>A hard point or wheel just hit. A wheel on land is a tyre chirp; anything else is a crash impact,
-        /// raised by the relay as a CrashEvents impact with the surface it struck (FlightAudio plays crunch or splash).</summary>
+        /// <summary>A hard point or wheel just hit. A wheel on land is not a crash: its chirp comes from the tyre's own
+        /// spin-up slip (Core WheelSpin → GroundSoundMix → TyreBrakeSynth), for as long as the tyre really slips, and a
+        /// leg that breaks adds its own crash via ComponentLost. Anything else is a crash impact, raised by the relay as a
+        /// CrashEvents impact with the surface it struck (FlightAudio plays crunch or splash).</summary>
         private void OnHardImpact(double closingMs, string point)
         {
             if (_audio == null) _audio = GetComponent<FlightAudio>();
-            if (point.StartsWith("Gear") && (_watched == null || !_watched.LastImpact.OnWater))
-            {
-                // A wheel: a subtle tyre chirp (owner: not a gong); a leg that breaks adds its own crash via ComponentLost.
-                if (closingMs < 0.4) return;
-                _audio?.TireChirp(Mathf.Clamp01((float)((closingMs - 0.4) / 3.0)));
-                return;
-            }
+            if (point.StartsWith("Gear") && (_watched == null || !_watched.LastImpact.OnWater)) return;
             _relay?.OnHardImpact(closingMs, point);
         }
 

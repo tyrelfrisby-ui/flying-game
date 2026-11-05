@@ -169,7 +169,7 @@ internal static class IslandHeightIndex
     {
         public readonly bool Airway;
         public readonly IslandPoint A,B,U;
-        public readonly double Width, Blend, Cap, Length, Elevation, Ratio, Guard, Margin;
+        public readonly double Width, Blend, Cap, Length, Elevation, Ratio, Guard, Margin, HalfWidth, Widen;
         public readonly Rect Bounds;
         public Budget(IslandValue q)
         {
@@ -178,11 +178,14 @@ internal static class IslandHeightIndex
             // Instrument finals keep the 0.25 km constant guard and 30 m vertical margin; a visual runway end's
             // FAA Part 77 surface starts at the runway end itself (guard_km 0, margin_m 0).
             Guard=q.N("guard_km",.25); Margin=q.N("margin_m",30);
+            // The fan: 0.15 km either side at the start, widening 5 % (every runway end), unless the surface says (a small
+            // utility strip's Part 77 surface, 38 m widening 10 %: the Knik River bar strip, 2026-11-04).
+            HalfWidth=q.N("half_width_km",.15); Widen=q.N("widen",.05);
             if(Airway) Bounds=Rect.Points(new[]{A,B},Math.Max(Width,3.704)+Blend);
             else
             {
-                // ad in [-guard-blend,length+guard+blend]; cross <= .15+.05*max(0,ad)+guard+blend.
-                double lo=-Guard-Blend, hi=Length+Guard+Blend, cross=.15+Guard+.05*Math.Max(0,hi)+Blend;
+                // ad in [-guard-blend,length+guard+blend]; cross <= half+widen*max(0,ad)+guard+blend.
+                double lo=-Guard-Blend, hi=Length+Guard+Blend, cross=HalfWidth+Guard+Widen*Math.Max(0,hi)+Blend;
                 var v=new IslandPoint(U.N,-U.E);
                 Bounds=Rect.Points(new[]{A-U*lo+v*cross,A-U*lo-v*cross,A-U*hi+v*cross,A-U*hi-v*cross},0);
             }
@@ -193,7 +196,7 @@ internal static class IslandHeightIndex
             if(Airway) { alpha=1-Smooth((IslandTerrain.Segment(p,A,B).d-Width)/Blend); cap=Cap; }
             else
             {
-                var dp=p-A; double ad=-dp.Dot(U), cross=Math.Abs(dp.E*U.N-dp.N*U.E), width=.15+.05*Math.Max(0,ad);
+                var dp=p-A; double ad=-dp.Dot(U), cross=Math.Abs(dp.E*U.N-dp.N*U.E), width=HalfWidth+Widen*Math.Max(0,ad);
                 double dd=Math.Max(0,Math.Max(Math.Max(-ad-Guard,ad-Length-Guard),cross-width-Guard));
                 alpha=1-Smooth(dd/Blend); cap=Elevation+(broad?Math.Max(0,ad):ad)*1000/Ratio-(broad?Margin:0);
             }
@@ -269,7 +272,8 @@ internal static class IslandHeightIndex
             });
         }
         // Glacier ice is part of the relief now; only the authored ski landing zones remain exact pads.
-        foreach(var q in W["glaciers"].Items) Radial(layers,q["ski_zone"]["centre"].Point,.15,.25,q["ski_zone"].N("elevation_ft")*Feet);
+        // (The Knik has none since 2026-11-04: its landing is the Knik River bar strip, a field like any other.)
+        foreach(var q in W["glaciers"].Items) if(q.Has("ski_zone")) Radial(layers,q["ski_zone"]["centre"].Point,.15,.25,q["ski_zone"].N("elevation_ft")*Feet);
         foreach(var q in W["canyons"].Items)
         {
             var line=new Line(q["path"]); var rw=q["rim_width_m"].Items; var fw=q["floor_width_m"].Items; var zf=q["floor_ft"].Items;
@@ -336,6 +340,7 @@ internal static class IslandHeightIndex
             // so the zone keeps its mean elevation and is not a table.
             foreach(var q in W["glaciers"].Items)
             {
+                if(!q.Has("ski_zone")) continue;
                 var zone=q["ski_zone"]; var zc=zone["centre"].Point; var path=q["path"].Items; var ax=path[path.Length-1].Point-path[path.Length-2].Point; ax=ax*(1/ax.Length);
                 double zl=zone.N("length_m"),zw=zone.N("width_m"); var shape=NaturalShapeParams.SkiZone(q.S("id"),zl,zw);
                 Add(layers,Rect.Around(zc,.40),(p,h)=> { var d=p-zc; double al=d.Dot(ax)*1000,ac=(d.E*ax.N-d.N*ax.E)*1000;

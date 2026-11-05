@@ -121,7 +121,9 @@ def validate(glb, path):
     assert all(i in parents or i in roots for i in range(n_nodes)), path.name + ': orphaned node'
     for mesh in d['meshes']:
         for prim in mesh['primitives']:
-            assert 0 <= prim['material'] < n_materials, path.name + ': primitive material out of range'
+            # No 'material' is legal glTF (the default material): the 172's airframe primitives have none, its panel's do.
+            if 'material' in prim:
+                assert 0 <= prim['material'] < n_materials, path.name + ': primitive material out of range'
             for accessor in list(prim['attributes'].values()) + ([prim['indices']] if 'indices' in prim else []):
                 assert 0 <= accessor < len(d['accessors']), path.name + ': accessor out of range'
 

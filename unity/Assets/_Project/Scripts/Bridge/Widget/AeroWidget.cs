@@ -555,7 +555,7 @@ namespace FlyingGame.Bridge.Widget
             double xmin = double.MaxValue, xmax = double.MinValue;
             foreach (var sf in Config.Surfaces) foreach (var st in sf.Strips) { xmin = System.Math.Min(xmin, st.Pos[0] - st.Chord * 0.75); xmax = System.Math.Max(xmax, st.Pos[0] + st.Chord * 0.25); }
             LengthM = xmax > xmin ? (float)(xmax - xmin) : SpanM * 0.8f;
-            _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer);
+            _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer, alphaCapture: true);
             var ex = SmokeTrail.ExhaustsFor(Config, AircraftId, _builder.PropHubsBody(), LengthM, (float)(Config.Fuselage?.Crossflow?.BodyRadiusM ?? 0.5), out var jet);
             // A config'd exhaust is measured on the MODEL itself (owner 2026-10-12: "4 ft after the spinner … out of the belly
             // just ahead of the landing gear"): so far aft of the model's spinner tip, on its belly surface at the centreline.
@@ -740,7 +740,7 @@ namespace FlyingGame.Bridge.Widget
             WidgetHistory.Snap at = index < 0 ? null : H.Get(index);
             int flight = at?.Flight ?? Flight;
             double shift = at?.AltShift ?? AltShiftM, now = at?.SimTime ?? Review.SimTimeNow;
-            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Rates = Ac.State.Rates, Flow = SmokeFlow, JetU0 = JetU0(Ac.EngineRpm, Ac.Throttle01, -(Ac.State.Position.Z - AltShiftM)), AirDensity = Atmosphere.DensityAtAltitude(-(Ac.State.Position.Z - AltShiftM)) } : (SmokeTrail.Sample?)null;
+            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Rates = Ac.State.Rates, Flow = SmokeFlow, JetU0 = JetU0(Ac.EngineRunning ? Ac.EngineRpm : 0.0, Ac.ShaftPower01, -(Ac.State.Position.Z - AltShiftM)), AirDensity = Atmosphere.DensityAtAltitude(-(Ac.State.Position.Z - AltShiftM)) } : (SmokeTrail.Sample?)null;
             int first = index < 0 ? 0 : index;
             _smoke.Build(k =>
             {
