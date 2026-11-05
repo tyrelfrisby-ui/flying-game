@@ -42,7 +42,12 @@ public class WheelWaterTests
 
     /// <summary>A light touch at skimming speed — 1.15 × the slowest glide the type will trim at, 0.5 m/s sink, idle,
     /// trim elevator, deep water — for every wheeled type: it skims or skips, the deceleration is finite and modest
-    /// (peak under 1 g over the first 2.5 s), and nothing breaks. The 737 is the one exception, checked on its own below.</summary>
+    /// (peak under 1 g over the first 2.5 s), and nothing breaks. The 737 is the one exception, checked on its own below.
+    /// One thing may stop: a propeller whose own blades went into the water. Ty 2026-11-04 (Q024): on the low-slung
+    /// types (SR22, Glasair) a prop strike at a light water touch is acceptable, provided it is EMERGENT — the drawn disc
+    /// under the surface and the water's drag on the blades braking the rotor (Aircraft.WaterBladeTorque), never a rule
+    /// that touching water stops the engine. So a lost propeller passes only with the disc measured wet and a stoppage
+    /// raised by the rotor, and nothing else may go.</summary>
     [Theory]
     [MemberData(nameof(Wheeled))]
     public void ALightTouchAtSpeedSkimsAndBreaksNothing(string id)
@@ -65,12 +70,31 @@ public class WheelWaterTests
             }
             Assert.True(r.PeakDecelG < 1.0, $"peak deceleration {r.PeakDecelG:F2} g");
             Assert.True(r.SpeedAt1s > 0.9 * r.V, $"V {r.V:F1} -> {r.SpeedAt1s:F1} m/s in 1 s");
-            Assert.True(r.Lost.Count == 0, "lost " + string.Join(",", r.Lost));
+            if (r.Lost.Count > 0)
+            {
+                Assert.True(r.Lost.SequenceEqual(new[] { AirframeComponent.Propeller }), "lost " + string.Join(",", r.Lost));
+                Assert.True(r.PropWaterDepthM > 0 && r.PropStoppages > 0, $"the propeller went with its disc {r.PropWaterDepthM * 100:F1} cm in the water and {r.PropStoppages} stoppages");
+            }
             Assert.Empty(r.Damage);
             Assert.False(r.WingsFailed);
             Assert.True(r.MinPitchDeg > -10, $"pitched to {r.MinPitchDeg:F1}");
         }
         finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
+    /// <summary>The water's brake on a dipped propeller (Aircraft.WaterBladeTorque), at an SR22's 0.99 m radius. Literals
+    /// worked by hand from Q = n·(acos(1 − d/R)/π)·½ρ_w(ωR)²·c·(⅔d)·C·(R − ⅓d), n 2, c 0.12 R, C 0.2: it grows with the
+    /// depth and with ω², it is nothing for a dry disc, and a 5 mm brush at 2700 rpm is a quarter of the engine's ~817 N·m
+    /// while 2 cm is nearly twice it.</summary>
+    [Fact]
+    public void ADippedPropIsBrakedByTheWaterOnItsBlades()
+    {
+        double full = 2700 * Math.PI / 30, idle = 700 * Math.PI / 30;
+        Assert.Equal(0.0, Aircraft.WaterBladeTorque(0.99, 0.0, full));
+        Assert.Equal(196, Aircraft.WaterBladeTorque(0.99, 0.005, full), 0);
+        Assert.Equal(1564, Aircraft.WaterBladeTorque(0.99, 0.02, full), 0);
+        Assert.Equal(105, Aircraft.WaterBladeTorque(0.99, 0.02, idle), 0);
+        Assert.Equal(6136, Aircraft.WaterBladeTorque(0.99, 0.05, full), 0);
     }
 
     /// <summary>The old instant stop, on the same J-3 touch just below V_p (14.5 m/s): before, 14.5 → 1.8 m/s in a
@@ -257,12 +281,15 @@ public static class WheelWaterTouch
         public string Id = "";
         public double[] PeakImmersionM = System.Array.Empty<double>(); public double MeanWheelG, PeakWheelG; public double NoseOverAt = -1, MeanDecelG, TouchedFraction, SpeedAtNoseOver; public double V, PeakDecelG, PeakPitchRateDps, MinSpeed, SpeedAt1s, MaxPitchDeg, MinPitchDeg, TouchAt = -1, PeakNz;
         public bool Converged;
+        /// <summary>Deepest any propeller-disc station went under the water, and how many prop strikes / stoppages the
+        /// aeroplane raised (Aircraft.Contact).</summary>
+        public double PropWaterDepthM; public int PropStrikes, PropStoppages;
         public List<string> Events = new();
         public List<AirframeComponent> Lost = new();
         public List<string> Damage = new();
         public bool WingsFailed;
         public override string ToString() =>
-            $"{Id}: noseover {NoseOverAt:F2}s at {SpeedAtNoseOver:F1} m/s, touching {TouchedFraction:P0}; V {V:F1} m/s trim {Converged} touch {TouchAt:F2}s; peak decel {PeakDecelG:F2} g, nz {PeakNz:F2}, peak |q| {PeakPitchRateDps:F0} deg/s, pitch {MinPitchDeg:F1}..{MaxPitchDeg:F1}, V@1s {SpeedAt1s:F1}, Vmin {MinSpeed:F1}; lost [{string.Join(",", Lost)}] dmg [{string.Join("; ", Damage)}] wings {WingsFailed}";
+            $"{Id}: noseover {NoseOverAt:F2}s at {SpeedAtNoseOver:F1} m/s, touching {TouchedFraction:P0}; V {V:F1} m/s trim {Converged} touch {TouchAt:F2}s; peak decel {PeakDecelG:F2} g, nz {PeakNz:F2}, peak |q| {PeakPitchRateDps:F0} deg/s, pitch {MinPitchDeg:F1}..{MaxPitchDeg:F1}, V@1s {SpeedAt1s:F1}, Vmin {MinSpeed:F1}; prop in water {PropWaterDepthM * 100:F1} cm, strikes {PropStrikes} stoppages {PropStoppages}; lost [{string.Join(",", Lost)}] dmg [{string.Join("; ", Damage)}] wings {WingsFailed}";
     }
 
     /// <summary>The lowest speed from a ladder at which the glide trim converges at a sane angle of attack, times 1.15.</summary>
@@ -311,6 +338,11 @@ public static class WheelWaterTouch
         var sim = new SimLoop(ac);
         ac.HardImpact += (c, p) => res.Events.Add($"t={Atmosphere.SimTimeSec:F2} impact {p} {c:F2} m/s water={ac.LastImpact.OnWater}");
         ac.ComponentLost += c => res.Events.Add($"t={Atmosphere.SimTimeSec:F2} LOST {c}");
+        ac.Contact += ev =>
+        {
+            if (ev.Kind == ContactEventKind.PropStrike) res.PropStrikes++;
+            if (ev.Kind == ContactEventKind.PropStoppage) res.PropStoppages++;
+        };
         double t0 = Atmosphere.SimTimeSec;
         res.MinSpeed = v; res.MaxPitchDeg = -999; res.MinPitchDeg = 999;
         Vec3 vPrev = vWorld;
@@ -349,13 +381,16 @@ public static class WheelWaterTouch
                 wetWheel = true;
                 res.PeakImmersionM[gi] = Math.Max(res.PeakImmersionM[gi], wUp.Value + p.Z);
             }
+            foreach (ContactPoint cp in ac.ContactPoints)
+                if (cp.PropDisc && cp.SurfaceCode == ContactPoint.SurfaceWater) res.PropWaterDepthM = Math.Max(res.PropWaterDepthM, cp.DepthM);
             bool inContact = wetWheel || ac.AnyGearTouching;
             if (res.TouchAt < 0 && inContact) res.TouchAt = t + win;
             if (inContact) touched++;
             // What the water carries, in g: the non-aero normal load (thrust is along the body x).
             double wheelG = ac.LoadFactorZ - ac.AeroLoadFactorZ;
-            if (wetWheel && res.NoseOverAt < 0) { res.PeakWheelG = Math.Max(res.PeakWheelG, wheelG); wheelGSum += wheelG; wheelGN++; }
-            if (res.NoseOverAt < 0 && (pitch < -30 || ac.LostComponents.Contains(AirframeComponent.Propeller))) { res.NoseOverAt = t + win; res.SpeedAtNoseOver = vw.Length; }
+            // The skiing window: wet wheels, before it goes over or a blade reaches the water.
+            if (wetWheel && res.NoseOverAt < 0 && res.PropStrikes == 0) { res.PeakWheelG = Math.Max(res.PeakWheelG, wheelG); wheelGSum += wheelG; wheelGN++; }
+            if (res.NoseOverAt < 0 && (pitch < -30 || ac.LostComponents.Contains(AirframeComponent.Propeller) || ac.LostComponents.Contains(AirframeComponent.Nose))) { res.NoseOverAt = t + win; res.SpeedAtNoseOver = vw.Length; }
             log?.Invoke($"t={t + win:F2} V {vw.Length:F1} decel {decel:F2} g h {-s.Position.Z:F2} pitch {pitch:F1} q {s.Rates.Y * 57.3:F0} nz {ac.LoadFactorZ:F2} gear {ac.AnyGearTouching}");
             vPrev = vw;
             windows++;
