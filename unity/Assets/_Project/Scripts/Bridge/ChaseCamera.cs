@@ -53,9 +53,7 @@ namespace FlyingGame.Bridge
         private void OnEnable() => FlyingGame.Core.CrashEvents.Impact += CrashImpact;
         private void CrashImpact(FlyingGame.Core.CrashImpact hit)
         {
-            if (hit.Surface != FlyingGame.Core.ImpactSurface.Water || Target == null) return;
-            // Contract is process-wide; piece events belong to the player's wreck, intact events can be remote.
-            if (hit.PieceId == -1 && Vector3.Distance(Target.position, CoordinateMap.ToUnity(hit.Position)) > SpanM + LengthM) return;
+            if (FlyingGame.Core.CrashEvents.OpensWaterCrashView(hit) == false || Target == null) return;
             _waterCrash = true;
             _crashAircraft = Driver?.Sim?.Aircraft;
         }
