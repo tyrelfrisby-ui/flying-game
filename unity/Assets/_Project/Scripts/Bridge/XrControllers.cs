@@ -160,9 +160,13 @@ namespace FlyingGame.Bridge
             return d.TryGetFeatureValue(CommonUsages.devicePosition, out pos) && d.TryGetFeatureValue(CommonUsages.deviceRotation, out rot);
         }
 
+        /// <summary>EDITOR TOOLS ONLY (QuestViewShots): a head pose to use instead of the runtime's. Never set in a player.</summary>
+        public static (Vector3 Pos, Quaternion Rot)? HeadForTesting;
+
         /// <summary>The head, in tracking space: the centre eye if the runtime reports it, else the head node.</summary>
         public static bool TryHead(out Vector3 pos, out Quaternion rot)
         {
+            if (HeadForTesting.HasValue) { (pos, rot) = HeadForTesting.Value; return true; }
             InputDevice h = InputDevices.GetDeviceAtXRNode(XRNode.CenterEye);
             if (h.isValid && h.TryGetFeatureValue(CommonUsages.centerEyePosition, out pos) && h.TryGetFeatureValue(CommonUsages.centerEyeRotation, out rot)) return true;
             h = InputDevices.GetDeviceAtXRNode(XRNode.Head);

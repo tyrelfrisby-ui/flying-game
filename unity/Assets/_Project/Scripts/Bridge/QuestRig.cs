@@ -46,6 +46,8 @@ namespace FlyingGame.Bridge
         private Camera _cam;
         private ChaseCamera _chase;
         private readonly XrHeadPose _head = new();
+        private readonly QuestOutsideView _outside = new();
+        private ChaseCamera.View _loggedView = (ChaseCamera.View)(-1);
         private readonly QuestControlMapper _system = new();
         private QuestMenu _menu;
         private readonly QuestMenuTabView _tab = new();
@@ -164,6 +166,10 @@ namespace FlyingGame.Bridge
             if (_running) Place();
         }
 
+        /// <summary>EDITOR TOOLS ONLY (QuestViewShots): one frame of the rig with no player loop — the head from
+        /// <see cref="XrControllers.HeadForTesting"/>, ChaseCamera already placed.</summary>
+        public void StepForTesting() { LateUpdate(); OnBeforeRender(); }
+
         private static readonly Rect FullRect = new(0f, 0f, 1f, 1f);
 
         // ---- going in and coming out ----
@@ -187,6 +193,8 @@ namespace FlyingGame.Bridge
                 s.trackingOriginUpdated += OnRuntimeRecentre;
             }
             if (_hudAnchor == null) _hudAnchor = new GameObject("VR HUD Anchor").transform;
+            ChaseCamera.CompactFlyby = true;   // no zoom in a headset: park the fly-by close
+            _outside.Forget();
             _menu ??= new QuestMenu();
             // The "what I see" recorder (A + B held, or the menu): Android only, on this camera because the
             // AudioListener is here and it records the head's view.
@@ -225,6 +233,7 @@ namespace FlyingGame.Bridge
             SubsystemManager.GetSubsystems(inputs);
             foreach (var s in inputs) s.trackingOriginUpdated -= OnRuntimeRecentre;
             if (_cam != null) XRDevice.DisableAutoXRCameraTracking(_cam, false);
+            ChaseCamera.CompactFlyby = false;
             if (_gcSliceWas != 0) { UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = _gcSliceWas; _gcSliceWas = 0; }
             FlyingGame.Core.SimProfile.Enabled = false;
             Shader.SetGlobalFloat(WaterDepthErrKId, 0f);
@@ -273,11 +282,24 @@ namespace FlyingGame.Bridge
             }
             else
             {
-                // Outside: where ChaseCamera put the camera, heading only — the horizon stays level.
-                Vector3 f = transform.forward;
-                Vector3 flat = new Vector3(f.x, 0f, f.z);
-                _originPos = transform.position;
-                _originRot = flat.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(flat.normalized, Vector3.up) : _originRot;
+                // Outside (QuestOutsideView): where ChaseCamera put the camera, but LEVEL (heading only), the offset from
+                // the aeroplane eased, the heading changed only in snaps, a fly-by standing still in the world. The head
+                // stays free on top. A chase camera that turned with the aeroplane is what makes a headset sickening.
+                Transform tgt = _chase != null ? (_chase.OverrideTarget != null ? _chase.OverrideTarget : _chase.Target) : null;
+                ChaseCamera.View v = _chase != null ? _chase.CurrentView : ChaseCamera.View.RelativeWind;
+                Vector3 want = transform.position, look = transform.forward;
+                Vector3 at = tgt != null ? tgt.position : want;
+                _outside.Step((int)v, v == ChaseCamera.View.Flyby, C3(at), C3(want), C3(look), Time.unscaledDeltaTime);
+                Vector3 p = new((float)_outside.Position.X, (float)_outside.Position.Y, (float)_outside.Position.Z);
+                p.y = Mathf.Max(p.y, ChaseCamera.SurfaceFloorAt(p));
+                _originPos = p;
+                _originRot = Quaternion.Euler(0f, (float)_outside.YawDeg, 0f);
+            }
+            if (_chase != null && _chase.CurrentView != _loggedView)
+            {
+                _loggedView = _chase.CurrentView;
+                Debug.Log($"[Quest] view: {ChaseCamera.ViewNames[(int)_loggedView]} (InCockpit {ChaseCamera.InCockpit}; origin {(ChaseCamera.InCockpit ? "the seat eye" : "outside, level, eased")})");
+                if (!ChaseCamera.InCockpit) _outside.Forget();
             }
             if (_hudAnchor != null && air != null && cockpit != null)
                 _hudAnchor.SetPositionAndRotation(air.TransformPoint(cockpit.EyeLocal), air.rotation);
@@ -491,6 +513,7 @@ namespace FlyingGame.Bridge
         }
 
         private static Vec3 ToCore(Vector3 v) => new(v.x, v.y, v.z);
+        private static Vec3 C3(Vector3 v) => new(v.x, v.y, v.z);
         private static Quat ToCore(Quaternion q) => new(q.x, q.y, q.z, q.w);
     }
 }
