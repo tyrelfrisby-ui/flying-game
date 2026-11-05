@@ -1,4 +1,21 @@
 ## NEEDS YOU
+- **TYRE SOUNDS: CHIRP PITCHED BY TYRE SIZE + SLIP SPEED, A SIDEWAYS SCRUB, BEARING WHIR −14 dB (Claude, 2026-11-05,
+  lane/claude-tire-audio 20484765; Ty 06:10 "a pitch/frequency thing for the chirp and bearing noise is too loud").
+  Lane iOS 2026.1105.0632 ** BUILD SUCCEEDED **, 0 error CS (NOINSTALL). <!-- tire-audio build --> Nothing approved by me. Q069.**
+  - **What was wrong:** the chirp's pitch came from the slip ratio alone, and at touchdown that is ≈ 1, so every tyre on
+    every aeroplane chirped at the same fixed 3.7 kHz (measured on the J-3's spin-up). Sideways slip made no sound.
+  - **Now:** pitch = 700 Hz·m / tyre OD × (patch slip speed / 10 m/s)^0.2. J-3 8.00-4 1531 Hz, 6.00-6 1575, 8.00-6 1413,
+    35 in bushwheel 787, 8 in tailwheel 3445. On the J-3 the spin-up falls 1697 → 1154 Hz. Slow sliding (< 1.5 m/s) is
+    a low rubbery scrub (~0.42 × that pitch), fast sliding (> 6 m/s) squeals, with a blend in between. Level = log of the
+    slip power, as before. The bearing whir is 0.0032 at 25.7 m/s (was 0.016) and goes as rpm². The rolling ground voices
+    (tarmac hum, grass swish) are NOT changed (Q069 asks).
+  - **Checked on taildraggers** (crabbed three-point touchdown on asphalt, `TyreSquealTests`): J-3, PA-18, Decathlon,
+    Great Lakes, Pawnee, PA-18 bush all squeal at their own tyre's pitch, falling, and scrub lower.
+  - **Listen / look:** `~/Developer/agent-lanes/renders/tire-audio/`: `before-*.wav` / `after-*.wav` (tyre + rolling
+    voices only, no engine), `compare-touchdown-*.png` (before above, after below), `spec-*-j3-bearing-whir-spindown.png`
+    (whir mean −47.8 → −62.4 dBFS).
+  - Tests: TyreSquealTests 17 new, GroundSoundMix/WheelSpin/TyreWear/Tire* 61/61. Physics untouched (the new sideways slip
+    sums are read only by the sound). Write-up: docs/TIRE-SPINUP-AND-GROUND-SOUND.md §7b.
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not

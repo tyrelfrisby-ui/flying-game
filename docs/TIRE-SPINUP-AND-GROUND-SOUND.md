@@ -354,6 +354,35 @@ Snow: with skis carrying the load (`OnSki`, wheel-ski load share), there is no c
   (`TaildraggerNoTipStrikeTests`, left red). With zero wheel mass it passes.
 - **Swift S-1 on water:** its real 300×100 tyre (r 0.15) digs in where the auto rule's 0.31 skimmed (`WheelWaterTests`, left red).
 
+### 7b. Squeal pitch, scrub and a quieter bearing (Ty 2026-11-05, lane/claude-tire-audio)
+Ty, after a stiff-crosswind J-3 landing: "the tire sounds need work it is a pitch/frequency thing for the chirp and
+bearing noise is too loud".
+- **What was wrong.** The chirp's pitch came from the slip RATIO alone: 1500 + 2200·min(3|κ|, 1) Hz. At touchdown
+  κ ≈ 1, so every tyre on every type chirped at the same 3.7 kHz narrow band (measured in the harness: 3700 Hz for the
+  first four frames of the J-3's spin-up). Sideways slip was not heard at all. The whir was 0.016 at 25.7 m/s.
+- **Now (Core `GroundSoundMix`, tested in `TyreSquealTests`).** Each wheel keeps its patch's slip energy, audible time
+  and ∫|F|dt fore-aft (WheelSpin's own slip) AND sideways (`LandingGear`: |F_y·v_side|, for the sound only), so the
+  mean slip speed is E / ∫|F|dt.
+  - Pitch: f = 700 Hz·m / OD × (v_slip / 10 m/s)^0.2, bounded ×0.6–1.35. The 700 Hz·m is an ESTIMATE from passenger-
+    car tyre squeal (~1.1 kHz on a 25 in tyre); f ∝ 1/OD is the tread band's modes scaling with the tyre. 8.00-4
+    (J-3) 1531 Hz, 6.00-6 1575, 8.00-6 1413, 5.00-5 1941, 8 in tailwheel 3445, 35 in bushwheel 787.
+  - Squeal or scrub: the share of the slip power that squeals is a smoothstep of slip speed from 1.5 to 6 m/s
+    (ESTIMATE; rubber friction falls past a low sliding speed, and that falling branch is what locks stick-slip into a
+    tone). The rest is a broad, low SCRUB at 0.42 × the resonance × (v/3 m/s)^0.3.
+  - Level: log10(P/50 W)/3, as before, per voice, times the row's chirp (0 on grass, so no scrub there either).
+  - Whir: 0.0032 × (v_rim/25.7)² (−14 dB at the reference, and steeper: at a 5 m/s taxi it is a further 28 dB down).
+- **Bridge `TyreBrakeSynth`.** The squeal is a gliding tone with 2nd/3rd partials, ±2–3 % stick-slip jitter and a
+  narrow (Q 9) band of noise at the same pitch; the scrub is Q 1.1 band noise plus a low body under a 35 Hz rough
+  flutter. Both play for exactly the slip time given (cumulative µs counters, as the chirp already did). The whir's
+  noise shimmer is halved.
+- **J-3, three-point on asphalt at 17 m/s, crabbed (harness and `CrabbedTouchdown…` test):** 1.5 m/s drift: squeal
+  1697 → 1154 Hz over ~70 ms, then a scrub 600 → 386 Hz for ~300 ms as the drift dies. 4 m/s drift: squeal 225 ms
+  (part of the faster side slide squeals, as a car tyre does at the limit), scrub ≤ 696 Hz. Other taildraggers: PA-18
+  and Pawnee (8.00-6) 1590–1700 Hz start, Decathlon and Great Lakes (6.00-6) ~1890–1900, PA-18 bush (35 in) 865 Hz.
+  Spectrograms and WAVs: `~/Developer/agent-lanes/renders/tire-audio/` (`compare-touchdown-*.png`: before above,
+  after below; the harness renders tyre voices and the unchanged rolling voices only, no engine).
+- Not changed: the rolling (ground) voices in `SurfaceSynth`, the brake scrape/squeal, the unused `FxKind.TireChirp`.
+
 ## 8. Tyre wear, burst and the flat tyre (Ty 2026-11-04 20:21, Q026 item 1)
 
 Ty: keep the 172's full-pedal main-wheel lock-up (it is real), and let a locked tyre screech, smoke and wear through to a
