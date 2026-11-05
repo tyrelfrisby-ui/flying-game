@@ -1,4 +1,23 @@
 ## NEEDS YOU
+<!-- windsocks needs-you -->
+- **WINDSOCKS: code + tests done, NOT built, NOT rendered (Claude, 2026-11-05, lane/claude-windsocks 872fd1a3+).**
+  Ty 08:43: "every airport has a wind sock off to the side of the runway at each end and in the middle".
+  - Done: one shared part (`src/FlyingGame.Core/WindsockPart.cs`, drawn only by `Bridge/Windsock.cs`); 3 per runway
+    on all 43 airport runways (129), abeam each end and midfield, 12 m outside the FAA RSA (sock 30.3 / 34.9 / 88.2 m
+    off the centreline); swings and fills from `Atmosphere.WindAtPosition` (droop 80 deg calm -> 0 at 15 kt).
+    WindsockTests 18/18; targeted island classes: same 6 reds as the branch point. Doc: docs/WINDSOCKS.md.
+  - **NOT done: the Unity batch (compile + renders) and `** BUILD SUCCEEDED **`.** The slot gate (3 idle minutes, no
+    Unity/xcodebuild/deploy) never opened in 2 h; the job hit the background limit before Unity started. Next owner:
+    run `Unity -batchmode -quit -projectPath unity -buildTarget iOS -executeMethod FlyingGame.EditorTools.WindsockShots.Render`
+    (writes renders/windsocks/), LOOK at the renders (winding of the sock mesh is unverified), then
+    `zsh tools/deploy/deploy.sh NOINSTALL`. Do not merge or install before Ty sees the renders.
+  - Findings for Ty (not changed): no night in the game, so no lit sock; wake vortices / prop wash are not in the wind
+    query (lane/claude-wake-vortex has a field, one line in `WindsockPart.AirAt` when it merges); the regional
+    atmosphere config fails to load on the island (`airport:Bench` anchor) so free flight is uniform air; and uniform-air
+    turbulence never drifts (`Turbulence.MeanWind` unset), so gusts stand still over the ground and a sock holds still.
+  - Not an approved gate.
+
+## NEEDS YOU
 <!-- merge-tundra-recorder needs-you -->
 - **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
   05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
