@@ -326,8 +326,9 @@ namespace FlyingGame.Bridge
             }
 
             // The canopy in the air, held by whichever hand has the rail or (Extra) its latch handles, which are on the
-            // frame: squeeze and push up is one movement, and the airload can tear it out of that hand.
-            if (c != null && !cockpit.CanopyGone)
+            // frame: squeeze and push up is one movement, and the airload can tear it out of that hand. Not while the menu's
+            // bail-out is working it (CockpitRigState.EgressCanopy): it steps the same canopy, once a frame.
+            if (c != null && !cockpit.CanopyGone && cockpit.EgressCanopy == null)
             {
                 int holder = -1;
                 if (_grab.IsHeldBy(Grabbable.CanopyRail, out HandSide cs)) holder = (int)cs;

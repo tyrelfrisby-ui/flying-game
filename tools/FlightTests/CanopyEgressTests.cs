@@ -54,4 +54,15 @@ public class CanopyEgressTests
         Assert.Empty(Parts("Fuselage", "Wing", "Propeller"));                                                            // a downloaded model: nothing separate
         Assert.Empty(Parts());
     }
+
+    [Fact]
+    public void TheProceduralDomeLeavesOnlyWhereTheTypeHasACanopyThatComesOff()
+    {
+        foreach (string id in new[] { "cassutt-f1-like", "glasair3-like", "glider-swift-s1-like", "pitts-s2b-like", "extra-300-like", "glider-2-33-like" })
+            Assert.True(CanopyEgress.ShellCanopyLeaves(id), id);
+        // Open cockpits, wings with no cockpit, and cabins whose dome is their windows.
+        foreach (string id in new[] { "aircam-like", "aircam-amphib-like", "hang-glider-like", "paraglider-en-b-like", "j3-cub-like", "great-lakes-like",
+                                      "c172-like", "decathlon-8kcab-like", "dhc2-beaver-like", "dhc2-beaver-floats-like", "pa25-pawnee-like", "jn4-jenny-like", "" })
+            Assert.False(CanopyEgress.ShellCanopyLeaves(id), id);
+    }
 }

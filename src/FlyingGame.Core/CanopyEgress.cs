@@ -13,6 +13,7 @@ namespace FlyingGame.Core;
 ///    all of them, together;
 ///  • a cabin with a hinged door and no canopy — the door on the side he goes out of, with its glass and its latch
 ///    (the 172: <c>C172_Door_R</c>, <c>Glass.Door.R</c>, <c>C172_Door_latch_R</c>);
+///  • the procedural shell's own dome only where the type has a canopy that comes off (<see cref="ShellCanopyLeaves"/>);
 ///  • nothing for an open cockpit (Great Lakes: windscreens only) or a door that folds out of the way (the Cub's
 ///    <c>DoorUpper_R</c> / <c>DoorLower_R</c>, open in flight by design), and nothing where the model has no separate
 ///    canopy or door. There is never a stand-in.
@@ -20,6 +21,20 @@ namespace FlyingGame.Core;
 /// </summary>
 public static class CanopyEgress
 {
+    /// <summary>
+    /// THE PROCEDURAL SHELL'S DOME (a type drawn without a GLB). Its glass "Canopy" stands for whatever glazing the type has,
+    /// so it leaves only where the real aeroplane has a canopy over the pilot that comes off: the Cassutt, the Glasair III,
+    /// the sailplanes, the two aerobatic monoplane / biplane canopies and the fighters' bubbles. On a cabin type (172,
+    /// Decathlon, Beaver, Pawnee …) it is the cabin's windows, which stay — he goes out of a door that is not drawn apart —
+    /// and on the Aircam it is two windscreens over an open cockpit; a hang glider or paraglider has no cockpit at all.
+    /// </summary>
+    public static bool ShellCanopyLeaves(string aircraftId) => aircraftId switch
+    {
+        "cassutt-f1-like" or "glasair3-like" or "glider-swift-s1-like" or "glider-eb29r-like" or "glider-grob103-acro-like"
+            or "glider-2-33-like" or "pitts-s2b-like" or "extra-300-like" or "p51d-like" or "f86-sabre-like" => true,
+        _ => false,
+    };
+
     /// <summary>A model's node name without glTFast's "Model:" prefix.</summary>
     public static string Bare(string name) => name.StartsWith("Model:", System.StringComparison.Ordinal) ? name.Substring(6) : name;
 

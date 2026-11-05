@@ -155,6 +155,7 @@ namespace FlyingGame.Bridge
             _t = 0f;
             _touch ??= GetComponent<TouchFlightControls>();
             if (!_canopyDone) JettisonCanopy();
+            for (int i = 0; i < 400 && !CanopyClear; i++) StepCanopy(0.005f);   // the seat waits for it (2 s at most)
 
             Transform ac = _driver.transform;
             Vector3 pos = ac.TransformPoint(CockpitLocal(_driver));
@@ -181,6 +182,7 @@ namespace FlyingGame.Bridge
             _t = 0f;
             _eject = _canopyDone = _pilotDone = _pilotLeftFired = _seatDone = _chuteDone = false;
             HandsOn = false;
+            _canopy = null;
             IsGhost = false;
             CrashOutcome = LandingOutcome.Unhurt;
             _status = ""; LastLine = ""; _restT = _voiceT = -1f; _spoken = false;
@@ -242,7 +244,8 @@ namespace FlyingGame.Bridge
             if (!_eject)
             {
                 if (!_canopyDone && _t >= BailCanopySec) JettisonCanopy();
-                if (!_pilotDone && _t >= BailJumpSec) JumpOverTheSide();
+                StepCanopy(dt);
+                if (!_pilotDone && _t >= BailJumpSec && CanopyClear) JumpOverTheSide();   // not through a canopy still on
                 // A ghost's opens by itself, soon, even after a hands-on exit: nobody pulls a ripcord on the way up.
                 float chuteSec = IsGhost ? (float)FlyingGame.Core.PilotOutRules.GhostChuteSec : BailChuteSec;
                 if (_pilotDone && !_chuteDone && (!HandsOn || IsGhost) && _t - _pilotLeftT >= chuteSec) DeployChute();
@@ -323,21 +326,75 @@ namespace FlyingGame.Bridge
             _voiceT = 0.10f + UnityEngine.Random.Range(0f, 0.06f);
         }
 
+        /// <summary>
+        /// THE REAL CANOPY OR DOOR, WORKED (Ty 2026-11-05 06:37 / 06:38): the red handle pulls, the latch opens and the hinge
+        /// pins come out, and from then on the canopy's own physics (Core Vr.CanopyDynamics, the headset's canopy where it has
+        /// one) decides when it goes — at once in the air, after his hand shoves it up and over on the ground (Core
+        /// Vr.CanopyBailout). It leaves as the model's own parts (AirframeVisual.DetachCanopy → CanopyFlight). An open
+        /// cockpit or a fold-out door loses nothing, and nothing is ever spawned in its place.
+        /// </summary>
         private void JettisonCanopy()
         {
             _canopyDone = true;
             if (Current == Phase.BailingOut) Current = Phase.CanopyGone;
-            // The aeroplane's REAL canopy or door leaves (Ty 2026-11-05 06:37): the model's own parts, or the procedural
-            // shell's own canopy; an open cockpit or a fold-out door loses nothing. Never a stand-in (AirframeVisual.JettisonCanopy).
             var visual = GetComponent<AirframeVisual>();
-            if (visual != null) visual.Cockpit.PullCanopyRelease();   // the red handle moves, wherever the hand came from
-            string gone = visual != null ? visual.JettisonCanopy(_driver.WorldVelocityUnity) : "";
-            if (gone.Length == 0)
+            FlyingGame.Core.Vr.CanopyDynamics c = visual != null ? visual.EgressCanopy() : null;
+            if (c == null)
             {
                 Log("nothing to jettison: open cockpit, a door that folds out of the way, or no separate canopy on this model");
                 return;
             }
-            Log($"canopy jettisoned: {gone}");
+            visual.Cockpit.PullCanopyRelease();   // the red handle moves, wherever the hand came from
+            visual.Cockpit.SetCanopyLock(false);  // and the latch opens
+            visual.Cockpit.EgressCanopy = c;
+            _canopy = new FlyingGame.Core.Vr.CanopyBailout(c);
+            Log($"canopy unlatched, hinge pins out ({c.Spec.Motion}, {c.Spec.MassKg:F1} kg)");
+            StepCanopy(0.005f);
+        }
+
+        /// <summary>The bail-out's canopy, from the pins coming out until it has gone (null when there is none).</summary>
+        private FlyingGame.Core.Vr.CanopyBailout _canopy;
+
+        /// <summary>He can go: there is no canopy to wait for, or it has gone.</summary>
+        private bool CanopyClear => _canopy == null || _canopy.Departed;
+
+        private void StepCanopy(float dt)
+        {
+            if (_canopy == null || _canopy.Departed) return;
+            var visual = GetComponent<AirframeVisual>();
+            if (visual == null || visual.Cockpit.CanopyGone) return;
+            double ias = _driver.IasMs;
+            double q = 0.5 * 1.225 * ias * ias;   // IAS is equivalent airspeed here: q = ½ρ₀V_e², as the headset's canopy
+            FlyingGame.Sim.Aircraft ac = _driver.Sim?.Aircraft;
+            // Flying: the load factor, as the headset's canopy. At rest (a wreck): its weight, whichever way up the wreck lies.
+            Vector3 g = _driver.transform.InverseTransformDirection(Vector3.down) * 9.80665f;
+            var gApp = ac != null && ias >= 1.0
+                ? new FlyingGame.Core.MathTypes.Vec3(0, -ac.LoadFactorZ * 9.80665, 0)
+                : new FlyingGame.Core.MathTypes.Vec3(g.x, g.y, g.z);
+            FlyingGame.Core.Vr.CanopyEvents ev = _canopy.Step(dt, q, gApp);
+            if ((ev & FlyingGame.Core.Vr.CanopyEvents.Departed) != 0) DepartCanopy(visual, ias);
+        }
+
+        /// <summary>It has gone: the parts fly off with the aeroplane's velocity plus the canopy's own swing, and the
+        /// aeroplane is that much lighter (as the headset's VrCockpitHands.DepartCanopy).</summary>
+        private void DepartCanopy(AirframeVisual visual, double ias)
+        {
+            FlyingGame.Core.Vr.CanopyDynamics c = _canopy.Canopy;
+            Transform air = _driver.transform;
+            static Vector3 U(FlyingGame.Core.MathTypes.Vec3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
+            Vector3 vel = _driver.WorldVelocityUnity + air.rotation * U(c.ComVelocityLocal());
+            Vector3 up = air.rotation * U(FlyingGame.Core.Vr.CanopyDynamics.Normal(c.AngleDeg));
+            Vector3 spin = -air.forward * (float)(c.RateDps * Mathf.Deg2Rad) + air.right * (float)FlyingGame.Core.Vr.CanopyFreeBody.PitchOverRadS;
+            Vector3? centre = visual.DetachCanopy(c, vel, up, spin, c.DepartedBy == FlyingGame.Core.Vr.CanopyDeparture.HingesFailed);
+            visual.Cockpit.CanopyGone = true;
+            FlyingGame.Sim.Aircraft ac = _driver.Sim?.Aircraft;
+            if (ac != null && centre.HasValue)
+            {
+                Vector3 l = air.InverseTransformPoint(centre.Value);
+                ac.ShedMass(c.Spec.MassKg, ac.Config.Mass.CgVec() + new FlyingGame.Core.MathTypes.Vec3(l.z, l.x, -l.y));
+            }
+            Log($"canopy {c.DepartedBy} at {ias * 1.9438445:F0} KIAS after {_canopy.TimeSec:F2} s, open {c.AngleDeg:F0}°" +
+                $"{(c.SlideM > 0 ? $", slid {c.SlideM * 1000:F0} mm" : "")}: {c.Spec.MassKg:F1} kg gone");
             CanopyJettisoned?.Invoke();
             GetComponent<FlightAudio>()?.CanopyJettison();
         }

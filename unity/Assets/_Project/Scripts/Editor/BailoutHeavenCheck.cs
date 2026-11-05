@@ -13,8 +13,10 @@ namespace FlyingGame.EditorTools
     /// <summary>
     /// Ty 2026-11-05 06:35 / 06:37, on the REAL components in edit mode (CLAUDE.md "An editor batch tool has to drive the
     /// component itself": Awake/Start invoked by hand, the egress ticked through <see cref="PilotEgress.TickForTesting"/>):
-    ///  1. Every type: BAIL OUT; once the canopy time has passed, none of the parts Core CanopyEgress names for that model is
-    ///     still on the aeroplane, whatever left is the model's own parts (no stand-in dome), and an open cockpit lost nothing.
+    ///  1. Every type, flying at 40 m/s and at rest: BAIL OUT; the canopy unlatches, its pins come out and the canopy's own
+    ///     physics (Core Vr.CanopyBailout / CanopyDynamics) takes it off; then exactly the parts in <see cref="Leaves"/> (copied
+    ///     by hand) are gone from the aeroplane, flown by CanopyFlight, nothing else left or was spawned, and he got out. An
+    ///     open cockpit (Great Lakes, Cub, Jenny, Stearman, Aircam) loses nothing.
     ///  2. A fatal crash (the 172 into the ground at 40 m/s, 15 m/s down, nose 20° low, flown by the sim), then BAIL OUT:
     ///     he leaves as a ghost (translucent), his canopy opens and he RISES, the farewell line is up, the HUD stage is off.
     ///  3. A gentle crash (25 m/s, 4 m/s down, the gear goes): no ghost, the crash's grade carried into the landing's.
@@ -77,6 +79,24 @@ namespace FlyingGame.EditorTools
 
         // ---- 1. the real canopy / door, every type --------------------------------------------------------------------
 
+        /// <summary>What leaves each type, copied by hand from the GLBs' node lists and the shells' styles (2026-11-05). Any
+        /// type not listed loses NOTHING: the open cockpits (Great Lakes, Cub, Jenny, Stearman, Aircam), the fold-out doors
+        /// (J-3, PA-18), the cabins whose doors are not drawn apart, and the downloaded models with no separate canopy.</summary>
+        private static readonly System.Collections.Generic.Dictionary<string, string[]> Leaves = new()
+        {
+            ["c172-like"] = new[] { "C172_Door_R", "C172_Door_latch_R", "Glass.Door.R" },
+            ["extra-300-like"] = new[] { "Canopy_Detachable" },
+            ["pitts-s2b-like"] = new[] { "Canopy_Detachable" },
+            ["glider-2-33-like"] = new[] { "Canopy_Frame", "Canopy_Glass", "Canopy_Hardware" },
+            ["glider-grob103-acro-like"] = new[] { "Canopy_Frame", "Canopy_Glass" },
+            ["cassutt-f1-like"] = new[] { "Canopy" },
+            ["glasair3-like"] = new[] { "Canopy" },
+            ["glider-swift-s1-like"] = new[] { "Canopy" },
+        };
+
+        private static string[] Nodes(GameObject root, AirframeVisual v) => v.ModelRoot != null ? ModelNodes(v)
+            : root.GetComponentsInChildren<Transform>(true).Select(t => t.name).ToArray();
+
         private static void CanopyCheck()
         {
             string dir = System.IO.Path.Combine(Application.streamingAssetsPath, "aircraft");
@@ -86,36 +106,53 @@ namespace FlyingGame.EditorTools
                 string id = System.IO.Path.GetFileNameWithoutExtension(f);
                 AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
                 if (cfg == null) continue;
-                GameObject root = null;
-                try
+                types++;
+                string[] want = Leaves.TryGetValue(id, out string[] w) ? w : new string[0];
+                if (want.Length > 0) withParts++;
+                // Flying (it goes at once) and at rest (his hand shoves it off): both through the canopy's own physics.
+                foreach (float speed in new[] { 40f, 0f })
                 {
-                    var b = Build(id, new FlyingGame.Sim.Aircraft(cfg, new RigidBodyState(new Vec3(0, 0, -800), Quat.Identity, new Vec3(40, 0, 0), Vec3.Zero)));
-                    root = b.root;
-                    types++;
-                    var expected = b.visual.ModelRoot != null
-                        ? CanopyEgress.PartsToJettison(ModelNodes(b.visual)).ToArray()
-                        : (root.transform.Find("Canopy") != null ? new[] { "Canopy" } : new string[0]);
-                    b.egress.BailOut();
-                    Tick(b.egress, PilotEgress.BailCanopySec + 0.2f);
-                    string[] after = b.visual.ModelRoot != null ? ModelNodes(b.visual)
-                        : root.GetComponentsInChildren<Transform>(true).Select(t => t.name).ToArray();
-                    foreach (string n in expected)
-                        Require(!after.Contains(n), $"{id}: '{n}' is still on the aeroplane after the canopy went");
-                    var gone = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None)
-                        .Where(t => t.parent == null && t.name == "JettisonedCanopy").ToArray();
-                    foreach (Transform g in gone)
+                    GameObject root = null;
+                    string what = $"{id} at {speed:F0} m/s";
+                    try
                     {
-                        Require(g.GetComponent<Renderer>() == null && g.childCount > 0, $"{id}: a stand-in canopy was spawned (a JettisonedCanopy with a mesh of its own)");
-                        foreach (Transform c in g) Require(expected.Contains(CanopyEgress.Bare(c.name)), $"{id}: '{c.name}' left the aeroplane but is not its canopy or door");
+                        var b = Build(id, new FlyingGame.Sim.Aircraft(cfg, new RigidBodyState(new Vec3(0, 0, -800), Quat.Identity, new Vec3(speed, 0, 0), Vec3.Zero)));
+                        root = b.root;
+                        string[] before = Nodes(root, b.visual);
+                        foreach (string n in want) Require(before.Contains(n), $"{what}: the model has no '{n}' to lose (has the GLB changed?)");
+                        var parts = b.visual.CanopyParts();
+                        var named = parts.Select(t => CanopyEgress.Bare(t.name)).ToArray();
+                        var leaving = new System.Collections.Generic.HashSet<string>(parts.SelectMany(t => t.GetComponentsInChildren<Transform>(true)).Select(t => CanopyEgress.Bare(t.name)));
+                        // A part under another goes with it: the named list is the top of what leaves.
+                        Require(named.All(n => want.Contains(n)) && (want.Length == 0) == (named.Length == 0),
+                            $"{what}: the airframe would lose [{string.Join(", ", named)}], wanted [{string.Join(", ", want)}]");
+                        var rootsBefore = new System.Collections.Generic.HashSet<GameObject>(root.scene.GetRootGameObjects());
+                        b.egress.BailOut();
+                        Tick(b.egress, PilotEgress.BailJumpSec + 1.5f, () => b.egress.PilotOut);
+                        Require(b.egress.PilotOut, $"{what}: he never got out (canopy still on: {!b.visual.Cockpit.CanopyGone})");
+                        string[] after = Nodes(root, b.visual);
+                        foreach (string n in want) Require(!after.Contains(n), $"{what}: '{n}' is still on the aeroplane after the canopy went");
+                        string[] extra = before.Except(after).Where(n => !leaving.Contains(n)).Take(5).ToArray();
+                        Require(extra.Length == 0, $"{what}: parts other than its canopy/door left the aeroplane: [{string.Join(", ", extra)}]");
+                        var gone = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                            .Where(t => t.parent == null && t.name == "JettisonedCanopy").ToArray();
+                        Require(gone.Length == (want.Length > 0 ? 1 : 0), $"{what}: {gone.Length} jettisoned canopies for {want.Length} parts");
+                        foreach (Transform g in gone)
+                        {
+                            Require(g.GetComponent<Renderer>() == null && g.childCount > 0, $"{what}: a stand-in canopy was spawned (a JettisonedCanopy with a mesh of its own)");
+                            Require(g.GetComponent<CanopyFlight>() != null && g.GetComponent<DebrisBody>() == null, $"{what}: the canopy is not flown by the canopy's own physics (CanopyFlight)");
+                            foreach (Transform c in g) Require(want.Contains(CanopyEgress.Bare(c.name)), $"{what}: '{c.name}' left the aeroplane but is not its canopy or door");
+                        }
+                        string[] spawned = root.scene.GetRootGameObjects().Where(g => !rootsBefore.Contains(g)).Select(g => g.name)
+                            .Where(n => n != "JettisonedCanopy" && n != "Pilot" && n != "Parachute" && n != "EjectionSeat" && n != "PilotRemark" && !n.StartsWith("Debris-")).ToArray();
+                        Require(spawned.Length == 0, $"{what}: spawned beside the real parts: [{string.Join(", ", spawned)}]");
+                        Debug.Log($"[BailoutHeaven] {what}: {(b.visual.ModelRoot != null ? "model" : "procedural shell")}, " +
+                                  $"{(want.Length > 0 ? "jettisoned " + string.Join(" + ", want) : "nothing to jettison")}; he is out ({b.egress.Current})");
                     }
-                    Require(gone.Length == (expected.Length > 0 ? 1 : 0), $"{id}: {gone.Length} jettisoned canopies for {expected.Length} parts");
-                    if (expected.Length > 0) withParts++;
-                    Debug.Log($"[BailoutHeaven] {id}: {(b.visual.ModelRoot != null ? "model" : "procedural shell")}, " +
-                              $"{(expected.Length > 0 ? "jettisoned " + string.Join(" + ", expected) : "nothing to jettison")}");
+                    finally { Cleanup(root); }
                 }
-                finally { Cleanup(root); }
             }
-            Debug.Log($"[BailoutHeaven] canopy check: {types} types, {withParts} lost a canopy or door");
+            Debug.Log($"[BailoutHeaven] canopy check: {types} types, {withParts} lose a canopy or door");
             Require(types >= 20, $"only {types} types ran");
         }
 

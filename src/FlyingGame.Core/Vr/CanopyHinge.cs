@@ -61,6 +61,37 @@ namespace FlyingGame.Core.Vr
             return new CanopySpec(CanopyMotion.HingeRight, 14.0, 2.12, 0.78, 0.48, 0.343, 0.0, 100.0, ExtraFittingN, true);
         }
 
+        /// <summary>Is this one of the two canopies whose numbers are written down here (Pitts, Extra)?</summary>
+        public static bool Known(string aircraftId)
+        {
+            string id = aircraftId ?? "";
+            return id.StartsWith("pitts") || id.StartsWith("extra");
+        }
+
+        /// <summary>
+        /// ANY OTHER TYPE'S CANOPY OR DOOR, from the part itself (the bail-out, Ty 2026-11-05 06:38: the existing canopy
+        /// physics, not a new object): its bounds in the aeroplane's axes, hinged on the right sill like the two above
+        /// (the 2-33's, the Grob's and the 172's door all go over the side to the right). Mass at the Pitts' and the
+        /// Extra's own areal density, 10.8 kg per m² of the shell's largest face (9 kg / 0.83 m², 14 kg / 1.30 m²; E for
+        /// any other part); a 100° stop and the Extra's fittings (E: in a bail-out the pins are out first, so they never
+        /// carry it). A DOOR stands on its edge (thinner across than it is tall): it hangs on its front edge, so its
+        /// height runs along the hinge, its chord is the reach from the hinge to the free edge and its thickness the bulge
+        /// — the same plate, turned, so its lever and inertia are a door's and not a 6 cm sliver's.
+        /// </summary>
+        public static CanopySpec ForPart(double lengthM, double spanM, double heightM)
+        {
+            double l = Math.Max(0.2, lengthM), w = Math.Max(0.05, spanM), h = Math.Max(0.05, heightM);
+            double mass = Math.Clamp(ArealDensityKgM2 * 0.25 * Math.PI * l * Math.Max(w, h), 2.0, 40.0);
+            if (IsDoor(w, h)) (l, w, h) = (h, l, w);
+            return new CanopySpec(CanopyMotion.HingeRight, mass, l, w, h, 0.5 * w, 0.0, 100.0, ExtraFittingN, true);
+        }
+
+        /// <summary>A part thinner across the aeroplane than half its height is a door, not a bubble.</summary>
+        public static bool IsDoor(double spanM, double heightM) => spanM < 0.5 * heightM;
+
+        /// <summary>kg per m² of canopy plan area: the Pitts (9 / 0.832) and the Extra (14 / 1.299) agree to 1 %.</summary>
+        public const double ArealDensityKgM2 = 10.8;
+
         /// <summary>Fitting strengths, N, from <see cref="CanopyDynamics.PeakStopLoadN"/> at the failure speeds Ty gave
         /// (80 KIAS Extra; 80 mph = 69.5 KIAS Pitts), rounded to 100 N. Re-derive if any canopy number changes.</summary>
         public const double ExtraFittingN = 15100.0, PittsFittingN = 12000.0;

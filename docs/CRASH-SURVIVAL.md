@@ -57,23 +57,36 @@ setting the climb (~5 m/s). He never lands. Once the canopy is full the line com
 Original text, no song lyrics. Flat screens show it on the egress status line; a headset shows it as world-space text in
 front of the eyes (the same path as the landing one-liner), and the ghost and canopy are world objects.
 
-## 3. What leaves the aeroplane (Core `CanopyEgress`, Bridge `AirframeVisual.JettisonCanopy`)
+## 3. What leaves the aeroplane, and how (Core `CanopyEgress`, `Vr.CanopyBailout`; Bridge `AirframeVisual.CanopyParts` / `DetachCanopy`)
 
 The model's own nodes, never a stand-in (the translucent dome, `CanopyJettison`, is deleted):
 
-- `Canopy_Detachable` (Pitts, Extra), else `Canopy` (Swift, EB-29R);
+- `Canopy_Detachable` (Pitts, Extra), else `Canopy`;
 - `Canopy_Frame` + `Canopy_Glass` + `Canopy_Hardware` together (2-33, Grob 103);
 - a hinged cabin door on the exit side with its glass and latch (172: `C172_Door_R`, `Glass.Door.R`, `C172_Door_latch_R`);
-- nothing for an open cockpit (Great Lakes), the Cub's fold-out door (`DoorUpper_R` / `DoorLower_R`), or a model with no
-  separate canopy or door (the downloaded P-51, F-86, SR22, PA-28 etc.: their canopies are part of the fuselage mesh);
-- the procedural shell's own `Canopy` part where no model is placed.
+- nothing for an open cockpit (Great Lakes, Jenny, Stearman), the Cub's fold-out door (`DoorUpper_R` / `DoorLower_R`),
+  or a model with no separate canopy or door (the downloaded P-51, F-86, SR22, PA-28, EB-29R etc.: their canopies are
+  part of the fuselage mesh);
+- the procedural shell's glass dome only where the type's canopy comes off (`CanopyEgress.ShellCanopyLeaves`: Cassutt,
+  Glasair III, Swift today). On a cabin type it is the windows, on the Aircam two windscreens, and a hang glider or
+  paraglider has no cockpit, so it stays.
 
-The parts are detached with everything under them and fly off as one `DebrisBody`; the next flight's rebuild brings
-them back.
+**How it goes (Ty 06:38: reuse the canopy system that already exists).** The bail-out does what the headset's hands do:
+the red handle pulls, the latch opens, the hinge pins come out (`CanopyDynamics.ReleaseHingePins`), and from then on the
+canopy's own physics decides. It uses the headset's `CanopyDynamics` where it has one (the Pitts, the Extra), else Core's
+written-down Pitts/Extra spec, else a spec sized from the part itself (`CanopySpec.ForPart`: its bounds in the
+aeroplane's axes, the Pitts'/Extra's 10.8 kg/m², and a door turned to hang on its front edge). In the air (q above that
+of 20 kt) it goes on the first step. At rest, a wreck, his hand shoves the free edge (the Pitts slides its 4 in first)
+through CanopyDynamics' own bounded hand servo until it is past 10° and free. He does not jump until it has gone. The parts
+are then detached with everything under them and flown as one `JettisonedCanopy` by `CanopyFlight` (Core
+`CanopyFreeBody`: the canopy's own mass, drag and lift), and the aeroplane sheds the mass. The next flight's rebuild brings
+them back. While the bail-out works it (`CockpitRigState.EgressCanopy`) the headset's hands leave that canopy alone, so it
+is stepped once a frame.
 
 ## Checks
 
-- `tools/FlightTests/OccupantInjuryTests.cs`, `CanopyEgressTests.cs` (.NET suite).
-- `BailoutHeavenCheck` (Unity, `-executeMethod FlyingGame.EditorTools.BailoutHeavenCheck.Run`): every type's bail-out
-  jettison on the real components; a fatal crash → ghost rising and translucent; a gentle crash → lands, grade kept;
+- `tools/FlightTests/OccupantInjuryTests.cs`, `CanopyEgressTests.cs`, `CanopyBailoutTests.cs` (.NET suite).
+- `BailoutHeavenCheck` (Unity, `-executeMethod FlyingGame.EditorTools.BailoutHeavenCheck.Run`): every type, flying and at
+  rest, against a hand-copied table of what each type loses (exactly those parts gone from the airframe, flown by
+  `CanopyFlight`, nothing else spawned, he gets out; open cockpits lose nothing); a fatal crash → ghost rising and translucent; a gentle crash → lands, grade kept;
   an in-flight bail-out → unchanged.
