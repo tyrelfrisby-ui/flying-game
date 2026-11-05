@@ -446,6 +446,7 @@ public static class AeroModel
                 if (stx.Flap is not null) flapDownwashRad = Math.Max(flapDownwashRad, stx.Flap.MaxDeltaAlphaRad * controls.FlapFraction);
         Vec3 totalForce = Vec3.Zero;
         Vec3 totalMoment = Vec3.Zero;
+        SpoilerConfig? brakes = config.Controls.Spoiler is { Physical: true } sp && controls.SpoilerFraction > 0.0 ? sp : null;
 
         // wakeStalledFracOverride >= 0 supplies a LAGGED separation state from the caller (stall
         // hysteresis — separated wakes develop fast and wash out slowly). Negative = instantaneous.
@@ -529,7 +530,7 @@ public static class AeroModel
                 // Propeller slipstream: tail surfaces inside the (contracted) prop wash see the accelerated
                 // flow — this is why a prop aircraft has elevator and rudder authority at low speed (taxi,
                 // takeoff roll, floats on the hump, STOL). Wing strips are left alone (small span fraction).
-                if (slipstreamDeltaU > 0.0 && !isWing && System.Math.Abs(strip.PosVec().Y) < slipstreamRadius)
+                if (slipstreamDeltaU != 0.0 && !isWing && System.Math.Abs(strip.PosVec().Y) < slipstreamRadius)   // < 0: a windmilling prop's slower wake
                 {
                     vLocal = new Vec3(vLocal.X + slipstreamDeltaU, vLocal.Y, vLocal.Z);
                     // Swirl (owner 2026-10-09): the slipstream rotates with the prop, so the two stab halves see the
@@ -764,11 +765,14 @@ public static class AeroModel
                     alpha *= cosSweep;
                 }
 
-                AeroCoefficients coeffs = table.Sample(alpha);
+                // Each strip at its own Reynolds number (V·c/ν), where the section has a Reynolds family; else the one table.
+                double stripRe = planeSpeed * strip.Chord / KinematicViscosity(airDensity);
+                AeroCoefficients coeffs = SampleAtReynolds(config, airfoilTables, sectionKey, table, alpha, stripRe);
                 // The hinged aileron row's drag: its own deflected-surface value, as before (see AILERON SECTIONS above).
                 double hingedCd = double.NaN;
                 if (!double.IsNaN(hingedDragDelta))
-                    hingedCd = table.Sample((alphaBase + stripIncidence + hingedDragDelta) * (cosSweep < 0.9999 ? cosSweep : 1.0)).Cd;
+                    hingedCd = SampleAtReynolds(config, airfoilTables, sectionKey, table,
+                                                (alphaBase + stripIncidence + hingedDragDelta) * (cosSweep < 0.9999 ? cosSweep : 1.0), stripRe).Cd;
 
                 // Two-branch stall: blend the ATTACHED branch (linear lift carried past the static
                 // stall — capped dynamic overshoot) with the SEPARATED branch (the table's post-stall
@@ -824,6 +828,22 @@ public static class AeroModel
                         coeffs = new AeroCoefficients(coeffs.Cl * cell.ClMaxFactor, coeffs.Cd, coeffs.Cm);
                 }
 
+                // PHYSICAL AIRBRAKES (SpoilerConfig.Physical): the strips under the brake plates lose the lift aft of the
+                // plate and carry the plate's drag. Applied before the induced drag so a strip that has lost lift also
+                // sheds its own induced drag -- the rest of the wing, flying at a higher angle to make up the lift, pays it.
+                double cdBrake = 0.0;
+                if (brakes is not null && isWing)
+                {
+                    double overlap = brakes.SpanOverlap(Math.Abs(strip.Pos[1]), strip.Chord > 1e-9 ? strip.Area / strip.Chord : 0.0);
+                    if (overlap > 0.0)
+                    {
+                        double f = Math.Clamp(controls.SpoilerFraction, 0.0, 1.0) * overlap;
+                        coeffs = new AeroCoefficients(coeffs.Cl * (1.0 - f * (1.0 - brakes.BrakeChordFraction)), coeffs.Cd, coeffs.Cm);
+                        double ue = brakes.BrakeLocalVelocityRatio;
+                        cdBrake = SpoilerConfig.BrakePlateCd * ue * ue * brakes.BrakeHeightM * f / strip.Chord;
+                    }
+                }
+
                 // Drag polar: airfoil tables carry PROFILE drag only; induced drag is added here
                 // per strip as Cl²/(π·AR·e) so it varies with local alpha (and therefore with
                 // control deflection — this is where adverse yaw's drag asymmetry comes from).
@@ -856,13 +876,13 @@ public static class AeroModel
                 if (flowState is not null && idx < flowState.InstCl.Length)
                 {
                     flowState.InstCl[idx] = coeffs.Cl;
-                    flowState.InstCd[idx] = coeffs.Cd + cdInduced;
+                    flowState.InstCd[idx] = coeffs.Cd + cdInduced + cdBrake;
                     flowState.InstCm[idx] = coeffs.Cm;
                     flowState.ChordM[idx] = strip.Chord;
                     if (config.StallDynamics.UnsteadyLagEnabled && flowState.LagPrimed)
                     {
                         coeffs = new AeroCoefficients(flowState.LagCl[idx], flowState.LagCd[idx], flowState.LagCm[idx]);
-                        cdInduced = 0; // lagged Cd already contains it
+                        cdInduced = 0; cdBrake = 0; // lagged Cd already contains them
                     }
                 }
 
@@ -901,7 +921,7 @@ public static class AeroModel
                 double clTotal = coeffs.Cl + highLiftCl;
 
                 double lift = q * strip.Area * clTotal;
-                double drag = q * strip.Area * (coeffs.Cd + cdInduced + flapCd);
+                double drag = q * strip.Area * (coeffs.Cd + cdInduced + flapCd + cdBrake);
                 if (flowState?.LiftFactor is { } lf && idx < lf.Length)
                 {
                     // Branch damage (dented leading edge, torn fabric): less lift and more drag from this strip.
@@ -1041,9 +1061,9 @@ public static class AeroModel
 
     private static void ApplySpoilerDrag(AircraftConfig config, Vec3 bodyVelocity, double airDensity, ControlDeflections controls, ref Vec3 totalForce, bool[]? surfaceMask = null)
     {
-        if (controls.SpoilerFraction <= 0.0)
+        if (controls.SpoilerFraction <= 0.0 || config.Controls.Spoiler.Physical)
         {
-            return;
+            return;   // (physical brakes are flown on the wing strips themselves)
         }
 
         double speed = bodyVelocity.Length;
@@ -1083,6 +1103,49 @@ public static class AeroModel
         double extraDrag = q * plateArea * deployedPlateCd * controls.SpoilerFraction;
         totalForce -= (bodyVelocity / speed) * extraDrag;
         ForceDebug.Add(new Vec3(-0.3, 0, -0.3), -(bodyVelocity / speed) * extraDrag, Vec3.Zero, "spoiler");
+    }
+
+    /// <summary>Dynamic viscosity of air (Pa s): ISA sea level, 1.789e-5. Its temperature dependence (about -2 % per
+    /// 1000 m in the standard atmosphere) is left out; the density term carries the altitude.</summary>
+    public const double AirDynamicViscosity = 1.789e-5;
+    public static double KinematicViscosity(double airDensity) => AirDynamicViscosity / Math.Max(airDensity, 1e-3);
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, Dictionary<string, (double logRe, string key)[]>> _reFamilies = new();
+    /// <summary>For every table in a Reynolds family, the family's members sorted by Re (cached per config).</summary>
+    private static Dictionary<string, (double logRe, string key)[]> ReFamilies(AircraftConfig config) => _reFamilies.GetValue(config, cfg =>
+    {
+        var byFamily = new Dictionary<string, List<(double, string)>>();
+        foreach (KeyValuePair<string, AirfoilTableData> kv in cfg.AirfoilTables)
+            if (!string.IsNullOrEmpty(kv.Value.ReynoldsFamily) && kv.Value.ReynoldsNumber > 0)
+            {
+                if (!byFamily.TryGetValue(kv.Value.ReynoldsFamily, out var list)) byFamily[kv.Value.ReynoldsFamily] = list = new();
+                list.Add((Math.Log(kv.Value.ReynoldsNumber), kv.Key));
+            }
+        var map = new Dictionary<string, (double, string)[]>();
+        foreach (var fam in byFamily.Values)
+        {
+            var sorted = fam.OrderBy(m => m.Item1).ToArray();
+            if (sorted.Length < 2) continue;
+            foreach (var m in sorted) map[m.Item2] = sorted;
+        }
+        return map;
+    });
+
+    /// <summary>The section's coefficients at this angle, at the strip's own Reynolds number when its table belongs to
+    /// a Reynolds family (linear in log Re between the bracketing members, held at the family's ends -- no
+    /// extrapolation past what was measured); otherwise the table itself.</summary>
+    public static AeroCoefficients SampleAtReynolds(AircraftConfig config, IReadOnlyDictionary<string, AirfoilTable> tables,
+                                                    string key, AirfoilTable table, double alphaRad, double reynolds)
+    {
+        if (!ReFamilies(config).TryGetValue(key, out var fam) || !(reynolds > 0)) return table.Sample(alphaRad);
+        double lr = Math.Log(reynolds);
+        if (lr <= fam[0].logRe) return tables[fam[0].key].Sample(alphaRad);
+        if (lr >= fam[^1].logRe) return tables[fam[^1].key].Sample(alphaRad);
+        int i = 0;
+        while (i < fam.Length - 2 && lr > fam[i + 1].logRe) i++;
+        double t = (lr - fam[i].logRe) / (fam[i + 1].logRe - fam[i].logRe);
+        AeroCoefficients a = tables[fam[i].key].Sample(alphaRad), b = tables[fam[i + 1].key].Sample(alphaRad);
+        return new AeroCoefficients(a.Cl + t * (b.Cl - a.Cl), a.Cd + t * (b.Cd - a.Cd), a.Cm + t * (b.Cm - a.Cm));
     }
 
     /// <summary>Square-prism quasi-steady transverse force (Parkinson &amp; Smith 1964), along the motion; |ψ| clamped at 0.25.</summary>

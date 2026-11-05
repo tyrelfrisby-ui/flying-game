@@ -89,9 +89,9 @@ public sealed class LiveDial
     public readonly double CardSign;
     public readonly IReadOnlyList<DialNeedle> Needles;
 
-    public LiveDial(string name, string art, IReadOnlyList<DialNeedle> needles, string cardParam = "", double cardSign = 0.0)
+    public LiveDial(string name, string art, IReadOnlyList<DialNeedle> needles, string cardParam = "", double cardSign = 0.0, string facePrefix = "RearPanel_")
     {
-        Face = "RearPanel_" + name + "_Face";
+        Face = facePrefix + name + "_Face";
         Art = art; Needles = needles ?? Array.Empty<DialNeedle>(); CardParam = cardParam ?? ""; CardSign = cardSign;
     }
 
@@ -229,28 +229,18 @@ public static class CockpitLive
         Dials = new[]
         {
             AirspeedMph, Altimeter, GMeter, Tachometer, Oil("Oil_pressure"),
+            new LiveDial("Airspeed", AirspeedMph.Art, AirspeedMph.Needles, facePrefix: "FrontPanel_"),
+            new LiveDial("Altimeter", Altimeter.Art, Altimeter.Needles, facePrefix: "FrontPanel_"),
+            new LiveDial("G_meter", GMeter.Art, GMeter.Needles, facePrefix: "FrontPanel_"),
+            new LiveDial("Tachometer", Tachometer.Art, Tachometer.Needles, facePrefix: "FrontPanel_"),
             // The slot rear_panel.py labelled "oil temperature": the oil dial beside it already shows both oil
             // needles, so this one carries manifold pressure, the engine reading a constant-speed Pitts flies by.
             Manifold("Oil_temperature"), Compass,
         },
-        Sticks = new[]
-        {
-            // ck_stick(x, ZFL = -0.58, h): shaft (x, zf+0.05) -> (x-0.045, zf+h-0.09), grip -> (x-0.055, zf+h).
-            new StickCut("Stick_R", 0.930, -0.535, 0.0, 0.985, -0.025, 0.0, 0.022, 0.930, -0.550, 0.0),
-            new StickCut("Stick_F", 0.170, -0.535, 0.0, 0.225, -0.055, 0.0, 0.022, 0.170, -0.550, 0.0),
-        },
-        Pedals = new[]
-        {
-            // 0.03 x 0.08 x 0.13 boxes at (x, ±0.13, ZFL + 0.10), tilted 20°; hinged on the floor.
-            new PedalCut("Pedal_R_L", 0.758, -0.549, 0.087, 0.842, -0.411, 0.173, 0.800, -0.546, 0.130),
-            new PedalCut("Pedal_R_R", 0.758, -0.549, -0.173, 0.842, -0.411, -0.087, 0.800, -0.546, -0.130),
-            new PedalCut("Pedal_F_L", 0.178, -0.549, 0.087, 0.262, -0.411, 0.173, 0.220, -0.546, 0.130),
-            new PedalCut("Pedal_F_R", 0.178, -0.549, -0.173, 0.262, -0.411, -0.087, 0.220, -0.546, -0.130),
-        },
-        // The model has no throttle at all. A lever on the LEFT wall of the rear (PIC) cockpit, 5 cm forward of
-        // the seat's front edge and 10 cm below the sill, where the left hand falls; Ty's to move.
-        Throttles = new[] { new LeverAdd("Throttle_R", 0.990, -0.060, 0.300, 0.140, 0.030) },
-        StickTris = 80, PedalTris = 12,
+        // No stick or pedal cuts and no added throttle any more: since the v3 cockpit the model rigs its own sticks,
+        // pedals and both throttles (Stick_Rear, Pedal_*_Rear, Throttle_Rear ...), and its one Cockpit mesh no longer
+        // has a stick or pedal in it (measured 2026-11-04: one stray floor triangle in each old cut volume). The added
+        // lever stood on the left wall as a SECOND rear throttle, over the prop and trim levers of Ty's photos.
     };
 
     /// <summary>The EA 300 (rear_panel.py's eleven-dial PIC panel over the rig's own front panel).</summary>

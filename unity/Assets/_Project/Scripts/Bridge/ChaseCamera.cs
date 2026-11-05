@@ -160,6 +160,12 @@ namespace FlyingGame.Bridge
             if (v == View.Locked && CurrentView != View.Locked)
             {
                 Vector3 d = Target != null ? transform.position - Target.position : -transform.forward;
+                // From the cockpit the camera is AT the aeroplane: lock behind and a little above it instead.
+                if (CurrentView == View.Cockpit && Target != null)
+                {
+                    Vector3 back = Vector3.ProjectOnPlane(-Target.forward, Vector3.up);
+                    d = (back.sqrMagnitude > 1e-4f ? back.normalized : Vector3.back) + Vector3.up * 0.25f;
+                }
                 _lockDir = d.sqrMagnitude > 1e-4f ? d.normalized : -transform.forward;
                 _beforeLock = CurrentView;
             }
@@ -211,6 +217,24 @@ namespace FlyingGame.Bridge
         }
 
         public void NextView() => SetView((View)(((int)CurrentView + 1) % ViewNames.Length));
+
+        /// <summary>EDITOR TOOLS ONLY (QuestViewShots): place the camera as LateUpdate does, with no player loop.</summary>
+        public void PlaceForTesting() => LateUpdate();
+
+        /// <summary>In a headset there is no zoom (the runtime owns the field of view), so the fly-by parks much closer:
+        /// at the desktop's 5 s ahead a 9 m aeroplane would be a speck. Set by <see cref="QuestRig"/> while it runs.</summary>
+        public static bool CompactFlyby;
+
+        /// <summary>The lowest a camera may sit at <paramref name="pos"/>: <see cref="MinAboveSurfaceM"/> over the ground
+        /// or the water, whichever is higher.</summary>
+        public static float SurfaceFloorAt(Vector3 pos)
+        {
+            double simX = pos.z, simY = pos.x;
+            double floor = FlyingGame.Core.WorldTerrain.GroundHeightAt(simX, simY);
+            double? water = FlyingGame.Core.FloatHydro.WaterSurfaceAt(simX, simY, pos.y);
+            if (water.HasValue) floor = System.Math.Max(floor, water.Value);
+            return (float)floor + MinAboveSurfaceM;
+        }
 
         /// <summary>Fixed views: the camera is bolted to the airframe — position and "up" both in body axes, so it rolls,
         /// pitches and yaws with the aircraft and the world moves around it.</summary>
@@ -287,7 +311,9 @@ namespace FlyingGame.Bridge
             }
             if (!_flyValid)
             {
-                float ahead = Mathf.Clamp(Mathf.Max(speed, 15f) * 5f, Mathf.Max(60f, SpanM * 5f), 450f);
+                float ahead = CompactFlyby
+                    ? Mathf.Clamp(Mathf.Max(speed, 15f) * 2.5f, Mathf.Max(30f, SpanM * 3f), 150f)
+                    : Mathf.Clamp(Mathf.Max(speed, 15f) * 5f, Mathf.Max(60f, SpanM * 5f), 450f);
                 Vector3 side = Vector3.Cross(Vector3.up, vhat);
                 if (side.sqrMagnitude < 0.01f) side = t.right;
                 side.Normalize();

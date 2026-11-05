@@ -1,0 +1,22 @@
+{
+  "glider-grob103-acro-like-own.glb": {
+    "input_sha256": "6c779c6299a479ec64c53afcf7c556dd04e6e48c06f01ed5f94f2ee5d2d86d59",
+    "input_span_m": 18.00004482269287,
+    "input_area_m2": 17.23233076986042,
+    "chord_scale": 1.0155329672877298,
+    "area_method": "section chord integral; root to .45m extrapolated; exported mesh independent check",
+    "license": "CC BY-SA 4.0",
+    "steering_travel": "ESTIMATED +/-25 degrees; no published figure",
+    "sha256": "b3f6afeba24a0c590ff935ca85863b1f4d631332baa90ff0ca18cf129d231543"
+  },
+  "glider-grob103-acro-like-own-tf.glb": {
+    "input_sha256": "6c779c6299a479ec64c53afcf7c556dd04e6e48c06f01ed5f94f2ee5d2d86d59",
+    "input_span_m": 18.00004482269287,
+    "input_area_m2": 17.23233076986042,
+    "chord_scale": 1.0155329672877298,
+    "area_method": "section chord integral; root to .45m extrapolated; exported mesh independent check",
+    "license": "CC BY-SA 4.0",
+    "steering_travel": "ESTIMATED +/-25 degrees; no published figure",
+    "sha256": "b3f6afeba24a0c590ff935ca85863b1f4d631332baa90ff0ca18cf129d231543"
+  }
+}

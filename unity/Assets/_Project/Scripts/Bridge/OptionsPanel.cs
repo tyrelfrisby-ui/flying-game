@@ -576,8 +576,35 @@ namespace FlyingGame.Bridge
             double sc = PilotRecord.OwnScore();
             UiLayout.Label(new Rect(_x, y, _cw, _lh * 0.9f), $"You are: {badge}{(sc > 0 ? $"   ·   {FlyingGame.Sim.Ratings.PilotScore.Format(sc)} points" : "")}", _label);
             y += _lh * 0.9f;
+            if (held.PilotAircraft != null) Note($"Pilot flown in the {FleetName(held.PilotAircraft)}.", ref y);
+            if (held.CarriedOver.Count > 0) Note("Carried over from an earlier version: " + StageTitles(held.CarriedOver) + ".", ref y);
+            // What is open next, and how far off it is (owner 2026-11-01: glider solo, Cub solo, then the
+            // Decathlon or the Great Lakes, then the aerobatic glider, Blind Flying, Commercial, Instructor).
+            foreach (var (stage, missing) in PilotRecord.NextStages())
+            {
+                string where = stage.Aircraft.Length == 0 ? " in any powered aeroplane"
+                             : " in the " + string.Join(" or the ", System.Linq.Enumerable.Select(stage.Aircraft, FleetName))
+                               + (stage.Aircraft.Length > 1 ? " (your choice)" : "");
+                Note(!FlyingGame.Sim.Ratings.RatingResolver.Flyable(stage)
+                         ? $"Next: {stage.Title} — coming soon: its aeroplane is not in the hangar yet."
+                         : $"Next: {stage.Title} — {missing.Count} of {stage.Lessons.Length} lessons still to fly to {stage.PassScore:0} %{where}.", ref y);
+            }
             if (PilotRecord.Awards.Count > 0) Note("Awards: " + string.Join(" · ", PilotRecord.Awards), ref y);
             Note("Your lesson scores are yours. Only the badge and the leaderboard score are sent.", ref y);
+        }
+
+        /// <summary>An aircraft id as the pickers name it; a placeholder by its own name.</summary>
+        private static string FleetName(string id)
+        {
+            foreach (var f in SessionSettings.Fleet) if (f.id == id) return f.name;
+            foreach (var p in FlyingGame.Sim.Ratings.Hangar.Placeholders) if (p.Id == id) return p.Name;
+            return id;
+        }
+
+        private static string StageTitles(System.Collections.Generic.List<string> ids)
+        {
+            var book = PilotRecord.Book;
+            return string.Join(", ", System.Linq.Enumerable.Select(ids, i => book.Stage(i)?.Title ?? i));
         }
 
         private void GamePage(ref float y)

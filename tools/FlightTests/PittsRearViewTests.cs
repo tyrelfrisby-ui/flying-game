@@ -33,8 +33,9 @@ public class PittsRearViewTests
         // From the unchanged rear eye the panel top is now 8.9 deg below the horizon (it was 3.3 at v3, 0.35 before).
         double deg = Math.Atan2(RimTop - EyeUp, EyeAft - RimAft) * 180 / Math.PI;
         Assert.InRange(deg, -9.0, -8.8);
-        // The switch row's placards and the bottom of the panel extension moved the same 50.8 mm (v3: -0.201 / -0.229).
-        Assert.InRange(v["Pitts_Switch_Placards_Rear"].Min(p => p.y), -0.2522, -0.2512);
+        // The switch row's legends and the bottom of the panel extension moved the same 50.8 mm (v3: -0.201 / -0.229).
+        // The legends are v4's MASTER / ALTERNATOR / FUEL PUMP / SMOKE strip (pitts_reference_visuals.py), on the old row.
+        Assert.InRange(v["Pitts_Reference_Switch_Legends"].Min(p => p.y), -0.2522, -0.2512);
         Assert.InRange(v["Pitts_RearPanel_Extension"].Min(p => p.y), -0.2803, -0.2793);
         // Nothing of the switch row sits above the instruments or below the extension.
         double floor = v["Pitts_RearPanel_Extension"].Min(p => p.y);

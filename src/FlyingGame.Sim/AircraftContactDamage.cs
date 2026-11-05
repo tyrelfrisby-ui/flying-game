@@ -464,7 +464,7 @@ public sealed partial class Aircraft
             _propStrikeDepth[e] = Math.Max(_propStrikeDepth[e], dSolid);
             double inertia = pc.PropInertia > 0 ? pc.PropInertia : 1.0;
             double wIdle = Math.Max(1.0, pc.IdleRpm * Math.PI / 30.0);
-            double throttle = _throttle01 * (Config.Engines.Count > e ? Config.Engines[e].ThrottleScale : 1.0);
+            double throttle = ShaftPower01 * (Config.Engines.Count > e ? Config.Engines[e].ThrottleScale : 1.0);   // a dead engine drives nothing
             double qEngine = pc.MaxPowerW * throttle / Math.Max(_propOmega[e], wIdle);
             double qGround = muN * _propRadius[e] + WaterBladeTorque(_propRadius[e], dWater, _propOmega[e]);
             _propOmega[e] = Math.Min(rpm * Math.PI / 30.0, _propOmega[e] + (qEngine - qGround) / inertia * dt);

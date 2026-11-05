@@ -162,7 +162,7 @@ public class CrashTuningTests : IDisposable
             "pitts-s2b-like", "stearman-pt17-like",
         };
         var wood = new SortedSet<string> { "hughes-h4-like", "jn4-jenny-like" };
-        var composite = new SortedSet<string> { "cirrus-sr22-like", "glasair3-like", "glider-eb29r-like", "glider-swift-s1-like", "paraglider-en-b-like", "target-drone-like" };
+        var composite = new SortedSet<string> { "cirrus-sr22-like", "glasair3-like", "glider-eb29r-like", "glider-grob103-acro-like", "glider-swift-s1-like", "paraglider-en-b-like", "target-drone-like" };
         string dir = Path.Combine(AppContext.BaseDirectory, "TestData");
         int n = 0;
         foreach (string f in Directory.GetFiles(Path.GetFullPath(Path.Combine(dir, "..", "..", "..", "..", "..", "..", "configs", "aircraft")), "*.json"))
@@ -177,7 +177,7 @@ public class CrashTuningTests : IDisposable
             Assert.True(want == t, $"{id}: {t}, expected {want}");
             n++;
         }
-        Assert.Equal(34, n);
+        Assert.Equal(35, n);
     }
 
     /// <summary>The crush law per type: δ = 0.15·(v²/v_b² − 1); one arrival breaks a section at v_b·√(1 + capacity/0.15).</summary>

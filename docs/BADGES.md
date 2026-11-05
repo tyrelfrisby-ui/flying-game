@@ -36,34 +36,53 @@
 | A scored contest owns the air | `Contests` + `SessionSettings.LockContestConditions` | `EveryScoredContestPinsEveryThing…` |
 | Score = Σ 100 / rank | `PilotScore` | `TheScoreIsTheSumOfOneHundredOverYourRank` |
 
-## The ladder
+## The ladder (restructured 2026-11-01)
 
-`None → StudentPreSolo → StudentSolo → Private → Commercial → ATP`, held **per class** —
-**GLIDER, ASEL, ASES, AMEL, AMES**.
+> **Superseded.** Until 2026-11-01 the ladder was `None → StudentPreSolo → StudentSolo → Private → Commercial →
+> ATP`, held per class. Owner, 2026-11-01: the levels are exactly **Student pre-solo, Student solo, Pilot,
+> Instrument (shown to the player as "Blind Flying"), Commercial, Flight Instructor**, earned along one path
+> through particular aeroplanes; and the player never reads "private", "certified" or "license"/"licence".
 
-**The same lessons to a tighter standard is what the ladder is.** A level does not ask for new manoeuvres so
-much as the same ones flown better: 70 % to go solo, **78 % for a private, 88 % for a commercial, 93 % for an
-ATP**. That is how real certification works — the commercial ACS halves the altitude and heading tolerances
-the private one allows — and it means the whole thing is skill based without an hour counted anywhere, which
-is what was asked for.
+`CertLevel`: None 0, StudentPreSolo 1, StudentSolo 2, Pilot 3, Instrument 4, Commercial 5, FlightInstructor 6.
+**The numbers moved** (Commercial was 4); nothing ever persisted a level, and anything old goes through
+`LegacyLevels`, never a cast.
 
-A **glider has its own shorter list**, because it has no powered climb and no go-around to fly.
+The path (`RatingBook.Default`, pinned by `ProgressionTests.TheGraphIsTheOwnersGraph`):
 
-Fly something in a class and you are a pre-solo student in it; that costs nothing but turning up. Everything
-above that is the full list at the level's score. **A bad day never costs you a rating** — the log keeps your
-best score per lesson, so a rating once earned stands.
+| Stage | Aircraft (any ONE; every lesson in it) | Lessons @ score | After | Gives |
+|---|---|---|---|---|
+| glider-solo | glider-2-33-like | glider pre-solo @ 70 | — | Student solo |
+| cub-solo | j3-cub-like | pre-solo @ 70 | glider-solo | — |
+| pilot | decathlon-8kcab-like **or** great-lakes-like (player's choice) | full @ 78 | cub-solo | Pilot |
+| aerobatic-glider | Grob 103 Acro-like / DG-class — **both placeholders** | glider full @ 78 | pilot | — |
+| instrument ("Blind Flying") | any powered, not retired | full @ 83 | glider-solo **and** aerobatic-glider | Instrument |
+| commercial | any powered, not retired | full @ 88 | instrument | Commercial |
+| flight-instructor | any powered, not retired | full @ 93 | commercial | Flight Instructor |
 
-**The class is read off the aeroplane**, not from a list that would go stale: a glider by its id, sea by
-whether it has floats, multi by whether it has two or more engine mounts. So the AirCam is **AMEL** (it is a
-twin), the amphibious AirCam is **AMES**, and the H-4 is eight engines on a hull, which is AMES too. Fly the
-syllabus twice in two aeroplanes and you earn two badges, exactly as a real pilot does when they add a
-seaplane rating — and a landing flown on floats does nothing at all for the land rating.
+Flying anything at all makes you a pre-solo student. **The same lessons to a tighter standard** is still what
+the ladder is. **On this build the ladder stops at Pilot**, because the aerobatic glider stage cannot be flown
+until one of its aeroplanes exists (`OnThisBuildTheLadderStopsAtPilot…`).
 
-An ATP is written the way it is spoken: **`ATP ASEL AMEL`**. Below that the badge leads with the highest thing
-you hold and fits in what it can — `ASEL COMM · ASES PVT +1` — because a tag nobody can read at two hundred
-yards is not a badge.
+**Classes** are still read off the aeroplane (`Certificate.ClassOf`). A class goes on the badge once its whole
+list has been flown in it to the Pilot standard (78 %): `PILOT · ASEL ASES`, `BLIND FLYING · GLIDER ASEL`. The
+level leads the tag and classes follow only if they fit whole in 26 characters.
 
-## The awards that are not licences
+**Save migration** (`SaveMigration`, `SaveMigrationTests`): an old log (no `#v` key) is judged under the OLD
+rules, frozen in the migration, and the highest old level held in any class maps to: pre-solo → pre-solo;
+solo → solo (glider-solo carried over, plus cub-solo if the solo was powered); Private → Pilot; Commercial →
+Commercial; ATP → Commercial. The stages leading there are written as carried over (`!pilot=1`) and the badge
+screen says so. Old badges arriving over the network ("ASEL PVT") are redrawn in current words
+(`LegacyLevels.UpgradeBadge`).
+
+**Retired**: the 737-800 (`boeing-737-like`) — config, model and livery kept; off every picker; a flight in it
+counts for nothing on the ladder. **Placeholders** (`Hangar.Placeholders`): Grob 103 Acro-like, DG-class
+aerobatic glider, Beech 18-like, 737-200-like — data only, no config, never in a picker.
+
+**Jobs** (`FlyingGame.Sim.Jobs`) are stubs: bush, float and backcountry in the Cubs, the Super Cub and the
+Beaver; Beech 18 night air mail; the airline track in the DC-3 then the 737-200. Navigation is
+`Pilotage / PaperMap / CompassAndClock / FourCourseRange / Ndb / Vor / Dme` and nothing else, ever.
+
+## The awards that are not levels
 
 A rating says you are allowed to do something. These say you are **good at it, in front of other people**.
 

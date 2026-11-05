@@ -1,0 +1,51 @@
+{
+  "reference_pdf_sha256": "19402e6880d39d2aae199986ed254688078b78a911924d2e7415d1bcdc8b6021",
+  "pdf_page": 7,
+  "page_render_size": [
+    848,
+    1200
+  ],
+  "scale_m_per_pixel": 0.01898047722342733,
+  "measurement_span_pixels": [
+    148,
+    1070
+  ],
+  "measurements": "docs/models/grob103-own-PROVENANCE.md",
+  "model_sha256": "1241d49a015a3813bdb3542d15865f77fd973fb18620c2cc1d39734a1ee8334e",
+  "reference_composites": "assets-incoming/ref-grob103/review-overlays",
+  "views": {
+    "top": {
+      "crop_source_pixels": [
+        390,
+        130,
+        840,
+        1090
+      ],
+      "rotation_ccw_degrees": 90,
+      "composite": "assets-incoming/ref-grob103/review-overlays/overlay-top.png",
+      "side_wings_omitted": false
+    },
+    "side": {
+      "crop_source_pixels": [
+        230,
+        130,
+        355,
+        600
+      ],
+      "rotation_ccw_degrees": 270,
+      "composite": "assets-incoming/ref-grob103/review-overlays/overlay-side.png",
+      "side_wings_omitted": true
+    },
+    "front": {
+      "crop_source_pixels": [
+        60,
+        130,
+        190,
+        1090
+      ],
+      "rotation_ccw_degrees": 270,
+      "composite": "assets-incoming/ref-grob103/review-overlays/overlay-front.png",
+      "side_wings_omitted": false
+    }
+  }
+}

@@ -37,7 +37,8 @@ namespace FlyingGame.Bridge
         public void SetOn(bool on) => On = on;
 
         /// <summary>The oil's flow now: none with the engine stopped, more with power, because the exhaust carries it.
-        /// A glider's canisters are always full. Same law the widget uses.</summary>
+        /// A glider's canisters are always full. Same law the widget uses. The oil pump is electric: with the master
+        /// off or a flat battery (Aircraft.Electrics) there is no smoke, whatever the switch says.</summary>
         public float Flow
         {
             get
@@ -45,8 +46,9 @@ namespace FlyingGame.Bridge
                 FlyingGame.Sim.Aircraft ac = Driver?.Sim?.Aircraft;
                 if (!On || ac == null) return 0f;
                 if (ac.Config.Propulsion == null) return 1f;                  // wingtip canisters
-                if (ac.EngineRpm < 100) return 0f;                            // nothing turning, nothing to carry it
-                return (float)(0.25 + 0.75 * Mathf.Clamp01((float)ac.Throttle01));
+                if (!ac.Electrics.BusLive) return 0f;                         // the pump has no power
+                if (!ac.EngineRunning || ac.EngineRpm < 100) return 0f;       // no exhaust (a windmilling dead engine has none)
+                return (float)(0.25 + 0.75 * Mathf.Clamp01((float)ac.ShaftPower01));
             }
         }
 
@@ -128,7 +130,8 @@ namespace FlyingGame.Bridge
             PropulsionConfig pr = ac.Config.Propulsion;
             if (pr == null) return 0;
             if (pr.PropDiameterM <= 0) return 25.0 * Mathf.Clamp01((float)ac.Throttle01);
-            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(ac.Config.Smoke, pr, ac.EngineRpm, ac.Throttle01, Atmosphere.DensityAtAltitude(altM));
+            // The smoke lane's exhaust model, fed what the engine really does (a dead engine blows no exhaust).
+            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(ac.Config.Smoke, pr, ac.EngineRunning ? ac.EngineRpm : 0.0, ac.ShaftPower01, Atmosphere.DensityAtAltitude(altM));
         }
 
         // LateUpdate, so the sample is the pose the camera is about to see rather than one frame behind it.
@@ -137,6 +140,7 @@ namespace FlyingGame.Bridge
             FlyingGame.Sim.Aircraft ac = Driver?.Sim?.Aircraft;
             if (ac == null) { _smoke?.Hide(); return; }
             if (!ReferenceEquals(ac, _builtFor)) Rebuild(ac);
+            ac.Electrics.SmokePump = On && ac.Config.Propulsion != null;     // the pump's load on the bus
             if (Driver.Replaying) return;                                     // the replay owns the pose; FlightReplay redraws
 
             double now = Atmosphere.SimTimeSec;
