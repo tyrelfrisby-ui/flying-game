@@ -186,7 +186,8 @@ Nothing approved by me; every (E) number below is mine to be checked, not a book
   pointing to your LEFT (about a fore-aft shaft), as you wrote; the first pass had turned it forward after Codex's OFF
   legend, which still sits forward of the valve and is Codex's to move. Prop lock/slide and trim unchanged. Both Codex
   follow-ups (passes 2, 3) were already merged; nothing newer. Lane a79837ce, BUILD SUCCEEDED 2026.1105.0216, EditMode
-  20/20; renders refreshed (pitts-cockpit.png, pitts-vs-reference.png). Install: INSTALL2.
+  20/20; renders refreshed (pitts-cockpit.png, pitts-vs-reference.png). Merged island-nav 22a4ae77, Quest 8e66043a, parity --strict OK.
+  INSTALLED: iOS 2026.1105.0226 on iPhone + iPad mini + EFB iPad (3/3); Quest 3S 2026.1105.0236 installed and launched.
 - **Look at the renders** (Unity, seat eye): ~/Developer/agent-lanes/renders/instrument-style/ — Pitts front and rear seat,
   the rear levers at rest and "moved", the right wall (fuel valve ON / OFF), the floor, and contact-sheet.png of every
   modelled panel. Reference photos side by side: pitts-vs-reference.png.
