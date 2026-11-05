@@ -1,4 +1,41 @@
 ## NEEDS YOU
+
+## NEEDS YOU — crash flight-path camera shoots to sky: fly-test (Claude, 2026-11-05)
+<!-- crash-camera-flightpath needs-you -->
+Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 2026.1105.0226+): "I crashed in flight path view on the phone and the shot went straight up into the sky?"
+- **Ty, please check:** crash in Relative wind / flight-path view on the iPhone (and the Quest), once into water and once on
+  land hard enough to break something off. The camera should ease out to about three chase distances behind and 30
+  degrees above the wreck (about 50 m back and 25 m up on the Pitts), look down at it, and STAY there. It should not
+  keep climbing. A water touch that breaks nothing, or a crunch that breaks nothing, still keeps the normal chase view.
+  New on land: the wreck view now also opens when a broken piece lands on the ground (before, a land crash stayed on the
+  flight path). Tell me if you would rather keep the flight-path camera on land.
+- **Root cause (camera only).** When a broken-off piece landed in WATER, ChaseCamera switched to its wreck view
+  (lane/codex-crash-cam 11-02; water-only since 11-04 22:46), which sits 30 degrees above the wreck at the range that
+  fits it, and that range could only ever grow. Two things that are not the wreck were feeding it:
+  1. `ChaseCamera.CrashRadius` (`ChaseCamera.cs:502-509` at 23922ee1) sized the aircraft from EVERY enabled renderer under
+     it. That includes the fuel sheen (FuelSlickVisual, added to the aircraft by StructuralDamage.cs:88, a quad scaled to
+     the spreading slick, 0.5 m/s, up to 187 m on the Pitts) and the crash spray, foam and rings (CrashWaterVisuals, added
+     by FlightAudio.cs:169). So the camera kept climbing for as long as the slick spread.
+  2. `ChaseCamera.cs:585-589` latched the eased focus's lag behind a sliding wreck into that same never-shrinking
+     range. Even with honest radii that parked a 6 m Pitts 100-240 m away.
+  Measured on a frame-by-frame copy of that camera (Unity SmoothDamp, 66.7 fps) in a Pitts crash into 4 m of water:
+  **119.5 m above the wreck, range 239 m, and still rising at 60 s.** On land the old view did not do this, because it
+  never opened there: the flight-path camera peaked only 2-4 degrees up in all three land crashes, so it was not the
+  cause either.
+- **Fix (camera only, shared iOS + Quest; no physics touched).** New `src/FlyingGame.Core/CrashFraming.cs` (pure, tested)
+  holds the wreck view's rules and ChaseCamera uses it. A part's radius counts mesh renderers only and is clamped to 0.75
+  of the aeroplane's span/length (`ClampRadiusM`). The latched range leaves out the lag, which now eases in and back out.
+  The range is kept between 1.5 and 3 chase distances (`MaxRangeChase`). The view opens for a broken-off piece on land
+  OR water (`OpensCrashView`, PieceId >= 0), and when the camera was looking near-vertical it takes its bearing from
+  where it stands relative to the wreck. Result, same crashes: 20-25 m above the wreck at 60 s, looking 19-41 degrees
+  down, airframe within 15 degrees of the view axis, at least 11.7 m clear of the surface.
+- **Tests:** `tools/FlightTests/CrashCameraTests` (7: runway, grass, 70-degree steep, steep into water; the old camera
+  climbing past 100 m in water and the new one holding; part clamp; land/water opening rule). Literals only.
+  `EmergentWaterContactTests.NoTouchRuleIsLeft` now looks for `CrashFraming.OpensCrashView(hit)`. Filtered run
+  (CrashCamera, EmergentWaterContact, ChaseFraming, CameraReference, FuelSlick): 41/41 pass.
+- **Commits / builds / installs:** (filled in below as they land)
+- NOTHING approved by me.
+
 <!-- pitts-cockpit-v2 needs-you -->
 - **PITTS S-2B COCKPIT v2: REVIEW THE RENDERS BEFORE ANY MERGE (Claude, 2026-11-05; Ty's spec 05:07 PITTS section).
   lane/claude-pitts-cockpit-v2 (Codex's model lane/codex-pitts-cockpit-v2 b221022a + ee566233 + a3278562 committed by me
