@@ -511,3 +511,11 @@ puff a ray crosses — and that was still governed by a 10–30 s life law nobod
 alone, white on black, and read the coverage across the column at several ages), set THAT as the design target,
 and derive each particle's share from its overlap (`SmokeTrail.PuffAlphaFor`). A crossfade between two particle
 sets must be done in optical depth too; crossfading alphas leaves a see-through band.
+
+### Other agents' prompts are in `ps` too
+A "wait until no build is running" gate written as `ps aux | grep -E "Unity|xcodebuild"` (or `pgrep -f "tools/deploy/deploy.sh"`)
+never goes idle on this machine: every `claude -p` lane has its whole prompt on its command line, and the prompts quote
+those very words. The Extra front-seat render waited 40 minutes behind nothing. Match the EXECUTABLE, anchored:
+`pgrep -f "^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity"`, `pgrep -x xcodebuild`,
+`pgrep -f "^zsh tools/deploy/deploy"`. And require a few consecutive idle polls before starting: three lanes whose gates
+all saw the same idle second started three iOS builds into the same /private/tmp/flyinggame-* at once.

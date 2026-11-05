@@ -14,6 +14,37 @@
   48 h), among them every smoke lane, tv-companion, extra-cockpit-shared, grob103 and decathlon. Each one draws the red trainer if it is built and installed.
   Any of those lanes must merge island-nav before it builds. Details in the Log entry "kill red 2-33".
 <!-- /kill-red-233 needs-you -->
+## NEEDS YOU — fly-check the Extra FRONT seat, rear switches, verniers, throttle grip and fuel valve (Claude, 2026-11-04 22:55 PST)
+- Ty: on the iPhone / iPad mini (2026.1104.2245) and the Quest, fly the Extra 300 and check: FRONT seat = small sub-panel
+  with ASI / G / ALT only + throttle, stick, rudder and the red fuel-valve lever (right wall); REAR panel grey, only
+  MASTER / ALT / FUEL PUMP / NAV / STROBE / SMOKE with legible placards beneath, no unlabelled knobs, EGT/CHT lower right,
+  padded diagonal tubes; prop (blue) / mixture (red) verniers on the left wall beside the rear throttle, knobs aft;
+  ribbed pistol-grip throttle; on the Quest turn either cockpit's fuel lever 90 deg inboard: the other lever follows and
+  the engine stops ~4 s later, relights ~2 s after ON. Nothing approved; no gate marked. Questions Q033-Q035 in the queue
+  (front G-meter vs the AirSpace 300L's two-gauge front panel; trim knob gone; valve timings).
+- Renders (Unity batch, seat eye): ~/Developer/agent-lanes/renders/extra-front-seat/front.png, rear.png (iPhone 72 deg), front-quest.png, rear-quest.png (Quest eye),
+  switches-closeup.png, verniers-left-wall.png, throttle-closeup.png, valve-rear.png, valve-front.png, and
+  rear-compare.png / front-compare.png / throttle-compare.png beside the reference photos in ref/ (AirSpace N251EC, Wikimedia 330LX).
+
+### 2026-11-04 Extra front seat + rear panel + linked fuel valve (Claude, lane/claude-extra-front-seat)
+- Pass 13 `tools/own_models/extra_front_seat.py` on all three Extra GLBs + ea300-own-rig.json (docs/SHARED-COCKPIT.md row 13):
+  front gauges shrunk to 2-1/4 in on a 250 x 110 mm sub-panel; 21 front controls, TC/3-in-1/tach/MP/amps/fuel computer/Trig
+  heads/LCDs retired (nodes kept as Legacy_P3h_*, out of the rig and of `controls`); rear magneto, alternate air, trim,
+  landing light retired; ALTERNATOR toggle cloned from MASTER (param `alternator`); bats 0.65 scale, row z 0.090,
+  placards at 0.061 (first render showed the bats covering their labels); EGT/CHT (egt_f, cht_f); panel + hood grey;
+  fuel selectors -> GL-type valve levers on `Extra_FuelValve_SharedRod`, param `fuel_valve`.
+- Sim: `Aircraft.FuelValveOpen` (default ON) is a real shut-off: 4 s of fuel in the lines, then EngineStopped / rpm 0 /
+  fuel flow 0 / no power; relights 2 s after reopening. `RigInputs.FuelValve` drives both levers (CockpitRigState), the
+  Quest hands write the sim (VrCockpitHands.Panel) and the other seat's lever follows. Note: the Great Lakes' and J-3's
+  `fuel_valve` controls now also really shut the fuel off on the Quest.
+- Tests: FuelValveTests 3/3 new; CockpitControlInteriorTests (Extra 40 controls, wall boxes for verniers / valves) and
+  SharedPanelRigTests (22 needles) updated with literals; filter Cockpit|Panel|Extra|Rig|FuelValve|... all pass except the
+  pre-existing ModelRigTests.FullAirBrake (+ AerobatGroundHandling / DronePilot / MazeTow in the wider filter, as on base).
+  check_vr_phase3.py: every control clearance passes (verniers by an exact lateral rule); its panel section asserts the
+  phase-3b gauge list and has failed since pass 11 (also at HEAD before this lane).
+- iOS deploy.sh from this lane (island-nav 10c98d6a + this work): ** BUILD SUCCEEDED ** 2026.1104.2245, 0 error CS,
+  installed iPhone + iPad mini. Lost ~1.5 h to the busy-gate bug now in CLAUDE.md lessons.
+
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
   Extra to full aileron and check the down-going aileron's nose stands proud of the wing (~50 mm), and roll the Great
@@ -8172,6 +8203,7 @@ Straight-on before/after views use the same centre/projection, 2400×1800 and 0.
 ## 2026-10-31 — lane/codex-iac-pitts: round 3 Extra upper card / Great Lakes eye evidence
 
 ### NEEDS YOU
+
 
 #### Great Lakes rear eye review — Ty to judge
 
