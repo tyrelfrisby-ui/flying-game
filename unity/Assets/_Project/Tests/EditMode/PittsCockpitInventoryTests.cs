@@ -169,6 +169,12 @@ namespace FlyingGame.EditModeTests
             }
             CollectionAssert.AreEqual(new[] { 0.0, 0.5, 1.0 }, rig.Controls.Single(x => x.Node == "CowlFlap").Detents, "CLOSED / MID / OPEN");
             CollectionAssert.AreEqual(new[] { 0.0, 1.0 }, rig.Controls.Single(x => x.Node == "FuelValve_Rear").Detents, "OFF / ON");
+            // Ty 19:27: UP = ON, "turning it horizontal to the left shuts off fuel": the valve turns about a FORE-AFT shaft
+            // (glTF x), +90 deg taking its up handle to +z, the pilot's left, at OFF (0). Not forward (the first pass).
+            RigNode valve = rig.Nodes.Single(n => n.Node == "FuelValve_Rear");
+            Assert.AreEqual(1.0, valve.Ax, 1e-9, "the valve's shaft runs fore and aft");
+            Assert.AreEqual(90.0, valve.Value(0.0), 1e-9, "OFF");
+            Assert.AreEqual(0.0, valve.Value(1.0), 1e-9, "ON, as drawn");
             foreach (GlbFile g in Glbs())
                 foreach (string n in want.Keys)
                     Assert.Greater(g.Vertices(n), 0, $"{Path.GetFileName(g.Path)}: {n} draws nothing");
