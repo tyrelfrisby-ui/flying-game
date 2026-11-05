@@ -116,9 +116,10 @@ def main():
  print('IAC holder bounds and both eye-to-card face sightlines clear of console boxes')
  # V7 switch layout and actual grip travel: forward must be ON in both cockpits.
  for seat,s in q.SEATS.items():
-  order=['master','alternator','fuel_pump','nav_lights','strobe','landing_light']
+  # gl_panel_v2 (Ty 2026-11-05): MAG L / MAG R join the six on the lid, 4 fore/aft columns of 2; breakers unchanged.
+  order=['mag_left','mag_right','master','alternator','fuel_pump','nav_lights','strobe','landing_light']
   hardware=N[names['GL_ConsoleHardware_'+s['sfx']]]['extras']
-  assert hardware['breaker_order']==order and hardware['layout']==[2,3]
+  assert hardware['breaker_order']==order[2:] and hardware['layout']==[4,2] and hardware['switch_order']==order
   pivots=[]
   for param in order:
    c=next(c for c in C if c['seat']==seat and c['param']==param)
@@ -128,13 +129,14 @@ def main():
    pivots.append(P)
   assert np.ptp(np.array(pivots[:3])[:,2])<1e-6
   assert np.ptp(np.array(pivots[3:])[:,2])<1e-6
-  assert pivots[0][1]>pivots[3][1]
+  assert pivots[0][1]>pivots[1][1] and pivots[2][1]>pivots[3][1]   # L / the first of each pair outboard (pilot's left)
   assert np.ptp(np.array(pivots)[:,2])<1e-6
   assert hardware['switch_surface']=='top' and hardware['breaker_surface']=='inboard face'
   assert abs(q.LEVERS[0][2]-q.LEVERS[1][2]-.0254)<1e-9
   assert abs(q.LEVERS[0][2]-q.LEVERS[2][2]-.0508)<1e-9
-  assert pivots[0][0]<pivots[1][0]<pivots[2][0]
-  print(seat,'six 2x3 toggles: ON forward; matching breaker order OK')
+  xs=[round(float(P[0]),4) for P in pivots]
+  assert all(xs[2*k]==xs[2*k+1] for k in range(4)) and xs[0]<xs[2]<xs[4]<xs[6]   # pairs share a column, aft -> forward
+  print(seat,'eight 4x2 toggles (MAGs aft): ON forward; matching breaker order OK')
  q.check_row(g)
  # Wall trim contract: linked translation, ND forward, NU aft; no fuel valve mesh or binding.
  for seat,s in q.SEATS.items():

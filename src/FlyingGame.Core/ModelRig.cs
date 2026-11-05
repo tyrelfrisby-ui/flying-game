@@ -168,6 +168,8 @@ public struct RigInputs
     public double CowlFlap, PropLock;
     /// <summary>Ignition key position: 0 OFF, 1 R, 2 L, 3 BOTH, 4 START.</summary>
     public double Magneto;
+    /// <summary>The two magneto toggles where a type has them instead of a key (the Great Lakes, Ty 2026-11-05): 0 OFF, 1 ON.</summary>
+    public double MagLeft, MagRight;
     /// <summary>J-3 primer plunger: 0 in and locked .. 1 pulled out 50 mm. No priming system reads it yet; it stays 0
     /// (in) unless a hand pulls the knob (Ty 2026-11-02, v18).</summary>
     public double Primer;
@@ -176,8 +178,10 @@ public struct RigInputs
     /// <summary>Alternator field switch and electric boost pump, 0 or 1 (FlyingGame.Core.Engine.ElectricalSystem).</summary>
     public double Alternator, FuelPump;
 
-    /// <summary>0..1 canopy, 1 = fully open.</summary>
+    /// <summary>0..1 canopy, 1 = fully open (the Pitts v2: its swing alone, 0..175°).</summary>
     public double CanopyOpen;
+    /// <summary>The Pitts' slide along its track, 0..1 of the whole track (CanopyDynamics.Slide01, v2 2026-11-05).</summary>
+    public double CanopySlide;
     /// <summary>The seat harness (CONTRACT.md phase 2): 0 latched .. 1 released; the straps fall open on it.</summary>
     public double HarnessLatch;
     /// <summary>0 or 1, 1 = locked.</summary>
@@ -203,6 +207,24 @@ public struct RigInputs
     public double OilPressPsi, OilTempF, ChtF;
     /// <summary>Fuel remaining in the tank the gauge is plumbed to, 0..1.</summary>
     public double FuelCentreFrac;
+    /// <summary>The Great Lakes' top-wing tank, 0 empty .. 1 full, what its glass sight gauge's cork float reads (Ty
+    /// 2026-11-05): <see cref="TankFraction"/> of the loading's "topWing" tank.</summary>
+    public double FuelTopWingFrac;
+
+    /// <summary>One tank's fill, 0..1 of its placard, from the loading (the fuel system: the sim burns it out of the
+    /// tanks every step). An aeroplane flown with no fuel in ANY tank (the reference loading of most types, the open W&amp;B
+    /// decision) reads full, as <see cref="FuelCentreFrac"/> does, rather than empty under a running engine. A tank the
+    /// loading does not have reads full.</summary>
+    public static double TankFraction(AircraftLoad? load, string id)
+    {
+        if (load is null || load.FuelKg <= 1e-6) return 1.0;
+        AircraftLoad.Slot? s = load.Find(id);
+        if (s is null || s.MaxKg <= 0.0) return 1.0;
+        return System.Math.Clamp(s.Kg / s.MaxKg, 0.0, 1.0);
+    }
+    /// <summary>The fuel in the aeroplane's (first) tank as a fraction of what it holds, 0 empty .. 1 full: what a float
+    /// gauge in that tank shows (the J-3's cork-float wire, FuelGauge_Wire). Live from AircraftLoad (FuelGauges.TankFraction).</summary>
+    public double Fuel;
     /// <summary>Rate of turn, degrees per second, + = turning right (3 = standard rate).</summary>
     public double TurnRateDps;
     /// <summary>Inclinometer ball, -1..+1, + = ball to the pilot's RIGHT.</summary>
@@ -211,6 +233,8 @@ public struct RigInputs
     public double GLoad;
     /// <summary>The accelerometer's tell-tales: the running maximum and minimum since they were last reset.</summary>
     public double GMaxSeen, GMinSeen;
+    /// <summary>The altimeter's Kollsman window setting, inHg (Core Instruments.AltimeterSetting).</summary>
+    public double KollsmanInHg;
     /// <summary>Attitude, degrees: bank + = right wing down (-180..180), pitch + = nose up (-90..90). What an
     /// attitude indicator shows.</summary>
     public double BankDeg, PitchDeg;
@@ -321,13 +345,16 @@ public struct RigInputs
             FuelSelector = 1.0,     // on
             FuelValve = 1.0,        // on
             Magneto = 3.0,          // BOTH
+            MagLeft = 1.0, MagRight = 1.0,
             Master = 1.0,
             Alternator = 1.0,
             CanopyLock = 1.0,       // closed and locked
             OilPressPsi = 0.0,
             OilTempF = 100.0,       // the bottom of the dial, as drawn
             ChtF = 200.0,
-            FuelCentreFrac = 1.0,
+            FuelCentreFrac = 1.0, FuelTopWingFrac = 1.0,
+            Fuel = 1.0,
+            KollsmanInHg = 29.92,
             ComFreqMhz = 122.8, ComStandbyMhz = 121.5, ComVolume = 0.5,
             XpdrSquawk = 1200, XpdrMode = 1,
         };
@@ -360,11 +387,14 @@ public struct RigInputs
             case "cowl_flap": value = CowlFlap; return true;
             case "prop_lock": value = PropLock; return true;
             case "magneto": value = Magneto; return true;
+            case "mag_left": value = MagLeft; return true;
+            case "mag_right": value = MagRight; return true;
             case "primer": value = Primer; return true;
             case "master": value = Master; return true;
             case "alternator": value = Alternator; return true;
             case "fuel_pump": value = FuelPump; return true;
             case "canopy_open": value = CanopyOpen; return true;
+            case "canopy_slide": value = CanopySlide; return true;
             case "canopy_lock": value = CanopyLock; return true;
             case "canopy_jettison": value = CanopyJettison; return true;
             case "canopy_latch": value = CanopyLatch; return true;
@@ -377,11 +407,14 @@ public struct RigInputs
             case "oil_temp_f": value = OilTempF; return true;
             case "cht_f": value = ChtF; return true;
             case "fuel_centre_frac": value = FuelCentreFrac; return true;
+            case "fuel_top_wing_frac": value = FuelTopWingFrac; return true;
+            case "fuel": value = Fuel; return true;
             case "turn_rate_dps": value = TurnRateDps; return true;
             case "slip_ball": value = SlipBall; return true;
             case "g_load": value = GLoad; return true;
             case "g_max_seen": value = GMaxSeen; return true;
             case "g_min_seen": value = GMinSeen; return true;
+            case "kollsman_inhg": value = KollsmanInHg; return true;
             case "bank_deg": value = BankDeg; return true;
             case "pitch_deg": value = PitchDeg; return true;
             case "water_rudder_up": value = WaterRudderUp; return true;

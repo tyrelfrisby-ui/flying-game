@@ -112,6 +112,11 @@ namespace FlyingGame.Core.Vr
         /// rotary 5-point release, centred (a second lap belt only if the model carries one). Axes in the cockpit frame:
         /// a lever lifts up and forward, away from the belly; a dial turns about the fore-aft axis out of the belly.
         /// </summary>
+        /// <summary>What a pilot in this type is actually strapped in by: nothing, while <see cref="BeltsAndCords.BeltsWorn"/>
+        /// is off (Ty 2026-11-05) — an empty harness, never Latched, so the climb-out is never held by a belt. With belts
+        /// back on, <see cref="For"/>.</summary>
+        public static SeatHarness ForCockpit(string aircraftId) => BeltsAndCords.BeltsWorn ? For(aircraftId) : new SeatHarness();
+
         public static SeatHarness For(string aircraftId)
         {
             string id = aircraftId ?? "";

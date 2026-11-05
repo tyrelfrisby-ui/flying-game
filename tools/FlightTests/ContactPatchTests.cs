@@ -463,6 +463,10 @@ public class ContactPatchTests : IDisposable
 
     // ---- prop strike --------------------------------------------------------------------------------------------------
 
+    /// <summary>The lowest tip 5 mm into the ground for one step (5 ms, a quarter turn at 2,700 rpm), full power, then
+    /// clear, at a dozen instants. Each blade is struck only if it sweeps through the struck arc in that step
+    /// (AircraftContactDamage.PropStrike, lane/claude-floats 2026-11-05), so a brush curls ONE blade back by the 5 mm it
+    /// went in, or none; never both. The engine runs on; the thrust is the mean of the blades' (R/R₀)^(2/3).</summary>
     [Fact]
     public void APropBrushCurlsTheTipsAndTheEngineRunsOn()
     {
@@ -470,22 +474,36 @@ public class ContactPatchTests : IDisposable
         WorldTerrain.Active = null;
         var att = new Quat(0, 0, 0, 1);
         double low = AirframeContact.BuildPoints(c).Where(p => p.PropDisc).Max(p => p.Body.Z - c.Mass.CgVec().Z);
-        // In the air, the lowest blade tip 5 mm into the ground for one step, full power, then clear.
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(low - 0.005)), att, new Vec3(30, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
-        var ev = new List<ContactEvent>(); ac.Contact += ev.Add;
-        var sim = new SimLoop(ac);
-        sim.RunFor(0.005, new ControlInputs(0, 0, 0, -1.0));
-        RigidBodyState s = ac.State;
-        ac.State = new RigidBodyState(s.Position + new Vec3(0, 0, -2), s.Attitude, s.Velocity, s.Rates);
-        sim.RunFor(0.1, new ControlInputs(0, 0, 0, -1.0));
-        _out.WriteLine($"events {string.Join(" | ", ev)}; radius {ac.PropRadiusM():F4} m, thrust x{ac.PropThrustScale():F4}, rpm {ac.EngineRpm:F0}");
-        Assert.Contains(ev, e => e.Kind == ContactEventKind.PropStrike);
-        Assert.DoesNotContain(ev, e => e.Kind == ContactEventKind.PropStoppage);
-        Assert.False(ac.EngineStopped);
-        Assert.True(ac.EngineRpm > 1000);
-        Assert.InRange(ac.PropRadiusM(), 0.99 - 0.012, 0.99 - 0.002);   // 1.98 m prop, tips curled by about the 5 mm they went in
-        Assert.Equal(Math.Pow(ac.PropRadiusM() / 0.99, 2.0 / 3.0), ac.PropThrustScale(), 9);
-        Assert.True(ac.PropThrustScale() < 1.0);
+        int curled = 0;
+        try
+        {
+            for (int i = 0; i < 12; i++)
+            {
+                Atmosphere.SimTimeSec = i * 0.001;
+                // In the air, the lowest blade tip 5 mm into the ground for one step, full power, then clear.
+                var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(low - 0.005)), att, new Vec3(30, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
+                var ev = new List<ContactEvent>(); ac.Contact += ev.Add;
+                var sim = new SimLoop(ac);
+                sim.RunFor(0.005, new ControlInputs(0, 0, 0, -1.0));
+                RigidBodyState s = ac.State;
+                ac.State = new RigidBodyState(s.Position + new Vec3(0, 0, -2), s.Attitude, s.Velocity, s.Rates);
+                sim.RunFor(0.1, new ControlInputs(0, 0, 0, -1.0));
+                double b0 = 0.99 - ac.PropBladeRadiusM(0, 0), b1 = 0.99 - ac.PropBladeRadiusM(0, 1);
+                _out.WriteLine($"events {string.Join(" | ", ev)}; blades {ac.PropBladeRadiusM(0, 0):F4}/{ac.PropBladeRadiusM(0, 1):F4} m, thrust x{ac.PropThrustScale():F4}, rpm {ac.EngineRpm:F0}");
+                Assert.Contains(ev, e => e.Kind == ContactEventKind.PropStrike);
+                Assert.DoesNotContain(ev, e => e.Kind == ContactEventKind.PropStoppage);
+                Assert.False(ac.EngineStopped);
+                Assert.True(ac.EngineRpm > 1000);
+                Assert.Equal(0.0, Math.Min(b0, b1), 9);
+                if (Math.Max(b0, b1) <= 0) continue;
+                curled++;
+                Assert.InRange(Math.Max(b0, b1), 0.002, 0.012);   // curled by about the 5 mm it went in
+                Assert.Equal(0.5 * (1 + Math.Pow((0.99 - Math.Max(b0, b1)) / 0.99, 2.0 / 3.0)), ac.PropThrustScale(), 9);
+                Assert.True(ac.PropThrustScale() < 1.0);
+            }
+        }
+        finally { Atmosphere.SimTimeSec = 0; }
+        Assert.True(curled >= 2, $"only {curled} of 12 brushes met a blade");
     }
 
     [Fact]

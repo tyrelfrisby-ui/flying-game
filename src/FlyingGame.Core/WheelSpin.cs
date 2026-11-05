@@ -159,6 +159,11 @@ public static class WheelSpin
         /// when rolling forward).</summary>
         public double ForceN;
         public double SlipRatio, SlipPowerW, SlipEnergyJ, SlipTimeS, FallFactor;
+        /// <summary>∫|D|dt over the step (N·s): with SlipEnergyJ it gives the patch's mean slip speed, E / ∫|D|dt.</summary>
+        public double SlipImpulseNs;
+        /// <summary>The share of SlipEnergyJ the sound leaves quiet because the slip ratio was still under the squeal's
+        /// (and the scrub's) onset band, J (<see cref="GroundSoundMix.ForeSquealOnset"/>).</summary>
+        public double SlipUnderSquealJ, SlipUnderScrubJ;
         public bool Locked;
     }
 
@@ -218,6 +223,10 @@ public static class WheelSpin
             double slipV = System.Math.Abs(vFwd - omega * r);
             double p = System.Math.Abs(dUsed) * slipV;
             res.SlipEnergyJ += p * h;
+            res.SlipImpulseNs += System.Math.Abs(dUsed) * h;
+            double kRel = System.Math.Abs(kEnd) / System.Math.Max(kappa0, 1e-6);
+            res.SlipUnderSquealJ += p * h * (1 - GroundSoundMix.ForeSquealOnset(kRel));
+            res.SlipUnderScrubJ += p * h * (1 - GroundSoundMix.ForeScrubOnset(kRel));
             if (p > AudibleSlipPowerW) res.SlipTimeS += h;
             res.SlipPowerW = p;
             res.SlipRatio = kEnd;
@@ -301,6 +310,9 @@ public sealed class WheelState
     /// <summary>How much lower the axle stands than on a sound tyre this step (<see cref="TyreWear.Drop"/>): what the
     /// gear's contact point is raised by, and what comes off the rolling radius.</summary>
     public double DropM;
+    /// <summary>How fast <see cref="DropM"/> changed into this step (m/s): the worn profile turning under the axle, which the
+    /// tyre's and the leg's dampers see as an opening of the contact.</summary>
+    public double DropRateMs;
     /// <summary>The ground's load on this tyre at the last step it touched (kept across steps: the patch it sizes is the
     /// one the next step's drop is measured over).</summary>
     public double TyreLoadN;
@@ -321,7 +333,17 @@ public sealed class WheelState
 
     // Accumulated for whoever listens (the sound), read and cleared by them: slip energy (J) and time (s) spent
     // audibly slipping since the last read. A spin-up lasting 10 ms falls between two frames; these carry it across.
-    public double SlipEnergyJ, SlipTimeS;
+    // The impulses (∫|F|dt, N·s) give the patch's mean slip speed over the same time, E / ∫|F|dt: fore and aft (the
+    // spin-up, a skid) and sideways (a crabbed touchdown, a scrubbing turn), each from its own force and slip.
+    public double SlipEnergyJ, SlipTimeS, SlipImpulseNs;
+    public double SideSlipEnergyJ, SideSlipTimeS, SideSlipImpulseNs;
+    // The part of each energy spent while the slip was still under the squeal's and the scrub's onset band (weighted by
+    // how far under, GroundSoundMix.*Onset): a tyre that is still gripping makes it, and it is not heard. Zero (the
+    // default) is a patch sliding past its friction peak all the time.
+    public double SlipUnderSquealJ, SlipUnderScrubJ, SideSlipUnderSquealJ, SideSlipUnderScrubJ;
+    /// <summary>The tyre's outside diameter (m) for the sound: the catalog's, legacy sizes included, else twice the
+    /// leg's radius. It sets the pitch of the squeal (<see cref="GroundSoundMix.SquealResonanceHz"/>).</summary>
+    public readonly double SoundOdM;
 
     public WheelState(AircraftConfig c, GearConfig g)
     {
@@ -330,6 +352,7 @@ public sealed class WheelState
         RadiusM = LandingGear.TireRadiusOf(c, g);
         RollingRadiusM = RadiusM;
         TireSpec? spec = IsWheel ? TireCatalog.Of(g) : null;
+        SoundOdM = spec != null && spec.OdM > 0 ? spec.OdM : 2 * RadiusM;
         Tire = spec != null && spec.HasCarcass ? spec : null;     // a legacy size is rigid, as it always was
         if (Tire != null)
         {
@@ -399,7 +422,7 @@ public sealed class WheelState
         OmegaRadS = System.Math.Abs(w) <= stop ? 0 : w - System.Math.Sign(w) * stop;
         if (double.IsFinite(OmegaRadS)) AngleRad = WrapAngle(AngleRad + 0.5 * (w0 + OmegaRadS) * dt);
         // Off the ground: nothing squashes the tyre, and the strips cool.
-        TyreLoadN = 0; DropM = Tyre != null ? Tyre.Drop(-AngleRad) : 0;
+        TyreLoadN = 0; DropRateMs = 0; DropM = Tyre != null ? Tyre.Drop(-AngleRad) : 0;
         if (Tyre != null) { Tyre.LeaveGround(); Tyre.Leak(dt); }
     }
 
@@ -415,6 +438,31 @@ public sealed class WheelState
     public void TakeSlip(out double energyJ, out double timeS)
     {
         energyJ = SlipEnergyJ; timeS = SlipTimeS;
-        SlipEnergyJ = 0; SlipTimeS = 0;
+        SlipEnergyJ = 0; SlipTimeS = 0; SlipImpulseNs = 0;
+        SideSlipEnergyJ = 0; SideSlipTimeS = 0; SideSlipImpulseNs = 0;
+        SlipUnderSquealJ = SlipUnderScrubJ = SideSlipUnderSquealJ = SideSlipUnderScrubJ = 0;
+    }
+
+    /// <summary>One direction of the patch's slip since the last read: energy, audible time, and the mean slip speed
+    /// E / ∫|F|dt (0 if there was no force), and how much of it was past the squeal's and the scrub's onset (0..1, energy
+    /// weighted).</summary>
+    public readonly struct Slip
+    {
+        public readonly double EnergyJ, TimeS, SpeedMs, SquealOnset, ScrubOnset;
+        public Slip(double e, double t, double impulse, double underSquealJ = 0, double underScrubJ = 0)
+        {
+            EnergyJ = e; TimeS = t;
+            SpeedMs = impulse > 1e-9 && double.IsFinite(e / impulse) ? e / impulse : 0;
+            SquealOnset = e > 1e-12 && double.IsFinite(underSquealJ) ? System.Math.Clamp(1 - underSquealJ / e, 0, 1) : 0;
+            ScrubOnset = e > 1e-12 && double.IsFinite(underScrubJ) ? System.Math.Clamp(1 - underScrubJ / e, 0, 1) : 0;
+        }
+    }
+
+    /// <summary>Read and clear both directions of slip accumulated since the last call.</summary>
+    public void TakeSlip(out Slip fore, out Slip side)
+    {
+        fore = new Slip(SlipEnergyJ, SlipTimeS, SlipImpulseNs, SlipUnderSquealJ, SlipUnderScrubJ);
+        side = new Slip(SideSlipEnergyJ, SideSlipTimeS, SideSlipImpulseNs, SideSlipUnderSquealJ, SideSlipUnderScrubJ);
+        TakeSlip(out double _, out double _);
     }
 }

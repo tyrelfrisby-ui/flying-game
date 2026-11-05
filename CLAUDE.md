@@ -570,6 +570,14 @@ near the sea the second run started a flight's length later in the tide and diff
 first looked like an order-dependent cache. Before blaming a cache for "same inputs, different answer", list every
 global the new code READS, and reset the clock (`Atmosphere.SimTimeSec = 0`) when a test compares two runs.
 
+### A "gap" a pilot sees may be paint, not geometry
+Ty reported a gap between the Extra's canopy and the fuselage from the front seat. The rim touched the sill to 0.0 mm and
+no ray from the eye left the airframe; a hole-hunting check would have said "sealed" and changed nothing. The skin, sill
+and frame were DOUBLE-SIDED with the exterior livery, the dark liner stopped 6-13 cm under the sill, and the wing's own
+skin ran through the front cockpit: white and red outside paint, seen from inside, reads exactly like daylight. Check
+what the eye sees, not only whether it can see out: cast rays from the seat eye and fail any that reach exterior paint
+without passing through glass first (`ExtraCanopySealTests`). And place the liner's top ON the glass edge — 2 mm short
+left a slot rays slipped through.
 ### A wait-for-the-build-slot loop must not match other lanes' wait loops
 On 2026-11-04 the flight-recorder lane waited four hours for a free slot that never came: its `ps | grep -E
 "…deploy(-quest)?\.sh…"` also matched every OTHER agent's waiting shell (`/bin/zsh -c source … until … deploy.sh …`),
@@ -577,3 +585,51 @@ whose command lines contain the same words, and theirs matched mine. Every lane 
 running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
 the start of the command line so only real build processes count:
 `'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.
+
+### A collision check must not count your own build's children
+After an 8 s overlap with another lane's deploy (three 20 s idle polls are a race when several lanes queue), I added a
+"did anyone else start a deploy in my first 30 s?" back-off. It matched `zsh tools/deploy/deploy` and skipped only my own
+PID, but deploy.sh's own subshells carry the same command line, so every start "collided" with itself and was killed;
+ten starts in 30 min, then the 2 h limit. Count only top-level deploys (parent is not itself a deploy.sh), dry-run the
+check against `ps` once before trusting it, and poll often (10 s) with a random wait and a re-check just before launch.
+
+### A render pass that reads its own target looks fine on the bench and breaks on the device
+The magenta "grid" over the island's water (Ty, 2026-11-01 and again 2026-11-05) was hunted as a stripped shader twice.
+It was a layer: `SeasideBuilder.B.Build`, which builds "Ocean-lakes-water-lanes", never put the water on
+`WaterReflection.WaterLayer` (only `WorldBuilder.Spawn` did), so the mirror camera drew the water into its own
+reflection, and the water's shader sampled `_ReflectionTex` while rendering into it. Reading a bound render target is
+undefined: the Mac's GPU returned the last frame and every render looked right; the iPad's A17 returned magenta blocks,
+weighted by Fresnel so they grew with distance. What found it was reading the mirror target's raw RGBA in a batch
+render (`WaterMagentaCheck`): alpha 255 everywhere where the cleared sky should be 0. When a convention lives in one
+builder (a layer, a tag), every other builder must apply it too, and the consumer should check it at runtime
+(`WaterReflection.ExcludeStrayWater`). And when only the device shows a fault, look for undefined behaviour the
+bench happens to tolerate before looking for a missing asset.
+
+### A blanket exemption silences everything it covers, including the part you just fixed
+The 2026-11-04 water lane made a dipped propeller brake by blade drag and tested it on landplanes. Ty then dug the J-3
+on floats' prop into the lake and nothing happened: `AirframeContact` skips every hard point of a FLOATPLANE over water
+("the floats carry it"), and the propeller disc stations were hard points too, so on a floatplane the prop could never
+touch the water at all. Every test passed because none of them put a floatplane's prop in the water. When a fix lives
+behind a contact or sensor path, test it on the aircraft from the report, and grep for the switches that skip that path
+(`floatsCarryWater`, `groundClear`, a cull) before believing it reaches everything.
+And the splash "hammering" was a fixed 4.5 Hz sine on the water voice (66 % depth): a periodic modulation on a sound
+the physics drives is a metronome the player hears as a fault. Measure a voice's envelope spectrum
+(`tools/FloatAudio`) before shipping any LFO on it.
+
+### Reserve the whole verification workflow, including the headless tests
+A Unity-only idle poll let other lanes start their exports while the Extra's .NET tests were running.
+Keep the lane's complete verification visible to the existing deploy gates, including tests and gaps between stages;
+`tools/deploy/deploy-extra-verification.sh` does this and excludes only its own reservation PID. Leave other active
+builds visible to the gate and let their owners release them.
+
+### A completed shot tool can wait forever during Unity shutdown
+The Extra tool wrote all eight PNGs, logged PASS and called Exit(0), then waited in CoreShutdown -> PreloadManager::Stop.
+A sample distinguished completed work from an incomplete export. Preserve the logs, inspect the PNGs and sample the
+owned process before stopping it; an idle log alone is not proof of completion. The Extra verifier's guarded `ios`
+resume reuses only a completed eight-shot / zero-C#-error log and retains the deploy reservation.
+
+### Measure where a panel actually meets the wall before asserting its width
+The Extra's new test assumed its bottom 100 mm had the 391 mm half-width of the wall attachment. The unchanged original
+is 293.5 mm there; its widest attachment is at z 195 mm. All three liveries failed the new test despite unchanged
+lower geometry. Compare original and edited sections at the actual attachment stations, then copy those measured
+literals into the regression check.

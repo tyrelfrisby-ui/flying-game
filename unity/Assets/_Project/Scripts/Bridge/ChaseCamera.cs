@@ -32,7 +32,8 @@ namespace FlyingGame.Bridge
             && Driver == owner && Target == owner.transform && OverrideTarget == null
             && !SideView && CurrentView == View.Cockpit && !SessionSettings.ReplayActive && !owner.Replaying;
 
-        private bool _waterCrash, _crashStarted;
+        // Crash view (CrashFraming): latched by the first broken-off piece to arrive on land or water, until the aircraft changes.
+        private bool _crashView, _crashStarted;
         private object _crashAircraft;
         private Vector3 _crashFocus, _focusVelocity, _crashVelocity, _crashBearing;
         private float _crashRange, _rangeVelocity, _largestRange;
@@ -48,20 +49,22 @@ namespace FlyingGame.Bridge
         private readonly List<float> _wingRadii = new(128), _bodyRadii = new(128);
         private float _nextDiscovery;
         private const float DiscoverySeconds = .5f;   // debris leaves within one physics step; 0.5 s lag is under the 2 s smoothing
-        private readonly List<Vector3> _points = new(256);
-        private readonly List<float> _masses = new(256), _radii = new(256), _distances = new(256);
+        private readonly List<FlyingGame.Core.MathTypes.Vec3> _points = new(256);
+        private readonly List<double> _masses = new(256), _radii = new(256), _distances = new(256);
         private void OnEnable() => FlyingGame.Core.CrashEvents.Impact += CrashImpact;
         private void CrashImpact(FlyingGame.Core.CrashImpact hit)
         {
-            if (FlyingGame.Core.CrashEvents.OpensWaterCrashView(hit) == false || Target == null) return;
-            _waterCrash = true;
+            // A broken-off piece on land or water (2026-11-05). On land the view used to stay on the flight path, which for
+            // a cartwheeling wreck is its bounces and then its nose, not a direction to look along.
+            if (FlyingGame.Core.CrashFraming.OpensCrashView(hit) == false || Target == null) return;
+            _crashView = true;
             _crashAircraft = Driver?.Sim?.Aircraft;
         }
 
         private void OnDisable()
         {
             FlyingGame.Core.CrashEvents.Impact -= CrashImpact;
-            _waterCrash = _crashStarted = false;
+            _crashView = _crashStarted = false;
             InCockpit = false;
             SetCockpitExtras(false);
         }
@@ -396,7 +399,25 @@ namespace FlyingGame.Bridge
         private void LateUpdate()
         {
             PlaceCamera();
+            PropShake();
             KeepAboveSurface();
+        }
+
+        /// <summary>A bent prop shakes the airframe once a revolution (Aircraft.PropVibrationG, Ty 2026-11-05: "a bent prop
+        /// ... comes with reduced thrust and a vibration"), and the pilot's head with it. The real shake is 12-45 Hz, faster
+        /// than the frame rate, so each frame takes a fresh random offset of that amplitude: the blur of a vibrating seat,
+        /// not a slow wobble. Cockpit view only (it is placed afresh every frame, so nothing accumulates); ~6 cm and 3° per
+        /// g, which puts a 0.05 g prop at a 3 mm, 0.15° buzz. Not in a headset: shaking the world there is a comfort risk,
+        /// so the Quest gets it through the sound.</summary>
+        private void PropShake()
+        {
+#if !UNITY_ANDROID
+            if (CurrentView != View.Cockpit || Driver == null || Driver.Sim == null) return;
+            float g = Mathf.Min(0.25f, (float)Driver.Sim.Aircraft.PropVibrationG());
+            if (g < 1e-4f) return;
+            transform.position += transform.rotation * (Random.insideUnitSphere * (0.06f * g));
+            transform.rotation *= Quaternion.Euler(Random.Range(-3f, 3f) * g, Random.Range(-3f, 3f) * g, 0f);
+#endif
         }
 
         /// <summary>
@@ -455,8 +476,8 @@ namespace FlyingGame.Bridge
             InCockpit = cockpit;
             SetCockpitExtras(cockpit);
             if (_cam != null && CurrentView != View.Flyby && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
-            if (_waterCrash && !ReferenceEquals(_crashAircraft, Driver?.Sim?.Aircraft)) _waterCrash = _crashStarted = false;
-            if (_waterCrash && !cockpit && !ovr) { WaterCrashView(); return; }
+            if (_crashView && !ReferenceEquals(_crashAircraft, Driver?.Sim?.Aircraft)) _crashView = _crashStarted = false;
+            if (_crashView && !cockpit && !ovr) { CrashView(); return; }
             if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }
             if (!ovr && !SideView && CurrentView == View.Locked) { LockedView(tgt); return; }   // side-view lessons keep their camera
             if (!ovr && !SideView && CurrentView != View.RelativeWind && CurrentView != View.RelativeWindAhead) { FixedView(tgt); return; }
@@ -499,23 +520,29 @@ namespace FlyingGame.Bridge
             transform.rotation = Quaternion.LookRotation(lookAt - transform.position, up);
         }
 
+        /// <summary>How big a part is drawn: its meshes only. The aircraft also carries the crash spray and foam (particles,
+        /// CrashWaterVisuals), the splash rings (lines) and the fuel sheen (a quad scaled to the spreading slick), and
+        /// sizing the wreck by those climbed the camera into the sky for as long as the slick spread (Ty 2026-11-05).</summary>
         private float CrashRadius(Transform body, Vector3 centre)
         {
             body.GetComponentsInChildren(false, _crashRenderers);
             float radius = 0;
             foreach (var renderer in _crashRenderers)
-                if (renderer.enabled) radius = Mathf.Max(radius, Vector3.Distance(centre, renderer.bounds.center) + renderer.bounds.extents.magnitude);
-            return radius;
+                if (renderer.enabled && (renderer is MeshRenderer || renderer is SkinnedMeshRenderer))
+                    radius = Mathf.Max(radius, Vector3.Distance(centre, renderer.bounds.center) + renderer.bounds.extents.magnitude);
+            return (float)FlyingGame.Core.CrashFraming.ClampRadiusM(radius, SpanM, LengthM);
         }
 
+        // Unity axes in a Core Vec3: the cluster is frame-free, and "up" is handed to CrashFraming as +y.
         private void AddCrashPoint(Vector3 point, float mass, float radius)
         {
-            _points.Add(point); _masses.Add(Mathf.Max(.01f, mass)); _radii.Add(radius);
+            _points.Add(new FlyingGame.Core.MathTypes.Vec3(point.x, point.y, point.z)); _masses.Add(mass); _radii.Add(radius);
         }
 
-        private void WaterCrashView()
+        /// <summary>The wreck, framed from 30 degrees above the horizon (CrashFraming), on land or on water.</summary>
+        private void CrashView()
         {
-            _points.Clear(); _masses.Clear(); _radii.Clear(); _distances.Clear();
+            _points.Clear(); _masses.Clear(); _radii.Clear();
             AddCrashPoint(Target.position, (float)(Driver?.Sim?.Aircraft?.MassProperties.MassKg ?? 800), CrashRadius(Target, Target.position));
             if (!_crashStarted || Time.unscaledTime >= _nextDiscovery)
             {
@@ -552,21 +579,8 @@ namespace FlyingGame.Bridge
                 var body = _liveBodies[i];
                 if (body != null && body.isActiveAndEnabled) AddCrashPoint(body.transform.position, body.MassKg, _bodyRadii[i]);
             }
-            Vector3 centre = Vector3.zero; float mass = 0;
-            for (int i = 0; i < _points.Count; i++) { centre += _points[i] * _masses[i]; mass += _masses[i]; }
-            centre /= mass;
-            for (int i = 0; i < _points.Count; i++) _distances.Add(Vector3.Distance(centre, _points[i]));
-            _distances.Sort();
-            int middle = _distances.Count / 2;
-            float median = _distances.Count % 2 == 0 ? (_distances[middle - 1] + _distances[middle]) * .5f : _distances[middle];
-            float cutoff = 2.5f * median; // Ty's robust-cluster rule.
-            Vector3 focus = Vector3.zero; mass = 0;
-            for (int i = 0; i < _points.Count; i++) if (Vector3.Distance(centre, _points[i]) <= cutoff)
-            { focus += _points[i] * _masses[i]; mass += _masses[i]; }
-            focus = mass > 0 ? focus / mass : centre;
-            float radius = 0;
-            for (int i = 0; i < _points.Count; i++) if (Vector3.Distance(centre, _points[i]) <= cutoff)
-                radius = Mathf.Max(radius, Vector3.Distance(focus, _points[i]) + _radii[i]);
+            var (f, r) = FlyingGame.Core.CrashFraming.Cluster(_points, _masses, _radii, _distances);
+            Vector3 focus = new((float)f.X, (float)f.Y, (float)f.Z); float radius = (float)r;
             float dt = Time.unscaledDeltaTime;
             if (!_crashStarted)
             {
@@ -574,21 +588,26 @@ namespace FlyingGame.Bridge
                 _crashRange = Vector3.Distance(transform.position, Target.position); _largestRange = _crashRange;
                 // Start on the existing sightline, so entering crash view does not snap the aim.
                 _crashFocus = transform.position + transform.forward * _crashRange;
-                _crashBearing = Vector3.ProjectOnPlane(transform.position - _crashFocus, Vector3.up).normalized;
-                if (_crashBearing.sqrMagnitude < .01f) _crashBearing = Vector3.back;
+                // Stay on the side the camera is on. A flight-path camera looking straight up or down has no bearing
+                // along its sightline: take it from where the camera stands relative to the wreck.
+                _crashBearing = Vector3.ProjectOnPlane(transform.position - _crashFocus, Vector3.up);
+                if (_crashBearing.magnitude < .25f * _crashRange) _crashBearing = Vector3.ProjectOnPlane(transform.position - focus, Vector3.up);
+                _crashBearing = _crashBearing.sqrMagnitude < .01f ? Vector3.back : _crashBearing.normalized;
                 _focusVelocity = _crashVelocity = Vector3.zero; _rangeVelocity = 0;
             }
             _crashFocus = Vector3.SmoothDamp(_crashFocus, focus, ref _focusVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
             float half = (_cam != null ? _cam.fieldOfView : 60f) * Mathf.Deg2Rad * .5f;
             if (_cam != null) half = Mathf.Min(half, Mathf.Atan(Mathf.Tan(half) * _cam.aspect));
             // 15% breathing room; account for centre smoothing so the fitted sphere stays in frame as it drifts.
-            float fit = (radius + Vector3.Distance(focus, _crashFocus)) * 1.15f / Mathf.Sin(half);
-            // Keep the largest requested range for this wreck: no pumping inward when a piece sinks/disappears.
-            // A minimum 50% retreat makes an intact ditching open into an overview as well.
-            _largestRange = Mathf.Max(_largestRange, Mathf.Max(Distance * 1.5f, fit));
-            _crashRange = Mathf.SmoothDamp(_crashRange, _largestRange, ref _rangeVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
+            // Keep the largest range the WRECK has needed (no pumping inward when a piece sinks/disappears); the focus's lag
+            // behind a sliding wreck widens this frame only — latched, it parked the camera 100+ m up for good.
+            _largestRange = Mathf.Max(_largestRange, (float)FlyingGame.Core.CrashFraming.RangeM(radius, 0, half, Distance));
+            float want = Mathf.Max(_largestRange, (float)FlyingGame.Core.CrashFraming.RangeM(radius, Vector3.Distance(focus, _crashFocus), half, Distance));
+            _crashRange = Mathf.SmoothDamp(_crashRange, want, ref _rangeVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
             // 30 degrees above the horizon exposes the field; increasing range raises and retreats together.
-            Vector3 desired = _crashFocus + (_crashBearing * .8660254f + Vector3.up * .5f) * _crashRange;
+            var o = FlyingGame.Core.CrashFraming.CameraOffset(new FlyingGame.Core.MathTypes.Vec3(_crashBearing.x, 0, _crashBearing.z),
+                new FlyingGame.Core.MathTypes.Vec3(0, 1, 0), _crashRange);
+            Vector3 desired = _crashFocus + new Vector3((float)o.X, (float)o.Y, (float)o.Z);
             transform.position = Vector3.SmoothDamp(transform.position, desired, ref _crashVelocity, CrashSmoothSeconds, Mathf.Infinity, dt);
             Vector3 look = _crashFocus - transform.position;
             if (look.sqrMagnitude > .0001f) transform.rotation = Quaternion.LookRotation(look, Vector3.up);

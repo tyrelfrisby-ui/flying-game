@@ -39,6 +39,9 @@ namespace FlyingGame.Bridge
         private readonly int[] _chirpSeenUs = new int[2];      // audio thread
         private readonly float[] _chirpNewS = new float[2];    // audio thread
         private readonly double[] _chirpTotalS = new double[2]; // main thread
+        private readonly int[] _scrubSeenUs = new int[2];      // audio thread
+        private readonly float[] _scrubNewS = new float[2];    // audio thread
+        private readonly double[] _scrubTotalS = new double[2]; // main thread
         private readonly double[] _thumpTotalJ = new double[2]; // main thread
         private readonly int[] _popTotal = new int[2];          // main thread
         private readonly int[] _thumpSeenMj = new int[2], _popSeen = new int[2];   // audio thread
@@ -51,6 +54,7 @@ namespace FlyingGame.Bridge
         private volatile bool _ready;
         private float _fs;
         private float _gain;                 // audio-thread smoothed master gain
+        private float _shakePh;              // audio thread: the bent prop's once-a-revolution throb
         private float _gainA;
         private float _groanSeverity, _groanHold;
         private float _savedMaster;
@@ -290,6 +294,8 @@ namespace FlyingGame.Bridge
             bool running = aircraft == null || aircraft.EngineRunning;
             _tele.Throttle01 = aircraft != null ? (float)aircraft.ShaftPower01 : (float)d.Throttle01;
             _tele.EngineRpm = running ? (float)d.EngineRpm : 0f;
+            _tele.PropShakeG = aircraft != null ? (float)aircraft.PropVibrationG() : 0f;
+            _tele.PropShakeHz = aircraft != null ? (float)aircraft.PropVibrationHz : 0f;
             _tele.Spoiler01 = aircraft != null ? (float)aircraft.CurrentDeflections.SpoilerFraction : 0f;
             _tele.OnGround = d.OnGround;
             _tele.TurbulenceLevel = SessionSettings.TurbulenceLevel;
@@ -357,10 +363,18 @@ namespace FlyingGame.Bridge
                 _tele.WhirHz[s] = m.WhirHz[s]; _tele.WhirGain[s] = m.WhirGain[s];
                 _chirpTotalS[s] += m.ChirpSeconds[s];
                 System.Threading.Volatile.Write(ref _tele.ChirpTotalUs[s], (int)(_chirpTotalS[s] * 1e6 % int.MaxValue));
-                if (m.ChirpSeconds[s] > 0f) { _tele.ChirpGain[s] = m.ChirpGain[s]; _tele.ChirpSlip[s] = m.ChirpSlip[s]; }
+                if (m.ChirpSeconds[s] > 0f) { _tele.ChirpGain[s] = m.ChirpGain[s]; _tele.ChirpHz[s] = m.ChirpHz[s]; }
+                _scrubTotalS[s] += m.ScrubSeconds[s];
+                System.Threading.Volatile.Write(ref _tele.ScrubTotalUs[s], (int)(_scrubTotalS[s] * 1e6 % int.MaxValue));
+                if (m.ScrubSeconds[s] > 0f) { _tele.ScrubGain[s] = m.ScrubLevel[s]; _tele.ScrubHz[s] = m.ScrubCentreHz[s]; }
                 _tele.ScrapeGain[s] = m.ScrapeGain[s]; _tele.ScrapeHz[s] = m.ScrapeHz[s];
                 _tele.SquealGain[s] = m.SquealGain[s]; _tele.SquealHz[s] = m.SquealHz[s];
                 _thumpTotalJ[s] += m.ThumpJ[s];
+                // Felt as well as heard (2026-11-05, flat spots): in a headset each thump is a short knock in the
+                // controller on that side, as loud as the sound's (√ of the work against the reference). The phone
+                // has no haptics path; there the bump is the aeroplane's own pitch and bounce.
+                if (m.ThumpJ[s] > 0f && XrHeadset.Active)
+                    XrHandInput.Tick(s == 0, Mathf.Clamp01(0.5f * Mathf.Sqrt(m.ThumpJ[s] / (float)FlyingGame.Core.GroundSoundMix.ThumpRefJ)), 0.03f);
                 System.Threading.Volatile.Write(ref _tele.ThumpTotalMj[s], (int)(_thumpTotalJ[s] * 1e3 % int.MaxValue));
                 _popTotal[s] += m.Pops[s];
                 System.Threading.Volatile.Write(ref _tele.PopTotal[s], _popTotal[s]);
@@ -382,6 +396,7 @@ namespace FlyingGame.Bridge
             int frames = data.Length / channels;
             AudioTelemetry t = _tele;
             float ias = t.IasMs, thr = t.Throttle01, rpm = t.EngineRpm;
+            float shakeHz = t.PropShakeHz, shakeDepth = shakeHz > 1f ? Mathf.Clamp01(t.PropShakeG / 0.05f) * 0.6f : 0f;
             float masterTarget = t.MasterGain;
             EngineSynth engine = _engine;
             bool powered = engine != null;
@@ -396,6 +411,10 @@ namespace FlyingGame.Bridge
                 int d = total - _chirpSeenUs[s];
                 _chirpSeenUs[s] = total;
                 _chirpNewS[s] = d > 0 && d < 1000000 ? d * 1e-6f : 0f;
+                int sc = System.Threading.Volatile.Read(ref t.ScrubTotalUs[s]);
+                int dsc = sc - _scrubSeenUs[s];
+                _scrubSeenUs[s] = sc;
+                _scrubNewS[s] = dsc > 0 && dsc < 1000000 ? dsc * 1e-6f : 0f;
                 int th = System.Threading.Volatile.Read(ref t.ThumpTotalMj[s]);
                 int dth = th - _thumpSeenMj[s];
                 _thumpSeenMj[s] = th;
@@ -404,7 +423,7 @@ namespace FlyingGame.Bridge
                 _popsNew[s] = pops - _popSeen[s] > 0 ? pops - _popSeen[s] : 0;
                 _popSeen[s] = pops;
             }
-            _tyres.Prepare(t.WhirHz, t.WhirGain, _chirpNewS, t.ChirpGain, t.ChirpSlip, t.ScrapeGain, t.ScrapeHz, t.SquealGain, t.SquealHz,
+            _tyres.Prepare(t.WhirHz, t.WhirGain, _chirpNewS, t.ChirpGain, t.ChirpHz, _scrubNewS, t.ScrubGain, t.ScrubHz, t.ScrapeGain, t.ScrapeHz, t.SquealGain, t.SquealHz,
                            t.WaterSplash, t.WaterHiss, t.Spray, t.SkiHiss, t.KeelScrape,
                            _thumpNewJ, _popsNew, t.FlapHz, t.FlapGain);
             CrashSoundMixer crashes = _crashes;
@@ -442,9 +461,19 @@ namespace FlyingGame.Bridge
                 _wind.Next(out float wl, out float wr);
                 _surface.Next(out float sl, out float sr);
                 _tyres.Next(out float tl, out float tr);
-                sl += tl; sr += tr;
+                sl = (sl + tl) * FlyingGame.Core.GroundSoundMix.OutputGain;   // the ground bus (Ty: −4 dB)
+                sr = (sr + tr) * FlyingGame.Core.GroundSoundMix.OutputGain;
                 float el = 0f, er = 0f;
                 engine?.Next(out el, out er);
+                if (shakeDepth > 0f)
+                {
+                    // A bent prop (Aircraft.PropVibrationG): the engine note throbs once a revolution, with the airframe's
+                    // own low drone at that rate under it. Depth from the shake: 0.05 g (a few cm off one tip) is full.
+                    _shakePh = Dsp.Wrap01(_shakePh + shakeHz / _fs);
+                    float sw = Dsp.Sin01(_shakePh);
+                    el = el * (1f + shakeDepth * sw) + 0.12f * shakeDepth * sw;
+                    er = er * (1f + shakeDepth * sw) + 0.12f * shakeDepth * sw;
+                }
                 float fx = (_fx.Next() + crashes.Next()) * FxMix;
 
                 float l = Dsp.SoftClip((wl * WindMix + (el * EngineMix + sl) * acGain + fx + gun) * _gain);

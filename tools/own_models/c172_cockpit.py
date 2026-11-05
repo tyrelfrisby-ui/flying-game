@@ -342,6 +342,7 @@ for i in range(24):
 rig(box('Trim_indicator',(-.086,-.037,-.202),(.002,.010,.005),white,0),'translation','+Z',[-.04,.04],'elevatorTrim');text('Trim_label','TRIM',(-.086,-.04,-.17),.007)
 box('Fuel_selector_base',(0,-.29,-.51),(.17,.18,.055),black,.012)
 q=box('Fuel_selector',(0,-.29,-.466),(.018,.095,.014),red,.004);rig(q,'rotation','+Z',[-90,180],'fuelSelector')
+BELTS=False   # no seat belts (Ty 2026-11-05)
 # Both fully modelled front seats, rear bench, seat tracks, belts, stitched upholstery.
 # SEATS (Ty, 2026-11-04: "the pilot should sit at the back of the seat with his back against the backrest/backboard
 # of the seat... move the seat forward so that is the case"). The seat used to stand where the 1.778 m mannequin at
@@ -372,15 +373,15 @@ for side,x in [('L',-SEAT_X),('R',SEAT_X)]:
  for k in range(7):
   xx=x-.132+k*.044;back_box('Seat_stitch_'+side,xx,.073,.004,(.0015,.002,.38),ivory,.0005);box('Seat_cushion_pleat',(xx,f0,-.193+SEAT_DZ),(.0015,.30,.0015),ivory,.0004)
  for xx in [x-.175,x+.175]:
-  box('Lap_belt_'+side,(xx,f0,-.190+SEAT_DZ),(.040,.32,.009),carpet,.002)
- box('Belt_buckle_'+side,(x+.145,f0+.05,-.183+SEAT_DZ),(.048,.043,.014),metal,.003)
+  if BELTS: box('Lap_belt_'+side,(xx,f0,-.190+SEAT_DZ),(.040,.32,.009),carpet,.002)
+ if BELTS: box('Belt_buckle_'+side,(x+.145,f0+.05,-.183+SEAT_DZ),(.048,.043,.014),metal,.003)
  knob('Seat_adjust_'+side,x,-.31+SEAT_DZ,.010,f=-.69+SEAT_DF,kind='translation')
 box('Rear_bench_base',(0,-1.22,-.33),(.94,.43,.29),tan,.035)
 box('Rear_bench_cushion',(0,-1.22,-.155),(.94,.45,.08),cloth,.035)
 box('Rear_bench_back',(0,-1.48,.065),(.94,.11,.46),tan,.035)
 box('Rear_bench_insert',(0,-1.414,.070),(.84,.018,.35),cloth,.020)
 for i in range(19):box('Rear_pleat',(-.405+i*.045,-1.402,.070),(.0015,.002,.32),ivory,.0004)
-for x in [-.29,-.19,.19,.29]:box('Rear_lap_belt',(x,-1.22,-.106),(.036,.34,.008),carpet,.002)
+for x in ([-.29,-.19,.19,.29] if BELTS else []):box('Rear_lap_belt',(x,-1.22,-.106),(.036,.34,.008),carpet,.002)
 box('Baggage_shelf',(0,-1.65,.18),(.88,.23,.035),carpet,.008)
 # Sculpted door cards below window line; matching headliner and pillars.
 for side,x in [('L',-.516),('R',.516)]:

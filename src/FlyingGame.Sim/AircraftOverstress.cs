@@ -176,8 +176,8 @@ public sealed partial class Aircraft
     {
         double sag = EngineSagRad;
         if (Math.Abs(sag) < 1e-6 || Config.Propulsion is null)
-            return PropulsionForces(Config, _throttle01, velocity, rates, airDensity, _noseLost, _noseBody, _propThrustScale, _drive);
-        (Vec3 f, Vec3 m) = PropulsionForces(Config, _throttle01, ToMount(velocity, sag), ToMount(rates, sag), airDensity, _noseLost, _noseBody, _propThrustScale, _drive);
+            return PropulsionForces(Config, _throttle01, velocity, rates, airDensity, _noseLost, _noseBody, PropThrustNow, _drive);
+        (Vec3 f, Vec3 m) = PropulsionForces(Config, _throttle01, ToMount(velocity, sag), ToMount(rates, sag), airDensity, _noseLost, _noseBody, PropThrustNow, _drive);
         f = FromMount(f, sag);
         m = FromMount(m, sag);
         if (Config.Engines.Count == 0)

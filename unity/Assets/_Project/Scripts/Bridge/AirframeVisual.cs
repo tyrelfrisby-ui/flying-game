@@ -121,12 +121,23 @@ namespace FlyingGame.Bridge
                 if (eng == null || i >= eng.Count) return rpm;
                 return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
             }, Time.deltaTime);
+            float propR0 = acp.Config.Propulsion != null ? (float)(0.5 * acp.Config.Propulsion.PropDiameterM) : 0f;
+            _builder.BendBlades(i => (propR0, (float)acp.PropBladeRadiusM(i, 0), (float)acp.PropBladeRadiusM(i, 1)));
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
             // A model that brought its own rig moves ITS parts — the same control positions the aero model is
             // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown. A model whose
             // cockpit was drawn as pictures (the Pitts, the Extra's rear panel) has them made live by CockpitLiveParts
             // from the same readings. ONCE a frame: this used to run twice, and the second pass saw no time pass, so it
             // dragged the vario and the turn needle back toward zero every frame.
+            // No seat belts or headset cords in any model, old GLBs included (Ty 2026-11-05): once per placed model, before
+            // CockpitLiveParts cuts anything out of its meshes.
+            if (_builder.ModelRoot != null && _beltsStrippedFrom != _builder.ModelRoot)
+            {
+                foreach (Mesh m in _beltFreeMeshes) if (m != null) Destroy(m);
+                _beltFreeMeshes.Clear();
+                CockpitBeltStrip.Strip(_builder.ModelRoot, _beltFreeMeshes);
+                _beltsStrippedFrom = _builder.ModelRoot;
+            }
             if (_builder.ModelRoot != null && !_live.Bound) _live.Bind(this, AirframeModels.PlacedOwnName(_driver.AircraftId));
             if (_builder.HasOwnRig || _live.Active)
             {
@@ -136,9 +147,8 @@ namespace FlyingGame.Bridge
                 FlyingGame.Core.RigInputs rig = RigInputsNow(acp, rd, Time.deltaTime);
                 if (_builder.HasOwnRig) _builder.SetRig(rig, Time.deltaTime);
                 _live.Update(rig);
-                // The red handle, pulled all the way: the canopy is gone the moment the rig says so, whether
-                // the hand on it was the player's or the bailout's.
-                if (Cockpit.CanopyPull01 >= 0.999f && !Cockpit.CanopyGone) JettisonRigPart(_driver.WorldVelocityUnity);
+                // The red handle only pulls the hinge pins: the canopy goes when its own physics says so (Core
+                // Vr.CanopyBailout / CanopyDynamics, stepped by the bail-out or by the headset's hands → DetachCanopy).
                 // The water-rudder cable follows the handle the rig just placed (floats J-3 only; nothing elsewhere).
                 if (_builder.HasOwnRig && !_waterRudder.Bound) _waterRudder.Bind(_builder.ModelRoot);
                 _waterRudder.LateUpdate();
@@ -151,6 +161,8 @@ namespace FlyingGame.Bridge
                 _displays.Bind(FindInModel, transform);
                 _displays.Update(_lastRig);
                 Card.Bind(this, _driver.AircraftId);
+                // Touching the card, the altimeters and the g-meters (CockpitTaps binds itself to each placed model).
+                if (_taps == null && !TryGetComponent(out _taps)) _taps = gameObject.AddComponent<CockpitTaps>();
             }
         }
 
@@ -166,6 +178,9 @@ namespace FlyingGame.Bridge
         /// <summary>The painted parts of a cockpit made to move: live dials, cut-out sticks and pedals, an added
         /// throttle (FlyingGame.Core.CockpitLive says which, per model).</summary>
         private readonly CockpitLiveParts _live = new();
+        private Transform _beltsStrippedFrom;
+        private CockpitTaps _taps;
+        private readonly List<Mesh> _beltFreeMeshes = new();
         private readonly CockpitWaterRudder _waterRudder = new();     // the J-3 floats' red retract handle's cable
 
 
@@ -198,75 +213,118 @@ namespace FlyingGame.Bridge
                 ?? _builder.FindInModel(front ? "Eye_Rear" : "Eye_Front");
         }
 
-        /// <summary>Throw away the one part the model's rig says comes off — the Extra's canopy, with its glass,
-        /// its frame and both lock levers, because they are its children in the GLB. The real part leaves, not a
-        /// stand-in: it is detached from the aeroplane with the airframe's own velocity plus the kick a canopy
-        /// gets off its hinge, the rig stops driving it, and the aeroplane stays canopy-less until the next
-        /// flight's rebuild. false where this model has nothing to lose, which is when the procedural stand-in
-        /// (<see cref="CanopyJettison"/>) is still the right answer.</summary>
-        public bool JettisonRigPart(Vector3 worldVelocityUnity)
+        /// <summary>
+        /// THE AEROPLANE'S REAL CANOPY OR DOOR (Ty 2026-11-05 06:37: "use the real canopy or door unless it is a cub or Great
+        /// Lakes etc where they don't need to be removed to get out. Not the phony clear canopy"): the model's own parts,
+        /// whatever Core <see cref="FlyingGame.Core.CanopyEgress"/> names from its nodes — the one-piece canopy, the 2-33's
+        /// and the Grob's frame + glass + hardware together, the 172's right door with its glass and latch — else the part
+        /// the rig marks jettisonable; the procedural shell's own dome where the type has a canopy that comes off (Core
+        /// CanopyEgress.ShellCanopyLeaves). Empty for an open cockpit, the Cub's fold-out
+        /// door, or a model with no separate canopy: nothing leaves and nothing is spawned in its place. A part under
+        /// another that leaves goes with it, not twice.
+        /// </summary>
+        public System.Collections.Generic.List<Transform> CanopyParts()
         {
-            AirframeRig rig = _builder.Rig;
-            if (rig == null || Cockpit.CanopyGone) return false;
-            (Transform part, string _) = rig.Jettisonable();
-            if (part == null) return false;
-
-            Bounds b = PartBounds(part);
-            rig.Release(part);
-            ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
-            part.SetParent(null, true);
-
-            var body = part.gameObject.AddComponent<DebrisBody>();
-            body.MassKg = 15f;                                           // a one-piece acro canopy, glass and frame
-            body.CdA = Mathf.Clamp(0.9f * b.size.x * b.size.z, 0.4f, 3f); // a scoop broadside to the flow
-            body.Velocity = worldVelocityUnity + transform.up * 6f - transform.forward * 2f;
-            body.AngularVelocityRad = new Vector3(5f, 1.2f, 3f);         // pitches over backwards as it leaves
-            body.RestHeightM = Mathf.Max(0.1f, b.extents.y * 0.5f);
-            body.LifeSec = 45f;
-
-            Cockpit.CanopyGone = true;
-            _rigPartGone = true;
-            return true;
+            var parts = new System.Collections.Generic.List<Transform>();
+            if (_builder.ModelRoot != null)
+            {
+                var byName = new System.Collections.Generic.Dictionary<string, Transform>();
+                foreach (Transform t in _builder.ModelRoot.GetComponentsInChildren<Transform>(true))
+                {
+                    string bare = FlyingGame.Core.CanopyEgress.Bare(t.name);
+                    if (!byName.ContainsKey(bare)) byName[bare] = t;
+                }
+                foreach (string n in FlyingGame.Core.CanopyEgress.PartsToJettison(byName.Keys)) parts.Add(byName[n]);
+                if (parts.Count == 0 && _builder.Rig != null && _builder.Rig.Jettisonable().T != null) parts.Add(_builder.Rig.Jettisonable().T);
+                Transform[] all = parts.ToArray();
+                parts.RemoveAll(p => System.Array.Exists(all, q => q != p && p.IsChildOf(q)));
+            }
+            else if (FlyingGame.Core.CanopyEgress.ShellCanopyLeaves(_driver != null ? _driver.AircraftId : ""))
+            {
+                Transform shell = transform.Find("Canopy");
+                if (shell != null) parts.Add(shell);
+            }
+            return parts;
         }
 
         /// <summary>
-        /// THE CANOPY LEAVES ON ITS OWN PHYSICS (the headset's hands-on canopy, Core Vr.CanopyDynamics: torn off its
-        /// hinges above the failure speed, or jettisoned). The part is CONTRACT's `Canopy_Detachable` (the whole moving
-        /// canopy and nothing of the airframe), else the node the rig marks jettisonable, else the Pitts' `Canopy_Slide`
-        /// or the `Canopy`. It is detached with everything under it and flown by <see cref="CanopyFlight"/>, a Core
+        /// THE CANOPY'S PHYSICS FOR A BAIL-OUT (Ty 06:38: reuse the canopy system that already exists): the headset's own
+        /// <see cref="FlyingGame.Core.Vr.CanopyDynamics"/> where it has one; else the Pitts' or the Extra's from Core's
+        /// written-down spec; else one sized from this model's own part in the aeroplane's axes
+        /// (<see cref="FlyingGame.Core.Vr.CanopySpec.ForPart"/>). null where there is nothing to lose (see <see cref="CanopyParts"/>).
+        /// </summary>
+        public FlyingGame.Core.Vr.CanopyDynamics EgressCanopy()
+        {
+            if (Cockpit.CanopyGone) return null;
+            if (Cockpit.EgressCanopy != null) return Cockpit.EgressCanopy;
+            var parts = CanopyParts();
+            if (parts.Count == 0) return null;
+            if (Cockpit.HandCanopy != null) return Cockpit.HandCanopy;
+            string id = _driver != null ? _driver.AircraftId : "";
+            if (FlyingGame.Core.Vr.CanopySpec.Known(id)) return new FlyingGame.Core.Vr.CanopyDynamics(FlyingGame.Core.Vr.CanopySpec.For(id));
+            Bounds lb = LocalBounds(parts);
+            // Aeroplane axes: x right (span across the cockpit), y up, z nose (length along the flow).
+            return new FlyingGame.Core.Vr.CanopyDynamics(FlyingGame.Core.Vr.CanopySpec.ForPart(lb.size.z, lb.size.x, lb.size.y));
+        }
+
+        /// <summary>
+        /// THE CANOPY LEAVES ON ITS OWN PHYSICS (Core Vr.CanopyDynamics: torn off its hinges above the failure speed, or
+        /// jettisoned — by the headset's hands or by the bail-out, Core Vr.CanopyBailout). The parts are
+        /// <see cref="CanopyParts"/>: detached with everything under them at that moment, so nothing of the canopy or door
+        /// stays on the airframe, and flown together as one "JettisonedCanopy" by <see cref="CanopyFlight"/>, a Core
         /// <see cref="FlyingGame.Core.Vr.CanopyFreeBody"/> with the canopy's own mass, drag and lift. Torn hinges show
-        /// Codex's `Canopy_Hinge_Broken_*` fittings. Returns the part's centre (world), or null where the model has no
-        /// canopy to lose (the procedural shell gets its stand-in, as the menu's bail-out does).
+        /// Codex's `Canopy_Hinge_Broken_*` fittings. The aeroplane stays canopy-less until the next flight's rebuild.
+        /// Returns the parts' centre (world), or null where the model has no canopy to lose (never a stand-in).
         /// </summary>
         public Vector3? DetachCanopy(FlyingGame.Core.Vr.CanopyDynamics canopy, Vector3 velocityWorld, Vector3 upWorld,
                                      Vector3 spinWorld, bool hingesBroke)
         {
             if (Cockpit.CanopyGone) return null;
-            AirframeRig rig = _builder.Rig;
-            Transform part = FindInModel("Canopy_Detachable");
-            if (part == null && rig != null) part = rig.Jettisonable().T;
-            if (part == null) part = FindInModel("Canopy_Slide") ?? FindInModel("Canopy");
+            var parts = CanopyParts();
+            if (parts.Count == 0) return null;
             Cockpit.CanopyGone = true;
             _rigPartGone = true;
-            if (part == null)
-            {
-                Transform shell = transform.Find("Canopy");
-                CanopyJettison.Spawn(_driver, shell);
-                if (shell != null && shell.TryGetComponent(out Renderer r)) r.enabled = false;
-                return null;
-            }
             if (hingesBroke && _builder.ModelRoot != null)
                 foreach (Transform t in _builder.ModelRoot.GetComponentsInChildren<Transform>(true))
-                    if ((t.name.StartsWith("Model:") ? t.name.Substring(6) : t.name).StartsWith("Canopy_Hinge_Broken")) t.gameObject.SetActive(true);
+                    if (FlyingGame.Core.CanopyEgress.Bare(t.name).StartsWith("Canopy_Hinge_Broken")) t.gameObject.SetActive(true);
 
-            Bounds b = PartBounds(part);
-            rig?.Release(part);
-            ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
-            part.SetParent(null, true);
+            Bounds b = PartBounds(parts[0]);
+            for (int i = 1; i < parts.Count; i++) b.Encapsulate(PartBounds(parts[i]));
+            var go = new GameObject("JettisonedCanopy");
+            go.transform.SetPositionAndRotation(b.center, transform.rotation);
+            AirframeRig rig = _builder.Rig;
+            foreach (Transform part in parts)
+            {
+                rig?.Release(part);
+                ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
+                part.SetParent(go.transform, true);
+            }
             static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
             var body = new FlyingGame.Core.Vr.CanopyFreeBody(canopy, C(b.center), C(velocityWorld), C(upWorld), C(transform.forward), C(spinWorld));
-            part.gameObject.AddComponent<CanopyFlight>().Init(body, b.center, Mathf.Max(0.1f, b.extents.y * 0.5f));
+            go.AddComponent<CanopyFlight>().Init(body, b.center, Mathf.Max(0.1f, b.extents.y * 0.5f));
             return b.center;
+        }
+
+        /// <summary>Bounds of the parts in this aeroplane's own axes: each mesh's own box, corner by corner, brought into
+        /// the aeroplane's frame (so a banked or wrecked attitude does not fatten it); a canopy-sized box with no mesh.</summary>
+        private Bounds LocalBounds(System.Collections.Generic.List<Transform> parts)
+        {
+            bool any = false;
+            var lb = new Bounds(Vector3.zero, new Vector3(0.9f, 0.5f, 1.6f));
+            foreach (Transform part in parts)
+                foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (mf.sharedMesh == null) continue;
+                    Bounds m = mf.sharedMesh.bounds;
+                    for (int k = 0; k < 8; k++)
+                    {
+                        Vector3 c = m.center + Vector3.Scale(m.extents, new Vector3((k & 1) == 0 ? -1 : 1, (k & 2) == 0 ? -1 : 1, (k & 4) == 0 ? -1 : 1));
+                        Vector3 l = transform.InverseTransformPoint(mf.transform.TransformPoint(c));
+                        if (!any) { lb = new Bounds(l, Vector3.zero); any = true; }
+                        else lb.Encapsulate(l);
+                    }
+                }
+            return lb;
         }
 
         /// <summary>World bounds of a part and everything under it, or a canopy-sized box where it has no
@@ -1347,6 +1405,85 @@ namespace FlyingGame.Bridge
             public Transform Hub; public float Radius, Angle, DiscAngle; public int Engine; public Vector3 Body;   // (Body: the hub, body axes m)
             public GameObject Disc; public Material DiscMat; public Transform BladeBone; public bool ModelBound;
             public readonly List<GameObject> Blades = new();     // shown while slow; the blur disc takes over above ~400 rpm
+            // A bent prop (BendBlades): each blade mesh's own copy, its straight vertices, and the bend last drawn.
+            public List<(MeshFilter mf, Vector3[] straight, Matrix4x4 toHub)> Bent;
+            public float Shown0 = -1f, Shown1 = -1f;
+        }
+
+        /// <summary>
+        /// Draw the propeller as bent as the sim says it is (Aircraft.PropBladeRadiusM, Ty 2026-11-05: "a bent prop is
+        /// visible"): every blade mesh on the hub (the model's own Prop node or the procedural blades; not the blur disc
+        /// or the spinner) has the part of each blade beyond 3/4 of the radius folded aft at the station, by the angle that
+        /// takes its tip in by that blade's shortening: cos θ = 1 − ΔR/(R − 0.75 R). Which side of the hub a vertex is on
+        /// says which blade it belongs to. Redone only when a blade's radius changes; the blur disc shrinks to the longest
+        /// blade. <paramref name="bladeR"/> gives (straight radius, blade 0, blade 1) in m for each engine index.
+        /// </summary>
+        public void BendBlades(System.Func<int, (float r0, float b0, float b1)> bladeR)
+        {
+            foreach (PropHub h in _props)
+            {
+                if (h.Hub == null) continue;
+                (float r0, float b0, float b1) = bladeR(h.Engine);
+                if (r0 <= 0f || (Mathf.Abs(b0 - h.Shown0) < 1e-4f && Mathf.Abs(b1 - h.Shown1) < 1e-4f)) continue;
+                h.Shown0 = b0; h.Shown1 = b1;
+                if (h.Disc != null) h.Disc.transform.localScale = Vector3.one * Mathf.Clamp01(Mathf.Max(b0, b1) / r0);
+                if (h.Bent == null)
+                {
+                    if (b0 >= r0 - 1e-4f && b1 >= r0 - 1e-4f) continue;   // straight: leave the shared meshes alone
+                    h.Bent = new List<(MeshFilter, Vector3[], Matrix4x4)>();
+                    foreach (MeshFilter mf in h.Hub.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf.sharedMesh == null || !mf.sharedMesh.isReadable) continue;
+                        if (h.Disc != null && mf.gameObject == h.Disc) continue;
+                        if (mf.name.StartsWith("Spinner") || mf.name.StartsWith("Model:Spinner")) continue;
+                        // Mesh → hub, taking the blade bone at unit scale (SpinProps folds it onto the axis at speed).
+                        Matrix4x4 m = Matrix4x4.identity;
+                        for (Transform t = mf.transform; t != null && t != h.Hub; t = t.parent)
+                            m = Matrix4x4.TRS(t.localPosition, t.localRotation, t == h.BladeBone ? Vector3.one : t.localScale) * m;
+                        Mesh copy = Object.Instantiate(mf.sharedMesh);
+                        copy.name = mf.sharedMesh.name + " (bent)";
+                        h.Bent.Add((mf, mf.sharedMesh.vertices, m));
+                        mf.sharedMesh = copy;
+                    }
+                }
+                foreach ((MeshFilter mf, Vector3[] straight, Matrix4x4 toHub) in h.Bent)
+                {
+                    if (mf == null) continue;
+                    Matrix4x4 back = toHub.inverse;
+                    var pts = new Vector3[straight.Length];
+                    float rMesh = 0f; Vector2 tipDir = Vector2.right;
+                    for (int i = 0; i < straight.Length; i++)
+                    {
+                        Vector3 p = toHub.MultiplyPoint3x4(straight[i]);
+                        pts[i] = p;
+                        float r = new Vector2(p.x, p.y).magnitude;
+                        if (r > rMesh) { rMesh = r; tipDir = new Vector2(p.x, p.y) / Mathf.Max(r, 1e-6f); }
+                    }
+                    float rb = 0.75f * rMesh, outer = rMesh - rb;
+                    if (outer <= 1e-5f) continue;
+                    float scale = rMesh / r0;   // sim metres → this mesh's units
+                    float th0 = Mathf.Acos(Mathf.Clamp(1f - (r0 - b0) * scale / outer, -1f, 1f));
+                    float th1 = Mathf.Acos(Mathf.Clamp(1f - (r0 - b1) * scale / outer, -1f, 1f));
+                    th0 = Mathf.Min(th0, 100f * Mathf.Deg2Rad); th1 = Mathf.Min(th1, 100f * Mathf.Deg2Rad);
+                    var outV = new Vector3[straight.Length];
+                    for (int i = 0; i < pts.Length; i++)
+                    {
+                        Vector3 p = pts[i];
+                        var rad = new Vector2(p.x, p.y);
+                        float r = rad.magnitude;
+                        if (r <= rb) { outV[i] = straight[i]; continue; }
+                        Vector2 u = rad / r;
+                        float th = Vector2.Dot(u, tipDir) >= 0f ? th0 : th1;
+                        float e = r - rb;
+                        // Fold the excess radius aft (hub −z) about the station: rb·û, the vertex's own axial place.
+                        var q = new Vector3(u.x * (rb + e * Mathf.Cos(th)), u.y * (rb + e * Mathf.Cos(th)), p.z - e * Mathf.Sin(th));
+                        outV[i] = back.MultiplyPoint3x4(q);
+                    }
+                    mf.sharedMesh.vertices = outV;
+                    mf.sharedMesh.RecalculateBounds();
+                    mf.sharedMesh.RecalculateNormals();
+                }
+            }
         }
         private readonly List<PropHub> _props = new();
         /// <summary>Each propeller hub's position (body axes, m from the CG) — where the smoke's exhausts are placed from.</summary>

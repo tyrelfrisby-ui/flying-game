@@ -81,6 +81,7 @@ namespace FlyingGame.Bridge
         private static readonly (string Node, float Metres)[] Proud =
         {
             ("SequenceCard_Face", 0.0012f),
+            ("FrontPanel_SequenceCard_Face", 0.0012f),
             ("RearPanel_UpperExtension", 0.0005f),
             ("Radio_Display_R", 0.001f),
             ("Xpdr_Display_R", 0.001f),
@@ -108,8 +109,11 @@ namespace FlyingGame.Bridge
                 Vector3 dirP = t.parent.InverseTransformDirection(toPilot.normalized);
                 t.localPosition += dirP * (metres / Mathf.Max(1e-4f, t.parent.lossyScale.x));
             }
-            Transform stock = find("SequenceCard_Stock");
-            if (stock != null && find("SequenceCard_Face") != null && stock.TryGetComponent(out Renderer sr)) sr.enabled = false;
+            foreach (string pre in new[] { "", "FrontPanel_" })
+            {
+                Transform stock = find(pre + "SequenceCard_Stock");
+                if (stock != null && find(pre + "SequenceCard_Face") != null && stock.TryGetComponent(out Renderer sr)) sr.enabled = false;
+            }
         }
 
         private static void Drop(Lcd lcd)

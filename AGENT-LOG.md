@@ -1,4 +1,436 @@
+## NEEDS YOU — overstress pattern: wings, tail and engine flex, bend and break by your numbers (Claude, 2026-11-05)
+<!-- overstress needs-you -->
+Lane lane/claude-bend-damage. Your 06:28 pattern and 06:29 Pitts −5 g, implemented as written (write-up
+`docs/BEND-DAMAGE.md`, "The overstress pattern"). Nothing approved by me. Build / install stamps: see the last bullet.
+- **Ty, please fly-check (any type, best the J-3 and the Pitts):** pull past the limit and watch the wings flex (10° at
+  1.5 × limit, 20° at 2.0); pull past 1.5 × and let go: half the bend stays and you will need aileron/trim as it flies on;
+  a pull to 2.0 at gross leaves wings, tail and engine 10° bent; over gross the wings (and stabiliser) go and the engine
+  stays; light (less fuel / no passenger) the wings take more g and the ENGINE goes first at 2.01 × limit.
+- **How:** three members on the structure — wings and horizontal tail on n / n_limit × W / W_gross (gross = placard, else
+  the config's mass), the engine mount on n / n_limit with no weight allowance; flex 20° per limit past the limit; past
+  1.5 × half the peak bend stays; each excursion past 1.5 × takes 2 % per 0.1 off the whole curve for next time; past 2.0 ×
+  of what is left it departs. Negative side the same on its own limit. The bends fly: wing panels' dihedral and load points,
+  the tail halves (tips DOWN under positive g), the engine droops nose-down (thrust line, disc angle, hub).
+- **J-3 / Pitts numbers (OverstressPatternTests):** 2.0 × at gross: 10.000° set on all three, strength 0.900, nothing
+  lost. 110 % gross: wings and stabiliser off, engine on (10° droop). 80 % gross at 2.01 ×: engine off, wings 6.0° set.
+  Six pulls to 1.6 ×: 0.98 → 0.745, then it breaks at 1.49 ×. Pitts −10 g: wings −10°, stays; −10.25 g: off. Wings 10°
+  set doubles the dihedral effect (−8,846 → −17,723 N·m/rad of slip at 30 m/s); engine drooped 10° at full power pitches
+  the nose down.
+- **Decisions in the queue:** Q122 (a pull to 1.51 leaves 5°, 1.49 none — keep that step?), Q123 (repeated same-way pulls
+  keep the larger set, not the sum), Q124 (tail tips down + weight-adjusted, engine droops nose-down, all loaded by the
+  AIR's g so a hard landing cannot tear the engine off by inertia), Q125 (ground-strike wing hinges now also yield only
+  past 1.5 × limit).
+- **Changed on the way:** the 50 ms failure dwell is now a 50 ms structural lag; a tip touch between 1.0 and 1.5 × limit
+  springs back (Pitts lower tip at 0.8 m/s, 1.37 ×). The engine is DRAWN drooping only past 1.5 × or once it has a set
+  (cutting the nose onto its pivot freezes the model's rig, as the crash bend always has); below that only its thrust
+  line moves. Twin nacelles are not drawn drooped. A one-mesh downloaded model's tail does not bend on screen.
+- Tests: OverstressPatternTests 9/9; Structural/Grob/BendDamage/ContactPatch/AirframeContact/Combat/CrashReset/Float/
+  WheelWater subset (361) and a crash/prop/spin/lesson/combat subset (404): every failure (4 and 11) fails the same on the
+  branch point e61c8268. Merged with island-nav 2710033d: 102/102 in the touched classes.
+- Builds / merges / installs: PENDING (this entry is updated when they land).
+<!-- /overstress needs-you -->
+
+## NEEDS YOU — flat-spotted tyres: fly-check (Claude, 2026-11-05)
+<!-- flat-spot needs-you -->
+Lane lane/claude-flat-spot. Ty (08:53): "model flat spotted tires even if they don't pop ... the longer it locks up the
+deeper the flat spot the more significant the bump as it rolls and the frequency should be modeled after the actual tire
+rotation rate". Physics change, approved for merge + install.
+- **Ty, please check (172, dry asphalt):** roll at ~25-30 kt, stand on both brakes until the mains lock and screech for
+  about a second, release, and taxi. You should hear (and on the Quest feel in the controllers) a soft thump once per
+  wheel revolution, speeding up and slowing down with the taxi speed, and see a slight bounce. A longer lock gives a deeper
+  spot and a bigger thump; a long lock from a fast landing still wears through and bursts as before. Respawn = new tyres.
+- **Is a one-second lock-up's bump strong enough?** It is honest geometry: 1 s locked at 15 m/s wears 1.1 mm off ~10 cm
+  of tread; that swings the wheel's load ~60 N and the aeroplane ~0.01 g, so it is mostly HEARD. 1.6 s gives 2.0 mm.
+  There is no unsprung wheel mass in the model, so the spot's far edge does not strike at speed the way a real wheel's
+  does. If you want it felt harder, that is the next piece of physics (wheel + axle mass on the tyre spring), not a gain.
+  (Q084 in the queue.)
+- What changed: the drop is averaged over the arc the wheel turns each step (a fast wheel could step over its spot), the
+  spot's edge now reaches the tyre's and leg's dampers (d(drop)/dt), `TyreWear.FlatSpots()` reads spots off the strips,
+  and Quest controllers knock on each thump. The phone has no haptics path in the game, so none was added.
+  docs/TIRE-SPINUP-AND-GROUND-SOUND.md §9; tests tools/FlightTests/FlatSpotTests.
+- Builds / merges / installs: branch iOS BUILD SUCCEEDED 14:00 (0 error CS). Merged island-nav **a2dc4765**, quest-islandnav
+  **2d916858** (PARITY: OK). Installed (by the bend-damage lane's deploys from those same trees, not built twice):
+  iPhone + iPad mini **2026.1105.1414** (confirmed on both with
+  devicectl; the iPhone was locked, so it did not launch; the EFB iPad Air refused it); Quest 3S **2026.1105.1426**
+  (install Success, launched). Nothing here is an approved gate.
+
+## NEEDS YOU — wings bend before they break (Claude, 2026-11-05, lane/claude-bend-damage)
+<!-- bend-damage needs-you -->
+- **Ty to fly-check: drop a wing in the J-3 (and a Cub, a Pitts) a few ways, slow and hard, and answer Q077 (too tough /
+  about right / still brittle) and Q078 (fabric wings twist easily).** You asked 06:10: "the wing hit relatively slowly
+  and immediately snapped off … more bends before it breaks … reduced strength and aerodynamic impacts if it continues
+  flying". Branch iOS 2026.1105.1344 ** BUILD SUCCEEDED **, 0 error CS (NOINSTALL); merged into island-nav and Quest,
+  install stamps below. Nothing approved by me. Write-up: `docs/BEND-DAMAGE.md`.
+  - **Why it snapped:** a wing panel went the first step its tip's contact moment passed the ultimate; the contact
+    spring rings past it for one step (J-3, tip down at 5 m/s: 9.5 kN·m asked of a 6.2 kN·m ultimate). And a bent panel
+    snapped at 2 × its 1 g moment (your 11-03 rule), a fifth of its ultimate. **That 11-03 rule is replaced** (Q077).
+  - **Now:** each panel's station is two plastic hinges, bending and twist, on its construction's curve (spruce /
+    aluminium / composite, from material strains; new config key `wingSpar` on 8 types): elastic, a permanent set past
+    yield, cracked and weaker past the peak, OFF only when it has turned through its rupture rotation. The ground cannot
+    push a tip harder than the hinges carry, so a strike's energy goes into bending it. The bend and twist move the
+    panel's hard points, its strips' load points, dihedral, incidence and skin (lift/drag), and the drawn mesh.
+    Tail surfaces, rudder, mid-span, nacelles and gear legs crush before they break (the fuselage's energy rule).
+  - **J-3 numbers:** tip down at 5 m/s, 20 m/s: twisted 2.4°, stays on. Tip 10 m/s: bent 8.8°, stays on, flies with
+    1.1° of aileron to hold level and +18 % drag. Cartwheel (tip 15 m/s, sink 6): off after 712 J. Panel bent once
+    holds to 3.5 g in flight. Gear dropped at 5 m/s bends and stays; 7 m/s, legs go.
+  - **Not done:** a bent gear leg does not sit lower; no fatigue below the backbone; ailerons on a bent panel are
+    drawn straight.
+  - Tests: BendDamageTests (8, new); ContactPatchTests / BentPanelStaticLoadTests / AirframeContactTests / CombatTests
+    rewritten where they pinned the 11-03 rule (a 6 m/s sideways drop onto a 60°-banked tip now only bends). Crash /
+    water / contact / gear / spin subset: branch 38 red vs base 37; the 7 new spin names pass alone (suite coupling),
+    the 2 old-rule tests are rewritten; 8 base failures pass on the branch. Merged tree: 90/90 in the touched classes.
+<!-- /bend-damage needs-you -->
+
+## NEEDS YOU — tyre squeal: higher threshold + fade-in, and why the Cessna still howls (Claude, 2026-11-05)
+<!-- ground-volume needs-you -->
+- **Ty to fly-check: (1) a crosswind takeoff in the 172, no brakes; (2) a locked-wheel skid still squeals; (3) answer
+  Q096.** You asked 08:50: "make the threshold higher on when the screetching starts and make it more of a fade in".
+  Shipped (lane/claude-ground-volume 2a20429a; island-nav 7919f5c5, Quest 77e5a3f4, PARITY OK): squeal now starts at
+  the TYRE MODEL's own friction peak and fades in. Sideways: smoothstep from 1× to 2× the peak slip angle (3.8° → 7.6°
+  on a main), scrub 0.75× → 1.5×, plus a per-wheel attack τ 0.2 s / release 0.1 s. Fore-aft: slip ratio over the
+  tyre's κ0, squeal 1.25 → 2.5 κ0 (≈ 0.10 → 0.20), no time smoothing (the touchdown chirp stays). Pitch still follows
+  slip speed and tyre size; the −4 dB ground bus (fa4d96f3) is kept. Docs §7d.
+  **Your Cessna will STILL howl in that crosswind.** It is the NOSE tyre, and it really skids: the 172 config links
+  the nosewheel to the pedals rigidly at ±29°, so holding the centreline in 15 kt (~0.6 left rudder, any pilot) steers
+  it ~17° and slides it at 3–4× its grip. Measured squeal peak 0.694 before, 0.693 after. With the POH's ±10° pedal
+  steering (test-only) the same roll holds the centreline as well and is silent: squeal 0.002, scrub ≤ 0.24.
+  Changing ground steering is a handling change, so it is **Q096**, not done. Locked main at 40 kt: squeal 1.06 at once.
+  Tests: TyreSquealOnsetTests 5/5; tyre/tire/wheel/brake/ground-sound set 103/104, the 1 red
+  (ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake) fails the same at the branch point.
+  Builds: lane iOS ** BUILD SUCCEEDED ** (0 error CS); merged island-nav aa662650 (contains 7919f5c5) iOS
+  ** BUILD SUCCEEDED ** **2026.1105.1140**: iPad mini installed (launch refused: device locked); iPhone refused (4016,
+  locked), then installed the same .app ~12:05 by the claude-floats session (its report, not re-checked by me).
+  Quest **2026.1105.1147** built from quest-islandnav 256e0363 (contains 77e5a3f4), installed 12:04 by claude-floats
+  (its report; build stamp confirmed in build/quest.log). Nothing here is an approved gate.
+## NEEDS YOU — EXTRA: no rear diagonals, panel follows dash, compact front IAC (Codex 2026-11-05)
+- **VISUAL REVIEW PENDING; NO MERGE / INSTALL.** Lane `lane/codex-extra-remove-diagonals`, local commits
+  `eccfb4f3` (rear diagonals + panel) and `be7b89c2` (Ty Q070 compact front IAC).
+- Renders: `~/Developer/agent-lanes/renders/cockpit-1105/codex-extra-remove-diagonals/` (rear, Q109),
+  `front-iac-small/` beneath it (new front eye + close-up, Q117). Older oversized front-card images superseded.
+- All three liveries: rear diagonal nodes/meshes/materials/binary geometry deleted; generators cannot recreate them.
+  Rear panel upper shoulders continue the dash's 110:90 bevel with 2 mm inset, top half-width 281.1 mm; lower side
+  attachments retained. No instruments, controls, eyes or physics changed.
+- Q070: FRONT paper 59.37 x 76.84 mm; backing 79.2 x 91.3 mm. All five card parts scaled to 55%, raised 25 mm,
+  kept RIGHT of the 3-gauge subpanel within its unchanged 245..355 mm vertical envelope. Rear card stays half-letter;
+  front/rear selection binding preserved, front card-slot dimensions/centre updated. No panel enlargement.
+- CPU: all 3 graphs valid; passes idempotent; all 214 other mesh nodes unchanged by card edit. Rear/front Blender
+  eyes and close-ups opened and inspected. Initial canopy seal checker PASS, strict parity PASS.
+- Post-change focused Extra checks 24/24 PASS. Selected suite: 28 pass / 1 fail vs pre-visual merge baseline
+  `23b8d72c`: 31 pass / SAME sole fail `NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs` (existing Grob103 filename match).
+  No new failing names; NoRed test unchanged. Exact final bytes restored after baseline comparison.
+- Unity CockpitEyeShots PASS 8/8, 0 error CS; rear iPhone/Quest, both junctions and compact front iPhone/Quest/close-up
+  opened and inspected. Completed editor hung in CoreShutdown -> PreloadManager::Stop after Exit(0); sampled and stopped
+  ONLY own completed editor, then resumed iOS under reserved deploy gate. Existing edit-mode Destroy cleanup messages logged.
+- iOS `2026.1105.1221` (app inputs at `fb191e4e`): ** BUILD SUCCEEDED ** (Unity export 4984 MB / 421 s, Xcode complete 12:32), NOINSTALL,
+  installed on 0 devices. Unity shot/build logs both 0 error CS. Final `check-parity.sh --strict`: PARITY OK.
+  Generated StreamingAssets copies / GraphicsSettings / version + build-number bumps restored only in this worktree.
+- Remaining: Ty's visual review Q109 / Q117. Existing NoRed233 resource-name failure remains RED on both baseline and
+  final state; never weakened. No other-lane worktrees/processes altered, no delivery merge / install / push.
+  EXTRA-REMOVE-DIAGONALS-DONE / EXTRA-FRONT-IAC-SMALL-DONE.
+
+## NEEDS YOU — J-3 on floats: prop water strikes, the hammering noise, spray volume, the hump (Claude, 2026-11-05)
+<!-- claude-floats needs-you -->
+Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lanes/prompts/ty-floats-1105.md).
+- **Ty, please fly-check on the J-3 floats:** (1) dig the prop into the water: shallow at power should bend a tip, keep the
+  engine running, cost a little thrust and buzz once a revolution (cockpit view shakes a few mm on the iPhone, the engine
+  note throbs; the Quest gets only the sound). Deep, or anything at idle past ~2 cm, stops it and shows the bent blades.
+  (2) The hammering is gone (below). (3) Spray/splash/hiss are -4 dB with the tyres. (4) The water run: Q097.
+- **Hammering noise = the float splash voice.** `TyreBrakeSynth` played the float/wheel water splash as low-passed noise
+  gated by a FIXED 4.5 Hz sine at 66 % depth: a steady thump-thump through every taxi and the displacement part of every
+  water take-off (it is loud there, level 0.6-0.97). Measured off the device with the new `tools/FloatAudio` harness: before,
+  strongest envelope line 4.5 Hz at 66 %; after, a broad 1.1 Hz swell at 4 %, same rms (0.079 vs 0.077). Nothing else
+  retriggers on a water run (FloatsHammerProbe: no HardImpact, CrashImpact, contact event or tyre thump). f9738633.
+- **Spray volume:** water splash/hiss/spray are on the shared ground bus, so the ground-volume lane's -4 dB (fa4d96f3, built
+  by that lane, 0 error CS) covers them; fast-forwarded into this lane, so it lands with this merge.
+- **Prop water strike, root cause:** `AirframeContact` returns "no contact" for every point of a FLOATPLANE over water (the
+  floats carry the hull), and that included the propeller disc, so no floatplane's prop could touch the water at all.
+  The disc stations now read the water. Then (158c955c, all emergent, no surface rule): engine torque is flat
+  (P_max/w_max x throttle, or the share that holds idle) against the prop's own w^2 load (it was P/w, which grew without
+  bound as the prop slowed); the water's blade drag is unchanged; below half of idle the engine stops. Each blade bends only
+  when it sweeps the wet/struck arc, by the depth past the point where the tip load at 0.75 R reaches the blade section's
+  yield (2025-T6; 0.6 mm at full rpm, 6.2 mm at idle on the J-3). Thrust = mean of the blades' (R/R0)^(2/3); unequal blades
+  shake at 1x rpm. J-3, hand-worked and matched: 4 cm at full power slows to 682 rpm (sim 685) and runs on; 15 cm stops it;
+  at idle 5 mm runs (558 rpm), 2 cm stops. The model draws each blade's outer quarter folded aft by its own bend.
+  NOT checked by a render: the bent-blade drawing (AirframeBuilder.BendBlades) compiles and runs only on the device; please
+  look at it after a strike. Estimates stated in code: blade chord 0.12 R, t/c 0.08, outer quarter 15 % of blade mass,
+  prop-to-seat arm 2 m. The queued claude-prop-damage lane extends this (wood/composite, curl direction, sounds).
+- **The hump (Q097):** on the island's own water, spawned as the game does, the J-3 gets off in 19-21 s with the seaplane
+  technique (full back until the nose stops rising, then ~6 deg), hump 14.6 mph, step 21, unstick 48: the book's numbers.
+  Held FULL BACK the whole run it parks on the hump at 14-15 mph and 15-18 deg nose-up with the float heels and the tail
+  in the water (the plowing training texts describe), and that is what I think you saw. No hydro change made for it.
+  Tried and REVERTED: the airframe's tail-cone box counts a tilted box's water share as if spread evenly over its height
+  (4.5 % wet for a 7 cm corner dip vs 0.4 % exact); the exact share did not free the full-back hump (the nose just rose
+  higher) and broke four wreck tests (drift, turn, sink, momentum), so it is left for a wreck lane with the measurement.
+- Tests: PropWaterStrikeTests (new), FloatsIslandTakeoffProbe (island water, asserts 15-25 s), FloatsHammerProbe;
+  ContactPatchTests.APropBrushCurls... is now per blade. Water/wreck/contact/prop/engine/tree/ground suites vs the base
+  6a42a199: 0 new failures, 1 fewer (39 vs 40 red, all pre-existing). iOS BUILD SUCCEEDED 2026.1105.1015 (lane, not
+  installed). Merged: island-nav 1cfc96ef, Quest dc14600e (PARITY OK). ON DEVICES (built by the next deploys from trees
+  that contain this merge, so not built twice): iPhone 17 Pro and iPad mini **2026.1105.1140** (island-nav aa662650,
+  ground-volume's deploy, 0 error CS; the iPhone refused it asleep with 4016 and I installed the same .app at 12:10; the
+  iPad's launch hit "Locked"); Quest 3S **2026.1105.1147** (quest-islandnav 256e0363, installed 12:04). Nothing here is
+  an approved gate.
+
 ## NEEDS YOU
+- **CRASH SURVIVAL + GHOST BAIL-OUT + REAL CANOPY/DOOR JETTISON (Claude, 2026-11-05 14:50, lane/claude-crash-bailout
+  66bd7c22; your 06:35 + 06:37 + 06:38 requests). iOS `deploy.sh` (NOINSTALL) ** BUILD SUCCEEDED **, 0 error CS;
+  Unity `BailoutHeavenCheck` PASS, 0 error CS. Merged into island-nav + quest-islandnav (see below for the install).
+  Nothing approved by me.** Please fly-check: crash hard and BAIL OUT (ghost goes up); bail out of a Pitts, Extra, 2-33,
+  Grob and 172 in flight AND sitting still. Write-up: `docs/CRASH-SURVIVAL.md`.
+  - **The crash now counts.** Every sim step the seat's measured acceleration (its velocity change over the whole step,
+    less gravity) goes through Brinkley's injury model (NASA-STD-3001 restrained limits), plus the cabin crush the sim
+    already keeps. When he leaves the aeroplane that verdict is frozen; the outcome is the worse of it and the
+    parachute landing. Measured: C172 level flight 1.4 g Unhurt; J-3 prop strike 4.6 g Unhurt; C172 nose-gear-first at
+    4 m/s 18 g Injured; C172 40 m/s 15 m/s down 20 deg nose-low 42 g Dead; Pitts 45 deg dive 209 g Dead. In-flight
+    bail-out unchanged (landing thresholds 6/9/14 m/s).
+  - **Ghost:** fatal crash then BAIL OUT (or eject, or the headset's hands-on exit): translucent pilot and canopy, chute
+    opens by itself 1.2 s out, lifted 1.6 g so the canopy carries him UP (~5 m/s; 188 m in 30 s on the bench),
+    "GONE WEST" + one of three original lines ("Blue skies and tailwinds, Captain. Next stop: the Good Ship Lollipop."
+    etc.). Flat status line on iOS/Mac, world-space text in the headset.
+  - **Real canopy/door, through the canopy physics that already exists (06:37 + 06:38).** The bail-out pulls the red
+    handle, opens the latch and pulls the hinge pins; then `CanopyDynamics` (the headset's own where it has one) decides.
+    In the air it goes at once; the Pitts runs aft past its v2 stop tab and over past its 150 deg hooks (0.9 s). Sitting
+    still (a wreck), his hand shoves it up and over until it is free (0.22 s; Pitts 1.6 s). He jumps only once it has
+    gone. The model's own parts leave the airframe at that moment, flown by `CanopyFlight`, and the aeroplane sheds the
+    mass: Pitts/Extra `Canopy_Detachable`, 2-33 frame+glass+hardware, Grob frame+glass, 172 right door + glass + latch,
+    procedural Cassutt / Glasair III / Swift dome. Nothing for Great Lakes, J-3, PA-18, Jenny, Stearman, AirCam, hang
+    glider, paraglider, cabin types, or downloaded models with no separate canopy (P-51/F-86/SR22/PA-28/EB-29R). The
+    clear stand-in dome is deleted and no DebrisBody path is left. `BailoutHeavenCheck` checks all 35 types flying AND at
+    rest against a hand-copied table (8 lose a part).
+  - **Shared fix:** `FlyingGame/UnlitTransparent` gets the single-pass-instanced stereo macros; without them the Quest
+    draws translucent parts in one eye. Same output on flat screens.
+  - **Questions:** Q085 (dead threshold 1.5x Brinkley high risk), Q086 (measured at the first seat), Q087 (the code now
+    KEEPS the procedural hang glider / paraglider / AirCam / cabin domes on; say if you want otherwise), Q104
+    (NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs is red on island-nav too: its "grob" pattern matches the real Grob 103
+    Acro folder; not changed). The Brinkley limits were entered from memory of the NASA table, not re-read.
+  - Tests: CanopyBailoutTests (8), CanopyEgressTests (6), OccupantInjuryTests, VrBailoutTests green (70 in that filter).
+    The full .NET suite was not run (other lanes building the whole session). lane/claude-bend-damage is not merged
+    yet; a trial merge with this lane is clean.
+- **SUPERSEDED by Ty's complete removal request (current entry above) — EXTRA 300 REAR DIAGONALS
+  (Ty 2026-11-05 08:37: "in the same plane as the upper longerons ... they go in toward the
+  center") — RENDERS FOR APPROVAL, NOT MERGED, NOT INSTALLED (Claude, 2026-11-05 09:35, lane/claude-extra-cockpit-v3).
+  Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/diagonals/` (rear-eye-iphone,
+  rear-eye-quest, look-left/right along each tube, top-down, measured plan/side before-after). Question Q095.**
+  - Pass 16 `tools/own_models/extra_rear_diagonals.py` (all three liveries): `Tube_P3h_PanelDiagonal_L/R` used to climb
+    from the rail (z 0.20) to the panel's top corners (z 0.345). Now they lie in the upper-longeron (canopy sill) plane,
+    each end at the sill's measured centre height, and run from the sill's inboard face at x -1.55 forward and inboard to
+    the panel face at |y| 0.272. That is only 5-6 cm in, because further in at that height they would cover the oil gauge
+    and the COM head (Q095 asks if that is enough).
+  - Moving the tube uncovered 2 sill faces still in the exterior livery (ExtraCanopySealTests caught it). Repainted only the
+    faces a 0.5 deg ray grid from the rear eye reaches with no glass in front. A denser version of pass 15's sampler also
+    repainted 168 OUTSIDE faces through seams, so I rejected it.
+  - Tests: new `ExtraRearDiagonalTests` (9: the sills match hand-copied literals; every tube vertex lies within the
+    longeron plane +/- (r + 6 mm); the aft end is on the sill; the forward end is >= 6 cm inboard of the sill, converges
+    >= 4 cm, and stays clear of the bezels). Extra/cockpit filter 155/157: the two failures (Pitts ground handling,
+    glider air brake) were already failing on this lane and are listed in the v3 entry below. Clearance: only the sill,
+    frame and hinge it mounts on are within 1 mm; oil bezel 3 mm. Unity CockpitEyeShots batch PASS, 5 shots. GLB/tool/test
+    only (nothing under src/ or configs/), so no iOS deploy run.
+
+- **EXTRA 300 COCKPIT v3 (Ty's 2026-11-05 spec, EXTRA 300 + ADDENDUM canopy gap) — RENDERS FOR APPROVAL, NOT MERGED
+  (Claude, 2026-11-05, lane/claude-extra-cockpit-v3). Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/`
+  (unity/ = seat-eye CockpitEyeShots, blender-wip/ = before/after). Questions Q070-Q072. Nothing installed, nothing approved by me.**
+  - **Canopy "gap" (ADDENDUM):** measured first — not a hole. The glass rim touches the sill/frame/skin everywhere (0.0 mm) and
+    no ray from either eye leaves the airframe. What showed was EXTERIOR livery on the inside: Fuselage_Painted, Canopy_Sill and
+    Canopy_Frame are double-sided with the outside paint, the dark liner stopped 6-13 cm under the sill, and the wing's skin ran
+    straight through the front cockpit. Fixed: Cockpit_SideLiner_L/R up to the glass's lower edge, the rails' visible inner faces
+    in Paint_cabin, Cockpit_DeckLiner, Cockpit_FirewallPlate, Cockpit_AftBulkhead, the Wing clipped at the fuselage (826 inside
+    triangles dropped, 650 root vertices put onto the skin). Gate: `ExtraCanopySealTests` (rim < 3 mm; from both eyes, no ray
+    reaches exterior paint above the floor without glass between, 3 deg grid, all 3 liveries) + `check_extra_canopy_seal.py`.
+  - **Throttles:** idle grip 0.32 m ahead / 0.23 m below / 0.10 m outboard of each seat's left shoulder (SeatedPilot). Rear lever
+    + quadrant 10 cm lower; front lever moved off the top of the left console (knob was level with the sill) to its inboard face,
+    ~26 cm lower, with its own quadrant plate. **Front knob** = plain 38 mm black ball; rear keeps the pistol grip.
+  - **Fuel valve rod** now runs from the rear handle FORWARD past the front handle to a valve body on the firewall (x +0.60);
+    same two handles, same `fuel_valve` param (no logic change).
+  - **Front IAC card** `FrontPanel_SequenceCard_Face` (108 x 140 mm) on a grey plate right of the front sub-panel; merged
+    lane/claude-cockpit-common: its deck binds it ("card on 2 holder(s)" in the shots).
+  - Pass: `tools/own_models/extra_cockpit_v3.py` (pass 15, docs/SHARED-COCKPIT.md). Tests: ExtraCanopySealTests (6),
+    ExtraCockpitV3Tests (12) + CockpitControlInterior / FuelValve / CockpitCommon / BeltsAndCords: 83/83. Wider filter 854 pass,
+    5 fail (Pitts ground handling on the Pitts' assert, Alpine/HighDesert terrain, glider air brake, RigTests config table;
+    plus NoRed233 Resources = the Grob files tracked on the base). None reads the Extra cockpit; NOT re-run on the base commit. Unity shot batch 0 error CS. iOS deploy.sh from a2719f7d (= this lane + cockpit-common): ** BUILD SUCCEEDED **
+    2026.1105.0739, 0 error CS, NOT installed (dummy device id); check-parity --strict OK; build byproducts restored, not committed.
+  - Not done / limits: the shot tool's "moved" pose leaves the throttle at idle, so there is no full-throttle render (clearance
+    through the full 50 deg sweep was measured instead: rear 1.8-3 mm to its console face, front 8-15 mm). The rear-cockpit belly
+    skin is still visible down through the floor-window wells (pass 14; not gated, reported by the check). Codex helper not used.
+
+- **COCKPIT COMMON (Ty's 2026-11-05 spec: IAC CARD SYSTEM, ALL AIRCRAFT, ADDENDUM Cubs) — RENDERS FOR APPROVAL, NOT MERGED
+  (Claude, 2026-11-05 06:05, lane/claude-cockpit-common c0fba85c / b0c35552 / cab6944d). Renders + README:
+  `~/Developer/agent-lanes/renders/cockpit-1105/claude-cockpit-common/`. Write-up: `docs/COCKPIT-COMMON-1105.md`.
+  Phase A iOS ** BUILD SUCCEEDED ** (NOINSTALL, 0 error CS); B-E: Unity editor batch 0 error CS, iOS build of cab6944d
+  see the line below. Nothing installed, nothing approved by me. Questions Q057-Q060.**
+  - **A. No belts / headset cords on any aircraft, bail-out one press.** Core `BeltsAndCords` names them; the game strips
+    them from every placed model (old GLBs too: Pitts/Extra 22 renderers, GL + Pitts belt sub-meshes inside the cockpit
+    mesh). Shared Blender sources no longer build them (no GLB rebuilt here). E key / glass button / Quest menu = bail
+    out; in the headset the view now goes with the jumper and the chute opens itself 3 s later. GL: a small white buckle
+    plate in `Cockpit_hardware` is still on the seat (GL lane's mesh).
+  - **B. IAC cards:** the IAC's own 2026 Power Known Form B (wind <-) / Form C (->) for Primary..Unlimited, tap/click/poke
+    the card to cycle, then the pilot's own; one card for rear and front. Options > Display: Prev / Next / Add card (iOS
+    PDF picker, every page; Mac file dialog, PDF first page or PNG/JPEG) / Remove. Quest: inbox folder + menu Import
+    (no picker on the headset, Q060).
+  - **C. Altimeters** read static pressure through the Kollsman setting (set to field elevation at the start of a flight).
+    Tap/click the altimeter: popup (type / step / scroll / QNH / zero), refuses values outside the window. Windows:
+    standard 28.10-31.00, aerobatic types 22.00-31.00 (zeroes ~8,260 ft, Q058). Knob + digit window added where the GLB
+    has none; Pitts v2's own Altimeter_Knob/_Kollsman nodes are used when present. Headset: poke opens the menu row.
+  - **D. G-meter followers** hold max/min, tap/click/poke the g-meter (or its reset knob) to reset them to the pointer.
+  - **E. J-3 fuel wire** moves live with the nose tank (`RigInputs.Fuel`, rig rows on wheels + floats); test burns fuel at
+    full power and checks the wire falls monotonically. Super Cub: no own model to put a wire on (Q059).
+  - **Not verified here:** the Android-only PdfRenderer branch (needs a Quest build); the IMGUI popup/Options screenshots
+    (Mac player, below if done). Tests: all new classes green; NoRed233.ResourcesHoldOnly, StreamingAssets x2 and
+    ModelRig.FullAirBrake fail identically on the branch point 6f659d0d.
+<!-- ground-volume needs-you -->
+- **Ty to fly-check the quieter ground contact: ALL GROUND CONTACT −4 dB (Claude, 2026-11-05, lane/claude-ground-volume
+  fa4d96f3; you asked 08:48 "lower all ground contact volume a bit").** One shared gain,
+  `GroundSoundMix.OutputGainDb = −4` (linear 0.630957), on FlightAudio's ground bus (rolling ground voices, tyre squeal,
+  scrub, bearing whir, brake scrape/squeal, worn/flat-tyre thump and slap, burst, water splash/hiss/spray, ski hiss,
+  float keel) and on the airframe-scrape voices (ContactEffects). Pitch, filters and each sound's own balance unchanged;
+  engine, wind, one-shots and crash impacts untouched. Ground/tyre tests 40/40 green; iOS **BUILD SUCCEEDED**
+  2026.1105.0855 (build only, 0 error CS). **NOT merged and NOT installed** on purpose: your 08:50 crosswind note
+  (squeal threshold + fade-in) is queued as the follow-up session in this same lane, and it does the merge into both
+  lanes and the iPhone / iPad mini / Quest installs once, with both changes in. Nothing here is an approved gate.
+<!-- merge-tundra-recorder needs-you -->
+- **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
+  05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
+  On devices (built by the next lanes' deploys from trees that contain both merges, so not built twice):
+  iPhone 17 Pro, iPad mini and EFB iPad Air **2026.1105.0746** (island-nav 0180edd5); Quest 3S **2026.1105.0751** (quest-islandnav 7b19f987, install Success, launched).
+  Nothing here is an approved gate. Queue: Q036-Q040 moved to Answered, Q064 open (this list).**
+  Defaults taken (none of these was built new; where the lane gave no default I took the choice that changes nothing):
+  1. **Super Cub look vs. tyre:** the bush Super Cub FLIES on the 35 in lightweight tundra tyre you approved, but its
+     3-D model still SHOWS the 31 in tyres. The model was not changed. (Lane gave no default.)
+  2. **Gear-leg springs:** NOT re-derived. Every leg keeps its old spring, which was set for leg + tyre together, so with
+     the tyre now a spring of its own the gear is a little softer (the Super Cub's 3 m/s level-drop prop strike).
+  3. **Glasair thrust line:** NOT set. Its propeller already sat 4 cm below its wheels; on the new soft tyre it touches
+     at full power, and the "every powered type rolls" test stays red until someone gives it its real thrust line.
+  4. **Wheels on snow:** the lane's reference tyre is kept (a 6.00-6 at 30 psi, 4 kN). The Cub's tyre floats a bit better
+     on snow, so skis vs. wheels sits at 0.62 against a 0.6 limit (Cub) and 0.606 (Beaver, new after the merge).
+  5. **Estimated wheel/disc weights:** the lane's estimates are kept as written (Cleveland wheels 4.0–4.5 lb, discs 2.5,
+     HD 40-134 13.5 lb, the bushwheel ply/load ratings, 8.50-6 16 lb, the Scott 8 in 3 lb 13 oz, tyre damping 0.05,
+     snow crust 125 kPa). Anything you know beats them.
+  6. **Flight recorder name (Q036):** FLIGHTS (the clip recorder keeps REC).
+  7. **Recorder UI (Q037):** as proposed: FLIGHTS toolbar button in flight, RECORDINGS on the landing page, a session
+     "mixer" page, the same as a Quest menu tab. NOT built yet: phase 1 has no UI and nothing a pilot can reach changed.
+  8. **Hitting a recorded ship (Q038):** (a) both take real contact damage. Phase 1 only detects the hit.
+  9. **Save the last N minutes of replay as a recording (Q039):** NOT NOW. The lane proposed no default, so the choice
+     that adds no new work; ask again for phase 2.
+  10. **Count-in and start slot (Q040):** 5 s count-in, new ship echelon right, one span back and one span out.
+  Merge notes: the tundra tyre's deflected rolling radius now combines with the flat-tyre lane's drop (a flat does not
+  change the brake's torque); the water lane's footprint pressure floor is kept for planing speed; the Grob 103 Acro,
+  which arrived after the catalog, got legacy catalog tyres with exactly its old sizes, mass and 8.6 psi.
+  Red tests (targeted tyre classes, merged vs both parents): the lane's own reds stay red as it reported (tailwheel
+  rest load, Cub skim, J-3 below planing, Cub skis vs wheels); island-nav's base reds stay (two Knik ski tests, and
+  `NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs`, whose `grob` pattern catches the approved Grob 103 Acro files — the
+  2-33 itself is yellow only; the test was not touched). New after the merge: Beaver skis vs wheels on snow (0.606).
+
+## NEEDS YOU — crash flight-path camera shoots to sky: fly-test (Claude, 2026-11-05)
+<!-- crash-camera-flightpath needs-you -->
+Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 2026.1105.0226+): "I crashed in flight path view on the phone and the shot went straight up into the sky?"
+- **Ty, please check:** crash in Relative wind / flight-path view on the iPhone (and the Quest), once into water and once on
+  land hard enough to break something off. The camera should ease out to about three chase distances behind and 30
+  degrees above the wreck (about 50 m back and 25 m up on the Pitts), look down at it, and STAY there. It should not
+  keep climbing. A water touch that breaks nothing, or a crunch that breaks nothing, still keeps the normal chase view.
+  New on land: the wreck view now also opens when a broken piece lands on the ground (before, a land crash stayed on the
+  flight path). Tell me if you would rather keep the flight-path camera on land.
+- **Root cause (camera only).** When a broken-off piece landed in WATER, ChaseCamera switched to its wreck view
+  (lane/codex-crash-cam 11-02; water-only since 11-04 22:46), which sits 30 degrees above the wreck at the range that
+  fits it, and that range could only ever grow. Two things that are not the wreck were feeding it:
+  1. `ChaseCamera.CrashRadius` (`ChaseCamera.cs:502-509` at 23922ee1) sized the aircraft from EVERY enabled renderer under
+     it. That includes the fuel sheen (FuelSlickVisual, added to the aircraft by StructuralDamage.cs:88, a quad scaled to
+     the spreading slick, 0.5 m/s, up to 187 m on the Pitts) and the crash spray, foam and rings (CrashWaterVisuals, added
+     by FlightAudio.cs:169). So the camera kept climbing for as long as the slick spread.
+  2. `ChaseCamera.cs:585-589` latched the eased focus's lag behind a sliding wreck into that same never-shrinking
+     range. Even with honest radii that parked a 6 m Pitts 100-240 m away.
+  Measured on a frame-by-frame copy of that camera (Unity SmoothDamp, 66.7 fps) in a Pitts crash into 4 m of water:
+  **119.5 m above the wreck, range 239 m, and still rising at 60 s.** On land the old view did not do this, because it
+  never opened there: the flight-path camera peaked only 2-4 degrees up in all three land crashes, so it was not the
+  cause either.
+- **Fix (camera only, shared iOS + Quest; no physics touched).** New `src/FlyingGame.Core/CrashFraming.cs` (pure, tested)
+  holds the wreck view's rules and ChaseCamera uses it. A part's radius counts mesh renderers only and is clamped to 0.75
+  of the aeroplane's span/length (`ClampRadiusM`). The latched range leaves out the lag, which now eases in and back out.
+  The range is kept between 1.5 and 3 chase distances (`MaxRangeChase`). The view opens for a broken-off piece on land
+  OR water (`OpensCrashView`, PieceId >= 0), and when the camera was looking near-vertical it takes its bearing from
+  where it stands relative to the wreck. Result, same crashes: 20-25 m above the wreck at 60 s, looking 19-41 degrees
+  down, airframe within 15 degrees of the view axis, at least 11.7 m clear of the surface.
+- **Tests:** `tools/FlightTests/CrashCameraTests` (7: runway, grass, 70-degree steep, steep into water; the old camera
+  climbing past 100 m in water and the new one holding; part clamp; land/water opening rule). Literals only.
+  `EmergentWaterContactTests.NoTouchRuleIsLeft` now looks for `CrashFraming.OpensCrashView(hit)`. Filtered run
+  (CrashCamera, EmergentWaterContact, ChaseFraming, CameraReference, FuelSlick): 41/41 pass.
+- **Commits / builds / installs:** lane/claude-crash-camera 30241c99 -> island-nav 938a865c -> Quest 99c0b00c;
+  check-parity --strict PARITY: OK. iOS 2026.1105.0804 (island-nav-merge at 2dd04632) ** BUILD SUCCEEDED **, 0 error CS,
+  installed + launched on Ty's iPhone 17 Pro and iPad mini (both had 2026.1105.0720 before). Quest 2026.1105.0822
+  (quest-islandnav at 0303e0df), 0 error CS, installed + launched on the Quest 3S 340YC10GBK0TYV, no PARITY_OVERRIDE.
+  Question for Ty: Q076.
+- NOTHING approved by me.
+
+<!-- pitts-cockpit-v2 needs-you -->
+- **PITTS S-2B COCKPIT v2 MERGED AND INSTALLED: PLEASE FLY-TEST IT AND FINE-TUNE (Claude, 2026-11-05 08:15; Ty 07:26 "The
+  two grey hoops on the canopy need to be eliminated everything else is good for the next version and I'll fine tune if
+  necessary after testing"). lane/claude-pitts-cockpit-v2 95ab5360 → island-nav 0180edd5 → Quest 7b19f987. iOS
+  2026.1105.0746 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad, the iPad mini and the iPhone (launched on
+  the iPad mini only; the EFB iPad and the iPhone were locked). Quest 2026.1105.0804 (f6cbeb92), 0 error CS, installed and
+  launched on the Quest 3S. check-parity --strict: PARITY OK. Nothing approved by me.**
+  - **Hoops gone:** Canopy_TopTube_F / _R (the 3/8 in grey steel hoops at 0.77 / 1.12 m) are removed from all four Pitts
+    GLBs and from the canopy's contact frame; front hoop, sills and tail stay. Canopy still rests on the stop tab at
+    96.8 deg (drawn frame 9.5 mm from the rubber, touching); jettison still slides past the tab. Re-rendered in Unity:
+    `~/Developer/agent-lanes/renders/cockpit-1105/claude-pitts-cockpit-v2-nohoops/` (`compare-hoops-before-after-diff.png`:
+    before / after / changed pixels, which are exactly the two hoops; `rear-eye-forward.png`).
+  - **What is in it (unchanged from the review renders):** black canopy latch levers front + rear on one cable (forward =
+    latched), emergent stop tab and jettison, hinge strength to your 80 mph rule, fuel valve, blue prop bar, 16 in trim
+    lever, quadrant throttles, fixed windshield + trim, wing cutout, alu tank, centred IAC cards, whiskey compass. Detail:
+    `~/Developer/agent-lanes/renders/cockpit-1105/claude-pitts-cockpit-v2/README.md`. Open: Q061 (tab shape/rest angle),
+    Q062 (jettison numbers), Q063 (trim sense/travel).
+  - **Known follow-ups:** iOS/Mac has no touch levers in the 3-D cockpit (HUD as before); the canopy's airload bubble is
+    still the old 1.48 m canopy's (new one is 1.14 m); the prop rod passes through the rear panel's lower-left corner.
+  - Tests: Canopy/VrBailout/VrCockpit 95/95; check_pitts_cockpit_v2 / rear_view / canopy_swing PASS on all four GLBs.
+<!-- /pitts-cockpit-v2 needs-you -->
+- **TYRE SOUNDS: CHIRP PITCHED BY TYRE SIZE + SLIP SPEED, A SIDEWAYS SCRUB, BEARING WHIR −14 dB (Claude, 2026-11-05,
+  lane/claude-tire-audio 20484765; Ty 06:10 "a pitch/frequency thing for the chirp and bearing noise is too loud").
+  Lane iOS 2026.1105.0632 ** BUILD SUCCEEDED **, 0 error CS (NOINSTALL). Merged: island-nav 4c31d6b0 → Quest bd08c540, check-parity --strict OK. iOS from island-nav 4c31d6b0: ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad, iPad mini and iPhone (export 07:15, so stamp ≈ 2026.1105.0715; the log does not print it, please read it on the device). Quest 2026.1105.0751 (Quest lane 7b19f987, contains bd08c540), 0 error CS, installed and launched on the Quest 3S. <!-- tire-audio build --> Nothing approved by me. Q069.**
+  - **What was wrong:** the chirp's pitch came from the slip ratio alone, and at touchdown that is ≈ 1, so every tyre on
+    every aeroplane chirped at the same fixed 3.7 kHz (measured on the J-3's spin-up). Sideways slip made no sound.
+  - **Now:** pitch = 700 Hz·m / tyre OD × (patch slip speed / 10 m/s)^0.2. J-3 8.00-4 1531 Hz, 6.00-6 1575, 8.00-6 1413,
+    35 in bushwheel 787, 8 in tailwheel 3445. On the J-3 the spin-up falls 1697 → 1154 Hz. Slow sliding (< 1.5 m/s) is
+    a low rubbery scrub (~0.42 × that pitch), fast sliding (> 6 m/s) squeals, with a blend in between. Level = log of the
+    slip power, as before. The bearing whir is 0.0032 at 25.7 m/s (was 0.016) and goes as rpm². The rolling ground voices
+    (tarmac hum, grass swish) are NOT changed (Q069 asks).
+  - **Checked on taildraggers** (crabbed three-point touchdown on asphalt, `TyreSquealTests`): J-3, PA-18, Decathlon,
+    Great Lakes, Pawnee, PA-18 bush all squeal at their own tyre's pitch, falling, and scrub lower.
+  - **Listen / look:** `~/Developer/agent-lanes/renders/tire-audio/`: `before-*.wav` / `after-*.wav` (tyre + rolling
+    voices only, no engine), `compare-touchdown-*.png` (before above, after below), `spec-*-j3-bearing-whir-spindown.png`
+    (whir mean −47.8 → −62.4 dBFS).
+  - Tests: TyreSquealTests 17 new, GroundSoundMix/WheelSpin/TyreWear/Tire* 61/61. Physics untouched (the new sideways slip
+    sums are read only by the sound). Write-up: docs/TIRE-SPINUP-AND-GROUND-SOUND.md §7b.
+- **GREAT LAKES PANELS v2: CENTRED IAC CARD, DECLUTTERED REAR PANEL, MAG L / MAG R, LABELLED SWITCHES, FUEL SIGHT GAUGE,
+  FRONT CARD (Claude, 2026-11-05, lane/claude-greatlakes-panel-v2; Ty's spec 05:07, GREAT LAKES section). NOT merged,
+  NOT approved: renders for Ty first. Renders + README: ~/Developer/agent-lanes/renders/cockpit-1105/claude-greatlakes-panel-v2/.
+  Questions Q065-Q068 in the queue. iOS NOINSTALL 2026.1105.0947 ** BUILD SUCCEEDED **, 0 error CS, not installed. Unity shots (GreatLakesPanelV2Shots, PASS:
+  the rig moves the sight ball 0.590 / 0.536 / 0.498 m at fuel 1.0 / 0.5 / 0.15) in renders/.../unity/.**
+  - **Card centred, and a test that fails without it** (8aa5ab74). `tools/own_models/gl_panel_v2.py` is the last step of
+    the GL build (from 6f659d0d's export, deterministic). Rear SequenceCard_* on the panel's centre line, flush, 108 x
+    139.7 mm portrait. `GreatLakesCardSpaceTests` reads the GLB: present, full size, portrait, on the panel, within 5 mm
+    of the panel centre and the centreline, nothing within 10 mm of it from the panel face back to the eye, every sample
+    point visible from Eye_Rear; front card full size and visible from Eye_Front; rear dials do not share space.
+    On the old GLB it FAILS ("card y -0.195..-0.055 runs off the panel", "no FrontPanel_SequenceCard_Face"); now 3/3.
+  - **Rear panel**: left ASI + ALT over G + turn coordinator, right tach + MP over oil + CHT. Out: Hobbs, VSI, mag-key
+    dial, ignition rotary (both seats), blank placard, the grey knob cluster. Trig COM + XPDR heads side by side on a
+    subpanel UNDER the panel, right of the stick's full-right/full-forward corner, with knobs at the heads' own size (the
+    same controls, still tunable). Compass 40 mm further into the panel (20 mm proud, was 60), centred over the card.
+    Altimeter_Knob (lower left of bezel), Altimeter_Kollsman (3 o'clock), G_meter_Reset nodes; front FrontPanel_Altimeter_Knob
+    / _Kollsman (contract names for cockpit-common). Belt sub-meshes dropped from Cockpit_Interior.
+  - **Two magnetos in the engine** (69c94e82). Core `Magnetos`: both = full power, one = mag drop 0.95 (ESTIMATE), none =
+    no spark. `Aircraft.MagLeft/MagRight` (default on: nothing flies differently until one moves); both off stops the
+    engine at once, prop windmills, either back on fires it. Rig mag_left / mag_right; VR hands write them;
+    CockpitRigState draws both seats from the sim. `MagnetoSwitchTests`.
+  - **Switch consoles** (c7d9bf4f): 4 fore/aft columns of 2, MAGS aft (nearest the hand, L outboard), MASTER/ALT,
+    F PUMP/NAV, STROBE/LDG; smaller toggles; the name AFT (below) of each switch, "ON" FORWARD (above), dividers.
+    `GreatLakesSwitchSightTests`: all 18 toggles (both seats, incl. smoke) throw their grips FORWARD to ON by their
+    own rig rows; the key is gone; MAGs on their console lids, L left of R.
+  - **Fuel sight gauge**: clear glass tube 35 mm aft of the right aft cabane's wing fitting (rear spar), marks 1/4 1/2 3/4,
+    red ball on a wire up to a cork in the tank: rig slide on fuel_top_wing_frac = `RigInputs.TankFraction(load,"topWing")`.
+    Tested: ball on each mark at its fraction; 120 s full throttle burns 1.22 kg and the ball drops by the top tank's
+    share. **Default loading has 0 kg in every tank, so it reads FULL** until fuel is loaded (Q067).
+  - **Front card**: FrontPanel_SequenceCard_* hung from the front panel's lower right corner (shows the rear selection
+    via cockpit-common). The front panel's row of 10 grey radio knobs is still there (Q066).
+  - Checks: check_great_lakes_rig 94/94, check_gl_quadrant OK (updated to 4 x 2), check_vr_phase3 GL OK (its Extra
+    failures are not this lane's), check-parity --strict PARITY OK. Suite subset: 5 failures that read no GL file
+    (StreamingAssets x2, NoRed233 Resources regex vs the Grob 103 files, RigTests.EveryConfigIsInTheTable, glider
+    air-brake NaN).
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not
@@ -4174,6 +4606,17 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-05 08:05 PST — Claude · merge-tundra-recorder (Ty approved 05:36) · tundra tyres + flight recorder into both lanes
+- Merged in throwaway worktrees so the merge worktrees' uncommitted ConfigSync/ProjectSettings leftovers were never
+  touched (byte-checked against a tarball in agent-lanes/backups/merge-tundra-recorder before and after).
+- island-nav: 04278266 (lane/claude-tundra-tires 0677e614; conflicts in LandingGear/WheelSpin/WheelHydro/TyreWear
+  resolved against the tyre-wear and wheel-water lanes; Grob 103 legacy tyres), 23922ee1 (lane/claude-flight-recorder
+  d6d5f884; CLAUDE.md both sides kept). Quest: 221db87f. `tools/check-parity.sh --strict`: PARITY: OK.
+- Builds: my own gated deploy never got a free slot; the next lanes' deploys built trees that contain both merges, so I
+  verified those instead of building twice: iOS 2026.1105.0746 (island-nav 0180edd5, BUILD SUCCEEDED, 0 error CS,
+  installed 3 of 3: iPhone 17 Pro, iPad mini, EFB iPad Air, which was locked so it did not launch); Quest 2026.1105.0751
+  (quest-islandnav 7b19f987, 0 error CS, Success on 340YC10GBK0TYV).
+- Tests (targeted tyre/wheel/NoRed/recorder classes, merged vs both parents): see NEEDS YOU. Full suite not run.
 ### 2026-11-05 01:56 PST — Claude · lane/claude-wheel-hydroplane · Q024 rulings, merge into both lanes, installs
 - **Ty 2026-11-04 20:27 (Q024):** a hooked water rudder that stays wet is correct; the J-3's idle turn of 254°/20 s is OK;
   an SR22/Glasair prop strike on water is OK, but it must come from the prop's own geometry in the water, with real
@@ -10589,3 +11032,5 @@ NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes.
 - Validation passes both exported assets: graph, indices/finite vertices, UV presence, dimensions, all 29 rig origins/markers/maps/parents, independent TCDS travels and physical control directions, transparent glass, wheel sizes/stations, 2,016 independent cockpit-part pairs and 1,608 shell-envelope samples per asset. Containment uses the full exterior including the integrated wing-root skin. A fresh temporary legacy analytic build also passes its original checker, which remains available. `git diff --check` clean. .NET tests were not run: dotnet absent; nothing installed. No Unity execution.
 - CPU/Cycles renders reimport the exported GLB: side, three-quarter, front, top, main/nose/tail gear closeups and canopy. POH overlay uses Twin III PDF p14/printed 1.6, uniform 854 px : 18 m, approximate nose registration, level axes and wings omitted; no contour fitting. Remaining scan/model mismatch is visible, not marked a pass. Camera/model/reference hashes accompany the images.
 - Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
+
+PITTS-V2-MERGED

@@ -523,7 +523,11 @@ public sealed partial class Aircraft
     /// its fine-pitch stop and rpm follows power; above it the governor holds GovernedRpm, rising to MaxRpm only
     /// with the throttle firewalled (take-off). Fixed pitch: rpm follows throttle and picks up with airspeed
     /// (a fixed-pitch prop unloads as the aircraft accelerates: ~2300 static, red-line at cruise speed).</summary>
-    public double EngineRpm
+    public double EngineRpm => _propStriking.Length > 0 && _propStriking[0] ? Math.Min(FreeEngineRpm, StrikeRotorRpm(0)) : FreeEngineRpm;
+
+    /// <summary>The rpm the engine runs at with nothing holding its propeller (<see cref="EngineRpm"/> is lower while a
+    /// strike is braking the blades).</summary>
+    public double FreeEngineRpm
     {
         get
         {
@@ -1208,6 +1212,7 @@ public sealed partial class Aircraft
     /// </summary>
     public void StepWithDeflectionTargets(ControlDeflections targets, double dt)
     {
+        BeginOccupantStep();
         _aileronRad = SlewTo(_aileronRad, targets.AileronRad, Config.Controls.Aileron.RateRadPerSec, dt);
         _elevatorRad = SlewTo(_elevatorRad, targets.ElevatorRad, Config.Controls.Elevator.RateRadPerSec, dt);
         _rudderRad = SlewTo(_rudderRad, targets.RudderRad, Config.Controls.Rudder.RateRadPerSec, dt);
@@ -1542,6 +1547,7 @@ public sealed partial class Aircraft
             _flowState.Separation[i] = s0 + (target - s0) * (1.0 - Math.Exp(-dt / tauSec));
         }
         _wheelsUnseeded = false;   // the State writes above are the step's own
+        EndOccupantStep(dt);       // what the step did to the pilot in his seat (AircraftOccupant)
         SimProfile.End(SimProfile.Scope.AfterStep, tAfter);
         SimProfile.End(SimProfile.Scope.Step, tStep);
     }
