@@ -19,7 +19,8 @@
   - Pass: `tools/own_models/extra_cockpit_v3.py` (pass 15, docs/SHARED-COCKPIT.md). Tests: ExtraCanopySealTests (6),
     ExtraCockpitV3Tests (12) + CockpitControlInterior / FuelValve / CockpitCommon / BeltsAndCords: 83/83. Wider filter 854 pass,
     5 fail (Pitts ground handling on the Pitts' assert, Alpine/HighDesert terrain, glider air brake, RigTests config table;
-    plus NoRed233 Resources = the Grob files tracked on the base). None reads the Extra cockpit; NOT re-run on the base commit. Unity shot batch 0 error CS. iOS build: see the Log line below.
+    plus NoRed233 Resources = the Grob files tracked on the base). None reads the Extra cockpit; NOT re-run on the base commit. Unity shot batch 0 error CS. iOS deploy.sh from a2719f7d (= this lane + cockpit-common): ** BUILD SUCCEEDED **
+    2026.1105.0739, 0 error CS, NOT installed (dummy device id); check-parity --strict OK; build byproducts restored, not committed.
   - Not done / limits: the shot tool's "moved" pose leaves the throttle at idle, so there is no full-throttle render (clearance
     through the full 50 deg sweep was measured instead: rear 1.8-3 mm to its console face, front 8-15 mm). The rear-cockpit belly
     skin is still visible down through the floor-window wells (pass 14; not gated, reported by the check). Codex helper not used.
