@@ -68,8 +68,10 @@ def check(path):
     assert u.vertices('Windshield_Fixed')[:,0].min()>-.470001
     assert u.vertices('Canopy_Glass')[:,0].max()<-.469999
     assert parents[u.names['Canopy_Frame']]=='Canopy'
-    for name in ['Canopy_Frame','Canopy_TopTube_F','Canopy_TopTube_R']:
-        assert u.node(name)['extras']['tubeDiameterM']==.009525
+    assert u.node('Canopy_Frame')['extras']['tubeDiameterM']==.009525
+    # Ty 2026-11-05 07:26: no grey hoops across the canopy.
+    for name in ['Canopy_TopTube_F','Canopy_TopTube_R']:
+        assert name not in u.names or 'mesh' not in u.node(name),name
     # Every descendant is measured in world space, including nested relics.
     pending=list(u.node('Canopy').get('children',[]))
     front_hoop=-.4652375  # front surface of the 3/8-inch hoop at builder X=-.470

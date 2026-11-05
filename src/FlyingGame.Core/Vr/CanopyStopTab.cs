@@ -26,8 +26,8 @@ namespace FlyingGame.Core.Vr
     /// from the hinge with the canopy SHUT (<see cref="FromPittsGltf"/>).
     ///   frame   Canopy_Frame: sills at y 0.153–0.17 from x 0.465 to 1.605, ±0.349; the FRONT HOOP at x 0.47 (it meets
     ///           the fixed windshield), its centre-line through (|z|, y) = (0.36, 0.167) (0.30, 0.26) (0.24, 0.404)
-    ///           (0.18, 0.447) (0.12, 0.471) (0.06, 0.482) (0, 0.484); Canopy_TopTube_F / _R at x 0.77 / 1.12, crowns 0.55
-    ///           / 0.548; the tail at 1.605, the glass 0.429 there.
+    ///           (0.18, 0.447) (0.12, 0.471) (0.06, 0.482) (0, 0.484); the tail at 1.605, the glass 0.429 there. No
+    ///           top tubes between them (Ty 2026-11-05 07:26: "The two grey hoops on the canopy need to be eliminated").
     ///   tab     Canopy_Stop_Rubber: a fore-aft capsule from x 0.564 to 0.580 at y 0.658, z −0.721, radius 6 mm, on the
     ///           end of Canopy_Stop_Tab, the bent bar that runs aft from the right upper wing past its trailing edge.
     /// The wing itself is not simulated: the canopy is wholly aft of the upper wing's trailing edge, and
@@ -87,9 +87,7 @@ namespace FlyingGame.Core.Vr
             double[] hz = { 0.36, 0.30, 0.24, 0.18, 0.12, 0.06, 0.0, -0.06, -0.12, -0.18, -0.24, -0.30, -0.36 };
             double[] hy = { 0.167, 0.26, 0.404, 0.447, 0.471, 0.482, 0.484, 0.482, 0.471, 0.447, 0.404, 0.26, 0.167 };
             for (int i = 1; i < hz.Length; i++) f.Add(new Segment(G(front, hy[i - 1], hz[i - 1]), G(front, hy[i], hz[i])));
-            // The two arcing top tubes and the tail: half-ellipses from sill to sill.
-            Arch(f, G(0.77, 0, 0).Z, 0.55 - sill);
-            Arch(f, G(1.12, 0, 0).Z, 0.548 - sill);
+            // The tail: a half-ellipse from sill to sill.
             Arch(f, G(aft, 0, 0).Z, 0.429 - sill);
             var tab = new Segment(G(0.564, 0.658, -0.721), G(0.580, 0.658, -0.721));
             return new CanopyStopTab(f.ToArray(), tab, TabRadiusDefaultM, jettisonExtraSlideM: 0.0508, hookReleaseDeg: 150.0);

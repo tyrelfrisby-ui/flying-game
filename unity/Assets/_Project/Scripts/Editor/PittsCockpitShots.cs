@@ -20,7 +20,7 @@ namespace FlyingGame.EditorTools
     ///
     /// And two MEASUREMENTS, because a picture of a pose is only as good as the pose (CLAUDE.md: measure the mechanism):
     ///   tab      with the rig drawing the canopy at Core's rest angle (CanopyStopTab, slide 4 in), the smallest gap between
-    ///            the drawn Canopy_Frame / top tubes and Canopy_Stop_Rubber (≈ 0 if the rig's hinge turns the way Core's
+    ///            the drawn Canopy_Frame and Canopy_Stop_Rubber (≈ 0 if the rig's hinge turns the way Core's
     ///            does and the tab is where Core thinks); slid the jettison's 6 in at the same angle, that gap must open up.
     ///   levers   how far each latch knob, the trim tip, the prop bar and the fuel handle move between their two poses.
     ///
@@ -249,8 +249,6 @@ namespace FlyingGame.EditorTools
                 var root = new GameObject("Aircraft");
                 AirframeBuilder b = Build(root, state, out _);
                 var frame = Verts(b.FindInModel("Canopy_Frame"));
-                frame.AddRange(Verts(b.FindInModel("Canopy_TopTube_F")));
-                frame.AddRange(Verts(b.FindInModel("Canopy_TopTube_R")));
                 var rubber = Verts(b.FindInModel("Canopy_Stop_Rubber"));
                 float g = frame.Count > 0 && rubber.Count > 0 ? MinGap(frame, rubber) : float.NaN;
                 Debug.Log($"[PittsShots] tab gap '{state}': {g * 1000:F1} mm ({frame.Count} frame, {rubber.Count} rubber vertices)");

@@ -160,6 +160,7 @@ def update(g):
     if g.doc.get('extras',{}).get('pittsCockpit1105'):
         followup(g)
         throttle_followup(g)
+        no_top_tubes(g)
         return
     u=Upgrade(g)
     steel=u.material('Pitts1105_Steel',(.46,.49,.52),.85,.28)
@@ -183,8 +184,6 @@ def update(g):
     for pts in rail.values():
         s=path_shape(pts);frame.add(s.v,s.t)
     u.put('Canopy_Frame',[(steel,frame,None)],parent='Canopy',extras={'tubeDiameterM':.009525})
-    for name,x in [('Canopy_TopTube_F',-.77),('Canopy_TopTube_R',-1.12)]:
-        u.put(name,[(steel,path_shape(ring(x)),None)],parent='Canopy',extras={'tubeDiameterM':.009525})
     # Preserve old node names as interaction anchors, eliminate front red release geometry.
     for name in list(u.names):
         if name.startswith(('Canopy_Jettison_','Canopy_Latch_')) and ('_Front' in name or 'Placard' in name):u.hide(name)
@@ -335,6 +334,7 @@ def update(g):
         'normalSlideM':SLIDE,'normalOpenDeg':OPEN_DEG,'runtimeRigUpdateRequired':True}
     followup(g)
     throttle_followup(g)
+    no_top_tubes(g)
     validate(g,ROOT/'pitts-cockpit-1105')
 
 
@@ -403,6 +403,15 @@ def throttle_followup(g):
         pivots[name]=gl(pivot).tolist()
         g.doc['extras']['pittsCockpit1105']['pivotsBuilder'][name]=pivot.tolist()
     g.doc['extras']['pittsCockpit1105Throttles']={'pivotsGltf':pivots,'armLengthM':.160}
+
+
+def no_top_tubes(g):
+    """Ty 2026-11-05 07:26: "The two grey hoops on the canopy need to be eliminated". Drops the meshes of
+    Canopy_TopTube_F / _R (x 0.77 / 1.12); the nodes stay, meshless, so every node index is unchanged."""
+    if g.doc.get('extras',{}).get('pittsCockpit1105NoTopTubes'):return
+    u=Upgrade(g)
+    for name in ['Canopy_TopTube_F','Canopy_TopTube_R']:u.hide(name)
+    g.doc['extras']['pittsCockpit1105NoTopTubes']=True
 
 
 def main():

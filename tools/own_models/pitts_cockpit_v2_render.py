@@ -17,8 +17,8 @@ ASSET=MODEL/'pitts-s2b-like-own-checker-unmarked.glb'
 SHOTS=[
  ('rear-seat-eye',(-1.325,0,.300),(-.60,0,.105),88,None),
  ('front-seat-eye',(-.564,0,.308),(.12,0,.09),88,None),
- ('windshield-trim',(-.92,.92,.68),(-.32,0,.30),49,('Windshield','Canopy_Frame','Canopy_Glass','Canopy_TopTube')),
- ('latch-cable',(-1.16,.76,.47),(-.65,.31,.17),47,('Canopy_Latch_Knob','Pitts_Release_Cable_Left','Canopy_Frame','Canopy_TopTube')),
+ ('windshield-trim',(-.92,.92,.68),(-.32,0,.30),49,('Windshield','Canopy_Frame','Canopy_Glass')),
+ ('latch-cable',(-1.16,.76,.47),(-.65,.31,.17),47,('Canopy_Latch_Knob','Pitts_Release_Cable_Left','Canopy_Frame')),
  ('wing-cutout-handle',(-1.05,.50,1.45),(-.24,0,.61),42,('Wing_Upper','UpperWing_')),
  ('stop-tab-contact',(-.95,-1.05,.92),(-.57,-.70,.655),40,('Wing_Upper','Canopy_Frame','Canopy_Stop_')),
  ('fuel-tank',(-.53,.65,-.02),(.12,0,-.19),48,('FuelTank_',)),
