@@ -147,7 +147,7 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   Any of those lanes must merge island-nav before it builds. Details in the Log entry "kill red 2-33".
 <!-- /kill-red-233 needs-you -->
 ## NEEDS YOU — fly-check the Extra FRONT seat, rear switches, verniers, throttle grip and fuel valve (Claude, 2026-11-04 22:55 PST)
-- Ty: on the iPhone / iPad mini (2026.1104.2245) and the Quest, fly the Extra 300 and check: FRONT seat = small sub-panel
+- Ty: on the iPhone / iPad mini (2026.1105.0002) and the Quest, fly the Extra 300 and check: FRONT seat = small sub-panel
   with ASI / G / ALT only + throttle, stick, rudder and the red fuel-valve lever (right wall); REAR panel grey, only
   MASTER / ALT / FUEL PUMP / NAV / STROBE / SMOKE with legible placards beneath, no unlabelled knobs, EGT/CHT lower right,
   padded diagonal tubes; prop (blue) / mixture (red) verniers on the left wall beside the rear throttle, knobs aft;
@@ -176,6 +176,10 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   phase-3b gauge list and has failed since pass 11 (also at HEAD before this lane).
 - iOS deploy.sh from this lane (island-nav 10c98d6a + this work): ** BUILD SUCCEEDED ** 2026.1104.2245, 0 error CS,
   installed iPhone + iPad mini. Lost ~1.5 h to the busy-gate bug now in CLAUDE.md lessons.
+- Merged island-nav 04108b33 (quest-feedback's mixture/prop model): the valve now feeds it. A shut valve makes
+  EngineRunning false / EngineStarved true like a cut-off mixture (prop windmills, EngineStopped stays damage-only).
+  FuelValveTests rewritten to that; filter FuelValve|Mixture|Engine|Prop|Cockpit... 78/78. iOS deploy.sh from this lane
+  (= island-nav 04108b33 + this work): ** BUILD SUCCEEDED ** 2026.1105.0002, installed iPhone + iPad mini.
 
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
