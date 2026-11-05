@@ -1,4 +1,33 @@
 ## NEEDS YOU
+<!-- river-current needs-you -->
+- **RIVERS AND TIDE NOW MOVE THE WATER: FLY-CHECK A RIVER CRASH AND A FLOATPLANE IN A CURRENT (Claude, 2026-11-05 03:00,
+  lane/claude-river-current; merged into island-nav and Quest the same session, NOT installed: rides the next queued
+  build/install). iOS ** BUILD SUCCEEDED ** 2026.1105.0157 (branch) and 2026.1105.0247 (branch + island-nav 7f7185e1),
+  0 error CS, NOINSTALL. Nothing approved by me.** Write-up: `docs/WATER-CURRENT.md`.
+  Every hydro force (floats/hulls/water rudders, wheels and skis on water, the ditched airframe, every wreck piece,
+  slam, joint loads) is now computed from velocity THROUGH THE WATER (`WaterCurrent`); the aero was already through the
+  air. No upstream/downstream logic anywhere. Fuel slicks drift with the surface current + 3 % of the wind.
+  1. **Take-off with current (your 19:35 correction), J-3 floats, same pilot every run, 4 kt current:** calm upstream
+     22.8 s / 270 m through the water, downstream 14.9 s / 166 m (no current 19.9 s / 221 m); unstick at the same ~21.4 m/s
+     airspeed, i.e. airspeed ± current through the water. With 15 kt blowing downstream it reverses: into wind upstream
+     10.5 s, downwind downstream 30.6 s. Please fly it on a lake? Not possible on the island yet — see 3.
+  2. **Fly-check:** crash into the sea or a river and watch pieces drift (tide is slack at start and peaks 0.6 kt after
+     3.1 h of sim time, flooding toward 045 T); on water with a current a stopped floatplane drifts at ~85 % of the
+     current (its own windage in still air holds it back: emergent, not tuned); idle taxi into a 4 kt current goes
+     backwards over the ground at 1.6 m/s while making 0.4 m/s through the water; 30 % power makes 3 m/s up the river.
+  3. **Q031: the island's rivers are drawn as a 0.15 m sheet**, so floats and buoyant wreckage ground in them (a 263 kg nose
+     piece creeps at 6 % of the current). The current itself is modelled as a real 1.3–2.4 m deep river: 5.1–8.0 kt by
+     Jarrett's high-gradient equation, 0 at the banks, log-law with depth, inner-bank slow-down / back-eddy below bends.
+     Carve the rivers deep enough to float a J-3 (terrain + water-mesh work), or keep them shallow?
+  4. **Q032: sea tide** 0.3 m/s M2 rectilinear toward 045 T: want another strength/axis, rotary tide or tidal height?
+  5. **Found and fixed on the way:** a floatplane sat in a cross-current went NaN on its first step (Savitsky trim along a
+     flow square across the keel → tan 90°); planing terms now only within 60° of sideslip (`PlaningMaxSideslipRad`), no
+     change below that. GroundContactCullTests now start both of its runs at sim time 0 (the tide reads the clock).
+  6. Tests: WaterCurrentTests 16/16; water/float/wreck/wheel/crash subset (31 classes, 437 tests): base 35 red, branch 46 =
+     the same 35 + 11 GroundContactCullTests cases (the tide; fixed, that class re-run 52/52, the subset not re-run);
+     merged tree 149/149 in the hydro classes (incl. FloatHandling, EmergentWaterContact, WreckWingWater). The full suite could not
+     finish in a 2 h window on this loaded machine (load ~30), so it was compared on that subset only.
+<!-- /river-current needs-you -->
 - **WHEEL HYDROPLANE LANE MERGED + INSTALLED (Claude, 2026-11-05 01:56, lane/claude-wheel-hydroplane 7388335f → island-nav
   12328a67 → Quest 3fd9d5e2; Ty approved the merge 2026-11-04 20:27). iOS island-nav 2026.1105.0137 ** BUILD SUCCEEDED **,
   0 error CS, installed iPhone + iPad mini + EFB iPad; Quest 2026.1105.0147 installed and launched on the Quest 3S.
@@ -182,6 +211,12 @@ and built from the lanes AFTER this merge, so they carry all of it), iPad mini 2
 <!-- /quest-feedback needs-you -->
 ## NEEDS YOU — Pitts cockpit + shared instrument style (Claude, lane/claude-pitts-panel, 2026-11-04)
 Nothing approved by me; every (E) number below is mine to be checked, not a book value.
+- **Follow-up 2026-11-05 02:20 (Ty's 19:27 notes re-checked):** the FUEL valve now shuts OFF by turning to horizontal
+  pointing to your LEFT (about a fore-aft shaft), as you wrote; the first pass had turned it forward after Codex's OFF
+  legend, which still sits forward of the valve and is Codex's to move. Prop lock/slide and trim unchanged. Both Codex
+  follow-ups (passes 2, 3) were already merged; nothing newer. Lane a79837ce, BUILD SUCCEEDED 2026.1105.0216, EditMode
+  20/20; renders refreshed (pitts-cockpit.png, pitts-vs-reference.png). Merged island-nav 22a4ae77, Quest 8e66043a, parity --strict OK.
+  INSTALLED: iOS 2026.1105.0226 on iPhone + iPad mini + EFB iPad (3/3); Quest 3S 2026.1105.0236 installed and launched.
 - **Look at the renders** (Unity, seat eye): ~/Developer/agent-lanes/renders/instrument-style/ — Pitts front and rear seat,
   the rear levers at rest and "moved", the right wall (fuel valve ON / OFF), the floor, and contact-sheet.png of every
   modelled panel. Reference photos side by side: pitts-vs-reference.png.
@@ -198,7 +233,7 @@ Nothing approved by me; every (E) number below is mine to be checked, not a book
 - **Questions:** Q044, Q046-Q048 in agent-lanes/QUESTIONS-FOR-TY.md (renders, prop/trim lever motion, electrics/cowl (E) values, Super Cub cream); Q045 withdrawn.
 - **Not right yet, said plainly:** the rear panel's instrument ARRANGEMENT is Codex's (MP and altimeter sit elsewhere in your photo); the C172 and Swift are not in the Unity contact sheet (the shot tool drew no 172 cabin from its seat; the Swift has no approved eye, Q001); the PA-18 tile is its dial maps, its OBJ panel is too dark to read from any eye I tried. The Extra lane is NOT merged here (still running): see the merge note.
 - **Tests:** EditMode (new assembly unity/Assets/_Project/Tests/EditMode) 20/20; .NET PittsPanelSystemsTests 23, related suites 198/198; ModelRigTests.FullAirBrakeStops... and two StreamingAssetsTests fail identically on the branch point 0bb87c67 (pre-existing).
-- **Build / install:** lane build 2026.1104.2310 ** BUILD SUCCEEDED **, 0 error CS (no device, dummy id). INSTALL_STATUS
+- **Build / install:** lane builds 2026.1104.2310 and (after adopting quest-feedback's engine) 2026.1104.2354 ** BUILD SUCCEEDED **, 0 error CS, EditMode 20/20, no device. Merged: island-nav 1b5f9474, Quest 87adcea2, check-parity --strict OK. ON DEVICES (rode other lanes' builds of the merged lanes, no separate build): Quest 3S 2026.1105.0007 (tire-spinup's deploy) then 2026.1105.0147; iPhone + iPad mini + EFB iPad iOS 2026.1105.0137 (wheel-hydroplane's deploy). The Extra lane deployed its own build to the phone/iPad at 00:02, since overwritten by 0137.
 - **Merge note for lane/claude-extra-front-seat:** it conflicts with this lane in VrCockpitHands.Panel.cs (both extend
   SimParams/Initial/UpdatePanelPoints: keep both), CockpitControlInteriorTests (Pitts 13 and Extra 40), RigInputs
   (identical FuelValve/Alternator lines: check for a duplicate field after the merge, the merge is clean but may not

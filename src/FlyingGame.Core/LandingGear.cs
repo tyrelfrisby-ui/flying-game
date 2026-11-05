@@ -450,6 +450,8 @@ public static class LandingGear
                 {
                     Vec3 vWater = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
                     if (WorldDecks.All.Count > 0) vWater -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
+                    // ... and through the WATER, which may itself be moving (a river, the tide: WaterCurrent).
+                    vWater -= WaterCurrent.At(wheelWorld.X, wheelWorld.Y, 0.5 * depth);
                     // The water pushes on the TYRE, and the tyre is on the leg: the leg's spring is in series with
                     // the water, as it is with the ground. The tyre sits as deep as the leg lets it — where the
                     // water's push equals the spring's (quasi-static) — not at the gear point's geometric depth;

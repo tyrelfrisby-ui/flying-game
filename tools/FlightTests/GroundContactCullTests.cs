@@ -45,6 +45,9 @@ public sealed class GroundContactCullTests : IDisposable
     {
         AirframeContact.StageCullEnabled = cull;
         SimProfile.Reset();
+        // Both runs from the same sim time: the sea's tidal stream (WaterCurrent) is a function of it, and the process-wide
+        // clock has moved on by the first run's length when the second starts.
+        Atmosphere.SimTimeSec = 0;
         AircraftConfig c = Load(f.Aircraft);
         double ground = WorldTerrain.GroundHeightAt(f.X, f.Y);
         double surface = Math.Max(ground, FloatHydro.WaterSurfaceAt(f.X, f.Y) ?? double.NegativeInfinity);

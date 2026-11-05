@@ -30,6 +30,9 @@ public sealed class AirframeFlooding
 
     /// <summary>Surface height under the CG at the last <see cref="Prepare"/>, m up; NaN if none.</summary>
     public double WaterUp { get; private set; } = double.NaN;
+    /// <summary>The water's own motion over the airframe at the last <see cref="Prepare"/> (<see cref="WaterCurrent"/>):
+    /// the drag, the slam and the joint loads are all from the airframe's velocity through the water.</summary>
+    public WaterCurrent.Local Flow { get; private set; } = WaterCurrent.Local.None;
     /// <summary>True when the airframe is within reach of the water this step.</summary>
     public bool Active { get; private set; }
     /// <summary>The airframe has touched water at some point (it has a flood state worth reporting).</summary>
@@ -64,7 +67,8 @@ public sealed class AirframeFlooding
         WaterUp = w ?? double.NaN;
         Active = w.HasValue && (-s.Position.Z) - w.Value < _reach + 0.5;
         if (Active) EverWet = true;
-        _old = Active ? HydroBody.Coefficients(_forceEls, _cg, s, WaterUp, airDrag: false) : WaterCoeffs.None;
+        Flow = Active ? WaterCurrent.Around(s.Position.X, s.Position.Y, _reach) : WaterCurrent.Local.None;
+        _old = Active ? HydroBody.Coefficients(_forceEls, _cg, s, WaterUp, airDrag: false, Flow) : WaterCoeffs.None;
     }
 
     /// <summary>Buoyancy and floodwater weight, body frame, about the CG (zero when inactive).</summary>
@@ -78,9 +82,9 @@ public sealed class AirframeFlooding
         RigidBodyState s = after;
         if (Active)
         {
-            WaterCoeffs now = HydroBody.Coefficients(_forceEls, _cg, after, WaterUp, airDrag: false);
+            WaterCoeffs now = HydroBody.Coefficients(_forceEls, _cg, after, WaterUp, airDrag: false, Flow);
             s = HydroBody.Correct(before, after, mp.MassKg, new Vec3(mp.Ixx, mp.Iyy, mp.Izz), _old, now, dt);
-            List<Panel>? broke = WaterSlam.Damage(_forceEls, _cg, s, WaterUp);
+            List<Panel>? broke = WaterSlam.Damage(_forceEls, _cg, s, WaterUp, Flow);
             if (broke != null) foreach (Panel p in broke) DamageLog.Add(p.Why);
             CheckJoints(before, s, dt);
         }
@@ -134,7 +138,7 @@ public sealed class AirframeFlooding
                 Vec3 rb = e.Centre - _cg;
                 Vec3 v0 = s0.Velocity + Vec3.Cross(s0.Rates, rb), v1 = s1.Velocity + Vec3.Cross(s1.Rates, rb);
                 Vec3 a = (v1 - v0) / dt + Vec3.Cross(s1.Rates, v1);
-                Vec3 fw = force.Contains(e) ? WaterSlam.ElementForce(e, _cg, s0, s1, WaterUp, dt) : Vec3.Zero;
+                Vec3 fw = force.Contains(e) ? WaterSlam.ElementForce(e, _cg, s0, s1, WaterUp, dt, Flow) : Vec3.Zero;
                 Vec3 fj = (a - gB) * e.MassKg - fw;
                 mom += Vec3.Cross(e.Centre - j.At, fj);
                 axial += Vec3.Dot(fj, j.Axis);
