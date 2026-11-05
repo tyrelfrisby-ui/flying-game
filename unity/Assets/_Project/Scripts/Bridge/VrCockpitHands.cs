@@ -300,8 +300,8 @@ namespace FlyingGame.Bridge
                                                       C(Quaternion.Inverse(_air.rotation) * _pittsLeverRig.HingeWorld));
                     else
                     {
-                        Vector3 pivot = _latchLocked - Vector3.forward * (float)PittsCanopyLatch.ArmM;
-                        _pittsLever = new HingedLever(C(pivot), C(_latchLocked), C(pivot + Vector3.up * (float)PittsCanopyLatch.ArmM), new Vec3(1, 0, 0));
+                        Vector3 lp = _latchLocked - Vector3.forward * (float)PittsCanopyLatch.ArmM;
+                        _pittsLever = new HingedLever(C(lp), C(_latchLocked), C(lp + Vector3.up * (float)PittsCanopyLatch.ArmM), new Vec3(1, 0, 0));
                     }
                 }
                 bool fits = _latchKind == CanopyLatchKind.CableLever ? cockpit.HandLatch is PittsCanopyLatch : cockpit.HandLatch is ExtraCanopyLatch;
