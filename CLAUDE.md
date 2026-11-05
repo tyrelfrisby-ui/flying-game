@@ -589,3 +589,14 @@ render (`WaterMagentaCheck`): alpha 255 everywhere where the cleared sky should 
 builder (a layer, a tag), every other builder must apply it too, and the consumer should check it at runtime
 (`WaterReflection.ExcludeStrayWater`). And when only the device shows a fault, look for undefined behaviour the
 bench happens to tolerate before looking for a missing asset.
+
+### A blanket exemption silences everything it covers, including the part you just fixed
+The 2026-11-04 water lane made a dipped propeller brake by blade drag and tested it on landplanes. Ty then dug the J-3
+on floats' prop into the lake and nothing happened: `AirframeContact` skips every hard point of a FLOATPLANE over water
+("the floats carry it"), and the propeller disc stations were hard points too, so on a floatplane the prop could never
+touch the water at all. Every test passed because none of them put a floatplane's prop in the water. When a fix lives
+behind a contact or sensor path, test it on the aircraft from the report, and grep for the switches that skip that path
+(`floatsCarryWater`, `groundClear`, a cull) before believing it reaches everything.
+And the splash "hammering" was a fixed 4.5 Hz sine on the water voice (66 % depth): a periodic modulation on a sound
+the physics drives is a metronome the player hears as a fault. Measure a voice's envelope spectrum
+(`tools/FloatAudio`) before shipping any LFO on it.
