@@ -73,9 +73,12 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Restore an intact airframe (ResetFlight / aircraft switch).</summary>
+        private bool _engineShownBent;   // the engine has been drawn drooped this flight (redrawn as the droop comes off)
+
         public void Repair()
         {
             WingsGone = false;
+            _engineShownBent = false;
             Severity = 0f;
             if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; _watched.Damage.Changed -= OnDamage; _watched.Contact -= OnContact; }
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
@@ -232,9 +235,22 @@ namespace FlyingGame.Bridge
             if (_visual == null) _visual = GetComponent<AirframeVisual>();
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)
-                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003 || (p.State != FlyingGame.Core.PanelState.Broken && _visual.HasBentPanel(p.Component))) _visual.ShowPanelBend(p, ac.Config);
-            // A crushed tail boom or engine mount bends on the model too.
-            if (_visual != null && (ac.Crush.TailCrushM > 0 || ac.Crush.NoseCrushM > 0)) _visual.ShowFuselageBend(ac.Crush, ac.Config);
+                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003 || System.Math.Abs(p.FlightFlexRad) > 0.003
+                        || (p.State != FlyingGame.Core.PanelState.Broken && _visual.HasBentPanel(p.Component))) _visual.ShowPanelBend(p, ac.Config);
+            // A crushed tail boom or engine mount bends on the model too, and an overstressed engine mount droops (Ty 2026-11-05).
+            // The engine is drawn drooping once its mount is past 1.5 × limit or has kept a set: putting the nose on its
+            // pivot cuts the model and freezes its rig, as the crash bend does, and a pull just past the limit must not
+            // stop the control surfaces moving for the rest of the flight. Below that the droop is in the thrust line only.
+            FlyingGame.Core.OverstressMember em = ac.Structure.EngineMount;
+            bool engineDrawn = em != null && (em.Overstressed || System.Math.Abs(em.SetRad) >= FlyingGame.Core.WingStructure.VisibleSetRad);
+            double sag = (engineDrawn ? em.DeflectionRad : 0.0) + ac.Crush.NoseBendRad;
+            if (_visual != null && (ac.Crush.TailCrushM > 0 || ac.Crush.NoseCrushM > 0 || System.Math.Abs(sag) > 0.003 || _engineShownBent))
+            {
+                _visual.ShowFuselageBend(ac.Crush, ac.Config, sag);
+                _engineShownBent |= System.Math.Abs(sag) > 0.003;
+            }
+            // The horizontal tail's overstress bend (tips down under positive g).
+            if (_visual != null) _visual.ShowTailBend(ac.TailBendRad);
 
             StructuralState st = ac.Structure;
             LoadFactorG = (float)ac.LoadFactorZ;

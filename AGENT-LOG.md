@@ -1,3 +1,36 @@
+## NEEDS YOU — overstress pattern: wings, tail and engine flex, bend and break by your numbers (Claude, 2026-11-05)
+<!-- overstress needs-you -->
+Lane lane/claude-bend-damage. Your 06:28 pattern and 06:29 Pitts −5 g, implemented as written (write-up
+`docs/BEND-DAMAGE.md`, "The overstress pattern"). Nothing approved by me. Build / install stamps: see the last bullet.
+- **Ty, please fly-check (any type, best the J-3 and the Pitts):** pull past the limit and watch the wings flex (10° at
+  1.5 × limit, 20° at 2.0); pull past 1.5 × and let go: half the bend stays and you will need aileron/trim as it flies on;
+  a pull to 2.0 at gross leaves wings, tail and engine 10° bent; over gross the wings (and stabiliser) go and the engine
+  stays; light (less fuel / no passenger) the wings take more g and the ENGINE goes first at 2.01 × limit.
+- **How:** three members on the structure — wings and horizontal tail on n / n_limit × W / W_gross (gross = placard, else
+  the config's mass), the engine mount on n / n_limit with no weight allowance; flex 20° per limit past the limit; past
+  1.5 × half the peak bend stays; each excursion past 1.5 × takes 2 % per 0.1 off the whole curve for next time; past 2.0 ×
+  of what is left it departs. Negative side the same on its own limit. The bends fly: wing panels' dihedral and load points,
+  the tail halves (tips DOWN under positive g), the engine droops nose-down (thrust line, disc angle, hub).
+- **J-3 / Pitts numbers (OverstressPatternTests):** 2.0 × at gross: 10.000° set on all three, strength 0.900, nothing
+  lost. 110 % gross: wings and stabiliser off, engine on (10° droop). 80 % gross at 2.01 ×: engine off, wings 6.0° set.
+  Six pulls to 1.6 ×: 0.98 → 0.745, then it breaks at 1.49 ×. Pitts −10 g: wings −10°, stays; −10.25 g: off. Wings 10°
+  set doubles the dihedral effect (−8,846 → −17,723 N·m/rad of slip at 30 m/s); engine drooped 10° at full power pitches
+  the nose down.
+- **Decisions in the queue:** Q122 (a pull to 1.51 leaves 5°, 1.49 none — keep that step?), Q123 (repeated same-way pulls
+  keep the larger set, not the sum), Q124 (tail tips down + weight-adjusted, engine droops nose-down, all loaded by the
+  AIR's g so a hard landing cannot tear the engine off by inertia), Q125 (ground-strike wing hinges now also yield only
+  past 1.5 × limit).
+- **Changed on the way:** the 50 ms failure dwell is now a 50 ms structural lag; a tip touch between 1.0 and 1.5 × limit
+  springs back (Pitts lower tip at 0.8 m/s, 1.37 ×). The engine is DRAWN drooping only past 1.5 × or once it has a set
+  (cutting the nose onto its pivot freezes the model's rig, as the crash bend always has); below that only its thrust
+  line moves. Twin nacelles are not drawn drooped. A one-mesh downloaded model's tail does not bend on screen.
+- Tests: OverstressPatternTests 9/9; Structural/Grob/BendDamage/ContactPatch/AirframeContact/Combat/CrashReset/Float/
+  WheelWater subset (361) and a crash/prop/spin/lesson/combat subset (404): every failure (4 and 11) fails the same on the
+  branch point e61c8268. Merged with island-nav 2710033d: 102/102 in the touched classes.
+- Builds / merges / installs: branch (merged with island-nav 2710033d) iOS **2026.1105.1532 ** BUILD SUCCEEDED ****, 0
+  error CS (NOINSTALL). Merges and installs: PENDING (this line is updated when they land).
+<!-- /overstress needs-you -->
+
 ## NEEDS YOU — Great Lakes panels v2 + Extra no-diagonals / compact front IAC: fly-check on the iPhone (Claude, 2026-11-05 15:31 PT)
 Ty approved the visuals (GL ~10:56 PT; Extra ~13:19 PT, Q109/Q117). Nothing flight-approved by me. Please fly-check.
 - Merged into lane/claude-island-nav: GL a3602b44 → 84357223; Extra b9228089 → **2710033d**. Quest lane:
