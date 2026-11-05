@@ -664,7 +664,7 @@
         ]
       ],
       "model": 0,
-      "desc": "suction gauge (1 in, yoke-v1): 0-10 inHg over 270 deg = 27 deg/inHg clockwise from 7:30; green 4.5-5.5 with red radials at both ends; drawn at 0 inHg",
+      "desc": "suction gauge (1 in, yoke-v1): 0-10 inHg over 270 deg = 27 deg/inHg clockwise from 7:30; green 4.5-5.4 with red radials at both ends; drawn at 0 inHg",
       "extra": {}
     },
     {

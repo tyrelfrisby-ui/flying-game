@@ -3051,6 +3051,12 @@ with a green range and two red lines ... Usually the suction gage is a tiny 1 in
   "front" view was useless (knees and switch row in front of the horn); replaced by a clipped section. A zsh `case`
   with brace patterns deleted my lane copies once (braces don't expand in case patterns); re-copied from agent-lanes.
 
+- **Follow-up 2026-11-04 16:50 PST (Grok Bot):** Ty 16:38 "Yoke is good"; Ty 16:42: suction upper red line = **5.4 inHg**
+  (1980 172N manual), not 5.5. `c172_cockpit.py` green arc now 4.5-5.4, red radials at 4.5 and 5.4 (3dacc353);
+  GLB rebuilt via `blender -b --python tools/model_c172.py` (163 = 163 nodes, node data identical; only suction-mark /
+  joined-interior mesh contents changed); rig json regenerated (desc only); test asserts "green 4.5-5.4".
+  check_c172_cockpit.py PASS; FlightTests C172 filter 49/49. renders/c172/yoke-v1/*suction_closeup.png still show 5.5 (not re-rendered).
+
 C172-YOKE-DONE
 
 ### 2026-11-04 09:30– PST — Claude · lane/claude-crash-tuning · crash tuning: steel-tube fuselages crush, wreck friction, branch damage

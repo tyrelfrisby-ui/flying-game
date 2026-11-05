@@ -107,6 +107,8 @@ public class C172YokeClearanceTests
         Assert.Equal(0.0, map[0][0].GetDouble()); Assert.Equal(0.0, map[0][1].GetDouble());
         Assert.Equal(10.0, map[1][0].GetDouble()); Assert.Equal(270.0, map[1][1].GetDouble());
         Assert.Equal(0.0, row.GetProperty("model").GetDouble());
+        // Ty 2026-11-04 16:42: upper red line 5.4 inHg (1980 172N manual), not 5.5; green arc 4.5-5.4.
+        Assert.Contains("green 4.5-5.4", row.GetProperty("desc").GetString());
     }
 
     /// <summary>The wheel's full deflections first, so the bound in the sweep bites early; then every 2 deg.</summary>

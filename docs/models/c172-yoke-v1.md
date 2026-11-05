@@ -16,7 +16,7 @@ low and one too high, for the pressure. Usually the suction gage is a tiny 1 inc
 | column tube | fwd -0.01 ... 0.26: 37 mm short of the panel face at neutral, 107 mm at full aft (it floated) | fwd -0.01 ... 0.38: into the panel at every column position |
 | yoke span, wheel travel, column travel, fore-aft place | 0.27 m horn centres, +/-90 deg, +/-70 mm, hub 0.32 m aft of the panel face | unchanged |
 | suction gauge | 2-1/4 in class (face radius 28 mm) under the DG at z 0.113; 0-2-4-6-8 numerals, 36 deg/inHg | **1 in face (radius 12.7 mm)**, still straight under the DG, at z 0.145 |
-| suction scale | numerals, no arc | 0-10 inHg over 270 deg (27 deg/inHg, clockwise from 7:30), ticks every inHg, long ticks at 0/5/10, **green arc 4.5-5.5**, **red radial at 4.5 and at 5.5**, no numerals |
+| suction scale | numerals, no arc | 0-10 inHg over 270 deg (27 deg/inHg, clockwise from 7:30), ticks every inHg, long ticks at 0/5/10, **green arc 4.5-5.4**, **red radial at 4.5 and at 5.4** (Ty 2026-11-04 16:42: 172N 5.4), no numerals |
 | runtime rig `C172_Suction_needle` | `[[0,35],[10,395]]`, model -0.972 | `[[0,0],[10,270]]`, model 0 |
 
 Nothing else moved. A node-by-node diff of the exported GLB against 94b70e6b: same 163 nodes; only
@@ -44,8 +44,8 @@ gives 30.6 mm.
   C172-modelled sim yoke's specification. Not a Cessna document. The rig already uses +/-90 deg.
 - **Suction green arc:** 4.5 to 5.5 in. Hg (C172R AFM supplement, STC SA2196CE, "Suction Gage Green Arc (Normal
   Operating)"). The 1980 172N Information Manual gives a desired range of 4.5 to 5.4 in. Hg, and UMA/PMA replacement
-  gauges are marked 4.5-5.4. I drew 4.5-5.5 as asked; if your 172 is an N with a 5.4 gauge, the upper red line moves
-  2.7 deg. `VacuumSystem.RegulatorInHg` is 5.0, mid-arc.
+  gauges are marked 4.5-5.4. First drawn 4.5-5.5; Ty chose 5.4 (1980 172N manual) on 2026-11-04 16:42, so the green arc
+  ends and the upper red line sits at 5.4 (2.7 deg lower). `VacuumSystem.RegulatorInHg` is 5.0, mid-arc.
 - **NOT found:** a published column exit height above the panel bottom, the wheel's hub height above the seat
   reference point, the wheel diameter / horn span, or the column's fore-aft travel. The 172 maintenance manual
   chapter 27 rigging pages were not readable in this session. One forum post gives ~14 in of column travel on a
