@@ -35,7 +35,7 @@ namespace FlyingGame.Bridge
 
         private readonly List<PanelSlot> _panel = new();
         private SmokeController _smoke;
-        private static readonly HashSet<string> SimParams = new() { "trim", "smoke", "water_rudder_up" };
+        private static readonly HashSet<string> SimParams = new() { "trim", "smoke", "water_rudder_up", "fuel_valve" };
 
         private void BindPanel(string seatFull)
         {
@@ -77,7 +77,7 @@ namespace FlyingGame.Bridge
             }
             Debug.Log($"[VrCockpit] {_driver.AircraftId} {seatFull} panel: {_panel.Count} controls ({toggles} toggles, {rotaries} knobs, {pulls} push-pull)" +
                       (unbound > 0 || missing.Count > 0 ? $"; MISSING {string.Join(", ", missing)}" : "") +
-                      "; into the sim: trim, smoke, water rudder; the rest visual only (no system in the sim yet)");
+                      "; into the sim: trim, smoke, water rudder, fuel valve; the rest visual only (no system in the sim yet)");
         }
 
         /// <summary>Where a control starts: the sim's own value for the trim and the smoke, the parked cockpit
@@ -89,7 +89,7 @@ namespace FlyingGame.Bridge
                 case "trim": return _touch != null ? _touch.PitchTrimLever : 0.0;
                 case "smoke": return _smoke != null && _smoke.On ? 1.0 : 0.0;
                 case "water_rudder_up": return _driver.Sim.Aircraft.WaterRudderUp01;
-                case "fuel_valve": return 1.0;
+                case "fuel_valve": return _driver.Sim.Aircraft.FuelValveOpen ? 1.0 : 0.0;
                 case "com_volume": return 0.5;
                 case "xpdr_squawk": return spec.Short switch { "XpdrDigit1" => 1, "XpdrDigit2" => 2, _ => 0 };   // 1200
             }
@@ -105,6 +105,8 @@ namespace FlyingGame.Bridge
                     if (p.C.Spec.Param == "trim" && _touch != null) p.C.SetFromSim(_touch.PitchTrimLever);
                     else if (p.C.Spec.Param == "smoke" && _smoke != null) p.C.SetFromSim(_smoke.On ? 1.0 : 0.0);
                     else if (p.C.Spec.Param == "water_rudder_up") p.C.SetFromSim(_driver.Sim.Aircraft.WaterRudderUp01);
+                    // The two cockpits' valve levers are on one shaft: the other seat's lever moves this one.
+                    else if (p.C.Spec.Param == "fuel_valve") p.C.SetFromSim(_driver.Sim.Aircraft.FuelValveOpen ? 1.0 : 0.0);
                 }
                 _grab.Set(p.Id, C(PanelPoint(p)), true);
             }
@@ -201,6 +203,19 @@ namespace FlyingGame.Bridge
                     return;   // continuous while held; the one log line is on the release
                 case "com_volume":
                     return;
+                case "fuel_valve":
+                {
+                    // Into the sim at the detent's half-way point: OFF is the lever turned 90 deg inboard.
+                    Aircraft ac = _driver.Sim.Aircraft;
+                    bool open = v > 0.5;
+                    if (ac.FuelValveOpen != open)
+                    {
+                        ac.FuelValveOpen = open;
+                        Debug.Log($"[VrCockpit] fuel valve {(open ? "ON" : "OFF")} by hand ({s.Short}, {s.Seat}) → Aircraft.FuelValveOpen = {open}" +
+                                  (open ? "" : $"; the engine stops in {Aircraft.FuelLinesSec:0} s"));
+                    }
+                    return;
+                }
             }
             string what = s.Param == "xpdr_squawk" ? $"squawk {Squawk()}" : $"{v:0.###}";
             Debug.Log($"[VrCockpit] {s.Short} → {what} by hand (visual only: the sim has no {s.Param} system yet)");

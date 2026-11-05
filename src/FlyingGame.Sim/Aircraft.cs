@@ -409,7 +409,7 @@ public sealed partial class Aircraft
     {
         get
         {
-            if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0 || _noseLost) return 0.0;   // stopped: burns nothing
+            if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0 || _noseLost || _fuelStarved) return 0.0;   // stopped: burns nothing
             double bsfc = Config.Propulsion.BsfcKgPerWs;
             if (bsfc <= 0.0) return 0.0;
             return Config.Propulsion.MaxPowerW * Math.Clamp(_throttle01, 0.0, 1.0) * bsfc;
@@ -446,7 +446,7 @@ public sealed partial class Aircraft
         get
         {
             PropulsionConfig p = Config.Propulsion!;
-            if (p is null || _noseLost) return 0.0;   // engine stopped (prop strike)
+            if (p is null || _noseLost || _fuelStarved) return 0.0;   // engine stopped (prop strike, or out of fuel at the valve)
             double idle = p.IdleRpm, max = p.MaxRpm, thr = _throttle01;
             if (p.ConstantSpeed)
             {
@@ -796,7 +796,46 @@ public sealed partial class Aircraft
     }
     private Vec3 _noseBody = new(1.5, 0, 0);
     /// <summary>True once the propeller has hit the ground (or the nose is gone): engine stopped, no thrust.</summary>
-    public bool EngineStopped => _noseLost;
+    public bool EngineStopped => _noseLost || _fuelStarved;
+
+    // ---- the fuel shut-off valve (the Great Lakes' and the Extra's red lever, one in each cockpit, linked) ----------
+
+    /// <summary>The fuel shut-off valve: true = ON (the lever down). The cockpit's hands set it; nothing else does, so an
+    /// aeroplane without a valve in its cockpit always flies with it open.</summary>
+    public bool FuelValveOpen { get; set; } = true;
+
+    /// <summary>Seconds of running on the fuel already past the valve (lines, servo, flow divider) once it is shut: an
+    /// injected 540 at cruise empties them in a few seconds. Then the engine stops.</summary>
+    public const double FuelLinesSec = 4.0;
+
+    /// <summary>Seconds after the valve is opened again before the fuel reaches the injectors and the windmilling
+    /// engine fires (the sim has no starter: a running prop restarts on fuel alone).</summary>
+    public const double FuelRelightSec = 2.0;
+
+    private double _fuelLinesSec = FuelLinesSec;
+    private bool _fuelStarved;
+
+    /// <summary>True while the engine is stopped for want of fuel (the valve shut long enough).</summary>
+    public bool FuelStarved => _fuelStarved;
+
+    private void UpdateFuelValve(double dt)
+    {
+        if (Config.Propulsion is null) return;
+        if (!FuelValveOpen)
+        {
+            _fuelLinesSec = Math.Max(0.0, _fuelLinesSec - dt);
+            if (_fuelLinesSec <= 0.0) _fuelStarved = true;
+            return;
+        }
+        if (_fuelStarved)
+        {
+            // Refilling: the lines fill over FuelRelightSec; the engine fires once they are full.
+            _fuelLinesSec = Math.Min(FuelLinesSec, _fuelLinesSec + dt * FuelLinesSec / FuelRelightSec);
+            if (_fuelLinesSec >= FuelLinesSec) _fuelStarved = false;
+            return;
+        }
+        _fuelLinesSec = FuelLinesSec;
+    }
     /// <summary>Strip-level aero mask (AeroModel strip order), null while every component is attached.</summary>
     public bool[]? StripMask => _stripMask;
     /// <summary>Surfaces flying (null = all): false where a whole surface has gone (FailWings).</summary>
@@ -875,6 +914,8 @@ public sealed partial class Aircraft
         // A separate speed-brake lever (the Aero Widget's, 2026-10-08) on types that have the panels.
         if (Config.Controls.Spoiler.MaxDeflRad > 0.0) spoilerTarget = Math.Max(spoilerTarget, Math.Clamp(SpoilerCommand, 0.0, 1.0));
         _throttle01 = Config.Propulsion is null ? 0.0 : Math.Clamp((1.0 - inputs.ThrottleLever) * 0.5, 0.0, 1.0);
+        UpdateFuelValve(dt);
+        if (_fuelStarved) _throttle01 = 0.0;   // dead engine: no power at any lever position
         ControlDeflections targets = new(
             ShapeAxis(inputs.Aileron, Config.Controls.Aileron),
             ShapeAxis(inputs.Elevator, Config.Controls.Elevator),

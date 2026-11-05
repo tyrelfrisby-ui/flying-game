@@ -183,6 +183,8 @@ namespace FlyingGame.Bridge
             r.PropLever = 1.0;
             r.Mixture = engine && !ac.EngineStopped ? 1.0 : 0.0;
             r.FuelSelector = 1.0;
+            r.FuelValve = ac.FuelValveOpen ? 1.0 : 0.0;   // the valve's one shaft: both cockpits' levers read it
+            r.Alternator = 1.0;
             r.Magneto = engine && !ac.EngineStopped ? 3.0 : 0.0;
             r.Master = 1.0;
 

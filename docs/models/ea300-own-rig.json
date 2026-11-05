@@ -774,7 +774,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -806,7 +806,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -838,39 +838,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -902,7 +870,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -916,70 +884,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -1253,518 +1157,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -1798,7 +1190,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -1830,7 +1222,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -1862,39 +1254,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -1926,7 +1286,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -1940,70 +1300,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -2277,518 +1573,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -2822,7 +1606,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -2854,7 +1638,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -2886,39 +1670,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -2950,7 +1702,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -2964,70 +1716,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -3301,518 +1989,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -3846,7 +2022,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -3878,7 +2054,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -3910,39 +2086,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -3974,7 +2118,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -3988,70 +2132,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -4325,518 +2405,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -4870,7 +2438,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -4902,7 +2470,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -4934,39 +2502,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -4998,7 +2534,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -5012,70 +2548,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -5349,518 +2821,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -5894,7 +2854,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -5926,7 +2886,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -5958,39 +2918,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -6022,7 +2950,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -6036,70 +2964,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -6373,518 +3237,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -6918,7 +3270,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -6950,7 +3302,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -6982,39 +3334,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -7046,7 +3366,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -7060,70 +3380,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -7397,518 +3653,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -7942,7 +3686,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -7974,7 +3718,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -8006,39 +3750,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -8070,7 +3782,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -8084,70 +3796,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -8421,518 +4069,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -8966,7 +4102,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -8998,7 +4134,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -9030,39 +4166,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -9094,7 +4198,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -9108,70 +4212,6 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
    "desc": "(E) P3a reachable side console; owner review pending",
    "extra": {},
    "link": "",
@@ -9445,518 +4485,6 @@
    ],
    "pivot_gltf": [
     1.176,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
     0.23650000000000002,
     0.22949999999999998
    ],
@@ -10810,50 +5338,6 @@
    "note": ""
   },
   {
-   "node": "Ctl_Rotary_Magneto",
-   "param": "magneto",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.27149996510728186
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     30
-    ],
-    [
-     2,
-     60
-    ],
-    [
-     3,
-     90
-    ],
-    [
-     4,
-     130
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
    "node": "Ctl_Toggle_Master",
    "param": "master",
    "parent": null,
@@ -10866,7 +5350,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.2341999720858255
+    0.27149999999999996
    ],
    "map": [
     [
@@ -10898,7 +5382,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "map": [
     [
@@ -10930,7 +5414,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "map": [
     [
@@ -10962,39 +5446,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
+    -0.17825
    ],
    "map": [
     [
@@ -11026,7 +5478,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "map": [
     [
@@ -11056,23 +5508,23 @@
     0.0
    ],
    "pivot_gltf": [
-    1.176,
-    0.075,
-    0.12229999302145639
+    1.287,
+    0.162,
+    0.326
    ],
    "map": [
     [
      0,
-     0
+     -0.045
     ],
     [
      1,
-     -0.05
+     0.0
     ]
    ],
-   "model": 0.0,
+   "model": 1.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "vernier push-pull: drawn IN (1 = rich / fine), 0 = pulled 45 mm aft",
    "extra": {},
    "link": "",
    "note": ""
@@ -11088,121 +5540,57 @@
     0.0
    ],
    "pivot_gltf": [
-    1.176,
-    0.075,
-    0.08500000000000002
+    1.287,
+    0.204,
+    0.326
    ],
    "map": [
     [
      0,
-     0
+     -0.045
     ],
     [
      1,
-     -0.05
+     0.0
     ]
    ],
-   "model": 0.0,
+   "model": 1.0,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "vernier push-pull: drawn IN (1 = rich / fine), 0 = pulled 45 mm aft",
    "extra": {},
    "link": "",
    "note": ""
   },
   {
    "node": "Ctl_Rotary_FuelSelector",
-   "param": "fuel_selector",
+   "param": "fuel_valve",
    "parent": null,
    "kind": "rot",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.12229999302145637
+    1.4,
+    0.045,
+    -0.284
    ],
    "map": [
     [
      0,
-     0
+     -90
     ],
     [
-     2,
-     180
+     1,
+     0
     ]
    ],
-   "model": 0.0,
+   "model": 1,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "Right wall, one fore/aft rod to the other cockpit; ON down, OFF 90 deg inboard (GL type, Ty 19:06)",
    "extra": {},
-   "link": "",
+   "link": "front + rear on one rod (same param)",
    "note": ""
   },
   {
@@ -11526,719 +5914,35 @@
    "note": ""
   },
   {
-   "node": "Ctl_Rotary_Magneto_Front",
-   "param": "magneto",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     30
-    ],
-    [
-     2,
-     60
-    ],
-    [
-     3,
-     90
-    ],
-    [
-     4,
-     130
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Master_Front",
-   "param": "master",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     40
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_Mixture_Front",
-   "param": "mixture",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.13364821061779147
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.05
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_Prop_Front",
-   "param": "prop",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.08500000000000002
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.05
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.035
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "map": [
-    [
-     -1,
-     0
-    ],
-    [
-     1,
-     300
-    ]
-   ],
-   "model": -1.0,
-   "unit": "-1..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
    "node": "Ctl_Rotary_FuelSelector_Front",
-   "param": "fuel_selector",
+   "param": "fuel_valve",
    "parent": null,
    "kind": "rot",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.13364821061779145
+    0.5,
+    0.045,
+    -0.284
    ],
    "map": [
     [
      0,
-     0
-    ],
-    [
-     2,
-     180
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     118,
-     0
-    ],
-    [
-     136,
-     540
-    ]
-   ],
-   "model": 118.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     0.975,
-     360
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_ComVolume_Front",
-   "param": "com_volume",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.21999999999999997
-   ],
-   "map": [
-    [
-     0,
-     0
+     -90
     ],
     [
      1,
-     270
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "map": [
-    [
-     0,
      0
-    ],
-    [
-     1,
-     -0.004
     ]
    ],
-   "model": 0.0,
+   "model": 1,
    "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
+   "desc": "Right wall, one fore/aft rod to the other cockpit; ON down, OFF 90 deg inboard (GL type, Ty 19:06)",
    "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     7,
-     315
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     3,
-     90
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "parent": null,
-   "kind": "move",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "map": [
-    [
-     0,
-     0
-    ],
-    [
-     1,
-     -0.004
-    ]
-   ],
-   "model": 0.0,
-   "unit": "0..1",
-   "desc": "(E) P3a reachable side console; owner review pending",
-   "extra": {},
-   "link": "",
+   "link": "front + rear on one rod (same param)",
    "note": ""
   },
   {
@@ -12669,8 +6373,8 @@
    ],
    "pivot_gltf": [
     0.1508,
-    0.316,
-    0.115
+    0.3,
+    0.075
    ],
    "map": [
     [
@@ -12719,8 +6423,8 @@
    ],
    "pivot_gltf": [
     0.1508,
-    0.316,
-    -0.115
+    0.3,
+    -0.075
    ],
    "map": [
     [
@@ -12754,8 +6458,8 @@
    ],
    "pivot_gltf": [
     0.1508,
-    0.316,
-    -0.115
+    0.3,
+    -0.075
    ],
    "map": [
     [
@@ -12778,82 +6482,6 @@
    "note": ""
   },
   {
-   "node": "Needle_TC_F",
-   "param": "turn_rate_dps",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.1508,
-    0.2255,
-    -0.115
-   ],
-   "map": [
-    [
-     -6,
-     -40.0
-    ],
-    [
-     0,
-     0.0
-    ],
-    [
-     6,
-     40.0
-    ]
-   ],
-   "model": 0,
-   "unit": "deg/s",
-   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   },
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Ball_TC_F",
-   "param": "slip_ball",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.1508,
-    0.2255,
-    -0.115
-   ],
-   "map": [
-    [
-     -1,
-     18.0
-    ],
-    [
-     0,
-     0.0
-    ],
-    [
-     1,
-     -18.0
-    ]
-   ],
-   "model": 0,
-   "unit": "normalized",
-   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   },
-   "link": "",
-   "note": ""
-  },
-  {
    "node": "Needle_G_F",
    "param": "g_load",
    "parent": null,
@@ -12865,8 +6493,8 @@
    ],
    "pivot_gltf": [
     0.1508,
-    0.2255,
-    0.11500000000000002
+    0.3,
+    1.3877787807814457e-17
    ],
    "map": [
     [
@@ -12903,8 +6531,8 @@
    ],
    "pivot_gltf": [
     0.1508,
-    0.2255,
-    0.11500000000000002
+    0.3,
+    1.3877787807814457e-17
    ],
    "map": [
     [
@@ -12941,8 +6569,8 @@
    ],
    "pivot_gltf": [
     0.1508,
-    0.2255,
-    0.11500000000000002
+    0.3,
+    1.3877787807814457e-17
    ],
    "map": [
     [
@@ -12963,112 +6591,6 @@
    "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
    "extra": {
     "rig_dial_ang0_deg": 15.0
-   },
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Needle_Tach_F",
-   "param": "rpm",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.1508,
-    0.135,
-    0.14
-   ],
-   "map": [
-    [
-     0,
-     0.0
-    ],
-    [
-     3000,
-     300.0
-    ]
-   ],
-   "model": 0,
-   "unit": "rpm",
-   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
-   "extra": {
-    "rig_dial_ang0_deg": -150.0
-   },
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Needle_MP_F",
-   "param": "manifold_inhg",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.1508,
-    0.135,
-    0.045
-   ],
-   "map": [
-    [
-     10,
-     0.0
-    ],
-    [
-     35,
-     300.0
-    ]
-   ],
-   "model": 10,
-   "unit": "inHg",
-   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
-   "extra": {
-    "rig_dial_ang0_deg": -150.0
-   },
-   "link": "",
-   "note": ""
-  },
-  {
-   "node": "Needle_Amps_F",
-   "param": "amps",
-   "parent": null,
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.1508,
-    0.135,
-    -0.10999999999999996
-   ],
-   "map": [
-    [
-     -60,
-     -120.0
-    ],
-    [
-     0,
-     0.0
-    ],
-    [
-     60,
-     120.0
-    ]
-   ],
-   "model": 0,
-   "unit": "A",
-   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
    },
    "link": "",
    "note": ""
@@ -13176,19 +6698,19 @@
    "note": ""
   },
   {
-   "node": "Needle_OilP_F",
-   "param": "oil_press_psi",
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
    "parent": null,
    "kind": "rot",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    0.1508,
-    0.271,
-    -0.215
+    1.176,
+    0.075,
+    0.17825
    ],
    "map": [
     [
@@ -13196,22 +6718,20 @@
      0
     ],
     [
-     120,
-     120
+     1,
+     40
     ]
    ],
-   "model": 0,
-   "unit": "psi",
-   "desc": "three-in-one (Ty 2026-11-04): its own third of the dial; E scale",
-   "extra": {
-    "rig_dial_ang0_deg": -150
-   },
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "ALTERNATOR toggle (Ty 2026-11-04 19:08)",
+   "extra": {},
    "link": "",
    "note": ""
   },
   {
-   "node": "Needle_OilT_F",
-   "param": "oil_temp_f",
+   "node": "Needle_EGT_R",
+   "param": "egt_f",
    "parent": null,
    "kind": "rot",
    "axis_gltf": [
@@ -13220,32 +6740,32 @@
     0.0
    ],
    "pivot_gltf": [
-    0.1508,
-    0.271,
-    -0.215
+    1.1758,
+    0.15,
+    -0.2
    ],
    "map": [
     [
-     50,
-     0
+     800,
+     0.0
     ],
     [
-     250,
-     120
+     1800,
+     160.0
     ]
    ],
-   "model": 50,
+   "model": 800,
    "unit": "degF",
-   "desc": "three-in-one (Ty 2026-11-04): its own third of the dial; E scale",
+   "desc": "EGT/CHT 2-1/4 in (Ty 2026-11-04 19:14); E scale",
    "extra": {
-    "rig_dial_ang0_deg": 30
+    "rig_dial_ang0_deg": -80.0
    },
    "link": "",
    "note": ""
   },
   {
-   "node": "Needle_FuelF_F",
-   "param": "fuel_flow_gph",
+   "node": "Needle_CHT_R",
+   "param": "cht_f",
    "parent": null,
    "kind": "rot",
    "axis_gltf": [
@@ -13254,25 +6774,25 @@
     0.0
    ],
    "pivot_gltf": [
-    0.1508,
-    0.271,
-    -0.215
+    1.1758,
+    0.15,
+    -0.2
    ],
    "map": [
     [
-     0,
-     0
+     100,
+     0.0
     ],
     [
-     40,
-     -60
+     500,
+     160.0
     ]
    ],
-   "model": 0,
-   "unit": "gph",
-   "desc": "three-in-one (Ty 2026-11-04): its own third of the dial; E scale",
+   "model": 100,
+   "unit": "degF",
+   "desc": "EGT/CHT 2-1/4 in (Ty 2026-11-04 19:14); E scale",
    "extra": {
-    "rig_dial_ang0_deg": 210
+    "rig_dial_ang0_deg": 100.0
    },
    "link": "",
    "note": ""
@@ -13369,45 +6889,6 @@
  "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.",
  "controls": [
   {
-   "node": "Ctl_Rotary_Magneto",
-   "param": "magneto",
-   "kind": "Rotary",
-   "seat": "Rear",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    0.27149996510728186
-   ],
-   "travel": 130,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    4
-   ],
-   "detents": [
-    0,
-    1,
-    2,
-    3,
-    4
-   ],
-   "detent_count": 5,
-   "spring_return": true,
-   "spring_return_from": 4,
-   "spring_return_to": 3,
-   "poke": "Poke_Magneto",
-   "grip": "Grip_Magneto",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
    "node": "Ctl_Toggle_Master",
    "param": "master",
    "kind": "Toggle",
@@ -13420,7 +6901,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.2341999720858255
+    0.27149999999999996
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -13441,7 +6922,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "extra_front_seat: the six labelled switches, one row (Ty 19:08)",
+   "label": "MASTER"
   },
   {
    "node": "Ctl_Toggle_FuelPump",
@@ -13456,7 +6938,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    0.19689997906436912
+    0.085
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -13477,7 +6959,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "extra_front_seat: the six labelled switches, one row (Ty 19:08)",
+   "label": "FUEL PUMP"
   },
   {
    "node": "Ctl_Toggle_NavLights",
@@ -13492,7 +6975,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.19689997906436912
+    -0.085
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -13513,7 +6996,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "extra_front_seat: the six labelled switches, one row (Ty 19:08)",
+   "label": "NAV"
   },
   {
    "node": "Ctl_Toggle_Strobe",
@@ -13528,7 +7012,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.2341999720858255
+    -0.17825
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -13549,43 +7033,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight",
-   "param": "landing_light",
-   "kind": "Toggle",
-   "seat": "Rear",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.27149996510728186
-   ],
-   "travel": 40,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_LandingLight",
-   "grip": "Grip_LandingLight",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "extra_front_seat: the six labelled switches, one row (Ty 19:08)",
+   "label": "STROBE"
   },
   {
    "node": "Ctl_Toggle_Smoke",
@@ -13600,7 +7049,7 @@
    "pivot_gltf": [
     1.176,
     0.075,
-    -0.15959998604291276
+    -0.27149999999999996
    ],
    "travel": 40,
    "travel_unit": "deg",
@@ -13621,7 +7070,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "extra_front_seat: the six labelled switches, one row (Ty 19:08)",
+   "label": "SMOKE"
   },
   {
    "node": "Ctl_PushPull_Mixture",
@@ -13634,11 +7084,11 @@
     0.0
    ],
    "pivot_gltf": [
-    1.176,
-    0.075,
-    0.12229999302145639
+    1.287,
+    0.162,
+    0.326
    ],
-   "travel": 50,
+   "travel": 45,
    "travel_unit": "mm",
    "sim_ends": [
     0,
@@ -13654,7 +7104,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "extra_front_seat: vernier on the left wall beside the throttle, outboard of it, knob aft (Ty 19:13)",
+   "label": "MIXTURE"
   },
   {
    "node": "Ctl_PushPull_Prop",
@@ -13667,11 +7118,11 @@
     0.0
    ],
    "pivot_gltf": [
-    1.176,
-    0.075,
-    0.08500000000000002
+    1.287,
+    0.204,
+    0.326
    ],
-   "travel": 50,
+   "travel": 45,
    "travel_unit": "mm",
    "sim_ends": [
     0,
@@ -13687,25 +7138,26 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "extra_front_seat: vernier on the left wall beside the throttle, outboard of it, knob aft (Ty 19:13)",
+   "label": "PROP"
   },
   {
-   "node": "Ctl_PushPull_AlternateAir",
-   "param": "alternate_air",
-   "kind": "PushPull",
+   "node": "Ctl_Rotary_FuelSelector",
+   "param": "fuel_valve",
+   "kind": "Rotary",
    "seat": "Rear",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    1.176,
-    0.075,
-    0.15959998604291276
+    1.4,
+    0.045,
+    -0.284
    ],
-   "travel": 35,
-   "travel_unit": "mm",
+   "travel": 90,
+   "travel_unit": "deg",
    "sim_ends": [
     0,
     1
@@ -13718,82 +7170,13 @@
    "spring_return": false,
    "spring_return_from": 1,
    "spring_return_to": 0,
-   "poke": "Poke_AlternateAir",
-   "grip": "Grip_AlternateAir",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Rotary_Trim",
-   "param": "trim",
-   "kind": "Rotary",
-   "seat": "Rear",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.085
-   ],
-   "travel": 300,
-   "travel_unit": "deg",
-   "sim_ends": [
-    -1,
-    1
-   ],
-   "detents": [],
-   "detent_count": 0,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_Trim",
-   "grip": "Grip_Trim",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Rotary_FuelSelector",
-   "param": "fuel_selector",
-   "kind": "Rotary",
-   "seat": "Rear",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.176,
-    0.075,
-    -0.12229999302145637
-   ],
-   "travel": 180,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    2
-   ],
-   "detents": [
-    0,
-    1,
-    2
-   ],
-   "detent_count": 3,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
    "poke": "Poke_FuelSelector",
    "grip": "Grip_FuelSelector",
    "position_status": "E",
-   "sweep_radius_m": 0.04,
+   "sweep_radius_m": 0.11,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "Right wall, one fore/aft rod to the other cockpit; ON down, OFF 90 deg inboard (GL type, Ty 19:06)",
+   "label": "FUEL VALVE"
   },
   {
    "node": "Ctl_Rotary_ComOuter",
@@ -14272,620 +7655,59 @@
    "knob_scale": 0.45
   },
   {
-   "node": "Ctl_Rotary_Magneto_Front",
-   "param": "magneto",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.32824105308895724
-   ],
-   "travel": 130,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    4
-   ],
-   "detents": [
-    0,
-    1,
-    2,
-    3,
-    4
-   ],
-   "detent_count": 5,
-   "spring_return": true,
-   "spring_return_from": 4,
-   "spring_return_to": 3,
-   "poke": "Poke_Magneto_Front",
-   "grip": "Grip_Magneto_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Toggle_Master_Front",
-   "param": "master",
-   "kind": "Toggle",
-   "seat": "Front",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.2795928424711658
-   ],
-   "travel": 40,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_Master_Front",
-   "grip": "Grip_Master_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Toggle_FuelPump_Front",
-   "param": "fuel_pump",
-   "kind": "Toggle",
-   "seat": "Front",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.23094463185337435
-   ],
-   "travel": 40,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_FuelPump_Front",
-   "grip": "Grip_FuelPump_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Toggle_NavLights_Front",
-   "param": "nav_lights",
-   "kind": "Toggle",
-   "seat": "Front",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.23094463185337433
-   ],
-   "travel": 40,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_NavLights_Front",
-   "grip": "Grip_NavLights_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Toggle_Strobe_Front",
-   "param": "strobe",
-   "kind": "Toggle",
-   "seat": "Front",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.2795928424711658
-   ],
-   "travel": 40,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_Strobe_Front",
-   "grip": "Grip_Strobe_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Toggle_LandingLight_Front",
-   "param": "landing_light",
-   "kind": "Toggle",
-   "seat": "Front",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.32824105308895724
-   ],
-   "travel": 40,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_LandingLight_Front",
-   "grip": "Grip_LandingLight_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Toggle_Smoke_Front",
-   "param": "smoke",
-   "kind": "Toggle",
-   "seat": "Front",
-   "axis_gltf": [
-    0.0,
-    0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.18229642123558287
-   ],
-   "travel": 40,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_Smoke_Front",
-   "grip": "Grip_Smoke_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_PushPull_Mixture_Front",
-   "param": "mixture",
-   "kind": "PushPull",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.13364821061779147
-   ],
-   "travel": 50,
-   "travel_unit": "mm",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [],
-   "detent_count": 0,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_Mixture_Front",
-   "grip": "Grip_Mixture_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_PushPull_Prop_Front",
-   "param": "prop",
-   "kind": "PushPull",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.08500000000000002
-   ],
-   "travel": 50,
-   "travel_unit": "mm",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [],
-   "detent_count": 0,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_Prop_Front",
-   "grip": "Grip_Prop_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_PushPull_AlternateAir_Front",
-   "param": "alternate_air",
-   "kind": "PushPull",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    0.18229642123558293
-   ],
-   "travel": 35,
-   "travel_unit": "mm",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_AlternateAir_Front",
-   "grip": "Grip_AlternateAir_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
-   "node": "Ctl_Rotary_Trim_Front",
-   "param": "trim",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.085
-   ],
-   "travel": 300,
-   "travel_unit": "deg",
-   "sim_ends": [
-    -1,
-    1
-   ],
-   "detents": [],
-   "detent_count": 0,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_Trim_Front",
-   "grip": "Grip_Trim_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
-  },
-  {
    "node": "Ctl_Rotary_FuelSelector_Front",
-   "param": "fuel_selector",
+   "param": "fuel_valve",
    "kind": "Rotary",
    "seat": "Front",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    0.151,
-    0.075,
-    -0.13364821061779145
+    0.5,
+    0.045,
+    -0.284
    ],
-   "travel": 180,
+   "travel": 90,
    "travel_unit": "deg",
    "sim_ends": [
     0,
-    2
+    1
    ],
    "detents": [
     0,
-    1,
-    2
+    1
    ],
-   "detent_count": 3,
+   "detent_count": 2,
    "spring_return": false,
    "spring_return_from": 1,
    "spring_return_to": 0,
    "poke": "Poke_FuelSelector_Front",
    "grip": "Grip_FuelSelector_Front",
    "position_status": "E",
-   "sweep_radius_m": 0.04,
+   "sweep_radius_m": 0.11,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: the one switch row along the panel bottom"
+   "placement": "Right wall, one fore/aft rod to the other cockpit; ON down, OFF 90 deg inboard (GL type, Ty 19:06)",
+   "label": "FUEL VALVE"
   },
   {
-   "node": "Ctl_Rotary_ComOuter_Front",
-   "param": "com_standby_mhz",
-   "kind": "Rotary",
-   "seat": "Front",
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "kind": "Toggle",
+   "seat": "Rear",
    "axis_gltf": [
-    -1.0,
     0.0,
-    0.0
+    0.0,
+    1.0
    ],
    "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
+    1.176,
+    0.075,
+    0.17825
    ],
-   "travel": 540,
+   "travel": 40,
    "travel_unit": "deg",
-   "sim_ends": [
-    118,
-    136
-   ],
-   "detents": [
-    118,
-    119,
-    120,
-    121,
-    122,
-    123,
-    124,
-    125,
-    126,
-    127,
-    128,
-    129,
-    130,
-    131,
-    132,
-    133,
-    134,
-    135,
-    136
-   ],
-   "detent_count": 19,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_ComOuter_Front",
-   "grip": "Grip_ComOuter_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "increment",
-   "step": 1,
-   "wrap": [
-    118,
-    136.975
-   ],
-   "placement": "extra_cockpit_shared: on the COM head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_Rotary_ComInner_Front",
-   "param": "com_standby_mhz",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.19
-   ],
-   "travel": 360,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    0.975
-   ],
-   "detents": [
-    0.0,
-    0.025,
-    0.05,
-    0.07500000000000001,
-    0.1,
-    0.125,
-    0.15000000000000002,
-    0.17500000000000002,
-    0.2,
-    0.225,
-    0.25,
-    0.275,
-    0.30000000000000004,
-    0.325,
-    0.35000000000000003,
-    0.375,
-    0.4,
-    0.42500000000000004,
-    0.45,
-    0.47500000000000003,
-    0.5,
-    0.525,
-    0.55,
-    0.5750000000000001,
-    0.6000000000000001,
-    0.625,
-    0.65,
-    0.675,
-    0.7000000000000001,
-    0.7250000000000001,
-    0.75,
-    0.775,
-    0.8,
-    0.8250000000000001,
-    0.8500000000000001,
-    0.875,
-    0.9,
-    0.925,
-    0.9500000000000001,
-    0.9750000000000001
-   ],
-   "detent_count": 40,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_ComInner_Front",
-   "grip": "Grip_ComInner_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "increment_fraction",
-   "step": 0.025,
-   "alternative_step_mhz": 0.008333333333333333,
-   "channel_spacing_requires_owner_choice": true,
-   "placement": "extra_cockpit_shared: on the COM head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_Rotary_ComVolume_Front",
-   "param": "com_volume",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.301,
-    0.21999999999999997
-   ],
-   "travel": 270,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [],
-   "detent_count": 0,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_ComVolume_Front",
-   "grip": "Grip_ComVolume_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: on the COM head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_PushPull_ComSwap_Front",
-   "param": "com_swap",
-   "kind": "PushPull",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.312,
-    0.1815
-   ],
-   "travel": 4,
-   "travel_unit": "mm",
    "sim_ends": [
     0,
     1
@@ -14895,284 +7717,16 @@
     1
    ],
    "detent_count": 2,
-   "spring_return": true,
+   "spring_return": false,
    "spring_return_from": 1,
    "spring_return_to": 0,
-   "poke": "Poke_ComSwap_Front",
-   "grip": "Grip_ComSwap_Front",
+   "poke": "Poke_Alternator",
+   "grip": "Grip_Alternator",
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "extra_cockpit_shared: on the COM head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit1_Front",
-   "param": "xpdr_squawk",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2185
-   ],
-   "travel": 315,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    7
-   ],
-   "detents": [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
-   ],
-   "detent_count": 8,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_XpdrDigit1_Front",
-   "grip": "Grip_XpdrDigit1_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "octal_digit",
-   "digit_place": 1000,
-   "wrap": [
-    0,
-    7
-   ],
-   "placement": "extra_cockpit_shared: on the XPDR head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit2_Front",
-   "param": "xpdr_squawk",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.2095
-   ],
-   "travel": 315,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    7
-   ],
-   "detents": [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
-   ],
-   "detent_count": 8,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_XpdrDigit2_Front",
-   "grip": "Grip_XpdrDigit2_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "octal_digit",
-   "digit_place": 100,
-   "wrap": [
-    0,
-    7
-   ],
-   "placement": "extra_cockpit_shared: on the XPDR head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit3_Front",
-   "param": "xpdr_squawk",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.20049999999999998
-   ],
-   "travel": 315,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    7
-   ],
-   "detents": [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
-   ],
-   "detent_count": 8,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_XpdrDigit3_Front",
-   "grip": "Grip_XpdrDigit3_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "octal_digit",
-   "digit_place": 10,
-   "wrap": [
-    0,
-    7
-   ],
-   "placement": "extra_cockpit_shared: on the XPDR head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_Rotary_XpdrDigit4_Front",
-   "param": "xpdr_squawk",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.2125,
-    0.19149999999999998
-   ],
-   "travel": 315,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    7
-   ],
-   "detents": [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
-   ],
-   "detent_count": 8,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_XpdrDigit4_Front",
-   "grip": "Grip_XpdrDigit4_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "octal_digit",
-   "digit_place": 1,
-   "wrap": [
-    0,
-    7
-   ],
-   "placement": "extra_cockpit_shared: on the XPDR head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_Rotary_XpdrMode_Front",
-   "param": "xpdr_mode",
-   "kind": "Rotary",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.1805
-   ],
-   "travel": 90,
-   "travel_unit": "deg",
-   "sim_ends": [
-    0,
-    3
-   ],
-   "detents": [
-    0,
-    1,
-    2,
-    3
-   ],
-   "detent_count": 4,
-   "spring_return": false,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_XpdrMode_Front",
-   "grip": "Grip_XpdrMode_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: on the XPDR head",
-   "knob_scale": 0.45
-  },
-  {
-   "node": "Ctl_PushPull_XpdrIdent_Front",
-   "param": "xpdr_ident",
-   "kind": "PushPull",
-   "seat": "Front",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    0.151,
-    0.23650000000000002,
-    0.22949999999999998
-   ],
-   "travel": 4,
-   "travel_unit": "mm",
-   "sim_ends": [
-    0,
-    1
-   ],
-   "detents": [
-    0,
-    1
-   ],
-   "detent_count": 2,
-   "spring_return": true,
-   "spring_return_from": 1,
-   "spring_return_to": 0,
-   "poke": "Poke_XpdrIdent_Front",
-   "grip": "Grip_XpdrIdent_Front",
-   "position_status": "E",
-   "sweep_radius_m": 0.04,
-   "semantics": "absolute",
-   "placement": "extra_cockpit_shared: on the XPDR head",
-   "knob_scale": 0.45
+   "placement": "extra_front_seat: the six labelled switches, one row (Ty 19:08)",
+   "label": "ALT"
   }
  ],
  "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs.",
@@ -15314,6 +7868,18 @@
       "bezel_radius_m": 0.031575,
       "face": "Face_P3g_Trig_XPDR_R",
       "needles": []
+     },
+     {
+      "gauge": "Temps",
+      "u": 0.2,
+      "v": 0.15,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
+      "face": "Face_P3h_Temps_R",
+      "needles": [
+       "Needle_EGT_R",
+       "Needle_CHT_R"
+      ]
      }
     ],
     "outline_zw": [
@@ -15584,10 +8150,10 @@
     "gauges": [
      {
       "gauge": "ASI",
-      "u": -0.115,
-      "v": 0.316,
-      "case_inches": 3.125,
-      "bezel_radius_m": 0.0426875,
+      "u": -0.075,
+      "v": 0.3,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
       "face": "Face_P3b_ASI_F",
       "needles": [
        "Needle_ASI_F"
@@ -15595,10 +8161,10 @@
      },
      {
       "gauge": "Altimeter",
-      "u": 0.115,
-      "v": 0.316,
-      "case_inches": 3.125,
-      "bezel_radius_m": 0.0426875,
+      "u": 0.075,
+      "v": 0.3,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
       "face": "Face_P3b_Altimeter_F",
       "needles": [
        "Needle_Alt100_F",
@@ -15606,353 +8172,27 @@
       ]
      },
      {
-      "gauge": "TC",
-      "u": 0.115,
-      "v": 0.2255,
-      "case_inches": 3.125,
-      "bezel_radius_m": 0.0426875,
-      "face": "Face_P3b_TC_F",
-      "needles": [
-       "Needle_TC_F",
-       "Ball_TC_F"
-      ]
-     },
-     {
       "gauge": "G",
-      "u": -0.115,
-      "v": 0.2255,
-      "case_inches": 3.125,
-      "bezel_radius_m": 0.0426875,
+      "u": 0.0,
+      "v": 0.3,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
       "face": "Face_P3b_G_F",
       "needles": [
        "Needle_G_F",
        "Needle_GMax_F",
        "Needle_GMin_F"
       ]
-     },
-     {
-      "gauge": "Tach",
-      "u": -0.14,
-      "v": 0.135,
-      "case_inches": 3.125,
-      "bezel_radius_m": 0.0426875,
-      "face": "Face_P3b_Tach_F",
-      "needles": [
-       "Needle_Tach_F"
-      ]
-     },
-     {
-      "gauge": "MP",
-      "u": -0.045,
-      "v": 0.135,
-      "case_inches": 3.125,
-      "bezel_radius_m": 0.0426875,
-      "face": "Face_P3b_MP_F",
-      "needles": [
-       "Needle_MP_F"
-      ]
-     },
-     {
-      "gauge": "Oil",
-      "u": 0.215,
-      "v": 0.271,
-      "case_inches": 3.125,
-      "bezel_radius_m": 0.0426875,
-      "face": "Face_P3b_Oil_F",
-      "needles": [
-       "Needle_OilP_F",
-       "Needle_OilT_F",
-       "Needle_FuelF_F"
-      ],
-      "gauge_label": "three-in-one: oil P / oil T / fuel flow"
-     },
-     {
-      "gauge": "Amps",
-      "u": 0.11,
-      "v": 0.135,
-      "case_inches": 2.25,
-      "bezel_radius_m": 0.031575,
-      "face": "Face_P3b_Amps_F",
-      "needles": [
-       "Needle_Amps_F"
-      ]
-     },
-     {
-      "gauge": "FuelComputer",
-      "u": 0.04,
-      "v": 0.135,
-      "case_inches": 2.25,
-      "bezel_radius_m": 0.031575,
-      "face": "Face_P3g_FuelComputer_F",
-      "needles": []
-     },
-     {
-      "gauge": "Trig_COM",
-      "u": -0.205,
-      "v": 0.316,
-      "case_inches": 2.25,
-      "bezel_radius_m": 0.031575,
-      "face": "Face_P3g_Trig_COM_F",
-      "needles": []
-     },
-     {
-      "gauge": "Trig_XPDR",
-      "u": -0.205,
-      "v": 0.2255,
-      "case_inches": 2.25,
-      "bezel_radius_m": 0.031575,
-      "face": "Face_P3g_Trig_XPDR_F",
-      "needles": []
      }
     ],
     "outline_zw": [
      [
-      0.055,
-      0.3655
-     ],
-     [
-      0.06,
-      0.3629
-     ],
-     [
-      0.065,
-      0.3604
-     ],
-     [
-      0.07,
-      0.3579
-     ],
-     [
-      0.075,
-      0.3553
-     ],
-     [
-      0.08,
-      0.3528
-     ],
-     [
-      0.085,
-      0.3502
-     ],
-     [
-      0.09,
-      0.3477
-     ],
-     [
-      0.095,
-      0.3452
-     ],
-     [
-      0.1,
-      0.3426
-     ],
-     [
-      0.105,
-      0.3401
-     ],
-     [
-      0.11,
-      0.3375
-     ],
-     [
-      0.115,
-      0.335
-     ],
-     [
-      0.12,
-      0.3325
-     ],
-     [
-      0.125,
-      0.3313
-     ],
-     [
-      0.13,
-      0.3307
-     ],
-     [
-      0.135,
-      0.3301
-     ],
-     [
-      0.14,
-      0.3296
-     ],
-     [
-      0.145,
-      0.329
-     ],
-     [
-      0.15,
-      0.3285
-     ],
-     [
-      0.155,
-      0.3279
-     ],
-     [
-      0.16,
-      0.3273
-     ],
-     [
-      0.165,
-      0.3268
-     ],
-     [
-      0.17,
-      0.3262
-     ],
-     [
-      0.175,
-      0.3256
-     ],
-     [
-      0.18,
-      0.3251
-     ],
-     [
-      0.185,
-      0.3245
-     ],
-     [
-      0.19,
-      0.324
-     ],
-     [
-      0.195,
-      0.2904
-     ],
-     [
-      0.2,
-      0.2857
-     ],
-     [
-      0.205,
-      0.2848
-     ],
-     [
-      0.21,
-      0.2847
-     ],
-     [
-      0.215,
-      0.2875
-     ],
-     [
-      0.22,
-      0.3206
-     ],
-     [
-      0.225,
-      0.2878
-     ],
-     [
-      0.23,
-      0.2851
-     ],
-     [
-      0.235,
-      0.2841
-     ],
-     [
-      0.24,
-      0.2871
-     ],
-     [
       0.245,
-      0.3178
-     ],
-     [
-      0.25,
-      0.3172
-     ],
-     [
-      0.255,
-      0.3166
-     ],
-     [
-      0.26,
-      0.3987
-     ],
-     [
-      0.265,
-      0.3919
-     ],
-     [
-      0.27,
-      0.3852
-     ],
-     [
-      0.275,
-      0.3793
-     ],
-     [
-      0.28,
-      0.3735
-     ],
-     [
-      0.285,
-      0.3674
-     ],
-     [
-      0.29,
-      0.3613
-     ],
-     [
-      0.295,
-      0.3552
-     ],
-     [
-      0.3,
-      0.3491
-     ],
-     [
-      0.305,
-      0.3188
-     ],
-     [
-      0.31,
-      0.3167
-     ],
-     [
-      0.315,
-      0.3091
-     ],
-     [
-      0.32,
-      0.3031
-     ],
-     [
-      0.325,
-      0.3013
-     ],
-     [
-      0.33,
-      0.3037
-     ],
-     [
-      0.335,
-      0.3115
-     ],
-     [
-      0.34,
-      0.3064
-     ],
-     [
-      0.345,
-      0.3013
-     ],
-     [
-      0.35,
-      0.2962
+      0.125
      ],
      [
       0.355,
-      0.2913
-     ],
-     [
-      0.36,
-      0.2595
+      0.125
      ]
     ]
    }

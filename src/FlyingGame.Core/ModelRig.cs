@@ -157,6 +157,11 @@ public struct RigInputs
     public double PropLever, Mixture;
     /// <summary>Fuel selector detent (the Extra's 0 / 1 / 2).</summary>
     public double FuelSelector;
+    /// <summary>Fuel shut-off valve (the Great Lakes' and the Extra's red lever): 1 ON, 0 OFF. One param for both
+    /// cockpits' levers, which are on one shaft: moving either moves both.</summary>
+    public double FuelValve;
+    /// <summary>Alternator field switch, 0 or 1.</summary>
+    public double Alternator;
     /// <summary>Ignition key position: 0 OFF, 1 R, 2 L, 3 BOTH, 4 START.</summary>
     public double Magneto;
     /// <summary>J-3 primer plunger: 0 in and locked .. 1 pulled out 50 mm. No priming system reads it yet; it stays 0
@@ -304,6 +309,8 @@ public struct RigInputs
             PropLever = 1.0,        // fine pitch
             Mixture = 1.0,          // rich
             FuelSelector = 1.0,     // on
+            FuelValve = 1.0,        // on
+            Alternator = 1.0,
             Magneto = 3.0,          // BOTH
             Master = 1.0,
             CanopyLock = 1.0,       // closed and locked
@@ -338,6 +345,8 @@ public struct RigInputs
             case "prop": value = PropLever; return true;
             case "mixture": value = Mixture; return true;
             case "fuel_selector": value = FuelSelector; return true;
+            case "fuel_valve": value = FuelValve; return true;
+            case "alternator": value = Alternator; return true;
             case "magneto": value = Magneto; return true;
             case "primer": value = Primer; return true;
             case "master": value = Master; return true;
