@@ -1,6 +1,29 @@
 ## NEEDS YOU
 
 <!-- wheel-skis needs-you -->
+## NEEDS YOU — hinged wheel-skis + shared WHEELS/SKIS selector: REVIEW THE RENDERS (Claude, 2026-11-05)
+Lane lane/claude-wheel-skis (from island-nav 938a865c). Ty 07:58/07:59: wheel-skis on every aeroplane, a wheels/skis
+selector in the cockpit, skis rotate forward and up when raised, down and aft when lowered, tyre ON TOP of the lowered ski.
+- **Ty, please look:** `~/Developer/agent-lanes/renders/wheel-skis/README.md` (Super Cub / C172 / J-3 exterior raised,
+  half and lowered; the selector from the seat eye in the C172, J-3 and Pitts). Questions Q079–Q083.
+- **Built, not installed, not merged:** iOS 2026.1105.1405 ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL; Unity batch
+  (WheelSkiShots) 0 error CS, PASS; `check-parity.sh --strict` PARITY: OK. Commits 9c83ca90, 20e14e82, f10cdc0f. Nothing
+  approved by me.
+- **Mechanism (docs/WHEEL-SKIS.md):** each wheel's ski hangs from its axle on parallel links. SKIS = links 12 deg over
+  centre, the tyre sits on solid ski; WHEELS = links 80 deg forward, ski 30 cm forward and 20 cm up (Cub), the tyre down
+  through a slot SWEPT from the kinematics. Whichever of ski bottom / tyre is deeper bears the leg: no surface rule, no
+  per-type pose. Brakes do nothing on lowered skis. Ski on pavement scrapes (Cub 12.7 m from 8 m/s vs 52 m on snow);
+  skis up on snow = wheel plane. Weight (Cub 31 kg, Beaver 61 kg) with CG + inertia; drag (Cub 0.167 m2).
+- **Selector:** one shared part (Core SkiSelectorPart + Bridge SkiSelectorLever only; a test fails if any aircraft
+  builds its own), placed by `seats[].skiSelector` anchors MEASURED on the GLBs (WheelSkiShots WS_MEASURE): C172 lower
+  panel left of the yoke, J-3 left wall low beside the rear seat, Pitts rear panel under the G-meter; other types a
+  default offset from the eye. Lever = command, lamps = WHEELS / TRANSIT / SKIS. Click / tap / GEAR-slot SKIS UP-DOWN
+  button / L key / Quest poke or grip. Quest menu Gear row (wheels / bushwheels / wheel-skis).
+- **Tests:** WheelSkiHingeTests 55/55. Also failing on base 938a865c, not mine: GlacierLandingZoneTests x7,
+  WheelSkiTests.ACubOnSkisCanBePutOnTheKnikAndStop, OnSnowASkiRunsOnAfterTheWheelHasStopped(pa18-cub-like), and
+  NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs (its `grob` pattern catches the tracked Grob 103 GLBs; not weakened).
+- **Open:** lowered ski on water not modelled; the ski is a box placeholder in form (geometry/motion are the point).
+
 ## NEEDS YOU — hinged wheel-skis + shared WHEELS/SKIS selector: NOT YET BUILT OR RENDERED (Claude, 2026-11-05)
 Lane lane/claude-wheel-skis (from island-nav 938a865c). Ty 07:58/07:59: wheel-skis on every aeroplane, a wheels/skis
 selector in the cockpit, skis rotate forward and up when raised, down and aft when lowered, tyre ON TOP of the lowered ski.
