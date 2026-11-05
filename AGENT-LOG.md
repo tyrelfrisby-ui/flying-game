@@ -77,6 +77,66 @@
      **Answer (b), Ty 2026-11-04 16:04 PT: the reinforced OSB 315-66 version: 280 km/h, full aerobatics (as built).**
      **Answer (c), Ty 2026-11-04 16:04 PT: no figures; empty mass/CG, control travels and station chords stay estimated and FLAGGED.**
      **Answer (d), Ty 2026-11-04 16:04 PT: the nose wheel steers (standard from s/n 34171): implement real nose wheel steering.**
+
+- **2026-11-04 lane/codex-grob103 — NEEDS YOU: Blanc v2 18 m model / render review. No gate marked approved.**
+  Ty approved the Blanc conversion and eyes on 2026-11-03; v2 visual acceptance remains PENDING.
+  Both original GLBs measured **18.000044823 m**, so blanc-v1's span claim was correct and Claude's
+  handoff claim of a 17.5 m GLB was stale. Existing planform measured 17.232331 m²; chord scaled
+  ×1.0155329673 with span retained. Both new exports: **18.000045776 m span / 17.500000169 m²**.
+  Area uses section integration with .45 m root-section extrapolation through the hidden centre.
+  Ailerons |Y| 5.17–8.68, upper-only Type GROB panels 2.43–3.91, tip skids Y ±8.9 m;
+  Spoiler/Aileron pivots and axis markers follow the new geometry.
+  Level-frame tyre-bottom contacts in author X/Y/Z metres: nose (+1.4595,0,-.600),
+  main (-.5397,0,-.600), tail (-4.8768,0,-.260). Nose moved from +1.700 to match the config.
+  Original rounded tyre sizes retained, fillets in skin, tyre bottoms exposed, no pants.
+  Nose/main common ground tangent leaves tail .340 m clear; main/tail rigid-circle support
+  is 4.487° from level with .1567 m nose clearance. No compression/dynamics claim.
+  Added scene-root **Nose_Steering**, `rudder`, `rot`, **±25° ESTIMATED (no published figure)**,
+  vertical fork axis, independent axis marker and one fork/tyre/hub assembly child.
+  All original 29 names/maps/hierarchy/extra fields and approved eye world transforms preserved.
+  Files: both existing GLB filenames, grob103-own-rig.json/RIG.md, asset CREDITS.md (LICENSE.txt
+  retained), build_grob103_18m.py, grob103_metrics.py, updated Grob checkers/overlay helper,
+  render_grob103_18m.py; renders/manifests/validation in `renders/grob103/blanc-18m/`.
+  Copies: `/Users/tyfrisby/Developer/agent-lanes/renders/grob103/18m/`.
+  Checks PASS both exports: check_grob103_blanc.py, check_grob103.py; 30-node rig, control
+  motion, area/span/stations/upper-only panels/skids, wheel dimensions/contacts, graph/UV/normals,
+  2,016 cockpit pairs and 1,608 envelope samples each; old rig/eyes independently compared.
+  Sights NOT APPLICABLE (no Grob in sights-spec.json). Both filenames keep v1's white/red finish.
+  **GAP:** requested Blender studio renders could not run: required 5.2.2 binary crashes in Metal
+  capability detection before Python; sandbox refuses nice's priority adjustment. CPU fallback
+  renders instead supply all nine requested views plus labelled contact sheet; renderer disclosed
+  in images/manifests. No Unity/device verification. POH overlay regenerated, uniform scale,
+  approximate registration; visible contour mismatch is not certified as a pass.
+  Other estimates: source wing loft/centre area, fork, airbrake construction, skid and vertical gear
+  detail. Claude config still says nose isSteerable=false/main radius .200 m; Ty's steering decision
+  is implemented visually, retained main tyre radius .220 m. No physics/runtime files changed.
+  Local commit only; no merge, install, deployment, Unity or xcodebuild. Attribution remains CC BY-SA.
+- **2026-11-03 lane/codex-grob103 — GROB TARGET IS NOW THE G 103 C TWIN III ACRO; TY'S CRITIQUE; GEAR CONFLICT, DECISION NEEDED (Grok Bot):**
+  Target changed from Twin II Acro to the **G 103 C TWIN III ACRO, aerobatic category, OSB 315-66 fuselage
+  stiffening done, so full aerobatic limits apply: FAA TCDS G39EU Vne 151 kt, Va 100 kt, max weight 600 kg.**
+  Primary references: POH https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/grob_g-103-c-twiniii-acro-poh.pdf
+  and TCDS https://utahsoaring.org/wp-content/uploads/2024/04/2014-TDSC-G39EU.pdf (POH 1.4: span 18.0 m, length
+  8.18 m, height 1.55 m, 17.5 m², 600 kg). Ty's critique of our model: (1) canopy too bulbous and too big;
+  (2) tires squared off instead of rounded, and no wheel fairing. **Gear conflict:** Ty asked for retractable gear,
+  but POH 1.4 ("non-retractable tandem landing gear", hydraulic disc brake on main, nose wheel steerable from
+  S/N 34171), EASA TCDS A.250 section N ("fixed tandem landing gear") and AAIB 2/2023 G-CFWC ("three
+  non-retractable wheels") all say the Twin III Acro has **FIXED** main + nose + tail wheels, no well or doors.
+  Retractable main gear existed only on the original 1976 G 103 Twin Astir. **Your call: model fixed gear as built
+  (recommended) or retractable anyway?** Ty's glider fairing rule (all gliders) is recorded verbatim in the log
+  section below. No code or model changed; the fix waits for Ty. Details and numbers: section
+  "2026-11-03 — lane/codex-grob103: Twin III Acro target, Ty critique, reference comparison" at the end of this file.
+- **2026-11-01 lane/codex-grob103 — GROB OWN MODEL / COCKPIT, VISUAL REVIEW NEEDED (Codex):**
+  Original white and Talk Flying GLBs are in `Resources/Models/glider-grob103-acro-like/`;
+  review `renders/grob103-own/` (both real seat eyes, left/right controls, panels, exterior and full throws).
+  Published span/length/height are met; 66 mm head clearance passes. No gate approved or Unity run.
+  Assumptions: split static canopy from OE-5279 openings; opening hinge direction UNCONFIRMED;
+  panel/seat/handle locations, seat posture, root blending, dihedral, gear fairings and detail plumbing are
+  estimates; simplified E603 interpolation and tails; white/red fictional N103TF and white/navy TALK FLYING
+  are authored liveries. Yellow right-side jettison follows Ty's request, while manual says red BOTH sides.
+  Review canopy/pod depth, tailplane height and root contacts against the manual overlays in ignored
+  `assets-incoming/ref-grob103/review-overlays/` (source pixels never ship). Blender startup crashed;
+  renders use CPU. Datum-relative proposed eyes still need Claude's CG/placement rebase. See provenance
+  for every measurement, known mismatch and check scope; binding is intentionally a handoff below.
 - **GROB G 103 ACRO (TWIN II ACRO) — AEROBATIC GLIDER, IN PROGRESS, REVIEW BEFORE MERGE (Grok Bot, 2026-11-01,
   lane/claude-grob103 + lane/codex-grob103, both off d0986c0):** Ty chose to keep the progression blocked until a
   real aerobatic glider exists and asked for it to be built; the Grob 103 Acro is the pick (two seats, instructor
@@ -3937,3 +3997,125 @@ Restored the matching v13.1 Great Lakes builder integration from local cockpit c
 Rebuilt the requested `great-lakes-like-own.glb` through `build_great_lakes.py --offline-update`, using the immutable v13.1 generated cockpit GLB at the commit above and applying the current sequence-card/sight geometry. Blender 5.2.2 crashes in Metal device detection before Python in this sandbox; no fresh Blender export or Unity runtime validation is claimed. The full Blender builder is restored for subsequent exports. Existing alternate-livery GLBs and their offline base behavior are unchanged; this urgent asset repair targets the explicitly requested default GLB. Existing GLB `.meta` retained; no new Unity asset introduced. Glass Overlay untouched.
 
 Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against the runtime rig table, expected parents and world pivots (0.11 mm tolerance), rig parameters, moving mesh descendants, prop/spinner, eyes, avionics displays, sequence card and sights; all nodes have identity rotation and unit scale, with nose -x, up +y and span z. Offline rebuild repeated with identical SHA-256 `0e556105a076cca100ef014f315a2cbc67a10abe41705ed37b1a35cfdbc7653f`. Python syntax compilation and `git diff --check` pass. Required tracked-file ignore audit printed nothing. Commit attempt blocked at `git add`: sandbox denies creation of `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-greatlakes-rig/index.lock` outside writable roots. Files remain unstaged; no commit, push, merge, deployment, or forced add occurred.
+
+
+## [codex -> claude] HANDOFF — Grob 103 own model and cockpit (2026-11-01)
+
+- Worktree/branch `lane/codex-grob103`, no commit made. No aircraft config, Sim, Unity script or Glass
+  Overlay changes. Original NEEDS YOU entry from 594644f retained. Source `tools/own_models/build_grob103.py`
+  plus cockpit/dials/check/render/overlay helpers; review details in `docs/models/grob103-own-{PROVENANCE,RIG}.md`.
+- Assets: `unity/Assets/_Project/Resources/Models/glider-grob103-acro-like/glider-grob103-acro-like-own.glb`
+  and `...-own-tf.glb`, original importer metadata, LICENSE. Same geometry in both liveries.
+- **Binding still required by your lane:** `AirframeModels.OwnSpecs` currently has NO Grob id; use the
+  SGS convention `new Spec(Vector3.right, Vector3.up, namedSurfaces: true)` and appropriate PickOwn policy.
+  `FlyingGame.Core.LiveryChoice` needs factory/talk-flying options and `-own-tf` suffix routing for this id.
+  `AirframeBuilder.TryPlaceModel` in `AirframeVisual.cs` binds the table using `PlacedOwnName`; a valid own
+  rig then bypasses carving. `ConfigSync` discovers `docs/models/grob103-own-rig.json` automatically by its
+  `model` field `glider-grob103-acro-like-own`. Do not write generated StreamingAssets mirrors by hand.
+  Check automatic span/outer-wing/ground alignment in Place; no successful in-game import is claimed here.
+- **Frame / alignment:** author metres +X forward, +Y port, +Z up; origin wing-root LE datum, NOT CG.
+  GLB = (−author X, author Z, author Y), nose −X / up +Y / port +Z. Wing LE (0,0,+.12 author Z).
+  Nose +2.50, rudder TE −5.68, tips ±8.75; measured 17.500 × 8.180 × 1.550 m span/length/height.
+  Choose your physics CG, then rebase all datum-relative points consistently, including any importer shifts.
+- **Contacts in BODY axes relative to this DATUM** (+X fwd,+Y right,+Z down): nose wheel
+  **(1.65,0,.67)**, main **(−.44,0,.67)**, tail-skid end approximately **(−5.45,0,.10)**.
+  Wheel centers author (1.65,0,−.51), radius .16; (−.44,0,−.45), radius .22. Fixed gear, no retraction.
+  These are modeled visual locations, not independently certified gear dimensions.
+- **Eyes in BODY axes relative to this DATUM:** student/front **(1.15,0,−.40)**, instructor/rear
+  **(−.04,0,−.45)**. Native GLB markers `Pilot_Eye_front` = (−1.15,.40,0), `Pilot_Eye_rear` = (.04,.45,0).
+  Front is proposed primary/solo. Both added to eyepoints.json with explicit NOT APPROVED / CG-rebase status.
+  Exported head-envelope clearance: front 101.06 mm / rear 106.97 mm, threshold 66 mm.
+- **Rig nodes:** `Aileron_L/R`, `Elevator_L/R`, `Rudder`, `Spoiler_L/R` (UPPER paddles translate +.170 m);
+  `Needle_ASI_F/R`, `Needle_Alt100_F/R`, `Needle_Alt1000_F/R`, `Needle_Vario_F/R`, `Compass_Card`;
+  `TorqueTube` (roll) > `Stick_F/R` (pitch) > grips; `Pedal_F_L/R`, `Pedal_R_L/R`,
+  `DiveBrake_Lever_F/R`, `Trim_Lever_F/R`, `TowRelease_F/R`. 29 driven nodes, each with `_HingeAxis` witness;
+  `Airbrake_Cap_L/R` are spoiler children. Full rest pivots/axes/maps are in the rig JSON and RIG.md.
+  Aileron asin(90/208) up / asin(50/208) down; elevator asin(3.82/9.45) / asin(2.99/9.45), rudder ±asin(233/450). No lower spoiler nodes.
+  ASI face reads km/h but drives existing **airspeed_kias**, map conversion 1.852; no new runtime param.
+  Compass wraps and altimeters extrapolate in both GLB extras and rig JSON extras.
+- **Verification:** check script passes both assets (graph/hinges/dimensions/head/BLEND/materialized geometry
+  parity; 2,145 independent cockpit-part pairs and 1,680 exterior-envelope samples each). Deliberate seat/harness/grip contacts and shell/liner
+  interfaces are documented exclusions, not blanket collision certification. Both extrema rendered.
+  No GPS/moving map/position display. Canopies static; hinge direction unconfirmed. Yellow jettison versus
+  manual red is explicitly for Ty's review. Overlay conformance/visual acceptance remains pending.
+
+## 2026-11-03 — lane/codex-grob103: Twin III Acro target, Ty critique, reference comparison (Grok Bot)
+**Target change.** The Grob model now targets the **G 103 C TWIN III ACRO** in the aerobatic category with
+**OSB 315-66 fuselage stiffening done**, so full aerobatic limits apply. FAA TCDS G39EU (Rev 9, 2014) section IV:
+**Vne 151 kt, Va 100 kt, max weight 600 kg**. Primary references:
+- POH: https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/grob_g-103-c-twiniii-acro-poh.pdf
+- TCDS: https://utahsoaring.org/wp-content/uploads/2024/04/2014-TDSC-G39EU.pdf
+- Supporting: EASA TCDS A.250 sec N; AAIB Bulletin 2/2023 G-CFWC; navboys.com glider wheel/tyre table.
+POH 1.4: span 18.0 m (our model and provenance used the Twin II 17.5 m), length 8.18 m, height 1.55 m, AR 18.5,
+17.5 m², 600 kg; two canopies open independently to the right.
+
+**Ty's critique (2026-11-03).** 1. The canopy is too bulbous and too big. 2. The tires are squared off instead of
+rounded, and there is no wheel fairing. 3. Gear question: retractable or fixed?
+
+**Gear findings.** Fixed, non-retractable tandem gear (POH 1.4, EASA A.250 N, AAIB): no gear well or doors.
+- Main: Cleveland 40-97A wheel, **6.00-6** tyre (about 0.44 m dia, 0.15 m wide, round balloon section), hydraulic
+  disc brake, 2.5-2.8 bar (36-40 psi). Centre about 2.90 m aft of the nose; about 0.12 m of tyre below the keel.
+- Nose: 4 in wheel 85-20, **260x85** tyre (0.26 m dia, 0.085 m wide), 2.5 bar; steerable from S/N 34171
+  (103SL-5100). Centre about 0.80 m aft of the nose; about 0.10 m below the keel.
+- Tail: Moritz 50-20, **210x65** tyre, 2.5 bar. Centre about 7.1 m aft of the nose; about 0.07 m below the boom.
+- Retractable main gear (5.00-5 tyre) existed only on the original G 103 Twin Astir, not on the Twin II or Twin III.
+
+**Ty's rule for all gliders (verbatim):** "A glider's wheel fairing, on the tail wheel or a fixed main wheel, is
+NOT an airplane wheel pant. It is a fillet that blends from the wheel up into the fuselage skin, with only the
+bottom of the tire exposed. A wheel pant is a separate cover that stands off the fuselage, and that's for
+airplanes only."
+Applied to the Twin III: nose, main and tail wheels each sit in a skin fillet with only the bottom of the tyre
+showing (photos: D-0591 nose fillet and tail wheel). Our model has plain square-edged cylinders hanging below
+the skin, with box "fairings" buried inside the fuselage (invisible), and a tail skid instead of a tail wheel.
+
+**Comparison against the POH three-view and the FlightGear G103 (measured, nothing changed).**
+| item | ours | reference | error |
+|---|---|---|---|
+| keel to canopy crown | 1.21 m | POH 0.99, FG 1.00, cockpit height 1.02 | +20 % (worst) |
+| crown shape | peaks over the front seat at 2.2 m, a bubble | long straight ramp, peak at the rear canopy (3.0-3.2 m) | wrong shape |
+| crown 1.0 / 1.6 m aft of nose | 1.04 / 1.19 | 0.82 / 0.97 | +0.22 m |
+| canopy glass length | 2.85 m | POH about 2.65, FG 2.58 | +8 % |
+| max width | 0.74 | 0.71 brochure, FG 0.735 | ok |
+| rear deck depth at 3.4 / 4.0 m | 0.63 / 0.46 | 0.78 / 0.60 | -20 to -24 % (steps down behind canopy) |
+| fin top above keel | 1.38 | POH 1.71, FG 1.79 | -19 % (1.55 m height is at rest on main + tail wheel, not level) |
+| span | 17.5 | 18.0 | -2.8 % |
+| nose wheel | 0.32 dia, 0.124 wide, 0.17 below keel | 0.26 x 0.085, 0.10 below keel | too big and low |
+| main wheel | 0.44 dia, 0.124 wide, square | 6.00-6 round, 0.15 wide | square profile, narrow |
+| tail wheel | none (skid) | 210x65 | missing |
+**Canopy verdict:** too tall by about 0.2 m and the wrong shape. The real canopy is a long, low, nearly straight
+line rising to the rear seat, not a dome over the front seat. Its width and front cross-section are close; the
+excess is height plus a low rear deck that makes the canopy look even bigger.
+Evidence (not in repo, Grok Bot box): /workspace/aero/grob-cmp/ (README.md table, cmp-*.png) and
+/workspace/aero/grob-ref/ (POH, TCDS, photos with licences). **No code or model changed; the fix waits for Ty.**
+
+## 2026-11-03 10:37 PST: Grob gear (Ty decision)
+NEEDS YOU: Ty, approve the renders of the fixed-gear Twin III Acro fixes once they're made.
+- Ty chose fixed gear, like the real G 103 C Twin III Acro (POH 1.4, EASA A.250). It has main, nose and tail wheels in fillet fairings with only the bottom of each tire showing. It is not retractable.
+- No code changed.
+
+## 2026-11-03 — lane/codex-grob103: Twin III geometry and fixed gear correction
+NEEDS YOU: Ty to review the new renders and proposed lowered cockpit eyes; visual acceptance remains PENDING.
+
+- Rebuilt both liveries as G 103 C Twin III Acro: glass 2.60 m, long low ramp rising toward rear seat, crown .995 m above belly; rear deck .780/.600 m deep at 3.4/4.0 m aft of nose; fin top 1.710 m above belly; span 18.000 m. Overall level wheel-to-fin envelope 1.810 m is not the published on-wheels rest-attitude 1.55 m dimension.
+- Fixed rounded nose .260×.085, main .440×.150, tail .210×.065 m tires at .80/2.90/7.10 m aft of nose; .10/.12/.07 m below local keel. Each gets a fillet entering the fuselage skin, only bottom tire showing. Tail skid removed. No wheel pants or retraction.
+- Retained all 29 moving rig nodes/maps/parents, with outer hinge witnesses extended to span and tailplane/elevators raised .32 m with fin. Corrected canopy exposed old front panel protrusion: panel/gauges .13 m down/.10 m aft, pedals follow, front tow cable routed clear. Proposed eyes lowered to author (1.15,0,.18)/(-.04,0,.26), native (-1.15,.18,0)/(.04,.26,0). These require review and consistent future CG/application integration; eyepoints.json untouched.
+- Asset checks pass both liveries: graph, params/pivots/axes, surface directions/travels, pinned dimensions/wheel positions/sizes/exposures, identical paired geometry, 2145 cockpit pairs each, shell containment, head clearance 83.7/72.8 mm (66 mm threshold). Initial collisions/protrusions during adaptation were corrected, not waived. NumPy/Pillow from existing /tmp/airfoil-plot-venv; nothing installed.
+- Images: `renders/grob/v-fix/{side,three-quarter,front,gear-main,gear-nose,gear-tail,side-poh-overlay}.png` plus manifest. Side overlay uses the Twin III POH page 14/printed 1.6, uniform scale from 18 m plan span, approximate nose registration in level axes; wings omitted in overlay only. Earlier overlay used a Twin II manual and is superseded. CPU views, no Unity/device validation. Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grobfix/`.
+- Local commit only. Glass Overlay untouched. No push/merge/deploy/install, no forced add. Required tracked-file ignore audit silent before commit. No approval marked.
+
+## 2026-11-03 14:41 PST - Grob: switch to Florian Blanc Twin III Acro model (Ty approved)
+Ty (voice call) approved switching the Grob mesh to Florian Blanc G103c Twin III Acro (printables.com/model/852637, CC BY-SA: credit author, share-alike on derived mesh). Source STL: ~/Developer/agent-lanes/xfer/grob-blanc/grob-models/printables-twin3-acro-florianblanc/Twin3_plate.stl. Cleanup: join mirrored halves, separate canopy glass, textures, cockpit; keep FlightGear mesh as proportions reference. Fixed tandem gear in fillet fairings.
+NEEDS YOU: approve renders of the converted model.
+
+## 2026-11-03 — lane/codex-grob103: Florian Blanc Twin III Acro conversion v1
+NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes. Visual acceptance remains PENDING.
+
+- Replaced both compatibility GLBs with an adaptation of **Florian Blanc, G103c Twin III Acro**, supplied as **CC BY-SA**: https://www.printables.com/model/852637-g103c-twin-iii-acro . Derived mesh distributed as CC BY-SA 4.0; full attribution, modifications, licence link and source hash are in `CREDITS.md` and the corrected `LICENSE.txt` beside the assets. Historical clean-room claims are explicitly superseded. Upstream web page was unavailable; licence evidence is Ty's approved supplied download README. No source STL or POH PDF committed.
+- Blender 5.2.2 headless now works. Identified two 42,282-triangle fuselage/inner-wing/T-tail halves and two 11,496-triangle outer panels; removed internal print caps, mirrored/joined the centre seam and aligned panel leading/trailing edges. Exported span 18.000045 m, length 8.179798 m; fin crown 1.710 m above the level belly datum. Independent longitudinal/span/height calibration is documented in the build manifest, not hidden as uniform source scaling.
+- Cut transparent canopy glass and a separate white frame from the source, preserving the engraved two-canopy bow. Added UVs to meshes lacking them, white gelcoat, red trim, synthetic D-103C registration-style lettering. Both filenames currently use the same finish. About 69,765 triangles including cockpit/instruments/gear, 3.08 MB per GLB (previous analytic files were 8.11 MB). No mobile-device performance claim.
+- Retained all 29 driven names, original control maps/extra fields and cockpit hierarchy. Extracted actual source ailerons, split elevator, rudder and spoilers into separate named meshes; relocated origins/axis witnesses to them and checked control directions. The FlightGear-derived Grob reference available locally is the older 15 m Twin Astir; inspected for general proportions only, not used as Twin III dimensional authority and no geometry/materials copied.
+- Rounded fixed main 6.00-6 approximation .440 x .150 m, nose .260 x .085 m, tail .210 x .065 m. Removed molded tire bottoms, closed local keel cuts and refitted the gear/skin fillets to Blanc's deeper boom: only tire bottoms exposed (.12/.10/.07 m main/nose/tail). No wheel pants, doors or retraction. Source print engraving/fairing details remain visible in closeups for review.
+- Tandem seats, sticks, basic panels and original dial art retained; fitted open liner follows the replacement shell. Front panel/instrument layers lowered .07 m. Proposed visual eyes native glTF front (-1.15,.16,0), rear (.04,.22,0); head clearance 75.4/90.9 mm against the original 66 mm threshold. Application eyepoints, physics stations, CG and runtime files untouched. Static canopies; no opening animation claim.
+- Validation passes both exported assets: graph, indices/finite vertices, UV presence, dimensions, all 29 rig origins/markers/maps/parents, independent TCDS travels and physical control directions, transparent glass, wheel sizes/stations, 2,016 independent cockpit-part pairs and 1,608 shell-envelope samples per asset. Containment uses the full exterior including the integrated wing-root skin. A fresh temporary legacy analytic build also passes its original checker, which remains available. `git diff --check` clean. .NET tests were not run: dotnet absent; nothing installed. No Unity execution.
+- CPU/Cycles renders reimport the exported GLB: side, three-quarter, front, top, main/nose/tail gear closeups and canopy. POH overlay uses Twin III PDF p14/printed 1.6, uniform 854 px : 18 m, approximate nose registration, level axes and wings omitted; no contour fitting. Remaining scan/model mismatch is visible, not marked a pass. Camera/model/reference hashes accompany the images.
+- Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.

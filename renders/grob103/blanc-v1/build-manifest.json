@@ -1,0 +1,21 @@
+{
+  "source_sha256": "4cb05ac635e412a63f8758d4704199eb6283bcc4645e46339cd46cff743916e0",
+  "assembly": {
+    "source_triangles": 107556,
+    "length_scale": 0.03566767341134884,
+    "span_scale": 0.03561730419681039,
+    "height_scale": 0.9299794137613147,
+    "plate_axis_correction_radians": 0.1
+  },
+  "license": "CC BY-SA; see CREDITS.md",
+  "visual_approval": "PENDING",
+  "triangles": 69765,
+  "glider-grob103-acro-like-own.glb": {
+    "sha256": "6c779c6299a479ec64c53afcf7c556dd04e6e48c06f01ed5f94f2ee5d2d86d59",
+    "bytes": 3077176
+  },
+  "glider-grob103-acro-like-own-tf.glb": {
+    "sha256": "6c779c6299a479ec64c53afcf7c556dd04e6e48c06f01ed5f94f2ee5d2d86d59",
+    "bytes": 3077176
+  }
+}

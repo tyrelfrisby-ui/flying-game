@@ -155,3 +155,16 @@ first, and print the reading beside it in the builder.
 
 Related, for anyone running XFOIL from a script: it writes its scratch files (`:00.bl`) into the CURRENT directory.
 Run it with `cwd=` a temp dir, not the worktree.
+
+### CPU GLB export preserves the winding you supply
+The Grob CPU first pass showed cockpit controls through its opaque exterior: the parametric shell's
+faces were inward, and a single-sided renderer correctly culled them. Fix winding at the source, before
+material splitting, and inspect an exterior as well as a seat-eye render. Whole closed parts can use
+signed volume; an open cockpit shell also needs an explicit outside-view check. Do not hide the error
+by making every opaque material double-sided.
+
+
+### Cockpit pair clearance does not prove containment in the airframe
+The Grob's seat/floor and low trim handle passed instrument/control pair checks but protruded through
+the fuselage. An exterior-envelope check against exported fuselage/glass triangles caught it. Check
+both neighboring parts AND the host shell; leave only deliberate mechanical mount contacts exempt.
