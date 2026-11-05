@@ -1,3 +1,30 @@
+## NEEDS YOU — wings bend before they break (Claude, 2026-11-05, lane/claude-bend-damage)
+<!-- bend-damage needs-you -->
+- **Ty to fly-check: drop a wing in the J-3 (and a Cub, a Pitts) a few ways, slow and hard, and answer Q077 (too tough /
+  about right / still brittle) and Q078 (fabric wings twist easily).** You asked 06:10: "the wing hit relatively slowly
+  and immediately snapped off … more bends before it breaks … reduced strength and aerodynamic impacts if it continues
+  flying". Branch iOS 2026.1105.1344 ** BUILD SUCCEEDED **, 0 error CS (NOINSTALL); merged into island-nav and Quest,
+  install stamps below. Nothing approved by me. Write-up: `docs/BEND-DAMAGE.md`.
+  - **Why it snapped:** a wing panel went the first step its tip's contact moment passed the ultimate; the contact
+    spring rings past it for one step (J-3, tip down at 5 m/s: 9.5 kN·m asked of a 6.2 kN·m ultimate). And a bent panel
+    snapped at 2 × its 1 g moment (your 11-03 rule), a fifth of its ultimate. **That 11-03 rule is replaced** (Q077).
+  - **Now:** each panel's station is two plastic hinges, bending and twist, on its construction's curve (spruce /
+    aluminium / composite, from material strains; new config key `wingSpar` on 8 types): elastic, a permanent set past
+    yield, cracked and weaker past the peak, OFF only when it has turned through its rupture rotation. The ground cannot
+    push a tip harder than the hinges carry, so a strike's energy goes into bending it. The bend and twist move the
+    panel's hard points, its strips' load points, dihedral, incidence and skin (lift/drag), and the drawn mesh.
+    Tail surfaces, rudder, mid-span, nacelles and gear legs crush before they break (the fuselage's energy rule).
+  - **J-3 numbers:** tip down at 5 m/s, 20 m/s: twisted 2.4°, stays on. Tip 10 m/s: bent 8.8°, stays on, flies with
+    1.1° of aileron to hold level and +18 % drag. Cartwheel (tip 15 m/s, sink 6): off after 712 J. Panel bent once
+    holds to 3.5 g in flight. Gear dropped at 5 m/s bends and stays; 7 m/s, legs go.
+  - **Not done:** a bent gear leg does not sit lower; no fatigue below the backbone; ailerons on a bent panel are
+    drawn straight.
+  - Tests: BendDamageTests (8, new); ContactPatchTests / BentPanelStaticLoadTests / AirframeContactTests / CombatTests
+    rewritten where they pinned the 11-03 rule (a 6 m/s sideways drop onto a 60°-banked tip now only bends). Crash /
+    water / contact / gear / spin subset: branch 38 red vs base 37; the 7 new spin names pass alone (suite coupling),
+    the 2 old-rule tests are rewritten; 8 base failures pass on the branch. Merged tree: 90/90 in the touched classes.
+<!-- /bend-damage needs-you -->
+
 ## NEEDS YOU — tyre squeal: higher threshold + fade-in, and why the Cessna still howls (Claude, 2026-11-05)
 <!-- ground-volume needs-you -->
 - **Ty to fly-check: (1) a crosswind takeoff in the 172, no brakes; (2) a locked-wheel skid still squeals; (3) answer

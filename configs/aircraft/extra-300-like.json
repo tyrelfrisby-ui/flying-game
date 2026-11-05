@@ -4,6 +4,8 @@
   "displayName": "Extra 300-like Aerobat",
   "structureType": "steelTube",
   "structureTypeSource": "Extra 300: welded 4130 chrome-moly steel-tube fuselage with aluminium/composite fairings; carbon wing (FAA TCDS A67EU; Extra 300 maintenance manual).",
+  "wingSpar": "composite",
+  "wingSparSource": "Extra 300: carbon-fibre wing spar and glass/carbon shell (FAA TCDS A67EU; Extra 300 maintenance manual).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 820,
