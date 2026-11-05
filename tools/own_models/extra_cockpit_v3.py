@@ -62,9 +62,11 @@ CARD_W, CARD_H = .108, .140
 CARD_C = np.array((-.1525, -.195, .275))
 PLATE = dict(x0=-.150, x1=-.142, y0=-.118, y1=-.262, z0=.192, z1=.358)
 # Liner: from LINER_ZLO (behind / below the console tops) to the sill, inset from the skin.
-LINER_X = (-2.170, .600)          # rear of the canopy to the firewall
+LINER_X = (-2.178, .600)          # the canopy glass's aft end (the aft bulkhead closes behind it) to the firewall
+AFT_BULKHEAD_X = -2.182            # behind the rear seat, just aft of the canopy's frame: the turtle deck's inside showed
+DECK_X = (-.140, .600)             # under the forward deck, the front sub-panel to the firewall
 FIREWALL_PLATE_X = .605            # closes the engine bay's corners beside the footwell (they showed the skin past the engine)
-LINER_ZLO, LINER_INSET, LINER_TOP_GAP, LINER_ZMAX = -.120, .005, .003, .330
+LINER_ZLO, LINER_INSET, LINER_TOP_GAP, LINER_ZMAX = -.120, .005, -.001, .330   # top 1 mm behind the glass edge: no slot
 CARD_PARTS = ('SequenceCard_Face', 'SequenceCard_Stock', 'SequenceCard_Holder', 'SequenceCard_Clip')
 
 
@@ -72,7 +74,7 @@ def world_tris(g, name):
     W = g.world_matrices(); return tris_of(g, W, idx(g, name))
 
 
-def section(tris, x, side):
+def section(tris, x, side, ymin=.15):
     """The mesh's cut at station x on one side (sign of y): segments [((y0, z0), (y1, z1))]."""
     tris = tris[(tris[:, :, 0].min(1) <= x) & (tris[:, :, 0].max(1) >= x)]
     d = tris[:, :, 0] - x; P = []
@@ -83,7 +85,7 @@ def section(tris, x, side):
     segs = []
     for k in range(len(tris)):
         q = [p[k][1:] for p, cr in P if cr[k]]
-        if len(q) == 2 and side * q[0][0] > .15 and side * q[1][0] > .15: segs.append((q[0], q[1]))
+        if len(q) == 2 and side * q[0][0] > ymin and side * q[1][0] > ymin: segs.append((q[0], q[1]))
     return segs
 
 
@@ -139,18 +141,22 @@ def liner(g, side):
     """The skin's inner face from LINER_ZLO to the sill, inset, as a strip of stations x rows."""
     skin = world_tris(g, 'Fuselage_Painted')
     skin = skin[(skin[:, :, 0].max(1) > LINER_X[0] - .05) & (skin[:, :, 0].min(1) < LINER_X[1] + .05) & (skin[:, :, 2].max(1) > LINER_ZLO - .05)]
-    xs = np.arange(LINER_X[0], LINER_X[1] + 1e-6, .02); rows = []; tops = []
+    glass = world_tris(g, 'Canopy_Glass'); rail = np.concatenate([world_tris(g, n) for n in ('Canopy_Sill', 'Canopy_Frame')])
+    xs = np.arange(LINER_X[0], LINER_X[1] + 1e-6, .01); rows = []; tops = []
     for x in xs:
         segs = section(skin, x, side)
         if not segs: continue
-        # The sill: the highest point of the skin's side, where the glass and the frame sit on it.
-        zt = max(max(a[1], b[1]) for a, b in segs if max(abs(a[0]), abs(b[0])) > .25) - LINER_TOP_GAP
-        zt = min(zt, LINER_ZMAX)
+        # Up to where the skin meets the canopy: the skin's highest point on this side, but never above the glass's own
+        # lower edge (the liner must not stand up inside the canopy); where no glass reaches this side, the rail's. Ahead of the glass, the deck: capped at LINER_ZMAX.
+        zt = skin_top = max(max(a[1], b[1]) for a, b in segs)
+        gs = section(glass, x, side) or section(rail, x, side)
+        zt = min(zt, min(min(a[1], b[1]) for a, b in gs)) if gs else min(zt, LINER_ZMAX)
+        zt -= LINER_TOP_GAP
         zs = list(np.linspace(LINER_ZLO, zt, 14)); row = []
-        for z in zs:
-            yy = skin_y_at(segs, z)
+        for k, z in enumerate(zs):
+            yy = skin_y_at(segs, min(z, skin_top - 1e-4))   # the top row may stand 1 mm proud of the skin, behind the glass
             if yy is None: row = None; break
-            row.append((x, side * (yy - LINER_INSET), z))
+            row.append((x, side * (yy - (LINER_INSET if k < len(zs) - 1 else .0015)), z))   # top edge flush: no sliver
         if row: rows.append(row); tops.append(zt)
     sh = Shape(); n = len(rows[0])
     for a, b in zip(rows[:-1], rows[1:]):
@@ -164,16 +170,86 @@ def liner(g, side):
     return sh, (min(tops), max(tops)), len(rows)
 
 
-def firewall_plate(g):
-    """The skin's section just forward of the footwell's face, filled: the firewall behind the front pilot's feet."""
-    skin = world_tris(g, 'Fuselage_Painted'); x = FIREWALL_PLATE_X
-    sl, sr = section(skin, x, 1), section(skin, x, -1)
-    zs = [z for z in np.arange(-.60, .45, .01) if skin_y_at(sl, z) and skin_y_at(sr, z)]
+def bulkhead(g, x, zmin=-.60, zmax=.80):
+    """The skin's section at station x filled edge to edge (2-3 mm into the skin), facing aft (normal -x) or forward."""
+    skin = world_tris(g, 'Fuselage_Painted')
+    sl, sr = section(skin, x, 1, 0.0), section(skin, x, -1, 0.0)
+    zs = [z for z in np.arange(zmin, zmax, .005) if skin_y_at(sl, z) and skin_y_at(sr, z)]
     sh = Shape()
     for z0, z1 in zip(zs[:-1], zs[1:]):
         a = [(x, skin_y_at(sl, z0) + .003, z0), (x, -(skin_y_at(sr, z0) + .003), z0), (x, -(skin_y_at(sr, z1) + .003), z1), (x, skin_y_at(sl, z1) + .003, z1)]
-        sh.add([np.array(q) for q in a], [(0, 2, 1), (0, 3, 2)])          # facing aft, toward the pilot
-    return sh, (zs[0], zs[-1])
+        sh.add([np.array(q) for q in a], [(0, 2, 1), (0, 3, 2)])
+    top = max(max(a[1], b[1]) for a, b in sl + sr) + .003                 # close the crown, where the section narrows to y = 0
+    z1 = zs[-1]; sh.add([np.array(q) for q in ((x, skin_y_at(sl, z1) + .003, z1), (x, -(skin_y_at(sr, z1) + .003), z1), (x, 0.0, top))], [(0, 2, 1)])
+    return sh, (zs[0], round(float(top), 3))
+
+
+def deck_liner(g):
+    """Under the forward deck, panel to firewall: the deck's inner face, 5 mm below it (seen from the rear seat over the
+    front pilot's head, past the front sub-panel, it showed the livery)."""
+    skin = world_tris(g, 'Fuselage_Painted'); rows = []
+    ys = np.linspace(-.42, .42, 29)
+    for x in np.arange(DECK_X[0], DECK_X[1] + 1e-6, .02):
+        segs = section(skin, x, 1, -1.0) + section(skin, x, -1, -1.0)
+        row = []
+        for y in ys:
+            zz = [a[1] + (y - a[0]) / (b[0] - a[0]) * (b[1] - a[1]) for a, b in segs if (a[0] - y) * (b[0] - y) <= 0 and a[0] != b[0]]
+            zz = [z for z in zz if z > .20]
+            row.append((x, y, max(zz) - LINER_INSET) if zz else None)
+        rows.append(row)
+    sh = Shape()
+    for r0, r1 in zip(rows[:-1], rows[1:]):
+        for j in range(len(ys) - 1):
+            q = [r0[j], r1[j], r1[j + 1], r0[j + 1]]
+            if any(v is None for v in q): continue
+            sh.add([np.array(v) for v in q], [(0, 1, 2), (0, 2, 3)])
+    return sh
+
+
+def seg_blocked(o, P, T, eps=.0015):
+    """For each point in P: does the segment o -> P hit a triangle of T short of P (by eps)?"""
+    e1 = T[:, 1] - T[:, 0]; e2 = T[:, 2] - T[:, 0]; out = np.zeros(len(P), bool)
+    for k, q in enumerate(P):
+        d = q - o; L = np.linalg.norm(d); d = d / L
+        h = np.cross(d, e2); det = (e1 * h).sum(1); inv = np.divide(1, det, out=np.zeros_like(det), where=abs(det) > 1e-12)
+        sv = o - T[:, 0]; u = (sv * h).sum(1) * inv; qq = np.cross(sv, e1); v = (d * qq).sum(1) * inv; t = (e2 * qq).sum(1) * inv
+        out[k] = ((abs(det) > 1e-12) & (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 1e-6) & (t < L - eps)).any()
+    return out
+
+
+def paint_rails_inside(g, cabin):
+    """The faces of the sill and the canopy frame a pilot sees from either seat WITHOUT glass between: cockpit paint.
+    Both rails are double-sided with the exterior livery, so their inboard faces drew a white-and-red line exactly where
+    the canopy meets the fuselage. Visible = some point of the face (centroid, or 60 % toward a corner) reaches an eye
+    unblocked by the glass, the rails, the skin or the liners."""
+    occ = np.concatenate([world_tris(g, n) for n in ('Canopy_Glass', 'Canopy_Sill', 'Canopy_Frame', 'Fuselage_Painted',
+                                                    'Cockpit_SideLiner_L', 'Cockpit_SideLiner_R')])
+    c = occ.mean(1); occ = occ[(c[:, 0] > -2.4) & (c[:, 0] < .2) & (c[:, 2] > .1) & (np.abs(c[:, 1]) < .55)]
+    moved = {}
+    for name in ('Canopy_Sill', 'Canopy_Frame'):
+        i = idx(g, name); M = g.world_matrices()[i]; mesh = g.doc['meshes'][g.doc['nodes'][i]['mesh']]; new = []; n_moved = 0
+        for p in mesh['primitives']:
+            if not g.doc['materials'][p['material']]['name'].startswith(('Paint_ea', 'Paint_white')): continue
+            v = np.asarray(g.array(p['attributes']['POSITION']), float) @ M[:3, :3].T + M[:3, 3]
+            b = np.stack([-v[:, 0], v[:, 2], v[:, 1]], 1)
+            ids = np.asarray(g.array(p['indices'])).reshape(-1, 3) if 'indices' in p else np.arange(len(b)).reshape(-1, 3)
+            t = b[ids]; cen = t.mean(1)
+            samples = [cen] + [cen + .6 * (t[:, j] - cen) for j in range(3)]
+            seen = np.zeros(len(t), bool)
+            for eye in EYE.values():
+                for S in samples:
+                    todo = ~seen
+                    if todo.any(): seen[np.where(todo)[0][~seg_blocked(eye, S[todo], occ)]] = True
+            if not seen.any(): continue
+            n_moved += int(seen.sum())
+            for keep, mat in ((~seen, p['material']), (seen, cabin)):
+                kept = ids[keep]; used = np.unique(kept); remap = -np.ones(len(b), int); remap[used] = np.arange(len(used))
+                at = {k: g.accessor(np.asarray(g.array(a))[used].astype(np.float32), g.doc['accessors'][a]['type']) for k, a in p['attributes'].items()}
+                new.append(dict(attributes=at, indices=g.accessor(remap[kept].reshape(-1).astype(np.uint32), 'SCALAR', 5125), material=mat, mode=4))
+            p['_drop'] = True
+        mesh['primitives'] = [q for q in mesh['primitives'] if not q.get('_drop')] + new
+        moved[name] = n_moved
+    return moved
 
 
 def lathe_knob(c, r):
@@ -193,8 +269,12 @@ def update(path, doc):
         sh, (zt0, zt1), n = liner(g, side)
         g.mesh('Cockpit_SideLiner_' + tag, [gl(v) for v in sh.v], sh.t, cabin)
         report['liner_' + tag] = dict(stations=n, top_z=[round(zt0, 3), round(zt1, 3)])
-    sh, zr = firewall_plate(g); g.mesh('Cockpit_FirewallPlate', [gl(v) for v in sh.v], sh.t, cabin)
+    report['rail_faces_to_cockpit_paint'] = paint_rails_inside(g, cabin)
+    sh, zr = bulkhead(g, FIREWALL_PLATE_X); g.mesh('Cockpit_FirewallPlate', [gl(v) for v in sh.v], sh.t, cabin)
     report['firewall_plate_z'] = [round(float(z), 3) for z in zr]
+    sh, zr = bulkhead(g, AFT_BULKHEAD_X, .0); g.mesh('Cockpit_AftBulkhead', [gl(v) for v in sh.v], sh.t, cabin)
+    report['aft_bulkhead_z'] = [round(float(z), 3) for z in zr]
+    sh = deck_liner(g); g.mesh('Cockpit_DeckLiner', [gl(v) for v in sh.v], sh.t, cabin); report['deck_liner_tris'] = len(sh.t)
     report['wing_inside_fuselage'] = dict(zip(('tris_dropped', 'root_vertices_onto_skin'), clip_wing_inside(g)))
 
     # ---------------- THROTTLES ----------------
