@@ -15,8 +15,8 @@ THE EYE IS FIXED. It is the approved pilot eye (CockpitEyeTests.ApprovedEyes, c1
 moves the eye or the seat to make the legs fit.
 
 What it measures, at neutral, at full rudder each way (the pedals on their own -Y hinges, one forward, the
-other back, the rig's 18 degrees) and with the pilot's yoke at every corner of its rig travel (column +/-0.07 m,
-wheel +/-90 degrees):
+other back, the rig's 18 degrees) and with the pilot's yoke over its rig travel (column -0.07, 0, +0.07 m,
+wheel every 10 degrees over +/-90; yoke-v1 gates the yoke at YOKE_CLEAR 15 mm from every leg part):
   * that each foot reaches its pedal (shank-length residual) and the included knee angle;
   * signed clearance of thighs, shanks and feet to the panel, the yokes, the floor, the pedals and everything else;
   * how far every pedal stays above the carpet;
@@ -51,6 +51,7 @@ EYE = Vector((-0.346, 0.337, 0.548))
 REACH_TOL = 0.010              # shank-length residual that still counts as "on the pedal"
 KNEE_RANGE = (110.0, 135.0)    # neutral knee included angle: engineering target for a seated pedal posture
 CLEAR = 0.010                  # minimum clearance of a leg to the panel, the yokes and the other pedals
+YOKE_CLEAR = 0.015             # yoke-v1 (Ty 2026-11-04): the yoke may not come within 15 mm of a leg anywhere in its travel
 FLOOR_TOL = 0.003              # a heel may rest on the carpet; it may not sink into it
 PEDAL_CONTACT = 0.005          # the sole may press this far into its own pedal face (tread ribs)
 PEDAL_FLOOR_MIN = 0.020        # every pedal part at least this far above the carpet at full travel
@@ -285,14 +286,14 @@ def measure(rudder, groups, yoke_poses):
         torso = capsule_clear(yt, J['waist'], J['shoulder'], S['torso_half_depth'])
         if 'torso_yoke' not in res or torso[0] < res['torso_yoke']['min']:
             res['torso_yoke'] = dict(min=round(torso[0], 4), column=column, wheel=wheel)
-    if rudder == 0 and worst and worst[0] < CLEAR:
+    if rudder == 0 and worst and worst[0] < YOKE_CLEAR:
         limit = 0
         for deg in range(int(WHEEL_DEG), -1, -5):
             ok = True
             for column in (-1, 0, 1):
                 for sgn in (-1, 1):
                     reset(); pose_rudder(0); pose_yoke(column, sgn * deg / WHEEL_DEG); yt = bvh(world_tris_named('C172_Yoke_'))
-                    if any(capsule_clear(yt, a, b, r)[0] < CLEAR for sd in LEGS for _, a, b, r in res['legs'][sd].get('_caps', [])): ok = False
+                    if any(capsule_clear(yt, a, b, r)[0] < YOKE_CLEAR for sd in LEGS for _, a, b, r in res['legs'][sd].get('_caps', [])): ok = False
             if ok: limit = deg; break
         res['wheel_deg_clearing_legs_at_any_column'] = limit
     res['yoke_legs'] = dict(min=round(worst[0], 4), part=worst[1], column=worst[2], wheel=worst[3], at=[round(c, 3) for c in worst[4]] if worst[4] else None) if worst else None
@@ -323,7 +324,7 @@ def pedal_pad_centre(name):
     return Vector([(min(v[i] for v in vs) + max(v[i] for v in vs)) / 2 for i in range(3)]), min(v.z for v in vs)
 
 
-YOKE_POSES = [(c, w) for c in (-1, 0, 1) for w in (-1, 0, 1)]
+YOKE_POSES = [(c, w / 9) for c in (-1, 0, 1) for w in range(-9, 10)]   # wheel every 10 deg: a horn's low point is not at 90
 report = dict(model=MODEL, mannequin='Codex round-3 rigid-segment 1.778 m (lane/codex-eyepoints f05f1511 eyepoints_v3.py)',
               eye_blender=list(EYE), joints={k: [round(c, 4) for c in v] for k, v in J.items()}, poses={}, failures=[])
 reset()
@@ -452,7 +453,7 @@ for key, r in report['poses'].items():
         if 'floor' in c and c['floor']['min'] < -FLOOR_TOL: F.append('%s: %s %s %.1f mm into the floor' % (tag, side, c['floor']['part'], -c['floor']['min'] * 1000))
         if 'own_pedal' in c and c['own_pedal']['min'] < -PEDAL_CONTACT: F.append('%s: %s foot %.1f mm into its own pedal' % (tag, side, -c['own_pedal']['min'] * 1000))
         if 'other' in c and c['other']['min'] < 0: report.setdefault('warnings', []).append('%s: %s %s %.1f mm into other cabin structure at %s' % (tag, side, c['other']['part'], -c['other']['min'] * 1000, c['other']['at']))
-    if r['yoke_legs'] and r['yoke_legs']['min'] < CLEAR: F.append('%s: yoke %.1f mm from %s at column %+d wheel %+d' % (tag, r['yoke_legs']['min'] * 1000, r['yoke_legs']['part'], r['yoke_legs']['column'], r['yoke_legs']['wheel']))
+    if r['yoke_legs'] and r['yoke_legs']['min'] < YOKE_CLEAR: F.append('%s: yoke %.1f mm from %s at column %+d wheel %+.2f' % (tag, r['yoke_legs']['min'] * 1000, r['yoke_legs']['part'], r['yoke_legs']['column'], r['yoke_legs']['wheel']))
     if r['lowest_pedal_above_carpet']['min'] < PEDAL_FLOOR_MIN: F.append('%s: %s only %.1f mm above the carpet' % (tag, r['lowest_pedal_above_carpet']['part'], r['lowest_pedal_above_carpet']['min'] * 1000))
 sf = report['seat']; cu, bk = sf['cushion'], sf['back']
 if cu['compression_at_h_point_m'] is None or cu['compression_at_h_point_m'] < 0: F.append('seat: buttocks do not touch the cushion under the H-point (%s)' % cu['compression_at_h_point_m'])
@@ -510,14 +511,47 @@ def build_human(feet):
     return [o for o in SC.objects if o not in before]
 
 
-def render(path, cam_loc, target, lens=None, ortho=None, hide=()):
+def render(path, cam_loc, target, lens=None, ortho=None, hide=(), clip=0.01):
     for o in SC.objects: o.hide_render = any(o.name.startswith(h) for h in hide)
     cd = bpy.data.cameras.new('cam'); cam = bpy.data.objects.new('cam', cd); SC.collection.objects.link(cam)
     cam.location = cam_loc; cam.rotation_euler = (target - cam_loc).to_track_quat('-Z', 'Y').to_euler()
     if ortho: cd.type = 'ORTHO'; cd.ortho_scale = ortho
     else: cd.lens = lens
-    cd.clip_start = 0.01; SC.camera = cam; SC.render.filepath = path; bpy.ops.render.render(write_still=True)
+    cd.clip_start = clip; SC.camera = cam; SC.render.filepath = path; bpy.ops.render.render(write_still=True)
     bpy.data.objects.remove(cam)
+
+
+def yoke_renders(exterior):
+    """yoke-v1 review set (C172_YOKE_RENDERS=1): the yoke at neutral and at full wheel each way with the column full
+    aft and full forward, rudder neutral, the mannequin's arms on the grips. Per pose: the seat eye; a front view from
+    section looking aft from body x 0.075 (orthographic, so the horn-to-thigh gap reads true); a left side cutaway
+    with the left leg and arm not drawn, so the right thigh under the right horn can be seen. Then the panel from the
+    eye and the suction gauge close up, without the mannequin."""
+    SC.cycles.samples = 32; SC.render.resolution_x, SC.render.resolution_y = 1600, 1067
+    poses = [('neutral', 0, 0), ('aft-left', -1, -1), ('aft-right', -1, 1), ('fore-left', 1, -1), ('fore-right', 1, 1)]
+    body = ('Mannequin_head', 'Mannequin_neck', 'Mannequin_torso', 'Mannequin_shoulders', 'Mannequin_pelvis')
+    def posed(column, wheel):
+        for o in [o for o in SC.objects if o.name.startswith('Mannequin')]: bpy.data.objects.remove(o)
+        reset(); pose_rudder(0); pose_yoke(column, wheel); build_human(FEET[0])
+    out = lambda tag: os.path.join(RENDER_DIR, '%s_%s.png' % (PREFIX, tag))
+    for tag, column, wheel in poses:
+        posed(column, wheel)
+        render(out(tag + '_eye'), EYE.copy(), Vector((0.36, 0.28, -0.30)), lens=15, hide=exterior + body)
+        # Section: the camera clips everything forward of body x 0.075 (just ahead of the wheel at full forward), so
+        # the knees and the panel do not hide the horn. Looking aft: the pilot's LEFT is on the RIGHT of the picture.
+        render(out(tag + '_section'), Vector((0.27, 0.337, -0.02)), Vector((-0.6, 0.337, -0.02)), ortho=0.75, hide=exterior, clip=0.195)
+    for o in [o for o in SC.objects if o.name.startswith('Mannequin')]: bpy.data.objects.remove(o)
+    reset(); pose_rudder(0)
+    render(out('panel_eye'), EYE.copy(), Vector((0.30, 0.03, 0.17)), lens=19, hide=exterior)
+    render(out('suction_closeup'), Vector((0.215, 0.321, 0.150)), Vector((0.2975, 0.321, 0.140)), lens=55, hide=exterior)
+    st = OB['C172_Interior_static']; me = st.data
+    import bmesh
+    bm = bmesh.new(); bm.from_mesh(me); mw = st.matrix_world
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if (mw @ f.calc_center_median()).y > 0.45], context='FACES'); bm.to_mesh(me); bm.free()
+    for tag, column, wheel in poses:
+        posed(column, wheel)
+        render(out(tag + '_side'), Vector((-0.05, 2.5, 0.0)), Vector((-0.05, 0.0, 0.0)), ortho=1.05,
+               hide=exterior + ('C172_Door_L', 'C172_Headliner', 'C172_Compass', 'Mannequin_left_'))
 
 
 if RENDER_DIR:
@@ -531,6 +565,9 @@ if RENDER_DIR:
         ld = bpy.data.lights.new(n, 'AREA'); ld.energy = e; ld.size = s; lo = bpy.data.objects.new(n, ld); SC.collection.objects.link(lo)
         lo.location = p; lo.rotation_euler = (Vector((0, .3, -.2)) - Vector(p)).to_track_quat('-Z', 'Y').to_euler()
     exterior = ('Fuselage', 'Glass', 'Wing', 'Strut', 'Flap', 'Aileron', 'HStab', 'Elevator', 'Rudder', 'Fin', 'Gear', 'Prop', 'Blade', 'Spinner', 'Wheel')
+    if os.environ.get('C172_YOKE_RENDERS') == '1':
+        yoke_renders(exterior); RENDER_DIR = None
+if RENDER_DIR:
     # Seat eye. The head, neck and torso would wrap the camera, so they are not drawn; arms, legs and feet are.
     # The closed outer skin is not drawn either (as in c172_cockpit.py's review renders), or it shuts out the light.
     render(os.path.join(RENDER_DIR, PREFIX + '_eye.png'), EYE.copy(), Vector((0.42, 0.30, -0.36)), lens=15,

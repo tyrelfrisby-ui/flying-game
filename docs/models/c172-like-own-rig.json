@@ -650,21 +650,21 @@
       ],
       "pivot_gltf": [
         0.2959,
-        0.113,
+        0.145,
         -0.321
       ],
       "map": [
         [
           0,
-          35
+          0
         ],
         [
           10,
-          395
+          270
         ]
       ],
-      "model": -0.9722222222222222,
-      "desc": "suction gauge: face 0-2-4-6-8 every 72 deg = 36 deg/inHg from 12 o'clock; drawn at -35 deg",
+      "model": 0,
+      "desc": "suction gauge (1 in, yoke-v1): 0-10 inHg over 270 deg = 27 deg/inHg clockwise from 7:30; green 4.5-5.5 with red radials at both ends; drawn at 0 inHg",
       "extra": {}
     },
     {

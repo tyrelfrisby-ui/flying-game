@@ -64,12 +64,18 @@ def check(path):
    assert abs(a['x']-.160)>a['half_extent']+.0885+.002 or abs(a['z']-z)>a['half_extent']+h/2+.002,(a['name'],name)
   # Yoke shafts translate through the panel but sit below every instrument. The rotating grips'
   # complete +/-90 degree sweep stays aft of forward .068, clear of all panel/radio faces (.262+).
+  # yoke-v1 (Ty 2026-11-04): shaft centre raised .040 -> .100 to clear the thighs; literal, c172_cockpit.py YOKE_Z.
   for x in [-.30,.30]:
-   assert abs(a['x']-x)>a['half_extent']+.013+.002 or abs(a['z']-.040)>a['half_extent']+.013+.002,(a['name'],'yoke shaft')
+   assert abs(a['x']-x)>a['half_extent']+.013+.002 or abs(a['z']-.100)>a['half_extent']+.013+.002,(a['name'],'yoke shaft')
   assert a['z']-a['half_extent']>.0, (a['name'],'lower switches')
  layout={a['name']:a for a in cases}
  assert layout['Tach']['x']==layout['VSI']['x'] and layout['Tach']['z']<layout['VSI']['z']
  assert layout['Suction']['x']==layout['DG']['x'] and layout['Suction']['z']<layout['DG']['z']
+ # yoke-v1: the suction gauge is a 1 in instrument (Ty: "Usually the suction gage is a tiny 1 inch instrument").
+ assert abs(layout['Suction']['half_extent']-(.0127+.005))<1e-6,('suction gauge not 1 in',layout['Suction'])
+ for side in ['L','R']:
+  col=nodes[names.index('C172_Yoke_'+side+'_pitch')]['translation']
+  assert abs(col[1]-.100)<1e-4,('yoke shaft height',side,col)
  assert all(layout[n]['x']==0 for n in ['Oil_press','Oil_temp','Ammeter','EGT'])
  # Ty, 2026-11-03: NAV heads beside the six-pack, the engine column to their RIGHT, then the radios.
  assert all(layout[n]['x']==-.112 for n in ['NAV1','NAV2','ADF'])
