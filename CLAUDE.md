@@ -569,3 +569,12 @@ step advances. `GroundContactCullTests` flies the same flight twice, culled and 
 near the sea the second run started a flight's length later in the tide and differed in the 14th digit — which
 first looked like an order-dependent cache. Before blaming a cache for "same inputs, different answer", list every
 global the new code READS, and reset the clock (`Atmosphere.SimTimeSec = 0`) when a test compares two runs.
+
+### A "gap" a pilot sees may be paint, not geometry
+Ty reported a gap between the Extra's canopy and the fuselage from the front seat. The rim touched the sill to 0.0 mm and
+no ray from the eye left the airframe; a hole-hunting check would have said "sealed" and changed nothing. The skin, sill
+and frame were DOUBLE-SIDED with the exterior livery, the dark liner stopped 6-13 cm under the sill, and the wing's own
+skin ran through the front cockpit: white and red outside paint, seen from inside, reads exactly like daylight. Check
+what the eye sees, not only whether it can see out: cast rays from the seat eye and fail any that reach exterior paint
+without passing through glass first (`ExtraCanopySealTests`). And place the liner's top ON the glass edge — 2 mm short
+left a slot rays slipped through.
