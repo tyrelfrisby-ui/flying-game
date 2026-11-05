@@ -22,6 +22,11 @@ namespace FlyingGame.Bridge
         /// <summary>Drop the instance (tests, or the settings were reset): the next <see cref="Flow"/> reads the store again.</summary>
         public static void Reset() => _flow = null;
 
+        /// <summary>The pilot's units (Standard | Metric) for anything outside the landing page — a HUD or an instrument
+        /// label that grows a units choice reads THIS, the same PlayerPrefs key the page writes
+        /// (<see cref="DisplayUnits.PrefKey"/>), and never a setting of its own. Display only.</summary>
+        public static UnitSystem SavedUnits => _flow?.Units ?? DisplayUnits.Parse(PlayerPrefs.GetString(DisplayUnits.PrefKey, null));
+
         private static FlyingGame.Core.DataContracts.AircraftConfig LoadConfig(string id)
         {
             try { return UnityAircraftConfigLoader.LoadFromStreamingAssets(id); }

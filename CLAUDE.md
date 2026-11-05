@@ -569,3 +569,9 @@ step advances. `GroundContactCullTests` flies the same flight twice, culled and 
 near the sea the second run started a flight's length later in the tide and differed in the 14th digit — which
 first looked like an order-dependent cache. Before blaming a cache for "same inputs, different answer", list every
 global the new code READS, and reset the clock (`Atmosphere.SimTimeSec = 0`) when a test compares two runs.
+
+### A gate that sleeps after its last check is 20 seconds stale when it fires
+The landing-units wait loop was `check; sleep 20` three times, then `deploy.sh`. Its last idle check was 20 s old
+when the build started, and an island-nav install to Ty's devices had started in that gap: two deploys into the same
+/private/tmp/flyinggame-ios, one second apart. Put the sleep FIRST and the check last (`sleep 20; check`), so the
+build starts on the heels of an idle reading, and count `devicectl` (`pgrep -x`) as busy: an install holds the slot too.

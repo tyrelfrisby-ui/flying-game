@@ -101,8 +101,13 @@ namespace FlyingGame.Bridge
                 if (other != null) flow.SetSeat(other.SeatId, Occupant.InvitedPlayer, SeatRole.DualControl);
                 flow.SetFuelFraction(1.0);
                 flow.SetTimeOfDay(TimeOfDay.Midday);
+                flow.SetUnits(UnitSystem.Standard);   // the default (Ty 2026-11-05 10:56)
                 yield return Settle();
                 yield return Shot($"{sh.name}-p2-load");
+                flow.SetUnits(UnitSystem.Metric);
+                yield return new WaitForSecondsRealtime(0.6f);
+                yield return Shot($"{sh.name}-p2-load-metric");
+                flow.SetUnits(UnitSystem.Standard);
                 // Over gross: the warning, LAUNCH still there.
                 if (other != null) flow.SetSeatKg(other.SeatId, 120);
                 foreach (var b in flow.Stations.Where(s => s.Kind == FlyingGame.Core.AircraftLoad.StationKind.Baggage)) flow.SetStationKg(b.StationId, b.MaxKg);

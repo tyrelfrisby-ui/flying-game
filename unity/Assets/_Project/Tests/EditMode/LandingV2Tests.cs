@@ -92,6 +92,35 @@ namespace FlyingGame.EditModeTests
             finally { Object.DestroyImmediate(go); }
         }
 
+        /// <summary>UNITS (Ty 2026-11-05 10:56): Standard when nothing is saved, Metric remembered through the store at once,
+        /// and the Bridge's one reader (<see cref="LandingSession.SavedUnits"/>) reads the very key the page writes. The
+        /// editor's own pref is put back.</summary>
+        [Test]
+        public void UnitsDefaultToStandardAndRoundTripThroughTheStore()
+        {
+            var store = new MemoryLandingStore();
+            var flow = new LandingFlow(RealFleet(), store, _ => null);
+            Assert.AreEqual(UnitSystem.Standard, flow.Units);
+            flow.SetUnits(UnitSystem.Metric);
+            Assert.AreEqual("metric", store.Get("landing.units"));
+            Assert.AreEqual(UnitSystem.Metric, new LandingFlow(RealFleet(), store, _ => null).Units);
+
+            string saved = PlayerPrefs.HasKey("landing.units") ? PlayerPrefs.GetString("landing.units") : null;
+            try
+            {
+                LandingSession.Reset();
+                PlayerPrefs.DeleteKey("landing.units");
+                Assert.AreEqual(UnitSystem.Standard, LandingSession.SavedUnits);
+                PlayerPrefs.SetString("landing.units", "metric");
+                Assert.AreEqual(UnitSystem.Metric, LandingSession.SavedUnits);
+            }
+            finally
+            {
+                if (saved == null) PlayerPrefs.DeleteKey("landing.units"); else PlayerPrefs.SetString("landing.units", saved);
+                LandingSession.Reset();
+            }
+        }
+
         /// <summary>A key is a relative path under the device's capture folder; a key nobody has is a miss, not a throw.</summary>
         [Test]
         public void ThumbnailKeysAreFilesUnderTheCaptureFolder()

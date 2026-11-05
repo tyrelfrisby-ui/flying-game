@@ -40,7 +40,8 @@ public sealed class WeightBalance
     public double PlotY(double kg) => (kg - _yLo) / (_yHi - _yLo);
 
     /// <param name="grossOverrideKg">A placard to use instead of the config's own (the float rule); 0 = the config's.</param>
-    public static WeightBalance From(AircraftLoad load, double grossOverrideKg = 0.0)
+    /// <param name="units">How the warnings word a weight (every field stays kg).</param>
+    public static WeightBalance From(AircraftLoad load, double grossOverrideKg = 0.0, UnitSystem units = DisplayUnits.Default)
     {
         var wb = new WeightBalance
         {
@@ -82,7 +83,7 @@ public sealed class WeightBalance
         wb.OverGross = wb.HasGross && wb.TotalKg > wb.MaxGrossKg + 1e-9;
         wb.CgForward = wb.HasEnvelope && wb.CgM > wb.FwdLimitM + 1e-9;
         wb.CgAft = wb.HasEnvelope && wb.CgM < wb.AftLimitM - 1e-9;
-        if (wb.OverGross) wb.Warnings.Add($"Over gross by {wb.TotalKg - wb.MaxGrossKg:F0} kg: it will fly like it");
+        if (wb.OverGross) wb.Warnings.Add($"Over gross by {DisplayUnits.Mass(wb.TotalKg - wb.MaxGrossKg, units)}: it will fly like it");
         if (wb.CgForward) wb.Warnings.Add("CG forward of the limit: heavy nose, short of elevator to flare");
         if (wb.CgAft) wb.Warnings.Add("CG aft of the limit: light, twitchy pitch, hard to recover from a spin");
         return wb;

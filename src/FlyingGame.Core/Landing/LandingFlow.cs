@@ -51,7 +51,7 @@ public sealed class StationRow
 ///    challenge or lesson RESTRICTS the left-hand menus (<see cref="ActivityRules"/>); picking Free flight lifts that.
 ///  PAGE 2, LOAD: the seats (me, a default person, or an invited player as passenger or on the other controls), the
 ///    fuel and the baggage, the weight-and-balance plot (warn, never block), and the settings: reliability, weather,
-///    time of day. LAUNCH.
+///    time of day, units (Standard | Metric, <see cref="DisplayUnits"/>). LAUNCH.
 ///
 /// Every change bumps <see cref="Version"/>, which is what the live 3-D preview and the views watch.
 /// <see cref="Launch"/> remembers the choices (the aeroplane becomes the next session's hero) and raises
@@ -82,6 +82,8 @@ public sealed class LandingFlow
     public Reliability Reliability { get; private set; } = Reliability.NeverFails;
     public string WeatherId { get; private set; } = "custom";   // "custom" = the conditions as they stand (no change for anyone upgrading)
     public double PilotKg { get; private set; } = DefaultPilotKg;
+    /// <summary>How the pages show weights, heights and winds (display only; every number here stays SI).</summary>
+    public UnitSystem Units { get; private set; } = DisplayUnits.Default;
     public string? InviteName { get; private set; }
 
     public readonly List<SeatRow> Seats = new();
@@ -184,7 +186,7 @@ public sealed class LandingFlow
                     if (rules.FixedLocation && l.Index != LocationIndex) continue;
                     list.Add(new PickerItem
                     {
-                        Kind = k, Id = l.Id, Title = l.Name, Subtitle = $"{l.ElevationFt:N0} ft", Selected = l.Index == LocationIndex,
+                        Kind = k, Id = l.Id, Title = l.Name, Subtitle = DisplayUnits.Elevation(l.ElevationFt * DisplayUnits.MPerFt, Units), Selected = l.Index == LocationIndex,
                         Thumbnails = ThumbnailKeys.LocationFallbacks(Family.Id, GearId, l.Id, Viewpoint).ToList(), IconKey = ThumbnailKeys.Icon("location", "airport"),
                     });
                 }
@@ -441,7 +443,7 @@ public sealed class LandingFlow
         {
             var load = Load;
             if (load == null) return null;
-            return FlyingGame.Core.Landing.WeightBalance.From(load, GrossOverrideKg());
+            return FlyingGame.Core.Landing.WeightBalance.From(load, GrossOverrideKg(), Units);
         }
     }
 
@@ -459,6 +461,21 @@ public sealed class LandingFlow
     public void SetTimeOfDay(TimeOfDay t) { TimeOfDay = t; Bump(); }
     public void SetReliability(Reliability r) { Reliability = r; Bump(); }
     public void SetWeather(string id) { WeatherId = id; Bump(); }
+
+    /// <summary>Standard | Metric. Remembered AT ONCE (not at LAUNCH like the rest): it is how the game talks to this
+    /// pilot, not a choice about this flight, so backing out of the page must not lose it.</summary>
+    public void SetUnits(UnitSystem u)
+    {
+        Units = u;
+        _store.Set(DisplayUnits.PrefKey, DisplayUnits.ToStored(u));
+        Bump();
+    }
+
+    /// <summary>A mass in the chosen units ("170 lb" / "77 kg"), and one tap of a − / + weight button, in kg.</summary>
+    public string MassText(double kg) => DisplayUnits.Mass(kg, Units);
+    public string MassNumber(double kg) => DisplayUnits.MassNumber(kg, Units);
+    public string MassUnit => DisplayUnits.MassUnit(Units);
+    public double MassStepKg => DisplayUnits.MassStepKg(Units);
     public bool ConditionsLocked => Rules.ConditionsLocked;
 
     /// <summary>0..1 brightness of the chosen time of day, for the page's light/dark feedback.</summary>
@@ -476,9 +493,12 @@ public sealed class LandingFlow
 
     public List<PickerItem> WeatherItems() => LandingCatalog.WeatherPresets.Select(w => new PickerItem
     {
-        Kind = PickerKind.None, Id = w.id, Title = w.name, Subtitle = w.windKt > 0 ? $"{w.windKt:0} kt" : "no wind", Selected = w.id == WeatherId,
+        Kind = PickerKind.None, Id = w.id, Title = w.name, Subtitle = w.windKt > 0 ? DisplayUnits.WindFromKt(w.windKt, Units) : "no wind", Selected = w.id == WeatherId,
         Enabled = !ConditionsLocked, DisabledReason = ConditionsLocked ? "Set by the contest" : null, IconKey = ThumbnailKeys.Icon("weather", w.id),
     }).Concat(new[] { new PickerItem { Kind = PickerKind.None, Id = "custom", Title = "Custom", Subtitle = "your own wind", Selected = WeatherId == "custom", Enabled = !ConditionsLocked, IconKey = ThumbnailKeys.Icon("weather", "custom") } }).ToList();
+
+    public List<PickerItem> UnitItems() => new[] { UnitSystem.Standard, UnitSystem.Metric }.Select(u => new PickerItem
+    { Kind = PickerKind.None, Id = u.ToString(), Title = DisplayUnits.Name(u), Subtitle = DisplayUnits.Blurb(u), Selected = u == Units, IconKey = ThumbnailKeys.Icon("units", u.ToString()) }).ToList();
 
     // ================================================================ launch
 
@@ -494,7 +514,7 @@ public sealed class LandingFlow
         });
         lines.Add(string.Join(", ", people));
         var wb = WeightBalance;
-        if (wb != null) lines.Add($"{wb.TotalKg:0} kg" + (wb.HasGross ? $" of {wb.MaxGrossKg:0}" : "") + (wb.InLimits ? "" : "  -  " + string.Join("; ", wb.Warnings)));
+        if (wb != null) lines.Add(MassText(wb.TotalKg) + (wb.HasGross ? $" of {MassNumber(wb.MaxGrossKg)}" : "") + (wb.InLimits ? "" : "  -  " + string.Join("; ", wb.Warnings)));
         lines.Add($"{LandingCatalog.TimesOfDay.First(t => t.t == TimeOfDay).name}, {LandingCatalog.WeatherPresets.FirstOrDefault(w => w.id == WeatherId).name ?? "Custom weather"}, {LandingCatalog.Reliabilities.First(r => r.r == Reliability).name.ToLowerInvariant()}");
         return lines;
     }
@@ -524,6 +544,7 @@ public sealed class LandingFlow
         _store.Set(K + "reliability", Reliability.ToString());
         _store.Set(K + "weather", WeatherId);
         _store.Set(K + "pilotKg", PilotKg.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        _store.Set(DisplayUnits.PrefKey, DisplayUnits.ToStored(Units));
         string ac = AircraftId;
         foreach (var s in Seats)
         {
@@ -555,6 +576,7 @@ public sealed class LandingFlow
         string? w = _store.Get(K + "weather");
         if (w != null) WeatherId = w;
         PilotKg = ReadKg(K + "pilotKg", DefaultPilotKg);
+        Units = DisplayUnits.Parse(_store.Get(DisplayUnits.PrefKey));
         ConformToRules();
         RebuildLoad();
     }

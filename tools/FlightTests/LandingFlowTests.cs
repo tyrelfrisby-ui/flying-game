@@ -260,9 +260,83 @@ public sealed class LandingFlowTests
         Assert.Equal(-0.108108, wb.CgM, 6);
         Assert.True(wb.OverGross);
         Assert.True(wb.CgAft);
-        Assert.Equal(new[] { "Over gross by 40 kg: it will fly like it", "CG aft of the limit: light, twitchy pitch, hard to recover from a spin" }, wb.Warnings.ToArray());
+        // Worded in the default units (Standard): 40 kg / 0.45359237 = 88.18 lb. Metric words it in kg.
+        Assert.Equal(new[] { "Over gross by 88 lb: it will fly like it", "CG aft of the limit: light, twitchy pitch, hard to recover from a spin" }, wb.Warnings.ToArray());
+        f.SetUnits(UnitSystem.Metric);
+        Assert.Equal(new[] { "Over gross by 40 kg: it will fly like it", "CG aft of the limit: light, twitchy pitch, hard to recover from a spin" }, f.WeightBalance!.Warnings.ToArray());
         Assert.True(wb.CanLaunch);
         Assert.True(f.Launch());
+    }
+
+    // ---------------------------------------------------------------- units (Ty 2026-11-05 10:56)
+
+    [Fact]
+    public void UnitsDefaultToStandardWhenNothingIsSaved()
+    {
+        var store = new MemoryLandingStore();
+        var f = NewFlow(store);
+        Assert.Equal(UnitSystem.Standard, f.Units);
+        Assert.False(store.Values.ContainsKey("landing.units"));   // opening the page writes nothing
+        Assert.Equal(new[] { "Standard:True", "Metric:False" }, f.UnitItems().Select(i => $"{i.Title}:{i.Selected}").ToArray());
+        // Anything unreadable is the default too.
+        store.Set("landing.units", "furlongs");
+        Assert.Equal(UnitSystem.Standard, NewFlow(store).Units);
+    }
+
+    [Fact]
+    public void TheUnitsChoiceIsRememberedAtOnceAndAcrossLaunches()
+    {
+        var store = new MemoryLandingStore();
+        var f = NewFlow(store);
+        f.Next();
+        f.SetUnits(UnitSystem.Metric);
+        Assert.Equal("metric", store.Values["landing.units"]);   // saved without LAUNCH: backing out does not lose it
+        Assert.Equal(UnitSystem.Metric, NewFlow(store).Units);
+
+        var g = NewFlow(store);
+        g.Next();
+        g.SetUnits(UnitSystem.Standard);
+        Assert.True(g.Launch());
+        Assert.Equal("standard", store.Values["landing.units"]);
+        Assert.Equal(UnitSystem.Standard, NewFlow(store).Units);
+    }
+
+    [Fact]
+    public void UnitsChangeWhatIsShownAndNothingThatIsFlown()
+    {
+        var f = NewFlow();
+        f.Next();
+        var front = f.Seats.Single(s => s.SeatId == "front");
+        // Standard: 77 kg = 169.76 lb; one tap is 10 lb = 4.5359237 kg.
+        Assert.Equal("170 lb", f.MassText(front.Kg));
+        Assert.Equal(4.5359237, f.MassStepKg, 9);
+        Assert.Equal("1,200 ft", f.Items(PickerKind.Location).Single(i => i.Id == "VALLEY").Subtitle);   // page 1 reads the same choice
+        f.SetSeatKg("front", front.Kg + f.MassStepKg);
+        Assert.Equal(81.5359237, f.Seats.Single(s => s.SeatId == "front").Kg, 9);   // the flow stays in kg
+        Assert.Equal("180 lb", f.MassText(f.Seats.Single(s => s.SeatId == "front").Kg));
+        double totalKg = f.WeightBalance!.TotalKg, cg = f.WeightBalance!.CgM;
+
+        f.SetUnits(UnitSystem.Metric);
+        Assert.Equal("82 kg", f.MassText(f.Seats.Single(s => s.SeatId == "front").Kg));
+        Assert.Equal(5.0, f.MassStepKg, 9);
+        Assert.Equal("366 m", f.Items(PickerKind.Location).Single(i => i.Id == "VALLEY").Subtitle);   // 1,200 × 0.3048 = 365.76
+        Assert.Equal(totalKg, f.WeightBalance!.TotalKg, 12);   // the load is not touched by the display
+        Assert.Equal(cg, f.WeightBalance!.CgM, 12);
+        Assert.Equal(new[] { "Standard:False", "Metric:True" }, f.UnitItems().Select(i => $"{i.Title}:{i.Selected}").ToArray());
+    }
+
+    [Fact]
+    public void DisplayUnitsConvertWithTheExactDefinitions()
+    {
+        Assert.Equal("190 lb", DisplayUnits.Mass(86.0, UnitSystem.Standard));     // 86 / 0.45359237 = 189.60
+        Assert.Equal("86 kg", DisplayUnits.Mass(86.0, UnitSystem.Metric));
+        Assert.Equal("4,700 ft", DisplayUnits.Elevation(1432.56, UnitSystem.Standard));   // 4,700 × 0.3048
+        Assert.Equal("1,433 m", DisplayUnits.Elevation(1432.56, UnitSystem.Metric));
+        Assert.Equal("15 kt", DisplayUnits.WindFromKt(15, UnitSystem.Standard));
+        Assert.Equal("28 km/h", DisplayUnits.WindFromKt(15, UnitSystem.Metric));      // 15 × 1.852 = 27.78
+        Assert.Equal("landing.units", DisplayUnits.PrefKey);
+        Assert.Equal(UnitSystem.Metric, DisplayUnits.Parse("Metric"));
+        Assert.Equal(UnitSystem.Standard, DisplayUnits.Parse(null));
     }
 
     /// <summary>The page must not change anybody's aeroplane by being opened: on the real configs, a type nobody has

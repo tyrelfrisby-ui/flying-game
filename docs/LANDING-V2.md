@@ -22,6 +22,7 @@ All in `src/FlyingGame.Core/Landing/` (namespace `FlyingGame.Core.Landing`), pur
 | page 2 load | `Stations` → `StationRow { StationId, Label, Kind (Fuel/Baggage), Kg, MaxKg, Fraction }`, `SetStationKg`, `SetFuelFraction(0..1)`, `FuelFraction`. |
 | W&B | `WeightBalance` → `{ TotalKg, MaxGrossKg, HasGross, HasEnvelope, PointX/PointY, ZeroFuelX/ZeroFuelY, Envelope (closed polyline), Warnings, InLimits, CanLaunch (always true) }`. Plot space 0..1, x = forward limit → aft limit (nose left), y = empty → 110 % gross. |
 | settings | `TimeItems()`, `ReliabilityItems()`, `WeatherItems()` (each a `List<PickerItem>`), `SetTimeOfDay`, `SetReliability`, `SetWeather(id)`; `Light` (0..1), `IsDark` (use for `LandingVisuals.Theme(night)`), `ConditionsLocked`. |
+| units | `Units` (`UnitSystem.Standard` / `Metric`), `UnitItems()` (two `PickerItem`s), `SetUnits(u)`; for labels `MassText(kg)` ("170 lb" / "77 kg"), `MassNumber(kg)`, `MassUnit`, and `MassStepKg` (one − / + tap: 10 lb or 5 kg, in kg). Formatting lives in `DisplayUnits`. |
 | summary | `Summary()` → the lines LAUNCH will do. |
 
 Bridge side (`unity/Assets/_Project/Scripts/Bridge/Landing/`):
@@ -45,6 +46,18 @@ Bridge side (`unity/Assets/_Project/Scripts/Bridge/Landing/`):
 - Midday = the scene's existing sun, unchanged for everybody who never touches the setting.
 - Reliability is STORED (`SessionSettings.EngineUnreliability`) but nothing in the sim reads it yet (Q queue).
 - Invite player is a stub: it weighs a default person and is listed in the summary; nothing is sent.
+- **Units (Ty 2026-11-05 10:56: "give page two a standard or metric option; most users will be American/standard").**
+  Page 2's settings column ends in a UNITS row, **Standard | Metric**; the Quest panel has a `Units:` row. **Default
+  Standard** when nothing is saved (or the value is unreadable). ONE preference for the whole game: PlayerPrefs key
+  **`landing.units`** = `standard` | `metric` (`DisplayUnits.PrefKey`), written the moment it is changed (not at LAUNCH:
+  it is how the game talks to the pilot, not a choice about one flight), and again at LAUNCH. Outside the landing page,
+  read it with `LandingSession.SavedUnits`; a HUD or instrument that grows a units choice uses this key, never a second
+  setting. There was no units setting anywhere in the game before this.
+  Display only: the flow, the store, `SessionSettings` and the sim all stay kg / m / m/s. What it changes: seat and
+  baggage weights (lb / kg), the − / + step (10 lb / 5 kg), the W&B heading and over-gross warning, the summary line,
+  the Quest W&B line, the location card's elevation (ft / m) and the weather cards' wind (kt / km/h). Fuel is shown as a
+  fraction and the CG axis as fwd / aft, so neither has a unit to change. The classic chapters behind "More settings"
+  still show kg and L.
 
 ## Thumbnails
 

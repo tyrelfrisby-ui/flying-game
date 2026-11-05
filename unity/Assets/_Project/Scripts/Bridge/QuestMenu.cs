@@ -252,6 +252,8 @@ namespace FlyingGame.Bridge
                 d => CycleSetting(Flow.WeatherItems(), d, Flow.SetWeather), () => OnLanding);
             AddRow(() => $"Engine:  {Flow.ReliabilityItems().First(i => i.Selected).Title}", () => CycleSetting(Flow.ReliabilityItems(), 1, id => Flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id))),
                 d => CycleSetting(Flow.ReliabilityItems(), d, id => Flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id))), () => OnLanding);
+            AddRow(() => $"Units:  {DisplayUnits.Name(Flow.Units)}  ({DisplayUnits.Blurb(Flow.Units)})", () => CycleSetting(Flow.UnitItems(), 1, SetUnits),
+                d => CycleSetting(Flow.UnitItems(), d, SetUnits), () => OnLanding);
             AddRow(() => WeightLine(), null, visible: () => OnLanding && Flow.WeightBalance != null);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
             AddRow(() => $"Seat:  {(OnLanding && Flow.Seats.FirstOrDefault(x => x.Occupant == Occupant.Me) is SeatRow me ? me.Label : SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId)))}",
@@ -753,13 +755,15 @@ namespace FlyingGame.Bridge
             return $"{seat.SeatId} - {who}";
         }
 
+        private static void SetUnits(string id) => Flow.SetUnits((UnitSystem)System.Enum.Parse(typeof(UnitSystem), id));
+
         private static void StepFuel(int step) => Flow.SetFuelFraction(System.Math.Round(Flow.FuelFraction * 4 + step) / 4.0);
 
         private static string WeightLine()
         {
             var wb = Flow.WeightBalance;
             if (wb == null) return "";
-            return $"   {wb.TotalKg:0}" + (wb.HasGross ? $" / {wb.MaxGrossKg:0} kg" : " kg") + (wb.InLimits ? "   in limits" : wb.OverGross ? $"   OVER GROSS {wb.TotalKg - wb.MaxGrossKg:0} kg" : "   CG OUT OF LIMITS");
+            return $"   {Flow.MassNumber(wb.TotalKg)}" + (wb.HasGross ? $" / {Flow.MassText(wb.MaxGrossKg)}" : " " + Flow.MassUnit) + (wb.InLimits ? "   in limits" : wb.OverGross ? $"   OVER GROSS {Flow.MassText(wb.TotalKg - wb.MaxGrossKg)}" : "   CG OUT OF LIMITS");
         }
 
         private static void CycleAircraft(int step)

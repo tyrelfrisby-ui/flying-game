@@ -338,12 +338,12 @@ namespace FlyingGame.Bridge
                 // The seat's own name, short ("Rear seat (solo)" → "Rear"), then who sits there.
                 string seatName = s.Label.Split(' ')[0];
                 UiLayout.Label(new Rect(seatR.x + _gap * 0.4f, seatR.y, seatR.width * 0.26f, row), seatName, _small);
-                UiLayout.Label(new Rect(seatR.x + seatR.width * 0.28f, seatR.y, seatR.width * 0.72f - _gap * 0.3f, row), s.Occupant == Occupant.Empty ? who : $"{who}  {s.Kg:0} kg", _label);
+                UiLayout.Label(new Rect(seatR.x + seatR.width * 0.28f, seatR.y, seatR.width * 0.72f - _gap * 0.3f, row), s.Occupant == Occupant.Empty ? who : $"{who}  {flow.MassText(s.Kg)}", _label);
                 if (s.Occupant != Occupant.Me && GUI.Button(seatR, GUIContent.none, GUIStyle.none)) flow.CycleSeat(s.SeatId);
                 if (s.Occupant != Occupant.Empty)
                 {
-                    if (UiLayout.Button(new Rect(seatR.xMax + _gap * 0.3f, y, stepW, row), "−", _btn)) flow.SetSeatKg(s.SeatId, s.Kg - 5);
-                    if (UiLayout.Button(new Rect(seatR.xMax + _gap * 0.3f + stepW, y, stepW, row), "+", _btn)) flow.SetSeatKg(s.SeatId, s.Kg + 5);
+                    if (UiLayout.Button(new Rect(seatR.xMax + _gap * 0.3f, y, stepW, row), "−", _btn)) flow.SetSeatKg(s.SeatId, s.Kg - flow.MassStepKg);
+                    if (UiLayout.Button(new Rect(seatR.xMax + _gap * 0.3f + stepW, y, stepW, row), "+", _btn)) flow.SetSeatKg(s.SeatId, s.Kg + flow.MassStepKg);
                 }
                 y += row + _gap * 0.3f;
             }
@@ -369,9 +369,9 @@ namespace FlyingGame.Bridge
             foreach (var b in bags)
             {
                 if (y + row > inner.yMax) break;
-                UiLayout.Label(new Rect(inner.x, y, inner.width - 2 * stepW - _gap, row), $"{b.Label}  {b.Kg:0} / {b.MaxKg:0} kg", _label);
-                if (UiLayout.Button(new Rect(inner.xMax - 2 * stepW, y, stepW, row), "−", _btn)) flow.SetStationKg(b.StationId, b.Kg - 5);
-                if (UiLayout.Button(new Rect(inner.xMax - stepW, y, stepW, row), "+", _btn)) flow.SetStationKg(b.StationId, b.Kg + 5);
+                UiLayout.Label(new Rect(inner.x, y, inner.width - 2 * stepW - _gap, row), $"{b.Label}  {flow.MassNumber(b.Kg)} / {flow.MassText(b.MaxKg)}", _label);
+                if (UiLayout.Button(new Rect(inner.xMax - 2 * stepW, y, stepW, row), "−", _btn)) flow.SetStationKg(b.StationId, b.Kg - flow.MassStepKg);
+                if (UiLayout.Button(new Rect(inner.xMax - stepW, y, stepW, row), "+", _btn)) flow.SetStationKg(b.StationId, b.Kg + flow.MassStepKg);
                 y += row + _gap * 0.3f;
             }
             if (flow.Load == null || flow.Load.Slots.Count == 0)
@@ -385,7 +385,7 @@ namespace FlyingGame.Bridge
             var inner = Inset(r, _gap * 0.6f);
             var wb = flow.WeightBalance;
             if (wb == null) { UiLayout.Label(inner, "No loading data for this type", _small); return; }
-            string head = $"WEIGHT & BALANCE  ·  {wb.TotalKg:0} kg" + (wb.HasGross ? $" of {wb.MaxGrossKg:0}" : "");
+            string head = $"WEIGHT & BALANCE  ·  {flow.MassText(wb.TotalKg)}" + (wb.HasGross ? $" of {flow.MassNumber(wb.MaxGrossKg)}" : "");
             UiLayout.Label(new Rect(inner.x, inner.y, inner.width, _bh * 0.8f), head, _head);
             float warnH = wb.InLimits ? _bh * 0.7f : _bh * 0.7f * wb.Warnings.Count;
             var plot = new Rect(inner.x, inner.y + _bh * 0.85f, inner.width, inner.height - _bh * 0.85f - warnH);
@@ -411,10 +411,13 @@ namespace FlyingGame.Bridge
             var c = GUI.color; GUI.color = new Color(1f, 0.92f, 0.7f, 0.18f * light); GUI.DrawTexture(r, _white); GUI.color = c;
             var inner = Inset(r, _gap * 0.6f);
             float y = inner.y, headH = _bh * 0.75f;
-            float block = (inner.height - 3 * headH) / 3f;
+            // UNITS (Ty 2026-11-05 10:56): one row of two cards, Standard | Metric, under the conditions.
+            float unitsH = _bh * 1.25f;
+            float block = (inner.height - 4 * headH - unitsH - _gap * 0.3f) / 3f;
             y = Choices(inner.x, y, inner.width, headH, block, "TIME OF DAY", flow.TimeItems(), id => flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id)), timeTint: true);
             y = Choices(inner.x, y, inner.width, headH, block, flow.ConditionsLocked ? "WEATHER  ·  set by the contest" : "WEATHER", flow.WeatherItems(), flow.SetWeather);
-            Choices(inner.x, y, inner.width, headH, block, "RELIABILITY", flow.ReliabilityItems(), id => flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id)));
+            y = Choices(inner.x, y, inner.width, headH, block, "RELIABILITY", flow.ReliabilityItems(), id => flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id)));
+            Choices(inner.x, y, inner.width, headH, unitsH, "UNITS", flow.UnitItems(), id => flow.SetUnits((UnitSystem)System.Enum.Parse(typeof(UnitSystem), id)));
         }
 
         /// <summary>A heading and a grid of small cards. Returns the next y.</summary>

@@ -1,5 +1,25 @@
 ## NEEDS YOU
 <!-- landing-v2 needs-you -->
+- **LANDING V2: STANDARD / METRIC ON PAGE 2 (Claude, lane/claude-landing-v2, 2026-11-05 13:40; Ty 10:56 "give page two a
+  standard or metric option; most users will be American/standard"). Local commit only: NOT merged, NOT pushed, NOT
+  installed. Nothing approved by me.**
+  - **What:** a UNITS row (Standard | Metric) at the foot of page 2's settings column, and a `Units:` row on the Quest
+    panel. **Default Standard** when nothing is saved. Changes seat/baggage weights (lb / kg), the − / + step (10 lb /
+    5 kg), the W&B heading, over-gross warning and summary, the Quest W&B line, airport elevation (ft / m) and wind on
+    the weather cards (kt / km/h). Display only: flow, store, SessionSettings and the sim stay SI.
+  - **One key for the whole game:** PlayerPrefs `landing.units` = `standard` | `metric` (`DisplayUnits.PrefKey`), saved
+    the moment it changes (and again at LAUNCH). No units setting existed anywhere before; HUD/instruments that grow one
+    read `LandingSession.SavedUnits`, never a second key. docs/LANDING-V2.md.
+  - **Checks:** LandingFlowTests 25/25 (.NET, 4 new); LandingV2Tests 7/7 EditMode (MemoryLandingStore round-trip + the
+    Bridge reader), 0 error CS; iOS `deploy.sh NOINSTALL` ** BUILD SUCCEEDED ** (12:51). Ignore check clean.
+  - **NOT done: the renders.** The Quest-panel shots and Mac page shots (`*-p2-load` Standard, `*-p2-load-metric`,
+    `quest-landing-units-standard/metric`) are wired into `AERO_SELFTEST=landing` and `LandingQuestShots` but never ran:
+    the job sat gated behind other lanes' Unity batches until it hit its 2 h limit. Run `tools/landing-v2/mac-shots.sh
+    pages` and the `LandingQuestShots.Run` batch when a slot is free. The control's layout has therefore NOT been looked
+    at on screen yet. Codex may restyle it (binding: `UnitItems()` / `SetUnits`).
+  - My first deploy attempt started 1 s after ground-volume's island-nav install; stopped at once on claude-floats-f8's
+    request, retried after the slot was idle (CLAUDE.md lesson added: sleep before the gate's last check, not after).
+
 - **LANDING PAGE V2: PLEASE LOOK AT THE RENDERS (Claude, lane/claude-landing-v2, 2026-11-05 09:40; Ty's 05:48 spec + 05:50
   addendum). Local commits only: NOT merged, NOT pushed, NOT installed on any device. Nothing approved by me.**
   Renders (29): `~/Developer/agent-lanes/renders/landing-v2/claude/` — `iphone-land-*` (2556x1180) and `ipad-land-*` (1180x820), each page and every open

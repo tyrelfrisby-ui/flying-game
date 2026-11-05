@@ -57,6 +57,15 @@ namespace FlyingGame.EditorTools
             flow.SetTimeOfDay(TimeOfDay.Sunset);
             flow.SetWeather("gusty");
             Shoot(cam, menu, dir, "quest-landing-sunset-gusty");
+            // Units (Ty 2026-11-05 10:56): the Units row and the W&B line in each system. The editor's own pref is put back.
+            string savedUnits = PlayerPrefs.HasKey(DisplayUnits.PrefKey) ? PlayerPrefs.GetString(DisplayUnits.PrefKey) : null;
+            flow.SetUnits(UnitSystem.Standard);
+            Shoot(cam, menu, dir, "quest-landing-units-standard");
+            if (!string.Join("|", flow.Summary()).Contains(" lb")) { Debug.LogError("[LandingQuestShots] Standard summary is not in lb"); failures++; }
+            flow.SetUnits(UnitSystem.Metric);
+            Shoot(cam, menu, dir, "quest-landing-units-metric");
+            if (!string.Join("|", flow.Summary()).Contains(" kg")) { Debug.LogError("[LandingQuestShots] Metric summary is not in kg"); failures++; }
+            if (savedUnits == null) PlayerPrefs.DeleteKey(DisplayUnits.PrefKey); else PlayerPrefs.SetString(DisplayUnits.PrefKey, savedUnits);
             Debug.Log($"[LandingQuestShots] {failures} failure(s); summary: {string.Join(" | ", flow.Summary())}");
             if (Application.isBatchMode) EditorApplication.Exit(failures == 0 ? 0 : 1);
         }
