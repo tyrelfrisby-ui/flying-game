@@ -425,6 +425,10 @@ public sealed partial class Aircraft
     /// <summary>Commanded power 0..1 (0 for gliders).</summary>
     public double Throttle01 => _throttle01;
 
+    /// <summary>The bus behind the master, alternator, fuel-pump and smoke switches (ElectricalSystem); stepped
+    /// with the sim. Every type has one; it starts with the master and the alternator on.</summary>
+    public FlyingGame.Core.Engine.ElectricalSystem Electrics { get; } = new();
+
     /// <summary>What is in the aeroplane: people, fuel, baggage. The loading page sets it before flight; in flight
     /// only the fuel changes, and the mass, CG and inertia follow it every step.</summary>
     public AircraftLoad Load { get; }
@@ -883,6 +887,16 @@ public sealed partial class Aircraft
         }
         _fuelLinesSec = FuelLinesSec;
     }
+
+    // ---- the cowl flap (the Pitts' lever under the left knee, Ty 2026-11-04 19:31: CLOSED / MID / OPEN) ----------
+
+    /// <summary>The cowl flap, 0 CLOSED .. 1 OPEN. Open: more cooling air (the CHT the cockpit reads falls,
+    /// EngineTemperatures) and a little drag, <see cref="CowlFlapDragAreaM2"/> of flat plate at full open.</summary>
+    public double CowlFlap01 { get => _cowlFlap01; set => _cowlFlap01 = Math.Clamp(value, 0.0, 1.0); }
+    private double _cowlFlap01;
+    /// <summary>(E) 0.02 m² (0.22 ft²) of flat plate for a fully open cowl flap on a 200 hp single: a few per cent of the
+    /// Pitts' parasite drag, not a measured number.</summary>
+    public const double CowlFlapDragAreaM2 = 0.02;
     /// <summary>Strip-level aero mask (AeroModel strip order), null while every component is attached.</summary>
     public bool[]? StripMask => _stripMask;
     /// <summary>Surfaces flying (null = all): false where a whole surface has gone (FailWings).</summary>
@@ -1302,13 +1316,14 @@ public sealed partial class Aircraft
                 double vA = vAir.Length;
                 if (vA > 1.0) totalF -= vAir * (0.5 * airDensity * vA * Config.GearDragAreaM2 * GearExtension);
             }
-            if (ExtraDragAreaM2 > 0)
+            if (ExtraDragAreaM2 > 0 || _cowlFlap01 > 0)
             {
                 Vec3 vAir = s.Velocity - windBody;
                 double vA = vAir.Length;
                 if (vA > 1.0)
                 {
-                    Vec3 xF = vAir * (-0.5 * airDensity * vA * ExtraDragAreaM2);
+                    // The open canopy's drag, and the cowl flap's (at the same point: both are close to the cockpit).
+                    Vec3 xF = vAir * (-0.5 * airDensity * vA * (ExtraDragAreaM2 + _cowlFlap01 * CowlFlapDragAreaM2));
                     ForceDebug.Add(ExtraDragPointBody, xF, Vec3.Zero, "extra-drag");
                     totalF += xF;
                     totalM += Vec3.Cross(ExtraDragPointBody - Config.Mass.CgVec(), xF);
@@ -1398,6 +1413,7 @@ public sealed partial class Aircraft
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
         UpdateLoad(dt);
+        Electrics.Step(dt, EngineRpm);
         StepTrees(preStep, dt);   // stems and crowns: snap, stop, or take the part that hit them (AircraftTreeStrike)
         if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
         FilterFuselageBreaks();   // a fuselage section crushes before it breaks (AircraftFuselageCrush)

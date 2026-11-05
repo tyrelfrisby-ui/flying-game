@@ -534,6 +534,18 @@ by making every opaque material double-sided.
 The Grob's seat/floor and low trim handle passed instrument/control pair checks but protruded through
 the fuselage. An exterior-envelope check against exported fuselage/glass triangles caught it. Check
 both neighboring parts AND the host shell; leave only deliberate mechanical mount contacts exempt.
+### A rig row turns its node about the node's origin, not about `pivot_gltf`
+`AirframeRig` sets `localRotation = rest * angle`; `pivot_gltf` is a record, never applied. Codex built the Pitts' mixture
+and cowl flap with their origin on the pivot and they worked; the fuel valve and the blue prop blade were baked at the
+model origin, so the first Unity render showed them perfectly at rest and simply gone when moved (swung about a point
+a metre away). Every assertion passed. A part that turns must have its node AT the pivot with its vertices relative
+to it (`pitts_controls_live.recentre`), and a render of the moved pose, not only the rest pose, is what catches it.
+
+### Run a script through its shebang: zsh's `path` is `$PATH`
+`zsh tools/check-parity.sh` printed `command not found: git/awk/grep` and a FAIL, because the bash script does
+`read -r path blob` and in zsh `path` is the array tied to `PATH`. Run it as `./tools/check-parity.sh` (it is bash),
+and treat any "command not found" in a checker's output as a broken run, not a verdict.
+
 
 ### Other agents' prompts are in `ps` too
 A "wait until no build is running" gate written as `ps aux | grep -E "Unity|xcodebuild"` (or `pgrep -f "tools/deploy/deploy.sh"`)

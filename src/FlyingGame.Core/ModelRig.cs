@@ -163,8 +163,9 @@ public struct RigInputs
     /// <summary>Fuel shut-off valve (the Great Lakes' and the Extra's red lever): 1 ON, 0 OFF. One param for both
     /// cockpits' levers, which are on one shaft: moving either moves both.</summary>
     public double FuelValve;
-    /// <summary>Alternator field switch, 0 or 1.</summary>
-    public double Alternator;
+    /// <summary>The Pitts' cowl flap 0 CLOSED .. 1 OPEN, and its blue prop lever's lock: 0 down (LOCKED) .. 1 horizontal
+    /// (released, free to slide).</summary>
+    public double CowlFlap, PropLock;
     /// <summary>Ignition key position: 0 OFF, 1 R, 2 L, 3 BOTH, 4 START.</summary>
     public double Magneto;
     /// <summary>J-3 primer plunger: 0 in and locked .. 1 pulled out 50 mm. No priming system reads it yet; it stays 0
@@ -172,6 +173,8 @@ public struct RigInputs
     public double Primer;
     /// <summary>Battery master, 0 or 1.</summary>
     public double Master;
+    /// <summary>Alternator field switch and electric boost pump, 0 or 1 (FlyingGame.Core.Engine.ElectricalSystem).</summary>
+    public double Alternator, FuelPump;
 
     /// <summary>0..1 canopy, 1 = fully open.</summary>
     public double CanopyOpen;
@@ -317,9 +320,9 @@ public struct RigInputs
             Mixture = 1.0,          // rich
             FuelSelector = 1.0,     // on
             FuelValve = 1.0,        // on
-            Alternator = 1.0,
             Magneto = 3.0,          // BOTH
             Master = 1.0,
+            Alternator = 1.0,
             CanopyLock = 1.0,       // closed and locked
             OilPressPsi = 0.0,
             OilTempF = 100.0,       // the bottom of the dial, as drawn
@@ -354,10 +357,13 @@ public struct RigInputs
             case "mixture": value = Mixture; return true;
             case "fuel_selector": value = FuelSelector; return true;
             case "fuel_valve": value = FuelValve; return true;
-            case "alternator": value = Alternator; return true;
+            case "cowl_flap": value = CowlFlap; return true;
+            case "prop_lock": value = PropLock; return true;
             case "magneto": value = Magneto; return true;
             case "primer": value = Primer; return true;
             case "master": value = Master; return true;
+            case "alternator": value = Alternator; return true;
+            case "fuel_pump": value = FuelPump; return true;
             case "canopy_open": value = CanopyOpen; return true;
             case "canopy_lock": value = CanopyLock; return true;
             case "canopy_jettison": value = CanopyJettison; return true;
