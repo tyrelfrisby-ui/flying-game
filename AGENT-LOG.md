@@ -1,4 +1,18 @@
 ## NEEDS YOU
+
+## NEEDS YOU — C172 yoke on devices (Grok Bot, 2026-11-04 17:02 PST)
+- Ty: fly the C172 on iPad mini (2026.1104.1648) / Quest 3S (2026.1104.1656): check yoke horns clear the thighs at full
+  deflection and the 1 in suction gauge reads right (green 4.5-5.4, red at 4.5 and 5.4). Not approved in-game yet.
+
+### 2026-11-04 C172 yoke merge into both lanes (Grok Bot)
+- Ty 16:38 "Yoke is good"; Ty 16:42 suction upper red line 5.4 (1980 172N) -> lane/claude-c172-yoke 3dacc353 + log c7e48d1e
+  (GLB rebuilt, rig desc, test asserts 4.5-5.4; check_c172_cockpit PASS; C172 filter 49/49).
+- Merged 7b9b8863 -> lane/claude-island-nav 9a6c9177 (AGENT-LOG conflict, kept both), c7e48d1e -> 4b902fca;
+  quest: b82976dc, 33b44366 (trees identical). PARITY: OK both.
+- Filtered tests (C172|Yoke|Cockpit|Pilot|Seat|Vr): 486/488; 2 failures (DronePilot aerobatic, MazeTow branch) pre-existing on base.
+- iOS deploy.sh ** BUILD SUCCEEDED ** 2026.1104.1648, installed iPad mini (iPhone unavailable). Quest deploy-quest.sh
+  2026.1104.1656, 0 error CS, installed + launched Quest 3S. (An earlier 1640 iOS build with 5.5 was aborted mid-xcodebuild.)
+- Build byproducts (ProjectSettings.asset, StreamingAssets JSON) left uncommitted, as before. Extra fuel-flow merge not combined (its agent was still testing).
 <!-- c172-yoke needs-you -->
 - **C172 YOKE RAISED 60 MM CLEAR OF THE THIGHS + 1 IN SUCTION GAUGE: approve the renders (Claude, 2026-11-04,
   lane/claude-c172-yoke off island-nav 94b70e6b; NOT merged, NOT installed, nothing approved by me).**
