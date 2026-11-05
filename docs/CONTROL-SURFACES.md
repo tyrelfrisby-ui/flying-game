@@ -717,3 +717,60 @@ Aileron WITH the roll now un-flattens a flat spin (upright 40 % L: α 93 → 30)
 α −36, where the wing's own autorotation is the roll driver and the aileron opposes it directly. Its upright mirror goes
 flat. The difference is the fin and slipstream geometry above, not a sign. The full-power inverted right spin with the
 aileron still does not hold (it gyrates, α −175..+170): run #3's gyro-yaw departure, unchanged.
+
+
+## Set-back hinges: the Extra's 30 % aileron hinge (2026-11-04)
+
+Ty, after flying the Extra on the Quest: *"the aileron hinge point needs to be 30 % [of the aileron chord] so the front
+of the ailerons sticks up when deflected."* That is an offset (set-back) hinge: the hinge line 0.30·c_a aft of the
+aileron's leading edge, the 0.30·c_a ahead of it an overhang balance that rises into the airflow above the upper skin
+when the trailing edge goes down, and drops below the lower skin when it goes up.
+
+**Geometry (the model, Codex):** the hinged strips stay the drawn aileron (same planform, same split line on the
+skin); only the pivot moves. The rig's `Aileron_L/R` `pivot_gltf` and the GLB's `Aileron_*_HingeAxis` go onto the line
+0.30·c_a aft of the aileron nose at every station, and the wing's cove is opened so the nose can swing through ±30°
+(CODEX-SPEC (e)).
+
+**Physics: an input recorded, NOT applied — measured first.** `ControlAxisConfig.HingeSetBackFrac` (c_b/c_a) says where
+the hinge is. The honest lift effect is that the flap which cambers the section is the part AFT of the hinge line
+(DATCOM measures c_f from the hinge line; the nose rises into the cove and lifts little), so
+`AeroModel.AileronSectionE` becomes E = (1 − c_b/c_a)·c_h / (c_f + c_h). The code does that when the field is set.
+`AileronSetBackProbe` (SETBACK_PROBE=1), full aileron, steady:
+
+| type | hinge at the nose | hinge set back 30 % | published / owner |
+|---|---|---|---|
+| Extra 300 (E 0.271 → 0.190) | **238.8 deg/s** at 160 mph | **192.5** (−19 %) | ~340–400 (already LOW, AGENT-LOG) |
+| Pitts S-2B | 218.2 | 173.1 (−21 %) | 225 (Ty) |
+| C172 (110 mph) | 83.4 | 66.6 (−20 %) | 60–90 (Ty) |
+
+So it is **not set in any config**. Applied alone it moves the Extra a further fifth away from the published rate,
+which is exactly the trap in CLAUDE.md ("A correction can be right in theory and still make the aeroplane fly worse"):
+the half we have data for is the c_f reduction, and `PlainFlap.EtaTable` is the SEALED-gap plain flap's large-deflection
+fall-off — an offset hinge necessarily has an open nose gap (Kitplanes, *Wind Tunnel: offset hinge lines*: "gap sealing
+is not possible"), whose slot changes how much lift survives at 25–30°, and nothing in the model's data covers that.
+Shipping one half would be measuring one effect and not its partner. It goes in when the gapped-balanced section's
+η_δ is sourced (NACA balanced-aileron reports; DATCOM 6.1.1.1 with a gap), and the Extra is re-measured as a whole.
+
+Hinge moments: an overhang balance cuts C_hα and C_hδ. The Extra already carries balanced values (−0.10 / −0.30,
+"spades", above); those are now meant to cover overhang + spades together. Not re-tuned: the magnitudes were authored,
+not derived, and changing them changes the stick-free float and the trim-tab calibration (RigTests), which needs its own
+measurement. Load points are unchanged (the section is unchanged).
+
+### Which models in the fleet have an offset / Frise aileron hinge
+
+Ty's rule is for the Extra. For the rest, the evidence found 2026-11-04 (web search: manufacturer manuals are not
+online; the sources are weak, so nothing else was changed):
+
+| model | real aileron | evidence | changed? |
+|---|---|---|---|
+| Extra 300 | offset hinge + spades | Ty (owner, flies them); photographs show the nose standing proud when deflected | **hinge to 30 % (geometry)** |
+| Pitts S-2B | aerodynamically and statically balanced (S-2 redesign); type of balance not stated | aeropedia.com.au (S-2B: "all control surfaces both aerodynamically and statically balanced"); AOPA 1998 on the spades | no — ask Ty |
+| Cessna 172 | Frise type | widely stated (this doc's hinge-moment section already assumes it); 172 maintenance manual not seen | no — geometry candidate |
+| PA-28 Archer | Frise (Cherokee family) | secondary sources only | no — downloaded model, carved at runtime |
+| P-51D | sealed internal balance / beveled TE (XP-51) | NACA report on XP-51 ailerons; forum notes on three hinges | no — downloaded model |
+| Great Lakes, J-3, PA-18, Decathlon, Stearman, Jenny, Gee Bee, Cassutt, SR22, Glasair, Beaver, Pawnee, Seminole, DC-3, gliders | plain / not found | no source either way | no |
+| 737, F-86, H-4 | powered / internally balanced, irreversible or tabbed | — | no |
+
+Sources: Kitplanes, *Wind Tunnel: Offset hinge lines* (kitplanes.com/wind-tunnel-offset-hinge-lines); Kitplanes, *Design
+Process: Aileron Types*; aeropedia.com.au (Pitts S-2); AOPA Pilot, April 1998, *Hot Stuff*; NACA reports via
+ntrs.nasa.gov on overhang-balanced ailerons.

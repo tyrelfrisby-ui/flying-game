@@ -188,7 +188,7 @@ namespace FlyingGame.Bridge
             if (_crashes != null) _crashes = new CrashSoundMixer(_fs);
             _ready = _crashes != null;
             if (_crashVisuals != null) _crashVisuals.enabled = true;
-            if (_driver != null) _driver.AircraftChanged += OnAircraftChanged;
+            if (_driver != null) { _driver.AircraftChanged += OnAircraftChanged; _driver.AirframeReplaced += OnAirframeReplaced; }
         }
 
         private void OnDisable()
@@ -198,7 +198,7 @@ namespace FlyingGame.Bridge
             _delayed.Clear();
             _ready = false;
             if (_crashVisuals != null) _crashVisuals.enabled = false;
-            if (_driver != null) _driver.AircraftChanged -= OnAircraftChanged;
+            if (_driver != null) { _driver.AircraftChanged -= OnAircraftChanged; _driver.AirframeReplaced -= OnAirframeReplaced; }
         }
 
         private void OnDestroy()
@@ -223,6 +223,16 @@ namespace FlyingGame.Bridge
         }
 
         private void OnAircraftChanged() { _waterImpactTimes.Clear(); RebuildEngine(); }
+
+        /// <summary>A new aeroplane (FlightSimDriver.AirframeReplaced): the last one's crash is over — sounds still on their
+        /// way at the speed of sound, crunches and flooding gurgles still ringing, spray and foam on the water.</summary>
+        private void OnAirframeReplaced()
+        {
+            _delayed.Clear();
+            _waterImpactTimes.Clear();
+            if (_crashes != null) _crashes = new CrashSoundMixer(_fs);
+            if (_crashVisuals != null) _crashVisuals.ClearAll();
+        }
 
         private void RebuildEngine()
         {

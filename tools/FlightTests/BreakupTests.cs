@@ -65,18 +65,21 @@ public class BreakupTests : IDisposable
         Assert.True(-ac.State.Position.Z > 0.2, $"CG at {-ac.State.Position.Z:F2} m");
     }
 
+    /// <summary>Changed 2026-11-04 (Ty: "for all steel tube airplanes ... the fuselage doesn't break apart other than at the
+    /// firewall"; FuselageStructure). The break-up rule is now an ALUMINIUM fuselage's: a C172 tail-first at 10 m/s, past
+    /// the tail cone's 5.5·√2 = 7.8 m/s single-blow speed, loses its tail boom and surfaces. The PA-18 (steel tube) the
+    /// test used to drop at 7 m/s now bends its tail instead (<see cref="SteelTubeTailConeStrikeBendsTheTail"/>).</summary>
     [Fact]
     public void TailConeStrikeSnapsTheTailBoomAndItsSurfaces()
     {
-        var c = Cub();
-        // Nose 25° up, tail-first at 7 m/s: the tail cone is the first thing to hit.
+        var c = Load("c172-like.json");
+        // Nose 25° up, tail-first at 10 m/s: the tail cone is the first thing to hit.
         double pitch = 25 * System.Math.PI / 180;
         var att = new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2));
-        var ac = Drop(c, att, 7.0, 0.05);
+        var ac = Drop(c, att, 10.0, 0.05);
         Run(ac, 1.0);
         _out.WriteLine("lost: " + string.Join(", ", ac.LostComponents));
         Assert.Contains(AirframeComponent.TailBoom, ac.LostComponents);
-        Assert.Contains(AirframeComponent.GearTail, ac.LostComponents);     // the tailwheel goes with the boom
         Assert.DoesNotContain(AirframeComponent.Nose, ac.LostComponents);
         // Tail aero is gone: every hstab/vstab strip masked; wing strips kept.
         bool[]? mask = ac.StripMask; Assert.NotNull(mask);
@@ -91,12 +94,28 @@ public class BreakupTests : IDisposable
         Assert.Contains(ac.ContactPoints, p => p.Name == "boom-stub");
     }
 
+    /// <summary>The old tail-strike drop on the PA-18 (steel tube): the tail boom crushes and bends up, nothing comes off.</summary>
+    [Fact]
+    public void SteelTubeTailConeStrikeBendsTheTail()
+    {
+        var c = Cub();
+        double pitch = 25 * System.Math.PI / 180;
+        var att = new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2));
+        var ac = Drop(c, att, 7.0, 0.05);
+        Run(ac, 1.0);
+        _out.WriteLine($"lost: {string.Join(", ", ac.LostComponents)}; tail crush {ac.Crush.TailCrushM:F3} m, bend {ac.Crush.TailBendPitchRad * 57.3:F1}°");
+        Assert.DoesNotContain(AirframeComponent.TailBoom, ac.LostComponents);
+        Assert.True(ac.Crush.TailCrushM > 0);
+        Assert.True(ac.Crush.TailBendPitchRad > 0);
+    }
+
+    /// <summary>Changed 2026-11-04 (see above): an aluminium C172 slammed flat at 15 m/s (past the cabin's 8·√2 = 11.3 m/s)
+    /// breaks into three; the PA-18 at the old test's 14 m/s crushes and stays whole (<see cref="SteelTubeBellySlamCrushes"/>).</summary>
     [Fact]
     public void BellySlamBreaksTheFuselageIntoThree()
     {
-        var c = Cub();
-        // Flat 14 m/s slam: the legs tear off, then the belly/wing roots hit past 8 m/s — the fuselage breaks up.
-        var ac = Drop(c, new Quat(0, 0, 0, 1), 14.0, 0.05);
+        var c = Load("c172-like.json");
+        var ac = Drop(c, new Quat(0, 0, 0, 1), 15.0, 0.05);
         Run(ac, 1.5);
         _out.WriteLine("lost: " + string.Join(", ", ac.LostComponents));
         Assert.Contains(AirframeComponent.Cabin, ac.LostComponents);
@@ -104,6 +123,17 @@ public class BreakupTests : IDisposable
         Assert.Contains(AirframeComponent.TailBoom, ac.LostComponents);
         Assert.True(ac.EngineStopped);
         Assert.Contains(ac.ContactPoints, p => p.Name == "belly");     // the cabin keeps its own hard points
+    }
+
+    [Fact]
+    public void SteelTubeBellySlamCrushes()
+    {
+        var c = Cub();
+        var ac = Drop(c, new Quat(0, 0, 0, 1), 14.0, 0.05);
+        Run(ac, 1.5);
+        _out.WriteLine($"lost: {string.Join(", ", ac.LostComponents)}; cabin crush {ac.Crush.CabinCrushM:F3} m");
+        Assert.DoesNotContain(AirframeComponent.Cabin, ac.LostComponents);
+        Assert.DoesNotContain(AirframeComponent.TailBoom, ac.LostComponents);
     }
 
     [Fact]

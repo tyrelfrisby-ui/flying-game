@@ -284,6 +284,8 @@ public sealed partial class Aircraft
     /// Left/right brake = BrakeInput × (1 ∓ bias) clamped to 0..1.</summary>
     public double BrakeBias { get; set; }
     private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
+    /// <summary>The per-strip flow and damage state (tests and probes read the crash damage in it).</summary>
+    public StripFlowState FlowStateForTests => _flowState;
 
     /// <summary>External world-frame force (N) applied at ExternalForcePointBody — the aerotow rope
     /// tension, winch, etc. Set by the coupling each step; zero by default.</summary>
@@ -407,7 +409,7 @@ public sealed partial class Aircraft
     {
         get
         {
-            if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0) return 0.0;
+            if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0 || _noseLost) return 0.0;   // stopped: burns nothing
             double bsfc = Config.Propulsion.BsfcKgPerWs;
             if (bsfc <= 0.0) return 0.0;
             return Config.Propulsion.MaxPowerW * Math.Clamp(_throttle01, 0.0, 1.0) * bsfc;
@@ -424,6 +426,14 @@ public sealed partial class Aircraft
     /// panel in bending as lift does. A fuselage thumping onto the ground decelerates the aeroplane at several g without the
     /// wing lifting at all; that load reaches a panel only through its own contact points (AircraftContactDamage).</summary>
     public double AeroLoadFactorZ { get; private set; } = 1.0;
+
+    /// <summary>
+    /// Specific force, body axes, m/s²: every non-gravitational force on the airframe over its mass, at the last
+    /// force evaluation of the step — what an accelerometer, a compass float or an inclinometer ball feels.
+    /// (0, 0, −g) in level flight. Unlike <see cref="LoadFactorZ"/> it includes buoyancy, because a float in
+    /// a compass bowl feels the water holding the aeroplane up just as it feels the wing.
+    /// </summary>
+    public Vec3 SpecificForceBody { get; private set; } = new(0, 0, -9.80665);
 
     /// <summary>Engine speed (rpm) for piston/prop types from the prop model's throttle→rpm law; 0 for gliders.
     /// Jets (PropDiameterM == 0) report a pseudo-N1 0..100 as MaxRpm-scaled throttle.</summary>
@@ -1268,6 +1278,7 @@ public sealed partial class Aircraft
             Vec3 nonGrav = totalF - gravityBody - waterF;
             LoadFactorZ = weightN > 1e-9 ? -nonGrav.Z / weightN : 1.0;
             AeroLoadFactorZ = weightN > 1e-9 ? -aeroForce.Z / weightN : 1.0;
+            if (MassProperties.MassKg > 1e-9) SpecificForceBody = (totalF - gravityBody) / MassProperties.MassKg;
             return (totalF, totalM);
         }
 
@@ -1300,6 +1311,7 @@ public sealed partial class Aircraft
         UpdateLoad(dt);
         StepTrees(preStep, dt);   // stems and crowns: snap, stop, or take the part that hit them (AircraftTreeStrike)
         if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
+        FilterFuselageBreaks();   // a fuselage section crushes before it breaks (AircraftFuselageCrush)
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
         AfterStepContactDamage(dt);
         if (_impacts.MaxClosingMs > 0.0) HardImpact?.Invoke(_impacts.MaxClosingMs, _impacts.Point);

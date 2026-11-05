@@ -246,7 +246,11 @@ public static class AeroModel
             }
             if (best < 0) continue;
             double ch = hinged ? st.Chord : all[best].st.Chord, cf = hinged ? all[best].st.Chord : st.Chord;
-            e[i] = ch / (ch + cf);
+            // A set-back hinge (ControlAxisConfig.HingeSetBackFrac): the flap that cambers the section is the part AFT of
+            // the hinge line; the nose ahead of it rises into the cove and lifts little (DATCOM 4.1.1.2 / 6.1.1.1 measure
+            // c_f from the hinge line). The section chord is unchanged.
+            double setBack = Math.Clamp(cfg.Controls?.Aileron?.HingeSetBackFrac ?? 0.0, 0.0, 0.5);
+            e[i] = ch * (1.0 - setBack) / (ch + cf);
         }
         return e;
     }
@@ -621,6 +625,7 @@ public static class AeroModel
                 // all, is set FinOffsetRad to the centreline. Built into the airframe; zero on an unrigged type.
                 if (strip.Control is not null && strip.Control.Surface == "aileron" && double.IsNaN(overrideRad)) controlDeflRad += config.Rig.AileronRad;
                 double stripIncidence = strip.IncidenceRad + (isVertical ? config.Rig.FinOffsetRad : 0.0);
+                if (flowState?.IncidenceDeltaRad is { } incd && idx < incd.Length) stripIncidence += incd[idx];   // a bent tail boom
                 string sectionKey = SectionTableKey(config, surfaceIndex) ?? strip.Airfoil;
                 if (!airfoilTables.TryGetValue(sectionKey, out AirfoilTable? table))
                 {
@@ -897,6 +902,12 @@ public static class AeroModel
 
                 double lift = q * strip.Area * clTotal;
                 double drag = q * strip.Area * (coeffs.Cd + cdInduced + flapCd);
+                if (flowState?.LiftFactor is { } lf && idx < lf.Length)
+                {
+                    // Branch damage (dented leading edge, torn fabric): less lift and more drag from this strip.
+                    lift *= lf[idx];
+                    if (flowState.ExtraCd is { } xcd && idx < xcd.Length) drag += q * strip.Area * xcd[idx];
+                }
                 double momentC4 = q * strip.Area * strip.Chord * (coeffs.Cm + flapCm);
 
                 Vec3 force = liftDir * lift - dragDir * drag;

@@ -1,0 +1,1566 @@
+{
+  "version": 1,
+  "frame": "Blender +X forward +Y left +Z up; exported glTF +X forward +Y up +Z right",
+  "bindings": [
+    {
+      "node": "C172_Airspeed_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Airspeed_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.4230000078678131,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_AI_roll",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "attitude.roll",
+      "pivot_blender_m": [
+        0.301800012588501,
+        0.32100000977516174,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_AI_pitch",
+      "kind": "translation",
+      "axis": "+Z",
+      "range": [
+        -0.02,
+        0.02
+      ],
+      "signal": "attitude.pitch",
+      "pivot_blender_m": [
+        0.29899999499320984,
+        0.32100000977516174,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_AI_cage",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "AI_cage",
+      "pivot_blender_m": [
+        0.2973000109195709,
+        0.29600000381469727,
+        0.2930000126361847
+      ]
+    },
+    {
+      "node": "C172_Altimeter_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Altimeter_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.21899999678134918,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_Altimeter_1000",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Altimeter_1000",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.21899999678134918,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_Altimeter_10000",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Altimeter_10000",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.21899999678134918,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_Altimeter_baro",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "Altimeter_baro",
+      "pivot_blender_m": [
+        0.2973000109195709,
+        0.2460000067949295,
+        0.2930000126361847
+      ]
+    },
+    {
+      "node": "C172_TC_airplane",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        -40,
+        40
+      ],
+      "signal": "turn.rate",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.4230000078678131,
+        0.21799999475479126
+      ]
+    },
+    {
+      "node": "C172_TC_slip_ball",
+      "kind": "translation",
+      "axis": "-Y",
+      "range": [
+        -0.015,
+        0.015
+      ],
+      "signal": "slip",
+      "pivot_blender_m": [
+        0.2955999970436096,
+        0.4230000078678131,
+        0.19599999487400055
+      ]
+    },
+    {
+      "node": "C172_DG_card",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "heading.nonSlavedDeg",
+      "pivot_blender_m": [
+        0.29670000076293945,
+        0.32100000977516174,
+        0.21799999475479126
+      ]
+    },
+    {
+      "node": "C172_DG_heading_bug",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "headingBugDeg",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.32100000977516174,
+        0.21799999475479126
+      ]
+    },
+    {
+      "node": "C172_DG_sync_adjust",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "DG_sync_adjust",
+      "pivot_blender_m": [
+        0.2973000109195709,
+        0.3479999899864197,
+        0.18799999356269836
+      ]
+    },
+    {
+      "node": "C172_DG_bug_adjust",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "DG_bug_adjust",
+      "pivot_blender_m": [
+        0.2973000109195709,
+        0.2939999997615814,
+        0.18799999356269836
+      ]
+    },
+    {
+      "node": "C172_VSI_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "VSI_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.21899999678134918,
+        0.21799999475479126
+      ]
+    },
+    {
+      "node": "C172_NAV1_OBS_card",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "nav1.obsDeg",
+      "pivot_blender_m": [
+        0.29659998416900635,
+        0.1120000034570694,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_NAV1_CDI",
+      "kind": "translation",
+      "axis": "-Y",
+      "range": [
+        -0.018,
+        0.018
+      ],
+      "signal": "nav1.cdiNormalized",
+      "pivot_blender_m": [
+        0.2955999970436096,
+        0.1120000034570694,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_NAV1_GS",
+      "kind": "translation",
+      "axis": "+Z",
+      "range": [
+        -0.018,
+        0.018
+      ],
+      "signal": "nav1.gsNormalized",
+      "pivot_blender_m": [
+        0.2953999936580658,
+        0.1120000034570694,
+        0.3230000138282776
+      ]
+    },
+    {
+      "node": "C172_NAV1_OBS",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "NAV1_OBS",
+      "pivot_blender_m": [
+        0.2973000109195709,
+        0.1379999965429306,
+        0.2930000126361847
+      ]
+    },
+    {
+      "node": "C172_NAV1_NAV_flag",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        90
+      ],
+      "signal": "nav1.NAV",
+      "pivot_blender_m": [
+        0.2953200042247772,
+        0.09799999743700027,
+        0.3310000002384186
+      ]
+    },
+    {
+      "node": "C172_NAV1_TO_FROM_flag",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        90
+      ],
+      "signal": "nav1.TO_FROM",
+      "pivot_blender_m": [
+        0.2953200042247772,
+        0.09799999743700027,
+        0.33899998664855957
+      ]
+    },
+    {
+      "node": "C172_NAV1_GS_flag",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        90
+      ],
+      "signal": "nav1.GS",
+      "pivot_blender_m": [
+        0.2953200042247772,
+        0.09799999743700027,
+        0.34700000286102295
+      ]
+    },
+    {
+      "node": "C172_NAV2_OBS_card",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "nav2.obsDeg",
+      "pivot_blender_m": [
+        0.29659998416900635,
+        0.1120000034570694,
+        0.21799999475479126
+      ]
+    },
+    {
+      "node": "C172_NAV2_CDI",
+      "kind": "translation",
+      "axis": "-Y",
+      "range": [
+        -0.018,
+        0.018
+      ],
+      "signal": "nav2.cdiNormalized",
+      "pivot_blender_m": [
+        0.2955999970436096,
+        0.1120000034570694,
+        0.21799999475479126
+      ]
+    },
+    {
+      "node": "C172_NAV2_OBS",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "NAV2_OBS",
+      "pivot_blender_m": [
+        0.2973000109195709,
+        0.1379999965429306,
+        0.18799999356269836
+      ]
+    },
+    {
+      "node": "C172_NAV2_NAV_flag",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        90
+      ],
+      "signal": "nav2.NAV",
+      "pivot_blender_m": [
+        0.2953200042247772,
+        0.09799999743700027,
+        0.22599999606609344
+      ]
+    },
+    {
+      "node": "C172_NAV2_TO_FROM_flag",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        0,
+        90
+      ],
+      "signal": "nav2.TO_FROM",
+      "pivot_blender_m": [
+        0.2953200042247772,
+        0.09799999743700027,
+        0.23399999737739563
+      ]
+    },
+    {
+      "node": "C172_ADF_bearing",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "ADF_bearing",
+      "pivot_blender_m": [
+        0.29600000381469727,
+        0.1120000034570694,
+        0.11299999803304672
+      ]
+    },
+    {
+      "node": "C172_ADF_card_adjust",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "ADF_card_adjust",
+      "pivot_blender_m": [
+        0.2973000109195709,
+        0.1379999965429306,
+        0.08299999684095383
+      ]
+    },
+    {
+      "node": "C172_Tach_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Tach_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.21899999678134918,
+        0.11299999803304672
+      ]
+    },
+    {
+      "node": "C172_Suction_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Suction_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.32100000977516174,
+        0.14499999582767487
+      ]
+    },
+    {
+      "node": "C172_Fuel_L_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Fuel_L_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.44999998807907104,
+        0.11299999803304672
+      ]
+    },
+    {
+      "node": "C172_Fuel_R_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Fuel_R_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.3959999978542328,
+        0.11299999803304672
+      ]
+    },
+    {
+      "node": "C172_Oil_press_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Oil_press_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.0,
+        0.3330000042915344
+      ]
+    },
+    {
+      "node": "C172_Oil_temp_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Oil_temp_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.0,
+        0.2529999911785126
+      ]
+    },
+    {
+      "node": "C172_Ammeter_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "Ammeter_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.0,
+        0.17299999296665192
+      ]
+    },
+    {
+      "node": "C172_EGT_needle",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        -180,
+        180
+      ],
+      "signal": "EGT_needle",
+      "pivot_blender_m": [
+        0.29589998722076416,
+        0.0,
+        0.09300000220537186
+      ]
+    },
+    {
+      "node": "C172_Audio_COM1",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "audio.COM1",
+      "pivot_blender_m": [
+        0.24699999392032623,
+        -0.09000000357627869,
+        0.36000001430511475
+      ]
+    },
+    {
+      "node": "C172_Audio_COM2",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "audio.COM2",
+      "pivot_blender_m": [
+        0.24699999392032623,
+        -0.11800000071525574,
+        0.36000001430511475
+      ]
+    },
+    {
+      "node": "C172_Audio_NAV1",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "audio.NAV1",
+      "pivot_blender_m": [
+        0.24699999392032623,
+        -0.1459999978542328,
+        0.36000001430511475
+      ]
+    },
+    {
+      "node": "C172_Audio_NAV2",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "audio.NAV2",
+      "pivot_blender_m": [
+        0.24699999392032623,
+        -0.17399999499320984,
+        0.36000001430511475
+      ]
+    },
+    {
+      "node": "C172_Audio_ADF",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "audio.ADF",
+      "pivot_blender_m": [
+        0.24699999392032623,
+        -0.20200000703334808,
+        0.36000001430511475
+      ]
+    },
+    {
+      "node": "C172_Audio_SPKR",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "audio.SPKR",
+      "pivot_blender_m": [
+        0.24699999392032623,
+        -0.23000000417232513,
+        0.36000001430511475
+      ]
+    },
+    {
+      "node": "C172_KX170B_1_COMM_coarse",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_1_COMM_coarse",
+      "pivot_blender_m": [
+        0.24899999797344208,
+        -0.11800000071525574,
+        0.2840000092983246
+      ]
+    },
+    {
+      "node": "C172_KX170B_1_COMM_fine",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_1_COMM_fine",
+      "pivot_blender_m": [
+        0.23499999940395355,
+        -0.11800000071525574,
+        0.2840000092983246
+      ]
+    },
+    {
+      "node": "C172_KX170B_1_COMM_volume",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_1_COMM_volume",
+      "pivot_blender_m": [
+        0.24799999594688416,
+        -0.09300000220537186,
+        0.2840000092983246
+      ]
+    },
+    {
+      "node": "C172_KX170B_1_NAV_coarse",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_1_NAV_coarse",
+      "pivot_blender_m": [
+        0.24899999797344208,
+        -0.20000000298023224,
+        0.2840000092983246
+      ]
+    },
+    {
+      "node": "C172_KX170B_1_NAV_fine",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_1_NAV_fine",
+      "pivot_blender_m": [
+        0.23499999940395355,
+        -0.20000000298023224,
+        0.2840000092983246
+      ]
+    },
+    {
+      "node": "C172_KX170B_1_NAV_volume",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_1_NAV_volume",
+      "pivot_blender_m": [
+        0.24799999594688416,
+        -0.17499999701976776,
+        0.2840000092983246
+      ]
+    },
+    {
+      "node": "C172_KX170B_2_COMM_coarse",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_2_COMM_coarse",
+      "pivot_blender_m": [
+        0.24899999797344208,
+        -0.11800000071525574,
+        0.20100000500679016
+      ]
+    },
+    {
+      "node": "C172_KX170B_2_COMM_fine",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_2_COMM_fine",
+      "pivot_blender_m": [
+        0.23499999940395355,
+        -0.11800000071525574,
+        0.20100000500679016
+      ]
+    },
+    {
+      "node": "C172_KX170B_2_COMM_volume",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_2_COMM_volume",
+      "pivot_blender_m": [
+        0.24799999594688416,
+        -0.09300000220537186,
+        0.20100000500679016
+      ]
+    },
+    {
+      "node": "C172_KX170B_2_NAV_coarse",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_2_NAV_coarse",
+      "pivot_blender_m": [
+        0.24899999797344208,
+        -0.20000000298023224,
+        0.20100000500679016
+      ]
+    },
+    {
+      "node": "C172_KX170B_2_NAV_fine",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_2_NAV_fine",
+      "pivot_blender_m": [
+        0.23499999940395355,
+        -0.20000000298023224,
+        0.20100000500679016
+      ]
+    },
+    {
+      "node": "C172_KX170B_2_NAV_volume",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KX170B_2_NAV_volume",
+      "pivot_blender_m": [
+        0.24799999594688416,
+        -0.17499999701976776,
+        0.20100000500679016
+      ]
+    },
+    {
+      "node": "C172_KR85_ADF_mode",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KR85_ADF_mode",
+      "pivot_blender_m": [
+        0.24500000476837158,
+        -0.10000000149011612,
+        0.13899999856948853
+      ]
+    },
+    {
+      "node": "C172_KR85_ADF_tune",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "KR85_ADF_tune",
+      "pivot_blender_m": [
+        0.24500000476837158,
+        -0.2199999988079071,
+        0.13899999856948853
+      ]
+    },
+    {
+      "node": "C172_DME_channel",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "DME_channel",
+      "pivot_blender_m": [
+        0.2460000067949295,
+        -0.22300000488758087,
+        0.09399999678134918
+      ]
+    },
+    {
+      "node": "C172_DME_mode",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "DME_mode",
+      "pivot_blender_m": [
+        0.2460000067949295,
+        -0.20000000298023224,
+        0.08100000023841858
+      ]
+    },
+    {
+      "node": "C172_XPDR_digit0",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "XPDR_digit0",
+      "pivot_blender_m": [
+        0.2460000067949295,
+        -0.11500000208616257,
+        0.02800000086426735
+      ]
+    },
+    {
+      "node": "C172_XPDR_digit1",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "XPDR_digit1",
+      "pivot_blender_m": [
+        0.2460000067949295,
+        -0.14300000667572021,
+        0.02800000086426735
+      ]
+    },
+    {
+      "node": "C172_XPDR_digit2",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "XPDR_digit2",
+      "pivot_blender_m": [
+        0.2460000067949295,
+        -0.17100000381469727,
+        0.02800000086426735
+      ]
+    },
+    {
+      "node": "C172_XPDR_digit3",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "XPDR_digit3",
+      "pivot_blender_m": [
+        0.2460000067949295,
+        -0.19900000095367432,
+        0.02800000086426735
+      ]
+    },
+    {
+      "node": "C172_XPDR_mode",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "XPDR_mode",
+      "pivot_blender_m": [
+        0.2460000067949295,
+        -0.23000000417232513,
+        0.041999999433755875
+      ]
+    },
+    {
+      "node": "C172_Master_BAT",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "Master_BAT",
+      "pivot_blender_m": [
+        0.26100000739097595,
+        0.46000000834465027,
+        -0.01899999938905239
+      ]
+    },
+    {
+      "node": "C172_Master_ALT",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "Master_ALT",
+      "pivot_blender_m": [
+        0.26100000739097595,
+        0.42100000381469727,
+        -0.01899999938905239
+      ]
+    },
+    {
+      "node": "C172_Beacon",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "Beacon",
+      "pivot_blender_m": [
+        0.26100000739097595,
+        0.38199999928474426,
+        -0.01899999938905239
+      ]
+    },
+    {
+      "node": "C172_Landing",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "Landing",
+      "pivot_blender_m": [
+        0.26100000739097595,
+        0.34299999475479126,
+        -0.01899999938905239
+      ]
+    },
+    {
+      "node": "C172_Taxi",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "Taxi",
+      "pivot_blender_m": [
+        0.26100000739097595,
+        0.2669999897480011,
+        -0.01899999938905239
+      ]
+    },
+    {
+      "node": "C172_Nav_lights",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "Nav_lights",
+      "pivot_blender_m": [
+        0.26100000739097595,
+        0.2240000069141388,
+        -0.01899999938905239
+      ]
+    },
+    {
+      "node": "C172_Pitot_heat",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        25
+      ],
+      "signal": "Pitot_heat",
+      "pivot_blender_m": [
+        0.26100000739097595,
+        0.17399999499320984,
+        -0.01899999938905239
+      ]
+    },
+    {
+      "node": "C172_Mags_key",
+      "kind": "rotation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "Mags_key",
+      "pivot_blender_m": [
+        0.2549999952316284,
+        0.4350000023841858,
+        0.03500000014901161
+      ]
+    },
+    {
+      "node": "C172_Primer",
+      "kind": "translation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        0.06
+      ],
+      "signal": "Primer",
+      "pivot_blender_m": [
+        0.2849999964237213,
+        0.35499998927116394,
+        0.03500000014901161
+      ]
+    },
+    {
+      "node": "C172_Throttle",
+      "kind": "translation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        0.06
+      ],
+      "signal": "Throttle",
+      "pivot_blender_m": [
+        0.1509999930858612,
+        0.03999999910593033,
+        -0.029999999329447746
+      ]
+    },
+    {
+      "node": "C172_Mixture",
+      "kind": "translation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        0.06
+      ],
+      "signal": "Mixture",
+      "pivot_blender_m": [
+        0.1509999930858612,
+        -0.03500000014901161,
+        -0.029999999329447746
+      ]
+    },
+    {
+      "node": "C172_Carb_heat",
+      "kind": "translation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        0.06
+      ],
+      "signal": "Carb_heat",
+      "pivot_blender_m": [
+        0.1509999930858612,
+        -0.1120000034570694,
+        -0.029999999329447746
+      ]
+    },
+    {
+      "node": "C172_Cabin_heat",
+      "kind": "translation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        0.06
+      ],
+      "signal": "Cabin_heat",
+      "pivot_blender_m": [
+        0.26899999380111694,
+        -0.2549999952316284,
+        -0.029999999329447746
+      ]
+    },
+    {
+      "node": "C172_Cabin_air",
+      "kind": "translation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        0.06
+      ],
+      "signal": "Cabin_air",
+      "pivot_blender_m": [
+        0.26899999380111694,
+        -0.33500000834465027,
+        -0.029999999329447746
+      ]
+    },
+    {
+      "node": "C172_Flap_switch",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        40
+      ],
+      "signal": "flap.command",
+      "pivot_blender_m": [
+        0.24500000476837158,
+        -0.40299999713897705,
+        -0.019999999552965164
+      ]
+    },
+    {
+      "node": "C172_Flap_indicator",
+      "kind": "translation",
+      "axis": "+Z",
+      "range": [
+        0,
+        0.023
+      ],
+      "signal": "flap.position",
+      "pivot_blender_m": [
+        0.2529999911785126,
+        -0.4580000042915344,
+        -0.01600000075995922
+      ]
+    },
+    {
+      "node": "C172_Compass_card",
+      "kind": "rotation",
+      "axis": "+Z",
+      "range": [
+        0,
+        360
+      ],
+      "signal": "magneticHeading",
+      "pivot_blender_m": [
+        0.33730000257492065,
+        0.0,
+        0.4480000138282776
+      ]
+    },
+    {
+      "node": "C172_Yoke_L_pitch",
+      "kind": "translation",
+      "axis": "+X",
+      "range": [
+        -0.07,
+        0.07
+      ],
+      "signal": "elevator",
+      "pivot_blender_m": [
+        0.1850000023841858,
+        0.30000001192092896,
+        0.10000000149011612
+      ]
+    },
+    {
+      "node": "C172_Yoke_L_roll",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        -90,
+        90
+      ],
+      "signal": "aileron",
+      "pivot_blender_m": [
+        -0.025000005960464478,
+        0.30000001192092896,
+        0.10000000149011612
+      ]
+    },
+    {
+      "node": "C172_Pedal_L_L",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        -18,
+        18
+      ],
+      "signal": "rudder",
+      "pivot_blender_m": [
+        0.5460000038146973,
+        0.382999986410141,
+        -0.5049999952316284
+      ]
+    },
+    {
+      "node": "C172_Toe_brake_L_L",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        15
+      ],
+      "signal": "brake.L",
+      "pivot_blender_m": [
+        0.5135825276374817,
+        0.382999986410141,
+        -0.33599013090133667
+      ]
+    },
+    {
+      "node": "C172_Pedal_L_R",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        -18,
+        18
+      ],
+      "signal": "rudder",
+      "pivot_blender_m": [
+        0.5460000038146973,
+        0.21699999272823334,
+        -0.5049999952316284
+      ]
+    },
+    {
+      "node": "C172_Toe_brake_L_R",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        15
+      ],
+      "signal": "brake.R",
+      "pivot_blender_m": [
+        0.5135825276374817,
+        0.21699999272823334,
+        -0.33599013090133667
+      ]
+    },
+    {
+      "node": "C172_Yoke_R_pitch",
+      "kind": "translation",
+      "axis": "+X",
+      "range": [
+        -0.07,
+        0.07
+      ],
+      "signal": "elevator",
+      "pivot_blender_m": [
+        0.1850000023841858,
+        -0.30000001192092896,
+        0.10000000149011612
+      ]
+    },
+    {
+      "node": "C172_Yoke_R_roll",
+      "kind": "rotation",
+      "axis": "+X",
+      "range": [
+        -90,
+        90
+      ],
+      "signal": "aileron",
+      "pivot_blender_m": [
+        -0.025000005960464478,
+        -0.30000001192092896,
+        0.10000000149011612
+      ]
+    },
+    {
+      "node": "C172_Pedal_R_L",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        -18,
+        18
+      ],
+      "signal": "rudder",
+      "pivot_blender_m": [
+        0.5460000038146973,
+        -0.21699999272823334,
+        -0.5049999952316284
+      ]
+    },
+    {
+      "node": "C172_Toe_brake_R_L",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        15
+      ],
+      "signal": "brake.L",
+      "pivot_blender_m": [
+        0.5135825276374817,
+        -0.21699999272823334,
+        -0.33599013090133667
+      ]
+    },
+    {
+      "node": "C172_Pedal_R_R",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        -18,
+        18
+      ],
+      "signal": "rudder",
+      "pivot_blender_m": [
+        0.5460000038146973,
+        -0.382999986410141,
+        -0.5049999952316284
+      ]
+    },
+    {
+      "node": "C172_Toe_brake_R_R",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        15
+      ],
+      "signal": "brake.R",
+      "pivot_blender_m": [
+        0.5135825276374817,
+        -0.382999986410141,
+        -0.33599013090133667
+      ]
+    },
+    {
+      "node": "C172_Trim_wheel",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        -720,
+        720
+      ],
+      "signal": "elevatorTrim",
+      "pivot_blender_m": [
+        -0.12999999523162842,
+        0.07800000160932541,
+        -0.2720000147819519
+      ]
+    },
+    {
+      "node": "C172_Trim_indicator",
+      "kind": "translation",
+      "axis": "+Z",
+      "range": [
+        -0.04,
+        0.04
+      ],
+      "signal": "elevatorTrim",
+      "pivot_blender_m": [
+        -0.03700000047683716,
+        0.0860000029206276,
+        -0.20200000703334808
+      ]
+    },
+    {
+      "node": "C172_Fuel_selector",
+      "kind": "rotation",
+      "axis": "+Z",
+      "range": [
+        -90,
+        180
+      ],
+      "signal": "fuelSelector",
+      "pivot_blender_m": [
+        -0.28999999165534973,
+        0.0,
+        -0.4659999907016754
+      ]
+    },
+    {
+      "node": "C172_Seat_adjust_L",
+      "kind": "translation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        0.06
+      ],
+      "signal": "Seat_adjust_L",
+      "pivot_blender_m": [
+        -0.45100000500679016,
+        0.2955000102519989,
+        -0.35499998927116394
+      ]
+    },
+    {
+      "node": "C172_Seat_adjust_R",
+      "kind": "translation",
+      "axis": "+X forward (Blender)",
+      "range": [
+        0,
+        0.06
+      ],
+      "signal": "Seat_adjust_R",
+      "pivot_blender_m": [
+        -0.45100000500679016,
+        -0.2955000102519989,
+        -0.35499998927116394
+      ]
+    },
+    {
+      "node": "C172_Door_latch_L",
+      "kind": "rotation",
+      "axis": "+Z",
+      "range": [
+        0,
+        40
+      ],
+      "signal": "door.L.latch",
+      "pivot_blender_m": [
+        -0.014999999664723873,
+        0.4772999882698059,
+        0.0729999989271164
+      ]
+    },
+    {
+      "node": "C172_Window_latch_L",
+      "kind": "rotation",
+      "axis": "+Z",
+      "range": [
+        0,
+        70
+      ],
+      "signal": "window.L.latch",
+      "pivot_blender_m": [
+        -0.18000000715255737,
+        0.4798800051212311,
+        0.20499999821186066
+      ]
+    },
+    {
+      "node": "C172_Door_latch_R",
+      "kind": "rotation",
+      "axis": "+Z",
+      "range": [
+        0,
+        40
+      ],
+      "signal": "door.R.latch",
+      "pivot_blender_m": [
+        -0.014999999664723873,
+        -0.4772999882698059,
+        0.0729999989271164
+      ]
+    },
+    {
+      "node": "C172_Window_latch_R",
+      "kind": "rotation",
+      "axis": "+Z",
+      "range": [
+        0,
+        70
+      ],
+      "signal": "window.R.latch",
+      "pivot_blender_m": [
+        -0.18000000715255737,
+        -0.4798800051212311,
+        0.20499999821186066
+      ]
+    },
+    {
+      "node": "C172_Sunvisor_L",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        100
+      ],
+      "signal": "visor.L",
+      "pivot_blender_m": [
+        0.03500000014901161,
+        0.2800000011920929,
+        0.6079999804496765
+      ]
+    },
+    {
+      "node": "C172_Sunvisor_R",
+      "kind": "rotation",
+      "axis": "-Y",
+      "range": [
+        0,
+        100
+      ],
+      "signal": "visor.R",
+      "pivot_blender_m": [
+        0.03500000014901161,
+        -0.2800000011920929,
+        0.6079999804496765
+      ]
+    }
+  ]
+}

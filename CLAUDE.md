@@ -3,6 +3,14 @@
 Working notes for agents on this repo. `AGENT-LOG.md` is the running log and carries **NEEDS YOU** at the top;
 this file is the standing guidance that does not belong to any one lane.
 
+## QUESTIONS FOR TY go in ONE queue (Ty, 2026-11-04)
+
+- Any question/decision/approval you need from Ty: APPEND one line to the Open section of
+  `~/Developer/agent-lanes/QUESTIONS-FOR-TY.md` (outside the repo, next free `Qnnn`):
+  `- [Qnnn] YYYY-MM-DD HH:MM | lane/source path | question (options) | render path if visual`.
+- Also keep your NEEDS YOU / doc "Open questions" if useful, but a question that is not in the queue is lost.
+- When Ty answers, move the line to Answered with his answer and time. Never renumber, never delete.
+
 ## PARITY: iOS/Mac and Quest stay in sync at all times (Ty, 2026-11-04)
 
 - One game. Shared code and assets only; platform differences only behind build-time flags (`UNITY_IOS`,
@@ -467,3 +475,16 @@ printed `Passed!`/`Failed!`, and the loop waiting for that line polled until the
 (or perl), print the filter's first entry before launching it, and make any wait loop also stop when the process it
 waits on has exited. Related: building a worktree through `/tmp/...` failed with `CS0006 ... obj~/... not found` while
 the same build through `/private/tmp/...` succeeded. Give dotnet the resolved path.
+### A pre-flight check that only prints is not a gate
+Before the C172 v4 build I ran the `ps … | grep -E "(xcodebuild|Unity)"` check, echoed its output and then started
+`deploy.sh` in the SAME command — so when another lane's Unity batch appeared in that list, my build started
+anyway and the two overlapped. Make the check the condition (`until ! ps … | grep -q .; do sleep 60; done && build`),
+never a line of output to read afterwards. And know what it matches: an orphaned `il2cpp` from a dead Xcode build
+(parent reparented to launchd, 0 % CPU, under `/tmp/flyinggame-dd/…/Unity-iPhone.build/`) matches forever, as does
+`adb logcat` under the Unity path; exclude those by PID after checking them, not by loosening the pattern.
+
+### zsh does not expand braces in a `case` pattern
+Keeping a subset of renders with `case $f in {before,after}_{a,b}.png) ;; *) rm "$f";; esac` deleted every file: in zsh
+the braces in a case pattern are literal, so nothing matched the keep branch. Copy the files you want by name
+(`for p in before after; do for v in a b; do cp …; done; done`) rather than deleting by exclusion, and keep the source
+set elsewhere until the copy is checked.

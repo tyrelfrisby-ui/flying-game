@@ -217,6 +217,50 @@ public struct RigInputs
     /// <summary>Free-running count of transponder knob clicks (the knob turns on, never back to a stop).</summary>
     public double XpdrKnobClicks;
 
+    // ---- the 172's vacuum, gyro and radio panel (FlyingGame.Core.Instruments.C172Panel; docs/C172-INSTRUMENTS.md) ----
+    /// <summary>Suction gauge, inHg below ambient.</summary>
+    public double SuctionInHg;
+    /// <summary>Attitude indicator: indicated pitch (+ nose up) and bank (+ right wing down), degrees — the gimbal angles.</summary>
+    public double AiPitchDeg, AiBankDeg;
+    /// <summary>Directional gyro: the number under the lubber line, and the knob's total turns, degrees.</summary>
+    public double DgCardDeg, DgKnobDeg;
+    /// <summary>Magnetic compass: the reading under the lubber line, and the float's tilt in the bowl
+    /// (the case's attitude relative to the float: + nose up, + right wing down), degrees.</summary>
+    public double CompassCardDeg, CompassCardPitchDeg, CompassCardRollDeg;
+    /// <summary>Turn coordinator: the little aeroplane in "rates" (+1 = right wing on the R mark), and its power flag (1 = in view).</summary>
+    public double TcNeedle, TcFlag;
+    /// <summary>NAV1: CDI −1…+1 (+ = course right), glideslope −1…+1 (+ = fly up), TO/FROM (+1 TO, −1 FROM, 0 OFF),
+    /// the NAV and GS flags (1 = in view), the OBS and the tuned frequency.</summary>
+    public double Nav1Cdi, Nav1Gs, Nav1ToFrom, Nav1Flag, Nav1GsFlag, Nav1ObsDeg, Nav1FreqMhz;
+    /// <summary>NAV2: course only.</summary>
+    public double Nav2Cdi, Nav2ToFrom, Nav2Flag, Nav2ObsDeg, Nav2FreqMhz;
+    /// <summary>ADF: the needle, degrees clockwise from the nose; the hand-set card (the number at the top index); kHz.</summary>
+    public double AdfNeedleDeg, AdfCardDeg, AdfFreqKhz;
+    /// <summary>DME: slant range NM, ground speed kt, minutes to the station, and 1 when locked (0 = dashes).</summary>
+    public double DmeNm, DmeKt, DmeMin, DmeValid;
+    /// <summary>Rotor speed as a fraction of rated, for the gyro whine and a check.</summary>
+    public double AiRotor, DgRotor, TcRotor;
+
+    // ---- the engine gauges the shared Extra panel adds (lane/claude-extra-cockpit-shared, 2026-11-04) -----------
+    // The P3b panel already carried needles for these (Needle_Amps_*, Needle_EGT_*, Needle_Fuel_Wing/Akro_*), and no
+    // param fed them on either platform, so they sat at rest; Ty's new layout adds the three-in-one and a fuel
+    // computer. Filled by Bridge CockpitRigState. The three-in-one's third needle is FUEL FLOW (Ty 2026-11-04 15:23:
+    // the real 300L, EASA.A.362, has no fuel pressure gauge; its UI6331 is MP/FF), so there is no fuel pressure here.
+
+    /// <summary>Ammeter, amperes, + = charging (a centre-zero ammeter).</summary>
+    public double Amps;
+    /// <summary>Exhaust gas temperature, deg F.</summary>
+    public double EgtF;
+    /// <summary>US gallons in the wing tanks together, and in the centre (aerobatic) tank.</summary>
+    public double FuelWingGal, FuelAkroGal;
+    /// <summary>The fuel computer: flow now (US gal/h) and burned since the aeroplane was reset (US gal).</summary>
+    public double FuelFlowGph, FuelUsedGal;
+
+    /// <summary>Avgas, 6.0 lb per US gallon.</summary>
+    public const double KgPerUsGal = 2.7216;
+    /// <summary>The sim's burn (Aircraft.FuelFlowKgPerSec, kg/s) as a fuel-flow gauge reads it, US gal/h.</summary>
+    public static double GphFromKgPerSec(double kgPerSec) => kgPerSec * 3600.0 / KgPerUsGal;
+
     /// <summary>The CONTROL half, from the sim's deflections and the type's travel limits. The instrument
     /// readings are the caller's to fill in — a remote aeroplane's panel is nobody's to read.
     ///
@@ -324,6 +368,45 @@ public struct RigInputs
             case "xpdr_squawk": value = XpdrSquawk; return true;
             case "xpdr_mode": value = XpdrMode; return true;
             case "xpdr_knob_clicks": value = XpdrKnobClicks; return true;
+            case "suction_inhg": value = SuctionInHg; return true;
+            case "ai_pitch_deg": value = AiPitchDeg; return true;
+            case "ai_bank_deg": value = AiBankDeg; return true;
+            case "dg_card_deg": value = DgCardDeg; return true;
+            case "dg_knob_deg": value = DgKnobDeg; return true;
+            case "compass_card_deg": value = CompassCardDeg; return true;
+            case "compass_card_pitch_deg": value = CompassCardPitchDeg; return true;
+            case "compass_card_roll_deg": value = CompassCardRollDeg; return true;
+            case "tc_needle": value = TcNeedle; return true;
+            case "tc_flag": value = TcFlag; return true;
+            case "nav1_cdi": value = Nav1Cdi; return true;
+            case "nav1_gs": value = Nav1Gs; return true;
+            case "nav1_tofrom": value = Nav1ToFrom; return true;
+            case "nav1_flag": value = Nav1Flag; return true;
+            case "nav1_gs_flag": value = Nav1GsFlag; return true;
+            case "nav1_obs_deg": value = Nav1ObsDeg; return true;
+            case "nav1_freq_mhz": value = Nav1FreqMhz; return true;
+            case "nav2_cdi": value = Nav2Cdi; return true;
+            case "nav2_tofrom": value = Nav2ToFrom; return true;
+            case "nav2_flag": value = Nav2Flag; return true;
+            case "nav2_obs_deg": value = Nav2ObsDeg; return true;
+            case "nav2_freq_mhz": value = Nav2FreqMhz; return true;
+            case "adf_needle_deg": value = AdfNeedleDeg; return true;
+            case "adf_card_deg": value = AdfCardDeg; return true;
+            case "adf_freq_khz": value = AdfFreqKhz; return true;
+            case "dme_nm": value = DmeNm; return true;
+            case "dme_kt": value = DmeKt; return true;
+            case "dme_min": value = DmeMin; return true;
+            case "dme_valid": value = DmeValid; return true;
+            case "ai_rotor": value = AiRotor; return true;
+            case "dg_rotor": value = DgRotor; return true;
+            case "tc_rotor": value = TcRotor; return true;
+
+            case "amps": value = Amps; return true;
+            case "egt_f": value = EgtF; return true;
+            case "fuel_wing_gal": value = FuelWingGal; return true;
+            case "fuel_akro_gal": value = FuelAkroGal; return true;
+            case "fuel_flow_gph": value = FuelFlowGph; return true;
+            case "fuel_used_gal": value = FuelUsedGal; return true;
             default: value = 0.0; return false;
         }
     }

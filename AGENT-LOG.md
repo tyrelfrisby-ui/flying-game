@@ -52,26 +52,138 @@
   so its wheels carry more weight than the Cub's do — at 50 kt, 2° nose-up and 40 % power the 172 DID hold for 10 s,
   so "a 172 cannot ski" is a tendency here, not a law; is that what you'd expect? (2) the Extra skis at its own flying
   speed (80 kt, 0.57 g) but at 45–50 kt, below its stall, its 0.155 m tyres cannot carry it and it goes over in 0.4 s.
+
+## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
+- Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
+  Extra to full aileron and check the down-going aileron's nose stands proud of the wing (~50 mm), and roll the Great
+  Lakes and check each slave strut stays pinned to both horns (upper and lower aileron) and swings with them.
+  Renders: renders/hinge-slavestruts/ in this lane. Nothing approved; no gate marked.
+
+### 2026-11-04 hinge + slave struts: diagnosis confirmed, fix (Claude, lane/claude-hinge-slavestruts off island-nav 0bb87c67)
+- **Missing Extra hinge on the Quest = a pre-merge APK.** Installed 2026.1104.1656 (lastUpdate 17:00:57) was built at
+  16:56 from quest HEAD without 8a5737c9 (it reached the Quest lane's first parent only at f99c2fc2, 18:48), so the APK's
+  assets/rigs/extra-300-like-own.json had the old leading-edge pivot x 0.8267. Since f99c2fc2 both lanes' docs/models rig
+  and Resources GLBs are identical and hinged at 30 %: measured in all three Extra GLBs, hinge chord fraction 0.26-0.31
+  per slice, mean 0.30 (the pre-8a5737c9 GLB measures 0.04-0.10); node origin = rig pivot; +51 mm nose rise at 30 deg TE
+  down. No GLB rebuild needed. The quest worktree's gitignored StreamingAssets/rigs copy is still stale (0.8267, mtime
+  10:02: a merge never touches it), but QuestBuild.BuildQuest / BuildScript call ConfigSync.SyncAndRequireComplete first,
+  so a rebuild regenerates it; the stale copy only matters to editor play. HingeSlaveStrutTests.TheStreamingRigCopyIsNotStale
+  now fails wherever a local SA copy disagrees with docs/models.
+- **Great Lakes struts "stuck in space" = no Unity follower.** The GLB rigs Strut_Slave_L/R with _PinUpper (child of
+  Aileron_U<s>) and _PinLower (child of Aileron_L<s>); AirframeRig moved the four ailerons (and so the pins) but nothing
+  re-aimed the strut (only gl_aileronpose.py did, in Blender). New: Core SlaveStrut.Solve (engine-free: origin carried to
+  the upper pin, shortest-arc turn so the long axis points at the lower pin) called by AirframeRig after every
+  Apply / SetControls, from parent-local transforms. Shared Bridge path: iOS, Mac editor and Quest identical.
+  Measured on the rig table: at full aileron the pins move 90-105 mm; strut upper end on its pin exactly, lower end within
+  0.05 mm (the upper aileron's solved constant-length table).
+- Tests: HingeSlaveStrutTests (11): EveryExtraGlbHingesItsAileronsAtThirtyPercentChord x3, TheExtrasRigPutsTheAileronHinge
+  OnTheThirtyPercentLine, TheExtrasAileronNoseRisesProudWhenTheTrailingEdgeGoesDown, TheStreamingRigCopyIsNotStale,
+  TheGreatLakesSlaveStrutsHangOnBothAileronHorns, TheGreatLakesSlaveStrutsFollowBothAileronsToFullTravel,
+  FromToTurnsOneDirectionOntoAnother. With ModelRigTests / ParityCheck: 30/31, the 1 = ModelRig FullAirBrakeStopsTheGlider
+  (pre-existing on base, listed above). Found, not changed: the -red-sunburst / -white-stripes Great Lakes GLBs are
+  legacy, unrigged, unloaded.
+- Editor tool HingeSlaveStrutShots (-out dir) renders and measures both in the engine (exits 1 if a strut end is > 3 mm
+  off its pin).
+
+## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
+- Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
+  (card centred; ASI over g-meter left; altimeter over turn coordinator right; Trig radio/xpdr left; 3-in-1 oil P / oil T /
+  FUEL FLOW right, green 0-35 gph, red at 35; tach, MP, totalizer, ammeter low row; one switch row)
+  and that the C172 and Pitts cockpits look unchanged. Nothing approved; no gate marked.
+
+### 2026-11-04 Extra phase 2 + FUEL FLOW merged into both lanes (Grok Bot + Claude, lane/claude-extra-integrate)
+- lane/claude-extra-integrate from island-nav bb519c72: merge 284c7706 (lane/claude-extra-cockpit-shared b65e3b98, incl.
+  db87f77c skin-break fix, 8a5737c9/217a0847 cockpit, ea2a0ebc fuel flow), then 1b80dff6 (73d7702b) and ef478e53 (crash-reset 65f431be).
+- Conflicts: text files kept both sides. 13 GLBs: took island-nav's versions, re-ran fix_aileron_junctions.py on the 10
+  non-Extra GLBs and extra_cockpit_shared.py pass on the Extra GLBs (reproduced the Extra lane's GLBs + rig JSON byte for byte).
+  Inventory diff vs bb519c72: non-Extra GLBs differ only in aileron (C172 also wing) arrays + junction extras; C172 suction
+  0-10 green 4.5-5.4 red 4.5/5.4 and +60 mm yoke intact; Pitts v3.1 intact. check_aileron_junction: 0 faults.
+- Tests (FlightTests filter Extra|Cockpit|Gauge|Pilot|C172|Pitts|SharedPanel|Rig|Fuel|Junction): base bb519c72 723/729,
+  merged 738/744; same 4 failures both (DronePilot aerobatic, MazeTow branch, AerobatGroundHandling PittsNeedsQuickFeet,
+  ModelRig FullAirBrakeStopsTheGlider), 2 skipped (Pitts power spin). No new failures; ExtraFuelFlowGaugeTests passes (22.5 gph full throttle).
+- Renders: ~/Developer/agent-lanes/renders/extra-integrate/contact-sheet.png (Extra front/rear Unity, Pitts Unity, C172 Blender;
+  C172 Unity shot shows no interior = the transparent-172 bug the crash-reset lane addressed, not from this merge).
+- Build/install NOT done at merge time (other builds queued; smoke-thicker builds next). Build byproducts left uncommitted.
+
+## NEEDS YOU — C172 yoke on devices (Grok Bot, 2026-11-04 17:02 PST)
+- Ty: fly the C172 on iPad mini (2026.1104.1648) / Quest 3S (2026.1104.1656): check yoke horns clear the thighs at full
+  deflection and the 1 in suction gauge reads right (green 4.5-5.4, red at 4.5 and 5.4). Not approved in-game yet.
+
+### 2026-11-04 C172 yoke merge into both lanes (Grok Bot)
+- Ty 16:38 "Yoke is good"; Ty 16:42 suction upper red line 5.4 (1980 172N) -> lane/claude-c172-yoke 3dacc353 + log c7e48d1e
+  (GLB rebuilt, rig desc, test asserts 4.5-5.4; check_c172_cockpit PASS; C172 filter 49/49).
+- Merged 7b9b8863 -> lane/claude-island-nav 9a6c9177 (AGENT-LOG conflict, kept both), c7e48d1e -> 4b902fca;
+  quest: b82976dc, 33b44366 (trees identical). PARITY: OK both.
+- Filtered tests (C172|Yoke|Cockpit|Pilot|Seat|Vr): 486/488; 2 failures (DronePilot aerobatic, MazeTow branch) pre-existing on base.
+- iOS deploy.sh ** BUILD SUCCEEDED ** 2026.1104.1648, installed iPad mini (iPhone unavailable). Quest deploy-quest.sh
+  2026.1104.1656, 0 error CS, installed + launched Quest 3S. (An earlier 1640 iOS build with 5.5 was aborted mid-xcodebuild.)
+- Build byproducts (ProjectSettings.asset, StreamingAssets JSON) left uncommitted, as before. Extra fuel-flow merge not combined (its agent was still testing).
+<!-- c172-yoke needs-you -->
+- **C172 YOKE RAISED 60 MM CLEAR OF THE THIGHS + 1 IN SUCTION GAUGE: approve the renders (Claude, 2026-11-04,
+  lane/claude-c172-yoke off island-nav 94b70e6b; NOT merged, NOT installed, nothing approved by me).**
+  Ty 14:58: "Move the yoke up ... where it does not touch the thighs with full deflection ... put the suction gage as a
+  tiny instrument with a green range and two red lines". Write-up: `docs/models/c172-yoke-v1.md`.
+  1. **Look at** `~/Developer/agent-lanes/renders/c172-yoke/` (before_ = old model, after_ = new; poses neutral,
+     aft-left, aft-right, fore-left, fore-right; views `_eye` from the approved eye, `_side` left cutaway with the left
+     leg hidden, `_section` looking aft with everything forward of the wheel clipped: MIRRORED, your left is on the
+     right). Then `after_panel_eye.png` and `after_suction_closeup.png`. I opened panel, suction, eye, side and section.
+  2. **Yoke:** both yokes 60 mm higher (column centre z 0.040 -> 0.100); span, ±90° wheel, ±70 mm column unchanged;
+     tube lengthened forward so it always enters the panel (it used to float 37 mm short at neutral). Worst thigh
+     clearance over the whole envelope +30.6 mm (full forward, full right wheel, full left rudder), +42.5 mm at neutral
+     rudder; before -28.7 / -17.1 mm. Gate is 15 mm. **Is 60 mm the right height for your aeroplane?** I found no
+     published hub height / horn span / column travel for a 172 (see the doc): tell me hub height above the cushion
+     or column travel if you know them and I will re-derive.
+  3. **Suction:** 1 in face, still directly under the DG, above the shaft; 0-10 inHg over 270°, green 4.5-5.5 with a
+     red radial at each end (172R AFM supplement; the 1980 172N manual says 4.5-5.4: say if you want 5.4). No numerals:
+     at the panel's minimum legend size they don't fit a 1 in face. Procedural face: **Codex follow-up** if you want
+     painted art. Nothing else on the panel moved.
+  4. **Found, not changed:** the own 172's yokes are not in the runtime rig (`c172-like-own-rig.json`), so they do not
+     move in game. The left thigh still sits 23 mm into the door pleats (seat-v1 warning).
+  5. iOS `deploy.sh NOINSTALL` `** BUILD SUCCEEDED **`, 0 `error CS`, stamp 2026.1104.1610, installed nowhere.
+     `tools/check-parity.sh --strict` PARITY: OK. Shared GLB/rig change: lane/claude-quest-islandnav must merge it
+     with island-nav, the same day, under the lock.
+<!-- /c172-yoke needs-you -->
+<!-- crash-tuning needs-you -->
+- **CRASH TUNING MERGED INTO BOTH LANES AND INSTALLED — PLEASE FLY IT (Claude, 2026-11-04 ~4:05 PM PT; Ty approved the
+  merge 2:29 PM PT). Nothing approved by me; no push, main untouched.**
+  lane/claude-crash-tuning `271ddb77` (includes the limb-crush fix `339b2a2f`) merged: island-nav `94b70e6b`,
+  quest-islandnav `d49059c5` + parity sync `d2ae2979`. PARITY: OK. iOS 2026.1104.1506 on the iPad mini (iPhone
+  unavailable — not installed); Quest 3S 2026.1104.1528 installed and launched.
+  Please fly (Pitts, Cub, Extra, Great Lakes; C172 for contrast): `-crashtest grass` at speed (steel-tube fuselage stays
+  one piece; tail BENDS, engine mount bends then drops), wreck slide distance (per-surface μ, island green 0.45), treetop
+  passes (BRANCH DAMAGE amount). Open decisions: structureType tags, aluminium crush-first at √2× break speed (composite
+  1.15×, wood 1.24×), no canopy part, bullets still take steel-tube tails.
+<!-- /crash-tuning needs-you -->
 <!-- parity-merge needs-you -->
-- **PARITY MERGE (Claude, 2026-11-04, Ty approved 07:29: "merge both ways, get them in parity and then lock them in
-  parity"). IN PROGRESS. Nothing approved by me; every conflict call is in the Log entry "parity merge".**
-  1. **`~/Developer/flying-game-worktrees/claude-island-nav` is now DETACHED at aeb9695a**, holding your uncommitted
+- **PARITY MERGE DONE: BOTH LANES ARE ONE COMMIT AND LOCKED (Claude, 2026-11-04, Ty approved 07:29).**
+  lane/claude-island-nav = lane/claude-quest-islandnav = **b7d1a680**; `tools/check-parity.sh --strict` PARITY: OK.
+  The lock is a git hook (tools/githooks, docs/PARITY.md "The lock"): a shared change may only land while the lanes are
+  identical, and the other lane must then merge it. Every conflict call is in the Log entry "parity merge". Nothing
+  approved by me.
+  1. **iPhone install did not happen.** The build is fine (2026.1104.0957, BUILD SUCCEEDED), but the phone refused it
+     (4016) and then dropped off. Unlock it, plug it in, then run
+     `xcrun devicectl device install app --device 00008150-001629A83662401C /tmp/flyinggame-dd/Build/Products/Release-iphoneos/AeroPlayground.app`
+     (check that the version reads 2026.1104.0957 first; another lane's build can overwrite that folder), or just run
+     `zsh tools/deploy/deploy.sh` from `claude-island-nav-merge`. **The Quest 3S has 2026.1104.1002.**
+  2. **`~/Developer/flying-game-worktrees/claude-island-nav` is DETACHED at aeb9695a**, holding your uncommitted
      ProjectSettings.asset, GraphicsSettings.asset and 16 StreamingAssets/aircraft/*.json exactly as they were (backup:
-     ~/Developer/agent-lanes/backups/parity-merge-20261104-0731/). The branch lane/claude-island-nav is worked in
-     `~/Developer/flying-game-worktrees/claude-island-nav-merge`. Decide what to do with those files there.
-  2. **Not merged, decide:** lane/codex-pitts-debris (020655ef, 95d44eb3: offline debris pipeline + Pitts pilot;
-     island-nav already has lane/claude-pitts-debris d8ab9861); codex/own-pitts-s2b (v11–v13 cabane/strut rebuilds,
-     Oct 28, "not yet approved by Ty"; the lanes' Pitts is newer); lane/claude-extra-cockpit-shared (35179373, 6898f355
-     + 4: the shared Extra cockpit + instrument lighting, in NEITHER lane; both lanes now carry the switches lane's Extra
-     P3f panels, so it will need a merge on top, and you said the layout is still wrong).
-  3. **Great Lakes windshield: confirm.** Both lanes now carry GL v7 (the parity renders' "QUEST NEXT f1618036"). You
-     approved "the Great Lakes windshield" at 07:33; if you meant another one, it needs a GLB follow-up.
-  4. **New red test from the merge, not fudged:** FloatLandingTests J-3 0.5 m/s landing splits a float bottom (18.1 kN
-     vs 17.9; island-nav alone 17.2). Island-nav's late step slam (nz ~4 on a 98 fpm landing) plus our drawn water
-     rudder. Needs a float-model decision (Log entry, step 1).
-  5. **QuestFrameBudgetProbe still RED, pre-existing:** 167.5 KiB/sim-s at the Quest parent vs its 160 KiB limit (184.0
-     after the merge: a one-time cache fill; steady state 71, equal). The merge had made it 251–622: fixed
-     (WingStructure ToLowerInvariant per step on water). The rest is the RK4 ForceMoment closure (pre-existing).
+     ~/Developer/agent-lanes/backups/parity-merge-20261104-0731/). The 16 JSON match what ConfigSync regenerates on any
+     build (build output, most likely safe to discard). lane/claude-island-nav is now worked in
+     `~/Developer/flying-game-worktrees/claude-island-nav-merge`.
+  3. **Not merged, decide:** lane/codex-pitts-debris (020655ef, 95d44eb3: offline debris pipeline + Pitts pilot; the
+     lanes already have lane/claude-pitts-debris d8ab9861); codex/own-pitts-s2b (v11–v13 cabane/strut, Oct 28, "not yet
+     approved"; the lanes' Pitts is newer); lane/claude-extra-cockpit-shared (35179373, 6898f355 + 4: shared Extra
+     cockpit + instrument lighting, in neither lane; both lanes now carry the switches lane's Extra P3f panels, so it
+     will need a merge on top, and you said the layout is still wrong).
+  4. **Great Lakes windshield: confirm.** Both lanes carry GL v7 (the parity renders' "QUEST NEXT f1618036"). You
+     approved "the Great Lakes windshield" at 07:33. If you meant another one, it needs a GLB follow-up.
+  5. **New red test from the merge, not fudged:** FloatLandingTests J-3 0.5 m/s landing splits a float bottom (18.1 kN
+     vs 17.9; island-nav alone 17.2). Cause: island-nav's late step slam (nz ~4 on a 98 fpm landing) plus our drawn
+     water rudder. Needs a float-model decision.
+  6. **QuestFrameBudgetProbe still RED, pre-existing:** 167.5 KiB/sim-s at the Quest parent vs the 160 limit; 184.0 now,
+     the difference being a one-time cache fill; steady state is 71 on both. The merge had made it 251–622, and that is
+     fixed. What is left is the RK4 ForceMoment closure.
+  7. **Lock gap:** fast-forwards and `update-ref` run no commit hook. Don't move a lane ref by hand.
 <!-- /parity-merge needs-you -->
 - **QUEST 3S HAS ISLAND-NAV ON IT: FLY AND CHECK (Claude, 2026-11-03, lane/claude-quest-islandnav). Nothing approved.**
   Installed on the Quest 3S (340YC10GBK0TYV) with `adb install -r` (debug-signed, no signature mismatch): versionName
@@ -414,6 +526,26 @@
   every deploy deletes (PlayerDataCache, Bee, il2cpp_cache, BuildPlayerData). The lane now has its own APFS clone
   (unity-Library-claude-parity); built with FG_CACHE_KEEP=9 so no other lane's cache was pruned.
   Commits: 2f36e413 (HUD + one-liner), 11d4686c (check-parity + test + deploy.sh), 305d49b4 (PARITY.md + CLAUDE.md).
+- **EXTRA 300 COCKPIT AS YOU LAID IT OUT — ONE COCKPIT FOR iPHONE/MAC AND QUEST (Claude, 2026-11-04, lane/claude-extra-cockpit-shared
+  `217a0847`, built `2026.1104.0831` (`deploy.sh 00000000-NOINSTALL`: ** BUILD SUCCEEDED **, 0 error CS), NOT installed, NOT merged).** Instrument lighting (approved) plus, from your 07:33 list:
+  1. **Panel:** IAC card CENTRED; left column airspeed over G meter, right column altimeter over turn coordinator (3-1/8);
+     Trig-style 2-1/4 COM and transponder heads on the left (their own knobs, LCDs showing the frequency / code); 3-1/8
+     three-in-one oil P / oil T / fuel P on the right; lower row tach, MP, fuel computer (FF gph / gallons used) and ammeter.
+     EGT/CHT and both fuel-quantity gauges are gone ("that is it"). Shorter stick kept.
+  2. **One switch row along the panel bottom** (z 0.075 m): mag, master, fuel pump, alt air, mixture, prop | trim, fuel
+     selector, smoke, nav, strobe, landing. Nothing below the panel any more (the radio subpanel by your knees is gone), and
+     no switch in the 17 cm behind the stick and your hand. Panel bottom edge is 30 mm lower to fit it.
+  3. **Ailerons hinge at 30 % of their chord** with a round nose in a matching cove: TE down 30° and the nose stands
+     ~49 mm above the upper skin (`renders/extra-cockpit-shared/aileron/extra-aileron-L-section--30.jpg`). Looks only —
+     the flight model is unchanged (the honest lift change measured 239 → 193 deg/s; written up, not applied).
+  4. **Wing-skin break at the aileron fixed** on the Extra (16.8 mm step → 1.3), 172 (wing skin z-fighting under the whole
+     aileron → re-cut), Great Lakes, J-3 wheels + floats, Pitts (4 liveries); 2-33 34 mm → 2.6 mm (0.1 over my 2.5 mark,
+     a small shoulder left a quarter of the way back on its aileron — say if it bothers you).
+  **Ty:** look at `renders/extra-cockpit-shared/eye/extra-quest-rear-sun.png`, `…-rear-night.png`, `extra-ios-rear-sun.png`,
+  `…-night.png`. Then: OK to merge into island-nav and build for the phone / Quest? Two things to confirm: the fuel-pressure
+  green band I drew is 18–30 psi (unsourced — what does your panel say?), and the radio heads' knobs are visual only on the
+  phone (on the Quest your hand works them).
+
 - **CRASH PHYSICS MERGED INTO ISLAND-NAV — ON YOUR IPHONE AS `2026.1104.0427` (Grok Bot, 2026-11-04 04:30 PST,
   lane/claude-crash-physics `da163a65` → island-nav `abeadac3`, Ty approved):** trees snap, crashes keep momentum,
   only overloaded parts come off, debris no longer sinks. Only AGENT-LOG.md conflicted (both sides kept).
@@ -836,6 +968,114 @@
   the aileron meshes stay where they are and a skinned carved model is not split; a disconnected upper aileron that floats
   free is not shown floating (the rig animates every aileron from the stick); a light prop strike curls the tips in the
   sim (`PropRadiusM`) but the blades are only drawn bent on a stoppage; scraped tips leave no marks.
+- **NEEDS YOU: Ty, approve the C172 seat move (renders); the yoke-vs-thigh item is still yours** (Claude, 2026-11-04,
+  lane/claude-172-instruments; NOT merged, NOT deployed, nothing installed).
+  - Ty (2026-11-04 5:17): "the pilot should sit at the back of the seat with his back against the backrest/backboard
+    of the seat... move the seat forward so that is the case."
+  - Done: the approved eye, pedals and yoke did not move. Both front seats (they are identical, and the CFI eye has
+    the same fore-aft) moved **239 mm forward (+X)**. The cushion is **45 mm lower**, and the back is **reclined
+    12 deg** to match the mannequin's torso. Lowering was needed because, with the eye fixed, no forward move could
+    fix 57 mm of sink. Reclining was needed because an upright back can only touch one line of a 12 deg torso. To
+    clear the trim wheel and the fuel-selector base, the inboard edge moved 35 mm out (width 0.43 -> 0.395 m). The
+    door armrests now end ahead of the reclined back. The tracks run forward under the seat.
+  - New gates in `check_c172_pedal_fit.py`. Torso to seatback: -2.9 mm (resting) over 231 mm from the waist
+    (was 130-192 mm off). Pelvis: -13.5 mm. Buttocks into cushion: 11.7 mm (was 57). Seat against trim wheel,
+    fuel selector, pedestal and armrests: 0 (before, the old seat ran into the fuel-selector base and the armrest).
+    Warning: above the padded insert, the upper torso is 19-30 mm off the back's rounded top edge.
+  - Legs unchanged: knee 132.3/132.0 deg (129.7-132.3 full rudder), panel 114.5 mm, other pedals 32.5 mm, heels
+    resting, pedals 36.4 mm above the carpet: PASS. **Still RED, your call:** yoke at 90 deg of wheel -17.1 mm into
+    the right thigh (-28.7 at full rudder), unchanged. Left thigh 23.0 mm into the door pleats (warning), unchanged.
+  - Look at `renders/c172/seat-v1/{before,after}_side.png` and `after_eye.png`. I opened all four.
+  - `check_c172_cockpit.py` PASS on both GLBs. Rebuild diffed against b2e84ee0: same 163 nodes; only the seats,
+    the static interior and the seat-adjust pivots changed. `c172-like-own-rig.json` regenerates byte-identical.
+    C172InstrumentTests + CockpitEyeTests 131/131 pass.
+    `deploy.sh` ** BUILD SUCCEEDED **, 0 error CS, build 2026.1104.0941, dummy UDID so nothing was installed
+    (bundleVersion bump and build-touched GraphicsSettings not committed). No src/ or configs/ change.
+  - Notes and all numbers: `docs/models/c172-seat-v1.md`.
+- **NEEDS YOU: Ty, approve the C172 rudder pedals (renders) and decide the yoke-vs-thigh item** (Claude, 2026-11-04,
+  lane/claude-172-instruments; NOT merged, NOT deployed, nothing installed).
+  - Ty (2026-11-04): "move the rudder pedals above the cabin floor and forward. Put the simulated human inside and
+    test geometry."
+  - Done: the pedals sat on the carpet at the panel face, 0.18 m ahead of a seated knee. A 1.778 m pilot at the
+    approved eye could reach them only with the knees jammed up at 84 deg. They now hang from rudder bars below the
+    panel (MM 27-20-00). The pad centre is 0.199 m (7.8 in) further forward, the pad bottom 152 mm above the carpet
+    (was 85 mm), and every pedal part is 36 mm or more above it at full travel. The pad face is inclined 56 deg, with
+    the toe brake flush above it.
+  - The human is Codex's 1.778 m seated mannequin (lane/codex-eyepoints f05f1511), solved backwards from the
+    approved eye. New checker: `tools/own_models/check_c172_pedal_fit.py` (Blender). Knee 132 deg (129.7-132.3
+    at full rudder), heels resting on the carpet, both feet reach at neutral and full rudder. Legs to panel 114 mm,
+    to other pedals 32 mm, sole on its own pedal -2.3 ... +0.2 mm: all PASS.
+  - **RED, your call:** at 90 deg of wheel the right horn reaches 17 mm into the right thigh (29 mm at full
+    rudder). The wheel clears the legs only up to 35 deg. The yoke is approved v4 geometry and the thigh is fixed by
+    the approved eye, so I changed neither. Options: a yoke hub about 40 mm higher, less displayed wheel travel, or
+    a seat/eye change.
+  - Also found, not changed: the approved eye is 59 mm outboard of the seat centre, so the left thigh is 23 mm into
+    the door trim. The torso floats about 0.20 m forward of the seat back. MM puts the pedal pivot at FS 6.5; a
+    1.778 m pilot at the approved eye cannot reach that, so the hinge is at FS 16.5.
+  - Look at `renders/c172/pedals-v1/{before,after}_{eye,side}.png` (copies in `/tmp/c172-pedals-renders/`). I
+    looked at all four.
+  - `check_c172_cockpit.py` PASS on both GLBs; the new pedal guard rejects 935ff945's GLB. Rebuild diffed against
+    935ff945: only the pedals, toe brakes and new rudder bars changed. `deploy.sh` ** BUILD SUCCEEDED **, 0 error
+    CS, build 2026.1104.0503, run with a dummy UDID so nothing was installed (bundleVersion bump not committed).
+    No src/ or configs/ change. C172InstrumentTests and CockpitEyeTests: 131/131 pass.
+  - Notes, sources and all numbers: `docs/models/c172-pedals-v1.md`.
+- **NEEDS YOU: approve C172 v4 swap** (Claude, 2026-11-03, lane/claude-172-instruments; NOT merged, NOT deployed).
+  - Ty decision (2026-11-03, his words): "The Cessna panel is good except you need to swap the vertical column of
+    engine instruments and nav heads so the engine instruments are to the right of the nav heads."
+  - Done: NAV1/NAV2/ADF now at x = -0.112 m beside the six-pack; OIL PRESS/OIL TEMP/AMPS/EGT column at x = 0, right of
+    them; radio stack and everything else unchanged. Rig tables differ from v3 only in the pivots of the moved parts
+    (each exactly 0.112 m). `check_c172_cockpit.py` now asserts altimeter < NAV heads < engine column < radios.
+  - Compare `renders/c172/instruments-v4/before/` (v3 at 35f617b3) with `renders/c172/instruments-v4/after/`:
+    `full-panel-pilot-eye.png`, `c172-panel-layout-diagram.png` (+ `c172-pilot-eye-c172-known.png`, posed needles).
+    I looked at the after seat-eye render: six-pack | NAV 1 / NAV 2 / ADF | engine column | radios.
+  - Both GLBs pass the checker; Unity OwnRigCheck RIG OK, 34/34 bound, 0 off pivot. C172InstrumentTests + ModelRigTests
+    56 pass, 1 known baseline failure (glider airbrake NaN), as on v3. `deploy.sh` ** BUILD SUCCEEDED **, build 2026.1103.2142, run with a dummy UDID so nothing was installed (bundleVersion bump not committed). My fault: that build overlapped a Unity batch another lane had just started (pid 7989) - I launched without waiting; if that lane saw odd results around 21:42-21:46, re-run it.
+  - Notes: `docs/models/c172-instruments-v4.md`.
+- **NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/** (Codex, 2026-11-03, lane/claude-172-instruments).
+  - New layout: standard T six-pack; tach under VSI, suction under DG, separate L/R fuel quantity under TC;
+    one OIL PRESS / OIL TEMP / AMPS / EGT column, shifted usable NAV1/NAV2/ADF and intact radio stack; plain right panel.
+  - Flat, contrasting, larger panel/dial/radio lettering; switch and primer labels clear their controls from the pilot eye.
+  - Plain black 13 mm throttle, red 10 mm mixture, black 8 mm carb heat, in that left-to-right order; coaxial shafts,
+    translation only, no prop control. No existing carb-heat/ammeter/EGT runtime parameters: those authored nodes stay unbound.
+  - VSI zero points left; ±500 fpm hits upper/lower 5 at ±45°, with the matching piecewise ±2000 fpm scale.
+  - Shallow masked AI slide, 0.8 mm/degree pitch, matching ladder and retained roll; level/bank20/pitch10 in straight and CFI views.
+  - Symmetric, centred TC rear-view airplane; ±1 rate = ±20° on matching radial marks, retained tube/ball/two wires.
+  - 34 fresh PNGs including measured labelled layout diagram; SHA-256, mtimes, complete rig inputs and camera manifest;
+    all copied byte-for-byte. Docs: `docs/models/c172-instruments-v3.md`; evidence: `renders/c172/instruments-v3/`.
+  - 45/45 C172 tests; ModelRigTests 11 pass + known glider airbrake NaN baseline failure. Both GLB checkers pass;
+    Unity/Metal OwnRigCheck RIG OK, 34/34 bound. No src/config changes, deployment, device install, push or merge.
+- **172 PANEL V2 — NEEDS YOU: Ty, approve the new panel renders (Codex, 2026-11-03, lane/claude-172-instruments).**
+  Addresses all feedback logged at 14:38–14:41: recessed flush mounts and four slotted corner screws per instrument;
+  level centred AI reference; top-view DG airplane; rear-view TC airplane, L/R standard-rate marks, 2 MIN and D.C. ELEC.;
+  curved inclinometer tube, ball and two wires; fixed-pitch panel with no prop control; plain black throttle/red mixture
+  plungers without white stripes or vernier detail, with translation-only runtime bindings. ADF head/tail and TRAINER
+  yokes retained. Exterior loft winding corrected and panel/glareshield ends fitted inside the fuselage at the wing root.
+  Review `renders/c172/instruments-v2/`; PNG copies in `~/Developer/agent-lanes/xfer/c172v2/`.
+  V1 was the original geometry, captured at 10:20 before this feedback, rather than evidence of the requested changes;
+  no uncommitted earlier attempt was present. Provenance and reproduction: `docs/models/c172-instruments-v2.md`.
+  **Approval remains pending. Local commit only; no push or merge.**
+- **1970s 172 INSTRUMENTS, MODELLED FROM THE MECHANISMS AND BOUND TO CODEX'S PANEL — NOT MERGED, NOT DEPLOYED, waiting on
+  your panel-render approval (Claude, 2026-11-03, lane/claude-172-instruments).** Full write-up: `docs/C172-INSTRUMENTS.md`.
+  Vacuum pump → AI and DG spin up and run down on their own physics (95 % in 2 min; 41 % two minutes after the pump
+  quits); the AI erects to the apparent vertical (after a 180° turn it shows ~2.9° climb and ~0.6° bank the other way)
+  and tumbles past 70° pitch / 110° bank; the DG is not slaved and drifts 3.7° per 15 min at 45° N (10.6 °/h of it is
+  the Earth); the whisky compass's turning and acceleration errors come out of a pendulous float in a 63° dip field;
+  the electric TC survives a vacuum failure; NAV1 VOR/LOC/GS, NAV2 VOR/LOC, ADF and DME are separate units.
+  In game (OPTIONS, when flying the 172): vacuum pump / electrical bus / TC failure switches and the DME source. RADIOS:
+  for the 172 the heading cell is DG + compass, the DG knob, "DG = COMPASS", suction, ADF card.
+  - **Decisions for you:** (1) the panel sits at **45° N** (this world has no latitude) — that sets the DG drift and
+    the compass dip; (2) the pump is sized so the suction **reaches the green at 1,200 rpm** (idle 700 rpm reads 1.9 inHg)
+    — tell me what your 172 shows at idle and I will re-derive it; (3) I put the TC's standard-rate wing at **15°** because
+    Codex's face has no L/R index yet.
+  - **Found, not changed — please look:** (a) the own 172 GLB has its nose at glTF **+X**; every approved own model
+    (Extra, J-3, 2-33, Great Lakes) has it at −X, and `AirframeModels.OwnSpecs["c172-like"]` assumes −X, so with "own
+    models" on the 172 is very probably placed **tail first** (true since 2026-10-25, before Codex's cockpit). (b)
+    `AirframeVisual.LateUpdate` calls `SetRig(RigInputsNow(...))` **twice a frame** for every rigged model (two lanes each
+    added it), so the other types' lagged needles (VSI, vario) run at double rate; the 172 panel guards itself.
+    Confirmed by render: `renders/c172/instruments-v1/exterior-parked.png` (camera aft-right) shows the nose nearest
+    the camera, and Codex's panel box showing through the fuselage side at the wing root.
+    (c) For Codex: TO/FROM needs separate TO and FROM legends, the ADF has no rotating card node, the CDI has 2 dots a
+    side where a VOR head has 5, and the compass card is a flat strip (it needs to be a band to turn).
 - **PITTS SPIRAL DIVE AT LAUNCH, RIGHT THEN LEFT — WHY, AND STICK-FREE NOW OFF WITH A PAD (Grok Bot, 2026-11-02,
   lane/claude-stickfree-launch):** build `2026.1102.1803` predates the spawn fix `b62b67d0`. Its long first frame
   (0.05 s = ten sim steps, before the pad publishes) flew whatever the PREVIOUS flight left in the driver's inputs, plus
@@ -3028,6 +3268,114 @@
 - **No src change in this entry**, so no new build (the src state is 9c5fa54c, iOS 2026.1103.2246 ** BUILD SUCCEEDED **).
   tools/check-parity.sh (island-nav's copy): PARITY OK; its hook is a no-op on this branch. No crash/wreck file touched
   (lane/claude-crash-tuning is in them).
+
+### 2026-11-04 15:00– PST — Claude · lane/claude-c172-yoke · C172 yoke raised clear of the thighs; 1 in suction gauge
+Ty 14:58 (737 captain/CFI): "Move the yoke up ... It should go up where it does not touch the thighs with full
+deflection. If you need to move some instruments around, that's fine. You can put the suction gage as a tiny instrument
+with a green range and two red lines ... Usually the suction gage is a tiny 1 inch instrument."
+- **Measured first:** `check_c172_pedal_fit.py` on 94b70e6b: right horn at 90° wheel -17.1 mm into the right thigh,
+  -28.7 mm at full left rudder with the column forward (the thigh lifts 2° to its pedal). Thigh top z -0.091, horn
+  bottom -0.109.
+- **Change (`tools/own_models/c172_cockpit.py`):** `YOKE_RAISE` 0.060 on both yokes (column, hub, horns, badge); column
+  tube now fwd -0.01...0.38 so it enters the panel at full aft. Suction: `SUCTION_R` 0.0127 (1 in), `SUCTION_Z` 0.145,
+  still under the DG; ticks per inHg over 270°, green arc 4.5-5.5, red radials at 4.5 and 5.5 (`limit_red`), thinner
+  needle; rig row `[[0,0],[10,270]]`, model 0 (`c172_instrument_rig.py`, regenerated `docs/models/c172-like-own-rig.json`:
+  only that row changed). GLB node diff vs 94b70e6b: 163 = 163; only the yoke pitch/roll nodes, the suction case/needle
+  and the joined static interior changed.
+- **Research** (cited in the doc): suction green 4.5-5.5 inHg, AFM Supplement STC SA2196CE (172R); 4.5-5.4 in the 1980
+  172N Information Manual (via PPRuNe) and UMA PMA gauges. Wheel ~90° each way: AVSIM forum + SimKits C172-style yoke spec
+  (not Cessna). NOT found: column exit height, hub height above the seat, horn span, column travel (MM ch. 27 pages
+  not readable here); one forum post's "14 in" 150/152 column travel was not used.
+- **Tests:** new `tools/FlightTests/C172YokeClearanceTests.cs`: both yokes' GLB triangles (≤ 2 mm samples) swept column
+  ±70 mm / 10 mm × wheel ±90° / 2°, against both seats' thighs (literal capsules from the checker's mannequin, flat and
+  lifted 2°), gate ≥ 15 mm. On the old GLB FAIL -28.7 mm (pilot) / -27.3 (CFI); now PASS 30.6 / 31.1 mm. Plus a 1 in /
+  270° suction test. `check_c172_pedal_fit.py`: wheel sampled every 10° and yoke gated at 15 mm (`YOKE_CLEAR`); PASS,
+  42.5 / 30.6 mm, torso 81.9 mm; all other numbers unchanged. It also gained `C172_YOKE_RENDERS=1` (the review set).
+  `check_c172_cockpit.py`: shaft keep-out at z 0.100, shaft height and 1 in suction case asserted; PASS on both GLBs.
+  .NET (filtered: C172Yoke, C172Instrument, CockpitEye, ModelRig, StreamingAssets): 150/153; the 3 failures are the
+  known glider airbrake NaN baseline and two StreamingAssetsTests about files tracked on the base (no file of mine).
+  Not a full-suite run.
+- **Build:** waited for the other lane's Unity Android batch (gate as the condition); iOS `deploy.sh NOINSTALL`
+  `** BUILD SUCCEEDED **`, 0 `error CS`, 2026.1104.1610, installed on 0 devices. bundleVersion bump and ConfigSync's
+  StreamingAssets JSON churn restored, not committed. Parity --strict OK.
+- **Renders:** 34 in `~/Developer/agent-lanes/renders/c172-yoke/`, 10 + fit reports in `renders/c172/yoke-v1/`. A first
+  "front" view was useless (knees and switch row in front of the horn); replaced by a clipped section. A zsh `case`
+  with brace patterns deleted my lane copies once (braces don't expand in case patterns); re-copied from agent-lanes.
+
+- **Follow-up 2026-11-04 16:50 PST (Grok Bot):** Ty 16:38 "Yoke is good"; Ty 16:42: suction upper red line = **5.4 inHg**
+  (1980 172N manual), not 5.5. `c172_cockpit.py` green arc now 4.5-5.4, red radials at 4.5 and 5.4 (3dacc353);
+  GLB rebuilt via `blender -b --python tools/model_c172.py` (163 = 163 nodes, node data identical; only suction-mark /
+  joined-interior mesh contents changed); rig json regenerated (desc only); test asserts "green 4.5-5.4".
+  check_c172_cockpit.py PASS; FlightTests C172 filter 49/49. renders/c172/yoke-v1/*suction_closeup.png still show 5.5 (not re-rendered).
+
+C172-YOKE-DONE
+
+### 2026-11-04 09:30– PST — Claude · lane/claude-crash-tuning · crash tuning: steel-tube fuselages crush, wreck friction, branch damage
+Ty, after flying 2026.1104.0427: "momentum is still too weak or the friction is too high. The fuselage is really strong
+so rarer than having it break apart have it tend to bend and crush more. Engine, wings, tails and canopy can break off but
+for all steel tube airplanes ... the fuselage doesn't break apart other than at the firewall. Tree hits were too
+forgiving: it made a sound with no damage until I got deep toward the trunks."
+- **Commits:** `bd1ccd96` (everything below), `339b2a2f` (limb crush on a fuselage by its work F·d/F_c, not by closing
+  energy — found in self-review after the build).
+- **Momentum — measured first (`CrashSlideProbe`).** A bare Pitts fuselage (wings, gear, prop gone) at 60 kt slides
+  134.8 m on flat grass against Coulomb's v²/(2μg) 138.8 m; 91.5 m on the island's Rough against 97.1; 92.5 m on the
+  runway against 88.3. So the airframe's own sliding friction was NOT the problem and is unchanged. The scripted Pitts
+  cartwheel (35 m/s) stops in 59 m / 5 s: tumbling onto its wings, whose impacts are inelastic with friction μ·J_n, and a
+  tumbling biplane's own air drag (~0.3 g at 15 m/s). Real, and left alone. Restitution of the hard points is 0.07–0.16
+  (computed from the spring/damper/rebound for 50–600 kg effective mass): in the 0.1–0.3 band, unchanged. What was wrong:
+  - **Wreck pieces used μ 0.7 (`AirframeContact.FrictionMu`, the BUILDING value) on every surface** and were fully
+    inelastic. Now `AirframeContact.SlidingMu(surface)` (paved 0.55, gravel 0.50, grass 0.35, rough 0.45, snow 0.10, ice
+    0.03–0.04), wet bed under water 0.3, restitution 0.2 above 1 m/s (measured 0.25 with four corners in sequence).
+    `IWreckWorld.SurfaceAt` added. A 500 kg block at 60 kt on grass slides 115–140 m (was < 69 m).
+  - **Rough (island pasture) 0.50 → 0.45** (`KeelSlidingCoefficient`, shared with float keels): top of the dry-grass band;
+    the bumps cost their own 6 % already.
+  - Separation keeps v + ω×r exactly (|Δp|/p < 1e-9, tested for a wing panel, a C172 tail, a Pitts nose). Free tumbling
+    keeps L to < 2 % in 1 s for a 500 kg block; the 60 kg block's 7 %/s is HydroBody's aerodynamic damping of the turning
+    faces (scales 1/m), not a clamp. No sleep/clamp changes: sleep is < 0.05 m/s and < 0.05 rad/s for 1 s on the ground.
+  - Water: airframe water forces are already hydrodynamic (AirframeFlooding, `waterByHydro: true`); no Coulomb on water.
+- **Structure type.** `AircraftConfig.structureType` + `structureTypeSource` on all 34 configs (list in NEEDS YOU 4a).
+  `Core/FuselageStructure.cs`: a fuselage section (Nose, Cabin, TailBoom) struck above its break speed v_b crushes
+  δ = 0.15·(v²/v_b² − 1) (the tree code's crush energy law) and breaks only when its accumulated crush passes its
+  capacity: steel tube cabin/tail ∞, steel engine mount 0.20 m (engine off at the firewall), aluminium 0.15 m (single
+  blow √2·v_b: cabin 8 → 11.3 m/s, tail 5.5 → 7.8), wood 0.08 (1.24×), composite 0.05 (1.15×), untagged 0 (old rule).
+  Gate: `Aircraft.FilterFuselageBreaks` (hard-point arrivals, `ContactPoint.ArrivalPending/ArrivalMs/ArrivalNormalBody`),
+  the tree trunk path (`Resolve`) and the water joints (steel cabin/tail hold under load). Geometry: a crushed cabin point
+  moves in (cap 0.30 m); a crushed tail boom / engine mount bends about its station by atan(δ/arm), cap 30°, its points
+  turn, and the tail surfaces' incidence follows (`StripFlowState.IncidenceDeltaRad`: stab −pitch, fin +yaw). Event
+  `ContactEventKind.FuselageCrushed`. Unity: `AirframeVisual.ShowFuselageBend` cuts the section at its station (the break's
+  own cut) onto a pivot and turns it; a later break lets the pivot go as debris; `StructuralDamage` plays a crunch and
+  shows TAIL BENT / ENGINE MOUNT BENT / FUSELAGE CRUSHED. Measured: belly/back slams at 15 m/s — Pitts, Great Lakes,
+  PA-18 (inverted) cabin crush 0.56–0.70 m (energy-equivalent; drawn capped at 0.30), Extra/J-3/Decathlon upright stay
+  whole; C172 at 15 m/s breaks into three, at 10 m/s crushes 0.028 m and holds. PA-18/J-3/Decathlon tail-first at 12 m/s:
+  tail bent 7.4°, nothing off. Pitts nose-in at 16 m/s, −70°: engine off at the firewall, cabin and tail stay.
+- **Trees (`TreeStructure` branches, `BranchStrike`).** Branch diameter d_b = 0.005 + 0.2·d_stem·(1 − ρ/r_c); branch
+  density λ = 10/(π·r_c) m/m³; crossings (2/π)·λ·ℓ·v; force per branch F = F_s(d) + ρ_w·d²·v². Over 1.5 kN a leading
+  edge dents 5 cm·F/F₀ of its third's length (damage 0..1 → strip lift × (1 − 0.4 D), Cd + 0.06 D); over 2.5 kN a control
+  surface accumulates damage and is lost at 1; prop tips chewed 5 % of d per crossing above 1 cm, a 6 cm limb at the hub
+  stops the engine; limbs ≥ 5 cm are struck like stems (snap with m/4 + F·d/v, or bend / break the panel by the panel's own
+  strength), again each time they get a third thicker. The cutting work F·d is added to the old foliage drag. Measured
+  (30 m fir, 15 m up, Pitts 60 m/s, left tip at ρ/r_c): 0.90 → no damage; 0.60 → 0.04; 0.35 → 0.20–0.27, Δv 0.25–0.5 m/s;
+  0.12 → 0.51. J-3 at 20 m/s in the outer twigs: none. A 40 m fir's lower crown at 70 m/s takes the lower-left panel.
+- **Tests.** New `CrashTuningTests` 30 (sliding per surface, piece friction, restitution, tumbling L, separation momentum,
+  every config tagged (literal lists), crush law per type (literals), slams per type, tail bend, firewall, trunk, branch
+  literals, canopy pass damages + drags, slow twig brush minor, outer twigs only drag, limb breaks a wing).
+  `BreakupTests`: the tail-strike and belly-slam break-ups were the PA-18 (now steel tube): moved to the C172 at 10 and
+  15 m/s (above the aluminium single-blow speeds), and two new PA-18 tests assert the crush/bend instead.
+  Crash classes (Tree/IslandTreetop/Debris/Breakup/WreckRemnant/WingAileron/CrashWater/WaterBreakup/BentPanel/DebrisWiring/
+  StallBreak/TaildraggerNoTipStrike/ContactDamage/AirframeContact/StrutStation/SolidsBroadphase/FloatKeel/GroundContact):
+  base `b7d1a680` 254 run, 253 passed, 0 failed, 1 skipped (Gee Bee landings); branch 284 run, 281 passed, 2 failed
+  (the two BreakupTests above, then rewritten: 46/46 in that class), 1 skipped. After `339b2a2f`: CrashTuning + TreeStrike +
+  IslandTreetop + Breakup 88/88.
+  **Full suite** (branch `339b2a2f`, `--filter "FullyQualifiedName!~IslandDroneProbe&FullyQualifiedName!~LaunchReplication"`,
+  nice'd, other lanes' suites running on the same Mac): 2,495 run, 2,296 passed, 193 failed, 6 skipped (1 h 10 m). The base
+  full run was cut off by the 2 h job limit, so every failing method (147 methods, 231 cases) was re-run by name on BOTH
+  base `b7d1a680` and the branch: identical — 124 fail on both, 107 pass on both, 0 fail only on the branch, 0 fixed. The
+  other ~69 of the 193 are suite coupling (pass when re-run). No regression found.
+- **Build:** `deploy.sh NOINSTALL` from this worktree at `bd1ccd96`: `** BUILD SUCCEEDED **`, 0 `error CS`, stamp
+  2026.1104.1036, not installed. bundleVersion and the StreamingAssets copies the build wrote were reverted, not committed.
+  `tools/check-parity.sh`: PARITY OK (the 58 GLB warnings are pre-existing); the pre-commit parity hook passed.
+- **Not done / open:** no canopy component; combat damage unchanged; `ShrinkDisc` allocates (LINQ) when branches chew a
+  prop (rare); WreckSim's contact allocates per step per piece (it did before; one more small array now).
 <!-- parity-merge entry -->
 ### 2026-11-04 07:31– PST — Claude · parity merge (lane/claude-quest-islandnav ⇄ lane/claude-island-nav) · Ty approved 07:29
 **NEEDS YOU:** see the top "PARITY MERGE" item under NEEDS YOU (kept current there).
@@ -3107,6 +3455,34 @@ BLOCKED (exit 1); docs-only and Quest-only commits while out of sync OK; the oth
 BLOCKED; merging the other lane's tip OK both as an automatic merge (pre-merge-commit) and as a conflicted merge
 finished with `git commit` (pre-commit, MERGE_HEAD); merging a feature lane while in sync OK (lead), while behind BLOCKED.
 Known gap, documented: a fast-forward or `update-ref` runs no commit hook.
+
+**Step 5 — parity.** After the lock commit (73dcc9d4) island-nav merged the Quest tip with no conflicts → **b7d1a680**,
+and the Quest lane fast-forwarded to it: **both lanes are the same commit**, so `git diff lane/claude-island-nav
+lane/claude-quest-islandnav` is empty. `tools/check-parity.sh --strict`: every commit in both, no shared Quest-only
+commit, GLBs all 29 identical, **PARITY: OK, exit 0**. Lock installed (`tools/githooks/install.sh`, common
+.git/hooks); `--hook` exits 0 on both lanes, and the dispatcher does nothing on lane/claude-parity (no tools/githooks there).
+
+**Step 7 — tests on b7d1a680.** Quest-lane worktree, full suite: **2,391 passed / 2,524 (127 failed, 6 skipped)**,
+1 h 40 m. By name, 115 distinct failing tests: every one is in the pre-existing parent sets above, except 2 that
+appear here first. Both pass alone (CockpitLiveTests.ACappedFrameRunsAtMostTheCapAndSaysSo = NaN under coupling;
+IslandCombatTests.AWreckOnTheGround…, the timing test noted before). Still red and new to the merge:
+FloatLandingTests J-3 0.5 m/s (step 1). Island-nav worktree (same commit): see below.
+
+**Step 8/9 — builds and installs.**
+- iOS from `claude-island-nav-merge`: `deploy.sh 00008150-001629A83662401C` → PARITY: OK, **`** BUILD SUCCEEDED **`**,
+  0 `error CS`, bundleVersion **2026.1104.0957**. Install on Ty's iPhone FAILED: CoreDeviceError 4016, then the phone
+  went "unavailable" (locked / off USB). The built app (Info.plist checked: 2026.1104.0957) is at
+  /tmp/flyinggame-dd/Build/Products/Release-iphoneos/AeroPlayground.app. NEEDS YOU.
+- Quest from the Quest lane: `deploy-quest.sh` → parity gate passed, APK built, **installed and launched on the Quest 3S
+  (340YC10GBK0TYV), version 2026.1104.1002**, exit 0, 0 `error CS`.
+- Both builds' ProjectSettings bundleVersion bump and the 16 StreamingAssets/aircraft JSON that ConfigSync rewrites were
+  restored afterwards (not committed). Those 16 are the SAME files as the "uncommitted" ones in the old island-nav
+  worktree, and the Pitts one carries the same diff: it is ConfigSync output, not hand work.
+- Island-nav worktree, same commit b7d1a680, full suite: **2,364 passed / 2,524 (154 failed, 6 skipped)**, 1 h 38 m.
+  134 distinct names: all in the pre-existing sets, except 14 (LandingGearTests ×5, PittsFlatSpinAileronTests ×5,
+  ReversibleControlTests ×2, TipWheelTests, VrBailoutTests) that this run alone failed. Their 5 classes re-run alone:
+  **77/77 passed**, so this is coupling (same commit as the Quest-lane run, which passed them). The real count of tests
+  that fail when run in isolation is the same for both lanes, since it is one tree.
 <!-- /parity-merge entry -->
 ### 2026-11-03 21:30 PST — Claude · lane/claude-quest-cockpit-switches (off lane/claude-quest-islandnav 2be16316) · switches on the panels on the Quest, GL v7, Pitts/Extra rows, Extra panel + stick, Pitts canopy + nose, headset cord
 Owner pt502u: "the pitts and the great lakes have switches outside of the panel on the meta quest version use the new
@@ -3527,6 +3903,75 @@ foot and make the fuel valve a push pull control with the red knob not a lever."
   The install on Frisby_801C_EFB then stopped right after `== install` with no devicectl output, and the script
   exited 1: check the build stamp on the phone before trusting it. The bundleVersion bump was not committed.
   No Quest APK and no adb from this lane.
+### 2026-11-04 08:40 — Claude · lane/claude-extra-cockpit-shared (phase 2) · Ty's Extra panel, one switch row, 30 % aileron hinge, skin breaks fixed
+- **Ask** (Ty 07:33, via the coordinator): lighting approved; the LAYOUT still wrong and must be in the next build (card centred;
+  ASI over G left; ALT over TC right; Trig radio + xpdr left; 3-in-1 right; lower row tach / MP / fuel computer / ammeter; all
+  switches and knobs in one row on the panel bottom; keep the shorter stick); aileron hinge 30 % with the nose poking up; the
+  wing-skin break fixed on every model; cockpit renders from the pilot eye, sun and night. Done by Claude, not Codex.
+- **Done** (8a5737c9, db87f77c, 217a0847): `tools/own_models/extra_cockpit_shared.py` (pass 11, all three Extra liveries:
+  layout with a no-overlap / clear-of-card assertion that caught two real overlaps while laying it out, three-in-one with its
+  own art and three needles, fuel-computer and Trig heads with LCDs and 0.45-scale knobs, panel 0.055–0.360 m, the switch row,
+  retired gauges as `Legacy_P3g_*`, card centred, ailerons re-hinged at 30 % with an arc nose and matching cove, nose skins
+  filled to the wing's lip); `tools/own_models/fix_aileron_junctions.py` (pass 12: 172 bay re-cut, GL, J-3 ×2, 2-33 ×2,
+  Pitts ×4); `render_aileron_deflect.py`; `SharedPanelRigTests` pins the 14 instrument nodes per seat.
+- **Measured** (`check_aileron_junction.py`, worst at neutral): Extra 16.8 mm / 29.6° → 1.3 mm / 3.6°; 172 coplanar → 2.4 mm,
+  no overlap; GL 6.1 mm + 15 mm gap → 1.9 mm / 5 mm; J-3 6.6 mm + 15 mm → 1.7 / 5; Pitts 3.8 → 1.5; 2-33 33.9 → 2.6 mm
+  (FAIL by 0.1 mm at one tip station; a shoulder at ~25 % of its aileron chord is visible in the section render). Legacy GL
+  GLBs (unused) and 12 runtime-carved models untouched.
+- **Checks:** cockpit tests 68/68; model/rig tests: every failing name also fails on aeb9695a (HydroJ3 porpoise, J3FloatsWater
+  landing, PlateauCopy ×5, the terrain/nav names of a coupled run, ModelRig air brake, AerobatGround Pitts). CockpitEyeShots
+  PASS 7/7. Build `2026.1104.0831` BUILD SUCCEEDED, 0 error CS, not installed; ProjectSettings and the stale StreamingAssets
+  mirror restored, not committed. `tools/check-parity.sh` does not exist in this tree: not run.
+- **Renders:** `renders/extra-cockpit-shared/` (README.md): eye/ (Quest + iPhone, sun + night), aileron/ (−30/0/+30 section),
+  junction-before/ and junction-after/.
+- **Caveats:** the passes edit GLBs in place; a full rebuild of any of these models drops them (docs/SHARED-COCKPIT.md).
+  Fuel-pressure dial bands unsourced. The Quest lane must take these GLBs by merging island-nav, not edit them. No gate approved.
+
+### 2026-11-04 06:40 — Claude · lane/claude-extra-cockpit-shared (phase 1 of 3) · one Extra cockpit for iOS/Mac and Quest, legible instruments, aileron junction checker, Codex spec
+- **Ask** (Ty, 05:35, msg pt534u, after flying the Extra on the Quest): stick too tall (stick + hand hide the
+  instruments); switches and knobs still by his knees, not one row along the panel bottom; a break in the wing skin
+  where the aileron begins "on most models"; aileron hinge at 30 % of the aileron chord so the nose rises when
+  deflected; instruments dark — make them legible full time; the panel laid out round a centred sequence card; and
+  the same on Quest and iOS/Mac. Phase 1 = engine/config/logic + integration; no agent launched, nothing installed.
+- **Root cause of two cockpits:** lane history, not code. island-nav still had the pre-VR Extra (130 nodes); the Quest
+  lane had P3a–P3e; P3f (60f3ff48, one switch row, sticks −0.06 m) was only on lane/claude-quest-cockpit-switches.
+  island-nav has not touched the Extra since 510f987c, which the Quest lane merged at 2be16316 (wing-B, sights and
+  card holder transplanted then), so the switches-lane GLB is the superset.
+- **Done (commits 35179373, 6898f355, a7803dde, 1b882cf1, 651b1692):**
+  1. The P3f Extra (3 GLBs, rig json, provenance, vr_* / extra_panel_p3f / cockpit_controls_v2 / check tools,
+     ExtraRearPanelTopTests, CockpitControlInteriorTests (Extra rows), CockpitEyeShots) by whole-file checkout from
+     033dd76d — byte-identical to the Quest lane. `docs/SHARED-COCKPIT.md`: what is shared, both platforms' paths,
+     the GLB pass order (0–10, 11 = Codex), merge notes for the Quest lane.
+  2. **Instrument lighting, both platforms:** `FlyingGame/Instrument` (albedo × (max(sun+sky, 0.32) + 0.30)) on every
+     instrument material (`InstrumentFaces`, fleet-wide) from `AirframeBuilder.TryPlaceModel`, shipped via
+     `Resources/Materials/Instrument.mat` (glTFast's emission is a stripped `shader_feature`). Night panel: illegible →
+     readable, faces stay black. A cache bug (destroyed materials returned after an asset unload) found by the render
+     batch and fixed before commit.
+  3. **Dead needles:** the Extra's ammeter, EGT and fuel needles were on rig params no code knew (both platforms). Added
+     amps, fuel_press_psi, egt_f, fuel_wing_gal, fuel_akro_gal, fuel_flow_gph, fuel_used_gal; CockpitRigState fills
+     them; `Totalizer_Display_R` LCD (fuel computer) ready for Codex's node.
+  4. **30 % hinge — physics measured, NOT applied:** `controls.aileron.hingeSetBackFrac` + AileronSectionE support.
+     With E from the chord aft of the hinge: Extra 238.8 → 192.5 deg/s (published ~340–400, already low), Pitts 218.2 →
+     173.1, C172 83.4 → 66.6. Set nowhere: the sealed-gap η table cannot represent an offset hinge's open nose gap,
+     so one half would move the Extra further wrong (docs/CONTROL-SURFACES.md "Set-back hinges", with the fleet list).
+     The hinge moves in the model and rig only (Codex).
+  5. **Skin break, measured** (`tools/own_models/check_aileron_junction.py`, every GLB): Extra wing-B thicker than the
+     aileron at the split, steps −16.8/+15.4 mm at the root → −6.8/+7.7 mm at the tip, 22–30° slope break; 2-33 lower
+     step −24…−34 mm; C172 wing skin coplanar under the whole aileron (z-fighting, visible in the render); Great Lakes
+     and J-3 upper step ~−6 mm + 13–15 mm gap; Pitts ~−3 mm (marginal). 12 downloaded/carved GLBs: ailerons cut at
+     runtime, not measurable here.
+  6. Renders and spec in `~/Developer/flying-game-worktrees/_xfer/extra-cockpit-shared/` (before/README.txt,
+     CODEX-SPEC.md, junction-findings.txt/.json).
+- **Checks:** targeted tests 130/130 (PittsRollRate, RollPhysics, InstrumentFaces, SharedPanelRig, CockpitControlInterior,
+  ExtraRearPanelTop); RigTests.ModelStillAsksForTheSameRig 34/34 (rig unchanged). ModelRigTests
+  FullAirBrakeStopsTheGliderSooner and AerobatGroundHandling PittsNeedsQuickFeet fail on the branch point aeb9695a too.
+  Unity batch CockpitEyeShots PASS 9/9 twice, 0 `error CS`. `deploy.sh 00000000-NOINSTALL`: `** BUILD SUCCEEDED **`, 0 `error CS`, bundleVersion 2026.1104.0648, installed nowhere (ProjectSettings bump and GraphicsSettings not committed).
+- **Noticed, not changed:** island-nav's committed StreamingAssets/aircraft mirror is stale against configs/ (16 files,
+  e.g. c172 wingBracing) — ConfigSync rewrites them on every Unity run; restored here, not committed. One Unity batch
+  of mine started at load 14 (the gate check was read, not enforced); later runs waited for load < 8.
+- **Open:** fuel-pressure dial markings for the 3-in-1 (Ty's panel); whether the Pitts / 172 should also get offset-hinge
+  geometry; the set-back lift effect waits for a sourced gapped-aileron η. No gate approved.
+
 ### 2026-11-03 22:21 — Claude · lane/claude-frank-church-valleys → island-nav · unpaved Frank Church strips, v2 renders, installed
 - **Ask** (Ty via Grok Bot, 21:55): all nine strips real dirt or turf, with no centreline, edge marking or paved
   look; render each approach into `renders/frankchurch/v2/`; then merge and install (Ty approved).
@@ -4077,6 +4522,33 @@ separately from lane/claude-pitts-spin.
 - Build: `deploy.sh 00000000-NOINSTALL` 17:01 PST `** BUILD SUCCEEDED **`, 0 `error CS` (the first two batches caught a
   1-arg `Array.Clear` and a `ContactPoint` clash with UnityEngine — the dotnet suite cannot see either); bundleVersion bump
   and regenerated StreamingAssets reverted. Not installed, not merged into lane/claude-island-nav (Ty has not flown it).
+### 2026-11-03 — Claude · lane/claude-172-instruments (off island-nav e8a40b0a; lane/codex-172-cockpit 8655aadb merged in) · 1970s 172 instruments
+- **Core** `src/FlyingGame.Core/Instruments/`: VacuumSystem (vane pump vs compressible jet flow, 5.0 inHg relief valve,
+  displacement derived from "green at 1,200 rpm"), GyroRotor (impulse-turbine drive, windage derived from rated speed),
+  AttitudeIndicator, DirectionalGyro (non-slaved; Earth rate, unbalance, gimbal friction, leveling, knob), MagneticCompass
+  (pendulous float, dipole field, hard-iron deviation), TurnCoordinator (canted rate gyro, DC-motor rotor, ball),
+  NavReceiver (VOR / tailored LOC / GS from its antenna site), AdfReceiver (loop in the airframe plane), DmeUnit
+  (slant range, closure-rate GS, search/memory, NAV1/NAV2/HOLD), C172Panel + InstrumentFailures. `Aircraft.SpecificForceBody`
+  (read-only addition). 32 new `RigInputs` params (`docs/C172-INSTRUMENTS.md`).
+- **Bridge**: `CockpitRigState.FillC172` for `c172-like`, stepped once per frame; RADIOS heading cell and OPTIONS rows
+  for the 172 (DG knob, DG = COMPASS, ADF card, vacuum / bus / TC failures, DME source).
+- **Binding**: `docs/models/c172-like-own-rig.json` (32 nodes) from `tools/own_models/c172_instrument_rig.py`, pivots
+  read off the GLB, scales off Codex's faces. Codex's handoff `c172-panel-rig.json` renamed **`c172-panel-bindings.json`**
+  (builder, checker and doc updated): ConfigSync requires every `*-rig.json` to be a runtime table and REFUSED the iOS
+  build on it.
+- **Tests**: `C172InstrumentTests` 32/32 (expected values hand-derived, listed in the class comment). Full suite on a
+  machine running ~10 other lanes' suites: 672 pass / 142 fail; base e8a40b0a's full run hung at 09:19 (killed). The
+  families that differed were re-run alone on both trees: **identical**, 97 pass / 8 fail (the 8 = Seaside/Playground/
+  Event terrain tests, failing on base too); every SpawnSpeed/Structural/MultiEngine/Soaring/GroundTow NaN in the full
+  run passes alone (suite coupling). `ModelRigTests.FullAirBrakeStops...` fails alone, as it has since b62b67d0.
+- **Build**: `deploy.sh NO-INSTALL-PLACEHOLDER` → `** BUILD SUCCEEDED **`, 0 `error CS`, installed on no device
+  (deliberately). bundleVersion bump reverted.
+- **Render check** (`OwnRigCheck` RIG_TYPE=c172-like, new 172 pilot-eye shot from Codex's manifest eye):
+  32/32 bound, 0 off pivot, 0 wrong parent (its one error: no `Eye_Rear` node on this model). Known state (bank 20 R,
+  pitch 5, DG 030, TC on R, ball R, 100 mph, 3,500 ft, +500 fpm, NAV1 OBS 090 CDI ½ R GS ½ down TO, NAV2 OBS 270 CDI ½ L
+  FROM, ADF 45 R) read correctly on every instrument, by eye: `renders/c172/instruments-v1/`.
+- Not merged into island-nav, not deployed: waiting for Ty's panel-render approval. No gate approved.
+
 ### 2026-11-02 — Grok Bot · lane/claude-stickfree-launch (off lane/claude-rig-trim b62b67d0) · launch spiral, stick-free with a pad
 Report (Ty, iPhone `2026.1102.1803`): Pitts launches straight into a right spiral dive; the next launch went LEFT.
 - **Rig is solved stick FIXED:** `RigSolver.SteadyForces` (src/FlyingGame.Sim/RigSolver.cs:176-185) hands explicit
@@ -8461,3 +8933,92 @@ Ty reviewed the gl7 renders (xfer/gl7: side-by-side, photo comparison, rear cons
 
 ## 2026-11-03 14:42 PST - Great Lakes wing surfaces: Ty approved (voice call)
 Ty reviewed xfer/glwing close-ups and approved: one aileron per side per wing (4 total), slave struts tying upper to lower, no extra surfaces. Upper-aileron removal question closed.
+## 2026-11-03 — lane/codex-172-cockpit: late-172M panel and complete cabin v1
+
+Ty requested a 1970s 172L/M cockpit with standard six-pack, conventional separate navigation heads, period radios and full four-place interior. Added original primitive-built cabin in `tools/own_models/c172_cockpit.py`, integrated into `tools/model_c172.py`; no third-party cockpit mesh or photo texture is used. Eight real-aircraft photographs and source URLs are retained in `ref/172/`. The reference note explicitly distinguishes modern upgrades from period evidence and explains the requested late-M-style standard six-pack versus earlier offset layouts.
+
+Authored vacuum AI with independent pitch/roll, non-slaved DG card with independent heading bug and sync/bug knobs, electrical TC and slip ball, ASI/altimeter/VSI, separate NAV1 CDI+GS and NAV2 CDI-only heads, ADF indicator/receiver, standalone DME, two KX-170B-style nav/coms, audio panel and KT-76-style transponder; suction, ammeter, tach, oil temperature/pressure, individual left/right fuel gauges and EGT; glareshield compass, master/start/primer, throttle/mixture/carb heat, flap switch/indicator, cabin heat/air, trim wheel/indicator and fuel selector. Both yokes, both rudder-pedal pairs and all four toe brakes are independent named moving meshes. Both front seats, rear bench, belts, tracks, pleated period-colour upholstery, door cards/pulls/latches, pillars, headliner/seams/light, visors and baggage shelf are modelled.
+
+Rig handoff: `docs/models/c172-panel-rig.md` plus JSON companion; 104 moving bindings with names, axes, visual travel, signals and pivots, also exported as custom glTF extras. Static detail consolidated to a cabin with 133 total nodes; moving descendants retain their hierarchy. This is an authored visual rig, not runtime avionics integration: readouts remain examples, signal calibration/interactions and Unity flight validation are Claude's follow-up. No src/config/Unity script changes or device-build claim. Review rendering is actual Cycles geometry at 1800×1200; exterior airframe is absent from the six interior review views, and furniture is retained. Pilot/CFI cameras use existing eye stations. Panel camera and aft-looking cabin camera are review views.
+
+Validation: `check_c172_cockpit.py` checks all 104 moving meshes/extras, 45 explicitly required bindings, NAV2's lack of GS, dual controls, structural cabin coverage, graph uniqueness/parentage/cycles/orphans, identity rotation/unit scale, all binding pivots within 0.01mm and actual exported primary-case size/clearance. Python syntax and `git diff --check` are required before commit. Final results and render hashes are retained with the review artifacts.
+
+Renders: `renders/c172/v1/full-panel-straight.png`, `pilot-eye.png`, `cfi-right-seat.png`, `radio-stack.png`, `nav-heads.png`, `cabin-wide.png`; accompanying interior GLB, editable Blender build scene and camera manifest. **Awaiting Ty's approval; no gate approved.** Glass Overlay untouched. Local lane only; no merge, push or deployment, and no forced add.
+
+Final verification: full aircraft 161 nodes / cabin 133 nodes; 104/104 binding pivots and 45 required bindings pass. All 28 pre-existing airframe names retained. All six final renders visually reviewed; close-ups reframed to retain both NAV heads and the complete radio stack. Final model SHA-256 `d59a3a19f2246e5d3739b6b24cc22d1fba59dca5d8c0e5dbbee8d35b469e55b6`; cabin SHA-256 `2d6e907df9d4f58aa2227a300153c2fd153304e56e8733179bf4f93c3552f773`. Validation JSON and per-render hashes/cameras recorded. Python compilation and `git diff --check` pass. Required `git ls-files | git check-ignore --no-index --stdin -v` printed nothing before commit; no ignored files force-added.
+
+## 2026-11-03 14:38 PST - 172 instruments: Ty says they still stick out
+NEEDS YOU: approve re-render. Ty (voice call) reviewed instruments-v1 renders: instruments still protrude from the panel. 172 instruments must be flush-mounted (bezels flush with panel face, nothing sticking out). Codex fixing placement and re-rendering.
+
+## 2026-11-03 14:39 PST - 172 instruments, more Ty feedback (voice call)
+NEEDS YOU: approve v2 re-render.
+1. Instruments protrude about 1 inch; must sit flush with the panel surface, each mounted with four visible screws at the bezel corners.
+2. Attitude indicator miniature airplane reference is crooked; must be level and centered.
+3. DG airplane is just a plus sign; replace with a real top-view airplane silhouette.
+
+## 2026-11-03 14:40 PST - 172 panel: Ty says nothing visibly changed
+NEEDS YOU: approve v2. Ty: turn coordinator still a crude block (needs real TC: rear-view airplane symbol, L/R index marks, 2 MIN text, DC ELEC label); inclinometer still rectangular (must be curved glass tube, ball, two reference wires). Plus earlier items: flush 4-screw mounts, level AI airplane, DG airplane silhouette. Verify the renders actually use the new instrument art (instruments-v1 may be stale).
+
+## 2026-11-03 14:41 PST - 172 panel: controls (Ty)
+NEEDS YOU: approve v2. (6) 172 is fixed-pitch: no propeller control anywhere on panel/quadrant. (7) Throttle and mixture are push-pull plungers: no white tick marks, no rotation (no vernier twist), they just push in and pull out.
+
+## 2026-11-03 14:59 PST - 172 instruments v2 final review (Codex)
+
+NEEDS YOU: Ty, approve `renders/c172/instruments-v2/`. All seven 14:38–14:41 feedback items addressed; ADF head/tail needle and TRAINER yokes retained. Full-panel pilot-eye, parked/known-state six-pack and pilot views, AI/DG/TC/controls close-ups, low side flushness view and exterior captured from the final own model in Unity/Metal. All 14 PNGs copied and hash-verified in `~/Developer/agent-lanes/xfer/c172v2/`. No fallback: Unity reports RIG OK, 34/34 bound, no off-pivot or wrong-parent nodes, exit 0 and zero compiler errors. Source, scene, model and image hashes/cameras are in the render manifest. Final model SHA256 `d029a49fd2765147065217796442ea0a59f2f8f186c96744e7237b8ba3210d16`.
+
+V1 was captured at 10:20 and matched the unchanged original builder; the checkout began clean. Its original shell faced inward (signed volume -4.840003 m³). V2 corrects the winding, recesses all 17 cases behind the panel plane with 68 visible corner screws, fits the upper panel/glareshield inside the shell, and closes the AI rear case against oblique sky leaks. The low-angle and exterior renders were inspected. Details/reproduction: `docs/models/c172-instruments-v2.md`.
+
+Validation: 32 C172 checks pass; both GLBs pass graph, all 104 authored/45 required bindings, pivots, spacing and flushness. Broader ModelRigTests: 11 pass, one baseline glider airbrake test fails with NaN rollout distances, reproduced in isolation on clean HEAD. Python compilation and diff whitespace checks pass. No src/config changes, device build or deployment claim. ProjectSettings generation discarded. Approval remains pending; local commit only, no push/merge, no forced add.
+
+## 2026-11-03 16:25 PST - 172 panel v2 rejected (Ty)
+NEEDS YOU: approve v3 renders in `~/Developer/agent-lanes/xfer/c172v3/`. Ty rejected v2:
+1. Labels unreadable: they float in space off the panel, too small, low contrast. Make them placards / printed labels flat ON the panel surface, legible size, high contrast.
+2. Three push-pull controls; the third is carb heat. Left to right: throttle (biggest knob), mixture right of it (red, smaller), carb heat right of the mixture (smaller still). Plain push-pull, no ticks, no rotation; fixed pitch, no prop control.
+3. VSI zero at the 9 o'clock position: needle level, pointing left, at zero.
+4. Attitude indicator too "round" (domed/deep bezel): flatten so it reads without parallax; face near the glass, horizon bar and airplane symbol close to the dial plane. Every gauge: shallow bezel, face near flush, high-contrast markings, parallax-resistant.
+Keep: flush instruments with four corner screws, level AI airplane, top-view DG airplane, TC rear-view airplane with curved glass-tube inclinometer and two wires, ADF needle distinct head/tail, 1970s style, TRAINER yokes.
+
+## 2026-11-03 16:26 PST - 172 turn coordinator marks (Ty)
+NEEDS YOU: approve v3. TC standard-rate L and R marks must sit on the exact radial the rear-view airplane's wing reaches at 3°/s (about 20° down from level, as on real Cessna TCs), so the wing lies exactly parallel on the mark at standard rate; verify the overlay. The rear-view airplane's wings must be perfectly symmetric about the centre pivot (one wing looks longer). Add close-ups of the TC at standard rate left and right.
+
+## 2026-11-03 16:28 PST - 172 panel layout (Ty)
+NEEDS YOU: approve v3 layout. Tachometer directly under the VSI. One vertical engine column between the flight instruments and the radio stack, top to bottom: oil pressure, oil temp, fuel (taken as FUEL PRESSURE/FLOW — fuel quantity goes under the TC; Ty to confirm), ammeter, EGT. Suction gauge under the DG. Two fuel quantity gauges under the TC, L and R tanks. Six-pack stays the standard T; keep every earlier fix. Wants a full-panel pilot-eye render plus a labeled layout diagram.
+
+## 2026-11-03 16:29 PST - 172 engine column correction (Ty)
+NEEDS YOU: approve v3 layout. Correction: the 172 is carbureted, so NO fuel pressure or fuel flow gauge. Engine column, top to bottom: oil pressure, oil temp, ammeter, EGT. The only fuel gauges are the two L/R fuel quantity gauges under the TC. (Supersedes the 16:28 "fuel press" assumption; nothing to confirm.)
+
+## 2026-11-03 17:21 PST - 172 instruments v3 (Codex)
+
+NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/
+
+- Rebuilt the requested standard-T panel layout: tach below VSI, suction below DG, L/R fuel quantity below TC,
+  one oil pressure / oil temperature / centre-zero amps / EGT column, relocated NAV/ADF heads and intact radios.
+  Removed the former right engine cluster; no fuel pressure/flow or propeller control.
+- Replaced floating/tiny legends with flat high-contrast printing: at least 6.20 mm control caps and 4.59 mm dial caps,
+  larger numerals, supporting-surface offsets at most 0.3 mm. Lowered switch labels and placed PRIMER on ivory for pilot-eye visibility.
+- Corrected throttle/mixture/carb-heat order, 13/10/8 mm radii, coaxial shafts and translation-only authored bindings.
+  ModelRig.cs has no carb-heat, ammeter or EGT input, so these three remain authored/unbound; all prior runtime params remain.
+- Redrew/calibrated VSI left zero, ±500 at ±45°, ±1000 top/bottom and ±2000 near right; model parameter zero matches the drawn pose.
+- Replaced the deep AI sphere with a shallow masked sliding horizon; 10° pitch up translates down 8 mm against its printed ladder.
+  Retained level orange wings/dot, bank scale, sky pointer and roll binding; captured straight and off-axis comparisons.
+- Centred and symmetrized the TC airplane and fuselage; ±1 rate now rotates ±20° onto matching radial indices. Retained L/R,
+  2 MIN, D.C. ELEC., curved glass inclinometer, ball and wires. Retained flush four-screw mounts, top-view DG, ADF head/tail and TRAINER yokes.
+- Extended exported-mesh checks for every mount/radio/yoke/switch clearance, TC symmetry/radials, actual VSI drawn zero,
+  flat label geometry and engine plunger dimensions/order/translation. 45/45 C172 tests pass; ModelRigTests 11 pass and the
+  known `FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake` NaN baseline fails; no unrelated physics changes.
+- Delivered 34 fresh final Unity/Metal and schematic PNGs, inspected individually, with complete input/hash/mtime provenance,
+  copied byte-for-byte to xfer/c172v3. Both GLBs pass; Unity OwnRigCheck reports RIG OK / 34 bound. Reproduction and full file list:
+  `docs/models/c172-instruments-v3.md`. No src/config edits; ProjectSettings churn discarded; local commit only, no deploy/device install.
+
+### 2026-11-04 crash-tuning merge into both lanes (Claude)
+- Merged lane/claude-crash-tuning `271ddb77` (clean worktree; limb fix `339b2a2f` already committed) into
+  lane/claude-island-nav → `94b70e6b` and lane/claude-quest-islandnav → `d49059c5`; then island-nav into quest → `d2ae2979`
+  (parity hook required it; trees identical). No conflicts (AGENT-LOG.md, Aircraft.cs auto-merged). PARITY: OK both.
+- Tests (island-nav `94b70e6b`): crash classes (CrashTuning/Tree/IslandTreetop/Debris/Breakup/WreckRemnant/... 20 classes)
+  229 passed, 0 failed, 1 skipped (GeeBee). Filtered Vr|Pilot|Cockpit|Seat: 437/439 passed; the 2 failures
+  (DronePilotTests.AerobaticDroneFliesVariedManoeuvresAndSurvives, MazeTowTests.TheGliderPilotCanAskForADifferentBranch)
+  also fail on pre-merge base `b62c709d` — pre-existing, no new failures.
+- Builds (sequential, nice): iOS deploy.sh ** BUILD SUCCEEDED ** 2026.1104.1506, installed iPad mini (iPhone
+  unavailable). Quest deploy-quest.sh 2026.1104.1528, 0 error CS, installed + launched on Quest 3S.
+  ProjectSettings.asset / StreamingAssets copies written by builds left uncommitted.
+C172-YOKE-DONE

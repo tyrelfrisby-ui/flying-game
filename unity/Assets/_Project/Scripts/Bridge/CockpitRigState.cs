@@ -1,6 +1,7 @@
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
+using FlyingGame.Core.Instruments;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
@@ -33,6 +34,8 @@ namespace FlyingGame.Bridge
 
         // ---- the presentation engine gauges (P) --------------------------------------------------------
         private double _oilTempF = 180.0, _chtF = 320.0;
+        /// <summary>The fuel computer's count, US gallons burned since the aeroplane was reset.</summary>
+        private double _fuelUsedGal;
 
         // ---- avionics, as the player left them ---------------------------------------------------------
         /// <summary>COM active / standby in MHz, and the volume. Defaults: 122.800 (unicom) on 121.500.</summary>
@@ -111,13 +114,31 @@ namespace FlyingGame.Bridge
         /// bailout; the handle springs back on its own afterwards.</summary>
         public void PullCanopyRelease() => _handOnRelease = PullSec;
 
+        // ---- the 172's own panel (FlyingGame.Core.Instruments; docs/C172-INSTRUMENTS.md) ------------------
+        /// <summary>The config id whose panel is the 1970s 172's vacuum/gyro/radio stack.</summary>
+        public const string C172Id = "c172-like";
+        private C172Panel _c172;
+        /// <summary>The frame the 172 panel last stepped on. AirframeVisual.LateUpdate fills the rig TWICE a frame
+        /// (two lanes each added the SetRig call and the merge kept both — logged, not changed, because the
+        /// other types' lagged needles are tuned on it); the gyros must integrate each frame's time once.</summary>
+        private int _c172Frame = -1;
+        /// <summary>The 172 panel being flown, or null for any other aeroplane. Static so the RADIOS and OPTIONS
+        /// panels can reach the knobs and the failure hooks, the way <see cref="NavRadios.Freq"/> already is.</summary>
+        public static C172Panel LiveC172 { get; private set; }
+        /// <summary>Knob turns asked for by the UI since the last frame, degrees: the DG's (push and turn) and the ADF card's.</summary>
+        public static double PendingDgKnobDeg, PendingAdfCardDeg;
+        /// <summary>Set the DG to the compass on the next frame (the pilot's push-turn-until-they-agree).</summary>
+        public static bool PendingDgToCompass;
+
         /// <summary>A fresh aeroplane: the canopy is back on, the gauges are warm and the tell-tales are clear.</summary>
         public void Reset()
         {
+            if (LiveC172 == _c172) LiveC172 = null;
+            _c172 = null;
             _energyHeightM = double.NaN; _varioMs = 0.0;
             _headingDeg = _headingRawDeg = float.NaN; _turnRateDps = 0f; _vsiFpm = 0f;
             _gMax = _gMin = 0.0;
-            _oilTempF = 180.0; _chtF = 320.0;
+            _oilTempF = 180.0; _chtF = 320.0; _fuelUsedGal = 0.0;
             CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true;
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
             HandLatch?.Reset();
@@ -219,6 +240,10 @@ namespace FlyingGame.Bridge
             // ---- the presentation gauges (P): no sim behind them -------------------------------------
             FillEngineGauges(ref r, ac, alt, dt);
 
+            // ---- the 172's instruments: modelled, not presented ----------------------------------------
+            if (cfg != null && cfg.Id == C172Id) FillC172(ref r, ac, dt);
+            else if (_c172 != null) { if (LiveC172 == _c172) LiveC172 = null; _c172 = null; }
+
             // ---- avionics and canopy, as the player left them ----------------------------------------
             r.ComFreqMhz = ComActiveMhz; r.ComStandbyMhz = ComStandbyMhz;
             r.ComVolume = System.Math.Clamp(ComVolume, 0.0, 1.0);
@@ -242,6 +267,50 @@ namespace FlyingGame.Bridge
         {
             double ambient = Atmosphere.PressureAtAltitude(altM) / 3386.389;
             return ac.EngineRpm > 50.0 ? ambient * (0.33 + 0.62 * ac.Throttle01) : ambient;
+        }
+
+        /// <summary>
+        /// The 172's vacuum system, gyros, compass, turn coordinator and radios, stepped on the sim's own state.
+        /// Tuning comes from the RADIOS panel (<see cref="NavRadios"/>); the bus is 14.2 V on the alternator with
+        /// the engine turning and 12.4 V on the battery without it. The failure hooks live on
+        /// <see cref="C172Panel.Failures"/>.
+        /// </summary>
+        private void FillC172(ref RigInputs r, FlyingGame.Sim.Aircraft ac, float dt)
+        {
+            var s = ac.State;
+            bool turning = r.Rpm > 50.0;
+            var x = new PanelInputs
+            {
+                Attitude = s.Attitude,
+                RatesBody = s.Rates,
+                SpecificForceBody = ac.SpecificForceBody,
+                PositionWorld = s.Position,
+                EngineRpm = r.Rpm,
+                AmbientPressurePa = Atmosphere.PressureAt(s.Position),
+                AmbientTempK = Atmosphere.TemperatureAtPosition(s.Position),
+                BusVolts = r.Master > 0.5 ? (turning ? 14.2 : 12.4) : 0.0,
+            };
+            WorldTerrain t = WorldTerrain.Active;
+            bool fresh = _c172 == null;
+            _c172 ??= new C172Panel();
+            LiveC172 = _c172;
+            _c172.Nav1.FreqMhz = NavRadios.Freq[0]; _c172.Nav1.ObsDeg = NavRadios.Obs[0];
+            _c172.Nav2.FreqMhz = NavRadios.Freq[1]; _c172.Nav2.ObsDeg = NavRadios.Obs[1];
+            _c172.Adf.FreqKhz = NavRadios.AdfKhz;
+            if (fresh)
+            {
+                // A flight starts with the engine running in every mode this game has, so the gyros have had
+                // their five minutes and the DG has been set; a cold aeroplane starts with them stopped.
+                _c172.Start(x, gyrosRunning: turning, t);
+                PendingDgKnobDeg = PendingAdfCardDeg = 0; PendingDgToCompass = false;
+            }
+            else if (dt > 1e-4f && Time.frameCount != _c172Frame) _c172.Step(x, dt, t);
+            _c172Frame = Time.frameCount;
+
+            if (PendingDgToCompass) { _c172.Dg.SetTo(s.Attitude, _c172.Compass.ReadingDeg); PendingDgToCompass = false; }
+            if (PendingDgKnobDeg != 0) { _c172.Dg.TurnKnob(s.Attitude, PendingDgKnobDeg); PendingDgKnobDeg = 0; }
+            if (PendingAdfCardDeg != 0) { _c172.Adf.CardDeg = Mathf.Repeat((float)(_c172.Adf.CardDeg + PendingAdfCardDeg), 360f); PendingAdfCardDeg = 0; }
+            _c172.WriteRig(ref r);
         }
 
         /// <summary>The four gauges with no sim behind them (P), from throttle, rpm and ambient pressure. The
@@ -274,9 +343,32 @@ namespace FlyingGame.Bridge
                 ? System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * maxRpm)) - 0.08 * (_oilTempF - 180.0), 0.0, 115.0)
                 : 0.0;
 
-            // No fuel quantity anywhere in the sim: the gauge reads full rather than lying about an engine
-            // that cannot run dry.
-            r.FuelCentreFrac = 1.0;
+            // Fuel: the loading's own tanks where it has fuel in them (the loading page), by tank id. The reference
+            // loading carries NO fuel on most types (the open W&B decision in AGENT-LOG) and the engine runs anyway,
+            // so an empty loading reads FULL rather than showing empty tanks under a running engine.
+            const double KgPerUsGal = RigInputs.KgPerUsGal;       // avgas, 6.0 lb per US gallon
+            AircraftLoad load = ac.Load;
+            bool loaded = load != null && load.FuelKg > 1e-6;
+            double Gal(string id)
+            {
+                AircraftLoad.Slot s = load?.Find(id);
+                if (s == null) return 0.0;
+                return (loaded ? s.Kg : s.MaxKg) / KgPerUsGal;
+            }
+            r.FuelCentreFrac = loaded && load.FuelCapacityKg > 0.0 ? load.FuelKg / load.FuelCapacityKg : 1.0;
+            r.FuelWingGal = Gal("wingLeft") + Gal("wingRight");
+            r.FuelAkroGal = Gal("centre");
+            // The fuel computer and the three-in-one's FUEL FLOW needle: the sim's own burn (BSFC x shaft power,
+            // Aircraft.FuelFlowKgPerSec), and its total.
+            r.FuelFlowGph = running ? RigInputs.GphFromKgPerSec(ac.FuelFlowKgPerSec) : 0.0;
+            if (dt > 1e-4f) _fuelUsedGal += r.FuelFlowGph * dt / 3600.0;
+            r.FuelUsedGal = _fuelUsedGal;
+
+            // Presentation (P), no sim behind them, aimed at the middles of the markings the shared panel's dials are
+            // drawn with (CODEX-SPEC, the ammeter; to be checked against Ty's own panel): the alternator's charge,
+            // EGT with power.
+            r.Amps = running ? 3.0 : r.Master > 0.5 ? -4.0 : 0.0;
+            r.EgtF = running ? 1200.0 + 250.0 * thr : 100.0;
         }
 
         /// <summary>The canopy's own motion: it swings to where it was commanded, and the emergency handle

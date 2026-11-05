@@ -70,6 +70,54 @@ public static class TreeStructure
         if (h < CrownBaseFraction * t.HeightM || h > t.HeightM) return 0;
         return t.CrownRadiusM * (t.HeightM - h) / ((1.0 - CrownBaseFraction) * t.HeightM);
     }
+
+    // ---- branches (Ty 2026-11-04: "Tree hits were too forgiving: it made a sound with no damage until I got deep toward
+    // the trunks"). Until this the crown was only a drag, ρ_c·A·v²: nothing in it could harm the airframe, and the only
+    // thing that could was the stem, which near the top of the tree is a few centimetres thick and snaps for free.
+    //
+    // A conifer's branches stand out from the stem in whorls. At height h a branch's diameter where it leaves the stem is
+    // about a fifth of the stem's there (Douglas-fir branches are a few centimetres through at the stem on 30–40 m trees,
+    // more in the lower crown — the order of the crown-structure literature; the 0.2 is a modelling choice, not a fit), and it tapers to a twig at the
+    // crown's edge: d_b(ρ) = d_twig + 0.2·d_stem·(1 − ρ/r_c). So the outer canopy is twigs, half way in
+    // the branches are a few centimetres, and next to the stem they are limbs.
+    // Five branches a whorl and a whorl every half metre put 10·r_c metres of branch in every metre of crown height, over
+    // π·r_c² of crown: λ = 10 / (π·r_c) metres of branch per cubic metre. A straight edge of length ℓ moving at v across
+    // itself through randomly oriented branches crosses (2/π)·λ·ℓ·v of them a second.
+    // Each crossing has to break the branch where it is struck (its snapping force, <see cref="BreakForceN"/>) and throw
+    // the struck wood out of the way at the edge's speed (ρ_w·d·v² per metre of edge in contact, over the branch's own
+    // width: ρ_w·d²·v²): F = F_s(d) + ρ_w·d²·v². That force on a leading edge, a control surface or a propeller blade is
+    // what damages it; the force times the branch's width is the work it costs the airframe.
+
+    /// <summary>A branch's diameter where it leaves the stem, as a fraction of the stem's diameter there.</summary>
+    public const double BranchBaseFraction = 0.2;
+    /// <summary>The finest wood that matters at the crown's edge (twigs), m.</summary>
+    public const double TwigDiameterM = 0.005;
+    /// <summary>Branches per whorl and the spacing of the whorls, m.</summary>
+    public const double WhorlBranches = 5.0, WhorlSpacingM = 0.5;
+
+    /// <summary>Branch diameter met at height <paramref name="up"/> and horizontal distance <paramref name="rho"/> from the
+    /// stem, m; 0 outside the crown.</summary>
+    public static double BranchDiameterAt(in Forest.Tree t, double up, double rho)
+    {
+        double rc = CrownRadiusAt(t, up);
+        if (rc <= 0 || rho >= rc) return 0;
+        return TwigDiameterM + BranchBaseFraction * DiameterAt(t, up) * (1.0 - rho / rc);
+    }
+
+    /// <summary>Metres of branch per cubic metre of crown at height <paramref name="up"/>; 0 outside the crown.</summary>
+    public static double BranchLengthDensity(in Forest.Tree t, double up)
+    {
+        double rc = CrownRadiusAt(t, up);
+        if (rc <= 0) return 0;
+        return WhorlBranches / WhorlSpacingM / (System.Math.PI * System.Math.Max(rc, 0.5));
+    }
+
+    /// <summary>Branches an edge of length <paramref name="lengthM"/> moving across itself at <paramref name="vAcrossMs"/>
+    /// crosses per second where the branch density is <paramref name="lambda"/>.</summary>
+    public static double CrossingsPerS(double lambda, double lengthM, double vAcrossMs) => 2.0 / System.Math.PI * lambda * lengthM * vAcrossMs;
+
+    /// <summary>The force of one branch of diameter <paramref name="d"/> struck at <paramref name="v"/>, N.</summary>
+    public static double BranchStrikeForceN(double d, double v) => BreakForceN(d) + WoodDensityKgM3 * d * d * v * v;
 }
 
 /// <summary>Where the trees are, for the airframe's strike test, and which of them have been snapped.</summary>
@@ -116,4 +164,48 @@ public sealed class StrikeEdge
     public string Name = "";
     /// <summary>Components whose loss also takes this edge.</summary>
     public AirframeComponent[] GoneWith = System.Array.Empty<AirframeComponent>();
+    /// <summary>The aero strips behind each third of the edge (AeroModel strip order), and the control surface among them
+    /// (null = none): what branches met by that third damage (<see cref="BranchStrike"/>).</summary>
+    public int[][] ThirdStrips = { System.Array.Empty<int>(), System.Array.Empty<int>(), System.Array.Empty<int>() };
+    public AirframeComponent?[] ThirdControl = new AirframeComponent?[3];
+}
+
+/// <summary>
+/// What branches do to an airframe going through them (Ty 2026-11-04; the branch model is in <see cref="TreeStructure"/>).
+/// Each branch crossing a leading edge pushes on it with F = F_s(d) + ρ_w·d²·v². A leading edge dents, and the fabric or
+/// skin behind it tears, when that force passes <see cref="LeadingEdgeDentN"/>; a control surface is damaged past
+/// <see cref="ControlSurfaceN"/>; a propeller blade nicks on anything thicker than <see cref="PropNickM"/>, its tips being
+/// chewed back by a share of the wood's width, and stops on a limb of <see cref="PropStopM"/>. A limb of
+/// <see cref="LimbM"/> or more is struck as a stem would be: it snaps, or it bends or breaks the wing panel it met.
+///
+/// Damage accumulates as a fraction 0..1 per third of each edge: the share of that third's length that is dented. Each
+/// crossing over the threshold dents <see cref="DentWidthM"/>·F/F₀ of it (a branch just at the threshold leaves a 5 cm
+/// dent, one at twice it 10 cm). A strip at damage D keeps 1 − <see cref="LiftLossAtFull"/>·D of its lift and adds
+/// <see cref="ExtraCdAtFull"/>·D of profile drag (a crushed leading edge stalls early and separates; torn fabric
+/// balloons). A control surface's own damage reaching 1 takes it off.
+/// </summary>
+public static class BranchStrike
+{
+    /// <summary>Force a leading edge takes from a branch before it dents, N: 0.025–0.032 in aluminium or a plywood/fabric
+    /// D-nose over its ribs dents under a 2–3 cm rod at a kilonewton or two.</summary>
+    public const double LeadingEdgeDentN = 1500.0;
+    /// <summary>Force on a control surface (light ribs, thin skin or fabric) before it is damaged, N.</summary>
+    public const double ControlSurfaceN = 2500.0;
+    /// <summary>A branch at least this thick nicks a propeller blade, m; this thick, it stops the engine (the blade breaks
+    /// or the crankshaft is shock-loaded: sudden stoppage).</summary>
+    public const double PropNickM = 0.01, PropStopM = 0.06;
+    /// <summary>Blade tip lost per crossing, as a share of the branch's diameter.</summary>
+    public const double PropChewFraction = 0.05;
+    /// <summary>A branch this thick is struck as a limb (snap / bend / break), m.</summary>
+    public const double LimbM = 0.05;
+    /// <summary>After a limb strike, the next one on the same edge and tree comes when the limbs are this much thicker.</summary>
+    public const double LimbStepRatio = 1.33;
+    /// <summary>Width of leading edge one branch at the threshold dents, m.</summary>
+    public const double DentWidthM = 0.05;
+    public const double LiftLossAtFull = 0.4, ExtraCdAtFull = 0.06;
+
+    /// <summary>Damage one crossing of force <paramref name="forceN"/> adds to an edge of length <paramref name="lengthM"/>
+    /// against <paramref name="thresholdN"/>: the share of its length dented.</summary>
+    public static double DamageFrom(double forceN, double thresholdN, double lengthM) =>
+        forceN > thresholdN && lengthM > 1e-6 ? DentWidthM * forceN / thresholdN / lengthM : 0.0;
 }
