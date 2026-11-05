@@ -1,3 +1,23 @@
+## NEEDS YOU — flat-spotted tyres: fly-check (Claude, 2026-11-05)
+<!-- flat-spot needs-you -->
+Lane lane/claude-flat-spot. Ty (08:53): "model flat spotted tires even if they don't pop ... the longer it locks up the
+deeper the flat spot the more significant the bump as it rolls and the frequency should be modeled after the actual tire
+rotation rate". Physics change, approved for merge + install.
+- **Ty, please check (172, dry asphalt):** roll at ~25-30 kt, stand on both brakes until the mains lock and screech for
+  about a second, release, and taxi. You should hear (and on the Quest feel in the controllers) a soft thump once per
+  wheel revolution, speeding up and slowing down with the taxi speed, and see a slight bounce. A longer lock gives a deeper
+  spot and a bigger thump; a long lock from a fast landing still wears through and bursts as before. Respawn = new tyres.
+- **Is a one-second lock-up's bump strong enough?** It is honest geometry: 1 s locked at 15 m/s wears 1.1 mm off ~10 cm
+  of tread; that swings the wheel's load ~60 N and the aeroplane ~0.01 g, so it is mostly HEARD. 1.6 s gives 2.0 mm.
+  There is no unsprung wheel mass in the model, so the spot's far edge does not strike at speed the way a real wheel's
+  does. If you want it felt harder, that is the next piece of physics (wheel + axle mass on the tyre spring), not a gain.
+  (Q084 in the queue.)
+- What changed: the drop is averaged over the arc the wheel turns each step (a fast wheel could step over its spot), the
+  spot's edge now reaches the tyre's and leg's dampers (d(drop)/dt), `TyreWear.FlatSpots()` reads spots off the strips,
+  and Quest controllers knock on each thump. The phone has no haptics path in the game, so none was added.
+  docs/TIRE-SPINUP-AND-GROUND-SOUND.md §9; tests tools/FlightTests/FlatSpotTests.
+- Builds / merges / installs: branch iOS BUILD SUCCEEDED 14:00 (0 error CS); merged island-nav + quest-islandnav; device stamps below when installed.
+
 ## NEEDS YOU — wings bend before they break (Claude, 2026-11-05, lane/claude-bend-damage)
 <!-- bend-damage needs-you -->
 - **Ty to fly-check: drop a wing in the J-3 (and a Cub, a Pitts) a few ways, slow and hard, and answer Q077 (too tough /
