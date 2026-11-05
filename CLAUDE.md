@@ -3,6 +3,14 @@
 Working notes for agents on this repo. `AGENT-LOG.md` is the running log and carries **NEEDS YOU** at the top;
 this file is the standing guidance that does not belong to any one lane.
 
+## QUESTIONS FOR TY go in ONE queue (Ty, 2026-11-04)
+
+- Any question/decision/approval you need from Ty: APPEND one line to the Open section of
+  `~/Developer/agent-lanes/QUESTIONS-FOR-TY.md` (outside the repo, next free `Qnnn`):
+  `- [Qnnn] YYYY-MM-DD HH:MM | lane/source path | question (options) | render path if visual`.
+- Also keep your NEEDS YOU / doc "Open questions" if useful, but a question that is not in the queue is lost.
+- When Ty answers, move the line to Answered with his answer and time. Never renumber, never delete.
+
 ## PARITY: iOS/Mac and Quest stay in sync at all times (Ty, 2026-11-04)
 
 - One game. Shared code and assets only; platform differences only behind build-time flags (`UNITY_IOS`,

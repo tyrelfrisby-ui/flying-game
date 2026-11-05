@@ -61,6 +61,7 @@ namespace FlyingGame.Bridge
         private void Start()
         {
             _driver.AircraftChanged += Repair;
+            _driver.AirframeReplaced += Repair;   // the one reset (FlightSimDriver.AirframeReplaced): before the new aeroplane steps
             _audio = GetComponent<FlightAudio>();
             _visual = GetComponent<AirframeVisual>();
             Repair();
@@ -68,7 +69,7 @@ namespace FlyingGame.Bridge
 
         private void OnDestroy()
         {
-            if (_driver != null) _driver.AircraftChanged -= Repair;
+            if (_driver != null) { _driver.AircraftChanged -= Repair; _driver.AirframeReplaced -= Repair; }
         }
 
         /// <summary>Restore an intact airframe (ResetFlight / aircraft switch).</summary>
