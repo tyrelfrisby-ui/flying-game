@@ -9,8 +9,10 @@ namespace FlyingGame.Core.Vr
     /// the headset's hands do — the latch open, the jettison pulled (<see cref="CanopyDynamics.ReleaseHingePins"/>) — and
     /// <see cref="CanopyDynamics.Step"/> decides when it goes. In the air (q above that of 20 kt) that is the first step.
     /// On the ground (a wreck at rest) nothing pulls it off, so his hand shoves the free edge up and over the way a hand
-    /// on the rail would: the Pitts' slide first, then the swing, at an arm's pace (E: 0.4 m/s along the track, 150°/s
-    /// of swing), through CanopyDynamics' own bounded hand servo. Past 10° unpinned and unlatched it is free and departs.
+    /// on the rail would: the slide first (the Pitts: the whole track its jettison frees, past the stop tab), then the swing,
+    /// at an arm's pace (E: 0.4 m/s along the track, 150°/s of swing), through CanopyDynamics' own bounded hand servo,
+    /// until CanopyDynamics lets it go (past 10° unpinned and unlatched; the Pitts' hinge hooks past their release angle).
+    /// In the air the Pitts' jettison is CanopyDynamics' own race between the slide and the swing (v2 stop tab).
     ///
     /// Cockpit frame as CanopyDynamics: +x right, +y up, +z nose; the hinge line sits <see cref="CanopySpec.HingeOutboardM"/>
     /// right of the canopy's centre-line, so with the centre-line at x = 0 the hinge is at (d, 0, 0).
@@ -51,9 +53,13 @@ namespace FlyingGame.Core.Vr
             if (_grabbed)
             {
                 double t = TimeSec - _grabT;
-                double slide = Math.Min(Canopy.Spec.SlideM, _grabSlide + SlidePushMs * t);
-                double slideSec = Canopy.Spec.SlideM > 0.0 ? Math.Max(0.0, Canopy.Spec.SlideM - _grabSlide) / SlidePushMs : 0.0;
-                double angle = Math.Min(PushToDeg, _grabAngle + SwingPushDps * Math.Max(0.0, t - slideSec));
+                // As far aft as the track now lets it (the Pitts' jettison frees it past the stop tab), then over as far
+                // as it has to go before its hinges let it go (the Pitts' hooks; anything else is free past 10°).
+                double track = Canopy.SlideLimitM;
+                double slide = Math.Min(track, _grabSlide + SlidePushMs * t);
+                double slideSec = track > 0.0 ? Math.Max(0.0, track - _grabSlide) / SlidePushMs : 0.0;
+                double to = Canopy.Spec.StopTab != null ? Canopy.Spec.StopTab.HookReleaseDeg + 10.0 : PushToDeg;
+                double angle = Math.Min(to, _grabAngle + SwingPushDps * Math.Max(0.0, t - slideSec));
                 Vec3 at = Edge(angle, slide);
                 hand = new Vec3(at.X, at.Y, _grabZ - (slide - _grabSlide));
             }

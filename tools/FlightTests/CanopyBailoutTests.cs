@@ -22,16 +22,23 @@ public class CanopyBailoutTests
         return (b, t);
     }
 
-    [Theory]
-    [InlineData("pitts-s2b-like")]
-    [InlineData("extra-300-like")]
-    public void InTheAirItGoesOnTheFirstStep(string id)
+    [Fact]
+    public void InTheAirTheExtraGoesOnTheFirstStep()
     {
-        var (b, t) = Run(CanopySpec.For(id), Q100Kt, OneG);
+        var (b, t) = Run(CanopySpec.For("extra-300-like"), Q100Kt, OneG);
         Assert.True(b.Departed);
         Assert.Equal(CanopyDeparture.Jettisoned, b.Canopy.DepartedBy);
         Assert.True(t <= 0.011, $"took {t:F3} s");
         Assert.True(b.Canopy.HingePinsOut);
+    }
+
+    [Fact]
+    public void InTheAirThePittsRunsAftPastItsTabAndItsHooksLetGo()
+    {
+        // v2 stop tab: the jettison frees the track; it runs aft (4 in + 2 in) past the tab and leaves past 150°.
+        var (b, t) = Run(CanopySpec.For("pitts-s2b-like"), Q100Kt, OneG);
+        Assert.True(b.Departed, $"never left ({b.Canopy.AngleDeg:F0}°, slid {b.Canopy.SlideM * 1000:F0} mm)");
+        Assert.True(t < 2.0, $"took {t:F2} s");
     }
 
     [Fact]
@@ -45,13 +52,14 @@ public class CanopyBailoutTests
     }
 
     [Fact]
-    public void OnTheGroundThePittsSlidesItsFourInchesBeforeItLifts()
+    public void OnTheGroundThePittsSlidesPastItsTabBeforeItGoesOver()
     {
         var (b, t) = Run(CanopySpec.For("pitts-s2b-like"), 0.0, OneG);
         Assert.True(b.Departed, "it never left");
-        Assert.Equal(0.1016, b.Canopy.SlideM, 4);
-        Assert.True(b.Canopy.AngleDeg >= 10.0, $"left at {b.Canopy.AngleDeg:F1}°");
-        Assert.InRange(t, 0.25, 1.2);   // 4 in at 0.4 m/s is 0.25 s before it can swing
+        Assert.Equal(CanopyDeparture.Jettisoned, b.Canopy.DepartedBy);
+        Assert.Equal(0.1524, b.Canopy.SlideM, 4);                 // 4 in + the 2 in the jettison frees
+        Assert.True(b.Canopy.AngleDeg >= 150.0, $"left at {b.Canopy.AngleDeg:F1}°");
+        Assert.InRange(t, 0.38, 2.5);   // 6 in at 0.4 m/s is 0.38 s before it can swing
     }
 
     [Fact]

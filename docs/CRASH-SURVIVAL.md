@@ -76,7 +76,7 @@ the red handle pulls, the latch opens, the hinge pins come out (`CanopyDynamics.
 canopy's own physics decides. It uses the headset's `CanopyDynamics` where it has one (the Pitts, the Extra), else Core's
 written-down Pitts/Extra spec, else a spec sized from the part itself (`CanopySpec.ForPart`: its bounds in the
 aeroplane's axes, the Pitts'/Extra's 10.8 kg/m², and a door turned to hang on its front edge). In the air (q above that
-of 20 kt) it goes on the first step. At rest, a wreck, his hand shoves the free edge (the Pitts slides its 4 in first)
+of 20 kt) it goes on the first step. At rest, a wreck, his hand shoves the free edge (the Pitts slides its whole 6 in track past the stop tab first and goes over past its 150° hooks; in the air its own v2 slide-and-swing race decides, ~0.7 s)
 through CanopyDynamics' own bounded hand servo until it is past 10° and free. He does not jump until it has gone. The parts
 are then detached with everything under them and flown as one `JettisonedCanopy` by `CanopyFlight` (Core
 `CanopyFreeBody`: the canopy's own mass, drag and lift), and the aeroplane sheds the mass. The next flight's rebuild brings
