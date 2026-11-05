@@ -32,8 +32,9 @@ public static class Hangar
 
     /// <summary>The aeroplanes the aerobatic glider stage accepts. The Grob G 103 C Twin III Acro is built (2026-11-01, re-based from the Twin II 2026-11-04;
     /// configs/aircraft/glider-grob103-acro-like.json), so the stage can be flown; the DG is still a placeholder. The
-    /// Swift S-1 is an aerobatic glider but it is not a Grob 103 Acro or a DG, so it is deliberately not on this list.</summary>
-    public static readonly string[] AerobaticGliders = { "glider-grob103-acro-like", "glider-dg-acro-like" };
+    /// Swift S-1 counts as a STAND-IN aerobatic glider (owner, 2026-11-04 16:05 PT: "the Swift S-1 counts as a stand-in
+    /// aerobatic glider so Blind Flying is reachable"), alongside the Grob.</summary>
+    public static readonly string[] AerobaticGliders = { "glider-grob103-acro-like", "glider-dg-acro-like", "glider-swift-s1-like" };
 
     /// <summary>Kept on disk, hidden from every picker and from the progression.</summary>
     public static readonly string[] Retired = { "boeing-737-like" };

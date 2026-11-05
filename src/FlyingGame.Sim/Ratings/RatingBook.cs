@@ -141,8 +141,8 @@ public sealed class RatingBook
         book.Stages.Add(new Stage
         {
             Id = AerobaticGlider, Title = "Aerobatic glider",
-            Note = "The glider syllabus to 78 % in an aerobatic glider (Grob 103 Acro or DG class). COMING SOON: "
-                 + "neither aeroplane is in the hangar yet, so this stage cannot be flown on this build.",
+            Note = "The glider syllabus to 78 % in an aerobatic glider: the Grob 103 Twin III Acro, or the Swift S-1 "
+                 + "standing in for one. A DG-class aerobatic glider is coming soon.",
             Aircraft = Hangar.AerobaticGliders, Lessons = GliderFull, PassScore = 78,
             Requires = new[] { PilotStage },
         });

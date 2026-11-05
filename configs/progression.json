@@ -56,12 +56,12 @@
     { "id": "FlightInstructor", "display": "Flight Instructor" }
   ],
 
-  "_stages": "Glider first. Each stage is passed by flying every listed lesson to passScore in ONE of its aircraft; an empty aircraft list means any powered aeroplane that is not retired. 'grants' is the level it gives, or null for a gate. The pilot stage is the player's choice of the Decathlon or the Great Lakes. The aerobatic glider stage is flown in the Grob G 103 C Twin III Acro (built 2026-11-01, re-based from the Twin II 2026-11-04); its DG alternative is still a placeholder.",
+  "_stages": "Glider first. Each stage is passed by flying every listed lesson to passScore in ONE of its aircraft; an empty aircraft list means any powered aeroplane that is not retired. 'grants' is the level it gives, or null for a gate. The pilot stage is the player's choice of the Decathlon or the Great Lakes. The aerobatic glider stage is flown in the Grob G 103 C Twin III Acro (built 2026-11-01, re-based from the Twin II 2026-11-04); its DG alternative is still a placeholder. The Swift S-1 counts as a stand-in aerobatic glider (Ty 2026-11-04 16:05 PT), so Blind Flying is reachable in it too.",
   "stages": [
     { "id": "glider-solo", "aircraft": ["glider-2-33-like"], "lessons": "glider pre-solo", "passScore": 70, "requires": [], "grants": "StudentSolo" },
     { "id": "cub-solo", "aircraft": ["j3-cub-like"], "lessons": "pre-solo", "passScore": 70, "requires": ["glider-solo"], "grants": null },
     { "id": "pilot", "aircraft": ["decathlon-8kcab-like", "great-lakes-like"], "lessons": "full", "passScore": 78, "requires": ["cub-solo"], "grants": "Pilot" },
-    { "id": "aerobatic-glider", "aircraft": ["glider-grob103-acro-like", "glider-dg-acro-like"], "lessons": "glider full", "passScore": 78, "requires": ["pilot"], "grants": null },
+    { "id": "aerobatic-glider", "aircraft": ["glider-grob103-acro-like", "glider-dg-acro-like", "glider-swift-s1-like"], "lessons": "glider full", "passScore": 78, "requires": ["pilot"], "grants": null },
     { "id": "instrument", "aircraft": [], "lessons": "full", "passScore": 83, "requires": ["glider-solo", "aerobatic-glider"], "grants": "Instrument" },
     { "id": "commercial", "aircraft": [], "lessons": "full", "passScore": 88, "requires": ["instrument"], "grants": "Commercial" },
     { "id": "flight-instructor", "aircraft": [], "lessons": "full", "passScore": 93, "requires": ["commercial"], "grants": "FlightInstructor" }

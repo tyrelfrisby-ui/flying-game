@@ -42,7 +42,7 @@ public class ProgressionTests
             ("glider-solo", new[] { "glider-2-33-like" }, 70, new string[0], CertLevel.StudentSolo),
             ("cub-solo", new[] { "j3-cub-like" }, 70, new[] { "glider-solo" }, CertLevel.None),
             ("pilot", new[] { "decathlon-8kcab-like", "great-lakes-like" }, 78, new[] { "cub-solo" }, CertLevel.Pilot),
-            ("aerobatic-glider", new[] { "glider-grob103-acro-like", "glider-dg-acro-like" }, 78, new[] { "pilot" }, CertLevel.None),
+            ("aerobatic-glider", new[] { "glider-grob103-acro-like", "glider-dg-acro-like", "glider-swift-s1-like" }, 78, new[] { "pilot" }, CertLevel.None),
             ("instrument", new string[0], 83, new[] { "glider-solo", "aerobatic-glider" }, CertLevel.Instrument),
             ("commercial", new string[0], 88, new[] { "instrument" }, CertLevel.Commercial),
             ("flight-instructor", new string[0], 93, new[] { "commercial" }, CertLevel.FlightInstructor),
@@ -90,8 +90,11 @@ public class ProgressionTests
             Assert.False(Hangar.IsPickable(p.Id));
             Assert.Contains("coming soon", p.Name);
         }
-        // The Swift is an aerobatic glider, but it is not a Grob 103 Acro or a DG.
-        Assert.DoesNotContain("glider-swift-s1-like", Hangar.AerobaticGliders);
+        // The Swift S-1 is a stand-in aerobatic glider (owner, 2026-11-04 16:05 PT): it has a config, it is pickable,
+        // and it is not a placeholder.
+        Assert.Contains("glider-swift-s1-like", Hangar.AerobaticGliders);
+        Assert.True(HasConfig("glider-swift-s1-like"));
+        Assert.True(Hangar.IsPickable("glider-swift-s1-like"));
     }
 
     [Fact]

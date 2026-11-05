@@ -150,17 +150,17 @@ public class BadgeTests
     {
         // Until 2026-11-01 the ladder stopped at Pilot: Blind Flying is gated behind the aerobatic glider stage and
         // both of its aeroplanes were placeholders. The Grob 103 Twin III Acro is built now, so the stage is flyable,
-        // and passing it in the Grob is what opens Blind Flying.
+        // and passing it in the Grob is what opens Blind Flying. The Swift S-1 stands in beside it (2026-11-04).
         Stage acro = Book.Stage(RatingBook.AerobaticGlider)!;
-        Assert.Equal(new[] { "glider-grob103-acro-like", "glider-dg-acro-like" }, acro.Aircraft);
+        Assert.Equal(new[] { "glider-grob103-acro-like", "glider-dg-acro-like", "glider-swift-s1-like" }, acro.Aircraft);
         Assert.True(RatingResolver.Flyable(acro));
         Assert.True(Hangar.IsPickable("glider-grob103-acro-like"));
         Assert.False(Hangar.IsPickable("glider-dg-acro-like"));    // the DG is still a placeholder
 
-        // Through Pilot at 80 %. The Swift is an aerobatic glider but not a Grob or a DG: the glider syllabus at
-        // 99 % in it still leaves the aerobatic glider stage next.
+        // Through Pilot at 80 %. The EB29R is a glider but not an aerobatic one: the glider syllabus at 99 % in it
+        // still leaves the aerobatic glider stage next.
         PilotLog log = Through(RatingBook.PilotStage, 80);
-        Fly(log, "glider-swift-s1-like", RatingClass.Glider, RatingBook.GliderFull, 99);
+        Fly(log, "glider-eb29r-like", RatingClass.Glider, RatingBook.GliderFull, 99);
         Assert.Equal(CertLevel.Pilot, RatingResolver.Resolve(log, Book).Level);
         Assert.Equal(new[] { RatingBook.AerobaticGlider }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
 
@@ -170,6 +170,34 @@ public class BadgeTests
         _o.WriteLine(Certificate.Describe(s));
         Assert.Equal(CertLevel.Pilot, s.Level);    // the aerobatic glider stage is a gate, it grants no level itself
         Assert.Equal(new[] { RatingBook.InstrumentStage }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+    }
+
+    /// <summary>Owner, 2026-11-04 16:05 PT: "the Swift S-1 counts as a stand-in aerobatic glider so Blind Flying is
+    /// reachable". The aerobatic glider syllabus flown in the Swift passes the stage, and with the glider solo stage
+    /// already behind the player, Blind Flying is the next rung and is reached by flying it.</summary>
+    [Fact]
+    public void TheSwiftStandsInForTheAerobaticGliderAndOpensBlindFlying()
+    {
+        PilotLog log = Through(RatingBook.PilotStage, 80);
+        Assert.Equal(new[] { RatingBook.AerobaticGlider }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+
+        // Under the stage's 78 % in the Swift: not yet.
+        Fly(log, "glider-swift-s1-like", RatingClass.Glider, RatingBook.GliderFull, 77);
+        Assert.Equal(new[] { RatingBook.AerobaticGlider }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+
+        // At 78 % it passes; both of Blind Flying's gates (glider solo, aerobatic glider) are now behind the player.
+        Fly(log, "glider-swift-s1-like", RatingClass.Glider, RatingBook.GliderFull, 78);
+        Stage inst = Book.Stage(RatingBook.InstrumentStage)!;
+        Assert.Equal(new[] { RatingBook.GliderSolo, RatingBook.AerobaticGlider }, inst.Requires);
+        Assert.Equal(new[] { RatingBook.InstrumentStage }, RatingResolver.Next(log, Book).Select(n => n.stage.Id).ToArray());
+        Assert.Equal(CertLevel.Pilot, RatingResolver.Resolve(log, Book).Level);
+
+        // And Blind Flying is reachable: its syllabus at 85 % in a powered aeroplane gives it.
+        Fly(log, Decathlon, RatingClass.Asel, inst.Lessons, 85);
+        PilotStanding s = RatingResolver.Resolve(log, Book);
+        _o.WriteLine(Certificate.Describe(s));
+        Assert.Equal(CertLevel.Instrument, s.Level);
+        Assert.Equal("Blind Flying", Certificate.LevelName(s.Level));
     }
 
     [Fact]
