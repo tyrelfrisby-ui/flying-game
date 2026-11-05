@@ -1553,9 +1553,9 @@
    "parent": null,
    "kind": "rot",
    "axis_gltf": [
+    1.0,
     0.0,
-    0.0,
-    1.0
+    0.0
    ],
    "pivot_gltf": [
     0.97,
@@ -1574,7 +1574,7 @@
    ],
    "model": 1.0,
    "unit": "0..1",
-   "desc": "UP = ON, turned forward to horizontal = OFF (Ty; the OFF legend is forward of the valve)",
+   "desc": "UP = ON, turned to horizontal pointing to the pilot's LEFT = OFF (Ty 2026-11-04 19:27)",
    "extra": {},
    "link": "",
    "note": ""
@@ -1876,9 +1876,9 @@
    "kind": "Rotary",
    "seat": "Rear",
    "axis_gltf": [
+    1.0,
     0.0,
-    0.0,
-    1.0
+    0.0
    ],
    "pivot_gltf": [
     0.97,

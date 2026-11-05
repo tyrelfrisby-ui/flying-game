@@ -182,6 +182,11 @@ and built from the lanes AFTER this merge, so they carry all of it), iPad mini 2
 <!-- /quest-feedback needs-you -->
 ## NEEDS YOU — Pitts cockpit + shared instrument style (Claude, lane/claude-pitts-panel, 2026-11-04)
 Nothing approved by me; every (E) number below is mine to be checked, not a book value.
+- **Follow-up 2026-11-05 02:20 (Ty's 19:27 notes re-checked):** the FUEL valve now shuts OFF by turning to horizontal
+  pointing to your LEFT (about a fore-aft shaft), as you wrote; the first pass had turned it forward after Codex's OFF
+  legend, which still sits forward of the valve and is Codex's to move. Prop lock/slide and trim unchanged. Both Codex
+  follow-ups (passes 2, 3) were already merged; nothing newer. Lane a79837ce, BUILD SUCCEEDED 2026.1105.0216, EditMode
+  20/20; renders refreshed (pitts-cockpit.png, pitts-vs-reference.png). Install: INSTALL2.
 - **Look at the renders** (Unity, seat eye): ~/Developer/agent-lanes/renders/instrument-style/ — Pitts front and rear seat,
   the rear levers at rest and "moved", the right wall (fuel valve ON / OFF), the floor, and contact-sheet.png of every
   modelled panel. Reference photos side by side: pitts-vs-reference.png.
