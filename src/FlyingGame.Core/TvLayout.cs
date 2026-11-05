@@ -18,6 +18,30 @@ public enum TvMode
     Mirror,
     /// <summary>The world and the instruments are on the TV; the phone shows only the controls and menus.</summary>
     GameOnTv,
+    /// <summary>Mac (Ty 2026-11-04, Q8): the game stays in its window and the instruments fill the second monitor.</summary>
+    InstrumentsOnMonitor,
+}
+
+/// <summary>Options › SECOND MONITOR on the Mac (Q8). Off is 0, so a Mac that never chose keeps its monitor: once
+/// Unity has put a window on a display it cannot take it off again until the app quits.</summary>
+public enum MonitorSetting
+{
+    Off = 0,
+    Instruments = 1,
+}
+
+/// <summary>What kind of device the game is running on, as far as a second screen is concerned.</summary>
+public enum TvDevice
+{
+    /// <summary>The Editor, the Aero Widget's host, anything not listed: no second-screen mode.</summary>
+    Other,
+    IPhone,
+    /// <summary>Ty 2026-11-04 (Q2): GAME ON TV applies to the iPad too, AirPlay or HDMI, the same code as the iPhone.</summary>
+    IPad,
+    /// <summary>Ty 2026-11-04 (Q8): a second monitor shows the instruments.</summary>
+    Mac,
+    /// <summary>The headset is its own screen; nothing here applies.</summary>
+    Quest,
 }
 
 /// <summary>
@@ -33,10 +57,33 @@ public static class TvModeLogic
     /// streams over Syphon / NDI and its window is a preview). With no second display there is nothing to decide.
     /// </summary>
     public static TvMode Decide(bool supported, int displayCount, TvSetting setting, bool widgetApp)
+        => Decide(supported ? TvDevice.IPhone : TvDevice.Other, displayCount, setting, MonitorSetting.Off, widgetApp);
+
+    /// <summary>
+    /// The mode for this frame on <paramref name="device"/>. iPhone and iPad (Q2) follow TV SCREEN; the Mac follows
+    /// SECOND MONITOR (Q8) and never mirrors, because macOS has no mirroring of ours to give back; the Quest and
+    /// everything else stay handheld.
+    /// </summary>
+    public static TvMode Decide(TvDevice device, int displayCount, TvSetting tv, MonitorSetting monitor, bool widgetApp)
     {
-        if (!supported || widgetApp || displayCount < 2) return TvMode.Handheld;
-        return setting == TvSetting.Mirror ? TvMode.Mirror : TvMode.GameOnTv;
+        if (widgetApp || displayCount < 2) return TvMode.Handheld;
+        switch (device)
+        {
+            case TvDevice.IPhone:
+            case TvDevice.IPad:
+                return tv == TvSetting.Mirror ? TvMode.Mirror : TvMode.GameOnTv;
+            case TvDevice.Mac:
+                return monitor == MonitorSetting.Instruments ? TvMode.InstrumentsOnMonitor : TvMode.Handheld;
+            default:
+                return TvMode.Handheld;
+        }
     }
+
+    /// <summary>The devices that have a TV SCREEN choice in Options (and the Mac has SECOND MONITOR instead).</summary>
+    public static bool HasTvSetting(TvDevice device) => device == TvDevice.IPhone || device == TvDevice.IPad;
+
+    /// <summary>The devices that have a SECOND MONITOR choice in Options.</summary>
+    public static bool HasMonitorSetting(TvDevice device) => device == TvDevice.Mac;
 }
 
 /// <summary>The size the game renders at for a TV.</summary>
@@ -198,5 +245,62 @@ public static class TvEngineRow
         double h = HudInstrumentLayout.EngineBlockHeight(s, gamepad: true);
         double y = Math.Max(flightRowBottom + gap, tvH - safeBottom - margin - h);
         return ((tvW - w) / 2, y, w, h);
+    }
+}
+
+/// <summary>
+/// INSTRUMENTS ON A SECOND MONITOR (Mac, Ty 2026-11-04 Q8). The dials are drawn by the same code the TV pass runs, on a
+/// square reference surface (<see cref="ReferenceSide"/>, the iPhone's short side the layout was drawn for) with the
+/// engine row stacked straight under the flight row, and that block is then scaled, uniformly and centred, to fill the
+/// monitor inside a margin. Uniform, so a dial is never an oval; the block keeps the shape it has on the phone.
+/// GUI coordinates (top-left origin), px.
+/// </summary>
+public static class MonitorPanel
+{
+    /// <summary>Side of the square surface the panel is laid out on before it is scaled to the monitor.</summary>
+    public const double ReferenceSide = 1206;
+
+    /// <summary>Margin on every edge of the monitor, as a fraction of that edge.</summary>
+    public const double MarginFraction = 0.04;
+
+    /// <summary>The engine row on the panel: centred, a <paramref name="gap"/> under the flight row, at the pad sizes.</summary>
+    public static (double X, double Y, double W, double H) EngineRow(double surfaceW, double s, double gap, double flightRowBottom)
+    {
+        double w = HudInstrumentLayout.RowWidth(s, double.MaxValue, gamepad: true);
+        return ((surfaceW - w) / 2, flightRowBottom + gap, w, HudInstrumentLayout.EngineBlockHeight(s, gamepad: true));
+    }
+
+    /// <summary>
+    /// The box the instruments occupy on an <paramref name="s"/> × <paramref name="s"/> surface whose (unused) toolbar
+    /// ends at <paramref name="toolbarBottom"/>: the flight row (dials and their value line) and, with an engine, the
+    /// engine row under it. This is what gets scaled to the monitor.
+    /// </summary>
+    public static (double X, double Y, double W, double H) Block(double s, double toolbarBottom, double gap, bool engine)
+    {
+        double w = HudInstrumentLayout.RowWidth(s, double.MaxValue, gamepad: true);
+        double top = toolbarBottom + HudInstrumentLayout.ToolbarGap(s);
+        double bottom = HudInstrumentLayout.Bottom(toolbarBottom, gap, s, true, false);
+        if (engine) bottom = EngineRow(s, s, gap, bottom).Y + HudInstrumentLayout.EngineBlockHeight(s, gamepad: true);
+        return ((s - w) / 2, top, w, bottom - top);
+    }
+
+    /// <summary>
+    /// The square to lay the panel out on for a monitor that the <see cref="ReferenceSide"/> layout would fill at
+    /// <paramref name="scaleAtReference"/>: big enough that the final scale is about 1, so the dial faces and the text
+    /// are drawn at the monitor's own pixels rather than magnified (IMGUI rasterises text at its font size). 600–4096.
+    /// </summary>
+    public static int SideFor(double scaleAtReference)
+        => (int)Math.Round(Math.Max(600, Math.Min(4096, ReferenceSide * (double.IsNaN(scaleAtReference) ? 1 : scaleAtReference))));
+
+    /// <summary>
+    /// Scale <paramref name="block"/> uniformly to fill a <paramref name="monitorW"/> × <paramref name="monitorH"/>
+    /// monitor inside <see cref="MarginFraction"/>, centred. A point u of the surface lands on the monitor at
+    /// <c>Offset + Scale · (u − block corner)</c>. A block or monitor that is not a size gives scale 0.
+    /// </summary>
+    public static (double Scale, double OffsetX, double OffsetY) Fit((double X, double Y, double W, double H) block, double monitorW, double monitorH)
+    {
+        if (block.W <= 0 || block.H <= 0 || monitorW <= 0 || monitorH <= 0) return (0, 0, 0);
+        double f = Math.Min(monitorW * (1 - 2 * MarginFraction) / block.W, monitorH * (1 - 2 * MarginFraction) / block.H);
+        return (f, (monitorW - block.W * f) / 2, (monitorH - block.H * f) / 2);
     }
 }

@@ -163,8 +163,23 @@ the menus never notice.
 ### 1.7 Audio
 
 AirPlay mirroring and AirPlay video routes carry the app's audio to the TV, and HDMI adapters route audio to HDMI. This
-is iOS routing and needs no code. Our `AudioSessionPlayback.mm` category (`playback`) allows it. The thing to check on
-the device is that the radio and intercom (`VoiceIO`, play-and-record) still route correctly with HDMI connected (Q7).
+is iOS routing and needs no code. Our `AudioSessionPlayback.mm` category (`playback`) allows it.
+
+**Radio and intercom (Q7, Ty: "stays on the phone or headset, not the TV").** Built 2026-11-04. iOS gives an app one
+audio route, so the radio cannot go to the phone while the engine goes to the TV in the same session. The rule is
+`Core/TvAudio.cs` `TvAudioPolicy.Decide(voiceInUse, tvDisplay, outputs)`, tested as a table:
+
+- *voice in use* = intercom on, or in a room with a radio. Without it nothing changes and the game sound goes to the TV.
+- With voice in use and a TV there, the session is play-and-record **without** `AllowAirPlay`, so iOS never routes it to
+  an AirPlay receiver, and (no headset plugged in) `overrideOutputAudioPort: Speaker`, because an HDMI adapter is an
+  eligible play-and-record output. The override is keyed to the **display**, not to the current output: the override
+  itself moves the output to the speaker, and a rule that read the output would release it and flip back forever.
+  While voice is in use the engine sound comes with it, to the phone or the headset.
+- A latch inside `VoiceIO.mm` that needs no C#: while the route has a TV port (HDMI, AirPlay, DisplayPort) a received
+  radio call is not mixed into the game sound at all. Held silent rather than played on the TV.
+
+`VoiceComms.KeepOffTheTv` polls four times a second and logs `[Voice] keepOffTv … · outputs …` on every change.
+Options › Audio says where the radio is going while a TV is connected. On the device: §7.3 item 6.
 
 ---
 
@@ -263,7 +278,7 @@ landscape or portrait.
 
 ---
 
-## 5. Feature 4: companion app over the local network (plan only)
+## 5. Feature 4: companion app over the local network (pairing and the encrypted link built; controls next)
 
 An iPad or iPhone running Aero Playground pairs with **the Mac app** and becomes its touch controller and button
 panel. The Mac flies. The device only sends commands and shows the state the Mac sends back.
@@ -298,6 +313,33 @@ Following `docs/glass-companion-notes.md`:
   needed.
 
 ### 5.2 Pairing: PIN or QR, then HMAC on every connection
+
+**As built 2026-11-04 (Q9 "both, QR recommended"; Q10 "TLS-PSK in v1").** This replaces the sketch below where they
+differ. `Core/CompanionPairing.cs` (tested: RFC 5869 HKDF vectors, PSKs and proofs checked against Python's `hmac`),
+`Plugins/iOS/AeroLink.swift` (transport only), `Bridge/Companion/CompanionLink.cs` (the protocol):
+
+- **Every connection is TLS 1.2 with a pre-shared key**, `TLS_PSK_WITH_AES_128_GCM_SHA256` (0x00A8), from the first
+  byte. There is no plaintext phase and no certificate. `tools/native-mac/aerolink-selftest.sh` runs the real listener
+  and client over loopback: the right keys open and negotiate 0x00A8, a wrong key is refused in the handshake.
+- **PAIR A DEVICE** (Mac, Options › Controls › Companion) opens one window with a QR code **and** a PIN: 2 minutes,
+  5 failed handshakes, single use.
+- **QR (recommended):** `aeroplay://pair?v=1&id=<macId>&name=…&k=<32-byte one-time secret>`. The iPad's own Camera
+  reads it and opens the app (the `aeroplay` URL scheme is in Info.plist), which connects with `QrPsk(secret, macId)`.
+- **PIN:** the device picks the Mac from the ones it finds and types 6 digits on a keypad; it connects with
+  `PinPsk(pin, macId)`. Offline brute force of a captured PIN handshake is the known weakness, hence the window rules
+  and QR being the recommended way.
+- **Inside the tunnel the device proves which secret it used.** A TLS server cannot say which of its keys a client
+  used, so without this a pairing client could claim to be a paired device. Mac → `challenge{nonce, mac}`; device →
+  `pair{mode, dev, name, proof = HMAC(pairPsk, "aero-pair-C|nonce|mac|dev")}`; Mac → `paired{key, proof}` with a
+  fresh 32-byte link key. Every later connection: identity `aero-link/1/<dev>`, `LinkPsk(key, mac, dev)`, then
+  `link{dev, proof}` and `result{ok, proof}` both ways (Glass's ControlLinkAuth shape, our labels).
+- Keys live in the Keychain (both ends); the lists of paired ids and names in PlayerPrefs. The Mac listens only while a
+  device is paired or the window is open; a device browses only while it has a Mac or is pairing.
+- **Not built yet:** what travels over the link once it is up (`controls`, `command`, `state` below) and the companion
+  controller UI. An authenticated link today carries `hello` and a 2 Hz `state` with the Mac's name, nothing that moves
+  the aeroplane.
+
+The original sketch:
 
 Glass proves an account key. Aero has no accounts, so the shared key comes from a one-time pairing:
 
@@ -364,7 +406,9 @@ The device runs the normal app and picks **Companion** on the landing page:
 | `Core/TvLayout.cs` (resolution, mode logic, button list) | ✓ | ✓ | ✓ compiled, unused | pure C#, no platform calls |
 | `Bridge/TvOutput.cs`, `UiSurface.cs`, `TvButtonPad.cs` | ✓ active | compiled, inert | compiled, inert | `TvOutput.Supported` is `UNITY_IOS && !UNITY_EDITOR` (or a test hook). The runner is never created elsewhere, so there is zero per-frame cost |
 | `Plugins/iOS/AeroTv.mm` | ✓ | ✗ (not in `native-mac/build.sh`) | ✗ | the plugin importer is iOS-only (`.meta`) and the `DllImport` sits under `#if UNITY_IOS && !UNITY_EDITOR` |
-| `Plugins/iOS/AeroLink.swift` (phase 4) | ✓ | ✓ via AeroNative.bundle | ✗ | same pattern as JoyLink |
+| `Plugins/iOS/AeroLink.swift` (phase 4, pairing + TLS-PSK built) | ✓ | ✓ via AeroNative.bundle (rebuilt by `tools/native-mac/build.sh`) | ✗ | same pattern as JoyLink |
+| `Core/TvAudio.cs`, `Core/CompanionPairing.cs` | ✓ | ✓ | ✓ compiled, unused | pure C# |
+| `Bridge/Companion/*.cs` | ✓ client | ✓ host | compiled, inert | `CompanionLink.IsHost/IsClient` read the platform; stubs when `AeroLinkNative.Available` is false |
 | Test asmdefs | Editor only | Editor only | Editor only | `includePlatforms: [Editor]` / `UNITY_INCLUDE_TESTS` |
 
 Nothing here touches `unity/Packages/`, XR settings or `Plugins/Android/`. The Test Framework (1.6.0) already resolves
@@ -372,8 +416,17 @@ as a dependency of `com.unity.collections`, so no manifest change is needed. Fol
 `lane/claude-parity`, every file above is "shared" and must be merged into the Quest lane the same day as island-nav.
 On the Quest it compiles to inert code.
 
-The Mac does not get GAME ON TV in this lane. A Mac with a second monitor can already use it as a big window, and a
-dedicated "instruments on the second monitor" layout is a different feature (Q8).
+**Mac: instruments on a second monitor (Q8, built 2026-11-04).** Options › Display › SECOND MONITOR = Off (default) |
+Instruments. With Instruments and a second display, `TvOutput` activates it and presents a picture of only the dials:
+the same `AnalogGauges` code laid out on a square surface (`UiSurface.IsPanel`: the exterior flight row with the engine
+row stacked under it, whatever the view, in HUD mode too), and that block scaled uniformly to fill the monitor inside a
+4 % margin (`Core MonitorPanel.Fit`, tested). The square's side is chosen so that scale comes out near 1
+(`MonitorPanel.SideFor`), so faces and text are drawn at the monitor's own pixels, not magnified. The game's window keeps the world and loses its dials (HUD mode keeps its
+HUD). Off by default because Unity has no `Display.Deactivate`: once taken, a monitor holds Unity's full-screen window
+until quit, so turning it off afterwards leaves it black and Options says "released when you quit".
+
+**iPad (Q2):** GAME ON TV is the same code on the iPad as on the iPhone. `TvModeLogic.Decide(TvDevice …)` lists iPhone
+and iPad together, and the TV button grid is tested at iPad sizes. Stage Manager (R9) is still a device check.
 
 ---
 
@@ -413,7 +466,13 @@ dedicated "instruments on the second monitor" layout is a different feature (Q8)
    a frame.
 4. Switch MIRROR ↔ GAME ON TV in Options while connected (risk R2).
 5. With the 8BitDo connected: the button grid appears, every button works, and pad bindings are unchanged.
-6. Radio or intercom with HDMI connected (Q7).
+6. Radio or intercom with HDMI connected, and again with AirPlay (Q7): the radio comes out of the phone (no headset) or
+   the headset, never the TV; send the `[Voice]` and `[VoiceIO] route:` lines.
+7. iPad: AirPlay to an Apple TV with GAME ON TV, with Stage Manager on and off (Q2, R9).
+8. Mac with a second monitor: Options › Display › Second monitor = Instruments; the dials fill it, the window keeps the
+   flight; Off leaves it black until quit (Q8).
+9. Companion: Mac Options › Controls › Pair a device; scan the code with the iPad's Camera; then again with the PIN
+   route. Send the `[Companion]` lines, including the `suite 0x00A8` one (Q9, Q10).
 
 ---
 
@@ -469,4 +528,6 @@ dedicated "instruments on the second monitor" layout is a different feature (Q8)
 | 2b | `UiSurface`, `TvOutput` pipeline, `AeroTv.mm`, Info.plist scene role, Options setting | next |
 | 2c | Unity EditMode/PlayMode tests, batch compile, `deploy.sh` BUILD SUCCEEDED (not installed) | next |
 | 3 | `TvButtonPad` (feature 3) + tests | if time allows |
-| 4 | `AeroLink.swift`, pairing, companion UI | plan only, after Ty's answers to Q9 and Q10 |
+| 4a | `AeroLink.swift` (TLS-PSK), QR + PIN pairing, Options rows, Keychain | built 2026-11-04 after Ty's answers |
+| 4b | controls / commands / state over the link, the companion controller UI, Mac `RemoteControlSource` | next |
+| Q2/Q7/Q8 | iPad in the mode table, radio kept off the TV, Mac second-monitor instruments | built 2026-11-04 |

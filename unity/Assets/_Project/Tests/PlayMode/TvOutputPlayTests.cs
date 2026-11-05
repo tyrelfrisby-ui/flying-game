@@ -136,6 +136,62 @@ namespace FlyingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator AMacMonitorGetsTheInstrumentsAndTheWindowKeepsTheWorld()
+        {
+            // Q8 (Ty 2026-11-04): instruments on the Mac's second monitor. The world camera is never moved.
+            bool had = PlayerPrefs.HasKey("tv.monitor"); int was = PlayerPrefs.GetInt("tv.monitor", 0);
+            try
+            {
+                TvOutput.SimDevice = TvDevice.Mac;
+                TvOutput.Monitor = MonitorSetting.Off;
+                TvOutput.SimulateForTest = true;
+                TvOutput.EnsureRunnerForTest();
+                yield return Frames(3);
+                Assert.AreEqual(TvMode.Handheld, TvOutput.Mode, "a Mac keeps its monitor until asked");
+                Assert.IsNull(GameObject.Find("TvPresenter"));
+
+                TvOutput.Monitor = MonitorSetting.Instruments;
+                yield return Frames(3);
+                Assert.AreEqual(TvMode.InstrumentsOnMonitor, TvOutput.Mode);
+                Assert.IsTrue(TvOutput.MonitorActive);
+                Assert.IsFalse(TvOutput.Active, "this is not GAME ON TV");
+                Assert.IsTrue(TvOutput.InstrumentsElsewhere, "the dials leave the game's window");
+                Assert.IsNull(_cam.targetTexture, "the game's window keeps the world");
+                Assert.AreEqual(new Rect(0f, 0.3f, 1f, 0.7f), _cam.rect, "and its own viewport");
+                Assert.IsNull(GameObject.Find("TvPhoneBackdrop"), "nothing clears the game's window");
+                Assert.IsNotNull(GameObject.Find("TvPresenter"));
+                Assert.IsNotNull(TvOutput.SimDisplay);
+                Assert.AreEqual(1920, TvOutput.Width);
+                Assert.AreEqual(1080, TvOutput.Height);
+
+                TvOutput.Monitor = MonitorSetting.Off;
+                yield return Frames(2);
+                Assert.AreEqual(TvMode.Handheld, TvOutput.Mode);
+                Assert.IsFalse(TvOutput.InstrumentsElsewhere);
+                Assert.IsNull(TvOutput.SimDisplay);
+                Assert.IsNull(_cam.targetTexture);
+            }
+            finally
+            {
+                if (had) PlayerPrefs.SetInt("tv.monitor", was); else PlayerPrefs.DeleteKey("tv.monitor");
+                PlayerPrefs.Save();
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator AnIPadTakesTheTvLikeAnIPhone()
+        {
+            // Q2 (Ty 2026-11-04): GAME ON TV applies to the iPad too.
+            TvOutput.SimDevice = TvDevice.IPad;
+            TvOutput.SimulateForTest = true;
+            TvOutput.EnsureRunnerForTest();
+            yield return Frames(3);
+            Assert.AreEqual(TvMode.GameOnTv, TvOutput.Mode);
+            Assert.IsTrue(TvOutput.Active);
+            Assert.IsNotNull(_cam.targetTexture);
+        }
+
+        [UnityTest]
         public IEnumerator ConnectingAndDisconnectingLeaksNoTextures()
         {
             TvOutput.EnsureRunnerForTest();

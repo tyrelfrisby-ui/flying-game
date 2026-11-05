@@ -172,7 +172,7 @@ namespace FlyingGame.Bridge
             GUI.matrix = m;
         }
 
-        private void OnGUI() { if (!TvOutput.Active) Draw(true); }   // TV mode: the dials are on the TV (DrawForTv)
+        private void OnGUI() { if (!TvOutput.InstrumentsElsewhere) Draw(true); }   // the dials are on the TV (DrawForTv) or the Mac's second monitor (DrawForPanel)
 
         /// <summary>Clip recorder: draw the dials again into the clip image (GUI.matrix maps the screen view onto it).
         /// No state is advanced (anchor smoothing, g tell-tales) — the live pass owns that.</summary>
@@ -181,16 +181,31 @@ namespace FlyingGame.Bridge
         /// <summary>TV MODE (TvOutput): the live pass, drawn into the TV's picture and laid out for it (UiSurface).</summary>
         public void DrawForTv() => Draw(true);
 
+        /// <summary>SECOND MONITOR (Mac, Q8; TvOutput): the live pass on the panel surface (UiSurface.IsPanel), the flight row
+        /// with the engine row stacked under it, whatever the view, and in HUD mode too: the monitor is for the dials.</summary>
+        public void DrawForPanel() => Draw(true);
+
+        /// <summary>The panel has an engine row to make room for (gliders have none).</summary>
+        public bool HasEngine => Driver != null && Driver.Sim != null && Driver.Sim.Aircraft.Config.Propulsion != null;
+
         private void Draw(bool live)
         {
-            if (Driver == null || Driver.Sim == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Analog) return;
-            if (UiLayout.AeroInsetsShown && !ChaseCamera.InCockpit) return;   // the AERO insets take the dials' place while the pilot has them on
+            bool panel = UiSurface.IsPanel;   // the Mac's second monitor: always the exterior layout, in HUD mode too
+            var mode = SessionSettings.Instruments;
+            if (Driver == null || Driver.Sim == null || SessionSettings.MenuOpen || !(mode == SessionSettings.InstrumentMode.Analog || panel && mode == SessionSettings.InstrumentMode.Hud)) return;
+            if (UiLayout.AeroInsetsShown && !ChaseCamera.InCockpit && !panel) return;   // the AERO insets take the dials' place while the pilot has them on
+            bool inCockpit = ChaseCamera.InCockpit && !panel;
             if (live && UiLayout.Modal) return;   // a lesson card is up
             var aircraft = Driver.Sim.Aircraft;
-            float s = Mathf.Min(_cam.pixelWidth, _cam.pixelHeight);
+            // A TV or panel pass lays out for its own surface (in GAME ON TV the camera draws exactly that surface).
+            float s = UiSurface.IsTv ? Mathf.Min(UiSurface.Width, UiSurface.Height) : Mathf.Min(_cam.pixelWidth, _cam.pixelHeight);
             float r = s * RadiusFrac, gr = r * 0.72f;
             int size = Mathf.Clamp(Mathf.RoundToInt(r * 2.2f), 128, 1024);
-            if (!ReferenceEquals(_facesFor, aircraft) || _asiFace == null || Mathf.Abs(size - _faceSize) > _faceSize * 0.3f) BuildFaces(aircraft, size);
+            // While the dials are on the TV or the second monitor, the clip recorder draws them at this window's size in
+            // the same frames: only ever GROW the faces then (a bigger face drawn smaller is fine), or the two passes
+            // would rebuild them on every captured frame. Handheld keeps its two-way rule.
+            bool resize = TvOutput.InstrumentsElsewhere ? size > _faceSize * 1.3f : Mathf.Abs(size - _faceSize) > _faceSize * 0.3f;
+            if (!ReferenceEquals(_facesFor, aircraft) || _asiFace == null || resize) BuildFaces(aircraft, size);
 
             int fs = Mathf.RoundToInt(s * 0.040f);
             if (_big == null || fs != _fs)
@@ -201,7 +216,7 @@ namespace FlyingGame.Bridge
                 _label = new GUIStyle { font = f, fontSize = Mathf.RoundToInt(fs * 0.5f), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = c } };
             }
 
-            if (SessionSettings.FlightTestData && live)
+            if (SessionSettings.FlightTestData && live && !panel)
             {
                 DrawTestData(aircraft, Vector2.zero, Vector2.zero, r, fs, true);
                 return;
@@ -209,12 +224,20 @@ namespace FlyingGame.Bridge
 
             // Exterior: one fixed flight row and compact engine readouts underneath.
             // Cockpit: retain the existing bottom panel. Neither layout follows the aircraft or camera.
-            Rect view = _cam.pixelRect; float top = UiSurface.Height - view.yMax, bottom = UiSurface.Height - view.y;
+            Rect view = UiSurface.IsTv ? new Rect(0f, 0f, UiSurface.Width, UiSurface.Height) : _cam.pixelRect;
+            float top = UiSurface.Height - view.yMax, bottom = UiSurface.Height - view.y;
             float readH = (float)FlyingGame.Core.HudInstrumentLayout.ValueHeight(s);
             bool glider = aircraft.Config.Propulsion == null;
             // Owner 2026-11-02: the engine row goes BELOW the airplane where the controls layout published room for it.
             Rect engineBelow = UiLayout.EngineRowRect;
-            if (UiSurface.IsTv)
+            if (panel)
+            {
+                // The panel: the engine row straight under the flight row (Core MonitorPanel), the block then fills the monitor.
+                var (ex, ey, ew, eh) = FlyingGame.Core.MonitorPanel.EngineRow(UiSurface.Width, s, UiLayout.Gap,
+                    FlyingGame.Core.HudInstrumentLayout.Bottom(UiLayout.ToolbarBottom, UiLayout.Gap, s, true, false));
+                engineBelow = new Rect((float)ex, (float)ey, (float)ew, (float)eh);
+            }
+            else if (UiSurface.IsTv)
             {
                 // TV MODE (Ty 2026-11-04 07:33: "the engine instruments must go BELOW the airplane, not above — too crowded
                 // above"): the flight row keeps the top, the engine row the TV's bottom edge (Core TvEngineRow).
@@ -223,12 +246,12 @@ namespace FlyingGame.Bridge
                     FlyingGame.Core.HudInstrumentLayout.Bottom(UiLayout.ToolbarBottom, UiLayout.Gap, s, true, false));
                 engineBelow = new Rect((float)ex, (float)ey, (float)ew, (float)eh);
             }
-            bool belowPlane = !glider && engineBelow.width > 0f && !ChaseCamera.InCockpit;
-            UiLayout.EngineRowShown = !glider && !belowPlane;
+            bool belowPlane = !glider && engineBelow.width > 0f && !inCockpit;
+            if (!panel) UiLayout.EngineRowShown = !glider && !belowPlane;
             Vector2 asi, alt, gc, vc;
             bool controller = TouchFlightControls.TouchSticksHidden;
             float columnWidth = view.width / 5f;
-            if (!ChaseCamera.InCockpit)
+            if (!inCockpit)
             {
                 // Fixed face sizes; spare width is not spread across the screen.
                 bool pad = controller;

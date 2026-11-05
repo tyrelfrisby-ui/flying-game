@@ -102,7 +102,7 @@ namespace FlyingGame.Bridge
                 if (Time.frameCount != _frame) { StackBottomLastFrame = Mathf.Max(ToolbarBottom, _stackBottomThisFrame); _stackBottomThisFrame = ToolbarBottom; }
                 _frame = Time.frameCount; _evt = t;
                 _cursor = ToolbarBottom + Gap * 0.6f;
-                if (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !ChaseCamera.InCockpit && !AeroInsetsShown && !TvOutput.Active)   // TV: the dials are on the TV
+                if (SessionSettings.Instruments == SessionSettings.InstrumentMode.Analog && !ChaseCamera.InCockpit && !AeroInsetsShown && !TvOutput.InstrumentsElsewhere)   // the dials are on the TV or the Mac's second monitor
                     _cursor = InstrumentBottom + Gap;
             }
         }

@@ -58,6 +58,8 @@ namespace FlyingGame.Bridge
         [DllImport(NativeLib)] private static extern void VO_SetRxVolume(float v);
         [DllImport(NativeLib)] private static extern unsafe void VO_RenderRx(float* data, int frames, int channels);
         [DllImport(NativeLib)] private static extern unsafe void VO_ReadClipVoice(float* data, int frames, int channels);
+        [DllImport(NativeLib)] private static extern void VO_SetRoute(int keepOffTv, int forceSpeaker);
+        [DllImport(NativeLib)] private static extern int VO_RouteOutputs(byte[] dst, int max);
         private const bool Native = true;
 #else
         private static void VO_Init(int unityRate) { }
@@ -70,9 +72,21 @@ namespace FlyingGame.Bridge
         private static void VO_SetRxVolume(float v) { }
         private static unsafe void VO_RenderRx(float* data, int frames, int channels) { }
         private static unsafe void VO_ReadClipVoice(float* data, int frames, int channels) { }
+        private static void VO_SetRoute(int keepOffTv, int forceSpeaker) { }
+        private static int VO_RouteOutputs(byte[] dst, int max) => 0;
         private const bool Native = false;
 #endif
         private static volatile bool _ready;
+
+        /// <summary>Only iOS has a TV route to keep the radio off (Q7); the Mac's output is the one its owner picked.</summary>
+#if UNITY_IOS && !UNITY_EDITOR
+        private const bool RoutesAroundTv = true;
+#else
+        private const bool RoutesAroundTv = false;
+#endif
+
+        /// <summary>One line for Options › Audio while the radio is being kept off a TV, else empty.</summary>
+        public static string RouteNote { get; private set; } = "";
 
         /// <summary>FlightAudio's audio thread: add the radio receivers into the game buffer.</summary>
         public static unsafe void RenderRx(float[] data, int frames, int channels)
@@ -95,12 +109,41 @@ namespace FlyingGame.Bridge
         private readonly Dictionary<string, float> _lastHeard = new();
         private int _nextSlot;
         private bool _micAsked;
+        private readonly byte[] _routeBuf = new byte[256];
+        private float _nextRouteCheck;
+        private bool _routeSent;
+        private FlyingGame.Core.VoiceRoute _route;
 
         private void Awake()
         {
             VO_Init(AudioSettings.outputSampleRate);
             _ready = Native;
             _net = GetComponent<NetSession>();
+        }
+
+        /// <summary>
+        /// Q7 (Ty 2026-11-04: "radio/intercom audio stays on the phone or headset, not the TV"). Four times a second: is voice
+        /// in use, is a TV connected, where is the sound going; Core TvAudioPolicy decides and VoiceIO.mm carries it out.
+        /// A radio call that arrives while the route is still on the TV is held silent by VoiceIO itself, not by this poll.
+        /// </summary>
+        private void KeepOffTheTv()
+        {
+            _nextRouteCheck = Time.unscaledTime + 0.25f;
+            int n = VO_RouteOutputs(_routeBuf, _routeBuf.Length);
+            string outputs = n > 0 ? System.Text.Encoding.UTF8.GetString(_routeBuf, 0, n) : "";
+            bool voice = IntercomOn || RadioAvailable;
+            var route = FlyingGame.Core.TvAudioPolicy.Decide(voice, TvOutput.ExternalDisplay, FlyingGame.Core.TvAudioPolicy.FromPortTypes(outputs));
+            if (!_routeSent || route.KeepOffTv != _route.KeepOffTv || route.ForceSpeaker != _route.ForceSpeaker)
+            {
+                // The first call too: VoiceIO starts with both off, and saying so costs nothing.
+                VO_SetRoute(route.KeepOffTv ? 1 : 0, route.ForceSpeaker ? 1 : 0);
+                Debug.Log($"[Voice] {route} · outputs {outputs} · voice {voice} · display {TvOutput.ExternalDisplay}");
+                _routeSent = true;
+            }
+            _route = route;
+            RouteNote = !route.KeepOffTv ? ""
+                      : route.ForceSpeaker ? "TV connected: the radio and intercom play on this device, not the TV"
+                      : "TV connected: the radio and intercom stay in your headset, not the TV";
         }
 
         private void OnEnable() { if (_net != null) _net.VoiceReceived += OnVoice; }
@@ -120,6 +163,7 @@ namespace FlyingGame.Bridge
             VO_SetIntercom(IntercomOn && !menu ? 1 : 0);
             VO_SetPtt(ptt ? 1 : 0);
             VO_SetRxVolume(FlightAudio.MasterVolume);
+            if (RoutesAroundTv && Time.unscaledTime >= _nextRouteCheck) KeepOffTheTv();
 
             bool online = _net != null && _net.Connected;
             RadioAvailable = _net != null && _net.Active;

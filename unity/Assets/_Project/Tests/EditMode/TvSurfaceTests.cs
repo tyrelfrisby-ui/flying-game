@@ -16,6 +16,7 @@ namespace FlyingGame.Tests
         {
             // A failed assertion inside a bracket must not leave the next test laying out for a TV.
             while (UiSurface.IsTv) UiSurface.End();
+            // (UiSurface.End at depth 0 also clears the panel flag)
         }
 
         [Test]
@@ -100,5 +101,65 @@ namespace FlyingGame.Tests
 
         [Test]
         public void TheEditorNeverDrivesARealTv() => Assert.IsFalse(TvOutput.Supported);
+
+        // ---- Ty's answers 2026-11-04 (Q2, Q7, Q8) ----
+
+        [Test]
+        public void TheEditorIsNoTvDeviceAndHasNoMonitorMode()
+        {
+            Assert.IsFalse(TvOutput.MonitorSupported);
+            Assert.AreEqual(FlyingGame.Core.TvDevice.Other, TvOutput.Device);
+            Assert.IsFalse(TvOutput.InstrumentsElsewhere);
+            Assert.IsFalse(TvOutput.ExternalDisplay, "the radio has no TV to keep off in the Editor");
+            Assert.AreEqual("", VoiceComms.RouteNote);
+        }
+
+        [Test]
+        public void APanelBracketIsATvPassThatSaysItIsThePanel()
+        {
+            UiSurface.Begin(1206, 1206, panel: true);
+            Assert.IsTrue(UiSurface.IsTv);
+            Assert.IsTrue(UiSurface.IsPanel);
+            Assert.IsTrue(TouchFlightControls.TouchSticksHidden, "the panel uses the full-width pad sizes");
+            // 1206 square: title-safe 2.5 % = 30.15, Margin 0.018 S = 21.708, ButtonH 0.062 S = 74.772.
+            Assert.AreEqual(30.15f, UiLayout.SafeLeft, 1e-3f);
+            Assert.AreEqual(30.15f + 21.708f + 74.772f, UiLayout.ToolbarBottom, 1e-3f);
+            // The flight row AnalogGauges lays out (left = SafeLeft + Margin, right = W − SafeRight − Margin, width 820,
+            // centred) starts where Core MonitorPanel's block says it does, so the block that gets scaled is the dials.
+            var block = FlyingGame.Core.MonitorPanel.Block(1206, UiLayout.ToolbarBottom, UiLayout.Gap, engine: true);
+            float left = UiLayout.SafeLeft + UiLayout.Margin, right = UiSurface.Width - UiLayout.SafeRight - UiLayout.Margin;
+            Assert.AreEqual((left + right - 820f) * 0.5f, (float)block.X, 1e-3f);
+            UiSurface.End();
+            Assert.IsFalse(UiSurface.IsPanel);
+            UiSurface.Begin(1920, 1080);
+            Assert.IsFalse(UiSurface.IsPanel, "a TV pass is not the panel");
+        }
+
+        [Test]
+        public void TheMonitorSettingDefaultsToOffAndIsSaved()
+        {
+            bool had = PlayerPrefs.HasKey("tv.monitor");
+            int was = PlayerPrefs.GetInt("tv.monitor", 0);
+            try
+            {
+                PlayerPrefs.DeleteKey("tv.monitor");
+                Assert.AreEqual(FlyingGame.Core.MonitorSetting.Off, TvOutput.Monitor);
+                TvOutput.Monitor = FlyingGame.Core.MonitorSetting.Instruments;
+                Assert.AreEqual(1, PlayerPrefs.GetInt("tv.monitor", 0));
+                Assert.AreEqual(FlyingGame.Core.MonitorSetting.Instruments, TvOutput.Monitor);
+            }
+            finally
+            {
+                if (had) PlayerPrefs.SetInt("tv.monitor", was); else PlayerPrefs.DeleteKey("tv.monitor");
+                PlayerPrefs.Save();
+            }
+        }
+
+        [Test]
+        public void NoCompanionLinkRunsInTheEditor()
+        {
+            Assert.IsFalse(FlyingGame.Bridge.Companion.CompanionLink.IsHost);
+            Assert.IsFalse(FlyingGame.Bridge.Companion.CompanionLink.IsClient);
+        }
     }
 }

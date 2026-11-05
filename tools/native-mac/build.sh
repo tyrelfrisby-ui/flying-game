@@ -16,11 +16,18 @@ done
 for arch in arm64 x86_64; do
   clang++ -c -std=c++17 -fobjc-arc -O2 -arch $arch -mmacosx-version-min=11.0 -x objective-c++ "${0:A:h}/HidJoystick.mm" -o "$TMP/HidJoystick-$arch.o"
 done
+# COMPANION (Ty 2026-11-04, Q9/Q10): the TLS-PSK link is Swift (Network.framework), the same file the iOS build compiles.
+# tools/native-mac/aerolink-selftest.sh runs it over loopback on its own.
+SWIFT_LIB=$(xcrun --sdk macosx --show-sdk-path)/usr/lib/swift
+SWIFT_COMPAT=$(dirname "$(xcrun -f swiftc)")/../lib/swift/macosx   # the back-deployment shims a macOS 11 target links
 for arch in arm64 x86_64; do
-  clang++ -bundle -arch $arch -mmacosx-version-min=11.0 -fobjc-arc "$TMP"/*-$arch.o -o "$TMP/AeroNative-$arch" \
+  swiftc -c -O -parse-as-library -module-name AeroLink -target $arch-apple-macos11.0 "$SRC/AeroLink.swift" -o "$TMP/AeroLink-$arch.o"
+done
+for arch in arm64 x86_64; do
+  clang++ -bundle -arch $arch -L"$SWIFT_LIB" -L"$SWIFT_COMPAT" -Wl,-rpath,/usr/lib/swift -mmacosx-version-min=11.0 -fobjc-arc "$TMP"/*-$arch.o -o "$TMP/AeroNative-$arch" \
     -framework Foundation -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework QuartzCore \
     -framework Photos -framework CoreAudio -framework AudioToolbox -framework IOKit -framework Network \
-    -framework MultipeerConnectivity
+    -framework MultipeerConnectivity -framework Security -framework CoreImage -framework CoreGraphics
 done
 mkdir -p "$OUT/Contents/MacOS"
 lipo -create "$TMP/AeroNative-arm64" "$TMP/AeroNative-x86_64" -output "$OUT/Contents/MacOS/AeroNative"

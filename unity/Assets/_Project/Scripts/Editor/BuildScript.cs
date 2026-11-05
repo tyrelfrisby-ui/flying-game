@@ -401,6 +401,12 @@ namespace FlyingGame.EditorTools
                 tv.SetString("UISceneClassName", "UIWindowScene");
                 tv.SetString("UISceneDelegateClassName", "AeroExternalDisplayScene");
             }
+            // COMPANION PAIRING BY QR (Ty 2026-11-04, Q9: "QR recommended"): the Mac's code is an aeroplay://pair link, so the
+            // iPad's or iPhone's own Camera reads it and opens this app with it (Bridge/Companion/CompanionLink.cs).
+            var urlTypes = plist.root["CFBundleURLTypes"] as PlistElementArray ?? plist.root.CreateArray("CFBundleURLTypes");
+            var pairUrl = urlTypes.AddDict();
+            pairUrl.SetString("CFBundleURLName", "com.tyrelfrisby.aeroplayground.pair");
+            pairUrl.CreateArray("CFBundleURLSchemes").AddString(FlyingGame.Core.CompanionPairing.Scheme);
             // GAMEPADS (Ty 2026-11-02, an 8BitDo Pro 2): the game reads MFi / Xbox / PlayStation pads through the
             // Input System (Bridge/GamepadInput.cs). iOS delivers a pad's input without these keys; they declare
             // that the app is driven by one — the App Store's "Game Controllers" badge, and the system leaves the
@@ -421,7 +427,8 @@ namespace FlyingGame.EditorTools
             // referenced from:" with nothing to say which plugin wanted it (2026-10-30).
             foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework", "Network.framework",
                                          "MultipeerConnectivity.framework", "PDFKit.framework", "UniformTypeIdentifiers.framework",
-                                         "GameController.framework" })   // (gamepads: Unity usually links it already; this makes sure)
+                                         "GameController.framework",     // (gamepads: Unity usually links it already; this makes sure)
+                                         "CoreImage.framework", "Security.framework" })   // companion: the QR code, TLS-PSK and the Keychain (AeroLink.swift)
                 proj.AddFrameworkToProject(fw, f, false);
             // The encoder guards its AVAssetWriter appends with @try (an append exception would otherwise abort the app);
             // Unity builds plugins with Objective-C exceptions off, so turn them on for that file.
