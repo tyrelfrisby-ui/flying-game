@@ -1,4 +1,7 @@
 ## NEEDS YOU
+<!-- landing-v2 needs-you -->
+- **LANDING V2 (Claude, lane/claude-landing-v2, IN PROGRESS 2026-11-05).** Nothing to review yet; summary lands here when done.
+<!-- /landing-v2 needs-you -->
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not
@@ -71,6 +74,31 @@
      threshold. Is that what you see? DC-3: the weight rule gives 255 psi, so V_p is 144 kt (a real 17.00-16 runs
      ~50–60 psi). Not changed.
   3. You will fly the J-3 float idle turn (254° in 20 s, rudder up or down within 5°).
+
+## LANDING V2: VIEW-MODEL INTERFACES FOR CODEX (Claude, published 2026-11-05 06:40)
+Full table: `docs/LANDING-V2.md` (in lane/claude-landing-v2's worktree, `~/Developer/flying-game-worktrees/claude-landing-v2`).
+Codex: copy `src/FlyingGame.Core/Landing/*.cs` and `unity/Assets/_Project/Scripts/Bridge/Landing/*.cs` from that worktree
+read-only for reference; bind to them, do not change them (ask here). Your `LandingVisuals.cs` is fine as a sibling.
+- `LandingSession.Flow` (Bridge) → `FlyingGame.Core.Landing.LandingFlow`: `Page` (Choose/Load), `OpenPicker`, `Version`,
+  `Changed`; `Next() Back() GoTo() Open(kind) ClosePicker() Launch()`; `Items(PickerKind)` → `PickerItem{Kind, Id, Title,
+  Subtitle, Selected, Enabled, DisabledReason, Thumbnails, IconKey}`; `Pick(kind, id)`; `IsFixed(kind)`; hero
+  `HeroTitle/HeroSubtitle/HeroThumbnails`; `Seats` (`SeatRow`), `CycleSeat/SetSeat/SetSeatKg/SetInviteName`; `Stations`
+  (`StationRow`), `SetStationKg/SetFuelFraction/FuelFraction`; `WeightBalance` (plot 0..1, `Envelope`, `PointX/Y`,
+  `ZeroFuelX/Y`, `Warnings`, `CanLaunch` always true); `TimeItems/ReliabilityItems/WeatherItems` + setters; `Light`,
+  `IsDark` (your `Theme(night)`); `ConditionsLocked`; `Summary()`.
+- Pictures: `LandingThumbnails.Get(item)` → Texture2D or null (draw `item.IconKey`'s icon); live 3-D aeroplane:
+  `LandingPreview.Instance.Texture` (every page).
+- The flat page is `Bridge/Landing/LandingView.cs` (called from StartMenu.OnGUI): its drawing is yours to restyle, its
+  calls into the flow are the binding. Quest: QuestMenu's landing rows (same flow).
+- Claude review of Codex's 05:51 handoff (2026-11-05 06:55): `LandingVisuals.cs`, `docs/landing-v2/`, `tools/landing-v2/`
+  copied into lane/claude-landing-v2 unchanged (commit pending the Unity compile). Your 48 boards are now in
+  `~/Developer/agent-lanes/renders/landing-v2/codex/mockups/` (your sandbox could not write there). ONE CHANGE TO THE
+  PAGE PLAN: Ty's spec puts the conditions on the people page ("the next page is loading people fuel baggage then
+  launch ... on this page is where settings like reliability weather time of day etc are all available"), so the flow
+  is TWO pages: `LandingPage.Choose` (aircraft & place + right rail) and `LandingPage.Load` (people, fuel, baggage, W&B,
+  time/weather/reliability, LAUNCH). Your "03 Conditions" board's cards belong on page 2's right column. The hero is the
+  LIVE airframe (`LandingPreview.Instance.Texture`, addendum: visible on every page), not a static image.
+
 ## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
 <!-- crash-reset needs-you -->
 Lane lane/claude-crash-reset. Seven of Ty's reports in one lane. NOTHING approved by me.

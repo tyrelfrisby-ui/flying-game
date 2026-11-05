@@ -192,6 +192,10 @@ public sealed class LoadingConfig
     public double EmptyMassKg { get; set; }
     /// <summary>Maximum certificated take-off mass. 0 = no placard, and the page will not complain about weight.</summary>
     public double MaxGrossMassKg { get; set; }
+    /// <summary>The same placard as several configs author it (with an "envelope" in datum inches beside it, which is
+    /// not read). Read by the landing page's weight-and-balance plot only, when <see cref="MaxGrossMassKg"/> is 0
+    /// (<see cref="FlyingGame.Core.AircraftLoad.PlacardGrossKg"/>); nothing in the sim reads it.</summary>
+    public double MaxTakeoffMassKg { get; set; }
     /// <summary>CG envelope in the body reference frame's x, metres. The frame has +x FORWARD, so the forward limit
     /// is the LARGER number and the aft limit the smaller one — a nose-heavy aeroplane has a bigger x than a
     /// tail-heavy one. Equal values, or an aft limit above the forward one, mean no published envelope and the page

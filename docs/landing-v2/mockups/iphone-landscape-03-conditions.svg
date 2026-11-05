@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="852" height="393" viewBox="0 0 852 393">
+<rect width="852" height="393" fill="#f1f4f2"/>
+<text x="24" y="28" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#4b626b">AERO / PLAYGROUND</text>
+<text x="24" y="61" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">01  Aircraft &amp; place</text>
+<text x="187" y="61" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">02  People &amp; load</text>
+<text x="350" y="61" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">03  Conditions</text>
+<rect x="350" y="68" width="146" height="3" rx="0" fill="#d6a325" stroke="none" stroke-width="2"/>
+<rect x="654" y="80" width="174" height="225" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<text x="672" y="108" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#4b626b">YOUR FLIGHT</text>
+<text x="672" y="135" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#152d35">Free play</text>
+<text x="672" y="157" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#4b626b">Choose your own setup</text>
+<rect x="666" y="174" width="150" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<g transform="translate(675 183)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M6 29 V3 Q13 -1 20 4 Q24 7 28 3 V17 Q22 21 17 17 Q11 13 6 17"/>
+</g>
+<text x="713" y="204" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Challenges</text>
+<rect x="666" y="234" width="150" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<g transform="translate(675 243)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M2 7 L15 2 L28 7 L15 12 Z M7 10 V20 Q15 26 23 20 V10 M28 7 V20"/>
+</g>
+<text x="713" y="264" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Lessons</text>
+<text x="24" y="104" font-family="Arial, sans-serif" font-size="23" font-weight="700" fill="#152d35">Set the mood. Go flying.</text>
+<rect x="24" y="118" width="614" height="62" rx="0" fill="#bbd8df" stroke="none" stroke-width="2"/>
+<svg x="24" y="118" width="614" height="62" viewBox="0 0 600 220" preserveAspectRatio="xMidYMid meet">
+<rect width="600" height="220" fill="#bbd8df"/>
+<circle cx="490" cy="40" r="18" fill="#fff1b2"/>
+<path d="M0 150 L90 65 L170 133 L270 32 L370 128 L450 74 L600 162 V220 H0 Z" stroke="none" fill="#759997" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M0 180 Q150 110 310 166 Q450 118 600 175 V220 H0 Z" stroke="none" fill="#93b1a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M200 220 L301 146 L316 146 L420 220 Z" stroke="none" fill="#d1d6cf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M170 153 L370 146 L409 151 L370 157 L170 160 Z" stroke="none" fill="#ffd15c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M278 151 L213 109 L229 106 L330 150 L365 180 L348 181 Z" stroke="none" fill="#ffd15c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M365 150 L380 126 L390 125 L390 150 Z" stroke="none" fill="#ffd15c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<ellipse cx="300" cy="147" rx="17" ry="6" fill="#496775"/>
+</svg>
+<rect x="34" y="127" width="190" height="42" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<g transform="translate(44 133)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="15" cy="15" r="6"/><path d="M15 1 V5 M15 25 V29 M1 15 H5 M25 15 H29 M5 5 L8 8 M22 22 L25 25 M5 25 L8 22 M22 8 L25 5"/>
+</g>
+<text x="84" y="154" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#152d35">Daylight</text>
+<rect x="24.0" y="192" width="194.0" height="85" rx="12" fill="#ffffff" stroke="#a4b6b5" stroke-width="2"/>
+<g transform="translate(36.0 202)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="15" cy="15" r="6"/><path d="M15 1 V5 M15 25 V29 M1 15 H5 M25 15 H29 M5 5 L8 8 M22 22 L25 25 M5 25 L8 22 M22 8 L25 5"/>
+</g>
+<text x="36.0" y="247" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Time of day</text>
+<text x="36.0" y="267" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#4b626b">Daylight ›</text>
+<rect x="234.0" y="192" width="194.0" height="85" rx="12" fill="#ffffff" stroke="#a4b6b5" stroke-width="2"/>
+<g transform="translate(246.0 202)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M7 24 A6 6 0 0 1 6 12 A10 10 0 0 1 25 13 A6 6 0 0 1 25 25 Z"/>
+</g>
+<text x="246.0" y="247" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Weather</text>
+<text x="246.0" y="267" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#4b626b">Choose conditions ›</text>
+<rect x="444.0" y="192" width="194.0" height="85" rx="12" fill="#ffffff" stroke="#a4b6b5" stroke-width="2"/>
+<g transform="translate(456.0 202)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M15 2 L27 7 V16 Q26 24 15 29 Q4 24 3 16 V7 Z M9 15 L14 20 L22 10"/>
+</g>
+<text x="456.0" y="247" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Reliability</text>
+<text x="456.0" y="267" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#4b626b">Choose realism ›</text>
+<rect x="24" y="329" width="106" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<text x="40" y="359" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">‹ Back</text>
+<text x="148" y="358" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">3 / 3</text>
+<rect x="620" y="329" width="208" height="48" rx="12" fill="#ffd15c" stroke="none" stroke-width="2"/>
+<text x="636" y="359" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Launch flight  &gt;</text>
+<text x="24" y="386" font-family="Arial, sans-serif" font-size="10" font-weight="400" fill="#4b626b">DESIGN MOCKUP · iphone-landscape · illustrative scenery / not a Unity capture</text>
+</svg>

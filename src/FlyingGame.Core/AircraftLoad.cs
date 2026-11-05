@@ -240,11 +240,18 @@ public sealed class AircraftLoad
 
     public double MaxGrossMassKg => _config.Loading?.MaxGrossMassKg ?? 0.0;
     public bool HasWeightPlacard => MaxGrossMassKg > 0.0;
+    /// <summary>The gross a placard shows: <see cref="MaxGrossMassKg"/>, else the config's maxTakeoffMassKg. For the
+    /// landing page's plot; <see cref="Overweight"/> and <see cref="Placard"/> keep reading MaxGrossMassKg only.</summary>
+    public double PlacardGrossKg => MaxGrossMassKg > 0.0 ? MaxGrossMassKg : _config.Loading?.MaxTakeoffMassKg ?? 0.0;
     public bool Overweight => HasWeightPlacard && TotalMassKg > MaxGrossMassKg + 1e-9;
 
     /// <summary>+x is FORWARD in this frame, so a published envelope has its forward limit ABOVE its aft limit.</summary>
     public bool HasCgEnvelope =>
         _config.Loading is { } l && l.CgForwardLimitM > l.CgAftLimitM;
+
+    /// <summary>The authored CG limits, body x (m, +forward); 0 when the type has no envelope.</summary>
+    public double CgForwardLimitM => _config.Loading?.CgForwardLimitM ?? 0.0;
+    public double CgAftLimitM => _config.Loading?.CgAftLimitM ?? 0.0;
 
     public bool CgOutOfLimits
     {

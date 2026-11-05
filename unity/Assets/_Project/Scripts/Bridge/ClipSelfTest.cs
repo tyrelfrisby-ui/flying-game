@@ -31,6 +31,8 @@ namespace FlyingGame.Bridge
             if (mode == "dust") { yield return DustTest(); yield break; }
             if (mode == "instr") { yield return InstrTest(); yield break; }
             if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
+            if (mode == "landing") { yield return LandingSelfTest.Pages(Menu); yield break; }            // docs/LANDING-V2.md
+            if (mode == "landing-thumbs") { yield return LandingSelfTest.Thumbnails(Menu); yield break; }
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
             if (mode == "starts") { yield return StartsTest(); yield break; }

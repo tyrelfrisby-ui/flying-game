@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Linq;
 using FlyingGame.Core;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.Vr;
+using FlyingGame.Core.Landing;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
@@ -181,6 +183,9 @@ namespace FlyingGame.Bridge
             return _root;
         }
 
+        /// <summary>EDITOR TOOLS ONLY (LandingQuestShots): redraw the rows after the flow changed underneath them.</summary>
+        public void RefreshForTesting() => Refresh();
+
         /// <summary>Every frame from <see cref="QuestRig"/>.</summary>
         public void Tick(QuestRig rig)
         {
@@ -231,7 +236,23 @@ namespace FlyingGame.Bridge
                     ? $"FLY THE {AircraftName(SessionSettings.AircraftId).ToUpperInvariant()} NOW" : "RESTART FLIGHT", FlyNow, visible: () => !OnLanding);
             AddRow(() => "CHANGE AIRCRAFT  (main menu)   >", GoToLanding, visible: () => !OnLanding && Landing != null);
             AddRow(() => $"Aircraft:  {AircraftName(SessionSettings.AircraftId)}" + (!OnLanding && Driver != null && Driver.AircraftId != SessionSettings.AircraftId ? "   (restart to fly it)" : ""),
-                () => CycleAircraft(1), CycleAircraft);
+                () => CycleAircraft(1), CycleAircraft, () => !OnLanding);
+            // LANDING V2 (Ty 2026-11-05, docs/LANDING-V2.md): on the landing page the rows step through the same flow the
+            // flat page does (LandingSession.Flow), one < > row per menu. Free flight only in here (a lesson's cards are
+            // OnGUI), and the headset's own fleet (QuestFleet).
+            AddRow(() => $"Aircraft:  {Flow.HeroTitle}   < >", () => CycleFlow(PickerKind.Aircraft, 1), d => CycleFlow(PickerKind.Aircraft, d), () => OnLanding);
+            AddRow(() => $"Configuration:  {Flow.Gear.Name}" + (Flow.IsFixed(PickerKind.Configuration) ? "" : "   < >"),
+                () => CycleFlow(PickerKind.Configuration, 1), d => CycleFlow(PickerKind.Configuration, d), () => OnLanding);
+            AddRow(() => $"Location:  {Flow.Location?.Name}   < >", () => CycleFlow(PickerKind.Location, 1), d => CycleFlow(PickerKind.Location, d), () => OnLanding);
+            AddRow(() => $"Passenger:  {PassengerLine()}   < >", () => CyclePassenger(), _ => CyclePassenger(), () => OnLanding && Flow.Seats.Any(x => x.Occupant != Occupant.Me));
+            AddRow(() => $"Fuel:  {Flow.FuelFraction * 100:0} %   < >", () => StepFuel(1), StepFuel, () => OnLanding && Flow.Stations.Any(x => x.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel));
+            AddRow(() => $"Time of day:  {Flow.TimeItems().First(i => i.Selected).Title}   < >", () => CycleSetting(Flow.TimeItems(), 1, id => Flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id))),
+                d => CycleSetting(Flow.TimeItems(), d, id => Flow.SetTimeOfDay((TimeOfDay)System.Enum.Parse(typeof(TimeOfDay), id))), () => OnLanding);
+            AddRow(() => $"Weather:  {Flow.WeatherItems().First(i => i.Selected).Title}   < >", () => CycleSetting(Flow.WeatherItems(), 1, Flow.SetWeather),
+                d => CycleSetting(Flow.WeatherItems(), d, Flow.SetWeather), () => OnLanding);
+            AddRow(() => $"Engine:  {Flow.ReliabilityItems().First(i => i.Selected).Title}   < >", () => CycleSetting(Flow.ReliabilityItems(), 1, id => Flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id))),
+                d => CycleSetting(Flow.ReliabilityItems(), d, id => Flow.SetReliability((Reliability)System.Enum.Parse(typeof(Reliability), id))), () => OnLanding);
+            AddRow(() => WeightLine(), null, visible: () => OnLanding && Flow.WeightBalance != null);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
             AddRow(() => $"Seat:  {SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId))}",
                 () => CycleSeat(1), CycleSeat, () => SeatsOf(SeatAircraftId).Count > 1);
@@ -491,11 +512,24 @@ namespace FlyingGame.Bridge
 
         private void FlyNow()
         {
+            bool landing = OnLanding;
             SessionSettings.ChallengeId = null;     // free flight: a lesson's OnGUI cards could not be seen in here
             KeepToHeadsetFleet("FLY");
             // A start that throws must not leave the pilot behind a half-closed menu with no cockpit: say why, and
             // still put him in the seat (the 2026-11-02 Quest build threw here on every FLY — StreamingFiles).
-            try { if (Landing != null) Landing.Fly(); }
+            // From the landing page FLY is the flow's LAUNCH (remembered, applied, flown: StartMenu.OnLaunched).
+            try
+            {
+                if (landing && Landing != null)
+                {
+                    var flow = Flow;
+                    flow.Adopt(SessionSettings.AircraftId, SessionSettings.Bushwheels, SessionSettings.Skis, SessionSettings.AirportIndex,
+                               (Viewpoint)(int)SessionSettings.StartMode, null);
+                    flow.GoTo(LandingPage.Load);
+                    flow.Launch();
+                }
+                else if (Landing != null) Landing.Fly();
+            }
             catch (System.Exception e) { Debug.LogError($"[Quest] FLY: the flight did not start: {e}"); }
             Close(force: true, "FLY");
             Debug.Log($"[QuestInput] FLY: {SessionSettings.AircraftId}, {StartName()}");
@@ -676,6 +710,56 @@ namespace FlyingGame.Bridge
             SessionSettings.SaveFeel();
             SessionSettings.ReapplyFeel(Driver?.Sim?.Aircraft?.Config);
             Debug.Log($"[QuestInput] stick expo {(expo < 0f ? $"default ({FlyingGame.Core.Vr.QuestStickFeel.DefaultExpo * 100:0} %)" : $"{expo * 100:0} %")}");
+        }
+
+        // ---- the landing flow's rows ----
+
+        private static LandingFlow Flow => LandingSession.Flow;
+
+        /// <summary>Step a page-1 menu of the flow by one card (aircraft: only types the headset flies).</summary>
+        private static void CycleFlow(PickerKind kind, int step)
+        {
+            var items = Flow.Items(kind).Where(i => i.Enabled && (kind != PickerKind.Aircraft || FlyingGame.Core.Vr.QuestFleet.Resolve(i.Id) == i.Id)).ToList();
+            if (items.Count == 0) return;
+            int i = items.FindIndex(x => x.Selected);
+            Flow.Pick(kind, items[((i < 0 ? 0 : i) + step % items.Count + items.Count) % items.Count].Id);
+            SessionSettings.AircraftId = Flow.AircraftId;   // the Seat row and the preview read the session
+            LandingSession.ApplyPreview(Flow);
+        }
+
+        private static void CycleSetting(List<PickerItem> items, int step, System.Action<string> pick)
+        {
+            var ok = items.Where(x => x.Enabled).ToList();
+            if (ok.Count == 0) return;
+            int i = ok.FindIndex(x => x.Selected);
+            pick(ok[((i < 0 ? 0 : i) + step % ok.Count + ok.Count) % ok.Count].Id);
+        }
+
+        /// <summary>The first seat that is not mine: empty → passenger → invited passenger → invited on the controls.</summary>
+        private static void CyclePassenger()
+        {
+            var seat = Flow.Seats.FirstOrDefault(x => x.Occupant != Occupant.Me);
+            if (seat != null) Flow.CycleSeat(seat.SeatId);
+        }
+
+        private static string PassengerLine()
+        {
+            var seat = Flow.Seats.FirstOrDefault(x => x.Occupant != Occupant.Me);
+            if (seat == null) return "";
+            string who = seat.Occupant switch
+            {
+                Occupant.DefaultPerson => "passenger", Occupant.InvitedPlayer => seat.Role == SeatRole.DualControl ? "invited, on the controls" : "invited, passenger", _ => "empty",
+            };
+            return $"{seat.Label}: {who}";
+        }
+
+        private static void StepFuel(int step) => Flow.SetFuelFraction(System.Math.Round(Flow.FuelFraction * 4 + step) / 4.0);
+
+        private static string WeightLine()
+        {
+            var wb = Flow.WeightBalance;
+            if (wb == null) return "";
+            return $"   {wb.TotalKg:0} kg" + (wb.HasGross ? $" of {wb.MaxGrossKg:0}" : "") + (wb.InLimits ? "   in limits" : "   " + wb.Warnings[0]);
         }
 
         private static void CycleAircraft(int step)

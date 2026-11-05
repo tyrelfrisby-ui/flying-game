@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1366" height="1024" viewBox="0 0 1366 1024">
+<rect width="1366" height="1024" fill="#f1f4f2"/>
+<text x="40" y="42" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#4b626b">AERO / PLAYGROUND</text>
+<text x="40" y="91" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">01  Aircraft &amp; place</text>
+<text x="260" y="91" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">02  People &amp; load</text>
+<rect x="260" y="103" width="198" height="3" rx="0" fill="#d6a325" stroke="none" stroke-width="2"/>
+<text x="480" y="91" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">03  Conditions</text>
+<rect x="1076" y="128" width="250" height="778" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<text x="1094" y="156" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#4b626b">YOUR FLIGHT</text>
+<text x="1094" y="183" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#152d35">Free play</text>
+<text x="1094" y="205" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#4b626b">Choose your own setup</text>
+<rect x="1088" y="244" width="226" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<g transform="translate(1097 253)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M6 29 V3 Q13 -1 20 4 Q24 7 28 3 V17 Q22 21 17 17 Q11 13 6 17"/>
+</g>
+<text x="1135" y="274" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Challenges</text>
+<rect x="1088" y="304" width="226" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<g transform="translate(1097 313)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M2 7 L15 2 L28 7 L15 12 Z M7 10 V20 Q15 26 23 20 V10 M28 7 V20"/>
+</g>
+<text x="1135" y="334" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#152d35">Lessons</text>
+<text x="1094" y="392" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">A guided flight opens</text>
+<text x="1094" y="413" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">its own allowed choices.</text>
+<text x="40" y="151" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#152d35">Bring your crew.</text>
+<rect x="40" y="188" width="1020" height="112" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<g transform="translate(54 205)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M8 3 L8 20 L25 20 L25 28 M8 12 L21 12 L21 20 M5 28 L9 20"/>
+</g>
+<text x="98" y="214" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Front seat · Pilot</text>
+<text x="98" y="236" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#4b626b">You · flight controls</text>
+<rect x="98" y="245" width="235" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<text x="114" y="275" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Choose occupant ›</text>
+<rect x="40" y="312" width="1020" height="112" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<g transform="translate(54 329)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M8 3 L8 20 L25 20 L25 28 M8 12 L21 12 L21 20 M5 28 L9 20"/>
+</g>
+<text x="98" y="338" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Rear seat</text>
+<text x="98" y="360" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#4b626b">Default person or invite a player</text>
+<rect x="98" y="369" width="235" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<text x="114" y="399" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Choose occupant ›</text>
+<rect x="40" y="436" width="1020" height="162" rx="12" fill="#ffffff" stroke="none" stroke-width="2"/>
+<g transform="translate(56 454)" stroke="#152d35" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<rect x="4" y="9" width="23" height="19" rx="3"/><path d="M10 9 V3 H21 V9 M4 17 H27"/>
+</g>
+<text x="100" y="466" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#152d35">Baggage &amp; balance</text>
+<text x="100" y="495" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#4b626b">Use the aircraft’s actual stations and limits.</text>
+<rect x="100" y="517" width="250" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<text x="116" y="547" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Open load sheet ›</text>
+<text x="40" y="631" font-family="Arial, sans-serif" font-size="16" font-weight="400" fill="#4b626b">Fuel: not applicable to this glider</text>
+<text x="40" y="670" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#4b626b">Invites open a seat role: Passenger or Dual controls.</text>
+<text x="40" y="695" font-family="Arial, sans-serif" font-size="15" font-weight="400" fill="#4b626b">Only offer dual controls where that seat supports them.</text>
+<rect x="40" y="936" width="106" height="48" rx="12" fill="#e5ece9" stroke="none" stroke-width="2"/>
+<text x="56" y="966" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">‹ Back</text>
+<text x="164" y="966" font-family="Arial, sans-serif" font-size="14" font-weight="400" fill="#4b626b">2 / 3</text>
+<rect x="1116" y="936" width="208" height="48" rx="12" fill="#ffd15c" stroke="none" stroke-width="2"/>
+<text x="1132" y="966" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#152d35">Conditions  →</text>
+<text x="40" y="1008" font-family="Arial, sans-serif" font-size="10" font-weight="400" fill="#4b626b">DESIGN MOCKUP · ipad · illustrative scenery / not a Unity capture</text>
+</svg>
