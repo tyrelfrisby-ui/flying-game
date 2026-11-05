@@ -170,27 +170,47 @@ namespace FlyingGame.Bridge
                 if (ds >= 0) c172.Dme.Source = srcs[ds];
             }
 
-            SequenceCard card = visual.Card;
-            if (card == null || !card.HasHolder) return;
+            CardRows(ref y);
+            AltimeterRows(visual, ref y);
+        }
 
-            SequenceCardPicker.Poll(card);
-            string what = card.Page > 0
-                ? (card.StoredPageCount > 1 ? $"Your card, page {card.Page} of {card.StoredPageCount}" : "Your card")
-                : "2026 IAC Power Sportsman Known";
-            Note("Sequence card: " + what, ref y);
+        /// <summary>THE IAC CARD (Ty 2026-11-05): one card for every holder and both seats. Tap the card in the cockpit to
+        /// go to the next; here, step through, add your own (a PDF: every page a card; on the Mac also a PNG / JPEG) and
+        /// remove them. Shown whatever the aeroplane, so the deck can be set up before choosing one.</summary>
+        private void CardRows(ref float y)
+        {
+            SequenceCardPicker.Poll();
+            FlyingGame.Core.IacCard cur = SequenceCardLibrary.Current;
+            var deck = SequenceCardLibrary.Deck;
+            Note($"IAC card: {cur.Label}   ({deck.All.Count} cards, {deck.UserCards.Count} yours)", ref y);
+            var actions = new System.Collections.Generic.List<string> { "< Prev", "Next >" };
+            if (SequenceCardPicker.Available) actions.Add("Add card…");
+            if (cur.IsUser) actions.Add("Remove this");
+            int act = PickRow("Card", actions.ToArray(), -1, ref y);
+            if (act >= 0)
+            {
+                string a = actions[act];
+                if (a == "< Prev") SequenceCardLibrary.Previous();
+                else if (a == "Next >") SequenceCardLibrary.Next();
+                else if (a == "Add card…") SequenceCardPicker.Pick();
+                else if (a == "Remove this") SequenceCardLibrary.Remove(cur.Id);
+            }
+            if (SequenceCardPicker.Busy) Note("Choose a file…", ref y);
+            else if (SequenceCardPicker.LastMessage.Length > 0) Note(SequenceCardPicker.LastMessage, ref y);
+            else Note(SequenceCardPicker.HowTo + "; tap the card in the cockpit to change it", ref y);
+        }
 
-            bool pdf = card.StoredPdf.Length > 0 && card.StoredPageCount > 1;
-            string[] actions = pdf ? new[] { "Choose PDF", "Prev page", "Next page", "Default" }
-                                   : new[] { SequenceCardPicker.Available ? "Choose PDF" : "Choose PNG", "Default" };
-            int act = PickRow("Card", actions, -1, ref y);
-            if (act == 0) SequenceCardPicker.Pick(card);
-            else if (pdf && act == 1) card.TurnTo(card.Page - 1);
-            else if (pdf && act == 2) card.TurnTo(card.Page + 1);
-            else if (act == actions.Length - 1) card.ResetToDefault();
-
-            if (SequenceCardPicker.Busy) Note("Pick a PDF…", ref y);
-            else if (SequenceCardPicker.LastError.Length > 0) Note(SequenceCardPicker.LastError, ref y);
-            else if (!SequenceCardPicker.Available) Note("A PDF needs the device; here give a PNG (SEQ_CARD)", ref y);
+        /// <summary>The altimeter's Kollsman setting, for anyone who would rather set it here than touch the instrument.</summary>
+        private void AltimeterRows(AirframeVisual visual, ref float y)
+        {
+            CockpitRigState c = visual.Cockpit;
+            var a = c.Altimeter;
+            Note($"Altimeter {FlyingGame.Core.Instruments.KollsmanAltimeter.Window(a.InHg)} inHg (window {a.Range.MinInHg:F2}-{a.Range.MaxInHg:F2}); tap the altimeter to type it", ref y);
+            int act = PickRow("Altimeter", new[] { "-0.01", "+0.01", "Field elev.", "Zero here" }, -1, ref y);
+            if (act == 0) a.Step(-1);
+            else if (act == 1) a.Step(+1);
+            else if (act == 2) c.SetAltimeterToRead(c.TrueAltitudeFt);
+            else if (act == 3 && !c.SetAltimeterToRead(0.0)) Note("this altimeter's window cannot zero here", ref y);
         }
 
         private void Note(string text, ref float y)

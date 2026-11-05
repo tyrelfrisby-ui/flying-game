@@ -160,6 +160,8 @@ namespace FlyingGame.Bridge
                 _displays.Bind(FindInModel, transform);
                 _displays.Update(_lastRig);
                 Card.Bind(this, _driver.AircraftId);
+                // Touching the card, the altimeters and the g-meters (CockpitTaps binds itself to each placed model).
+                if (_taps == null && !TryGetComponent(out _taps)) _taps = gameObject.AddComponent<CockpitTaps>();
             }
         }
 
@@ -176,6 +178,7 @@ namespace FlyingGame.Bridge
         /// throttle (FlyingGame.Core.CockpitLive says which, per model).</summary>
         private readonly CockpitLiveParts _live = new();
         private Transform _beltsStrippedFrom;
+        private CockpitTaps _taps;
         private readonly List<Mesh> _beltFreeMeshes = new();
         private readonly CockpitWaterRudder _waterRudder = new();     // the J-3 floats' red retract handle's cable
 

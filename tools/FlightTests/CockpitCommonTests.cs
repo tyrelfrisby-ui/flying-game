@@ -265,3 +265,46 @@ public class CubFuelWireTests
         Assert.Equal(-0.1105, Wire.Value(0.5), 9);
     }
 }
+
+public class PanelInstrumentNameTests
+{
+    // Literal node names from the 2026-11-05 scan of the shipped GLBs (and the contract's new nodes).
+    [Theory]
+    [InlineData("RearPanel_Altimeter_Face", PanelInstrument.Altimeter, PanelSeat.Rear)]
+    [InlineData("FrontPanel_Altimeter_Bezel", PanelInstrument.Altimeter, PanelSeat.Front)]
+    [InlineData("Face_P3b_Altimeter_R", PanelInstrument.Altimeter, PanelSeat.Rear)]
+    [InlineData("Bezel_P3b_Altimeter_F", PanelInstrument.Altimeter, PanelSeat.Front)]
+    [InlineData("Needle_Alt100_R", PanelInstrument.Altimeter, PanelSeat.Rear)]
+    [InlineData("Needle_Alt1000_F", PanelInstrument.Altimeter, PanelSeat.Front)]
+    [InlineData("Needle_Alt_100ft", PanelInstrument.Altimeter, PanelSeat.Rear)]
+    [InlineData("Dial_ALT_F", PanelInstrument.Altimeter, PanelSeat.Front)]
+    [InlineData("Dial_Alt100_R", PanelInstrument.Altimeter, PanelSeat.Rear)]
+    [InlineData("C172_Altimeter_case", PanelInstrument.Altimeter, PanelSeat.Rear)]
+    [InlineData("C172_Altimeter_baro", PanelInstrument.AltimeterKnob, PanelSeat.Rear)]
+    [InlineData("FrontPanel_Altimeter_Knob", PanelInstrument.AltimeterKnob, PanelSeat.Front)]
+    [InlineData("RearPanel_Altimeter_Kollsman", PanelInstrument.AltimeterWindow, PanelSeat.Rear)]
+    [InlineData("RearPanel_G_meter_Face", PanelInstrument.GMeter, PanelSeat.Rear)]
+    [InlineData("FrontPanel_G_meter_Bezel", PanelInstrument.GMeter, PanelSeat.Front)]
+    [InlineData("Needle_G_R", PanelInstrument.GMeter, PanelSeat.Rear)]
+    [InlineData("Needle_GMax_F", PanelInstrument.GMeter, PanelSeat.Front)]
+    [InlineData("Face_P3b_G_R", PanelInstrument.GMeter, PanelSeat.Rear)]
+    [InlineData("FrontPanel_G_meter_Reset", PanelInstrument.GMeterReset, PanelSeat.Front)]
+    [InlineData("RearPanel_G_meter_Reset", PanelInstrument.GMeterReset, PanelSeat.Rear)]
+    [InlineData("Model:Needle_Alt100_R", PanelInstrument.Altimeter, PanelSeat.Rear)]   // as placed by AirframeBuilder
+    [InlineData("Model:Needle_G_F", PanelInstrument.GMeter, PanelSeat.Front)]
+    public void InstrumentsAreFoundWhateverTheModelCallsThem(string node, PanelInstrument kind, PanelSeat seat) =>
+        Assert.Equal((kind, seat), PanelInstrumentNames.Classify(node));
+
+    [Theory]
+    [InlineData("Ctl_Toggle_Alternator")]
+    [InlineData("Mount_AlternateAir_Front")]
+    [InlineData("C172_Master_ALT")]
+    [InlineData("Legacy_P3b_RearPanel_Altimeter_Face")]
+    [InlineData("Legacy_P3b_Needle_G_R")]
+    [InlineData("Grip_Alternator")]
+    [InlineData("SequenceCard_Face")]
+    [InlineData("Gear_L")]
+    [InlineData("Needle_Gyro_R")]
+    public void OtherNodesAreNotInstruments(string node) =>
+        Assert.Equal(PanelInstrument.None, PanelInstrumentNames.Classify(node).Kind);
+}
