@@ -385,6 +385,32 @@ public sealed partial class Aircraft
     /// <summary>Commanded power 0..1 (0 for gliders).</summary>
     public double Throttle01 => _throttle01;
 
+    /// <summary>The PROP lever of a constant-speed propeller, 0 (full coarse, the governor's low-rpm stop) .. 1 (full
+    /// fine, the default): it sets the rpm the governor holds, between PropulsionConfig.GovernedMinRpm and MaxRpm. Full
+    /// forward is the aeroplane exactly as it has always flown. Fixed-pitch types have no lever and ignore it.</summary>
+    public double PropLever01 { get => _propLever01; set => _propLever01 = Math.Clamp(value, 0.0, 1.0); }
+    private double _propLever01 = 1.0;
+
+    /// <summary>The bus behind the master, alternator, fuel-pump and smoke switches (ElectricalSystem); stepped
+    /// with the sim. Every type has one; it starts with the master and the alternator on.</summary>
+    public FlyingGame.Core.Engine.ElectricalSystem Electrics { get; } = new();
+
+    /// <summary>The fraction of the throttle's power the engine makes at the prop lever's rpm: 1 with the lever
+    /// forward. With the lever back the governor holds fewer rpm at the same manifold pressure, and a piston's
+    /// torque at a given manifold pressure is roughly constant, so the power falls in proportion to the rpm.</summary>
+    public double PropPowerScale
+    {
+        get
+        {
+            double full = EngineRpmLeverForward;
+            return full > 1.0 ? EngineRpm / full : 1.0;
+        }
+    }
+
+    /// <summary>The throttle the propeller and the fuel burn see: <see cref="Throttle01"/> x <see cref="PropPowerScale"/>,
+    /// set once a step (StepWithDeflectionTargets).</summary>
+    private double _shaftThrottle01;
+
     /// <summary>What is in the aeroplane: people, fuel, baggage. The loading page sets it before flight; in flight
     /// only the fuel changes, and the mass, CG and inertia follow it every step.</summary>
     public AircraftLoad Load { get; }
@@ -412,7 +438,7 @@ public sealed partial class Aircraft
             if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0 || _noseLost) return 0.0;   // stopped: burns nothing
             double bsfc = Config.Propulsion.BsfcKgPerWs;
             if (bsfc <= 0.0) return 0.0;
-            return Config.Propulsion.MaxPowerW * Math.Clamp(_throttle01, 0.0, 1.0) * bsfc;
+            return Config.Propulsion.MaxPowerW * Math.Clamp(_throttle01, 0.0, 1.0) * PropPowerScale * bsfc;
         }
     }
 
@@ -442,6 +468,20 @@ public sealed partial class Aircraft
     /// with the throttle firewalled (take-off). Fixed pitch: rpm follows throttle and picks up with airspeed
     /// (a fixed-pitch prop unloads as the aircraft accelerates: ~2300 static, red-line at cruise speed).</summary>
     public double EngineRpm
+    {
+        get
+        {
+            double rpm = EngineRpmLeverForward;
+            PropulsionConfig? p = Config.Propulsion;
+            if (p is null || !p.ConstantSpeed || _propLever01 >= 1.0) return rpm;
+            // The prop lever caps what the governor holds; on the fine-pitch stop (low power) it changes nothing.
+            double low = Math.Clamp(p.GovernedMinRpm, p.IdleRpm, p.MaxRpm);
+            return Math.Min(rpm, low + (p.MaxRpm - low) * _propLever01);
+        }
+    }
+
+    /// <summary>The rpm with the prop lever full forward: the governor's own law (below) and the fixed-pitch law.</summary>
+    private double EngineRpmLeverForward
     {
         get
         {
@@ -1111,7 +1151,8 @@ public sealed partial class Aircraft
         _flowState.EnsureSize(stripCount);
 
         // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R.
-        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, State.Velocity, State.Rates, airDensity);
+        _shaftThrottle01 = _throttle01 * PropPowerScale;
+        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _shaftThrottle01, State.Velocity, State.Rates, airDensity);
 
         // Ground contact, once a step instead of at each of RK4's four stages (Quest 3S, 2026-11-02: below 60 m the
         // contact queries took the headset from 72 fps to 20, and to 8 on the ground). If the airframe and its wheels are
@@ -1253,7 +1294,7 @@ public sealed partial class Aircraft
             }
             if (Config.Propulsion is not null)
             {
-                (Vec3 pF, Vec3 pM) = PropulsionForces(Config, _throttle01, s.Velocity, s.Rates, airDensity, _noseLost, _noseBody, _propThrustScale);
+                (Vec3 pF, Vec3 pM) = PropulsionForces(Config, _shaftThrottle01, s.Velocity, s.Rates, airDensity, _noseLost, _noseBody, _propThrustScale);
                 totalF += pF;
                 totalM += pM;
             }
@@ -1301,6 +1342,7 @@ public sealed partial class Aircraft
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
         UpdateLoad(dt);
+        Electrics.Step(dt, EngineRpm);
         StepTrees(preStep, dt);   // stems and crowns: snap, stop, or take the part that hit them (AircraftTreeStrike)
         if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
         FilterFuselageBreaks();   // a fuselage section crushes before it breaks (AircraftFuselageCrush)

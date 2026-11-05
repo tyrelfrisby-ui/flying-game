@@ -164,6 +164,8 @@ public struct RigInputs
     public double Primer;
     /// <summary>Battery master, 0 or 1.</summary>
     public double Master;
+    /// <summary>Alternator field switch and electric boost pump, 0 or 1 (FlyingGame.Core.Engine.ElectricalSystem).</summary>
+    public double Alternator, FuelPump;
 
     /// <summary>0..1 canopy, 1 = fully open.</summary>
     public double CanopyOpen;
@@ -306,6 +308,7 @@ public struct RigInputs
             FuelSelector = 1.0,     // on
             Magneto = 3.0,          // BOTH
             Master = 1.0,
+            Alternator = 1.0,
             CanopyLock = 1.0,       // closed and locked
             OilPressPsi = 0.0,
             OilTempF = 100.0,       // the bottom of the dial, as drawn
@@ -341,6 +344,8 @@ public struct RigInputs
             case "magneto": value = Magneto; return true;
             case "primer": value = Primer; return true;
             case "master": value = Master; return true;
+            case "alternator": value = Alternator; return true;
+            case "fuel_pump": value = FuelPump; return true;
             case "canopy_open": value = CanopyOpen; return true;
             case "canopy_lock": value = CanopyLock; return true;
             case "canopy_jettison": value = CanopyJettison; return true;

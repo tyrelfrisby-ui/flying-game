@@ -37,7 +37,8 @@ namespace FlyingGame.Bridge
         public void SetOn(bool on) => On = on;
 
         /// <summary>The oil's flow now: none with the engine stopped, more with power, because the exhaust carries it.
-        /// A glider's canisters are always full. Same law the widget uses.</summary>
+        /// A glider's canisters are always full. Same law the widget uses. The oil pump is electric: with the master
+        /// off or a flat battery (Aircraft.Electrics) there is no smoke, whatever the switch says.</summary>
         public float Flow
         {
             get
@@ -45,6 +46,7 @@ namespace FlyingGame.Bridge
                 FlyingGame.Sim.Aircraft ac = Driver?.Sim?.Aircraft;
                 if (!On || ac == null) return 0f;
                 if (ac.Config.Propulsion == null) return 1f;                  // wingtip canisters
+                if (!ac.Electrics.BusLive) return 0f;                         // the pump has no power
                 if (ac.EngineRpm < 100) return 0f;                            // nothing turning, nothing to carry it
                 return (float)(0.25 + 0.75 * Mathf.Clamp01((float)ac.Throttle01));
             }
@@ -136,6 +138,7 @@ namespace FlyingGame.Bridge
             FlyingGame.Sim.Aircraft ac = Driver?.Sim?.Aircraft;
             if (ac == null) { _smoke?.Hide(); return; }
             if (!ReferenceEquals(ac, _builtFor)) Rebuild(ac);
+            ac.Electrics.SmokePump = On && ac.Config.Propulsion != null;     // the pump's load on the bus
             if (Driver.Replaying) return;                                     // the replay owns the pose; FlightReplay redraws
 
             double now = Atmosphere.SimTimeSec;

@@ -284,7 +284,8 @@ namespace FlyingGame.Bridge
                     Semantics = c["semantics"]?.Value<string>() ?? "absolute",
                     Grip = c["grip"]?.Value<string>() ?? "",
                     Poke = c["poke"]?.Value<string>() ?? "",
-                    Kind = kind == "Toggle" ? FlyingGame.Core.Vr.PanelKind.Toggle : kind == "PushPull" ? FlyingGame.Core.Vr.PanelKind.PushPull : FlyingGame.Core.Vr.PanelKind.Rotary,
+                    Kind = kind == "Toggle" ? FlyingGame.Core.Vr.PanelKind.Toggle : kind == "PushPull" ? FlyingGame.Core.Vr.PanelKind.PushPull
+                         : kind == "Lever" ? FlyingGame.Core.Vr.PanelKind.Lever : FlyingGame.Core.Vr.PanelKind.Rotary,
                 };
                 if (c["sim_ends"] is JArray ends && ends.Count == 2) { spec.Lo = ends[0].Value<double>(); spec.Hi = ends[1].Value<double>(); }
                 if (c["detents"] is JArray det)

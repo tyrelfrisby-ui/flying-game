@@ -608,6 +608,10 @@ public sealed class PropulsionConfig
     /// rpm follows throttle and airspeed.</summary>
     public bool ConstantSpeed { get; set; }
     public double GovernedRpm { get; set; } = 2400;
+    /// <summary>The governor's low-rpm stop: what it holds with the PROP lever full back (Aircraft.PropLever01). Unset, it
+    /// is <see cref="MaxRpm"/>, so a type nobody has given a range keeps its one governed law whatever the lever says.</summary>
+    public double GovernedMinRpm { get => _governedMinRpm ?? MaxRpm; set => _governedMinRpm = value; }
+    private double? _governedMinRpm;
     /// <summary>Drag of the idling / windmilling propeller as a coefficient on its DISC area (owner 2026-10-03: the 172
     /// glided 14:1 at idle — the POH says 9:1 — and floated forever). A fine-pitch prop at idle is driven by the air and
     /// is a big drag: C_D ≈ 0.15–0.25 on disc area. Fades out as the throttle comes up (gone by 20 %).
