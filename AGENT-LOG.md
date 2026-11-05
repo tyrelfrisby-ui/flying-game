@@ -1,4 +1,29 @@
 ## NEEDS YOU
+- **EXTRA 300 COCKPIT v3 (Ty's 2026-11-05 spec, EXTRA 300 + ADDENDUM canopy gap) — RENDERS FOR APPROVAL, NOT MERGED
+  (Claude, 2026-11-05, lane/claude-extra-cockpit-v3). Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/`
+  (unity/ = seat-eye CockpitEyeShots, blender-wip/ = before/after). Questions Q070-Q072. Nothing installed, nothing approved by me.**
+  - **Canopy "gap" (ADDENDUM):** measured first — not a hole. The glass rim touches the sill/frame/skin everywhere (0.0 mm) and
+    no ray from either eye leaves the airframe. What showed was EXTERIOR livery on the inside: Fuselage_Painted, Canopy_Sill and
+    Canopy_Frame are double-sided with the outside paint, the dark liner stopped 6-13 cm under the sill, and the wing's skin ran
+    straight through the front cockpit. Fixed: Cockpit_SideLiner_L/R up to the glass's lower edge, the rails' visible inner faces
+    in Paint_cabin, Cockpit_DeckLiner, Cockpit_FirewallPlate, Cockpit_AftBulkhead, the Wing clipped at the fuselage (826 inside
+    triangles dropped, 650 root vertices put onto the skin). Gate: `ExtraCanopySealTests` (rim < 3 mm; from both eyes, no ray
+    reaches exterior paint above the floor without glass between, 3 deg grid, all 3 liveries) + `check_extra_canopy_seal.py`.
+  - **Throttles:** idle grip 0.32 m ahead / 0.23 m below / 0.10 m outboard of each seat's left shoulder (SeatedPilot). Rear lever
+    + quadrant 10 cm lower; front lever moved off the top of the left console (knob was level with the sill) to its inboard face,
+    ~26 cm lower, with its own quadrant plate. **Front knob** = plain 38 mm black ball; rear keeps the pistol grip.
+  - **Fuel valve rod** now runs from the rear handle FORWARD past the front handle to a valve body on the firewall (x +0.60);
+    same two handles, same `fuel_valve` param (no logic change).
+  - **Front IAC card** `FrontPanel_SequenceCard_Face` (108 x 140 mm) on a grey plate right of the front sub-panel; merged
+    lane/claude-cockpit-common: its deck binds it ("card on 2 holder(s)" in the shots).
+  - Pass: `tools/own_models/extra_cockpit_v3.py` (pass 15, docs/SHARED-COCKPIT.md). Tests: ExtraCanopySealTests (6),
+    ExtraCockpitV3Tests (12) + CockpitControlInterior / FuelValve / CockpitCommon / BeltsAndCords: 83/83. Wider filter 854 pass,
+    5 fail (Pitts ground handling on the Pitts' assert, Alpine/HighDesert terrain, glider air brake, RigTests config table;
+    plus NoRed233 Resources = the Grob files tracked on the base). None reads the Extra cockpit; NOT re-run on the base commit. Unity shot batch 0 error CS. iOS build: see the Log line below.
+  - Not done / limits: the shot tool's "moved" pose leaves the throttle at idle, so there is no full-throttle render (clearance
+    through the full 50 deg sweep was measured instead: rear 1.8-3 mm to its console face, front 8-15 mm). The rear-cockpit belly
+    skin is still visible down through the floor-window wells (pass 14; not gated, reported by the check). Codex helper not used.
+
 - **COCKPIT COMMON (Ty's 2026-11-05 spec: IAC CARD SYSTEM, ALL AIRCRAFT, ADDENDUM Cubs) — RENDERS FOR APPROVAL, NOT MERGED
   (Claude, 2026-11-05 06:05, lane/claude-cockpit-common c0fba85c / b0c35552 / cab6944d). Renders + README:
   `~/Developer/agent-lanes/renders/cockpit-1105/claude-cockpit-common/`. Write-up: `docs/COCKPIT-COMMON-1105.md`.
