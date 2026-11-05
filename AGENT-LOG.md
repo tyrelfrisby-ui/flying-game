@@ -1,4 +1,29 @@
 ## NEEDS YOU
+- **WHEEL SKI SWEEP vs TY'S V_p RULE (Claude, 2026-11-04, lane/claude-wheel-hydroplane; local only, not merged, not
+  installed; iOS build: see the Log entry). Two of the rule's halves hold, one does not. Nothing approved by me.**
+  1. **Above V_p, every type with prop and tail clear of the water skis, and where it goes over it is load or moment.**
+     The Extra and the Pitts "went over above V_p" because their V_p was wrong, not their water: your weight rule gave
+     them 18 and 16 psi, a 47 in² footprint on a tyre with 28 in² of planform, i.e. a tyre flat on its rim. Fixed with
+     ONE rule for every tyre (`WheelHydro.FootprintFloorPsi`: no tyre below load / (b·r)): Extra 29.8 psi, V_p 49 kt
+     (skis from 50 kt at 10°, 55 at 6°); Pitts 21.4 psi, 42 kt (skis from 45). Real 5.00-5s run 30–40. No other type
+     moved. Do those pressures look right to you?
+  2. **Nose-low it still goes over above V_p, by the moment, as your rule says**: the Extra at 60 kt held 2° (symmetric
+     wing lifts ~nothing, the wheels carry 1.0 g) goes over in 0.5 s; held 6° (0.3 g on the wheels) it skis. Drag/lift
+     on the tyre = tan(φ/2) ≈ 0.32 beats lever-arm ratio 0.37 m ahead / 1.4 m below = 0.26.
+  3. **The model DOES ski below V_p, by 1–16 kt, on types whose tyres have planform to spare** (J-3 30 vs 31, PA-18 35 vs
+     38, 172 50 vs 55, Beaver 40 vs 49, Stearman 35 vs 46, Pawnee 30 vs 40, P-51 75 vs 91). In this model pressure does
+     not enter the water force at all: a tyre is a rigid planing cylinder, so its floor is the dig-in speed
+     √(2·load/(ρ·C·b·r)), which equals V_p only when the footprint fills b·r. With the wing carrying part of the weight
+     and a fat tyre that floor is under V_p. I did NOT add a cut-off at V_p: it would be a scripted threshold. Is
+     Horne's V_p what you see on DEEP water too (then the round tyre's planing lift below V_p needs a real mechanism —
+     tell me what you see happen), or is skiing a little under V_p when the wing is unloading the wheels right?
+  4. **Prop strike, not water, ends the low-clearance types**: Cassutt, SR22, Glasair, Gee Bee, PA-28 have the prop tip
+     2–16 cm above the tyre bottom at 2–6° (SR22/Glasair/Gee Bee BELOW it at 0°), so any tyre immersion wets a blade
+     (contact-patch lane's full-radius disc). They ski only nose-high (6–10°). Two pre-existing reds come from this
+     (`ALightTouchAtSpeedSkimsAndBreaksNothing` SR22, Glasair: red on HEAD d0e4dd89 too). Is the SR22 config's prop
+     really below its wheels in level attitude?
+  5. **DC-3: 255 psi from the weight rule** (25,500 lb / 100) puts V_p at 144 kt, above its flying speed. A real
+     17.00-16 runs ~50–60. The weight rule breaks for heavy types with big tyres; not changed (a book figure is yours).
 - **FLOAT HYDRO SPEC (2026-11-04): ALL SIX SPEC TESTS GREEN; THREE OLD WATER-RUDDER TESTS STILL RED — YOUR CALL ON THE
   HINGE (Claude, lane/claude-wheel-hydroplane, merged island-nav b7d1a680 in; local only, not installed; iOS 2026.1104.1106
   ** BUILD SUCCEEDED **, 0 error CS, build-ready).**
@@ -2893,6 +2918,61 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 17:00 PST — Claude · lane/claude-wheel-hydroplane · wheel water-ski sweep vs Ty's V_p rule
+- **Ty's ruling:** V_p ≈ 9√psi kt; above it every aeroplane can ski on its wheels unless the load on them (weight − lift,
+  plus the pitch moment of the drag below the CG) beats the water's lift; below it, none can.
+- **Sweep** (`WheelSkiSweepProbe`, opt-in `WHEEL_SKI_SWEEP=1`, `WHEEL_SKI_BELOW=1` for the steps under V_p; output in
+  build/wheel-ski/): every wheeled config from V_p−15 kt (≥ 15) to its skim speed in 5 kt steps, held 2°, 6° and 10°,
+  40 % power, 0.5 m/s touch, 3 m water, 10 s. `WheelWaterTouch` gained `startAtHoldPitch` (opt-in; existing tests
+  unchanged): the first sweep touched down at the glide trim and only then held the attitude, so the SR22 "at 10°"
+  touched at 3.2° with 3 cm of prop clearance — every low-clearance tricycle failed on an attitude nobody chose. It also
+  records the wheels' load in g (LoadFactorZ − AeroLoadFactorZ) while wet.
+- **Table** (V_p of the mains after the fix; Extra/Pitts were 38/36 before it; "over" = pitch < −30° or a prop strike;
+  last column at the minimum ski speed: deepest tyre immersion, wheel g mean/peak, pitch range):
+
+| type | V_p kt | min ski kt | speed kt: 2°/6°/10° (H hold 10 s, O over at t s, S slowed >30 %, A airborne) | at min ski (best att): immersion m, wheel g mean/peak, pitch |
+|---|---|---|---|---|
+| aircam | 36 | 35 | 20:O1.1/O2.0/O1.7 25:O3.0/O3.0/O2.8 30:O4.5/O4.7/O4.4 35:H/H/H 40:H/H/H 45:H/H/H 50:H/H/A | 2°: 0.12, 0.48/1.37, 2..4° |
+| boeing-737 | 129 | 190 | 110:S/S/S 115:S/S/S 120:S/S/S 125:S/S/S 130:S/S/S 135:S/S/S 140:S/S/S 145:S/S/S 150:S/S/S 155:S/S/S 160:S/S/S 165:S/S/S 170:A/S/S 175:A/S/A 180:A/S/A 185:A/S/A 190:A/H/A 195:A/H/A 200:A/H/A | 6°: 0.15, 0.30/0.56, 3..6° |
+| c172 | 55 | 50 | 40:O0.2/O0.3/O1.6 45:O5.6/O4.6/O5.8 50:H/O8.3/H 55:H/H/H 60:H/H/H 65:H/H/A 70:H/H/A | 2°: 0.12, 0.85/1.61, 0..2° |
+| cassutt-f1 | 25 | 30 | 15:O0.1/O0.2/O0.3 20:O0.1/O0.2/O0.3 25:O0.1/O0.2/O0.3 30:O0.1/H/H 35:O0.2/H/H 40:O0.2/H/H 45:O0.2/H/H 50:O0.2/H/S 55:O0.2/H/O6.1 60:O0.2/H/O5.5 65:O0.2/H/O7.2 | 6°: 0.14, 0.60/1.44, 6..8° |
+| cirrus-sr22 | 52 | 60 | 35:O0.1/O0.2/O0.3 40:O0.1/O0.2/O0.3 45:O0.1/O0.2/O0.6 50:O0.1/O0.2/O0.7 55:O0.1/O0.3/O0.8 60:O0.1/H/O1.1 65:O0.1/H/O2.0 70:O0.1/H/S 75:O0.1/H/S 80:O0.1/H/O3.7 85:O0.1/H/S | 6°: 0.12, 0.45/1.25, 5..6° |
+| dc3 | 144 | none | 125:A/A/A 130:A/A/A 135:A/A/A 140:A/A/A 145:A/A/A | - |
+| decathlon-8kcab | 38 | 35 | 20:O0.4/O0.5/O0.5 25:O0.5/O0.7/O0.8 30:O0.7/O2.0/O4.3 35:O2.9/H/H 40:H/H/H 45:H/H/H 50:H/H/H 55:H/H/H 60:H/H/A | 6°: 0.14, 0.59/1.29, 6..8° |
+| dhc2-beaver | 49 | 40 | 30:O0.3/O0.5/O0.9 35:O0.4/O2.8/O2.5 40:O4.5/H/O4.5 45:H/H/O6.8 50:H/H/O9.8 55:H/H/H 60:H/H/H 65:H/H/H 70:H/H/A 75:H/H/A 80:H/A/A | 6°: 0.18, 0.56/1.27, 6..9° |
+| extra-300 | 49 | 50 | 30:O0.3/O0.4/O0.4 35:O0.3/O0.4/O0.4 40:O0.3/O0.4/O0.5 45:O0.3/O0.5/O0.6 50:O0.4/O0.6/H 55:O0.4/H/H 60:O0.5/H/H 65:O1.7/H/H 70:H/H/H 75:H/H/A 80:H/H/A | 10°: 0.17, 0.29/0.97, 6..10° |
+| f86-sabre | 111 | 100 | 95:S/S/S 100:H/H/H 105:H/H/H 110:H/H/H 115:H/H/H 120:H/H/H 125:H/H/H 130:H/H/H 135:H/H/H 140:H/H/H 145:H/H/H 150:H/H/H 155:H/H/H 160:H/H/H 165:H/H/A 170:H/H/A 175:H/H/A | 2°: 0.23, 0.97/1.91, 0..2° |
+| geebee-r2 | 48 | 55 | 30:O0.1/O0.2/O0.3 35:O0.1/O0.2/O0.3 40:O0.1/O0.2/O0.3 45:O0.1/O0.2/O0.4 50:O0.1/O0.2/O0.6 55:O0.1/O0.2/H 60:O0.1/O0.8/H 65:O0.1/H/O9.7 70:O0.1/H/O7.8 75:O0.1/H/O5.8 80:O0.1/H/O3.4 85:O0.1/O9.2/O5.6 90:O0.1/O7.2/O6.5 95:O0.1/O4.6/O7.6 100:O0.1/O4.5/O8.6 | 10°: 0.13, 0.27/1.13, 7..10° |
+| glasair3 | 44 | 60 | 25:O0.1/O0.2/O0.3 30:O0.1/O0.2/O0.3 35:O0.1/O0.2/O0.3 40:O0.1/O0.2/O0.4 45:O0.1/O0.2/O0.5 50:O0.1/O0.2/O0.7 55:O0.1/O0.2/O0.9 60:O0.1/O0.2/H 65:O0.1/O0.3/H 70:O0.1/O0.6/H 75:O0.1/O0.7/H 80:O0.1/H/O9.9 85:O0.1/H/O7.8 90:O0.1/H/O5.4 95:O0.1/H/O5.7 100:O0.1/H/O7.3 105:O0.1/O9.9/O8.8 110:O0.1/O6.7/A | 10°: 0.09, 0.44/1.07, 5..10° |
+| great-lakes | 38 | 40 | 20:O0.4/O0.4/O0.5 25:O0.4/O0.5/O0.5 30:O0.5/O0.7/O0.6 35:O0.8/O8.2/O1.1 40:H/H/H 45:H/H/A 50:H/A/A | 2°: 0.13, 0.40/0.97, 1..3° |
+| j3-cub | 31 | 30 | 15:O0.3/O0.4/O0.5 20:O0.4/O0.6/O0.9 25:O1.0/O2.1/O3.2 30:O3.7/H/H 35:H/H/H 40:H/H/H 45:H/H/H | 6°: 0.10, 0.61/1.15, 6..7° |
+| jn4-jenny | 39 | 30 | 20:O0.5/O0.8/O0.8 25:O2.5/O3.6/O3.7 30:H/H/H 35:H/H/H 40:H/H/A | 2°: 0.13, 0.44/1.05, 2..10° |
+| p51d | 91 | 75 | 75:O0.6/H/H 80:O1.4/H/H 85:H/H/H 90:H/H/H 95:H/H/H 100:H/H/H 105:H/H/H 110:H/H/H 115:H/H/S 120:H/H/A | 6°: 0.24, 0.64/1.22, 4..6° |
+| pa18-bush | 25 | 25 | 15:O0.5/O0.6/O0.7 20:O0.9/O1.6/O1.9 25:O3.0/O9.4/H 30:H/H/H 35:H/H/H 40:H/H/H 45:H/H/H 50:H/H/H 55:H/H/A | 10°: 0.22, 0.62/1.26, 10..13° |
+| pa18-cub | 38 | 35 | 20:O0.3/O0.4/O0.5 25:O0.3/O0.5/O1.0 30:O0.8/O2.4/O3.8 35:O4.0/H/H 40:H/H/H 45:H/H/H 50:H/H/H 55:H/H/A | 6°: 0.13, 0.55/1.17, 6..7° |
+| pa25-pawnee | 40 | 30 | 25:O0.2/O0.3/O1.2 30:O0.2/H/O3.1 35:O0.2/H/O7.3 40:O0.2/H/H 45:O0.2/H/H 50:H/H/H 55:H/H/A 60:H/A/A | 6°: 0.17, 0.45/1.12, 5..7° |
+| pa28-archer | 44 | 45 | 25:O0.2/O0.2/O0.3 30:O0.2/O0.2/O0.3 35:O0.2/O0.2/O0.3 40:O0.2/O0.3/O1.8 45:O0.2/O6.5/H 50:O0.2/H/H 55:O0.2/H/H 60:O0.2/H/H 65:O0.2/H/O1.1 70:H/H/O1.5 | 10°: 0.09, 0.66/0.98, 5..10° |
+| pitts-s2b | 42 | 45 | 25:O0.3/O0.3/O0.3 30:O0.3/O0.4/O0.4 35:O0.3/O0.4/O0.5 40:O0.4/O0.6/O1.0 45:O0.5/H/H 50:O0.8/H/H 55:H/H/S 60:H/H/O7.6 65:H/H/A 70:H/H/A | 6°: 0.15, 0.34/1.01, 6..9° |
+| seminole | 55 | 75 | 40:S/S/S 45:S/S/S 50:S/S/S 55:S/S/O7.9 60:S/S/S 65:S/S/S 70:S/S/S 75:S/H/S 80:H/H/S 85:H/H/O4.5 | 6°: 0.08, 0.53/0.76, 3..6° |
+| stearman-pt17 | 46 | 35 | 30:O0.3/O0.7/O1.9 35:O0.7/O5.6/H 40:O7.7/H/H 45:H/H/H 50:H/H/H | 10°: 0.11, 0.38/0.85, 8..10° |
+| target-drone | 25 | 30 | 15:O0.1/O0.2/O0.3 20:O0.1/O0.2/O0.3 25:O0.1/O0.2/O0.3 30:O0.1/H/H 35:O0.2/H/H 40:O0.2/H/H 45:O0.2/H/H 50:O0.2/H/H 55:O0.2/H/O6.9 60:O0.2/H/O5.1 65:O0.2/H/O7.0 | 6°: 0.14, 0.59/1.44, 6..8° |
+
+- **Root cause of the Extra/Pitts failures above V_p:** `WheelHydro.Force` never reads the pressure; the most a tyre can
+  lift is ½ρV²·C·b·r (front arc at the axle). At V_p that is p·b·r, so V_p is the speed at which the water can carry
+  the static load only if load/p ≤ b·r. Extra 3,748 N per main at 18 psi needs 47 in² against 28 in² (b·r);
+  Pitts 3,243 N at 16 psi against 34 in². **Fix:** `WheelHydro.TirePressurePsi` is held to
+  `FootprintFloorPsi = StaticLoadN / (b·r)` (static share from the moment balance of mains vs nose/tail). Book figures
+  and the weight rule stand wherever they are physically possible (every other type). The force law is unchanged, so
+  every number in the table is the same before and after; only the Extra's and Pitts' V_p column moved.
+- **Tests:** `NoTyreIsBlownBelowWhatCarriesItsLoadSoEveryTyreCanCarryItAtVp` (literals by hand: Extra 29.8 psi/49.1 kt,
+  Pitts 21.4, PA-18 18, 172 38/29, J-3 12.2; every leg of every wheeled type: static dig-in ≤ V_p);
+  `ASmallTyredAerobatGoesOverBelowItsVpAndSkisAboveIt` (Extra 45 over / 55 holds; Pitts 40 / 45);
+  `AboveVpTheExtraStillGoesOverNoseLowBecauseTheDragMomentWins` (60 kt: 6° skis, 2° over, wheel g > 2×).
+  WheelHydro/WheelWater/WaterSki/WaterBreakup: 46 of 48 pass; the 2 reds (SR22, Glasair light touch, prop strike) fail
+  identically on HEAD d0e4dd89 in a clean worktree.
+- **Not done:** no cut-off at V_p for the sub-V_p skiing (NEEDS YOU 3); low prop clearances and the DC-3's 255 psi are
+  config questions (NEEDS YOU 4, 5). 737 and Seminole "slowed" at 40 % power: not enough thrust against the water drag
+  at that setting, not a nose-over.
 ### 2026-11-04 11:30 PST — Claude · lane/claude-wheel-hydroplane · float hydrodynamics spec (Ty, agent-lanes/float-hydro-spec.txt)
 - **Merged lane/claude-island-nav (b7d1a680) into this lane** (only AGENT-LOG conflicted: both sides kept). It brought
   the drawn, retractable water rudder (lane/claude-j3-water-rudder), the crash/contact-patch work and an intermediate copy

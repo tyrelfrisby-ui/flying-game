@@ -169,6 +169,57 @@ public class WaterSkiTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
+    /// <summary>Ty's rule (2026-11-04) on the two small-tyred aerobats: no ski below V_p, a ski above it. V_p is their
+    /// footprint floor's (Extra 29.8 psi → 49 kt, Pitts 21.4 → 42 kt; the owner's weight rule had put them at 38 and 36,
+    /// below the speed their tyres can hold them up at). Flown at the held attitude, 40 % power, a 0.5 m/s touch. Sweep
+    /// 2026-11-04: Extra 45 kt over in 0.5 s, 55 kt holds; Pitts 40 kt over in 0.6 s, 45 kt holds.</summary>
+    [Theory]
+    [InlineData("extra-300-like", 45.0, 55.0)]
+    [InlineData("pitts-s2b-like", 40.0, 45.0)]
+    public void ASmallTyredAerobatGoesOverBelowItsVpAndSkisAboveIt(string id, double belowKt, double aboveKt)
+    {
+        FloatHydro.FlatWaterOverride = 3.0;
+        try
+        {
+            AircraftConfig cfg = Load(id);
+            GearConfig main = cfg.Gear.First(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3);
+            double vpKt = WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(cfg, main)) / 0.514444;
+            Assert.InRange(vpKt, belowKt, aboveKt);
+            var slow = WheelWaterTouch.Run(cfg, 0.5, 10.0, speed: belowKt * 0.514444, throttle01: 0.4, holdPitchDeg: 6, startAtHoldPitch: true);
+            var fast = WheelWaterTouch.Run(cfg, 0.5, 10.0, speed: aboveKt * 0.514444, throttle01: 0.4, holdPitchDeg: 6, startAtHoldPitch: true);
+            _out.WriteLine($"V_p {vpKt:F1} kt");
+            _out.WriteLine($"{belowKt} kt: " + slow);
+            _out.WriteLine($"{aboveKt} kt: " + fast);
+            Assert.True(slow.NoseOverAt > 0, $"{belowKt} kt is below V_p and should not ski");
+            Assert.True(fast.NoseOverAt < 0, $"{aboveKt} kt: over at {fast.NoseOverAt:F1} s");
+            Assert.True(fast.TouchedFraction > 0.8 && fast.MinSpeed > 0.85 * fast.V, $"touching {fast.TouchedFraction:P0}, Vmin {fast.MinSpeed:F1}");
+            Assert.True(fast.Lost.Count == 0 && fast.Damage.Count == 0);
+        }
+        finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
+    /// <summary>The moment half of Ty's rule: above V_p it still goes over if the load on the wheels makes too much drag
+    /// below the CG. The Extra at 60 kt (V_p 49): held 6° the wing carries most of it and it skis; held 2° the symmetric
+    /// wing lifts next to nothing, the tyres carry it about 35° up the arc, drag/lift = tan(φ/2) ≈ 0.32, and drag 1.4 m
+    /// under the CG beats the mains' lift 0.37 m ahead of it (0.37/1.4 = 0.26). Nothing about the attitude is scripted.</summary>
+    [Fact]
+    public void AboveVpTheExtraStillGoesOverNoseLowBecauseTheDragMomentWins()
+    {
+        FloatHydro.FlatWaterOverride = 3.0;
+        try
+        {
+            AircraftConfig cfg = Load("extra-300-like");
+            var up = WheelWaterTouch.Run(cfg, 0.5, 10.0, speed: 60 * 0.514444, throttle01: 0.4, holdPitchDeg: 6, startAtHoldPitch: true);
+            var low = WheelWaterTouch.Run(cfg, 0.5, 10.0, speed: 60 * 0.514444, throttle01: 0.4, holdPitchDeg: 2, startAtHoldPitch: true);
+            _out.WriteLine("6 deg: " + up + $" wheel g {up.MeanWheelG:F2}");
+            _out.WriteLine("2 deg: " + low + $" wheel g {low.MeanWheelG:F2}");
+            Assert.True(up.NoseOverAt < 0, $"6 deg: over at {up.NoseOverAt:F1} s");
+            Assert.True(low.NoseOverAt > 0, "2 deg: should go over");
+            Assert.True(low.MeanWheelG > 2 * up.MeanWheelG, $"nose low the wheels carry more ({low.MeanWheelG:F2} vs {up.MeanWheelG:F2} g)");
+        }
+        finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
     /// <summary>The same pilot and the same water for a 172 and a J-3 (45 kt, nose held 6° up, 40 % power): the J-3 skis;
     /// the 172's nose wheel — 1.25 m ahead of the CG, against the J-3 mains' 0.16 m — goes into the water and it goes
     /// over. Its mains are 6.00-6 at 38 psi (V_p 55 kt) against the J-3's 12 psi (31 kt). Which wheel is "the nose wheel"
@@ -204,7 +255,7 @@ public static class WheelWaterTouch
     public sealed class Result
     {
         public string Id = "";
-        public double[] PeakImmersionM = System.Array.Empty<double>(); public double NoseOverAt = -1, MeanDecelG, TouchedFraction, SpeedAtNoseOver; public double V, PeakDecelG, PeakPitchRateDps, MinSpeed, SpeedAt1s, MaxPitchDeg, MinPitchDeg, TouchAt = -1, PeakNz;
+        public double[] PeakImmersionM = System.Array.Empty<double>(); public double MeanWheelG, PeakWheelG; public double NoseOverAt = -1, MeanDecelG, TouchedFraction, SpeedAtNoseOver; public double V, PeakDecelG, PeakPitchRateDps, MinSpeed, SpeedAt1s, MaxPitchDeg, MinPitchDeg, TouchAt = -1, PeakNz;
         public bool Converged;
         public List<string> Events = new();
         public List<AirframeComponent> Lost = new();
@@ -230,7 +281,7 @@ public static class WheelWaterTouch
         return (40, TrimSolver.SolveGliderTrim(cfg, 40, 10, flapFraction: 0.0, idleProp: true));
     }
 
-    public static Result Run(AircraftConfig cfg, double sinkMs, double secs, double? speed = null, double stick = double.NaN, double throttle01 = 0, Action<string>? log = null, double holdPitchDeg = double.NaN)
+    public static Result Run(AircraftConfig cfg, double sinkMs, double secs, double? speed = null, double stick = double.NaN, double throttle01 = 0, Action<string>? log = null, double holdPitchDeg = double.NaN, bool startAtHoldPitch = false)
     {
         var res = new Result { Id = cfg.Id ?? "" };
         (double v, TrimSolver.Result trim) = SkimSpeed(cfg);
@@ -239,6 +290,8 @@ public static class WheelWaterTouch
         double alpha = trim.Converged ? trim.AlphaRad : 4 / 57.3;
         double gam = Math.Asin(sinkMs / v);
         double th = alpha - gam;
+        // A pilot who arrives at the held attitude (the sweep): the touch is flown at it, not at the glide trim's.
+        if (startAtHoldPitch && !double.IsNaN(holdPitchDeg)) th = holdPitchDeg / 57.2958;
         var q = new Quat(0, Math.Sin(th / 2), 0, Math.Cos(th / 2));
         Vec3 cg = cfg.Mass.CgVec();
         // Lowest point of any tyre, below the CG at this attitude.
@@ -262,7 +315,8 @@ public static class WheelWaterTouch
         res.MinSpeed = v; res.MaxPitchDeg = -999; res.MinPitchDeg = 999;
         Vec3 vPrev = vWorld;
         const double win = 0.05;
-        int touched = 0, windows = 0;
+        int touched = 0, windows = 0, wheelGN = 0;
+        double wheelGSum = 0;
         for (double t = 0; t < secs; t += win)
         {
             if (!double.IsNaN(holdPitchDeg))
@@ -298,11 +352,15 @@ public static class WheelWaterTouch
             bool inContact = wetWheel || ac.AnyGearTouching;
             if (res.TouchAt < 0 && inContact) res.TouchAt = t + win;
             if (inContact) touched++;
+            // What the water carries, in g: the non-aero normal load (thrust is along the body x).
+            double wheelG = ac.LoadFactorZ - ac.AeroLoadFactorZ;
+            if (wetWheel && res.NoseOverAt < 0) { res.PeakWheelG = Math.Max(res.PeakWheelG, wheelG); wheelGSum += wheelG; wheelGN++; }
             if (res.NoseOverAt < 0 && (pitch < -30 || ac.LostComponents.Contains(AirframeComponent.Propeller))) { res.NoseOverAt = t + win; res.SpeedAtNoseOver = vw.Length; }
             log?.Invoke($"t={t + win:F2} V {vw.Length:F1} decel {decel:F2} g h {-s.Position.Z:F2} pitch {pitch:F1} q {s.Rates.Y * 57.3:F0} nz {ac.LoadFactorZ:F2} gear {ac.AnyGearTouching}");
             vPrev = vw;
             windows++;
         }
+        res.MeanWheelG = wheelGN > 0 ? wheelGSum / wheelGN : 0;
         res.TouchedFraction = windows > 0 ? (double)touched / windows : 0;
         res.MeanDecelG = (v - res.MinSpeed) / secs / 9.81;
         res.Lost = ac.LostComponents.ToList();
