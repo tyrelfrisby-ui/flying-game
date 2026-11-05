@@ -1544,7 +1544,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "tire": "scott-8in", "tirePressurePsi": 16,
+      "tire": "scott-8in", "tirePressurePsi": 31.8,
       "steerSpringNmPerRad": 20
     }
   ],

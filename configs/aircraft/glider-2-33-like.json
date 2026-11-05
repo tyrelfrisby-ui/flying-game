@@ -1591,7 +1591,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "tire": "5.00-5", "tirePressurePsi": 18
+      "tire": "5.00-5", "tirePressurePsi": 28.7
     },
     {
       "pos": [

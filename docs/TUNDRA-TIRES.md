@@ -122,9 +122,25 @@ rated pressure (`MaxPsi`), w is section width and d is outside diameter.
 
 - **Every wheel leg in 28 configs:** `tireRadiusM` and `wheelMassKg` were replaced by `"tire": <id>` and
   `"tirePressurePsi"`.
-  - Pressures are the values in effect before: book figures, else the owner's gross/100 rule.
-  - **Exception:** the 2-33 main goes from 6.2 to 18 psi, the 5.00-5's floor (EST). 6.2 psi was the rule's figure, and
-    it would have bottomed the tyre now that pressure is a spring.
+- **Pressures** are the values in effect before (book figures, else the owner's gross/100 rule).
+  - **Raised legs:** on a researched tyre, a leg whose rule pressure left the tyre below its RATED DEFLECTION for its
+    static load was raised to the pressure that puts it there (TR R-64 eq. 27, `TireCatalog.PressureForLoadPsi`). No
+    leg was lowered. The gross/100 rule decided only planing before; it is now the tyre's spring, and at 24 psi a
+    Glasair's 5.00-5 under 1,090 kg sits on its rim:
+
+    | config | leg | before | after (psi) |
+    |---|---|---|---|
+    | glasair3-like | mains | 24 | 44.7 |
+    | glider-2-33-like | main | 6.2 | 28.7 |
+    | decathlon-8kcab-like | mains | 18 | 21.0 |
+    | decathlon-8kcab-like | tail | 14.4 | 28.6 |
+    | great-lakes-like | mains | 18 | 21.0 |
+    | great-lakes-like | tail | 14.4 | 28.6 |
+    | seminole-like | mains | 38 | 42 |
+    | pa25-pawnee-like | tail | 16 | 31.8 |
+    | aircam-like | tail | 12.9 | 25.6 |
+
+  - **Unchanged:** the book figures (C172, PA-28, PA-18s, Beaver, 737).
 - **pa18-bush-like:** 351510.R1 at 8 psi.
 - **pa18-cub-like:** 8.00-6 at 18 psi.
 - **dhc2-beaver-like:** stock 8.50-10 at 30 psi; `tundraTire: 351510.R`, the option's tyre (10.1 psi for its static

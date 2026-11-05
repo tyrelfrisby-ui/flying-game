@@ -1515,7 +1515,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 14000,
-      "tire": "6.00-6", "tirePressurePsi": 38
+      "tire": "6.00-6", "tirePressurePsi": 42
     },
     {
       "pos": [
@@ -1531,7 +1531,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 14000,
-      "tire": "6.00-6", "tirePressurePsi": 38
+      "tire": "6.00-6", "tirePressurePsi": 42
     }
   ],
   "limits": {

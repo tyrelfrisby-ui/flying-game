@@ -171,7 +171,11 @@ public class WheelHydroTests : IDisposable
         var noBook = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "decathlon-8kcab-like.json"));
         GearConfig dm = noBook.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         double dLb = noBook.Mass.MassKg * 2.20462;
-        Assert.Equal(dLb / 100.0, TirePressure.Psi(noBook, dm), 1);
+        // The rule's 18 psi left the Decathlon's 6.00-6 below its rated deflection once pressure became the tyre's
+        // spring (2026-11-04), so its config states the pressure that puts it there (TR R-64 eq. 27): 21.0, never
+        // below the rule's figure.
+        Assert.Equal(21.0, TirePressure.Psi(noBook, dm), 1);
+        Assert.True(TirePressure.Psi(noBook, dm) >= dLb / 100.0 - 0.05);
         // The old bushwheel rule (gross / 200) is retired: the option fits a real tundra tyre at the pressure that puts
         // it at its rated deflection, inside its own range (TireCatalog.PressureForLoadPsi).
         noBook.Bushwheels = true;
