@@ -248,6 +248,12 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   EngineRunning false / EngineStarved true like a cut-off mixture (prop windmills, EngineStopped stays damage-only).
   FuelValveTests rewritten to that; filter FuelValve|Mixture|Engine|Prop|Cockpit... 78/78. iOS deploy.sh from this lane
   (= island-nav 04108b33 + this work): ** BUILD SUCCEEDED ** 2026.1105.0002, installed iPhone + iPad mini.
+- Merged island-nav f3fec13a (Pitts lane: shared instrument style, Electrics bus, my valve code already in it). Extra GLBs
+  taken from island-nav (restyled) and pass 13 re-run on them (Glb.save restyles the new EGT/CHT face).
+- FOUND AND FIXED (both platforms, in flight): CockpitLive.For("extra-300-like-own") still returned the pre-P3b
+  rear_panel.py table, whose Hide list switched off the renderers of Needle_ASI_R / Alt / G / Tach / MP / OilP / OilT,
+  i.e. the LIVE rear panel's needles. The Extra now gets an empty spec (its own rig does everything);
+  CockpitLiveTests.TheExtraIsLeftToItsOwnRig. Seen only because CockpitEyeShots now runs CockpitLiveParts like the game.
 
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
