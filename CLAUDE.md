@@ -577,3 +577,10 @@ whose command lines contain the same words, and theirs matched mine. Every lane 
 running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
 the start of the command line so only real build processes count:
 `'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.
+
+### A collision check must not count your own build's children
+After an 8 s overlap with another lane's deploy (three 20 s idle polls are a race when several lanes queue), I added a
+"did anyone else start a deploy in my first 30 s?" back-off. It matched `zsh tools/deploy/deploy` and skipped only my own
+PID, but deploy.sh's own subshells carry the same command line, so every start "collided" with itself and was killed;
+ten starts in 30 min, then the 2 h limit. Count only top-level deploys (parent is not itself a deploy.sh), dry-run the
+check against `ps` once before trusting it, and poll often (10 s) with a random wait and a re-check just before launch.
