@@ -54,6 +54,24 @@ public class WheelWaterTests
             var r = WheelWaterTouch.Run(cfg, 0.5, 2.5);
             _out.WriteLine(r.ToString());
             Assert.True(r.TouchAt > 0, "the wheels never reached the water");
+            if (id == "glider-swift-s1-like")
+            {
+                // Ty 2026-11-04 20:24: the Swift's real 300x100 monowheel (r 0.15 m) is too small to plane at the 25 m/s
+                // touch. It ploughs at ~0.5 g for 1.5 s (dig-in speed 24.1 m/s with the full weight on it, and the wheel
+                // takes more of the weight as the wing slows), the nose dips into the water at ~17 m/s, and the nose may
+                // break off. That is plausible, but only through the water's LOAD on the joint
+                // (AirframeFlooding.CheckJoints: 2.1 kN along the fuselage against 1.6 on 2026-11-04), never because
+                // water was touched. So every loss must be a logged load over its ultimate, and the wings must hold.
+                foreach (AirframeComponent lost in r.Lost.Where(c => c is not (AirframeComponent.GearNose or AirframeComponent.GearTail)))
+                {
+                    string why = r.Damage.FirstOrDefault(d => d.StartsWith(lost + " broken off in the water")) ?? "";
+                    Assert.False(why == "", $"{lost} lost without a water load over its ultimate: [{string.Join("; ", r.Damage)}]");
+                    var kn = System.Text.RegularExpressions.Regex.Matches(why, @"(\d+\.\d)").Select(m => double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+                    Assert.True(kn.Count == 2 && kn[0] > kn[1], $"{lost}: '{why}' is not a load over its ultimate");
+                }
+                Assert.False(r.WingsFailed);
+                return;
+            }
             if (id == "boeing-737-like")
             {
                 // 200 kt: the tyres plane (V_p 129 kt), but a light touch still pitches the nose down onto the water,

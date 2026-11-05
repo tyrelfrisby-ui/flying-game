@@ -1,4 +1,100 @@
 ## NEEDS YOU
+
+## NEEDS YOU — CARDBOARD VR ON THE iPHONE 17 PRO (Claude, 2026-11-04 ~20:00 PST, lane/claude-vr-stereo-merge)
+Ty 19:39: "I have the cardboard vr headsets for the iphone now". lane/codex-vr-stereo (lens-distortion compositor,
+in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carry it. How to use it:
+- **Turn it on (phone OUT of the viewer):** OPTIONS (top right) → **Controls** tab → tick **"VR (Cardboard headset):
+  split screen, full head tracking"**. Only shown on a device with a gyro. The screen locks landscape-left (charge port
+  to your RIGHT) and stops sleeping. Under the tick: **"Eye spacing (IPD)"** slider 55–75 mm (63 default) and a
+  **"Recentre the view"** button. Close OPTIONS, then put the phone in the viewer.
+- **It stays on across relaunch** (PlayerPrefs `vr.on`): the app reopens split-screen. Menus (landing page, OPTIONS)
+  still draw FLAT across both halves on purpose so you can always turn VR off — but you must take the phone out to read
+  or tap them. There is no in-headset menu on the phone (the Quest has one; Cardboard does not).
+- **Flying in the headset needs a gamepad** (8BitDo/MFi/Xbox/PS via the Input System, `GamepadInput`; no profile
+  needed) or a calibrated joystick. The touch controls are hidden, and as of this merge also INERT in VR, so a
+  trigger press cannot hit an invisible RESET or BAIL. Gamepad Menu (Start) still opens OPTIONS (flat).
+- **Recentre:** hold the screen / Cardboard trigger **0.6 s**, or click the gamepad's **right stick (R3)** (added in
+  this merge; before, R3 only recentred the mono look), or the Options button.
+- **No QR / viewer-profile scan.** The lens is fixed: generic Google Cardboard v2 (k1 0.336, k2 0.553, 63.9 mm lenses,
+  39.3 mm screen-to-lens, 60° each way) from configs/vr-cardboard.json, copied to StreamingAssets at build. A viewer
+  that is not a v2 needs its own numbers in that file. Screen size comes from Screen.dpi (326 dpi fallback).
+- **Check on the headset:** image upright and fused; straight lines straight at the edges (distortion strength);
+  red/blue fringe at the edges; HUD (IAS kt / ft MSL / heading, 1.5 m ahead, low) legible and comfortable; frame rate;
+  where the trigger actually lands (it must not open OPTIONS, top right). Nothing here is approved.
+- Validation: VrStereo+VrDistortion 52/52. Full suite 2487 passed / 216 failed (2709, 1 h 53 m, machine loaded); the 141
+  failing methods re-run alone on the merge AND on base 0bb87c67 fail the identical 124 cases — nothing new. iOS export
+  0 `error CS`, xcodebuild Release generic iOS `** BUILD SUCCEEDED **` (own output dirs, not installed). Quest: Cardboard
+  cannot start there (`VrMode.Available` is false while `XrHeadset.Active`, the toggle is OnGUI-only and QuestMenu has no
+  VR switch, so `vr.on` is never set); its shaders are plain CG in Resources. No Quest build was run for this merge.
+
+## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
+<!-- crash-reset needs-you -->
+Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, one lane. NOTHING approved by me.
+- **Ty, please check on the iPhone / iPad mini (2026.1104.2107) and Quest (2026.1104.2141):**
+  1. Crash, then **Restart**, then crash and **Relocate** (another field), then crash and **pick another aircraft**:
+     each time a whole, flyable aeroplane (no bent tip / tail / prop, engine runs, controls answer, no crash
+     sounds or spray carrying on). Also force-quit and relaunch after a crash.
+  2. **Crash on snow**: the dust must be white (ice: light grey; grass: green-brown; pavement grey).
+  3. **C172 cockpit**: the cabin, panel, raised yoke and 5.4 suction gauge must be there, and you can see out.
+     **Decision for you:** the 172 now draws OUR model everywhere, so its OUTSIDE is our plain grey model
+     (no paint, ailerons not rigged) instead of the textured downloaded one. Keep it, or ask for
+     "downloaded outside + our cabin" as a follow-up?
+- **Crash reset, root cause.** The sim was always fresh: every Restart / Relocate / aircraft change builds a new
+  Aircraft (FlightSimDriver.Spawn). The wreck lived on in the DRAWN model: AirframeVisual (old LateUpdate
+  lines ~80-85) rebuilt a damaged model only if the NEW aeroplane, a frame later, had lost nothing and had no
+  crush, and OnAircraftChanged (~line 60) rebuilt only for a new type, lost wings or a lost canopy. A bent wing
+  panel (ShowPanelBend) set no flag at all, and the struck prop / bent tail / engine mount waited on the new
+  aeroplane's state. So a same-type Restart or Relocate kept the wreck drawn on a healthy aeroplane.
+  I could not reproduce "different airplanes" from the code (a type change always rebuilt). The fix covers it
+  anyway, because any damage drawn for another Aircraft instance now rebuilds.
+- **Persisted? No.** Force-quit + relaunch clears it. Ty's iPhone PlayerPrefs (pulled 17:30) hold only set.* and
+  support.lastCrash (the last software exception, 09:22); nothing writes a crash/wreck/damage to prefs or files.
+- **Fix:** FlightSimDriver.AirframeReplaced, raised from the Sim setter the moment ANY new Aircraft is installed
+  (every spawn path + AdoptSim), before its first step = the one reset. AirframeVisual.ShowsDamage (wings, parts,
+  prop, fuselage bend, bent panels, canopy) rebuilds on it, and whenever the damage belongs to another Aircraft
+  instance. StructuralDamage.Repair, FlightAudio (delayed crunches, crash/flood voices), CrashWaterVisuals
+  (spray/foam/vents/rings) clear on it too. Crash physics untouched.
+- **Snow dust, root cause:** ContactEffects (the one ground dust emitter; scrapes, slides, prop/ground strikes)
+  already picked a colour per surface, but its material used FlyingGame/UnlitTransparent, which ignores the particle
+  colour. Every puff was brown. Now FlyingGame/Spray (mist) + Core CrashDust.For(ContactPoint.SurfaceCode), the
+  contact model's own WorldTerrain.SurfaceAt. Snow white powder, glacier ice light-grey chips, water blue-white
+  spray, paved/solid grey, gravel brown, grass + Rough pasture green-brown, unknown = old brown. Other particle
+  emitters checked: CrashWaterVisuals and FloatSplash (water, already white), DamageFx (fuel/fire/smoke), combat hits
+  and crop dust. None of them is a ground emitter.
+- **C172 transparent cockpit, root cause: not the yoke merges.** The yoke merges (9a6c9177 / 4b902fca) changed only
+  the yoke and suction meshes, and the GLB kept 163 nodes and all opaque materials. The game never drew our 172 by default.
+  AirframeModels.PickOwn used it only with "own models" on, default off (SessionSettings.cs:71, since
+  6f2c1f7f). Ty's prefs have set.ownModels=0, so he got the downloaded c172-like.obj, a shell with no cabin, culled
+  from inside. Every interior render forced own models on. Fixed (with the parallel sub-agent): c172-like in
+  LiveryChoice.OwnModelAlways. Turning it on exposed three more faults, all fixed: the model was placed TAIL FIRST
+  (Spec right -> left); it sat 1.73 m aft (new Spec.AtDatum: the GLB is drawn in the config frame); and the 5
+  Glass.* primitives had no material and drew opaque (JSON-only 172_glass BLEND 0.30 patch; binary, nodes and the 16
+  materials unchanged, yoke + suction kept). tools/model_c172.py does not emit 172_glass yet, and
+  C172InteriorVisibleTests fails if a rebuild drops it. Quest still hides the 172 (QuestFleet: eye not checked).
+  Other aircraft: own GLBs of Extra, Pitts, 2-33, Great Lakes and J-3 all have interior nodes and opaque materials
+  (only intended BLEND: GL compass cut-out). Not the same fault.
+- **Renders:** `~/Developer/agent-lanes/renders/c172-interior-fix/` (Unity, shipped settings, own models OFF): pilot-eye panel /
+  yoke / left door / aft, copilot panel, `exterior/`. I opened panel, yoke and 3q-front: panel with the 1 in suction
+  gauge, both raised yokes, quadrant, seats, floor; windscreen and door glass see-through; outside nose first, plain grey.
+- **Tests** (expected values literals): CrashResetTests (restart / relocate / new type after the scripted crash, C172 +
+  Pitts: intact, 2416 / 2700 rpm, 93 / 200 deg/s roll; NoCrashStateIsPersisted), CrashDustTests (8),
+  C172InteriorVisibleTests (4), editor batch CrashResetCheck PASS (real AirframeVisual + StructuralDamage, 0 error CS).
+  Merged tree: C172|OwnPitts|Livery|QuestFleet|CrashReset|CrashDust 100/100. Wide filter (Crash|Damage|Wreck|Debris|
+  Breakup|Spawn|Engine|Contact|StreamingAssets|Livery|C172|Quest|Fleet) branch vs base 73d7702b, each failure re-run
+  alone on both: 5 identical on base (ApproachSpawn 2-33 + PA-18, FloatLanding 0.5, StreamingAssets x2); 2 load-timing
+  ones (IslandCombat wreck cost, QuestFrameBudget) pass alone; no new failures. (The wide run overlapped another
+  lane's Unity tests, so it is a comparison, not a count.)
+- **Commits:** lane/claude-crash-reset 28e1005c (reset), 6b48fd51 (dust), bd7861e8 (C172), 1c9c63ad (island-nav tip),
+  then this log. island-nav 65f431be, 879e0cd4 (GLB conflict: island-nav's db87f77c wing-skin GLB + the same glass
+  patch). quest 7ed003b6, e535509c. PARITY: OK both.
+- **Builds / installs:** iOS 2026.1104.2107 (** BUILD SUCCEEDED **, 0 error CS, island-nav 662e1b5e, which also carries
+  kill-red-233 + smoke-volume): installed + launched on Ty's iPhone (was 2026.1104.1713, not an island-nav build,
+  probably the TV-companion lane) and the iPad mini (was 1648). Quest 2026.1104.2141 (deploy-quest.sh, 0 error CS, PARITY: OK, quest 95b71cca):
+  installed + launched on the Quest 3S. Both builds were run by the smoke-volume
+  lane's deploy script from the same worktrees right after my merges; I verified their logs instead of building the
+  same commit twice. Build byproducts left uncommitted.
+
+## NEEDS YOU (continued)
 - **SMOKE THICKER AND LASTING — LANE lane/claude-smoke-volume (Claude, 2026-11-04 21:00 PST; Ty's 18:27 report "disappears way
   too quickly … even more transparent … should stick around longer and be thicker, more white"):** the trail now holds
   0.95 coverage at 5 s, 0.83 at 20 s, 0.66 at 45 s and fades out in patches over 55–85 s (899ada84: 0.65 / 0.11 / 0.00).
@@ -77,6 +173,36 @@
 - Editor tool HingeSlaveStrutShots (-out dir) renders and measures both in the engine (exits 1 if a strut end is > 3 mm
   off its pin).
 
+## NEEDS YOU — fly-check the Knik gravel strip (Claude, 2026-11-04 21:10 PST, lane/claude-knik-gravel)
+- Ty: the Knik ski zone is gone; the Knik landing is now the **Knik River bar strip** on the C4 valley floor just below
+  the glacier snout: centre (-5.150, -0.740) km, **108 deg true** (10/28), **1,200 x 60 ft gravel at 103 ft**, one-way
+  (land 108 up-valley toward the glacier, take off 288). Fly a tundra-tyre Cub/Super Cub down the valley over the Knik
+  ice lake and land; say whether the place, length, one-way use and the wire W3 crossing the final (pole 14.6 m under a
+  3 deg path, 1.43 km out) are right. Renders: ~/Developer/agent-lanes/renders/knik-gravel/. Nothing approved; no gate marked.
+- Also decide: the relief regeneration moved ground island-wide (28 % of land > 1 m, 9 % > 10 m, single spots to 270 m;
+  every authored pad/lake/summit/Fairweather zone exact); snow patches 4 -> 3 (no 5 deg one). Accept, or ask for a fix.
+- Build: deploy.sh ** BUILD SUCCEEDED ** 2026.1104.2155 (dummy UDID, NOT installed; byproducts not committed). Queue: Q041.
+
+### 2026-11-04 Knik ski zone -> Knik River gravel bar strip (Claude, lane/claude-knik-gravel off island-nav 0bb87c67)
+- Spec: glacier "Knik" keeps its path, no "ski_zone"; new world.bush_strips[0] "Knik River" (gravel, one-way 108, pad
+  15/50/40 m, no buildings, windsock only). Everything reading ski_zone skips a glacier without one (runtime height
+  index + reference, SurfaceTables, TerrainGen constraints/surfaces, Python evaluator, chart, reports). Fairweather keeps
+  its crest (shape picked by list position, unchanged).
+- Approach: runway_finals gives a one-way field a Part 77 surface on its landing end only; per-field visual_surface
+  (start at end of the end shoulder, margin 0) and per-surface half_width_km/widen (Part 77 utility: 38 m + 10 %;
+  defaults 0.15 km + 5 % so every other runway end is unchanged). Found on the way: a 10 m margin cut a 10 m trench
+  across the level canyon floor at the threshold; a "river" key made TerrainGen lean the C4 walls back (Frank Church rule).
+- Relief regenerated (TerrainGen check byte-identical). Python/C# parity 9,551 pts max 1.2e-11 m. Site literals
+  (patches, ledges, boulders, glacier areas) re-copied from the generate log/surfacepoints. Docs: ISLAND-TERRAIN-CLAUDE.md
+  12.6 rewritten + new 12.8; ISLAND-WORLD-PLAN.md; island-map.svg/png regenerated (map only; the evidence package is stale since before this lane).
+- Tests: new IslandSurfaceTests.TheKnikLandingIsAGravelBarStripBelowTheGlacier + TheKnikRiverStripHasAClearApproachDownTheValley;
+  ski-zone test now Fairweather only. IslandSurfaceTests+NaturalSurfaceTests 21/21. 15 island-related classes vs base:
+  same 15 pre-existing failures (HighDesert, MountainRoughness, MountainFront, 2 Forest) plus ONE newly red:
+  IslandWaterAndNormalTests.AnalyticGradient... at (E 4.2574, N 0.9433), the C2-MF4/MF5 canyon junction. Not caused
+  here: same wrong analytic gradient on the base commit; adding a field shifted the test's every-11th sampling onto it. Reported, not fixed.
+- Not here: the legacy AlaskaRange world (WheelSkiTests/GlacierLandingZoneTests "Knik") is a different, unbuilt world; untouched.
+  No spawn, lesson or challenge referenced the Knik ski zone; gameplay-inventory text re-pointed.
+
 ## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
 - Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
   (card centred; ASI over g-meter left; altimeter over turn coordinator right; Trig radio/xpdr left; 3-in-1 oil P / oil T /
@@ -146,6 +272,144 @@
   passes (BRANCH DAMAGE amount). Open decisions: structureType tags, aluminium crush-first at √2× break speed (composite
   1.15×, wood 1.24×), no canopy part, bullets still take steel-tube tails.
 <!-- /crash-tuning needs-you -->
+<!-- tire-spinup needs-you -->
+- **Q026 ITEM 3: P-51 ROLLOUT PROP STRIKE AND SWIFT WATER SKIM, INVESTIGATED (Claude, 2026-11-04, lane/claude-tire-spinup).
+  Nothing in the physics or configs was changed. You asked for findings first.**
+  1. **The P-51's wheel mass is about right, and it is not the cause.**
+     - Model: 30 kg rotating per main, r 0.343 m (a 27 in smooth contour), I = 0.65·m·r² = 2.29 kg·m².
+     - Real: the tyre is 27 in on a **14 in rim** (DMI Aviation / Goodyear application chart). I found no published
+       weight. My estimate is tyre 15–17 kg (a 26x10.5-6 6-ply is 10.4 kg; this one is bigger and 8–10 ply), plus
+       tube, wheel and brake discs, about 28–31 kg. So **30 kg is plausible**.
+     - **The inertia factor is probably ~25 % high for this wheel.** Much of the mass sits at the 14 in rim, not out
+       at the tread: about 0.47 rather than the fleet's 0.65, so I ≈ 1.7 kg·m². That is an estimate, not a measurement.
+     - **What actually happens:** the calm "three-point" landing touches down at 54 m/s, which is 1.13 × the model's
+       Vso (the harness starts at 1.15 Vso, 5 ft) and **at 8° pitch against the 10.7° three-point attitude**. So it is a
+       fast wheel landing. It rolls 3 s, the stick comes back above flying speed, and it balloons to 3.6 m. Two more
+       bounces follow, and the third arrival is nose-low (−1.7°) and strikes. The prop clears by 1.24 m at rest and
+       0.68 m level, so a strike needs a nose-down arrival, not just the spin-up kick.
+     - **The branch point (b85ea02e, no spin-up) bounced too,** to 2.5 m and 1.1 m, and survived by luck.
+     - **Sensitivity:** at 25 kg, or I 2.0, it passes. At 30 kg, or I 2.29, it strikes. That is the bounce sequence
+       changing chaotically, not a margin that grows with the mass.
+     - **My recommendation:** fix the arrival, not the wheel. Either the test pilot / landing law holds the P-51
+       off to a real three-point (near Vso, ~11°), or I set `wheelInertiaKgM2` ≈ 1.7 on the P-51 mains from the
+       rim-size estimate. Say which, or neither. `TaildraggerNoTipStrikeTests.NormalLanding…(p51d-like)` stays red.
+  2. **The Swift water skim is emergent, and the test now says so.**
+     - The real 300x100 monowheel (r 0.15 m) cannot plane at the 25 m/s touch. It ploughs at ~0.5 g for 1.5 s
+       (dig-in 24.1 m/s at full weight), the nose dips in at ~17 m/s, and the nose joint breaks.
+     - The break is from the water's load (`AirframeFlooding.CheckJoints`: 2.1 kN along the fuselage against
+       9 g × the nose's own mass = 1.6 kN). It is not a water-touch trigger.
+     - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)` now asserts your 20:24 rule instead of
+       "breaks nothing": every lost part has a logged water load over its ultimate, and the wings hold. It is green.
+     - **Open question:** the Swift's nose joint counts only the nose's own ~18 kg, not the pilot whose feet are in it.
+       Is 1.6 kN too weak a glider nose? That is crash-water's joint rule (decision 1), so I did not touch it.
+  3. **Water-touch crash triggers: owned by other lanes, so I did not duplicate them.**
+     - SR22/Glasair: lane/claude-wheel-hydroplane 4bbfe5b5 makes the water prop strike emergent (blade drag on the
+       rotor). Those two tests are still red here until it merges; they were red at the branch point too.
+     - The full audit (no `surface == Water` crash; damage only from loads) is crash-reset follow-up item 4, queued.
+     - What I checked in this lane: `AirframeContact` already leaves water breaks to the load path for everything but
+       the propeller, and `TyreWear` / `WheelSpin` have no water trigger.
+     - **Still to audit:** `CrashRelay.OnHardImpact` raises a `CrashImpact` on water above `WaterSplashMinMs` of
+       closing speed. Whether that counts as a "crash" is for crash-reset's audit.
+- **TYRE WEAR, BURST AND FLAT TYRES: BUILT (Claude, 2026-11-04, lane/claude-tire-spinup; local commits, not merged).
+  Ty's Q026 answer (20:21): keep the 172's full-pedal lock-up; item 2, the 0.222 m radius, is confirmed. iOS build
+  2026.1104.2140 `** BUILD SUCCEEDED **`, 0 `error CS`, PARITY OK, not installed. No new red tests (below). Please fly it:**
+  1. **The burst, Core `TyreWear`, emergent.** The model:
+     - Wear = γ(T) × the wheel's own slip work, laid on the strips of tread under the patch.
+     - T is the Blok flash temperature of the slide.
+     - A tyre bursts when a strip is worn through, and goes flat in 0.15 s.
+
+     Measured on the C172, idle, full pedal held:
+
+     | Case | Wear | Result |
+     |---|---|---|
+     | Locked from 60 kt (flapless) | through | **bursts after 65 m of skid** |
+     | Locked from 25 kt | 2.9 mm | flat spot, no burst |
+     | Locked on grass from 55 kt | 0.38 mm | no burst |
+     | 60 % pedal, no lock | 0.0003 mm | — |
+     | Normal spin-up | 0.06 mm over a quarter of the tread | about 450 landings of tread |
+
+     **One fitted constant:** the hot abradability, 1.0e-9 m³/J, set so a locked 6.00-6 at 38 psi goes through in ~60 m.
+     Is that the right severity, or should a flapless lock-up survive more often?
+  2. **The flat, all geometry.** The wheel stands on its rim plus two flattened casings, so:
+     - the 172 sits **2.3° down** on that side;
+     - it adds **~0.07 g of rolling drag** (+0.16 μr on that wheel);
+     - the load on that wheel swings 28 % once a revolution as the worn-through strip passes under the axle.
+
+     Steering on a flat is unchanged (cornering stiffness not modelled), and the wheel visual does not show the flat.
+  3. **Sound and smoke, untested by ear:**
+     - The screech is the existing skid voice.
+     - New: a pop on burst, a ~70 Hz thump from the axle's work on the lumps, and a casing slap once per wheel revolution.
+     - New `TyreSmoke`: particles in proportion to the rubber torn off, so a puff at each spin-up and a trail when locked.
+     - **Levels and the smoke density need your eyes and ears.**
+  4. Tyres are new again at every spawn/reset.
+- **TYRE SPIN-UP + GROUND/BRAKE SOUND: BUILT (Claude, 2026-11-04, lane/claude-tire-spinup; local commits, not merged).
+  What was built and the numbers: `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` §7. iOS build 2026.1104.1404 `** BUILD SUCCEEDED **`
+  (not installed). Suite: 2 new red tests, explained in item 10, not fudged.** Decisions for Ty:
+  1. **The wheels now turn** (`WheelSpin`), with brake = torque and lock-up emergent. Measured on the C172 at 50 kt, 3 ft/s:
+     - spin-up 31 ms on asphalt;
+     - ΔV 0.31 m/s;
+     - a 1.05 g drag spike for those tens of ms;
+     - 3.9 deg/s extra nose-down.
+
+     Spin-up times run +6 … +10 % on the probe table from 3 ft/s up: the model slides at μ_k = 0.8 μ while the slip is large.
+  2. **Taildragger wheel landings bounce less (please fly it).** The spin-up drag at the patch, ~1.1 m below the CG,
+     is a nose-DOWN angular impulse: ΣI·V/r²·h/I_yy ≈ 15 deg/s on the PA-18 at 25 m/s. At a 5 ft/s wheel landing it
+     cancels the normal force's nose-up bounce:
+     - peak q is +0.4 deg/s with cold wheels;
+     - it is +6.4 deg/s with the wheels already turning (the old model).
+
+     `LandingGearTests.TaildraggerMainTouchdownPitchesNoseUp` now measures the two mechanisms separately; no tuning.
+     The size depends on the rotating masses in (3).
+  3. **Wheel masses and tyre radii are estimates from tyre sizes / catalogue weights; please check the ones you know.**
+     - Radii (free radius):
+       - C172 6.00-6 mains **0.222**. You asked ~0.19, from my analysis doc, which mislabelled a 6.00-6's LOADED
+         radius as its size; the 172 POH lists 6.00-6 mains and a 5.00-5 nose.
+       - Decathlon 0.222 (you said ~0.20; I took 6.00-6).
+       - Cub 0.27 (8.00-4).
+       - Full list in doc §7.
+     - The radius also sizes the procedural wheel visuals and WheelHydro's planing tyre.
+     - Rotating masses: 5.00-5 5.6 kg, 6.00-6 7.6, 8.00-6 9.7, tundra 16, 737 main leg 380.
+     - Say if you want 0.19/0.20.
+  4. **Full pedal on dry asphalt can now LOCK a C172's mains and keep them locked.** Braking moves load to the
+     nosewheel: main load reaches 0.69 of static, against the 0.675 lock edge your 2026-09-13 tune sets. A locked wheel
+     stays locked until the pedal eases (μ_k < μ_peak). The old per-stage branch only flickered.
+     Options:
+     - keep it (real);
+     - lower full-pedal torque a touch (e.g. 0.6) so a 172 only skids when light.
+  5. **Dirt and Sand are surfaces now.**
+     - Dirt: μ 0.60, μr 0.06 (Frank Church dirt, island "dirt").
+     - Hard sand: μ 0.55, μr 0.08 (the 32 island "hard sand" strips; loose sand would be 0.15–0.30, not on the map).
+     - Heating, chart, rattle, keel sliding and forest still see gravel (`WorldTerrain.Coarse`).
+  6. **`rollResistN` is removed** (dead since forever; 33 configs). Bearing drag is its own term: 0.04 N·m/kg plus a
+     30 s spin-down.
+  7. **Sound (Ty's steering), all procedural, untested by ear:**
+     - Per-wheel ground under each wheel with equal-power 0.15–0.3 s crossfades.
+     - Panned L/R.
+     - Chirp from the real slip energy for the real spin-up time: none on grass/sand/snow/water, a scuff on dirt/gravel.
+     - Bearing whir from ω (silent in water/snow/skis, winds down after take-off).
+     - Brake scrape ∝ pressure × speed; squeal over 0.6 pedal or near lock.
+     - Water splash / planing hiss / spray, ski hiss, keel scrape.
+     - The old closing-rate touchdown chirp is gone.
+
+     **Levels need your ears.**
+  8. **NEEDS-Codex:** adopt `FlyingGame.Core.GroundMaterial` (`GroundMaterials.Row(..).Visual` documents the link) in
+     the terrain/splat code, so dust, skid marks and sound match the paint. The island mesh still reads
+     `IslandTerrain.SurfaceAt` (unchanged); physics reads `WheelSurfaceAt`. No Codex file was touched.
+  9. **Overlaps, not touched:**
+     - `lane/claude-crash-tuning` (PID 35956, uncommitted) also edits every config (structureType, other lines) and
+       AircraftConfig.cs (another class). It will merge textually; it gets the new Dirt/Sand enum members, whose keel
+       friction falls through to gravel's.
+     - `lane/claude-wheel-hydroplane` (c2b4474d): WheelHydro reads `TireRadiusOf`, so its C172 dig-in and J-3 skim
+       numbers will move with the new radii (C172 nose 0.261 → 0.18, Cub 0.307 → 0.27). Re-run WheelWaterTests after merging.
+     - `lane/claude-trigger-brakes`: input side only; the brake still enters as brake × (1 ∓ bias). No overlap.
+  10. **Two tests are red because of this lane, and I left them red (real physics, your call):**
+     - `TaildraggerNoTipStrikeTests…(p51d-like)`: on the calm three-point landing the P-51 loses its prop on the rollout.
+       - The cause is the spin-up nose-down impulse: two ~30 kg main assemblies at ~50 m/s, ≈ 16 deg/s on its I_yy.
+       - With wheel mass ≈ 0 it passes, so it is the spin-up and not the brake.
+       - Either the P-51's rotating mass is high, or its touchdown needs stick held harder back.
+     - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)`: the real 300×100 main tyre (r 0.15, the old auto
+       rule gave 0.31) is too small to plane at 25 m/s, digs in, and the nose breaks off. It passes with the auto radius.
+     - Also red, and red at the branch point too (not mine): the same water test for the SR22 and the Glasair III.
 <!-- parity-merge needs-you -->
 - **PARITY MERGE DONE: BOTH LANES ARE ONE COMMIT AND LOCKED (Claude, 2026-11-04, Ty approved 07:29).**
   lane/claude-island-nav = lane/claude-quest-islandnav = **b7d1a680**; `tools/check-parity.sh --strict` PARITY: OK.
@@ -1644,6 +1908,10 @@
   no menu at all. iOS export + xcodebuild (own derived data, no install): **BUILD SUCCEEDED**. Performance:
   **unmeasured** — budget in docs/quest-performance.md; the build logs a `[QuestPerf]` line every 10 s.
   **Nothing here is approved.** Items 1–8 are gates only you can close, on your head, with your headset.
+- **VR VISUALS (Codex, 2026-11-01, lane/codex-vr-stereo) — NEEDS YOU:** Unity compile, `VrStereoShots`
+  renders and iOS build done (see Log); Cardboard headset checks: image orientation, edge straightness, red/blue fringe,
+  binocular fusion, HUD size/depth/occlusion and frame time. HUD modes are `off` and `minimal` (IAS kt, altitude
+  ft MSL, true heading); unknown modes hide it. No build, render or headset approval is claimed.
 - **SIDE-BY-SIDE VR FOR A CARDBOARD HEADSET (Claude, 2026-11-01, lane/claude-vr-stereo) — engine and app logic
   only; the lenses are Codex's. NEEDS YOU on a real headset, five things:**
   1. **IPD.** It ships at **63 mm** with a slider from 55 to 75 in Options → Controls. 63 mm is the adult mean,
@@ -3148,6 +3416,70 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 21:55 PST — Claude · lane/claude-tire-spinup · tyre wear, burst and flat tyres (Ty Q026 item 1, 20:21)
+- **Core (shared):**
+  - New `TyreWear.cs`: 72 tread strips, Archard/Schallamach wear with a flash-temperature abradability, a surface
+    abrasivity, the burst and leak, and the flat's geometry (drop, rolling radius, hysteresis drag).
+  - `WheelState`: `Tyre`, `AngleRad`, `DropM`, `TyreLoadN`, `PatchWorld`, and the `AbradedM3` / `ThumpJ` / `Bursts`
+    accumulators; `Wear()`; `Coast` turns the wheel and leaks the tyre.
+  - `LandingGear`: the contact point is raised by the drop, `WheelSpin.Advance` runs on the rolling radius, the slip work
+    goes to `Wear`, and the extra rolling resistance is added.
+  - `GroundSoundMix`: thump, flap and pops per side.
+- **Bridge (shared):** audio mailbox fields; `TyreBrakeSynth` thump, slap and pop; new `TyreSmoke`, installed next to
+  ContactEffects. No platform branches.
+- **First design fault, fixed before measuring:** the drop first followed the instantaneous load. That fed back on the
+  leg spring and made the axle chatter (35 kJ/s of "thump"). It is now taken at the static load; see doc §8.
+- **Tests:** new `TyreWearTests`, 8 tests: the burst/flat-spot/grass table, no wear without a lock, spin-up wear,
+  wear only in the patch, volume = γ·W, life as a distance, the flat's tilt/drag/lumps, and the mix's pop/flap.
+- **Full suite** (the machine shared with other lanes):
+  - Base e8e2978b: 213 failed / 2319 passed / 6 skipped of 2538.
+  - This lane: 140 / 2400 / 6 of 2546.
+  - 11 names failed here and not at the base (LandingGear ×6, TipWheel ×2, ChallengeTests.HardBankScoresLow,
+    TrimConvergence glider, VrBailout canopy drag). All 11 pass when re-run alone: global coupling.
+- **Build:** `deploy.sh NOINSTALL` 21:40–21:54, `** BUILD SUCCEEDED **`, 0 `error CS`, PARITY OK, installed on 0 devices.
+  The bundleVersion bump was not committed. No Quest batch was run; there is no platform-specific code.
+- Doc: `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` §8.
+
+### 2026-11-04 14:15 PST — Claude · lane/claude-tire-spinup · wheel spin-up physics + tyre/brake/ground sound BUILT (Ty approved ~09:40)
+- **Physics (Core, shared):**
+  - New `WheelSpin.cs` (per-wheel ω, tanh slip-ratio force with combined slip, brake as Coulomb torque, emergent lock-up,
+    bearing decay, one implicit wheel step per sim step on RK4 stage 0, momentum-consistent with the aircraft).
+  - `WheelState` per leg on `Aircraft.Wheels`.
+  - `LandingGear.Compute(..., wheels)`: the old lock branch is removed.
+  - `GearConfig.WheelMassKg` / `WheelInertiaKgM2` added; `RollResistN` removed.
+  - `WorldTerrain.Surface.Dirt` / `Sand` (appended) plus `WorldTerrain.Coarse`.
+  - `StripFinish.Wheels` and `IslandTerrain.WheelSurfaceAt`; FrankChurch dirt → Dirt.
+  - 33 configs: real tyre radii, rotating masses, `gearType` "feet" (hang/paraglider) and "tail-skid" (JN-4).
+- **Sound:**
+  - Core `GroundMaterial` / `GroundMaterials` (the shared key + table) and `GroundSoundMix` (per-wheel equal-power
+    crossfade, pan, chirp/whir/brake/water/ski/keel decisions).
+  - Bridge: `SurfaceSynth` rewritten table-driven, new `TyreBrakeSynth`, `FlightAudio` wiring, the old touchdown chirp
+    removed from `StructuralDamage`, Dirt/Sand dust look in `ContactEffects`.
+  - No Codex file touched.
+- **Tests (new):**
+  - `WheelSpinTests` 6: the probe table to within 10 % from 3 ft/s up, impulse = ΣI·V/r², emergent lock-up, grass vs
+    asphalt lock, touchdown drag spike and pitch-down.
+  - `GroundSoundMixTests` 9: crossfade Σw = 1 and Σg² = 1, equal-power pan, no whir/chirp/brake on water/snow/skis,
+    chirp duration = slip time, scrape ∝ p·v, squeal, whir fade.
+  - Updated: `LandingGearTests.TaildraggerMainTouchdownPitchesNoseUp` (bounce and spin-up measured separately),
+    FrankChurch/StripFinish surface literals (Dirt).
+- **Full suite (nice, one run at a time but with other lanes' suites on the machine):**
+  - Branch point b85ea02e: 216 failed / 2302 passed / 6 skipped of 2524.
+  - This lane: 167 / 2365 / 6 of 2538.
+  - 25 names failed here and not at the base. Re-run alone: 18 pass (coupling), 7 fail.
+  - Of those 7: 3 were stale surface literals (fixed), 2 water tests fail at the base too when run alone (SR22,
+    Glasair), and 2 are real and left red (P-51 rollout prop strike, Swift water skim; NEEDS YOU 10).
+  - Also fixed on the way: a `Math.Sign(NaN)` throw in the wheel step, which only showed in the full run.
+- **Build:** `zsh tools/deploy/deploy.sh <dummy UDID>`, bundleVersion 2026.1104.1404: `** BUILD SUCCEEDED **`, installed
+  on 0 devices (on purpose). The ProjectSettings bump was not committed. The StreamingAssets mirror is committed as the
+  build regenerated it (identical to configs/).
+- `tools/check-parity.sh`: PARITY OK. This lane is not merged into either platform lane (local commits only).
+- **Overlaps** (read-only, `git --no-optional-locks`): see NEEDS YOU 9 — crash-tuning (configs and AircraftConfig.cs,
+  other lines), wheel-hydroplane (TireRadiusOf feeds WheelHydro), trigger-brakes (none).
+
+### 2026-11-04 — Claude · lane/claude-tire-spinup · tyre spin-up + ground/brake sound analysis
+Analysis only, no physics or audio code changed. I added `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` (code findings with file:line, constants, spin-up tables, issues, physics fix, sound/brake schema) and `docs/tire-spinup-probe/` (a .NET console using the real LandingGear.Compute: `dotnet run -c Release --project docs/tire-spinup-probe -- configs/aircraft 0.9`). The probe was built and run with nice -n 10 outside the repo. No Unity/xcodebuild build. NEEDS YOU: see the top "TYRE SPIN-UP" item.
+
 ### 2026-11-04 21:00 — Claude · lane/claude-smoke-volume · smoke that stays: a column depth law, 90 s of trail, whiter
 - **Ask** (Ty, 18:27, on 899ada84): "The smoke seems to disappear way too quickly and I think it is even more
   transparent, not less transparent like I asked for. Smoke should stick around longer and be thicker, more white,
@@ -4988,6 +5320,60 @@ heading-only recentre, lean box). `VrMode.Available` is false and the device loo
 active; flat overlays hide. `QuestMenu` is a world-space menu because every OnGUI screen is invisible in a headset.
 `tools/deploy/deploy-quest.sh` builds, then installs/launches if an authorized Quest is attached (it was not:
 `adb devices -l` empty all session). Docs: docs/quest-controls.md, docs/quest-performance.md.
+### 2026-11-01 · Codex · lane/codex-vr-stereo · VR visuals
+
+- Implemented `VrCompositorCardboard` through `IVrCompositor`. The rig's only code change is the default
+  compositor component selection; the original side-by-side compositor remains as reference/fallback.
+  Both eyes occupy their respective full-height halves, with no gap/overscan; OnGUI repaint at depth 1000
+  drives the backbuffer while the main camera is disabled. Destination dimensions drive sizing.
+- Added engine-free `VrDistortion`: physical lens centres use inter-lens and tray/alignment geometry;
+  source eye tangents use `VrOptics.Distort(screen tangent)` followed by the CA colour scale, then
+  the same `EdgeTangent` frustum bounds as the rig. No JSON loading. Operator review corrected the
+  previous inverse mapping; shader valid() still blacks out out-of-frustum samples.
+  Assumption: a 64×64-cell mesh per eye, rebuilt on Configure or physical size change, is sufficient;
+  rendered edge quality and device cost still need measuring. CA applies profile red/blue radial scales to
+  source tangents about the lens axis; green is unscaled. Out-of-frustum samples are black per channel.
+  Shaders live in Resources and load explicitly for iOS inclusion; no literal lens coefficients in shaders.
+- Added a single world-space binocular HUD surface 1.5 m ahead, 0.24 m low (~9.1° below sight), following the head without a
+  second pose smoother. Text uses fontSize 64 with characterSize 0.01 and two-space field gaps, capped at
+  0.48 m rendered width. The backing follows root-local MeshRenderer bounds on each text change with
+  0.02 m horizontal / 0.012 m vertical total padding (at most 0.5 m wide, ~±9.5°), and 0.55 alpha.
+  White font-alpha text and semi-transparent dark backing use Resources-loaded
+  shaders with ZTest Always / ZWrite Off, queues Overlay+1 / Overlay, so cockpit geometry cannot hide
+  them. Geometry remains binocular and renders within each eye before the lens pass. Owned text material
+  is released alongside the backing material. Reads the same FlightSimDriver IAS/altitude and aircraft-forward heading as the flat HUD.
+  Vocabulary: `off` = hidden, `minimal` = IAS kt / altitude ft MSL / true heading; case-insensitive;
+  unknown/null = hidden. Only visible while VrMode.On. No touch controls.
+- Edit-mode references resolve lazily. `VrStereoShots` explicitly calls `PrepareForTesting` before eye
+  rendering to supply the same physical screen dimensions as the rig and refresh the HUD without lifecycle
+  messages. Runtime physical size uses destination pixels and Screen.dpi, falling back to the rig's 326 dpi.
+- Added VrDistortion tests for linear identity, colour scaling about the physical axis, nonlinear mirror
+  symmetry, vertical alignment and HUD vocabulary. Review added a hand-literal direction test:
+  screen tangent .5 maps to .5 + .041978205 + .0172964971875 = .5592747021875, further from the
+  axis than the linear lens; out-of-frustum UVs remain outside [0,1]. Removed the duplicate HudMode summary.
+  Validation re-run after operator review: Core, Sim and FlightTests compiled via the filtered dotnet command (single-process
+  MSBuild, shared compilation disabled after sandbox denied MSBuild's named pipe). VSTest then aborted
+  before executing tests: SocketException (13), permission denied binding its local communication socket.
+  Tests are therefore NOT reported green. `git diff --check` is clean. No Unity, Xcode,
+  deploy, ProjectSettings, StreamingAssets, head tracking, eye placement or Glass Overlay work performed.
+- **Open question for Claude (rig, deliberately unchanged):** `VrOptics.EdgeTangent` uses
+  `Undistort(reach/d)` for screen limits, contradicting Distort's doc and Cardboard's mesh convention.
+  Should use `Distort(reach/d)`, then min with the lens limit. Current iPhone outer edge is ~0.73 tan
+  instead of ~1.73 capped by the 60° lens limit; corrected compositor therefore leaves black eye margins.
+  This lane has not modified VrOptics or eye placement.
+- **Comfort question for Ty:** at 1.5 m the binocular HUD requires vergence at that depth, yet draws over
+  nearer 0.5–1 m panel/cowling geometry. Does that vergence/occlusion conflict remain comfortable and legible?
+  Headset judgement is pending; overlay visibility is intentional.
+- **Open gates:** operator must compile Unity and render the four shot-tool frames; Ty must judge actual
+  viewer fit, correction direction/strength, residual colour fringe, fusion, HUD legibility/occlusion and
+  comfort/frame time. The profile and phone dpi assumptions remain unmeasured. Nothing is approved.
+- **Operator verification (Grok Bot for Ty, 2026-11-01):** `dotnet test tools/FlightTests` filtered to
+  VrDistortion|VrStereo: 48 passed, 0 failed. `VrStereoShots.Render`: exit 0, 0 `error CS`, PASS (0 failures),
+  four frames (iPhone 2532×1170, iPad mini 2266×1488; ahead and yaw30-roll15). Unity BuildiOS export: 0 `error CS`;
+  xcodebuild Release generic iOS: `** BUILD SUCCEEDED **`. bundleVersion bump reverted. Not installed, not
+  merged, no TestFlight. Renders show the black eye margins from the EdgeTangent question above; iPad mini image
+  sits low (bottom alignment on a tall screen).
+
 ### 2026-11-01 — Claude · lane/claude-vr-stereo · side-by-side stereo VR (engine, rig, tracking, toggle, tests)
 
 **Branched from lane/claude-island-nav (aacb429). Local commit only; not merged.** A NEW mode alongside the
@@ -8984,3 +9370,16 @@ NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/
   unavailable). Quest deploy-quest.sh 2026.1104.1528, 0 error CS, installed + launched on Quest 3S.
   ProjectSettings.asset / StreamingAssets copies written by builds left uncommitted.
 C172-YOKE-DONE
+## 2026-11-01 — lane/codex-vr-stereo: per-eye FOV used Undistort for the screen edge (black margins)
+
+Built on `8b6e8a0`, local commit only. `VrOptics.EdgeTangent` set each screen-limited frustum edge to `Undistort(reach/d)`. A screen point at tangent r is SEEN at `Distort(r)`, and `VrDistortion.Sample` (the Cardboard compositor mesh) already maps screen→eye with `Distort` and normalises by these edges, so the frustum was too narrow and the screen's own edges sampled outside the eye texture — black margins. Checked against the Google Cardboard SDK before changing it: `sdk/lens_distortion.cc` `LensDistortion::CalculateFov` is `atan(Distort(dist / screen_to_lens))` per edge, then `min(…, device_fov)`. Fixed to `min(Distort(reach/d), tan 60°)`; `Undistort` kept. Code and tests written by a fresh headless Claude run.
+
+Per-eye FOV, left eye, L(outer)/R(inner)/B/T, default Cardboard v2 profile:
+- iPhone 17 Pro 2532x1170 @ 6.1" (0.1406 x 0.0650 m): before 36.1/33.2/34.7/32.1° (outer 0.730 tan) → after 60.0/50.0/55.2/46.6° (outer Distort 1.780, capped at 1.732).
+- iPad mini 2266x1488 @ 8.3" (0.1762 x 0.1157 m): before 41.6/33.2/34.7/45.9° → after 60.0/50.0/55.2/60.0°.
+
+Tests: VR filter (`dotnet test --filter FullyQualifiedName~Vr`) 49/49 at 8b6e8a0 → 53/53. New: `ThePhonesOuterEdgeIsCappedByTheLens`, `ThePhonesInnerEdgeIsTheDistortedScreenReach`, `ThePhonesBottomAndTopAreTheDistortedScreenReach`, `ScreenLimitedEdgesLeaveNoBlackMargin`; `CardboardSamplesFurtherFromAxisThanLinearLens` no longer asserts the screen edge lands out of range (that only held under the bug) — it now asserts edges map to U=0/1 and keeps the out-of-range check where the lens is the limit. With `Undistort` put back, 5 of the 53 fail, so the tests pin the bug. All expectations are hand literals.
+
+iPad mini low image: NOT changed — not a geometry bug. A Cardboard viewer holds the lenses a fixed 35 mm above the tray, so on a 116 mm-tall screen the lens axis really is low; the SDK computes it the same way (BOTTOM: `tray_to_lens − border`). The black above is the lens's own 60° limit. Finding, not changed: the SDK also subtracts a 3 mm border (`kDefaultBorderSizeMeters`) that `VerticalOffsetM` omits, so our lens axis sits 3 mm higher than the SDK's (adding it: iPhone B/T 55.2/46.6° → 50.0/51.8°). Ty's call.
+
+Build: Unity iOS export (0 `error CS`) + xcodebuild Release generic iOS `** BUILD SUCCEEDED **` — run as deploy.sh's export/xcodebuild steps WITHOUT the install. Not installed, no TestFlight. bundleVersion bump (2026.1101.1502) reverted. Renders: `VrStereoShots.Render` → `build/vr-shots/fov-fix/` (ignored): `vr-{iphone-2532x1170,ipad-mini-2266x1488}-{ahead,yaw30-roll15}.png`; the iPhone composite now fills each lens to the screen edge.

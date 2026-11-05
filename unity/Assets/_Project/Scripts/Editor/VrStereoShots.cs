@@ -90,6 +90,7 @@ namespace FlyingGame.EditorTools
                         rig.SetScreenForTesting(w, h, wM, hM);
                         rig.SetActiveForTesting(true);
                         rig.SetHeadForTesting(yaw, pitch, roll);
+                        if (rig.Compositor is VrCompositorCardboard cardboard) cardboard.PrepareForTesting(wM, hM);
                         if (rig.LeftEye == null || rig.RightEye == null || rig.Compositor == null)
                         {
                             Debug.LogError("[VRShots] the rig built no eyes — is a gyro reported in batch mode?");

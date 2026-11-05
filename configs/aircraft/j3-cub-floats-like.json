@@ -1476,7 +1476,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1493,7 +1492,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1510,7 +1508,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1527,7 +1524,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1544,7 +1540,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 2500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     },
     {
@@ -1561,7 +1556,6 @@
       "maxSteerRad": 0,
       "tireMu": 0.35,
       "corneringStiffnessN": 1500,
-      "rollResistN": 400,
       "gearType": "float-keel"
     }
   ],

@@ -1275,7 +1275,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "rollResistN": 40,
+      "tireRadiusM": 0.15, "wheelMassKg": 2.5,
       "gearType": "spring-steel"
     },
     {
@@ -1292,7 +1292,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "rollResistN": 40,
+      "tireRadiusM": 0.15, "wheelMassKg": 2.5,
       "gearType": "spring-steel"
     },
     {
@@ -1309,7 +1309,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 1500,
-      "rollResistN": 20,
+      "tireRadiusM": 0.06, "wheelMassKg": 0.4,
       "steerSpringNmPerRad": 20
     }
   ],
