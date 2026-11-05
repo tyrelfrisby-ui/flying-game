@@ -270,7 +270,9 @@ namespace FlyingGame.Bridge
 
             _iasKt = (float)r.AirspeedKias;
             StepCanopy(dt);
-            if (HandCanopy != null) { r.CanopyOpen = HandCanopy.Open01; r.CanopySlide = HandCanopy.Slide01; }
+            // The canopy's own physics where it is running (the headset's, or the bail-out's on any platform), else the command.
+            FlyingGame.Core.Vr.CanopyDynamics physical = EgressCanopy ?? HandCanopy;
+            if (physical != null) { r.CanopyOpen = physical.Open01; r.CanopySlide = physical.Slide01; }
             else (r.CanopySlide, r.CanopyOpen) = FlyingGame.Core.Vr.CanopyDynamics.ScriptedRig(ScriptedCanopy(cfg?.Id), CanopyOpen01);
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
             r.CanopyJettison = System.Math.Max(CanopyPull01, HandJettison?.Pulled01 ?? 0.0);
