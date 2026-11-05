@@ -43,6 +43,7 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            if (LocalPlayerHud.CompactActive) return;
             if (Combat == null || _cam == null || SessionSettings.MenuOpen || SessionSettings.ReplayActive || Event.current.type != EventType.Repaint) return;
             var me = Combat.Driver?.Sim?.Aircraft;
             if (me == null || (!Combat.Dogfight && !Combat.InZone)) return;

@@ -107,6 +107,7 @@ namespace FlyingGame.Bridge
 
         private void OnPostRender()
         {
+            if (LocalPlayerHud.CompactActive) { _labels.Clear(); return; }
             if (Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud) { _labels.Clear(); return; }
             // In a headset's cockpit the real instruments count: no HUD unless the VR menu's HUD row asks for it.
             // (Only the live pass: a clip renders its own camera, which is never the headset's.)
@@ -250,6 +251,7 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            if (LocalPlayerHud.CompactActive) return;
             // In a headset a screen-space overlay smears across both eyes at the wrong depth.
             if (VrMode.SuppressFlatOverlays) return;
             DrawLabels(_labels, _cam.pixelRect, Screen.height);

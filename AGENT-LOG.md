@@ -1,3 +1,18 @@
+## NEEDS YOU — compact iOS split HUD (Codex, 2026-11-05)
+- Lane `lane/codex-local-mp-hud`; engine API merged locally from `609a3b93`. No install or integration-lane merge.
+- Compact iPhone/iPad split instruments: cyan P1 / amber P2, IAS kt, altitude ft MSL, true heading, G,
+  own-camera ballistic pipper at 300 m when armed; an unarmed view has a boresight cross. Intersects each
+  camera pixel rect with the screen safe area and clips all drawing to that half. Normal LAN, Mac and Quest HUDs keep
+  their existing behavior. Full HUD/analog/combat overlays and AERO panel are suppressed in compact mode.
+- **Engine-lane hook needed (input files deliberately untouched):** `LocalPlayerHud.CompactActive` is the HUD mode flag.
+  `TouchFlightControls` must suppress its full-screen tray AND its raw touch hit regions together (keep gamepad flight
+  and Menu processing), and the shared ViewPanel toolbar needs a compact menu entry. Hiding only OnGUI would leave
+  invisible RESET/BAIL/FIRE hit areas. Until that hook lands, those shared controls still overlay both halves.
+- **Validation:** final iOS-target Unity script compile + IMGUI capture run 2026-11-05 14:25, zero `error CS`,
+  all three captures produced and opened for visual inspection. `renders/local-mp-hud/` contains iPhone landscape,
+  iPad landscape and iPhone portrait, both seats, using the live draw method with fixture readings (not device shots).
+  No xcodebuild or device install for this HUD-only lane. Nothing approved by this lane.
+
 ## NEEDS YOU
 - **ANSWERED by Ty ~10:57–10:59 PST (Aero steer):** Quest is **NOT** same-device split / half virtual screen / Mac-TV mirror for 2P.
   - Quest 2P = **two Quest users**, each in **their own headset**, **full stereo view**, same Wi‑Fi / local network.
