@@ -10,7 +10,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Diagnostic (Ty 2026-11-05 08:58: "the cub acts like it cannot get on step"): the J-3 on floats spawned on the
 /// island's own water exactly as FlightSimDriver does (IslandRunways.Water, keel 0.25 m in, hands off), then flown at full
-/// power with three pilot techniques. Prints only; the bench takeoff tests use flat water at 0 m.</summary>
+/// power with four pilot techniques. Prints, and asserts the seaplane-technique run gets off in the book's time.</summary>
 [Collection("WorldTerrainActive")]
 public sealed class FloatsIslandTakeoffProbe : IDisposable
 {
@@ -36,7 +36,7 @@ public sealed class FloatsIslandTakeoffProbe : IDisposable
         var sim = new SimLoop(ac); ac.CaptureForces = true;
         sim.RunFor(10, new ControlInputs(0, 0, 0, 1.0));
         _o.WriteLine($"{ap.Name} lake ({lake.Cx:F0},{lake.Cy:F0}) surface {lake.SurfaceM:F1} rx {lake.Rx:F0}; current {WaterCurrent.At(pos.X, pos.Y, 0)}");
-        double peak = -99, integ = 0; bool eased = false;
+        double peak = -99, integ = 0, airborneAt = -1; bool eased = false;
         for (double t = 0; t < 45; t += 0.05)
         {
             RigidBodyState s = ac.State;
@@ -85,7 +85,10 @@ public sealed class FloatsIslandTakeoffProbe : IDisposable
             }
             if ((int)Math.Round(t * 20) % 100 == 0)
                 _o.WriteLine("    body-x by kind: " + string.Join(" ", ac.LastForces.GroupBy(f => f.Kind).Select(g => $"{g.Key}={g.Sum(f => f.ForceBody.X):F0}/{g.Sum(f => f.ForceBody.Z):F0}")));
-            if (!FloatHydro.Floats[0].Wet && !FloatHydro.Floats[1].Wet && -ac.State.Position.Z - lake.SurfaceM > 1.6) { _o.WriteLine($"airborne at {t:F1}s V={v * 2.237:F1}mph"); break; }
+            if (!FloatHydro.Floats[0].Wet && !FloatHydro.Floats[1].Wet && -ac.State.Position.Z - lake.SurfaceM > 1.6) { _o.WriteLine($"airborne at {t:F1}s V={v * 2.237:F1}mph"); airborneAt = t; break; }
         }
+        // Seaplane technique (full back until the nose stops rising, then ~6° nose-up) on the island's own water, as the
+        // game spawns it: airborne inside the J-3's book 15-25 s (HydroJ3Tests has the flat-water run's numbers).
+        if (technique == "ease") Assert.InRange(airborneAt, 15, 25);
     }
 }
