@@ -1,4 +1,89 @@
 ## NEEDS YOU
+
+## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
+<!-- crash-reset needs-you -->
+Lane lane/claude-crash-reset. Seven of Ty's reports in one lane. NOTHING approved by me.
+- **Ty, please check on the iPhone / iPad mini (2026.1105.0030) and Quest (2026.1105.0041):**
+  1. Crash, then Restart / Relocate / pick another aircraft: a whole, flyable aeroplane every time. Also force-quit and relaunch.
+  2. Crash on snow: the dust must be white (ice light grey, grass green-brown, pavement grey).
+  3. C172 cockpit: cabin, panel, raised yoke, 5.4 suction gauge, see-through glass. **Decision:** the 172's OUTSIDE is
+     now our plain grey model (no paint, ailerons not rigged). Keep it, or ask for "downloaded outside + our cabin"?
+  4. Wreck slide distance (a crash on grass, pavement, snow): it should now stop in about 60-80 m from 60 kt on the ground,
+     further on snow and ice. **Decision:** the friction values are estimates (below); too short, too long?
+  5. Great Lakes into water on the Quest: see what the wings do (below). **Decision** wanted.
+  6. Ghost airplane: crash a few times after clean restarts; no intact copy at the crash site.
+  7. Water: skim, touch down on wheels on water and land floats: no automatic crash. Then hit the water hard
+     (steep, banked): parts break only from the load.
+- **1 Crash reset.** Cause: the sim was always fresh. The wreck lived on in the DRAWN model: AirframeVisual only rebuilt a
+  damaged model when the new aeroplane had lost nothing a frame later, and a bent wing panel set no flag (old
+  AirframeVisual.cs ~60 / ~80-85), so a same-type Restart kept the wreck drawn. Fix: FlightSimDriver.AirframeReplaced
+  (raised from the Sim setter on every spawn path + AdoptSim) = the one reset; AirframeVisual.ShowsDamage rebuilds on it;
+  StructuralDamage, FlightAudio, CrashWaterVisuals clear on it. **Persisted? No: force-quit + relaunch clears it**
+  (Ty's iPhone prefs hold only set.* and support.lastCrash; NoCrashStateIsPersisted holds runtime code to that).
+- **2 Snow dust.** Cause: ContactEffects' dust material (FlyingGame/UnlitTransparent) ignores the particle colour, so every
+  puff was brown. Fix: FlyingGame/Spray (mist) + Core CrashDust.For(ContactPoint.SurfaceCode) (WorldTerrain.SurfaceAt at the
+  contact): snow white, ice light grey chips, water blue-white spray, paved grey, gravel/dirt/sand brown, grass/pasture
+  green-brown, unknown old brown.
+- **3 C172 transparent cockpit.** Cause: not the yoke merges. AirframeModels.PickOwn drew our 172 only with "own models" on
+  (off by default, off on Ty's phone), so he got the downloaded shell with no cabin. Fix: c172 in LiveryChoice.OwnModelAlways;
+  nose first (Spec left), Spec.AtDatum, glass material (JSON-only GLB patch, geometry unchanged). The 6:49 PM render on
+  0bb87c67 showed no cabin because that commit predates the C172 merge (879e0cd4). **Proof on head dd6b3229
+  (= island-nav 6f0e3f74 + this lane), Unity, shipped settings, approved pilot eye:**
+  `~/Developer/agent-lanes/renders/c172-interior-fix/head-dd6b3229/` (I opened it: panel, both yokes, quadrant, seats,
+  see-through glass). The Quest still hides the 172 in its fleet (QuestFleet: eye not checked against this model).
+- **4 Wreck slides too far.** Cause: AirframeContact.SlidingMu (every structure hard point and every WreckSim piece) was the
+  FLOAT-KEEL table (grass 0.35, snow 0.10, ice 0.03): a 30 m/s wreck went 131 m on grass, 459 m on snow, 1.5 km on ice.
+  Fix: a wreck table (a crumpled airframe gouges and ploughs): paved 0.60, gravel 0.75, dirt/sand 0.80, grass 0.65,
+  pasture 0.75, snow 0.40, packed snow 0.30, ice 0.20. These are the upper half of accident-reconstruction drag-factor bands
+  for a body sliding on its side or roof (asphalt 0.3-0.5, grass/dirt 0.5-0.8, packed snow 0.2-0.3, ice 0.1-0.2). A gear-up
+  light aircraft stopping in 40-60 m on grass from 55 kt (~0.7) sits in the same band. They are estimates, not aircraft
+  measurements. From 30 m/s: paved 76 m, grass 71, pasture 61, snow 115, ice 229. The same Core code serves iOS and Quest
+  (no Unity physics materials are involved). Floats keep the keel table. CrashTuningTests literals moved deliberately.
+- **5 Quest: Great Lakes wings hovering.** No water-height or Quest-only fault found: the same WreckSim on both, drawn
+  water = sim water (IslandWorldBuilder vs IslandWater), and the GL model sits in the config frame to 4 cm. Measured
+  (WreckWingWaterTests): a detached GL left wing is a RIGID two-wing cell (both wings + struts). In the water it capsizes
+  onto its edge and rides like a two-hulled raft, about a third of its chord wet and the rest standing up out of the water.
+  That reads as hovering. It then floods and sinks (on the bottom by ~900 s); the Pitts' does the same, while the 172's
+  sealed metal wing floats flat. **Decision:** should a torn-off biplane cell split into upper and lower wings (struts
+  failing), or a torn fabric wing flood faster? Either is a physics choice I did not make on my own.
+- **6 Ghost airplane.** Cause: MY first pass, 28e1005c. `_builtFor` was set only by Rebuild(), so after a clean Restart /
+  Relocate in the same type, or any challenge spawn, it still named the previous Aircraft. The first part to break on the
+  next flight was then read as an old aeroplane's damage, and LateUpdate rebuilt a whole intact model at the crash site
+  beside the debris. It happened once per flight, and only on flights not preceded by a rebuild, hence "random". That is in
+  builds 2107 / 2141. Fix (AirframeVisual.cs ~72/108): `_builtFor` is the new Aircraft on every AirframeReplaced and
+  follows the flying aeroplane while intact. I found no older cause at 73d7702b. One unconfirmed lead for any earlier
+  sighting: the OTHER device's plane drawn through LAN multiplayer (iPhone + Quest in one room; peers linger 5 s).
+  Test: CrashResetCheck.GhostCheck, 102 seeded crashes (every type x 3, 1-3 parts, each after a clean restart). The model
+  is never rebuilt or re-instantiated and the scene holds one model: PASS (the old code fails it).
+- **7 Water contact never a predetermined crash.** Audit: breakups on water were already load-ruled (AirframeContact
+  loadRuled -> AirframeFlooding.CheckJoints, WaterSlam, panel bending). Two touch rules were removed:
+  - AircraftContactDamage.PropStrike `if (water || …)` stopped the engine on any wet blade tip. Now the rotor is braked by
+    blade drag (WaterBladeTorque) and stops only below a quarter of idle. This is the src hunk of lane/claude-wheel-hydroplane
+    4bbfe5b5, taken verbatim (Q024).
+  - ChaseCamera latched its crash view on ANY water impact above 0.5 m/s. Now CrashEvents.OpensWaterCrashView: only a piece
+    that broke off (by load) arriving in the water.
+  Both are shared Core/Bridge code on iOS and Quest. Note: the SR22 and Glasair blade tips sit 4 cm below their tyres, so a
+  light wheel skim still dips their props (now emergent drag, not a trigger).
+- **Tests** (literals): CrashResetTests 7, CrashDustTests 8, C172InteriorVisibleTests 4, WreckFrictionTests 12,
+  WreckWingWaterTests 3, EmergentWaterContactTests 5 (+ existing WaterBreakupTests / WheelWaterTests pass with the prop
+  change); Unity CrashResetCheck PASS. Wide filter (Crash|Wreck|Water|Debris|Breakup|Contact|Prop|Float|Wheel|Tree|Slide|Hydro|C172|Livery|Spawn|
+  Engine), base island-nav 6f0e3f74 vs branch, failing names diffed (the suite is coupled; compare, never count):
+  - 38 names fail only on the branch. Re-run alone on both: 36 pass (SpawnSpeedTests x34 and TipWheel x2 are coupling).
+    The other 2 were real and are fixed in 1425834e (97/97 after): the ContactPatch tip-scrape literal (now the wreck
+    table), and the Glasair's take-off roll (its prop blade tips scrape the runway; they now keep the metal keel μ).
+  - 8 names fail only on base and pass on the branch: MultiEngine x3, ReversibleControl x3, and WheelWater light touch on
+    the SR22 and Glasair (fixed by the prop change).
+  - Not this lane, already on island-nav b14f8d55: NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs. Its "grob" pattern
+    matches the Grob 103 lane's glider-grob103-acro-like model; I left it, CLAUDE.md forbids weakening that test.
+- **Commits:** lane/claude-crash-reset 28e1005c, 6b48fd51, bd7861e8 (first pass); 80f946ad (ghost), 0c1b8acf (wreck friction),
+  dd6b3229 (water), 1425834e (prop tip μ), 798bf0ac / 727c1f44 (island-nav tips in); then this log.
+  island-nav: 65f431be, 879e0cd4, 84bcdc51, bf98c300, a641dccb (+ log). quest: 7ed003b6, e535509c, 655c6c5b, 407045c8 (+ log).
+  PARITY: OK.
+- **Builds / installs:** iOS 2026.1105.0030 from island-nav a641dccb (deploy.sh, ** BUILD SUCCEEDED **, 0 error CS),
+  installed + launched on Ty's iPhone and the iPad mini; both had 2026.1105.0022 before (another lane's build). The first
+  pass shipped in 2026.1104.2107. Quest 2026.1105.0041 from quest 9defc3d7, which contains 407045c8 (deploy-quest.sh,
+  0 error CS, PARITY: OK), installed + launched on the Quest 3S; the first pass was 2026.1104.2141. Build byproducts left uncommitted.
+
 - **2026-11-04 23:55 PT — GROB TWIN III MERGED INTO BOTH LANES AND INSTALLED; ITS SPIN DOES NOT RECOVER ON THIS LANE'S PHYSICS (Claude, lane/claude-grob103). No gate marked approved.**
   1. **Merged.** island-nav e82c8ee4 (lane/claude-grob103 55e0ccdb onto 6f0e3f74); quest-islandnav 4187132f (island-nav
      into quest, clean); `tools/check-parity.sh --strict`: **PARITY: OK**. Both worktrees' 35 leftover files (34
@@ -130,73 +215,6 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   0 `error CS`, xcodebuild Release generic iOS `** BUILD SUCCEEDED **` (own output dirs, not installed). Quest: Cardboard
   cannot start there (`VrMode.Available` is false while `XrHeadset.Active`, the toggle is OnGUI-only and QuestMenu has no
   VR switch, so `vr.on` is never set); its shaders are plain CG in Resources. No Quest build was run for this merge.
-
-## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
-<!-- crash-reset needs-you -->
-Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, one lane. NOTHING approved by me.
-- **Ty, please check on the iPhone / iPad mini (2026.1104.2107) and Quest (2026.1104.2141):**
-  1. Crash, then **Restart**, then crash and **Relocate** (another field), then crash and **pick another aircraft**:
-     each time a whole, flyable aeroplane (no bent tip / tail / prop, engine runs, controls answer, no crash
-     sounds or spray carrying on). Also force-quit and relaunch after a crash.
-  2. **Crash on snow**: the dust must be white (ice: light grey; grass: green-brown; pavement grey).
-  3. **C172 cockpit**: the cabin, panel, raised yoke and 5.4 suction gauge must be there, and you can see out.
-     **Decision for you:** the 172 now draws OUR model everywhere, so its OUTSIDE is our plain grey model
-     (no paint, ailerons not rigged) instead of the textured downloaded one. Keep it, or ask for
-     "downloaded outside + our cabin" as a follow-up?
-- **Crash reset, root cause.** The sim was always fresh: every Restart / Relocate / aircraft change builds a new
-  Aircraft (FlightSimDriver.Spawn). The wreck lived on in the DRAWN model: AirframeVisual (old LateUpdate
-  lines ~80-85) rebuilt a damaged model only if the NEW aeroplane, a frame later, had lost nothing and had no
-  crush, and OnAircraftChanged (~line 60) rebuilt only for a new type, lost wings or a lost canopy. A bent wing
-  panel (ShowPanelBend) set no flag at all, and the struck prop / bent tail / engine mount waited on the new
-  aeroplane's state. So a same-type Restart or Relocate kept the wreck drawn on a healthy aeroplane.
-  I could not reproduce "different airplanes" from the code (a type change always rebuilt). The fix covers it
-  anyway, because any damage drawn for another Aircraft instance now rebuilds.
-- **Persisted? No.** Force-quit + relaunch clears it. Ty's iPhone PlayerPrefs (pulled 17:30) hold only set.* and
-  support.lastCrash (the last software exception, 09:22); nothing writes a crash/wreck/damage to prefs or files.
-- **Fix:** FlightSimDriver.AirframeReplaced, raised from the Sim setter the moment ANY new Aircraft is installed
-  (every spawn path + AdoptSim), before its first step = the one reset. AirframeVisual.ShowsDamage (wings, parts,
-  prop, fuselage bend, bent panels, canopy) rebuilds on it, and whenever the damage belongs to another Aircraft
-  instance. StructuralDamage.Repair, FlightAudio (delayed crunches, crash/flood voices), CrashWaterVisuals
-  (spray/foam/vents/rings) clear on it too. Crash physics untouched.
-- **Snow dust, root cause:** ContactEffects (the one ground dust emitter; scrapes, slides, prop/ground strikes)
-  already picked a colour per surface, but its material used FlyingGame/UnlitTransparent, which ignores the particle
-  colour. Every puff was brown. Now FlyingGame/Spray (mist) + Core CrashDust.For(ContactPoint.SurfaceCode), the
-  contact model's own WorldTerrain.SurfaceAt. Snow white powder, glacier ice light-grey chips, water blue-white
-  spray, paved/solid grey, gravel brown, grass + Rough pasture green-brown, unknown = old brown. Other particle
-  emitters checked: CrashWaterVisuals and FloatSplash (water, already white), DamageFx (fuel/fire/smoke), combat hits
-  and crop dust. None of them is a ground emitter.
-- **C172 transparent cockpit, root cause: not the yoke merges.** The yoke merges (9a6c9177 / 4b902fca) changed only
-  the yoke and suction meshes, and the GLB kept 163 nodes and all opaque materials. The game never drew our 172 by default.
-  AirframeModels.PickOwn used it only with "own models" on, default off (SessionSettings.cs:71, since
-  6f2c1f7f). Ty's prefs have set.ownModels=0, so he got the downloaded c172-like.obj, a shell with no cabin, culled
-  from inside. Every interior render forced own models on. Fixed (with the parallel sub-agent): c172-like in
-  LiveryChoice.OwnModelAlways. Turning it on exposed three more faults, all fixed: the model was placed TAIL FIRST
-  (Spec right -> left); it sat 1.73 m aft (new Spec.AtDatum: the GLB is drawn in the config frame); and the 5
-  Glass.* primitives had no material and drew opaque (JSON-only 172_glass BLEND 0.30 patch; binary, nodes and the 16
-  materials unchanged, yoke + suction kept). tools/model_c172.py does not emit 172_glass yet, and
-  C172InteriorVisibleTests fails if a rebuild drops it. Quest still hides the 172 (QuestFleet: eye not checked).
-  Other aircraft: own GLBs of Extra, Pitts, 2-33, Great Lakes and J-3 all have interior nodes and opaque materials
-  (only intended BLEND: GL compass cut-out). Not the same fault.
-- **Renders:** `~/Developer/agent-lanes/renders/c172-interior-fix/` (Unity, shipped settings, own models OFF): pilot-eye panel /
-  yoke / left door / aft, copilot panel, `exterior/`. I opened panel, yoke and 3q-front: panel with the 1 in suction
-  gauge, both raised yokes, quadrant, seats, floor; windscreen and door glass see-through; outside nose first, plain grey.
-- **Tests** (expected values literals): CrashResetTests (restart / relocate / new type after the scripted crash, C172 +
-  Pitts: intact, 2416 / 2700 rpm, 93 / 200 deg/s roll; NoCrashStateIsPersisted), CrashDustTests (8),
-  C172InteriorVisibleTests (4), editor batch CrashResetCheck PASS (real AirframeVisual + StructuralDamage, 0 error CS).
-  Merged tree: C172|OwnPitts|Livery|QuestFleet|CrashReset|CrashDust 100/100. Wide filter (Crash|Damage|Wreck|Debris|
-  Breakup|Spawn|Engine|Contact|StreamingAssets|Livery|C172|Quest|Fleet) branch vs base 73d7702b, each failure re-run
-  alone on both: 5 identical on base (ApproachSpawn 2-33 + PA-18, FloatLanding 0.5, StreamingAssets x2); 2 load-timing
-  ones (IslandCombat wreck cost, QuestFrameBudget) pass alone; no new failures. (The wide run overlapped another
-  lane's Unity tests, so it is a comparison, not a count.)
-- **Commits:** lane/claude-crash-reset 28e1005c (reset), 6b48fd51 (dust), bd7861e8 (C172), 1c9c63ad (island-nav tip),
-  then this log. island-nav 65f431be, 879e0cd4 (GLB conflict: island-nav's db87f77c wing-skin GLB + the same glass
-  patch). quest 7ed003b6, e535509c. PARITY: OK both.
-- **Builds / installs:** iOS 2026.1104.2107 (** BUILD SUCCEEDED **, 0 error CS, island-nav 662e1b5e, which also carries
-  kill-red-233 + smoke-volume): installed + launched on Ty's iPhone (was 2026.1104.1713, not an island-nav build,
-  probably the TV-companion lane) and the iPad mini (was 1648). Quest 2026.1104.2141 (deploy-quest.sh, 0 error CS, PARITY: OK, quest 95b71cca):
-  installed + launched on the Quest 3S. Both builds were run by the smoke-volume
-  lane's deploy script from the same worktrees right after my merges; I verified their logs instead of building the
-  same commit twice. Build byproducts left uncommitted.
 
 ## NEEDS YOU (continued)
 - **SMOKE THICKER AND LASTING — LANE lane/claude-smoke-volume (Claude, 2026-11-04 21:00 PST; Ty's 18:27 report "disappears way
