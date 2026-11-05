@@ -233,7 +233,7 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   Any of those lanes must merge island-nav before it builds. Details in the Log entry "kill red 2-33".
 <!-- /kill-red-233 needs-you -->
 ## NEEDS YOU — fly-check the Extra FRONT seat, rear switches, verniers, throttle grip and fuel valve (Claude, 2026-11-04 22:55 PST)
-- Ty: on the iPhone / iPad mini (2026.1105.0048) and the Quest 3S (see below), fly the Extra 300 and check: FRONT seat = small sub-panel
+- Ty: on the iPhone / iPad mini (2026.1105.0048) and the Quest 3S (2026.1105.0054), fly the Extra 300 and check: FRONT seat = small sub-panel
   with ASI / G / ALT only + throttle, stick, rudder and the red fuel-valve lever (right wall); REAR panel grey, only
   MASTER / ALT / FUEL PUMP / NAV / STROBE / SMOKE with legible placards beneath, no unlabelled knobs, EGT/CHT lower right,
   padded diagonal tubes; prop (blue) / mixture (red) verniers on the left wall beside the rear throttle, knobs aft;
@@ -284,6 +284,9 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   floor-front.png, front/rear now 40 deg down. Most of the rear pane lies under the rear seat pan (as floor_windows.py
   noted): from the rear eye only its forward part shows. iOS deploy.sh ** BUILD SUCCEEDED ** 2026.1105.0048, 0 error
   CS, installed iPhone + iPad mini.
+  Merged island-nav d78026b9, Quest lane 404be916 (PARITY: OK). Quest deploy-quest.sh from 404be916: 2026.1105.0054,
+  0 error CS, installed + launched. The Quest build added FlyingGame/Lexan to GraphicsSettings' always-included list
+  in that worktree (a build byproduct, left uncommitted like the others: 36 there now).
 
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
