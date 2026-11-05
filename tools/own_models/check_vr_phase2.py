@@ -99,8 +99,9 @@ def main():
             report.setdefault('detachable',{})[path.name]=detachable_checks(g,kind)
             names={n['name'] for n in g.doc['nodes']}
             for seat in ('Rear','Front'):
-                for prefix in ('Harness_','Harness_Buckle_','Grip_Harness_Release_','Headset_Jack_'):assert prefix+seat in names
-                assert any(n.get('extras',{}).get('rig_param')=='harness_latch' for n in g.doc['nodes'] if n['name'].startswith('Harness_Strap_') and n['name'].endswith(seat))
+                assert 'Headset_Jack_'+seat in names
+                # No belts (Ty 2026-11-05). A GLB built before then still has them; the game strips those at load.
+                if not any(n.startswith('Harness') for n in names):assert not any(n.get('extras',{}).get('rig_param')=='harness_latch' for n in g.doc['nodes'])
             counts[path.name]=sum(g.doc['accessors'][p['indices']]['count']//3 if 'indices' in p else g.doc['accessors'][p['attributes']['POSITION']]['count']//3 for n in g.doc['nodes'] if 'mesh' in n for p in g.doc['meshes'][n['mesh']]['primitives'])
     g=Glb(MODELS/'pitts-s2b-like/pitts-s2b-like-own.glb')
     # Dense centreline samples, <= 1 mm step; subtract radius + 0.5 mm sampling bound.

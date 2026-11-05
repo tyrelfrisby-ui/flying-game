@@ -897,6 +897,7 @@ namespace FlyingGame.Bridge
 
             if (Input.GetKey(KeyCode.B)) _brakeHeld = true;
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
+            if (Input.GetKeyDown(KeyCode.E) && MenuHandleAvailable) MenuPullHandle();   // the handle: bail out (eject / BRS where fitted) — one press (Ty 2026-11-05)
             for (int i = 0; i < Fleet.Length && i < 10; i++)
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1 + i)) _driver.SwitchAircraft(Fleet[i]);
@@ -1335,7 +1336,7 @@ namespace FlyingGame.Bridge
         private ChaseCamera _joyChase;
 
         /// <summary>Keyboard: arrows = stick (Up = nose down, realistic), A/D = rudder, W/S = throttle, =/- pitch trim,
-        /// F flaps, L gear, B brakes, Space fire. Joystick (any connected): X/Y = stick, twist/4th axis = rudder, 3rd axis
+        /// F flaps, L gear, B brakes, E bail out (the handle), Space fire. Joystick (any connected): X/Y = stick, twist/4th axis = rudder, 3rd axis
         /// = throttle. Released keys ramp the stick home — and on a reversible aircraft the controls then go free.</summary>
         private void DeskInput()
         {
@@ -1386,6 +1387,7 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.F)) { _deskFlapStep = (_deskFlapStep + 1) % 3; _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
             if (Input.GetKeyDown(KeyCode.L)) _tapped.Add(Btn.Gear);
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
+            if (Input.GetKeyDown(KeyCode.E) && MenuHandleAvailable) MenuPullHandle();   // the handle, one press
             _leftKnob = IdleLeftKnob();
         }
 

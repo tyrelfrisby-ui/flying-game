@@ -127,6 +127,15 @@ namespace FlyingGame.Bridge
             // cockpit was drawn as pictures (the Pitts, the Extra's rear panel) has them made live by CockpitLiveParts
             // from the same readings. ONCE a frame: this used to run twice, and the second pass saw no time pass, so it
             // dragged the vario and the turn needle back toward zero every frame.
+            // No seat belts or headset cords in any model, old GLBs included (Ty 2026-11-05): once per placed model, before
+            // CockpitLiveParts cuts anything out of its meshes.
+            if (_builder.ModelRoot != null && _beltsStrippedFrom != _builder.ModelRoot)
+            {
+                foreach (Mesh m in _beltFreeMeshes) if (m != null) Destroy(m);
+                _beltFreeMeshes.Clear();
+                CockpitBeltStrip.Strip(_builder.ModelRoot, _beltFreeMeshes);
+                _beltsStrippedFrom = _builder.ModelRoot;
+            }
             if (_builder.ModelRoot != null && !_live.Bound) _live.Bind(this, AirframeModels.PlacedOwnName(_driver.AircraftId));
             if (_builder.HasOwnRig || _live.Active)
             {
@@ -166,6 +175,8 @@ namespace FlyingGame.Bridge
         /// <summary>The painted parts of a cockpit made to move: live dials, cut-out sticks and pedals, an added
         /// throttle (FlyingGame.Core.CockpitLive says which, per model).</summary>
         private readonly CockpitLiveParts _live = new();
+        private Transform _beltsStrippedFrom;
+        private readonly List<Mesh> _beltFreeMeshes = new();
         private readonly CockpitWaterRudder _waterRudder = new();     // the J-3 floats' red retract handle's cable
 
 
