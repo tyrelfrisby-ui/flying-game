@@ -511,3 +511,16 @@ puff a ray crosses — and that was still governed by a 10–30 s life law nobod
 alone, white on black, and read the coverage across the column at several ages), set THAT as the design target,
 and derive each particle's share from its overlap (`SmokeTrail.PuffAlphaFor`). A crossfade between two particle
 sets must be done in optical depth too; crossfading alphas leaves a see-through band.
+
+### A rig row turns its node about the node's origin, not about `pivot_gltf`
+`AirframeRig` sets `localRotation = rest * angle`; `pivot_gltf` is a record, never applied. Codex built the Pitts' mixture
+and cowl flap with their origin on the pivot and they worked; the fuel valve and the blue prop blade were baked at the
+model origin, so the first Unity render showed them perfectly at rest and simply gone when moved (swung about a point
+a metre away). Every assertion passed. A part that turns must have its node AT the pivot with its vertices relative
+to it (`pitts_controls_live.recentre`), and a render of the moved pose, not only the rest pose, is what catches it.
+
+### Run a script through its shebang: zsh's `path` is `$PATH`
+`zsh tools/check-parity.sh` printed `command not found: git/awk/grep` and a FAIL, because the bash script does
+`read -r path blob` and in zsh `path` is the array tied to `PATH`. Run it as `./tools/check-parity.sh` (it is bash),
+and treat any "command not found" in a checker's output as a broken run, not a verdict.
+

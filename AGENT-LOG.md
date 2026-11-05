@@ -1,5 +1,32 @@
 ## NEEDS YOU
 
+## NEEDS YOU — Pitts cockpit + shared instrument style (Claude, lane/claude-pitts-panel, 2026-11-04)
+Nothing approved by me; every (E) number below is mine to be checked, not a book value.
+- **Look at the renders** (Unity, seat eye): ~/Developer/agent-lanes/renders/instrument-style/ — Pitts front and rear seat,
+  the rear levers at rest and "moved", the right wall (fuel valve ON / OFF), the floor, and contact-sheet.png of every
+  modelled panel. Reference photos side by side: pitts-vs-reference.png.
+- **What is wired (lane/claude-pitts-panel 61b280bc..4971541b, Codex bf61f0aa + 585aa94b merged):** the four rear switches on a real bus (Core ElectricalSystem: master off =
+  dead bus, smoke and boost pump stop, engine runs on its mags; alternator off = the battery runs flat; FUEL PUMP is only
+  a 3 A load because the engine-driven pump never fails in this sim); ALTERNATOR made a real switch (Codex drew it static);
+  the prop lever = governor rpm 2000 (E) .. 2700, power falls with rpm; the blue rear prop lever turns DOWN = locked to
+  HORIZONTAL = released and only then slides; mixture push-pull (lean costs power below 0.6, full pull = idle cut-off,
+  the engine stops); fuel valve UP ON / forward OFF (starves in 4 s, relights 2 s after: the Extra lane's code, ported
+  verbatim); trim lever = the pitch trim; cowl flap CLOSED/MID/OPEN (-60 F CHT open, 0.02 m2 drag). Front seat: ASI, ALT,
+  G, TACH only, throttle + prop lever linked to the rear (one sim state), stick, rudder, no switches.
+- **Removed:** a SECOND rear throttle the game added at runtime on the left wall (CockpitLive's pre-rig LeverAdd), dead
+  stick/pedal cuts, and the invisible panel PROP / MIXTURE / FUEL SELECTOR rows a hand could still grab.
+- **Super Cub:** its downloaded dial maps are now the cream variant (not its attitude gyro). Say if "Cub" meant the J-3 only.
+- **Questions:** Q044-Q048 in agent-lanes/QUESTIONS-FOR-TY.md (renders, governor stop, prop/trim lever motion, electrics/mixture/cowl (E) values, Super Cub cream).
+- **Not right yet, said plainly:** the rear panel's instrument ARRANGEMENT is Codex's (MP and altimeter sit elsewhere in your photo); the C172 and Swift are not in the Unity contact sheet (the shot tool drew no 172 cabin from its seat; the Swift has no approved eye, Q001); the PA-18 tile is its dial maps, its OBJ panel is too dark to read from any eye I tried. The Extra lane is NOT merged here (still running): see the merge note.
+- **Tests:** EditMode (new assembly unity/Assets/_Project/Tests/EditMode) 20/20; .NET PittsPanelSystemsTests 23, related suites 198/198; ModelRigTests.FullAirBrakeStops... and two StreamingAssetsTests fail identically on the branch point 0bb87c67 (pre-existing).
+- **Build / install:** lane build 2026.1104.2310 ** BUILD SUCCEEDED **, 0 error CS (no device, dummy id). INSTALL_STATUS
+- **Merge note for lane/claude-extra-front-seat:** it conflicts with this lane in VrCockpitHands.Panel.cs (both extend
+  SimParams/Initial/UpdatePanelPoints: keep both), CockpitControlInteriorTests (Pitts 13 and Extra 40), RigInputs
+  (identical FuelValve/Alternator lines: check for a duplicate field after the merge, the merge is clean but may not
+  compile), and the three Extra GLBs: take that lane's GLBs, then run
+  `nice /usr/bin/python3 tools/own_models/style_fleet_instruments.py` (idempotent) so its faces get the shared style.
+
+
 ## NEEDS YOU — CARDBOARD VR ON THE iPHONE 17 PRO (Claude, 2026-11-04 ~20:00 PST, lane/claude-vr-stereo-merge)
 Ty 19:39: "I have the cardboard vr headsets for the iphone now". lane/codex-vr-stereo (lens-distortion compositor,
 in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carry it. How to use it:
