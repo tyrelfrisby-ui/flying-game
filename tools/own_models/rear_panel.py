@@ -62,8 +62,7 @@ def strip_old_dials(glb, aircraft):
 def dial_art(path, name):
     from PIL import Image, ImageDraw, ImageFont
     im=Image.new('RGB',(512,512),(19,23,27)); d=ImageDraw.Draw(im)
-    fontdir=Path(os.environ['IAC_FONT_DIR'])
-    font=lambda n:ImageFont.truetype(str(fontdir/'LiberationSans-Bold.ttf'),n)
+    from instrument_face_style import font, finish
     if name=='Attitude':
         d.ellipse((20,20,492,492),fill=(87,130,162)); d.pieslice((20,20,492,492),0,180,fill=(124,81,48));d.line((30,256,482,256),fill='white',width=5)
     for k in range(33):
@@ -79,7 +78,7 @@ def dial_art(path, name):
     d.text((256,320),value,font=font(38),anchor='mm',fill='white')
     if name!='Compass':
         d.line((256,266,174,100),fill=(255,210,70),width=10);d.ellipse((243,243,269,269),fill='white')
-    im.save(path)
+    finish(im).save(path)
 
 def meshes(aircraft):
     """Builder-space mesh tuples matching SequenceCard helper interface."""

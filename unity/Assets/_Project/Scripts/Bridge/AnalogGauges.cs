@@ -1,4 +1,5 @@
 using UnityEngine;
+using FacePaint = FlyingGame.Core.InstrumentFaces;
 
 namespace FlyingGame.Bridge
 {
@@ -29,7 +30,11 @@ namespace FlyingGame.Bridge
         private object _facesFor;               // the sim Aircraft the faces were generated for
         private float _gMaxSeen = 1f, _gMinSeen = 1f;
 
-        private static readonly Color Face = new(0.05f, 0.07f, 0.09f), Ring = new(0.92f, 0.94f, 0.97f), Warn = new(1f, 0.3f, 0.2f), Limit = new(1f, 0.85f, 0.2f);
+        private bool _creamFace;
+        private static Color Paint(uint rgb) => new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);
+        private Color Face => Paint(_creamFace ? FacePaint.CreamPaint : FacePaint.BlackPaint);
+        private Color Ring => Paint(_creamFace ? FacePaint.InkPaint : FacePaint.WhitePaint);
+        private static readonly Color Warn = new(1f, 0.3f, 0.2f), Limit = new(1f, 0.85f, 0.2f);
 
         private void Awake() { _cam = GetComponent<Camera>(); }
 
@@ -90,6 +95,10 @@ namespace FlyingGame.Bridge
         private void BuildFaces(FlyingGame.Sim.Aircraft aircraft, int size)
         {
             _faceSize = size; _facesFor = aircraft;
+            string id = aircraft.Config.Id ?? "";
+            _creamFace = id.StartsWith("j3-") || id.StartsWith("pa18-");
+            _big = _num = _label = null;
+            if (_engineFaces != null) { foreach (var face in _engineFaces) if (face != null) Destroy(face); _engineFaces = null; }
             float lineW = Mathf.Max(1.5f, size * 0.008f);
             Color ring = Ring; ring.a = Alpha + 0.35f;
 
@@ -166,10 +175,11 @@ namespace FlyingGame.Bridge
         {
             Matrix4x4 m = GUI.matrix;
             GUIUtility.RotateAroundPivot(deg, GUI.matrix.MultiplyPoint3x4(c));   // pivot in output space (the clip pass scales GUI.matrix)
-            GUI.color = new Color(1f, 1f, 1f, alpha);
+            Color ink = Ring; ink.a = alpha; GUI.color = ink;
             // The texture's centre sits on the pivot; the bar extends up (screen -y) by len.
             GUI.DrawTexture(new Rect(c.x - width * 0.5f, c.y - len, width, 2f * len), _needle);
             GUI.matrix = m;
+            GUI.color = Color.white;
         }
 
         private void OnGUI()
@@ -272,7 +282,8 @@ namespace FlyingGame.Bridge
             _num.fontSize = Mathf.RoundToInt((float)FlyingGame.Core.HudInstrumentLayout.NumeralText(s, controller));
             _big.fontSize = UiLayout.MinText;
             _dialCap ??= new GUIStyle(_label);
-            _dialCap.font = _label.font; _dialCap.normal.textColor = _label.normal.textColor;
+            _dialCap.font = _label.font; _dialCap.normal.textColor = Ring;
+            _num.normal.textColor = Ring;
             _dialCap.fontSize = Mathf.Min(UiLayout.CaptionText, Mathf.RoundToInt(r * .22f));
             void Label(Vector2 p, string text, GUIStyle st, float w, float h) => GUI.Label(new Rect(p.x - w * 0.5f, p.y - h * 0.5f, w, h), text, st);
             Vector2 OnDial(Vector2 c, float deg, float rad) { float a = deg * Mathf.Deg2Rad; return c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * rad; }
@@ -369,6 +380,7 @@ namespace FlyingGame.Bridge
             var caption = new GUIStyle(_label) { fontSize = Mathf.RoundToInt(radius * .28f) };
             var numbers = new GUIStyle(_num) { fontSize = Mathf.RoundToInt((float)FlyingGame.Core.HudInstrumentLayout.NumeralText(UiLayout.S, TouchFlightControls.TouchSticksHidden)) };
             var value = new GUIStyle(_big) { fontSize = UiLayout.MinText };
+            caption.normal.textColor = Ring; numbers.normal.textColor = Ring;
             float cell = width / 4, vh = (float)FlyingGame.Core.HudInstrumentLayout.ValueHeight(UiLayout.S);
             // A narrow row below the airplane (iPad touch band) gets the unit on its own line; the layout reserved it.
             for (int i = 0; i < 4; i++)

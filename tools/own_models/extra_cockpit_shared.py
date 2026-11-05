@@ -72,7 +72,7 @@ TICKS3 = {'OilP': [0, 30, 60, 90, 120], 'OilT': [50, 100, 150, 200, 250], 'FuelF
 HINGE_FRAC = .30                   # of the aileron's own chord, aft of its nose
 
 
-def font(n): return ImageFont.truetype('/System/Library/Fonts/Supplemental/Arial.ttf', n)
+from instrument_face_style import font, finish
 
 
 def ang3(k, v): return float(np.interp(v, SCALES3[k][1], SCALES3[k][2]))
@@ -94,7 +94,7 @@ def art_three_in_one(path):
     d.text((512, 700), 'FUEL FLOW', font=font(46), anchor='mm', fill='#f2f2f2')
     d.text((300, 425), 'PSI', font=font(34), anchor='mm', fill='#f2f2f2'); d.text((724, 425), '°F', font=font(34), anchor='mm', fill='#f2f2f2')
     d.text((512, 755), 'GPH', font=font(34), anchor='mm', fill='#f2f2f2')
-    im.save(path)
+    finish(im).save(path)
 
 
 def art_head(path, title, sub):
@@ -103,14 +103,14 @@ def art_head(path, title, sub):
     d.ellipse((8, 8, 504, 504), outline=(70, 72, 76), width=6)
     d.text((256, 70), title, font=font(46), anchor='mm', fill='#f2f2f2')
     d.text((256, 450), sub, font=font(30), anchor='mm', fill='#c8c8c8')
-    im.save(path)
+    finish(im).save(path)
 
 
 def art_fuel_computer(path):
     im = Image.new('RGB', (512, 512), (10, 10, 10)); d = ImageDraw.Draw(im)
     d.text((256, 92), 'FUEL', font=font(52), anchor='mm', fill='#f2f2f2')
     d.text((256, 400), 'FF GPH  /  USED', font=font(34), anchor='mm', fill='#f2f2f2')
-    im.save(path)
+    finish(im).save(path)
 
 
 def mat_index(g, name): return next(i for i, m in enumerate(g.doc['materials']) if m['name'] == name)

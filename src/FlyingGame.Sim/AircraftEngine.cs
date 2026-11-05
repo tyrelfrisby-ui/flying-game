@@ -45,10 +45,10 @@ public sealed partial class Aircraft
     private double _roughPhase;
 
     /// <summary>The engine is making power: it has a propeller, fuel and a mixture that fires.</summary>
-    public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0 && !_noseLost && !_mixtureDead;
+    public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0 && !_noseLost && !_mixtureDead && !_fuelStarved;
 
     /// <summary>The engine has quit for want of fuel (idle cut-off or a mixture too lean to fire). Not damage.</summary>
-    public bool EngineStarved => _mixtureDead && !_noseLost;
+    public bool EngineStarved => (_mixtureDead || _fuelStarved) && !_noseLost;
 
     /// <summary>The fuel/air equivalence ratio the lever gives here (1 = chemically correct).</summary>
     public double MixturePhi => MixtureModel.Phi(_mixtureLever, _sigma);
