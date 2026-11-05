@@ -37,6 +37,8 @@ arms/wrists, 3dd5c84c Codex v4 body candidate generator (not shipped), 905e2108 
 the phone had 2026.1104.2221 before); iPad mini 2026.1104.2346 (a second build: the first install failed CoreDevice 3002
 because another lane's build had deleted the shared /tmp/flyinggame-dd .app meanwhile); Quest 3S 2026.1104.2331
 (deploy-quest.sh, no override, 0 error CS, installed + launched; no headset screenshot: the headset was asleep).
+**On the devices at 23:58:** iPhone 2026.1104.2323 and Quest 3S 2026.1104.2337 (grob103's builds, installed after mine
+and built from the lanes AFTER this merge, so they carry all of it), iPad mini 2026.1104.2346 (mine).
 <!-- /quest-feedback needs-you -->
 
 ## NEEDS YOU — CARDBOARD VR ON THE iPHONE 17 PRO (Claude, 2026-11-04 ~20:00 PST, lane/claude-vr-stereo-merge)
