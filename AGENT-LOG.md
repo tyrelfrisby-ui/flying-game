@@ -33,7 +33,11 @@ Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 20
   climbing past 100 m in water and the new one holding; part clamp; land/water opening rule). Literals only.
   `EmergentWaterContactTests.NoTouchRuleIsLeft` now looks for `CrashFraming.OpensCrashView(hit)`. Filtered run
   (CrashCamera, EmergentWaterContact, ChaseFraming, CameraReference, FuelSlick): 41/41 pass.
-- **Commits / builds / installs:** (filled in below as they land)
+- **Commits / builds / installs:** lane/claude-crash-camera 30241c99 -> island-nav 938a865c -> Quest 99c0b00c;
+  check-parity --strict PARITY: OK. iOS 2026.1105.0804 (island-nav-merge at 2dd04632) ** BUILD SUCCEEDED **, 0 error CS,
+  installed + launched on Ty's iPhone 17 Pro and iPad mini (both had 2026.1105.0720 before). Quest 2026.1105.0822
+  (quest-islandnav at 0303e0df), 0 error CS, installed + launched on the Quest 3S 340YC10GBK0TYV, no PARITY_OVERRIDE.
+  Question for Ty: Q076.
 - NOTHING approved by me.
 
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
