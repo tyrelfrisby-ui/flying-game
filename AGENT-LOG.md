@@ -74,6 +74,9 @@
      travels, or its wing station chords? Each would replace a flagged value. (d) Should the nose wheel steer (standard
      from s/n 34171)?
      **Answer (a), Ty 2026-11-04 15:44 PT: upper surface airbrakes only, as built.**
+     **Answer (b), Ty 2026-11-04 16:04 PT: the reinforced OSB 315-66 version: 280 km/h, full aerobatics (as built).**
+     **Answer (c), Ty 2026-11-04 16:04 PT: no figures; empty mass/CG, control travels and station chords stay estimated and FLAGGED.**
+     **Answer (d), Ty 2026-11-04 16:04 PT: the nose wheel steers (standard from s/n 34171): implement real nose wheel steering.**
 - **GROB G 103 ACRO (TWIN II ACRO) — AEROBATIC GLIDER, IN PROGRESS, REVIEW BEFORE MERGE (Grok Bot, 2026-11-01,
   lane/claude-grob103 + lane/codex-grob103, both off d0986c0):** Ty chose to keep the progression blocked until a
   real aerobatic glider exists and asked for it to be built; the Grob 103 Acro is the pick (two seats, instructor
@@ -234,6 +237,7 @@
      requires, so I left it and exempted it in the scanner — OK? (e) The Pilot "choice" is whichever of the two you
      pass it in; no separate menu choice. Want an explicit pick? (f) Instrument/Commercial/Instructor accept any
      powered type — restrict to particular ones?
+     **Answer 9(a), Ty 2026-11-04 16:05 PT: YES, the Swift S-1 counts as a stand-in aerobatic glider so Blind Flying is reachable.**
 - **GREAT LAKES FRONT PANEL, SECOND PASS — YOUR TWO FAULTS, AND A THIRD UNDER ONE OF THEM (Claude, 2026-11-01,
   lane/claude-gl-dials):**
   1. **The compass is a box with a window in it now.** You were right that the card hung out in the open and
