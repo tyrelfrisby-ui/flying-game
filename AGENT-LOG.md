@@ -1,4 +1,28 @@
 ## NEEDS YOU
+- **COCKPIT COMMON (Ty's 2026-11-05 spec: IAC CARD SYSTEM, ALL AIRCRAFT, ADDENDUM Cubs) — RENDERS FOR APPROVAL, NOT MERGED
+  (Claude, 2026-11-05 06:05, lane/claude-cockpit-common c0fba85c / b0c35552 / cab6944d). Renders + README:
+  `~/Developer/agent-lanes/renders/cockpit-1105/claude-cockpit-common/`. Write-up: `docs/COCKPIT-COMMON-1105.md`.
+  Phase A iOS ** BUILD SUCCEEDED ** (NOINSTALL, 0 error CS); B-E: Unity editor batch 0 error CS, iOS build of cab6944d
+  see the line below. Nothing installed, nothing approved by me. Questions Q057-Q060.**
+  - **A. No belts / headset cords on any aircraft, bail-out one press.** Core `BeltsAndCords` names them; the game strips
+    them from every placed model (old GLBs too: Pitts/Extra 22 renderers, GL + Pitts belt sub-meshes inside the cockpit
+    mesh). Shared Blender sources no longer build them (no GLB rebuilt here). E key / glass button / Quest menu = bail
+    out; in the headset the view now goes with the jumper and the chute opens itself 3 s later. GL: a small white buckle
+    plate in `Cockpit_hardware` is still on the seat (GL lane's mesh).
+  - **B. IAC cards:** the IAC's own 2026 Power Known Form B (wind <-) / Form C (->) for Primary..Unlimited, tap/click/poke
+    the card to cycle, then the pilot's own; one card for rear and front. Options > Display: Prev / Next / Add card (iOS
+    PDF picker, every page; Mac file dialog, PDF first page or PNG/JPEG) / Remove. Quest: inbox folder + menu Import
+    (no picker on the headset, Q060).
+  - **C. Altimeters** read static pressure through the Kollsman setting (set to field elevation at the start of a flight).
+    Tap/click the altimeter: popup (type / step / scroll / QNH / zero), refuses values outside the window. Windows:
+    standard 28.10-31.00, aerobatic types 22.00-31.00 (zeroes ~8,260 ft, Q058). Knob + digit window added where the GLB
+    has none; Pitts v2's own Altimeter_Knob/_Kollsman nodes are used when present. Headset: poke opens the menu row.
+  - **D. G-meter followers** hold max/min, tap/click/poke the g-meter (or its reset knob) to reset them to the pointer.
+  - **E. J-3 fuel wire** moves live with the nose tank (`RigInputs.Fuel`, rig rows on wheels + floats); test burns fuel at
+    full power and checks the wire falls monotonically. Super Cub: no own model to put a wire on (Q059).
+  - **Not verified here:** the Android-only PdfRenderer branch (needs a Quest build); the IMGUI popup/Options screenshots
+    (Mac player, below if done). Tests: all new classes green; NoRed233.ResourcesHoldOnly, StreamingAssets x2 and
+    ModelRig.FullAirBrake fail identically on the branch point 6f659d0d.
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not

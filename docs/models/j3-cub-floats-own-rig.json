@@ -1031,6 +1031,38 @@
    "link": "air rudder via cables: water rudder deg = rudder param * 25 (limit +/-25; air rudder 30 at the same pedal)",
    "note": "LH water rudder only (60-1320 Fig.1: RH float less water rudder). Steers about steer_axis, linked to the air rudder",
    "extra": {}
+  },
+  {
+   "node": "FuelGauge_Wire",
+   "parent": "",
+   "param": "fuel",
+   "unit": "0 empty .. 1 full (nose tank)",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    -0.967,
+    0.3937,
+    0.0
+   ],
+   "map": [
+    [
+     0.0,
+     -0.221
+    ],
+    [
+     1.0,
+     0.0
+    ]
+   ],
+   "model": 1.0,
+   "desc": "nose-tank cork float wire, modelled at FULL (10 in showing above the cap crown); it slides down through the guide as the tank empties until only the hook rests on the guide (0.221 m of travel, build_j3_cub.py FUEL_TRAVEL)",
+   "link": "RigInputs.Fuel = the nose tank's fuel / its capacity, live from AircraftLoad (Ty 2026-11-05 ADDENDUM)",
+   "note": "",
+   "extra": {}
   }
  ],
  "static": [
@@ -1053,11 +1085,6 @@
    "node": "DoorUpper_R",
    "param": "door_open",
    "why": "no door control in the sim; drawn closed"
-  },
-  {
-   "node": "FuelGauge_Wire",
-   "param": "fuel",
-   "why": "nose-tank float wire: no per-tank gauge feed for the J-3; drawn FULL"
   },
   {
    "node": "Prop",

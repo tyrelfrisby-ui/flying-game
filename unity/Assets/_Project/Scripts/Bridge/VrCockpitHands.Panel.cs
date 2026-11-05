@@ -240,6 +240,26 @@ namespace FlyingGame.Bridge
                 }
                 if ((ev & PanelEvent.Changed) != 0) Apply(p);
             }
+            PokeInstruments();
+        }
+
+        /// <summary>The card, the altimeters and the g-meters (CockpitTaps): a pointing index tip of a tracked hand, or a
+        /// controller with its grip squeezed, touching the instrument.</summary>
+        private void PokeInstruments()
+        {
+            CockpitTaps taps = CockpitTaps.Current;
+            if (taps == null || _air == null) return;
+            for (int s = 0; s < 2; s++)
+            {
+                if (!_hands[s].Tracked) continue;
+                if (_hasJoints[s] && _hands[s].Source != HandSource.Controller)
+                {
+                    if (_det[s].Closed || _indexCurl[s] > PokeMaxIndexCurl || _gapM[s] < PokeMinGapM) { taps.Poke(s, new Vector3(1e6f, 1e6f, 1e6f)); continue; }
+                    taps.Poke(s, World(_jointsLocal[s][HandJoint.IndexTip]));
+                }
+                else if (_hands[s].Grip > 0.5) taps.Poke(s, World(U(_hands[s].Position)));
+                else taps.Poke(s, new Vector3(1e6f, 1e6f, 1e6f));
+            }
         }
 
         /// <summary>How far a POINTING index fingertip is from <paramref name="at"/>; ∞ for anything else. Only a tracked

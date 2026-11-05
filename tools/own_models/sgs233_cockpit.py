@@ -272,6 +272,7 @@ for j in range(len(th_) - 1):
         tt = (math.atan2(l.vert.co.z - SB_T[1], l.vert.co.x - SB_T[0]) % (2 * math.pi))
         l[uvl].uv = ((y0_ - l.vert.co.y) / (y0_ - y1_), (th_[-1] - tt) / (th_[-1] - th_[0]))
 P['Placard_Release_Tube'] = link('Placard_Release_Tube', bm); CK_MAT['Placard_Release_Tube'] = 'release_tube'; CK_STATIC.append('Placard_Release_Tube'); CK_DECALS.append('Placard_Release_Tube')
+BELTS = False   # no seat belts (Ty 2026-11-05: "Remove seat belts and headset wires completely (may revisit)")
 def harness(name, back_top, back_bot, buckle, zpan, wide=0.20, pad=0.075):
     """black webbing: shoulder straps from an anchor behind the seat back, over the back top (cross tube) and down the
     cushion face; lap belts from the board's rear corners; aluminium lift-lever buckle"""
@@ -289,7 +290,7 @@ def harness(name, back_top, back_bot, buckle, zpan, wide=0.20, pad=0.075):
     cyl(bm, (bxx - 0.03, 0, bzz + 0.01), 'Y', 0.006, 0.05, seg=10)
     for sg in (1, -1): box(bm, (bxx - 0.045, sg * 0.03, bzz + 0.004), (0.03, 0.012, 0.004))   # strap tangs
     ck(name + '_Buckle', bm, 'metal')
-harness('Harness_Front', SB_T, (SB_B[0], SB_B[1]), (1.10, 0, ZSEAT + 0.075), ZSEAT + 0.065)
+if BELTS: harness('Harness_Front', SB_T, (SB_B[0], SB_B[1]), (1.10, 0, ZSEAT + 0.075), ZSEAT + 0.065)
 
 # ---- rear seat: striped cushion on the floor + back pad, white back frame, harness ------------------------------
 RB_B, RB_T = (0.125, ZF + 0.06), (0.045, -0.10)
@@ -300,7 +301,7 @@ bm = bmesh.new()
 for sg in (1, -1): tube(bm, (RB_B[0] - 0.02, sg * 0.24, RB_B[1]), (RB_T[0] - 0.02, sg * 0.24, RB_T[1]), r=0.012, f=1.0, n=8)
 tube(bm, (RB_T[0] - 0.02, 0.24, RB_T[1]), (RB_T[0] - 0.02, -0.24, RB_T[1]), r=0.012, f=1.0, n=8)
 ck('Seat_Rear_Frame', bm, 'tube_white')
-harness('Harness_Rear', RB_T, RB_B, (0.40, 0, ZF + 0.095), ZF + 0.08, wide=0.20, pad=0.06)
+if BELTS: harness('Harness_Rear', RB_T, RB_B, (0.40, 0, ZF + 0.095), ZF + 0.08, wide=0.20, pad=0.06)
 
 # ---- controls ----------------------------------------------------------------------------------------------
 ZTT = ZF - 0.042                                                     # torque tube axis (under the floor sheet, hidden)

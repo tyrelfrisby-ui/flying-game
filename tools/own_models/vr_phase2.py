@@ -161,8 +161,10 @@ def extra_latch(a):
             for u,vv in zip(pts,pts[1:]):sh.tube(u,vv,.0015,8)
             a.node('Canopy_Latch_Hole_'+str(j+1)+suffix,shape=sh,mat=steel)
 
-def harness(a,kind,seat,hip):
-    g=a.g;hip=np.array(hip);root='Harness_'+seat;a.node(root,hip)
+BELTS=False
+
+def _belts(a,kind,seat,hip):
+    g=a.g;root='Harness_'+seat;a.node(root,hip)
     web=g.material('Harness_Webbing',(.075,.08,.09));metal=g.material('Harness_Steel',(.55,.57,.58));red=g.material('Harness_Release',(.48,.025,.018))
     buckle=hip+(.10,0,.07)
     # Independent lap belt below primary five-point buckle, both fittings visible.
@@ -187,6 +189,13 @@ def harness(a,kind,seat,hip):
     anchor=hip+(.045,0,-.09);n='Harness_Strap_Crotch_'+seat
     a.node(n,anchor,root,ribbon([anchor,hip+(.17,0,-.025),buckle]),web)
     a.rigged(n,'harness_latch',(0,1,0),[0,1],[0,100])
+
+def harness(a,kind,seat,hip):
+    """No seat belts (Ty 2026-11-05: "Remove seat belts and headset wires completely (may revisit)"). Only the headset
+    jacks are built; the game also strips belts from older GLBs by name (Core Vr/BeltsAndCords.cs). The webbing builder
+    is kept below as _belts() for when they come back."""
+    g=a.g;hip=np.array(hip);metal=g.material('Harness_Steel',(.55,.57,.58))
+    if BELTS:_belts(a,kind,seat,hip)
     # Twin sockets at an explicitly provisional right-side position.
     jp=hip+(.10,-.27,.29);sh=Shape();sh.box(jp,(.07,.012,.04))
     a.node('Headset_Jack_'+seat,jp,shape=sh,mat=metal)
