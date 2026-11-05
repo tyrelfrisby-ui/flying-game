@@ -62,6 +62,49 @@ public sealed class GroundSoundMix
     /// <summary>Slip power (W) for full level: three decades above audible.</summary>
     public const double FullSlipPowerW = 50000.0;
 
+    // ---- When the tyre starts to be heard (Ty 2026-11-05 08:50) -----------------------------------------------------
+    // "i took off in a crosswind in a cessna no brakes and the tires were howling so make the threshold higher on when
+    // the screetching starts and make it more of a fade in". A tyre under its friction peak is mostly gripping — only a
+    // sliver at the back of the patch slides — and it is quiet; it squeals once the slip passes the peak and the patch
+    // slides. So each joule of slip is heard in proportion to how far past the peak the tyre was when it made it,
+    // measured against the TYRE MODEL's own peak (not a fixed angle):
+    //  - SIDEWAYS: the cornering force the slip angle asks for over what the tyre has left sideways (LandingGear's
+    //    friction cap). 1 is the peak slip angle (μ over the cornering stiffness per load: 3.8° for a main at 0.8 / 12,
+    //    5.7° for a tailwheel); the squeal fades in from 1× to 2× it (full by 7.6° on a main), a smoothstep, and over
+    //    <see cref="SideSquealAttackS"/> in time, so a gust or a steering wobble across the peak does not switch it on.
+    //    The scrub fades in across the peak, from 0.75× to 1.5×: a faint rub as the tyre reaches it, and not before.
+    //  - FORE AND AFT: the slip ratio over the tyre's own slip scale κ0 (TireModel.SlipRatioScale; 0.08 nominal, whose
+    //    tanh is 96 % of the peak at 2 κ0): the squeal from 1.25 κ0 to 2.5 κ0 (0.10 → 0.20 nominal), the scrub from
+    //    0.5 κ0 to 1.25 κ0. No time smoothing here: a touchdown spin-up is over in a few tens of ms at slip ratios near 1,
+    //    and that chirp is the sound (Ty 08:48: "pretty good"); a locked wheel is at slip ratio 1 from the start.
+    // Level and pitch are unchanged: the onset multiplies the level only, so the squeal still pitches with the patch's
+    // slip speed and the tyre's diameter.
+    /// <summary>Sideways squeal onset band, in multiples of the tyre's friction-peak slip angle.</summary>
+    public const double SideSquealFrom = 1.0, SideSquealTo = 2.0;
+    /// <summary>Sideways scrub onset band, in multiples of the friction-peak slip angle.</summary>
+    public const double SideScrubFrom = 0.75, SideScrubTo = 1.5;
+    /// <summary>Fore-aft squeal and scrub onset bands, in multiples of the tyre's slip-ratio scale κ0.</summary>
+    public const double ForeSquealFrom = 1.25, ForeSquealTo = 2.5, ForeScrubFrom = 0.5, ForeScrubTo = 1.25;
+    /// <summary>Time constants of the sideways squeal's onset (s): it builds over ~0.2 s, and lets go a little faster.</summary>
+    public const double SideSquealAttackS = 0.2, SideSquealReleaseS = 0.1;
+
+    /// <summary>0 at <paramref name="from"/>, 1 at <paramref name="to"/>, smooth (zero slope) at both ends.</summary>
+    public static double Smoothstep(double from, double to, double x)
+    {
+        if (!double.IsFinite(x)) return x > 0 ? 1 : 0;
+        double u = System.Math.Clamp((x - from) / (to - from), 0, 1);
+        return u * u * (3 - 2 * u);
+    }
+
+    /// <summary>How much of a sideways slip is heard as squeal, by its demand over the tyre's sideways grip (1 = peak).</summary>
+    public static double SideSquealOnset(double demand) => Smoothstep(SideSquealFrom, SideSquealTo, demand);
+    /// <summary>The same for the sideways scrub.</summary>
+    public static double SideScrubOnset(double demand) => Smoothstep(SideScrubFrom, SideScrubTo, demand);
+    /// <summary>How much of a fore-aft slip is heard as squeal, by its slip ratio over the tyre's slip scale κ0.</summary>
+    public static double ForeSquealOnset(double kappaOverK0) => Smoothstep(ForeSquealFrom, ForeSquealTo, kappaOverK0);
+    /// <summary>The same for the fore-aft scrub.</summary>
+    public static double ForeScrubOnset(double kappaOverK0) => Smoothstep(ForeScrubFrom, ForeScrubTo, kappaOverK0);
+
     /// <summary>The tread's squeal resonance for a tyre of outside diameter <paramref name="odM"/>.</summary>
     public static double SquealResonanceHz(double odM) => SquealHzMetre / System.Math.Max(odM, 0.05);
 
@@ -120,7 +163,13 @@ public sealed class GroundSoundMix
         _w = new double[wheels * Keys];
         _seen = new bool[wheels];
         _bursts = new int[wheels];
+        _sideSqueal = new double[wheels];
     }
+
+    private readonly double[] _sideSqueal;   // per wheel, the sideways squeal's onset as it has built up (0..1)
+
+    /// <summary>One wheel's sideways squeal onset, smoothed in time (<see cref="SideSquealAttackS"/>).</summary>
+    public double SideSquealEnvelope(int wheel) => _sideSqueal[wheel];
 
     private readonly int[] _bursts;
 
@@ -188,6 +237,13 @@ public sealed class GroundSoundMix
             double share = loadRef > 1e-9 ? System.Math.Max(0, w.LoadN) / loadRef : 0;
             double speed = System.Math.Abs(w.VFwdMs);
             w.TakeSlip(out WheelState.Slip fore, out WheelState.Slip side);
+            {
+                // The sideways squeal builds up over ~0.2 s toward this frame's onset (none off the hard ground).
+                bool heard = w.IsWheel && w.InContact && !w.OverWater && !w.OnSki && side.TimeS > 0 && side.EnergyJ > 0;
+                double goal = heard ? side.SquealOnset : 0;
+                double tau = goal > _sideSqueal[i] ? SideSquealAttackS : SideSquealReleaseS;
+                _sideSqueal[i] += (goal - _sideSqueal[i]) * (1 - System.Math.Exp(-System.Math.Max(dt, 0) / tau));
+            }
             double thumpJ = w.ThumpJ; w.ThumpJ = 0;
             int pops = w.Bursts - (i < _bursts.Length ? _bursts[i] : 0);
             if (i < _bursts.Length) _bursts[i] = w.Bursts;
@@ -261,8 +317,8 @@ public sealed class GroundSoundMix
             if (chirp > 0)
             {
                 int sIdx = w.Side < 0 ? 0 : w.Side > 0 ? 1 : -1;
-                Voice(fore, w.SoundOdM, chirp, sIdx, pl, pr);
-                Voice(side, w.SoundOdM, chirp, sIdx, pl, pr);
+                Voice(fore, fore.SquealOnset, w.SoundOdM, chirp, sIdx, pl, pr);
+                Voice(side, System.Math.Min(side.SquealOnset, _sideSqueal[i]), w.SoundOdM, chirp, sIdx, pl, pr);
             }
 
             // A worn or flat tyre: the thump is the work the axle did on its lumps (it arrives when the low strip passes
@@ -324,13 +380,13 @@ public sealed class GroundSoundMix
     private readonly double[] _pitchW = new double[Keys];
 
     /// <summary>One direction's slip into the squeal and scrub voices of the wheel's side(s); the loudest wheel on a side
-    /// sets that side's pitch.</summary>
-    private void Voice(in WheelState.Slip slip, double odM, double chirp, int sIdx, double pl, double pr)
+    /// sets that side's pitch. <paramref name="squealOnset"/> and the slip's own scrub onset scale the levels only.</summary>
+    private void Voice(in WheelState.Slip slip, double squealOnset, double odM, double chirp, int sIdx, double pl, double pr)
     {
         if (slip.TimeS <= 0 || slip.EnergyJ <= 0) return;
         double power = slip.EnergyJ / System.Math.Max(slip.TimeS, 1e-4);
         double tonal = TonalFraction(slip.SpeedMs);
-        double squeal = chirp * SlipLevel(power * tonal), scrub = chirp * SlipLevel(power * (1 - tonal));
+        double squeal = chirp * SlipLevel(power * tonal) * squealOnset, scrub = chirp * SlipLevel(power * (1 - tonal)) * slip.ScrubOnset;
         for (int s = 0; s < 2; s++)
         {
             if (sIdx >= 0 && s != sIdx) continue;

@@ -392,6 +392,43 @@ filter inside them moves: `FlightAudio.Render` multiplies the ground bus (`Surfa
 ski hiss, float keel scrape) by it, and `ContactEffects` multiplies the airframe-scrape voices by the same constant.
 Not touched: engine, wind, one-shots (`OneShotSynth`, incl. the unused `FxKind.TireChirp`) and crash impacts.
 
+### 7d. Squeal onset at the friction peak, and a fade-in (Ty 2026-11-05 08:50, lane/claude-ground-volume)
+
+Ty: "a little too much screetching actually i took off in a crosswind in a cessna no brakes and the tires were howling
+so make the threshold higher on when the screetching starts and make it more of a fade in".
+
+Before, every joule of slip above 50 W was heard, whatever the tyre was doing. Now each joule is heard in proportion to
+how far past the TYRE MODEL's own friction peak the tyre was when it made it (`GroundSoundMix.*Onset`, smoothsteps):
+
+| direction | measure (1 = the model's peak) | squeal fades in | scrub fades in |
+|---|---|---|---|
+| sideways | cornering force asked for / what the tyre has left sideways (`LandingGear`): 1 = 3.8° on a main (μ 0.8 / 12 per rad), 5.7° on a tailwheel | 1× → 2× (full by 7.6° on a main) | 0.75× → 1.5× |
+| fore-aft | slip ratio / the tyre's own κ0 (`TireModel.SlipRatioScale`; 0.08 nominal) | 1.25 κ0 → 2.5 κ0 (0.10 → 0.20 nominal) | 0.5 κ0 → 1.25 κ0 |
+
+The sideways squeal also builds up in time, per wheel: attack τ 0.2 s, release τ 0.1 s (`SideSquealAttackS`). The
+fore-aft squeal is not time-smoothed: a touchdown spin-up is over in tens of ms at slip ratios near 1, and that chirp is
+the sound Ty called "pretty good"; a locked wheel is at slip ratio 1 from its first frame. The onset scales levels
+only: pitch still follows slip speed and tyre size (7b), and the −4 dB ground bus (7c) is unchanged. `WheelSpin.Advance`
+and `LandingGear` keep, for the sound only, the part of each slip energy that was under the bands
+(`WheelState.SlipUnderSquealJ` etc.); nothing reads them back into the physics.
+
+Measured (`tools/FlightTests/TyreSquealOnsetTests`, C172, asphalt, 15 kt direct crosswind, full power, no brakes, aileron
+into wind, rudder holding the centreline to 55 kt):
+
+| C172 nosewheel pedal steering | squeal peak (before → after) | scrub peak above 10 kt |
+|---|---|---|
+| ±29° (`maxSteerRad` 0.5, the config today) | 0.694 → **0.693** | 0.605 |
+| ±10° (the C172 POH figure), test-only | → **0.002** | 0.244 |
+
+Locked main at 40 kt: squeal 1.06 from the first frame, mean 1.11, 1800 Hz on the 6.00-6 (resonance 1575 Hz).
+
+**What the howl actually was.** It was the NOSE tyre, not the mains. Holding the centreline in that crosswind takes ~0.6
+left rudder with any pilot that holds it, and the config links the nosewheel to the pedals rigidly at ±29°, so the nose is
+steered ~17° and slides sideways at 3–4× its friction peak (5.5 m/s of side slip at 45 kt). That is a real skid in this
+model and no slip-based threshold can honestly call it quiet. A real 172 steers ±10° on the pedals (castering beyond,
+to ±30°, with differential brake). With that the same pilot holds the centreline as well (|y| ≤ 2.4 m) and the roll is
+silent. Changing the 172's ground steering is a handling change, so it is queued for Ty, not made here.
+
 ## 8. Tyre wear, burst and the flat tyre (Ty 2026-11-04 20:21, Q026 item 1)
 
 Ty: keep the 172's full-pedal main-wheel lock-up (it is real), and let a locked tyre screech, smoke and wear through to a
