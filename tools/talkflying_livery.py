@@ -3,9 +3,9 @@
     blender --background --python tools/talkflying_livery.py -- <id>
 
     ids: pa18-cub-like  c172-like  stearman-pt17-like  boeing-737-like
-         glider-2-33-like  grob-astir-like  glider-swift-s1-like      (default: all seven)
+         glider-2-33-like  glider-swift-s1-like      (default: all six)
 
-    ONE ID PER RUN if the bytes matter -- the default builds all seven in one process and that does not
+    ONE ID PER RUN if the bytes matter -- the default builds all six in one process and that does not
     produce the same bytes as building them one at a time. Invisible difference, but it breaks sha1 as a
     staleness test; see main().
 
@@ -1999,21 +1999,17 @@ PLANES = {
     #          so its wings looked stubby and no scaling could fix a ratio. The owner's word on
     #          2026-10-22 was "the wings are too short, it is a lost cause"; it was deleted, and this
     #          took its place, with the lift struts the download never had. Run the model script first.
-    #   Grob   helijah's Grob Astir, 15.0 m span, 6.82 m long -- which is the real Astir to within 40 mm,
-    #          so this mesh is dimensionally honest. It is in the repo already, under the 2-33's folder:
-    #          the game draws the 2-33 procedurally and keeps this model unused (see that LICENSE.txt).
+    #   (Grob  helijah's Grob Astir used to be here, from the 2-33's folder; it was a red-and-white stand-in
+    #          for the 2-33 and was removed from the repo, Ty 2026-11-03.)
     #   Swift  THERE IS NO SWIFT S-1 MODEL. docs/research/AIRCRAFT-3D-MODELS.md 15 found none and still
     #          holds. This is EGPJET's CC0 glass single-seater standing in for one, scaled to the Swift's
     #          12.66 m span -- a modern 15 m ship with winglets and a T-tail, not an aerobat.
     "glider-2-33-like":   (os.path.join(REPO, "build/models/glider-2-33-like.glb"), 15.44, glider_lockup),
-    "grob-astir-like":    (os.path.join(REPO, "unity/Assets/_Project/Resources/Models/glider-2-33-like",
-                                        "glider-2-33-like.obj"), 15.00, glider),
     "glider-swift-s1-like": (os.path.join(SRC, "sailplane-modern/FFGL.blend"), 12.66, glider_glass),
 }
 
 # where an aeroplane's credit line lives, when it is not beside the download under assets-incoming/models
 LICENCES = {
-    "grob-astir-like": os.path.join(REPO, "unity/Assets/_Project/Resources/Models/glider-2-33-like"),
     "glider-swift-s1-like": os.path.join(SRC, "sailplane-modern"),
 }
 
