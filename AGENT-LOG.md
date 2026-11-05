@@ -3,7 +3,7 @@
 ## NEEDS YOU — Quest feedback: views, wrists, arm clearance, prop-blast, prop/mixture — fly-test (Claude, 2026-11-04)
 <!-- quest-feedback needs-you -->
 Ty's Quest 3S report 6:08 PM (build 2026.1104.1656). Lane `lane/claude-quest-feedback`; full write-up with every table:
-`docs/quest-feedback-2026-11-04.md`. **Nothing approved by me.** Builds: iOS BUILD_IOS, Quest BUILD_QUEST.
+`docs/quest-feedback-2026-11-04.md`. **Nothing approved by me.** Builds: iOS **2026.1104.2319** (iPhone) / **2026.1104.2346** (iPad mini), Quest **2026.1104.2331**. Questions: Q049-Q054.
 **Please check (Quest unless noted):**
 1. **Views:** VR menu → `View: … < >` now cycles Cockpit / Chase / Fixed-direction chase / Fly-by. Outside views are
    level, the origin rides the aeroplane with its offset eased (0.8 s) and the heading changes only in 45° snap turns;
@@ -30,10 +30,13 @@ VrCockpitHands.Panel (prop/mixture "visual only"); no mixture or governor in the
 1060, branch 1061/16/4 of 1081, the SAME 9 failing names (pre-existing), no new failures. QuestViewShots PASS;
 VrArmCheck FAIL 8 (above). Unity batch 0 `error CS`.
 **Commits (lane/claude-quest-feedback):** 31fbf41f engine/prop/mixture, 1e27e275 views, 8f74e5d7 + 9463c6ba + 6fbb0f9e
-arms/wrists, 3dd5c84c Codex v4 body candidate generator (not shipped), 905e2108 merge of island-nav 6f0e3f74, LOGCOMMIT.
+arms/wrists, 3dd5c84c Codex v4 body candidate generator (not shipped), 905e2108 merge of island-nav 6f0e3f74, ebe2e465 log. Merged: lane/claude-island-nav 04108b33, lane/claude-quest-islandnav df833fe6 (after grob103); PARITY: OK (--strict).
 **Renders:** `~/Developer/agent-lanes/renders/quest-feedback/` — `views/` (each Quest view, 3 aircraft), `arms/`
 (before-/after- × GL, Extra, 2-33 × poses × eye-left/eye-right/handL/handR; table.md), `codex-v4-*.png`.
-**Installs:** INSTALLS
+**Installs:** iPhone 17 Pro 2026.1104.2319 (deploy.sh from claude-island-nav-merge, ** BUILD SUCCEEDED **, 0 error CS;
+the phone had 2026.1104.2221 before); iPad mini 2026.1104.2346 (a second build: the first install failed CoreDevice 3002
+because another lane's build had deleted the shared /tmp/flyinggame-dd .app meanwhile); Quest 3S 2026.1104.2331
+(deploy-quest.sh, no override, 0 error CS, installed + launched; no headset screenshot: the headset was asleep).
 <!-- /quest-feedback needs-you -->
 
 ## NEEDS YOU — CARDBOARD VR ON THE iPHONE 17 PRO (Claude, 2026-11-04 ~20:00 PST, lane/claude-vr-stereo-merge)
