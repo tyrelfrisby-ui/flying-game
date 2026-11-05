@@ -32,7 +32,8 @@ public static class CrashDust
         ContactPoint.SurfaceWater => new(0.88f, 0.94f, 1.00f, 0.60f, Kind.Spray, 0.6f),
         (int)WorldTerrain.Surface.Paved => new(0.62f, 0.60f, 0.58f, 0.35f, Kind.Dust, 1.15f),
         ContactPoint.SurfaceSolid => new(0.60f, 0.60f, 0.60f, 0.30f, Kind.Dust, 1.35f),
-        (int)WorldTerrain.Surface.Gravel => new(0.55f, 0.46f, 0.34f, 0.45f, Kind.Dust, 0.9f),
+        // Dirt and hard sand (lane/claude-tire-spinup) are their own wheel surfaces now; their dust is gravel's.
+        (int)WorldTerrain.Surface.Gravel or (int)WorldTerrain.Surface.Dirt or (int)WorldTerrain.Surface.Sand => new(0.55f, 0.46f, 0.34f, 0.45f, Kind.Dust, 0.9f),
         // Grass, and the island's green pasture off the strips (Rough): torn turf over earth.
         (int)WorldTerrain.Surface.Grass or (int)WorldTerrain.Surface.Rough => new(0.42f, 0.44f, 0.26f, 0.40f, Kind.Dust, 0.65f),
         _ => Fallback,

@@ -744,7 +744,7 @@ public sealed class AtmosphereField
         double h = GroundAt(x, y);
         double? water = FloatHydro.WaterSurfaceAt(x, y);
         if (water.HasValue && water.Value >= h - 0.5) return -0.7;
-        double v = WorldTerrain.SurfaceAt(x, y) switch
+        double v = WorldTerrain.Coarse(WorldTerrain.SurfaceAt(x, y)) switch
         {
             WorldTerrain.Surface.Paved => 0.7,
             WorldTerrain.Surface.Gravel => 0.85,

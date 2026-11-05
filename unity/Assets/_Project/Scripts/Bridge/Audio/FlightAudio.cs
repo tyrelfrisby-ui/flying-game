@@ -34,6 +34,16 @@ namespace FlyingGame.Bridge
         private readonly AudioTelemetry _tele = new AudioTelemetry();
         private WindSynth _wind;
         private SurfaceSynth _surface;
+        private TyreBrakeSynth _tyres;
+        private FlyingGame.Core.GroundSoundMix _groundMix;   // main thread
+        private readonly int[] _chirpSeenUs = new int[2];      // audio thread
+        private readonly float[] _chirpNewS = new float[2];    // audio thread
+        private readonly double[] _chirpTotalS = new double[2]; // main thread
+        private readonly double[] _thumpTotalJ = new double[2]; // main thread
+        private readonly int[] _popTotal = new int[2];          // main thread
+        private readonly int[] _thumpSeenMj = new int[2], _popSeen = new int[2];   // audio thread
+        private readonly float[] _thumpNewJ = new float[2];
+        private readonly int[] _popsNew = new int[2];
         private OneShotSynth _fx;
         private volatile CrashSoundMixer _crashes;
         private CrashWaterVisuals _crashVisuals;
@@ -153,6 +163,7 @@ namespace FlyingGame.Bridge
             _gainA = Dsp.Tau(0.08f, _fs);
             _wind = new WindSynth(_fs);
             _surface = new SurfaceSynth(_fs);
+            _tyres = new TyreBrakeSynth(_fs);
             _fx = new OneShotSynth(_fs);
             _crashes = new CrashSoundMixer(_fs);
             _crashVisuals = gameObject.AddComponent<CrashWaterVisuals>();
@@ -288,16 +299,7 @@ namespace FlyingGame.Bridge
                 _tele.WindSpeedMs = (float)System.Math.Sqrt(here.MeanWind.X * here.MeanWind.X + here.MeanWind.Y * here.MeanWind.Y);
             }
             _tele.GroanSeverity = _groanSeverity;
-            float gravel = 0f, rough = 0f;
-            if (aircraft != null && d.OnGround && FlyingGame.Core.LandingGear.AnyMainWheelOnGround(aircraft.Config, aircraft.State))
-            {
-                var st = aircraft.State; var vW = st.Attitude.Rotate(st.Velocity);
-                float gs = (float)System.Math.Sqrt(vW.X * vW.X + vW.Y * vW.Y);
-                var surf = FlyingGame.Core.WorldTerrain.SurfaceAt(st.Position.X, st.Position.Y);
-                if (surf == FlyingGame.Core.WorldTerrain.Surface.Gravel) gravel = gs;
-                else if (surf == FlyingGame.Core.WorldTerrain.Surface.Rough || surf == FlyingGame.Core.WorldTerrain.Surface.GlacierIce) rough = gs;
-            }
-            _tele.GravelSpeed = gravel; _tele.RoughSpeed = rough;
+            PushGroundSound(aircraft);
             _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume);
             // Pilot out: his own airspeed is the wind in his ears; the aircraft's engine, tyres and crashes fade with distance.
             bool pilotOut = _egress != null && _egress.PilotTransform != null && (SessionSettings.ReplayActive ? FlightReplay.ReplayPilotOut : _egress.PilotOut);
@@ -316,6 +318,57 @@ namespace FlyingGame.Bridge
             _tele.CockpitAir = air;
         }
 
+        /// <summary>The wheels, brakes, skis and floats: Core's GroundSoundMix reads each wheel's contact (the ground
+        /// under THAT wheel, its spin, its slip, its brake) and this copies the result into the mailbox.</summary>
+        private void PushGroundSound(FlyingGame.Sim.Aircraft aircraft)
+        {
+            var wheels = aircraft?.Wheels;
+            if (wheels == null || wheels.Count == 0)
+            {
+                for (int i = 0; i < _tele.RollVoiceLR.Length; i++) _tele.RollVoiceLR[i] = 0f;
+                for (int s = 0; s < 2; s++) { _tele.WhirGain[s] = 0f; _tele.ScrapeGain[s] = 0f; _tele.SquealGain[s] = 0f; _tele.FlapGain[s] = 0f; }
+                _tele.WaterSplash = _tele.WaterHiss = _tele.Spray = _tele.SkiHiss = _tele.KeelScrape = 0f;
+                return;
+            }
+            if (_groundMix == null || _groundMixFor != aircraft) { _groundMix = new FlyingGame.Core.GroundSoundMix(wheels.Count); _groundMixFor = aircraft; }
+            var m = _groundMix;
+            double weight = aircraft.MassProperties.MassKg * 9.81;
+            m.Update(wheels, weight, Time.deltaTime, aircraft.Config.Floats != null ? FlyingGame.Core.FloatHydro.Floats : null, 2);
+            const int keys = FlyingGame.Core.GroundSoundMix.Keys, voices = 10;
+            for (int i = 0; i < _voiceLR.Length; i++) _voiceLR[i] = 0f;
+            for (int v = 0; v < voices; v++) { _voicePitch[v] = 0f; _voicePitchW[v] = 0f; }
+            for (int k = 0; k < keys; k++)
+            {
+                int v = (int)FlyingGame.Core.GroundMaterials.Row((FlyingGame.Core.GroundMaterial)k).Voice;
+                float gl = m.RollingGain[k], gr = m.RollingGain[keys + k];
+                _voiceLR[v] += gl; _voiceLR[voices + v] += gr;
+                float wsum = gl + gr;
+                _voicePitch[v] += m.RollingPitch[k] * wsum; _voicePitchW[v] += wsum;
+            }
+            for (int i = 0; i < _voiceLR.Length; i++) _tele.RollVoiceLR[i] = _voiceLR[i];
+            for (int v = 0; v < voices; v++) _tele.RollVoicePitch[v] = _voicePitchW[v] > 1e-6f ? _voicePitch[v] / _voicePitchW[v] : 1f;
+            var vW = aircraft.State.Attitude.Rotate(aircraft.State.Velocity);
+            _tele.RollSpeedMs = (float)System.Math.Sqrt(vW.X * vW.X + vW.Y * vW.Y);
+            for (int s = 0; s < 2; s++)
+            {
+                _tele.WhirHz[s] = m.WhirHz[s]; _tele.WhirGain[s] = m.WhirGain[s];
+                _chirpTotalS[s] += m.ChirpSeconds[s];
+                System.Threading.Volatile.Write(ref _tele.ChirpTotalUs[s], (int)(_chirpTotalS[s] * 1e6 % int.MaxValue));
+                if (m.ChirpSeconds[s] > 0f) { _tele.ChirpGain[s] = m.ChirpGain[s]; _tele.ChirpSlip[s] = m.ChirpSlip[s]; }
+                _tele.ScrapeGain[s] = m.ScrapeGain[s]; _tele.ScrapeHz[s] = m.ScrapeHz[s];
+                _tele.SquealGain[s] = m.SquealGain[s]; _tele.SquealHz[s] = m.SquealHz[s];
+                _thumpTotalJ[s] += m.ThumpJ[s];
+                System.Threading.Volatile.Write(ref _tele.ThumpTotalMj[s], (int)(_thumpTotalJ[s] * 1e3 % int.MaxValue));
+                _popTotal[s] += m.Pops[s];
+                System.Threading.Volatile.Write(ref _tele.PopTotal[s], _popTotal[s]);
+                _tele.FlapHz[s] = m.FlapHz[s]; _tele.FlapGain[s] = m.FlapGain[s];
+            }
+            _tele.WaterSplash = m.WaterSplash; _tele.WaterHiss = m.WaterHiss; _tele.Spray = m.Spray;
+            _tele.SkiHiss = m.SkiHiss; _tele.KeelScrape = m.KeelScrape;
+        }
+        private FlyingGame.Sim.Aircraft _groundMixFor;
+        private readonly float[] _voiceLR = new float[20], _voicePitch = new float[10], _voicePitchW = new float[10];
+
         // ---- audio thread ---------------------------------------------------------------------------
 
         /// <summary>Fill an interleaved output buffer with the synthesized mix. Audio thread; no Unity API,
@@ -333,7 +386,24 @@ namespace FlyingGame.Bridge
             float acGain = t.AircraftGain;
             _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered && !t.PilotOut, t.CockpitAir);
             _fx.Prepare(ias, t.GroanSeverity, acGain);
-            _surface.Prepare(t.GravelSpeed, t.RoughSpeed);
+            _surface.Prepare(t.RollVoiceLR, t.RollVoicePitch, t.RollSpeedMs);
+            for (int s = 0; s < 2; s++)
+            {
+                int total = System.Threading.Volatile.Read(ref t.ChirpTotalUs[s]);
+                int d = total - _chirpSeenUs[s];
+                _chirpSeenUs[s] = total;
+                _chirpNewS[s] = d > 0 && d < 1000000 ? d * 1e-6f : 0f;
+                int th = System.Threading.Volatile.Read(ref t.ThumpTotalMj[s]);
+                int dth = th - _thumpSeenMj[s];
+                _thumpSeenMj[s] = th;
+                _thumpNewJ[s] = dth > 0 && dth < 100000000 ? dth * 1e-3f : 0f;
+                int pops = System.Threading.Volatile.Read(ref t.PopTotal[s]);
+                _popsNew[s] = pops - _popSeen[s] > 0 ? pops - _popSeen[s] : 0;
+                _popSeen[s] = pops;
+            }
+            _tyres.Prepare(t.WhirHz, t.WhirGain, _chirpNewS, t.ChirpGain, t.ChirpSlip, t.ScrapeGain, t.ScrapeHz, t.SquealGain, t.SquealHz,
+                           t.WaterSplash, t.WaterHiss, t.Spray, t.SkiHiss, t.KeelScrape,
+                           _thumpNewJ, _popsNew, t.FlapHz, t.FlapGain);
             CrashSoundMixer crashes = _crashes;
             crashes.Prepare();
             engine?.Prepare(rpm, thr);
@@ -368,6 +438,8 @@ namespace FlyingGame.Bridge
 
                 _wind.Next(out float wl, out float wr);
                 _surface.Next(out float sl, out float sr);
+                _tyres.Next(out float tl, out float tr);
+                sl += tl; sr += tr;
                 float el = 0f, er = 0f;
                 engine?.Next(out el, out er);
                 float fx = (_fx.Next() + crashes.Next()) * FxMix;
