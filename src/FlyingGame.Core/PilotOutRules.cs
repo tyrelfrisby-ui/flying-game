@@ -31,6 +31,8 @@ public static class PilotOutRules
         UnderCanopy,
         /// <summary>On the ground or in the water (tumbling down a slope counts: he has arrived).</summary>
         Landed,
+        /// <summary>He did not survive the crash, and his ghost is going UP under its canopy (<see cref="GhostAscends"/>).</summary>
+        Ascending,
     }
 
     /// <summary>May any HUD imagery (the green HUD, the floating dials, the flight-path line, the dev status
@@ -39,7 +41,42 @@ public static class PilotOutRules
 
     /// <summary>Is the landing one-liner up? Once he is down and has said it, until the next flight.</summary>
     public static bool ShowRemark(Stage stage, bool spoken, string? line) =>
-        stage == Stage.Landed && spoken && !string.IsNullOrEmpty(line);
+        (stage == Stage.Landed || stage == Stage.Ascending) && spoken && !string.IsNullOrEmpty(line);
+
+    // ---- the ghost (Ty 2026-11-05 06:35) ------------------------------------------------------------------------
+    //
+    // "when a pilot bails out after crashing a semi transparent image of them getting out and [deploying] their
+    // parachute takes them up to the sky and it says something corny about them going to heaven". Whether he is a
+    // ghost is the crash's verdict (OccupantInjury), taken when he leaves the aeroplane; nothing else decides it.
+
+    /// <summary>Does the pilot leave as a ghost that rises? Only when the crash itself killed him.</summary>
+    public static bool GhostAscends(LandingOutcome crash) => crash == LandingOutcome.Dead;
+
+    /// <summary>The verdict once he is out: the crash's, made worse by the parachute landing if that was worse. A pilot
+    /// who bailed out of a flying aeroplane has an Unhurt crash, so this is the landing's grade, as it always was.</summary>
+    public static LandingOutcome Combined(LandingOutcome crash, LandingOutcome landing) => OccupantInjury.Worse(crash, landing);
+
+    /// <summary>The label over the ghost's line (the flat status line and the headset's world text).</summary>
+    public const string GhostLabel = "GONE WEST";
+
+    /// <summary>The farewell, original lines in the spirit of a "blue skies and tailwinds" send-off. No song lyrics.</summary>
+    public static readonly string[] HeavenLines =
+    {
+        "Blue skies and tailwinds, Captain. Next stop: the Good Ship Lollipop.",
+        "Cleared direct to the pearly gates. Climb and maintain forever.",
+        "Tailwinds all the way up. Save me a window seat on the Good Ship Lollipop.",
+    };
+
+    /// <summary>Seconds after he leaves the wreck that the ghost's canopy opens (no free fall: he is not falling).</summary>
+    public const double GhostChuteSec = 1.2;
+
+    /// <summary>The ghost's lift, in g, against his weight: net (this − 1) g upward until the canopy's drag balances it.
+    /// Under the full 26 ft canopy (CdS ≈ 40 m², 105 kg, sea level) that is √(2·0.6·105·9.81 / (1.225·40)) ≈ 5 m/s of
+    /// climb; the canopy fills over a distance (Knacke's n·D0), so a brisker rise also opens it sooner.</summary>
+    public const double GhostLiftG = 1.6;
+
+    /// <summary>Opacity of the ghost and his canopy: there, but you can see the sky through him.</summary>
+    public const double GhostAlpha = 0.42;
 
     /// <summary>Draw the one-liner in the world (in front of the eyes) rather than on the flat status line? Only
     /// where the flat overlay cannot be seen — a headset — so a flat screen never shows it twice.</summary>

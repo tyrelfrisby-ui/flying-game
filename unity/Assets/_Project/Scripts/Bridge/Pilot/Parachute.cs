@@ -168,6 +168,9 @@ namespace FlyingGame.Bridge
             if (_root != null) Object.Destroy(_root);
         }
 
+        /// <summary>The ghost's canopy (PilotBody.Ghost): translucent like him.</summary>
+        public void SetGhost() => PilotBody.GhostRenderers(_root);
+
         /// <summary>Hide the primitive dome and lines (Codex's own Parachute_Deployed is drawn instead).</summary>
         public void SetVisible(bool on)
         {

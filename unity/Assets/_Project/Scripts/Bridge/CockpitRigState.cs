@@ -67,6 +67,11 @@ namespace FlyingGame.Bridge
         /// has one), or null. One-way; reset with the aeroplane. It drives the rig's `canopy_jettison` with the menu's
         /// red-handle pull, but NOT AirframeVisual's instant jettison: the canopy goes when CanopyDynamics says so.</summary>
         public FlyingGame.Core.Vr.JettisonPull HandJettison;
+        /// <summary>THE BAIL-OUT'S CANOPY (PilotEgress, Core Vr.CanopyBailout), set from the moment it unlatches the canopy and
+        /// pulls the pins until the aeroplane is reset: the headset's own canopy where it has one, else this type's from
+        /// its part. While set the bail-out steps it and the headset's hands leave it alone, and it decides
+        /// <see cref="CanopyOpen01"/>.</summary>
+        public FlyingGame.Core.Vr.CanopyDynamics EgressCanopy;
         public FlyingGame.Core.Vr.SeatHarness Harness;
         public FlyingGame.Core.Vr.HeadsetCord Cord;
         public readonly FlyingGame.Core.Vr.ClimbOut Climb = new();
@@ -141,6 +146,7 @@ namespace FlyingGame.Bridge
             _oilTempF = 180.0; _chtF = 320.0; _fuelUsedGal = 0.0;
             CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true;
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
+            EgressCanopy = null;
             HandLatch?.Reset();
             HandCanopy?.Reset();
             HandJettison?.Reset();
@@ -264,7 +270,9 @@ namespace FlyingGame.Bridge
 
             _iasKt = (float)r.AirspeedKias;
             StepCanopy(dt);
-            if (HandCanopy != null) { r.CanopyOpen = HandCanopy.Open01; r.CanopySlide = HandCanopy.Slide01; }
+            // The canopy's own physics where it is running (the headset's, or the bail-out's on any platform), else the command.
+            FlyingGame.Core.Vr.CanopyDynamics physical = EgressCanopy ?? HandCanopy;
+            if (physical != null) { r.CanopyOpen = physical.Open01; r.CanopySlide = physical.Slide01; }
             else (r.CanopySlide, r.CanopyOpen) = FlyingGame.Core.Vr.CanopyDynamics.ScriptedRig(ScriptedCanopy(cfg?.Id), CanopyOpen01);
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
             r.CanopyJettison = System.Math.Max(CanopyPull01, HandJettison?.Pulled01 ?? 0.0);
@@ -413,7 +421,8 @@ namespace FlyingGame.Bridge
             if (_iasKt > CanopyMaxOpenKt && _canopyTarget > 0f) { _canopyTarget = 0f; CanopyLocked = true; }
             // A hand on a headset's canopy: its own physics set CanopyOpen01 (it flips open in the airload, which the
             // 60 kt rule above would contradict), so the menu's command stands down.
-            if (HandCanopy != null) { if (!CanopyGone) CanopyOpen01 = (float)HandCanopy.Open01; }
+            FlyingGame.Core.Vr.CanopyDynamics physical = EgressCanopy ?? HandCanopy;
+            if (physical != null) { if (!CanopyGone) CanopyOpen01 = (float)physical.Open01; }
             else if (!CanopyGone)
                 CanopyOpen01 = Mathf.MoveTowards(CanopyOpen01, _canopyTarget, dt / CanopySec);
             if (_handOnRelease > 0f)
