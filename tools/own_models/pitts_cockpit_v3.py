@@ -186,3 +186,5 @@ if __name__=='__main__':
  main()
  from pitts_panel_v4 import main as finish_panel
  finish_panel()
+ from pitts_alternator_live import main as live_alternator   # ALTERNATOR as a working switch (ElectricalSystem)
+ live_alternator()

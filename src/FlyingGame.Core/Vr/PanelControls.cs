@@ -17,6 +17,8 @@ namespace FlyingGame.Core.Vr
     public sealed class PanelControlSpec
     {
         public string Node = "", Param = "", Seat = "Rear", Semantics = "absolute", Grip = "", Poke = "";
+        /// <summary>The placard text beside the control ("MASTER"), or "" where the table gives none.</summary>
+        public string Label = "";
         public PanelKind Kind;
         public double Lo, Hi = 1.0;
         public double[] Detents = Array.Empty<double>();

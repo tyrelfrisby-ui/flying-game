@@ -284,6 +284,7 @@ namespace FlyingGame.Bridge
                     Semantics = c["semantics"]?.Value<string>() ?? "absolute",
                     Grip = c["grip"]?.Value<string>() ?? "",
                     Poke = c["poke"]?.Value<string>() ?? "",
+                    Label = c["label"]?.Value<string>() ?? "",
                     Kind = kind == "Toggle" ? FlyingGame.Core.Vr.PanelKind.Toggle : kind == "PushPull" ? FlyingGame.Core.Vr.PanelKind.PushPull
                          : kind == "Lever" ? FlyingGame.Core.Vr.PanelKind.Lever : FlyingGame.Core.Vr.PanelKind.Rotary,
                 };

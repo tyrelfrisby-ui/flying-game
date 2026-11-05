@@ -111,7 +111,10 @@ public sealed class CockpitLiveTests
             var front = Dial(p, $"FrontPanel_{name}_Face");
             var rear = Dial(p, $"RearPanel_{name}_Face");
             Assert.Equal(rear.Art, front.Art);
-            Assert.Same(rear.Needles, front.Needles);
+            // The same needle maps (CockpitLive's dials are built fresh on every read, so compare them, not the instances).
+            Assert.Equal(rear.Needles.Select(n => (n.Param, n.Ang0Deg, n.Shape)), front.Needles.Select(n => (n.Param, n.Ang0Deg, n.Shape)));
+            foreach (double at in new[] { 0.0, 1.0, 55.0, 120.0, 2500.0 })
+                Assert.Equal(rear.Needles.Select(n => n.AngleDeg(at)), front.Needles.Select(n => n.AngleDeg(at)));
         }
         foreach (string n in new[] { "Airspeed", "Altimeter", "G_meter", "Tachometer", "Oil_pressure", "Oil_temperature", "Compass" })
             Assert.Contains(p.Dials, d => d.Face == $"RearPanel_{n}_Face");

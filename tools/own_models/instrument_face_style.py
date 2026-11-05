@@ -58,6 +58,30 @@ def finish(image, cream=False):
         result.putalpha(image.getchannel('A'))
     return result
 
+def cream_from_black(image):
+    """A black-faced dial as the cream variant (the PA-18's downloaded faces, Ty 2026-11-04: the Cubs keep cream).
+
+    Neutral paint is re-inked by its lightness: black face -> CREAM, white markings -> INK, greys in between, so
+    antialiased edges stay smooth. Saturated arcs and redlines keep their exact pixels, then `finish(cream=True)`
+    gives the same bold stroke as every other face.
+    """
+    rgb = np.array(image.convert('RGB')).astype(float)
+    hi, lo = rgb.max(2), rgb.min(2)
+    neutral = (hi - lo) < 38
+    ink = (hi / 255.0)[:, :, None]
+    out = rgb.copy()
+    painted = np.array(CREAM, float) * (1 - ink) + np.array(INK, float) * ink
+    out[neutral] = painted[neutral]
+    out[neutral & (hi < 115)] = CREAM   # the face itself, as finish() reads a black one: dark greys are background too
+    result = Image.fromarray(out.astype('uint8'))
+    # The re-inking already gives pure ink on pure cream. The bold stroke is one texel at 512 px; on a 256 px map
+    # that is twice as heavy and closes up the small print, so a small map keeps its own line weight.
+    return finish(result, cream=True) if min(image.size) >= 512 else result
+
+# The PA-18 (Sketchfab "Piper Pa 18" by helijah, CC BY 4.0) carries its dials as JPEG maps beside its OBJ. Not its
+# attitude gyro (DefaultWhite_ai): that map is an atlas of horizon card, case and symbol, and no gyro is cream.
+PA18_FACES = ['DefaultWhite_%s.png_baseColor.jpg' % k for k in ('alt', 'asi', 'hdg', 'turn', 'vsi')]
+
 def is_face(name):
     return (name.startswith(('Dial_', 'P3b_Dial_', 'Compass_Card', 'Compass_Face', 'FrontPanel_'))
             and ('Face' in name or not name.startswith('FrontPanel_'))) or (

@@ -1228,6 +1228,38 @@
    "note": ""
   },
   {
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.176
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
    "node": "Ctl_Toggle_FuelPump",
    "param": "fuel_pump",
    "parent": null,
@@ -1456,7 +1488,45 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap",
+   "label": "MASTER"
+  },
+  {
+   "node": "Ctl_Toggle_Alternator",
+   "param": "alternator",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.809,
+    -0.2178,
+    0.176
+   ],
+   "travel": 40,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_Alternator",
+   "grip": "Grip_Alternator",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap",
+   "label": "ALTERNATOR"
   },
   {
    "node": "Ctl_Toggle_FuelPump",
@@ -1492,7 +1562,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap",
+   "label": "FUEL PUMP"
   },
   {
    "node": "Ctl_Toggle_Smoke",
@@ -1528,7 +1599,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap"
+   "placement": "Pitts v3: panel face, horizontal line with centre clearance gap",
+   "label": "SMOKE"
   },
   {
    "node": "Ctl_PushPull_Mixture",

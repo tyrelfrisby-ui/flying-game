@@ -5,7 +5,7 @@ from pathlib import Path
 import hashlib, json
 from PIL import Image
 from vr_cockpit import MODELS, ROOT, Glb
-from instrument_face_style import apply_glb, finish, write_runtime_palette
+from instrument_face_style import apply_glb, finish, write_runtime_palette, cream_from_black, PA18_FACES
 
 def main():
     write_runtime_palette(ROOT)
@@ -21,6 +21,12 @@ def main():
         key = path.name
         if hashes.get(key) != hashlib.sha256(path.read_bytes()).hexdigest():
             finish(Image.open(path)).save(path)
+            hashes[key] = hashlib.sha256(path.read_bytes()).hexdigest()
+    # The PA-18's OBJ dials (black as downloaded): the cream variant, once (the manifest keeps a re-run from re-inking).
+    for name in PA18_FACES:
+        path = MODELS/'pa18-cub-like'/name; key = 'pa18-cub-like/' + name
+        if hashes.get(key) != hashlib.sha256(path.read_bytes()).hexdigest():
+            cream_from_black(Image.open(path)).save(path, quality=95)
             hashes[key] = hashlib.sha256(path.read_bytes()).hexdigest()
     manifest.write_text(json.dumps(hashes, indent=2, sort_keys=True) + '\n')
 
