@@ -399,7 +399,25 @@ namespace FlyingGame.Bridge
         private void LateUpdate()
         {
             PlaceCamera();
+            PropShake();
             KeepAboveSurface();
+        }
+
+        /// <summary>A bent prop shakes the airframe once a revolution (Aircraft.PropVibrationG, Ty 2026-11-05: "a bent prop
+        /// ... comes with reduced thrust and a vibration"), and the pilot's head with it. The real shake is 12-45 Hz, faster
+        /// than the frame rate, so each frame takes a fresh random offset of that amplitude: the blur of a vibrating seat,
+        /// not a slow wobble. Cockpit view only (it is placed afresh every frame, so nothing accumulates); ~6 cm and 3° per
+        /// g, which puts a 0.05 g prop at a 3 mm, 0.15° buzz. Not in a headset: shaking the world there is a comfort risk,
+        /// so the Quest gets it through the sound.</summary>
+        private void PropShake()
+        {
+#if !UNITY_ANDROID
+            if (CurrentView != View.Cockpit || Driver == null || Driver.Sim == null) return;
+            float g = Mathf.Min(0.25f, (float)Driver.Sim.Aircraft.PropVibrationG());
+            if (g < 1e-4f) return;
+            transform.position += transform.rotation * (Random.insideUnitSphere * (0.06f * g));
+            transform.rotation *= Quaternion.Euler(Random.Range(-3f, 3f) * g, Random.Range(-3f, 3f) * g, 0f);
+#endif
         }
 
         /// <summary>

@@ -54,6 +54,7 @@ namespace FlyingGame.Bridge
         private volatile bool _ready;
         private float _fs;
         private float _gain;                 // audio-thread smoothed master gain
+        private float _shakePh;              // audio thread: the bent prop's once-a-revolution throb
         private float _gainA;
         private float _groanSeverity, _groanHold;
         private float _savedMaster;
@@ -293,6 +294,8 @@ namespace FlyingGame.Bridge
             bool running = aircraft == null || aircraft.EngineRunning;
             _tele.Throttle01 = aircraft != null ? (float)aircraft.ShaftPower01 : (float)d.Throttle01;
             _tele.EngineRpm = running ? (float)d.EngineRpm : 0f;
+            _tele.PropShakeG = aircraft != null ? (float)aircraft.PropVibrationG() : 0f;
+            _tele.PropShakeHz = aircraft != null ? (float)aircraft.PropVibrationHz : 0f;
             _tele.Spoiler01 = aircraft != null ? (float)aircraft.CurrentDeflections.SpoilerFraction : 0f;
             _tele.OnGround = d.OnGround;
             _tele.TurbulenceLevel = SessionSettings.TurbulenceLevel;
@@ -388,6 +391,7 @@ namespace FlyingGame.Bridge
             int frames = data.Length / channels;
             AudioTelemetry t = _tele;
             float ias = t.IasMs, thr = t.Throttle01, rpm = t.EngineRpm;
+            float shakeHz = t.PropShakeHz, shakeDepth = shakeHz > 1f ? Mathf.Clamp01(t.PropShakeG / 0.05f) * 0.6f : 0f;
             float masterTarget = t.MasterGain;
             EngineSynth engine = _engine;
             bool powered = engine != null;
@@ -456,6 +460,15 @@ namespace FlyingGame.Bridge
                 sr = (sr + tr) * FlyingGame.Core.GroundSoundMix.OutputGain;
                 float el = 0f, er = 0f;
                 engine?.Next(out el, out er);
+                if (shakeDepth > 0f)
+                {
+                    // A bent prop (Aircraft.PropVibrationG): the engine note throbs once a revolution, with the airframe's
+                    // own low drone at that rate under it. Depth from the shake: 0.05 g (a few cm off one tip) is full.
+                    _shakePh = Dsp.Wrap01(_shakePh + shakeHz / _fs);
+                    float sw = Dsp.Sin01(_shakePh);
+                    el = el * (1f + shakeDepth * sw) + 0.12f * shakeDepth * sw;
+                    er = er * (1f + shakeDepth * sw) + 0.12f * shakeDepth * sw;
+                }
                 float fx = (_fx.Next() + crashes.Next()) * FxMix;
 
                 float l = Dsp.SoftClip((wl * WindMix + (el * EngineMix + sl) * acGain + fx + gun) * _gain);

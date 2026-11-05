@@ -494,7 +494,11 @@ public sealed partial class Aircraft
     /// its fine-pitch stop and rpm follows power; above it the governor holds GovernedRpm, rising to MaxRpm only
     /// with the throttle firewalled (take-off). Fixed pitch: rpm follows throttle and picks up with airspeed
     /// (a fixed-pitch prop unloads as the aircraft accelerates: ~2300 static, red-line at cruise speed).</summary>
-    public double EngineRpm
+    public double EngineRpm => _propStriking.Length > 0 && _propStriking[0] ? Math.Min(FreeEngineRpm, StrikeRotorRpm(0)) : FreeEngineRpm;
+
+    /// <summary>The rpm the engine runs at with nothing holding its propeller (<see cref="EngineRpm"/> is lower while a
+    /// strike is braking the blades).</summary>
+    public double FreeEngineRpm
     {
         get
         {
@@ -1372,7 +1376,7 @@ public sealed partial class Aircraft
             }
             if (Config.Propulsion is not null)
             {
-                (Vec3 pF, Vec3 pM) = PropulsionForces(Config, _throttle01, s.Velocity, s.Rates, airDensity, _noseLost, _noseBody, _propThrustScale, _drive);
+                (Vec3 pF, Vec3 pM) = PropulsionForces(Config, _throttle01, s.Velocity, s.Rates, airDensity, _noseLost, _noseBody, PropThrustNow, _drive);
                 totalF += pF;
                 totalM += pM;
             }
