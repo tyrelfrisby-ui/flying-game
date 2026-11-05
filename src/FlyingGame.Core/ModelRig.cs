@@ -241,6 +241,26 @@ public struct RigInputs
     /// <summary>Rotor speed as a fraction of rated, for the gyro whine and a check.</summary>
     public double AiRotor, DgRotor, TcRotor;
 
+    // ---- the engine gauges the shared Extra panel adds (lane/claude-extra-cockpit-shared, 2026-11-04) -----------
+    // The P3b panel already carried needles for these (Needle_Amps_*, Needle_EGT_*, Needle_Fuel_Wing/Akro_*), and no
+    // param fed them on either platform, so they sat at rest; Ty's new layout adds the three-in-one and a fuel
+    // computer. Filled by Bridge CockpitRigState. The three-in-one's third needle is FUEL FLOW (Ty 2026-11-04 15:23:
+    // the real 300L, EASA.A.362, has no fuel pressure gauge; its UI6331 is MP/FF), so there is no fuel pressure here.
+
+    /// <summary>Ammeter, amperes, + = charging (a centre-zero ammeter).</summary>
+    public double Amps;
+    /// <summary>Exhaust gas temperature, deg F.</summary>
+    public double EgtF;
+    /// <summary>US gallons in the wing tanks together, and in the centre (aerobatic) tank.</summary>
+    public double FuelWingGal, FuelAkroGal;
+    /// <summary>The fuel computer: flow now (US gal/h) and burned since the aeroplane was reset (US gal).</summary>
+    public double FuelFlowGph, FuelUsedGal;
+
+    /// <summary>Avgas, 6.0 lb per US gallon.</summary>
+    public const double KgPerUsGal = 2.7216;
+    /// <summary>The sim's burn (Aircraft.FuelFlowKgPerSec, kg/s) as a fuel-flow gauge reads it, US gal/h.</summary>
+    public static double GphFromKgPerSec(double kgPerSec) => kgPerSec * 3600.0 / KgPerUsGal;
+
     /// <summary>The CONTROL half, from the sim's deflections and the type's travel limits. The instrument
     /// readings are the caller's to fill in — a remote aeroplane's panel is nobody's to read.
     ///
@@ -380,6 +400,13 @@ public struct RigInputs
             case "ai_rotor": value = AiRotor; return true;
             case "dg_rotor": value = DgRotor; return true;
             case "tc_rotor": value = TcRotor; return true;
+
+            case "amps": value = Amps; return true;
+            case "egt_f": value = EgtF; return true;
+            case "fuel_wing_gal": value = FuelWingGal; return true;
+            case "fuel_akro_gal": value = FuelAkroGal; return true;
+            case "fuel_flow_gph": value = FuelFlowGph; return true;
+            case "fuel_used_gal": value = FuelUsedGal; return true;
             default: value = 0.0; return false;
         }
     }

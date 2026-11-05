@@ -414,6 +414,15 @@ public sealed class ControlAxisConfig
     public string TrimType { get; set; } = "tab";
     /// <summary>Time constant (s) of the free surface settling (surface + linkage inertia and friction).</summary>
     public double FreeTauS { get; set; } = 0.12;
+
+    /// <summary>
+    /// Where the hinge line sits in the movable surface, as a fraction of its own chord from its leading edge: 0 = a
+    /// plain surface hinged at its nose (the default, and what every config was built with); 0.30 = a set-back hinge
+    /// with 30 % of the chord ahead of it as an overhang balance (Ty 2026-11-04 for the Extra: "the aileron hinge point
+    /// needs to be 30% … so the front of the ailerons sticks up when deflected"). The hinged strips stay the drawn
+    /// surface; this says where on them it turns. See docs/CONTROL-SURFACES.md, "Set-back hinges".
+    /// </summary>
+    public double HingeSetBackFrac { get; set; }
 }
 
 public sealed class SpoilerConfig
