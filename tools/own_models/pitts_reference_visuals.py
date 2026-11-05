@@ -17,6 +17,9 @@ FRONT = {'Airspeed':(.150,.015), 'Altimeter':(.095,.100),
          'G_meter':(-.015,.105), 'Tachometer':(-.150,.025)}
 
 def update(g):
+    from pitts_geometry_pass3 import update as geometry_pass3
+    # Also upgrade assets that already received the preceding photo pass.
+    geometry_pass3(g)
     if g.doc.get('extras',{}).get('pittsReferenceVisuals'): return
     nodes=g.doc['nodes']; names={n['name']:i for i,n in enumerate(nodes)}
     W=g.world_matrices()

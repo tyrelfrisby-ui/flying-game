@@ -56,6 +56,9 @@ def main():
                     if row['node'] in maps:assert row==maps[row['node']],row['node']
     # Visual source-art comparison; Cub first cell is a complete cream dial.
     out=ROOT/'renders/instrument-style';out.mkdir(parents=True,exist_ok=True)
+    if not samples:
+        print('PASS: Python syntax, GLB graph, paint, texture preservation, Pitts face clearance and retained rig maps; no comparison-sheet samples in changed assets.')
+        return
     sheet=Image.new('RGB',(1000,300*len(samples)),(75,75,75));draw=ImageDraw.Draw(sheet)
     for i,(title,a,b) in enumerate(samples):
         draw.text((10,i*300+10),title+'   original / shared style',fill='white')

@@ -1,5 +1,17 @@
 ## NEEDS YOU
 
+## 2026-11-04 — Pitts pass 3 geometry (Codex, uncommitted)
+- Latest Pitts notes and both photos read. Four liveries: red push-pull Mixture aft/below throttle,
+  outboard left; obsolete panel mixture meshes removed. CowlFlap lower left with CLOSED / MID / OPEN gate.
+- Restored floor_windows.py from 8890328f (312885a8 Lexan/Frame material implementation): real skin,
+  tub and wing cutouts, both clear panes, retaining strips/screws and tubes. Floor_Frame parent aliases
+  existing Floor_Window_Frame; material names Lexan / Floor_Frame preserved for runtime material mapping.
+- Wiring handoff nodes: Mixture (fore/aft push-pull), CowlFlap, Floor_Frame. Static only; rig JSON,
+  simulation and Glass Overlay unchanged. Rear switch meshes exactly MASTER / ALTERNATOR / FUEL PUMP / SMOKE.
+- All four GLBs: graph/material/node/switch checks PASS; offline instrument checks PASS, diff --check PASS.
+  Fixed empty comparison-sheet sample handling in the checker. CPU renders in renders/instrument-style/
+  pitts-pass3-*.png; no runtime transparency/lighting claims. No builds and no commit attempted, per Ty.
+
 ## 2026-11-04 — Pitts photo visual follow-up (Codex)
 - Read Pitts notes and both photos; all four liveries updated with staggered panels, black crinkle finish,
   blue left prop in locked/down pose, right fuel valve ON/up, long forward left trim and sidewall markings.
