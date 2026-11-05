@@ -865,8 +865,8 @@ public sealed partial class Aircraft
     private double _fuelLinesSec = FuelLinesSec;
     private bool _fuelStarved;
 
-    /// <summary>True while the engine is stopped for want of fuel at the valve (shut long enough). The mixture's own
-    /// starvation is AircraftEngine's; EngineRunning and EngineStarved read both.</summary>
+    /// <summary>True while the engine is dead for want of fuel at the valve (shut long enough). Like a cut-off mixture it
+    /// is not damage: <see cref="EngineRunning"/> is false, <see cref="EngineStarved"/> true, the prop windmills.</summary>
     public bool FuelStarved => _fuelStarved;
 
     private void UpdateFuelValve(double dt)
