@@ -60,7 +60,8 @@ namespace FlyingGame.EditorTools
                     int w = W, h = H;
                     if (f.Length > 8 && f[8].Length > 0) { string[] wh = f[8].Split('x'); w = int.Parse(wh[0]); h = int.Parse(wh[1]); }
                     bool moved = f.Length > 9 && f[9] == "moved";
-                    if (One(f[0], f[1], f[2], F(f[3]), F(f[4]), vfov, outDir, light, hand, w, h, moved)) shots++; else failures++;
+                    string extras = f.Length > 10 ? f[10] : "";
+                    if (One(f[0], f[1], f[2], F(f[3]), F(f[4]), vfov, outDir, light, hand, w, h, moved, extras)) shots++; else failures++;
                 }
             }
             catch (Exception e) { failures++; Debug.LogException(e); }
@@ -75,7 +76,7 @@ namespace FlyingGame.EditorTools
         private static float F(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
 
         private static bool One(string name, string id, string seatId, float yaw, float pitch, float vfov, string outDir,
-                                string light, bool hand, int w, int h, bool moved = false)
+                                string light, bool hand, int w, int h, bool moved = false, string extras = "")
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
@@ -107,6 +108,18 @@ namespace FlyingGame.EditorTools
                 reading.PropLock = 1.0; reading.PropLever = 0.0; reading.Mixture = 0.0; reading.FuelValve = 0.0;
                 reading.CowlFlap = 1.0; reading.Trim = 1.0; reading.Throttle = 0.0;
             }
+            // 11th field, ','-separated (cockpit-common renders, Ty 2026-11-05): belts (keep the GLB's belts: the "before"),
+            // card=<id> (the deck's card on every holder), kollsman=<inHg>, gmax=<g>, gmin=<g>, g=<g>, fuel=<0..1>,
+            // alt=<ft>, cam=<x>/<y>/<z> (Unity, CG frame: overrides the eye).
+            var ex = new System.Collections.Generic.Dictionary<string, string>();
+            foreach (string kv in extras.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            { int i = kv.IndexOf('='); ex[i < 0 ? kv : kv.Substring(0, i)] = i < 0 ? "" : kv.Substring(i + 1); }
+            if (ex.TryGetValue("gmax", out string gx)) reading.GMaxSeen = F(gx);
+            if (ex.TryGetValue("gmin", out string gn)) reading.GMinSeen = F(gn);
+            if (ex.TryGetValue("g", out string gg)) reading.GLoad = F(gg);
+            if (ex.TryGetValue("fuel", out string fu)) reading.Fuel = F(fu);
+            if (ex.TryGetValue("alt", out string al)) reading.AltitudeFt = F(al);
+            if (!ex.ContainsKey("belts") && builder.ModelRoot != null) CockpitBeltStrip.Strip(builder.ModelRoot);
             builder.SetRig(reading, 0.02f);
             // The painted panels the game makes live (the Pitts' and the Extra's: CockpitLive's dial art and needles), as
             // AirframeVisual does in flight, so the shot shows what the pilot sees rather than the GLB's own pictures.
@@ -116,6 +129,21 @@ namespace FlyingGame.EditorTools
 
             var displays = new CockpitDisplays();
             displays.Bind(builder.FindInModel);
+            SequenceCard card = null;
+            if (ex.TryGetValue("card", out string cardId))
+            {
+                if (!SequenceCardLibrary.Deck.Select(cardId)) Debug.LogWarning($"[CockpitEye] no card '{cardId}' in the deck");
+                card = new SequenceCard();
+                card.Bind(builder.FindInModel);
+                Debug.Log($"[CockpitEye] card on {card.Faces.Count} holder(s): {SequenceCardLibrary.Current.LabelAscii}");
+            }
+            CockpitTaps taps = null;
+            if (builder.ModelRoot != null && !ex.ContainsKey("belts"))
+            {
+                taps = root.AddComponent<CockpitTaps>();
+                taps.Bind(builder.ModelRoot, builder.FindInModel, root.transform);
+                taps.ShowWindowsForShots(ex.TryGetValue("kollsman", out string ks) ? F(ks) : 29.92);
+            }
             displays.Update(new RigInputs { ComFreqMhz = 122.750, ComStandbyMhz = 121.500, ComVolume = 0.6, XpdrSquawk = 1200, XpdrMode = 3,
                                             Master = 1.0, FuelFlowGph = 17.8, FuelUsedGal = 3.4 });
 
@@ -150,6 +178,7 @@ namespace FlyingGame.EditorTools
             ground.GetComponent<Renderer>().sharedMaterial = gm;
 
             Vector3 eye = CoordinateMap.ToUnity(at ?? seat.EyeVec());
+            if (ex.TryGetValue("cam", out string cp)) { string[] c3 = cp.Split('/'); eye = new Vector3(F(c3[0]), F(c3[1]), F(c3[2])); }
             var camGo = new GameObject("Eye");
             Camera cam = camGo.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = sky;
@@ -159,6 +188,8 @@ namespace FlyingGame.EditorTools
             Shoot(cam, path, w, h);
             Debug.Log($"[CockpitEye] {name}: {id} seat {seatId} eye {eye.x:F3},{eye.y:F3},{eye.z:F3} (Unity, CG frame) yaw {yaw} pitch {pitch} vfov {vfov} light {light}{(fist != null ? " hand" : "")} -> {path}");
             displays.Forget();
+            card?.Forget();
+            if (taps != null) { taps.Forget(); Object.DestroyImmediate(taps); }
             if (fist != null) Object.DestroyImmediate(fist);
             builder.Clear();
             Object.DestroyImmediate(root); Object.DestroyImmediate(camGo); Object.DestroyImmediate(gm);

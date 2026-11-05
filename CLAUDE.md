@@ -570,6 +570,14 @@ near the sea the second run started a flight's length later in the tide and diff
 first looked like an order-dependent cache. Before blaming a cache for "same inputs, different answer", list every
 global the new code READS, and reset the clock (`Atmosphere.SimTimeSec = 0`) when a test compares two runs.
 
+### A "gap" a pilot sees may be paint, not geometry
+Ty reported a gap between the Extra's canopy and the fuselage from the front seat. The rim touched the sill to 0.0 mm and
+no ray from the eye left the airframe; a hole-hunting check would have said "sealed" and changed nothing. The skin, sill
+and frame were DOUBLE-SIDED with the exterior livery, the dark liner stopped 6-13 cm under the sill, and the wing's own
+skin ran through the front cockpit: white and red outside paint, seen from inside, reads exactly like daylight. Check
+what the eye sees, not only whether it can see out: cast rays from the seat eye and fail any that reach exterior paint
+without passing through glass first (`ExtraCanopySealTests`). And place the liner's top ON the glass edge — 2 mm short
+left a slot rays slipped through.
 ### A wait-for-the-build-slot loop must not match other lanes' wait loops
 On 2026-11-04 the flight-recorder lane waited four hours for a free slot that never came: its `ps | grep -E
 "…deploy(-quest)?\.sh…"` also matched every OTHER agent's waiting shell (`/bin/zsh -c source … until … deploy.sh …`),
@@ -607,3 +615,21 @@ behind a contact or sensor path, test it on the aircraft from the report, and gr
 And the splash "hammering" was a fixed 4.5 Hz sine on the water voice (66 % depth): a periodic modulation on a sound
 the physics drives is a metronome the player hears as a fault. Measure a voice's envelope spectrum
 (`tools/FloatAudio`) before shipping any LFO on it.
+
+### Reserve the whole verification workflow, including the headless tests
+A Unity-only idle poll let other lanes start their exports while the Extra's .NET tests were running.
+Keep the lane's complete verification visible to the existing deploy gates, including tests and gaps between stages;
+`tools/deploy/deploy-extra-verification.sh` does this and excludes only its own reservation PID. Leave other active
+builds visible to the gate and let their owners release them.
+
+### A completed shot tool can wait forever during Unity shutdown
+The Extra tool wrote all eight PNGs, logged PASS and called Exit(0), then waited in CoreShutdown -> PreloadManager::Stop.
+A sample distinguished completed work from an incomplete export. Preserve the logs, inspect the PNGs and sample the
+owned process before stopping it; an idle log alone is not proof of completion. The Extra verifier's guarded `ios`
+resume reuses only a completed eight-shot / zero-C#-error log and retains the deploy reservation.
+
+### Measure where a panel actually meets the wall before asserting its width
+The Extra's new test assumed its bottom 100 mm had the 391 mm half-width of the wall attachment. The unchanged original
+is 293.5 mm there; its widest attachment is at z 195 mm. All three liveries failed the new test despite unchanged
+lower geometry. Compare original and edited sections at the actual attachment stations, then copy those measured
+literals into the regression check.

@@ -30,7 +30,19 @@ namespace FlyingGame.Bridge
         // ---- lagged / integrated readings --------------------------------------------------------------
         private double _energyHeightM = double.NaN, _varioMs;
         private float _headingDeg = float.NaN, _headingRawDeg = float.NaN, _turnRateDps, _vsiFpm;
-        private double _gMax, _gMin;
+        /// <summary>The accelerometer's max / min followers (Core GMeterFollowers); the push-to-reset knob is
+        /// <see cref="ResetGTellTales"/>.</summary>
+        public readonly GMeterFollowers GFollowers = new();
+        /// <summary>The altimeter's knob and Kollsman window, shared by every altimeter in this aeroplane (Core
+        /// AltimeterSetting). Set on the first frame of a flight so it reads the field's elevation, as a pilot sets QNH
+        /// before take-off; the pilot turns it from there (AltimeterPopup, the headset's menu).</summary>
+        public readonly AltimeterSetting Altimeter = new();
+        private bool _altimeterSet;
+        private string _altimeterType = "";
+        private double _gNow = 1.0;
+        /// <summary>Static pressure at the aeroplane this frame (Pa), and what the altimeter shows (ft).</summary>
+        public double StaticPa { get; private set; } = Atmosphere.SeaLevelPressurePa;
+        public double TrueAltitudeFt { get; private set; }
 
         // ---- the presentation engine gauges (P) --------------------------------------------------------
         private double _oilTempF = 180.0, _chtF = 320.0;
@@ -142,7 +154,8 @@ namespace FlyingGame.Bridge
             _c172 = null;
             _energyHeightM = double.NaN; _varioMs = 0.0;
             _headingDeg = _headingRawDeg = float.NaN; _turnRateDps = 0f; _vsiFpm = 0f;
-            _gMax = _gMin = 0.0;
+            GFollowers.Reset(1.0); _gNow = 1.0;
+            _altimeterSet = false;
             _oilTempF = 180.0; _chtF = 320.0; _fuelUsedGal = 0.0;
             CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true;
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
@@ -160,7 +173,15 @@ namespace FlyingGame.Bridge
         public double PropLock01;
 
         /// <summary>Clear the accelerometer's max / min tell-tales (the knob on a real one).</summary>
-        public void ResetGTellTales() { _gMax = _gMin = 0.0; }
+        public void ResetGTellTales()
+        {
+            GFollowers.Reset(_gNow);
+            Debug.Log($"[Cockpit] g-meter followers reset to {_gNow:F1} g");
+        }
+
+        /// <summary>Set the altimeter so it reads <paramref name="ft"/> here and now (field elevation, or 0 to zero it).
+        /// False when the window cannot reach it: the knob then stops at the nearest end.</summary>
+        public bool SetAltimeterToRead(double ft) => Altimeter.SetToRead(StaticPa, ft);
 
         /// <summary>Fill in everything the panel shows. <paramref name="r"/> arrives with the control positions
         /// already set from the aero model's own deflections (RigInputs.FromDeflections), which is the half that
@@ -175,7 +196,15 @@ namespace FlyingGame.Bridge
             // ---- the aeroplane's own state -----------------------------------------------------------
             r.AirspeedKias = ias * 1.9438445;
             r.AirspeedMph = ias * 2.2369363;
-            r.AltitudeFt = alt * 3.2808399;
+            // The altimeter reads the STATIC PRESSURE through its Kollsman setting (Core KollsmanAltimeter), not the
+            // sim's height: set to QNH it shows the field's elevation on the ground, zeroed it shows height above it.
+            StaticPa = Atmosphere.PressureAt(ac.State.Position);
+            TrueAltitudeFt = alt * 3.2808399;
+            string type = driver.AircraftId ?? "";
+            if (type != _altimeterType) { _altimeterType = type; Altimeter.ForType(type); _altimeterSet = false; }
+            if (!_altimeterSet) { _altimeterSet = true; Altimeter.SetToRead(StaticPa, TrueAltitudeFt); }
+            r.AltitudeFt = Altimeter.IndicatedFt(StaticPa);
+            r.KollsmanInHg = Altimeter.InHg;
             r.GLoad = ac.LoadFactorZ;
             r.Throttle = Mathf.Clamp01((float)ac.Throttle01);
             r.Rpm = ac.EngineStopped ? 0.0 : ac.EngineRpm;
@@ -254,9 +283,9 @@ namespace FlyingGame.Bridge
             r.SlipBall = System.Math.Clamp(driver.BetaDeg / 10.0, -1.0, 1.0);
 
             // The accelerometer's tell-tales: they follow the needle out and stay.
-            if (r.GLoad > _gMax) _gMax = r.GLoad;
-            if (r.GLoad < _gMin) _gMin = r.GLoad;
-            r.GMaxSeen = _gMax; r.GMinSeen = _gMin;
+            _gNow = r.GLoad;
+            GFollowers.Step(r.GLoad);
+            r.GMaxSeen = GFollowers.Max; r.GMinSeen = GFollowers.Min;
 
             // ---- the presentation gauges (P): no sim behind them -------------------------------------
             FillEngineGauges(ref r, ac, alt, dt);
@@ -401,6 +430,7 @@ namespace FlyingGame.Bridge
             }
             r.FuelCentreFrac = loaded && load.FuelCapacityKg > 0.0 ? load.FuelKg / load.FuelCapacityKg : 1.0;
             r.FuelTopWingFrac = RigInputs.TankFraction(load, "topWing");   // the Great Lakes' sight gauge (Ty 2026-11-05)
+            r.Fuel = FuelGauges.TankFraction(load);     // a float gauge in the (first) tank: the J-3's cork wire
             r.FuelWingGal = Gal("wingLeft") + Gal("wingRight");
             r.FuelAkroGal = Gal("centre");
             // The fuel computer and the three-in-one's FUEL FLOW needle: the sim's own burn (BSFC x shaft power,
