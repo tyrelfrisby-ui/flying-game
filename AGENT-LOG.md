@@ -69,44 +69,25 @@ Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 20
 - NOTHING approved by me.
 
 <!-- pitts-cockpit-v2 needs-you -->
-- **PITTS S-2B COCKPIT v2: REVIEW THE RENDERS BEFORE ANY MERGE (Claude, 2026-11-05; Ty's spec 05:07 PITTS section).
-  lane/claude-pitts-cockpit-v2 (Codex's model lane/codex-pitts-cockpit-v2 b221022a + ee566233 + a3278562 committed by me
-  and merged). NOT merged into island-nav or Quest. iOS 2026.1105.0701 ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL (installed nowhere). Nothing approved by me.**
-  Renders + what each shows: `~/Developer/agent-lanes/renders/cockpit-1105/claude-pitts-cockpit-v2/README.md` (31 Unity
-  shots: both seat eyes, close-ups of every spec item, levers in both poses).
-  1. **Canopy latch (Ty's lever):** a black 2 in lever in each cockpit on the left canopy frame (the front one at the
-     canopy's forward-left corner, beside the front pilot), joined by the cable along the left sill. One latch state:
-     either lever moves both. Forward = latched, pulled back 90 deg = unlatched; an over-centre detent at forward
-     (snaps home inside 6 deg, breaks out at 12 deg, E). Locked = hook home AND canopy shut. Replaces the v1 sliding ball.
-  2. **Stop tab, emergent:** no stop angle anywhere. The canopy's 3/8 in tube frame and the tab's rubber are capsules;
-     the canopy stops where its frame meets the rubber at its present slide. Slid the normal 4 in, the front hoop
-     lands on the rubber at 96.8 deg. In the rig's own drawn pose that is 9.5 mm between surface points (touching),
-     measured in Unity. The new canopy sits wholly aft of the upper wing's trailing edge, so it never touches the wing
-     (checked against the real mesh: `tools/own_models/check_pitts_canopy_swing.py` PASS on all four GLBs). **Q061:** is
-     a bent bar running aft from the right upper wing past the trailing edge your tab, and what angle does yours rest at?
-  3. **Jettison, emergent:** the pull frees the slide's stop. The canopy's own drag (or a hand) runs it 2 in further aft
-     (E); the rubber only catches between about 3.5 and 4.75 in of slide, so it misses the tab and swings on, and past
-     150 deg (E) the hinge hooks let go: free body (CanopyFreeBody, tail-strike check as before). 50–120 KIAS it is gone
-     in 0.6–1.6 s; below the suction's lift-off (46 kt) it runs back and stays down. With the latch locked it stays on.
-     **Q062** asks for the real numbers.
-  4. **Hinge strength re-calibrated** to your 80 mph rule on the new geometry: the load is now the canopy's own reaction
-     on its hinge line as it slams onto the tab. 11,481 N peak at 69.5 KIAS → fittings 11,500 N: holds at 65, tears away
-     at 75 (tests).
-  5. **Controls (rig rows in docs/models/pitts-s2b-own-rig.json):** fuel valve turns its firewall rod (up ON, left OFF →
-     Aircraft.FuelValveOpen). The blue prop bar turns about its firewall rod (down = locked) and slides fore-aft
-     (prop/prop_lock → Aircraft.PropLever). The 16 in trim lever is hinged at the hip, neutral straight forward,
-     ±12 deg, tip up = nose up (E, **Q063**) → pitch trim. Throttles: black cylinder + red button on a new 160 mm
-     quadrant arm (Codex), ±25 deg. All are Quest-hand operable through the existing panel/throttle binding.
-  6. **Not done / follow-ups:** (a) iOS/Mac has no touch-in-the-3D-cockpit for ANY type: there the trim, throttle and
-     canopy are the HUD's, as before. The Pitts' scripted (no-hands) canopy now slides 4 in then opens to the tab's
-     96.8 deg, so iOS shows the same resting pose. Touch levers would be a new shared feature. (b) The canopy's AIRLOAD
-     numbers (bubble 1.48 x 0.716 x 0.406 m) are the old canopy's. Codex's new canopy is 1.14 m (the front is now a
-     fixed windshield), so the bubble, its inertia and the 46 kt lift-off speed should be re-derived; the tab contact
-     uses the new frame. (c) The prop rod runs from the blue bar straight forward to the firewall and passes through
-     the rear panel's lower-left corner; see `rear-eye-forward.png`.
-  7. Tests: PittsCanopyTabTests (9, new), the latch-lever tests in VrCockpitTests, VrBailoutTests updated: 94/94 in
-     those classes. `ModelRigTests.FullAirBrakeStopsTheGliderSooner…` gives NaN (2-33 wheel brake): it fails the same way
-     on the branch point 6f659d0d, so it is not mine. `tools/check-parity.sh --strict`: PARITY OK. Unity batch: 0 error CS.
+- **PITTS S-2B COCKPIT v2 MERGED AND INSTALLED: PLEASE FLY-TEST IT AND FINE-TUNE (Claude, 2026-11-05 08:15; Ty 07:26 "The
+  two grey hoops on the canopy need to be eliminated everything else is good for the next version and I'll fine tune if
+  necessary after testing"). lane/claude-pitts-cockpit-v2 95ab5360 → island-nav 0180edd5 → Quest 7b19f987. iOS
+  2026.1105.0746 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad, the iPad mini and the iPhone (launched on
+  the iPad mini only; the EFB iPad and the iPhone were locked). Quest 2026.1105.0804 (f6cbeb92), 0 error CS, installed and
+  launched on the Quest 3S. check-parity --strict: PARITY OK. Nothing approved by me.**
+  - **Hoops gone:** Canopy_TopTube_F / _R (the 3/8 in grey steel hoops at 0.77 / 1.12 m) are removed from all four Pitts
+    GLBs and from the canopy's contact frame; front hoop, sills and tail stay. Canopy still rests on the stop tab at
+    96.8 deg (drawn frame 9.5 mm from the rubber, touching); jettison still slides past the tab. Re-rendered in Unity:
+    `~/Developer/agent-lanes/renders/cockpit-1105/claude-pitts-cockpit-v2-nohoops/` (`compare-hoops-before-after-diff.png`:
+    before / after / changed pixels, which are exactly the two hoops; `rear-eye-forward.png`).
+  - **What is in it (unchanged from the review renders):** black canopy latch levers front + rear on one cable (forward =
+    latched), emergent stop tab and jettison, hinge strength to your 80 mph rule, fuel valve, blue prop bar, 16 in trim
+    lever, quadrant throttles, fixed windshield + trim, wing cutout, alu tank, centred IAC cards, whiskey compass. Detail:
+    `~/Developer/agent-lanes/renders/cockpit-1105/claude-pitts-cockpit-v2/README.md`. Open: Q061 (tab shape/rest angle),
+    Q062 (jettison numbers), Q063 (trim sense/travel).
+  - **Known follow-ups:** iOS/Mac has no touch levers in the 3-D cockpit (HUD as before); the canopy's airload bubble is
+    still the old 1.48 m canopy's (new one is 1.14 m); the prop rod passes through the rear panel's lower-left corner.
+  - Tests: Canopy/VrBailout/VrCockpit 95/95; check_pitts_cockpit_v2 / rear_view / canopy_swing PASS on all four GLBs.
 <!-- /pitts-cockpit-v2 needs-you -->
 - **TYRE SOUNDS: CHIRP PITCHED BY TYRE SIZE + SLIP SPEED, A SIDEWAYS SCRUB, BEARING WHIR −14 dB (Claude, 2026-11-05,
   lane/claude-tire-audio 20484765; Ty 06:10 "a pitch/frequency thing for the chirp and bearing noise is too loud").
@@ -10726,3 +10707,5 @@ NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes.
 - Validation passes both exported assets: graph, indices/finite vertices, UV presence, dimensions, all 29 rig origins/markers/maps/parents, independent TCDS travels and physical control directions, transparent glass, wheel sizes/stations, 2,016 independent cockpit-part pairs and 1,608 shell-envelope samples per asset. Containment uses the full exterior including the integrated wing-root skin. A fresh temporary legacy analytic build also passes its original checker, which remains available. `git diff --check` clean. .NET tests were not run: dotnet absent; nothing installed. No Unity execution.
 - CPU/Cycles renders reimport the exported GLB: side, three-quarter, front, top, main/nose/tail gear closeups and canopy. POH overlay uses Twin III PDF p14/printed 1.6, uniform 854 px : 18 m, approximate nose registration, level axes and wings omitted; no contour fitting. Remaining scan/model mismatch is visible, not marked a pass. Camera/model/reference hashes accompany the images.
 - Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
+
+PITTS-V2-MERGED
