@@ -176,8 +176,10 @@ public struct RigInputs
     /// <summary>Alternator field switch and electric boost pump, 0 or 1 (FlyingGame.Core.Engine.ElectricalSystem).</summary>
     public double Alternator, FuelPump;
 
-    /// <summary>0..1 canopy, 1 = fully open.</summary>
+    /// <summary>0..1 canopy, 1 = fully open (the Pitts v2: its swing alone, 0..175°).</summary>
     public double CanopyOpen;
+    /// <summary>The Pitts' slide along its track, 0..1 of the whole track (CanopyDynamics.Slide01, v2 2026-11-05).</summary>
+    public double CanopySlide;
     /// <summary>The seat harness (CONTRACT.md phase 2): 0 latched .. 1 released; the straps fall open on it.</summary>
     public double HarnessLatch;
     /// <summary>0 or 1, 1 = locked.</summary>
@@ -372,6 +374,7 @@ public struct RigInputs
             case "alternator": value = Alternator; return true;
             case "fuel_pump": value = FuelPump; return true;
             case "canopy_open": value = CanopyOpen; return true;
+            case "canopy_slide": value = CanopySlide; return true;
             case "canopy_lock": value = CanopyLock; return true;
             case "canopy_jettison": value = CanopyJettison; return true;
             case "canopy_latch": value = CanopyLatch; return true;
