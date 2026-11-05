@@ -569,3 +569,11 @@ step advances. `GroundContactCullTests` flies the same flight twice, culled and 
 near the sea the second run started a flight's length later in the tide and differed in the 14th digit — which
 first looked like an order-dependent cache. Before blaming a cache for "same inputs, different answer", list every
 global the new code READS, and reset the clock (`Atmosphere.SimTimeSec = 0`) when a test compares two runs.
+
+### A wait-for-the-build-slot loop must not match other lanes' wait loops
+On 2026-11-04 the flight-recorder lane waited four hours for a free slot that never came: its `ps | grep -E
+"…deploy(-quest)?\.sh…"` also matched every OTHER agent's waiting shell (`/bin/zsh -c source … until … deploy.sh …`),
+whose command lines contain the same words, and theirs matched mine. Every lane saw every other lane's wait loop as a
+running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
+the start of the command line so only real build processes count:
+`'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.
