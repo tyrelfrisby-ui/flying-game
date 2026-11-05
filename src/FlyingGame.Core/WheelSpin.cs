@@ -252,7 +252,7 @@ public static class WheelSpin
 
 /// <summary>
 /// One wheel's spin and what it is doing on the ground, kept by the aircraft (<c>Aircraft.Wheels</c>, config.Gear
-/// order) and advanced by <see cref="LandingGear.Compute(AircraftConfig, RigidBodyState, double, double, double, double, System.Collections.Generic.IReadOnlyCollection{AirframeComponent}?, System.Collections.Generic.List{AirframeComponent}?, bool[]?, ImpactRecorder?, LandingGear.TailwheelState?, bool, int, double, double[]?, WheelState[]?)"/>
+/// order) and advanced by <see cref="LandingGear.Compute(AircraftConfig, RigidBodyState, double, double, double, double, System.Collections.Generic.IReadOnlyCollection{AirframeComponent}?, System.Collections.Generic.List{AirframeComponent}?, bool[]?, ImpactRecorder?, LandingGear.TailwheelState?, bool, int, double, double[]?, WheelState[]?, SkiState?)"/>
 /// on each step's first stage. Everything below the spin is the contact as that stage found it — the sound, skid
 /// marks and smoke read it and never write it.
 /// </summary>

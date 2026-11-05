@@ -27,9 +27,12 @@ public sealed class AircraftConfig
     private bool _bushwheels;
 
     /// <summary>
-    /// WHEEL-SKIS (owner 2026-10-16): skis with the wheels still protruding, so the same aeroplane lands on
-    /// a glacier and on pavement. On snow the ski carries it — almost no rolling drag, very little grip and
-    /// no useful brakes; on anything hard the wheel does the work and nothing changes.
+    /// WHEEL-SKIS (owner 2026-10-16; hinged since Ty 2026-11-05): a ski on every wheeled leg, hung from the axle on links
+    /// and raised or lowered by the cockpit's WHEELS / SKIS selector (<see cref="SkiGear"/>, <see cref="SkiSelector"/>).
+    /// Lowered, the tyre sits on top of the ski and the ski is what touches the ground — on snow it runs almost freely,
+    /// holds sideways only by its edge and the brakes do nothing; on pavement it SCRAPES. Raised, the skis swing forward
+    /// and up, the tyres meet the ground and the aeroplane rolls on its wheels. Either way the skis' weight and drag are
+    /// on. Session state, not the type's own data; any aeroplane with a wheel can have it.
     /// </summary>
     public bool Skis { get; set; }
 
@@ -176,6 +179,12 @@ public sealed class StationConfig
     public double[]? Eye { get; set; }
 
     public bool HasEye => Eye is { Length: 3 };
+
+    /// <summary>SEATS only: where the shared WHEELS / SKIS selector (<see cref="FlyingGame.Core.SkiSelectorPart"/>) is mounted
+    /// for this seat when wheel-skis are fitted, body frame like <see cref="Eye"/>: the centre of its placard plate. An
+    /// ANCHOR only: the part itself is the one shared part, drawn the same in every aeroplane. Absent on every seat: the
+    /// pilot's seat gets it at <see cref="FlyingGame.Core.SkiSelectorPart.DefaultOffsetFromEye"/>.</summary>
+    public double[]? SkiSelector { get; set; }
 
     public MathTypes.Vec3 StationVec() => new(Station[0], Station[1], Station[2]);
 

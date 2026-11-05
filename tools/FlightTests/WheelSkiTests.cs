@@ -50,30 +50,20 @@ public class WheelSkiTests : IDisposable
     }
 
     [Fact]
-    public void ASkiIsOnlyASkiOnSnow()
-    {
-        AircraftConfig c = Load(Cub, true);
-        Assert.True(LandingGear.OnSki(c, WorldTerrain.Surface.Snow));
-        foreach (WorldTerrain.Surface s in new[] { WorldTerrain.Surface.Paved, WorldTerrain.Surface.Gravel,
-                                                   WorldTerrain.Surface.Grass, WorldTerrain.Surface.Rough })
-            Assert.False(LandingGear.OnSki(c, s), $"a wheel-ski should be a wheel on {s}");
-        // And without the option it is never a ski at all.
-        Assert.False(LandingGear.OnSki(Load(Cub, false), WorldTerrain.Surface.Snow));
-    }
-
-    [Fact]
     public void AFloatCannotBePutOnASki()
     {
         // The option is a session switch that applies to whatever is loaded, so a floatplane gets asked the
         // question too. Its answer has to be no, whatever the menu says.
         AircraftConfig floats = Load("dhc2-beaver-floats-like", true);
         foreach (GearConfig g in floats.Gear)
-            Assert.False(LandingGear.OnSki(floats, g, WorldTerrain.Surface.Snow),
-                         "a float keel is not a wheel and cannot carry a ski");
+            if (g.GearType == "float-keel")
+                Assert.False(SkiGear.Fitted(floats, g), "a float keel is not a wheel and cannot carry a ski");
         // While the landplane's wheels all can.
         AircraftConfig land = Load(Beaver, true);
         foreach (GearConfig g in land.Gear)
-            Assert.True(LandingGear.OnSki(land, g, WorldTerrain.Surface.Snow));
+            Assert.True(SkiGear.Fitted(land, g));
+        // And without the option nothing has a ski.
+        foreach (GearConfig g in Load(Beaver, false).Gear) Assert.False(SkiGear.Fitted(Load(Beaver, false), g));
     }
 
     [Fact]
@@ -83,7 +73,8 @@ public class WheelSkiTests : IDisposable
         Assert.True(LandingGear.SkiRollingCoefficient < WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Snow) * 0.5,
                     "a ski should roll far more freely than a wheel in the same snow");
         Assert.True(LandingGear.SkiGripScale < 0.5, "and hold direction far less well");
-        Assert.True(LandingGear.SkiWheelLoadShare < 0.25, "and leave the brake only a sliver of the load to work on");
+        // And a lowered ski on pavement scrapes: more than ten times its running drag on snow.
+        Assert.True(SkiGear.HardSlidingCoefficient(WorldTerrain.Surface.Paved) > 10 * LandingGear.SkiRollingCoefficientPacked);
     }
 
     [Theory]
@@ -135,16 +126,18 @@ public class WheelSkiTests : IDisposable
     }
 
     [Fact]
-    public void OnPavementTheSkisChangeNothing()
+    public void OnPavementWithTheSkisUpItRollsOnItsWheels()
     {
-        // The wheel is through the ski: a runway landing is a runway landing.
+        // Started on pavement the selector is at WHEELS (SkiSelector.StartFor): the skis are up, the tyres are on the
+        // runway, and a runway landing is a runway landing. Not exactly the same one: the skis weigh something
+        // (26 kg on a 794 kg Cub, 3 %) and that load is on the tyres.
         WorldTerrain.Active = null;
         WorldTerrain.SurfaceOverride = WorldTerrain.Surface.Paved;
         double plain = RollOutOnCurrentSurface(Cub, false);
         double skis = RollOutOnCurrentSurface(Cub, true);
         WorldTerrain.SurfaceOverride = null;
-        _o.WriteLine($"on pavement: wheels {plain:0.0} m, wheel-skis {skis:0.0} m");
-        Assert.Equal(plain, skis, 3);
+        _o.WriteLine($"on pavement: wheels {plain:0.0} m, wheel-skis up {skis:0.0} m");
+        Assert.InRange(skis / plain, 0.95, 1.05);
     }
 
     private static double RollOutOnCurrentSurface(string id, bool skis)
@@ -164,9 +157,10 @@ public class WheelSkiTests : IDisposable
     [InlineData(Cub)]
     [InlineData(Beaver)]
     [InlineData(Aircam)]
-    public void OnSkisTheBrakesAreNearlyUseless(string id)
+    public void OnSkisTheBrakesDoNothing(string id)
     {
-        // Why a ski pilot lands uphill: standing on the brakes on snow barely shortens the slide.
+        // Why a ski pilot lands uphill: the tyre sits ON the lowered ski (Ty 2026-11-05), off the snow, so the brake
+        // stops the wheel and nothing else. The old wheel-penetration ski left 15 % of the load on the tyre.
         WorldTerrain.Active = null;
         Atmosphere.SteadyWind = Vec3.Zero;
         WorldTerrain.SurfaceOverride = WorldTerrain.Surface.Snow;
@@ -174,8 +168,7 @@ public class WheelSkiTests : IDisposable
         double hard = SlideWithBrakes(id, brake: 1);
         WorldTerrain.SurfaceOverride = null;
         _o.WriteLine($"{id,-26} on skis: no brakes {free,6:0} m, full brakes {hard,6:0} m ({100 * (1 - hard / free):0}% shorter)");
-        Assert.True(hard > free * 0.55, $"{id}: brakes on snow cut the slide from {free:0} m to {hard:0} m — too effective for a ski");
-        Assert.True(hard < free, "the brakes should still do something");
+        Assert.InRange(hard / free, 0.99, 1.01);
     }
 
     private static double SlideWithBrakes(string id, double brake)

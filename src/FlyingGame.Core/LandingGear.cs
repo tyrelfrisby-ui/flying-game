@@ -56,7 +56,11 @@ public static class LandingGear
     /// metre up and broke the tail boom): the three-point pitch that puts the mains and the tail/nose wheel on the
     /// ground together, CG height so the lowest wheel sits 2 cm into the surface (struts settle), heading given.
     /// </summary>
-    public static RigidBodyState RestingState(AircraftConfig c, double x, double y, double groundElevM, double headingRad = 0.0)
+    /// <remarks>With wheel-skis fitted the aeroplane stands on whatever is lowest on each leg at
+    /// <paramref name="skiLowered01"/> (NaN = where the selector starts over this ground, <see cref="SkiSelector.StartFor"/>):
+    /// on its skis when they are down, lying flat under each pin.</remarks>
+    public static RigidBodyState RestingState(AircraftConfig c, double x, double y, double groundElevM, double headingRad = 0.0,
+                                              double skiLowered01 = double.NaN)
     {
         Vec3 cg = c.Mass.CgVec();
         var mains = c.Gear.FindAll(g => !g.IsTailwheel && g.GearType != "nose-skid" && g.GearType != "float-keel" && System.Math.Abs(g.Pos[1]) < 2.5 && g.Pos[2] > 0);
@@ -79,10 +83,21 @@ public static class LandingGear
         var qYaw = new Quat(0, 0, System.Math.Sin(headingRad / 2), System.Math.Cos(headingRad / 2));
         Quat att = Quat.Multiply(qYaw, qPitch);
         double lowest = double.MinValue;   // NED z (down) of the lowest wheel relative to the CG
+        if (c.Skis && double.IsNaN(skiLowered01))
+        {
+            WorldTerrain.Surface under = WorldTerrain.SurfaceOverride ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(x, y) : WorldTerrain.Surface.Paved);
+            skiLowered01 = SkiSelector.StartFor(under) == SkiSelector.Position.Skis ? 1.0 : 0.0;
+        }
         foreach (GearConfig g in c.Gear)
         {
             if (g.GearType == "float-keel" || g.Pos[2] <= 0) continue;
             lowest = System.Math.Max(lowest, att.Rotate(g.PosVec() - cg).Z);
+            if (SkiGear.Fitted(c, g))
+            {
+                // The ski lies flat on level ground: its bottom is its thickness straight below the pin.
+                SkiGear.Geometry geo = SkiGear.For(c, g);
+                lowest = System.Math.Max(lowest, att.Rotate(geo.PinAt(SkiGear.LinkRad(skiLowered01)) - cg).Z + geo.ThicknessM);
+            }
         }
         if (lowest == double.MinValue) lowest = 0.0;
         return new RigidBodyState(new Vec3(x, y, -(groundElevM + lowest - 0.02)), att, Vec3.Zero, Vec3.Zero);
@@ -202,18 +217,10 @@ public static class LandingGear
     /// <summary>Cornering stiffness of a ski, per newton of load: a fraction of a tyre's, so it skids rather
     /// than bites and the aeroplane has to be flown straight.</summary>
     public const double SkiCorneringPerLoad = 1.6;
-    /// <summary>
-    /// What share of the weight the WHEEL still carries on a wheel-penetration ski in soft snow — the ski
-    /// takes the rest. It is the only thing the brake has to work with, which is why brakes on skis are
-    /// nearly useless and why a ski pilot stops by landing uphill. A ski brake is therefore LOAD-limited
-    /// (this share of the weight × the tyre's grip in snow), not torque-limited like a brake on a runway.
-    /// </summary>
-    public const double SkiWheelLoadShare = 0.15;
-
-    /// <summary>Is this leg on its ski right now? Wheel-skis only matter on snow; on anything hard the
-    /// wheel protrudes through and does the work, which is the whole point of the design.</summary>
-    public static bool OnSki(AircraftConfig c, WorldTerrain.Surface surface)
-        => c.Skis && (surface == WorldTerrain.Surface.Snow || surface == WorldTerrain.Surface.PackedGlacierSnow);
+    // Since 2026-11-05 (Ty: hinged wheel-skis, the tyre sits ON the lowered ski) a ski is on the ground because the
+    // selector has it down and its bottom is the lowest thing on the leg — not because the surface is snow. Which part
+    // bears is SkiGear.Probe's geometry, in Compute below; with the ski down the wheel is off the ground and its brake
+    // has nothing to act on (the old wheel-penetration ski's 15 % wheel load share is gone with the slot under the tyre).
 
     /// <summary>
     /// A WHEEL's rolling resistance on a packed glacier zone, which is not a property of the snow alone but of
@@ -254,10 +261,6 @@ public static class LandingGear
         return floorMu + (0.35 - floorMu) * sinkage;
     }
 
-    /// <summary>The same question for one leg. A float keel or a nose skid is not a wheel and cannot be put
-    /// on a ski, so the option passes them by however it is set in the menu.</summary>
-    public static bool OnSki(AircraftConfig c, GearConfig g, WorldTerrain.Surface surface)
-        => OnSki(c, surface) && g.GearType != "float-keel" && g.GearType != "nose-skid";
 
 
     /// <summary>
@@ -283,10 +286,12 @@ public static class LandingGear
         else if (a <= maxSteerRad + 1e-9 && System.Math.Abs(tw.AngleRad - cmd) <= RelockToleranceRad) tw.FreeSwivel = false;
     }
 
-    public static void UpdateTailwheel(AircraftConfig config, RigidBodyState s, TailwheelState tw, double rudderCmd, double dt)
+    public static void UpdateTailwheel(AircraftConfig config, RigidBodyState s, TailwheelState tw, double rudderCmd, double dt,
+                                       SkiState? skis = null)
     {
         GearConfig? g = null;
-        foreach (GearConfig c in config.Gear) if (c.IsTailwheel && c.IsSteerable) { g = c; break; }
+        int gIndex = -1;
+        for (int i = 0; i < config.Gear.Count; i++) if (config.Gear[i].IsTailwheel && config.Gear[i].IsSteerable) { g = config.Gear[i]; gIndex = i; break; }
         if (g == null || tw == null) return;
         double k = g.SteerSpringNmPerRad > 0 ? g.SteerSpringNmPerRad : DefaultSteerSpringNmPerRad;
         double cD = g.SteerDampNms > 0 ? g.SteerDampNms : DefaultSteerDampNms;
@@ -303,12 +308,24 @@ public static class LandingGear
         Vec3 wheelWorld = s.Position + s.Attitude.Rotate(rBody);
         double groundH = WorldTerrain.WheelGroundHeightAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
         double penetration = wheelWorld.Z + groundH;
+        // A tail ski down under the tailwheel: the ski, not the tyre, is what the castor's ground force acts on.
+        bool skiBears = false;
+        skis ??= config.Skis ? SkiState.For(config, SkiSelector.Position.Skis) : null;
+        SkiGear.Geometry? skiGeo = skis != null && gIndex < skis.Legs.Length ? skis.Legs[gIndex] : null;
+        if (skiGeo != null)
+        {
+            SkiGear.Contact sc = SkiGear.Probe(skiGeo, cg, s, skis!.Lowered01, 0.0);
+            if (sc.PenetrationM > 0 && sc.PenetrationM > penetration)
+            {
+                skiBears = true; penetration = sc.PenetrationM; wheelWorld = sc.PointWorld; rBody = sc.PointBody - cg;
+            }
+        }
         double loadN = 0, cornering = 0, grip = 0, velAngle = 0; bool onGround = false;
         if (penetration > 0)
         {
             Vec3 vel = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
             if (WorldDecks.All.Count > 0) vel -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
-            TireSpec? twTire = TireCatalog.Physical(g);
+            TireSpec? twTire = skiBears ? null : TireCatalog.Physical(g);
             loadN = twTire != null
                   ? TireModel.QuasiStatic(twTire, TirePressure.Psi(config, g), penetration, vel.Z, g.SpringN, g.DampNs, out _)
                   : System.Math.Max(0, g.SpringN * penetration + g.DampNs * System.Math.Max(0, vel.Z));
@@ -326,8 +343,8 @@ public static class LandingGear
                 cornering = System.Math.Max(g.CorneringStiffnessN, TailwheelCorneringPerLoad * loadN) * rolling;
                 WorldTerrain.Surface twSurface = WorldTerrain.SurfaceOverride
                     ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved);
-                grip = OnSki(config, g, twSurface)
-                     ? SkiLateralCoefficient(twSurface) * loadN
+                grip = skiBears
+                     ? SkiGear.LateralCoefficient(twSurface, System.Math.Sqrt(vFwd * vFwd + vSide * vSide)) * loadN
                      : g.TireMu * TailwheelMuScale * SurfaceGrip(twSurface) * loadN;
                 onGround = true;
             }
@@ -385,8 +402,8 @@ public static class LandingGear
     public static (Vec3 Force, Vec3 Moment) Compute(
         AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0, double brakeBias = 0.0,
         IReadOnlyCollection<AirframeComponent>? lostLegs = null, List<AirframeComponent>? broken = null, bool[]? touching = null, ImpactRecorder? impacts = null,
-        TailwheelState? tailwheel = null, bool wheelsUp = false)
-        => Compute(config, s, rudderCmd, brakeCmd, groundZ, brakeBias, lostLegs, broken, touching, impacts, tailwheel, wheelsUp, -1, 0.0, null);
+        TailwheelState? tailwheel = null, bool wheelsUp = false, SkiState? skis = null)
+        => Compute(config, s, rudderCmd, brakeCmd, groundZ, brakeBias, lostLegs, broken, touching, impacts, tailwheel, wheelsUp, -1, 0.0, null, null, skis);
 
     /// <summary>
     /// The same, told which RK4 stage of a step this is (0..3; -1 = test every wheel every time) and the step's
@@ -397,9 +414,12 @@ public static class LandingGear
     public static (Vec3 Force, Vec3 Moment) Compute(
         AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ, double brakeBias,
         IReadOnlyCollection<AirframeComponent>? lostLegs, List<AirframeComponent>? broken, bool[]? touching, ImpactRecorder? impacts,
-        TailwheelState? tailwheel, bool wheelsUp, int stage, double dt, double[]? stageClear, WheelState[]? wheels = null)
+        TailwheelState? tailwheel, bool wheelsUp, int stage, double dt, double[]? stageClear, WheelState[]? wheels = null,
+        SkiState? skis = null)
     {
         Vec3 totalForce = Vec3.Zero, totalMoment = Vec3.Zero;
+        // Wheel-skis with no state handed in (a direct call): the skis are down, which is why they were fitted.
+        skis ??= config.Skis ? SkiState.For(config, SkiSelector.Position.Skis) : null;
         bool cull = AirframeContact.StageCullEnabled && stage >= 0 && stageClear != null && stageClear.Length >= 2 * config.Gear.Count;
         if (config.Gear.Count == 0)
         {
@@ -457,6 +477,9 @@ public static class LandingGear
             {
                 // Clearance to the ground (penetration's negative) and to the water (from the tyre's bottom, as below).
                 double clearGround = (groundZ - groundH) - wheelWorld.Z;
+                // A ski hangs below the tyre when it is down, and a ski at its pitch stop reaches further still.
+                SkiGear.Geometry? sk = skis != null && gi < skis.Legs.Length ? skis.Legs[gi] : null;
+                if (sk != null) clearGround -= sk.ThicknessM + SkiGear.SeatGapM + 0.5 * sk.LengthM;
                 double clearWater = waterH.HasValue ? -wheelWorld.Z - waterH.Value : double.PositiveInfinity;
                 stageClear![2 * gi] = System.Math.Min(clearGround, clearWater);
                 stageClear[2 * gi + 1] = AirframeContact.StageCullMargin(s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody)).Length, dt);
@@ -511,6 +534,26 @@ public static class LandingGear
             // >0 = wheel below ground surface (compressed). The gear point is a sound tyre's bottom; a worn or flat one's
             // is higher by its drop.
             double penetration = wheelWorld.Z - localGroundZ - tyreDrop;
+            // WHEEL-SKIS: whichever of the ski's lowest point and the tyre's bottom is deeper in the ground carries the leg
+            // (SkiGear: lowered, the tyre sits on the ski and it is always the ski; raised, always the tyre; in between,
+            // whatever the links put lowest). A bearing ski moves the contact to its own point and takes the tyre out of the
+            // load path: the load goes up through the pedestal and the links to the axle.
+            bool skiBears = false;
+            SkiGear.Geometry? skiGeo = skis != null && gi < skis.Legs.Length ? skis.Legs[gi] : null;
+            if (skiGeo != null)
+            {
+                SkiGear.Contact sc = SkiGear.Probe(skiGeo, cg, s, skis!.Lowered01, groundZ);
+                if (firstStage) skis.PitchRad[gi] = sc.PitchRad;
+                if (sc.PenetrationM > 0 && sc.PenetrationM > penetration)
+                {
+                    skiBears = true;
+                    penetration = sc.PenetrationM;
+                    wheelWorld = sc.PointWorld;
+                    rBody = sc.PointBody - cg;
+                    groundH = WorldTerrain.WheelGroundHeightAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
+                }
+                if (firstStage) skis.Bearing[gi] = skiBears;
+            }
             if (penetration <= 0.0)
             {
                 if (touching != null && gi < touching.Length) touching[gi] = false;
@@ -547,7 +590,7 @@ public static class LandingGear
             // Since 2026-11-04 a leg with a catalog tyre is the leg and the TYRE in series (TireModel.Junction): the tyre
             // deflects first, the load builds at the series rate, and the deflection sets the rolling radius, the
             // footprint and the slip stiffness. Skids, keels, feet and code-built legs with no tyre are the leg alone.
-            TireSpec? tire = g.GearType == "float-keel" ? null : ws != null ? ws.Tire : WheelSpin.IsWheel(g) ? TireCatalog.Physical(g) : null;
+            TireSpec? tire = g.GearType == "float-keel" || skiBears ? null : ws != null ? ws.Tire : WheelSpin.IsWheel(g) ? TireCatalog.Physical(g) : null;
             double tyrePsi = tire == null ? 0 : ws != null ? ws.PressurePsi : TirePressure.Psi(config, g);
             double tyreDefl = 0, normalN;
             if (tire == null)
@@ -632,14 +675,14 @@ public static class LandingGear
             // grows with the wheel load (a tyre's C ≈ 10–15 × its vertical load per radian): a fixed per-type constant
             // left the heavier types with a fifth of their friction budget and they skated sideways (owner).
             double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
-            bool onSki = OnSki(config, g, surface);
+            bool onSki = skiBears;
             if (ws != null && firstStage) { ws.OnSki = onSki; ws.VFwdMs = vFwd; }
             double cornerPerLoad = onSki ? SkiCorneringPerLoad : (g.IsTailwheel ? TailwheelCorneringPerLoad : CorneringPerLoad);
             double cornering = onSki ? cornerPerLoad * normalN
                                      : System.Math.Max(g.CorneringStiffnessN, cornerPerLoad * normalN);
             double lateralN = -cornering * slip;
             double muLimit = onSki
-                           ? (SkiLateralCoefficient(surface) + SkiStaticExcess(surface, speed)) * normalN
+                           ? SkiGear.LateralCoefficient(surface, speed) * normalN
                            : g.TireMu * (g.IsTailwheel ? TailwheelMuScale : 1.0) * SurfaceGrip(surface) * normalN;
 
             // Longitudinal. On a ski: its own rolling drag and a load-limited brake, as before (no wheel turns against
@@ -648,7 +691,7 @@ public static class LandingGear
             // A wheel's rolling resistance is its own tyre's on this ground (TireModel.RollingCoefficient: the tyre's
             // hysteresis, and the ground's compaction from its footprint pressure); on a packed snow zone, how far its
             // ground pressure takes it through the crust.
-            double rollMu = onSki ? SkiRolling(surface, vFwd)
+            double rollMu = onSki ? SkiGear.ForwardCoefficient(surface, vFwd)
                           : surface == WorldTerrain.Surface.PackedGlacierSnow
                             ? (tire != null ? SnowSinkageRolling(tire, tyrePsi, surface, staticLoadN) : SnowSinkageRolling(config, surface, staticLoadN))
                             : TireModel.RollingCoefficient(tire, tyrePsi, surface, normalN, tyreDefl);
@@ -664,14 +707,13 @@ public static class LandingGear
             if (onSki)
             {
                 lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
-                // A brake inside a ski is LOAD-limited: it can only work through the share of the weight the wheel still
-                // carries through the ski's hole, times what the tyre can get out of snow.
-                double brakeDemandN = g.Brake ? wheelBrake * SkiLateralCoefficient(surface) * normalN * SkiWheelLoadShare : 0.0;
-                // A ski's friction is ANISOTROPIC: it slides forwards on its own base (SkiRollingCoefficient) and
+                // No brake: the wheel sits on top of the ski, off the ground, and a brake on it stops only the wheel.
+                // A ski's friction on snow is ANISOTROPIC: it slides forwards on its own base (SkiRollingCoefficient) and
                 // holds sideways only by its length in the snow (SkiGripScale). So the forward drag is not capped by
                 // the lateral budget — on snow that budget (0.8 × 0.20 × 0.33 = 0.053) is actually SMALLER than the
-                // ski's own forward drag (0.055), and clamping to it quietly threw the ski's drag away.
-                double longN = -(rollN + brakeDemandN) * fwdSign;
+                // ski's own forward drag (0.055), and clamping to it quietly threw the ski's drag away. On hard ground
+                // both are the base's plain sliding coefficient (SkiGear.HardSlidingCoefficient).
+                double longN = -rollN * fwdSign;
                 tireForce = tireRight * lateralN + tireFwd * longN;
             }
             else

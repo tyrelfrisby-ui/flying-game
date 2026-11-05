@@ -259,6 +259,15 @@ public sealed partial class Aircraft
     public double SpoilerCommand { get; set; }
     /// <summary>Slipstream swirl at the tail as a fraction of the axial speed-up (0.2; 0 = no swirl — diagnostics).</summary>
     public static double SwirlFactor = 0.2;
+    /// <summary>
+    /// WHEEL-SKIS (Ty 2026-11-05): the cockpit's WHEELS / SKIS selector and the hinged skis it drives, on an aeroplane with
+    /// the option fitted (<see cref="AircraftConfig.Skis"/>); null on one without. The gear physics reads where the skis
+    /// ARE (<see cref="SkiSelector.Lowered01"/>), every input moves the lever (<see cref="SkiSelector.Select"/>), and the
+    /// hydraulics run them there over <see cref="SkiGear.TransitSec"/>. It starts with the skis down over snow and up
+    /// over anything else (<see cref="SkiSelector.StartFor"/>).
+    /// </summary>
+    public SkiState? Skis { get; }
+
     public void SetGear(bool down, bool immediate = false)
     {
         if (!Config.RetractableGear) { GearDown = true; GearExtension = 1.0; return; }
@@ -334,7 +343,7 @@ public sealed partial class Aircraft
     /// <summary>New mass and inertia (live weight &amp; balance — the Aero Widget's loading command). The CG itself is
     /// Config.Mass.Cg, which every force and moment is taken about.</summary>
     public void SetMassProperties(double massKg, double ixx, double iyy, double izz, double ixz) =>
-        MassProperties = Shed(new MassProperties(massKg, ixx, iyy, izz, ixz));
+        MassProperties = Shed(Fit(new MassProperties(massKg, ixx, iyy, izz, ixz)));
 
     /// <summary>Mass that has LEFT the aeroplane in flight (a departed canopy, Core Vr.CanopyDynamics; a component broken
     /// off with its volumes, <see cref="LoseComponent"/>), and the
@@ -346,7 +355,19 @@ public sealed partial class Aircraft
     /// taken about Config.Mass.Cg (every geometry in the config is placed relative to it); the shift enters as the
     /// remaining weight's moment about it (see the force sum), which is exactly what moving the CG does to the
     /// statics. The dynamics' coupling term m·r×a is neglected (a 14 kg canopy 0.5 m from the CG of an 800 kg aeroplane).</summary>
-    public Vec3 CgShiftBody => MassProperties.MassKg > 1.0 ? _shedMoment * (-1.0 / MassProperties.MassKg) : Vec3.Zero;
+    public Vec3 CgShiftBody => MassProperties.MassKg > 1.0 ? (_fittedMoment - _shedMoment) * (1.0 / MassProperties.MassKg) : Vec3.Zero;
+
+    /// <summary>Equipment the session bolts on that the authored mass does not include — the wheel-skis
+    /// (<see cref="SkiGear.TotalMassKg"/>) — and its first moment about the reference CG, kg·m. Added exactly the way
+    /// <see cref="ShedMass"/> takes a part away: the mass, the parallel-axis inertia, and the CG moved toward it.</summary>
+    public double FittedMassKg { get; private set; }
+    private Vec3 _fittedMoment;
+
+    private double _fitIxx, _fitIyy, _fitIzz, _fitIxz;   // its parallel-axis inertia about the reference CG, each part at its own place
+    private readonly double _skiDragAreaM2;
+
+    private MassProperties Fit(MassProperties p) => FittedMassKg <= 0.0 ? p
+        : new MassProperties(p.MassKg + FittedMassKg, p.Ixx + _fitIxx, p.Iyy + _fitIyy, p.Izz + _fitIzz, p.Ixz + _fitIxz);
 
     /// <summary>A part of <paramref name="kg"/> at <paramref name="pointBody"/> (the config's body frame) has left:
     /// the mass drops, the inertia loses its parallel-axis share, and the CG moves away from where it was.</summary>
@@ -361,6 +382,7 @@ public sealed partial class Aircraft
     private MassProperties Shed(MassProperties p) =>
         ShedMassKg > 0.0 ? Shed(p, ShedMassKg, _shedMoment * (1.0 / ShedMassKg)) : p;
 
+    /// <summary>Takes <paramref name="kg"/> at offset <paramref name="d"/> out of <paramref name="p"/> (a negative mass puts it in).</summary>
     private static MassProperties Shed(MassProperties p, double kg, Vec3 d) => new(
         Math.Max(1.0, p.MassKg - kg),
         Math.Max(1.0, p.Ixx - kg * (d.Y * d.Y + d.Z * d.Z)),
@@ -374,8 +396,25 @@ public sealed partial class Aircraft
         Load = new AircraftLoad(config);
         // At the reference loading — and for every aeroplane with no loading block at all — this is exactly the
         // authored MassConfig, so nothing that is already tuned moves. See AircraftLoad.
-        MassProperties = Load.Properties;
         State = initialState;
+        if (SkiGear.AnyFitted(config))
+        {
+            WorldTerrain.Surface under = WorldTerrain.SurfaceOverride
+                ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(initialState.Position.X, initialState.Position.Y, -initialState.Position.Z) : WorldTerrain.Surface.Paved);
+            Skis = SkiState.For(config, SkiSelector.StartFor(under));
+            FittedMassKg = SkiGear.TotalMassKg(config);
+            _fittedMoment = SkiGear.MassMomentKgM(config);
+            _skiDragAreaM2 = SkiGear.TotalDragAreaM2(config);
+            Vec3 cg0 = config.Mass.CgVec();
+            foreach (SkiGear.Geometry? geo in Skis!.Legs)
+            {
+                if (geo == null) continue;
+                Vec3 d = geo.PinAt(SkiGear.LoweredLinkRad) - cg0;
+                _fitIxx += geo.MassKg * (d.Y * d.Y + d.Z * d.Z); _fitIyy += geo.MassKg * (d.X * d.X + d.Z * d.Z);
+                _fitIzz += geo.MassKg * (d.X * d.X + d.Y * d.Y); _fitIxz += geo.MassKg * d.X * d.Z;
+            }
+        }
+        MassProperties = Fit(Load.Properties);
         _airfoilTables = BuildAirfoilTables(config);
         _contacts = AirframeContact.BuildPoints(config);
         InitContactDamage();
@@ -446,7 +485,7 @@ public sealed partial class Aircraft
     /// Ignored once damage owns the tensor.</summary>
     public void ApplyLoad()
     {
-        if (!_massOwnedByDamage) MassProperties = Shed(Load.Properties);
+        if (!_massOwnedByDamage) MassProperties = Shed(Fit(Load.Properties));
     }
 
     /// <summary>Fuel mass burned per second at the current throttle. Shaft power is MaxPowerW x throttle
@@ -1316,10 +1355,18 @@ public sealed partial class Aircraft
                 // brake is also full brake, whatever the pilot's own brake input is doing (SpoilerConfig).
                 double wheelBrake = Math.Max(BrakeInput, Config.Controls.Spoiler.BrakeFromHandle(_spoilerFraction));
                 long tGear = SimProfile.Begin();
-                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, wheelBrake, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, amphibUp, stage, stepDt, _gearStageClear, _wheels);
+                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, wheelBrake, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, amphibUp, stage, stepDt, _gearStageClear, _wheels, Skis);
                 SimProfile.End(SimProfile.Scope.Gear, tGear);
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
+            }
+            if (Skis != null && _skiDragAreaM2 > 0)
+            {
+                // The wheel-skis' own flat-plate drag (SkiGear.DragAreaM2: the blunt ski, its upturned tip, the links), up
+                // or down — raised, they still hang in the wind.
+                Vec3 vAir = s.Velocity - windBody;
+                double vA = vAir.Length;
+                if (vA > 1.0) totalF -= vAir * (0.5 * airDensity * vA * _skiDragAreaM2);
             }
             if (Config.RetractableGear && GearExtension > 0.01 && Config.GearDragAreaM2 > 0)
             {
@@ -1437,8 +1484,9 @@ public sealed partial class Aircraft
         if (Tailwheel != null && GearExtension > 0.9 && !_lostGear.Contains(AirframeComponent.GearTail))
         {
             double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
-            LandingGear.UpdateTailwheel(Config, State, Tailwheel, rudderCmd, dt);
+            LandingGear.UpdateTailwheel(Config, State, Tailwheel, rudderCmd, dt, Skis);
         }
+        Skis?.Selector.Step(dt);
         if (HasWaterRudderRetract)
         {
             if (WaterRudderHeldUp01 is double held) WaterRudderUp01 = Math.Clamp(held, 0.0, 1.0);
