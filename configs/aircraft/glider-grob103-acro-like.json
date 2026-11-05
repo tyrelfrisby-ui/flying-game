@@ -8744,7 +8744,7 @@
    "tireMu": 0.8,
    "corneringStiffnessN": 5000,
    "rollResistN": 40,
-   "tireRadiusM": 0.2
+   "tire": "legacy-grob103-main", "tirePressurePsi": 8.6
   },
   {
    "pos": [
@@ -8761,7 +8761,7 @@
    "tireMu": 0.6,
    "corneringStiffnessN": 1500,
    "rollResistN": 30,
-   "tireRadiusM": 0.13
+   "tire": "legacy-grob103-nose", "tirePressurePsi": 8.6
   },
   {
    "pos": [
@@ -8778,7 +8778,7 @@
    "tireMu": 0.5,
    "corneringStiffnessN": 800,
    "rollResistN": 30,
-   "tireRadiusM": 0.105
+   "tire": "legacy-grob103-tail", "tirePressurePsi": 8.6
   },
   {
    "pos": [

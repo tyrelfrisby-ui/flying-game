@@ -608,7 +608,11 @@ public class IslandSurfaceTests : IDisposable
     {
         double h = hdg * Math.PI / 180;
         RigidBodyState rest = LandingGear.RestingState(c, x, y, H(x, y), h);
-        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, new Vec3(speed, 0, 0), Vec3.Zero), new ControlDeflections(0, 0, 0, 0));
+        // Rolling ALONG THE GROUND: the speed is horizontal, not along the three-point body axis (that was a 2.3 m/s
+        // climb out of the resting state, a hop the gear then had to settle from; with a real tyre in series it took
+        // longer than the settling window — 2026-11-04 tundra tyres).
+        Vec3 vBody = rest.Attitude.Conjugate().Rotate(new Vec3(speed * Math.Cos(h), speed * Math.Sin(h), 0));
+        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, vBody, Vec3.Zero), new ControlDeflections(0, 0, 0, 0));
         var loop = new SimLoop(ac); double dt = SimLoop.DefaultFixedDtSec, sum = 0, air = 0; int n = 0;
         double vz = ac.State.Attitude.Rotate(ac.State.Velocity).Z;
         for (double t = 0; t < seconds; t += dt)

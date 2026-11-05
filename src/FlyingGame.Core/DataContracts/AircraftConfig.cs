@@ -10,11 +10,21 @@ namespace FlyingGame.Core.DataContracts;
 public sealed class AircraftConfig
 {
     /// <summary>
-    /// BUSHWHEELS (owner 2026-10-16): any aeroplane can be put on big soft tyres. Twice the tyre diameter,
-    /// no wheel pants, and half the pressure — which is what lets it skim water and land on a gravel bar.
-    /// Set from the session when the option is chosen; not part of the type's own data.
+    /// BUSHWHEELS (owner 2026-10-16): any aeroplane can be put on big soft tyres, which is what lets it skim water
+    /// and land on a gravel bar. Set from the session when the option is chosen; not part of the type's own data.
+    ///
+    /// Since 2026-11-04 (Ty: "proper tundra tires") the option FITS A REAL TYRE from <see cref="TireCatalog"/> to each
+    /// main wheel — the leg's own <see cref="GearConfig.TundraTire"/>, or the smallest Alaskan Bushwheel rated for the
+    /// leg's static load — at that tyre's own pressure, on the same axle (so the contact point drops by the
+    /// difference in radius). It used to double the radius and the rotating mass and halve the pressure. Setting it
+    /// back to false puts the stock tyre back; see <see cref="TireFit"/>.
     /// </summary>
-    public bool Bushwheels { get; set; }
+    public bool Bushwheels
+    {
+        get => _bushwheels;
+        set { if (value != _bushwheels) { _bushwheels = value; TireFit.Apply(this, value); } }
+    }
+    private bool _bushwheels;
 
     /// <summary>
     /// WHEEL-SKIS (owner 2026-10-16): skis with the wheels still protruding, so the same aeroplane lands on
@@ -827,14 +837,22 @@ public sealed class GearConfig
     public double TireMu { get; set; } = 0.8;         // dry tarmac friction (limits tire force)
     public double CorneringStiffnessN { get; set; } = 6000; // side force per rad slip (before mu limit)
     public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
-    public double TireRadiusM { get; set; }           // tyre's free radius, the visual and the rolling one (0 = auto from fuselage length); 0.445 = 35" bushwheel
-    // The wheel's SPIN (2026-11-04, WheelSpin): what has to be spun up from rest at touchdown and stopped by the brake.
-    // WheelMassKg is the ROTATING mass of one wheel — tyre, tube, wheel halves and brake disc (the caliper does not turn);
-    // 0 = estimated from the tyre size (WheelSpin.MassOf). WheelInertiaKgM2 overrides the I = 0.65·m·r² it implies.
+    // THE TYRE (Ty 2026-11-04, "proper tundra tires"): which tyre is on this leg, by TireCatalog id. Its size, width,
+    // masses, inertia, carcass and pressures all come from the catalog — one source of truth — and a config never
+    // states a tyre's radius or mass by hand any more (TireCatalogTests holds every config to it).
+    public string Tire { get; set; } = "";
+    // The tyre the BUSHWHEELS option fits to this leg (a main wheel), by catalog id; "" = the smallest tundra tyre in
+    // the catalog rated for the leg's static load (TireFit). Its pressure: TundraPressurePsi, 0 = the tyre's typical.
+    public string TundraTire { get; set; } = "";
+    public double TundraPressurePsi { get; set; }
+    // A SKID's (or a code-built test leg's) radius, where there is no catalog tyre. 0 = auto from fuselage length.
+    public double TireRadiusM { get; set; }
+    // Overrides of the catalog's rotating mass (tyre, tube, wheel halves and brake disc) and the inertia it derives,
+    // for tests and probes only: no config may set them (TireCatalogTests).
     public double WheelMassKg { get; set; }
     public double WheelInertiaKgM2 { get; set; }
-    // Tyre pressure (psi), which is what decides when a wheel hydroplanes: V_p (kt) = 9√p. 0 = estimate it
-    // from the tyre's size and the aeroplane's weight (WheelHydro.TirePressurePsi).
+    // Operating pressure (psi) of the tyre on this leg. It decides the tyre's spring, its footprint, its ground
+    // pressure (sinkage) and when it hydroplanes (V_p kt = 9√p). 0 = the catalog tyre's typical pressure.
     public double TirePressurePsi { get; set; }
     public double BreakSinkMs { get; set; }           // first-contact sink rate that tears this leg off (0 = LandingGear.DefaultBreakSinkMs)
     // Tailwheel (owner 2026-09-12): the wheel CASTORS about its pivot; springs to the rudder pull it toward the
@@ -845,6 +863,11 @@ public sealed class GearConfig
     public double BreakoutRad { get; set; }           // castor angle at which the steering UNLOCKS (free swivel until re-engaged)
 
     public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
+
+    // What TireFit took off when the bushwheel option went on, to put back when it comes off. Not data.
+    internal bool TundraFitted;
+    internal string StockTire = "";
+    internal double StockPosZ, StockPressurePsi;
 }
 
 /// <summary>A wing with no moving surface at all, flown by swinging the pilot's own mass about the hang point: a hang

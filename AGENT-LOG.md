@@ -539,6 +539,109 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   passes (BRANCH DAMAGE amount). Open decisions: structureType tags, aluminium crush-first at √2× break speed (composite
   1.15×, wood 1.24×), no canopy part, bullets still take steel-tube tails.
 <!-- /crash-tuning needs-you -->
+<!-- tundra-tires needs-you -->
+- **TUNDRA TYRES + ONE TYRE CATALOG: BUILT (Claude, 2026-11-04/05, lane/claude-tundra-tires off e8e2978b; Ty approved 2:39 PM "Yes and 35's", +HD 35 for the Beaver at 2:40). Local commits, not merged. iOS build 2026.1105.0041 `** BUILD SUCCEEDED **`, 0 error CS, not installed.**
+  Docs: `docs/TUNDRA-TIRES.md` (catalog, sources, physics, every config change). Nothing here is approved by me.
+  Decisions for Ty:
+  1. **Super Cub tyre.**
+     - `pa18-bush-like` is on the 351510.R1 35x15x10 lightweight at 8 psi, as you and the parent agreed.
+     - The 26/29/31 in tyres stay selectable (the bushwheel option on other types picks among them by load).
+     - **The visual model:** the Super Cub v1 renders show 31 in tyres. The physics is now a 35. Change the model, or
+       move the bush Cub to 31136.R? I did not touch the model.
+  2. **Pressures to check:**
+     - bush Cub 8 psi; stock Cub 18 (POH).
+     - The bushwheel option sets pressure for load (TR R-64's rated deflection), held to the tyre's range. That gives
+       the Cub 8 psi on 26s, and the Beaver 10.1 psi on HD 35s.
+     - The R1's 6 psi floor and the 12 psi "typical" for 26–31 are my estimates.
+     - Where the gross/100 rule left a researched tyre below its rated deflection, the leg was RAISED to the pressure
+       that puts it there (never lowered):
+       - Glasair mains 24 → 44.7;
+       - 2-33 main 6.2 → 28.7;
+       - Decathlon and Great Lakes mains 18 → 21, tails 14.4 → 28.6;
+       - Seminole mains 38 → 42;
+       - Pawnee tail 16 → 31.8;
+       - AirCam tail 12.9 → 25.6.
+     - These move the planing speeds of those legs up (doc §4). Every other leg kept its pressure, now written in its
+       config.
+  3. **Estimates in the "researched" data (not published anywhere I could find):**
+     - every Cleveland wheel and disc weight (6 in wheel 4.0–4.5 lb, disc 2.5; 40-134 7.50x10 13.5 lb, HD disc 4.0);
+     - disc OD;
+     - the bias-tyre mass split (60/30/10) behind the derived inertia;
+     - bushwheel load ratings and ply (the HD carcass is not published; only its 1/4 in tread is);
+     - the measured ODs (nominal);
+     - the 8.50-6 weight (16 lb, from an unverified snippet);
+     - the Scott 8 in wheel (3 lb 13 oz, unverified);
+     - tyre damping ζ 0.05;
+     - the packed-snow crust 125 kPa.
+     Anything you know beats these.
+  4. **Real corrections that change how things fly** (all listed in the doc §4):
+     - Cub 8.00-6 is 19.5 in, not 22.
+     - J-3 8.00-4 is 18.0 in, not 21.3.
+     - The Beaver main assembly is 19.8 kg, not 14.
+     - Inertia is now derived: about 0.48 m R² for an 8.00-6 wheel, so the stock Cub's spin-up kick is smaller than the
+       0.65 rule gave.
+     - The bush Cub's mains went 16 → 25.4 kg (44 lb tyre + 9.6 lb LW wheel), so its spin-up is bigger.
+  5. **The slip curve does not do what the brief expected.** TR R-64's slip stiffness (K_x = 0.53 d (p+4p_r) ∛(δ/d)) is
+     mostly carcass. On pavement:
+     - a lower pressure moves the peak only a little, and to a SMALLER slip (31x13 at 3.5 kN: κ0 falls from 20 psi to
+       6 psi);
+     - a bigger tyre peaks EARLIER.
+     The soft, late peak of a balloon tyre is the ground shearing, which is not modelled. The test holds the TR R-64
+     numbers; please say whether you want soil shear.
+  6. **Bushwheel option on other types:** each main wheel gets a real tundra tyre on the same axle, so the aeroplane
+     sits higher and a taildragger more tail-low. The tailwheel and nosewheel keep their own tyres.
+     - Types with no catalog tundra tyre that carries them (DC-3, 737) keep theirs. Before, everything was doubled.
+  7. **Legacy types are unchanged on purpose.** Pitts, Extra, P-51, DC-3, F-86, 737, JN-4, Stearman, Gee Bee, Cassutt,
+     drone, SR22 mains, AirCam, EB29R/Swift and several tailwheels keep their sizes and the old rigid tyre, because I
+     did not research their tyres.
+     - The P-51's prop-strike red is untouched.
+  8. **Red tests this lane causes, left red (real-number consequences, not fudged).** **SUITE: full run base e8e2978b 134 failed / 2,398 passed (2 h 14 m); branch 187 / 2,367 (+22 new tests). The machine was
+     shared, and this suite is globally coupled, so the counts mean nothing. 13 names failed on the branch only. Re-run alone
+     on both trees: 5 pass (coupling); every one of the 8 below fails alone on the branch and passes alone on base. After
+     the pressure fix, a targeted 17-class re-run branch vs base gave the same 8, as follows.**
+     - **Prop strike: `BreakupTests.HardImpactIsReportedForTheCrashSound`** (PA-18 dropped level at 3 m/s).
+       - The tyre in series makes the gear softer; the propeller touches.
+       - The configs' leg `springN` values were evidently authored to stand for leg AND tyre. Now that the tyre is a
+         spring of its own they want re-deriving as leg-only. I did not tune them.
+     - **Glasair can't roll: `TakeoffRollStarts.EveryPoweredTypeSitsOnItsWheelsAndRollsAtFullPower`** (2 m/s in 10 s).
+       - The config has no `thrustLineZ`, so its 1.98 m prop's tips reach 0.99 m below the CG, while its wheels touch at
+         0.95. **At base the prop already sits 4 cm into the runway**; nothing moved, so nothing broke.
+       - The real tyre's settle moves it and the prop goes.
+       - The SR22 (−4 cm) and Gee Bee (−5 cm) have the same geometry error, but on rigid legacy mains.
+       - **Needs the Glasair's real thrust line.**
+     - **C172 at KMEV: `IslandStartTests.TheControlsMoveTheAeroplaneAtEveryStart`.**
+       - With the stick 0.3 back and no rudder, its left main runs off the pavement onto Rough at ~50 m. It bounces there
+         and the prop strikes.
+       - Base gets 226 m. Not diagnosed further.
+     - **Crevasse wreck: `IslandSurfaceTests.ACubThatLandsInACrevasseFieldIsWrecked`.**
+       - The tundra-tyre Cub is wrecked as required, and every gear leg is gone.
+       - The wreck then slides on in the crevasse at 2.1 m/s. That is a different chaotic wreck path; no tyre is involved
+         by then.
+     - **Hay-field rolls: `NaturalSurfaceTests.ACubRollsOverTheCrestAndThroughTheRollsOnItsWheels`, AP1.**
+       - The CG strays 0.17–0.22 m above the ground (limit 0.15) on the 26 in tundra tyres. A soft, lightly damped tyre
+         rides the rolls.
+       - AP8 passes.
+     - **Tailwheel load at rest: `TailwheelTests.LoadedWheelCastorsTowardItsVelocityAgainstTheSprings`.**
+       - The test reads the tail load straight off `RestingState`'s 2 cm rigid-tyre estimate, which a soft tyre carries
+         less of.
+       - I tried sinking the rest state by the tyre's deflection. It made the tundra Cub hop on snow, so I reverted it.
+     - **Wheels on snow: `WheelSkiTests.OnSnowASkiRunsOnAfterTheWheelHasStopped(pa18-cub-like)`.**
+       - The ski's deceleration is 0.65 of the wheels' against a < 0.6 limit.
+       - The Cub's 8.00-6 at 18 psi now floats on settled snow at 0.098 (Bekker, against a 6.00-6 at 30 psi), not the
+         table's flat 0.14. **The rolling-resistance reference tyre is a call for you.**
+     - **J-3 just below planing: `WheelWaterTests.JustBelowThePlaningSpeedATouchIsNotAnInstantStop`.**
+       - The J-3's real 8.00-4 is 18.0 in, not the 21.3 in it had. It digs in below V_p, and it passes with 21.3. Same
+         story as the Swift.
+     - **Still red from before and unchanged:** the spin-up lane's P-51 prop strike and the Swift skim, plus base reds
+       such as the SR22/Glasair skim and the Cub skim.
+  9. **Lessons for CLAUDE.md (not added; your call):**
+     - A config's `springN` that was really leg-plus-tyre double-counts once the tyre becomes a spring.
+     - The gross/100 pressure rule was harmless while pressure only decided planing. Once pressure is a spring it must
+       not leave a tyre below its rated deflection.
+  10. **Parity:** `tools/check-parity.sh` is FAIL, between the two main lanes: island-nav's 73d7702b (CLAUDE.md/AGENTS.md)
+      is not in the Quest lane. That is not caused by this branch, which is on neither lane and merged into neither.
+      Note that 73d7702b moves questions for you to agent-lanes/QUESTIONS-FOR-TY.md; this lane predates that and logs
+      here as briefed.
 <!-- tire-spinup needs-you -->
 - **Q026 ITEM 3: P-51 ROLLOUT PROP STRIKE AND SWIFT WATER SKIM, INVESTIGATED (Claude, 2026-11-04, lane/claude-tire-spinup).
   Nothing in the physics or configs was changed. You asked for findings first.**
@@ -4209,6 +4312,100 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
 - **Build:** `deploy.sh NOINSTALL` 21:40–21:54, `** BUILD SUCCEEDED **`, 0 `error CS`, PARITY OK, installed on 0 devices.
   The bundleVersion bump was not committed. No Quest batch was run; there is no platform-specific code.
 - Doc: `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` §8.
+### 2026-11-05 00:30 PST — Claude · lane/claude-tundra-tires (off lane/claude-tire-spinup e8e2978b) · tundra tyres + one tyre catalog (Ty approved 2026-11-04 2:39 PM)
+- **Built:**
+  - **TireCatalog + TireFit + TireModel**, in shared Core; doc `docs/TUNDRA-TIRES.md`.
+  - **Configs:** 28 configs (+ StreamingAssets copies) on catalog ids and stated pressures.
+  - **Tests:** TireCatalogTests (22).
+  - **Updated tests (reasons in each):**
+    - WheelSpinTests: own-N(t) reference for tyre rows, rolling radius.
+    - LandingGearTests.TaildraggerMainTouchdownPitchesNoseUp: per-instant q gap.
+    - WheelHydroTests: retired /200 and doubling rules; real width.
+    - Island/NaturalSurfaceTests roll setup: velocity along the ground, not the pitched body axis.
+- **Research:** a subagent read the GY data book, the Condor sheet, McFarlane, the ABI ICA, aircraftsupply and NACA TN
+  4110 / TR R-64. URLs are in TireCatalog.cs and the doc.
+- **Build:** iOS `deploy.sh NOINSTALL` → `** BUILD SUCCEEDED **` (0 `error CS`), twice: 2026.1104.1746 (first commit) and 2026.1105.0041 (final tree). Installed nowhere; the bundleVersion bumps were reverted, not committed.
+- **PA-18 touchdown matrix** (pa18-bush-like airframe and legs, each tyre on the same axle; stock at 18 psi, tundra at 8;
+  43 kt, 6°, paved, idle).
+  - **How to read it:** nose-down q (spin-up) is the most nose-down pitch rate in the 0.15 s after first touch. ΔV is
+    ground speed lost in 0.3 s; idle thrust exceeds drag here, so pre-spun arrivals GAIN a little, and the spin-up's
+    cost is cold − pre-spun.
+
+| tyre | psi | sink ft/s | wheels | nose-down q, spin-up (0.15 s) deg/s | nose-down q, 1.5 s | nose-up q | bounce m | peak main load N | peak tyre defl mm | ΔV 0.3 s m/s |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 8.00-6 | 18 | 3.0 | cold | -9.7 | -9.7 | 7.0 | 0.000 | 4565 | 48 | 0.02 |
+| 8.00-6 | 18 | 3.0 | pre-spun | -3.1 | -6.0 | 9.3 | 0.035 | 4362 | 46 | -0.24 |
+| 8.00-6 | 18 | 4.5 | cold | -9.6 | -9.6 | 8.9 | 0.038 | 5420 | 56 | 0.05 |
+| 8.00-6 | 18 | 4.5 | pre-spun | -2.8 | -10.5 | 11.7 | 0.101 | 5222 | 54 | -0.21 |
+| 8.00-6 | 18 | 6.0 | cold | -9.6 | -9.6 | 11.3 | 0.104 | 6424 | 65 | 0.08 |
+| 8.00-6 | 18 | 6.0 | pre-spun | -2.7 | -13.2 | 14.5 | 0.219 | 6228 | 63 | -0.19 |
+| 8.50-6 | 18 | 3.0 | cold | -10.6 | -10.6 | 6.8 | 0.000 | 4603 | 45 | 0.05 |
+| 8.50-6 | 18 | 3.0 | pre-spun | -3.0 | -6.1 | 9.5 | 0.036 | 4372 | 43 | -0.24 |
+| 8.50-6 | 18 | 4.5 | cold | -10.6 | -10.6 | 8.6 | 0.033 | 5467 | 52 | 0.08 |
+| 8.50-6 | 18 | 4.5 | pre-spun | -2.7 | -10.7 | 12.0 | 0.103 | 5241 | 50 | -0.22 |
+| 8.50-6 | 18 | 6.0 | cold | -10.6 | -10.6 | 11.0 | 0.094 | 6481 | 61 | 0.10 |
+| 8.50-6 | 18 | 6.0 | pre-spun | -2.6 | -13.3 | 14.9 | 0.224 | 6257 | 59 | -0.20 |
+| 26126.R | 8 | 3.0 | cold | -15.6 | -15.6 | 6.6 | 0.000 | 4667 | 75 | 0.25 |
+| 26126.R | 8 | 3.0 | pre-spun | -3.4 | -6.9 | 9.8 | 0.040 | 4314 | 70 | -0.22 |
+| 26126.R | 8 | 4.5 | cold | -15.7 | -15.7 | 7.1 | 0.000 | 5455 | 86 | 0.28 |
+| 26126.R | 8 | 4.5 | pre-spun | -3.2 | -11.2 | 12.2 | 0.111 | 5111 | 81 | -0.19 |
+| 26126.R | 8 | 6.0 | cold | -15.9 | -15.9 | 8.8 | 0.044 | 6391 | 99 | 0.31 |
+| 26126.R | 8 | 6.0 | pre-spun | -3.1 | -13.0 | 15.0 | 0.241 | 6051 | 94 | -0.16 |
+| 29136.R | 8 | 3.0 | cold | -17.9 | -17.9 | 8.4 | 0.000 | 4737 | 70 | 0.33 |
+| 29136.R | 8 | 3.0 | pre-spun | -3.4 | -7.0 | 10.0 | 0.040 | 4334 | 65 | -0.22 |
+| 29136.R | 8 | 4.5 | cold | -18.0 | -18.0 | 7.8 | 0.000 | 5538 | 80 | 0.36 |
+| 29136.R | 8 | 4.5 | pre-spun | -3.1 | -11.4 | 12.4 | 0.113 | 5143 | 75 | -0.19 |
+| 29136.R | 8 | 6.0 | cold | -18.3 | -18.3 | 7.7 | 0.027 | 6490 | 93 | 0.39 |
+| 29136.R | 8 | 6.0 | pre-spun | -3.0 | -13.1 | 15.3 | 0.245 | 6098 | 88 | -0.17 |
+| 31136.R | 8 | 3.0 | cold | -19.7 | -19.7 | 9.7 | 0.000 | 4782 | 69 | 0.39 |
+| 31136.R | 8 | 3.0 | pre-spun | -3.4 | -7.0 | 10.1 | 0.041 | 4340 | 63 | -0.22 |
+| 31136.R | 8 | 4.5 | cold | -19.9 | -19.9 | 9.2 | 0.000 | 5588 | 79 | 0.42 |
+| 31136.R | 8 | 4.5 | pre-spun | -3.1 | -11.5 | 12.6 | 0.114 | 5155 | 73 | -0.19 |
+| 31136.R | 8 | 6.0 | cold | -20.2 | -20.2 | 8.7 | 0.015 | 6546 | 91 | 0.45 |
+| 31136.R | 8 | 6.0 | pre-spun | -3.0 | -13.1 | 15.5 | 0.248 | 6115 | 85 | -0.17 |
+| 351510.R1 | 8 | 3.0 | cold | -24.6 | -24.6 | 12.5 | 0.000 | 4899 | 60 | 0.56 |
+| 351510.R1 | 8 | 3.0 | pre-spun | -3.4 | -6.8 | 10.2 | 0.040 | 4371 | 54 | -0.21 |
+| 351510.R1 | 8 | 4.5 | cold | -24.9 | -24.9 | 12.2 | 0.000 | 5734 | 68 | 0.59 |
+| 351510.R1 | 8 | 4.5 | pre-spun | -3.1 | -11.4 | 12.8 | 0.112 | 5211 | 63 | -0.19 |
+| 351510.R1 | 8 | 6.0 | cold | -25.2 | -25.2 | 11.9 | 0.000 | 6724 | 78 | 0.61 |
+| 351510.R1 | 8 | 6.0 | pre-spun | -3.0 | -13.2 | 15.8 | 0.246 | 6200 | 73 | -0.17 |
+
+- **Beaver matrix:** dhc2-beaver-like, stock 8.50-10 at 30 psi; the bushwheel option on HD 351510.R at 10.1 psi; and the LW R1 on the same aeroplane for comparison. 50 kt, 5°.
+
+| tyre | psi | sink ft/s | wheels | nose-down q, spin-up (0.15 s) deg/s | nose-down q, 1.5 s | nose-up q | bounce m | peak main load N | peak tyre defl mm | ΔV 0.3 s m/s |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 8.50-10 | 30.0 | 3.0 | cold | -4.1 | -4.1 | 9.8 | 0.052 | 16470 | 83 | -0.14 |
+| 8.50-10 | 30.0 | 3.0 | pre-spun | -0.5 | -6.2 | 13.1 | 0.081 | 16064 | 81 | -0.40 |
+| 8.50-10 | 30.0 | 4.5 | cold | -4.1 | -4.2 | 11.2 | 0.102 | 18918 | 94 | -0.10 |
+| 8.50-10 | 30.0 | 4.5 | pre-spun | -0.5 | -5.9 | 14.7 | 0.146 | 18513 | 92 | -0.36 |
+| 8.50-10 | 30.0 | 6.0 | cold | -4.2 | -8.2 | 13.0 | 0.179 | 21850 | 108 | -0.07 |
+| 8.50-10 | 30.0 | 6.0 | pre-spun | -0.5 | -10.3 | 16.7 | 0.254 | 21450 | 106 | -0.33 |
+| 351510.R | 10.1 | 3.0 | cold | -9.0 | -9.0 | 12.6 | 0.023 | 16018 | 144 | 0.18 |
+| 351510.R | 10.1 | 3.0 | pre-spun | -0.7 | -6.8 | 14.0 | 0.102 | 15235 | 138 | -0.36 |
+| 351510.R | 10.1 | 4.5 | cold | -9.2 | -9.2 | 12.8 | 0.063 | 18097 | 162 | 0.23 |
+| 351510.R | 10.1 | 4.5 | pre-spun | -0.7 | -11.2 | 15.6 | 0.181 | 17321 | 155 | -0.32 |
+| 351510.R | 10.1 | 6.0 | cold | -9.4 | -9.4 | 12.6 | 0.124 | 20606 | 183 | 0.28 |
+| 351510.R | 10.1 | 6.0 | pre-spun | -0.7 | -13.1 | 17.5 | 0.314 | 19828 | 176 | -0.28 |
+| 351510.R1 | 10.1 | 3.0 | cold | -6.8 | -6.8 | 11.5 | 0.040 | 15860 | 143 | 0.02 |
+| 351510.R1 | 10.1 | 3.0 | pre-spun | -0.6 | -7.1 | 14.2 | 0.107 | 15223 | 138 | -0.38 |
+| 351510.R1 | 10.1 | 4.5 | cold | -6.9 | -6.9 | 10.2 | 0.088 | 17940 | 160 | 0.06 |
+| 351510.R1 | 10.1 | 4.5 | pre-spun | -0.6 | -11.6 | 15.8 | 0.189 | 17311 | 155 | -0.35 |
+| 351510.R1 | 10.1 | 6.0 | cold | -7.1 | -7.1 | 11.4 | 0.160 | 20448 | 181 | 0.10 |
+| 351510.R1 | 10.1 | 6.0 | pre-spun | -0.6 | -13.2 | 17.7 | 0.327 | 19820 | 176 | -0.31 |
+
+- 3 ft/s spin-up ΔV: HD 35 0.545 m/s, LW 35 0.402 m/s
+- 4.5 ft/s spin-up ΔV: HD 35 0.551 m/s, LW 35 0.406 m/s
+- 6 ft/s spin-up ΔV: HD 35 0.558 m/s, LW 35 0.411 m/s
+- **HD vs LW 35:**
+  - rotating mass 35.2 vs 25.4 kg;
+  - I 4.02 vs 2.94 kg·m²;
+  - I/R² 20.4 vs 14.9 kg.
+- **Reading the matrices:**
+  - Cold wheels give the spin-up's nose-down rate (−9.7 deg/s on the stock 8.00-6, −25 on the 35 LW; pre-spun ≈ −3).
+  - Cold wheels bounce far less: 35 LW at 6 ft/s, 0.00 m cold against 0.25 m pre-spun.
+  - Peak gear loads are within a few % across tyres, because the leg's damper sets them.
+  - Tundra tyres deflect 60–99 mm against 46–65 on the 8.00-6.
+- **Suite:** NEEDS YOU item 8. Base log /tmp/ttprobe/base-full.log, branch log /tmp/ttprobe/branch-full.log (local).
 
 ### 2026-11-04 14:15 PST — Claude · lane/claude-tire-spinup · wheel spin-up physics + tyre/brake/ground sound BUILT (Ty approved ~09:40)
 - **Physics (Core, shared):**

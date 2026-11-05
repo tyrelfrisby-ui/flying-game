@@ -1372,7 +1372,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.16, "wheelMassKg": 4.0,
+      "tire": "legacy-cassutt-main", "tirePressurePsi": 7.5,
       "gearType": "spring-steel"
     },
     {
@@ -1389,7 +1389,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.16, "wheelMassKg": 4.0,
+      "tire": "legacy-cassutt-main", "tirePressurePsi": 7.5,
       "gearType": "spring-steel"
     },
     {
@@ -1406,7 +1406,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 1500,
-      "tireRadiusM": 0.065, "wheelMassKg": 0.5,
+      "tire": "legacy-cassutt-tail", "tirePressurePsi": 6,
       "steerSpringNmPerRad": 20
     }
   ],

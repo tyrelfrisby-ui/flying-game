@@ -1560,8 +1560,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.9,
       "corneringStiffnessN": 8000,
-      "wheelMassKg": 16,
-      "tireRadiusM": 0.445,
+      "tire": "351510.R1", "tirePressurePsi": 8,
       "gearType": "bushwheel"
     },
     {
@@ -1578,8 +1577,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.9,
       "corneringStiffnessN": 8000,
-      "wheelMassKg": 16,
-      "tireRadiusM": 0.445,
+      "tire": "351510.R1", "tirePressurePsi": 8,
       "gearType": "bushwheel"
     },
     {
@@ -1596,8 +1594,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "wheelMassKg": 2.5,
-      "tireRadiusM": 0.2,
+      "tire": "legacy-pa18bush-tail", "tirePressurePsi": 8,
       "steerSpringNmPerRad": 7
     }
   ],

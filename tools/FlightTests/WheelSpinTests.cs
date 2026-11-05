@@ -35,6 +35,15 @@ public class WheelSpinTests : IDisposable
     /// </summary>
     internal static double SpinUpMs(string id, double wheelMassKg, int perLeg, double sinkFps, WorldTerrain.Surface surface,
                                     out double impulseNs, out double peakPitchNm)
+        => SpinUpMs(id, wheelMassKg, perLeg, sinkFps, surface, out impulseNs, out peakPitchNm, out _, out _);
+
+    /// <summary>The same, also returning the spin-up time the model's OWN load history predicts — the time at which
+    /// ∫μ·N(t)·r_e dt / I reaches 95 % of V/r_e, with μ at its peak (the probe's assumption, on the real N(t) and the
+    /// real rolling radius) — and the free over the rolling radius at the end, R/r_e. Since 2026-11-04 a catalog tyre is
+    /// in series with the leg, so its N(t) ramps more slowly than the rigid-tyre probe's and the probe's table no
+    /// longer describes it; this does.</summary>
+    internal static double SpinUpMs(string id, double wheelMassKg, int perLeg, double sinkFps, WorldTerrain.Surface surface,
+                                    out double impulseNs, out double peakPitchNm, out double predictedMs, out double radiusRatio)
     {
         AircraftConfig c = Cfg(id);
         var mains = c.Gear.Where(g => !g.IsTailwheel && WheelSpin.IsWheel(g) && !g.IsSteerable && g.Pos[2] > 0).ToList();
@@ -48,7 +57,8 @@ public class WheelSpinTests : IDisposable
         double sink = sinkFps * 0.3048, dt = 1e-4;
         double z = -zGear - WorldTerrain.WheelGroundHeightAt(0, 0) - 1e-6, w = sink;
         WorldTerrain.SurfaceOverride = surface;
-        impulseNs = 0; peakPitchNm = 0;
+        impulseNs = 0; peakPitchNm = 0; predictedMs = double.PositiveInfinity; radiusRatio = 1;
+        double mu = mains[0].TireMu * LandingGear.SurfaceGrip(surface), omegaPred = 0;
         try
         {
             bool touched = false;
@@ -60,6 +70,13 @@ public class WheelSpinTests : IDisposable
                 impulseNs += -F.X * dt;
                 peakPitchNm = Math.Max(peakPitchNm, -M.Y);
                 if (wheels[0].InContact) touched = true;
+                WheelState w0 = wheels[0];
+                if (w0.InContact && double.IsInfinity(predictedMs))
+                {
+                    omegaPred += mu * w0.LoadN * w0.RollingRadiusM / w0.InertiaKgM2 * dt;
+                    if (omegaPred * w0.RollingRadiusM >= 0.95 * V) predictedMs = i * dt * 1000;
+                }
+                radiusRatio = w0.RadiusM / w0.RollingRadiusM;
                 if (touched && wheels[0].InContact && wheels[0].SlipRatio < 0.05) return i * dt * 1000;
                 double az = (W - liftFrac * W + F.Z) / m;
                 w += az * dt; z += w * dt;
@@ -129,13 +146,21 @@ public class WheelSpinTests : IDisposable
         {
             var cols = new (WorldTerrain.Surface s, double ms)[]
             { (WorldTerrain.Surface.Paved, p.asphalt), (WorldTerrain.Surface.Dirt, p.dirt), (WorldTerrain.Surface.Grass, p.grass), (WorldTerrain.Surface.Rough, p.rough) };
-            foreach (var (sf, want) in cols)
+            // A type on a researched catalog tyre has that tyre in series with its leg (TireModel): its reference is its
+            // own load history, not the rigid-tyre probe. The legacy types are rigid as before and keep the probe.
+            bool tyre = Cfg(p.id).Gear.Any(g => TireCatalog.Physical(g) != null && !g.IsTailwheel);
+            foreach (var (sf, probe) in cols)
             {
-                double got = SpinUpMs(p.id, p.m, p.perLeg, p.sink, sf, out _, out _);
+                double got = SpinUpMs(p.id, p.m, p.perLeg, p.sink, sf, out _, out _, out double pred, out _);
+                double want = tyre ? pred : probe;
                 double err = got / want - 1;
-                _o.WriteLine($"{p.id,-22} {p.sink,2} ft/s {sf,-6}: probe {want,6:F1} ms  model {got,6:F1} ms  ({err * 100:+0.0;-0.0} %)");
+                _o.WriteLine($"{p.id,-22} {p.sink,2} ft/s {sf,-6}: probe {probe,6:F1} ms  own-N(t) {pred,6:F1} ms  model {got,6:F1} ms  ({err * 100:+0.0;-0.0} % vs {(tyre ? "own N(t)" : "probe")})");
                 if (p.sink < 2) { if (!double.IsFinite(got)) bad.Add($"{p.id} 1 ft/s {sf}: never spun up"); continue; }
-                if (Math.Abs(err) > 0.10) bad.Add($"{p.id} {p.sink} ft/s {sf}: {got:F1} vs {want:F1} ms");
+                // Against the probe: within 10 % (kinetic μ while the slip is large, tanh fade at the end). Against its own
+                // N(t) with μ held at its peak, a tyre can only be SLOWER, by the slip curve's fade below ~2κ0 — and TR
+                // R-64's slip stiffness puts κ0 at 0.08–0.2 for these soft light-aircraft tyres (it was a flat 0.08), so
+                // up to 35 %. Never faster than the peak-μ bound.
+                if (tyre ? err < -0.02 || err > 0.35 : Math.Abs(err) > 0.10) bad.Add($"{p.id} {p.sink} ft/s {sf}: {got:F1} vs {want:F1} ms");
             }
         }
         Assert.True(bad.Count == 0, string.Join("; ", bad));
@@ -149,11 +174,12 @@ public class WheelSpinTests : IDisposable
         foreach (var (id, m, perLeg) in new[] { ("j3-cub-like", 7.5, 1), ("extra-300-like", 4.5, 1), ("boeing-737-like", 150.0, 2) })
             foreach (var sf in new[] { WorldTerrain.Surface.Paved, WorldTerrain.Surface.Grass })
             {
-                SpinUpMs(id, m, perLeg, 3, sf, out double impulse, out _);
+                SpinUpMs(id, m, perLeg, 3, sf, out double impulse, out _, out _, out double rr);
                 AircraftConfig c = Cfg(id);
                 int mains = c.Gear.Count(g => !g.IsTailwheel && WheelSpin.IsWheel(g) && !g.IsSteerable && g.Pos[2] > 0);
                 if (id.StartsWith("boeing")) mains = 2;
-                double want = mains * WheelSpin.InertiaFactor * m * perLeg * 50 * 0.514444 * 0.95;   // ΣI·V/r² to 5 % slip
+                // ΣI·V/r_e² to 5 % slip, on the radius the wheel ROLLS on (R − δ/3 for a catalog tyre; R for a legacy one).
+                double want = mains * WheelSpin.InertiaFactor * m * perLeg * 50 * 0.514444 * 0.95 * rr * rr;
                 _o.WriteLine($"{id} {sf}: impulse {impulse:F0} N·s, I·V/r² {want:F0}");
                 // Rolling resistance runs on top (2.5–6.5 % of N for the few tens of ms), so allow 12 %.
                 Assert.InRange(impulse / want, 0.95, 1.12);
@@ -262,7 +288,8 @@ public class WheelSpinTests : IDisposable
         }
         var cold = Arrive(false);
         var warm = Arrive(true);
-        double mains = 2 * WheelSpin.InertiaOf(cold.ac.Config, cold.ac.Config.Gear[1]) / Math.Pow(cold.ac.Wheels[1].RadiusM, 2);
+        // On the radius the wheel rolls on once the tyre is loaded (R − δ/3).
+        double mains = 2 * WheelSpin.InertiaOf(cold.ac.Config, cold.ac.Config.Gear[1]) / Math.Pow(cold.ac.Wheels[1].RollingRadiusM, 2);
         double want = mains * V / cold.ac.MassProperties.MassKg;
         _o.WriteLine($"spin-up ΔV {cold.dv - warm.dv:F3} m/s (ΣI·V/r²/m {want:F3}); peak decel {cold.peakDecel / 9.81:F2} g vs {warm.peakDecel / 9.81:F2} g; min q {cold.minQ * 57.3:F2} vs {warm.minQ * 57.3:F2} deg/s");
         Assert.InRange(cold.dv - warm.dv, 0.7 * want, 1.4 * want);

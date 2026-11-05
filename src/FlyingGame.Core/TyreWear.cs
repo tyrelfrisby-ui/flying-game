@@ -87,7 +87,7 @@ public sealed class TyreWear
         WearThroughM = WearThroughPerRadius * radiusM;
         RimRadiusM = RimPerRadius * radiusM;
         FlatRadiusM = RimRadiusM + 2 * CasingPerRadius * radiusM;
-        InflationPa = TirePressure.Psi(c, g, c.Bushwheels) * 6894.76;
+        InflationPa = TirePressure.Psi(c, g) * 6894.76;   // the bushwheel option already put its own tyre and pressure on g (TireFit)
         StaticLoadN = System.Math.Max(1, staticLoadN);
         ReferenceDeflectionM = System.Math.Max(0.02 * radiusM, Deflection(StaticLoadN, InflationPa));
     }
