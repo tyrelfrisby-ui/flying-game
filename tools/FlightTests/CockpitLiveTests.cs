@@ -22,50 +22,16 @@ public sealed class CockpitLiveTests
     // ---- the needles land where the dial art says ----
 
     [Fact]
-    public void AirspeedNeedlesFollowTheRigMaps()
-    {
-        // ea300-own-rig.json Needle_ASI_R: [[0,0],[40,25],[260,335]], ang0 0.
-        DialNeedle kt = CockpitLive.AirspeedKt.Needles[0];
-        Assert.Equal("airspeed_kias", kt.Param);
-        Assert.Equal(0.0, kt.AngleDeg(0), 6);
-        Assert.Equal(25.0, kt.AngleDeg(40), 6);
-        Assert.Equal(180.0, kt.AngleDeg(150), 6);          // 25 + (110/220)·310
-        Assert.Equal(335.0, kt.AngleDeg(400), 6);          // pegged
-        // great-lakes-own-rig.json Needle_ASI_R: [[0,0],[40,30],[200,330]] mph.
-        DialNeedle mph = CockpitLive.AirspeedMph.Needles[0];
-        Assert.Equal("airspeed_mph", mph.Param);
-        Assert.Equal(30.0, mph.AngleDeg(40), 6);
-        Assert.Equal(180.0, mph.AngleDeg(120), 6);
-        Assert.Equal(330.0, mph.AngleDeg(250), 6);
-    }
-
-    [Fact]
     public void AltimeterHandsGoRoundAndRound()
     {
-        // Needle_Alt100_R [[0,0],[1000,360]] and Needle_Alt1000_R [[0,0],[10000,360]], both extrapolated.
-        var alt = CockpitLive.Altimeter;
-        DialNeedle hand = alt.Needles.Single(n => n.Shape == NeedleShape.Hand);
-        DialNeedle pointer = alt.Needles.Single(n => n.Shape == NeedleShape.Pointer);
+        // An unbounded needle (the old live altimeter's; the altimeters themselves are the shared library's since
+        // 2026-11-05, InstrumentLibraryTests): [[0,0],[1000,360]] and [[0,0],[10000,360]], both extrapolated.
+        var hand = new DialNeedle("altitude_ft", 0, new[] { 0.0, 10000.0 }, new[] { 0.0, 360.0 }, NeedleShape.Hand, unbounded: true);
+        var pointer = new DialNeedle("altitude_ft", 0, new[] { 0.0, 1000.0 }, new[] { 0.0, 360.0 }, NeedleShape.Pointer, unbounded: true);
         Assert.Equal(90.0, pointer.AngleDeg(250), 6);
         Assert.Equal(360.0 * 3.5, pointer.AngleDeg(3500), 6);      // three and a half turns, not pegged at one
         Assert.Equal(126.0, hand.AngleDeg(3500), 6);
         Assert.Equal(-36.0, pointer.AngleDeg(-100), 6);             // below sea level it turns back
-    }
-
-    [Fact]
-    public void GMeterReadsFromNineOClockWithTellTales()
-    {
-        // Needle_G_R [[-10,-120],[0,0],[10,120]], ang0 -90: 0 g at 9 o'clock, +1 g twelve degrees above it.
-        var g = CockpitLive.GMeter;
-        DialNeedle main = g.Needles.Single(n => n.Param == "g_load");
-        Assert.Equal(-90.0, main.AngleDeg(0), 6);
-        Assert.Equal(-78.0, main.AngleDeg(1), 6);
-        Assert.Equal(30.0, main.AngleDeg(10), 6);
-        Assert.Equal(-210.0, main.AngleDeg(-10), 6);
-        Assert.Contains(g.Needles, n => n.Param == "g_max_seen" && n.Shape == NeedleShape.TellTale);
-        Assert.Contains(g.Needles, n => n.Param == "g_min_seen" && n.Shape == NeedleShape.TellTale);
-        // The main needle is drawn last, on top of its tell-tales.
-        Assert.Equal("g_load", g.Needles[^1].Param);
     }
 
     [Fact]
@@ -85,7 +51,7 @@ public sealed class CockpitLiveTests
     }
 
     [Fact]
-    public void TheCompassCardAndTheHorizonTurnTheOtherWay()
+    public void TheCompassCardTurnsTheOtherWay()
     {
         LiveDial compass = CockpitLive.Compass;
         Assert.Equal("heading_deg", compass.CardParam);
@@ -93,20 +59,18 @@ public sealed class CockpitLiveTests
         DialNeedle lubber = compass.Needles.Single();
         Assert.Equal(NeedleShape.Lubber, lubber.Shape);
         Assert.Equal(0.0, lubber.AngleDeg(123), 6);      // fixed at 12 o'clock whatever it is fed
-        LiveDial ai = CockpitLive.AttitudeBank;
-        Assert.Equal("bank_deg", ai.CardParam);
-        Assert.Equal(-30.0, ai.CardDeg(30), 6);          // bank right: the horizon card turns left
     }
 
     // ---- which model gets what ----
 
     [Fact]
-    public void ThePittsGetsSevenRearAndFourFrontLiveDials()
+    public void ThePittsGetsFourRearAndOneFrontLiveDials()
     {
         CockpitLiveSpec p = CockpitLive.For("pitts-s2b-like-own");
-        // rear_panel.py LAYOUTS['pitts-s2b-like']: seven dials.
-        Assert.Equal(11, p.Dials.Count);
-        foreach (string name in new[] { "Airspeed", "Altimeter", "G_meter", "Tachometer" })
+        // rear_panel.py LAYOUTS['pitts-s2b-like']: seven dials, of which the airspeed indicators and altimeters (both seats)
+        // and g-meters (both seats) are the shared instrument library's since 2026-11-05 (InstrumentLibrary.Pitts).
+        Assert.Equal(5, p.Dials.Count);
+        foreach (string name in new[] { "Tachometer" })
         {
             var front = Dial(p, $"FrontPanel_{name}_Face");
             var rear = Dial(p, $"RearPanel_{name}_Face");
@@ -116,9 +80,11 @@ public sealed class CockpitLiveTests
             foreach (double at in new[] { 0.0, 1.0, 55.0, 120.0, 2500.0 })
                 Assert.Equal(rear.Needles.Select(n => n.AngleDeg(at)), front.Needles.Select(n => n.AngleDeg(at)));
         }
-        foreach (string n in new[] { "Airspeed", "Altimeter", "G_meter", "Tachometer", "Oil_pressure", "Oil_temperature", "Compass" })
+        foreach (string n in new[] { "Tachometer", "Oil_pressure", "Oil_temperature", "Compass" })
             Assert.Contains(p.Dials, d => d.Face == $"RearPanel_{n}_Face");
-        Assert.Equal("gl-dial-asi", Dial(p, "RearPanel_Airspeed_Face").Art);     // the Pitts' ASI is in mph
+        foreach (string n in new[] { "RearPanel_Airspeed_Face", "RearPanel_Altimeter_Face", "FrontPanel_Airspeed_Face", "FrontPanel_Altimeter_Face",
+                                     "RearPanel_G_meter_Face", "FrontPanel_G_meter_Face" })
+            Assert.DoesNotContain(p.Dials, d => d.Face == n);
         // The model rigs its own sticks, pedals and throttles (since v3): nothing is cut out or added.
         Assert.Empty(p.Sticks);
         Assert.Empty(p.Pedals);

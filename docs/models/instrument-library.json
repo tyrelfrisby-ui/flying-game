@@ -1,0 +1,351 @@
+{
+ "note": "The shared instrument library (tools/own_models/instruments). Maps: degrees clockwise as the pilot sees the dial (rot) or face radii along the face up (slide). Copied by hand into FlyingGame.Core.Instruments.InstrumentLibrary; InstrumentLibraryTests holds both to literals.",
+ "instruments": {
+  "turn-coordinator": {
+   "TC_Airplane": {
+    "param": "turn_rate_dps",
+    "kind": "rot",
+    "map": [
+     [
+      -6,
+      -40
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      6,
+      40
+     ]
+    ]
+   },
+   "TC_Ball": {
+    "param": "slip_ball",
+    "kind": "rot",
+    "map": [
+     [
+      -1,
+      18.0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      1,
+      -18.0
+     ]
+    ]
+   }
+  },
+  "altimeter": {
+   "ALT_Hand10000": {
+    "param": "altitude_ft",
+    "kind": "rot",
+    "map": [
+     [
+      0,
+      0
+     ],
+     [
+      100000,
+      360
+     ]
+    ],
+    "unbounded": true
+   },
+   "ALT_Hand1000": {
+    "param": "altitude_ft",
+    "kind": "rot",
+    "map": [
+     [
+      0,
+      0
+     ],
+     [
+      10000,
+      360
+     ]
+    ],
+    "unbounded": true
+   },
+   "ALT_Hand100": {
+    "param": "altitude_ft",
+    "kind": "rot",
+    "map": [
+     [
+      0,
+      0
+     ],
+     [
+      1000,
+      360
+     ]
+    ],
+    "unbounded": true
+   }
+  },
+  "vertical-speed": {
+   "VSI_Needle": {
+    "param": "vsi_fpm",
+    "kind": "rot",
+    "map": [
+     [
+      -2000,
+      -260
+     ],
+     [
+      -1000,
+      -180
+     ],
+     [
+      0,
+      -90
+     ],
+     [
+      1000,
+      0
+     ],
+     [
+      2000,
+      80
+     ]
+    ]
+   }
+  },
+  "attitude": {
+   "AI_Roll": {
+    "param": "bank_deg",
+    "kind": "rot",
+    "map": [
+     [
+      -180,
+      180
+     ],
+     [
+      180,
+      -180
+     ]
+    ]
+   },
+   "AI_Pitch": {
+    "param": "pitch_deg",
+    "kind": "slide",
+    "map": [
+     [
+      -20.0,
+      0.3
+     ],
+     [
+      20.0,
+      -0.3
+     ]
+    ]
+   }
+  },
+  "heading": {
+   "DG_Card": {
+    "param": "heading_deg",
+    "kind": "rot",
+    "map": [
+     [
+      0,
+      0
+     ],
+     [
+      360,
+      -360
+     ]
+    ],
+    "wrap": 360
+   }
+  },
+  "g-meter": {
+   "GM_Min": {
+    "param": "g_min_seen",
+    "kind": "rot",
+    "map": [
+     [
+      -10,
+      -210
+     ],
+     [
+      0,
+      -90
+     ],
+     [
+      10,
+      30
+     ]
+    ]
+   },
+   "GM_Max": {
+    "param": "g_max_seen",
+    "kind": "rot",
+    "map": [
+     [
+      -10,
+      -210
+     ],
+     [
+      0,
+      -90
+     ],
+     [
+      10,
+      30
+     ]
+    ]
+   },
+   "GM_Needle": {
+    "param": "g_load",
+    "kind": "rot",
+    "map": [
+     [
+      -10,
+      -210
+     ],
+     [
+      0,
+      -90
+     ],
+     [
+      10,
+      30
+     ]
+    ]
+   }
+  }
+ },
+ "airspeed": {
+  "c172-like": {
+   "units": "mph",
+   "scaleMin": 40,
+   "scaleMax": 200,
+   "arcs": {
+    "white": [
+     49,
+     100
+    ],
+    "green": [
+     57,
+     128
+    ],
+    "yellow": [
+     128,
+     164
+    ]
+   },
+   "redline": 164,
+   "param": "airspeed_mph",
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     40,
+     30
+    ],
+    [
+     200,
+     330
+    ]
+   ]
+  },
+  "extra-300-like": {
+   "units": "kt",
+   "scaleMin": 40,
+   "scaleMax": 260,
+   "arcs": {
+    "green": [
+     60,
+     158
+    ],
+    "yellow": [
+     158,
+     220
+    ]
+   },
+   "redline": 220,
+   "param": "airspeed_kias",
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     40,
+     30
+    ],
+    [
+     260,
+     330
+    ]
+   ]
+  },
+  "great-lakes-like": {
+   "units": "mph",
+   "scaleMin": 40,
+   "scaleMax": 200,
+   "arcs": {
+    "green": [
+     58,
+     120
+    ],
+    "yellow": [
+     120,
+     153
+    ]
+   },
+   "redline": 153,
+   "param": "airspeed_mph",
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     40,
+     30
+    ],
+    [
+     200,
+     330
+    ]
+   ]
+  },
+  "pitts-s2b-like": {
+   "units": "mph",
+   "scaleMin": 40,
+   "scaleMax": 200,
+   "arcs": {
+    "green": [
+     58,
+     120
+    ],
+    "yellow": [
+     120,
+     153
+    ]
+   },
+   "redline": 153,
+   "param": "airspeed_mph",
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     40,
+     30
+    ],
+    [
+     200,
+     330
+    ]
+   ]
+  }
+ }
+}

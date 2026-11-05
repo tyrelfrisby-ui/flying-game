@@ -1909,5 +1909,27 @@
       }
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "gMeter": {
+      "_note": "the shared library g-meter (-10..+10 g, 0 g at 9 o'clock); its red lines are limits.gMax / gMin"
+    },
+    "airspeed": {
+      "units": "kt",
+      "scaleMin": 40,
+      "scaleMax": 260,
+      "arcs": {
+        "green": [
+          60,
+          158
+        ],
+        "yellow": [
+          158,
+          220
+        ]
+      },
+      "redline": 220
+    },
+    "_source": "shared instrument library: POH section 2 markings as ea_dialmaps.py had them (VS0 60, VNO 158, VNE 220 KIAS)"
   }
 }

@@ -1695,5 +1695,28 @@
       }
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "scaleMin": 40,
+      "scaleMax": 200,
+      "arcs": {
+        "white": [
+          49,
+          100
+        ],
+        "green": [
+          57,
+          128
+        ],
+        "yellow": [
+          128,
+          164
+        ]
+      },
+      "redline": 164
+    },
+    "_source": "shared instrument library (tools/own_models/instruments): the arcs the old c172_cockpit.py face drew, copied unchanged"
   }
 }

@@ -2312,5 +2312,27 @@
       }
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "gMeter": {
+      "_note": "the shared library g-meter (-10..+10 g, 0 g at 9 o'clock); its red lines are limits.gMax / gMin"
+    },
+    "airspeed": {
+      "units": "mph",
+      "scaleMin": 40,
+      "scaleMax": 200,
+      "arcs": {
+        "green": [
+          58,
+          120
+        ],
+        "yellow": [
+          120,
+          153
+        ]
+      },
+      "redline": 153
+    },
+    "_source": "shared instrument library: the Great Lakes markings the Pitts' live dial has shown since 2026-11-02 (gl-dial-asi), unchanged; the Pitts' own S-2B markings are an open question (Q in QUESTIONS-FOR-TY)"
   }
 }

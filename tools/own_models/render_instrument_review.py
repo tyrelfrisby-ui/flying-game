@@ -49,7 +49,8 @@ def render(path,eye,target,out):
     pixels[mask]=np.clip(rgb[mask],0,255).astype('uint8');roi[mask]=z[mask]
  Image.fromarray(canvas).save(out)
 
-out=Path.cwd()/'renders/instrument-style';out.mkdir(parents=True,exist_ok=True)
-p=MODELS/'pitts-s2b-like/pitts-s2b-like-own.glb'
-render(p,[1.325,.300,0],[.808,-.04,0],out/'pitts-rear.png')
-render(p,[.53,.300,0],[.151,.015,0],out/'pitts-front.png')
+if __name__=='__main__':   # importable (tools/own_models/instruments/build.py --review uses render())
+ out=Path.cwd()/'renders/instrument-style';out.mkdir(parents=True,exist_ok=True)
+ p=MODELS/'pitts-s2b-like/pitts-s2b-like-own.glb'
+ render(p,[1.325,.300,0],[.808,-.04,0],out/'pitts-rear.png')
+ render(p,[.53,.300,0],[.151,.015,0],out/'pitts-front.png')

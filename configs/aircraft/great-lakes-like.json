@@ -1635,5 +1635,27 @@
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db",
     "_eyeNote": "seats[].eye lowered 2026-11-01 after Ty flew build 2026.1101.0733: the rear eye at z -0.487 sat 110 mm ABOVE the top of the rear windscreen glass, so the level sightline cleared the screen entirely and the view was over the frame at the cowling, with the top wing's leading edge across it. Measured against great-lakes-like-own.glb: the rear screen's glass spans glTF y 0.167..0.377 and the front's 0.176..0.350. Each eye now sits where the level sightline passes through the MIDDLE of its own screen - rear glass from -13.5 to +13.8 degrees of elevation, front from -16.5 to +16.3 - and holds out to +-20 degrees of azimuth. The seat STATIONS are weight-and-balance arms and are unchanged."
+  },
+  "instruments": {
+    "gMeter": {
+      "_note": "the shared library g-meter (-10..+10 g, 0 g at 9 o'clock); its red lines are limits.gMax / gMin"
+    },
+    "airspeed": {
+      "units": "mph",
+      "scaleMin": 40,
+      "scaleMax": 200,
+      "arcs": {
+        "green": [
+          58,
+          120
+        ],
+        "yellow": [
+          120,
+          153
+        ]
+      },
+      "redline": 153
+    },
+    "_source": "shared instrument library: gl_dialmaps.py (TCDS A18EA rev 11 Vne 153 / Vno 120 mph; green floor 58 (E))"
   }
 }

@@ -731,7 +731,8 @@ for k_, (nm_, col_) in CK_COL.items():
         if _nd.type == 'BSDF_PRINCIPLED':
             for _k in ('Specular IOR Level', 'Specular'):
                 if _k in _nd.inputs: _nd.inputs[_k].default_value = 0.0
-for k_ in ('asi', 'alt', 'vsi', 'tach', 'mp', 'oil', 'cht', 'fuel', 'g', 'tc', 'mag', 'fuelsel'):
+# asi / alt / vsi / tc / g: the shared instrument library's (tools/own_models/instruments), not this aeroplane's art.
+for k_ in ('tach', 'mp', 'oil', 'cht', 'fuel', 'mag', 'fuelsel'):
     M['dial_' + k_] = paint.mat_image('Dial_' + k_.upper(), _img('ea-dial-%s.png' % k_), 0.5)
 M['compass'] = paint.mat_image('Compass_Card', _img('ea-compass-band.png'), 0.5)
 M['seqcard'] = paint.mat_image('SequenceCard_Face', _img('ea-seqcard-default.png'), 0.8)   # swappable card slot (any PDF page at runtime)

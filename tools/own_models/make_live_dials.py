@@ -8,7 +8,6 @@ turns needles of its own over it. Output: unity/Assets/_Project/Resources/Cockpi
    are the ones the needle maps in CockpitLive.cs were taken from (docs/models/ea300-own-rig.json);
  - two faces that turn instead of a needle, drawn here in the same style (512 px, face (18,18,20), rim (62,62,66)):
    live-compass-card  a compass card, N at 12 o'clock, 5 deg ticks, labels every 30 deg, read at the top;
-   live-attitude      a horizon card (sky over ground) with bank marks at 10, 20, 30, 45 and 60 deg.
 
 Run with the system Python that has Pillow: /usr/bin/python3 tools/own_models/make_live_dials.py
 """
@@ -23,7 +22,8 @@ OUT = os.path.join(HERE, '..', '..', 'unity', 'Assets', '_Project', 'Resources',
 S = 512
 C = S / 2
 WH = (236, 236, 230)
-COPY = ['ea-dial-asi', 'gl-dial-asi', 'ea-dial-alt', 'ea-dial-g', 'ea-dial-tach', 'ea-dial-oil', 'ea-dial-mp', 'ea-dial-fuel']
+# No airspeed, altimeter, attitude or g-meter faces here: those are the SHARED INSTRUMENT LIBRARY'S (tools/own_models/instruments).
+COPY = ['ea-dial-tach', 'ea-dial-oil', 'ea-dial-mp', 'ea-dial-fuel']
 
 
 from instrument_face_style import font, finish
@@ -65,34 +65,13 @@ def compass_card():
     return im
 
 
-def attitude_card():
-    im = Image.new('RGB', (S, S), (10, 10, 11))
-    mask = Image.new('L', (S, S), 0)
-    ImageDraw.Draw(mask).ellipse((4, 4, S - 4, S - 4), fill=255)
-    card = Image.new('RGB', (S, S), (70, 120, 170))
-    cd = ImageDraw.Draw(card)
-    cd.rectangle((0, C, S, S), fill=(120, 80, 45))
-    cd.line([(0, C), (S, C)], fill=WH, width=5)
-    for deg in (-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60):
-        long_ = deg in (0, -30, 30, -60, 60)
-        cd.line([pol(deg, 240), pol(deg, 200 if long_ else 216)], fill=WH, width=5 if long_ else 3)
-    # Pitch reference lines, 10 and 20 deg (fixed on the card: the face cannot slide, see CockpitLive.AttitudeBank).
-    for k, w in ((-1, 60), (1, 60), (-2, 90), (2, 90)):
-        y = C + k * 46
-        cd.line([(C - w / 2, y), (C + w / 2, y)], fill=WH, width=3)
-    im.paste(card, (0, 0), mask)
-    ImageDraw.Draw(im).ellipse((4, 4, S - 4, S - 4), outline=(62, 62, 66), width=6)
-    return im
-
-
 def main():
     os.makedirs(OUT, exist_ok=True)
     for n in COPY:
         finish(Image.open(os.path.join(ART, n + '.png'))).save(os.path.join(OUT, n + '.png'))
         print('copied', n)
     finish(compass_card()).save(os.path.join(OUT, 'live-compass-card.png'))
-    finish(attitude_card()).save(os.path.join(OUT, 'live-attitude.png'))
-    print('wrote live-compass-card, live-attitude ->', os.path.normpath(OUT))
+    print('wrote live-compass-card ->', os.path.normpath(OUT))
 
 
 if __name__ == '__main__':
