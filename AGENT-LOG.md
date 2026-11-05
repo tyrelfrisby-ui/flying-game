@@ -1,4 +1,32 @@
 ## NEEDS YOU
+- **CRASH SURVIVAL + GHOST BAIL-OUT + REAL CANOPY/DOOR JETTISON (Claude, 2026-11-05 09:25, lane/claude-crash-bailout
+  e125c627; your 06:35 + 06:37 requests). NOT BUILT FOR iOS, NOT MERGED, NOT INSTALLED: the gated `deploy.sh NOINSTALL`
+  waited 2 h for a free build slot and was stopped at its time limit before it started. Unity batch
+  `BailoutHeavenCheck` PASS with 0 error CS. Nothing approved by me.** Write-up: `docs/CRASH-SURVIVAL.md`.
+  - **The crash now counts.** Every sim step the seat's measured acceleration (its velocity change over the whole step,
+    less gravity) goes through Brinkley's injury model (NASA-STD-3001 restrained limits), plus the cabin crush the sim
+    already keeps. When he leaves the aeroplane that verdict is frozen; the outcome is the worse of it and the
+    parachute landing. Measured: C172 level flight 1.4 g Unhurt; J-3 prop strike 4.6 g Unhurt; C172 nose-gear-first at
+    4 m/s 18 g Injured; C172 40 m/s 15 m/s down 20 deg nose-low 42 g Dead; Pitts 45 deg dive 209 g Dead. In-flight
+    bail-out unchanged (landing thresholds 6/9/14 m/s).
+  - **Ghost:** fatal crash then BAIL OUT (or eject, or the headset's hands-on exit): translucent pilot and canopy, chute
+    opens by itself 1.2 s out, lifted 1.6 g so the canopy carries him UP (~5 m/s; 188 m in 30 s on the bench),
+    "GONE WEST" + one of three original lines ("Blue skies and tailwinds, Captain. Next stop: the Good Ship Lollipop."
+    etc.). Flat status line on iOS/Mac, world-space text in the headset.
+  - **Real canopy/door (06:37):** Pitts/Extra `Canopy_Detachable`, 2-33 frame+glass+hardware, Grob frame+glass, 172
+    right door + glass + latch, procedural shells' own `Canopy`; nothing for Great Lakes, J-3, Jenny, Stearman,
+    Seminole and the downloaded P-51/F-86/SR22/PA-28 (no separate part). The clear placeholder dome is deleted.
+    `BailoutHeavenCheck`: 35 types, 16 lose a part, no stand-in anywhere.
+  - **Shared fix:** `FlyingGame/UnlitTransparent` gets the single-pass-instanced stereo macros; without them the Quest
+    draws translucent parts in one eye. Same output on flat screens.
+  - **Questions:** Q085 (dead threshold 1.5x Brinkley high risk), Q086 (measured at the first seat), Q087 (procedural
+    hang glider / paraglider / AirCam throw off their drawn "Canopy" part). The Brinkley limits were entered from
+    memory of the NASA table, not re-read this session.
+  - **Still to do:** iOS `deploy.sh` to BUILD SUCCEEDED, then merge into island-nav (claude-island-nav-merge) and
+    quest-islandnav, install iPhone + Quest. lane/claude-bend-damage has uncommitted edits to `AirframeVisual.cs` and
+    the crush law; if it lands first, re-run OccupantInjuryTests and BailoutHeavenCheck after merging it.
+  - Tests: OccupantInjuryTests (9) + CanopyEgressTests (5) green; PilotOutRulesTests and VrBailoutTests still green.
+    The full suite was not run (other lanes' Unity builds the whole session).
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not
