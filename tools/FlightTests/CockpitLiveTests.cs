@@ -125,17 +125,14 @@ public sealed class CockpitLiveTests
         Assert.Empty(p.Throttles);
     }
 
+    /// <summary>The Extra's panels have been its own rig's since vr_phase3b: nothing to make live, and above all nothing to
+    /// hide. The old table hid Needle_ASI_R, Needle_G_R, Needle_Tach_R ... which are the live rear panel's needles.</summary>
     [Fact]
-    public void TheExtraHidesItsOrphanedRearNeedlesAndKeepsItsRig()
+    public void TheExtraIsLeftToItsOwnRig()
     {
         CockpitLiveSpec e = CockpitLive.For("extra-300-like-own");
-        Assert.Equal(9, e.Dials.Count);
-        Assert.Equal("ea-dial-asi", Dial(e, "RearPanel_Airspeed_Face").Art);
-        Assert.Contains("Needle_ASI_R", e.Hide);
-        Assert.Contains("TC_Ball_R", e.Hide);
-        Assert.DoesNotContain("Needle_ASI_F", e.Hide);    // the front panel's needles sit on their dials and stay
-        Assert.Empty(e.Sticks);                           // its rig already moves its sticks, pedals and throttles
-        Assert.Empty(e.Throttles);
+        Assert.True(e.IsEmpty);
+        Assert.DoesNotContain("Needle_ASI_R", e.Hide);
     }
 
     [Fact]

@@ -308,10 +308,6 @@ namespace FlyingGame.Bridge
                     Debug.Log($"[VrCockpit] {s.Short} {(on ? "ON" : "OFF")} by hand → bus {el.BusVolts:0.0} V, {el.Amps:+0.0;-0.0} A");
                     return;
                 }
-                case "fuel_valve":
-                    _driver.Sim.Aircraft.FuelValveOpen = v > 0.5;
-                    Debug.Log($"[VrCockpit] fuel valve {(v > 0.5 ? "ON" : "OFF: the engine will starve")} by hand");
-                    return;
                 case "cowl_flap":
                     _driver.Sim.Aircraft.CowlFlap01 = v;
                     Debug.Log($"[VrCockpit] cowl flap {(v < 0.25 ? "CLOSED" : v > 0.75 ? "OPEN" : "MID")} by hand");
@@ -321,6 +317,19 @@ namespace FlyingGame.Bridge
                     return;   // continuous; the rpm it lets through is Aircraft.PropLever
                 case "com_volume":
                     return;
+                case "fuel_valve":
+                {
+                    // Into the sim at the detent's half-way point: OFF is the lever turned 90 deg inboard.
+                    Aircraft ac = _driver.Sim.Aircraft;
+                    bool open = v > 0.5;
+                    if (ac.FuelValveOpen != open)
+                    {
+                        ac.FuelValveOpen = open;
+                        Debug.Log($"[VrCockpit] fuel valve {(open ? "ON" : "OFF")} by hand ({s.Short}, {s.Seat}) → Aircraft.FuelValveOpen = {open}" +
+                                  (open ? "" : $"; the engine stops in {Aircraft.FuelLinesSec:0} s"));
+                    }
+                    return;
+                }
             }
             string what = s.Param == "xpdr_squawk" ? $"squawk {Squawk()}" : $"{v:0.###}";
             Debug.Log($"[VrCockpit] {s.Short} → {what} by hand (visual only: the sim has no {s.Param} system yet)");

@@ -76,18 +76,24 @@ WINDOWS = {
         # z +0.01): from the rear eye only floor forward of x ~-1.20 can be seen at all. So the pane keeps that hole's
         # aft end and sides (less 7 mm) and runs on forward to x -0.95, under the rear pilot's calves, aft of the rear
         # pedals (x -0.75); the radio stack's foot (x -1.11 .. -1.16) stands over it.
-        windows=[('rear', -1.492, -0.95, 0.195, 0.020)],
+        windows=[('rear', -1.492, -0.95, 0.195, 0.020),
+                 # Ty 2026-11-04 19:32: clear floor panels in BOTH cockpits. The front pane runs from just forward of the
+                 # front seat's front edge (x -0.55) under the front pilot's calves and stick to short of the front
+                 # pedals' heel bar (x 0.22); nothing between the tub floor (z -0.084) and the belly (z -0.63 .. -0.68)
+                 # there: no wing carry-through, gear or engine (measured on the v-front-seat GLB).
+                 ('front', -0.52, 0.14, 0.170, 0.020)],
         footwell=None, cut_yz=[],
         cut=[('Fuselage_Painted', None, (-0.80, -0.50), 'hole'),
              ('Window_Glass', None, (-0.80, -0.50), 'wide'),     # the old belly glass (the side windows stay)
              ('Window_Frame', None, (-0.80, -0.50), 'wide'),     # and its raised frame
              ('Cabin', 'Paint_cabin', (-0.110, -0.084), 'floor'),
-             ('Cockpit_Shell', 'Paint_cabin', (-0.087, -0.081), 'floor')],   # tub floor quads at ZF -0.084
+             ('Cockpit_Shell', 'Paint_cabin', (-0.087, -0.081), 'floor'),    # tub floor quads at ZF -0.084
+             ('Footwell_Liner', None, (-0.087, -0.081), 'floor')],          # the front footwell's floor (x > 0.0)
         floor_walls=[('Paint_cabin', -0.106, -0.084)],
         skin_extra=['Window_Glass'],
         wing=None,
         screw_r=0.0051,      # Parts Catalog EA 300 PC-23201A3 attachment: AN526C-1032-R8 truss head (#10-32), ~0.40 in
-        longeron_y=0.226, longeron_x=(-0.85, -1.70),
+        longeron_y=0.226, longeron_x=(0.20, -1.70),
         torque=None, pedal_bars=None),
 }
 FILES = {'pitts-s2b-like': ['pitts-s2b-like-own.glb', 'pitts-s2b-like-own-n1191.glb',

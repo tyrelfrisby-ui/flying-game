@@ -172,9 +172,9 @@ public class ContactPatchTests : IDisposable
         double yawGrass = Yaw(WorldTerrain.Surface.Grass, out double fG, out double nG);
         _out.WriteLine($"paved: N {nP:F0} N, friction {fP:F0} N, yaw {yawPaved:F0} N·m; grass: friction {fG:F0} N, yaw {yawGrass:F0} N·m");
         Assert.True(yawPaved > 0, "a right tip dragging must swing the nose RIGHT, toward it");
-        Assert.Equal(0.55, fP / nP, 3);   // metal/hard structure on asphalt (KeelSlidingCoefficient)
-        Assert.Equal(0.35, fG / nG, 3);   // on grass
-        Assert.Equal(0.35 / 0.55, yawGrass / yawPaved, 3);
+        Assert.Equal(0.60, fP / nP, 3);   // wrecked/hard structure on asphalt (AirframeContact.SlidingMu, Ty 2026-11-04 18:31)
+        Assert.Equal(0.65, fG / nG, 3);   // on grass
+        Assert.Equal(0.65 / 0.60, yawGrass / yawPaved, 3);
     }
 
     [Fact]

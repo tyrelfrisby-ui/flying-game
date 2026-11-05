@@ -61,10 +61,11 @@ public static class WheelHydro
     public static double TirePressurePsi(AircraftConfig c, GearConfig g)
     {
         // The type's own table first — the AFM figure, or the owner's weight rule, and half of it on
-        // bushwheels. The size-based estimate below is only the last resort.
+        // bushwheels. The size-based estimate below is only the last resort. Whichever it is, it is held to
+        // the least pressure that can carry the leg's load at all (FootprintFloorPsi).
         double table = TirePressure.Psi(c, g, c.Bushwheels);
-        if (table > 0) return table;
-        if (g.TirePressurePsi > 0) return g.TirePressurePsi;
+        if (table > 0) return System.Math.Max(table, FootprintFloorPsi(c, g));
+        if (g.TirePressurePsi > 0) return System.Math.Max(g.TirePressurePsi, FootprintFloorPsi(c, g));
         double r = LandingGear.TireRadiusOf(c, g);
         double mass = c.Mass != null ? c.Mass.MassKg : 800;
         double width = 2 * r * WidthPerDiameter;
@@ -72,6 +73,48 @@ public static class WheelHydro
         double perWheelN = mass * 9.81 / 2.2;                  // the mains carry most of it
         double pa = perWheelN / System.Math.Max(1e-4, patchM2);
         return System.Math.Clamp(pa / 6894.76, 6.0, 260.0);    // Pa → psi, held to what tyres really run
+    }
+
+    /// <summary>
+    /// The least pressure at which this tyre carries its static share of the weight (<see cref="StaticLoadN"/>):
+    /// load over b·r, the most planform it can present (the wetted front arc at its axle, the most this model's tyre
+    /// can lift on). A tyre carries its load on a footprint of load / pressure; below this pressure that footprint is
+    /// larger than the tyre — it is flat on its rim, and no tyre is run like that.
+    ///
+    /// Why it matters on water (Ty 2026-11-04: above V_p every aeroplane can ski unless its load exceeds the water's
+    /// lift): at V_p, ½ρV_p²·C = p, the most the tyre can lift is p·b·r, so V_p is the speed at which the water can
+    /// carry the static load only when the footprint fits — p ≥ load/(b·r). The owner's weight rule gives the Extra
+    /// 18 psi on 0.155 m tyres: a 47 in² footprint for each main's 3.75 kN against 28 in² of tyre, so its "V_p" of
+    /// 38 kt sat 11 kt below the speed its tyres can hold it up at, and it went over "above V_p". Held to the floor
+    /// it is 29.8 psi (V_p 49 kt), and the Pitts 21.4 (42 kt); a 5.00-5 on an aerobatic single is run at 30–40.
+    /// Every other type's tyre has room to spare and keeps its book or rule figure.
+    /// </summary>
+    public static double FootprintFloorPsi(AircraftConfig c, GearConfig g)
+    {
+        double r = LandingGear.TireRadiusOf(c, g), b = 2 * r * WidthPerDiameter;
+        return StaticLoadN(c, g) / (b * r) / 6894.76;
+    }
+
+    /// <summary>The leg's share of the weight standing on level ground, from the moment balance of the main legs
+    /// against the others (nose or tail) about the CG; the main legs share theirs equally.</summary>
+    public static double StaticLoadN(AircraftConfig c, GearConfig g)
+    {
+        double w = (c.Mass != null ? c.Mass.MassKg : 800) * 9.81;
+        double cgX = c.Mass != null ? c.Mass.CgVec().X : 0;
+        static bool Main(GearConfig x) => !x.IsTailwheel && System.Math.Abs(x.Pos[1]) > 0.3;
+        int nMain = 0, nOther = 0; double xMain = 0, xOther = 0;
+        foreach (GearConfig x in c.Gear)
+        {
+            if (x.GearType == "float-keel" || x.GearType == "skid") continue;
+            if (Main(x)) { nMain++; xMain += x.Pos[0]; } else { nOther++; xOther += x.Pos[0]; }
+        }
+        if (nMain == 0) return w / System.Math.Max(1, nOther);
+        xMain /= nMain;
+        if (nOther == 0) return w / nMain;
+        xOther /= nOther;
+        double span = xOther - xMain;
+        double mainShare = System.Math.Abs(span) > 1e-6 ? System.Math.Clamp((xOther - cgX) / span, 0.0, 1.0) : 1.0;
+        return Main(g) ? w * mainShare / nMain : w * (1 - mainShare) / nOther;
     }
 
     /// <summary>The speed at which a tyre at this pressure rides up on top of the water.</summary>

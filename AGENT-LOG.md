@@ -1,9 +1,149 @@
 ## NEEDS YOU
+- **WHEEL HYDROPLANE LANE MERGED + INSTALLED (Claude, 2026-11-05 01:56, lane/claude-wheel-hydroplane 7388335f → island-nav
+  12328a67 → Quest 3fd9d5e2; Ty approved the merge 2026-11-04 20:27). iOS island-nav 2026.1105.0137 ** BUILD SUCCEEDED **,
+  0 error CS, installed iPhone + iPad mini + EFB iPad; Quest 2026.1105.0147 installed and launched on the Quest 3S.
+  `tools/check-parity.sh --strict`: PARITY OK. Nothing approved by me.** Your Q024 answers are in the tests now: the hooked
+  water rudder's tip stays wet (real), the J-3's idle turn is pinned at your 254° in 20 s, and a water prop strike is
+  emergent — the blades' water drag brakes the rotor, and the engine stops only if that drag pulls it under a quarter of
+  idle. Still open, worth a fly:
+  1. **The prop strike now needs a dip that brakes the rotor, so a brush at power runs on.** On an SR22 at 2700 rpm a 5 mm
+     dip costs ~200 N·m against ~820 from the engine; 2 cm costs ~1,560, which slows the prop to ~2,200 rpm but does not
+     stop it. At idle the same 2 cm stops it. The light-touch tests: SR22 dipped 1.5 cm and Glasair 8 cm at idle, both
+     for a few milliseconds, and neither prop stopped. The blade geometry (2 blades, tip chord 0.12 R, in-plane coefficient
+     0.2) is TYPICAL, not from any config, and blades do not bend from water load (no blade strength is modelled). Should
+     the Glasair's 8 cm dip have bent its blades?
+  2. **Still not answered from the ski sweep:** a fat-tyred type skis 1–16 kt UNDER V_p when the wing unloads the wheels
+     (J-3 30 vs 31 kt, Beaver 40 vs 49, P-51 75 vs 91); no V_p cut-off was added, because that would be a scripted
+     threshold. Is that what you see? DC-3: the weight rule gives 255 psi, so V_p is 144 kt (a real 17.00-16 runs
+     ~50–60 psi). Not changed.
+  3. You will fly the J-3 float idle turn (254° in 20 s, rudder up or down within 5°).
+## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
+<!-- crash-reset needs-you -->
+Lane lane/claude-crash-reset. Seven of Ty's reports in one lane. NOTHING approved by me.
+- **Ty, please check on the iPhone / iPad mini (2026.1105.0030) and Quest (2026.1105.0041):**
+  1. Crash, then Restart / Relocate / pick another aircraft: a whole, flyable aeroplane every time. Also force-quit and relaunch.
+  2. Crash on snow: the dust must be white (ice light grey, grass green-brown, pavement grey).
+  3. C172 cockpit: cabin, panel, raised yoke, 5.4 suction gauge, see-through glass. **Decision:** the 172's OUTSIDE is
+     now our plain grey model (no paint, ailerons not rigged). Keep it, or ask for "downloaded outside + our cabin"?
+  4. Wreck slide distance (a crash on grass, pavement, snow): it should now stop in about 60-80 m from 60 kt on the ground,
+     further on snow and ice. **Decision:** the friction values are estimates (below); too short, too long?
+  5. Great Lakes into water on the Quest: see what the wings do (below). **Decision** wanted.
+  6. Ghost airplane: crash a few times after clean restarts; no intact copy at the crash site.
+  7. Water: skim, touch down on wheels on water and land floats: no automatic crash. Then hit the water hard
+     (steep, banked): parts break only from the load.
+- **1 Crash reset.** Cause: the sim was always fresh. The wreck lived on in the DRAWN model: AirframeVisual only rebuilt a
+  damaged model when the new aeroplane had lost nothing a frame later, and a bent wing panel set no flag (old
+  AirframeVisual.cs ~60 / ~80-85), so a same-type Restart kept the wreck drawn. Fix: FlightSimDriver.AirframeReplaced
+  (raised from the Sim setter on every spawn path + AdoptSim) = the one reset; AirframeVisual.ShowsDamage rebuilds on it;
+  StructuralDamage, FlightAudio, CrashWaterVisuals clear on it. **Persisted? No: force-quit + relaunch clears it**
+  (Ty's iPhone prefs hold only set.* and support.lastCrash; NoCrashStateIsPersisted holds runtime code to that).
+- **2 Snow dust.** Cause: ContactEffects' dust material (FlyingGame/UnlitTransparent) ignores the particle colour, so every
+  puff was brown. Fix: FlyingGame/Spray (mist) + Core CrashDust.For(ContactPoint.SurfaceCode) (WorldTerrain.SurfaceAt at the
+  contact): snow white, ice light grey chips, water blue-white spray, paved grey, gravel/dirt/sand brown, grass/pasture
+  green-brown, unknown old brown.
+- **3 C172 transparent cockpit.** Cause: not the yoke merges. AirframeModels.PickOwn drew our 172 only with "own models" on
+  (off by default, off on Ty's phone), so he got the downloaded shell with no cabin. Fix: c172 in LiveryChoice.OwnModelAlways;
+  nose first (Spec left), Spec.AtDatum, glass material (JSON-only GLB patch, geometry unchanged). The 6:49 PM render on
+  0bb87c67 showed no cabin because that commit predates the C172 merge (879e0cd4). **Proof on head dd6b3229
+  (= island-nav 6f0e3f74 + this lane), Unity, shipped settings, approved pilot eye:**
+  `~/Developer/agent-lanes/renders/c172-interior-fix/head-dd6b3229/` (I opened it: panel, both yokes, quadrant, seats,
+  see-through glass). The Quest still hides the 172 in its fleet (QuestFleet: eye not checked against this model).
+- **4 Wreck slides too far.** Cause: AirframeContact.SlidingMu (every structure hard point and every WreckSim piece) was the
+  FLOAT-KEEL table (grass 0.35, snow 0.10, ice 0.03): a 30 m/s wreck went 131 m on grass, 459 m on snow, 1.5 km on ice.
+  Fix: a wreck table (a crumpled airframe gouges and ploughs): paved 0.60, gravel 0.75, dirt/sand 0.80, grass 0.65,
+  pasture 0.75, snow 0.40, packed snow 0.30, ice 0.20. These are the upper half of accident-reconstruction drag-factor bands
+  for a body sliding on its side or roof (asphalt 0.3-0.5, grass/dirt 0.5-0.8, packed snow 0.2-0.3, ice 0.1-0.2). A gear-up
+  light aircraft stopping in 40-60 m on grass from 55 kt (~0.7) sits in the same band. They are estimates, not aircraft
+  measurements. From 30 m/s: paved 76 m, grass 71, pasture 61, snow 115, ice 229. The same Core code serves iOS and Quest
+  (no Unity physics materials are involved). Floats keep the keel table. CrashTuningTests literals moved deliberately.
+- **5 Quest: Great Lakes wings hovering.** No water-height or Quest-only fault found: the same WreckSim on both, drawn
+  water = sim water (IslandWorldBuilder vs IslandWater), and the GL model sits in the config frame to 4 cm. Measured
+  (WreckWingWaterTests): a detached GL left wing is a RIGID two-wing cell (both wings + struts). In the water it capsizes
+  onto its edge and rides like a two-hulled raft, about a third of its chord wet and the rest standing up out of the water.
+  That reads as hovering. It then floods and sinks (on the bottom by ~900 s); the Pitts' does the same, while the 172's
+  sealed metal wing floats flat. **Decision:** should a torn-off biplane cell split into upper and lower wings (struts
+  failing), or a torn fabric wing flood faster? Either is a physics choice I did not make on my own.
+- **6 Ghost airplane.** Cause: MY first pass, 28e1005c. `_builtFor` was set only by Rebuild(), so after a clean Restart /
+  Relocate in the same type, or any challenge spawn, it still named the previous Aircraft. The first part to break on the
+  next flight was then read as an old aeroplane's damage, and LateUpdate rebuilt a whole intact model at the crash site
+  beside the debris. It happened once per flight, and only on flights not preceded by a rebuild, hence "random". That is in
+  builds 2107 / 2141. Fix (AirframeVisual.cs ~72/108): `_builtFor` is the new Aircraft on every AirframeReplaced and
+  follows the flying aeroplane while intact. I found no older cause at 73d7702b. One unconfirmed lead for any earlier
+  sighting: the OTHER device's plane drawn through LAN multiplayer (iPhone + Quest in one room; peers linger 5 s).
+  Test: CrashResetCheck.GhostCheck, 102 seeded crashes (every type x 3, 1-3 parts, each after a clean restart). The model
+  is never rebuilt or re-instantiated and the scene holds one model: PASS (the old code fails it).
+- **7 Water contact never a predetermined crash.** Audit: breakups on water were already load-ruled (AirframeContact
+  loadRuled -> AirframeFlooding.CheckJoints, WaterSlam, panel bending). Two touch rules were removed:
+  - AircraftContactDamage.PropStrike `if (water || …)` stopped the engine on any wet blade tip. Now the rotor is braked by
+    blade drag (WaterBladeTorque) and stops only below a quarter of idle. This is the src hunk of lane/claude-wheel-hydroplane
+    4bbfe5b5, taken verbatim (Q024).
+  - ChaseCamera latched its crash view on ANY water impact above 0.5 m/s. Now CrashEvents.OpensWaterCrashView: only a piece
+    that broke off (by load) arriving in the water.
+  Both are shared Core/Bridge code on iOS and Quest. Note: the SR22 and Glasair blade tips sit 4 cm below their tyres, so a
+  light wheel skim still dips their props (now emergent drag, not a trigger).
+- **Tests** (literals): CrashResetTests 7, CrashDustTests 8, C172InteriorVisibleTests 4, WreckFrictionTests 12,
+  WreckWingWaterTests 3, EmergentWaterContactTests 5 (+ existing WaterBreakupTests / WheelWaterTests pass with the prop
+  change); Unity CrashResetCheck PASS. Wide filter (Crash|Wreck|Water|Debris|Breakup|Contact|Prop|Float|Wheel|Tree|Slide|Hydro|C172|Livery|Spawn|
+  Engine), base island-nav 6f0e3f74 vs branch, failing names diffed (the suite is coupled; compare, never count):
+  - 38 names fail only on the branch. Re-run alone on both: 36 pass (SpawnSpeedTests x34 and TipWheel x2 are coupling).
+    The other 2 were real and are fixed in 1425834e (97/97 after): the ContactPatch tip-scrape literal (now the wreck
+    table), and the Glasair's take-off roll (its prop blade tips scrape the runway; they now keep the metal keel μ).
+  - 8 names fail only on base and pass on the branch: MultiEngine x3, ReversibleControl x3, and WheelWater light touch on
+    the SR22 and Glasair (fixed by the prop change).
+  - Not this lane, already on island-nav b14f8d55: NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs. Its "grob" pattern
+    matches the Grob 103 lane's glider-grob103-acro-like model; I left it, CLAUDE.md forbids weakening that test.
+- **Commits:** lane/claude-crash-reset 28e1005c, 6b48fd51, bd7861e8 (first pass); 80f946ad (ghost), 0c1b8acf (wreck friction),
+  dd6b3229 (water), 1425834e (prop tip μ), 798bf0ac / 727c1f44 (island-nav tips in); then this log.
+  island-nav: 65f431be, 879e0cd4, 84bcdc51, bf98c300, a641dccb (+ log). quest: 7ed003b6, e535509c, 655c6c5b, 407045c8 (+ log).
+  PARITY: OK.
+- **Builds / installs:** iOS 2026.1105.0030 from island-nav a641dccb (deploy.sh, ** BUILD SUCCEEDED **, 0 error CS),
+  installed + launched on Ty's iPhone and the iPad mini; both had 2026.1105.0022 before (another lane's build). The first
+  pass shipped in 2026.1104.2107. Quest 2026.1105.0041 from quest 9defc3d7, which contains 407045c8 (deploy-quest.sh,
+  0 error CS, PARITY: OK), installed + launched on the Quest 3S; the first pass was 2026.1104.2141. Build byproducts left uncommitted.
+
+- **2026-11-04 23:55 PT — GROB TWIN III MERGED INTO BOTH LANES AND INSTALLED; ITS SPIN DOES NOT RECOVER ON THIS LANE'S PHYSICS (Claude, lane/claude-grob103). No gate marked approved.**
+  1. **Merged.** island-nav e82c8ee4 (lane/claude-grob103 55e0ccdb onto 6f0e3f74); quest-islandnav 4187132f (island-nav
+     into quest, clean); `tools/check-parity.sh --strict`: **PARITY: OK**. Both worktrees' 35 leftover files (34
+     StreamingAssets aircraft mirrors and the ProjectSettings bundleVersion) were left in place, untouched and not
+     committed. git did not need them moved.
+  2. **Installed.** iOS **2026.1104.2323** from island-nav-merge: `** BUILD SUCCEEDED **`, 0 `error CS`, installed and
+     launched on **Ty's iPhone and Ty's iPad mini** (2 of 2). Quest **2026.1104.2337** from quest-islandnav: 0
+     `error CS`, installed and launched on the **Quest 3S** (340YC10GBK0TYV). Both deploys re-stamped bundleVersion
+     in the leftover ProjectSettings and rewrote the same mirror paths, as every install from these trees does. The
+     Grob's own mirror regenerated byte-identical.
+  3. **RED, and it needs you: the Grob's developed spin does not recover here.** On the Grob lane's own physics, 6 s of
+     opposite rudder took the spin from 1.17 to 0.32 rad/s. On island-nav's physics, a probe held opposite rudder for
+     20 s with the stick neutral, half forward and full forward, and the rotation never stopped: it swung between 1.0
+     and 2.4 rad/s throughout (`Grob103Tests.RecoveryControlsSlowTheSpin`, 1.30 -> 2.09 rad/s). The cause is an
+     interaction with island-nav's aero changes since fa1fa157, not yet found; the candidates are the hinged-row
+     drag that replaced the separated aileron drag, control-span coverage, and the wing section-slope test. **Please
+     do not trust a Grob spin on these builds until that is fixed.**
+  4. **Also red:** `Grob103Tests.PedalsSteerTheNoseWheelOnTheGround(0.5)`. Under island-nav's new tyre model (spin-up,
+     wear) half pedal turns on 11.70 m, tighter than the no-slip 12.50 m, which a slow-rolling wheel should not do.
+     Full pedal turns on 5.10 m against 4.29 m, inside its band. The nose wheel still steers the right way. Neither
+     test was loosened.
+  5. **Merge resolutions** (the same principles as the earlier 6826dc84):
+     - AeroModel keeps island-nav's hinged-row drag and branch damage, and adds the Grob's Reynolds sampling and brake
+       plates.
+     - `RigInputs.FromDeflections` takes both `elevatorUpMaxRad` and `noseSteerMaxRad`.
+     - island-nav had added its own `AtDatum` (the 172), which places the model exactly at the datum. The Grob uses it
+       with `sitHighM -0.090`, the 90 mm drop onto the config's wheels that its approved eyes already assume. My
+       lane's separate `AtDatum` branch was dropped, and the Grob joined `LiveryChoice.OwnModelAlways`.
+     - Two fixes island-nav needed for the Grob: a crash-tuning tag (composite, GFRP shell, through build_grob103.py;
+       CrashTuningTests now counts 35) and its CC BY-SA credit to Florian Blanc in docs/CREDITS.md.
+     - Glide table regenerated by its tool: the Grob row, plus island-nav's own sub-tolerance Cub/PA-18 drift.
+  6. **Filtered tests** (Grob103, Progression, Badge, SaveMigration, Challenge, FloatsOnLand, LandingGear, Steer*,
+     Crash*, Parity, ModelRig, CockpitEye, C172Interior, PlayerText, GlideTable). Pre-merge 6f0e3f74: 251/2 of 253
+     (CreditsReachTheUser, ModelRig FullAirBrake). Quest merged: 332/4 of 336. The only new failures are the two Grob
+     tests above, and both reproduce alone.
+  7. Still flagged from the lane (see the Grob entries below): empty mass/CG, control travels, chords and the ±25°
+     steering lock are estimates; the brakes-out glide and spin height are NOT MET; the model sits 90 mm off the
+     config vertically. The input-expo merge (05d2a841) is now unblocked by this merge; I did not merge it.
 
 ## NEEDS YOU — Quest feedback: views, wrists, arm clearance, prop-blast, prop/mixture — fly-test (Claude, 2026-11-04)
 <!-- quest-feedback needs-you -->
 Ty's Quest 3S report 6:08 PM (build 2026.1104.1656). Lane `lane/claude-quest-feedback`; full write-up with every table:
-`docs/quest-feedback-2026-11-04.md`. **Nothing approved by me.** Builds: iOS BUILD_IOS, Quest BUILD_QUEST.
+`docs/quest-feedback-2026-11-04.md`. **Nothing approved by me.** Builds: iOS **2026.1104.2319** (iPhone) / **2026.1104.2346** (iPad mini), Quest **2026.1104.2331**. Questions: Q049-Q054.
 **Please check (Quest unless noted):**
 1. **Views:** VR menu → `View: … < >` now cycles Cockpit / Chase / Fixed-direction chase / Fly-by. Outside views are
    level, the origin rides the aeroplane with its offset eased (0.8 s) and the heading changes only in 45° snap turns;
@@ -30,10 +170,15 @@ VrCockpitHands.Panel (prop/mixture "visual only"); no mixture or governor in the
 1060, branch 1061/16/4 of 1081, the SAME 9 failing names (pre-existing), no new failures. QuestViewShots PASS;
 VrArmCheck FAIL 8 (above). Unity batch 0 `error CS`.
 **Commits (lane/claude-quest-feedback):** 31fbf41f engine/prop/mixture, 1e27e275 views, 8f74e5d7 + 9463c6ba + 6fbb0f9e
-arms/wrists, 3dd5c84c Codex v4 body candidate generator (not shipped), 905e2108 merge of island-nav 6f0e3f74, LOGCOMMIT.
+arms/wrists, 3dd5c84c Codex v4 body candidate generator (not shipped), 905e2108 merge of island-nav 6f0e3f74, ebe2e465 log. Merged: lane/claude-island-nav 04108b33, lane/claude-quest-islandnav df833fe6 (after grob103); PARITY: OK (--strict).
 **Renders:** `~/Developer/agent-lanes/renders/quest-feedback/` — `views/` (each Quest view, 3 aircraft), `arms/`
 (before-/after- × GL, Extra, 2-33 × poses × eye-left/eye-right/handL/handR; table.md), `codex-v4-*.png`.
-**Installs:** INSTALLS
+**Installs:** iPhone 17 Pro 2026.1104.2319 (deploy.sh from claude-island-nav-merge, ** BUILD SUCCEEDED **, 0 error CS;
+the phone had 2026.1104.2221 before); iPad mini 2026.1104.2346 (a second build: the first install failed CoreDevice 3002
+because another lane's build had deleted the shared /tmp/flyinggame-dd .app meanwhile); Quest 3S 2026.1104.2331
+(deploy-quest.sh, no override, 0 error CS, installed + launched; no headset screenshot: the headset was asleep).
+**On the devices at 23:58:** iPhone 2026.1104.2323 and Quest 3S 2026.1104.2337 (grob103's builds, installed after mine
+and built from the lanes AFTER this merge, so they carry all of it), iPad mini 2026.1104.2346 (mine).
 <!-- /quest-feedback needs-you -->
 ## NEEDS YOU — Pitts cockpit + shared instrument style (Claude, lane/claude-pitts-panel, 2026-11-04)
 Nothing approved by me; every (E) number below is mine to be checked, not a book value.
@@ -88,73 +233,6 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   cannot start there (`VrMode.Available` is false while `XrHeadset.Active`, the toggle is OnGUI-only and QuestMenu has no
   VR switch, so `vr.on` is never set); its shaders are plain CG in Resources. No Quest build was run for this merge.
 
-## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
-<!-- crash-reset needs-you -->
-Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, one lane. NOTHING approved by me.
-- **Ty, please check on the iPhone / iPad mini (2026.1104.2107) and Quest (2026.1104.2141):**
-  1. Crash, then **Restart**, then crash and **Relocate** (another field), then crash and **pick another aircraft**:
-     each time a whole, flyable aeroplane (no bent tip / tail / prop, engine runs, controls answer, no crash
-     sounds or spray carrying on). Also force-quit and relaunch after a crash.
-  2. **Crash on snow**: the dust must be white (ice: light grey; grass: green-brown; pavement grey).
-  3. **C172 cockpit**: the cabin, panel, raised yoke and 5.4 suction gauge must be there, and you can see out.
-     **Decision for you:** the 172 now draws OUR model everywhere, so its OUTSIDE is our plain grey model
-     (no paint, ailerons not rigged) instead of the textured downloaded one. Keep it, or ask for
-     "downloaded outside + our cabin" as a follow-up?
-- **Crash reset, root cause.** The sim was always fresh: every Restart / Relocate / aircraft change builds a new
-  Aircraft (FlightSimDriver.Spawn). The wreck lived on in the DRAWN model: AirframeVisual (old LateUpdate
-  lines ~80-85) rebuilt a damaged model only if the NEW aeroplane, a frame later, had lost nothing and had no
-  crush, and OnAircraftChanged (~line 60) rebuilt only for a new type, lost wings or a lost canopy. A bent wing
-  panel (ShowPanelBend) set no flag at all, and the struck prop / bent tail / engine mount waited on the new
-  aeroplane's state. So a same-type Restart or Relocate kept the wreck drawn on a healthy aeroplane.
-  I could not reproduce "different airplanes" from the code (a type change always rebuilt). The fix covers it
-  anyway, because any damage drawn for another Aircraft instance now rebuilds.
-- **Persisted? No.** Force-quit + relaunch clears it. Ty's iPhone PlayerPrefs (pulled 17:30) hold only set.* and
-  support.lastCrash (the last software exception, 09:22); nothing writes a crash/wreck/damage to prefs or files.
-- **Fix:** FlightSimDriver.AirframeReplaced, raised from the Sim setter the moment ANY new Aircraft is installed
-  (every spawn path + AdoptSim), before its first step = the one reset. AirframeVisual.ShowsDamage (wings, parts,
-  prop, fuselage bend, bent panels, canopy) rebuilds on it, and whenever the damage belongs to another Aircraft
-  instance. StructuralDamage.Repair, FlightAudio (delayed crunches, crash/flood voices), CrashWaterVisuals
-  (spray/foam/vents/rings) clear on it too. Crash physics untouched.
-- **Snow dust, root cause:** ContactEffects (the one ground dust emitter; scrapes, slides, prop/ground strikes)
-  already picked a colour per surface, but its material used FlyingGame/UnlitTransparent, which ignores the particle
-  colour. Every puff was brown. Now FlyingGame/Spray (mist) + Core CrashDust.For(ContactPoint.SurfaceCode), the
-  contact model's own WorldTerrain.SurfaceAt. Snow white powder, glacier ice light-grey chips, water blue-white
-  spray, paved/solid grey, gravel brown, grass + Rough pasture green-brown, unknown = old brown. Other particle
-  emitters checked: CrashWaterVisuals and FloatSplash (water, already white), DamageFx (fuel/fire/smoke), combat hits
-  and crop dust. None of them is a ground emitter.
-- **C172 transparent cockpit, root cause: not the yoke merges.** The yoke merges (9a6c9177 / 4b902fca) changed only
-  the yoke and suction meshes, and the GLB kept 163 nodes and all opaque materials. The game never drew our 172 by default.
-  AirframeModels.PickOwn used it only with "own models" on, default off (SessionSettings.cs:71, since
-  6f2c1f7f). Ty's prefs have set.ownModels=0, so he got the downloaded c172-like.obj, a shell with no cabin, culled
-  from inside. Every interior render forced own models on. Fixed (with the parallel sub-agent): c172-like in
-  LiveryChoice.OwnModelAlways. Turning it on exposed three more faults, all fixed: the model was placed TAIL FIRST
-  (Spec right -> left); it sat 1.73 m aft (new Spec.AtDatum: the GLB is drawn in the config frame); and the 5
-  Glass.* primitives had no material and drew opaque (JSON-only 172_glass BLEND 0.30 patch; binary, nodes and the 16
-  materials unchanged, yoke + suction kept). tools/model_c172.py does not emit 172_glass yet, and
-  C172InteriorVisibleTests fails if a rebuild drops it. Quest still hides the 172 (QuestFleet: eye not checked).
-  Other aircraft: own GLBs of Extra, Pitts, 2-33, Great Lakes and J-3 all have interior nodes and opaque materials
-  (only intended BLEND: GL compass cut-out). Not the same fault.
-- **Renders:** `~/Developer/agent-lanes/renders/c172-interior-fix/` (Unity, shipped settings, own models OFF): pilot-eye panel /
-  yoke / left door / aft, copilot panel, `exterior/`. I opened panel, yoke and 3q-front: panel with the 1 in suction
-  gauge, both raised yokes, quadrant, seats, floor; windscreen and door glass see-through; outside nose first, plain grey.
-- **Tests** (expected values literals): CrashResetTests (restart / relocate / new type after the scripted crash, C172 +
-  Pitts: intact, 2416 / 2700 rpm, 93 / 200 deg/s roll; NoCrashStateIsPersisted), CrashDustTests (8),
-  C172InteriorVisibleTests (4), editor batch CrashResetCheck PASS (real AirframeVisual + StructuralDamage, 0 error CS).
-  Merged tree: C172|OwnPitts|Livery|QuestFleet|CrashReset|CrashDust 100/100. Wide filter (Crash|Damage|Wreck|Debris|
-  Breakup|Spawn|Engine|Contact|StreamingAssets|Livery|C172|Quest|Fleet) branch vs base 73d7702b, each failure re-run
-  alone on both: 5 identical on base (ApproachSpawn 2-33 + PA-18, FloatLanding 0.5, StreamingAssets x2); 2 load-timing
-  ones (IslandCombat wreck cost, QuestFrameBudget) pass alone; no new failures. (The wide run overlapped another
-  lane's Unity tests, so it is a comparison, not a count.)
-- **Commits:** lane/claude-crash-reset 28e1005c (reset), 6b48fd51 (dust), bd7861e8 (C172), 1c9c63ad (island-nav tip),
-  then this log. island-nav 65f431be, 879e0cd4 (GLB conflict: island-nav's db87f77c wing-skin GLB + the same glass
-  patch). quest 7ed003b6, e535509c. PARITY: OK both.
-- **Builds / installs:** iOS 2026.1104.2107 (** BUILD SUCCEEDED **, 0 error CS, island-nav 662e1b5e, which also carries
-  kill-red-233 + smoke-volume): installed + launched on Ty's iPhone (was 2026.1104.1713, not an island-nav build,
-  probably the TV-companion lane) and the iPad mini (was 1648). Quest 2026.1104.2141 (deploy-quest.sh, 0 error CS, PARITY: OK, quest 95b71cca):
-  installed + launched on the Quest 3S. Both builds were run by the smoke-volume
-  lane's deploy script from the same worktrees right after my merges; I verified their logs instead of building the
-  same commit twice. Build byproducts left uncommitted.
-
 ## NEEDS YOU (continued)
 - **SMOKE THICKER AND LASTING — LANE lane/claude-smoke-volume (Claude, 2026-11-04 21:00 PST; Ty's 18:27 report "disappears way
   too quickly … even more transparent … should stick around longer and be thicker, more white"):** the trail now holds
@@ -171,6 +249,62 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   48 h), among them every smoke lane, tv-companion, extra-cockpit-shared, grob103 and decathlon. Each one draws the red trainer if it is built and installed.
   Any of those lanes must merge island-nav before it builds. Details in the Log entry "kill red 2-33".
 <!-- /kill-red-233 needs-you -->
+## NEEDS YOU — fly-check the Extra FRONT seat, rear switches, verniers, throttle grip and fuel valve (Claude, 2026-11-04 22:55 PST)
+- Ty: on the iPhone / iPad mini (2026.1105.0048) and the Quest 3S (2026.1105.0054), fly the Extra 300 and check: FRONT seat = small sub-panel
+  with ASI / G / ALT only + throttle, stick, rudder and the red fuel-valve lever (right wall); REAR panel grey, only
+  MASTER / ALT / FUEL PUMP / NAV / STROBE / SMOKE with legible placards beneath, no unlabelled knobs, EGT/CHT lower right,
+  padded diagonal tubes; prop (blue) / mixture (red) verniers on the left wall beside the rear throttle, knobs aft;
+  ribbed pistol-grip throttle; the clear Lexan floor panel in EACH cockpit (ground under your feet); on the Quest turn either cockpit's fuel lever 90 deg inboard: the other lever follows and
+  the engine stops ~4 s later, relights ~2 s after ON. Nothing approved; no gate marked. Questions Q033-Q035 in the queue
+  (front G-meter vs the AirSpace 300L's two-gauge front panel; trim knob gone; valve timings).
+- Renders (Unity batch, seat eye): ~/Developer/agent-lanes/renders/extra-front-seat/front.png, rear.png (iPhone 72 deg), front-quest.png, rear-quest.png (Quest eye),
+  switches-closeup.png, verniers-left-wall.png, throttle-closeup.png, valve-rear.png, valve-front.png, and
+  rear-compare.png / front-compare.png / throttle-compare.png beside the reference photos in ref/ (AirSpace N251EC, Wikimedia 330LX).
+
+### 2026-11-04 Extra front seat + rear panel + linked fuel valve (Claude, lane/claude-extra-front-seat)
+- Pass 13 `tools/own_models/extra_front_seat.py` on all three Extra GLBs + ea300-own-rig.json (docs/SHARED-COCKPIT.md row 13):
+  front gauges shrunk to 2-1/4 in on a 250 x 110 mm sub-panel; 21 front controls, TC/3-in-1/tach/MP/amps/fuel computer/Trig
+  heads/LCDs retired (nodes kept as Legacy_P3h_*, out of the rig and of `controls`); rear magneto, alternate air, trim,
+  landing light retired; ALTERNATOR toggle cloned from MASTER (param `alternator`); bats 0.65 scale, row z 0.090,
+  placards at 0.061 (first render showed the bats covering their labels); EGT/CHT (egt_f, cht_f); panel + hood grey;
+  fuel selectors -> GL-type valve levers on `Extra_FuelValve_SharedRod`, param `fuel_valve`.
+- Sim: `Aircraft.FuelValveOpen` (default ON) is a real shut-off: 4 s of fuel in the lines, then EngineStopped / rpm 0 /
+  fuel flow 0 / no power; relights 2 s after reopening. `RigInputs.FuelValve` drives both levers (CockpitRigState), the
+  Quest hands write the sim (VrCockpitHands.Panel) and the other seat's lever follows. Note: the Great Lakes' and J-3's
+  `fuel_valve` controls now also really shut the fuel off on the Quest.
+- Tests: FuelValveTests 3/3 new; CockpitControlInteriorTests (Extra 40 controls, wall boxes for verniers / valves) and
+  SharedPanelRigTests (22 needles) updated with literals; filter Cockpit|Panel|Extra|Rig|FuelValve|... all pass except the
+  pre-existing ModelRigTests.FullAirBrake (+ AerobatGroundHandling / DronePilot / MazeTow in the wider filter, as on base).
+  check_vr_phase3.py: every control clearance passes (verniers by an exact lateral rule); its panel section asserts the
+  phase-3b gauge list and has failed since pass 11 (also at HEAD before this lane).
+- iOS deploy.sh from this lane (island-nav 10c98d6a + this work): ** BUILD SUCCEEDED ** 2026.1104.2245, 0 error CS,
+  installed iPhone + iPad mini. Lost ~1.5 h to the busy-gate bug now in CLAUDE.md lessons.
+- Merged island-nav 04108b33 (quest-feedback's mixture/prop model): the valve now feeds it. A shut valve makes
+  EngineRunning false / EngineStarved true like a cut-off mixture (prop windmills, EngineStopped stays damage-only).
+  FuelValveTests rewritten to that; filter FuelValve|Mixture|Engine|Prop|Cockpit... 78/78. iOS deploy.sh from this lane
+  (= island-nav 04108b33 + this work): ** BUILD SUCCEEDED ** 2026.1105.0002, installed iPhone + iPad mini.
+- Merged island-nav f3fec13a (Pitts lane: shared instrument style, Electrics bus, my valve code already in it). Extra GLBs
+  taken from island-nav (restyled) and pass 13 re-run on them (Glb.save restyles the new EGT/CHT face).
+- FOUND AND FIXED (both platforms, in flight): CockpitLive.For("extra-300-like-own") still returned the pre-P3b
+  rear_panel.py table, whose Hide list switched off the renderers of Needle_ASI_R / Alt / G / Tach / MP / OilP / OilT,
+  i.e. the LIVE rear panel's needles. The Extra now gets an empty spec (its own rig does everything);
+  CockpitLiveTests.TheExtraIsLeftToItsOwnRig. Seen only because CockpitEyeShots now runs CockpitLiveParts like the game.
+- iOS deploy.sh from this lane (= island-nav f3fec13a + this work + the needle fix): ** BUILD SUCCEEDED ** 2026.1105.0022,
+  0 error CS, installed iPhone + iPad mini. Merged: island-nav 5eda6050, Quest lane 41a91a68 (PARITY: OK, 35 leftover
+  build files untouched in each). Quest deploy-quest.sh from 41a91a68: 2026.1105.0035, 0 error CS, installed + launched
+  on the Quest 3S. Not in the iOS build: crash-reset a641dccb (merged after it; in the Quest build).
+- Ty 19:32 follow-up, CLEAR FLOOR both cockpits: floor_windows.py's Extra entry gains a FRONT pane (x -0.520..+0.140,
+  |y| 0.170) beside the rear (x -1.492..-0.950); run on the three liveries (belly, old belly glass, Cabin box, tub and
+  footwell floor clipped to each outline; Lexan glass, Floor_Frame strip + 79 screws, floor tubes; +2258 tris).
+  FloorWindowMaterials + FlyingGame/Lexan (lane/claude-floor-windows 8890328f, never merged before) ported: the panes
+  get the real Lexan shader on both platforms (the Pitts too). ExtraFloorWindowTests (6) pass. Renders: floor-rear.png,
+  floor-front.png, front/rear now 40 deg down. Most of the rear pane lies under the rear seat pan (as floor_windows.py
+  noted): from the rear eye only its forward part shows. iOS deploy.sh ** BUILD SUCCEEDED ** 2026.1105.0048, 0 error
+  CS, installed iPhone + iPad mini.
+  Merged island-nav d78026b9, Quest lane 404be916 (PARITY: OK). Quest deploy-quest.sh from 404be916: 2026.1105.0054,
+  0 error CS, installed + launched. The Quest build added FlyingGame/Lexan to GraphicsSettings' always-included list
+  in that worktree (a build byproduct, left uncommitted like the others: 36 there now).
+
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
   Extra to full aileron and check the down-going aileron's nose stands proud of the wing (~50 mm), and roll the Great
@@ -383,7 +517,8 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
        the propeller, and `TyreWear` / `WheelSpin` have no water trigger.
      - **Still to audit:** `CrashRelay.OnHardImpact` raises a `CrashImpact` on water above `WaterSplashMinMs` of
        closing speed. Whether that counts as a "crash" is for crash-reset's audit.
-- **TYRE WEAR, BURST AND FLAT TYRES: BUILT (Claude, 2026-11-04, lane/claude-tire-spinup; local commits, not merged).
+- **TYRE WEAR, BURST AND FLAT TYRES: MERGED INTO BOTH LANES AND INSTALLED (Claude, 2026-11-04/05, lane/claude-tire-spinup).
+  iOS 2026.1104.2251 on the iPhone + iPad mini; Quest 2026.1105.0007 on the Quest 3S (see the Log entry "merge and installs").
   Ty's Q026 answer (20:21): keep the 172's full-pedal lock-up; item 2, the 0.222 m radius, is confirmed. iOS build
   2026.1104.2140 `** BUILD SUCCEEDED **`, 0 `error CS`, PARITY OK, not installed. No new red tests (below). Please fly it:**
   1. **The burst, Core `TyreWear`, emergent.** The model:
@@ -1152,22 +1287,25 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   | paraglider, hang-glider, dhc2-beaver (+floats), pa25-pawnee, decathlon, cassutt, glasair3, aircam (+amphib) | procedural only | type | partly: no wrong render (the procedural airframe IS what is on screen), but pieces and the part left behind lost their UVs and material slots | yes |
 
 - **FLOATS NO LONGER BREAK UP ON LANDING; WHEELS SKIM WATER FOR REAL — FLY TO CHECK, AND TWO DECISIONS (Claude,
-  2026-11-03, lane/claude-wheel-hydroplane, NOT merged, NOT installed: build-ready check in the Log entry).**
+  2026-11-03, lane/claude-wheel-hydroplane; 325b367e is in lane/claude-crash-physics, the follow-up is not; NOT installed.
+  Build-ready: iOS `2026.1103.2246` ** BUILD SUCCEEDED **, 0 `error CS` — deploy.sh not run, as instructed).**
   - **Why the J-3 floats broke up:** the floats' planing lift (Savitsky) took its trim angle from the straight keel
     line just ahead of the step and gave ZERO lift at trim ≤ 0.1°, however much of the swept-up bow was in the water.
     Touch down flat or a little nose-low at speed (measured: 32 m/s, 2 m/s sink, −2°) and the floats knifed under
     (step draft 0.61 m on a 0.50 m float), it pitched to −10°, the engine hit the water at 70 mph and the engine-mount
-    rule correctly tore the nose off ("12.4 kN along the fuselage against 12.1"). Fixed: the trim is the wetted bottom's
-    (the chord to where the keel meets the water when that is steeper). At 60 mph, 100–300 fpm, +5° every landing was
+    rule correctly tore the nose off ("12.4 kN along the fuselage against 12.1"). Fixed: below zero trim (only there —
+    every positive-trim state, including the validated low-trim porpoise, is untouched) the trim moves over the first
+    degree to the wetted bottom's chord, from the step keel to where the keel meets the water. At 60 mph, 100–300 fpm, +5° every landing was
     already clean, which is why the old test never saw it. Also fixed: an aeroplane spawned afloat took a phantom
     "slam" on its first step (the floats' entrained water counted as newly hit: 420 kN on a Beaver).
   - **DECISION 1 — hard-landing threshold (new: floats can now be damaged).** A float's bottom splits (that compartment
     floods; nothing breaks off) above its 14 CFR 23.527 ultimate water load: n_w = 0.012·V_S0²/(tan^⅔β·W^⅓) with each
     twin float the hull of a half-weight seaplane, ×1.5. J-3 floats: n_w 4.12 → 17.9 kN per float. Measured at 60 mph,
     +5°: up to 3.0 m/s (590 fpm) no damage, 3.5 m/s (690 fpm) splits both; the 23.473 design sink for this wing
-    loading is 2.2 m/s (433 fpm). Landing FLAT (0°) is harder: one float split at 2 m/s (390 fpm). And a porpoise after
-    a 100 fpm touchdown with the stick held fixed peaked at 16.7 of the 17.9 kN — so if you feel it splitting floats on
-    landings you would call fair, say so: raise it, or keep it and fix the porpoise. OK as is?
+    loading is 2.2 m/s (433 fpm): it peaks at 8.5 kN there. The water load is averaged over 20 ms (an assumed response
+    time of a float on its struts — a one-step spike of the slam is not a load the struts feel). Worst normal landing
+    in the tests (100 fpm, then a skip, wings held level): 12.5 of 17.9 kN; a fast flat touchdown 15.8. Landing on ONE
+    float (wing low) is much harder — if you feel it splitting floats on landings you would call fair, say so. OK?
   - **DECISION 2 — tyre pressure / tundra tyres.** Wheels on water now ride on real planing pressure (Horne's 9√psi
     gives the pressure coefficient C = 0.643; nothing tuned). J-3 standard tyres: 12.2 psi → V_p 31 kt, and below
     ~20 kt (dig-in, full weight on the wheels) a tyre cannot hold itself up at all. The bushwheel option (half psi,
@@ -3828,6 +3966,166 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-05 01:56 PST — Claude · lane/claude-wheel-hydroplane · Q024 rulings, merge into both lanes, installs
+- **Ty 2026-11-04 20:27 (Q024):** a hooked water rudder that stays wet is correct; the J-3's idle turn of 254°/20 s is OK;
+  an SR22/Glasair prop strike on water is OK, but it must come from the prop's own geometry in the water, with real
+  hydrodynamic forces and damage only by load. MERGE APPROVED.
+- **4bbfe5b5:** `Aircraft.PropStrike` no longer stops the engine when a blade touches water. `WaterBladeTorque` gives
+  Q = n·(acos(1−d/R)/π)·½ρ_w(ωR)²·c·(⅔d)·C·(R−⅓d), where n = 2, c = 0.12 R and C = 0.2 are typical values, not from any
+  config. It brakes the same rotor the ground does, and the prop stops only below a quarter of idle. Water does not curl
+  the tips. Tests: `J3WaterRudderTests` now follows the rulings (hooked: wet, but under half the down area and under a
+  quarter of the pedal swing; idle turn up 254 ± 15°, down > up). In `WheelWaterTests` a light touch may lose a propeller
+  only if its disc was measured in the water and the rotor itself stalled (none did). The harness now counts a lost nose
+  as going over and ends the skiing window at the first blade in the water.
+- **Merges:** island-nav d0db5af1 → lane 57a7bb83. island-nav f6d5f492 → lane 7388335f: crash-reset had landed the same
+  water-torque code, so I kept theirs and took their smooth-metal blade-tip friction (KeelSlidingCoefficient). The lane
+  → island-nav 12328a67 (with the Extra floor panels it had picked up). island-nav → Quest 3fd9d5e2. No conflicts in
+  the last two.
+- **Tests:** full suite on the branch point d0db5af1: 128 failed / 2568 passed. Lane 4bbfe5b5: 156 / 2556. By unique
+  name, 6 fixed and 9 new. Re-run alone, SpawnSpeedTests (all 32 cases), CockpitLive, NoseSkid and Soaring pass, so they
+  are suite coupling. 4 also fail alone on the base (MountainRoughness, NavProcedure, RegionalAtmosphere, Seaside). The
+  last, `HingeSlaveStrutTests.TheStreamingRigCopyIsNotStale`, was an un-synced StreamingAssets copy that any build
+  refreshes. After the second merge, the water/crash/contact classes went 131/131.
+- **Builds:** lane 7388335f iOS 2026.1105.0126 ** BUILD SUCCEEDED **, installed on 3/3. This one lacked the Extra floor
+  panels and was superseded 11 min later by island-nav 12328a67 iOS 2026.1105.0137 ** BUILD SUCCEEDED **, 0 error CS,
+  installed on iPhone, iPad mini and the EFB iPad. Quest 3fd9d5e2 2026.1105.0147, 0 error CS, installed and launched on
+  the Quest 3S. `check-parity.sh --strict`: PARITY OK. bundleVersion and the StreamingAssets byproducts were not
+  committed, and the playable worktrees' leftover files were left as they were.
+- **Gotcha:** `check-parity.sh` is a bash script. Run under zsh, `read -r path` overwrites zsh's `path`/`PATH`, so it
+  prints "command not found: grep" and a false FAIL. Run it as `bash tools/check-parity.sh`.
+### 2026-11-04 17:00 PST — Claude · lane/claude-wheel-hydroplane · wheel water-ski sweep vs Ty's V_p rule
+- **Ty's ruling:** V_p ≈ 9√psi kt; above it every aeroplane can ski on its wheels unless the load on them (weight − lift,
+  plus the pitch moment of the drag below the CG) beats the water's lift; below it, none can.
+- **Sweep** (`WheelSkiSweepProbe`, opt-in `WHEEL_SKI_SWEEP=1`, `WHEEL_SKI_BELOW=1` for the steps under V_p; output in
+  build/wheel-ski/): every wheeled config from V_p−15 kt (≥ 15) to its skim speed in 5 kt steps, held 2°, 6° and 10°,
+  40 % power, 0.5 m/s touch, 3 m water, 10 s. `WheelWaterTouch` gained `startAtHoldPitch` (opt-in; existing tests
+  unchanged): the first sweep touched down at the glide trim and only then held the attitude, so the SR22 "at 10°"
+  touched at 3.2° with 3 cm of prop clearance — every low-clearance tricycle failed on an attitude nobody chose. It also
+  records the wheels' load in g (LoadFactorZ − AeroLoadFactorZ) while wet.
+- **Table** (V_p of the mains after the fix; Extra/Pitts were 38/36 before it; "over" = pitch < −30° or a prop strike;
+  last column at the minimum ski speed: deepest tyre immersion, wheel g mean/peak, pitch range):
+
+| type | V_p kt | min ski kt | speed kt: 2°/6°/10° (H hold 10 s, O over at t s, S slowed >30 %, A airborne) | at min ski (best att): immersion m, wheel g mean/peak, pitch |
+|---|---|---|---|---|
+| aircam | 36 | 35 | 20:O1.1/O2.0/O1.7 25:O3.0/O3.0/O2.8 30:O4.5/O4.7/O4.4 35:H/H/H 40:H/H/H 45:H/H/H 50:H/H/A | 2°: 0.12, 0.48/1.37, 2..4° |
+| boeing-737 | 129 | 190 | 110:S/S/S 115:S/S/S 120:S/S/S 125:S/S/S 130:S/S/S 135:S/S/S 140:S/S/S 145:S/S/S 150:S/S/S 155:S/S/S 160:S/S/S 165:S/S/S 170:A/S/S 175:A/S/A 180:A/S/A 185:A/S/A 190:A/H/A 195:A/H/A 200:A/H/A | 6°: 0.15, 0.30/0.56, 3..6° |
+| c172 | 55 | 50 | 40:O0.2/O0.3/O1.6 45:O5.6/O4.6/O5.8 50:H/O8.3/H 55:H/H/H 60:H/H/H 65:H/H/A 70:H/H/A | 2°: 0.12, 0.85/1.61, 0..2° |
+| cassutt-f1 | 25 | 30 | 15:O0.1/O0.2/O0.3 20:O0.1/O0.2/O0.3 25:O0.1/O0.2/O0.3 30:O0.1/H/H 35:O0.2/H/H 40:O0.2/H/H 45:O0.2/H/H 50:O0.2/H/S 55:O0.2/H/O6.1 60:O0.2/H/O5.5 65:O0.2/H/O7.2 | 6°: 0.14, 0.60/1.44, 6..8° |
+| cirrus-sr22 | 52 | 60 | 35:O0.1/O0.2/O0.3 40:O0.1/O0.2/O0.3 45:O0.1/O0.2/O0.6 50:O0.1/O0.2/O0.7 55:O0.1/O0.3/O0.8 60:O0.1/H/O1.1 65:O0.1/H/O2.0 70:O0.1/H/S 75:O0.1/H/S 80:O0.1/H/O3.7 85:O0.1/H/S | 6°: 0.12, 0.45/1.25, 5..6° |
+| dc3 | 144 | none | 125:A/A/A 130:A/A/A 135:A/A/A 140:A/A/A 145:A/A/A | - |
+| decathlon-8kcab | 38 | 35 | 20:O0.4/O0.5/O0.5 25:O0.5/O0.7/O0.8 30:O0.7/O2.0/O4.3 35:O2.9/H/H 40:H/H/H 45:H/H/H 50:H/H/H 55:H/H/H 60:H/H/A | 6°: 0.14, 0.59/1.29, 6..8° |
+| dhc2-beaver | 49 | 40 | 30:O0.3/O0.5/O0.9 35:O0.4/O2.8/O2.5 40:O4.5/H/O4.5 45:H/H/O6.8 50:H/H/O9.8 55:H/H/H 60:H/H/H 65:H/H/H 70:H/H/A 75:H/H/A 80:H/A/A | 6°: 0.18, 0.56/1.27, 6..9° |
+| extra-300 | 49 | 50 | 30:O0.3/O0.4/O0.4 35:O0.3/O0.4/O0.4 40:O0.3/O0.4/O0.5 45:O0.3/O0.5/O0.6 50:O0.4/O0.6/H 55:O0.4/H/H 60:O0.5/H/H 65:O1.7/H/H 70:H/H/H 75:H/H/A 80:H/H/A | 10°: 0.17, 0.29/0.97, 6..10° |
+| f86-sabre | 111 | 100 | 95:S/S/S 100:H/H/H 105:H/H/H 110:H/H/H 115:H/H/H 120:H/H/H 125:H/H/H 130:H/H/H 135:H/H/H 140:H/H/H 145:H/H/H 150:H/H/H 155:H/H/H 160:H/H/H 165:H/H/A 170:H/H/A 175:H/H/A | 2°: 0.23, 0.97/1.91, 0..2° |
+| geebee-r2 | 48 | 55 | 30:O0.1/O0.2/O0.3 35:O0.1/O0.2/O0.3 40:O0.1/O0.2/O0.3 45:O0.1/O0.2/O0.4 50:O0.1/O0.2/O0.6 55:O0.1/O0.2/H 60:O0.1/O0.8/H 65:O0.1/H/O9.7 70:O0.1/H/O7.8 75:O0.1/H/O5.8 80:O0.1/H/O3.4 85:O0.1/O9.2/O5.6 90:O0.1/O7.2/O6.5 95:O0.1/O4.6/O7.6 100:O0.1/O4.5/O8.6 | 10°: 0.13, 0.27/1.13, 7..10° |
+| glasair3 | 44 | 60 | 25:O0.1/O0.2/O0.3 30:O0.1/O0.2/O0.3 35:O0.1/O0.2/O0.3 40:O0.1/O0.2/O0.4 45:O0.1/O0.2/O0.5 50:O0.1/O0.2/O0.7 55:O0.1/O0.2/O0.9 60:O0.1/O0.2/H 65:O0.1/O0.3/H 70:O0.1/O0.6/H 75:O0.1/O0.7/H 80:O0.1/H/O9.9 85:O0.1/H/O7.8 90:O0.1/H/O5.4 95:O0.1/H/O5.7 100:O0.1/H/O7.3 105:O0.1/O9.9/O8.8 110:O0.1/O6.7/A | 10°: 0.09, 0.44/1.07, 5..10° |
+| great-lakes | 38 | 40 | 20:O0.4/O0.4/O0.5 25:O0.4/O0.5/O0.5 30:O0.5/O0.7/O0.6 35:O0.8/O8.2/O1.1 40:H/H/H 45:H/H/A 50:H/A/A | 2°: 0.13, 0.40/0.97, 1..3° |
+| j3-cub | 31 | 30 | 15:O0.3/O0.4/O0.5 20:O0.4/O0.6/O0.9 25:O1.0/O2.1/O3.2 30:O3.7/H/H 35:H/H/H 40:H/H/H 45:H/H/H | 6°: 0.10, 0.61/1.15, 6..7° |
+| jn4-jenny | 39 | 30 | 20:O0.5/O0.8/O0.8 25:O2.5/O3.6/O3.7 30:H/H/H 35:H/H/H 40:H/H/A | 2°: 0.13, 0.44/1.05, 2..10° |
+| p51d | 91 | 75 | 75:O0.6/H/H 80:O1.4/H/H 85:H/H/H 90:H/H/H 95:H/H/H 100:H/H/H 105:H/H/H 110:H/H/H 115:H/H/S 120:H/H/A | 6°: 0.24, 0.64/1.22, 4..6° |
+| pa18-bush | 25 | 25 | 15:O0.5/O0.6/O0.7 20:O0.9/O1.6/O1.9 25:O3.0/O9.4/H 30:H/H/H 35:H/H/H 40:H/H/H 45:H/H/H 50:H/H/H 55:H/H/A | 10°: 0.22, 0.62/1.26, 10..13° |
+| pa18-cub | 38 | 35 | 20:O0.3/O0.4/O0.5 25:O0.3/O0.5/O1.0 30:O0.8/O2.4/O3.8 35:O4.0/H/H 40:H/H/H 45:H/H/H 50:H/H/H 55:H/H/A | 6°: 0.13, 0.55/1.17, 6..7° |
+| pa25-pawnee | 40 | 30 | 25:O0.2/O0.3/O1.2 30:O0.2/H/O3.1 35:O0.2/H/O7.3 40:O0.2/H/H 45:O0.2/H/H 50:H/H/H 55:H/H/A 60:H/A/A | 6°: 0.17, 0.45/1.12, 5..7° |
+| pa28-archer | 44 | 45 | 25:O0.2/O0.2/O0.3 30:O0.2/O0.2/O0.3 35:O0.2/O0.2/O0.3 40:O0.2/O0.3/O1.8 45:O0.2/O6.5/H 50:O0.2/H/H 55:O0.2/H/H 60:O0.2/H/H 65:O0.2/H/O1.1 70:H/H/O1.5 | 10°: 0.09, 0.66/0.98, 5..10° |
+| pitts-s2b | 42 | 45 | 25:O0.3/O0.3/O0.3 30:O0.3/O0.4/O0.4 35:O0.3/O0.4/O0.5 40:O0.4/O0.6/O1.0 45:O0.5/H/H 50:O0.8/H/H 55:H/H/S 60:H/H/O7.6 65:H/H/A 70:H/H/A | 6°: 0.15, 0.34/1.01, 6..9° |
+| seminole | 55 | 75 | 40:S/S/S 45:S/S/S 50:S/S/S 55:S/S/O7.9 60:S/S/S 65:S/S/S 70:S/S/S 75:S/H/S 80:H/H/S 85:H/H/O4.5 | 6°: 0.08, 0.53/0.76, 3..6° |
+| stearman-pt17 | 46 | 35 | 30:O0.3/O0.7/O1.9 35:O0.7/O5.6/H 40:O7.7/H/H 45:H/H/H 50:H/H/H | 10°: 0.11, 0.38/0.85, 8..10° |
+| target-drone | 25 | 30 | 15:O0.1/O0.2/O0.3 20:O0.1/O0.2/O0.3 25:O0.1/O0.2/O0.3 30:O0.1/H/H 35:O0.2/H/H 40:O0.2/H/H 45:O0.2/H/H 50:O0.2/H/H 55:O0.2/H/O6.9 60:O0.2/H/O5.1 65:O0.2/H/O7.0 | 6°: 0.14, 0.59/1.44, 6..8° |
+
+- **Root cause of the Extra/Pitts failures above V_p:** `WheelHydro.Force` never reads the pressure; the most a tyre can
+  lift is ½ρV²·C·b·r (front arc at the axle). At V_p that is p·b·r, so V_p is the speed at which the water can carry
+  the static load only if load/p ≤ b·r. Extra 3,748 N per main at 18 psi needs 47 in² against 28 in² (b·r);
+  Pitts 3,243 N at 16 psi against 34 in². **Fix:** `WheelHydro.TirePressurePsi` is held to
+  `FootprintFloorPsi = StaticLoadN / (b·r)` (static share from the moment balance of mains vs nose/tail). Book figures
+  and the weight rule stand wherever they are physically possible (every other type). The force law is unchanged, so
+  every number in the table is the same before and after; only the Extra's and Pitts' V_p column moved.
+- **Tests:** `NoTyreIsBlownBelowWhatCarriesItsLoadSoEveryTyreCanCarryItAtVp` (literals by hand: Extra 29.8 psi/49.1 kt,
+  Pitts 21.4, PA-18 18, 172 38/29, J-3 12.2; every leg of every wheeled type: static dig-in ≤ V_p);
+  `ASmallTyredAerobatGoesOverBelowItsVpAndSkisAboveIt` (Extra 45 over / 55 holds; Pitts 40 / 45);
+  `AboveVpTheExtraStillGoesOverNoseLowBecauseTheDragMomentWins` (60 kt: 6° skis, 2° over, wheel g > 2×).
+  WheelHydro/WheelWater/WaterSki/WaterBreakup: 46 of 48 pass; the 2 reds (SR22, Glasair light touch, prop strike) fail
+  identically on HEAD d0e4dd89 in a clean worktree.
+- **Not done:** no cut-off at V_p for the sub-V_p skiing (NEEDS YOU 3); low prop clearances and the DC-3's 255 psi are
+  config questions (NEEDS YOU 4, 5). 737 and Seminole "slowed" at 40 % power: not enough thrust against the water drag
+  at that setting, not a nose-over.
+- **Build:** deploy.sh's two steps into lane-private /private/tmp/wh-ios and /private/tmp/wh-dd, started only once no
+  Unity/xcodebuild was running (waited out c172-yoke's): parity OK, Unity iOS export 0 `error CS`, xcodebuild
+  `** BUILD SUCCEEDED **`, 2026.1104.1624. Not installed. Reverted, not committed: the bundleVersion bump and the same
+  16 StreamingAssets/aircraft re-copies as the 11:30 entry.
+### 2026-11-04 11:30 PST — Claude · lane/claude-wheel-hydroplane · float hydrodynamics spec (Ty, agent-lanes/float-hydro-spec.txt)
+- **Merged lane/claude-island-nav (b7d1a680) into this lane** (only AGENT-LOG conflicted: both sides kept). It brought
+  the drawn, retractable water rudder (lane/claude-j3-water-rudder), the crash/contact-patch work and an intermediate copy
+  of my float fix.
+- **The model already is the spec's element model, so it was reused, not rewritten:** FloatHydro cuts each float into
+  ~30 drawn stations against the instantaneous water plane, each with its own immersion, velocity (v + ω×r) and section:
+  buoyancy at each station's centroid; Savitsky planing on the forebody at its centre of pressure and on the afterbody in
+  the step's wake (Savitsky & Morabito); ITTC friction over the station girths (wetted length from the cuts, so it moves
+  with trim, speed and load); Michell wave drag; whisker spray; slender-body side force U∂(m′v)/∂x plus crossflow at each
+  station's own position (the keel lateral elements); each float at its own offset; the drawn water rudder. WheelHydro is
+  the same idea for tyres (planing pressure on the wetted arc, per wheel at its position), kept as its own class.
+- **What the tests show, all emergent (FloatHandlingTests, HydroJ3Tests):**
+  - Hump 1,219 N (0.21 W) at 14.6 mph, on the step at 21.2 mph, unstick 48.5 mph after 20 s / 751 ft; drag on the step
+    falls to 24 N before unstick (new assert in TheWaterRun…).
+  - Step vs heel: held at 12° the heels plough (stern 0.31 m deep at 3 m/s), the hump is ~19 % higher (planing pressure
+    drag L·tanτ 400–485 N vs 280–305) and it gets on the step 3.2 s later. Delayed, not never: 85 hp has the margin.
+  - Porpoise: 2° held on the step swings 6.7° (lower limit); 9° steady (1.3°).
+  - Water loop: the water's side-force centre for a ±3° slip is 0.95 m BEHIND the CG at 6° (dN/dβ +209 N·m/deg) and
+    1.14 m AHEAD at ~0° (−1,037): a 3° slip kick nose-low turns the nose 17° away in 6 s; at 6° it moves 1.5°.
+  - Twin floats: drifting right at 1.5 m/s it heels 5.1° right, the right float 0.386 m deep against 0.217.
+  - Water rudder: full pedal swing at 3 m/s 856 N·m down, 108 hooked, 0 at 5.5 m/s (see NEEDS YOU 1).
+  - Weathervaning: no added torque anywhere — the stable dN/dβ above is the floats; the fin adds its own.
+- **Test changes:** J3FloatsWaterTests.FullRudderOnATaxi… asserts "no speed-up in a turn" only in still air: in the 15 kt
+  wind the turn swings it downwind and the wind's push raises its water speed (+0.37 m/s island-nav, +0.61 here) — real.
+- **Regression (the 19 water/gear/float classes + FloatLanding, WheelWater, WaterSki, FloatHandling, J3WaterRudder):**
+  island-nav b7d1a680 21 failed / 191; this branch 17 / 199. New on the branch: none. Fixed: FloatLanding 0.5 m/s,
+  HydroJ3 porpoise 2°, J3FloatsWater landing, WheelHydro shallow Cub. Both: 10 Alaska + 2 WheelSki (world), the 3 rudder
+  tests (NEEDS YOU 1), SR22/Glasair prop strike (NEEDS YOU 4). No crash/wreck file edited (lane/claude-crash-tuning).
+- **Build:** deploy.sh's two steps by hand into lane-private /private/tmp/wh-ios and /private/tmp/wh-dd (no other
+  Unity/xcodebuild running): Unity iOS export 0 `error CS`, xcodebuild `** BUILD SUCCEEDED **`, 2026.1104.1106. Not
+  installed. Reverted, not committed: the ProjectSettings bump, and the build's copy of 16 configs/aircraft files into
+  unity/Assets/StreamingAssets — **island-nav's tracked StreamingAssets copies lag configs/ by 16 files** (strut stations,
+  stab heights from the crash/contact lanes); every build re-copies them, so the shipped app is right, but the tracked
+  copies want a sync commit by whoever owns them. tools/check-parity.sh: PARITY OK.
+### 2026-11-04 10:30 PST — Claude · lane/claude-wheel-hydroplane · water skiing: taildraggers ski, the 172 digs in
+- **Root cause of the J-3 flip on water contact** (fixed in 325b367e, not re-done): the old WheelHydro held the wheel up
+  by speed alone — support = static load·(V/V_p)², whatever the depth — so contact was a step of up to the whole weight;
+  below V_p the support vanished and the wheel sank to 2r, where a plough drag of ½ρV²·0.9 on the immersed frontal area
+  (several kN at 25 kt, more than 1 g) acted at the tyre bottom, well below the CG — an instant nose-over. And the water
+  branch put the tyre bottom a radius below the gear point (the ground code's contact point). Now the flip, where it
+  happens, emerges: planing pressure on the wetted arc (C = 0.643 from 9√psi), lift ∝ wetted planform, drag ∝ immersed
+  height, per wheel at its own position, through the leg spring. No scripted flip, no gear-type outcome anywhere.
+- **New tests (WaterSkiTests, beside WheelWaterTests):** AJ3SkisOnItsMainsTailUp at 45 and 50 kt (2° held, 40 % power:
+  no nose-over, 99 % on the water, ≤ 6 % speed lost); ATricyclesNoseWheelDigsInWhereTheJ3Skis (numbers in NEEDS YOU; the
+  forward wheel is found from the geometry). The slow-down dig-in and the tail-down delay are the existing
+  WheelWaterTests.SlowingBelowThePlaningSpeed… The test helper now records each wheel's peak immersion and detects water
+  contact itself. WheelHydroTests + WheelWaterTests + WaterSkiTests: 39 + 3 passed.
+- **No src change in this entry**, so no new build (the src state is 9c5fa54c, iOS 2026.1103.2246 ** BUILD SUCCEEDED **).
+  tools/check-parity.sh (island-nav's copy): PARITY OK; its hook is a no-op on this branch. No crash/wreck file touched
+  (lane/claude-crash-tuning is in them).
+### 2026-11-05 00:15 PST — Claude · lane/claude-tire-spinup · Q026 item 3 findings, merge and installs (Ty approved 20:25)
+- **Item 3, no physics change:** the P-51 and Swift findings are in NEEDS YOU "Q026 ITEM 3" and in Q043.
+  - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)` now asserts a load-based break-up (green).
+  - The P-51 rollout test is still red: the arrival is a fast wheel landing that bounces. It bounced at the branch
+    point too.
+- **Merges:**
+  - island-nav e87b8660 (ContactEffects: took the shared CrashDust table; CrashDust gives Dirt/Sand gravel's dust;
+    AGENT-LOG: both sides).
+  - quest-islandnav f294f7b3.
+  - The 34 leftover StreamingAssets/aircraft files in each merge worktree were set aside and put back
+    byte-identical. Backups: agent-lanes/backups/tire-spinup-merge-20261104-2219 and -quest-20261104-2220.
+    ProjectSettings was untouched.
+  - Parity `--strict`: OK. Run it with bash: under zsh, the script's `read -r path` clobbers PATH.
+- **Tests on the merged tree** (TyreWear, WheelSpin, CrashDust, CrashReset, WheelWater, GroundSound): 65/67.
+  - The 2 failures are SR22/Glasair water prop strikes, red at the branch point and fixed by
+    lane/claude-wheel-hydroplane 4bbfe5b5 (not yet merged).
+  - No full-suite run on the merged tree: other lanes were building the whole time (CLAUDE.md, one run at a time).
+- **iOS:** 2026.1104.2251 from island-nav 6f0e3f74 (it also carries the Cardboard VR merge). `** BUILD SUCCEEDED **`,
+  0 `error CS`, PARITY OK. Installed and launched on the iPhone and the iPad mini.
+- **Quest:** 2026.1105.0007 from quest-islandnav 6a28752b. 0 `error CS`, PARITY OK, no override. Installed and
+  launched on the 3S (340YC10GBK0TYV).
+  - Logcat shows a pause and an "Activity stop timeout" 11 s after launch, which reads as the headset not being worn.
+- **Next:** the skid/ice addendum, when Ty sends it.
+
 ### 2026-11-04 21:55 PST — Claude · lane/claude-tire-spinup · tyre wear, burst and flat tyres (Ty Q026 item 1, 20:21)
 - **Core (shared):**
   - New `TyreWear.cs`: 72 tread strips, Archard/Schallamach wear with a flash-temperature abradability, a surface
@@ -3943,6 +4241,22 @@ Analysis only, no physics or audio code changed. I added `docs/TIRE-SPINUP-AND-G
   coverage images, `*_stats.txt`, and `contact_sheet.png` (3 columns × 5 rows). Regenerate:
   `Unity -batchmode -quit -projectPath unity -executeMethod FlyingGame.EditorTools.SmokeAgeRender.Render -smokeTag after`.
 - Gliders' canister stream: life 14–18 → 30–45 s, density law unchanged.
+- **Merged and installed (2026-11-04):** lane/claude-smoke-volume `f42a15ff` → lane/claude-island-nav `662e1b5e`
+  (AGENT-LOG/CLAUDE.md conflicts only, both sides kept) → lane/claude-quest-islandnav `95b71cca` (by merging
+  island-nav, as the parity hook asks). `tools/check-parity.sh`: PARITY OK on both. Leftover build files in both
+  worktrees untouched.
+  - iOS `2026.1104.2107` from claude-island-nav-merge: `deploy.sh` `** BUILD SUCCEEDED **`, 0 `error CS`, installed
+    and launched on **Ty's iPhone** (00008150-001629A83662401C) and **iPad mini** (00008130-001230A92678001C).
+  - Quest `2026.1104.2141` from claude-quest-islandnav: `deploy-quest.sh` exit 0, 0 `error CS`, `adb install`
+    Success and launched on the **Quest 3S** (340YC10GBK0TYV); the headset was asleep at launch. Another lane's
+    Unity batch (claude-tire-spinup) started one second after this build did and ran alongside it.
+  - ProjectSettings bundleVersion bumps not committed.
+- **Suite: NOT a complete run.** `dotnet test tools/FlightTests` on this lane was stopped by the 2 h tool limit
+  before it finished (machine loaded with other lanes' suites and builds); 72 failures by then, all world/terrain/
+  nav/ground classes (Alaska, RegionalAtmosphere, NavProcedure, GlacierLandingZone, ...), none smoke-, exhaust- or
+  airflow-related, and not compared with the base by name. Run alone: ExhaustPulse/ExhaustJet/AirframeFlow/Smoke/
+  StreamingAssets/AircraftConfig 69 / 71 pass; the 2 failing, `StreamingAssetsTests.EveryGeneratedPathIsIgnored` and
+  `NothingGeneratedIsCommitted`, fail identically on the branch point aeb9695a. A full by-name comparison is still owed.
 
 ### 2026-11-04 18:36– PST — Claude · lane/claude-kill-red-233 · kill red 2-33 (Ty 18:35, "delete it permanently")
 - **Why it kept coming back.** The red-and-white 2-33 had two sources. (a) The procedural trainer (red fuselage, cream
@@ -5037,9 +5351,11 @@ WingAileronBreakup), 350 tests:
   CrashRelay, not a prop strike. Separately, in water shallower than the float's draft the float keels meet the BED
   under land rules (a lake edge 0.6 m deep at 3.5 m/s sink lost both floats as "gear") — not changed, noted. Island lakes
   are 3–50 m deep at centre and both authored seaplane lanes are 3.0 m deep everywhere.
-- **Fix (FloatHydro):** planing τ from the wetted keel chord when it is steeper than the keel line. **Aircraft:** the
-  floats' added mass is initialised from the starting state; float water load (FloatHydro forces + the added-mass slam
-  impulse) against the 23.527 ultimate → FloatFlooding puncture at the step compartment + DamageLog line.
+- **Fix (FloatHydro):** at negative keel-line τ only, τ ramps over 1° to the wetted keel chord (a first version used the
+  chord at all trims and killed the validated 2° porpoise in HydroJ3Tests and made the step taxi porpoise; caught by
+  the base/branch diff, fixed). **Aircraft:** the floats' added mass is initialised from the starting state; float water
+  load (FloatHydro forces + the added-mass slam impulse, averaged over 20 ms) against the 23.527 ultimate →
+  FloatFlooding puncture at the step compartment + DamageLog line.
 - **Wheels on water (WheelHydro rewritten):** uniform planing pressure ½ρV²·C on the wetted front arc → lift
   ½ρV²C·b·l_f, pressure drag ½ρV²C·b·h (L·tanτ planing, ventilated plough when deep), C = 0.643 from 9√psi; buoyancy of
   the immersed segment, ITTC friction, heave damping (incidence w/V + C_D 1.2 cross-flow). No static-load input and no
@@ -5057,10 +5373,21 @@ WingAileronBreakup), 350 tests:
 - **Boundary with lane/claude-crash-physics:** that lane is the Unity debris drawing (AirframeVisual/DebrisMesh) and
   piece momentum; this lane changed only water contact forces and water triggers (FloatHydro, WheelHydro, LandingGear
   water branch, the float water-load check). No overlap. A prop blade touching water still bends at 0.15 m/s closing.
-- **Tests (new/changed):** FloatLandingTests (normal J-3 landings 100/200/300 fpm on the step and off it; fast flat
-  touchdown; threshold 2.2 vs 5.0 m/s; step taxi 35 mph — pitch range 4.9°; every float type), WheelWaterTests (every
+- **Tests (new/changed):** FloatLandingTests (normal J-3 landings 100/200/300 fpm on the step and off it, wings held
+  level; fast flat touchdown; threshold 2.2 vs 5.0 m/s; step taxi 35 mph at a 7° attitude — pitch 5.6..5.7°; every float
+  type: J-3, PA-18, Beaver, AirCam amphib, H-4 — clean), WheelWaterTests (every
   wheeled type light touch, peak < 1 g, nothing broken; J-3 skim; dig-in and tail-down delay; not-instant-stop),
   WheelHydroTests rewritten where they pinned the old (V/V_p)² support. Codex: nothing to polish here.
+- **Regression:** the full suite on base did not finish (the session running it ended; no trx). Instead, every class
+  that exercises water, float or wheel contact — CrashWater, Breakup, Displacement, FlyingBoat, Float, FloatTaxiRudder,
+  HydroJ3, J3FloatsWater, SprayField, FuelSlick, FlatWaterHook, WheelHydro, WheelSki, LandingGear, GroundLoop,
+  Tailwheel, Alaska, FloatsOnLand, AirframeContact — on base ce53d62e and on this branch: base 16 failed / 139; branch
+  14 failed / 182 (with the new classes). New on the branch: none. Fixed: CrashWaterTests.AnIntactDitchingFloatsFar…,
+  WheelHydroTests.ACubSkims…. The 14 left fail on base too (11 Alaska, 2 AirframeContact, 2 WheelSki — world/terrain,
+  not water). The whole suite was NOT run on the final code: say so before merging.
+- **Build:** deploy.sh's own two steps by hand, into lane-private paths (/private/tmp/wh-ios, /private/tmp/wh-dd — not
+  the shared flyinggame-dd): Unity iOS export 0 `error CS`, xcodebuild `** BUILD SUCCEEDED **`, 2026.1103.2246. Not
+  installed (instructed: no deploy). ProjectSettings/GraphicsSettings changes from the build reverted, not committed.
 ### 2026-11-03 — Claude · lane/claude-frank-church-valleys (off island-nav ce53d62e) · the Frank Church strips down in their valleys
 **Pending Ty's approval of the renders; not merged; nothing installed.**
 - **Why they were on mesas.** On the island the nine strips are pinned anchors (`backcountry_strips`) at 4,400–5,000 ft,
@@ -9045,6 +9372,7 @@ Straight-on before/after views use the same centre/projection, 2400×1800 and 0.
 ## 2026-10-31 — lane/codex-iac-pitts: round 3 Extra upper card / Great Lakes eye evidence
 
 ### NEEDS YOU
+
 
 #### Great Lakes rear eye review — Ty to judge
 
