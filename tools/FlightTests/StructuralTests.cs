@@ -112,7 +112,9 @@ public class StructuralTests
         Assert.True(maxN > ac.Structure.UltimatePosG, $"Pull never exceeded ultimate ({maxN:F2} g).");
         Assert.True(ac.Structure.WingsFailed, "Sustained load past ultimate must separate the wings.");
         Assert.Equal(1, fired);
-        Assert.InRange(ac.MassProperties.MassKg / ac.Config.Mass.MassKg, 0.7, 0.8);   // ~12 % per wing gone
+        // ~12 % per wing gone — and at 28 g the engine mount (2.0 × 10 g, Ty 2026-11-05: no weight allowance) and the
+        // tail have gone with them, so at most that much is left.
+        Assert.True(ac.MassProperties.MassKg / ac.Config.Mass.MassKg <= 0.8, $"{ac.MassProperties.MassKg:F0} kg left");
         Assert.True(ac.MassProperties.Ixx < 0.5 * ac.Config.Mass.Inertia.Ixx, "Roll inertia must drop with the wings.");
         Assert.Equal(0.0, ac.Structure.OverLimitSeverity);   // nothing left to groan
 
@@ -179,7 +181,7 @@ public class StructuralTests
         {
             sim.RunFor(0.1, ControlInputs.Neutral);
             Assert.Equal(0.0, ac.Structure.OverLimitSeverity);
-            Assert.Equal(0.0, ac.Structure.OverUltimateDwellSec);
+            Assert.Equal(0.0, ac.Structure.Wings.SetRad);
             Assert.False(ac.Structure.WingsFailed);
             Assert.InRange(ac.LoadFactorZ, 0.5, 1.5);
         }

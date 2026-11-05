@@ -56,6 +56,12 @@ public sealed class WingPanel
     /// <summary>The ELASTIC rotation of the panel about its station under the contact force right now, rad (+ = tip up):
     /// the tip's flex F/k_w, as a cantilever's tip slope 1.5·δ/L. It comes off with the load; <see cref="BendRad"/> stays.</summary>
     public double ElasticRad;
+    /// <summary>The wings' permanent overstress set, rad (+ = tip up; Ty's overstress pattern, StructuralState.Wings): part
+    /// of <see cref="BendRad"/>, which is the hinges' set plus this.</summary>
+    public double OverstressSetRad;
+    /// <summary>The wings' flex under the load factor right now on top of their set, rad (+ = tip up): what the panel flies
+    /// and is drawn at beyond <see cref="BendRad"/>. It comes off with the load.</summary>
+    public double FlightFlexRad;
     /// <summary>Largest contact bending moment the station has carried, N·m (tests / probe).</summary>
     public double PeakContactNm;
 
@@ -140,7 +146,7 @@ public sealed class WingPanel
 ///
 /// BENT PANEL (Ty 2026-11-05, replacing the 11-03 rule of a 5° set that snapped past 15° / 2 g: "the airplanes are all
 /// like porcelain dolls … we need a lot more bends before it breaks"). The station is a pair of PLASTIC HINGES
-/// (<see cref="PlasticHinge"/>), one in bending (tip up/down, yield at the limit moment, peak at the ultimate) and one in
+/// (<see cref="PlasticHinge"/>), one in bending (tip up/down, yield at 1.5 × the limit moment, peak at the ultimate) and one in
 /// torsion (nose up/down about the flexural axis, <see cref="MemberMaterials.UltimateTorqueNm"/>), each on its
 /// construction's backbone (<see cref="MemberMaterials"/>): elastic below yield; plastic with a permanent set beyond it;
 /// past the peak cracked or buckled, carrying less each time it is pushed further; off only when its accumulated plastic
@@ -317,6 +323,7 @@ public static class WingStructure
         double g = Atmosphere.GravityMs2, w = c.Mass.MassKg;
         double gMax = c.Limits.GMax > 0 ? c.Limits.GMax : 3.8;
         double uf = c.Limits.UltimateFactor > 0 ? c.Limits.UltimateFactor : 1.5;
+        double groan = c.Limits.GroanFactor > 1.0 ? c.Limits.GroanFactor : 1.0;
         double kgPerM2 = structureScale * Wreck.WaterPhysics.RaymerWingKgPerM2;
         double strength = c.ImpactStrength > 0 ? c.ImpactStrength : 1.0;
         foreach (WingPanel p in panels)
@@ -373,9 +380,12 @@ public static class WingStructure
             if (h > 0 && len > 0) p.TipStiffnessNPerM = 3.0 * (p.UltimateNm * h / (2.0 * SparSigmaOverE)) / (len * len * len);
             p.Construction = MemberMaterials.Of(c);
             HingeLaw law = MemberMaterials.Law(p.Construction);
-            p.Bending = new PlasticHinge(p.LimitNm, p.UltimateNm, law);
+            // Permanent deformation begins past 1.5 × the limit (Ty 2026-11-05 overstress pattern; Limits.GroanFactor):
+            // below it the panel is elastic, on the ground as in the air.
+            double yieldNm = System.Math.Min(groan * p.LimitNm, p.UltimateNm);
+            p.Bending = new PlasticHinge(yieldNm, p.UltimateNm, law);
             double tu = MemberMaterials.UltimateTorqueNm(p.Construction, p.UltimateNm, p.StationChord, len);
-            p.Twisting = new PlasticHinge(tu * p.LimitNm / p.UltimateNm, tu, law);
+            p.Twisting = new PlasticHinge(tu * yieldNm / p.UltimateNm, tu, law);
             p.StrengthKnown = true;
         }
     }
