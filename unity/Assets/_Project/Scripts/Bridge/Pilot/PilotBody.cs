@@ -73,6 +73,48 @@ namespace FlyingGame.Bridge
             }
         }
         private bool _firstPerson;
+        /// <summary>The crash killed him (Core PilotOutRules.GhostAscends): drawn translucent, lifted at
+        /// <see cref="FlyingGame.Core.PilotOutRules.GhostLiftG"/> against his weight, and he never lands — he goes up.</summary>
+        public bool Ghost { get; private set; }
+
+        /// <summary>Make him (and his canopy, when it comes) a ghost. Every renderer under him gets a translucent copy of
+        /// its own colour, paled toward a blue-white; the materials are his own, so nothing shared is touched.</summary>
+        public void SetGhost()
+        {
+            if (Ghost) return;
+            Ghost = true;
+            GhostRenderers(_root);
+            if (Chute != null) Chute.SetGhost();
+        }
+
+        /// <summary>Swap every renderer's materials under <paramref name="root"/> for translucent ghosts of them.</summary>
+        internal static void GhostRenderers(GameObject root)
+        {
+            if (root == null) return;
+            var made = new System.Collections.Generic.Dictionary<Material, Material>();
+            float alpha = (float)FlyingGame.Core.PilotOutRules.GhostAlpha;
+            var pale = new Color(0.85f, 0.92f, 1f);
+            foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    Material m = mats[i];
+                    if (m == null) continue;
+                    if (!made.TryGetValue(m, out Material g))
+                    {
+                        Color c = m.HasProperty("_Color") ? m.color : m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor") : Color.white;
+                        c = Color.Lerp(c, pale, 0.55f);
+                        c.a = alpha;
+                        made[m] = g = EgressAir.Transparent(c);
+                    }
+                    mats[i] = g;
+                }
+                r.sharedMaterials = mats;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
         /// <summary>Non-gravitational acceleration last step (drag, the opening shock), in g.</summary>
         public float AeroAccelG => _lastAero.magnitude / EgressAir.G;
         public Transform Transform => _root.transform;
@@ -149,10 +191,12 @@ namespace FlyingGame.Bridge
         {
             if (Chute != null || Landed) return;
             Chute = new Parachute();
+            if (Ghost) Chute.SetGhost();
             Vector3 vRel = Velocity - EgressAir.Wind(Position);
             // The bag streams straight downstream of the pilot; the pendulum then brings the canopy overhead
             // as the pilot decelerates and the flight path turns vertical.
-            _hang = vRel.magnitude > 1f ? -vRel.normalized : Vector3.up;
+            _hang = Ghost ? Vector3.up : vRel.magnitude > 1f ? -vRel.normalized : Vector3.up;   // a ghost's goes up first
+
             _hangVel = Vector3.zero;
             Vector3 vh = new Vector3(Velocity.x, 0f, Velocity.z);
             if (vh.magnitude > 2f) HeadingDeg = Mathf.Atan2(vh.x, vh.z) * Mathf.Rad2Deg;
@@ -176,8 +220,10 @@ namespace FlyingGame.Bridge
             float m = MassKg + (HasSeat ? SeatMassKg : 0f);
             Vector3 v0 = Velocity;
 
-            // Gravity + seat rocket (frozen rail direction).
+            // Gravity + seat rocket (frozen rail direction). A ghost is lifted against his weight (net up): the drag of
+            // his canopy, the same drag that would have let him down at 5 m/s, now sets how fast he rises.
             Velocity += Vector3.down * (EgressAir.G * dt);
+            if (Ghost) Velocity += Vector3.up * ((float)FlyingGame.Core.PilotOutRules.GhostLiftG * EgressAir.G * dt);
             if (_rocketT < RocketBurn2Sec)
             {
                 float g = _rocketT < RocketBurn1Sec ? RocketG1 : RocketG2;
@@ -248,9 +294,9 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            // Ground / water.
+            // Ground / water. A ghost passes through the wreck and the ground he climbs out of: he does not land.
             float surf = EgressAir.SurfaceHeight(Position);
-            if (Position.y - HalfHeightM <= surf)
+            if (!Ghost && Position.y - HalfHeightM <= surf)
             {
                 Land(surf, wind);
                 return;

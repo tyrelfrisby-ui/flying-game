@@ -114,6 +114,50 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   an approved gate.
 
 ## NEEDS YOU
+- **CRASH SURVIVAL + GHOST BAIL-OUT + REAL CANOPY/DOOR JETTISON (Claude, 2026-11-05 14:50, lane/claude-crash-bailout
+  66bd7c22; your 06:35 + 06:37 + 06:38 requests). iOS `deploy.sh` (NOINSTALL) ** BUILD SUCCEEDED **, 0 error CS;
+  Unity `BailoutHeavenCheck` PASS, 0 error CS. Merged into island-nav + quest-islandnav (see below for the install).
+  Nothing approved by me.** Please fly-check: crash hard and BAIL OUT (ghost goes up); bail out of a Pitts, Extra, 2-33,
+  Grob and 172 in flight AND sitting still. Write-up: `docs/CRASH-SURVIVAL.md`.
+  - **The crash now counts.** Every sim step the seat's measured acceleration (its velocity change over the whole step,
+    less gravity) goes through Brinkley's injury model (NASA-STD-3001 restrained limits), plus the cabin crush the sim
+    already keeps. When he leaves the aeroplane that verdict is frozen; the outcome is the worse of it and the
+    parachute landing. Measured: C172 level flight 1.4 g Unhurt; J-3 prop strike 4.6 g Unhurt; C172 nose-gear-first at
+    4 m/s 18 g Injured; C172 40 m/s 15 m/s down 20 deg nose-low 42 g Dead; Pitts 45 deg dive 209 g Dead. In-flight
+    bail-out unchanged (landing thresholds 6/9/14 m/s).
+  - **Ghost:** fatal crash then BAIL OUT (or eject, or the headset's hands-on exit): translucent pilot and canopy, chute
+    opens by itself 1.2 s out, lifted 1.6 g so the canopy carries him UP (~5 m/s; 188 m in 30 s on the bench),
+    "GONE WEST" + one of three original lines ("Blue skies and tailwinds, Captain. Next stop: the Good Ship Lollipop."
+    etc.). Flat status line on iOS/Mac, world-space text in the headset.
+  - **Real canopy/door, through the canopy physics that already exists (06:37 + 06:38).** The bail-out pulls the red
+    handle, opens the latch and pulls the hinge pins; then `CanopyDynamics` (the headset's own where it has one) decides.
+    In the air it goes at once; the Pitts runs aft past its v2 stop tab and over past its 150 deg hooks (0.9 s). Sitting
+    still (a wreck), his hand shoves it up and over until it is free (0.22 s; Pitts 1.6 s). He jumps only once it has
+    gone. The model's own parts leave the airframe at that moment, flown by `CanopyFlight`, and the aeroplane sheds the
+    mass: Pitts/Extra `Canopy_Detachable`, 2-33 frame+glass+hardware, Grob frame+glass, 172 right door + glass + latch,
+    procedural Cassutt / Glasair III / Swift dome. Nothing for Great Lakes, J-3, PA-18, Jenny, Stearman, AirCam, hang
+    glider, paraglider, cabin types, or downloaded models with no separate canopy (P-51/F-86/SR22/PA-28/EB-29R). The
+    clear stand-in dome is deleted and no DebrisBody path is left. `BailoutHeavenCheck` checks all 35 types flying AND at
+    rest against a hand-copied table (8 lose a part).
+  - **Shared fix:** `FlyingGame/UnlitTransparent` gets the single-pass-instanced stereo macros; without them the Quest
+    draws translucent parts in one eye. Same output on flat screens.
+  - **Questions:** Q085 (dead threshold 1.5x Brinkley high risk), Q086 (measured at the first seat), Q087 (the code now
+    KEEPS the procedural hang glider / paraglider / AirCam / cabin domes on; say if you want otherwise), Q104
+    (NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs is red on island-nav too: its "grob" pattern matches the real Grob 103
+    Acro folder; not changed). The Brinkley limits were entered from memory of the NASA table, not re-read.
+  - Tests: CanopyBailoutTests (8), CanopyEgressTests (6), OccupantInjuryTests, VrBailoutTests green (70 in that filter).
+    The full .NET suite was not run (other lanes building the whole session). lane/claude-bend-damage is not merged
+    yet; a trial merge with this lane is clean.
+<!-- ground-volume needs-you -->
+- **Ty to fly-check the quieter ground contact: ALL GROUND CONTACT −4 dB (Claude, 2026-11-05, lane/claude-ground-volume
+  fa4d96f3; you asked 08:48 "lower all ground contact volume a bit").** One shared gain,
+  `GroundSoundMix.OutputGainDb = −4` (linear 0.630957), on FlightAudio's ground bus (rolling ground voices, tyre squeal,
+  scrub, bearing whir, brake scrape/squeal, worn/flat-tyre thump and slap, burst, water splash/hiss/spray, ski hiss,
+  float keel) and on the airframe-scrape voices (ContactEffects). Pitch, filters and each sound's own balance unchanged;
+  engine, wind, one-shots and crash impacts untouched. Ground/tyre tests 40/40 green; iOS **BUILD SUCCEEDED**
+  2026.1105.0855 (build only, 0 error CS). **NOT merged and NOT installed** on purpose: your 08:50 crosswind note
+  (squeal threshold + fade-in) is queued as the follow-up session in this same lane, and it does the merge into both
+  lanes and the iPhone / iPad mini / Quest installs once, with both changes in. Nothing here is an approved gate.
 <!-- merge-tundra-recorder needs-you -->
 - **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
   05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
