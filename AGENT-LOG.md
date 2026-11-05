@@ -70,6 +70,31 @@ rotation rate". Physics change, approved for merge + install.
   locked), then installed the same .app ~12:05 by the claude-floats session (its report, not re-checked by me).
   Quest **2026.1105.1147** built from quest-islandnav 256e0363 (contains 77e5a3f4), installed 12:04 by claude-floats
   (its report; build stamp confirmed in build/quest.log). Nothing here is an approved gate.
+## NEEDS YOU — EXTRA: no rear diagonals, panel follows dash, compact front IAC (Codex 2026-11-05)
+- **VISUAL REVIEW PENDING; NO MERGE / INSTALL.** Lane `lane/codex-extra-remove-diagonals`, local commits
+  `eccfb4f3` (rear diagonals + panel) and `be7b89c2` (Ty Q070 compact front IAC).
+- Renders: `~/Developer/agent-lanes/renders/cockpit-1105/codex-extra-remove-diagonals/` (rear, Q109),
+  `front-iac-small/` beneath it (new front eye + close-up, Q117). Older oversized front-card images superseded.
+- All three liveries: rear diagonal nodes/meshes/materials/binary geometry deleted; generators cannot recreate them.
+  Rear panel upper shoulders continue the dash's 110:90 bevel with 2 mm inset, top half-width 281.1 mm; lower side
+  attachments retained. No instruments, controls, eyes or physics changed.
+- Q070: FRONT paper 59.37 x 76.84 mm; backing 79.2 x 91.3 mm. All five card parts scaled to 55%, raised 25 mm,
+  kept RIGHT of the 3-gauge subpanel within its unchanged 245..355 mm vertical envelope. Rear card stays half-letter;
+  front/rear selection binding preserved, front card-slot dimensions/centre updated. No panel enlargement.
+- CPU: all 3 graphs valid; passes idempotent; all 214 other mesh nodes unchanged by card edit. Rear/front Blender
+  eyes and close-ups opened and inspected. Initial canopy seal checker PASS, strict parity PASS.
+- Post-change focused Extra checks 24/24 PASS. Selected suite: 28 pass / 1 fail vs pre-visual merge baseline
+  `23b8d72c`: 31 pass / SAME sole fail `NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs` (existing Grob103 filename match).
+  No new failing names; NoRed test unchanged. Exact final bytes restored after baseline comparison.
+- Unity CockpitEyeShots PASS 8/8, 0 error CS; rear iPhone/Quest, both junctions and compact front iPhone/Quest/close-up
+  opened and inspected. Completed editor hung in CoreShutdown -> PreloadManager::Stop after Exit(0); sampled and stopped
+  ONLY own completed editor, then resumed iOS under reserved deploy gate. Existing edit-mode Destroy cleanup messages logged.
+- iOS `2026.1105.1221` (app inputs at `fb191e4e`): ** BUILD SUCCEEDED ** (Unity export 4984 MB / 421 s, Xcode complete 12:32), NOINSTALL,
+  installed on 0 devices. Unity shot/build logs both 0 error CS. Final `check-parity.sh --strict`: PARITY OK.
+  Generated StreamingAssets copies / GraphicsSettings / version + build-number bumps restored only in this worktree.
+- Remaining: Ty's visual review Q109 / Q117. Existing NoRed233 resource-name failure remains RED on both baseline and
+  final state; never weakened. No other-lane worktrees/processes altered, no delivery merge / install / push.
+  EXTRA-REMOVE-DIAGONALS-DONE / EXTRA-FRONT-IAC-SMALL-DONE.
 
 ## NEEDS YOU — J-3 on floats: prop water strikes, the hammering noise, spray volume, the hump (Claude, 2026-11-05)
 <!-- claude-floats needs-you -->
@@ -148,6 +173,76 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
   - Tests: CanopyBailoutTests (8), CanopyEgressTests (6), OccupantInjuryTests, VrBailoutTests green (70 in that filter).
     The full .NET suite was not run (other lanes building the whole session). lane/claude-bend-damage is not merged
     yet; a trial merge with this lane is clean.
+- **SUPERSEDED by Ty's complete removal request (current entry above) — EXTRA 300 REAR DIAGONALS
+  (Ty 2026-11-05 08:37: "in the same plane as the upper longerons ... they go in toward the
+  center") — RENDERS FOR APPROVAL, NOT MERGED, NOT INSTALLED (Claude, 2026-11-05 09:35, lane/claude-extra-cockpit-v3).
+  Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/diagonals/` (rear-eye-iphone,
+  rear-eye-quest, look-left/right along each tube, top-down, measured plan/side before-after). Question Q095.**
+  - Pass 16 `tools/own_models/extra_rear_diagonals.py` (all three liveries): `Tube_P3h_PanelDiagonal_L/R` used to climb
+    from the rail (z 0.20) to the panel's top corners (z 0.345). Now they lie in the upper-longeron (canopy sill) plane,
+    each end at the sill's measured centre height, and run from the sill's inboard face at x -1.55 forward and inboard to
+    the panel face at |y| 0.272. That is only 5-6 cm in, because further in at that height they would cover the oil gauge
+    and the COM head (Q095 asks if that is enough).
+  - Moving the tube uncovered 2 sill faces still in the exterior livery (ExtraCanopySealTests caught it). Repainted only the
+    faces a 0.5 deg ray grid from the rear eye reaches with no glass in front. A denser version of pass 15's sampler also
+    repainted 168 OUTSIDE faces through seams, so I rejected it.
+  - Tests: new `ExtraRearDiagonalTests` (9: the sills match hand-copied literals; every tube vertex lies within the
+    longeron plane +/- (r + 6 mm); the aft end is on the sill; the forward end is >= 6 cm inboard of the sill, converges
+    >= 4 cm, and stays clear of the bezels). Extra/cockpit filter 155/157: the two failures (Pitts ground handling,
+    glider air brake) were already failing on this lane and are listed in the v3 entry below. Clearance: only the sill,
+    frame and hinge it mounts on are within 1 mm; oil bezel 3 mm. Unity CockpitEyeShots batch PASS, 5 shots. GLB/tool/test
+    only (nothing under src/ or configs/), so no iOS deploy run.
+
+- **EXTRA 300 COCKPIT v3 (Ty's 2026-11-05 spec, EXTRA 300 + ADDENDUM canopy gap) — RENDERS FOR APPROVAL, NOT MERGED
+  (Claude, 2026-11-05, lane/claude-extra-cockpit-v3). Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/`
+  (unity/ = seat-eye CockpitEyeShots, blender-wip/ = before/after). Questions Q070-Q072. Nothing installed, nothing approved by me.**
+  - **Canopy "gap" (ADDENDUM):** measured first — not a hole. The glass rim touches the sill/frame/skin everywhere (0.0 mm) and
+    no ray from either eye leaves the airframe. What showed was EXTERIOR livery on the inside: Fuselage_Painted, Canopy_Sill and
+    Canopy_Frame are double-sided with the outside paint, the dark liner stopped 6-13 cm under the sill, and the wing's skin ran
+    straight through the front cockpit. Fixed: Cockpit_SideLiner_L/R up to the glass's lower edge, the rails' visible inner faces
+    in Paint_cabin, Cockpit_DeckLiner, Cockpit_FirewallPlate, Cockpit_AftBulkhead, the Wing clipped at the fuselage (826 inside
+    triangles dropped, 650 root vertices put onto the skin). Gate: `ExtraCanopySealTests` (rim < 3 mm; from both eyes, no ray
+    reaches exterior paint above the floor without glass between, 3 deg grid, all 3 liveries) + `check_extra_canopy_seal.py`.
+  - **Throttles:** idle grip 0.32 m ahead / 0.23 m below / 0.10 m outboard of each seat's left shoulder (SeatedPilot). Rear lever
+    + quadrant 10 cm lower; front lever moved off the top of the left console (knob was level with the sill) to its inboard face,
+    ~26 cm lower, with its own quadrant plate. **Front knob** = plain 38 mm black ball; rear keeps the pistol grip.
+  - **Fuel valve rod** now runs from the rear handle FORWARD past the front handle to a valve body on the firewall (x +0.60);
+    same two handles, same `fuel_valve` param (no logic change).
+  - **Front IAC card** `FrontPanel_SequenceCard_Face` (108 x 140 mm) on a grey plate right of the front sub-panel; merged
+    lane/claude-cockpit-common: its deck binds it ("card on 2 holder(s)" in the shots).
+  - Pass: `tools/own_models/extra_cockpit_v3.py` (pass 15, docs/SHARED-COCKPIT.md). Tests: ExtraCanopySealTests (6),
+    ExtraCockpitV3Tests (12) + CockpitControlInterior / FuelValve / CockpitCommon / BeltsAndCords: 83/83. Wider filter 854 pass,
+    5 fail (Pitts ground handling on the Pitts' assert, Alpine/HighDesert terrain, glider air brake, RigTests config table;
+    plus NoRed233 Resources = the Grob files tracked on the base). None reads the Extra cockpit; NOT re-run on the base commit. Unity shot batch 0 error CS. iOS deploy.sh from a2719f7d (= this lane + cockpit-common): ** BUILD SUCCEEDED **
+    2026.1105.0739, 0 error CS, NOT installed (dummy device id); check-parity --strict OK; build byproducts restored, not committed.
+  - Not done / limits: the shot tool's "moved" pose leaves the throttle at idle, so there is no full-throttle render (clearance
+    through the full 50 deg sweep was measured instead: rear 1.8-3 mm to its console face, front 8-15 mm). The rear-cockpit belly
+    skin is still visible down through the floor-window wells (pass 14; not gated, reported by the check). Codex helper not used.
+
+- **COCKPIT COMMON (Ty's 2026-11-05 spec: IAC CARD SYSTEM, ALL AIRCRAFT, ADDENDUM Cubs) — RENDERS FOR APPROVAL, NOT MERGED
+  (Claude, 2026-11-05 06:05, lane/claude-cockpit-common c0fba85c / b0c35552 / cab6944d). Renders + README:
+  `~/Developer/agent-lanes/renders/cockpit-1105/claude-cockpit-common/`. Write-up: `docs/COCKPIT-COMMON-1105.md`.
+  Phase A iOS ** BUILD SUCCEEDED ** (NOINSTALL, 0 error CS); B-E: Unity editor batch 0 error CS, iOS build of cab6944d
+  see the line below. Nothing installed, nothing approved by me. Questions Q057-Q060.**
+  - **A. No belts / headset cords on any aircraft, bail-out one press.** Core `BeltsAndCords` names them; the game strips
+    them from every placed model (old GLBs too: Pitts/Extra 22 renderers, GL + Pitts belt sub-meshes inside the cockpit
+    mesh). Shared Blender sources no longer build them (no GLB rebuilt here). E key / glass button / Quest menu = bail
+    out; in the headset the view now goes with the jumper and the chute opens itself 3 s later. GL: a small white buckle
+    plate in `Cockpit_hardware` is still on the seat (GL lane's mesh).
+  - **B. IAC cards:** the IAC's own 2026 Power Known Form B (wind <-) / Form C (->) for Primary..Unlimited, tap/click/poke
+    the card to cycle, then the pilot's own; one card for rear and front. Options > Display: Prev / Next / Add card (iOS
+    PDF picker, every page; Mac file dialog, PDF first page or PNG/JPEG) / Remove. Quest: inbox folder + menu Import
+    (no picker on the headset, Q060).
+  - **C. Altimeters** read static pressure through the Kollsman setting (set to field elevation at the start of a flight).
+    Tap/click the altimeter: popup (type / step / scroll / QNH / zero), refuses values outside the window. Windows:
+    standard 28.10-31.00, aerobatic types 22.00-31.00 (zeroes ~8,260 ft, Q058). Knob + digit window added where the GLB
+    has none; Pitts v2's own Altimeter_Knob/_Kollsman nodes are used when present. Headset: poke opens the menu row.
+  - **D. G-meter followers** hold max/min, tap/click/poke the g-meter (or its reset knob) to reset them to the pointer.
+  - **E. J-3 fuel wire** moves live with the nose tank (`RigInputs.Fuel`, rig rows on wheels + floats); test burns fuel at
+    full power and checks the wire falls monotonically. Super Cub: no own model to put a wire on (Q059).
+  - **Not verified here:** the Android-only PdfRenderer branch (needs a Quest build); the IMGUI popup/Options screenshots
+    (Mac player, below if done). Tests: all new classes green; NoRed233.ResourcesHoldOnly, StreamingAssets x2 and
+    ModelRig.FullAirBrake fail identically on the branch point 6f659d0d.
 <!-- ground-volume needs-you -->
 - **Ty to fly-check the quieter ground contact: ALL GROUND CONTACT −4 dB (Claude, 2026-11-05, lane/claude-ground-volume
   fa4d96f3; you asked 08:48 "lower all ground contact volume a bit").** One shared gain,

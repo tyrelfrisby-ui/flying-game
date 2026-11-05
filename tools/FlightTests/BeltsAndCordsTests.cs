@@ -32,6 +32,8 @@ public class BeltsAndCordsTests
     [InlineData("Lap_Harness_R_-1")]
     [InlineData("Buckle_F")]
     [InlineData("Buckle_R")]
+    [InlineData("Model:Buckle_F")]               // as placed by AirframeBuilder
+    [InlineData("Model:Harness_Strap_Crotch_Rear")]
     [InlineData("Lap_belt_L")]                    // C172
     [InlineData("Belt_buckle_R")]
     [InlineData("Rear_lap_belt")]

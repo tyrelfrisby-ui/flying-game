@@ -1095,6 +1095,24 @@ namespace FlyingGame.Bridge
             ActOnTaps();
         }
 
+        /// <summary>True when a touch that begins at <paramref name="p"/> (screen pixels, y up) belongs to one of the glass
+        /// controls — a button, a trim slider, a stick pad or strip — so the cockpit's own tap targets (CockpitTaps: the
+        /// card, the altimeter, the g-meter) leave it alone. The same tests, in the same order, as the touch loop.</summary>
+        public bool IsControlAt(Vector2 p)
+        {
+            if (ViewPanel.BlocksTouch(p)) return true;
+            if (EjectAvailable && _ejectRect.Contains(p)) return true;
+            if (FireAvailable && _fireRect.Contains(p)) return true;
+            if (BailAvailable && _bailRect.Contains(p)) return true;
+            if (_resetRect.Contains(p) || _acftRect.Contains(p) || _brakeRect.Contains(p) || _gearRect.Contains(p) || _camRefRect.Contains(p) || _towRect.Contains(p)) return true;
+            if (SmokeAvailable && _smokeRect.Contains(p)) return true;
+            if (LookAvailable && (_lookCentreRect.Contains(p) || _lookLeftRect.Contains(p) || _lookRightRect.Contains(p))) return true;
+            if (DeskMode || TouchSticksHidden) return false;
+            if (_trimRect.Contains(p) || _ailTrimRect.Contains(p) || _rudTrimRect.Contains(p)) return true;
+            if (StripMode) return _eleStrip.Contains(p) || ((StripThrottle || StripBrakes) && _thrStrip.Contains(p));
+            return NearPad(p, _leftCenter) || NearPad(p, _rightCenter);
+        }
+
         // The VR menu's handles on the buttons a pilot would otherwise tap on the glass.
         public void MenuReset() => DoReset();
         public bool MenuHandleAvailable => EjectAvailable || BailAvailable;

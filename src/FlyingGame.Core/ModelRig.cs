@@ -222,6 +222,9 @@ public struct RigInputs
         if (s is null || s.MaxKg <= 0.0) return 1.0;
         return System.Math.Clamp(s.Kg / s.MaxKg, 0.0, 1.0);
     }
+    /// <summary>The fuel in the aeroplane's (first) tank as a fraction of what it holds, 0 empty .. 1 full: what a float
+    /// gauge in that tank shows (the J-3's cork-float wire, FuelGauge_Wire). Live from AircraftLoad (FuelGauges.TankFraction).</summary>
+    public double Fuel;
     /// <summary>Rate of turn, degrees per second, + = turning right (3 = standard rate).</summary>
     public double TurnRateDps;
     /// <summary>Inclinometer ball, -1..+1, + = ball to the pilot's RIGHT.</summary>
@@ -230,6 +233,8 @@ public struct RigInputs
     public double GLoad;
     /// <summary>The accelerometer's tell-tales: the running maximum and minimum since they were last reset.</summary>
     public double GMaxSeen, GMinSeen;
+    /// <summary>The altimeter's Kollsman window setting, inHg (Core Instruments.AltimeterSetting).</summary>
+    public double KollsmanInHg;
     /// <summary>Attitude, degrees: bank + = right wing down (-180..180), pitch + = nose up (-90..90). What an
     /// attitude indicator shows.</summary>
     public double BankDeg, PitchDeg;
@@ -348,6 +353,8 @@ public struct RigInputs
             OilTempF = 100.0,       // the bottom of the dial, as drawn
             ChtF = 200.0,
             FuelCentreFrac = 1.0, FuelTopWingFrac = 1.0,
+            Fuel = 1.0,
+            KollsmanInHg = 29.92,
             ComFreqMhz = 122.8, ComStandbyMhz = 121.5, ComVolume = 0.5,
             XpdrSquawk = 1200, XpdrMode = 1,
         };
@@ -401,11 +408,13 @@ public struct RigInputs
             case "cht_f": value = ChtF; return true;
             case "fuel_centre_frac": value = FuelCentreFrac; return true;
             case "fuel_top_wing_frac": value = FuelTopWingFrac; return true;
+            case "fuel": value = Fuel; return true;
             case "turn_rate_dps": value = TurnRateDps; return true;
             case "slip_ball": value = SlipBall; return true;
             case "g_load": value = GLoad; return true;
             case "g_max_seen": value = GMaxSeen; return true;
             case "g_min_seen": value = GMinSeen; return true;
+            case "kollsman_inhg": value = KollsmanInHg; return true;
             case "bank_deg": value = BankDeg; return true;
             case "pitch_deg": value = PitchDeg; return true;
             case "water_rudder_up": value = WaterRudderUp; return true;

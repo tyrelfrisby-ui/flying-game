@@ -28,6 +28,7 @@ namespace FlyingGame.Core.Vr
         public static bool IsBeltOrCordNode(string name)
         {
             if (string.IsNullOrEmpty(name)) return false;
+            if (name.StartsWith("Model:", StringComparison.Ordinal)) name = name.Substring(6);   // AirframeBuilder's prefix on placed nodes
             string n = name.ToLowerInvariant();
             if (n.Contains("parachute")) return false;
             if (n.Contains("headset_jack")) return false;

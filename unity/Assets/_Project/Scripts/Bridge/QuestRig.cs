@@ -50,6 +50,9 @@ namespace FlyingGame.Bridge
         private ChaseCamera.View _loggedView = (ChaseCamera.View)(-1);
         private readonly QuestControlMapper _system = new();
         private QuestMenu _menu;
+        /// <summary>Open the headset's menu on a named row (CockpitTaps: a poke on the altimeter → its Kollsman row). Set while
+        /// a rig is running; null otherwise.</summary>
+        public static System.Action<string> OpenMenuAtRow;
         private readonly QuestMenuTabView _tab = new();
         private float _menuErrorAt = -100f;
         private bool _running, _wasCockpit;
@@ -196,6 +199,7 @@ namespace FlyingGame.Bridge
             ChaseCamera.CompactFlyby = true;   // no zoom in a headset: park the fly-by close
             _outside.Forget();
             _menu ??= new QuestMenu();
+            OpenMenuAtRow = key => { _menu ??= new QuestMenu(); _menu.OpenAt(this, key); };
             // The "what I see" recorder (A + B held, or the menu): Android only, on this camera because the
             // AudioListener is here and it records the head's view.
             if (QuestRecorder.Supported && GetComponent<QuestRecorder>() == null) gameObject.AddComponent<QuestRecorder>();
