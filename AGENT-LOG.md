@@ -1,5 +1,35 @@
 ## NEEDS YOU
 
+## NEEDS YOU — fly-check the Knik gravel strip (Claude, 2026-11-04 21:10 PST, lane/claude-knik-gravel)
+- Ty: the Knik ski zone is gone; the Knik landing is now the **Knik River bar strip** on the C4 valley floor just below
+  the glacier snout: centre (-5.150, -0.740) km, **108 deg true** (10/28), **1,200 x 60 ft gravel at 103 ft**, one-way
+  (land 108 up-valley toward the glacier, take off 288). Fly a tundra-tyre Cub/Super Cub down the valley over the Knik
+  ice lake and land; say whether the place, length, one-way use and the wire W3 crossing the final (pole 14.6 m under a
+  3 deg path, 1.43 km out) are right. Renders: ~/Developer/agent-lanes/renders/knik-gravel/. Nothing approved; no gate marked.
+- Also decide: the relief regeneration moved ground island-wide (28 % of land > 1 m, 9 % > 10 m, single spots to 270 m;
+  every authored pad/lake/summit/Fairweather zone exact); snow patches 4 -> 3 (no 5 deg one). Accept, or ask for a fix.
+- Build: deploy.sh ** BUILD SUCCEEDED ** 2026.1104.2155 (dummy UDID, NOT installed; byproducts not committed). Queue: Q041.
+
+### 2026-11-04 Knik ski zone -> Knik River gravel bar strip (Claude, lane/claude-knik-gravel off island-nav 0bb87c67)
+- Spec: glacier "Knik" keeps its path, no "ski_zone"; new world.bush_strips[0] "Knik River" (gravel, one-way 108, pad
+  15/50/40 m, no buildings, windsock only). Everything reading ski_zone skips a glacier without one (runtime height
+  index + reference, SurfaceTables, TerrainGen constraints/surfaces, Python evaluator, chart, reports). Fairweather keeps
+  its crest (shape picked by list position, unchanged).
+- Approach: runway_finals gives a one-way field a Part 77 surface on its landing end only; per-field visual_surface
+  (start at end of the end shoulder, margin 0) and per-surface half_width_km/widen (Part 77 utility: 38 m + 10 %;
+  defaults 0.15 km + 5 % so every other runway end is unchanged). Found on the way: a 10 m margin cut a 10 m trench
+  across the level canyon floor at the threshold; a "river" key made TerrainGen lean the C4 walls back (Frank Church rule).
+- Relief regenerated (TerrainGen check byte-identical). Python/C# parity 9,551 pts max 1.2e-11 m. Site literals
+  (patches, ledges, boulders, glacier areas) re-copied from the generate log/surfacepoints. Docs: ISLAND-TERRAIN-CLAUDE.md
+  12.6 rewritten + new 12.8; ISLAND-WORLD-PLAN.md; island-map.svg/png regenerated (map only; the evidence package is stale since before this lane).
+- Tests: new IslandSurfaceTests.TheKnikLandingIsAGravelBarStripBelowTheGlacier + TheKnikRiverStripHasAClearApproachDownTheValley;
+  ski-zone test now Fairweather only. IslandSurfaceTests+NaturalSurfaceTests 21/21. 15 island-related classes vs base:
+  same 15 pre-existing failures (HighDesert, MountainRoughness, MountainFront, 2 Forest) plus ONE newly red:
+  IslandWaterAndNormalTests.AnalyticGradient... at (E 4.2574, N 0.9433), the C2-MF4/MF5 canyon junction. Not caused
+  here: same wrong analytic gradient on the base commit; adding a field shifted the test's every-11th sampling onto it. Reported, not fixed.
+- Not here: the legacy AlaskaRange world (WheelSkiTests/GlacierLandingZoneTests "Knik") is a different, unbuilt world; untouched.
+  No spawn, lesson or challenge referenced the Knik ski zone; gameplay-inventory text re-pointed.
+
 ## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
 - Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
   (card centred; ASI over g-meter left; altimeter over turn coordinator right; Trig radio/xpdr left; 3-in-1 oil P / oil T /

@@ -122,6 +122,7 @@ public static class Surfaces
         // authored 150 m flat pad that SurfaceAt calls Snow — is always fully inside it.
         foreach (var q in IslandTerrain.World["glaciers"].Items)
         {
+            if (!q.Has("ski_zone")) continue;   // Knik: no ski zone since 2026-11-04 (Knik River bar strip instead)
             var z = q["ski_zone"]; var c = z["centre"].Point; var path = q["path"].Items;
             var axis = path[^1].Point - path[^2].Point; axis = axis * (1 / Math.Max(1e-9, axis.Length));
             double half = z.N("length_m") / 2000 + .15, wide = z.N("width_m") / 2000 + .18;   // km: zone + safety ground
@@ -180,15 +181,15 @@ public static class Surfaces
         cat = "fans"; foreach (var e in W["clearance_budgets"].Items)
         {
             if (e.S("kind") == "airway") continue;
-            var u = e["u"].Point; var a = e["a"].Point; double guard = e.N("guard_km", .25), length = e.N("length");
+            var u = e["u"].Point; var a = e["a"].Point; double guard = e.N("guard_km", .25), length = e.N("length"), half = e.N("half_width_km", .15), widen = e.N("widen", .05);
             Z(p =>
             {
                 var dp = p - a; double along = -dp.Dot(u), cross = Math.Abs(dp.E * u.N - dp.N * u.E);
-                return Math.Max(Math.Max(-along - guard, along - length - guard), cross - (.15 + .05 * Math.Max(0, along)) - guard);
+                return Math.Max(Math.Max(-along - guard, along - length - guard), cross - (half + widen * Math.Max(0, along)) - guard);
             }, .10, 0);
         }
         // Ski zones: no heading is published, so every direction of approach out to 2 km.
-        cat = "ski"; foreach (var q in W["glaciers"].Items) { var c = q["ski_zone"]["centre"].Point; Z(p => (p - c).Length, 2.0, 1.5); }
+        cat = "ski"; foreach (var q in W["glaciers"].Items) { if (!q.Has("ski_zone")) continue; var c = q["ski_zone"]["centre"].Point; Z(p => (p - c).Length, 2.0, 1.5); }
         cat = "lakes"; foreach (var q in W["water"].Items)
         {
             var qq = q; double r = Math.Min(q["radii_km"][0].Number(), q["radii_km"][1].Number());

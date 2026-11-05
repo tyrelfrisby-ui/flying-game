@@ -40,29 +40,28 @@ public class IslandSurfaceTests : IDisposable
         Atmosphere.SteadyWind = Vec3.Zero;
     }
 
-    // ---- the designated landing places (generator report, 2026-11-03) ----------------------------------
-    // Re-copied by hand after the Frank Church valleys (lane/claude-frank-church-valleys) regenerated the relief: the
-    // generator's site search is a global ranking (ice distance, ELA, local relief, spacing between sites), so new
-    // canyons moved most of its picks. Same targets; it now finds 1, 3, 5 and 10 deg patches (no 4 or 8 deg one) and
-    // six ledges.
+    // ---- the designated landing places (generator report, 2026-11-04) ----------------------------------
+    // Re-copied by hand after the Knik change (lane/claude-knik-gravel: the Knik ski zone's anchor out, the Knik River
+    // strip's in) regenerated the relief: the generator's site search is a global ranking (ice distance, ELA, local
+    // relief, spacing between sites), so a moved anchor moves its picks. Same targets; it now finds 1, 3 and 10 deg
+    // patches (no 5 deg one any more, and still no 4 or 8) and six ledges. (2026-11-03, Frank Church valleys: 1, 3, 5, 10.)
     // id, sim x (north) m, sim y (east) m, uphill heading deg true, landable length x width m, slope deg,
     // cross slope deg (+ rising to the right of the uphill heading), height at the centre m, shape.
     // shape: how the snow lies on the plane (generator site log): crest / banana amplitude, rolling amplitude.
     public static readonly (string id, double x, double y, double hdg, double len, double wid, double slope, double cross, double z, string shape)[] Patches =
     {
-        ("SP1", 6550, -3150, 0, 160, 40, 1, -0.5, 875.7, "crest 0.58"),
-        ("SP2", 7000, -3250, 180, 130, 35, 3, 3.0, 867.7, "banana 0.49"),
-        ("SP3", 6250, -2800, 0, 120, 30, 5, -2.2, 863.2, "crest 0.58"),
-        ("SP4", -5600, -5200, 90, 100, 25, 10, -3.0, 1074.8, "banana 0.50"),
+        ("SP1", 6850, -3350, 180, 160, 40, 1, -2.3, 875.6, "crest 0.58"),
+        ("SP2", 6500, -3050, 285, 130, 35, 3, -1.3, 871.5, "banana 0.49"),
+        ("SP3", -5600, -5200, 90, 100, 25, 10, -3.0, 1074.8, "banana 0.50"),
     };
     public static readonly (string id, double x, double y, double hdg, double len, double wid, double slope, double cross, double z, string shape)[] Ledges =
     {
         ("LD1", -850, 4650, 90, 150, 45, 0, -0.1, 1333.1, "flat"),
-        ("LD2", -2050, 3850, 270, 130, 40, 1, 0.0, 1100.7, "flat"),
-        ("LD3", -1300, 6600, 0, 170, 45, 4, -2.0, 1176.9, "sloped"),
-        ("LD4", -3050, 4700, 180, 150, 40, 7, -2.0, 1112.7, "sloped"),
-        ("LD5", 3850, -9550, 75, 160, 50, 2, 0.0, 350.6, "rounded"),
-        ("LD6", -5900, -50, 0, 140, 45, 0, 0.0, 726.3, "rounded"),
+        ("LD2", -2050, 3900, 180, 130, 40, 1, 0.0, 1100.7, "flat"),
+        ("LD3", -1300, 6450, 90, 170, 45, 4, 1.4, 1178.4, "sloped"),
+        ("LD4", -3050, 4700, 180, 150, 40, 7, -2.0, 1112.4, "sloped"),
+        ("LD5", 3800, -9600, 90, 160, 50, 2, 0.0, 353.5, "rounded"),
+        ("LD6", -1250, 2250, 0, 140, 45, 0, 0.0, 1335.1, "rounded"),
     };
 
     /// <summary>A point `along` m up the slope and `across` m to its right from a site's centre (sim x, y).</summary>
@@ -144,28 +143,27 @@ public class IslandSurfaceTests : IDisposable
                 if (e.S("kind") == "airway") continue;
                 var u = e["u"].Point; var dp = p - e["a"].Point; double alongK = -dp.Dot(u), crossK = Math.Abs(dp.E * u.N - dp.N * u.E);
                 double guard = e.N("guard_km", .25), length = e.N("length");
-                double outside = Math.Max(Math.Max(-alongK - guard, alongK - length - guard), crossK - (.15 + .05 * Math.Max(0, alongK)) - guard);
+                double outside = Math.Max(Math.Max(-alongK - guard, alongK - length - guard), crossK - (e.N("half_width_km", .15) + e.N("widen", .05) * Math.Max(0, alongK)) - guard);
                 Assert.True(outside > r, $"{s.id} is inside an approach/departure surface");
             }
             foreach (var q in W["water"].Items) Assert.True(IslandTerrain.EllipseRadius(p, q) > 1.2, $"{s.id} is by a lake");
             foreach (var q in W["starts"].Items) Assert.True((p - q["centre"].Point).Length > .5, $"{s.id} is by spawn {q.S("id")}");
             foreach (var id in new[] { "F1", "F2" }) Assert.True((p - IslandTerrain.Feature(id)["centre"].Point).Length > 1.0, $"{s.id} is by cave {id}");
-            foreach (var q in W["glaciers"].Items) Assert.True((p - q["ski_zone"]["centre"].Point).Length > 1.5, $"{s.id} is by a ski zone");
+            foreach (var q in W["glaciers"].Items) if (q.Has("ski_zone")) Assert.True((p - q["ski_zone"]["centre"].Point).Length > 1.5, $"{s.id} is by a ski zone");
         }
     }
 
     // ---- the glacier -------------------------------------------------------------------------------------
 
     [Fact]
-    public void TheSkiZonesStaySnowFlatAndFreeOfIceDetail()
+    public void TheSkiZoneStaysSnowFlatAndFreeOfIceDetail()
     {
-        // Knik (-6.2, 0.1) at 1,100 ft and Fairweather (-3.9, 4.7) at 1,300 ft: unchanged, flat, SNOW, and no
-        // crevasse, undulation or boulder within 1.5 km of either (no published heading, so every direction).
-        // Within 100 m the snow lies the way Ty asked (2026-11-03, NaturalSurfaceTests): never more than the zone's
-        // shape off its elevation (Knik a 0.97 m banana, Fairweather a 1.15 m crest), never a step. (Knik's canyon
-        // walls rise from 110 m, short of the spec's 450 x 100 m, as since v2: reported, not changed.)
-        // (amp: the shape's amplitude plus its cross-sweep — Knik 0.97 + 0.64 m, Fairweather 1.15 + 0.70 m.)
-        foreach (var (name, e, n, ft, amp) in new[] { ("Knik", -6.2, 0.1, 1100.0, .97 + .64), ("Fairweather", -3.9, 4.7, 1300.0, 1.15 + .70) })
+        // Fairweather (-3.9, 4.7) at 1,300 ft: unchanged, flat, SNOW, and no crevasse, undulation or boulder within
+        // 1.5 km (no published heading, so every direction). Within 100 m the snow lies the way Ty asked (2026-11-03,
+        // NaturalSurfaceTests): never more than the zone's shape off its elevation (a 1.15 m crest), never a step.
+        // (amp: the shape's amplitude plus its cross-sweep, 1.15 + 0.70 m.) The Knik's zone (-6.2, 0.1) is gone
+        // (Ty 2026-11-04: "really a gravel strip in the valley"): TheKnikLandingIsAGravelBarStripBelowTheGlacier.
+        foreach (var (name, e, n, ft, amp) in new[] { ("Fairweather", -3.9, 4.7, 1300.0, 1.15 + .70) })
         {
             double cx = n * 1000, cy = e * 1000;
             Assert.Equal(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(cx, cy));
@@ -181,6 +179,164 @@ public class IslandSurfaceTests : IDisposable
                 Assert.True(rough == 0 && crev == 0, $"{name}: ice detail {rough:F2}/{crev:F2} at {r:F0} m");
             }
         }
+    }
+
+    // ---- the Knik landing: a gravel bar strip on the valley floor (Ty 2026-11-04) -------------------------
+    // Copied by hand from island-spec.json "bush_strips" (2026-11-04): moving the strip, or changing what it is, has
+    // to be an edit here too. Sim x is north, y east.
+    private const double KnikE = -5150, KnikN = -740, KnikHdgDeg = 108, KnikLengthM = 1200 * .3048, KnikWidthM = 60 * .3048,
+                         KnikElevM = 103 * .3048;
+    private static (double x, double y) KnikAt(double along, double across = 0)
+    {
+        double h = KnikHdgDeg * Math.PI / 180;
+        return (KnikN + Math.Cos(h) * along - Math.Sin(h) * across, KnikE + Math.Sin(h) * along + Math.Cos(h) * across);
+    }
+
+    /// <summary>
+    /// Ty (2026-11-04): the Knik landing site "is really a GRAVEL STRIP in the valley, not on the glacier". The ski zone
+    /// that stood on a 1,100 ft shelf at (-6.2, 0.1) km is gone (the Knik glacier entry keeps no "ski_zone", and the
+    /// ground there is no longer stamped Snow); in its place a 1,200 x 60 ft gravel bar strip lies on the floor of canyon
+    /// C4 at 103 ft, 3 ft above the floor and the Knik River beside it, laid along the valley, just below the glacier terminus. It is
+    /// a plane (gravel does not take a natural lie), it is gravel to the wheels, it has no ice on it or on its shoulders,
+    /// and its pad blends into the floor and banks without a step.
+    /// </summary>
+    [Fact]
+    public void TheKnikLandingIsAGravelBarStripBelowTheGlacier()
+    {
+        var W = IslandTerrain.World;
+        Assert.False(W["glaciers"].Items.Single(g => g.S("id") == "Knik").Has("ski_zone"));
+        Assert.Equal("Fairweather", Assert.Single(W["glaciers"].Items.Where(g => g.Has("ski_zone"))).S("id"));
+        Assert.NotEqual(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(100, -6200));   // where the Knik ski zone was
+
+        var f = IslandTerrain.Fields.Single(q => q.Id == "Knik River");
+        Assert.Equal("gravel", f.Surface);
+        Assert.Equal(KnikHdgDeg, f.Heading, 6); Assert.Equal(KnikLengthM, f.Length, 6); Assert.Equal(KnikWidthM, f.Width, 6);
+        Assert.Equal(KnikElevM, f.Elevation, 6); Assert.Equal(0, f.Slope);
+        Assert.Equal(KnikE, f.Centre.E * 1000, 6); Assert.Equal(KnikN, f.Centre.N * 1000, 6);
+        Assert.True(f.Shape.Kind < -.5, "the strip should be a plane");   // gravel: no natural lie
+
+        double worst = 0, worstIce = 0;
+        for (double a = -KnikLengthM / 2 + .5; a <= KnikLengthM / 2 - .5; a += 5)   // just inside the edges: on an
+            for (double c = -KnikWidthM / 2 + .5; c <= KnikWidthM / 2 - .5; c += (KnikWidthM - 1) / 4)   // edge is either side
+            {
+                var (x, y) = KnikAt(a, c);
+                Assert.Equal(WorldTerrain.Surface.Gravel, WorldTerrain.SurfaceAt(x, y));
+                worst = Math.Max(worst, Math.Abs(H(x, y) - KnikElevM));
+            }
+        // No ice on the strip or its shoulders, and no glacier ice surface on its end shoulders either: the glacier's
+        // snout lies on the floor just past the east one (the 25 m ice channel shows a trace of 0.14 at its far edge,
+        // measured 2026-11-04, where the surface is still Rough).
+        for (double a = -KnikLengthM / 2 - f.EndShoulder; a <= KnikLengthM / 2 + f.EndShoulder; a += 5)
+            for (double c = -KnikWidthM / 2 - f.Shoulder; c <= KnikWidthM / 2 + f.Shoulder; c += 5)
+            {
+                var (x, y) = KnikAt(a, c); var p = new IslandPoint(y / 1000, x / 1000);
+                if (Math.Abs(a) <= KnikLengthM / 2) worstIce = Math.Max(worstIce, IslandRelief.Channels(p).ice);
+                Assert.NotEqual(WorldTerrain.Surface.GlacierIce, WorldTerrain.SurfaceAt(x, y));
+            }
+        // The river runs beside it, not across it, and the strip is a bar above the water, not under it.
+        double river = double.MaxValue;
+        for (double a = -KnikLengthM / 2 - f.EndShoulder; a <= KnikLengthM / 2 + f.EndShoulder; a += 5)
+            for (double c = -300; c <= 300; c += 2)
+            {
+                var (x, y) = KnikAt(a, c);
+                if (WorldTerrain.Active!.WaterSurfaceAt(x, y, 1e4) is double w && w < KnikElevM + 10)
+                { river = Math.Min(river, Math.Abs(c)); Assert.True(w < KnikElevM, $"water at {w:0.00} m beside a {KnikElevM:0.00} m strip"); }
+            }
+        // No cliff anywhere the strip shaped the ground (pad, shoulders, blend): nothing steeper than the 42 degree talus
+        // angle the relief generator allows, 4 m in 5 m. (The steepest is a riverbank at the blend's edge: 2.6 m in 5 m,
+        // 61 m off the centreline, 2026-11-04.)
+        double step = 0; string where = "";
+        double ra = KnikLengthM / 2 + f.EndShoulder + f.Blend, rc = KnikWidthM / 2 + f.Shoulder + f.Blend;
+        for (double a = -ra; a <= ra; a += 5)
+        {
+            var (px, py) = KnikAt(a, -rc); double prev = H(px, py);
+            for (double c = -rc + 5; c <= rc; c += 5)
+            {
+                var (x, y) = KnikAt(a, c); double h = H(x, y);
+                if (Math.Abs(h - prev) > step) { step = Math.Abs(h - prev); where = $"{a:0} m along, {c:0} m across"; }
+                prev = h;
+            }
+        }
+        _o.WriteLine($"Knik River strip: flat to {worst * 100:0.0} cm, ice on the pad {worstIce:0.00}, river {river:0} m off the centreline, " +
+                     $"steepest step {step:0.00} m in 5 m at {where}");
+        Assert.True(worst < .01, $"the strip is {worst:0.000} m off its plane");
+        Assert.True(worstIce < .05, $"ice {worstIce:0.00} on the strip or its shoulders");
+        Assert.InRange(river, KnikWidthM / 2 + f.Shoulder, 150);
+        Assert.True(step < 4, $"a {step:0.0} m step in 5 m at {where}");
+    }
+
+    /// <summary>
+    /// The Knik River strip is one-way: you land 108 up the valley toward the glacier (its snout lies on the floor 0.1 km
+    /// past the east end, and the canyon closes at the face) and take off 288 down it. The approach comes down the valley
+    /// floor and over the Knik ice lake, and it is clear. (1) The ground stays under the Part 77 20:1 visual approach
+    /// surface, which starts at the end of the 50 m end shoulder at the strip's elevation and runs 1.524 km, across its
+    /// whole fan (a utility runway's: 38 m either side widening 10 %, 14 CFR 77.19(d)). (2) Along a 3 degree glidepath
+    /// to the threshold, out to 1 NM, in a corridor 30 m + 10 % of the distance either side: the ground stays under the
+    /// path; no tree stands in it along the visual surface (the forest keeps out of every approach fan) and none beyond
+    /// it reaches the path; every cable, pole and building is at least 10 m below it. The charted wire W3 across the
+    /// lake's east end is the nearest solid (its north pole 14.6 m under the path, measured 2026-11-04): that is why the
+    /// strip sits as far up the valley as the ice allows. Only the landing end has a surface.
+    /// </summary>
+    [Fact]
+    public void TheKnikRiverStripHasAClearApproachDownTheValley()
+    {
+        var W = IslandTerrain.World;
+        var (tx, ty) = KnikAt(-KnikLengthM / 2);                 // the landing threshold (west end)
+        double h = KnikHdgDeg * Math.PI / 180, ux = Math.Cos(h), uy = Math.Sin(h);
+        // Exactly one visual surface belongs to the strip, on the course it is landed on.
+        var mine = W["clearance_budgets"].Items.Where(e => e.S("kind") == "final" && Math.Abs(e.N("elevation_m") - KnikElevM) < 1e-6
+            && (e["a"].Point - new IslandPoint(KnikE / 1000, KnikN / 1000)).Length < 1).ToArray();
+        var surf = Assert.Single(mine);
+        Assert.Equal(KnikHdgDeg, Math.Atan2(surf["u"].Point.E, surf["u"].Point.N) * 180 / Math.PI, 6);
+
+        double part77 = double.MaxValue, glide = double.MaxValue, trees = double.MaxValue, solids = double.MaxValue; string ws = "";
+        for (double d = 0; d <= 1524; d += 10)
+            for (double c = -(38.1 + .1 * d); c <= 38.1 + .1 * d; c += 5)
+            {
+                double x = tx - ux * (50 + d) - uy * c, y = ty - uy * (50 + d) + ux * c;
+                part77 = Math.Min(part77, KnikElevM + d / 20 - H(x, y));
+            }
+        double tan3 = Math.Tan(3 * Math.PI / 180);
+        (double d, double c) Local(double x, double y) { double dx = x - tx, dy = y - ty; return (-(dx * ux + dy * uy), -dx * uy + dy * ux); }
+        for (double d = 0; d <= 1852; d += 10)
+            for (double c = -(30 + .1 * d); c <= 30 + .1 * d; c += 5)
+            {
+                double x = tx - ux * d - uy * c, y = ty - uy * d + ux * c;
+                glide = Math.Min(glide, KnikElevM + d * tan3 - H(x, y));
+            }
+        int inside = 0;   // trees in the corridor along the visual surface (its 50 m start + 1,524 m): none may stand there
+        foreach (var tr in Forest.InRect(tx - 2500, ty - 2500, tx + 2500, ty + 2500))
+        {
+            var (d, c) = Local(tr.X, tr.Y);
+            if (d < 0 || d > 1852 || Math.Abs(c) > 30 + .1 * d) continue;
+            trees = Math.Min(trees, KnikElevM + d * tan3 - tr.TopM);
+            if (d <= 1574) inside++;
+        }
+        try
+        {
+            IslandGeometry.Build();
+            foreach (var cb in IslandGeometry.Cables)
+                for (int i = 0; i <= 40; i++)
+                {
+                    var p = cb.A + (cb.B - cb.A) * (i / 40.0); var (d, c) = Local(p.X, p.Y);
+                    if (d >= 0 && d <= 1852 && Math.Abs(c) <= 30 + .1 * d && KnikElevM + d * tan3 + p.Z < solids) { solids = KnikElevM + d * tan3 + p.Z; ws = cb.Id; }
+                }
+            foreach (var b in IslandGeometry.Blocks)
+            {
+                var (d, c) = Local(b.X, b.Y);
+                if (d >= 0 && d <= 1852 && Math.Abs(c) <= 30 + .1 * d + Math.Max(b.Length, b.Width) / 2 && KnikElevM + d * tan3 - b.Top < solids)
+                { solids = KnikElevM + d * tan3 - b.Top; ws = b.Id; }
+            }
+        }
+        finally { WorldDecks.All.Clear(); WorldSolids.Shapes.Clear(); WorldSolids.Boxes.Clear(); WorldSolids.Version++; }
+        _o.WriteLine($"Knik River 108: ground {part77:0.0} m under the 20:1 surface, {glide:0.0} m under a 3 deg path to 1 NM; " +
+                     $"{inside} trees along the surface, the nearest beyond it {trees:0.0} m under the path; nearest solid {ws} {solids:0.0} m under it");
+        // The ground meets the surface only where both start, at the strip's own level (its end shoulder).
+        Assert.True(part77 >= -.01, $"ground stands {-part77:0.0} m into the 20:1 approach surface");
+        Assert.True(glide >= -.01, $"ground stands {-glide:0.0} m into the 3 degree approach");
+        Assert.Equal(0, inside);
+        Assert.True(trees >= 0, $"a tree stands {-trees:0.0} m into the 3 degree approach");
+        Assert.True(solids >= 10, $"{ws} is only {solids:0.0} m under the 3 degree approach");
     }
 
     [Fact]
@@ -203,7 +359,7 @@ public class IslandSurfaceTests : IDisposable
             if (e.S("kind") == "airway") continue;
             var u = e["u"].Point; var v = new IslandPoint(u.N, -u.E); double length = e.N("length");
             for (double t = 0; t <= length; t += .05) for (double c = -1; c <= 1; c += .25)
-                Clear(e["a"].Point - u * t + v * (c * (.15 + .05 * t)), "an approach");
+                Clear(e["a"].Point - u * t + v * (c * (e.N("half_width_km", .15) + e.N("widen", .05) * t)), "an approach");
         }
         foreach (var q in W["starts"].Items) for (double r = 0; r <= .5; r += .05) for (int k = 0; k < 8; k++)
             Clear(q["centre"].Point + IslandPoint.Heading(k * 45) * r, q.S("id"));
@@ -214,7 +370,8 @@ public class IslandSurfaceTests : IDisposable
     public void TheGlacierIsSnowOrIceAndBothAreThere()
     {
         // Over every glacier node: SNOW or ICE (or rock where a boulder sits on it), and the areas the
-        // generator reported: 28.41 km2 of snow and 10.02 km2 of bare ice on 38.43 km2 (25 m nodes, ice > 0.5).
+        // generator reported: 29.49 km2 of snow and 9.44 km2 of bare ice on 38.93 km2 (25 m nodes, ice > 0.5; generate
+        // log 2026-11-04 after the Knik change — 28.41 / 10.02 on 38.43 before it).
         double snow = 0, ice = 0, cell = .025 * .025;
         for (double e = -12; e < 9; e += .025) for (double n = -10.4; n < 8.4; n += .025)
         {
@@ -226,8 +383,8 @@ public class IslandSurfaceTests : IDisposable
                              $"glacier ground at ({e:F3},{n:F3}) is {s}");
         }
         _o.WriteLine($"snow {snow:F2} km2, bare ice {ice:F2} km2");
-        Assert.InRange(snow, 27.4, 29.4);
-        Assert.InRange(ice, 9.0, 11.0);
+        Assert.InRange(snow, 28.5, 30.5);
+        Assert.InRange(ice, 8.4, 10.4);
     }
 
     // Literal glacier places from the generator's survey (sim x north, y east): a near-level run of bare ice on
@@ -317,11 +474,11 @@ public class IslandSurfaceTests : IDisposable
     [Fact]
     public void BouldersAreRockStandingOnTheIce()
     {
-        // The four biggest (generator survey, re-copied 2026-11-03 after the Frank Church valleys regenerated the relief
-        // and the moraines with it): sim x, y, radius, height above the ice.
+        // The four tallest (generator survey "surfacepoints", re-copied 2026-11-04 after the Knik change regenerated the
+        // relief and the moraines with it): sim x, y, radius, height above the ice.
         var big = new (double x, double y, double r, double h)[]
         {
-            (-2648.4, -5759.2, 11.9, 6.7), (7354.0, -166.8, 11.3, 7.9), (2082.7, -3133.2, 11.2, 6.8), (-2222.2, -6217.9, 11.2, 7.6),
+            (-4034.6, -6470.4, 10.7, 8.5), (2725.6, -3157.3, 10.8, 8.3), (7354.0, -166.8, 11.3, 7.9), (7478.4, 39.2, 11.0, 7.6),
         };
         foreach (var b in big)
         {
@@ -332,7 +489,7 @@ public class IslandSurfaceTests : IDisposable
             _o.WriteLine($"boulder x {b.x} y {b.y}: stands {stands:F1} m above the ice round it");
             Assert.InRange(stands, .6 * b.h, b.h + 3);
         }
-        Assert.Equal(54, IslandRelief.Boulders().Count);
+        Assert.Equal(46, IslandRelief.Boulders().Count);
     }
 
     // ---- what the gear feels -----------------------------------------------------------------------------
@@ -357,11 +514,10 @@ public class IslandSurfaceTests : IDisposable
         Assert.False(LandingGear.OnSki(cfg, ice));
         Assert.True(LandingGear.OnSki(cfg, WorldTerrain.Surface.Snow));
         Assert.Equal(.055, LandingGear.SkiRolling(WorldTerrain.Surface.Snow), 6);
-        // Every patch, the glacier snow and both ski zones report the SAME surface, so the ski drag is the same on
+        // Every patch, the glacier snow and the ski zone report the SAME surface, so the ski drag is the same on
         // all of them: Ty's "consistent ski drag".
         foreach (var s in Patches) Assert.Equal(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(s.x, s.y));
         Assert.Equal(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(SnowX, SnowY));
-        Assert.Equal(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(100, -6200));    // Knik ski zone
         Assert.Equal(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(4700, -3900));   // Fairweather ski zone
     }
 
@@ -481,11 +637,11 @@ public class IslandSurfaceTests : IDisposable
     [Fact]
     public void ACubOnSkisLandsUphillOnTheSteepPatchAndStopsOnIt()
     {
-        // SP4: 100 x 25 m rising 10 deg to the east. Touch down 10 m inside the low end at 31 kt going uphill — how a
+        // The 10 deg patch (SP3 since 2026-11-04; SP4 before): 100 x 25 m rising 10 deg to the east. Touch down 10 m inside the low end at 31 kt going uphill — how a
         // pilot uses a steep patch — and stop on it. The slope does the stopping: along it the ground's normal
         // force has a component g sin 10 deg = 1.70 m/s2 against the climb, and the ski adds mu g cos 10 deg
         // (0.055 running): v^2 / (2 g (sin + mu cos)) = 57 m from 16 m/s, where the flat would take 240.
-        var s = Patches[3]; Assert.Equal("SP4", s.id);
+        var s = Patches.Single(q => q.slope == 10); Assert.Equal("SP3", s.id);
         var (px, py) = On(s.x, s.y, s.hdg, -s.len / 2 + 10, 0);
         AircraftConfig c = Cub(skis: true, bushwheels: false);
         double h = s.hdg * Math.PI / 180, th = s.slope * Math.PI / 180;
@@ -504,7 +660,7 @@ public class IslandSurfaceTests : IDisposable
             if (i > 600 && ac.State.Velocity.Length < .05) break;
         }
         double ran = uphillMost - (-s.len / 2 + 10), want = 16.0 * 16 / (2 * 9.81 * (Math.Sin(th) + .055 * Math.Cos(th)));
-        _o.WriteLine($"SP4: ran {ran:F0} m uphill (sin + mu cos: {want:F0} m), at rest {along:+0;-0} m along, {across:+0.0;-0.0} m across, "
+        _o.WriteLine($"{s.id}: ran {ran:F0} m uphill (sin + mu cos: {want:F0} m), at rest {along:+0;-0} m along, {across:+0.0;-0.0} m across, "
                    + $"speed {ac.State.Velocity.Length:F2} m/s, surface {WorldTerrain.SurfaceAt(ac.State.Position.X, ac.State.Position.Y)}");
         Assert.InRange(ran, .8 * want, 1.2 * want);
         // And it stays there: the ski's static hold (4 x 0.055 = 0.22) is more than tan 10 deg (0.18).
