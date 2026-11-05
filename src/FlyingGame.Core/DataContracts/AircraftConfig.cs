@@ -555,6 +555,11 @@ public sealed class SmokeConfig
     public double PipeDiameterIn { get; set; } = 4;
     /// <summary>The exhaust gas temperature at the pipe's exit (K).</summary>
     public double ExhaustTempK { get; set; } = 900;
+    /// <summary>Cylinders feeding the smoke pipe's engine: a four-stroke's pipe sees cylinders / 2 exhaust pulses per
+    /// revolution (<see cref="Aero.ExhaustPulse"/>). 6 when not given (the AEIO-540s).</summary>
+    public int Cylinders { get; set; } = 6;
+    /// <summary>Compression ratio, for the part-throttle residual gas (<see cref="Aero.ExhaustJet.ExitVelocity(double, double, double, double, double, double, double, double, double)"/>).</summary>
+    public double CompressionRatio { get; set; } = 8.7;
 }
 
 public sealed class EngineMount
