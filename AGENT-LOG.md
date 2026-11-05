@@ -426,7 +426,8 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
        the propeller, and `TyreWear` / `WheelSpin` have no water trigger.
      - **Still to audit:** `CrashRelay.OnHardImpact` raises a `CrashImpact` on water above `WaterSplashMinMs` of
        closing speed. Whether that counts as a "crash" is for crash-reset's audit.
-- **TYRE WEAR, BURST AND FLAT TYRES: BUILT (Claude, 2026-11-04, lane/claude-tire-spinup; local commits, not merged).
+- **TYRE WEAR, BURST AND FLAT TYRES: MERGED INTO BOTH LANES AND INSTALLED (Claude, 2026-11-04/05, lane/claude-tire-spinup).
+  iOS 2026.1104.2251 on the iPhone + iPad mini; Quest 2026.1105.0007 on the Quest 3S (see the Log entry "merge and installs").
   Ty's Q026 answer (20:21): keep the 172's full-pedal lock-up; item 2, the 0.222 m radius, is confirmed. iOS build
   2026.1104.2140 `** BUILD SUCCEEDED **`, 0 `error CS`, PARITY OK, not installed. No new red tests (below). Please fly it:**
   1. **The burst, Core `TyreWear`, emergent.** The model:
@@ -3871,6 +3872,30 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-05 00:15 PST — Claude · lane/claude-tire-spinup · Q026 item 3 findings, merge and installs (Ty approved 20:25)
+- **Item 3, no physics change:** the P-51 and Swift findings are in NEEDS YOU "Q026 ITEM 3" and in Q043.
+  - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)` now asserts a load-based break-up (green).
+  - The P-51 rollout test is still red: the arrival is a fast wheel landing that bounces. It bounced at the branch
+    point too.
+- **Merges:**
+  - island-nav e87b8660 (ContactEffects: took the shared CrashDust table; CrashDust gives Dirt/Sand gravel's dust;
+    AGENT-LOG: both sides).
+  - quest-islandnav f294f7b3.
+  - The 34 leftover StreamingAssets/aircraft files in each merge worktree were set aside and put back
+    byte-identical. Backups: agent-lanes/backups/tire-spinup-merge-20261104-2219 and -quest-20261104-2220.
+    ProjectSettings was untouched.
+  - Parity `--strict`: OK. Run it with bash: under zsh, the script's `read -r path` clobbers PATH.
+- **Tests on the merged tree** (TyreWear, WheelSpin, CrashDust, CrashReset, WheelWater, GroundSound): 65/67.
+  - The 2 failures are SR22/Glasair water prop strikes, red at the branch point and fixed by
+    lane/claude-wheel-hydroplane 4bbfe5b5 (not yet merged).
+  - No full-suite run on the merged tree: other lanes were building the whole time (CLAUDE.md, one run at a time).
+- **iOS:** 2026.1104.2251 from island-nav 6f0e3f74 (it also carries the Cardboard VR merge). `** BUILD SUCCEEDED **`,
+  0 `error CS`, PARITY OK. Installed and launched on the iPhone and the iPad mini.
+- **Quest:** 2026.1105.0007 from quest-islandnav 6a28752b. 0 `error CS`, PARITY OK, no override. Installed and
+  launched on the 3S (340YC10GBK0TYV).
+  - Logcat shows a pause and an "Activity stop timeout" 11 s after launch, which reads as the headset not being worn.
+- **Next:** the skid/ice addendum, when Ty sends it.
+
 ### 2026-11-04 21:55 PST — Claude · lane/claude-tire-spinup · tyre wear, burst and flat tyres (Ty Q026 item 1, 20:21)
 - **Core (shared):**
   - New `TyreWear.cs`: 72 tread strips, Archard/Schallamach wear with a flash-temperature abradability, a surface
