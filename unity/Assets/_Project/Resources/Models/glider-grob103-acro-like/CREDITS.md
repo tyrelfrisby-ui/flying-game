@@ -50,3 +50,12 @@ source is elsewhere. The builder regenerates the old analytic asset in a
 private temporary directory solely to retain its original cockpit/rig/gear.
 It never reads a previously converted asset as its input.
 Visual review and Unity/device validation remain pending Ty's approval.
+
+## 2026-11-04 v2 (18 m) modifications
+
+Retained the measured 18 m span; calibrated the source wing chord to a 17.5 m²
+section-integrated planform, recut ailerons and upper-only airbrake panels,
+added tip skids, relocated the fixed wheels to the N41KP/config stations, and
+added a pedal-linked nose fork/tyre steering assembly (±25° estimated).
+Approved visual eye transforms and both compatibility filenames are unchanged.
+These derived meshes remain CC BY-SA 4.0 under the attribution above.

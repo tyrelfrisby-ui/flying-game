@@ -35,7 +35,7 @@ def check(path):
  assert abs(size[0]/8.18-1)<=.02,size
  assert abs(size[1]/1.81-1)<=.05,size
  rig=json.loads((ROOT/'docs/models/grob103-own-rig.json').read_text())['rig']
- assert len(rig)==29
+ assert len(rig)==30
  for r in rig:
     i=next(i for i,n in enumerate(nodes) if n['name']==r['node']);p=world[i][:3,3];assert np.allclose(p,r['pivot_gltf'],atol=1e-6)
     extra=nodes[i].get('extras',{});assert extra['rig_param']==r['param']
@@ -55,14 +55,29 @@ def check(path):
  glass=parts['Canopy_Glass'];assert np.ptp(glass[:,2])<.85
  canopy=np.concatenate([glass,parts['Canopy_Frame']]);assert 2.59<np.ptp(canopy[:,0])<2.61
  assert .90<glass[:,1].max()+.51<1.01
- for label,aft,diam,width in [('Nose',.80,.26,.085),('Main',2.90,.44,.15),('Tail',7.10,.21,.065)]:
+ for label,aft,diam,width in [('Nose',1.4595,.26,.085),('Main',-.5397,.44,.15),('Tail',-4.8768,.21,.065)]:
     v=parts[label+'_Wheel'];centre=(v.min(0)+v.max(0))/2
-    assert abs(centre[0]+2.5-aft)<1e-5
+    assert abs(centre[0]+aft)<1e-5
     assert np.allclose(np.ptp(v,axis=0),[diam,diam,width],atol=1e-5)
     assert label+'_Fairing' in parts
-    keel={'Nose':-.48,'Main':-.48,'Tail':-.19}[label];exposure={'Nose':.10,'Main':.12,'Tail':.07}[label]
+    keel={'Nose':-.50,'Main':-.48,'Tail':-.19}[label];exposure={'Nose':.10,'Main':.12,'Tail':.07}[label]
     assert abs(v[:,1].min()-(keel-exposure))<1e-5
     assert parts[label+'_Fairing'][:,1].max()>keel+.08
+ # v2 stations and actual planform are measured independently from exported triangles.
+ from grob103_metrics import wing_area
+ area=wing_area(tris);assert abs(area-17.5)<.005,area
+ contacts={label:[float(-(parts[label+'_Wheel'][:,0].min()+parts[label+'_Wheel'][:,0].max())/2),0.,float(parts[label+'_Wheel'][:,1].min())] for label in ['Nose','Main','Tail']}
+ assert abs(contacts['Nose'][2]-contacts['Main'][2])<1e-6
+ assert contacts['Tail'][2]>contacts['Main'][2]
+ for side,sign in [('L',1),('R',-1)]:
+    for name,limits in [('Aileron_', [5.17,8.68]),('Spoiler_', [2.43,3.91])]:
+        assert np.allclose([abs(parts[name+side][:,2]).min(),abs(parts[name+side][:,2]).max()],limits,atol=1e-5)
+    t=tris['Spoiler_'+side];norm=np.cross(t[:,1]-t[:,0],t[:,2]-t[:,0]);assert np.all(norm[:,1]>-1e-10),'lower spoiler geometry'
+    a=parts['Tip_Skid_'+side];assert abs((a[:,2].min()+a[:,2].max())/2-sign*8.9)<1e-5
+ steer=next(r for r in rig if r['node']=='Nose_Steering');assert steer['param']=='rudder' and steer['kind']=='rot' and steer['map']==[[-1,-25],[0,0],[1,25]]
+ si=next(i for i,n in enumerate(nodes) if n['name']=='Nose_Steering');assert nodes[si]['extras']['rig_estimated']
+ assembly=nodes[nodes[si]['children'][0]];assert assembly['name']=='Nose_Steering_Assembly'
+ assert {'Nose_Wheel','Nose_Hub','Nose_Fork_-1','Nose_Fork_1'}=={nodes[i]['name'] for i in assembly['children']}
  # Both sides of each wing assembly meet at the source seam with sub-mm profile agreement.
  # TCDS deflections independently calculated from the stated linear measurements.
  expected_angles={'Aileron_L':[-math.degrees(math.asin(90/208)),0,math.degrees(math.asin(50/208))], 'Aileron_R':[-math.degrees(math.asin(50/208)),0,math.degrees(math.asin(90/208))], 'Elevator_L':[-math.degrees(math.asin(2.99/9.45)),0,math.degrees(math.asin(3.82/9.45))], 'Elevator_R':[-math.degrees(math.asin(2.99/9.45)),0,math.degrees(math.asin(3.82/9.45))], 'Rudder':[-math.degrees(math.asin(233/450)),0,math.degrees(math.asin(233/450))]}
@@ -156,4 +171,8 @@ def check(path):
  for n in nodes:
     if n['name'].startswith('Canopy_Glass'):
         for p in g.doc['meshes'][n['mesh']]['primitives']:assert g.doc['materials'][p['material']]['alphaMode']=='BLEND'
- return dict(file=path.name,dimensions_m=dict(span=float(size[2]),length=float(size[0]),height=float(size[1])),nodes=len(nodes),rig_nodes=len(rig),head_clearance_m=head,head_fit='PASS geometric clearance; proposed eyes require Ty review',instrument_gap_m=clearances,graph='PASS',hinge_origins='PASS',canopy_alpha='PASS',cockpit_adjacent_instruments_and_colored_controls='PASS',whole_cockpit_collision_audit=dict(independent_pairs=checked_pairs,unintended_intersections=overlaps,intentional_assembly_contacts=intentional,scope='all independent cockpit mesh pairs; shell/liner contacts and coplanar touching excluded'),cockpit_envelope_samples=envelope_samples,cockpit_outside_shell=protrusions,visual_approval='PENDING')
+ return dict(file=path.name,dimensions_m=dict(span=float(size[2]),length=float(size[0]),height=float(size[1])),nodes=len(nodes),rig_nodes=len(rig),wing_area_m2=area,contacts_author_m=contacts,nose_main_ground_tangent='Z=-0.600 m; tail clearance 0.340 m; tyre compression excluded',steering='PASS hierarchy/map; +/-25 deg ESTIMATED',head_clearance_m=head,head_fit='PASS geometric clearance; approved eyes unchanged (Ty 2026-11-03)',instrument_gap_m=clearances,graph='PASS',hinge_origins='PASS',canopy_alpha='PASS',cockpit_adjacent_instruments_and_colored_controls='PASS',whole_cockpit_collision_audit=dict(independent_pairs=checked_pairs,unintended_intersections=overlaps,intentional_assembly_contacts=intentional,scope='all independent cockpit mesh pairs; shell/liner contacts and coplanar touching excluded'),cockpit_envelope_samples=envelope_samples,cockpit_outside_shell=protrusions,visual_approval='PENDING')
+
+if __name__=='__main__':
+ from build_grob103 import OUT,ID
+ print(json.dumps([check(OUT/(ID+'-own'+suffix+'.glb')) for suffix in ['', '-tf']],indent=2))

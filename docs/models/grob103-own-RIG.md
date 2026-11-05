@@ -1,3 +1,48 @@
+# Current rig: Blanc Twin III Acro v2, 18 m (2026-11-04)
+
+Ty approved the Blanc conversion and eyes on 2026-11-03. The approved native
+glTF eye transforms remain exactly front (-1.15, .16, 0), rear (.04, .22, 0).
+The historical approval requests and pivot tables below are superseded by this
+section and the generated JSON. Visual acceptance of **v2** remains PENDING.
+
+Both exported assets measure 18.000046 m span and 17.500000 m² planform under
+the section integration method (the central 0–.45 m per side uses the .45 m
+chord). V1 already measured 18.000045 m span, but 17.232331 m² area. V2 retains
+span and scales wing chord by 1.0155329673, retaining the source taper.
+Ailerons now occupy author |Y|=5.17–8.68 m; upper-surface-only Type GROB
+spoiler panels occupy 2.43–3.91 m. Their origins/axis markers follow the cuts.
+Tip skids are centred at author Y=±8.9 m on the lower wing skin.
+
+All 29 previous driven names, maps, parents, descriptions and extra fields are
+retained; the four wing pivots and their axis witnesses follow the geometry.
+The 30th node is `Nose_Steering`: scene-root, `rudder`, `rot`, native glTF axis
+(0,1,0), pivot (-1.4595,-.43,0), map [-1,-25], [0,0], [1,25] degrees.
+**±25° is ESTIMATED: no published travel found.** `rig_estimated=true` appears
+in its GLB extras and JSON. One child `Nose_Steering_Assembly` carries the fork,
+tyre and hub; the fixed fillet stays in the skin. An independent
+`Nose_Steering_HingeAxis` witnesses the vertical fork steering axis.
+
+Level-frame tyre-bottom contacts, author (+X forward,+Y port,+Z up), metres:
+nose (+1.4595,0,-.600), main (-.5397,0,-.600), tail (-4.8768,0,-.260).
+Nose station follows the Claude config rather than v1's +1.700 m. Diameters /
+widths remain .260/.085, .440/.150 and .210/.065 m. The nose/main attitude
+leaves .340 m under the tail; main/tail support is 4.487° from level and leaves
+.1567 m normal clearance under the nose tyre. These are rigid tyre-circle
+geometry checks, with no compression. See `ground-support.json` in the renders.
+
+The config handoff has nose `isSteerable=false` and main radius .200 m; Ty's
+new steering decision governs the visual rig, and the requested retained main
+tyre is .220 m radius. This lane does not modify the physics config. Blade
+construction, fork detail, skid shape, chord calibration and wheel vertical
+placement remain visual approximations; no maintenance rigging claim.
+
+Validation and CPU fallback evidence: `renders/grob103/blanc-18m/`. Blender
+5.2.2 crashes during Metal capability detection before executing Python in
+this sandbox; the requested Blender studio renders remain an explicit gap.
+No Unity/device validation or gate approval is claimed.
+
+---
+
 # Current rig: Blanc Twin III Acro conversion, review pending
 
 The 2026-11-03 Blanc conversion retains all 29 driven node names, parameters,

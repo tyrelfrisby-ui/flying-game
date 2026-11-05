@@ -171,4 +171,4 @@ if __name__=='__main__':
         for pa,pb in zip(a.doc['meshes'][na['mesh']]['primitives'],b.doc['meshes'][nb['mesh']]['primitives']):assert np.array_equal(a.array(pa['attributes']['POSITION']),b.array(pb['attributes']['POSITION']))
  for r in results:r['paired_geometry']='IDENTICAL'
 
- p=ROOT/('renders/grob103/blanc-v1/validation.json' if a.doc.get('extras',{}).get('sourceModel') else 'renders/grob103-own/validation.json');p.parent.mkdir(exist_ok=True,parents=True);p.write_text(json.dumps(results,indent=2)+'\n');print(json.dumps(results,indent=2))
+ p=ROOT/('renders/grob103/blanc-18m/validation.json' if a.doc.get('extras',{}).get('sourceModel') else 'renders/grob103-own/validation.json');p.parent.mkdir(exist_ok=True,parents=True);p.write_text(json.dumps(results,indent=2)+'\n');print(json.dumps(results,indent=2))

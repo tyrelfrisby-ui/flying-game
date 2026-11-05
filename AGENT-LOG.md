@@ -1,4 +1,37 @@
 ## NEEDS YOU
+- **2026-11-04 lane/codex-grob103 — NEEDS YOU: Blanc v2 18 m model / render review. No gate marked approved.**
+  Ty approved the Blanc conversion and eyes on 2026-11-03; v2 visual acceptance remains PENDING.
+  Both original GLBs measured **18.000044823 m**, so blanc-v1's span claim was correct and Claude's
+  handoff claim of a 17.5 m GLB was stale. Existing planform measured 17.232331 m²; chord scaled
+  ×1.0155329673 with span retained. Both new exports: **18.000045776 m span / 17.500000169 m²**.
+  Area uses section integration with .45 m root-section extrapolation through the hidden centre.
+  Ailerons |Y| 5.17–8.68, upper-only Type GROB panels 2.43–3.91, tip skids Y ±8.9 m;
+  Spoiler/Aileron pivots and axis markers follow the new geometry.
+  Level-frame tyre-bottom contacts in author X/Y/Z metres: nose (+1.4595,0,-.600),
+  main (-.5397,0,-.600), tail (-4.8768,0,-.260). Nose moved from +1.700 to match the config.
+  Original rounded tyre sizes retained, fillets in skin, tyre bottoms exposed, no pants.
+  Nose/main common ground tangent leaves tail .340 m clear; main/tail rigid-circle support
+  is 4.487° from level with .1567 m nose clearance. No compression/dynamics claim.
+  Added scene-root **Nose_Steering**, `rudder`, `rot`, **±25° ESTIMATED (no published figure)**,
+  vertical fork axis, independent axis marker and one fork/tyre/hub assembly child.
+  All original 29 names/maps/hierarchy/extra fields and approved eye world transforms preserved.
+  Files: both existing GLB filenames, grob103-own-rig.json/RIG.md, asset CREDITS.md (LICENSE.txt
+  retained), build_grob103_18m.py, grob103_metrics.py, updated Grob checkers/overlay helper,
+  render_grob103_18m.py; renders/manifests/validation in `renders/grob103/blanc-18m/`.
+  Copies: `/Users/tyfrisby/Developer/agent-lanes/renders/grob103/18m/`.
+  Checks PASS both exports: check_grob103_blanc.py, check_grob103.py; 30-node rig, control
+  motion, area/span/stations/upper-only panels/skids, wheel dimensions/contacts, graph/UV/normals,
+  2,016 cockpit pairs and 1,608 envelope samples each; old rig/eyes independently compared.
+  Sights NOT APPLICABLE (no Grob in sights-spec.json). Both filenames keep v1's white/red finish.
+  **GAP:** requested Blender studio renders could not run: required 5.2.2 binary crashes in Metal
+  capability detection before Python; sandbox refuses nice's priority adjustment. CPU fallback
+  renders instead supply all nine requested views plus labelled contact sheet; renderer disclosed
+  in images/manifests. No Unity/device verification. POH overlay regenerated, uniform scale,
+  approximate registration; visible contour mismatch is not certified as a pass.
+  Other estimates: source wing loft/centre area, fork, airbrake construction, skid and vertical gear
+  detail. Claude config still says nose isSteerable=false/main radius .200 m; Ty's steering decision
+  is implemented visually, retained main tyre radius .220 m. No physics/runtime files changed.
+  Local commit only; no merge, install, deployment, Unity or xcodebuild. Attribution remains CC BY-SA.
 - **2026-11-03 lane/codex-grob103 — GROB TARGET IS NOW THE G 103 C TWIN III ACRO; TY'S CRITIQUE; GEAR CONFLICT, DECISION NEEDED (Grok Bot):**
   Target changed from Twin II Acro to the **G 103 C TWIN III ACRO, aerobatic category, OSB 315-66 fuselage
   stiffening done, so full aerobatic limits apply: FAA TCDS G39EU Vne 151 kt, Va 100 kt, max weight 600 kg.**
