@@ -243,28 +243,13 @@ public static class CockpitLive
         // lever stood on the left wall as a SECOND rear throttle, over the prop and trim levers of Ty's photos.
     };
 
-    /// <summary>The EA 300 (rear_panel.py's eleven-dial PIC panel over the rig's own front panel).</summary>
-    public static CockpitLiveSpec Extra() => new()
-    {
-        Dials = new[]
-        {
-            AirspeedKt, Altimeter, AttitudeBank, GMeter, Tachometer, Oil("Oil_pressure"),
-            Manifold("Oil_temperature"), FuelQuantity, Compass,
-            // Fuel pressure and the voltmeter stay painted: nothing in the sim moves them.
-        },
-        Hide = new[]
-        {
-            "Needle_ASI_R", "Needle_Alt100_R", "Needle_Alt1000_R", "Needle_G_R", "Needle_GMax_R", "Needle_GMin_R",
-            "Needle_MP_R", "Needle_VSI_R", "Needle_CHT_R", "Needle_Fuel_R", "Needle_OilP_R", "Needle_OilT_R",
-            "Needle_Tach_R", "TC_Symbol_R", "TC_Ball_R",
-        },
-    };
-
     /// <summary>By the placed own model's name (AirframeModels.PlacedOwnName: "&lt;model&gt;-own").</summary>
     public static CockpitLiveSpec For(string ownModelName) => ownModelName switch
     {
         "pitts-s2b-like-own" => Pitts(),
-        "extra-300-like-own" => Extra(),
+        // Not the Extra: since vr_phase3b its panels are the model's own rig (needles on their own faces, both seats); the
+        // painted rear_panel.py dials this table once made live are gone, and its old hide-list hid the LIVE rear needles
+        // (ASI, ALT, G, tach, MP, oil) in flight and in CockpitEyeShots (found 2026-11-05, extra_front_seat renders).
         _ => new CockpitLiveSpec(),
     };
 

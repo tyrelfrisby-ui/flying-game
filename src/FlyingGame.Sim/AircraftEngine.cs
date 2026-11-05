@@ -47,7 +47,8 @@ public sealed partial class Aircraft
     /// <summary>The engine is making power: it has a propeller, fuel and a mixture that fires.</summary>
     public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0 && !_noseLost && !_mixtureDead && !_fuelStarved;
 
-    /// <summary>The engine has quit for want of fuel (idle cut-off or a mixture too lean to fire). Not damage.</summary>
+    /// <summary>The engine has quit for want of fuel (idle cut-off, a mixture too lean to fire, or the fuel valve shut:
+    /// <see cref="FuelStarved"/>). Not damage.</summary>
     public bool EngineStarved => (_mixtureDead || _fuelStarved) && !_noseLost;
 
     /// <summary>The fuel/air equivalence ratio the lever gives here (1 = chemically correct).</summary>
