@@ -1,26 +1,14 @@
 ## NEEDS YOU
 <!-- crash-tuning needs-you -->
-- **CRASH TUNING FROM YOUR 2026.1104.0427 FLIGHT — BUILT, NOT INSTALLED, NOT MERGED (Claude, 2026-11-04,
-  lane/claude-crash-tuning `339b2a2f`, off island-nav `b7d1a680`). Nothing approved by me.**
-  iOS `deploy.sh NOINSTALL` `** BUILD SUCCEEDED **` at `bd1ccd96` (stamp 2026.1104.1036, 0 `error CS`; "installed on 0
-  of 1": NOINSTALL is not a device). `339b2a2f` (the limb-crush fix, Sim only) came after that build and is NOT built.
-  Please fly (Pitts, Cub, Extra, Great Lakes; and the C172 for contrast):
-  1. **Crash on the grass at speed** (`-crashtest grass`): the steel-tube fuselage must stay one piece — wings, tail
-     surfaces, gear and the engine (at the firewall) can still come off. A hard tail strike now BENDS the tail up (drawn:
-     the aft fuselage turns on a pivot at the tail station; its rudder/elevator stop following the stick); a hard nose-in
-     bends the engine mount and then drops the engine. HUD says "TAIL BENT", "ENGINE MOUNT BENT", "FUSELAGE CRUSHED".
-  2. **Slide distance:** pieces now slide on the ground they are on (they used μ 0.7, the BUILDING value, everywhere),
-     and the island's green ground is μ 0.45 (was 0.50). Tell me if the wreck still stops too soon.
-  3. **Treetops:** a pass through the middle of a crown at cruise now dents the leading edges (sound + "BRANCH DAMAGE",
-     less lift and more drag on those strips), can take a control surface or nick the prop; near the trunk, thick limbs
-     can take a wing panel. Brushing the outer twigs is only drag. Is the amount right?
-  4. **Decisions for you:** (a) `structureType` tags — steel tube: Pitts, Extra, J-3 ×2, PA-18 ×3, Great Lakes,
-     Decathlon, Cassutt, Gee Bee R-2, SGS 2-33, Pawnee, Stearman; wood: JN-4, H-4; composite: SR22, Glasair, EB29R, Swift,
-     paraglider, target drone; aluminium: the rest (AirCam, hang glider included). Sources quoted from memory, not
-     re-fetched. (b) Aluminium fuselages now also crush first (break at √2 × the old speed: cabin 11.3 m/s instead of 8);
-     composite 1.15×, wood 1.24×. Say if you want aluminium kept at the old rule. (c) No canopy part exists in the sim,
-     so "canopy can break off" is not modelled. (d) Combat (bullet) damage still shoots tails off steel-tube types —
-     left alone on purpose.
+- **CRASH TUNING MERGED INTO BOTH LANES AND INSTALLED — PLEASE FLY IT (Claude, 2026-11-04 ~4:05 PM PT; Ty approved the
+  merge 2:29 PM PT). Nothing approved by me; no push, main untouched.**
+  lane/claude-crash-tuning `271ddb77` (includes the limb-crush fix `339b2a2f`) merged: island-nav `94b70e6b`,
+  quest-islandnav `d49059c5` + parity sync `d2ae2979`. PARITY: OK. iOS 2026.1104.1506 on the iPad mini (iPhone
+  unavailable — not installed); Quest 3S 2026.1104.1528 installed and launched.
+  Please fly (Pitts, Cub, Extra, Great Lakes; C172 for contrast): `-crashtest grass` at speed (steel-tube fuselage stays
+  one piece; tail BENDS, engine mount bends then drops), wreck slide distance (per-surface μ, island green 0.45), treetop
+  passes (BRANCH DAMAGE amount). Open decisions: structureType tags, aluminium crush-first at √2× break speed (composite
+  1.15×, wood 1.24×), no canopy part, bullets still take steel-tube tails.
 <!-- /crash-tuning needs-you -->
 <!-- parity-merge needs-you -->
 - **PARITY MERGE DONE: BOTH LANES ARE ONE COMMIT AND LOCKED (Claude, 2026-11-04, Ty approved 07:29).**
@@ -8622,3 +8610,15 @@ NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/
 - Delivered 34 fresh final Unity/Metal and schematic PNGs, inspected individually, with complete input/hash/mtime provenance,
   copied byte-for-byte to xfer/c172v3. Both GLBs pass; Unity OwnRigCheck reports RIG OK / 34 bound. Reproduction and full file list:
   `docs/models/c172-instruments-v3.md`. No src/config edits; ProjectSettings churn discarded; local commit only, no deploy/device install.
+
+### 2026-11-04 crash-tuning merge into both lanes (Claude)
+- Merged lane/claude-crash-tuning `271ddb77` (clean worktree; limb fix `339b2a2f` already committed) into
+  lane/claude-island-nav → `94b70e6b` and lane/claude-quest-islandnav → `d49059c5`; then island-nav into quest → `d2ae2979`
+  (parity hook required it; trees identical). No conflicts (AGENT-LOG.md, Aircraft.cs auto-merged). PARITY: OK both.
+- Tests (island-nav `94b70e6b`): crash classes (CrashTuning/Tree/IslandTreetop/Debris/Breakup/WreckRemnant/... 20 classes)
+  229 passed, 0 failed, 1 skipped (GeeBee). Filtered Vr|Pilot|Cockpit|Seat: 437/439 passed; the 2 failures
+  (DronePilotTests.AerobaticDroneFliesVariedManoeuvresAndSurvives, MazeTowTests.TheGliderPilotCanAskForADifferentBranch)
+  also fail on pre-merge base `b62c709d` — pre-existing, no new failures.
+- Builds (sequential, nice): iOS deploy.sh ** BUILD SUCCEEDED ** 2026.1104.1506, installed iPad mini (iPhone
+  unavailable). Quest deploy-quest.sh 2026.1104.1528, 0 error CS, installed + launched on Quest 3S.
+  ProjectSettings.asset / StreamingAssets copies written by builds left uncommitted.
