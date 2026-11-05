@@ -1,5 +1,42 @@
 ## NEEDS YOU
 <!-- tire-spinup needs-you -->
+- **Q026 ITEM 3: P-51 ROLLOUT PROP STRIKE AND SWIFT WATER SKIM, INVESTIGATED (Claude, 2026-11-04, lane/claude-tire-spinup).
+  Nothing in the physics or configs was changed. You asked for findings first.**
+  1. **The P-51's wheel mass is about right, and it is not the cause.**
+     - Model: 30 kg rotating per main, r 0.343 m (a 27 in smooth contour), I = 0.65·m·r² = 2.29 kg·m².
+     - Real: the tyre is 27 in on a **14 in rim** (DMI Aviation / Goodyear application chart). I found no published
+       weight. My estimate is tyre 15–17 kg (a 26x10.5-6 6-ply is 10.4 kg; this one is bigger and 8–10 ply), plus
+       tube, wheel and brake discs, about 28–31 kg. So **30 kg is plausible**.
+     - **The inertia factor is probably ~25 % high for this wheel.** Much of the mass sits at the 14 in rim, not out
+       at the tread: about 0.47 rather than the fleet's 0.65, so I ≈ 1.7 kg·m². That is an estimate, not a measurement.
+     - **What actually happens:** the calm "three-point" landing touches down at 54 m/s, which is 1.13 × the model's
+       Vso (the harness starts at 1.15 Vso, 5 ft) and **at 8° pitch against the 10.7° three-point attitude**. So it is a
+       fast wheel landing. It rolls 3 s, the stick comes back above flying speed, and it balloons to 3.6 m. Two more
+       bounces follow, and the third arrival is nose-low (−1.7°) and strikes. The prop clears by 1.24 m at rest and
+       0.68 m level, so a strike needs a nose-down arrival, not just the spin-up kick.
+     - **The branch point (b85ea02e, no spin-up) bounced too,** to 2.5 m and 1.1 m, and survived by luck.
+     - **Sensitivity:** at 25 kg, or I 2.0, it passes. At 30 kg, or I 2.29, it strikes. That is the bounce sequence
+       changing chaotically, not a margin that grows with the mass.
+     - **My recommendation:** fix the arrival, not the wheel. Either the test pilot / landing law holds the P-51
+       off to a real three-point (near Vso, ~11°), or I set `wheelInertiaKgM2` ≈ 1.7 on the P-51 mains from the
+       rim-size estimate. Say which, or neither. `TaildraggerNoTipStrikeTests.NormalLanding…(p51d-like)` stays red.
+  2. **The Swift water skim is emergent, and the test now says so.**
+     - The real 300x100 monowheel (r 0.15 m) cannot plane at the 25 m/s touch. It ploughs at ~0.5 g for 1.5 s
+       (dig-in 24.1 m/s at full weight), the nose dips in at ~17 m/s, and the nose joint breaks.
+     - The break is from the water's load (`AirframeFlooding.CheckJoints`: 2.1 kN along the fuselage against
+       9 g × the nose's own mass = 1.6 kN). It is not a water-touch trigger.
+     - `WheelWaterTests.ALightTouchAtSpeedSkims…(glider-swift-s1-like)` now asserts your 20:24 rule instead of
+       "breaks nothing": every lost part has a logged water load over its ultimate, and the wings hold. It is green.
+     - **Open question:** the Swift's nose joint counts only the nose's own ~18 kg, not the pilot whose feet are in it.
+       Is 1.6 kN too weak a glider nose? That is crash-water's joint rule (decision 1), so I did not touch it.
+  3. **Water-touch crash triggers: owned by other lanes, so I did not duplicate them.**
+     - SR22/Glasair: lane/claude-wheel-hydroplane 4bbfe5b5 makes the water prop strike emergent (blade drag on the
+       rotor). Those two tests are still red here until it merges; they were red at the branch point too.
+     - The full audit (no `surface == Water` crash; damage only from loads) is crash-reset follow-up item 4, queued.
+     - What I checked in this lane: `AirframeContact` already leaves water breaks to the load path for everything but
+       the propeller, and `TyreWear` / `WheelSpin` have no water trigger.
+     - **Still to audit:** `CrashRelay.OnHardImpact` raises a `CrashImpact` on water above `WaterSplashMinMs` of
+       closing speed. Whether that counts as a "crash" is for crash-reset's audit.
 - **TYRE WEAR, BURST AND FLAT TYRES: BUILT (Claude, 2026-11-04, lane/claude-tire-spinup; local commits, not merged).
   Ty's Q026 answer (20:21): keep the 172's full-pedal lock-up; item 2, the 0.222 m radius, is confirmed. iOS build
   2026.1104.2140 `** BUILD SUCCEEDED **`, 0 `error CS`, PARITY OK, not installed. No new red tests (below). Please fly it:**
