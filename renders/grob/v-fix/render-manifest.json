@@ -1,0 +1,117 @@
+{
+  "renderer": "CPU exported GLB, transparent glass",
+  "views": [
+    [
+      "side",
+      [
+        1.6,
+        0.2,
+        22
+      ],
+      [
+        1.6,
+        0.2,
+        0
+      ],
+      9.4
+    ],
+    [
+      "three-quarter",
+      [
+        -15,
+        8,
+        18
+      ],
+      [
+        1,
+        0.2,
+        0
+      ],
+      19.3
+    ],
+    [
+      "front",
+      [
+        -22,
+        1,
+        0
+      ],
+      [
+        0,
+        0.2,
+        0
+      ],
+      19.3
+    ],
+    [
+      "gear-main",
+      [
+        0,
+        -0.1,
+        3
+      ],
+      [
+        0.4,
+        -0.4,
+        0
+      ],
+      1.3
+    ],
+    [
+      "gear-nose",
+      [
+        -2,
+        -0.1,
+        3
+      ],
+      [
+        -1.7,
+        -0.35,
+        0
+      ],
+      0.9
+    ],
+    [
+      "gear-tail",
+      [
+        6,
+        0,
+        3
+      ],
+      [
+        4.6,
+        -0.03,
+        0
+      ],
+      0.9
+    ]
+  ],
+  "models": {
+    "glider-grob103-acro-like-own-tf.glb": "70eea5315feac1756c9dd4bdb82fdcef41a36bc0f98bf90ceff1cdcb5eb4f8d8",
+    "glider-grob103-acro-like-own.glb": "1e86ef13643c5e11df09e9afdfd175cdb1cf690ef0d6ca9f2e85557c175c5e0f"
+  },
+  "overlay": {
+    "reference": "https://www.norcalsoaring.org/uploads/1/0/0/6/100675970/grob_g-103-c-twiniii-acro-poh.pdf",
+    "sha256": "167d93cf73d8263f4efcf254ae59a525f8a642e201fce8d444ac85d14f5e5763",
+    "pdf_page": 14,
+    "printed_page": "1.6",
+    "pixels_per_m": 47.44444444444444,
+    "nose_pixel": [
+      762,
+      708
+    ],
+    "rotation_deg": 0,
+    "side_wings_omitted": true,
+    "note": "Uniform scale and nose registration, no contour fitting; scan/drawing alignment is approximate."
+  },
+  "images": {
+    "gear-main.png": "39802d05c0633149e79b1e3865009bec0eecbd861bf187cef4489f18d80fe687",
+    "side-poh-overlay.png": "394a719d1295931038b4b6dcd0c637d5aea05a313fd85a4023b5dc16446d3457",
+    "side.png": "66c4f365f61a78403264aeebb441a19c42e7d8e87d756a571a3e601443328b39",
+    "three-quarter.png": "d3a04f097971877ca30a6ba281cf1acfc7098f643c9526a0393b9a90101e0f04",
+    "gear-nose.png": "85a55c03af3a676c3e98be1ece88bdb9d384fd9ed8c68b09ed96d5f18a6c38fb",
+    "gear-tail.png": "21f4dc3e4cea5fe15c901b9cf124903339e593f49144982df71acc234c55b2c0",
+    "front.png": "fcee80bbaa8c85a4eaae202bcd0b0aa21ede29e59c05fefbd7f6547dc6d3ab05"
+  },
+  "visual_approval": "PENDING"
+}

@@ -37,7 +37,7 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.Alpha7)) _driver.SwitchAircraft("f86-sabre-like");
             if (Input.GetKeyDown(KeyCode.Alpha8)) _driver.SwitchAircraft("seminole-like");
             if (Input.GetKeyDown(KeyCode.Alpha9)) _driver.SwitchAircraft("dc3-like");
-            if (Input.GetKeyDown(KeyCode.Alpha0)) _driver.SwitchAircraft("boeing-737-like");
+            // 0 was the 737-800, which is retired from every picker (owner 2026-11-01); the key does nothing now.
 
             if (Input.GetKeyDown(KeyCode.F1)) _driver.SwitchAircraft("pa18-cub-like");
             if (Input.GetKeyDown(KeyCode.F2)) _driver.SwitchAircraft("decathlon-8kcab-like");
