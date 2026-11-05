@@ -29,9 +29,43 @@ public static class PropModel
 
     public static (Vec3 Force, Vec3 Moment) Compute(
         PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, out Parts parts)
+        => Compute(prop, throttle01, bodyVelocity, bodyRates, airDensity, PropDrive.Running, out parts);
+
+    public static (Vec3 Force, Vec3 Moment) Compute(
+        PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, PropDrive drive)
+        => Compute(prop, throttle01, bodyVelocity, bodyRates, airDensity, drive, out _);
+
+    /// <summary>
+    /// What is really turning the propeller (Ty 2026-11-04: after a prop strike in the Extra "the prop was completely
+    /// stopped but if i had the throttle up it would still yaw with rudder"). Every term below used to come from the
+    /// THROTTLE alone — power = MaxPowerW × throttle, rpm from throttle — so a dead engine with the lever forward still
+    /// made torque, P-factor, spiral slipstream, gyroscopic moment and a wash over the tail. Now: a running engine
+    /// makes <see cref="PowerScale"/> × the throttle's power (mixture and governor; 1 = exactly as before); a dead one
+    /// makes none, its prop windmilling at <see cref="Rpm"/> (drag and gyro only), or stopped (Rpm 0).
+    /// </summary>
+    public readonly struct PropDrive
+    {
+        public readonly bool EngineRunning;
+        /// <summary>Running: shaft power relative to the throttle's (mixture × governor). Ignored when dead.</summary>
+        public readonly double PowerScale;
+        /// <summary>Dead: how fast the air turns the prop (0 = stopped). Ignored when running.</summary>
+        public readonly double Rpm;
+        private PropDrive(bool running, double scale, double rpm) { EngineRunning = running; PowerScale = scale; Rpm = rpm; }
+        public static readonly PropDrive Running = new(true, 1.0, 0.0);
+        public static PropDrive RunningAt(double powerScale) => new(true, Math.Max(0.0, powerScale), 0.0);
+        public static PropDrive Dead(double windmillRpm) => new(false, 0.0, Math.Max(0.0, windmillRpm));
+    }
+
+    /// <summary>A stopped (not windmilling) prop's drag as a fraction of the windmilling one: a fixed blade blocks
+    /// less of the disc than one the air is driving.</summary>
+    public const double StoppedDragFraction = 0.5;
+
+    public static (Vec3 Force, Vec3 Moment) Compute(
+        PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, PropDrive drive, out Parts parts)
     {
         parts = default;
-        double thr = Math.Clamp(throttle01, 0.0, 1.0);
+        // A dead engine: no power whatever the lever says. The windmill drag below then sees a closed throttle.
+        double thr = drive.EngineRunning ? Math.Clamp(throttle01, 0.0, 1.0) : 0.0;
 
         // JET (propDiameterM <= 0): pure axial thrust, flat with speed to a cap, NO torque/P-factor/
         // slipstream/gyro (those are propeller-specific). MaxPowerW is reinterpreted as max thrust (N).
@@ -42,9 +76,9 @@ public static class PropModel
             return (new Vec3(jetThrust, 0, jetThrust * prop.ThrustLineZ * 0), new Vec3(0, jetThrust * prop.ThrustLineZ, 0));
         }
 
-        double rpm = prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * thr;
+        double rpm = drive.EngineRunning ? prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * thr : drive.Rpm;
         double omegaProp = rpm * 2.0 * Math.PI / 60.0;
-        double powerW = prop.MaxPowerW * thr;
+        double powerW = drive.EngineRunning ? prop.MaxPowerW * thr * drive.PowerScale : 0.0;
 
         double v = bodyVelocity.Length;
         double radius = prop.PropDiameterM * 0.5;
@@ -80,7 +114,10 @@ public static class PropModel
         double thrust = powerW <= 0 ? 0 : Math.Min(eta * powerW / Math.Max(v, 5.0), staticThrust);
         // The idling prop windmills: drag on the disc, fading out by 20 % throttle (above that it is pulling).
         if (thr < 0.2 && v > 5.0 && prop.IdleDragCd > 0)
-            thrust -= prop.IdleDragCd * (1 - thr / 0.2) * 0.5 * airDensity * Math.Max(0, bodyVelocity.X) * Math.Max(0, bodyVelocity.X) * discArea;
+        {
+            double cd = prop.IdleDragCd * (1 - thr / 0.2) * (drive.EngineRunning || drive.Rpm > 0.0 ? 1.0 : StoppedDragFraction);
+            thrust -= cd * 0.5 * airDensity * Math.Max(0, bodyVelocity.X) * Math.Max(0, bodyVelocity.X) * discArea;
+        }
 
         Vec3 force = new(thrust, 0, 0);
         Vec3 moment = Vec3.Zero;
@@ -93,8 +130,9 @@ public static class PropModel
         moment += new Vec3(-prop.RotationSign * torque, 0, 0);
         parts.Thrust = thrust; parts.TorqueRoll = -prop.RotationSign * torque;
 
-        // P-factor: thrust center offset toward the down-going blade.
-        if (v > 1)
+        // P-factor: thrust center offset toward the down-going blade. A powered disc's asymmetry: a dead engine's prop
+        // (windmilling or stopped) has none to speak of.
+        if (v > 1 && drive.EngineRunning)
         {
             double alpha = Math.Atan2(bodyVelocity.Z, Math.Max(bodyVelocity.X, 1.0));
             double beta = Math.Asin(Math.Clamp(bodyVelocity.Y / v, -1, 1));
@@ -112,7 +150,7 @@ public static class PropModel
         parts.SlipYaw = -prop.RotationSign * prop.SlipstreamK * powerW / Math.Max(vSlip, 8.0);
         moment += new Vec3(0, 0, parts.SlipYaw);
 
-        parts.Gyro = GyroMoment(prop, thr, bodyRates);
+        parts.Gyro = GyroMomentAt(prop, rpm, bodyRates);
         moment += parts.Gyro;
 
         return (force, moment);
@@ -120,10 +158,16 @@ public static class PropModel
 
     /// <summary>Gyroscopic: M = -omega x h, h = Ip*OmegaProp along +x*sign (part of Compute's moment; on its own for the
     /// widget, which shows the prop's share of a spin's nose-up moment — Ty 2026-10-13).</summary>
-    public static Vec3 GyroMoment(PropulsionConfig prop, double throttle01, Vec3 bodyRates)
+    public static Vec3 GyroMoment(PropulsionConfig prop, double throttle01, Vec3 bodyRates) =>
+        GyroMomentAt(prop, prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * Math.Clamp(throttle01, 0.0, 1.0), bodyRates);
+
+    /// <summary>The same at the prop's real speed: a stopped prop has no angular momentum, a windmilling one some.</summary>
+    public static Vec3 GyroMoment(PropulsionConfig prop, double throttle01, Vec3 bodyRates, PropDrive drive) =>
+        drive.EngineRunning ? GyroMoment(prop, throttle01, bodyRates) : GyroMomentAt(prop, drive.Rpm, bodyRates);
+
+    private static Vec3 GyroMomentAt(PropulsionConfig prop, double rpm, Vec3 bodyRates)
     {
         if (prop.PropDiameterM <= 0.0) return Vec3.Zero;
-        double rpm = prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * Math.Clamp(throttle01, 0.0, 1.0);
         double h = prop.RotationSign * prop.PropInertia * rpm * 2.0 * Math.PI / 60.0;
         return new Vec3(0, -bodyRates.Z * h, bodyRates.Y * h);
     }

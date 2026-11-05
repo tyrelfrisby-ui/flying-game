@@ -45,8 +45,8 @@ namespace FlyingGame.Bridge
                 FlyingGame.Sim.Aircraft ac = Driver?.Sim?.Aircraft;
                 if (!On || ac == null) return 0f;
                 if (ac.Config.Propulsion == null) return 1f;                  // wingtip canisters
-                if (ac.EngineRpm < 100) return 0f;                            // nothing turning, nothing to carry it
-                return (float)(0.25 + 0.75 * Mathf.Clamp01((float)ac.Throttle01));
+                if (!ac.EngineRunning || ac.EngineRpm < 100) return 0f;       // no exhaust (a windmilling dead engine has none)
+                return (float)(0.25 + 0.75 * Mathf.Clamp01((float)ac.ShaftPower01));
             }
         }
 
@@ -126,7 +126,7 @@ namespace FlyingGame.Bridge
             if (pr.PropDiameterM <= 0) return 25.0 * Mathf.Clamp01((float)ac.Throttle01);
             SmokeConfig sm = ac.Config.Smoke;
             double cuIn = sm != null && sm.DisplacementCuIn > 0 ? sm.DisplacementCuIn : pr.MaxPowerW / 745.7 / 0.556;
-            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(cuIn * 16.387e-6, ac.EngineRpm, ac.Throttle01,
+            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(cuIn * 16.387e-6, ac.EngineRunning ? ac.EngineRpm : 0.0, ac.ShaftPower01,
                 Atmosphere.DensityAtAltitude(altM), (sm?.PipeDiameterIn ?? 4) * 0.0254, sm?.ExhaustTempK ?? 900);
         }
 

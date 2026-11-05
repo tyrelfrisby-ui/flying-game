@@ -178,8 +178,10 @@ namespace FlyingGame.Bridge
             // both magnetos live, so that is where the cockpit's levers sit; a type without an engine shows
             // the key off rather than pretending.
             bool engine = cfg != null && cfg.Propulsion != null && cfg.Propulsion.MaxPowerW > 0.0;
-            r.PropLever = 1.0;
-            r.Mixture = engine && !ac.EngineStopped ? 1.0 : 0.0;
+            // The prop and mixture levers are the sim's own now (Aircraft.PropLever / MixtureLever, Ty 2026-11-04): drawn
+            // where the pilot left them, whatever the engine is doing.
+            r.PropLever = ac.HasPropLever ? ac.PropLever : 1.0;
+            r.Mixture = engine ? ac.MixtureLever : 0.0;
             r.FuelSelector = 1.0;
             r.Magneto = engine && !ac.EngineStopped ? 3.0 : 0.0;
             r.Master = 1.0;
@@ -264,7 +266,8 @@ namespace FlyingGame.Bridge
         public static double ManifoldPressureInHg(FlyingGame.Sim.Aircraft ac, double altM)
         {
             double ambient = Atmosphere.PressureAtAltitude(altM) / 3386.389;
-            return ac.EngineRpm > 50.0 ? ambient * (0.33 + 0.62 * ac.Throttle01) : ambient;
+            // A dead engine pumps nothing: the gauge reads the air outside, whatever the throttle says.
+            return ac.EngineRunning && ac.EngineRpm > 50.0 ? ambient * (0.33 + 0.62 * ac.Throttle01) : ambient;
         }
 
         /// <summary>
@@ -317,16 +320,19 @@ namespace FlyingGame.Bridge
         /// healthy engine's do, and the time constants are the minutes an air-cooled six takes to get there.</summary>
         private void FillEngineGauges(ref RigInputs r, FlyingGame.Sim.Aircraft ac, double altM, float dt)
         {
-            double thr = r.Throttle, rpm = r.Rpm;
+            // The engine's real power, not the lever: a dead engine with the throttle open cools (Ty 2026-11-04). Oil
+            // pressure still follows rpm below, so a windmilling engine keeps a little.
+            double thr = ac.ShaftPower01, rpm = r.Rpm;
             bool running = rpm > 50.0;
+            bool firing = running && ac.EngineRunning;
 
             // Manifold pressure: ambient, less the throttle plate. Wide open takes about 95 % of ambient; a
             // closed throttle holds about a third of it. inHg = Pa / 3386.389.
             r.ManifoldInHg = ManifoldPressureInHg(ac, altM);
 
             // Oil and cylinder-head temperature: first-order, toward what the power setting holds.
-            double oilTarget = running ? 150.0 + 60.0 * thr : 100.0;
-            double chtTarget = running ? 260.0 + 160.0 * thr : 200.0;
+            double oilTarget = firing ? 150.0 + 60.0 * thr : 100.0;
+            double chtTarget = firing ? 260.0 + 160.0 * thr : 200.0;
             if (dt > 1e-4f)
             {
                 _oilTempF += (oilTarget - _oilTempF) * (1.0 - System.Math.Exp(-dt / 150.0));
