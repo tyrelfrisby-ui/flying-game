@@ -1,58 +1,22 @@
 ## NEEDS YOU
-- **WHEEL SKI SWEEP vs TY'S V_p RULE (Claude, 2026-11-04, lane/claude-wheel-hydroplane; local only, not merged, not
-  installed; iOS 2026.1104.1624 ** BUILD SUCCEEDED **, 0 error CS). Two of the rule's halves hold, one does not.
-  Nothing approved by me.**
-  1. **Above V_p, every type with prop and tail clear of the water skis, and where it goes over it is load or moment.**
-     The Extra and the Pitts "went over above V_p" because their V_p was wrong, not their water: your weight rule gave
-     them 18 and 16 psi, a 47 in² footprint on a tyre with 28 in² of planform, i.e. a tyre flat on its rim. Fixed with
-     ONE rule for every tyre (`WheelHydro.FootprintFloorPsi`: no tyre below load / (b·r)): Extra 29.8 psi, V_p 49 kt
-     (skis from 50 kt at 10°, 55 at 6°); Pitts 21.4 psi, 42 kt (skis from 45). Real 5.00-5s run 30–40. No other type
-     moved. Do those pressures look right to you?
-  2. **Nose-low it still goes over above V_p, by the moment, as your rule says**: the Extra at 60 kt held 2° (symmetric
-     wing lifts ~nothing, the wheels carry 1.0 g) goes over in 0.5 s; held 6° (0.3 g on the wheels) it skis. Drag/lift
-     on the tyre = tan(φ/2) ≈ 0.32 beats lever-arm ratio 0.37 m ahead / 1.4 m below = 0.26.
-  3. **The model DOES ski below V_p, by 1–16 kt, on types whose tyres have planform to spare** (J-3 30 vs 31, PA-18 35 vs
-     38, 172 50 vs 55, Beaver 40 vs 49, Stearman 35 vs 46, Pawnee 30 vs 40, P-51 75 vs 91). In this model pressure does
-     not enter the water force at all: a tyre is a rigid planing cylinder, so its floor is the dig-in speed
-     √(2·load/(ρ·C·b·r)), which equals V_p only when the footprint fills b·r. With the wing carrying part of the weight
-     and a fat tyre that floor is under V_p. I did NOT add a cut-off at V_p: it would be a scripted threshold. Is
-     Horne's V_p what you see on DEEP water too (then the round tyre's planing lift below V_p needs a real mechanism —
-     tell me what you see happen), or is skiing a little under V_p when the wing is unloading the wheels right?
-  4. **Prop strike, not water, ends the low-clearance types**: Cassutt, SR22, Glasair, Gee Bee, PA-28 have the prop tip
-     2–16 cm above the tyre bottom at 2–6° (SR22/Glasair/Gee Bee BELOW it at 0°), so any tyre immersion wets a blade
-     (contact-patch lane's full-radius disc). They ski only nose-high (6–10°). Two pre-existing reds come from this
-     (`ALightTouchAtSpeedSkimsAndBreaksNothing` SR22, Glasair: red on HEAD d0e4dd89 too). Is the SR22 config's prop
-     really below its wheels in level attitude?
-  5. **DC-3: 255 psi from the weight rule** (25,500 lb / 100) puts V_p at 144 kt, above its flying speed. A real
-     17.00-16 runs ~50–60. The weight rule breaks for heavy types with big tyres; not changed (a book figure is yours).
-- **FLOAT HYDRO SPEC (2026-11-04): ALL SIX SPEC TESTS GREEN; THREE OLD WATER-RUDDER TESTS STILL RED — YOUR CALL ON THE
-  HINGE (Claude, lane/claude-wheel-hydroplane, merged island-nav b7d1a680 in; local only, not installed; iOS 2026.1104.1106
-  ** BUILD SUCCEEDED **, 0 error CS, build-ready).**
-  1. **Water rudder, retracted, at rest.** The drawn retract hinge is at the keel line at the heel (1.16 m below the CG),
-     and the drawn Edo float rests 2.1° bow-up with the heel 8.3 cm deep, so the hooked blade's lowest ~9 cm sit in the
-     water at rest. Pedal authority hooked: 108 N·m at 3 m/s against 856 down; none from ~5 m/s. The rudder lane's three
-     tests (`HookedItIsOutOfTheWater…`, `UpItMakesNoForce`, `ATaxiTurnsTighter…`) were written on the old prismatic float
-     (keel 1.495 m, heel higher) and are red on island-nav too. Either the hinge is drawn too low, or the real J-3 does
-     sit heel-deep enough to wet a hooked blade — which is it? Not changed.
-  2. **The hard-landing number that went red (18.1 vs 17.9 kN):** island-nav carried my first float fix, which used the
-     bow chord at every trim AND took the float load from one 5 ms step. A J-3 that skips after a 100 fpm touchdown and
-     comes back on one float had a one-step added-mass spike counted as a structural load. With the bow chord only below
-     zero trim (as in 9c5fa54c) the same landing peaks at 16.9; with the load over 20 ms, 13.2 kN. Not a tolerance change.
-  3. **Idle taxi turn:** with the water rudder UP the J-3 still turns 254° in 20 s at 1.5 m/s on full pedal (down: 259°).
-     Something other than the blade is yawing it at idle; not chased. Worth a fly: does a J-3 on floats turn that well at
-     idle with the rudder up?
-  4. **SR22 and Glasair light water touch** now strike the prop (contact-patch lane's full-radius prop disc, on
-     island-nav). That is the crash lane's rule; flagged, not changed.
-- **WATER SKIING: J-3 SKIS, 172 DIGS IN — BOTH EMERGENT, NOTHING SCRIPTED (Claude, 2026-11-04, lane/claude-wheel-hydroplane,
-  tests only on top of 325b367e/9c5fa54c; not merged, not installed).** Same pilot, same water for both (45 kt, nose held
-  6°, 40 % power, 0.5 m/s touch, deep water): the J-3 holds 22–23 m/s for 10 s at 0.07 g; the 172's forward wheel goes
-  0.92 m under and it goes over at 5.3 s (prop strike, 12.5 m/s). WheelHydro has no gear-type or aircraft-name logic: the
-  difference is geometry (the 172's nose wheel 1.25 m ahead of the CG vs the J-3 mains' 0.16 m) and tyres (6.00-6 at
-  38 psi, V_p 55 kt, vs 12 psi, 31 kt). **Two things to know before you fly it:** (1) 45 kt is near the 172's own stall,
-  so its wheels carry more weight than the Cub's do — at 50 kt, 2° nose-up and 40 % power the 172 DID hold for 10 s,
-  so "a 172 cannot ski" is a tendency here, not a law; is that what you'd expect? (2) the Extra skis at its own flying
-  speed (80 kt, 0.57 g) but at 45–50 kt, below its stall, its 0.155 m tyres cannot carry it and it goes over in 0.4 s.
-
+- **WHEEL HYDROPLANE LANE MERGED + INSTALLED (Claude, 2026-11-05 01:56, lane/claude-wheel-hydroplane 7388335f → island-nav
+  12328a67 → Quest 3fd9d5e2; Ty approved the merge 2026-11-04 20:27). iOS island-nav 2026.1105.0137 ** BUILD SUCCEEDED **,
+  0 error CS, installed iPhone + iPad mini + EFB iPad; Quest 2026.1105.0147 installed and launched on the Quest 3S.
+  `tools/check-parity.sh --strict`: PARITY OK. Nothing approved by me.** Your Q024 answers are in the tests now: the hooked
+  water rudder's tip stays wet (real), the J-3's idle turn is pinned at your 254° in 20 s, and a water prop strike is
+  emergent — the blades' water drag brakes the rotor, and the engine stops only if that drag pulls it under a quarter of
+  idle. Still open, worth a fly:
+  1. **The prop strike now needs a dip that brakes the rotor, so a brush at power runs on.** On an SR22 at 2700 rpm a 5 mm
+     dip costs ~200 N·m against ~820 from the engine; 2 cm costs ~1,560, which slows the prop to ~2,200 rpm but does not
+     stop it. At idle the same 2 cm stops it. The light-touch tests: SR22 dipped 1.5 cm and Glasair 8 cm at idle, both
+     for a few milliseconds, and neither prop stopped. The blade geometry (2 blades, tip chord 0.12 R, in-plane coefficient
+     0.2) is TYPICAL, not from any config, and blades do not bend from water load (no blade strength is modelled). Should
+     the Glasair's 8 cm dip have bent its blades?
+  2. **Still not answered from the ski sweep:** a fat-tyred type skis 1–16 kt UNDER V_p when the wing unloads the wheels
+     (J-3 30 vs 31 kt, Beaver 40 vs 49, P-51 75 vs 91); no V_p cut-off was added, because that would be a scripted
+     threshold. Is that what you see? DC-3: the weight rule gives 255 psi, so V_p is 144 kt (a real 17.00-16 runs
+     ~50–60 psi). Not changed.
+  3. You will fly the J-3 float idle turn (254° in 20 s, rudder up or down within 5°).
 ## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
 <!-- crash-reset needs-you -->
 Lane lane/claude-crash-reset. Seven of Ty's reports in one lane. NOTHING approved by me.
@@ -4002,6 +3966,33 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-05 01:56 PST — Claude · lane/claude-wheel-hydroplane · Q024 rulings, merge into both lanes, installs
+- **Ty 2026-11-04 20:27 (Q024):** a hooked water rudder that stays wet is correct; the J-3's idle turn of 254°/20 s is OK;
+  an SR22/Glasair prop strike on water is OK, but it must come from the prop's own geometry in the water, with real
+  hydrodynamic forces and damage only by load. MERGE APPROVED.
+- **4bbfe5b5:** `Aircraft.PropStrike` no longer stops the engine when a blade touches water. `WaterBladeTorque` gives
+  Q = n·(acos(1−d/R)/π)·½ρ_w(ωR)²·c·(⅔d)·C·(R−⅓d), where n = 2, c = 0.12 R and C = 0.2 are typical values, not from any
+  config. It brakes the same rotor the ground does, and the prop stops only below a quarter of idle. Water does not curl
+  the tips. Tests: `J3WaterRudderTests` now follows the rulings (hooked: wet, but under half the down area and under a
+  quarter of the pedal swing; idle turn up 254 ± 15°, down > up). In `WheelWaterTests` a light touch may lose a propeller
+  only if its disc was measured in the water and the rotor itself stalled (none did). The harness now counts a lost nose
+  as going over and ends the skiing window at the first blade in the water.
+- **Merges:** island-nav d0db5af1 → lane 57a7bb83. island-nav f6d5f492 → lane 7388335f: crash-reset had landed the same
+  water-torque code, so I kept theirs and took their smooth-metal blade-tip friction (KeelSlidingCoefficient). The lane
+  → island-nav 12328a67 (with the Extra floor panels it had picked up). island-nav → Quest 3fd9d5e2. No conflicts in
+  the last two.
+- **Tests:** full suite on the branch point d0db5af1: 128 failed / 2568 passed. Lane 4bbfe5b5: 156 / 2556. By unique
+  name, 6 fixed and 9 new. Re-run alone, SpawnSpeedTests (all 32 cases), CockpitLive, NoseSkid and Soaring pass, so they
+  are suite coupling. 4 also fail alone on the base (MountainRoughness, NavProcedure, RegionalAtmosphere, Seaside). The
+  last, `HingeSlaveStrutTests.TheStreamingRigCopyIsNotStale`, was an un-synced StreamingAssets copy that any build
+  refreshes. After the second merge, the water/crash/contact classes went 131/131.
+- **Builds:** lane 7388335f iOS 2026.1105.0126 ** BUILD SUCCEEDED **, installed on 3/3. This one lacked the Extra floor
+  panels and was superseded 11 min later by island-nav 12328a67 iOS 2026.1105.0137 ** BUILD SUCCEEDED **, 0 error CS,
+  installed on iPhone, iPad mini and the EFB iPad. Quest 3fd9d5e2 2026.1105.0147, 0 error CS, installed and launched on
+  the Quest 3S. `check-parity.sh --strict`: PARITY OK. bundleVersion and the StreamingAssets byproducts were not
+  committed, and the playable worktrees' leftover files were left as they were.
+- **Gotcha:** `check-parity.sh` is a bash script. Run under zsh, `read -r path` overwrites zsh's `path`/`PATH`, so it
+  prints "command not found: grep" and a false FAIL. Run it as `bash tools/check-parity.sh`.
 ### 2026-11-04 17:00 PST — Claude · lane/claude-wheel-hydroplane · wheel water-ski sweep vs Ty's V_p rule
 - **Ty's ruling:** V_p ≈ 9√psi kt; above it every aeroplane can ski on its wheels unless the load on them (weight − lift,
   plus the pitch moment of the drag below the CG) beats the water's lift; below it, none can.
