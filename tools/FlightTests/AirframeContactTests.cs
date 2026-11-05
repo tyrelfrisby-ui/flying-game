@@ -77,10 +77,13 @@ public class AirframeContactTests : IDisposable
         var c = Cub();
         WorldTerrain.Active = null;
         var tables = Aircraft.BuildAirfoilTables(c);
-        // Banked 60° right, dropping at 6 m/s from 2.5 m: the right tip hits first, hard.
-        double roll = 60 * System.Math.PI / 180;
+        // Banked 40° right at 35 m/s, sinking 10 m/s from 2.5 m: the right tip hits first, hard. (Until 2026-11-05 a 6 m/s
+        // drop at 60° with no way on took it; now that pivots the aeroplane about its tip onto its gear and the panel
+        // keeps a set — Ty: "bends before it breaks", BendDamageTests. It takes a strike that folds it through its
+        // aluminium spar's rupture rotation.)
+        double roll = 40 * System.Math.PI / 180;
         var att = new Quat(System.Math.Sin(roll / 2), 0, 0, System.Math.Cos(roll / 2));
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -2.5), att, att.Conjugate().Rotate(new Vec3(0, 0, 6.0)), Vec3.Zero), ControlDeflections.Neutral);
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -2.5), att, att.Conjugate().Rotate(new Vec3(35, 0, 10.0)), Vec3.Zero), ControlDeflections.Neutral);
         var lost = new List<AirframeComponent>(); ac.ComponentLost += lost.Add;
         var sim = new SimLoop(ac);
         for (double t = 0; t < 3 && lost.Count == 0; t += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));

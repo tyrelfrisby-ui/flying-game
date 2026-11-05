@@ -35,15 +35,16 @@ public class CombatTests : IDisposable
     {
         var c = Load("pa18-cub-like.json");
         WorldTerrain.Active = null;
-        // Rolled 60° left, dropping so the left tip hits at ~6 m/s.
-        double roll = -60 * Math.PI / 180;
+        // Rolled 40° left at 35 m/s, sinking 10 m/s onto the left tip (a 6 m/s drop at 60° with no way on only bends it
+        // since 2026-11-05: BendDamageTests).
+        double roll = -40 * Math.PI / 180;
         var att = new Quat(Math.Sin(roll / 2), 0, 0, Math.Cos(roll / 2));
         double lowest = double.MaxValue;
         // The propeller disc holds nothing up (2026-11-03): place the aeroplane by its hard points.
         foreach (var p in AirframeContact.BuildPoints(c)) if (!p.PropDisc) lowest = Math.Min(lowest, -att.Rotate(p.Body - c.Mass.CgVec()).Z);
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, lowest - 0.05), att, att.Conjugate().Rotate(new Vec3(0, 0, 6)), Vec3.Zero), ControlDeflections.Neutral);
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, lowest - 0.05), att, att.Conjugate().Rotate(new Vec3(35, 0, 10)), Vec3.Zero), ControlDeflections.Neutral);
         var sim = new SimLoop(ac);
-        for (double t = 0; t < 0.3; t += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1));
+        for (double t = 0; t < 1.0 && !ac.IsLost(AirframeComponent.WingTipLeft); t += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1));
         _out.WriteLine("lost: " + string.Join(", ", ac.LostComponents));
         // A tip strike takes the panel outboard of the wing's structural station (Ty 2026-11-03; WingStructure) — its
         // rows and its aileron — and nothing inboard of it.
