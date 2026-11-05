@@ -149,6 +149,7 @@ namespace FlyingGame.Bridge
                     new Vec3(TowSpeedMs, 0, 0) + gliderState.Attitude.Conjugate().Rotate(FlyingGame.Core.Atmosphere.WindAtPosition(tugPos)), Vec3.Zero);
             }
             var tug = new Aircraft(tugConfig, tugState, new ControlDeflections(0, 0, 0, 0));
+            global::Aero.Wake.WakeField.Ensure(tug, "tug");   // its wake and slipstream are what the glider boxes (docs/WAKE-VORTEX.md)
             _tugDriver = null;
 
             if (_tugGo != null && _tugVisualId != SessionSettings.TugId) { Destroy(_tugGo); _tugGo = null; }

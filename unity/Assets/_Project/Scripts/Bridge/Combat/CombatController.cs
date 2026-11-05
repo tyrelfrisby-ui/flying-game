@@ -220,6 +220,7 @@ namespace FlyingGame.Bridge
             if (d.Go != null) Destroy(d.Go);
             d.Aircraft = new Aircraft(cfg, new RigidBodyState(start, att, new Vec3(speed, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
             if (cfg.RetractableGear) d.Aircraft.SetGear(false, immediate: true);   // DC-3s and P-51s cruise with the gear up
+            global::Aero.Wake.WakeField.Ensure(d.Aircraft, $"drone{d.Id}");
             int i = d.Id - 100;
             d.Go = new GameObject($"Drone{i}-{d.Kind}");
             d.Builder = new AirframeBuilder { Paint = DroneOrange };

@@ -1,5 +1,6 @@
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
+using FlyingGame.Core.Aero.Wake;
 using FlyingGame.Core.Combat;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
@@ -110,6 +111,11 @@ public sealed class ReplayActor
 
     private int _eventCursor;
     private int _lastFrame = -1;
+    private double _lastFollowSec = double.NaN;
+
+    /// <summary>Recorded ships shed wakes (docs/WAKE-VORTEX.md) when the host turns this on; off in every test that
+    /// does not ask for it.</summary>
+    public static bool ShedsWakes { get; set; }
 
     public ReplayActor(int id, FlightTrack track, AircraftConfig config)
     {
@@ -155,6 +161,13 @@ public sealed class ReplayActor
         Current = s;
         Aircraft.SetReplayPose(s.State, s.Deflections, s.Throttle01, s.Deflections.FlapFraction, s.GearExtension, s.LoadFactorZ);
         Mode = ActorMode.Kinematic;
+        if (ShedsWakes)
+        {
+            Aircraft.Wake ??= VortexWake.CreateSource($"replay-{Id}", AeroModel.WingSpan(Config));
+            double dtF = double.IsNaN(_lastFollowSec) ? 0.0 : sessionSec - _lastFollowSec;
+            if (dtF > 0.0 && dtF < 0.5) Aircraft.ShedPoseWake(dtF);
+        }
+        _lastFollowSec = sessionSec;
         if (Crippled(Aircraft)) { ShotDown = true; Release(); return; }
         // Moved somewhere it was not flown, the recording can pass through a hill. It crashes into it, as a live
         // aeroplane would, rather than flying through the island.
