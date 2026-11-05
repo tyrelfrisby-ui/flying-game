@@ -8,7 +8,9 @@ pivot Codex built it at) and `controls` rows (what a headset hand works), on all
                                rot about its spindle, param prop_lock: 0 hanging DOWN = locked .. 1 HORIZONTAL forward
                                = released). The slide moves only while released (Core PropLockLever).
   red MIXTURE push-pull        Mixture (move aft, param mixture: 1 pushed in rich .. 0 pulled out, idle cut-off).
-  FUEL valve, right wall       FuelValve_Rear (rot about its shaft, param fuel_valve: 1 UP = ON .. 0 forward = OFF).
+  FUEL valve, right wall       FuelValve_Rear (rot about a fore-aft shaft, param fuel_valve: 1 UP = ON .. 0 horizontal to the
+                               pilot's LEFT = OFF: Ty's words, 19:27. The first pass turned it FORWARD, after
+                               Codex's OFF legend; Ty's words win, and the legend is for Codex to move).
   TRIM lever, left wall        TrimLever_Rear (move fore/aft, param trim: +1 aft NOSE UP .. -1 forward NOSE DOWN).
   COWL FLAP, under the knee    CowlFlap (rot, param cowl_flap: 0 CLOSED, 0.5 MID, 1 OPEN detents).
 
@@ -34,6 +36,8 @@ RETIRED_ROWS = {'Ctl_PushPull_Prop', 'Ctl_PushPull_Mixture', 'Ctl_Rotary_FuelSel
 # glTF pivots: builder (X fwd, Y left, Z up) -> glTF (-X, Z, Y), from pitts_reference_visuals.py / pitts_geometry_pass3.py.
 PROP_P = [1.08, -0.125, 0.275]
 VALVE_P = [0.97, -0.160, -0.277]
+# glTF +x is AFT, +z the pilot's LEFT: +90 deg about +x takes the handle's UP (+y) to +z.
+VALVE_AXIS = [1.0, 0.0, 0.0]
 TRIM_P = [1.24, -0.240, 0.270]
 
 
@@ -59,8 +63,8 @@ def rows(nodes_by):
                 'blade DOWN = locked .. HORIZONTAL forward = released (Ty); forward is (E)', parent='PropLever_Rear_Slide'),
         rig_row('Mixture', 'mixture', 'move', [1.0, 0.0, 0.0], mix_p, [[0, 0.05], [1, 0]], 1.0, '0..1',
                 '(E) 50 mm push-pull: in = rich, out = lean, fully out = idle cut-off'),
-        rig_row('FuelValve_Rear', 'fuel_valve', 'rot', [0.0, 0.0, 1.0], VALVE_P, [[0, 90], [1, 0]], 1.0, '0..1',
-                'UP = ON, turned forward to horizontal = OFF (Ty; the OFF legend is forward of the valve)'),
+        rig_row('FuelValve_Rear', 'fuel_valve', 'rot', VALVE_AXIS, VALVE_P, [[0, 90], [1, 0]], 1.0, '0..1',
+                "UP = ON, turned to horizontal pointing to the pilot's LEFT = OFF (Ty 2026-11-04 19:27)"),
         rig_row('TrimLever_Rear', 'trim', 'move', [1.0, 0.0, 0.0], TRIM_P, [[-1, -0.05], [0, 0], [1, 0.05]], 0.0, '-1..1',
                 '(E) +-50 mm along the wall ticks: aft = NOSE UP, forward = NOSE DOWN (the legends)'),
         rig_row('CowlFlap', 'cowl_flap', 'rot', [0.0, 0.0, 1.0], flap_p, [[0, -35], [0.5, 0], [1, 35]], 0.5, '0..1',
@@ -69,7 +73,7 @@ def rows(nodes_by):
     ctl = [
         control_row('PropLever_Rear', 'prop_lock', 'Lever', [0.0, 0.0, 1.0], PROP_P, 90, 'deg', [0, 1], [], 'PROP'),
         control_row('Mixture', 'mixture', 'PushPull', [1.0, 0.0, 0.0], mix_p, 50, 'mm', [0, 1], [], 'MIXTURE'),
-        control_row('FuelValve_Rear', 'fuel_valve', 'Rotary', [0.0, 0.0, 1.0], VALVE_P, 90, 'deg', [0, 1], [0, 1], 'FUEL'),
+        control_row('FuelValve_Rear', 'fuel_valve', 'Rotary', VALVE_AXIS, VALVE_P, 90, 'deg', [0, 1], [0, 1], 'FUEL'),
         control_row('TrimLever_Rear', 'trim', 'PushPull', [1.0, 0.0, 0.0], TRIM_P, 100, 'mm', [-1, 1], [], 'TRIM'),
         control_row('CowlFlap', 'cowl_flap', 'Lever', [0.0, 0.0, 1.0], flap_p, 70, 'deg', [0, 1], [0, 0.5, 1], 'COWL FLAP'),
     ]
@@ -90,6 +94,14 @@ def recentre(g, name, pivot):
 def update(g):
     nodes = g.doc['nodes']; by = {n['name']: i for i, n in enumerate(nodes)}
     live = g.doc.get('extras', {}).get('pittsControlsLive')
+    if live is not None and live.get('recentred') and not live.get('valveLeft'):
+        # The valve's OFF is to the pilot's LEFT (Ty), about a fore-aft shaft: the table row follows (the rig row is
+        # rewritten from rows() every run).
+        for c in g.doc['extras']['vrCockpitPhase3a']['controls']:
+            if c['node'] == 'FuelValve_Rear': c['axis_gltf'] = list(VALVE_AXIS)
+        live['valveLeft'] = True
+        validate(g, ROOT / 'pitts-controls-live')
+        return True
     if live is not None and not live.get('recentred'):
         # The slide node carries the pivot; the blade under it is drawn relative to it.
         recentre(g, 'FuelValve_Rear', VALVE_P)
