@@ -95,8 +95,7 @@ namespace FlyingGame.EditorTools
                     if (d < best) { best = d; bi = i; bc = c; }
                 }
                 if (bi < 0) return 1.0;
-                float dist = Mathf.Sqrt(best);
-                return Vector3.Dot(p - bc, N[bi]) < -1e-4f ? -dist : dist;
+                return Mathf.Sqrt(best);   // unsigned, as the runtime grid (a single-sided skin has no inside)
             }
         }
 
@@ -146,7 +145,7 @@ namespace FlyingGame.EditorTools
         private static ArmOut After(bool left, Vector3 sh, Vector3 grip, Vector3 axis, Vector3 pole, float upper, float lower, IArmClearance grid, IArmClearance exact)
         {
             ArmPose.Result r = axis.sqrMagnitude > 1e-6f
-                ? ArmPose.OnGrip(left, C(sh), C(grip), C(axis), upper, lower, C(pole), SeatedPilot.WristToGripM, grid)
+                ? ArmPose.OnGrip(left, C(sh), C(grip), C(axis), upper, lower, C(pole), SeatedPilot.WristToGripM, grid, 0.0, left ? ArmPose.KnobTiltDeg : ArmPose.MaxTiltDeg)
                 : ArmPose.Free(C(sh), C(grip + (sh - grip).normalized * (float)SeatedPilot.WristToGripM), upper, lower, C(pole), grid);
             var o = new ArmOut { S = sh, E = U(r.Elbow), Wr = U(r.Wrist), Swing = r.SwivelDeg };
             if (axis.sqrMagnitude > 1e-6f)
@@ -210,7 +209,7 @@ namespace FlyingGame.EditorTools
                 if (th != null)
                 {
                     Vec3 knob = th.Lever.GripAt(th.TFor(thr));
-                    thrGrip = U(knob); thrAxis = U((knob - th.Lever.Pivot).Normalized());
+                    thrGrip = U(knob); thrAxis = U(ArmPose.KnobAxis(th.Lever.Axis, left: true));
                 }
                 else { thrGrip = hipL + new Vector3(0f, 0.08f, 0.35f); thrAxis = Vector3.zero; }
                 ArmOut bl = Before(true, shL, thrGrip, poleL, upL, loL, exact), br = Before(false, shR, stickGrip, poleR, upR, loR, exact);
@@ -236,6 +235,8 @@ namespace FlyingGame.EditorTools
                         };
                         Legs(body, ref p, builder, seat.Id, eye, proxy, hipL, hipR);
                         body.Apply(p);
+                        if (body.TryBone("R_LowerArm", out Vector3 bl0) && body.TryBone("R_Hand", out Vector3 bh0) && body.TryBone("L_LowerArm", out Vector3 bl1) && body.TryBone("L_Hand", out Vector3 bh1))
+                            Debug.Log($"[VrArms] {(after ? "after" : "before")} {id}/{seatId} {name}: posed bones vs solved joints — R elbow {Vector3.Distance(bl0, R.E) * 1000:F0} mm, R wrist {Vector3.Distance(bh0, R.Wr) * 1000:F0} mm, L elbow {Vector3.Distance(bl1, L.E) * 1000:F0} mm, L wrist {Vector3.Distance(bh1, L.Wr) * 1000:F0} mm");
                         Shoot(air, eye, p, $"{(after ? "after" : "before")}-{id}-{seatId}-{Slug(name)}", dir);
                     }
                     VrPilotBody.LegacyArmsForTesting = false;

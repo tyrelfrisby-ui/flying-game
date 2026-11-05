@@ -13,8 +13,7 @@ namespace FlyingGame.Bridge
     /// Built once per seat (<see cref="Build"/>): every triangle of the airframe's meshes inside a box round the seat is
     /// voxelised into a 2.5 cm grid in the aeroplane's frame, each surface cell keeping its averaged face normal, and a
     /// two-pass sweep gives every cell its nearest surface cell (a feature transform). A query is then one lookup and a
-    /// subtraction: distance to that surface cell, negative when the point is BEHIND its face (inside the switch box,
-    /// through the sidewall). The controls the hands hold (stick, throttle) and anything named in
+    /// subtraction: the (unsigned) distance to that surface cell. The controls the hands hold (stick, throttle) and anything named in
     /// <paramref name="exclude"/> are left out: the hand is meant to be on them.
     ///
     /// Cost: ~150 k cells (two arrays, ~1.2 MB), built in tens of milliseconds at bind; a query is a handful of
@@ -187,8 +186,10 @@ namespace FlyingGame.Bridge
             Vector3 d = p - Centre(f);
             // The surface runs through its cell, not along its centre: half a cell of slack.
             float dist = Mathf.Max(0f, d.magnitude - Cell * 0.5f);
-            Vector3 nrm = _normal[f];
-            return nrm.sqrMagnitude > 1e-12f && Vector3.Dot(d, nrm) < -Cell * 0.5f * nrm.magnitude ? -dist : dist;
+            // UNSIGNED. A face's normal cannot say which side is solid: the fuselage skin's normals face OUT, so from the
+            // cockpit every point is "behind" it, and a signed test read the whole cabin as structure (2-33, J-3). What
+            // counts is an arm surface within its radius of any surface (ArmPose's capsules).
+            return dist;
         }
 
         /// <summary>Ericson, Real-Time Collision Detection 5.1.5.</summary>

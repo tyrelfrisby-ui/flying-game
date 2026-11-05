@@ -3,8 +3,9 @@ using FlyingGame.Core.MathTypes;
 
 namespace FlyingGame.Core.Vr
 {
-    /// <summary>How far a point is from the cockpit's structure, metres: positive in the clear, zero on a surface,
-    /// negative inside it. The Bridge answers it from the aeroplane's own meshes (VrArmClearance).</summary>
+    /// <summary>How far a point is from the cockpit's structure, metres (zero on a surface; an implementation may return
+    /// a negative value where it knows it is inside a solid). The Bridge answers it, unsigned, from the aeroplane's own
+    /// meshes (VrArmClearance): a capsule closer than its radius to any surface is in the structure.</summary>
     public interface IArmClearance
     {
         double Distance(Vec3 p);
@@ -35,6 +36,8 @@ namespace FlyingGame.Core.Vr
     public static class ArmPose
     {
         public const double MaxTiltDeg = 20.0;
+        /// <summary>A round lever knob does not square the hand to anything: it may sit this far off square to the hinge.</summary>
+        public const double KnobTiltDeg = 75.0;
         public const double MaxSwivelDeg = 80.0, SwivelStepDeg = 10.0;
         public const double UpperArmRadiusM = 0.050, ForearmRadiusM = 0.042;
         /// <summary>Penetration per degree of swing that buys the swing: below it, the natural elbow wins.</summary>
@@ -59,18 +62,18 @@ namespace FlyingGame.Core.Vr
         /// <summary>The arm for a hand closed on a control whose grip centre is <paramref name="grip"/> and whose grip
         /// axis (stick: pivot → grip; lever: pivot → knob) is <paramref name="gripAxis"/>.</summary>
         public static Result OnGrip(bool left, Vec3 shoulder, Vec3 grip, Vec3 gripAxis, double upper, double lower, Vec3 pole,
-                                    double wristToGrip, IArmClearance? clearance = null, double preferSwivelDeg = 0.0)
+                                    double wristToGrip, IArmClearance? clearance = null, double preferSwivelDeg = 0.0, double maxTiltDeg = MaxTiltDeg)
         {
             Vec3 a = gripAxis.LengthSquared > 1e-12 ? gripAxis.Normalized() : new Vec3(0, 1, 0);
             // Start: the hand points away from the shoulder, across the grip.
-            Vec3 h = Across(grip - shoulder, a, Vec3.Zero);
+            Vec3 h = Across(grip - shoulder, a, Vec3.Zero, maxTiltDeg);
             Result r = default;
             for (int it = 0; it < 4; it++)
             {
                 Vec3 wrist = grip - h * wristToGrip;
                 r = Swing(shoulder, wrist, upper, lower, pole, clearance, preferSwivelDeg);
                 Vec3 fore = r.Wrist - r.Elbow;
-                Vec3 hNew = Across(fore, a, h);
+                Vec3 hNew = Across(fore, a, h, maxTiltDeg);
                 if ((hNew - h).LengthSquared < 1e-8) { h = hNew; break; }
                 h = hNew;
             }
@@ -84,6 +87,16 @@ namespace FlyingGame.Core.Vr
             Vec3 f = r.Wrist - r.Elbow;
             r.WristBendDeg = f.LengthSquared > 1e-12 ? AngleDeg(f, h) : 0.0;
             return r;
+        }
+
+        /// <summary>A lever KNOB (a throttle quadrant's, a sidewall throttle's) is held across the lever, fingers over the
+        /// top and the palm on it: its grip axis is the lever's HINGE axis, turned so the thumb points inboard
+        /// (+x for the left hand, −x for the right; cockpit frame +x right).</summary>
+        public static Vec3 KnobAxis(Vec3 hinge, bool left)
+        {
+            if (hinge.LengthSquared < 1e-12) return new Vec3(left ? 1 : -1, 0, 0);
+            Vec3 a = hinge.Normalized();
+            return (left ? a.X : -a.X) < 0 ? -a : a;
         }
 
         /// <summary>The elbow swung <paramref name="swivelDeg"/> about shoulder → wrist from where the pole puts it.</summary>
@@ -102,7 +115,7 @@ namespace FlyingGame.Core.Vr
         /// <summary>The direction across unit axis <paramref name="a"/> nearest <paramref name="want"/>, tilted toward it
         /// along the axis by at most <see cref="MaxTiltDeg"/>. <paramref name="fallback"/> when <paramref name="want"/> runs
         /// along the axis.</summary>
-        public static Vec3 Across(Vec3 want, Vec3 a, Vec3 fallback)
+        public static Vec3 Across(Vec3 want, Vec3 a, Vec3 fallback, double maxTiltDeg = MaxTiltDeg)
         {
             if (want.LengthSquared < 1e-12) return fallback.LengthSquared > 1e-12 ? fallback : Perp(a);
             Vec3 w = want.Normalized();
@@ -110,7 +123,7 @@ namespace FlyingGame.Core.Vr
             if (flat.LengthSquared < 1e-8) return fallback.LengthSquared > 1e-12 ? fallback : Perp(a);
             flat = flat.Normalized();
             double along = Math.Asin(Math.Clamp(w.Dot(a), -1.0, 1.0));
-            double tilt = Math.Clamp(along, -MaxTiltDeg * Math.PI / 180.0, MaxTiltDeg * Math.PI / 180.0);
+            double tilt = Math.Clamp(along, -maxTiltDeg * Math.PI / 180.0, maxTiltDeg * Math.PI / 180.0);
             return (flat * Math.Cos(tilt) + a * Math.Sin(tilt)).Normalized();
         }
 

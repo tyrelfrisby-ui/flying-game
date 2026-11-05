@@ -199,7 +199,18 @@ namespace FlyingGame.Bridge
             foreach ((string side, bool left) in new[] { ("L_", true), ("R_", false) })
             {
                 Transform hand = B(side + "Hand");
-                if (hand != null) { if (left) _palmL = hand.InverseTransformDirection(palmWorld); else _palmR = hand.InverseTransformDirection(palmWorld); }
+                // The palm from the glove's OWN knuckles (the same rule as a tracked hand, PalmFor): the v3 rest pose is
+                // seated with the hands already on the Pitts' controls, not palm-down, so assuming "palm = down at rest"
+                // rolled every hand by the difference (Ty 2026-11-04: "the wrists ... look really weird").
+                Transform mid = B(side + "Middle1"), idx = B(side + "Index1"), lit = B(side + "Little1");
+                Vector3 palmRest = palmWorld;
+                if (hand != null && mid != null && idx != null && lit != null)
+                {
+                    Vector3 n = Vector3.Cross(mid.position - hand.position, idx.position - lit.position);
+                    if (n.sqrMagnitude > 1e-10f) palmRest = (left ? -n : n).normalized;
+                }
+                if (hand != null) { if (left) _palmL = hand.InverseTransformDirection(palmRest); else _palmR = hand.InverseTransformDirection(palmRest); }
+                Debug.Log($"[VrCockpit] pilot body {side}palm at rest {root.InverseTransformDirection(palmRest):F2} (asset frame; was assumed {root.InverseTransformDirection(palmWorld):F2})");
                 foreach (string f in Fingers)
                     for (int i = 1; i <= 3; i++)
                     {
@@ -207,7 +218,7 @@ namespace FlyingGame.Bridge
                         if (t == null) continue;
                         Transform next = B(side + f + (i + 1));
                         Vector3 d = next != null ? next.position - t.position : t.parent != null ? t.position - t.parent.position : Vector3.zero;
-                        Vector3 axis = Vector3.Cross(d, palmWorld);
+                        Vector3 axis = Vector3.Cross(d, palmRest);   // toward the palm it really has
                         _curlAxis[t] = axis.sqrMagnitude > 1e-10f ? t.InverseTransformDirection(axis.normalized) : Vector3.right;
                     }
             }
@@ -244,6 +255,9 @@ namespace FlyingGame.Bridge
         }
 
         private Transform B(string n) => _bones.TryGetValue(n, out Transform t) ? t : null;
+
+        /// <summary>A skinned bone's world position (checks).</summary>
+        public bool TryBone(string n, out Vector3 at) { Transform t = B(n); at = t != null ? t.position : default; return t != null; }
 
         /// <summary>SKINNED ONLY, before the IK: back to the rest pose (no drift), the asset's hips on the seat's hip
         /// midpoint, facing the nose: the aeroplane's rotation times the asset's MEASURED frame (<see cref="MeasureFrame"/>).</summary>

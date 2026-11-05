@@ -146,6 +146,22 @@ public class QuestViewArmTests
     }
 
     [Fact]
+    public void AThrottleKnobIsHeldAcrossItsLeverThumbInboardPalmDown()
+    {
+        // A sidewall quadrant lever on the LEFT swinging fore-aft about a lateral hinge, either sense of the hinge.
+        foreach (Vec3 hinge in new[] { new Vec3(1, 0, 0), new Vec3(-1, 0, 0), new Vec3(-0.98, 0.0, 0.2) })
+        {
+            Vec3 a = ArmPose.KnobAxis(hinge, left: true);
+            Assert.True(a.X > 0.9, $"thumb inboard for {hinge}: {a}");
+            ArmPose.Result r = ArmPose.OnGrip(true, SeatedPilot.ShoulderL, new Vec3(-0.30, -0.45, 0.25), a,
+                SeatedPilot.UpperArmM, SeatedPilot.ForearmM, SeatedPilot.ElbowPoleL, SeatedPilot.WristToGripM);
+            Assert.True(r.Palm.Y < -0.5, $"palm down on the knob: {r.Palm}");
+            Assert.True(r.WristBendDeg < 25.0, $"wrist {r.WristBendDeg:F1}°");
+        }
+        Assert.True(ArmPose.KnobAxis(new Vec3(1, 0, 0), left: false).X < -0.9);
+    }
+
+    [Fact]
     public void ElbowAtKeepsBothBoneLengths()
     {
         Vec3 w = new(0.1, -0.5, 0.3);

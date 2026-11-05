@@ -527,16 +527,12 @@ namespace FlyingGame.Bridge
             axis = restOn == Grabbable.Throttle && !_hasThrottle ? Vector3.zero : GripAxis(restOn);
         }
 
-        /// <summary>Up the stick's shaft (pivot → grip), or along the throttle lever (pivot → knob), cockpit frame.</summary>
+        /// <summary>Up the stick's shaft (pivot → grip), or across the throttle knob (its lever's hinge), cockpit frame.</summary>
         private Vector3 GripAxis(Grabbable g)
         {
             if (g == Grabbable.Stick && _stick != null) return U(_stick.Up);
-            if (g == Grabbable.Throttle && _lever != null)
-            {
-                Vec3 knob = _lever.Lever.GripAt(_lever.TFor(_grab.IsHeld(Grabbable.Throttle) ? Throttle01 : _driver.Sim.Aircraft.Throttle01));
-                Vec3 d = knob - _lever.Lever.Pivot;
-                return d.LengthSquared > 1e-8 ? U(d.Normalized()) : Vector3.zero;
-            }
+            // A throttle knob is held ACROSS its lever (fingers over the top): the hinge axis, thumb inboard.
+            if (g == Grabbable.Throttle && _lever != null) return U(ArmPose.KnobAxis(_lever.Lever.Axis, left: true));
             return Vector3.zero;
         }
 
@@ -568,7 +564,9 @@ namespace FlyingGame.Bridge
             ArmPose.Result r;
             if (joints == null && gripAxis.sqrMagnitude > 1e-6f)
             {
-                r = ArmPose.OnGrip(left, C(shoulder), C(grip), C(gripAxis), upper, lower, C(pole), SeatedPilot.WristToGripM, clearance, _swivel[s]);
+                // The left hand is on the throttle KNOB (Grabbable.Throttle) whenever it has an axis here: a knob tilts more.
+                r = ArmPose.OnGrip(left, C(shoulder), C(grip), C(gripAxis), upper, lower, C(pole), SeatedPilot.WristToGripM, clearance, _swivel[s],
+                                   left ? ArmPose.KnobTiltDeg : ArmPose.MaxTiltDeg);
                 Vector3 fwd = U(r.HandForward), palm = U(r.Palm);
                 // Grip-pose convention (VrPilotBody.PalmOf): +Z along the fist, the palm along −X (right) / +X (left).
                 Vector3 x = left ? palm : -palm;
