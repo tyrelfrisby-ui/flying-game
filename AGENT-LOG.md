@@ -1,4 +1,29 @@
 ## NEEDS YOU
+- **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
+  20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
+  2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not
+  attached; one launch refused because the iPad was locked). Quest 2026.1105.0343, 0 error CS, installed and launched on
+  the Quest 3S. check-parity: PARITY OK. Nothing approved by me.**
+  - **What changed (FloatHydro.DrawnWaterRudder, HeelWake).** The blade is still the drawn elliptic plate cut into cells
+    against the water. Each wet cell now takes ITS OWN flow: V + ω×r at the cell, through the water, minus what the
+    float's turbulent boundary layer, shed off the heel, carries along there. δ = 0.37·L·Re^−0.2 and u/U = (d/δ)^(1/7)
+    (Schlichting), where d is the distance to the heel's WETTED outline, traced back along the stream. Lift per cell
+    uses that cell's angle and ½ρw²; induced drag is taken on the whole blade. The lever position (0.8 s slew, or a VR
+    hand) is the same geometry at another angle, not a blend: half-up gives 681 N·m against 854 down and 71 up. The
+    PA-18/Beaver lumped blade takes the same wake at its centre.
+  - **Numbers, J-3 at rest attitude, 3 m/s, full pedal swing:** lowered 854 N·m (u/U 0.999, 168.5 N lift vs 168.9 in
+    open water). Hooked 71 N·m, 8 % of lowered: only 0.0114 m² stays wet and it sits in the heel's wake at u/U 0.88.
+    That was 89 N·m without the wake. Idle full-pedal turn unchanged: 254° up, 259° down in 20 s.
+  - **Current:** from lane/claude-river-current (merged earlier, bae2eeae). Moored in a 3 m/s current, the blade gives
+    exactly what it gives taxiing at 3 m/s in still water, lowered and hooked; drifting with the current it gives zero.
+    The blade uses the float's current at the step, not its own depth.
+  - **Decision (Q056):** the model's float ends in a flat 27 × 21 cm heel. I did NOT model a dead-water core behind it.
+    That core would leave the hooked blade with ~0 authority straight ahead (it would steer only in a swing). Keep it as
+    now, or add the core? Please fly the J-3 on floats with the rudder hooked and lowered.
+  - Tests: J3WaterRudderWakeTests (new, 5: formula literals worked by hand, hooked-in-wake, between the stops, wake lies
+    downstream, current). Two J3WaterRudderTests literals now use the cells' q̄. 30/30 for J3WaterRudder* +
+    WaterCurrentTests. The Float/Hydro/Water subset shows 17 failures on the branch AND the same 17 on the branch point
+    3181743c (world-water tests: waterfalls, lakes, glaciers); nothing new.
 <!-- river-current needs-you -->
 - **RIVERS AND TIDE NOW MOVE THE WATER: FLY-CHECK A RIVER CRASH AND A FLOATPLANE IN A CURRENT (Claude, 2026-11-05 03:00,
   lane/claude-river-current; merged into island-nav and Quest the same session, NOT installed: rides the next queued
