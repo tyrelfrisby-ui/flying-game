@@ -140,7 +140,7 @@ namespace FlyingGame.EditorTools
                         foreach (Transform g in gone)
                         {
                             Require(g.GetComponent<Renderer>() == null && g.childCount > 0, $"{what}: a stand-in canopy was spawned (a JettisonedCanopy with a mesh of its own)");
-                            Require(g.GetComponent<CanopyFlight>() != null && g.GetComponent<DebrisBody>() == null, $"{what}: the canopy is not flown by the canopy's own physics (CanopyFlight)");
+                            Require(g.GetComponents<Component>().Any(k => k.GetType().Name == "CanopyFlight") && !g.GetComponents<Component>().Any(k => k.GetType().Name == "DebrisBody"), $"{what}: the canopy is not flown by the canopy's own physics (CanopyFlight)");
                             foreach (Transform c in g) Require(want.Contains(CanopyEgress.Bare(c.name)), $"{what}: '{c.name}' left the aeroplane but is not its canopy or door");
                         }
                         string[] spawned = root.scene.GetRootGameObjects().Where(g => !rootsBefore.Contains(g)).Select(g => g.name)
