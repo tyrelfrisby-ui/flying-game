@@ -474,3 +474,9 @@ anyway and the two overlapped. Make the check the condition (`until ! ps … | g
 never a line of output to read afterwards. And know what it matches: an orphaned `il2cpp` from a dead Xcode build
 (parent reparented to launchd, 0 % CPU, under `/tmp/flyinggame-dd/…/Unity-iPhone.build/`) matches forever, as does
 `adb logcat` under the Unity path; exclude those by PID after checking them, not by loosening the pattern.
+
+### zsh does not expand braces in a `case` pattern
+Keeping a subset of renders with `case $f in {before,after}_{a,b}.png) ;; *) rm "$f";; esac` deleted every file: in zsh
+the braces in a case pattern are literal, so nothing matched the keep branch. Copy the files you want by name
+(`for p in before after; do for v in a b; do cp …; done; done`) rather than deleting by exclusion, and keep the source
+set elsewhere until the copy is checked.

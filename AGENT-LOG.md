@@ -1,4 +1,29 @@
 ## NEEDS YOU
+<!-- c172-yoke needs-you -->
+- **C172 YOKE RAISED 60 MM CLEAR OF THE THIGHS + 1 IN SUCTION GAUGE: approve the renders (Claude, 2026-11-04,
+  lane/claude-c172-yoke off island-nav 94b70e6b; NOT merged, NOT installed, nothing approved by me).**
+  Ty 14:58: "Move the yoke up ... where it does not touch the thighs with full deflection ... put the suction gage as a
+  tiny instrument with a green range and two red lines". Write-up: `docs/models/c172-yoke-v1.md`.
+  1. **Look at** `~/Developer/agent-lanes/renders/c172-yoke/` (before_ = old model, after_ = new; poses neutral,
+     aft-left, aft-right, fore-left, fore-right; views `_eye` from the approved eye, `_side` left cutaway with the left
+     leg hidden, `_section` looking aft with everything forward of the wheel clipped: MIRRORED, your left is on the
+     right). Then `after_panel_eye.png` and `after_suction_closeup.png`. I opened panel, suction, eye, side and section.
+  2. **Yoke:** both yokes 60 mm higher (column centre z 0.040 -> 0.100); span, ±90° wheel, ±70 mm column unchanged;
+     tube lengthened forward so it always enters the panel (it used to float 37 mm short at neutral). Worst thigh
+     clearance over the whole envelope +30.6 mm (full forward, full right wheel, full left rudder), +42.5 mm at neutral
+     rudder; before -28.7 / -17.1 mm. Gate is 15 mm. **Is 60 mm the right height for your aeroplane?** I found no
+     published hub height / horn span / column travel for a 172 (see the doc): tell me hub height above the cushion
+     or column travel if you know them and I will re-derive.
+  3. **Suction:** 1 in face, still directly under the DG, above the shaft; 0-10 inHg over 270°, green 4.5-5.5 with a
+     red radial at each end (172R AFM supplement; the 1980 172N manual says 4.5-5.4: say if you want 5.4). No numerals:
+     at the panel's minimum legend size they don't fit a 1 in face. Procedural face: **Codex follow-up** if you want
+     painted art. Nothing else on the panel moved.
+  4. **Found, not changed:** the own 172's yokes are not in the runtime rig (`c172-like-own-rig.json`), so they do not
+     move in game. The left thigh still sits 23 mm into the door pleats (seat-v1 warning).
+  5. iOS `deploy.sh NOINSTALL` `** BUILD SUCCEEDED **`, 0 `error CS`, stamp 2026.1104.1610, installed nowhere.
+     `tools/check-parity.sh --strict` PARITY: OK. Shared GLB/rig change: lane/claude-quest-islandnav must merge it
+     with island-nav, the same day, under the lock.
+<!-- /c172-yoke needs-you -->
 <!-- crash-tuning needs-you -->
 - **CRASH TUNING FROM YOUR 2026.1104.0427 FLIGHT — BUILT, NOT INSTALLED, NOT MERGED (Claude, 2026-11-04,
   lane/claude-crash-tuning `339b2a2f`, off island-nav `b7d1a680`). Nothing approved by me.**
@@ -3004,6 +3029,41 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-11-04 15:00– PST — Claude · lane/claude-c172-yoke · C172 yoke raised clear of the thighs; 1 in suction gauge
+Ty 14:58 (737 captain/CFI): "Move the yoke up ... It should go up where it does not touch the thighs with full
+deflection. If you need to move some instruments around, that's fine. You can put the suction gage as a tiny instrument
+with a green range and two red lines ... Usually the suction gage is a tiny 1 inch instrument."
+- **Measured first:** `check_c172_pedal_fit.py` on 94b70e6b: right horn at 90° wheel -17.1 mm into the right thigh,
+  -28.7 mm at full left rudder with the column forward (the thigh lifts 2° to its pedal). Thigh top z -0.091, horn
+  bottom -0.109.
+- **Change (`tools/own_models/c172_cockpit.py`):** `YOKE_RAISE` 0.060 on both yokes (column, hub, horns, badge); column
+  tube now fwd -0.01...0.38 so it enters the panel at full aft. Suction: `SUCTION_R` 0.0127 (1 in), `SUCTION_Z` 0.145,
+  still under the DG; ticks per inHg over 270°, green arc 4.5-5.5, red radials at 4.5 and 5.5 (`limit_red`), thinner
+  needle; rig row `[[0,0],[10,270]]`, model 0 (`c172_instrument_rig.py`, regenerated `docs/models/c172-like-own-rig.json`:
+  only that row changed). GLB node diff vs 94b70e6b: 163 = 163; only the yoke pitch/roll nodes, the suction case/needle
+  and the joined static interior changed.
+- **Research** (cited in the doc): suction green 4.5-5.5 inHg, AFM Supplement STC SA2196CE (172R); 4.5-5.4 in the 1980
+  172N Information Manual (via PPRuNe) and UMA PMA gauges. Wheel ~90° each way: AVSIM forum + SimKits C172-style yoke spec
+  (not Cessna). NOT found: column exit height, hub height above the seat, horn span, column travel (MM ch. 27 pages
+  not readable here); one forum post's "14 in" 150/152 column travel was not used.
+- **Tests:** new `tools/FlightTests/C172YokeClearanceTests.cs`: both yokes' GLB triangles (≤ 2 mm samples) swept column
+  ±70 mm / 10 mm × wheel ±90° / 2°, against both seats' thighs (literal capsules from the checker's mannequin, flat and
+  lifted 2°), gate ≥ 15 mm. On the old GLB FAIL -28.7 mm (pilot) / -27.3 (CFI); now PASS 30.6 / 31.1 mm. Plus a 1 in /
+  270° suction test. `check_c172_pedal_fit.py`: wheel sampled every 10° and yoke gated at 15 mm (`YOKE_CLEAR`); PASS,
+  42.5 / 30.6 mm, torso 81.9 mm; all other numbers unchanged. It also gained `C172_YOKE_RENDERS=1` (the review set).
+  `check_c172_cockpit.py`: shaft keep-out at z 0.100, shaft height and 1 in suction case asserted; PASS on both GLBs.
+  .NET (filtered: C172Yoke, C172Instrument, CockpitEye, ModelRig, StreamingAssets): 150/153; the 3 failures are the
+  known glider airbrake NaN baseline and two StreamingAssetsTests about files tracked on the base (no file of mine).
+  Not a full-suite run.
+- **Build:** waited for the other lane's Unity Android batch (gate as the condition); iOS `deploy.sh NOINSTALL`
+  `** BUILD SUCCEEDED **`, 0 `error CS`, 2026.1104.1610, installed on 0 devices. bundleVersion bump and ConfigSync's
+  StreamingAssets JSON churn restored, not committed. Parity --strict OK.
+- **Renders:** 34 in `~/Developer/agent-lanes/renders/c172-yoke/`, 10 + fit reports in `renders/c172/yoke-v1/`. A first
+  "front" view was useless (knees and switch row in front of the horn); replaced by a clipped section. A zsh `case`
+  with brace patterns deleted my lane copies once (braces don't expand in case patterns); re-copied from agent-lanes.
+
+C172-YOKE-DONE
 
 ### 2026-11-04 09:30– PST — Claude · lane/claude-crash-tuning · crash tuning: steel-tube fuselages crush, wreck friction, branch damage
 Ty, after flying 2026.1104.0427: "momentum is still too weak or the friction is too high. The fuselage is really strong
@@ -8622,3 +8682,5 @@ NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/
 - Delivered 34 fresh final Unity/Metal and schematic PNGs, inspected individually, with complete input/hash/mtime provenance,
   copied byte-for-byte to xfer/c172v3. Both GLBs pass; Unity OwnRigCheck reports RIG OK / 34 bound. Reproduction and full file list:
   `docs/models/c172-instruments-v3.md`. No src/config edits; ProjectSettings churn discarded; local commit only, no deploy/device install.
+
+C172-YOKE-DONE
