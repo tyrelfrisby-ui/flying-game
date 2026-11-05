@@ -897,6 +897,7 @@ namespace FlyingGame.Bridge
 
             if (Input.GetKey(KeyCode.B)) _brakeHeld = true;
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
+            if (Input.GetKeyDown(KeyCode.E) && MenuHandleAvailable) MenuPullHandle();   // the handle: bail out (eject / BRS where fitted) — one press (Ty 2026-11-05)
             for (int i = 0; i < Fleet.Length && i < 10; i++)
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1 + i)) _driver.SwitchAircraft(Fleet[i]);
@@ -1092,6 +1093,24 @@ namespace FlyingGame.Bridge
             _combat ??= GetComponent<CombatController>();
             if (c.Fire && FireAvailable && _combat != null) _combat.Firing = true;
             ActOnTaps();
+        }
+
+        /// <summary>True when a touch that begins at <paramref name="p"/> (screen pixels, y up) belongs to one of the glass
+        /// controls — a button, a trim slider, a stick pad or strip — so the cockpit's own tap targets (CockpitTaps: the
+        /// card, the altimeter, the g-meter) leave it alone. The same tests, in the same order, as the touch loop.</summary>
+        public bool IsControlAt(Vector2 p)
+        {
+            if (ViewPanel.BlocksTouch(p)) return true;
+            if (EjectAvailable && _ejectRect.Contains(p)) return true;
+            if (FireAvailable && _fireRect.Contains(p)) return true;
+            if (BailAvailable && _bailRect.Contains(p)) return true;
+            if (_resetRect.Contains(p) || _acftRect.Contains(p) || _brakeRect.Contains(p) || _gearRect.Contains(p) || _camRefRect.Contains(p) || _towRect.Contains(p)) return true;
+            if (SmokeAvailable && _smokeRect.Contains(p)) return true;
+            if (LookAvailable && (_lookCentreRect.Contains(p) || _lookLeftRect.Contains(p) || _lookRightRect.Contains(p))) return true;
+            if (DeskMode || TouchSticksHidden) return false;
+            if (_trimRect.Contains(p) || _ailTrimRect.Contains(p) || _rudTrimRect.Contains(p)) return true;
+            if (StripMode) return _eleStrip.Contains(p) || ((StripThrottle || StripBrakes) && _thrStrip.Contains(p));
+            return NearPad(p, _leftCenter) || NearPad(p, _rightCenter);
         }
 
         // The VR menu's handles on the buttons a pilot would otherwise tap on the glass.
@@ -1335,7 +1354,7 @@ namespace FlyingGame.Bridge
         private ChaseCamera _joyChase;
 
         /// <summary>Keyboard: arrows = stick (Up = nose down, realistic), A/D = rudder, W/S = throttle, =/- pitch trim,
-        /// F flaps, L gear, B brakes, Space fire. Joystick (any connected): X/Y = stick, twist/4th axis = rudder, 3rd axis
+        /// F flaps, L gear, B brakes, E bail out (the handle), Space fire. Joystick (any connected): X/Y = stick, twist/4th axis = rudder, 3rd axis
         /// = throttle. Released keys ramp the stick home — and on a reversible aircraft the controls then go free.</summary>
         private void DeskInput()
         {
@@ -1386,6 +1405,7 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.F)) { _deskFlapStep = (_deskFlapStep + 1) % 3; _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
             if (Input.GetKeyDown(KeyCode.L)) _tapped.Add(Btn.Gear);
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
+            if (Input.GetKeyDown(KeyCode.E) && MenuHandleAvailable) MenuPullHandle();   // the handle, one press
             _leftKnob = IdleLeftKnob();
         }
 
