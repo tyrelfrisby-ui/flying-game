@@ -47,7 +47,10 @@ S_FRONT = R214 / R318                             # 3-1/8 in -> 2-1/4 in, bezel 
 REAR_RETIRE = ('Magneto', 'AlternateAir', 'Trim', 'LandingLight')
 SWITCHES_L = [('Master', 'MASTER'), ('Alternator', 'ALT'), ('FuelPump', 'FUEL PUMP')]   # outboard -> inboard
 SWITCHES_R = [('NavLights', 'NAV'), ('Strobe', 'STROBE'), ('Smoke', 'SMOKE')]           # inboard -> outboard
-LABEL_W, LABEL_H, LABEL_Z = .052, .0105, .0612
+LABEL_W, LABEL_H, LABEL_Z = .052, .0105, .0608
+# The row 15 mm higher than P3f's and the bats at 0.65 (a real MS24523 bat is ~22 mm): seen from the rear eye a
+# 36 mm bat projects ~30 mm down the panel and hid the placard beneath it (first render, 2026-11-04 19:50).
+ROW_Z_REAR, TOGGLE_SCALE = .090, .65
 TEMPS = (.200, .150)                              # EGT/CHT (u, v), 2-1/4 in
 # Verniers: on the left wall beside the rear throttle, outboard of its lever (y .278), knobs facing aft.
 VERNIER_X, VERNIER_Y = -1.287, .326
@@ -58,7 +61,7 @@ VALVE_Y, VALVE_Z = -.284, .045
 VALVE_X = {'Rear': -1.400, 'Front': -.500}
 # Diagonal padded tubes: panel upper corner -> side rail (both sides).
 DIAG = ((-1.185, .335, .345), (-1.360, .365, .200))
-GRIP_CANT_DEG, GRIP_LEN = 35.0, .110
+GRIP_CANT_DEG, GRIP_LEN = 15.0, .110
 
 
 def font(n, bold=True):
@@ -182,6 +185,7 @@ def update(path, doc):
     meta = g.doc['extras']['vrCockpitPhase3b']; controls = g.doc['extras']['vrCockpitPhase3a']['controls']
     report = {}
     grey = g.material('P3b_Panel', (.165, .170, .180))           # the AirSpace 300L's grey (linear)
+    g.material('P3d_RearPanelTop', (.165, .170, .180))              # the hood over it, the same grey
     bezel = mat_index(g, 'P3b_Bezel'); needle_w = mat_index(g, 'P3b_Needle'); orange = mat_index(g, 'P3b_SecondNeedle')
     metal = mat_index(g, 'P3_ControlMetal'); black = mat_index(g, 'Cockpit_black'); red = mat_index(g, 'Cockpit_knob_red')
     mix_red = mat_index(g, 'P3_MixtureRed'); prop_blue = mat_index(g, 'P3_PropBlue'); nut = mat_index(g, 'P3_ControlBlack')
@@ -249,7 +253,7 @@ def update(path, doc):
         e2 = copy.deepcopy(e); e2.update(node='Ctl_Toggle_Alternator', param='alternator', desc='ALTERNATOR toggle (Ty 2026-11-04 19:08)'); doc['rig'].append(e2)
     # The six switches: one row, placards beneath, each nut a small hex instead of the P3a block.
     levels = [(z, w) for z, w in rear['outline_zw']]
-    wmax = float(min(h for z, h in levels if abs(z - ROW_Z) <= .013)) - .022
+    wmax = float(min(h for z, h in levels if abs(z - ROW_Z_REAR) <= .013)) - .022
     ys = np.linspace(wmax, STICK_GAP, 3)
     places = [(k, lab, ys[i]) for i, (k, lab) in enumerate(SWITCHES_L)] + [(k, lab, -ys[2 - i]) for i, (k, lab) in enumerate(SWITCHES_R)]
     with tempfile.TemporaryDirectory() as td:
@@ -258,8 +262,8 @@ def update(path, doc):
     lab_sh, lab_uv = Shape(), []
     for k, lab, y in places:
         c = by[k]; c['label'] = lab
-        place_control(g, doc, c, (X_R - .001, y, ROW_Z), 'extra_front_seat: the six labelled switches, one row (Ty 19:08)')
-        hexn = Shape(); hexn.tube((X_R - .0002, y, ROW_Z), (X_R - .0045, y, ROW_Z), .0068, 6)
+        place_control(g, doc, c, (X_R - .001, y, ROW_Z_REAR), 'extra_front_seat: the six labelled switches, one row (Ty 19:08)', TOGGLE_SCALE)
+        hexn = Shape(); hexn.tube((X_R - .0002, y, ROW_Z_REAR), (X_R - .0045, y, ROW_Z_REAR), .0068, 6)
         set_parts(g, 'Mount_' + k, [(nut, hexn, None)])
         placard(lab_sh, lab_uv, (X_R - .0011, y, LABEL_Z), LABEL_W, LABEL_H, *bands[lab])
     vv = [gl(v) for v in lab_sh.v]; g.mesh('Placards_P3h_Switches_R', vv, lab_sh.t, lab_mat, lab_uv)
@@ -381,7 +385,7 @@ def update(path, doc):
     g.doc['extras']['extraFrontSeat'] = dict(
         owner='Ty 2026-11-04 19:05-19:14: front seat ASI/G/ALT + throttle, stick, rudder, fuel valve; rear: grey panel, six labelled '
               'switches, no unlabelled knobs, EGT/CHT, diagonal tubes; verniers beside the throttle; pistol-grip throttle; linked fuel valve',
-        front_row=FRONT_ROW, front_v=FRONT_V, front_sub=FRONT_SUB, switches=[lab for _, lab, _ in places], temps=TEMPS,
+        front_row=FRONT_ROW, row_z_rear=ROW_Z_REAR, toggle_scale=TOGGLE_SCALE, front_v=FRONT_V, front_sub=FRONT_SUB, switches=[lab for _, lab, _ in places], temps=TEMPS,
         verniers=dict(x=VERNIER_X, y=VERNIER_Y, z=VERNIERS, travel=VERNIER_TRAVEL), valve=dict(x=VALVE_X, y=VALVE_Y, z=VALVE_Z),
         report=report)
     compact(g); validate(g, path); g.save(path)
