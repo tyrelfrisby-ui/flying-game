@@ -18,7 +18,7 @@
     450 m at 16.5 km, lifted clear of the ground; layers made patchy and visible from afar; drawn after the water (the
     sea was painting over them). Unity batch: 0 error CS. check-parity --strict at 07:55: FAIL on the playable lanes (island-nav not yet merged into quest-islandnav by another lane; not this lane's change, which touches neither).
   - **Known faults in the renders:** (1) a rectangular seam in clouds_mid_band_1250m.png cuts a bank and the layer
-    (cause not found: not the training boxes, not the wisp patch); (2) the lobes still read somewhat as soft spheres
+    (cause not found: not the training boxes, not glass (none in the scene), not the wisp patch; it cuts the far sheet, a bank and the sea along one screen rectangle); (2) the lobes still read somewhat as soft spheres
     close up; (3) wisp layers are a flat sheet: seen edge-on they vanish.
   - **Not measured:** Quest 90 Hz / iPhone 60 Hz with clouds (fill rate is the risk), the wake's CPU on device (bench
     worst case +50 ms per sim-second for a follower in four wakes). Questions Q073-Q075 in the queue.
