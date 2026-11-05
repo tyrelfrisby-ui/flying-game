@@ -293,6 +293,9 @@ public sealed class WheelState
     /// a wheel nobody advanced coast in its bearings.</summary>
     public bool Advanced;
 
+    /// <summary>Set by the gear when this leg touched down faster than its break sink (and cleared by the aeroplane, which
+    /// decides whether it bends or breaks, MemberMaterials.CrushCapacityM): the arrival and the break sink, m/s.</summary>
+    public double ArrivalMs, ArrivalBreakMs;
     public bool InContact, OnSki, OverWater, Locked;
     public double LoadN, VFwdMs, SlipRatio, SlipPowerW, Brake01, BrakeTorqueNm;
     public WorldTerrain.Surface Surface;
@@ -307,6 +310,9 @@ public sealed class WheelState
     /// <summary>How much lower the axle stands than on a sound tyre this step (<see cref="TyreWear.Drop"/>): what the
     /// gear's contact point is raised by, and what comes off the rolling radius.</summary>
     public double DropM;
+    /// <summary>How fast <see cref="DropM"/> changed into this step (m/s): the worn profile turning under the axle, which the
+    /// tyre's and the leg's dampers see as an opening of the contact.</summary>
+    public double DropRateMs;
     /// <summary>The ground's load on this tyre at the last step it touched (kept across steps: the patch it sizes is the
     /// one the next step's drop is measured over).</summary>
     public double TyreLoadN;
@@ -416,7 +422,7 @@ public sealed class WheelState
         OmegaRadS = System.Math.Abs(w) <= stop ? 0 : w - System.Math.Sign(w) * stop;
         if (double.IsFinite(OmegaRadS)) AngleRad = WrapAngle(AngleRad + 0.5 * (w0 + OmegaRadS) * dt);
         // Off the ground: nothing squashes the tyre, and the strips cool.
-        TyreLoadN = 0; DropM = Tyre != null ? Tyre.Drop(-AngleRad) : 0;
+        TyreLoadN = 0; DropRateMs = 0; DropM = Tyre != null ? Tyre.Drop(-AngleRad) : 0;
         if (Tyre != null) { Tyre.LeaveGround(); Tyre.Leak(dt); }
     }
 

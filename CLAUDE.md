@@ -584,3 +584,26 @@ After an 8 s overlap with another lane's deploy (three 20 s idle polls are a rac
 PID, but deploy.sh's own subshells carry the same command line, so every start "collided" with itself and was killed;
 ten starts in 30 min, then the 2 h limit. Count only top-level deploys (parent is not itself a deploy.sh), dry-run the
 check against `ps` once before trusting it, and poll often (10 s) with a random wait and a re-check just before launch.
+
+### A render pass that reads its own target looks fine on the bench and breaks on the device
+The magenta "grid" over the island's water (Ty, 2026-11-01 and again 2026-11-05) was hunted as a stripped shader twice.
+It was a layer: `SeasideBuilder.B.Build`, which builds "Ocean-lakes-water-lanes", never put the water on
+`WaterReflection.WaterLayer` (only `WorldBuilder.Spawn` did), so the mirror camera drew the water into its own
+reflection, and the water's shader sampled `_ReflectionTex` while rendering into it. Reading a bound render target is
+undefined: the Mac's GPU returned the last frame and every render looked right; the iPad's A17 returned magenta blocks,
+weighted by Fresnel so they grew with distance. What found it was reading the mirror target's raw RGBA in a batch
+render (`WaterMagentaCheck`): alpha 255 everywhere where the cleared sky should be 0. When a convention lives in one
+builder (a layer, a tag), every other builder must apply it too, and the consumer should check it at runtime
+(`WaterReflection.ExcludeStrayWater`). And when only the device shows a fault, look for undefined behaviour the
+bench happens to tolerate before looking for a missing asset.
+
+### A blanket exemption silences everything it covers, including the part you just fixed
+The 2026-11-04 water lane made a dipped propeller brake by blade drag and tested it on landplanes. Ty then dug the J-3
+on floats' prop into the lake and nothing happened: `AirframeContact` skips every hard point of a FLOATPLANE over water
+("the floats carry it"), and the propeller disc stations were hard points too, so on a floatplane the prop could never
+touch the water at all. Every test passed because none of them put a floatplane's prop in the water. When a fix lives
+behind a contact or sensor path, test it on the aircraft from the report, and grep for the switches that skip that path
+(`floatsCarryWater`, `groundClear`, a cull) before believing it reaches everything.
+And the splash "hammering" was a fixed 4.5 Hz sine on the water voice (66 % depth): a periodic modulation on a sound
+the physics drives is a metronome the player hears as a fault. Measure a voice's envelope spectrum
+(`tools/FloatAudio`) before shipping any LFO on it.

@@ -1,3 +1,76 @@
+## NEEDS YOU — flat-spotted tyres: fly-check (Claude, 2026-11-05)
+<!-- flat-spot needs-you -->
+Lane lane/claude-flat-spot. Ty (08:53): "model flat spotted tires even if they don't pop ... the longer it locks up the
+deeper the flat spot the more significant the bump as it rolls and the frequency should be modeled after the actual tire
+rotation rate". Physics change, approved for merge + install.
+- **Ty, please check (172, dry asphalt):** roll at ~25-30 kt, stand on both brakes until the mains lock and screech for
+  about a second, release, and taxi. You should hear (and on the Quest feel in the controllers) a soft thump once per
+  wheel revolution, speeding up and slowing down with the taxi speed, and see a slight bounce. A longer lock gives a deeper
+  spot and a bigger thump; a long lock from a fast landing still wears through and bursts as before. Respawn = new tyres.
+- **Is a one-second lock-up's bump strong enough?** It is honest geometry: 1 s locked at 15 m/s wears 1.1 mm off ~10 cm
+  of tread; that swings the wheel's load ~60 N and the aeroplane ~0.01 g, so it is mostly HEARD. 1.6 s gives 2.0 mm.
+  There is no unsprung wheel mass in the model, so the spot's far edge does not strike at speed the way a real wheel's
+  does. If you want it felt harder, that is the next piece of physics (wheel + axle mass on the tyre spring), not a gain.
+  (Q084 in the queue.)
+- What changed: the drop is averaged over the arc the wheel turns each step (a fast wheel could step over its spot), the
+  spot's edge now reaches the tyre's and leg's dampers (d(drop)/dt), `TyreWear.FlatSpots()` reads spots off the strips,
+  and Quest controllers knock on each thump. The phone has no haptics path in the game, so none was added.
+  docs/TIRE-SPINUP-AND-GROUND-SOUND.md §9; tests tools/FlightTests/FlatSpotTests.
+- Builds / merges / installs: branch iOS BUILD SUCCEEDED 14:00 (0 error CS). Merged island-nav **a2dc4765**, quest-islandnav
+  **2d916858** (PARITY: OK). Installed (by the bend-damage lane's deploys from those same trees, not built twice):
+  iPhone + iPad mini **2026.1105.1414** (confirmed on both with
+  devicectl; the iPhone was locked, so it did not launch; the EFB iPad Air refused it); Quest 3S **2026.1105.1426**
+  (install Success, launched). Nothing here is an approved gate.
+
+## NEEDS YOU — wings bend before they break (Claude, 2026-11-05, lane/claude-bend-damage)
+<!-- bend-damage needs-you -->
+- **Ty to fly-check: drop a wing in the J-3 (and a Cub, a Pitts) a few ways, slow and hard, and answer Q077 (too tough /
+  about right / still brittle) and Q078 (fabric wings twist easily).** You asked 06:10: "the wing hit relatively slowly
+  and immediately snapped off … more bends before it breaks … reduced strength and aerodynamic impacts if it continues
+  flying". Branch iOS 2026.1105.1344 ** BUILD SUCCEEDED **, 0 error CS (NOINSTALL); merged into island-nav and Quest,
+  install stamps below. Nothing approved by me. Write-up: `docs/BEND-DAMAGE.md`.
+  - **Why it snapped:** a wing panel went the first step its tip's contact moment passed the ultimate; the contact
+    spring rings past it for one step (J-3, tip down at 5 m/s: 9.5 kN·m asked of a 6.2 kN·m ultimate). And a bent panel
+    snapped at 2 × its 1 g moment (your 11-03 rule), a fifth of its ultimate. **That 11-03 rule is replaced** (Q077).
+  - **Now:** each panel's station is two plastic hinges, bending and twist, on its construction's curve (spruce /
+    aluminium / composite, from material strains; new config key `wingSpar` on 8 types): elastic, a permanent set past
+    yield, cracked and weaker past the peak, OFF only when it has turned through its rupture rotation. The ground cannot
+    push a tip harder than the hinges carry, so a strike's energy goes into bending it. The bend and twist move the
+    panel's hard points, its strips' load points, dihedral, incidence and skin (lift/drag), and the drawn mesh.
+    Tail surfaces, rudder, mid-span, nacelles and gear legs crush before they break (the fuselage's energy rule).
+  - **J-3 numbers:** tip down at 5 m/s, 20 m/s: twisted 2.4°, stays on. Tip 10 m/s: bent 8.8°, stays on, flies with
+    1.1° of aileron to hold level and +18 % drag. Cartwheel (tip 15 m/s, sink 6): off after 712 J. Panel bent once
+    holds to 3.5 g in flight. Gear dropped at 5 m/s bends and stays; 7 m/s, legs go.
+  - **Not done:** a bent gear leg does not sit lower; no fatigue below the backbone; ailerons on a bent panel are
+    drawn straight.
+  - Tests: BendDamageTests (8, new); ContactPatchTests / BentPanelStaticLoadTests / AirframeContactTests / CombatTests
+    rewritten where they pinned the 11-03 rule (a 6 m/s sideways drop onto a 60°-banked tip now only bends). Crash /
+    water / contact / gear / spin subset: branch 38 red vs base 37; the 7 new spin names pass alone (suite coupling),
+    the 2 old-rule tests are rewritten; 8 base failures pass on the branch. Merged tree: 90/90 in the touched classes.
+<!-- /bend-damage needs-you -->
+
+## NEEDS YOU — tyre squeal: higher threshold + fade-in, and why the Cessna still howls (Claude, 2026-11-05)
+<!-- ground-volume needs-you -->
+- **Ty to fly-check: (1) a crosswind takeoff in the 172, no brakes; (2) a locked-wheel skid still squeals; (3) answer
+  Q096.** You asked 08:50: "make the threshold higher on when the screetching starts and make it more of a fade in".
+  Shipped (lane/claude-ground-volume 2a20429a; island-nav 7919f5c5, Quest 77e5a3f4, PARITY OK): squeal now starts at
+  the TYRE MODEL's own friction peak and fades in. Sideways: smoothstep from 1× to 2× the peak slip angle (3.8° → 7.6°
+  on a main), scrub 0.75× → 1.5×, plus a per-wheel attack τ 0.2 s / release 0.1 s. Fore-aft: slip ratio over the
+  tyre's κ0, squeal 1.25 → 2.5 κ0 (≈ 0.10 → 0.20), no time smoothing (the touchdown chirp stays). Pitch still follows
+  slip speed and tyre size; the −4 dB ground bus (fa4d96f3) is kept. Docs §7d.
+  **Your Cessna will STILL howl in that crosswind.** It is the NOSE tyre, and it really skids: the 172 config links
+  the nosewheel to the pedals rigidly at ±29°, so holding the centreline in 15 kt (~0.6 left rudder, any pilot) steers
+  it ~17° and slides it at 3–4× its grip. Measured squeal peak 0.694 before, 0.693 after. With the POH's ±10° pedal
+  steering (test-only) the same roll holds the centreline as well and is silent: squeal 0.002, scrub ≤ 0.24.
+  Changing ground steering is a handling change, so it is **Q096**, not done. Locked main at 40 kt: squeal 1.06 at once.
+  Tests: TyreSquealOnsetTests 5/5; tyre/tire/wheel/brake/ground-sound set 103/104, the 1 red
+  (ModelRigTests.FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake) fails the same at the branch point.
+  Builds: lane iOS ** BUILD SUCCEEDED ** (0 error CS); merged island-nav aa662650 (contains 7919f5c5) iOS
+  ** BUILD SUCCEEDED ** **2026.1105.1140**: iPad mini installed (launch refused: device locked); iPhone refused (4016,
+  locked), then installed the same .app ~12:05 by the claude-floats session (its report, not re-checked by me).
+  Quest **2026.1105.1147** built from quest-islandnav 256e0363 (contains 77e5a3f4), installed 12:04 by claude-floats
+  (its report; build stamp confirmed in build/quest.log). Nothing here is an approved gate.
+
 ## NEEDS YOU — J-3 on floats: prop water strikes, the hammering noise, spray volume, the hump (Claude, 2026-11-05)
 <!-- claude-floats needs-you -->
 Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lanes/prompts/ty-floats-1105.md).
@@ -34,7 +107,11 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
 - Tests: PropWaterStrikeTests (new), FloatsIslandTakeoffProbe (island water, asserts 15-25 s), FloatsHammerProbe;
   ContactPatchTests.APropBrushCurls... is now per blade. Water/wreck/contact/prop/engine/tree/ground suites vs the base
   6a42a199: 0 new failures, 1 fewer (39 vs 40 red, all pre-existing). iOS BUILD SUCCEEDED 2026.1105.1015 (lane, not
-  installed). Nothing here is an approved gate.
+  installed). Merged: island-nav 1cfc96ef, Quest dc14600e (PARITY OK). ON DEVICES (built by the next deploys from trees
+  that contain this merge, so not built twice): iPhone 17 Pro and iPad mini **2026.1105.1140** (island-nav aa662650,
+  ground-volume's deploy, 0 error CS; the iPhone refused it asleep with 4016 and I installed the same .app at 12:10; the
+  iPad's launch hit "Locked"); Quest 3S **2026.1105.1147** (quest-islandnav 256e0363, installed 12:04). Nothing here is
+  an approved gate.
 
 ## NEEDS YOU
 - **CRASH SURVIVAL + GHOST BAIL-OUT + REAL CANOPY/DOOR JETTISON (Claude, 2026-11-05 09:25, lane/claude-crash-bailout

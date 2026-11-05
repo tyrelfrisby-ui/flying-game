@@ -18,7 +18,8 @@ public sealed partial class Aircraft
     private bool[]? _hingeExcluded;                                // rows no longer on the stick's circuit (HingeTerms)
     private readonly Dictionary<ContactPoint, Vec3> _straightBody = new();
     private readonly HashSet<int> _deadAileronRows = new();       // fixed rows whose aileron has gone: their camber effect is 0
-    private bool[] _panelTouching = Array.Empty<bool>(), _bentThisStrike = Array.Empty<bool>();
+    private int[] _panelReported = Array.Empty<int>();             // how many 5° steps of set each panel has reported
+    private double[] _bendSkinDamage = Array.Empty<double>();     // per strip: a bent panel's buckled skin / loose fabric, 0..1
     private int _stripTotal;
     private SurfaceConfig?[] _stripSurface = Array.Empty<SurfaceConfig?>();
     private StripConfig?[] _stripAt = Array.Empty<StripConfig?>();
@@ -100,8 +101,7 @@ public sealed partial class Aircraft
         _panels = WingStructure.Build(Config);
         _links = SlaveLink.Build(Config);
         _linkLocal = new double[_links.Count];
-        _panelTouching = new bool[_panels.Count];
-        _bentThisStrike = new bool[_panels.Count];
+        _panelReported = new int[_panels.Count];
         foreach (ContactPoint p in _contacts) if (p.Panel >= 0) _straightBody[p] = p.Body;
         if (_panels.Count > 0)
         {
@@ -110,8 +110,13 @@ public sealed partial class Aircraft
             AirframeHydroModel hm = AirframeHydroModel.Build(Config, Load);
             WingStructure.EnsureStrength(_panels, Config, hm.StructureScale * hm.WingMassFactor);   // the wing weight the wreck model carries
             foreach (ContactPoint p in _contacts)
-                if (p.Panel >= 0 && _panels[p.Panel].TipStiffnessNPerM > 0)
+            {
+                if (p.Panel < 0) continue;
+                p.PanelRef = _panels[p.Panel];
+                if (_panels[p.Panel].TipStiffnessNPerM > 0)
                     p.StiffnessScale = _panels[p.Panel].TipStiffnessNPerM / (AirframeContact.SpringNPerM + _panels[p.Panel].TipStiffnessNPerM);
+            }
+            foreach (WingPanel w in _panels) SetCaps(w, 0.0);
         }
         _stripTotal = 0;
         foreach (SurfaceConfig sf in Config.Surfaces) _stripTotal += sf.Strips.Count;
@@ -219,7 +224,7 @@ public sealed partial class Aircraft
         return true;
     }
 
-    private static Func<Vec3, Vec3> BendOf(WingPanel p) => v => p.Bend(v, p.BendRad);
+    private static Func<Vec3, Vec3> BendOf(WingPanel p) => v => p.Deform(v);
 
     // ---- wing panels -------------------------------------------------------------------------------------------------
 
@@ -264,18 +269,24 @@ public sealed partial class Aircraft
         }
     }
 
-    /// <summary>Strike loads on each panel's station, from the contact forces recorded on the step's first stage and the
-    /// water's (<see cref="RecordPanelWaterLoads"/>), and the bent-panel law in flight.</summary>
-    private void CheckPanels()
+    /// <summary>
+    /// The panels' plastic hinges after a step (<see cref="WingStructure"/>, <see cref="PlasticHinge"/>). The demand on
+    /// each is what its tip's hard points asked for on the step's first stage (before AirframeContact capped them at the
+    /// hinges), plus the water's moment, plus — once the panel is touching or already damaged — the air's: the LIFT's
+    /// load factor (AeroLoadFactorZ) times its 1 g moment M1. (The whole-aeroplane load factor also counts the ground
+    /// decelerating the fuselage, which bends no wing.) A demand above the backbone turns the hinge until the push, relieved
+    /// by the tip rising out of the ground (Σ(k + c/dt)·r² of the touching points), meets it; the permanent bend and twist
+    /// are the panel's geometry from then on, and a hinge that has turned through its rupture rotation lets the panel go.
+    /// An intact panel in clear air is left to the airframe's g-limits (StructuralState), as before.
+    /// </summary>
+    private void CheckPanels(double dt)
     {
         if (_panels.Count == 0) return;
         bool any = false;
-        for (int i = 0; i < _contacts.Count && !any; i++) if (_contacts[i].Panel >= 0 && _contacts[i].ForceBody.LengthSquared > 0) any = true;
-        for (int i = 0; i < _panelWaterUp.Length && !any; i++) if (_panelWaterUp[i] != 0) any = true;
-        for (int i = 0; i < _panels.Count && !any; i++) if (_panels[i].State == PanelState.Bent) any = true;
+        for (int i = 0; i < _panels.Count && !any; i++)
+            if (_panels[i].ContactRecorded || _panels[i].State == PanelState.Bent || (i < _panelWaterUp.Length && _panelWaterUp[i] != 0)) any = true;
         if (!any)
         {
-            Array.Clear(_panelTouching, 0, _panelTouching.Length); Array.Clear(_bentThisStrike, 0, _bentThisStrike.Length);
             for (int i = 0; i < _panels.Count; i++) _panels[i].ElasticRad = 0.0;
             return;
         }
@@ -283,85 +294,130 @@ public sealed partial class Aircraft
         for (int k = 0; k < _panels.Count; k++)
         {
             WingPanel w = _panels[k];
-            if (w.State == PanelState.Broken) continue;
-            double mx = 0, fMax = 0; bool touched = false;
-            ContactPoint? at = null;
-            for (int i = 0; i < _contacts.Count; i++)
+            if (w.State == PanelState.Broken || w.Bending is null || w.Twisting is null) { ClearRecorded(w); continue; }
+            double water = k < _panelWaterUp.Length ? _panelWaterUp[k] : 0.0;
+            bool contact = w.ContactRecorded;
+            bool touched = contact || water != 0;
+            bool damaged = w.State == PanelState.Bent;
+            double air = touched || damaged ? AeroLoadFactorZ * w.M1Nm : 0.0;
+            double up = contact ? w.RawUpNm : 0.0, tw = contact ? w.RawTwistNm : 0.0;
+            double kUp = contact ? w.KUpSpring + (dt > 0 ? w.KUpDamp / dt : 0.0) : 0.0;
+            double kTw = contact ? w.KTwSpring + (dt > 0 ? w.KTwDamp / dt : 0.0) : 0.0;
+            ContactPoint? at = null; double fMax = 0;
+            if (contact)
             {
-                ContactPoint p = _contacts[i];
-                if (p.Panel != k || p.ForceBody.LengthSquared <= 0) continue;
-                // Moment about the station's axis (along x through y = ±BreakY, z = BreakZ).
-                Vec3 r = p.Body - new Vec3(p.Body.X, w.Side * w.BreakY, w.BreakZ);
-                mx += r.Y * p.ForceBody.Z - r.Z * p.ForceBody.Y;
-                touched = true;
-                if (p.ForceBody.Length > fMax) { fMax = p.ForceBody.Length; at = p; }
-            }
-            double up = -w.Side * mx;   // + = bending the tip UP
-            if (k < _panelWaterUp.Length && _panelWaterUp[k] != 0) { up += _panelWaterUp[k]; touched = true; }
-            // The flex the contact force puts in it: F/k_w at the tip, as the tip slope of a cantilever.
-            double len = w.TipY - w.BreakY;
-            w.ElasticRad = touched && w.TipStiffnessNPerM > 0 && len > 0 ? 1.5 * (up / len) / w.TipStiffnessNPerM / len : 0.0;
-            if (!touched) { _panelTouching[k] = false; _bentThisStrike[k] = false; }
-            else
-            {
-                _panelTouching[k] = true;
+                for (int i = 0; i < _contacts.Count; i++)
+                {
+                    ContactPoint p = _contacts[i];
+                    if (p.Panel == k && p.ForceBody.LengthSquared > fMax * fMax) { fMax = p.ForceBody.Length; at = p; }
+                }
                 w.PeakContactNm = Math.Max(w.PeakContactNm, Math.Abs(up));
             }
-            if (w.State == PanelState.Intact || _bentThisStrike[k])
+            // The flex the (capped) contact force puts in it: F/k_w at the tip, as the tip slope of a cantilever.
+            double len = w.TipY - w.BreakY, carried = up * (contact ? w.ContactScale : 0.0) + water;
+            w.ElasticRad = touched && w.TipStiffnessNPerM > 0 && len > 0 ? 1.5 * (carried / len) / w.TipStiffnessNPerM / len : 0.0;
+            double demand = up + water + air;
+            double dB = w.Bending.Load(demand, kUp);
+            double dT = w.Twisting.Load(tw, kTw);
+            ClearRecorded(w);
+            if (w.Bending.Ruptured || w.Twisting.Ruptured)
             {
-                if (!touched) continue;
-                if (Math.Abs(up) > w.UltimateNm) { BreakPanel(k, Math.Abs(up) / w.UltimateNm, at); continue; }
-                if (w.State == PanelState.Intact && Math.Abs(up) > w.LimitNm)
-                {
-                    // Past the limit, short of ultimate: a permanent set (the crunch). For the rest of THIS strike the spar
-                    // is still the one that was struck; the weakened law starts with the next.
-                    w.State = PanelState.Bent;
-                    _bentThisStrike[k] = true;
-                    SetBend(k, Math.Sign(up) * WingStructure.BentSetRad);
-                    Raise(ContactEventKind.PanelBent, at?.Name ?? w.Component.ToString(), w.Component, at, Math.Abs(up) / w.UltimateNm, WingStructure.BentSetRad * 180 / Math.PI);
-                }
+                BreakPanel(k, Math.Max(Math.Abs(demand) / w.UltimateNm, w.Twisting.Ruptured ? 1.0 : 0.0), at);
                 continue;
             }
-            // BENT: the flight load (and a new strike in the sense that opens the bend) takes it along 5° at 1 g → 15° at 2 g.
-            // The flight load is the LIFT's (AeroLoadFactorZ): the whole-aeroplane load factor also counts the ground
-            // decelerating the fuselage, which bends no wing — a −3 g thump of the cabin onto the ground snapped bent panels
-            // that had not touched anything. Contact on the panel itself is nContact, static weight included (Ty
-            // 2026-11-03, decision 1: static load counts).
-            double sgn = Math.Sign(w.BendRad);
-            double nFlight = AeroLoadFactorZ * sgn;
-            double nContact = touched ? up * sgn / w.M1Nm : 0.0;
-            if (touched && -up * sgn > WingStructure.SnapLoadFactor * w.M1Nm) { BreakPanel(k, -up * sgn / w.UltimateNm, at); continue; }   // a cracked spar knocked back the other way
-            double th = WingStructure.BentDeflection(Math.Max(nFlight, nContact), w.BendRad);
-            if (th > WingStructure.SnapRad) { BreakPanel(k, th * 180 / Math.PI, at); continue; }
-            if (th > Math.Abs(w.BendRad) + 1e-9) SetBend(k, sgn * th);
+            if (dB != 0 || dT != 0)
+            {
+                bool first = w.State == PanelState.Intact;
+                w.State = PanelState.Bent;
+                SetBend(k);
+                int steps = (int)(Math.Max(Math.Abs(w.BendRad), Math.Abs(w.TwistRad)) / (5.0 * Math.PI / 180.0));
+                if (first || steps > _panelReported[k])
+                {
+                    _panelReported[k] = Math.Max(_panelReported[k], steps);
+                    Raise(ContactEventKind.PanelBent, at?.Name ?? w.Component.ToString(), w.Component, at, Math.Abs(demand) / w.UltimateNm, w.BendRad * 180 / Math.PI);
+                }
+            }
+            SetCaps(w, water + air);
         }
     }
 
-    /// <summary>Bend a wing panel NOW, as a medium strike would (scenarios, lessons, tests): <paramref name="rad"/> + = tip up,
-    /// the 5° set by default. False if the type has no such panel or it has already gone.</summary>
-    public bool BendPanel(AirframeComponent comp, double rad = WingStructure.BentSetRad)
+    private static void ClearRecorded(WingPanel w)
+    {
+        w.ContactRecorded = false; w.RawUpNm = 0; w.RawTwistNm = 0; w.ContactScale = 1.0;
+        w.KUpSpring = w.KUpDamp = w.KTwSpring = w.KTwDamp = 0;
+    }
+
+    /// <summary>What the tip's hard points may push on the next step before the hinges yield: the bending backbone less
+    /// what the air and the water already put on it (each way), and the torsion backbone.</summary>
+    private static void SetCaps(WingPanel w, double otherUpNm)
+    {
+        if (w.Bending is null || w.Twisting is null) return;
+        double c = w.Bending.Capacity;
+        w.CapUpNm = Math.Max(0.0, c - otherUpNm);
+        w.CapDownNm = Math.Max(0.0, c + otherUpNm);
+        w.CapTwistNm = w.Twisting.Capacity;
+    }
+
+    /// <summary>Bend a wing panel NOW, as a strike would (scenarios, lessons, tests): <paramref name="rad"/> + = tip up,
+    /// the 5° set by default, put in through its bending hinge (so it is as weakened as a panel bent that far). False if
+    /// the type has no such panel or it has already gone.</summary>
+    public bool BendPanel(AirframeComponent comp, double rad = WingStructure.BentSetRad, double twistRad = 0.0)
     {
         int k = _panels.FindIndex(p => p.Component == comp);
         if (k < 0 || _panels[k].State == PanelState.Broken) return false;
-        _panels[k].State = PanelState.Bent;
-        SetBend(k, rad);
+        WingPanel w = _panels[k];
+        WingStructure.EnsureStrength(_panels, Config, Hydro.Model.StructureScale * Hydro.Model.WingMassFactor);
+        w.Bending!.Impose(rad);
+        if (twistRad != 0) w.Twisting!.Impose(twistRad);
+        w.State = PanelState.Bent;
+        SetBend(k);
+        SetCaps(w, 0.0);
         return true;
     }
 
-    /// <summary>Bend panel <paramref name="k"/> to <paramref name="rad"/>: its hard points and its rows' aero follow.</summary>
-    private void SetBend(int k, double rad)
+    /// <summary>Panel <paramref name="k"/> takes the shape of its hinges' sets: its hard points, its rows' load points,
+    /// dihedral and incidence follow, and its skin is as buckled as its hinges are past their peak.</summary>
+    private void SetBend(int k)
     {
         WingPanel w = _panels[k];
-        w.BendRad = rad;
-        foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Bend(b0, rad);
+        w.BendRad = w.Bending?.SetRad ?? w.BendRad;
+        w.TwistRad = w.Twisting?.SetRad ?? w.TwistRad;
+        foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Deform(b0);
         _flowState.BendRad ??= new double[_stripTotal];
         _flowState.BendOffset ??= new Vec3[_stripTotal];
+        double[] inc = _flowState.IncidenceDeltaRad is { } a && a.Length == _stripTotal ? a : (_flowState.IncidenceDeltaRad = new double[_stripTotal]);
+        double skin = 0;
+        foreach (PlasticHinge? h in new[] { w.Bending, w.Twisting })
+            if (h is not null && h.PathRad > h.Law.PeakRad) skin = Math.Max(skin, Math.Min(1.0, (h.PathRad - h.Law.PeakRad) / (h.Law.RuptureRad - h.Law.PeakRad)));
         foreach (int i in w.Strips)
         {
-            Vec3 pos = _stripAt[i]!.PosVec();
-            _flowState.BendRad[i] = rad;
-            _flowState.BendOffset[i] = w.Bend(pos, rad) - pos;
+            StripConfig st = _stripAt[i]!;
+            Vec3 pos = st.PosVec();
+            _flowState.BendRad[i] = w.BendRad;
+            _flowState.BendOffset[i] = w.Deform(pos) - pos;
+            inc[i] = w.TwistRad * w.SpanFraction(Math.Abs(pos.Y));
+            SetSkinDamage(i, skin);
         }
+    }
+
+    /// <summary>A bent panel's skin: buckled metal or slack, torn fabric over crushed ribs. It takes the same damaged-surface
+    /// law as a branch-dented leading edge (<see cref="BranchStrike"/>: 1 − 0.4·D of the lift, 0.06·D more profile drag),
+    /// with D the share of the way from the hinge's peak to its rupture; the worse of the two damages counts.</summary>
+    private void SetSkinDamage(int strip, double d)
+    {
+        if (_bendSkinDamage.Length != _stripTotal) _bendSkinDamage = new double[_stripTotal];
+        _bendSkinDamage[strip] = Math.Max(_bendSkinDamage[strip], d);
+        ApplySurfaceDamage(strip);
+    }
+
+    private void ApplySurfaceDamage(int s)
+    {
+        double d = Math.Max(s < _bendSkinDamage.Length ? _bendSkinDamage[s] : 0.0, s < _stripDamage.Length ? _stripDamage[s] : 0.0);
+        if (d <= 0 && _flowState.LiftFactor is null) return;
+        _flowState.LiftFactor ??= Enumerable.Repeat(1.0, _stripTotal).ToArray();
+        _flowState.ExtraCd ??= new double[_stripTotal];
+        _flowState.LiftFactor[s] = 1.0 - BranchStrike.LiftLossAtFull * d;
+        _flowState.ExtraCd[s] = BranchStrike.ExtraCdAtFull * d;
     }
 
     private void BreakPanel(int k, double value, ContactPoint? at)
@@ -385,6 +441,7 @@ public sealed partial class Aircraft
             foreach (int i in w.AileronHinged) _stripMask![i] = false;   // a hinge line cannot cross the missing panel
             foreach (int i in w.AileronFixed) if (!StripGone(i)) _deadAileronRows.Add(i);
             if (_flowState.BendRad is { } br) foreach (int i in w.Strips) { br[i] = 0; _flowState.BendOffset![i] = Vec3.Zero; }
+            if (_flowState.IncidenceDeltaRad is { } incd) foreach (int i in w.Strips) incd[i] = 0;
             // The slave strut went with the aileron: the other aileron on this side is on its own now.
             foreach (SlaveLink l in _links)
             {
@@ -709,7 +766,7 @@ public sealed partial class Aircraft
 
     private void AfterStepContactDamage(double dt)
     {
-        CheckPanels();
+        CheckPanels(dt);
         PropStrike(dt);
         UpdateScrapes();
     }

@@ -346,15 +346,22 @@ public sealed partial class Aircraft
         TreeStrikeLog.Add(new TreeStrikeRecord(e.Name, e.Component, outcome, closing, j, d, up, fStem, fPart));
     }
 
-    /// <summary>The vertical part of a strike moment past the limit (and short of ultimate) bends an intact panel.</summary>
+    /// <summary>The vertical part of a strike moment beyond the panel's backbone bends it through its hinge; the panel
+    /// unloads through its own tip stiffness (k_w·L² about the station), the only spring a limb impulse gives it.</summary>
     private void BendFromStrike(StrikeEdge e, double ratioToUltimate)
     {
         if (e.Panel < 0) return;
         WingPanel w = _panels[e.Panel];
-        if (w.State != PanelState.Intact || ratioToUltimate * w.UltimateNm <= w.LimitNm) return;
+        if (w.State == PanelState.Broken || w.Bending is null) return;
+        double len = w.TipY - w.BreakY;
+        double d = w.Bending.Load(ratioToUltimate * w.UltimateNm, w.TipStiffnessNPerM * len * len);
+        if (w.Bending.Ruptured) { LoseComponent(w.Component); Raise(ContactEventKind.PanelBroken, e.Name, w.Component, null, ratioToUltimate, ratioToUltimate); return; }
+        if (d == 0) return;
+        bool first = w.State == PanelState.Intact;
         w.State = PanelState.Bent;
-        SetBend(e.Panel, WingStructure.BentSetRad);
-        Raise(ContactEventKind.PanelBent, e.Name, w.Component, null, ratioToUltimate, WingStructure.BentSetRad * 180 / Math.PI);
+        SetBend(e.Panel);
+        SetCaps(w, 0.0);
+        if (first) Raise(ContactEventKind.PanelBent, e.Name, w.Component, null, ratioToUltimate, w.BendRad * 180 / Math.PI);
     }
 
     /// <summary>
@@ -454,19 +461,13 @@ public sealed partial class Aircraft
         int[] strips = e.ThirdStrips[k];
         if (strips.Length > 0)
         {
-            if (_stripDamage.Length != _stripTotal)
-            {
-                _stripDamage = new double[_stripTotal];
-                _flowState.LiftFactor = Enumerable.Repeat(1.0, _stripTotal).ToArray();
-                _flowState.ExtraCd = new double[_stripTotal];
-            }
+            if (_stripDamage.Length != _stripTotal) _stripDamage = new double[_stripTotal];
             for (int i = 0; i < strips.Length; i++)
             {
                 int s = strips[i];
                 if (dmg <= _stripDamage[s]) continue;
                 _stripDamage[s] = dmg;
-                _flowState.LiftFactor![s] = 1.0 - BranchStrike.LiftLossAtFull * dmg;
-                _flowState.ExtraCd![s] = BranchStrike.ExtraCdAtFull * dmg;
+                ApplySurfaceDamage(s);   // with a bent panel's buckled skin: the worse of the two (AircraftContactDamage)
             }
         }
         int tenth = (int)(dmg * 10.0);

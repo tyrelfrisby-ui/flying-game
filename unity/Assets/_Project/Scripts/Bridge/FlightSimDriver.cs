@@ -149,7 +149,8 @@ namespace FlyingGame.Bridge
         }
 
         // The scripted crash (FlyingGame.Sim.CrashScenario): with the launch argument "-crashtest runway|grass" the first flight
-        // of the session is the Pitts cartwheel DebrisGroundTests crash, so the phone build reproduces it on demand.
+        // of the session is the Pitts cartwheel DebrisGroundTests crash, so the phone build reproduces it on demand ("water": Ty's
+        // 2026-11-05 touch on the seaplane lane).
         private static bool _crashTestDone;
 
         private void SpawnAircraft()
@@ -162,7 +163,8 @@ namespace FlyingGame.Bridge
                 var pitts = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
                 AircraftName = string.IsNullOrEmpty(pitts.DisplayName) ? AircraftId : pitts.DisplayName;
                 TrimStick = 0;
-                Sim = new SimLoop(new Aircraft(pitts, CrashScenario.PittsStart(pitts, crash == "grass"), ControlDeflections.Neutral));
+                Sim = new SimLoop(new Aircraft(pitts, crash == "water" ? CrashScenario.PittsWaterStart(pitts)
+                    : CrashScenario.PittsStart(pitts, crash == "grass"), ControlDeflections.Neutral));
                 Debug.Log($"[CrashTest] Pitts scripted crash on the {crash}");
                 ApplyStateToTransform();
                 return;
