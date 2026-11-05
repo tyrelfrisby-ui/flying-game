@@ -1,5 +1,41 @@
 ## NEEDS YOU
 
+## NEEDS YOU — Quest feedback: views, wrists, arm clearance, prop-blast, prop/mixture — fly-test (Claude, 2026-11-04)
+<!-- quest-feedback needs-you -->
+Ty's Quest 3S report 6:08 PM (build 2026.1104.1656). Lane `lane/claude-quest-feedback`; full write-up with every table:
+`docs/quest-feedback-2026-11-04.md`. **Nothing approved by me.** Builds: iOS BUILD_IOS, Quest BUILD_QUEST.
+**Please check (Quest unless noted):**
+1. **Views:** VR menu → `View: … < >` now cycles Cockpit / Chase / Fixed-direction chase / Fly-by. Outside views are
+   level, the origin rides the aeroplane with its offset eased (0.8 s) and the heading changes only in 45° snap turns;
+   the head is never rotated for you. Comfortable? Is the fly-by close enough (it parks 30-150 m ahead, no zoom in a headset)?
+2. **Wrists:** the hand now wraps the stick shaft / lies over the throttle knob, the wrist sits behind the fist, 75 % of
+   the hand's roll is taken along the forearm. Natural now?
+3. **Arms vs structure** (Great Lakes left switch box): elbows swing clear of the cockpit's own meshes. Still RED in the
+   bench check: GL rear with the throttle right back at idle (left arm 42 mm in, wrist 97°), Extra rear throttle idle
+   (18 mm), Pitts throttle aft (left wrist 55-90°). Look at the left arm at idle in those three.
+4. **Extra prop strike:** stopped prop + full throttle + rudder must no longer yaw. Base measured -127.8° of heading in
+   3 s on the ground at full throttle vs -0.08° at idle; now identical (-0.08°). Running-engine blast unchanged (pinned).
+5. **Great Lakes prop / mixture** (constant-speed Hartzell, so it keeps its prop lever): the blue lever sets 1,890-2,700
+   rpm; the red mixture leans (EGT up, a little power, then rough, then it quits below φ 0.6); idle cut-off stops the
+   engine, pushing it back in restarts it after 1 s (a starter is ASSUMED — say if you want a real start sequence).
+   Same wiring on the Extra and Pitts levers. iOS has no prop/mixture control at all (never had): want one?
+**Root causes (file:line on the base):** QuestMenu.cs:238/745 (a two-way toggle was the only view control) and
+QuestRig.cs:274 (outside origin = the exact flight-path camera with its heading); VrCockpitHands.cs:529 (wrist on the
+grip→shoulder line, roll from the controller) and VrPilotBody PoseSkinned (shortest-arc bones: arbitrary upper-arm roll,
+all twist at the wrist); SeatedPilot.ElbowPoleL/R (one pole 45 cm outboard for every cockpit, no collision);
+Aircraft.cs:1114/1405 TailSlipstream (throttle only, ignored the prop strike) and PropModel.Compute (power, rpm,
+torque, P-factor, swirl, gyro all from the throttle); CockpitRigState.cs:181-182 (levers hard-wired to 1.0) and
+VrCockpitHands.Panel (prop/mixture "visual only"); no mixture or governor in the sim.
+**Tests:** EngineStateTests 12 + QuestViewArmTests 9 (literals). Filtered suite base 73d7702b 1040/16 fail/4 skip of
+1060, branch 1061/16/4 of 1081, the SAME 9 failing names (pre-existing), no new failures. QuestViewShots PASS;
+VrArmCheck FAIL 8 (above). Unity batch 0 `error CS`.
+**Commits (lane/claude-quest-feedback):** 31fbf41f engine/prop/mixture, 1e27e275 views, 8f74e5d7 + 9463c6ba + 6fbb0f9e
+arms/wrists, 3dd5c84c Codex v4 body candidate generator (not shipped), 905e2108 merge of island-nav 6f0e3f74, LOGCOMMIT.
+**Renders:** `~/Developer/agent-lanes/renders/quest-feedback/` — `views/` (each Quest view, 3 aircraft), `arms/`
+(before-/after- × GL, Extra, 2-33 × poses × eye-left/eye-right/handL/handR; table.md), `codex-v4-*.png`.
+**Installs:** INSTALLS
+<!-- /quest-feedback needs-you -->
+
 ## NEEDS YOU — CARDBOARD VR ON THE iPHONE 17 PRO (Claude, 2026-11-04 ~20:00 PST, lane/claude-vr-stereo-merge)
 Ty 19:39: "I have the cardboard vr headsets for the iphone now". lane/codex-vr-stereo (lens-distortion compositor,
 in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carry it. How to use it:
