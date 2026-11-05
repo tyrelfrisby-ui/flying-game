@@ -159,6 +159,7 @@ def wing_surfaces(u):
 def update(g):
     if g.doc.get('extras',{}).get('pittsCockpit1105'):
         followup(g)
+        throttle_followup(g)
         return
     u=Upgrade(g)
     steel=u.material('Pitts1105_Steel',(.46,.49,.52),.85,.28)
@@ -333,6 +334,7 @@ def update(g):
         'pivotsBuilder':{n:builder(u.world(n)[:3,3]).tolist() for n in updated},'stopRailPointBuilder':railpoint.tolist(),'stopContactBuilder':contact.tolist(),
         'normalSlideM':SLIDE,'normalOpenDeg':OPEN_DEG,'runtimeRigUpdateRequired':True}
     followup(g)
+    throttle_followup(g)
     validate(g,ROOT/'pitts-cockpit-1105')
 
 
@@ -374,6 +376,33 @@ def followup(g):
     assert min(clearance)>=.005,('front latch windshield clearance',clearance)
     g.doc['extras']['pittsCockpit1105Followup']={'frontLatchPivotGltf':gl(p).tolist(),
         'frontLatchClearanceLowerBoundM':clearance}
+
+
+def throttle_followup(g):
+    """Separate version marker lets existing follow-up assets upgrade exactly once."""
+    if g.doc.get('extras',{}).get('pittsCockpit1105Throttles'):return
+    u=Upgrade(g);pivots={}
+    for seat,x in [('Rear',-1.145),('Front',-.425)]:
+        name='Throttle_'+seat
+        children={i:u.g.world_matrices()[i].copy() for i in u.node(name).get('children',[])}
+        pivot=np.array((x,.238,-.290))
+        arm=Shape();arm.box((x,.238,-.210),(.016,.006,.160))
+        knob=path_shape([(x,.260,-.130),(x,.182,-.130)],.021)
+        button=path_shape([(x,.182,-.130),(x,.178,-.130)],.008)
+        u.put(name,[('Pitts1105_Black',arm,None),('Pitts1105_Black',knob,None),
+                    ('Pitts1105_Red',button,None)],pivot,
+              extras={'motion':'hinged quadrant; neutral at throttle 0.5',
+                      'hingeAxisBuilder':[0,1,0],'leverLengthM':.160})
+        # Preserve each child's complete world pose while changing its parent's origin.
+        for i,world in children.items():
+            n=u.nodes[i]
+            if n['name'].startswith('Grip_Throttle_'):world[:3,3]=gl((x,.221,-.130))
+            local=np.linalg.inv(u.world(name))@world
+            for key in ['translation','rotation','scale']:n.pop(key,None)
+            n['matrix']=local.T.reshape(-1).tolist()
+        pivots[name]=gl(pivot).tolist()
+        g.doc['extras']['pittsCockpit1105']['pivotsBuilder'][name]=pivot.tolist()
+    g.doc['extras']['pittsCockpit1105Throttles']={'pivotsGltf':pivots,'armLengthM':.160}
 
 
 def main():
