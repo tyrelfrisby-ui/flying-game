@@ -48,6 +48,7 @@ namespace FlyingGame.Bridge
         }
         /// <summary>Self-test: the chapter names, in tab order.</summary>
         public static string[] PageNamesForTest => PageNames;
+        public void ScrollForTest(float y) => _scroll = new Vector2(0f, y);
 
         private static bool FlightControlsDesk => TouchFlightControls.DeskMode;
         private static Texture2D Solid(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }

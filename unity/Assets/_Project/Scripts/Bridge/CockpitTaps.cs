@@ -429,6 +429,19 @@ namespace FlyingGame.Bridge
 
         // ---- the Kollsman popup (glass and Mac) ----
 
+        /// <summary>Self-test (AERO_SELFTEST=cockpit1105): type into the popup and press Set, as a pilot would.</summary>
+        public void TypeForShots(string text)
+        {
+            if (!_popup) OpenPopup();
+            CockpitRigState c = Cockpit;
+            if (c == null) return;
+            _typed = text;
+            if (c.Altimeter.TrySet(text, out string why)) { _popupMsg = $"set {KollsmanAltimeter.Window(c.Altimeter.InHg)}"; _typed = KollsmanAltimeter.Window(c.Altimeter.InHg); }
+            else _popupMsg = "refused: " + why;
+        }
+
+        public void ClosePopupForShots() => _popup = false;
+
         public void OpenPopup()
         {
             CockpitRigState c = Cockpit;

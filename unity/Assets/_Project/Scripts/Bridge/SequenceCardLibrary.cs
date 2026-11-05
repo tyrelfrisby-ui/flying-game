@@ -52,6 +52,7 @@ namespace FlyingGame.Bridge
 
         /// <summary>The tap on the card (any seat, any platform).</summary>
         public static IacCard Next() { IacCard c = Deck.Next(); Save(); Debug.Log($"[SequenceCard] card: {c.LabelAscii}"); return c; }
+        public static bool Select(string id) { bool ok = Deck.Select(id); if (ok) Save(); return ok; }
         public static IacCard Previous() { IacCard c = Deck.Previous(); Save(); return c; }
 
         /// <summary>The current card's texture (loaded on demand; null only when even the built-in is missing).</summary>
