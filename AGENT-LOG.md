@@ -269,6 +269,41 @@ Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 20
     (whir mean −47.8 → −62.4 dBFS).
   - Tests: TyreSquealTests 17 new, GroundSoundMix/WheelSpin/TyreWear/Tire* 61/61. Physics untouched (the new sideways slip
     sums are read only by the sound). Write-up: docs/TIRE-SPINUP-AND-GROUND-SOUND.md §7b.
+- **GREAT LAKES PANELS v2: CENTRED IAC CARD, DECLUTTERED REAR PANEL, MAG L / MAG R, LABELLED SWITCHES, FUEL SIGHT GAUGE,
+  FRONT CARD (Claude, 2026-11-05, lane/claude-greatlakes-panel-v2; Ty's spec 05:07, GREAT LAKES section). NOT merged,
+  NOT approved: renders for Ty first. Renders + README: ~/Developer/agent-lanes/renders/cockpit-1105/claude-greatlakes-panel-v2/.
+  Questions Q065-Q068 in the queue. iOS NOINSTALL 2026.1105.0947 ** BUILD SUCCEEDED **, 0 error CS, not installed. Unity shots (GreatLakesPanelV2Shots, PASS:
+  the rig moves the sight ball 0.590 / 0.536 / 0.498 m at fuel 1.0 / 0.5 / 0.15) in renders/.../unity/.**
+  - **Card centred, and a test that fails without it** (8aa5ab74). `tools/own_models/gl_panel_v2.py` is the last step of
+    the GL build (from 6f659d0d's export, deterministic). Rear SequenceCard_* on the panel's centre line, flush, 108 x
+    139.7 mm portrait. `GreatLakesCardSpaceTests` reads the GLB: present, full size, portrait, on the panel, within 5 mm
+    of the panel centre and the centreline, nothing within 10 mm of it from the panel face back to the eye, every sample
+    point visible from Eye_Rear; front card full size and visible from Eye_Front; rear dials do not share space.
+    On the old GLB it FAILS ("card y -0.195..-0.055 runs off the panel", "no FrontPanel_SequenceCard_Face"); now 3/3.
+  - **Rear panel**: left ASI + ALT over G + turn coordinator, right tach + MP over oil + CHT. Out: Hobbs, VSI, mag-key
+    dial, ignition rotary (both seats), blank placard, the grey knob cluster. Trig COM + XPDR heads side by side on a
+    subpanel UNDER the panel, right of the stick's full-right/full-forward corner, with knobs at the heads' own size (the
+    same controls, still tunable). Compass 40 mm further into the panel (20 mm proud, was 60), centred over the card.
+    Altimeter_Knob (lower left of bezel), Altimeter_Kollsman (3 o'clock), G_meter_Reset nodes; front FrontPanel_Altimeter_Knob
+    / _Kollsman (contract names for cockpit-common). Belt sub-meshes dropped from Cockpit_Interior.
+  - **Two magnetos in the engine** (69c94e82). Core `Magnetos`: both = full power, one = mag drop 0.95 (ESTIMATE), none =
+    no spark. `Aircraft.MagLeft/MagRight` (default on: nothing flies differently until one moves); both off stops the
+    engine at once, prop windmills, either back on fires it. Rig mag_left / mag_right; VR hands write them;
+    CockpitRigState draws both seats from the sim. `MagnetoSwitchTests`.
+  - **Switch consoles** (c7d9bf4f): 4 fore/aft columns of 2, MAGS aft (nearest the hand, L outboard), MASTER/ALT,
+    F PUMP/NAV, STROBE/LDG; smaller toggles; the name AFT (below) of each switch, "ON" FORWARD (above), dividers.
+    `GreatLakesSwitchSightTests`: all 18 toggles (both seats, incl. smoke) throw their grips FORWARD to ON by their
+    own rig rows; the key is gone; MAGs on their console lids, L left of R.
+  - **Fuel sight gauge**: clear glass tube 35 mm aft of the right aft cabane's wing fitting (rear spar), marks 1/4 1/2 3/4,
+    red ball on a wire up to a cork in the tank: rig slide on fuel_top_wing_frac = `RigInputs.TankFraction(load,"topWing")`.
+    Tested: ball on each mark at its fraction; 120 s full throttle burns 1.22 kg and the ball drops by the top tank's
+    share. **Default loading has 0 kg in every tank, so it reads FULL** until fuel is loaded (Q067).
+  - **Front card**: FrontPanel_SequenceCard_* hung from the front panel's lower right corner (shows the rear selection
+    via cockpit-common). The front panel's row of 10 grey radio knobs is still there (Q066).
+  - Checks: check_great_lakes_rig 94/94, check_gl_quadrant OK (updated to 4 x 2), check_vr_phase3 GL OK (its Extra
+    failures are not this lane's), check-parity --strict PARITY OK. Suite subset: 5 failures that read no GL file
+    (StreamingAssets x2, NoRed233 Resources regex vs the Grob 103 files, RigTests.EveryConfigIsInTheTable, glider
+    air-brake NaN).
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not
