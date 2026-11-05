@@ -21,7 +21,7 @@ namespace FlyingGame.Bridge
     /// MASTER, ALTERNATOR and FUEL PUMP are <see cref="Aircraft.Electrics"/>, the FUEL valve is
     /// <see cref="Aircraft.FuelValveOpen"/> and the COWL FLAP <see cref="Aircraft.CowlFlap01"/> (Ty 2026-11-04: the Pitts'
     /// rear cockpit). Because they live in the sim, the other seat's levers and switches follow. Everything else
-    /// (magnetos, lights, alternate air / carb heat, fuel selector, radio, transponder) has no system in this sim yet: it
+    /// (lights, alternate air / carb heat, fuel selector, radio, transponder) has no system in this sim yet: it
     /// moves, clicks, stays where it is left and says so in the log (`[VrCockpit] … visual only`). Drawn by this class after
     /// the rig, so the knob shows the hand's value.
     /// </summary>
@@ -45,7 +45,8 @@ namespace FlyingGame.Bridge
         private readonly List<PanelSlot> _panel = new();
         private SmokeController _smoke;
         private static readonly HashSet<string> SimParams = new()
-            { "trim", "smoke", "water_rudder_up", "prop", "master", "alternator", "fuel_pump", "mixture", "fuel_valve", "cowl_flap", "prop_lock" };
+            { "trim", "smoke", "water_rudder_up", "prop", "master", "alternator", "fuel_pump", "mixture", "fuel_valve", "cowl_flap", "prop_lock",
+              "mag_left", "mag_right" };
 
         private void BindPanel(string seatFull)
         {
@@ -133,7 +134,8 @@ namespace FlyingGame.Bridge
                 case "smoke": return _smoke != null && _smoke.On ? 1.0 : 0.0;
                 case "water_rudder_up": return _driver.Sim.Aircraft.WaterRudderUp01;
                 case "prop": case "master": case "alternator": case "fuel_pump":
-                case "mixture": case "fuel_valve": case "cowl_flap": case "prop_lock": return FromSim(spec.Param);
+                case "mixture": case "fuel_valve": case "cowl_flap": case "prop_lock":
+                case "mag_left": case "mag_right": return FromSim(spec.Param);
                 case "com_volume": return 0.5;
                 case "xpdr_squawk": return spec.Short switch { "XpdrDigit1" => 1, "XpdrDigit2" => 2, _ => 0 };   // 1200
             }
@@ -170,6 +172,8 @@ namespace FlyingGame.Bridge
                 case "water_rudder_up": return ac.WaterRudderUp01;
                 case "mixture": return ac.MixtureLever;
                 case "fuel_valve": return ac.FuelValveOpen ? 1.0 : 0.0;
+                case "mag_left": return ac.MagLeft ? 1.0 : 0.0;
+                case "mag_right": return ac.MagRight ? 1.0 : 0.0;
                 case "cowl_flap": return ac.CowlFlap01;
                 case "prop_lock": return _visual.Cockpit.PropLock01;
                 default: return 0.0;
@@ -306,6 +310,17 @@ namespace FlyingGame.Bridge
                     else if (s.Param == "alternator") el.Alternator = on;
                     else el.FuelPump = on;
                     Debug.Log($"[VrCockpit] {s.Short} {(on ? "ON" : "OFF")} by hand → bus {el.BusVolts:0.0} V, {el.Amps:+0.0;-0.0} A");
+                    return;
+                }
+                case "mag_left": case "mag_right":
+                {
+                    // The Great Lakes' MAG L / MAG R toggles (Ty 2026-11-05): straight into the engine's ignition
+                    // (Aircraft.MagLeft / MagRight, Core Magnetos): one off is the mag drop, both off stops the engine.
+                    Aircraft ac = _driver.Sim.Aircraft;
+                    bool on = v > 0.5;
+                    if (s.Param == "mag_left") ac.MagLeft = on; else ac.MagRight = on;
+                    Debug.Log($"[VrCockpit] {s.Short} {(on ? "ON" : "OFF")} by hand → mags L {(ac.MagLeft ? "on" : "off")} R {(ac.MagRight ? "on" : "off")}, " +
+                              (ac.EngineRunning ? $"{ac.EngineRpm:F0} rpm" : "engine not firing"));
                     return;
                 }
                 case "cowl_flap":

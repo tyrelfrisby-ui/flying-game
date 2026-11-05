@@ -29,6 +29,12 @@ public sealed partial class Aircraft
     public double PropLever { get => _propLever; set => _propLever = System.Math.Clamp(value, 0.0, 1.0); }
     private double _propLever = 1.0;
 
+    /// <summary>The left and right magneto switches (the Great Lakes' MAG L / MAG R toggles, Ty 2026-11-05): both on by
+    /// default, as every type has always flown. One off: the mag drop (<see cref="Magnetos.PowerFactor"/>). Both off: no
+    /// spark, the engine stops at once and the prop windmills; either back on with the prop turning and it fires again.</summary>
+    public bool MagLeft { get; set; } = true;
+    public bool MagRight { get; set; } = true;
+
     /// <summary>True when this type has a governor for <see cref="PropLever"/> to set.</summary>
     public bool HasPropLever => Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0 };
     /// <summary>True when this type has a mixture for <see cref="MixtureLever"/> to meter (a piston; not a jet).</summary>
@@ -44,8 +50,9 @@ public sealed partial class Aircraft
     private double _sigma = 1.0;      // density ratio at the last step
     private double _roughPhase;
 
-    /// <summary>The engine is making power: it has a propeller, fuel and a mixture that fires.</summary>
-    public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0 && !_noseLost && !_mixtureDead && !_fuelStarved;
+    /// <summary>The engine is making power: it has a propeller, fuel, a mixture that fires and a spark (a magneto on).</summary>
+    public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0 && !_noseLost && !_mixtureDead && !_fuelStarved
+                                 && Magnetos.Fires(MagLeft, MagRight);
 
     /// <summary>The engine has quit for want of fuel (idle cut-off, a mixture too lean to fire, or the fuel valve shut:
     /// <see cref="FuelStarved"/>). Not damage.</summary>
@@ -72,6 +79,7 @@ public sealed partial class Aircraft
             if (!EngineRunning) return 0.0;
             double s = HasMixture ? MixtureModel.PowerFactor(_mixtureLever, _sigma) : 1.0;
             if (HasPropLever) s *= GovernorPowerFactor();
+            s *= Magnetos.PowerFactor(MagLeft, MagRight);
             double rough = EngineRoughness;
             if (rough > 0.0) s *= 1.0 - 0.15 * rough * (0.5 + 0.5 * System.Math.Sin(_roughPhase));
             return s;

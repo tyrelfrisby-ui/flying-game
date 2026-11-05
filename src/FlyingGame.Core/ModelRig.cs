@@ -168,6 +168,8 @@ public struct RigInputs
     public double CowlFlap, PropLock;
     /// <summary>Ignition key position: 0 OFF, 1 R, 2 L, 3 BOTH, 4 START.</summary>
     public double Magneto;
+    /// <summary>The two magneto toggles where a type has them instead of a key (the Great Lakes, Ty 2026-11-05): 0 OFF, 1 ON.</summary>
+    public double MagLeft, MagRight;
     /// <summary>J-3 primer plunger: 0 in and locked .. 1 pulled out 50 mm. No priming system reads it yet; it stays 0
     /// (in) unless a hand pulls the knob (Ty 2026-11-02, v18).</summary>
     public double Primer;
@@ -321,6 +323,7 @@ public struct RigInputs
             FuelSelector = 1.0,     // on
             FuelValve = 1.0,        // on
             Magneto = 3.0,          // BOTH
+            MagLeft = 1.0, MagRight = 1.0,
             Master = 1.0,
             Alternator = 1.0,
             CanopyLock = 1.0,       // closed and locked
@@ -360,6 +363,8 @@ public struct RigInputs
             case "cowl_flap": value = CowlFlap; return true;
             case "prop_lock": value = PropLock; return true;
             case "magneto": value = Magneto; return true;
+            case "mag_left": value = MagLeft; return true;
+            case "mag_right": value = MagRight; return true;
             case "primer": value = Primer; return true;
             case "master": value = Master; return true;
             case "alternator": value = Alternator; return true;

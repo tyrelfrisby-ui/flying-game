@@ -193,7 +193,9 @@ namespace FlyingGame.Bridge
             r.FuelValve = ac.FuelValveOpen ? 1.0 : 0.0;   // the valve's one shaft: both cockpits' levers read it
             r.CowlFlap = ac.CowlFlap01;
             r.PropLock = PropLock01;
-            r.Magneto = engine && !ac.EngineStopped ? 3.0 : 0.0;
+            r.Magneto = engine && !ac.EngineStopped ? FlyingGame.Core.Engine.Magnetos.KeyPosition(ac.MagLeft, ac.MagRight) : 0.0;
+            r.MagLeft = ac.MagLeft ? 1.0 : 0.0;     // the Great Lakes' two mag toggles (Ty 2026-11-05): both seats read the sim's
+            r.MagRight = ac.MagRight ? 1.0 : 0.0;
             FlyingGame.Core.Engine.ElectricalSystem el = ac.Electrics;
             r.Master = el.Master ? 1.0 : 0.0;
             r.Alternator = el.Alternator ? 1.0 : 0.0;
