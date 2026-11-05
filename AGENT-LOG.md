@@ -27,6 +27,117 @@
     the crush law; if it lands first, re-run OccupantInjuryTests and BailoutHeavenCheck after merging it.
   - Tests: OccupantInjuryTests (9) + CanopyEgressTests (5) green; PilotOutRulesTests and VrBailoutTests still green.
     The full suite was not run (other lanes' Unity builds the whole session).
+<!-- merge-tundra-recorder needs-you -->
+- **Ty to fly-check and confirm defaults: TUNDRA TYRES + FLIGHT RECORDER phase 1 MERGED (Claude, 2026-11-05, Ty approved
+  05:36 "take each lane's defaults"). island-nav 04278266 (tundra) + 23922ee1 (recorder); Quest 221db87f. PARITY: OK.
+  On devices (built by the next lanes' deploys from trees that contain both merges, so not built twice):
+  iPhone 17 Pro, iPad mini and EFB iPad Air **2026.1105.0746** (island-nav 0180edd5); Quest 3S **2026.1105.0751** (quest-islandnav 7b19f987, install Success, launched).
+  Nothing here is an approved gate. Queue: Q036-Q040 moved to Answered, Q064 open (this list).**
+  Defaults taken (none of these was built new; where the lane gave no default I took the choice that changes nothing):
+  1. **Super Cub look vs. tyre:** the bush Super Cub FLIES on the 35 in lightweight tundra tyre you approved, but its
+     3-D model still SHOWS the 31 in tyres. The model was not changed. (Lane gave no default.)
+  2. **Gear-leg springs:** NOT re-derived. Every leg keeps its old spring, which was set for leg + tyre together, so with
+     the tyre now a spring of its own the gear is a little softer (the Super Cub's 3 m/s level-drop prop strike).
+  3. **Glasair thrust line:** NOT set. Its propeller already sat 4 cm below its wheels; on the new soft tyre it touches
+     at full power, and the "every powered type rolls" test stays red until someone gives it its real thrust line.
+  4. **Wheels on snow:** the lane's reference tyre is kept (a 6.00-6 at 30 psi, 4 kN). The Cub's tyre floats a bit better
+     on snow, so skis vs. wheels sits at 0.62 against a 0.6 limit (Cub) and 0.606 (Beaver, new after the merge).
+  5. **Estimated wheel/disc weights:** the lane's estimates are kept as written (Cleveland wheels 4.0–4.5 lb, discs 2.5,
+     HD 40-134 13.5 lb, the bushwheel ply/load ratings, 8.50-6 16 lb, the Scott 8 in 3 lb 13 oz, tyre damping 0.05,
+     snow crust 125 kPa). Anything you know beats them.
+  6. **Flight recorder name (Q036):** FLIGHTS (the clip recorder keeps REC).
+  7. **Recorder UI (Q037):** as proposed: FLIGHTS toolbar button in flight, RECORDINGS on the landing page, a session
+     "mixer" page, the same as a Quest menu tab. NOT built yet: phase 1 has no UI and nothing a pilot can reach changed.
+  8. **Hitting a recorded ship (Q038):** (a) both take real contact damage. Phase 1 only detects the hit.
+  9. **Save the last N minutes of replay as a recording (Q039):** NOT NOW. The lane proposed no default, so the choice
+     that adds no new work; ask again for phase 2.
+  10. **Count-in and start slot (Q040):** 5 s count-in, new ship echelon right, one span back and one span out.
+  Merge notes: the tundra tyre's deflected rolling radius now combines with the flat-tyre lane's drop (a flat does not
+  change the brake's torque); the water lane's footprint pressure floor is kept for planing speed; the Grob 103 Acro,
+  which arrived after the catalog, got legacy catalog tyres with exactly its old sizes, mass and 8.6 psi.
+  Red tests (targeted tyre classes, merged vs both parents): the lane's own reds stay red as it reported (tailwheel
+  rest load, Cub skim, J-3 below planing, Cub skis vs wheels); island-nav's base reds stay (two Knik ski tests, and
+  `NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs`, whose `grob` pattern catches the approved Grob 103 Acro files — the
+  2-33 itself is yellow only; the test was not touched). New after the merge: Beaver skis vs wheels on snow (0.606).
+
+## NEEDS YOU — crash flight-path camera shoots to sky: fly-test (Claude, 2026-11-05)
+<!-- crash-camera-flightpath needs-you -->
+Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 2026.1105.0226+): "I crashed in flight path view on the phone and the shot went straight up into the sky?"
+- **Ty, please check:** crash in Relative wind / flight-path view on the iPhone (and the Quest), once into water and once on
+  land hard enough to break something off. The camera should ease out to about three chase distances behind and 30
+  degrees above the wreck (about 50 m back and 25 m up on the Pitts), look down at it, and STAY there. It should not
+  keep climbing. A water touch that breaks nothing, or a crunch that breaks nothing, still keeps the normal chase view.
+  New on land: the wreck view now also opens when a broken piece lands on the ground (before, a land crash stayed on the
+  flight path). Tell me if you would rather keep the flight-path camera on land.
+- **Root cause (camera only).** When a broken-off piece landed in WATER, ChaseCamera switched to its wreck view
+  (lane/codex-crash-cam 11-02; water-only since 11-04 22:46), which sits 30 degrees above the wreck at the range that
+  fits it, and that range could only ever grow. Two things that are not the wreck were feeding it:
+  1. `ChaseCamera.CrashRadius` (`ChaseCamera.cs:502-509` at 23922ee1) sized the aircraft from EVERY enabled renderer under
+     it. That includes the fuel sheen (FuelSlickVisual, added to the aircraft by StructuralDamage.cs:88, a quad scaled to
+     the spreading slick, 0.5 m/s, up to 187 m on the Pitts) and the crash spray, foam and rings (CrashWaterVisuals, added
+     by FlightAudio.cs:169). So the camera kept climbing for as long as the slick spread.
+  2. `ChaseCamera.cs:585-589` latched the eased focus's lag behind a sliding wreck into that same never-shrinking
+     range. Even with honest radii that parked a 6 m Pitts 100-240 m away.
+  Measured on a frame-by-frame copy of that camera (Unity SmoothDamp, 66.7 fps) in a Pitts crash into 4 m of water:
+  **119.5 m above the wreck, range 239 m, and still rising at 60 s.** On land the old view did not do this, because it
+  never opened there: the flight-path camera peaked only 2-4 degrees up in all three land crashes, so it was not the
+  cause either.
+- **Fix (camera only, shared iOS + Quest; no physics touched).** New `src/FlyingGame.Core/CrashFraming.cs` (pure, tested)
+  holds the wreck view's rules and ChaseCamera uses it. A part's radius counts mesh renderers only and is clamped to 0.75
+  of the aeroplane's span/length (`ClampRadiusM`). The latched range leaves out the lag, which now eases in and back out.
+  The range is kept between 1.5 and 3 chase distances (`MaxRangeChase`). The view opens for a broken-off piece on land
+  OR water (`OpensCrashView`, PieceId >= 0), and when the camera was looking near-vertical it takes its bearing from
+  where it stands relative to the wreck. Result, same crashes: 20-25 m above the wreck at 60 s, looking 19-41 degrees
+  down, airframe within 15 degrees of the view axis, at least 11.7 m clear of the surface.
+- **Tests:** `tools/FlightTests/CrashCameraTests` (7: runway, grass, 70-degree steep, steep into water; the old camera
+  climbing past 100 m in water and the new one holding; part clamp; land/water opening rule). Literals only.
+  `EmergentWaterContactTests.NoTouchRuleIsLeft` now looks for `CrashFraming.OpensCrashView(hit)`. Filtered run
+  (CrashCamera, EmergentWaterContact, ChaseFraming, CameraReference, FuelSlick): 41/41 pass.
+- **Commits / builds / installs:** lane/claude-crash-camera 30241c99 -> island-nav 938a865c -> Quest 99c0b00c;
+  check-parity --strict PARITY: OK. iOS 2026.1105.0804 (island-nav-merge at 2dd04632) ** BUILD SUCCEEDED **, 0 error CS,
+  installed + launched on Ty's iPhone 17 Pro and iPad mini (both had 2026.1105.0720 before). Quest 2026.1105.0822
+  (quest-islandnav at 0303e0df), 0 error CS, installed + launched on the Quest 3S 340YC10GBK0TYV, no PARITY_OVERRIDE.
+  Question for Ty: Q076.
+- NOTHING approved by me.
+
+<!-- pitts-cockpit-v2 needs-you -->
+- **PITTS S-2B COCKPIT v2 MERGED AND INSTALLED: PLEASE FLY-TEST IT AND FINE-TUNE (Claude, 2026-11-05 08:15; Ty 07:26 "The
+  two grey hoops on the canopy need to be eliminated everything else is good for the next version and I'll fine tune if
+  necessary after testing"). lane/claude-pitts-cockpit-v2 95ab5360 → island-nav 0180edd5 → Quest 7b19f987. iOS
+  2026.1105.0746 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad, the iPad mini and the iPhone (launched on
+  the iPad mini only; the EFB iPad and the iPhone were locked). Quest 2026.1105.0804 (f6cbeb92), 0 error CS, installed and
+  launched on the Quest 3S. check-parity --strict: PARITY OK. Nothing approved by me.**
+  - **Hoops gone:** Canopy_TopTube_F / _R (the 3/8 in grey steel hoops at 0.77 / 1.12 m) are removed from all four Pitts
+    GLBs and from the canopy's contact frame; front hoop, sills and tail stay. Canopy still rests on the stop tab at
+    96.8 deg (drawn frame 9.5 mm from the rubber, touching); jettison still slides past the tab. Re-rendered in Unity:
+    `~/Developer/agent-lanes/renders/cockpit-1105/claude-pitts-cockpit-v2-nohoops/` (`compare-hoops-before-after-diff.png`:
+    before / after / changed pixels, which are exactly the two hoops; `rear-eye-forward.png`).
+  - **What is in it (unchanged from the review renders):** black canopy latch levers front + rear on one cable (forward =
+    latched), emergent stop tab and jettison, hinge strength to your 80 mph rule, fuel valve, blue prop bar, 16 in trim
+    lever, quadrant throttles, fixed windshield + trim, wing cutout, alu tank, centred IAC cards, whiskey compass. Detail:
+    `~/Developer/agent-lanes/renders/cockpit-1105/claude-pitts-cockpit-v2/README.md`. Open: Q061 (tab shape/rest angle),
+    Q062 (jettison numbers), Q063 (trim sense/travel).
+  - **Known follow-ups:** iOS/Mac has no touch levers in the 3-D cockpit (HUD as before); the canopy's airload bubble is
+    still the old 1.48 m canopy's (new one is 1.14 m); the prop rod passes through the rear panel's lower-left corner.
+  - Tests: Canopy/VrBailout/VrCockpit 95/95; check_pitts_cockpit_v2 / rear_view / canopy_swing PASS on all four GLBs.
+<!-- /pitts-cockpit-v2 needs-you -->
+- **TYRE SOUNDS: CHIRP PITCHED BY TYRE SIZE + SLIP SPEED, A SIDEWAYS SCRUB, BEARING WHIR −14 dB (Claude, 2026-11-05,
+  lane/claude-tire-audio 20484765; Ty 06:10 "a pitch/frequency thing for the chirp and bearing noise is too loud").
+  Lane iOS 2026.1105.0632 ** BUILD SUCCEEDED **, 0 error CS (NOINSTALL). Merged: island-nav 4c31d6b0 → Quest bd08c540, check-parity --strict OK. iOS from island-nav 4c31d6b0: ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad, iPad mini and iPhone (export 07:15, so stamp ≈ 2026.1105.0715; the log does not print it, please read it on the device). Quest 2026.1105.0751 (Quest lane 7b19f987, contains bd08c540), 0 error CS, installed and launched on the Quest 3S. <!-- tire-audio build --> Nothing approved by me. Q069.**
+  - **What was wrong:** the chirp's pitch came from the slip ratio alone, and at touchdown that is ≈ 1, so every tyre on
+    every aeroplane chirped at the same fixed 3.7 kHz (measured on the J-3's spin-up). Sideways slip made no sound.
+  - **Now:** pitch = 700 Hz·m / tyre OD × (patch slip speed / 10 m/s)^0.2. J-3 8.00-4 1531 Hz, 6.00-6 1575, 8.00-6 1413,
+    35 in bushwheel 787, 8 in tailwheel 3445. On the J-3 the spin-up falls 1697 → 1154 Hz. Slow sliding (< 1.5 m/s) is
+    a low rubbery scrub (~0.42 × that pitch), fast sliding (> 6 m/s) squeals, with a blend in between. Level = log of the
+    slip power, as before. The bearing whir is 0.0032 at 25.7 m/s (was 0.016) and goes as rpm². The rolling ground voices
+    (tarmac hum, grass swish) are NOT changed (Q069 asks).
+  - **Checked on taildraggers** (crabbed three-point touchdown on asphalt, `TyreSquealTests`): J-3, PA-18, Decathlon,
+    Great Lakes, Pawnee, PA-18 bush all squeal at their own tyre's pitch, falling, and scrub lower.
+  - **Listen / look:** `~/Developer/agent-lanes/renders/tire-audio/`: `before-*.wav` / `after-*.wav` (tyre + rolling
+    voices only, no engine), `compare-touchdown-*.png` (before above, after below), `spec-*-j3-bearing-whir-spindown.png`
+    (whir mean −47.8 → −62.4 dBFS).
+  - Tests: TyreSquealTests 17 new, GroundSoundMix/WheelSpin/TyreWear/Tire* 61/61. Physics untouched (the new sideways slip
+    sums are read only by the sound). Write-up: docs/TIRE-SPINUP-AND-GROUND-SOUND.md §7b.
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not
@@ -4202,6 +4313,17 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-05 08:05 PST — Claude · merge-tundra-recorder (Ty approved 05:36) · tundra tyres + flight recorder into both lanes
+- Merged in throwaway worktrees so the merge worktrees' uncommitted ConfigSync/ProjectSettings leftovers were never
+  touched (byte-checked against a tarball in agent-lanes/backups/merge-tundra-recorder before and after).
+- island-nav: 04278266 (lane/claude-tundra-tires 0677e614; conflicts in LandingGear/WheelSpin/WheelHydro/TyreWear
+  resolved against the tyre-wear and wheel-water lanes; Grob 103 legacy tyres), 23922ee1 (lane/claude-flight-recorder
+  d6d5f884; CLAUDE.md both sides kept). Quest: 221db87f. `tools/check-parity.sh --strict`: PARITY: OK.
+- Builds: my own gated deploy never got a free slot; the next lanes' deploys built trees that contain both merges, so I
+  verified those instead of building twice: iOS 2026.1105.0746 (island-nav 0180edd5, BUILD SUCCEEDED, 0 error CS,
+  installed 3 of 3: iPhone 17 Pro, iPad mini, EFB iPad Air, which was locked so it did not launch); Quest 2026.1105.0751
+  (quest-islandnav 7b19f987, 0 error CS, Success on 340YC10GBK0TYV).
+- Tests (targeted tyre/wheel/NoRed/recorder classes, merged vs both parents): see NEEDS YOU. Full suite not run.
 ### 2026-11-05 01:56 PST — Claude · lane/claude-wheel-hydroplane · Q024 rulings, merge into both lanes, installs
 - **Ty 2026-11-04 20:27 (Q024):** a hooked water rudder that stays wet is correct; the J-3's idle turn of 254°/20 s is OK;
   an SR22/Glasair prop strike on water is OK, but it must come from the prop's own geometry in the water, with real
@@ -10617,3 +10739,5 @@ NEEDS YOU: Ty, approve `renders/grob103/blanc-v1/` and the proposed visual eyes.
 - Validation passes both exported assets: graph, indices/finite vertices, UV presence, dimensions, all 29 rig origins/markers/maps/parents, independent TCDS travels and physical control directions, transparent glass, wheel sizes/stations, 2,016 independent cockpit-part pairs and 1,608 shell-envelope samples per asset. Containment uses the full exterior including the integrated wing-root skin. A fresh temporary legacy analytic build also passes its original checker, which remains available. `git diff --check` clean. .NET tests were not run: dotnet absent; nothing installed. No Unity execution.
 - CPU/Cycles renders reimport the exported GLB: side, three-quarter, front, top, main/nose/tail gear closeups and canopy. POH overlay uses Twin III PDF p14/printed 1.6, uniform 854 px : 18 m, approximate nose registration, level axes and wings omitted; no contour fitting. Remaining scan/model mismatch is visible, not marked a pass. Camera/model/reference hashes accompany the images.
 - Copies delivered to `/Users/tyfrisby/Developer/agent-lanes/xfer/grob-blanc-v1/`, including review images, GLBs, attribution, rig and editable Blender scene. Source STL remains in its original transfer folder. Local commit only; no push, merge, deploy or install. No forced add. Required tracked-file ignore audit must be silent immediately before commit; visual approval stays PENDING.
+
+PITTS-V2-MERGED

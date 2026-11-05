@@ -270,7 +270,8 @@ namespace FlyingGame.Bridge
 
             _iasKt = (float)r.AirspeedKias;
             StepCanopy(dt);
-            r.CanopyOpen = CanopyOpen01;
+            if (HandCanopy != null) { r.CanopyOpen = HandCanopy.Open01; r.CanopySlide = HandCanopy.Slide01; }
+            else (r.CanopySlide, r.CanopyOpen) = FlyingGame.Core.Vr.CanopyDynamics.ScriptedRig(ScriptedCanopy(cfg?.Id), CanopyOpen01);
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
             r.CanopyJettison = System.Math.Max(CanopyPull01, HandJettison?.Pulled01 ?? 0.0);
             r.CanopyLatch = FlyingGame.Core.RigInputs.CanopyLatchFor(CanopyLocked, HandLatch != null ? HandLatch.Latch01 : null);
@@ -279,6 +280,21 @@ namespace FlyingGame.Bridge
             // nothing unless the headset's hands-on canopy is in use.
             ac.ExtraDragAreaM2 = HandCanopy != null ? HandCanopy.DragAreaM2 : 0.0;
             ac.ExtraDragPointBody = CanopyDragPointBody;
+        }
+
+        private string _scriptedId;
+        private FlyingGame.Core.Vr.CanopySpec _scripted;
+
+        /// <summary>The type's canopy, for the scripted (no-hands) open/shut's rig params; cached per type (the Pitts'
+        /// rest angle is a geometry search).</summary>
+        private FlyingGame.Core.Vr.CanopySpec ScriptedCanopy(string id)
+        {
+            if (_scriptedId != id || (_scriptedId == null && _scripted.LengthM <= 0.0))
+            {
+                _scriptedId = id;
+                _scripted = (id ?? "").StartsWith("pitts") ? FlyingGame.Core.Vr.CanopySpec.For(id) : default;
+            }
+            return _scripted;
         }
 
         /// <summary>Shared cockpit/HUD presentation pressure; the sim has no independent manifold state.</summary>
