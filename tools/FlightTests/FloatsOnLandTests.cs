@@ -14,7 +14,9 @@ namespace FlyingGame.FlightTests;
 public class FloatsOnLandTests
 {
     private readonly ITestOutputHelper _out;
-    public FloatsOnLandTests(ITestOutputHelper o) { _out = o; }
+    /// <summary>The slide is on flat pavement at z = 0 in still air: say so, rather than inherit an island, its solids or a
+    /// wind from an earlier test (it went NaN on the first step that way in the full suite, 2026-11-04).</summary>
+    public FloatsOnLandTests(ITestOutputHelper o) { _out = o; SimGlobals.Calm(); }
 
     [Theory]
     [InlineData("pa18-floats-like", 22.0)]
@@ -33,7 +35,7 @@ public class FloatsOnLandTests
         }
         double dist = ac.State.Position.X;
         _out.WriteLine($"{id}: touched down at {v0 * 1.944:F0} kt, stopped after {dist:F0} m in {t:F1} s");
-        Assert.True(ac.State.Velocity.Length < 0.5, "should slide to a stop");
+        Assert.True(ac.State.Velocity.Length < 0.5, "should slide to a stop; world: " + SimGlobals.Describe());
         Assert.InRange(dist, 25, 200);   // metal keel on pavement: tens of metres, not the runway length
     }
 }

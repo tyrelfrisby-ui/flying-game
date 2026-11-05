@@ -46,6 +46,44 @@
     { "id": "drake-school", "what": "The school in the cave inside Drake hill, behind the hologram at the end of the 500 ft strip. Not built yet.", "trigger": "landingRoll" }
   ],
 
+  "_levels": "THE LEVEL LADDER (owner 2026-11-01). The code is src/FlyingGame.Sim/Ratings/RatingBook.cs and ProgressionTests fails if this copy disagrees with it. 'display' is what the player reads; the instrument level is shown as Blind Flying.",
+  "levels": [
+    { "id": "StudentPreSolo", "display": "Student pilot, pre-solo" },
+    { "id": "StudentSolo", "display": "Student pilot, solo" },
+    { "id": "Pilot", "display": "Pilot" },
+    { "id": "Instrument", "display": "Blind Flying" },
+    { "id": "Commercial", "display": "Commercial pilot" },
+    { "id": "FlightInstructor", "display": "Flight Instructor" }
+  ],
+
+  "_stages": "Glider first. Each stage is passed by flying every listed lesson to passScore in ONE of its aircraft; an empty aircraft list means any powered aeroplane that is not retired. 'grants' is the level it gives, or null for a gate. The pilot stage is the player's choice of the Decathlon or the Great Lakes. The aerobatic glider stage is flown in the Grob G 103 C Twin III Acro (built 2026-11-01, re-based from the Twin II 2026-11-04); its DG alternative is still a placeholder. The Swift S-1 counts as a stand-in aerobatic glider (Ty 2026-11-04 16:05 PT), so Blind Flying is reachable in it too.",
+  "stages": [
+    { "id": "glider-solo", "aircraft": ["glider-2-33-like"], "lessons": "glider pre-solo", "passScore": 70, "requires": [], "grants": "StudentSolo" },
+    { "id": "cub-solo", "aircraft": ["j3-cub-like"], "lessons": "pre-solo", "passScore": 70, "requires": ["glider-solo"], "grants": null },
+    { "id": "pilot", "aircraft": ["decathlon-8kcab-like", "great-lakes-like"], "lessons": "full", "passScore": 78, "requires": ["cub-solo"], "grants": "Pilot" },
+    { "id": "aerobatic-glider", "aircraft": ["glider-grob103-acro-like", "glider-dg-acro-like", "glider-swift-s1-like"], "lessons": "glider full", "passScore": 78, "requires": ["pilot"], "grants": null },
+    { "id": "instrument", "aircraft": [], "lessons": "full", "passScore": 83, "requires": ["glider-solo", "aerobatic-glider"], "grants": "Instrument" },
+    { "id": "commercial", "aircraft": [], "lessons": "full", "passScore": 88, "requires": ["instrument"], "grants": "Commercial" },
+    { "id": "flight-instructor", "aircraft": [], "lessons": "full", "passScore": 93, "requires": ["commercial"], "grants": "FlightInstructor" }
+  ],
+
+  "_placeholderAircraft": "PLACEHOLDERS: aircraft the stages or jobs name that have no config and no model. Data only - nothing loads them and no picker lists them; anything that needs one is shown as coming soon. src/FlyingGame.Sim/Ratings/Hangar.cs.",
+  "placeholderAircraft": ["glider-dg-acro-like", "beech18-like", "boeing-737-200-like"],
+
+  "_retiredAircraft": "RETIRED (owner 2026-11-01): the 737-800 glass cockpit. Its config, model and livery stay on disk; it is off every picker and out of the progression and the points table.",
+  "retiredAircraft": ["boeing-737-like"],
+
+  "_jobs": "JOB STUBS - names, aircraft, fields and navigation only; nothing flies them yet. Navigation is outside view, paper map, compass and clock, and the simulated ground stations - never GPS, a moving map or a position readout. No military jobs. src/FlyingGame.Sim/Jobs/JobScenario.cs.",
+  "jobs": [
+    { "id": "backcountry-supply", "kind": "Backcountry", "aircraft": ["pa18-bush-like"], "from": "KMYL", "to": "3U2", "minLevel": "Pilot" },
+    { "id": "bush-mail-cub", "kind": "Bush", "aircraft": ["pa18-cub-like", "j3-cub-like"], "from": "PATK", "to": "PANC", "minLevel": "Pilot" },
+    { "id": "float-freight-beaver", "kind": "Float", "aircraft": ["dhc2-beaver-floats-like"], "from": "PALH", "to": "SITX", "minLevel": "Pilot" },
+    { "id": "float-hop-super-cub", "kind": "Float", "aircraft": ["pa18-floats-like", "j3-cub-floats-like"], "from": "PALH", "to": "KITE", "minLevel": "Pilot" },
+    { "id": "air-mail-beech18", "kind": "AirMail", "aircraft": ["beech18-like"], "from": "PANC", "to": "PATK", "minLevel": "Instrument" },
+    { "id": "airline-dc3", "kind": "Airline", "aircraft": ["dc3-like"], "from": "KSNA", "to": "KMEV", "minLevel": "Commercial" },
+    { "id": "airline-737-200", "kind": "Airline", "aircraft": ["boeing-737-200-like"], "from": "KSNA", "to": "PANC", "minLevel": "Commercial", "requiresJobs": ["airline-dc3"] }
+  ],
+
   "_costs": "What points buy. Tiers are by how much aeroplane it is to fly, not by how much we like it. The sum of every aircraft and every challenge below is exactly totalToUnlockEverything.",
   "aircraftCost": {
     "target-drone-like": 10000,
@@ -76,7 +114,6 @@
     "geebee-r2-like": 40000,
 
     "seminole-like": 60000,
-    "boeing-737-like": 60000,
     "hughes-h4-like": 60000,
 
     "p51d-like": 80000,

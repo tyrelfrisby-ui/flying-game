@@ -6,10 +6,13 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 /// <summary>"A skate park for airplanes" (owner 2026-10-03): the canyon lake, the city built for flying, the Mall.</summary>
-public class PlaygroundTests
+public class PlaygroundTests : IDisposable
 {
     private readonly ITestOutputHelper _o;
     public PlaygroundTests(ITestOutputHelper o) { _o = o; }
+    /// <summary>Solids() registers the whole world's solids and decks; left in place they were what every later test
+    /// flew into (2026-11-04: ChallengeTests.HardBankScoresLow, FloatsOnLandTests.SlidesToAStopOnPavement).</summary>
+    public void Dispose() => SimGlobals.ClearSolids();
     private static readonly WorldTerrain T = new();
     private static void Solids() { Landmarks.RegisterSolids(T); }
 

@@ -4,14 +4,14 @@ namespace FlyingGame.Sim.Ratings;
 public enum AchievementKind { Aerobatic, Soaring, Stol }
 
 /// <summary>
-/// The badges that are not licences. Owner, 2026-10-18: *"There are also badges for non FAA
+/// The badges that are not levels. Owner, 2026-10-18: *"There are also badges for non FAA
 /// licenses/ratings like aerobatics (based on IAC categories getting 5 or higher on the known sequence)
 /// soaring completing cross country races achieving altitude thresholds thermaling etc plus stol competition
 /// levels of achievement etc things that anchor more advancements due to peer recognition."*
 ///
 /// The difference from a certificate is who it is for. A rating says you are safe to be allowed to do
 /// something; one of these says you are **good at it**, in front of other people. So they are awarded for
-/// performance rather than for meeting a standard, and they sit on the badge beside the licence.
+/// performance rather than for meeting a standard, and they sit on the badge beside the level.
 ///
 /// AEROBATICS follows the IAC's own ladder — Primary, Sportsman, Intermediate, Advanced, Unlimited — and the
 /// bar is the owner's: fly that category's Known sequence and average **5 or better** per figure, which is

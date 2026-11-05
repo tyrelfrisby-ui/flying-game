@@ -257,7 +257,7 @@ namespace FlyingGame.Bridge
             }
             string mp = SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Solo ? "solo"
                       : SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.FreeForAll ? "free-for-all"
-                      : SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan ? "same network" : "private room";
+                      : SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan ? "same network" : "room by code";
             return $"{ac}  ·  {where}, {SessionSettings.Airport.Name}  ·  {what}  ·  "
                  + $"wind {SessionSettings.WindFromDeg:000}°/{SessionSettings.WindSpeedMs * 1.944f:F0} kt  ·  {mp}";
         }
@@ -745,7 +745,7 @@ namespace FlyingGame.Bridge
             // says what the fourth one actually does.
             float half = (colW - gap * 0.4f) / 2f;
             var modes = new[] { (SessionSettings.MultiplayerMode.Solo, "Solo"), (SessionSettings.MultiplayerMode.FreeForAll, "Free-for-all"),
-                                (SessionSettings.MultiplayerMode.PrivateRoom, "Private room"), (SessionSettings.MultiplayerMode.Lan, "Same network") };
+                                (SessionSettings.MultiplayerMode.CodeRoom, "Room by code"), (SessionSettings.MultiplayerMode.Lan, "Same network") };
             for (int i = 0; i < modes.Length; i++)
             {
                 float bx = x + (i % 2) * (half + gap * 0.4f), by = y + (i / 2) * row;
@@ -796,7 +796,7 @@ namespace FlyingGame.Bridge
                                _small);
                 y += lh * 2f;
             }
-            if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.PrivateRoom)
+            if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.CodeRoom)
             {
                 float lw = colW * 0.3f, cw = colW * 0.42f;
                 UiLayout.Label(new Rect(x, y, lw, bh), "Code", _label);

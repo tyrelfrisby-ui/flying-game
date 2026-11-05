@@ -43,7 +43,7 @@ public class C172InteriorVisibleTests
         Assert.True(LiveryChoice.OwnModelAlways("c172-like"));
         // The whole "ours always" list, so a type cannot fall off it quietly.
         foreach (string id in new[] { "extra-300-like", "pitts-s2b-like", "great-lakes-like", "glider-2-33-like",
-                                      "j3-cub-like", "j3-cub-floats-like", "c172-like" })
+                                      "j3-cub-like", "j3-cub-floats-like", "c172-like", "glider-grob103-acro-like" })
             Assert.True(LiveryChoice.OwnModelAlways(id), id);
         Assert.False(LiveryChoice.OwnModelAlways("pa28-archer-like"));
         Assert.False(LiveryChoice.OwnModelAlways(null));
