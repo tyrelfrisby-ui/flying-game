@@ -3,6 +3,13 @@
 Any agent (Claude, Codex, Grok, …) working in this repository: read `CLAUDE.md` (standing guidance, lessons learned) and
 the top of `AGENT-LOG.md` (NEEDS YOU) first.
 
+## THE RED 2-33 IS BANNED: never reintroduce it (Ty, 2026-11-04)
+
+- Only the yellow SGS 2-33 exists, on every platform: no red-and-white / white / cream 2-33 model, livery, tint, fallback
+  or generator entry. `tools/FlightTests/NoRed233Tests` enforces this; never weaken it.
+- Lanes forked before 2026-11-04 08:10 still draw the red one. Merge `lane/claude-island-nav` into an old lane before
+  you build or install it, and never resolve a merge toward the old 2-33 code. Details: CLAUDE.md, same heading.
+
 ## iOS/Mac and Quest parity: LOCKED (Ty, 2026-11-04)
 
 - `lane/claude-island-nav` (iOS/Mac) and `lane/claude-quest-islandnav` (Quest) are one game and must stay in sync at

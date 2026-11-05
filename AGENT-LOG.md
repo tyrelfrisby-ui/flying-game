@@ -1,5 +1,13 @@
 ## NEEDS YOU
 
+<!-- kill-red-233 needs-you -->
+- **RED 2-33 REMOVED FOR GOOD; DON'T INSTALL OLD LANES (Claude, 2026-11-04 ~19:00 PST, lane/claude-kill-red-233; merged
+  into both lanes, NOT installed, nothing approved by me).** Ty 18:35: "The red 2-33 is back, delete it permanently."
+  Root cause: the yellow-only fix (5d028681, 11-02) reached island-nav only in the 08:10 parity merge today, and
+  22289144 (11-03, Grob deletion) was never merged. **109 of 136 local lanes still lack the fix** (35 of them touched in the last
+  48 h), among them every smoke lane, tv-companion, extra-cockpit-shared, grob103 and decathlon. Each one draws the red trainer if it is built and installed.
+  Any of those lanes must merge island-nav before it builds. Details in the Log entry "kill red 2-33".
+<!-- /kill-red-233 needs-you -->
 ## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
 - Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
   Extra to full aileron and check the down-going aileron's nose stands proud of the wing (~50 mm), and roll the Great
@@ -3103,6 +3111,49 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-11-04 18:36– PST — Claude · lane/claude-kill-red-233 · kill red 2-33 (Ty 18:35, "delete it permanently")
+- **Why it kept coming back.** The red-and-white 2-33 had two sources. (a) The procedural trainer (red fuselage, cream
+  wings) that the 2-33's "type" livery drew. (b) helijah's Grob Astir OBJ (white with red trim, DefaultWhite textures)
+  in `Resources/Models/glider-2-33-like/`. 5d028681 (11-02) fixed (a) on the Quest lanes: LiveryChoice.Only, PickOwn
+  always ours, procedural fallback yellow. It reached lane/claude-island-nav only through the parity merge 15442b87 at
+  08:10 today. 22289144 (11-03, lane/claude-233-launch) deleted (b) and made the factory tint yellow, but
+  `git branch --contains` shows only lane/claude-233-launch has it. It was never merged. So every lane forked from
+  island-nav before 08:10 today still draws the red trainer: 109 of 136 local lane branches (35 active in the last 48 h), including claude-smoke-volume,
+  -smoke-persist, codex-smoke, claude-tv-companion, claude-extra-cockpit-shared, claude-grob103 and codex-grob103.
+  Building and installing any of them puts the red one back on Ty's device. Merging one of them while taking its side
+  of the 2-33 code would put it back here.
+- **Removed / changed (shared, all platforms; nothing behind a platform #if):**
+  1. Grob Astir deleted from Resources: the .obj, .mtl, nine DefaultWhite_*.jpg, LICENSE.txt and all their metas
+     (the same file set 22289144 deleted). No asset referenced their GUIDs.
+  2. `Livery.Factory233`: White x4 -> SgsYellow x4 (from 22289144).
+  3. `AirframeVisual`: the flat recolour of a not-pre-painted 2-33 GLB painted the fuselage white. It is now SGS
+     yellow all over. The procedural StyleFor fallback was already yellow (5d028681).
+  4. `tools/talkflying_livery.py`: the grob-astir-like generator entry and its licence path (from 22289144).
+     `docs/CREDITS.md`: 2-33 line (from 22289144).
+  5. `AirframeModels`: comments now say there is no downloaded 2-33. There was no live Specs entry.
+  NOT taken from 22289144: FleetAllowList (iOS five-aircraft list, a separate decision), Glider233LaunchTests,
+  ClipSelfTest launch, SessionSettings / TouchFlightControls cycle. Its AirframeModels / AirframeVisual StyleFor
+  hunks were already here in 5d028681's form.
+  Already clean, not changed: configs/aircraft/glider-2-33-like.json (no paint fields), both own GLBs (skin yellow or
+  Paint_sgs textures), LiveryChoice (always talk-flying / factory), QuestFleet (one 2-33).
+  StreamingAssets/aircraft/glider-2-33-like.json is generated and uncommitted (ConfigSync). It carries no paint, and
+  I left the merge worktrees' copies alone.
+- **Guard:** `tools/FlightTests/NoRed233Tests` (5 facts). It checks:
+  - one 2-33 in QuestFleet, SessionSettings.Fleet, configs and StreamingAssets;
+  - every saved / env livery resolves to -own-tf / -own, and that GLB exists;
+  - the 2-33 Resources folder holds exactly the two own GLBs, with no grob / astir / 2-33 file elsewhere in Resources;
+  - the GLB skin primitives are yellow or Paint_sgs;
+  - PickOwn is unconditional, there is no downloaded Specs entry, the StyleFor fallback is sgsYellow x4 with no
+    red / cream / white, the recolour has no white / red, and Factory233 and the PerType 2-33 are SgsYellow x4.
+  Mutation check: with the old Livery.cs and the pre-11-02 AirframeVisual.cs swapped in, it FAILS. Restored, 18/18
+  (NoRed233 + LiveryPicker + QuestFleet).
+- CLAUDE.md / AGENTS.md: new section "THE RED 2-33 IS BANNED", which includes the warning that old lanes bring it back.
+- Build: iOS `deploy.sh NOINSTALL` `** BUILD SUCCEEDED **`, 0 `error CS`, stamp 2026.1104.2028, installed nowhere.
+  bundleVersion and StreamingAssets byproducts left uncommitted. Attempt 1 (19:22) was SIGTERMed at 20:01:47 while
+  it was in il2cpp. It had 0 error CS. Another lane's Unity (claude-hinge-*) started 4 s later. Someone is killing
+  other lanes' Unity jobs. NoRed233 / LiveryPicker / QuestFleet were 18/18 again after the build had regenerated
+  StreamingAssets.
 
 ### 2026-11-04 15:00– PST — Claude · lane/claude-c172-yoke · C172 yoke raised clear of the thighs; 1 in suction gauge
 Ty 14:58 (737 captain/CFI): "Move the yoke up ... It should go up where it does not touch the thighs with full

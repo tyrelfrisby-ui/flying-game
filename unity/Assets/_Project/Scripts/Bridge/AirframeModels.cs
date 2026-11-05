@@ -56,8 +56,9 @@ namespace FlyingGame.Bridge
             { "boeing-737-like", new Spec(Vector3.forward, Vector3.up, largestIsSpan: false, scaleTrim: 1.158f, groundClearanceM: 0.53f) },
             { "geebee-r2-like", new Spec(Vector3.right, Vector3.up) },
             { "seminole-like", new Spec(Vector3.right, Vector3.up) },
-            // glider-2-33-like: model OFF (owner 2026-10-06: "the skin for the schweitzer 2-33 is way off — go back to your initial
-            // drawing until we find a good skin"); the procedural trainer is drawn. Re-add { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) }.
+            // glider-2-33-like: NO downloaded model, ever. The Grob Astir that sat in its folder (a red-and-white stand-in) was
+            // deleted on 2026-11-04 (Ty: "the red 2-33 ... delete it permanently"); the 2-33 is always our own yellow GLB
+            // (PickOwn), and its procedural fallback is yellow too. Do not add a 2-33 entry here (NoRed233Tests).
             // Sketchfab GLBs (owner 2026-10-02; licences + credits in each folder's LICENSE.txt), imported by glTFast.
             // Extra (downloaded; NOT LOADED since 2026-10-27, ours replaces it -- see PickOwn): exported in the three-point attitude (its tailwheel 0.11 m below its mains) — levelled 11° nose-down
             // (build/cg-check.csv: drawn wing, prop hub and gear then line up with the sim's).
@@ -139,9 +140,8 @@ namespace FlyingGame.Bridge
             // so carving by the config cut into the wings, stab and fin (namedSurfaces).
             { "pitts-s2b-like", new Spec(Vector3.right, Vector3.up, scaleTrim: 6.094f / 5.996f, namedSurfaces: true) },
             // Same convention, same build script family: tools/model_glider233.py puts the nose at +x and
-            // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. The
-            // downloaded 2-33 is switched off (see Specs above), so this picks ours over the procedural
-            // trainer -- and ours is 0.55 m short in the side view, which is why the switch exists.
+            // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. There is
+            // no downloaded 2-33 (see Specs above): this yellow model is the only 2-33 drawn.
             { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
             // tools/model_pa44.py. The downloaded seminole-like.obj is a Piper PA-23 Apache/Aztec -- a
             // different aeroplane with a conventional tail -- which is why ours exists.
