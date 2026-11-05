@@ -577,3 +577,15 @@ whose command lines contain the same words, and theirs matched mine. Every lane 
 running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
 the start of the command line so only real build processes count:
 `'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.
+
+### A render pass that reads its own target looks fine on the bench and breaks on the device
+The magenta "grid" over the island's water (Ty, 2026-11-01 and again 2026-11-05) was hunted as a stripped shader twice.
+It was a layer: `SeasideBuilder.B.Build`, which builds "Ocean-lakes-water-lanes", never put the water on
+`WaterReflection.WaterLayer` (only `WorldBuilder.Spawn` did), so the mirror camera drew the water into its own
+reflection, and the water's shader sampled `_ReflectionTex` while rendering into it. Reading a bound render target is
+undefined: the Mac's GPU returned the last frame and every render looked right; the iPad's A17 returned magenta blocks,
+weighted by Fresnel so they grew with distance. What found it was reading the mirror target's raw RGBA in a batch
+render (`WaterMagentaCheck`): alpha 255 everywhere where the cleared sky should be 0. When a convention lives in one
+builder (a layer, a tag), every other builder must apply it too, and the consumer should check it at runtime
+(`WaterReflection.ExcludeStrayWater`). And when only the device shows a fault, look for undefined behaviour the
+bench happens to tolerate before looking for a missing asset.
