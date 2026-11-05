@@ -82,3 +82,64 @@ Committed from lane/codex-clouds as ca9c48f7 (Codex's files unchanged), merged i
   exactly the patch's edge fade (`_WispPatch`). Before this the layers existed only within 220 m of their height.
 - `StepForTesting` / `WakeTextureForTesting` / `DensityForTesting` for the render tool (Editor/CloudWakeRender.cs);
   `OnDestroy` uses DestroyImmediate outside play mode.
+
+## Low patches and ground fog (lane A, Claude, 2026-11-05 08:39 follow-up)
+
+Ty 08:39: "put some of the whispy layers and puffy clouds at lower altitudes too just patches here and there ... put
+some thin fog over some grass runways and lakes on occasion that is transparent enough to see through but kicks up a
+visible wake with vortex".
+
+- **Where (Core, `CloudSites`).** Seeded (1105), deterministic on every device. *Low patches:* a jittered 3.5 km grid
+  over ±21 km, one cell in five used: 13 small puffy clusters and 13 wisp patches, each 150-600 m above the HIGHEST
+  ground under it (`CloudSitesTests` pins the counts and the AGL band). *Fog:* a third of the island's turf/grass strips
+  (4 of 13; Drake's cave strip excluded) and half of its lakes (5 of 10), chosen by rank of a stable FNV/murmur hash
+  of their names: AP4, AP5, AP14, Thomas Creek; Payette Lake, Lake Powell, Bighorn Larch, Bighorn Cirque, Bighorn Crown.
+- **Low puffy patches** are 6-12 of the bank lobes in a heap a few hundred metres across, same material and fades as the
+  banks (Codex's new lobe shape applies to both). **Low wisp patches** are sheet 4 of the wake-reactive machinery: the
+  patch the eye is at (within its radius + 256 m, nearer in height than a layer, within 220 m) takes the one extra
+  256² density pair, seeded by Codex's wisp detail inside a ragged round mask (`WispPatchCover`) instead of the
+  layers' kilometre coverage; from afar each patch is one quad of the same mask (`CloudWispFar`, `_WispMask`).
+- **Ground fog (`GroundFog`, `FlyingGame/GroundFog`, `Hidden/FlyingGame/GroundFogAdvect`).** The fog is a passive
+  tracer in the real air, not a picture of a vortex. Eight horizontal slices from the surface up to 2.2 × the fog's
+  depth (5-9 m deep over strips, 6-11 m over lakes, so the box is 11-24 m and the fog's top sits near its middle), 256² over a 384 m patch (1.5 m
+  texels) that follows the eye 80 m ahead of where it looks. 15 Hz MacCormack step in 3-D (semi-Lagrangian alone smeared the tracer by ~sqrt(u·t·Δx), 7 m after 17 s,
+  which erased the curls): horizontal AND vertical backtrace through `WakeField.WriteVolumeToTexture` (new: the same GPU Biot-Savart bake, eight heights in one 4 × 2
+  atlas of 128² tiles, re-baked at 7.5 Hz) plus half the surface wind. Below the surface nothing comes in (the fog
+  lies on it); above the box, clear air; outside the patch and over 150 s, back toward the unstirred fog (it re-forms).
+  Vortex lines are there only because the aeroplanes' lift put them there (Γ = L/ρVb₀) and the slipstream only because
+  the propeller's thrust did (`Aircraft.TailSlipstream`, the same function the flight model uses); the trench under the
+  track and the curls lifted beside it are what that air does to a tracer.
+- **Drawing.** One box per site, back faces, 12 jittered steps from the eye or the box to the far face or the scene
+  (`_CameraDepthTexture`; `_WaterSceneDepthOff` = a camera without depth, as the water). Extinction 0.1/m at density 1,
+  sun self-shadow 0.3 per density-metre from the column above (free inside the patch: the two fetches hold all eight
+  slices), so fog lifted into the clear air shines and the trench reads as a gap; no line of sight loses more than 70 %, so the runway and
+  the aeroplane stay visible through it. Queue Transparent+4: after the water, before the clouds.
+- **Cost (fog).** 4 ARGBHalf 256² (slices, ping-pong) + 1 ARGBHalf 512×256 (wake atlas) = 2.5 MiB. + 2 ARGBHalf 256² (MacCormack prediction) = 3 MiB. Per tick:
+  four 256² blits (predict, correct); every other tick a 512×256 bake over at most 64 segments + 16 jets. Draw: one box per site
+  within 14 km; the fragment cost is 12 steps × (seed noise ~5 samples + 2 texture fetches inside the patch) over the
+  box's screen area. Device numbers: see AGENT-LOG (not measured on a device: no install before Ty approves renders).
+- **Codex 08:39 (lane B), ported here:** less spherical lobes (flattened base, displaced shoulders, uneven crown,
+  per-lobe seeded erosion), the wisp near/far alpha compensation (now aware of the low patches' mask), the wisp
+  sheets' height fade and tint/opacity properties, and a tenth of the old vorticity clearing in the wisp advection.
+  Not ported: lane B's four fog/low-wisp material profiles. They drive a three-sheet fog without vertical transport;
+  the volume above does what they approximate, and the low wisps share the layers' material so their far and near
+  halves meet (one opacity).
+
+### The mid-band "rectangular seam" (fixed, lane A 2026-11-05)
+
+Not the cloud playground at all: the SKY. `SunsetSky.cginc`'s painted cumulus deck is parameterised by
+`atan2(ray.z, ray.x)`, whose branch cut runs straight down the world -x axis; the deck's cells jumped there, so every
+painted cloud and the deck's edge were cut along one vertical line (and a cell edge made the horizontal step). Found
+by rendering the view with only the playground drawn (seam still there), yawed (it moved with the world), from
+3 km away (still at azimuth -x). `DaySkyRough` now cross-fades, within 17 degrees of -x, to the same deck parameterised
+with its cut along +x; the pixel footprint is taken outside the branch from whichever azimuth is continuous there.
+The water reflects through the same function, so its reflection is fixed too. Diagnostics:
+`renders/clouds-wake/seam-debug/`.
+
+### Validation (render tool, 2026-11-05)
+
+`CloudWakeRender` prints, across the strip pass's middle at slice 1's height, the wake from the CPU
+(`WakeField.SampleVelocity`) and from the GPU atlas the fog read: they agree (e.g. downwash 1.1 / 1.2 m/s on the
+centreline, upwash 2.1 / 1.2 m/s at 12 m out where the 3 m atlas texel straddles the line). A .NET probe of the same
+pass over flat ground: the pair sinks to 3.4-3.9 m and spreads to ±6.1 m at 4.5 s, ±13.6 m at 14.8 s. The
+zero-lift, zero-thrust pass leaves 0 segments, 0 jets and fog identical to undisturbed.

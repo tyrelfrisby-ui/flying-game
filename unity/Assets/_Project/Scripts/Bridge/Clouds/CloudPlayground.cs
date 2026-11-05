@@ -20,12 +20,22 @@ namespace FlyingGame.Clouds
         readonly List<Object> owned = new List<Object>();
         readonly List<Renderer> billows = new List<Renderer>();
         readonly List<Vector3> centres = new List<Vector3>();
-        readonly float[] heights = { 650, 1550, 2450 };
-        readonly RenderTexture[] density = new RenderTexture[3], scratch = new RenderTexture[3];
-        readonly Material[] sheets = new Material[3];
-        readonly Transform[] tiles = new Transform[3];
-        readonly Vector2[] origins = new Vector2[3];
-        readonly bool[] initialized = new bool[3];
+        // Sheets 0-2: the layers. Sheet 3: whichever low wisp patch (CloudSites.Low) the eye is at; its height and its
+        // round mask change with the patch (lane A, 2026-11-05).
+        const int Layers = 3, Sheets = 4;
+        readonly float[] heights = { 650, 1550, 2450, 0 };
+        readonly RenderTexture[] density = new RenderTexture[Sheets], scratch = new RenderTexture[Sheets];
+        readonly Material[] sheets = new Material[Sheets];
+        readonly Transform[] tiles = new Transform[Sheets];
+        readonly Vector2[] origins = new Vector2[Sheets];
+        readonly bool[] initialized = new bool[Sheets];
+        readonly List<CloudSites.LowPatch> lowWisps = new List<CloudSites.LowPatch>();
+        int activeWisp = -1;
+        GroundFog fog;
+        /// <summary>Low patches built: puffy clusters and wisp patches (CloudSites.Low).</summary>
+        public int LowPuffyCount { get; private set; }
+        public int LowWispCount => lowWisps.Count;
+        public GroundFog Fog => fog;
         RenderTexture wake;
         Material advect;
         float nextStep;
@@ -46,6 +56,7 @@ namespace FlyingGame.Clouds
             c.wispMaterial = Resources.Load<Material>("Clouds/CloudWisp");
             c.advectionMaterial = Resources.Load<Material>("Clouds/CloudAdvect");
             c.Build(Vector3.zero);
+            c.fog = GroundFog.Attach(c.transform);
             return c;
         }
 
@@ -128,9 +139,43 @@ namespace FlyingGame.Clouds
                 var go = MeshObject("Cloud bank",mesh,billowMaterial); go.transform.position=centre;
                 billows.Add(go.GetComponent<Renderer>()); centres.Add(centre);
             }
+            // Low patches "here and there" (Ty 08:39; CloudSites.Low): small puffy clusters 150-600 m above the ground
+            // under them, the same impostor lobes as the banks, a few to a dozen in a heap a few hundred metres across.
+            foreach (CloudSites.LowPatch lp in CloudSites.Low)
+            {
+                if (!lp.Puffy) { lowWisps.Add(lp); continue; }
+                var lr = new System.Random(lp.PatchSeed);
+                float LR(float a, float b) => a + (float)lr.NextDouble() * (b - a);
+                var vertices = new List<Vector3>(); var uv = new List<Vector2>();
+                var sizes = new List<Vector2>(); var colors = new List<Color>(); var indices = new List<int>();
+                float rad = (float)lp.RadiusM;
+                int lobes = 6 + lr.Next(7);
+                for (int lobe = 0; lobe < lobes; lobe++)
+                {
+                    float a = LR(0, Mathf.PI * 2), d = rad * Mathf.Sqrt(LR(0, 1)) * .65f;
+                    float size = LR(45, 95) * (1.15f - .5f * d / rad);
+                    // Heaped: the middle lobes stand higher; every lobe's bottom near the patch's base.
+                    Vector3 p = new Vector3(Mathf.Cos(a) * d, size * .7f + LR(0, 60) * (1 - d / rad), Mathf.Sin(a) * d);
+                    int start = vertices.Count;
+                    for (int k = 0; k < 4; k++) {
+                        vertices.Add(p); uv.Add(new Vector2(k % 2, k / 2));
+                        sizes.Add(new Vector2(size, size * LR(.8f, .95f)));
+                        colors.Add(new Color(1, 1, 1, lobe % 3 == 0 ? 1 : 0));
+                    }
+                    indices.AddRange(new[] {start,start+2,start+1,start+1,start+2,start+3});
+                }
+                var mesh = new Mesh {name="Low puffy patch impostors"};
+                mesh.SetVertices(vertices); mesh.SetUVs(0,uv); mesh.SetUVs(1,sizes);
+                mesh.SetColors(colors); mesh.SetTriangles(indices,0);
+                mesh.bounds = new Bounds(new Vector3(0,120,0),new Vector3(rad*2+250,400,rad*2+250));
+                var go = MeshObject("Low cloud patch",mesh,billowMaterial);
+                go.transform.position=new Vector3((float)lp.X,(float)lp.BaseM,(float)lp.Z);
+                billows.Add(go.GetComponent<Renderer>()); centres.Add(go.transform.position);
+                LowPuffyCount++;
+            }
             advect = Own(new Material(advectionMaterial));
             wake = Target(RenderTextureFormat.ARGBHalf);
-            for (int i=0;i<3;i++) {
+            for (int i=0;i<Sheets;i++) {
                 density[i]=Target(RenderTextureFormat.R8); scratch[i]=Target(RenderTextureFormat.R8);
                 sheets[i]=Own(new Material(wispMaterial));
                 var mesh=new Mesh { name="Thin cloud sheet" };
@@ -142,6 +187,7 @@ namespace FlyingGame.Clouds
                 // The same layer beyond the patch (lane A): the patch's own seed, drifting with the wind, so the layer
                 // is there to be seen and flown to from anywhere; it gives way to the wake-reactive patch inside it.
                 Shader far = Shader.Find("FlyingGame/CloudWispFar");
+                if (i >= Layers) continue;
                 if (far != null)
                 {
                     farSheets[i]=Own(new Material(far));
@@ -155,6 +201,23 @@ namespace FlyingGame.Clouds
                 }
                 else Debug.LogError("[Clouds] FlyingGame/CloudWispFar missing from the build: the wispy layers show only close up");
             }
+            // Each low wisp patch, seen from afar: one quad with the patch's own mask, handing over to sheet 3 when the
+            // eye is at it (its _Layer is 3 + its index, which is what _WispPatch.w says then).
+            Shader farPatch = Shader.Find("FlyingGame/CloudWispFar");
+            for (int k = 0; farPatch != null && k < lowWisps.Count; k++)
+            {
+                CloudSites.LowPatch lp = lowWisps[k];
+                var m = Own(new Material(farPatch));
+                m.SetFloat("_Layer", Layers + k);
+                m.SetVector("_WispMask", new Vector4((float)lp.X, (float)lp.Z, (float)lp.RadiusM, 1));
+                float H = (float)lp.RadiusM * 1.2f;
+                var fm=new Mesh { name="Low wisp patch (far)" };
+                fm.vertices=new[] {new Vector3(-H,0,-H),new Vector3(H,0,-H),new Vector3(-H,0,H),new Vector3(H,0,H)};
+                fm.uv=new[] {Vector2.zero,Vector2.right,Vector2.up,Vector2.one};
+                fm.triangles=new[] {0,2,1,1,2,3}; fm.RecalculateBounds();
+                MeshObject("Low wisp patch",fm,m).transform.position=new Vector3((float)lp.X,(float)lp.BaseM,(float)lp.Z);
+            }
+            Debug.Log($"[Clouds] {centres.Count - LowPuffyCount} banks, {LowPuffyCount} low puffy patches, {lowWisps.Count} low wisp patches");
         }
         void LateUpdate()
         {
@@ -192,9 +255,30 @@ namespace FlyingGame.Clouds
             // At most one 256² simulation per tick, never catch up after a stalled frame.
             nextStep=now+StepSec;
             int nearest=0;
-            for(int i=1;i<3;i++) if(Mathf.Abs(eye.y-heights[i])<Mathf.Abs(eye.y-heights[nearest])) nearest=i;
+            for(int i=1;i<Layers;i++) if(Mathf.Abs(eye.y-heights[i])<Mathf.Abs(eye.y-heights[nearest])) nearest=i;
             bool nearby=new Vector2(eye.x-island.x,eye.z-island.z).sqrMagnitude<22000f*22000f;
-            for(int i=0;i<3;i++) tiles[i].gameObject.SetActive(nearby && i==nearest && Mathf.Abs(eye.y-heights[i])<220);
+            bool layerOn=nearby && Mathf.Abs(eye.y-heights[nearest])<220;
+            // A low wisp patch the eye is at takes the reactive sheet if it is nearer in height than the layer.
+            int patch=-1; float patchDy=220;
+            for(int k=0;k<lowWisps.Count;k++)
+            {
+                CloudSites.LowPatch lp=lowWisps[k];
+                float dy=Mathf.Abs(eye.y-(float)lp.BaseM);
+                if(dy<patchDy && new Vector2(eye.x-(float)lp.X,eye.z-(float)lp.Z).magnitude<(float)lp.RadiusM+TileSize*.5f) { patch=k; patchDy=dy; }
+            }
+            int slot=nearest;
+            if(patch>=0 && (!layerOn || patchDy<Mathf.Abs(eye.y-heights[nearest])))
+            {
+                slot=Layers; layerOn=true;
+                if(patch!=activeWisp) { activeWisp=patch; initialized[Layers]=false; }
+                CloudSites.LowPatch lp=lowWisps[patch];
+                heights[Layers]=(float)lp.BaseM;
+                advect.SetVector("_WispMask",new Vector4((float)lp.X,(float)lp.Z,(float)lp.RadiusM,1));
+                sheets[Layers].SetVector("_WispMask",new Vector4((float)lp.X,(float)lp.Z,(float)lp.RadiusM,1));
+            }
+            else advect.SetVector("_WispMask",Vector4.zero);
+            nearest=slot;
+            for(int i=0;i<Sheets;i++) tiles[i].gameObject.SetActive(layerOn && i==nearest);
             if(!tiles[nearest].gameObject.activeSelf) { Shader.SetGlobalVector("_WispPatch",new Vector4(0,0,TileSize,-1)); return; }
             Vector2 origin=new Vector2(Mathf.Floor(eye.x/16)*16-TileSize/2,Mathf.Floor(eye.z/16)*16-TileSize/2);
             Vector2 shift=(origin-origins[nearest])/TileSize;
@@ -208,7 +292,7 @@ namespace FlyingGame.Clouds
             sheets[nearest].mainTexture=density[nearest];
             tiles[nearest].position=new Vector3(origin.x,heights[nearest],origin.y);
             origins[nearest]=origin; initialized[nearest]=true;
-            Shader.SetGlobalVector("_WispPatch",new Vector4(origin.x,origin.y,TileSize,nearest));
+            Shader.SetGlobalVector("_WispPatch",new Vector4(origin.x,origin.y,TileSize,nearest<Layers?nearest:Layers+activeWisp));
         }
         void OnDestroy()
         {

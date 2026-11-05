@@ -19,6 +19,7 @@ Shader "FlyingGame/CloudWispFar"
  struct appdata { float4 vertex:POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
  struct v2f { float4 pos:SV_POSITION; float3 world:TEXCOORD0; UNITY_FOG_COORDS(1) UNITY_VERTEX_OUTPUT_STEREO };
  float _Layer;
+ float4 _WispMask;    // a low patch (lane A, CloudSites.Low): centre X/Z, radius, 1; w = 0 for a layer
  float4 _WispPatch;   // patch origin X/Z, size, layer index (-1: none)
  float4 _WispDrift;
  #include "CloudWispSeed.cginc"
@@ -29,7 +30,7 @@ Shader "FlyingGame/CloudWispFar"
  // Anti-aliasing: an octave whose cells are smaller than about two pixels here is replaced by its mean.
  float2 fw=fwidth(world*.016);
  float coarse01=saturate(1.5-max(fw.x*.45,fw.y*3)*2), fine01=saturate(1.5-max(fw.x*1.5,fw.y*8)*2);
- float density=WispSeed(world,coarse01,fine01);
+ float density=_WispMask.w>.5 ? WispDetail(world,coarse01,fine01)*WispPatchCover(i.world.xz,_WispMask.xyz) : WispSeed(world,coarse01,fine01);
  float3 toEye=i.world-_WorldSpaceCameraPos;
  float dist=length(toEye);
  float a=density*.42;

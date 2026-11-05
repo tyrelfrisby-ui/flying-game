@@ -119,7 +119,20 @@ namespace Aero.Wake
         /// on the GPU per texel from at most <see cref="MaxTextureSegments"/> segments (the strongest nearest the
         /// sheet) and <see cref="MaxTextureJets"/> slipstream pieces; the CPU only picks them.
         /// </summary>
-        public static void WriteToTexture(RenderTexture rt, Bounds region)
+        public static void WriteToTexture(RenderTexture rt, Bounds region) => Bake(rt, region, 0, 0);
+
+        /// <summary>
+        /// The same for a stack of horizontal sheets through <paramref name="region"/> (ground fog, GroundFog): sheet k at
+        /// region.min.y + (k + ½)·size.y/n, n = tilesX·tilesY, drawn into tile (k % tilesX, k / tilesX) of
+        /// <paramref name="rt"/>; within a tile UV (0,0) = region minimum X/Z. Same packing as <see cref="WriteToTexture"/>.
+        /// </summary>
+        public static void WriteVolumeToTexture(RenderTexture rt, Bounds region, int tilesX, int tilesY) =>
+            Bake(rt, region, Mathf.Max(1, tilesX), Mathf.Max(1, tilesY));
+
+        /// <summary>Slipstream pieces that reached the last texture.</summary>
+        public static int LastTextureJets { get; private set; }
+
+        private static void Bake(RenderTexture rt, Bounds region, int tilesX, int tilesY)
         {
             if (rt == null) return;
             int nSeg = 0, nJet = 0;
@@ -158,6 +171,7 @@ namespace Aero.Wake
                 }
             }
             LastTextureSegments = nSeg;
+            LastTextureJets = nJet;
             if (nSeg == 0 && nJet == 0)
             {
                 RenderTexture prev = RenderTexture.active;
@@ -185,6 +199,9 @@ namespace Aero.Wake
             _bake.SetInt("_WakeSegCount", nSeg);
             _bake.SetInt("_WakeJetCount", nJet);
             _bake.SetVector("_WakeRegion", new Vector4(region.extents.x, region.extents.z, 0, 0));
+            int slices = tilesX * tilesY;
+            float sliceDy = slices > 0 ? region.size.y / slices : 0f;
+            _bake.SetVector("_WakeVolume", slices > 0 ? new Vector4(tilesX, tilesY, -region.extents.y + 0.5f * sliceDy, sliceDy) : Vector4.zero);
             Graphics.Blit(null, rt, _bake);
         }
     }

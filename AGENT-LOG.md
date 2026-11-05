@@ -1,4 +1,36 @@
 ## NEEDS YOU
+- **LOW CLOUD PATCHES + GROUND FOG THAT THE WAKE STIRS + MID-BAND SEAM FIXED: LOOK AT THE RENDERS (Claude, lane A,
+  2026-11-05 10:40; Ty 08:39 addendum; lane/claude-wake-vortex, NOT merged, NOT installed. Nothing approved by me.)**
+  Renders: `~/Developer/agent-lanes/renders/clouds-wake/`. Ty's three: (a) `low_patch_puffy.png` (+ `low_patch_wisp.png`),
+  (b) `fog_strip_wake_swirl_along_track.png` / `_during.png` / `_top.png`, (c) `fog_lake_after_pass_along_track.png` /
+  `_top.png`. Control: `fog_strip_zero_lift_zero_thrust_*.png` (same pass, no lift and no thrust: fog untouched).
+  Docs: docs/CLOUDS-WAKE-VISUALS.md "Low patches and ground fog". Question Q103 in the queue.
+  - **Fog (GroundFog).** Thin see-through fog over 4 of 13 grass/turf strips (AP4, AP5, AP14, Thomas Creek) and 5 of 10
+    lakes (Payette, Powell, Bighorn Larch/Cirque/Crown), seeded, the same on every device. The fog is a tracer in the real
+    air: 8 slices, 384 m patch at 1.5 m that follows the eye, MacCormack-advected in 3-D through WakeField (vortex lines
+    from the actual lift, slipstream from the actual thrust via Aircraft.TailSlipstream), re-forming over 150 s. No
+    vortex is drawn: a C172 pass at 5 m cuts a trench under its track and lifts the fog beside it, which is what the
+    vortex pair (sinking to ~3.5 m, spreading to ±13.6 m in 15 s, measured) does to the air. **Honest note:** at C172 size
+    it reads as a clean trench with raised, sunlit rims, not as visible corkscrew curls; the curls are under 2 slices
+    (2 m) and get smoothed. CPU and GPU wake agree on a cross-section (report).
+  - **Low patches (CloudSites.Low).** 13 small puffy heaps and 13 wake-reactive wisp patches, 150-600 m above the highest
+    ground under each, additive to the 36 banks and three layers. A wisp patch takes the reactive sheet when the eye is at it.
+  - **Mid-band seam: FIXED.** It was the SKY, not the playground: SunsetSky.cginc's painted cumulus used atan2, whose
+    branch cut runs down the world -x axis and cut every painted cloud along one line. Cross-faded across the cut now
+    (shared by the water's reflection too). clouds_mid_band_1250m.png is clean; diagnostics in seam-debug/.
+  - **Codex 08:39 (lane/codex-clouds, uncommitted there) ported and committed here** with attribution: less spherical
+    lobes (flattened ragged base, shoulders, per-lobe erosion; I softened the base cut, which drew a line under every
+    lobe), wisp near/far alpha compensation (made aware of the low patches' mask), wisp height fade/tint/opacity params,
+    weaker vorticity clearing. Not ported: its four fog/low-wisp material profiles (they drive a 3-sheet fog with no
+    vertical transport; the volume replaces it). Codex's worktree is left as it was.
+  - **Builds:** iOS 2026.1105.1020 `** BUILD SUCCEEDED **` (NOINSTALL); Quest 2026.1105.1028 build SUCCEEDED
+    (--build-only, 0 error CS). check-parity: PARITY OK. CloudSitesTests 4/4 + WakeVortexTests 11/11.
+  - **FPS NOT MEASURED ON A DEVICE.** Measuring needs an install, and installs wait for your render approval. Mac editor
+    proxy only (1600x1000, fog filling the lower half): 2.97 ms without fog/low patches, 5.28 with fog, 5.12 with both;
+    fog step 0.07 ms CPU. So the fog costs ~2 ms on an M-series GPU at that size, the main risk on the Quest (12 march
+    steps per covered pixel, both eyes). If you approve, I will install and record Quest 90 Hz / iPhone 60 Hz numbers;
+    the step count is the knob if it misses.
+
 - **CLOUD PLAYGROUND + WAKE VORTICES: LOOK AT THE RENDERS (Claude, lane A, 2026-11-05; lane/claude-wake-vortex, NOT merged,
   NOT built for a device, NOT installed. Nothing approved by me.)** Spec: prompts/ty-clouds-wake-spec-1105.md. Docs:
   `docs/WAKE-VORTEX.md` (physics), `docs/CLOUDS-WAKE-VISUALS.md` (Codex's visuals + my integration section).

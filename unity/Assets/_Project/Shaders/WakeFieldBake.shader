@@ -2,6 +2,7 @@
 // segments the CPU picked for the region (docs/WAKE-VORTEX.md). The same regularised Biot-Savart law and
 // Burnham-Hallock core as FlyingGame.Core.Aero.Wake.WakeVortex.SegmentVelocity, in Unity's axes (the CPU passes
 // gamma already negated for the left-handed frame), positions relative to the region centre for float precision.
+// WriteVolumeToTexture: the same for several sheets at once, tiled in one target (_WakeVolume).
 // Output (lane B's CloudWispAdvect packing): R,G = world X/Z velocity m/s, B = vorticity magnitude 1/s, A = world Y
 // velocity m/s. Linear ARGBHalf. Force-included via BuildScript.EnsureAlwaysIncludedShaders.
 Shader "Hidden/FlyingGame/WakeFieldBake"
@@ -26,10 +27,20 @@ Shader "Hidden/FlyingGame/WakeFieldBake"
             int _WakeSegCount;
             int _WakeJetCount;
             float4 _WakeRegion;          // half-size x, half-size z, 0, 0
+            float4 _WakeVolume;          // tiles x, tiles y (0: one sheet), lowest slice y, slice spacing (m, rel. centre)
 
             float4 frag (v2f_img i) : SV_Target
             {
-                float3 p = float3((i.uv.x * 2 - 1) * _WakeRegion.x, 0, (i.uv.y * 2 - 1) * _WakeRegion.y);
+                float2 uv = i.uv;
+                float y = 0;
+                if (_WakeVolume.x > 0)
+                {
+                    // WriteVolumeToTexture: an atlas of horizontal sheets, slice k = tile (k % tiles x, k / tiles x).
+                    float2 cell = floor(uv * _WakeVolume.xy);
+                    uv = uv * _WakeVolume.xy - cell;
+                    y = _WakeVolume.z + (cell.y * _WakeVolume.x + cell.x) * _WakeVolume.w;
+                }
+                float3 p = float3((uv.x * 2 - 1) * _WakeRegion.x, y, (uv.y * 2 - 1) * _WakeRegion.y);
                 float3 vel = 0;
                 float3 vort = 0;
                 for (int k = 0; k < MAX_SEG; k++)
