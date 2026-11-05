@@ -1,5 +1,32 @@
 ## NEEDS YOU
 
+## NEEDS YOU — CARDBOARD VR ON THE iPHONE 17 PRO (Claude, 2026-11-04 ~20:00 PST, lane/claude-vr-stereo-merge)
+Ty 19:39: "I have the cardboard vr headsets for the iphone now". lane/codex-vr-stereo (lens-distortion compositor,
+in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carry it. How to use it:
+- **Turn it on (phone OUT of the viewer):** OPTIONS (top right) → **Controls** tab → tick **"VR (Cardboard headset):
+  split screen, full head tracking"**. Only shown on a device with a gyro. The screen locks landscape-left (charge port
+  to your RIGHT) and stops sleeping. Under the tick: **"Eye spacing (IPD)"** slider 55–75 mm (63 default) and a
+  **"Recentre the view"** button. Close OPTIONS, then put the phone in the viewer.
+- **It stays on across relaunch** (PlayerPrefs `vr.on`): the app reopens split-screen. Menus (landing page, OPTIONS)
+  still draw FLAT across both halves on purpose so you can always turn VR off — but you must take the phone out to read
+  or tap them. There is no in-headset menu on the phone (the Quest has one; Cardboard does not).
+- **Flying in the headset needs a gamepad** (8BitDo/MFi/Xbox/PS via the Input System, `GamepadInput`; no profile
+  needed) or a calibrated joystick. The touch controls are hidden, and as of this merge also INERT in VR, so a
+  trigger press cannot hit an invisible RESET or BAIL. Gamepad Menu (Start) still opens OPTIONS (flat).
+- **Recentre:** hold the screen / Cardboard trigger **0.6 s**, or click the gamepad's **right stick (R3)** (added in
+  this merge; before, R3 only recentred the mono look), or the Options button.
+- **No QR / viewer-profile scan.** The lens is fixed: generic Google Cardboard v2 (k1 0.336, k2 0.553, 63.9 mm lenses,
+  39.3 mm screen-to-lens, 60° each way) from configs/vr-cardboard.json, copied to StreamingAssets at build. A viewer
+  that is not a v2 needs its own numbers in that file. Screen size comes from Screen.dpi (326 dpi fallback).
+- **Check on the headset:** image upright and fused; straight lines straight at the edges (distortion strength);
+  red/blue fringe at the edges; HUD (IAS kt / ft MSL / heading, 1.5 m ahead, low) legible and comfortable; frame rate;
+  where the trigger actually lands (it must not open OPTIONS, top right). Nothing here is approved.
+- Validation: VrStereo+VrDistortion 52/52. Full suite 2487 passed / 216 failed (2709, 1 h 53 m, machine loaded); the 141
+  failing methods re-run alone on the merge AND on base 0bb87c67 fail the identical 124 cases — nothing new. iOS export
+  0 `error CS`, xcodebuild Release generic iOS `** BUILD SUCCEEDED **` (own output dirs, not installed). Quest: Cardboard
+  cannot start there (`VrMode.Available` is false while `XrHeadset.Active`, the toggle is OnGUI-only and QuestMenu has no
+  VR switch, so `vr.on` is never set); its shaders are plain CG in Resources. No Quest build was run for this merge.
+
 ## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
 - Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
   (card centred; ASI over g-meter left; altimeter over turn coordinator right; Trig radio/xpdr left; 3-in-1 oil P / oil T /

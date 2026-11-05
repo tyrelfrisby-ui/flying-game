@@ -26,6 +26,15 @@ namespace FlyingGame.Bridge
             }
             if (_root == null)
             {
+                // new Material(null) throws, and from LateUpdate that would be every frame (CLAUDE.md, "A shader
+                // name in a list is not a shader in the build"): say so once and stay hidden.
+                Shader textShader = Resources.Load<Shader>("VrHudText"), backingShader = Resources.Load<Shader>("VrHudBacking");
+                if (textShader == null || backingShader == null)
+                {
+                    if (!_missingLogged) Debug.LogError("[VR] missing Resources/VrHudText or VrHudBacking shader; no VR HUD.");
+                    _missingLogged = true;
+                    return;
+                }
                 _root = new GameObject("VR minimal HUD");
                 _root.transform.SetParent(transform, false);
                 _root.transform.localPosition = new Vector3(0, -.24f, 1.5f);
@@ -33,7 +42,7 @@ namespace FlyingGame.Bridge
                 _text.anchor = TextAnchor.MiddleCenter; _text.alignment = TextAlignment.Center;
                 _text.font = UiFont.Get(); _text.fontSize = 64; _text.characterSize = .01f;
                 _text.color = Color.white;
-                _textMaterial = new Material(Resources.Load<Shader>("VrHudText"));
+                _textMaterial = new Material(textShader);
                 _textMaterial.mainTexture = _text.font.material.mainTexture;
                 _textRenderer = _text.GetComponent<MeshRenderer>();
                 _textRenderer.sharedMaterial = _textMaterial;
@@ -43,7 +52,7 @@ namespace FlyingGame.Bridge
                 _backing = backing.transform;
                 var collider = backing.GetComponent<Collider>();
                 if (Application.isPlaying) Destroy(collider); else DestroyImmediate(collider);
-                _backingMaterial = new Material(Resources.Load<Shader>("VrHudBacking"));
+                _backingMaterial = new Material(backingShader);
                 backing.GetComponent<MeshRenderer>().sharedMaterial = _backingMaterial;
             }
             _root.SetActive(_driver != null && _driver.Sim != null);
@@ -67,6 +76,7 @@ namespace FlyingGame.Bridge
             _backing.localScale = new Vector3(bounds.size.x + .02f, bounds.size.y + .012f, 1);
         }
         private Material _backingMaterial, _textMaterial;
+        private bool _missingLogged;
         private void OnDestroy()
         {
             if (Application.isPlaying) { Destroy(_root); Destroy(_backingMaterial); Destroy(_textMaterial); }

@@ -428,7 +428,7 @@ namespace FlyingGame.Bridge
                         if (UiLayout.Button(new Rect(_x, y, _cw * 0.5f, _lh), "Recentre the view", _btn)) VrMode.Recentre();
                         y += _lh + _gap * 0.4f;
                         Note("In the headset: press and hold the screen (or the Cardboard trigger) for " +
-                             "0.6 s to recentre. Fly with a joystick or gamepad \u2014 the touch controls are hidden.", ref y);
+                             "0.6 s, or click a gamepad's right stick (R3), to recentre. Fly with a joystick or gamepad \u2014 the touch controls are hidden.", ref y);
                     }
                 }
             }

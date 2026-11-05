@@ -17,7 +17,9 @@ namespace FlyingGame.Bridge
         {
             _lens = lens; _left = left; _right = right;
             ClearMeshes();
-            if (_hud == null) _hud = gameObject.GetComponent<VrWorldHud>() ?? gameObject.AddComponent<VrWorldHud>();
+            // Not `??`: in the editor a missing component comes back as Unity's fake null, which `??` keeps.
+            if (_hud == null) _hud = gameObject.GetComponent<VrWorldHud>();
+            if (_hud == null) _hud = gameObject.AddComponent<VrWorldHud>();
             _hud.Refresh();
         }
 

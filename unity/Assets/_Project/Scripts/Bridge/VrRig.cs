@@ -212,6 +212,7 @@ namespace FlyingGame.Bridge
             if (!_running || _left == null) return;
             if (TryAttitude(out Quaternion q)) _head.FromDevice(ToCore(q));
             RecentreGesture();
+            if (GamepadInput.Now.RecentrePressed) RecentreNow();   // R3, as in the mono cockpit view
 
             PlaceEyes((float)_head.YawDeg, (float)_head.PitchDeg, (float)_head.RollDeg);
         }
