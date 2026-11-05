@@ -1,4 +1,33 @@
 ## NEEDS YOU
+<!-- river-current needs-you -->
+- **RIVERS AND TIDE NOW MOVE THE WATER: FLY-CHECK A RIVER CRASH AND A FLOATPLANE IN A CURRENT (Claude, 2026-11-05 03:00,
+  lane/claude-river-current; merged into island-nav and Quest the same session, NOT installed: rides the next queued
+  build/install). iOS ** BUILD SUCCEEDED ** 2026.1105.0157 (branch) and 2026.1105.0247 (branch + island-nav 7f7185e1),
+  0 error CS, NOINSTALL. Nothing approved by me.** Write-up: `docs/WATER-CURRENT.md`.
+  Every hydro force (floats/hulls/water rudders, wheels and skis on water, the ditched airframe, every wreck piece,
+  slam, joint loads) is now computed from velocity THROUGH THE WATER (`WaterCurrent`); the aero was already through the
+  air. No upstream/downstream logic anywhere. Fuel slicks drift with the surface current + 3 % of the wind.
+  1. **Take-off with current (your 19:35 correction), J-3 floats, same pilot every run, 4 kt current:** calm upstream
+     22.8 s / 270 m through the water, downstream 14.9 s / 166 m (no current 19.9 s / 221 m); unstick at the same ~21.4 m/s
+     airspeed, i.e. airspeed ± current through the water. With 15 kt blowing downstream it reverses: into wind upstream
+     10.5 s, downwind downstream 30.6 s. Please fly it on a lake? Not possible on the island yet — see 3.
+  2. **Fly-check:** crash into the sea or a river and watch pieces drift (tide is slack at start and peaks 0.6 kt after
+     3.1 h of sim time, flooding toward 045 T); on water with a current a stopped floatplane drifts at ~85 % of the
+     current (its own windage in still air holds it back: emergent, not tuned); idle taxi into a 4 kt current goes
+     backwards over the ground at 1.6 m/s while making 0.4 m/s through the water; 30 % power makes 3 m/s up the river.
+  3. **Q031: the island's rivers are drawn as a 0.15 m sheet**, so floats and buoyant wreckage ground in them (a 263 kg nose
+     piece creeps at 6 % of the current). The current itself is modelled as a real 1.3–2.4 m deep river: 5.1–8.0 kt by
+     Jarrett's high-gradient equation, 0 at the banks, log-law with depth, inner-bank slow-down / back-eddy below bends.
+     Carve the rivers deep enough to float a J-3 (terrain + water-mesh work), or keep them shallow?
+  4. **Q032: sea tide** 0.3 m/s M2 rectilinear toward 045 T: want another strength/axis, rotary tide or tidal height?
+  5. **Found and fixed on the way:** a floatplane sat in a cross-current went NaN on its first step (Savitsky trim along a
+     flow square across the keel → tan 90°); planing terms now only within 60° of sideslip (`PlaningMaxSideslipRad`), no
+     change below that. GroundContactCullTests now start both of its runs at sim time 0 (the tide reads the clock).
+  6. Tests: WaterCurrentTests 16/16; water/float/wreck/wheel/crash subset (31 classes, 437 tests): base 35 red, branch 46 =
+     the same 35 + 11 GroundContactCullTests cases (the tide; fixed, that class re-run 52/52, the subset not re-run);
+     merged tree 149/149 in the hydro classes (incl. FloatHandling, EmergentWaterContact, WreckWingWater). The full suite could not
+     finish in a 2 h window on this loaded machine (load ~30), so it was compared on that subset only.
+<!-- /river-current needs-you -->
 - **WHEEL HYDROPLANE LANE MERGED + INSTALLED (Claude, 2026-11-05 01:56, lane/claude-wheel-hydroplane 7388335f → island-nav
   12328a67 → Quest 3fd9d5e2; Ty approved the merge 2026-11-04 20:27). iOS island-nav 2026.1105.0137 ** BUILD SUCCEEDED **,
   0 error CS, installed iPhone + iPad mini + EFB iPad; Quest 2026.1105.0147 installed and launched on the Quest 3S.
