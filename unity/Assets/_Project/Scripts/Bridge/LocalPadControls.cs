@@ -7,7 +7,8 @@ namespace FlyingGame.Bridge
     /// flying is <see cref="FlyingGame.Sim.LocalPadPilot"/> (Core-tested, the same numbers as the first player's pad
     /// path); this reads the pad, hands the result to the driver and works the buttons. Same mapping as P1's pad:
     /// right stick roll / pitch, left stick X + triggers rudder, left stick Y and RB / LB power, d-pad up / down trim,
-    /// left / right flaps, X brakes, B smoke, Y next view, R3 recentre the cockpit view. Menu opens the shared OPTIONS.
+    /// left / right flaps, X brakes, B smoke, Y next view; L3 + d-pad looks and R3 recentres in the cockpit (CockpitView reads
+    /// this player's pad). Menu opens the shared OPTIONS.
     ///
     /// No pad on this seat: hands off on the start's trim, so the aeroplane flies on, level, until a second pad is
     /// paired (PadBinding gives it the empty seat on its first frame).
@@ -22,7 +23,6 @@ namespace FlyingGame.Bridge
 
         private readonly FlyingGame.Sim.LocalPadPilot _pilot = new();
         private SmokeController _smoke;
-        private CockpitView _cockpit;
         private OptionsPanel _options;
 
         private void Awake()
@@ -63,7 +63,6 @@ namespace FlyingGame.Bridge
             if (!gp.Connected) return;
             if (gp.SmokePressed && (_smoke != null || (_smoke = GetComponent<SmokeController>()) != null)) _smoke.Toggle();
             if (gp.ViewPressed && Chase != null) Chase.NextView();
-            if (gp.RecentrePressed && (_cockpit != null || (_cockpit = GetComponent<CockpitView>()) != null)) _cockpit.Centre();
         }
     }
 }
