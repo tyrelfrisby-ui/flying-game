@@ -1,5 +1,37 @@
 ## NEEDS YOU
 
+## NEEDS YOU — Extra 30 % aileron hinge on the Quest + Great Lakes slave struts (Claude, 2026-11-04 19:40 PST, lane/claude-hinge-slavestruts)
+- Ty: after the next install on iPhone / iPad mini / Quest 3S (build numbers in the entry below once built), roll the
+  Extra to full aileron and check the down-going aileron's nose stands proud of the wing (~50 mm), and roll the Great
+  Lakes and check each slave strut stays pinned to both horns (upper and lower aileron) and swings with them.
+  Renders: renders/hinge-slavestruts/ in this lane. Nothing approved; no gate marked.
+
+### 2026-11-04 hinge + slave struts: diagnosis confirmed, fix (Claude, lane/claude-hinge-slavestruts off island-nav 0bb87c67)
+- **Missing Extra hinge on the Quest = a pre-merge APK.** Installed 2026.1104.1656 (lastUpdate 17:00:57) was built at
+  16:56 from quest HEAD without 8a5737c9 (it reached the Quest lane's first parent only at f99c2fc2, 18:48), so the APK's
+  assets/rigs/extra-300-like-own.json had the old leading-edge pivot x 0.8267. Since f99c2fc2 both lanes' docs/models rig
+  and Resources GLBs are identical and hinged at 30 %: measured in all three Extra GLBs, hinge chord fraction 0.26-0.31
+  per slice, mean 0.30 (the pre-8a5737c9 GLB measures 0.04-0.10); node origin = rig pivot; +51 mm nose rise at 30 deg TE
+  down. No GLB rebuild needed. The quest worktree's gitignored StreamingAssets/rigs copy is still stale (0.8267, mtime
+  10:02: a merge never touches it), but QuestBuild.BuildQuest / BuildScript call ConfigSync.SyncAndRequireComplete first,
+  so a rebuild regenerates it; the stale copy only matters to editor play. HingeSlaveStrutTests.TheStreamingRigCopyIsNotStale
+  now fails wherever a local SA copy disagrees with docs/models.
+- **Great Lakes struts "stuck in space" = no Unity follower.** The GLB rigs Strut_Slave_L/R with _PinUpper (child of
+  Aileron_U<s>) and _PinLower (child of Aileron_L<s>); AirframeRig moved the four ailerons (and so the pins) but nothing
+  re-aimed the strut (only gl_aileronpose.py did, in Blender). New: Core SlaveStrut.Solve (engine-free: origin carried to
+  the upper pin, shortest-arc turn so the long axis points at the lower pin) called by AirframeRig after every
+  Apply / SetControls, from parent-local transforms. Shared Bridge path: iOS, Mac editor and Quest identical.
+  Measured on the rig table: at full aileron the pins move 90-105 mm; strut upper end on its pin exactly, lower end within
+  0.05 mm (the upper aileron's solved constant-length table).
+- Tests: HingeSlaveStrutTests (11): EveryExtraGlbHingesItsAileronsAtThirtyPercentChord x3, TheExtrasRigPutsTheAileronHinge
+  OnTheThirtyPercentLine, TheExtrasAileronNoseRisesProudWhenTheTrailingEdgeGoesDown, TheStreamingRigCopyIsNotStale,
+  TheGreatLakesSlaveStrutsHangOnBothAileronHorns, TheGreatLakesSlaveStrutsFollowBothAileronsToFullTravel,
+  FromToTurnsOneDirectionOntoAnother. With ModelRigTests / ParityCheck: 30/31, the 1 = ModelRig FullAirBrakeStopsTheGlider
+  (pre-existing on base, listed above). Found, not changed: the -red-sunburst / -white-stripes Great Lakes GLBs are
+  legacy, unrigged, unloaded.
+- Editor tool HingeSlaveStrutShots (-out dir) renders and measures both in the engine (exits 1 if a strut end is > 3 mm
+  off its pin).
+
 ## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
 - Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
   (card centred; ASI over g-meter left; altimeter over turn coordinator right; Trig radio/xpdr left; 3-in-1 oil P / oil T /
