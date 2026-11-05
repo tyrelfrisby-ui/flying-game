@@ -51,8 +51,9 @@ namespace FlyingGame.EditorTools
                     string light = f.Length > 6 ? f[6] : "sun";
                     bool hand = f.Length > 7 && f[7] == "hand";
                     int w = W, h = H;
-                    if (f.Length > 8) { string[] wh = f[8].Split('x'); w = int.Parse(wh[0]); h = int.Parse(wh[1]); }
-                    if (One(f[0], f[1], f[2], F(f[3]), F(f[4]), vfov, outDir, light, hand, w, h)) shots++; else failures++;
+                    if (f.Length > 8 && f[8].Length > 0) { string[] wh = f[8].Split('x'); w = int.Parse(wh[0]); h = int.Parse(wh[1]); }
+                    bool moved = f.Length > 9 && f[9] == "moved";
+                    if (One(f[0], f[1], f[2], F(f[3]), F(f[4]), vfov, outDir, light, hand, w, h, moved)) shots++; else failures++;
                 }
             }
             catch (Exception e) { failures++; Debug.LogException(e); }
@@ -67,7 +68,7 @@ namespace FlyingGame.EditorTools
         private static float F(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
 
         private static bool One(string name, string id, string seatId, float yaw, float pitch, float vfov, string outDir,
-                                string light, bool hand, int w, int h)
+                                string light, bool hand, int w, int h, bool moved = false)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
@@ -90,8 +91,15 @@ namespace FlyingGame.EditorTools
             {
                 Throttle = 0.6, PropLever = 1.0, Mixture = 1.0, Magneto = 3.0, Master = 1.0, Alternator = 1.0, Rpm = 2300,
                 OilPressPsi = 70, OilTempF = 185, AirspeedMph = 120, AirspeedKias = 104, AltitudeFt = 2500, GLoad = 1.0,
-                GMaxSeen = 4.5, GMinSeen = -1.5, ManifoldInHg = 24, FuelCentreFrac = 0.8, HeadingDeg = 30,
+                GMaxSeen = 4.5, GMinSeen = -1.5, ManifoldInHg = 24, FuelCentreFrac = 0.8, HeadingDeg = 30, FuelValve = 1.0,
             };
+            // "moved" (10th field): every lever away from where it rests, so a shot shows each one really moves — the Pitts'
+            // blade up and slid aft, the mixture out, the valve OFF, the cowl flap OPEN, the trim nose-up, the throttle closed.
+            if (moved)
+            {
+                reading.PropLock = 1.0; reading.PropLever = 0.0; reading.Mixture = 0.0; reading.FuelValve = 0.0;
+                reading.CowlFlap = 1.0; reading.Trim = 1.0; reading.Throttle = 0.0;
+            }
             builder.SetRig(reading, 0.02f);
             // The painted panels the game makes live (the Pitts' and the Extra's: CockpitLive's dial art and needles), as
             // AirframeVisual does in flight, so the shot shows what the pilot sees rather than the GLB's own pictures.
