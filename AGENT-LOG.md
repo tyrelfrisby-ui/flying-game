@@ -1,5 +1,25 @@
 ## NEEDS YOU
 
+## NEEDS YOU — Extra 300L panel + FUEL FLOW on devices (Grok Bot, 2026-11-04 18:55 PST)
+- Ty: once the merged build is installed (build pending: see entry below), fly the Extra 300 and check the panel layout
+  (card centred; ASI over g-meter left; altimeter over turn coordinator right; Trig radio/xpdr left; 3-in-1 oil P / oil T /
+  FUEL FLOW right, green 0-35 gph, red at 35; tach, MP, totalizer, ammeter low row; one switch row)
+  and that the C172 and Pitts cockpits look unchanged. Nothing approved; no gate marked.
+
+### 2026-11-04 Extra phase 2 + FUEL FLOW merged into both lanes (Grok Bot + Claude, lane/claude-extra-integrate)
+- lane/claude-extra-integrate from island-nav bb519c72: merge 284c7706 (lane/claude-extra-cockpit-shared b65e3b98, incl.
+  db87f77c skin-break fix, 8a5737c9/217a0847 cockpit, ea2a0ebc fuel flow), then 1b80dff6 (73d7702b) and ef478e53 (crash-reset 65f431be).
+- Conflicts: text files kept both sides. 13 GLBs: took island-nav's versions, re-ran fix_aileron_junctions.py on the 10
+  non-Extra GLBs and extra_cockpit_shared.py pass on the Extra GLBs (reproduced the Extra lane's GLBs + rig JSON byte for byte).
+  Inventory diff vs bb519c72: non-Extra GLBs differ only in aileron (C172 also wing) arrays + junction extras; C172 suction
+  0-10 green 4.5-5.4 red 4.5/5.4 and +60 mm yoke intact; Pitts v3.1 intact. check_aileron_junction: 0 faults.
+- Tests (FlightTests filter Extra|Cockpit|Gauge|Pilot|C172|Pitts|SharedPanel|Rig|Fuel|Junction): base bb519c72 723/729,
+  merged 738/744; same 4 failures both (DronePilot aerobatic, MazeTow branch, AerobatGroundHandling PittsNeedsQuickFeet,
+  ModelRig FullAirBrakeStopsTheGlider), 2 skipped (Pitts power spin). No new failures; ExtraFuelFlowGaugeTests passes (22.5 gph full throttle).
+- Renders: ~/Developer/agent-lanes/renders/extra-integrate/contact-sheet.png (Extra front/rear Unity, Pitts Unity, C172 Blender;
+  C172 Unity shot shows no interior = the transparent-172 bug the crash-reset lane addressed, not from this merge).
+- Build/install NOT done at merge time (other builds queued; smoke-thicker builds next). Build byproducts left uncommitted.
+
 ## NEEDS YOU — C172 yoke on devices (Grok Bot, 2026-11-04 17:02 PST)
 - Ty: fly the C172 on iPad mini (2026.1104.1648) / Quest 3S (2026.1104.1656): check yoke horns clear the thighs at full
   deflection and the 1 in suction gauge reads right (green 4.5-5.4, red at 4.5 and 5.4). Not approved in-game yet.
