@@ -451,6 +451,15 @@ dedicated "instruments on the second monitor" layout is a different feature (Q8)
 
 ---
 
+
+### Ty's answers (2026-11-04 17:14-17:15 PT)
+- **Q2:** YES, GAME ON TV applies to the iPad too when AirPlayed.
+- **Q7:** Radio/intercom audio stays on the phone or headset, not the TV.
+- **Q8:** YES, Mac in scope: instruments on a second monitor.
+- **Q9:** Pairing: both QR and PIN, QR recommended.
+- **Q10:** TLS-PSK encryption in v1.
+- **Q11:** YES, run one Android (Quest) batch compile from this lane (only when no other Unity/xcodebuild runs, nice).
+
 ## 10. Phasing
 
 | Phase | Content | State |

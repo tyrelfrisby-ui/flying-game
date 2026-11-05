@@ -1,4 +1,10 @@
 ## NEEDS YOU
+- **TV MODE: INSTALLED ON TY'S IPHONE + TY ANSWERED Q2/Q7-Q11 (Grok Bot, 2026-11-04 17:20 PT).** Ty approved the
+  device install 17:12 PT. Built from e165af8e (isolated /private/tmp/tvc-ios, /private/tmp/tvc-dd), `** BUILD SUCCEEDED **`,
+  installed on iPhone 00008150-001629A83662401C as 2026.1104.1713; regenerated mirrors/ProjectSettings restored. Answers
+  (17:14-17:15 PT): Q2 iPad too; Q7 radio/intercom on phone/headset, not TV; Q8 Mac in scope (instruments on second
+  monitor); Q9 QR + PIN, QR recommended; Q10 TLS-PSK in v1; Q11 yes, one Quest batch compile from this lane. Recorded in
+  plan §9. Not merged; no gate approved.
 - **TV MODE: ENGINE DIALS NOW BELOW THE AIRPLANE ON THE TV (Ty 07:33) — BUILT, NOT INSTALLED, NOT MERGED (Claude,
   2026-11-04, lane/claude-tv-companion).** With analog instruments in TV mode the flight row (ASI, ALT, G, VSI) keeps the
   top of the TV and the engine row (TACH, THR, FLOW, FUEL) is centred along the TV's bottom edge inside the title-safe
