@@ -151,6 +151,7 @@ public class HydroJ3Tests
             (Aircraft ac, SimLoop sim) = Afloat(c);
             double x0 = ac.State.Position.X, peakDrag = 0, humpV = 0, stepV = -1, peak = -99, integ = 0, unstickV = -1, unstickT = 0, unstickX = 0;
             bool eased = false;
+            double minDragOnStep = double.MaxValue;
             for (double t = 0; t < 40; t += 0.05)
             {
                 RigidBodyState s = ac.State;
@@ -162,6 +163,7 @@ public class HydroJ3Tests
                 FloatHydro.Report r = FloatHydro.LastReport;
                 Assert.False(double.IsNaN(ac.State.Position.Z), $"NaN at t={t:F1}");
                 if (r.DragN > peakDrag && r.BuoyancyN > 0) { peakDrag = r.DragN; humpV = v; }
+                if (stepV > 0 && unstickV < 0) minDragOnStep = Math.Min(minDragOnStep, r.DragN);
                 if (stepV < 0 && r.VentilatedFraction >= 0.99 && FloatHydro.Floats[0].SternDraftM < 0.005 && FloatHydro.Floats[1].SternDraftM < 0.005 && r.PlaningLiftN > r.BuoyancyN && v > 5) stepV = v;
                 bool carried = r.BuoyancyN + r.PlaningLiftN >= 0.02 * w;
                 if (unstickV < 0 && eased && !carried) { unstickV = v; unstickT = t; unstickX = ac.State.Position.X - x0; }
@@ -171,7 +173,9 @@ public class HydroJ3Tests
             const double mph = 2.23694;
             _out.WriteLine($"hump (peak water drag {peakDrag:F0} N = {peakDrag / w:F2} W) at {humpV * mph:F1} mph; on the step at {stepV * mph:F1} mph; "
                            + $"unstick {unstickV * mph:F1} mph after {unstickT:F1} s and {unstickX / 0.3048:F0} ft");
+            _out.WriteLine($"least water drag on the step before unstick {minDragOnStep:F0} N ({minDragOnStep / peakDrag:P0} of the hump)");
             Assert.InRange(humpV * mph, 12, 18);
+            Assert.True(minDragOnStep < 0.7 * peakDrag, "the drag must fall once it is on the step (Ty 2026-11-04 spec)");
             Assert.InRange(stepV * mph, 20, 25);
             Assert.InRange(unstickV * mph, 40, 50);
             Assert.InRange(unstickT, 15, 25);

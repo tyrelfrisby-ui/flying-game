@@ -786,6 +786,10 @@ public sealed partial class Aircraft
     /// <summary>The limit water load factor n_w that load is built on (23.527), for the log and tests.</summary>
     public double FloatLimitWaterLoadFactor { get; private set; }
     private readonly bool[] _floatSplit = new bool[2];
+    private readonly double[] _floatLoadSum = new double[2];
+    /// <summary>The time over which a float's structure takes up its water load, s: about a quarter period of a float
+    /// on its struts (~10–15 Hz). An assumption, stated (AGENT-LOG NEEDS YOU).</summary>
+    public const double FloatLoadWindowS = 0.02;
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, double> VsoCache = new();
 
     private void InitFloatWaterLoads()
@@ -817,7 +821,11 @@ public sealed partial class Aircraft
         for (int i = 0; i < n; i++)
         {
             double own = i == 0 ? l0 : l1;
-            double load = own + slamN * (sum > 1e-6 ? own / sum : 1.0 / n);
+            double inst = own + slamN * (sum > 1e-6 ? own / sum : 1.0 / n);
+            // The float and its struts answer the load over their own response time, not one 5 ms step: a single-step
+            // spike of the added-mass impulse (a station entering the water) is averaged over FloatLoadWindowS.
+            _floatLoadSum[i] += inst * dt - _floatLoadSum[i] * System.Math.Min(1.0, dt / FloatLoadWindowS);
+            double load = _floatLoadSum[i] / FloatLoadWindowS;
             if (load > FloatPeakWaterLoadN[i]) FloatPeakWaterLoadN[i] = load;
             if (_floatSplit[i] || load <= FloatUltimateWaterLoadN) continue;
             _floatSplit[i] = true;
