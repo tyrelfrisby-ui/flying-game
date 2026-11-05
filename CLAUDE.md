@@ -577,3 +577,14 @@ whose command lines contain the same words, and theirs matched mine. Every lane 
 running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
 the start of the command line so only real build processes count:
 `'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.
+
+### A blanket exemption silences everything it covers, including the part you just fixed
+The 2026-11-04 water lane made a dipped propeller brake by blade drag and tested it on landplanes. Ty then dug the J-3
+on floats' prop into the lake and nothing happened: `AirframeContact` skips every hard point of a FLOATPLANE over water
+("the floats carry it"), and the propeller disc stations were hard points too, so on a floatplane the prop could never
+touch the water at all. Every test passed because none of them put a floatplane's prop in the water. When a fix lives
+behind a contact or sensor path, test it on the aircraft from the report, and grep for the switches that skip that path
+(`floatsCarryWater`, `groundClear`, a cull) before believing it reaches everything.
+And the splash "hammering" was a fixed 4.5 Hz sine on the water voice (66 % depth): a periodic modulation on a sound
+the physics drives is a metronome the player hears as a fault. Measure a voice's envelope spectrum
+(`tools/FloatAudio`) before shipping any LFO on it.
