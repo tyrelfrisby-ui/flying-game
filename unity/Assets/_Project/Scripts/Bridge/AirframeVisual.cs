@@ -222,7 +222,8 @@ namespace FlyingGame.Bridge
             ControlsConfig c = ac.Config.Controls;
             FlyingGame.Core.RigInputs r = FlyingGame.Core.RigInputs.FromDeflections(
                 d.AileronRad, d.ElevatorRad, d.RudderRad, d.SpoilerFraction,
-                c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad);
+                c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad,
+                FlyingGame.Core.LandingGear.NoseWheelSteerMaxRad(ac.Config));
 
             // Total-energy variometer: the rate of change of HEIGHT PLUS KINETIC HEIGHT, so a pull-up reads as
             // the trade it is rather than as lift. Lagged about a second, like the capacity bottle on a real one.
@@ -748,6 +749,7 @@ namespace FlyingGame.Bridge
 
         // The type's full travel, so a deflection in radians can be put on the rig's -1..+1 scale. Filled by Build.
         private float _ailMaxRad = 1f, _eleMaxRad = 1f, _rudMaxRad = 1f;
+        private double _noseSteerMaxRad;   // the rudder-linked nose wheel's lock (LandingGear.NoseWheelSteerMaxRad), 0 if none
 
         /// <summary>Move every hinged surface to the sim's current deflections (radians; spoiler 0..1).</summary>
         public void SetDeflections(float aileronRad, float elevatorRad, float rudderRad, float spoilerFrac)
@@ -768,7 +770,7 @@ namespace FlyingGame.Bridge
             // A model with its own rig moves ITS surfaces on the same deflections — so every caller that poses
             // an aeroplane (a remote player's, the widget's replay, a render) gets them, not only the live one.
             _rig?.SetControls(FlyingGame.Core.RigInputs.FromDeflections(aileronRad, elevatorRad, rudderRad, spoilerFrac,
-                                                                        _ailMaxRad, _eleMaxRad, _rudMaxRad));
+                                                                        _ailMaxRad, _eleMaxRad, _rudMaxRad, _noseSteerMaxRad));
         }
 
         // ---- spinning propellers (owner 2026-10-04) ----------------------------------------------------------------
@@ -1778,6 +1780,7 @@ namespace FlyingGame.Bridge
             _ailMaxRad = cc != null && cc.Aileron.MaxDeflRad > 1e-6 ? (float)cc.Aileron.MaxDeflRad : 1f;
             _eleMaxRad = cc != null && cc.Elevator.MaxDeflRad > 1e-6 ? (float)cc.Elevator.MaxDeflRad : 1f;
             _rudMaxRad = cc != null && cc.Rudder.MaxDeflRad > 1e-6 ? (float)cc.Rudder.MaxDeflRad : 1f;
+            _noseSteerMaxRad = FlyingGame.Core.LandingGear.NoseWheelSteerMaxRad(cfg);
             // Doped fabric over ribs rather than riveted metal: the Cubs, the Stearman, the Jenny, the Decathlon
             // and the 2-33 are linen aeroplanes, and their wings should scallop between ribs, not carry rivets.
             _fabricAircraft = cfg.Id != null && (cfg.Id.StartsWith("pa18") || cfg.Id.StartsWith("j3-cub")

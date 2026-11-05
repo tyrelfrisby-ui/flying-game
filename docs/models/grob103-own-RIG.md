@@ -1,3 +1,24 @@
+# Integration (Claude, 2026-11-04, lane/claude-grob103)
+
+- **Placement.** `AirframeModels.OwnSpecs` gives the Grob `atDatum: true`: the GLB goes in at scale 1, on the
+  config's datum along the length and across. The generic path would have fitted the span to the config's outermost
+  strip CENTRE (8.84 m, so 1.8 % small) and slid the model 75 mm forward to line up the outer wings, which would have
+  put the wheels 75 mm off their stations. The model is still stood on the config's wheels.
+- **Measured against the config** (`Grob103ModelTests`). Span 18.000 m. Wheel stations nose +1.4595, main −0.5397,
+  tail −4.8768, all exact. **Vertical, NOT matched, recorded:** the model's tyre bottoms are 0.600 m below the datum
+  (tail 0.260), and the config's contacts are 0.69 (tail 0.33). Standing it on the config's wheels drops the whole
+  model **90 mm**, and the drawn tail wheel then sits 0.35 m below the datum against the config's 0.33. Neither side
+  was moved to hide this. One of them is wrong, and nothing published says which.
+- **Eyes.** The approved native eyes (front (−1.15, .16, 0), rear (.04, .22, 0), Ty 2026-11-03) are put where the
+  placed model draws them. That is the same 90 mm drop, so the config's seat eyes are front (1.15, 0, −0.07) and rear
+  (−0.04, 0, −0.13), body m, +z down. They are recorded as v6 in `eyepoints.json` and asserted in `CockpitEyeTests`.
+- **Nose steering.** As delivered, `Nose_Steering` ran off `rudder` with the Rudder's own sign about the same +Y axis.
+  The rudder's trailing edge is AFT of its hinge and the wheel's front is AHEAD of its pivot, so right pedal would
+  have turned the drawn wheel LEFT. It now reads `nose_wheel_steer_deg` (`RigInputs.NoseWheelSteerDeg`, + = right).
+  That is the sim's own steering angle: rudder deflection / max × the config's ±25° lock, the product
+  `LandingGear.SteerRad` steers the tyre by. The map is [[−90, 90], [0, 0], [90, −90]]: one for one, negated. The GLB
+  extras still carry the old `rudder` map. The runtime reads this JSON, so this is only a note for the next export.
+
 # Current rig: Blanc Twin III Acro v2, 18 m (2026-11-04)
 
 Ty approved the Blanc conversion and eyes on 2026-11-03. The approved native

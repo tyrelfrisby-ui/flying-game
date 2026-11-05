@@ -29,7 +29,13 @@ namespace FlyingGame.Bridge
             /// <summary>The model's control surfaces are meshes of their own, named for them (Aileron_UL, Elevator_L, Rudder):
             /// the rig hangs each one whole on its own hinge line instead of carving the airframe by the config's chord fraction.</summary>
             public readonly bool NamedSurfaces;
-            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; }
+            /// <summary>The model is authored in METRES with its origin on the config's own datum (the Grob's, 2026-11-04):
+            /// place it at scale 1 and leave it where its author put it along the length and across, rather than fitting
+            /// its span to the config's outermost strip CENTRE (1.8 % small on the Grob) and sliding it to line its outer
+            /// wing up with the config's (75 mm on the Grob, which put the wheels 75 mm off their stations). It is still
+            /// stood on the config's wheels; any height difference that leaves is logged, not hidden.</summary>
+            public readonly bool AtDatum;
+            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false, bool atDatum = false) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; AtDatum = atDatum; }
             /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y (then the three-point fix).</summary>
             public Quaternion Rotation => Quaternion.AngleAxis(PitchDownDeg, Vector3.right) * Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
         }
@@ -144,7 +150,11 @@ namespace FlyingGame.Bridge
             // ailerons, elevators, rudder and airbrake paddles are meshes of their own with <Name>_HingeAxis markers, so
             // the rig hangs them whole (namedSurfaces). There is no downloaded Twin III: until the GLB is in the build the
             // procedural style draws it (AirframeVisual.StyleFor), after that this IS the aeroplane, as for the Great Lakes.
-            { "glider-grob103-acro-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
+            // 2026-11-04: Codex's Blanc conversion rebuilt at 18.000 m, authored on the datum with the config's own wheel
+            // stations (nose +1.4595, main -0.5397, tail -4.8768), so it is placed AtDatum. Its tyre bottoms are 0.600 m
+            // below the datum against the config's 0.69, so standing it on the wheels drops it 90 mm: the seat eyes
+            // carry that same drop (Grob103ModelTests).
+            { "glider-grob103-acro-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true, atDatum: true) },
             // tools/own_models/build_great_lakes.py (docs/models/great-lakes-own-PROVENANCE.md): our clean-room
             // 2T-1A-2, same export convention as the Pitts and the EA300 (nose +x after import, glTF Y-up), drawn
             // level on the thrust line with its origin at the upper-wing centre-section LE. There is no downloaded
@@ -228,7 +238,7 @@ namespace FlyingGame.Bridge
             Bounds b = LocalBounds(inst, parent);
             float span = 2f * HalfSpan(cfg);
             float extent = spec.LargestIsSpan ? Mathf.Max(b.size.x, 0.01f) : Mathf.Max(b.size.z, 0.01f);
-            float s = span / extent * spec.ScaleTrim;
+            float s = spec.AtDatum ? 1f : span / extent * spec.ScaleTrim;
             inst.transform.localScale = Vector3.one * s;
             b = LocalBounds(inst, parent);
             // Centre laterally and along the length on the config's CG station (x = 0), then sit on the wheels.
@@ -239,7 +249,12 @@ namespace FlyingGame.Bridge
             // estimate put the 172's model 2 m behind its physics: it pivoted about the wrong point, and its hinges and prop
             // were nowhere near the sim's). The length centre is the fallback when the model's vertices can't be read.
             float zShift = -b.center.z + (float)LengthCentreOffset(cfg);
-            if (OuterWingMid(inst, parent, HalfSpan(cfg), out float modelMid) && ConfigOuterWingMid(cfg, out float cfgMid))
+            if (spec.AtDatum)
+            {
+                zShift = 0f;
+                Debug.Log($"[Airframe] {id}: placed on its datum at scale 1 (span {b.size.x:F3} m against the config's {span:F3} m between strip centres)");
+            }
+            else if (OuterWingMid(inst, parent, HalfSpan(cfg), out float modelMid) && ConfigOuterWingMid(cfg, out float cfgMid))
             {
                 Debug.Log($"[Airframe] {id}: aligned by the outer wing (shift {cfgMid - modelMid:F2} m; the length-centre estimate said {zShift:F2} m)");
                 zShift = cfgMid - modelMid;
@@ -249,7 +264,8 @@ namespace FlyingGame.Bridge
             // A type wearing another's model sits by its WING (the model's wheels aren't its gear): the model's outer-wing
             // height on the config's.
             if (ownGear && OuterWingHeight(inst, parent, HalfSpan(cfg), out float mh) && ConfigOuterWingHeight(cfg, out float ch)) yShift = ch - mh;
-            Vector3 shift = new Vector3(-b.center.x, yShift, zShift);
+            if (spec.AtDatum) Debug.Log($"[Airframe] {id}: stood on the config's wheels, a drop of {-yShift:F3} m from its datum");
+            Vector3 shift = new Vector3(spec.AtDatum ? 0f : -b.center.x, yShift, zShift);
             inst.transform.localPosition = shift;
             bounds = LocalBounds(inst, parent);
             return inst;

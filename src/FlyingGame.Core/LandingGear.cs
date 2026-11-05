@@ -519,6 +519,15 @@ public static class LandingGear
     public static double SteerRad(GearConfig g, double rudderCmd) =>
         g.IsSteerable ? (g.IsTailwheel ? 1.0 : -1.0) * rudderCmd * g.MaxSteerRad : 0.0;
 
+    /// <summary>The steering lock of a type's rudder-linked NOSE wheel (a steerable non-tailwheel ahead of the CG), rad;
+    /// 0 when it has none. RigInputs.NoseWheelSteerDeg is the rudder fraction times this.</summary>
+    public static double NoseWheelSteerMaxRad(AircraftConfig config)
+    {
+        foreach (GearConfig g in config.Gear)
+            if (g.IsSteerable && !g.IsTailwheel && g.Pos[0] > config.Mass.Cg[0]) return g.MaxSteerRad;
+        return 0.0;
+    }
+
     /// <summary>True if any wheel is in contact with the ground (for on-ground state / challenge logic).</summary>
     public static bool OnGround(AircraftConfig config, RigidBodyState s, double groundZ = 0.0)
     {

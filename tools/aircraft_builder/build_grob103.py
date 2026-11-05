@@ -663,13 +663,17 @@ tables['fx71l150-fin'] = tail_table(0.8e6, FIN_SCALE)
 
 def r4(v): return round(v, 4)
 CG_DEFAULT = [r4(CG_D[0]), 0.0, r4(CG_D[2])]
-# EYES: the own model's PROPOSALS (Codex lane, docs/models/grob103-own-PROVENANCE.md: "Datum-relative body-axis eye
-# proposals are front (1.15,0,-.40) and rear (-.04,0,-.45)", head clearance checked against the model's own canopy
-# glass). The model's origin is this config's origin (the datum), +x forward both, so they go in unchanged. NOT
-# approved by Ty. Open question in the derivation: the seat arms are the pilots' MASS stations, and a reclined pilot's
-# eye is usually 0.3-0.4 m aft of where his mass acts.
-FRONT_EYE = [1.15, 0.0, -0.40]
-REAR_EYE = [-0.04, 0.0, -0.45]
+# EYES: Ty APPROVED the Blanc model's eyes on 2026-11-03 (lane/codex-grob103 AGENT-LOG; docs/models/grob103-own-RIG.md:
+# "the approved native glTF eye transforms remain exactly front (-1.15, .16, 0), rear (.04, .22, 0)", the GLB's
+# Pilot_Eye_front / Pilot_Eye_rear nodes). Native glTF is (-x, z, y) of this config's frame with z UP, and the model's
+# origin is this datum -- but AirframeModels.Place stands the model on THIS config's wheels, whose contacts are 0.69 m
+# below the datum against the model's own tyre bottoms at 0.600 m. So the drawn cockpit, and the eyes in it, sit
+# MODEL_DROP lower than the model's datum, and the camera has to go where the approved eye is drawn.
+# (The 90 mm is a real model/config disagreement, recorded in the AGENT-LOG; neither side is moved to hide it.)
+MODEL_TYRE_BOTTOM = 0.600
+MODEL_DROP = 0.69 - MODEL_TYRE_BOTTOM
+FRONT_EYE = [1.15, 0.0, r4(-(0.16 - MODEL_DROP))]
+REAR_EYE = [-0.04, 0.0, r4(-(0.22 - MODEL_DROP))]
 cfg = {
     'schemaVersion': 1,
     'id': 'glider-grob103-acro-like',

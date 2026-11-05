@@ -180,9 +180,7 @@ public sealed class Aircraft
         get
         {
             double cmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
-            foreach (GearConfig g in Config.Gear)
-                if (g.IsSteerable && !g.IsTailwheel && g.Pos[0] > Config.Mass.Cg[0]) return -LandingGear.SteerRad(g, cmd);
-            return 0.0;
+            return cmd * LandingGear.NoseWheelSteerMaxRad(Config);   // = -SteerRad: + is right here, left in Compute's frame
         }
     }
     private bool[]? _surfaceMask;
