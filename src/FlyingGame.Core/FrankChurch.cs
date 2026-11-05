@@ -310,7 +310,7 @@ public static class FrankChurch
         {
             Ground.Turf => WorldTerrain.Surface.Grass,
             Ground.Gravel => WorldTerrain.Surface.Gravel,
-            _ => WorldTerrain.Surface.Gravel,     // dirt rolls like gravel and is rougher to look at
+            _ => WorldTerrain.Surface.Dirt,       // packed dirt: gravel's grip, a little more rolling drag
         };
     }
 

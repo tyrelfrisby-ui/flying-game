@@ -74,8 +74,8 @@ public class FrankChurchTests : IDisposable
 
     /// <summary>
     /// Ty (2026-11-03) saw the strips drawn as paved runways, centreline dashes and all. Each strip is the surface the
-    /// real one is, it rolls like that surface (turf as grass; dirt as gravel, the ground model's hard unpaved
-    /// surface), and nothing unpaved is given runway paint (StripFinish.Painted decides it for IslandWorldBuilder).
+    /// real one is, it rolls like that surface (turf as grass; dirt as Dirt, which the ground model has had since
+    /// 2026-11-04 — gravel's grip, a little more rolling drag), and nothing unpaved is given runway paint (StripFinish.Painted decides it for IslandWorldBuilder).
     /// </summary>
     [Fact]
     public void EveryStripIsTheUnpavedSurfaceTheRealOneIsAndCarriesNoPaint()
@@ -90,7 +90,7 @@ public class FrankChurchTests : IDisposable
             Check(!StripFinish.Painted(f.Surface), $"{s.Name} ({f.Surface}) would be painted like a paved runway");
             Check(StripFinish.Of(f.Surface) == (want == "turf" ? StripFinish.Kind.Turf : StripFinish.Kind.Dirt), $"{s.Name} is drawn as {StripFinish.Of(f.Surface)}");
             Check((f.Shape.Kind > -.5) == (want == "turf"), $"{s.Name}: a {want} strip {(f.Shape.Kind > -.5 ? "has" : "lacks")} a natural lie");
-            var rolls = want == "turf" ? WorldTerrain.Surface.Grass : WorldTerrain.Surface.Gravel;
+            var rolls = want == "turf" ? WorldTerrain.Surface.Grass : WorldTerrain.Surface.Dirt;
             foreach (double along in new[] { -.45, 0, .45 })
                 foreach (double across in new[] { -.4, 0, .4 })
                 {
@@ -164,7 +164,7 @@ public class FrankChurchTests : IDisposable
         foreach (FrankChurch.Strip s in FrankChurch.Strips)
         {
             WorldTerrain.Surface surf = WorldTerrain.SurfaceAt(s.X, s.Y);
-            Assert.True(surf is WorldTerrain.Surface.Grass or WorldTerrain.Surface.Gravel, $"{s.Name} is {surf} — nothing lands on that");
+            Assert.True(surf is WorldTerrain.Surface.Grass or WorldTerrain.Surface.Gravel or WorldTerrain.Surface.Dirt, $"{s.Name} is {surf} — nothing lands on that");
             var (ox, oy) = At(s, 0, s.WidthM * 0.5 + 60);
             Assert.NotEqual(WorldTerrain.Surface.Grass, WorldTerrain.SurfaceAt(ox, oy));
         }

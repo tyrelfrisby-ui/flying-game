@@ -1213,7 +1213,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "rollResistN": 40
+      "tireRadiusM": 0.28, "wheelMassKg": 10
     },
     {
       "pos": [
@@ -1229,7 +1229,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "rollResistN": 40
+      "tireRadiusM": 0.28, "wheelMassKg": 10
     },
     {
       "pos": [
@@ -1245,7 +1245,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.8,
       "corneringStiffnessN": 2000,
-      "rollResistN": 25,
+      "tireRadiusM": 0.1, "wheelMassKg": 1.5,
       "steerSpringNmPerRad": 120
     }
   ],
