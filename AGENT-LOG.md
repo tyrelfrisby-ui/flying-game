@@ -1,4 +1,57 @@
 ## NEEDS YOU
+- **TV ANSWERS Q2/Q7–Q11 BUILT — iOS `** BUILD SUCCEEDED **` 2026.1104.1841, NOT INSTALLED, NOT MERGED (Claude, 2026-11-05
+  04:20 PT, lane/claude-tv-companion `48db5ae3`).** Isolated build (/private/tmp/tvc-ios, /private/tmp/tvc-dd), 0 `error CS`,
+  installed on **no** device; regenerated StreamingAssets/ProjectSettings restored. Nothing approved. Questions are
+  queued as **Q055** in ~/Developer/agent-lanes/QUESTIONS-FOR-TY.md (monitor default, install, Android result, merge).
+  - **Q2 iPad:** GAME ON TV is the same code on iPad and iPhone; the Core mode table now names the device
+    (`TvModeLogic.Decide(TvDevice …)`), and the TV button grid is tested at iPad mini and iPad Pro 13" sizes.
+  - **Q7 radio off the TV:** with voice in use (intercom on, or in a radio room) and a TV connected, VoiceIO holds the
+    session on play-and-record without AirPlay and forces the phone speaker unless a headset is in; a received call is
+    never mixed into a route that has HDMI/AirPlay in it (held silent instead). iOS has ONE route per app, so while voice
+    is in use the engine sound comes to the phone/headset too. Rule: `Core/TvAudio.cs`, tested as a table.
+  - **Q8 Mac second monitor:** Options › Display › SECOND MONITOR = Off (default) | Instruments. The dials fill the
+    monitor (scaled uniformly, crisp), the window keeps the flight. **Ty: default Off is my call** — Unity cannot give a
+    monitor back once it has it, so turning it off leaves it black until quit; say if you want it On by default.
+  - **Q9/Q10 companion pairing, TLS-PSK:** Mac Options › Controls › Companion › Pair a device shows a QR code and a PIN
+    (2 min, 5 tries, single use). The iPad's Camera opens the `aeroplay://pair` link in the app (QR, recommended), or
+    the iPad picks the Mac and types the PIN. Every connection is TLS 1.2 PSK (`TLS_PSK_WITH_AES_128_GCM_SHA256`);
+    inside it the device proves which key it holds. `tools/native-mac/aerolink-selftest.sh` runs the real listener and
+    client on loopback: right keys open and negotiate 0x00A8, wrong keys are refused in the handshake (PASSED).
+    **Not built yet:** controls/commands over the link and the companion controller UI (phase 4b).
+  - **Q11 Android compile — FAILED, and not because of this lane's code.** One run of
+    `Editor/PlayerScriptsCheck` (player scripts for Android + StandaloneOSX, no target switch): Android stops at 3
+    `error CS1069` in the third-party package `jp.keijiro.klak.ndi` (`Runtime/Internal/AndroidHelper.cs`:
+    `AndroidJavaObject` is in `com.unity.modules.androidjni`). The Quest lane gets that module through its XR packages;
+    the iOS lanes (island-nav and this one) do not have it, so no Android compile from an iOS lane gets past that package
+    to the game's own assemblies. Not re-run (you allowed one) and Packages not touched (Quest-only path). The
+    **StandaloneOSX** compile in the same run **COMPILED** (15 assemblies), covering the new Mac-only code. The real
+    Android proof is the Quest lane building after it merges this lane.
+  - **Tests:** FlightTests TvAnswersTests + TvLayoutTests 118/118; full suite 2106 pass / 128 fail /
+    6 skip (1 h 58 m). **None introduced here:** the failing classes run alone fail the same 108 test names on this lane
+    and on the branch point 14bab8e7 (built in a throwaway worktree, since removed): identical sets. The other 5 fail only
+    in the full run (coupling: GroundTow, ReversibleControl ×2, Soaring, TipWheel). No failing test, and nothing else in
+    `src/`, touches any type this lane added. Two of the 108 are repo state worth knowing: StreamingAssetsTests says the
+    StreamingAssets JSONs are committed and `aircraft/probe.json` is generated but not ignored. Unity EditMode 11/11,
+    PlayMode 6: 5 pass + 1 ignored (the old IMGUI-Repaint one; batchmode has no Game view), 0 `error CS`. Mac
+    AeroNative.bundle rebuilt with the Swift link (dlopen + every new symbol checked).
+  - **Unity hangs, not code:** three batch runs in this lane stalled at 0 % CPU in `PreloadManager::Stop` /
+    `WaitForAllAsyncOperationsToComplete` (one blocked in `getattrlistbulk` on Library/ShaderCache) while the machine ran
+    load ~40 with other lanes' builds; EditMode had already written 11/11. Killed only my own processes; moved this
+    lane's ShaderCache aside, after which the iOS export, the compile and PlayMode all ran clean. Other lanes' Unity runs
+    showed the same 0 % stall tonight (kill-red-23, hinge-slavestruts); not touched.
+  - **The "is Unity running" check has a false positive:** `ps … | grep -E '^ *[0-9]+ (/.*/)?(xcodebuild|Unity)( |$)'`
+    matches a `claude -p` watchdog whose prompt text contains "…Unity/xcodebuild is busy", so a lane that trusts it waits
+    forever (this one waited 19:03–22:58). My scripts now also require the matching process's executable to be Unity or
+    xcodebuild.
+  - **Parity** (`check-parity.sh` from lane/claude-parity, 04:20): island-nav 6f659d0d vs quest-islandnav 9f20d9f6
+    **OK** (every commit in, GLBs 31/31 identical; at 17:40 it was FAIL by one CLAUDE.md commit). This lane vs Quest:
+    **FAIL**, as for any unmerged lane (157 Quest-lane shared-path commits are not here, 15 GLBs differ). Fix is the
+    merge order in docs/PARITY.md: this lane into island-nav, then island-nav into the Quest lane the same day.
+  - **To try on a device** (plan §7.3 items 6–9): radio with HDMI and AirPlay; iPad AirPlay with Stage Manager on/off;
+    Mac second monitor; pair the iPad by QR then by PIN, send the `[Voice]`, `[TV]` and `[Companion]` lines.
+  - Export compliance: I left `ITSAppUsesNonExemptEncryption` false. The link uses only Apple's own TLS
+    (Network.framework), which as I read Apple's rules keeps it exempt. That is your call for App Store Connect.
+
 - **TV MODE: INSTALLED ON TY'S IPHONE + TY ANSWERED Q2/Q7-Q11 (Grok Bot, 2026-11-04 17:20 PT).** Ty approved the
   device install 17:12 PT. Built from e165af8e (isolated /private/tmp/tvc-ios, /private/tmp/tvc-dd), `** BUILD SUCCEEDED **`,
   installed on iPhone 00008150-001629A83662401C as 2026.1104.1713; regenerated mirrors/ProjectSettings restored. Answers
