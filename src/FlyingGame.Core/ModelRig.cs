@@ -168,6 +168,8 @@ public struct RigInputs
     public double CowlFlap, PropLock;
     /// <summary>Ignition key position: 0 OFF, 1 R, 2 L, 3 BOTH, 4 START.</summary>
     public double Magneto;
+    /// <summary>The two magneto toggles where a type has them instead of a key (the Great Lakes, Ty 2026-11-05): 0 OFF, 1 ON.</summary>
+    public double MagLeft, MagRight;
     /// <summary>J-3 primer plunger: 0 in and locked .. 1 pulled out 50 mm. No priming system reads it yet; it stays 0
     /// (in) unless a hand pulls the knob (Ty 2026-11-02, v18).</summary>
     public double Primer;
@@ -208,6 +210,21 @@ public struct RigInputs
     /// <summary>The fuel in the aeroplane's (first) tank as a fraction of what it holds, 0 empty .. 1 full: what a float
     /// gauge in that tank shows (the J-3's cork-float wire, FuelGauge_Wire). Live from AircraftLoad (FuelGauges.TankFraction).</summary>
     public double Fuel;
+    /// <summary>The Great Lakes' top-wing tank, 0 empty .. 1 full, what its glass sight gauge's cork float reads (Ty
+    /// 2026-11-05): <see cref="TankFraction"/> of the loading's "topWing" tank.</summary>
+    public double FuelTopWingFrac;
+
+    /// <summary>One tank's fill, 0..1 of its placard, from the loading (the fuel system: the sim burns it out of the
+    /// tanks every step). An aeroplane flown with no fuel in ANY tank (the reference loading of most types, the open W&amp;B
+    /// decision) reads full, as <see cref="FuelCentreFrac"/> does, rather than empty under a running engine. A tank the
+    /// loading does not have reads full.</summary>
+    public static double TankFraction(AircraftLoad? load, string id)
+    {
+        if (load is null || load.FuelKg <= 1e-6) return 1.0;
+        AircraftLoad.Slot? s = load.Find(id);
+        if (s is null || s.MaxKg <= 0.0) return 1.0;
+        return System.Math.Clamp(s.Kg / s.MaxKg, 0.0, 1.0);
+    }
     /// <summary>Rate of turn, degrees per second, + = turning right (3 = standard rate).</summary>
     public double TurnRateDps;
     /// <summary>Inclinometer ball, -1..+1, + = ball to the pilot's RIGHT.</summary>
@@ -328,13 +345,14 @@ public struct RigInputs
             FuelSelector = 1.0,     // on
             FuelValve = 1.0,        // on
             Magneto = 3.0,          // BOTH
+            MagLeft = 1.0, MagRight = 1.0,
             Master = 1.0,
             Alternator = 1.0,
             CanopyLock = 1.0,       // closed and locked
             OilPressPsi = 0.0,
             OilTempF = 100.0,       // the bottom of the dial, as drawn
             ChtF = 200.0,
-            FuelCentreFrac = 1.0,
+            FuelCentreFrac = 1.0, FuelTopWingFrac = 1.0,
             Fuel = 1.0,
             KollsmanInHg = 29.92,
             ComFreqMhz = 122.8, ComStandbyMhz = 121.5, ComVolume = 0.5,
@@ -369,6 +387,8 @@ public struct RigInputs
             case "cowl_flap": value = CowlFlap; return true;
             case "prop_lock": value = PropLock; return true;
             case "magneto": value = Magneto; return true;
+            case "mag_left": value = MagLeft; return true;
+            case "mag_right": value = MagRight; return true;
             case "primer": value = Primer; return true;
             case "master": value = Master; return true;
             case "alternator": value = Alternator; return true;
@@ -388,6 +408,7 @@ public struct RigInputs
             case "cht_f": value = ChtF; return true;
             case "fuel_centre_frac": value = FuelCentreFrac; return true;
             case "fuel": value = Fuel; return true;
+            case "fuel_top_wing_frac": value = FuelTopWingFrac; return true;
             case "turn_rate_dps": value = TurnRateDps; return true;
             case "slip_ball": value = SlipBall; return true;
             case "g_load": value = GLoad; return true;

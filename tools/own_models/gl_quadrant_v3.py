@@ -415,7 +415,9 @@ def check_row(g):
  C=g.doc['extras']['vrCockpitPhase3a']['controls']
  for seat,s in SEATS.items():
   for lab in ROW:
-   c=next(c for c in C if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab)
+   c=next((c for c in C if c['seat']==seat and c['grip'][5:].replace('_Front','')==lab),None)
+   if c is None and lab=='Magneto':continue   # gl_panel_v2 (Ty 2026-11-05): the key is gone, MAG L / R toggles on the console
+   assert c is not None,(seat,lab)
    p=builder(np.array(c['pivot_gltf']))
    if lab=='Magneto':assert abs(p[0]-s['X']+.001)<.0001 and p[2]>-.07,(seat,p)
    else:assert p[1]>.25 and p[0]<s['px']-.13,(seat,lab,p)

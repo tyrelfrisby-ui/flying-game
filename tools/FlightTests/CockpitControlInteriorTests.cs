@@ -119,7 +119,8 @@ public class CockpitControlInteriorTests
         }
         _o.WriteLine($"{file}: {controls} controls, {failures.Count} off-panel");
         foreach (string f in failures.Take(20)) _o.WriteLine("  " + f);
-        // GL v7: + an alternator switch per seat (no Mount_ twin). Pitts v4 (Ty 2026-11-04): six rear controls and their
+        // GL v7: + an alternator switch per seat (no Mount_ twin). GL panel v2 (Ty 2026-11-05, gl_panel_v2.py): the ignition
+        // rotary and its Mount_ twin gone from each seat, MAG L + MAG R toggles (no Mount_ twins) in = 90. Pitts v4 (Ty 2026-11-04): six rear controls and their
         // mounts, plus the ALTERNATOR toggle (pitts_alternator_live.py, the master's copy: no Mount_ twin) = 13. Extra
         // (Ty 2026-11-04 19:05-19:14): the rear seat's six labelled switches, the COM/XPDR heads' 12 knobs, two verniers and
         // the fuel valve (19 controls); the front seat only its fuel-valve lever. Each with its Mount_ = 40.
