@@ -29,7 +29,7 @@ Full write-up: docs/LOCAL-MULTIPLAYER.md. **Not merged, not installed, not seen 
   appears inside the first: a newcomer within span + 15 m of another pilot moves once to the first free formation slot
   in its first 4 s (tie: later id moves); flight age rides in `NetFlags.a`. Unnamed pilots are "Pilot XXXX".
 - Tests: LocalMultiplayerTests 25/25 (clock with 2 players + AI, 1P bit-identical, pad binding / hot-plug, layout,
-  formation, P2 pad pilot, spawn spread), LanMeshTests 8/8. Unity batch compile: PENDING (queued behind other lanes).
+  formation, P2 pad pilot, spawn spread), LanMeshTests 8/8. Unity batch, scripts only, iOS target (14:03): **0 error CS**, exit 0; Core/Sim/Bridge rebuilt from this worktree's src (a80e3ae6). Android batch not run; no xcodebuild, no APK.
 - Nothing here is an approved gate. HUD API for the split-screen HUD lane: docs/LOCAL-MULTIPLAYER.md "Per-player HUD API".
 
 ## 2026-11-05 10:59 PST — URGENT STEER (Aero / Grok)
