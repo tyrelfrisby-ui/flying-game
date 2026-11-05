@@ -353,3 +353,64 @@ Snow: with skis carrying the load (`OnSki`, wheel-ski load share), there is no c
 - **P-51, calm three-point landing:** the same impulse (≈ 16 deg/s) lifts the tail into a prop strike on the rollout
   (`TaildraggerNoTipStrikeTests`, left red). With zero wheel mass it passes.
 - **Swift S-1 on water:** its real 300×100 tyre (r 0.15) digs in where the auto rule's 0.31 skimmed (`WheelWaterTests`, left red).
+
+## 8. Tyre wear, burst and the flat tyre (Ty 2026-11-04 20:21, Q026 item 1)
+
+Ty: keep the 172's full-pedal main-wheel lock-up (it is real), and let a locked tyre screech, smoke and wear through to a
+burst; a flat drags hard, rides on the rim (the aeroplane sits down on that side), rolls lumpily and thumps in time with the
+wheel. No special-case logic. Item 2: the 0.222 m (6.00-6) radius is confirmed.
+
+### The model (`src/FlyingGame.Core/TyreWear.cs`, per wheel on `WheelState.Tyre`)
+
+- **Wear = γ(T) × friction work** (Archard / Schallamach). The work is the wheel's own slip work, the
+  `WheelSpin.StepResult.SlipEnergyJ` already computed for the chirp: nothing new decides it. The tread is 72 strips round the
+  circumference; each step the work is shared over the strips the patch swept (patch length l = N/(p·w), w = 0.5 r) while the
+  wheel turned. A locked wheel puts it all on one 11 cm patch (the flat spot); a spin-up smears it over the arc it turned.
+- **γ depends on the surface temperature**, which is the Blok flash temperature of a sliding contact: the flux
+  q = W/(A·dt) shared between rubber and ground so both surfaces match, each taking √π·e/(2√t) per kelvin, with e = √(kρc)
+  (rubber 648; asphalt 1300, dirt/sand 900, turf 1600, snow/ice "melts", 20000) and t how long it has been heated: the ground
+  for l/v_slip, each tread strip for as long as it has been in the patch. q per area is μ·p·v_slip, so a locked tyre's life is
+  a DISTANCE (NASA TN D-6963: tread life at a slip ratio of 1 "can be measured in terms of meters along the runway"); a
+  longer patch heats the ground longer, so a heavier tyre runs a little hotter (2 kN: 68 m, 5 kN: 54 m to wear through).
+- γ goes from the road figure **2·10⁻¹² m³/J** (car tyre: ~1.4 L of tread in 50,000 km for ~6·10⁸ J of slip work) below a
+  100 K rise to **1.0·10⁻⁹ m³/J** above 180 K (natural rubber's reversion, ~200 °C: the reverted-rubber skid). The hot figure
+  is the one fitted constant (anchor: a 6.00-6 at 38 psi locked at 25 m/s on asphalt goes through in ~60 m). The independent
+  check: a 50 kt spin-up then takes 0.06 mm off a quarter of the tread, ~0.015 mm a landing averaged round the tyre, ~450
+  landings of 7 mm — about what a training aeroplane's mains last.
+- **Abrasivity**: Schallamach abrasion is cutting; asphalt, gravel, sand 1.0, packed dirt 0.6, turf 0.1, snow/ice 0.02.
+- **Burst** when any strip is worn through tread + carcass, 0.045 r (10 mm on a 6.00-6). Pressure then leaks with τ = 0.15 s.
+- **The flat** is geometry: patch length l = N/(p_eff·w), capped where the wheel stands on rim (0.40 r) + two casings
+  (2 × 0.04 r); p_eff = the air's plus 3 % for what the casing holds by itself. The axle **drop** (soft-tyre extra squash at the
+  tyre's STATIC load, plus the mean wear under the patch) raises the gear's contact point and comes off the rolling radius
+  that `WheelSpin.Advance` uses. Taken at the static load on purpose: a drop following the instantaneous load fed back on the
+  leg spring and set the axle chattering.
+- **Rolling drag**: a tyre's hysteresis loss per metre goes with its deflection, so the extra rolling coefficient is
+  μr_paved × Δδ/δ_ref (δ_ref the sound tyre at its static load): ≈ +0.16 for a flat 172 main.
+- **Lumps** are the tread turning under the axle: the worn-through strip changes the drop once a revolution. The work the
+  axle does on it (N·|Δdrop| per step) is the thump.
+
+### Sound and smoke (Bridge, shared by iOS/Mac and Quest)
+
+- Core `GroundSoundMix`: per side, `ThumpJ` (the axle's work this frame on the lumps, so it arrives when the bad strip passes),
+  `FlapHz`/`FlapGain` (a flat casing's slap at the wheel's own rev/s, level ∝ (1 − pressure) × load share × speed), `Pops`
+  (bursts this frame). The screech is the existing skid voice from the slip time, unchanged.
+- `TyreBrakeSynth`: a ~70 Hz knock for the thump, a 450 Hz slap once a revolution, a crack + falling boom for the pop.
+- `TyreSmoke` (new, installed beside ContactEffects): particles at the patch in proportion to the rubber torn off
+  (`WheelState.AbradedM3`, 0.15 cm³ a particle): a puff at a spin-up, a trail from a locked skid, almost none on grass.
+
+### Measured (`tools/FlightTests/TyreWearTests`, C172, idle, full pedal held to a stop)
+
+| case | worn (mm) | burst | where | peak rise |
+|---|---|---|---|---|
+| asphalt from 60 kt (31 m/s, a flapless arrival) | 10.7 | yes | after 65 m of 209 m | 242 K |
+| asphalt from 25 kt (13 m/s) | 2.9 | no (flat spot) | — | 152 K |
+| grass from 55 kt (28 m/s) | 0.38 | no | — | 130 K |
+| asphalt from 49 kt at 60 % pedal (no lock) | 0.0003 | no | — | 25 K |
+| touchdown 50 kt, 3 ft/s (spin-up) | 0.06 over 18 of 72 strips | no | — | — |
+
+Flat left main at rest: the 172 sits 2.3° left-wing-down; rolling at 8 m/s it decelerates 0.67 m/s² more than on sound tyres
+(≈ +0.16 rolling coefficient on that wheel); the flat wheel's load swings 28 % (sound: 5 %), ~460 J/s of thump work at
+12 rev/s.
+
+Not modelled: lateral (scrub) slip work does not wear the tread (only the longitudinal slip's); a flat's cornering stiffness is
+unchanged; the wheel visual does not show the flat (the aeroplane's sit and roll do); tyres are new at every spawn.

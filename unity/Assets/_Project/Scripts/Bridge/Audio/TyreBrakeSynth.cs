@@ -8,6 +8,9 @@ namespace FlyingGame.Bridge
     ///    was audibly slipping (a 10 ms greaser-free arrival is a 10 ms chirp);
     ///  - BRAKE SCRAPE (pads on the disc, ∝ pressure × wheel speed) and SQUEAL (a slightly wobbling tone on hard braking
     ///    and near lock-up, fading as the wheel stops);
+    ///  - a worn or FLAT tyre (Core TyreWear): a low THUMP for the work the axle does on the tread's lumps (it arrives
+    ///    when the bad strip passes under the axle, so it is in time with the wheel), a flat casing's SLAP once a
+    ///    revolution at the wheel's own rev/s, and the POP of a tyre letting go;
     /// and, centred: water splash / planing hiss / spray (wheels and floats), ski hiss on snow, a float keel's scrape.
     /// Audio thread only, no allocation.
     /// </summary>
@@ -25,6 +28,10 @@ namespace FlyingGame.Bridge
         private readonly float[] _scrapeG = new float[2], _scrapeGT = new float[2];
         private readonly float[] _squealPh = new float[2], _squealHz = new float[2], _squealG = new float[2], _squealGT = new float[2], _vibPh = new float[2];
         private float _splashG, _splashGT, _hissG, _hissGT, _sprayG, _sprayGT, _skiG, _skiGT, _keelG, _keelGT, _sloshPh;
+        private readonly Biquad[] _thumpBp = { new Biquad(), new Biquad() }, _slapBp = { new Biquad(), new Biquad() }, _popLp = { new Biquad(), new Biquad() };
+        private readonly float[] _thumpEnv = new float[2], _thumpPh = new float[2], _flapPh = new float[2], _flapHz = new float[2], _flapG = new float[2];
+        private readonly float[] _slapEnv = new float[2], _popEnv = new float[2], _boomPh = new float[2];
+        private readonly float _thumpDecay, _slapDecay, _popDecay;
 
         public TyreBrakeSynth(float fs)
         {
@@ -39,13 +46,18 @@ namespace FlyingGame.Bridge
             _sprayBp.BandPass(fs, 6000f, 0.8f);
             _skiBp.BandPass(fs, 2500f, 0.7f);
             _keelBp.BandPass(fs, 700f, 2f);
+            for (int s = 0; s < 2; s++) { _thumpBp[s].LowPass(fs, 220f, 0.8f); _slapBp[s].BandPass(fs, 450f, 1.2f); _popLp[s].LowPass(fs, 2500f, 0.7f); }
+            _thumpDecay = Dsp.DecayCoef(0.045f, fs);
+            _slapDecay = Dsp.DecayCoef(0.025f, fs);
+            _popDecay = Dsp.DecayCoef(0.12f, fs);
         }
 
         /// <summary>Per block, from the telemetry. <paramref name="chirpNewS"/> is the slip time that arrived since the
         /// last block, per side: the chirp plays it.</summary>
         public void Prepare(float[] whirHz, float[] whirGain, float[] chirpNewS, float[] chirpGain, float[] chirpSlip,
                             float[] scrapeGain, float[] scrapeHz, float[] squealGain, float[] squealHz,
-                            float splash, float hiss, float spray, float ski, float keel)
+                            float splash, float hiss, float spray, float ski, float keel,
+                            float[] thumpNewJ, int[] popsNew, float[] flapHz, float[] flapGain)
         {
             for (int s = 0; s < 2; s++)
             {
@@ -58,6 +70,14 @@ namespace FlyingGame.Bridge
                 if (scrapeHz[s] > 0f) _scrapeBp[s].BandPass(_fs, scrapeHz[s], 1.5f);
                 _squealGT[s] = squealGain[s];
                 if (squealHz[s] > 0f) _squealHz[s] = squealHz[s];
+                // Thump: the block's work on the lumps kicks a short low knock (level ~ √work against the reference).
+                if (thumpNewJ[s] > 0f)
+                {
+                    float k = (float)System.Math.Sqrt(thumpNewJ[s] / (float)FlyingGame.Core.GroundSoundMix.ThumpRefJ);
+                    _thumpEnv[s] = System.Math.Min(1.5f, System.Math.Max(_thumpEnv[s], 0.6f * k));
+                }
+                if (popsNew[s] > 0) _popEnv[s] = 1f;
+                _flapHz[s] = flapHz[s]; _flapG[s] = flapGain[s];
             }
             _splashGT = splash; _hissGT = hiss; _sprayGT = spray; _skiGT = ski; _keelGT = keel;
         }
@@ -91,6 +111,32 @@ namespace FlyingGame.Bridge
                     float hz = _squealHz[s] * (1f + 0.015f * Dsp.Sin01(_vibPh[s]));
                     _squealPh[s] = Dsp.Wrap01(_squealPh[s] + hz / _fs);
                     y += _squealG[s] * (Dsp.Sin01(_squealPh[s]) + 0.15f * Dsp.Sin01(2f * _squealPh[s]));
+                }
+                // Thump: a decaying ~70 Hz knock with a little low-passed grit.
+                if (_thumpEnv[s] > 1e-4f)
+                {
+                    _thumpPh[s] = Dsp.Wrap01(_thumpPh[s] + 70f / _fs);
+                    y += _thumpEnv[s] * (0.8f * Dsp.Sin01(_thumpPh[s]) + 0.6f * _thumpBp[s].Process(_n[0].Next()));
+                    _thumpEnv[s] *= _thumpDecay;
+                }
+                // Flat casing: one slap per revolution of the wheel.
+                if (_flapG[s] > 1e-4f && _flapHz[s] > 0.05f)
+                {
+                    float ph = _flapPh[s] + _flapHz[s] / _fs;
+                    if (ph >= 1f) { ph -= 1f; _slapEnv[s] = _flapG[s]; }
+                    _flapPh[s] = ph;
+                }
+                if (_slapEnv[s] > 1e-4f)
+                {
+                    y += _slapEnv[s] * 1.6f * _slapBp[s].Process(_n[1].Next());
+                    _slapEnv[s] *= _slapDecay;
+                }
+                // Pop: a broadband crack over a falling boom.
+                if (_popEnv[s] > 1e-4f)
+                {
+                    _boomPh[s] = Dsp.Wrap01(_boomPh[s] + (40f + 60f * _popEnv[s]) / _fs);
+                    y += _popEnv[s] * (1.2f * _popLp[s].Process(_n[3].Next()) + 0.9f * Dsp.Sin01(_boomPh[s]));
+                    _popEnv[s] *= _popDecay;
                 }
                 if (s == 0) l += y; else r += y;
             }

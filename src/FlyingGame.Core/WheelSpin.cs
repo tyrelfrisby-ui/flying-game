@@ -266,8 +266,26 @@ public sealed class WheelState
     public double LoadN, VFwdMs, SlipRatio, SlipPowerW, Brake01, BrakeTorqueNm;
     public WorldTerrain.Surface Surface;
     public GroundMaterial Material;
-    /// <summary>The wheel's ground speed if it were rolling without slip: ω·r.</summary>
-    public double RimSpeedMs => OmegaRadS * RadiusM;
+    /// <summary>The wheel's ground speed if it were rolling without slip: ω·r (r the rolling radius, a flat's smaller one).</summary>
+    public double RimSpeedMs => OmegaRadS * RollingRadiusM;
+
+    /// <summary>The tread (<see cref="TyreWear"/>): null for a leg that is not a wheel.</summary>
+    public readonly TyreWear? Tyre;
+    /// <summary>How far the wheel has turned (rad, + = rolling forward). The tread under the patch is at −AngleRad.</summary>
+    public double AngleRad;
+    /// <summary>How much lower the axle stands than on a sound tyre this step (<see cref="TyreWear.Drop"/>): what the
+    /// gear's contact point is raised by, and what comes off the rolling radius.</summary>
+    public double DropM;
+    /// <summary>The ground's load on this tyre at the last step it touched (kept across steps: the patch it sizes is the
+    /// one the next step's drop is measured over).</summary>
+    public double TyreLoadN;
+    /// <summary>The tyre's contact point (world, NED) on the last step it touched.</summary>
+    public MathTypes.Vec3 PatchWorld;
+    public double RollingRadiusM => System.Math.Max(RadiusM - DropM, 0.25 * RadiusM);
+    // For whoever listens or draws, read and cleared by them: rubber torn off (m³: the smoke), the work the axle did
+    // falling into and climbing out of a worn or flat patch (J: the thump), and how many times the tyre has burst.
+    public double AbradedM3, ThumpJ;
+    public int Bursts;
 
     // Accumulated for whoever listens (the sound), read and cleared by them: slip energy (J) and time (s) spent
     // audibly slipping since the last read. A spin-up lasting 10 ms falls between two frames; these carry it across.
@@ -281,6 +299,18 @@ public sealed class WheelState
         InertiaKgM2 = IsWheel ? WheelSpin.InertiaOf(c, g) : 0;
         BearingTorqueNm = IsWheel ? WheelSpin.BearingTorquePerKg * WheelSpin.MassOf(c, g) : 0;
         Side = g.Pos[1] < -0.05 ? -1 : g.Pos[1] > 0.05 ? 1 : 0;
+        if (IsWheel && RadiusM > 0) Tyre = new TyreWear(c, g, RadiusM, StaticLoadOf(c, g));
+    }
+
+    /// <summary>This leg's rough share of the weight at rest — braked mains 0.88 of it between them, the other wheels
+    /// the rest (the same split LandingGear sizes the brake with). Only the tyre's reference deflection reads it.</summary>
+    public static double StaticLoadOf(AircraftConfig c, GearConfig g)
+    {
+        int braked = 0, other = 0;
+        foreach (GearConfig x in c.Gear) { if (!WheelSpin.IsWheel(x)) continue; if (x.Brake) braked++; else other++; }
+        double w = (c.Mass != null ? c.Mass.MassKg : 800) * 9.81;
+        if (braked == 0) return w / System.Math.Max(1, other);
+        return g.Brake ? 0.88 * w / braked : 0.12 * w / System.Math.Max(1, other);
     }
 
     public static WheelState[] For(AircraftConfig c)
@@ -288,6 +318,23 @@ public sealed class WheelState
         var w = new WheelState[c.Gear.Count];
         for (int i = 0; i < w.Length; i++) w[i] = new WheelState(c, c.Gear[i]);
         return w;
+    }
+
+    /// <summary>
+    /// What the step did to the tread: the friction work at the patch is laid on the strips it swept while the wheel
+    /// turned from <paramref name="angleFrom"/> to <paramref name="angleTo"/> (unwrapped), which becomes its angle; a tyre
+    /// that goes through this step bursts.
+    /// </summary>
+    public void Wear(double workJ, double slipSpeedMs, double loadN, double angleFrom, double angleTo, double dt)
+    {
+        if (Tyre != null)
+        {
+            bool wasBurst = Tyre.Burst;
+            AbradedM3 += Tyre.Abrade(workJ, slipSpeedMs, loadN, -angleFrom, -angleTo, dt, Surface);
+            if (Tyre.Burst && !wasBurst) Bursts++;
+            Tyre.Leak(dt);
+        }
+        if (double.IsFinite(angleTo)) AngleRad = WrapAngle(angleTo);
     }
 
     /// <summary>Forget the last step's contact (the step's first stage refills it).</summary>
@@ -303,9 +350,22 @@ public sealed class WheelState
     {
         ForcePerLoad = 0; FallFactor = 1; SlipPowerW = 0; SlipRatio = 0; Locked = false;
         if (!IsWheel || InertiaKgM2 <= 0) { OmegaRadS = 0; return; }
+        double w0 = OmegaRadS;
         double w = OmegaRadS * System.Math.Exp(-dt / WheelSpin.BearingSpinDownS);
         double stop = BearingTorqueNm * dt / InertiaKgM2;
         OmegaRadS = System.Math.Abs(w) <= stop ? 0 : w - System.Math.Sign(w) * stop;
+        if (double.IsFinite(OmegaRadS)) AngleRad = WrapAngle(AngleRad + 0.5 * (w0 + OmegaRadS) * dt);
+        // Off the ground: nothing squashes the tyre, and the strips cool.
+        TyreLoadN = 0; DropM = Tyre != null ? Tyre.Drop(-AngleRad) : 0;
+        if (Tyre != null) { Tyre.LeaveGround(); Tyre.Leak(dt); }
+    }
+
+    /// <summary>Keep a wheel angle within one turn of zero (the tread is periodic; the double must not grow forever).</summary>
+    public static double WrapAngle(double a)
+    {
+        const double twoPi = 2 * System.Math.PI;
+        if (a >= -twoPi && a <= twoPi) return a;
+        return a - twoPi * System.Math.Floor(a / twoPi);
     }
 
     /// <summary>Read and clear the slip accumulated since the last call.</summary>

@@ -230,6 +230,10 @@ namespace FlyingGame.Bridge
         public readonly float[] ChirpGain = new float[2], ChirpSlip = new float[2];
         public readonly float[] ScrapeGain = new float[2], ScrapeHz = new float[2], SquealGain = new float[2], SquealHz = new float[2];
         public volatile float WaterSplash, WaterHiss, Spray, SkiHiss, KeelScrape;
+        // A worn or flat tyre (Core TyreWear): cumulative thump work per side (mJ) and bursts per side (the audio thread
+        // takes the differences, as with the chirp), and a flat casing's slap rate and level.
+        public readonly int[] ThumpTotalMj = new int[2], PopTotal = new int[2];
+        public readonly float[] FlapHz = new float[2], FlapGain = new float[2];
         public volatile bool OnGround;
         public volatile float AircraftGain = 1f;         // distance attenuation of the aircraft's own sounds (pilot out)
         public volatile bool PilotOut;                    // listener = the pilot: wind is HIS airspeed, no engine in the ear

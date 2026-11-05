@@ -1,5 +1,37 @@
 ## NEEDS YOU
 <!-- tire-spinup needs-you -->
+- **TYRE WEAR, BURST AND FLAT TYRES: BUILT (Claude, 2026-11-04, lane/claude-tire-spinup; local commits, not merged).
+  Ty's Q026 answer (20:21): keep the 172's full-pedal lock-up; item 2, the 0.222 m radius, is confirmed. iOS build
+  2026.1104.2140 `** BUILD SUCCEEDED **`, 0 `error CS`, PARITY OK, not installed. No new red tests (below). Please fly it:**
+  1. **The burst, Core `TyreWear`, emergent.** The model:
+     - Wear = γ(T) × the wheel's own slip work, laid on the strips of tread under the patch.
+     - T is the Blok flash temperature of the slide.
+     - A tyre bursts when a strip is worn through, and goes flat in 0.15 s.
+
+     Measured on the C172, idle, full pedal held:
+
+     | Case | Wear | Result |
+     |---|---|---|
+     | Locked from 60 kt (flapless) | through | **bursts after 65 m of skid** |
+     | Locked from 25 kt | 2.9 mm | flat spot, no burst |
+     | Locked on grass from 55 kt | 0.38 mm | no burst |
+     | 60 % pedal, no lock | 0.0003 mm | — |
+     | Normal spin-up | 0.06 mm over a quarter of the tread | about 450 landings of tread |
+
+     **One fitted constant:** the hot abradability, 1.0e-9 m³/J, set so a locked 6.00-6 at 38 psi goes through in ~60 m.
+     Is that the right severity, or should a flapless lock-up survive more often?
+  2. **The flat, all geometry.** The wheel stands on its rim plus two flattened casings, so:
+     - the 172 sits **2.3° down** on that side;
+     - it adds **~0.07 g of rolling drag** (+0.16 μr on that wheel);
+     - the load on that wheel swings 28 % once a revolution as the worn-through strip passes under the axle.
+
+     Steering on a flat is unchanged (cornering stiffness not modelled), and the wheel visual does not show the flat.
+  3. **Sound and smoke, untested by ear:**
+     - The screech is the existing skid voice.
+     - New: a pop on burst, a ~70 Hz thump from the axle's work on the lumps, and a casing slap once per wheel revolution.
+     - New `TyreSmoke`: particles in proportion to the rubber torn off, so a puff at each spin-up and a trail when locked.
+     - **Levels and the smoke density need your eyes and ears.**
+  4. Tyres are new again at every spawn/reset.
 - **TYRE SPIN-UP + GROUND/BRAKE SOUND: BUILT (Claude, 2026-11-04, lane/claude-tire-spinup; local commits, not merged).
   What was built and the numbers: `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` §7. iOS build 2026.1104.1404 `** BUILD SUCCEEDED **`
   (not installed). Suite: 2 new red tests, explained in item 10, not fudged.** Decisions for Ty:
@@ -2932,6 +2964,30 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 21:55 PST — Claude · lane/claude-tire-spinup · tyre wear, burst and flat tyres (Ty Q026 item 1, 20:21)
+- **Core (shared):**
+  - New `TyreWear.cs`: 72 tread strips, Archard/Schallamach wear with a flash-temperature abradability, a surface
+    abrasivity, the burst and leak, and the flat's geometry (drop, rolling radius, hysteresis drag).
+  - `WheelState`: `Tyre`, `AngleRad`, `DropM`, `TyreLoadN`, `PatchWorld`, and the `AbradedM3` / `ThumpJ` / `Bursts`
+    accumulators; `Wear()`; `Coast` turns the wheel and leaks the tyre.
+  - `LandingGear`: the contact point is raised by the drop, `WheelSpin.Advance` runs on the rolling radius, the slip work
+    goes to `Wear`, and the extra rolling resistance is added.
+  - `GroundSoundMix`: thump, flap and pops per side.
+- **Bridge (shared):** audio mailbox fields; `TyreBrakeSynth` thump, slap and pop; new `TyreSmoke`, installed next to
+  ContactEffects. No platform branches.
+- **First design fault, fixed before measuring:** the drop first followed the instantaneous load. That fed back on the
+  leg spring and made the axle chatter (35 kJ/s of "thump"). It is now taken at the static load; see doc §8.
+- **Tests:** new `TyreWearTests`, 8 tests: the burst/flat-spot/grass table, no wear without a lock, spin-up wear,
+  wear only in the patch, volume = γ·W, life as a distance, the flat's tilt/drag/lumps, and the mix's pop/flap.
+- **Full suite** (the machine shared with other lanes):
+  - Base e8e2978b: 213 failed / 2319 passed / 6 skipped of 2538.
+  - This lane: 140 / 2400 / 6 of 2546.
+  - 11 names failed here and not at the base (LandingGear ×6, TipWheel ×2, ChallengeTests.HardBankScoresLow,
+    TrimConvergence glider, VrBailout canopy drag). All 11 pass when re-run alone: global coupling.
+- **Build:** `deploy.sh NOINSTALL` 21:40–21:54, `** BUILD SUCCEEDED **`, 0 `error CS`, PARITY OK, installed on 0 devices.
+  The bundleVersion bump was not committed. No Quest batch was run; there is no platform-specific code.
+- Doc: `docs/TIRE-SPINUP-AND-GROUND-SOUND.md` §8.
+
 ### 2026-11-04 14:15 PST — Claude · lane/claude-tire-spinup · wheel spin-up physics + tyre/brake/ground sound BUILT (Ty approved ~09:40)
 - **Physics (Core, shared):**
   - New `WheelSpin.cs` (per-wheel ω, tanh slip-ratio force with combined slip, brake as Coulomb torque, emergent lock-up,

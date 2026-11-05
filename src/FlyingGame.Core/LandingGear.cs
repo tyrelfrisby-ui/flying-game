@@ -408,7 +408,16 @@ public static class LandingGear
             // leg is doing for the sound. No state (a direct call), or not a wheel: its steady state instead.
             WheelState? ws = wheels != null && gi < wheels.Length ? wheels[gi] : null;
             bool firstStage = stage <= 0;
-            if (ws != null && firstStage) ws.ClearContact();
+            if (ws != null && firstStage)
+            {
+                ws.ClearContact();
+                // The tyre's own shape this step (TyreWear): a worn strip or a flat under the axle stands it lower. The
+                // work the axle does dropping into it or climbing out is the thump you hear.
+                double drop = ws.Tyre != null ? ws.Tyre.Drop(-ws.AngleRad) : 0.0;
+                if (ws.TyreLoadN > 0) ws.ThumpJ += ws.TyreLoadN * System.Math.Abs(drop - ws.DropM);
+                ws.DropM = drop;
+            }
+            double tyreDrop = ws?.DropM ?? 0.0;
             if (cull && stage > 0 && stageClear![2 * gi] > stageClear[2 * gi + 1])
             {
                 // In the air all step: what the queries below would have found (penetration <= 0, no water to touch).
@@ -472,7 +481,9 @@ public static class LandingGear
                 if (waterH.Value - groundH > tyreR * 2) continue;
             }
             double localGroundZ = groundZ - groundH;
-            double penetration = wheelWorld.Z - localGroundZ; // >0 = wheel below ground surface (compressed)
+            // >0 = wheel below ground surface (compressed). The gear point is a sound tyre's bottom; a worn or flat one's
+            // is higher by its drop.
+            double penetration = wheelWorld.Z - localGroundZ - tyreDrop;
             if (penetration <= 0.0)
             {
                 if (touching != null && gi < touching.Length) touching[gi] = false;
@@ -514,6 +525,7 @@ public static class LandingGear
                 bool onDeck = WorldDecks.All.Count > 0 && WorldDecks.DeckUnder(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z, out double deckTop)
                               && deckTop > WorldTerrain.GroundHeightAt(wheelWorld.X, wheelWorld.Y) + 1;
                 ws.InContact = true; ws.LoadN = normalN; ws.Surface = surface; ws.Brake01 = wheelBrake;
+                ws.TyreLoadN = normalN; ws.PatchWorld = wheelWorld;
                 ws.OverWater = overWater;
                 ws.Material = GroundMaterials.Of(surface, onDeck, overWater);
             }
@@ -581,6 +593,8 @@ public static class LandingGear
             // the snow). On a tyre: the WHEEL's force (WheelSpin) — spin-up, braking, lock-up all from its slip — plus
             // the rolling resistance, a direct force at the patch (most of it is the tyre ploughing the ground).
             double rollN = (onSki ? SkiRolling(surface, vFwd) : SnowSinkageRolling(config, surface, staticLoadN)) * normalN;
+            // A soft or flat tyre is squashed further and loses more to its own hysteresis (TyreWear).
+            if (!onSki && ws?.Tyre != null) rollN += ws.Tyre.ExtraRollingCoefficient(WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Paved)) * normalN;
             // Math.Sign THROWS on NaN, and this is reached four times a step. An aeroplane deep inside geometry
             // used to arrive here with a non-finite forward speed, and the throw left FlightSimDriver.Update
             // without its ApplyStateToTransform — a frozen aeroplane with dead controls, which is what the owner
@@ -612,8 +626,12 @@ public static class LandingGear
                 double brakeForceN = g.Brake ? wheelBrake * g.TireMu * staticLoadN * 0.675 : 0.0;
                 if (ws != null && ws.IsWheel && firstStage && dt > 0)
                 {
-                    WheelSpin.StepResult res = WheelSpin.Advance(ref ws.OmegaRadS, ws.InertiaKgM2, ws.RadiusM, muLimit, vFwd, sigmaY,
+                    double omega0 = ws.OmegaRadS, rRoll = ws.RollingRadiusM;
+                    WheelSpin.StepResult res = WheelSpin.Advance(ref ws.OmegaRadS, ws.InertiaKgM2, rRoll, muLimit, vFwd, sigmaY,
                                                                  brakeForceN * ws.RadiusM, ws.BearingTorqueNm, dt);
+                    // The friction work went into the tread under the patch (TyreWear: wear, heat, a burst).
+                    ws.Wear(res.SlipEnergyJ, System.Math.Abs(vFwd - ws.OmegaRadS * rRoll), normalN,
+                            ws.AngleRad, ws.AngleRad + 0.5 * (omega0 + ws.OmegaRadS) * dt, dt);
                     ws.Advanced = true;
                     ws.ForcePerLoad = normalN > 1e-9 && double.IsFinite(res.ForceN / normalN) ? res.ForceN / normalN : 0.0;
                     ws.FallFactor = res.FallFactor;

@@ -34,6 +34,14 @@ public sealed class GroundSoundMix
     public readonly float[] ScrapeGain = new float[2], ScrapeHz = new float[2];
     public readonly float[] SquealGain = new float[2], SquealHz = new float[2];
     public float WaterSplash, WaterHiss, Spray, SkiHiss, KeelScrape;
+    /// <summary>A worn or flat tyre (TyreWear), per side: the axle's work this frame dropping into and climbing out of the
+    /// patch's lows (J: the thump, it comes exactly when the bad strip passes under the axle), the slap of a flat casing
+    /// once per revolution (its rate and level), and the tyres that burst this frame.</summary>
+    public readonly float[] ThumpJ = new float[2], FlapHz = new float[2], FlapGain = new float[2];
+    public readonly int[] Pops = new int[2];
+    /// <summary>Thump work (J) per frame that is full level: a flat 172 main climbs ~3 mm in and out of its burst strip at
+    /// ~4.7 kN, ~30 J a revolution (TyreWearTests measures ~460 J/s at 12 rev/s).</summary>
+    public const double ThumpRefJ = 30.0;
 
     private readonly double[] _w;           // [wheel * Keys + key], smoothed, sum 1 per wheel
     private readonly bool[] _seen;
@@ -44,7 +52,10 @@ public sealed class GroundSoundMix
         _n = wheels;
         _w = new double[wheels * Keys];
         _seen = new bool[wheels];
+        _bursts = new int[wheels];
     }
+
+    private readonly int[] _bursts;
 
     /// <summary>One wheel's smoothed weight on a key (sums to 1 over keys once the wheel has touched anything).</summary>
     public double Weight(int wheel, GroundMaterial k) => _w[wheel * Keys + (int)k];
@@ -93,6 +104,7 @@ public sealed class GroundSoundMix
         {
             WhirHz[s] = WhirGain[s] = ChirpSeconds[s] = ChirpGain[s] = ChirpSlip[s] = 0;
             ScrapeGain[s] = ScrapeHz[s] = SquealGain[s] = SquealHz[s] = 0;
+            ThumpJ[s] = FlapHz[s] = FlapGain[s] = 0; Pops[s] = 0;
         }
         WaterSplash = WaterHiss = Spray = SkiHiss = KeelScrape = 0;
         double totalLoad = 0;
@@ -108,6 +120,15 @@ public sealed class GroundSoundMix
             double share = loadRef > 1e-9 ? System.Math.Max(0, w.LoadN) / loadRef : 0;
             double speed = System.Math.Abs(w.VFwdMs);
             w.TakeSlip(out double slipJ, out double slipS);
+            double thumpJ = w.ThumpJ; w.ThumpJ = 0;
+            int pops = w.Bursts - (i < _bursts.Length ? _bursts[i] : 0);
+            if (i < _bursts.Length) _bursts[i] = w.Bursts;
+            if (pops > 0)
+            {
+                // A burst is heard wherever the wheel is, ground or not.
+                if (w.Side <= 0) Pops[0] += pops;
+                if (w.Side >= 0) Pops[1] += pops;
+            }
 
             if (!w.IsWheel)
             {
@@ -179,6 +200,22 @@ public sealed class GroundSoundMix
                     ChirpSeconds[s] = System.Math.Max(ChirpSeconds[s], (float)slipS);
                     ChirpGain[s] = System.Math.Max(ChirpGain[s], (float)(level * (s == 0 ? pl : pr) / 0.7071));
                     ChirpSlip[s] = System.Math.Max(ChirpSlip[s], (float)System.Math.Abs(w.SlipRatio));
+                }
+            }
+
+            // A worn or flat tyre: the thump is the work the axle did on its lumps (it arrives when the low strip passes
+            // under it, so it is in time with the wheel); a flat's loose casing slaps once a revolution, louder the
+            // flatter it is and the more it carries.
+            if (thumpJ > 0) AddSide(ThumpJ, pl, pr, thumpJ / 0.7071);
+            if (w.Tyre != null && w.Tyre.PressureFraction < 0.9 && rim > 0.2 && w.RollingRadiusM > 0)
+            {
+                double revS = rim / (2 * System.Math.PI * w.RollingRadiusM);
+                double g = (1 - w.Tyre.PressureFraction) * System.Math.Clamp(share * 2, 0, 1) * System.Math.Clamp(rim / 6.0, 0, 1);
+                int sIdx = w.Side < 0 ? 0 : w.Side > 0 ? 1 : -1;
+                for (int s = 0; s < 2; s++)
+                {
+                    if (sIdx >= 0 && s != sIdx) continue;
+                    if (g > FlapGain[s]) { FlapGain[s] = (float)g; FlapHz[s] = (float)revS; }
                 }
             }
 
