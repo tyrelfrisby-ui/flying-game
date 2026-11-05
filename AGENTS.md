@@ -15,3 +15,5 @@ the top of `AGENT-LOG.md` (NEEDS YOU) first.
   `tools/githooks/install.sh` installs it for every worktree. It blocks a shared change on a lane that already differs
   from the other lane, and it does nothing on any other branch. **Never `--no-verify`.**
 - `tools/check-parity.sh --strict` is the full check, and the deploy scripts run it. Rules and paths: `docs/PARITY.md`.
+
+Questions for Ty: append one line to `~/Developer/agent-lanes/QUESTIONS-FOR-TY.md` (Open section) — see CLAUDE.md "QUESTIONS FOR TY".
