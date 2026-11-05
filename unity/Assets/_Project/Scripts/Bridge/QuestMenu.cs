@@ -233,6 +233,9 @@ namespace FlyingGame.Bridge
             AddRow(() => $"Aircraft:  {AircraftName(SessionSettings.AircraftId)}" + (!OnLanding && Driver != null && Driver.AircraftId != SessionSettings.AircraftId ? "   (restart to fly it)" : ""),
                 () => CycleAircraft(1), CycleAircraft);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
+            // Gear option (the landing page's Bushwheels / Wheel-skis buttons, Ty 2026-11-05: wheel-skis on every
+            // aeroplane): wheels, bushwheels or wheel-skis; with skis fitted the cockpit gets the WHEELS / SKIS selector.
+            AddRow(() => $"Gear:  {GearName()}", () => CycleGear(1), CycleGear);
             AddRow(() => $"Seat:  {SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId))}",
                 () => CycleSeat(1), CycleSeat, () => SeatsOf(SeatAircraftId).Count > 1);
             // VIEWS (Ty 2026-11-04: "no views are available except 'outside' which is actually cockpit"). The row used to
@@ -282,6 +285,19 @@ namespace FlyingGame.Bridge
             _laser.sharedMaterial = _laserMat;
             _laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _laser.receiveShadows = false;
+        }
+
+        private static string GearName() => SessionSettings.Skis ? "Wheel-skis  (selector in the cockpit)" : SessionSettings.Bushwheels ? "Bushwheels" : "Wheels";
+
+        /// <summary>Wheels → bushwheels → wheel-skis (one or the other, as on the landing page), and the aeroplane re-loaded.</summary>
+        private void CycleGear(int d)
+        {
+            int now = SessionSettings.Skis ? 2 : SessionSettings.Bushwheels ? 1 : 0;
+            int next = ((now + d) % 3 + 3) % 3;
+            SessionSettings.Bushwheels = next == 1;
+            SessionSettings.Skis = next == 2;
+            Driver?.ApplySession();
+            Debug.Log($"[QuestMenu] gear: {GearName()}");
         }
 
         private void AddRow(System.Func<string> label, System.Action activate, System.Action<int> cycle = null, System.Func<bool> visible = null, bool pedalPage = false) =>

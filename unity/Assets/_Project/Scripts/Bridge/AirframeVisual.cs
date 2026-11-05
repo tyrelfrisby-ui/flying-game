@@ -122,6 +122,7 @@ namespace FlyingGame.Bridge
                 return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
             }, Time.deltaTime);
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
+            if (_driver.Sim.Aircraft.Skis != null) _builder.SetSkis(_driver.Sim.Aircraft.Skis);
             // A model that brought its own rig moves ITS parts — the same control positions the aero model is
             // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown. A model whose
             // cockpit was drawn as pictures (the Pitts, the Extra's rear panel) has them made live by CockpitLiveParts
@@ -191,6 +192,11 @@ namespace FlyingGame.Bridge
         /// (Eye_Rear / Eye_Front). Solo aerobatics is flown from the REAR seat, which is why the Extra marks
         /// Eye_Rear as its default view; OPTIONS can move to the front. null where the model has no eye point,
         /// and the old canopy-top estimate stands.</summary>
+        private SkiSelectorLever _skiLever;
+
+        /// <summary>The pilot's eye for a type with no seats authored (the shared selector's default mount is relative to it).</summary>
+        private Vector3 SelectorEyeFallback() => PilotEgress.CockpitLocal(_driver) + Vector3.up * 0.1f;   // CockpitView.EyeLocal's own fallback
+
         public Transform CockpitEye()
         {
             bool front = SessionSettings.Seat == SessionSettings.CockpitSeat.Front;
@@ -847,6 +853,9 @@ namespace FlyingGame.Bridge
             _live.Forget();
             _waterRudder.Forget();
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
+            // The shared WHEELS / SKIS selector, on an aeroplane with wheel-skis fitted (Ty 2026-11-05).
+            _skiLever ??= GetComponent<SkiSelectorLever>() ?? gameObject.AddComponent<SkiSelectorLever>();
+            _skiLever.Build(_builder, _driver.Sim.Aircraft.Config, _driver.Sim.Aircraft, SelectorEyeFallback());
             foreach (var sights in GetComponentsInChildren<CockpitSights>(true)) sights.BindLocal(_driver);
             GetComponent<GroundShadow>()?.Refresh();
             if (Camera.main != null && Camera.main.TryGetComponent(out ChaseCamera chase))
@@ -2098,6 +2107,7 @@ namespace FlyingGame.Bridge
             _wingParts.Clear();
             _gearParts.Clear();
             _legParts.Clear();
+            _skiMounts.Clear();
             _modelParts.Clear();
             _rig = null;
             _modelRoot = null;
@@ -2417,6 +2427,7 @@ namespace FlyingGame.Bridge
                 foreach (GameObject p in _parts) if (p != null && p.transform.parent == _root) p.transform.localPosition -= cgU;
                 for (int i = 0; i < _gearParts.Count; i++) { var gp = _gearParts[i]; _gearParts[i] = (gp.go, gp.downPos - cgU, gp.travel); }
             }
+            BuildSkis(cfg);   // already in the CG-rooted frame
             TryPlaceModel(root, cfg);
             ProbeMarks();
             return halfSpan;
@@ -2665,12 +2676,9 @@ namespace FlyingGame.Bridge
             // The procedural shell goes invisible (its parts stay for hinges, gear travel and debris bookkeeping) — except
             // the wheels and legs under a model that was exported gear-up (DC-3, 737).
             // ... and a type wearing another type's model (the Cub on floats / on bush wheels) keeps its own gear AND floats.
-            // Wheel-skis on a type that wears a 3-D model: the model's own wheels have to come off and the
-            // procedural gear show, or the skis are drawn under an aeroplane still standing on its tyres. It is
-            // exactly what a type wearing another's model already does — but only where the model's gear can
-            // actually be cut out; without that box the skis stay hidden rather than doubling the undercarriage.
-            bool skiGear = cfg.Skis && AirframeModels.GearBoxMesh.ContainsKey(AirframeModels.ModelId(cfg.Id));
-            bool ownGear = AirframeModels.UsesOwnGear(cfg.Id) || skiGear;
+            // Wheel-skis keep the model's own wheels (Ty 2026-11-05: the tyre sits ON the lowered ski, and comes down
+            // through its slot when the skis are up): the hinged skis are built beside the model (BuildSkis), never cut in.
+            bool ownGear = AirframeModels.UsesOwnGear(cfg.Id);
             bool keepGear = ownGear || (AirframeModels.TryPlacedSpec(cfg.Id, out AirframeModels.Spec spec) && spec.ShowProceduralGear);
             var gearSet = new HashSet<GameObject>();
             if (keepGear) { foreach (var g in _gearParts) if (g.go != null) gearSet.Add(g.go); foreach (var kv in _legParts) foreach (GameObject g in kv.Value) if (g != null) gearSet.Add(g); }
@@ -2683,7 +2691,7 @@ namespace FlyingGame.Bridge
             bool bakedPaint = cfg.Id != null && cfg.Id.StartsWith("j3-cub") && AirframeModels.PlacedOwnName(cfg.Id) != null;
             foreach (GameObject p in _parts)
             {
-                if (gearSet.Contains(p)) continue;
+                if (gearSet.Contains(p) || _skiMounts.Exists(m => m.Mount == p)) continue;
                 if (overlay && _controls.Any(c => c.T != null && c.T.gameObject == p)) continue;
                 if (bakedPaint) { foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false; continue; }
                 // LIVERY MARKINGS STAY VISIBLE ON A MODEL. They are placed from the CONFIG's geometry, and a
@@ -3569,55 +3577,7 @@ namespace FlyingGame.Bridge
                     wheel.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(tire);
                 }
 
-                // WHEEL-SKIS (owner 2026-10-16): a penetration ski bolted under each wheel, the tyre poking
-                // through its slot, so the same aeroplane lands on the glacier and then taxis on pavement. It
-                // is drawn whenever the option is fitted, as it is in life — you do not take the skis off to
-                // go flying somewhere warm.
-                //
-                // Sized off the FUSELAGE, not off the tyre: a Super Cub's main ski is about 68 in by 12 in
-                // (1.7 × 0.3 m) and a Beaver's about 94 in by 16 in (2.4 × 0.4 m), which is a quarter of the
-                // fuselage length by a twenty-fourth of it in both cases. Sizing it off the tyre instead gave
-                // the Beaver a 3.5 m ski — the tyre rule already runs large, and the error compounded.
-                if (cfg.Skis && g.GearType != "float-keel" && g.GearType != "nose-skid")
-                {
-                    float fusLen = cfg.Fuselage?.Crossflow != null && cfg.Fuselage.Crossflow.LengthM > 0
-                                   ? (float)cfg.Fuselage.Crossflow.LengthM : 7f;
-                    float sl = Mathf.Max(fusLen * (g.IsTailwheel ? 0.08f : 0.25f), r * 2.4f);
-                    float sw = Mathf.Max(fusLen * 0.042f * (g.IsTailwheel ? 0.6f : 1f), r * 0.8f);
-                    float sth = 0.05f;
-                    var skiCol = new Color(0.80f, 0.82f, 0.86f);
-                    var skiMat = UnlitMat(skiCol);
-                    var bungee = new Color(0.12f, 0.12f, 0.14f);
-                    // The axle sits a little aft of the ski's middle, so most of the ski is ahead of the wheel
-                    // and it rides up over the snow instead of digging in.
-                    float cx = gx + sl * 0.08f;
-                    float basez = gz;                                   // the running surface, where the tyre meets the snow
-                    var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Kill(board.GetComponent<Collider>());
-                    Attach(board, "Ski");
-                    board.transform.localPosition = U(cx, gy, basez - sth * 0.5f);
-                    board.transform.localScale = new Vector3(sw, sth, sl);   // span, thickness, fore-aft
-                    board.GetComponent<MeshRenderer>().sharedMaterial = skiMat;
-                    // The upturned tip, and the bungee that holds it up — the two things that say "ski" at a glance.
-                    float tipLen = sl * 0.3f, tipDeg = 32f;
-                    float tipMidX = cx + sl * 0.5f + Mathf.Cos(tipDeg * Mathf.Deg2Rad) * tipLen * 0.5f;
-                    float tipMidZ = basez - sth * 0.5f - Mathf.Sin(tipDeg * Mathf.Deg2Rad) * tipLen * 0.5f;
-                    var tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Kill(tip.GetComponent<Collider>());
-                    Attach(tip, "SkiTip");
-                    tip.transform.localPosition = U(tipMidX, gy, tipMidZ);
-                    tip.transform.localRotation = Quaternion.Euler(-tipDeg, 0f, 0f);
-                    tip.transform.localScale = new Vector3(sw, sth, tipLen);
-                    tip.GetComponent<MeshRenderer>().sharedMaterial = skiMat;
-                    float tipEndX = cx + sl * 0.5f + Mathf.Cos(tipDeg * Mathf.Deg2Rad) * tipLen;
-                    float tipEndZ = basez - Mathf.Sin(tipDeg * Mathf.Deg2Rad) * tipLen;
-                    // Bungee from the tip up to the axle, and a check cable from the heel — the pair that keeps
-                    // the ski in its flying attitude once the wheels leave the snow.
-                    Strut(new Vector3(tipEndX, gy, tipEndZ), new Vector3(gx, gy, gz - r * 1.1f), 0.022f, bungee);
-                    Strut(new Vector3(cx - sl * 0.5f, gy, basez - sth), new Vector3(gx, gy, gz - r * 0.9f), 0.014f, bungee);
-                    // The pedestal the axle sits in, through the ski's slot.
-                    Strut(new Vector3(gx, gy, basez - sth), new Vector3(gx, gy, gz - r * 0.5f), 0.05f, skiCol);
-                }
+                // WHEEL-SKIS: drawn by BuildSkis (hinged, on every model as well as on this procedural gear), not here.
 
                 // Leg from the wheel hub up to the body/wing.
                 float rb = BodyRadiusAt(st, gx);
@@ -3637,6 +3597,142 @@ namespace FlyingGame.Bridge
         }
 
         private readonly List<(GameObject go, Vector3 downPos, float travel)> _gearParts = new();
+
+        // ---- HINGED WHEEL-SKIS (Ty 2026-11-05) ----------------------------------------------------------------------
+        /// <summary>One leg's ski as drawn: the links' pivot (a mount at SkiGear.Geometry.Pivot), the link arm that turns
+        /// about it, and the ski that the links carry — translated with the pin, pitched on it as the physics last laid it.</summary>
+        private sealed class SkiParts
+        {
+            public int Leg;
+            public FlyingGame.Core.SkiGear.Geometry Geo;
+            public GameObject Mount;
+            public Transform Arm, Ski;
+        }
+        private readonly List<SkiParts> _skiMounts = new();
+        public int SkiCount => _skiMounts.Count;
+
+        /// <summary>A part built outside the builder that belongs to this airframe (the shared ski selector): it goes when
+        /// the airframe is cleared, like the builder's own parts.</summary>
+        public void Adopt(GameObject go) { if (go != null && !_parts.Contains(go)) _parts.Add(go); }
+
+        /// <summary>
+        /// The skis of every wheeled leg, from the SAME geometry the physics uses (<see cref="FlyingGame.Core.SkiGear.For"/>:
+        /// nothing here is per aeroplane), in the CG-rooted frame. A ski is a flat plank with an upturned tip, cut by the
+        /// slot the kinematics swept for the tyre (front plate, side rails beside the slot, heel plate), on a pedestal at
+        /// its pin; two links hang from the pivot to the pin either side of the tyre. Drawn on a placed model too: the
+        /// model keeps its own wheels, which sit on the lowered ski and come down through the slot when it is raised.
+        /// </summary>
+        private void BuildSkis(AircraftConfig cfg)
+        {
+            if (!cfg.Skis || cfg.Gear == null) return;
+            var cgv = cfg.Mass.CgVec();
+            var skiTop = new Color(0.86f, 0.87f, 0.90f);    // painted aluminium / white composite
+            var skiBase = new Color(0.10f, 0.10f, 0.11f);   // black UHMW running surface
+            var linkCol = new Color(0.30f, 0.30f, 0.33f);
+            var tipCol = new Color(0.82f, 0.12f, 0.10f);     // a red tip, so the ski's attitude reads at a glance
+            for (int gi = 0; gi < cfg.Gear.Count; gi++)
+            {
+                GearConfig g = cfg.Gear[gi];
+                if (!FlyingGame.Core.SkiGear.Fitted(cfg, g) || g.Pos[2] < 0) continue;
+                FlyingGame.Core.SkiGear.Geometry geo = FlyingGame.Core.SkiGear.For(cfg, g);
+                var mount = new GameObject("SkiMount");
+                Attach(mount, "SkiMount");
+                FlyingGame.Core.MathTypes.Vec3 pv = geo.Pivot - cgv;
+                mount.transform.localPosition = U((float)pv.X, (float)pv.Y, (float)pv.Z);
+                var sp = new SkiParts { Leg = gi, Geo = geo, Mount = mount };
+
+                // The links: one each side of the tyre, from the pivot (this arm's origin) down its length.
+                var arm = new GameObject("SkiLinks").transform;
+                arm.SetParent(mount.transform, false);
+                float link = (float)geo.LinkM, halfGap = (float)geo.SlotWidthM * 0.5f + 0.012f;
+                foreach (float side in new[] { -1f, 1f })
+                    Child(arm, "SkiLink", PrimitiveType.Cube, new Vector3(side * halfGap, -link * 0.5f, 0f),
+                          Quaternion.identity, new Vector3(0.014f, link, 0.028f), linkCol);
+                sp.Arm = arm;
+
+                // The ski, in its own frame: origin at the pin (the ski's top under the pedestal), +z forward, −y down.
+                var ski = new GameObject("Ski").transform;
+                ski.SetParent(mount.transform, false);
+                float T = (float)geo.ThicknessM, W = (float)geo.WidthM, fwd = (float)geo.FlatFwdM, aft = (float)geo.FlatAftM;
+                float slotF = Mathf.Min((float)geo.SlotFwdM, fwd), slotA = Mathf.Max((float)geo.SlotAftM, aft), slotW = (float)geo.SlotWidthM;
+                void Plank(string n, float a0, float a1, float x, float w)
+                {
+                    if (a1 - a0 < 0.005f || w < 0.005f) return;
+                    Child(ski, n, PrimitiveType.Cube, new Vector3(x, -T * 0.4f, 0.5f * (a0 + a1)), Quaternion.identity,
+                          new Vector3(w, T * 0.8f, a1 - a0), skiTop);
+                    Child(ski, n + "Base", PrimitiveType.Cube, new Vector3(x, -T * 0.9f, 0.5f * (a0 + a1)), Quaternion.identity,
+                          new Vector3(w, T * 0.2f, a1 - a0), skiBase);
+                }
+                Plank("SkiFront", slotF, fwd, 0f, W);                       // ahead of the slot, under the resting tyre
+                Plank("SkiHeel", aft, slotA, 0f, W);                        // behind it (a short tail ski may have none: open heel)
+                float rail = 0.5f * (W - slotW);
+                Plank("SkiRailL", slotA, slotF, -(0.5f * slotW + 0.5f * rail), rail);
+                Plank("SkiRailR", slotA, slotF, 0.5f * slotW + 0.5f * rail, rail);
+                // The upturned tip.
+                float tipLen = (float)(FlyingGame.Core.SkiGear.TipLengthShare * geo.LengthM), tipDeg = (float)(FlyingGame.Core.SkiGear.TipAngleRad * Mathf.Rad2Deg);
+                Vector3 tipMid = new Vector3(0f, -T * 0.5f + Mathf.Sin(tipDeg * Mathf.Deg2Rad) * tipLen * 0.5f, fwd + Mathf.Cos(tipDeg * Mathf.Deg2Rad) * tipLen * 0.5f);
+                Child(ski, "SkiTip", PrimitiveType.Cube, tipMid, Quaternion.Euler(-tipDeg, 0f, 0f), new Vector3(W, T, tipLen), skiTop);
+                Child(ski, "SkiTipMark", PrimitiveType.Cube, tipMid + new Vector3(0f, T * 0.55f, 0f) * Mathf.Cos(tipDeg * Mathf.Deg2Rad),
+                      Quaternion.Euler(-tipDeg, 0f, 0f), new Vector3(W * 1.002f, T * 0.15f, tipLen * 0.35f), tipCol);
+                // The pedestal the links pin into, either side of the slot's front.
+                foreach (float side in new[] { -1f, 1f })
+                    Child(ski, "SkiPedestal", PrimitiveType.Cube, new Vector3(side * halfGap, 0.02f, 0f), Quaternion.identity,
+                          new Vector3(0.02f, 0.04f, 0.07f), linkCol);
+                sp.Ski = ski;
+
+                if (cfg.RetractableGear) _gearParts.Add((mount, mount.transform.localPosition, Mathf.Max(0.5f, link + 0.3f)));
+                FlyingGame.Core.AirframeComponent legComp = FlyingGame.Core.AirframeContact.GearComponent(g);
+                if (!_legParts.TryGetValue(legComp, out List<GameObject> legList)) _legParts[legComp] = legList = new List<GameObject>();
+                legList.Add(mount);
+                _skiMounts.Add(sp);
+                SetSki(sp, 1.0, 0.0);
+            }
+            if (_skiMounts.Count > 0) Debug.Log($"[Skis] {cfg.Id}: {_skiMounts.Count} hinged skis drawn (shared SkiGear geometry)");
+        }
+
+        private void Child(Transform parent, string name, PrimitiveType prim, Vector3 pos, Quaternion rot, Vector3 scale, Color col)
+        {
+            var go = GameObject.CreatePrimitive(prim);
+            Kill(go.GetComponent<Collider>());
+            go.name = name;
+            go.layer = WaterReflection.AircraftLayer;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = rot;
+            go.transform.localScale = scale;
+            go.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(col);
+        }
+
+        /// <summary>Put one ski where the links are at <paramref name="lowered01"/> (0 WHEELS, 1 SKIS), pitched
+        /// <paramref name="pitchRad"/> on its pin (+ = tip up).</summary>
+        private static void SetSki(SkiParts sp, double lowered01, double pitchRad)
+        {
+            double th = FlyingGame.Core.SkiGear.LinkRad(lowered01);
+            // Links hang straight down (Unity −y) at θ = 0 and swing toward +z (forward) for θ > 0.
+            sp.Arm.localRotation = Quaternion.AngleAxis(-(float)(th * Mathf.Rad2Deg), Vector3.right);
+            FlyingGame.Core.MathTypes.Vec3 d = sp.Geo.PinAt(th) - sp.Geo.Pivot;
+            sp.Ski.localPosition = U((float)d.X, (float)d.Y, (float)d.Z);
+            sp.Ski.localRotation = Quaternion.AngleAxis(-(float)(pitchRad * Mathf.Rad2Deg), Vector3.right);
+        }
+
+        /// <summary>Each frame: the skis where the sim's selector has them, laid on the ground as the physics last found
+        /// them (in the air they trail level with the airframe).</summary>
+        public void SetSkis(FlyingGame.Core.SkiState skis)
+        {
+            if (skis == null || _skiMounts.Count == 0) return;
+            foreach (SkiParts sp in _skiMounts)
+            {
+                if (sp.Mount == null) continue;
+                bool bearing = sp.Leg < skis.Bearing.Length && skis.Bearing[sp.Leg];
+                SetSki(sp, skis.Lowered01, bearing && sp.Leg < skis.PitchRad.Length ? skis.PitchRad[sp.Leg] : 0.0);
+            }
+        }
+
+        /// <summary>Editor shots: the skis at a selector position with no sim behind them.</summary>
+        public void SetSkisForShot(double lowered01)
+        {
+            foreach (SkiParts sp in _skiMounts) if (sp.Mount != null) SetSki(sp, lowered01, 0.0);
+        }
 
         /// <summary>Retractable gear visual: 1 = down and locked, 0 = up (parts slide into the body and vanish).</summary>
         private readonly List<Transform> _gearBones = new();

@@ -348,7 +348,7 @@ namespace FlyingGame.Bridge
             int lines = FlyingGame.Core.HudInstrumentLayout.EngineValueLines(rowW / 4f, UiLayout.MinText);
             float engineH = (float)FlyingGame.Core.HudInstrumentLayout.EngineBlockHeight(s, false, lines);
             bool flaps = _driver.HasFlaps && !Practice.PracticeController.AnyActive;
-            bool gear = _driver.Sim?.Aircraft?.Config?.RetractableGear == true;
+            bool gear = GearSlot;
             float capH = UiLayout.CaptionText * 2.4f;   // the aircraft name may need two lines
             // Bottom of the trim bars' captions (DrawTrimBar: label lh = 1.5 fs below a bar of s*0.045 under each pad).
             float fs = Mathf.Round(s * ScreenLayout.FontFrac);
@@ -440,7 +440,7 @@ namespace FlyingGame.Bridge
             Rect Slot(bool shown = true) => shown ? new Rect(x, y + row++ * (height + gap), width, height) : Rect.zero;
             _resetRect = Slot(); _acftRect = Slot();
             _brakeRect = Slot(_driver.HasFlaps && !Practice.PracticeController.AnyActive);
-            _gearRect = Slot(_driver.Sim?.Aircraft?.Config?.RetractableGear == true);
+            _gearRect = Slot(GearSlot);
             var tow = GetComponent<TowController>();
             _towRect = Slot(tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null &&
                 (tow.Towing || (_driver.GroundStart && tow.Tow == null)));
@@ -522,7 +522,7 @@ namespace FlyingGame.Bridge
         {
             float s = UiLayout.S, gap = UiLayout.Gap;
             bool flaps = _driver.HasFlaps && !Practice.PracticeController.AnyActive;
-            bool gear = _driver.Sim?.Aircraft?.Config?.RetractableGear == true;
+            bool gear = GearSlot;
             var tow = GetComponent<TowController>();
             bool towing = tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null &&
                 (tow.Towing || (_driver.GroundStart && tow.Tow == null));
@@ -735,6 +735,9 @@ namespace FlyingGame.Bridge
             ActOnTaps();
         }
 
+        /// <summary>The GEAR slot is shown for a retractable undercarriage, and for the WHEELS / SKIS selector on fixed gear.</summary>
+        private bool GearSlot => _driver.Sim?.Aircraft is { } a && (a.Config.RetractableGear || a.Skis != null);
+
         private void ActOnTaps()
         {
             if (_tapped.Count == 0) return;
@@ -754,6 +757,9 @@ namespace FlyingGame.Bridge
                         break;
                     case Btn.Gear:
                         if (ac?.Config?.RetractableGear == true) ac.SetGear(!ac.GearDown);
+                        // Wheel-skis on fixed gear (Ty 2026-11-05): the slot is the WHEELS / SKIS selector, the same lever the
+                        // cockpit's shared part (SkiSelectorLever) shows and a click or poke on it moves.
+                        else if (ac?.Skis != null) SkiSelectorLever.Move(ac, "button");
                         // Floatplanes with a water-rudder retract (the J-3 floats, Ty 2026-11-02 t278u): the same slot
                         // hangs the red handle on the front-seat hook (rudder UP) or lets it go (spring: DOWN). In VR the
                         // hand does it on the handle itself (CockpitWaterRudder); this is the phone / controller way.
@@ -1253,6 +1259,13 @@ namespace FlyingGame.Bridge
                 var acg = _driver.Sim.Aircraft;
                 string lbl = acg.GearDown ? (acg.GearExtension < 0.99 ? "GEAR ↓ …" : "GEAR UP") : (acg.GearExtension > 0.01 ? "GEAR ↑ …" : "GEAR DOWN");
                 Button(_gearRect, lbl);
+            }
+            else if (_driver.Sim?.Aircraft is { Skis: { } skis })
+            {
+                // Says what a tap will do, like GEAR; the dots while the hydraulics are still running.
+                bool down = skis.Selector.Commanded == FlyingGame.Core.SkiSelector.Position.Skis;
+                bool moving = skis.Selector.Annunciation == FlyingGame.Core.SkiSelector.Light.Transit;
+                Button(_gearRect, down ? (moving ? "SKIS ↓ …" : "SKIS UP") : (moving ? "SKIS ↑ …" : "SKIS DOWN"));
             }
             else if (_driver.Sim?.Aircraft is { HasWaterRudderRetract: true } acw)
             {

@@ -242,6 +242,30 @@ namespace FlyingGame.Bridge
             }
         }
 
+        private SkiSelectorLever _skiLever;
+
+        /// <summary>The shared WHEELS / SKIS selector (wheel-skis fitted): a pointing fingertip, or a controller with its grip
+        /// closed, at the knob moves the lever — the same <see cref="SkiSelectorLever.Move"/> the iPhone's tap and the Mac's
+        /// click use, into the same <see cref="Aircraft.Skis"/> the physics reads.</summary>
+        private void DriveSkiSelector()
+        {
+            if (_driver?.Sim?.Aircraft?.Skis == null || _air == null) return;
+            if (_skiLever == null) _skiLever = _air.GetComponent<SkiSelectorLever>();
+            if (_skiLever == null || _skiLever.Count == 0) return;
+            for (int s = 0; s < 2; s++)
+            {
+                double best = double.PositiveInfinity;
+                foreach (Vector3 k in _skiLever.KnobsWorld)
+                {
+                    Vector3 at = Local(k);
+                    best = System.Math.Min(best, Fingertip(s, at));
+                    if (_hands[s].Source == HandSource.Controller && _hands[s].Grip > 0.6)
+                        best = System.Math.Min(best, (C(at) - _hands[s].Position).Length);
+                }
+                if (_skiLever.PokeEdge(s, (float)best)) XrHandInput.Tick(s == 0, 0.5f, 0.03f);
+            }
+        }
+
         /// <summary>How far a POINTING index fingertip is from <paramref name="at"/>; ∞ for anything else. Only a tracked
         /// hand pokes, and only with the index straight-ish (curl under 0.35) and thumb and index apart (over 4 cm):
         /// reaching in to pinch a switch must not flick it on the way. A controller takes switches by the grip.</summary>
