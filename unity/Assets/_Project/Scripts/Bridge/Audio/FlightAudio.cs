@@ -367,6 +367,11 @@ namespace FlyingGame.Bridge
                 _tele.ScrapeGain[s] = m.ScrapeGain[s]; _tele.ScrapeHz[s] = m.ScrapeHz[s];
                 _tele.SquealGain[s] = m.SquealGain[s]; _tele.SquealHz[s] = m.SquealHz[s];
                 _thumpTotalJ[s] += m.ThumpJ[s];
+                // Felt as well as heard (2026-11-05, flat spots): in a headset each thump is a short knock in the
+                // controller on that side, as loud as the sound's (√ of the work against the reference). The phone
+                // has no haptics path; there the bump is the aeroplane's own pitch and bounce.
+                if (m.ThumpJ[s] > 0f && XrHeadset.Active)
+                    XrHandInput.Tick(s == 0, Mathf.Clamp01(0.5f * Mathf.Sqrt(m.ThumpJ[s] / (float)FlyingGame.Core.GroundSoundMix.ThumpRefJ)), 0.03f);
                 System.Threading.Volatile.Write(ref _tele.ThumpTotalMj[s], (int)(_thumpTotalJ[s] * 1e3 % int.MaxValue));
                 _popTotal[s] += m.Pops[s];
                 System.Threading.Volatile.Write(ref _tele.PopTotal[s], _popTotal[s]);

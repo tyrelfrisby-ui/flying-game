@@ -437,9 +437,13 @@ public static class LandingGear
             {
                 ws.ClearContact();
                 // The tyre's own shape this step (TyreWear): a worn strip or a flat under the axle stands it lower. The
-                // work the axle does dropping into it or climbing out is the thump you hear.
-                double drop = ws.Tyre != null ? ws.Tyre.Drop(-ws.AngleRad) : 0.0;
+                // work the axle does dropping into it or climbing out is the thump you hear. Averaged over the arc the
+                // wheel will turn this step, so a flat spot is never stepped over: one bump a revolution, at V/(2πr).
+                double drop = ws.Tyre != null ? ws.Tyre.Drop(-ws.AngleRad, -(ws.AngleRad + ws.OmegaRadS * dt)) : 0.0;
                 if (ws.TyreLoadN > 0) ws.ThumpJ += ws.TyreLoadN * System.Math.Abs(drop - ws.DropM);
+                // The profile moves under the axle at that rate: the tyre's and the leg's dampers see it, as they see
+                // any bump (a spot's edge at speed is a step the carcass must follow in a few milliseconds).
+                ws.DropRateMs = ws.TyreLoadN > 0 && dt > 0 ? (drop - ws.DropM) / dt : 0.0;
                 ws.DropM = drop;
             }
             double tyreDrop = ws?.DropM ?? 0.0;
@@ -533,6 +537,7 @@ public static class LandingGear
             // ... relative to the surface: a moving deck (the carrier) carries the wheels with it.
             if (WorldDecks.All.Count > 0) contactVelWorld -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
             double compressionRate = -Vec3.Dot(contactVelWorld, groundUp); // closing rate along the normal (+ = compressing)
+            if (ws != null) compressionRate -= ws.DropRateMs;               // a worn strip coming under the axle opens it
             if (touching != null && gi < touching.Length && !touching[gi])
             {
                 // Touchdown on this leg: a hard enough one tears it off (individually — the other legs stay).
