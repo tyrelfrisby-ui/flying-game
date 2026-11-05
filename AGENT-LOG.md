@@ -1,5 +1,30 @@
 ## NEEDS YOU
 
+<!-- wheel-skis needs-you -->
+## NEEDS YOU — hinged wheel-skis + shared WHEELS/SKIS selector: NOT YET BUILT OR RENDERED (Claude, 2026-11-05)
+Lane lane/claude-wheel-skis (from island-nav 938a865c). Ty 07:58/07:59: wheel-skis on every aeroplane, a wheels/skis
+selector in the cockpit, skis rotate forward and up when raised, down and aft when lowered, tyre ON TOP of the lowered ski.
+- **Status, honestly:** Core physics + tests done (9c83ca90); Unity side written and committed (20e14e82) but **NOT
+  compiled by Unity**: the gated batch (compile + review renders, `WheelSkiShots.Run`) waited two hours for a free build
+  slot behind other lanes and was stopped by the time limit. So: **no renders, no BUILD SUCCEEDED, parity --strict not
+  run.** Next agent: run the batch (below), fix any `error CS`, look at the renders, then `zsh tools/deploy/deploy.sh
+  NOINSTALL`. Not merged, not installed. Nothing approved by me.
+- **Mechanism (docs/WHEEL-SKIS.md):** each wheel's ski hangs from its axle on parallel links. SKIS = links 12 deg over
+  centre, the tyre sits on solid ski; WHEELS = links 80 deg forward, ski 30 cm forward and 20 cm up (Cub), the tyre down
+  through a slot SWEPT from the kinematics. Whichever of ski bottom / tyre is deeper bears the leg: no surface rule, no
+  per-type pose. Brakes do nothing on lowered skis. Ski on pavement scrapes (Cub 12.7 m from 8 m/s vs 52 m on snow);
+  skis up on snow = wheel plane. Weight (Cub 31 kg, Beaver 61 kg) with CG + inertia; drag (Cub 0.167 m2).
+- **Selector:** one shared part (Core SkiSelectorPart + Bridge SkiSelectorLever only; a test fails if any aircraft
+  builds its own), anchored by `seats[].skiSelector` or a default offset from the eye. Lever = command, lamps =
+  WHEELS / TRANSIT / SKIS. Click / tap / GEAR-slot button / L key / Quest poke or grip. Quest menu Gear row.
+- **Tests:** WheelSkiHingeTests 52/52 pass. Failures also on base 938a865c (not mine): GlacierLandingZoneTests x7,
+  WheelSkiTests.ACubOnSkisCanBePutOnTheKnikAndStop, OnSnowASkiRunsOnAfterTheWheelHasStopped(pa18-cub-like).
+- **Questions:** Q079 (is this your hinge?), Q080 (hydraulic 8 s?), Q081 (ski-on-pavement mu), Q082 (selector
+  position), Q083 (weight/drag). Lowered ski on water not modelled.
+- **To finish:** `cd claude-wheel-skis && nice -n 5 <Unity> -batchmode -quit -projectPath $PWD/unity -executeMethod
+  FlyingGame.EditorTools.WheelSkiShots.Run -logFile build/ws-shots.log` (renders to agent-lanes/renders/wheel-skis/),
+  then deploy.sh NOINSTALL and `./tools/check-parity.sh --strict`. Restore the StreamingAssets mirrors after.
+
 ## NEEDS YOU — crash flight-path camera shoots to sky: fly-test (Claude, 2026-11-05)
 <!-- crash-camera-flightpath needs-you -->
 Lane lane/claude-crash-camera. Ty (2026-11-05 06:01 PST, iPhone 17 Pro, build 2026.1105.0226+): "I crashed in flight path view on the phone and the shot went straight up into the sky?"
