@@ -154,7 +154,7 @@ namespace FlyingGame.Bridge
             _compositor = GetComponent<IVrCompositor>();
             if (_compositor == null)
             {
-                _compositor = gameObject.AddComponent<VrCompositorSideBySide>();
+                _compositor = gameObject.AddComponent<VrCompositorCardboard>();
                 _compositorIsOurs = true;      // only tear down the stand-in; Codex's own stays put
             }
             _compositor.Configure(lens, _leftRt, _rightRt);
@@ -212,6 +212,7 @@ namespace FlyingGame.Bridge
             if (!_running || _left == null) return;
             if (TryAttitude(out Quaternion q)) _head.FromDevice(ToCore(q));
             RecentreGesture();
+            if (GamepadInput.Now.RecentrePressed) RecentreNow();   // R3, as in the mono cockpit view
 
             PlaceEyes((float)_head.YawDeg, (float)_head.PitchDeg, (float)_head.RollDeg);
         }
