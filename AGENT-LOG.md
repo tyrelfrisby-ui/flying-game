@@ -1,5 +1,32 @@
 ## NEEDS YOU
 
+## NEEDS YOU — CARDBOARD VR ON THE iPHONE 17 PRO (Claude, 2026-11-04 ~20:00 PST, lane/claude-vr-stereo-merge)
+Ty 19:39: "I have the cardboard vr headsets for the iphone now". lane/codex-vr-stereo (lens-distortion compositor,
+in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carry it. How to use it:
+- **Turn it on (phone OUT of the viewer):** OPTIONS (top right) → **Controls** tab → tick **"VR (Cardboard headset):
+  split screen, full head tracking"**. Only shown on a device with a gyro. The screen locks landscape-left (charge port
+  to your RIGHT) and stops sleeping. Under the tick: **"Eye spacing (IPD)"** slider 55–75 mm (63 default) and a
+  **"Recentre the view"** button. Close OPTIONS, then put the phone in the viewer.
+- **It stays on across relaunch** (PlayerPrefs `vr.on`): the app reopens split-screen. Menus (landing page, OPTIONS)
+  still draw FLAT across both halves on purpose so you can always turn VR off — but you must take the phone out to read
+  or tap them. There is no in-headset menu on the phone (the Quest has one; Cardboard does not).
+- **Flying in the headset needs a gamepad** (8BitDo/MFi/Xbox/PS via the Input System, `GamepadInput`; no profile
+  needed) or a calibrated joystick. The touch controls are hidden, and as of this merge also INERT in VR, so a
+  trigger press cannot hit an invisible RESET or BAIL. Gamepad Menu (Start) still opens OPTIONS (flat).
+- **Recentre:** hold the screen / Cardboard trigger **0.6 s**, or click the gamepad's **right stick (R3)** (added in
+  this merge; before, R3 only recentred the mono look), or the Options button.
+- **No QR / viewer-profile scan.** The lens is fixed: generic Google Cardboard v2 (k1 0.336, k2 0.553, 63.9 mm lenses,
+  39.3 mm screen-to-lens, 60° each way) from configs/vr-cardboard.json, copied to StreamingAssets at build. A viewer
+  that is not a v2 needs its own numbers in that file. Screen size comes from Screen.dpi (326 dpi fallback).
+- **Check on the headset:** image upright and fused; straight lines straight at the edges (distortion strength);
+  red/blue fringe at the edges; HUD (IAS kt / ft MSL / heading, 1.5 m ahead, low) legible and comfortable; frame rate;
+  where the trigger actually lands (it must not open OPTIONS, top right). Nothing here is approved.
+- Validation: VrStereo+VrDistortion 52/52. Full suite 2487 passed / 216 failed (2709, 1 h 53 m, machine loaded); the 141
+  failing methods re-run alone on the merge AND on base 0bb87c67 fail the identical 124 cases — nothing new. iOS export
+  0 `error CS`, xcodebuild Release generic iOS `** BUILD SUCCEEDED **` (own output dirs, not installed). Quest: Cardboard
+  cannot start there (`VrMode.Available` is false while `XrHeadset.Active`, the toggle is OnGUI-only and QuestMenu has no
+  VR switch, so `vr.on` is never set); its shaders are plain CG in Resources. No Quest build was run for this merge.
+
 ## NEEDS YOU — crash reset: fly-test on devices (Claude, 2026-11-04)
 <!-- crash-reset needs-you -->
 Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, one lane. NOTHING approved by me.
@@ -1850,6 +1877,10 @@ Lane lane/claude-crash-reset (from island-nav 73d7702b). Three of Ty's reports, 
   no menu at all. iOS export + xcodebuild (own derived data, no install): **BUILD SUCCEEDED**. Performance:
   **unmeasured** — budget in docs/quest-performance.md; the build logs a `[QuestPerf]` line every 10 s.
   **Nothing here is approved.** Items 1–8 are gates only you can close, on your head, with your headset.
+- **VR VISUALS (Codex, 2026-11-01, lane/codex-vr-stereo) — NEEDS YOU:** Unity compile, `VrStereoShots`
+  renders and iOS build done (see Log); Cardboard headset checks: image orientation, edge straightness, red/blue fringe,
+  binocular fusion, HUD size/depth/occlusion and frame time. HUD modes are `off` and `minimal` (IAS kt, altitude
+  ft MSL, true heading); unknown modes hide it. No build, render or headset approval is claimed.
 - **SIDE-BY-SIDE VR FOR A CARDBOARD HEADSET (Claude, 2026-11-01, lane/claude-vr-stereo) — engine and app logic
   only; the lenses are Codex's. NEEDS YOU on a real headset, five things:**
   1. **IPD.** It ships at **63 mm** with a slider from 55 to 75 in Options → Controls. 63 mm is the adult mean,
@@ -5258,6 +5289,60 @@ heading-only recentre, lean box). `VrMode.Available` is false and the device loo
 active; flat overlays hide. `QuestMenu` is a world-space menu because every OnGUI screen is invisible in a headset.
 `tools/deploy/deploy-quest.sh` builds, then installs/launches if an authorized Quest is attached (it was not:
 `adb devices -l` empty all session). Docs: docs/quest-controls.md, docs/quest-performance.md.
+### 2026-11-01 · Codex · lane/codex-vr-stereo · VR visuals
+
+- Implemented `VrCompositorCardboard` through `IVrCompositor`. The rig's only code change is the default
+  compositor component selection; the original side-by-side compositor remains as reference/fallback.
+  Both eyes occupy their respective full-height halves, with no gap/overscan; OnGUI repaint at depth 1000
+  drives the backbuffer while the main camera is disabled. Destination dimensions drive sizing.
+- Added engine-free `VrDistortion`: physical lens centres use inter-lens and tray/alignment geometry;
+  source eye tangents use `VrOptics.Distort(screen tangent)` followed by the CA colour scale, then
+  the same `EdgeTangent` frustum bounds as the rig. No JSON loading. Operator review corrected the
+  previous inverse mapping; shader valid() still blacks out out-of-frustum samples.
+  Assumption: a 64×64-cell mesh per eye, rebuilt on Configure or physical size change, is sufficient;
+  rendered edge quality and device cost still need measuring. CA applies profile red/blue radial scales to
+  source tangents about the lens axis; green is unscaled. Out-of-frustum samples are black per channel.
+  Shaders live in Resources and load explicitly for iOS inclusion; no literal lens coefficients in shaders.
+- Added a single world-space binocular HUD surface 1.5 m ahead, 0.24 m low (~9.1° below sight), following the head without a
+  second pose smoother. Text uses fontSize 64 with characterSize 0.01 and two-space field gaps, capped at
+  0.48 m rendered width. The backing follows root-local MeshRenderer bounds on each text change with
+  0.02 m horizontal / 0.012 m vertical total padding (at most 0.5 m wide, ~±9.5°), and 0.55 alpha.
+  White font-alpha text and semi-transparent dark backing use Resources-loaded
+  shaders with ZTest Always / ZWrite Off, queues Overlay+1 / Overlay, so cockpit geometry cannot hide
+  them. Geometry remains binocular and renders within each eye before the lens pass. Owned text material
+  is released alongside the backing material. Reads the same FlightSimDriver IAS/altitude and aircraft-forward heading as the flat HUD.
+  Vocabulary: `off` = hidden, `minimal` = IAS kt / altitude ft MSL / true heading; case-insensitive;
+  unknown/null = hidden. Only visible while VrMode.On. No touch controls.
+- Edit-mode references resolve lazily. `VrStereoShots` explicitly calls `PrepareForTesting` before eye
+  rendering to supply the same physical screen dimensions as the rig and refresh the HUD without lifecycle
+  messages. Runtime physical size uses destination pixels and Screen.dpi, falling back to the rig's 326 dpi.
+- Added VrDistortion tests for linear identity, colour scaling about the physical axis, nonlinear mirror
+  symmetry, vertical alignment and HUD vocabulary. Review added a hand-literal direction test:
+  screen tangent .5 maps to .5 + .041978205 + .0172964971875 = .5592747021875, further from the
+  axis than the linear lens; out-of-frustum UVs remain outside [0,1]. Removed the duplicate HudMode summary.
+  Validation re-run after operator review: Core, Sim and FlightTests compiled via the filtered dotnet command (single-process
+  MSBuild, shared compilation disabled after sandbox denied MSBuild's named pipe). VSTest then aborted
+  before executing tests: SocketException (13), permission denied binding its local communication socket.
+  Tests are therefore NOT reported green. `git diff --check` is clean. No Unity, Xcode,
+  deploy, ProjectSettings, StreamingAssets, head tracking, eye placement or Glass Overlay work performed.
+- **Open question for Claude (rig, deliberately unchanged):** `VrOptics.EdgeTangent` uses
+  `Undistort(reach/d)` for screen limits, contradicting Distort's doc and Cardboard's mesh convention.
+  Should use `Distort(reach/d)`, then min with the lens limit. Current iPhone outer edge is ~0.73 tan
+  instead of ~1.73 capped by the 60° lens limit; corrected compositor therefore leaves black eye margins.
+  This lane has not modified VrOptics or eye placement.
+- **Comfort question for Ty:** at 1.5 m the binocular HUD requires vergence at that depth, yet draws over
+  nearer 0.5–1 m panel/cowling geometry. Does that vergence/occlusion conflict remain comfortable and legible?
+  Headset judgement is pending; overlay visibility is intentional.
+- **Open gates:** operator must compile Unity and render the four shot-tool frames; Ty must judge actual
+  viewer fit, correction direction/strength, residual colour fringe, fusion, HUD legibility/occlusion and
+  comfort/frame time. The profile and phone dpi assumptions remain unmeasured. Nothing is approved.
+- **Operator verification (Grok Bot for Ty, 2026-11-01):** `dotnet test tools/FlightTests` filtered to
+  VrDistortion|VrStereo: 48 passed, 0 failed. `VrStereoShots.Render`: exit 0, 0 `error CS`, PASS (0 failures),
+  four frames (iPhone 2532×1170, iPad mini 2266×1488; ahead and yaw30-roll15). Unity BuildiOS export: 0 `error CS`;
+  xcodebuild Release generic iOS: `** BUILD SUCCEEDED **`. bundleVersion bump reverted. Not installed, not
+  merged, no TestFlight. Renders show the black eye margins from the EdgeTangent question above; iPad mini image
+  sits low (bottom alignment on a tall screen).
+
 ### 2026-11-01 — Claude · lane/claude-vr-stereo · side-by-side stereo VR (engine, rig, tracking, toggle, tests)
 
 **Branched from lane/claude-island-nav (aacb429). Local commit only; not merged.** A NEW mode alongside the
@@ -9253,3 +9338,16 @@ NEEDS YOU: Ty, approve v3 renders in ~/Developer/agent-lanes/xfer/c172v3/
   unavailable). Quest deploy-quest.sh 2026.1104.1528, 0 error CS, installed + launched on Quest 3S.
   ProjectSettings.asset / StreamingAssets copies written by builds left uncommitted.
 C172-YOKE-DONE
+## 2026-11-01 — lane/codex-vr-stereo: per-eye FOV used Undistort for the screen edge (black margins)
+
+Built on `8b6e8a0`, local commit only. `VrOptics.EdgeTangent` set each screen-limited frustum edge to `Undistort(reach/d)`. A screen point at tangent r is SEEN at `Distort(r)`, and `VrDistortion.Sample` (the Cardboard compositor mesh) already maps screen→eye with `Distort` and normalises by these edges, so the frustum was too narrow and the screen's own edges sampled outside the eye texture — black margins. Checked against the Google Cardboard SDK before changing it: `sdk/lens_distortion.cc` `LensDistortion::CalculateFov` is `atan(Distort(dist / screen_to_lens))` per edge, then `min(…, device_fov)`. Fixed to `min(Distort(reach/d), tan 60°)`; `Undistort` kept. Code and tests written by a fresh headless Claude run.
+
+Per-eye FOV, left eye, L(outer)/R(inner)/B/T, default Cardboard v2 profile:
+- iPhone 17 Pro 2532x1170 @ 6.1" (0.1406 x 0.0650 m): before 36.1/33.2/34.7/32.1° (outer 0.730 tan) → after 60.0/50.0/55.2/46.6° (outer Distort 1.780, capped at 1.732).
+- iPad mini 2266x1488 @ 8.3" (0.1762 x 0.1157 m): before 41.6/33.2/34.7/45.9° → after 60.0/50.0/55.2/60.0°.
+
+Tests: VR filter (`dotnet test --filter FullyQualifiedName~Vr`) 49/49 at 8b6e8a0 → 53/53. New: `ThePhonesOuterEdgeIsCappedByTheLens`, `ThePhonesInnerEdgeIsTheDistortedScreenReach`, `ThePhonesBottomAndTopAreTheDistortedScreenReach`, `ScreenLimitedEdgesLeaveNoBlackMargin`; `CardboardSamplesFurtherFromAxisThanLinearLens` no longer asserts the screen edge lands out of range (that only held under the bug) — it now asserts edges map to U=0/1 and keeps the out-of-range check where the lens is the limit. With `Undistort` put back, 5 of the 53 fail, so the tests pin the bug. All expectations are hand literals.
+
+iPad mini low image: NOT changed — not a geometry bug. A Cardboard viewer holds the lenses a fixed 35 mm above the tray, so on a 116 mm-tall screen the lens axis really is low; the SDK computes it the same way (BOTTOM: `tray_to_lens − border`). The black above is the lens's own 60° limit. Finding, not changed: the SDK also subtracts a 3 mm border (`kDefaultBorderSizeMeters`) that `VerticalOffsetM` omits, so our lens axis sits 3 mm higher than the SDK's (adding it: iPhone B/T 55.2/46.6° → 50.0/51.8°). Ty's call.
+
+Build: Unity iOS export (0 `error CS`) + xcodebuild Release generic iOS `** BUILD SUCCEEDED **` — run as deploy.sh's export/xcodebuild steps WITHOUT the install. Not installed, no TestFlight. bundleVersion bump (2026.1101.1502) reverted. Renders: `VrStereoShots.Render` → `build/vr-shots/fov-fix/` (ignored): `vr-{iphone-2532x1170,ipad-mini-2266x1488}-{ahead,yaw30-roll15}.png`; the iPhone composite now fills each lens to the screen edge.

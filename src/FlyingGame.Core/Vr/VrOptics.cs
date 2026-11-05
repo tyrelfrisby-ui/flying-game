@@ -52,10 +52,16 @@ public static class VrOptics
     ///
     /// Two limits, and the smaller wins for each edge:
     ///  • the LENS can only show so much (the profile's 60° each way);
-    ///  • the SCREEN only reaches so far, and the lens stretches that reach, so the screen's own edge is at
-    ///    Undistort(distance from the lens axis ÷ screen-to-lens).
+    ///  • the SCREEN only reaches so far, and the lens stretches that reach: a screen point at tangent r is
+    ///    SEEN at Distort(r), so the screen's own edge appears at Distort(distance from the lens axis ÷
+    ///    screen-to-lens).
     ///
-    /// <paramref name="halfScreenWidthM"/> is half the whole screen in landscape (one eye gets half of that).
+    /// Distort, not Undistort: <see cref="VrDistortion.Sample"/> maps a screen tangent to an eye tangent with
+    /// Distort and normalises by these edges, so the screen's edge only lands on the edge of the eye texture if
+    /// the edge is Distort of the screen reach. Undistort made the frustum too narrow and left black margins.
+    /// This is Google's LensDistortion::CalculateFov (cardboard sdk/lens_distortion.cc) edge for edge.
+    ///
+    /// <paramref name="screenWidthM"/> is the whole screen in landscape (each eye gets half of it).
     /// </summary>
     public static double EdgeTangent(VrLensConfig lens, Edge edge, double screenWidthM, double screenHeightM)
     {
@@ -75,7 +81,7 @@ public static class VrOptics
             Edge.Bottom => (below, lens.FovBottomDeg),
             _ => (above, lens.FovTopDeg),
         };
-        double screenLimited = Undistort(Math.Max(0.0, reachM) / d, lens.K1, lens.K2);
+        double screenLimited = Distort(Math.Max(0.0, reachM) / d, lens.K1, lens.K2);
         double lensLimited = Math.Tan(lensDeg * Math.PI / 180.0);
         return Math.Min(screenLimited, lensLimited);
     }
