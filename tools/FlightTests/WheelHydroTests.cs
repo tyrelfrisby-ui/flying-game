@@ -175,6 +175,40 @@ public class WheelHydroTests : IDisposable
         _o.WriteLine($"Decathlon gross {dLb:0} lb → {dLb / 100:0.0} psi standard, {dLb / 200:0.0} on bushwheels");
     }
 
+    /// <summary>Ty 2026-11-04: above V_p every aeroplane can ski unless its load beats the water. That needs V_p to be a
+    /// speed at which the water CAN carry the static load, i.e. the footprint load/p fits inside the tyre's b·r. The
+    /// owner's rule gave the Extra 18 psi on 0.155 m tyres (a 47 in² footprint on 28 in² of tyre). Literals by hand:
+    /// Extra mains 0.932 of 820 kg (moment balance, mains x 0.347, tail −5.032, CG −0.02) = 3,748 N each over
+    /// b·r = 0.1178 × 0.155 m² = 29.8 psi; Pitts 0.897 of 737 kg on r 0.170 = 21.4 psi. The Cub, 172 and J-3 keep their
+    /// book or rule figures.</summary>
+    [Fact]
+    public void NoTyreIsBlownBelowWhatCarriesItsLoadSoEveryTyreCanCarryItAtVp()
+    {
+        AircraftConfig L(string id) => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
+        GearConfig Main(AircraftConfig c) => c.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
+        AircraftConfig extra = L("extra-300-like"), pitts = L("pitts-s2b-like"), c172 = L("c172-like"), j3 = L("j3-cub-like");
+        Assert.Equal(29.8, WheelHydro.TirePressurePsi(extra, Main(extra)), 1);
+        Assert.Equal(49.1, WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(extra, Main(extra))) / 0.514444, 1);
+        Assert.Equal(21.4, WheelHydro.TirePressurePsi(pitts, Main(pitts)), 1);
+        Assert.Equal(18.0, WheelHydro.TirePressurePsi(Cub(), Main(Cub())), 1);
+        Assert.Equal(38.0, WheelHydro.TirePressurePsi(c172, Main(c172)), 1);
+        Assert.Equal(29.0, WheelHydro.TirePressurePsi(c172, c172.Gear.Find(g => Math.Abs(g.Pos[1]) < 0.3)!), 1);
+        Assert.Equal(12.2, WheelHydro.TirePressurePsi(j3, Main(j3)), 1);
+
+        // And for every wheeled type and every leg: at V_p the leg's static load is within what its tyre can lift.
+        foreach (object[] row in WheelWaterTests.Wheeled())
+        {
+            AircraftConfig c = L((string)row[0]);
+            foreach (GearConfig g in c.Gear)
+            {
+                double vp = WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(c, g));
+                double vDig = WheelHydro.DigInSpeedMs(c, g, WheelHydro.StaticLoadN(c, g));
+                _o.WriteLine($"{row[0],-22} x {g.Pos[0],6:F2}: V_p {vp / 0.514444,5:F1} kt, static dig-in {vDig / 0.514444,5:F1} kt");
+                Assert.True(vDig <= vp * (1 + 1e-9), $"{row[0]} leg at x {g.Pos[0]}: dig-in {vDig / 0.514444:F1} kt above V_p {vp / 0.514444:F1}");
+            }
+        }
+    }
+
     [Fact]
     public void BushwheelsDoubleTheTyreHalveThePressureAndPlaneSlower()
     {
@@ -205,8 +239,7 @@ public class WheelHydroTests : IDisposable
     public void ACubSkimsShallowWaterFastAndNosesOverBelowThePlaningSpeed()
     {
         // The real case, and the one the owner described: a hand's depth of water (0.10 m) over a gravel bed, which is
-        // what the braided rivers are. Flown in, not started in the water: a light touch at 1.3 V_p with power and the
-        // tail held low skims; with the power off it slows through V_p, digs in and goes over.
+        // what the braided rivers are. Flown in, not started in the water: a light touch at skimming speed skims.
         AircraftConfig cfg = Cub();
         GearConfig main = cfg.Gear.Find(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3)!;
         double vp = WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(cfg, main));
@@ -214,8 +247,9 @@ public class WheelHydroTests : IDisposable
         FloatHydro.FlatWaterOverride = 0.10;
         try
         {
-            var fast = WheelWaterTouch.Run(cfg, 0.5, 3.0, speed: 1.3 * vp);
-            _o.WriteLine("  1.3 V_p: " + fast);
+            // At the skimming speed of the all-types test (1.15 × its slowest glide trim: 1.5 V_p for the PA-18).
+            var fast = WheelWaterTouch.Run(cfg, 0.5, 3.0, holdPitchDeg: 3);   // nose held at 3°: on trim it floats in ground effect
+            _o.WriteLine($"  {fast.V / vp:F2} V_p: " + fast);
             Assert.True(fast.TouchAt > 0, "never touched");
             Assert.True(fast.NoseOverAt < 0, "above the planing speed it should skim, not dig in");
             Assert.True(fast.PeakDecelG < 0.5, $"peak {fast.PeakDecelG:F2} g");

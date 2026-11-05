@@ -42,7 +42,12 @@ public class WheelWaterTests
 
     /// <summary>A light touch at skimming speed — 1.15 × the slowest glide the type will trim at, 0.5 m/s sink, idle,
     /// trim elevator, deep water — for every wheeled type: it skims or skips, the deceleration is finite and modest
-    /// (peak under 1 g over the first 2.5 s), and nothing breaks. The 737 is the one exception, checked on its own below.</summary>
+    /// (peak under 1 g over the first 2.5 s), and nothing breaks. The 737 is the one exception, checked on its own below.
+    /// One thing may stop: a propeller whose own blades went into the water. Ty 2026-11-04 (Q024): on the low-slung
+    /// types (SR22, Glasair) a prop strike at a light water touch is acceptable, provided it is EMERGENT — the drawn disc
+    /// under the surface and the water's drag on the blades braking the rotor (Aircraft.WaterBladeTorque), never a rule
+    /// that touching water stops the engine. So a lost propeller passes only with the disc measured wet and a stoppage
+    /// raised by the rotor, and nothing else may go.</summary>
     [Theory]
     [MemberData(nameof(Wheeled))]
     public void ALightTouchAtSpeedSkimsAndBreaksNothing(string id)
@@ -83,12 +88,31 @@ public class WheelWaterTests
             }
             Assert.True(r.PeakDecelG < 1.0, $"peak deceleration {r.PeakDecelG:F2} g");
             Assert.True(r.SpeedAt1s > 0.9 * r.V, $"V {r.V:F1} -> {r.SpeedAt1s:F1} m/s in 1 s");
-            Assert.True(r.Lost.Count == 0, "lost " + string.Join(",", r.Lost));
+            if (r.Lost.Count > 0)
+            {
+                Assert.True(r.Lost.SequenceEqual(new[] { AirframeComponent.Propeller }), "lost " + string.Join(",", r.Lost));
+                Assert.True(r.PropWaterDepthM > 0 && r.PropStoppages > 0, $"the propeller went with its disc {r.PropWaterDepthM * 100:F1} cm in the water and {r.PropStoppages} stoppages");
+            }
             Assert.Empty(r.Damage);
             Assert.False(r.WingsFailed);
             Assert.True(r.MinPitchDeg > -10, $"pitched to {r.MinPitchDeg:F1}");
         }
         finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
+    /// <summary>The water's brake on a dipped propeller (Aircraft.WaterBladeTorque), at an SR22's 0.99 m radius. Literals
+    /// worked by hand from Q = n·(acos(1 − d/R)/π)·½ρ_w(ωR)²·c·(⅔d)·C·(R − ⅓d), n 2, c 0.12 R, C 0.2: it grows with the
+    /// depth and with ω², it is nothing for a dry disc, and a 5 mm brush at 2700 rpm is a quarter of the engine's ~817 N·m
+    /// while 2 cm is nearly twice it.</summary>
+    [Fact]
+    public void ADippedPropIsBrakedByTheWaterOnItsBlades()
+    {
+        double full = 2700 * Math.PI / 30, idle = 700 * Math.PI / 30;
+        Assert.Equal(0.0, Aircraft.WaterBladeTorque(0.99, 0.0, full));
+        Assert.Equal(196, Aircraft.WaterBladeTorque(0.99, 0.005, full), 0);
+        Assert.Equal(1564, Aircraft.WaterBladeTorque(0.99, 0.02, full), 0);
+        Assert.Equal(105, Aircraft.WaterBladeTorque(0.99, 0.02, idle), 0);
+        Assert.Equal(6136, Aircraft.WaterBladeTorque(0.99, 0.05, full), 0);
     }
 
     /// <summary>The old instant stop, on the same J-3 touch just below V_p (14.5 m/s): before, 14.5 → 1.8 m/s in a
@@ -156,6 +180,116 @@ public class WheelWaterTests
     }
 }
 
+[Collection("WorldTerrainActive")]
+public class WaterSkiTests
+{
+    private readonly ITestOutputHelper _out;
+    public WaterSkiTests(ITestOutputHelper o) { _out = o; }
+
+    private static AircraftConfig Load(string id) =>
+        AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
+
+    /// <summary>Ty 2026-11-04: a J-3 on wheels water-skis on its mains, tail up, at 40–50 kt. Same pilot as every other
+    /// test here (a 2° attitude held, 40 % power, a 0.5 m/s touch on deep water): 10 s on the water, no nose-over,
+    /// next to no speed lost. Nothing in WheelHydro knows what kind of gear it is: the outcome is the fat 12 psi tyres'
+    /// planing lift at their own positions.</summary>
+    [Theory]
+    [InlineData(45.0)]
+    [InlineData(50.0)]
+    public void AJ3SkisOnItsMainsTailUp(double kt)
+    {
+        FloatHydro.FlatWaterOverride = 3.0;
+        try
+        {
+            var r = WheelWaterTouch.Run(Load("j3-cub-like"), 0.5, 10.0, speed: kt * 0.514444, throttle01: 0.4, holdPitchDeg: 2);
+            _out.WriteLine($"{kt} kt: " + r);
+            Assert.True(r.NoseOverAt < 0, $"nosed over at {r.NoseOverAt:F1} s");
+            Assert.True(r.TouchedFraction > 0.8, $"on the water only {r.TouchedFraction:P0} of the time");
+            Assert.True(r.MinSpeed > 0.85 * r.V, $"slowed {r.V:F1} -> {r.MinSpeed:F1} m/s");
+            Assert.True(r.Lost.Count == 0 && r.Damage.Count == 0);
+        }
+        finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
+    /// <summary>Ty's rule (2026-11-04) on the two small-tyred aerobats: no ski below V_p, a ski above it. V_p is their
+    /// footprint floor's (Extra 29.8 psi → 49 kt, Pitts 21.4 → 42 kt; the owner's weight rule had put them at 38 and 36,
+    /// below the speed their tyres can hold them up at). Flown at the held attitude, 40 % power, a 0.5 m/s touch. Sweep
+    /// 2026-11-04: Extra 45 kt over in 0.5 s, 55 kt holds; Pitts 40 kt over in 0.6 s, 45 kt holds.</summary>
+    [Theory]
+    [InlineData("extra-300-like", 45.0, 55.0)]
+    [InlineData("pitts-s2b-like", 40.0, 45.0)]
+    public void ASmallTyredAerobatGoesOverBelowItsVpAndSkisAboveIt(string id, double belowKt, double aboveKt)
+    {
+        FloatHydro.FlatWaterOverride = 3.0;
+        try
+        {
+            AircraftConfig cfg = Load(id);
+            GearConfig main = cfg.Gear.First(g => !g.IsTailwheel && Math.Abs(g.Pos[1]) > 0.3);
+            double vpKt = WheelHydro.HydroplaneSpeedMs(WheelHydro.TirePressurePsi(cfg, main)) / 0.514444;
+            Assert.InRange(vpKt, belowKt, aboveKt);
+            var slow = WheelWaterTouch.Run(cfg, 0.5, 10.0, speed: belowKt * 0.514444, throttle01: 0.4, holdPitchDeg: 6, startAtHoldPitch: true);
+            var fast = WheelWaterTouch.Run(cfg, 0.5, 10.0, speed: aboveKt * 0.514444, throttle01: 0.4, holdPitchDeg: 6, startAtHoldPitch: true);
+            _out.WriteLine($"V_p {vpKt:F1} kt");
+            _out.WriteLine($"{belowKt} kt: " + slow);
+            _out.WriteLine($"{aboveKt} kt: " + fast);
+            Assert.True(slow.NoseOverAt > 0, $"{belowKt} kt is below V_p and should not ski");
+            Assert.True(fast.NoseOverAt < 0, $"{aboveKt} kt: over at {fast.NoseOverAt:F1} s");
+            Assert.True(fast.TouchedFraction > 0.8 && fast.MinSpeed > 0.85 * fast.V, $"touching {fast.TouchedFraction:P0}, Vmin {fast.MinSpeed:F1}");
+            Assert.True(fast.Lost.Count == 0 && fast.Damage.Count == 0);
+        }
+        finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
+    /// <summary>The moment half of Ty's rule: above V_p it still goes over if the load on the wheels makes too much drag
+    /// below the CG. The Extra at 60 kt (V_p 49): held 6° the wing carries most of it and it skis; held 2° the symmetric
+    /// wing lifts next to nothing, the tyres carry it about 35° up the arc, drag/lift = tan(φ/2) ≈ 0.32, and drag 1.4 m
+    /// under the CG beats the mains' lift 0.37 m ahead of it (0.37/1.4 = 0.26). Nothing about the attitude is scripted.</summary>
+    [Fact]
+    public void AboveVpTheExtraStillGoesOverNoseLowBecauseTheDragMomentWins()
+    {
+        FloatHydro.FlatWaterOverride = 3.0;
+        try
+        {
+            AircraftConfig cfg = Load("extra-300-like");
+            var up = WheelWaterTouch.Run(cfg, 0.5, 10.0, speed: 60 * 0.514444, throttle01: 0.4, holdPitchDeg: 6, startAtHoldPitch: true);
+            var low = WheelWaterTouch.Run(cfg, 0.5, 10.0, speed: 60 * 0.514444, throttle01: 0.4, holdPitchDeg: 2, startAtHoldPitch: true);
+            _out.WriteLine("6 deg: " + up + $" wheel g {up.MeanWheelG:F2}");
+            _out.WriteLine("2 deg: " + low + $" wheel g {low.MeanWheelG:F2}");
+            Assert.True(up.NoseOverAt < 0, $"6 deg: over at {up.NoseOverAt:F1} s");
+            Assert.True(low.NoseOverAt > 0, "2 deg: should go over");
+            Assert.True(low.MeanWheelG > 2 * up.MeanWheelG, $"nose low the wheels carry more ({low.MeanWheelG:F2} vs {up.MeanWheelG:F2} g)");
+        }
+        finally { FloatHydro.FlatWaterOverride = null; }
+    }
+
+    /// <summary>The same pilot and the same water for a 172 and a J-3 (45 kt, nose held 6° up, 40 % power): the J-3 skis;
+    /// the 172's nose wheel — 1.25 m ahead of the CG, against the J-3 mains' 0.16 m — goes into the water and it goes
+    /// over. Its mains are 6.00-6 at 38 psi (V_p 55 kt) against the J-3's 12 psi (31 kt). Which wheel is "the nose wheel"
+    /// is read from the geometry (the gear farthest ahead of the CG), not from the gear type.</summary>
+    [Fact]
+    public void ATricyclesNoseWheelDigsInWhereTheJ3Skis()
+    {
+        FloatHydro.FlatWaterOverride = 3.0;
+        try
+        {
+            AircraftConfig cub = Load("j3-cub-like"), c172 = Load("c172-like");
+            var j3 = WheelWaterTouch.Run(cub, 0.5, 10.0, speed: 45 * 0.514444, throttle01: 0.4, holdPitchDeg: 6);
+            var tri = WheelWaterTouch.Run(c172, 0.5, 10.0, speed: 45 * 0.514444, throttle01: 0.4, holdPitchDeg: 6);
+            int fwd = 0;
+            for (int i = 1; i < c172.Gear.Count; i++) if (c172.Gear[i].Pos[0] > c172.Gear[fwd].Pos[0]) fwd = i;
+            double rFwd = LandingGear.TireRadiusOf(c172, c172.Gear[fwd]);
+            _out.WriteLine("J-3:  " + j3);
+            _out.WriteLine("C172: " + tri);
+            _out.WriteLine($"C172 forward wheel (x {c172.Gear[fwd].Pos[0]:F2}, CG {c172.Mass.CgVec().X:F2}): peak immersion {tri.PeakImmersionM[fwd]:F2} m, tyre r {rFwd:F2}");
+            Assert.True(j3.NoseOverAt < 0, $"the J-3 should ski (over at {j3.NoseOverAt:F1} s)");
+            Assert.True(tri.NoseOverAt > 0, "the 172 should go over");
+            Assert.True(tri.PeakImmersionM[fwd] > rFwd, $"its forward wheel only went {tri.PeakImmersionM[fwd]:F2} m in");
+            Assert.True(tri.MinSpeed < 0.3 * tri.V, "no sustained ski");
+        }
+        finally { FloatHydro.FlatWaterOverride = null; }
+    }
+}
+
 /// <summary>A light wheel touch on deep water: level-ish glide trim at a skimming speed, wheels 3 cm above the
 /// surface, sinking at the given rate. Shared by the probe and the tests.</summary>
 public static class WheelWaterTouch
@@ -163,14 +297,17 @@ public static class WheelWaterTouch
     public sealed class Result
     {
         public string Id = "";
-        public double NoseOverAt = -1, MeanDecelG, TouchedFraction, SpeedAtNoseOver; public double V, PeakDecelG, PeakPitchRateDps, MinSpeed, SpeedAt1s, MaxPitchDeg, MinPitchDeg, TouchAt = -1, PeakNz;
+        public double[] PeakImmersionM = System.Array.Empty<double>(); public double MeanWheelG, PeakWheelG; public double NoseOverAt = -1, MeanDecelG, TouchedFraction, SpeedAtNoseOver; public double V, PeakDecelG, PeakPitchRateDps, MinSpeed, SpeedAt1s, MaxPitchDeg, MinPitchDeg, TouchAt = -1, PeakNz;
         public bool Converged;
+        /// <summary>Deepest any propeller-disc station went under the water, and how many prop strikes / stoppages the
+        /// aeroplane raised (Aircraft.Contact).</summary>
+        public double PropWaterDepthM; public int PropStrikes, PropStoppages;
         public List<string> Events = new();
         public List<AirframeComponent> Lost = new();
         public List<string> Damage = new();
         public bool WingsFailed;
         public override string ToString() =>
-            $"{Id}: noseover {NoseOverAt:F2}s at {SpeedAtNoseOver:F1} m/s, touching {TouchedFraction:P0}; V {V:F1} m/s trim {Converged} touch {TouchAt:F2}s; peak decel {PeakDecelG:F2} g, nz {PeakNz:F2}, peak |q| {PeakPitchRateDps:F0} deg/s, pitch {MinPitchDeg:F1}..{MaxPitchDeg:F1}, V@1s {SpeedAt1s:F1}, Vmin {MinSpeed:F1}; lost [{string.Join(",", Lost)}] dmg [{string.Join("; ", Damage)}] wings {WingsFailed}";
+            $"{Id}: noseover {NoseOverAt:F2}s at {SpeedAtNoseOver:F1} m/s, touching {TouchedFraction:P0}; V {V:F1} m/s trim {Converged} touch {TouchAt:F2}s; peak decel {PeakDecelG:F2} g, nz {PeakNz:F2}, peak |q| {PeakPitchRateDps:F0} deg/s, pitch {MinPitchDeg:F1}..{MaxPitchDeg:F1}, V@1s {SpeedAt1s:F1}, Vmin {MinSpeed:F1}; prop in water {PropWaterDepthM * 100:F1} cm, strikes {PropStrikes} stoppages {PropStoppages}; lost [{string.Join(",", Lost)}] dmg [{string.Join("; ", Damage)}] wings {WingsFailed}";
     }
 
     /// <summary>The lowest speed from a ladder at which the glide trim converges at a sane angle of attack, times 1.15.</summary>
@@ -189,7 +326,7 @@ public static class WheelWaterTouch
         return (40, TrimSolver.SolveGliderTrim(cfg, 40, 10, flapFraction: 0.0, idleProp: true));
     }
 
-    public static Result Run(AircraftConfig cfg, double sinkMs, double secs, double? speed = null, double stick = double.NaN, double throttle01 = 0, Action<string>? log = null, double holdPitchDeg = double.NaN)
+    public static Result Run(AircraftConfig cfg, double sinkMs, double secs, double? speed = null, double stick = double.NaN, double throttle01 = 0, Action<string>? log = null, double holdPitchDeg = double.NaN, bool startAtHoldPitch = false)
     {
         var res = new Result { Id = cfg.Id ?? "" };
         (double v, TrimSolver.Result trim) = SkimSpeed(cfg);
@@ -198,6 +335,8 @@ public static class WheelWaterTouch
         double alpha = trim.Converged ? trim.AlphaRad : 4 / 57.3;
         double gam = Math.Asin(sinkMs / v);
         double th = alpha - gam;
+        // A pilot who arrives at the held attitude (the sweep): the touch is flown at it, not at the glide trim's.
+        if (startAtHoldPitch && !double.IsNaN(holdPitchDeg)) th = holdPitchDeg / 57.2958;
         var q = new Quat(0, Math.Sin(th / 2), 0, Math.Cos(th / 2));
         Vec3 cg = cfg.Mass.CgVec();
         // Lowest point of any tyre, below the CG at this attitude.
@@ -217,11 +356,17 @@ public static class WheelWaterTouch
         var sim = new SimLoop(ac);
         ac.HardImpact += (c, p) => res.Events.Add($"t={Atmosphere.SimTimeSec:F2} impact {p} {c:F2} m/s water={ac.LastImpact.OnWater}");
         ac.ComponentLost += c => res.Events.Add($"t={Atmosphere.SimTimeSec:F2} LOST {c}");
+        ac.Contact += ev =>
+        {
+            if (ev.Kind == ContactEventKind.PropStrike) res.PropStrikes++;
+            if (ev.Kind == ContactEventKind.PropStoppage) res.PropStoppages++;
+        };
         double t0 = Atmosphere.SimTimeSec;
         res.MinSpeed = v; res.MaxPitchDeg = -999; res.MinPitchDeg = 999;
         Vec3 vPrev = vWorld;
         const double win = 0.05;
-        int touched = 0, windows = 0;
+        int touched = 0, windows = 0, wheelGN = 0;
+        double wheelGSum = 0;
         for (double t = 0; t < secs; t += win)
         {
             if (!double.IsNaN(holdPitchDeg))
@@ -242,13 +387,33 @@ public static class WheelWaterTouch
             if (Math.Abs(t + win - 1.0) < 1e-6) res.SpeedAt1s = vw.Length;
             Quat a = s.Attitude; double pitch = Math.Asin(Math.Clamp(2 * (a.W * a.Y - a.Z * a.X), -1, 1)) * 57.3;
             res.MaxPitchDeg = Math.Max(res.MaxPitchDeg, pitch); res.MinPitchDeg = Math.Min(res.MinPitchDeg, pitch);
-            if (res.TouchAt < 0 && ac.AnyGearTouching) res.TouchAt = t + win;
-            if (ac.AnyGearTouching) touched++;
-            if (res.NoseOverAt < 0 && (pitch < -30 || ac.LostComponents.Contains(AirframeComponent.Propeller))) { res.NoseOverAt = t + win; res.SpeedAtNoseOver = vw.Length; }
+            // In the water: any tyre bottom (the gear point) below the surface. (LandingGear's own touching flag is
+            // the ground's in shallow water, where the tyre also reaches the bed.)
+            bool wetWheel = false;
+            if (res.PeakImmersionM.Length != cfg.Gear.Count) res.PeakImmersionM = new double[cfg.Gear.Count];
+            for (int gi = 0; gi < cfg.Gear.Count; gi++)
+            {
+                Vec3 p = s.Position + s.Attitude.Rotate(cfg.Gear[gi].PosVec() - cg);
+                double? wUp = FloatHydro.WaterSurfaceAt(p.X, p.Y);
+                if (!wUp.HasValue || -p.Z >= wUp.Value) continue;
+                wetWheel = true;
+                res.PeakImmersionM[gi] = Math.Max(res.PeakImmersionM[gi], wUp.Value + p.Z);
+            }
+            foreach (ContactPoint cp in ac.ContactPoints)
+                if (cp.PropDisc && cp.SurfaceCode == ContactPoint.SurfaceWater) res.PropWaterDepthM = Math.Max(res.PropWaterDepthM, cp.DepthM);
+            bool inContact = wetWheel || ac.AnyGearTouching;
+            if (res.TouchAt < 0 && inContact) res.TouchAt = t + win;
+            if (inContact) touched++;
+            // What the water carries, in g: the non-aero normal load (thrust is along the body x).
+            double wheelG = ac.LoadFactorZ - ac.AeroLoadFactorZ;
+            // The skiing window: wet wheels, before it goes over or a blade reaches the water.
+            if (wetWheel && res.NoseOverAt < 0 && res.PropStrikes == 0) { res.PeakWheelG = Math.Max(res.PeakWheelG, wheelG); wheelGSum += wheelG; wheelGN++; }
+            if (res.NoseOverAt < 0 && (pitch < -30 || ac.LostComponents.Contains(AirframeComponent.Propeller) || ac.LostComponents.Contains(AirframeComponent.Nose))) { res.NoseOverAt = t + win; res.SpeedAtNoseOver = vw.Length; }
             log?.Invoke($"t={t + win:F2} V {vw.Length:F1} decel {decel:F2} g h {-s.Position.Z:F2} pitch {pitch:F1} q {s.Rates.Y * 57.3:F0} nz {ac.LoadFactorZ:F2} gear {ac.AnyGearTouching}");
             vPrev = vw;
             windows++;
         }
+        res.MeanWheelG = wheelGN > 0 ? wheelGSum / wheelGN : 0;
         res.TouchedFraction = windows > 0 ? (double)touched / windows : 0;
         res.MeanDecelG = (v - res.MinSpeed) / secs / 9.81;
         res.Lost = ac.LostComponents.ToList();

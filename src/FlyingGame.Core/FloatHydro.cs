@@ -466,7 +466,10 @@ public static class FloatHydro
         // meets the water along the chord from the step keel to where the keel crosses the surface, which is steeper.
         // Taking only the keel line there gave a float set down flat or a little nose-low at speed NO planing lift
         // (τ ≤ 0) however much bow was in the water, so it knifed under and drove the engine into the lake (Ty
-        // 2026-11-03, the J-3 on floats breaking up on landing; FloatLandingTests). The steeper of the two is used.
+        // 2026-11-03, the J-3 on floats breaking up on landing; FloatLandingTests). At any positive keel-line τ the
+        // prismatic τ is kept exactly (the low-trim porpoise and every validated number live there: HydroJ3Tests);
+        // below zero, where the prismatic surface gives nothing, τ moves to the chord over the first degree — from
+        // zero lift, so the lift is continuous through τ = 0.
         double planeSlope = h.ForeKeelSlope;
         if (lk > 1e-3)
         {
@@ -480,13 +483,23 @@ public static class FloatHydro
             }
             planeSlope = System.Math.Min(planeSlope, (zf - h.KeelZStep) / lk);   // body z is down: a rising bow is negative
         }
-        if (planeSlope < h.ForeKeelSlope)
+        const double chordRampDeg = 1.0;
+        if (planeSlope < h.ForeKeelSlope && tauDeg < 0)
         {
             Vec3 dkc = q.Rotate(new Vec3(1, 0, planeSlope).Normalized());
             double dkch = vH > 1e-6 ? (dkc.X * vStep.X + dkc.Y * vStep.Y) / vH : System.Math.Sqrt(dkc.X * dkc.X + dkc.Y * dkc.Y);
-            keelPitch = System.Math.Atan2(-dkc.Z, System.Math.Max(System.Math.Abs(dkch), 1e-9)) * (dkch >= 0 ? 1 : -1);
-            tauRad = keelPitch + sink; tauDeg = tauRad * 180 / System.Math.PI;
+            double chordPitch = System.Math.Atan2(-dkc.Z, System.Math.Max(System.Math.Abs(dkch), 1e-9)) * (dkch >= 0 ? 1 : -1);
+            double fBlend = System.Math.Clamp(-tauDeg / chordRampDeg, 0.0, 1.0);
+            double kp = keelPitch + (chordPitch - keelPitch) * fBlend;
+            if (kp > keelPitch)
+            {
+                planeSlope = h.ForeKeelSlope + (planeSlope - h.ForeKeelSlope) * fBlend;
+                keelPitch = kp;
+                tauRad = keelPitch + sink; tauDeg = tauRad * 180 / System.Math.PI;
+            }
+            else planeSlope = h.ForeKeelSlope;
         }
+        else planeSlope = h.ForeKeelSlope;
         double rdeg = 0, lambda = 0, bw = b, lift = 0, sForeSav = 0, v1 = vH;
         if (lk > 1e-3 && dStep > 0 && vH > 0.3 && tauDeg > 0.1)
         {
