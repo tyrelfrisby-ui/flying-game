@@ -1,4 +1,6 @@
-## NEEDS YOU — flat-spotted tyres: fly-check (Claude, 2026-11-05)
+## NEEDS YOU
+- **FLY PASS 2026-11-05 ~15:36 PT (Ty pt814u) — crash-bailout behavior on device (last verified phone 2026.1105.1451; do not assert newer stamp).** Reported: (1) bailout after **hard crash** — pilot went to heaven (ghost/heaven sequence OK); (2) bailout after a **mild crash** — pilot still gets out OK. Logged only these two checks. Does **not** answer Q085 DEAD-threshold / Q086 seat-index / Q087 procedural-canopy decisions. Q076 auto crash zoom-out remains REJECTED; fuselage-follow removal still QUEUED. Nothing else marked approved.
+
 <!-- flat-spot needs-you -->
 Lane lane/claude-flat-spot. Ty (08:53): "model flat spotted tires even if they don't pop ... the longer it locks up the
 deeper the flat spot the more significant the bump as it rolls and the frequency should be modeled after the actual tire
@@ -115,9 +117,12 @@ Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lane
 
 ## NEEDS YOU
 - **CRASH SURVIVAL + GHOST BAIL-OUT + REAL CANOPY/DOOR JETTISON (Claude, 2026-11-05 14:50, lane/claude-crash-bailout
-  66bd7c22; your 06:35 + 06:37 + 06:38 requests). iOS `deploy.sh` (NOINSTALL) ** BUILD SUCCEEDED **, 0 error CS;
-  Unity `BailoutHeavenCheck` PASS, 0 error CS. Merged into island-nav + quest-islandnav (see below for the install).
-  Nothing approved by me.** Please fly-check: crash hard and BAIL OUT (ghost goes up); bail out of a Pitts, Extra, 2-33,
+  09e0830b; your 06:35 + 06:37 + 06:38 requests). Unity `BailoutHeavenCheck` PASS, 0 error CS. MERGED: island-nav
+  690ddae2, quest-islandnav ef0213bc (PARITY: OK --strict). INSTALLED: iPhone + iPad mini **2026.1105.1451** (built
+  from 690ddae2 alone; iPhone launched; Frisby_801C_EFB was LOCKED, not installed); Quest 3S **2026.1105.1511** (my
+  merge was in the tree; lane/codex-extra-remove-diagonals merged into that worktree 73 s into the build, so the APK
+  may carry part of it). A rebuild at a154ce35 (15:39) FAILED in Gradle: the Android data passed 4 GB (Q126, blocks
+  every Quest build). Nothing approved by me.** Please fly-check: crash hard and BAIL OUT (ghost goes up); bail out of a Pitts, Extra, 2-33,
   Grob and 172 in flight AND sitting still. Write-up: `docs/CRASH-SURVIVAL.md`.
   - **The crash now counts.** Every sim step the seat's measured acceleration (its velocity change over the whole step,
     less gravity) goes through Brinkley's injury model (NASA-STD-3001 restrained limits), plus the cabin crush the sim
