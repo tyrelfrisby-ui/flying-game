@@ -20,17 +20,76 @@ public sealed class GroundSoundMix
     /// <summary>Bearing whir frequency per wheel revolution per second: the cage and rolling-element passing tones of a
     /// small tapered-roller bearing sit at ~8–10× the shaft rate.</summary>
     public const double WhirHzPerRevS = 9.0;
-    /// <summary>Whir gain at the reference rim speed (≈ −36 dB below the engine's full level).</summary>
-    public const double WhirGainAtRef = 0.016, WhirRefSpeedMs = 25.7;
+    /// <summary>Whir gain at the reference rim speed. Ty 2026-11-05 ("bearing noise is too loud"): −14 dB from the
+    /// first 0.016, i.e. ≈ −50 dB below the engine's full level, and it grows with the SQUARE of the wheel's rpm (≈ 40 dB
+    /// a decade, the steep end of what rolling-bearing noise does), so at taxi speed it is all but gone and only a fast
+    /// roll or a coasting glider lets you hear it.</summary>
+    public const double WhirGainAtRef = 0.0032, WhirRefSpeedMs = 25.7, WhirSpeedExponent = 2.0;
     public const double SquealPressure = 0.6, SquealSlip = 0.08;
+
+    // ---- The tyre's own voice: squeal and scrub, from the contact patch (Ty 2026-11-05) -------------------------
+    // What is heard is the rubber sliding in the patch, decided by two things the physics already has: how fast the
+    // patch slides (its mean slip speed, E / ∫|F|dt, fore and aft and sideways separately) and how big the tyre is.
+    //  - PITCH. Rubber squeal is stick-slip of the tread excited at the tread band's own tangential modes, whose
+    //    frequencies go as a wave speed over a length of the tyre: f ∝ 1/OD. Reference: a ~25 in passenger tyre
+    //    squeals around 1.1 kHz (ESTIMATE from the 0.7–1.3 kHz the tyre-noise literature reports), so
+    //    f·OD ≈ 700 Hz·m: a 6.00-6 (17.5 in) 1.57 kHz, the J-3's 8.00-4 1.53 kHz, a 5.00-5 nose 1.94 kHz, an 8 in
+    //    tailwheel 3.4 kHz, a 35 in bushwheel 0.79 kHz, a 737 main 0.64 kHz. Faster sliding drives the stick-slip
+    //    faster and lifts it a little, (v/10 m/s)^0.2 bounded 0.6–1.35, so a spin-up chirp falls as the wheel catches
+    //    up (25 m/s → ×1.20, 2 m/s → ×0.72).
+    //  - SQUEAL OR SCRUB. Rubber's friction peaks at a low sliding speed and falls past it (Grosch 1963); the falling
+    //    branch is what makes stick-slip lock into a tone. So the faster the patch slides the more of its power is a
+    //    squeal, and the slower the more a broad, low, rubbery scrub: TonalFraction ramps from 1.5 to 6 m/s (ESTIMATE
+    //    of where it locks). A spin-up starts at the touchdown speed (squeal) and ends in a scuff; a crabbed touchdown
+    //    slides sideways at 1–5 m/s and scrubs; a tyre skidding sideways fast squeals as a car's does.
+    //  - LEVEL. Loudness goes with the log of the slip power the patch dissipates, from audible (50 W) to full (50 kW),
+    //    times the ground row's Chirp (full on asphalt and decks, a scuff on dirt, none on grass).
+    /// <summary>f·OD of the tread's squeal (Hz·m): ~1.1 kHz on a 25 in passenger tyre (ESTIMATE).</summary>
+    public const double SquealHzMetre = 700.0;
+    public const double SquealRefSlipMs = 10.0, SquealSlipExponent = 0.2, SquealMinFactor = 0.6, SquealMaxFactor = 1.35;
+    /// <summary>The scrub's centre sits well under the squeal (broadband abrasion, Q ~1), rising a little with slip.</summary>
+    public const double ScrubHzFraction = 0.42, ScrubRefSlipMs = 3.0, ScrubSlipExponent = 0.3, ScrubMinFactor = 0.6, ScrubMaxFactor = 1.6;
+    /// <summary>Slip speeds (m/s) over which the patch's sliding goes from all scrub to all squeal (ESTIMATE).</summary>
+    public const double TonalFromMs = 1.5, TonalToMs = 6.0;
+    /// <summary>Slip power (W) for full level: three decades above audible.</summary>
+    public const double FullSlipPowerW = 50000.0;
+
+    /// <summary>The tread's squeal resonance for a tyre of outside diameter <paramref name="odM"/>.</summary>
+    public static double SquealResonanceHz(double odM) => SquealHzMetre / System.Math.Max(odM, 0.05);
+
+    /// <summary>The squeal's pitch: the tyre's resonance, lifted or lowered by how fast the patch slides.</summary>
+    public static double TyreSquealHz(double odM, double slipMs) =>
+        SquealResonanceHz(odM) * System.Math.Clamp(System.Math.Pow(System.Math.Max(slipMs, 1e-3) / SquealRefSlipMs, SquealSlipExponent),
+                                                 SquealMinFactor, SquealMaxFactor);
+
+    /// <summary>The scrub's centre frequency: well below the squeal, rising a little with the slip speed.</summary>
+    public static double TyreScrubHz(double odM, double slipMs) =>
+        ScrubHzFraction * SquealResonanceHz(odM)
+        * System.Math.Clamp(System.Math.Pow(System.Math.Max(slipMs, 1e-3) / ScrubRefSlipMs, ScrubSlipExponent), ScrubMinFactor, ScrubMaxFactor);
+
+    /// <summary>Share of the patch's slip power that is a squeal (the rest is scrub), 0..1 by its slip speed.</summary>
+    public static double TonalFraction(double slipMs)
+    {
+        double x = System.Math.Clamp((slipMs - TonalFromMs) / (TonalToMs - TonalFromMs), 0, 1);
+        return x * x * (3 - 2 * x);
+    }
+
+    /// <summary>Level 0..1 of a slip power: log from audible (<see cref="WheelSpin.AudibleSlipPowerW"/>) to
+    /// <see cref="FullSlipPowerW"/>.</summary>
+    public static double SlipLevel(double powerW) =>
+        powerW <= WheelSpin.AudibleSlipPowerW ? 0
+        : System.Math.Clamp(System.Math.Log10(powerW / WheelSpin.AudibleSlipPowerW) / System.Math.Log10(FullSlipPowerW / WheelSpin.AudibleSlipPowerW), 0, 1);
 
     // Output, per side (0 = left, 1 = right).
     public readonly float[] RollingGain = new float[2 * Keys];   // [side * Keys + key]
     public readonly float[] RollingPitch = new float[Keys];
     public readonly float[] WhirHz = new float[2], WhirGain = new float[2];
-    /// <summary>Seconds of audible tyre slip this frame (spin-up chirp, or a skid), its level 0..1 and the slip ratio
-    /// that sets its pitch. The voice plays for exactly the slip time it is given.</summary>
-    public readonly float[] ChirpSeconds = new float[2], ChirpGain = new float[2], ChirpSlip = new float[2];
+    /// <summary>Seconds of audible tyre squeal this frame (spin-up chirp, or a fast skid), its level 0..1 and its pitch
+    /// (Hz, <see cref="TyreSquealHz"/>). The voice plays for exactly the slip time it is given.</summary>
+    public readonly float[] ChirpSeconds = new float[2], ChirpGain = new float[2], ChirpHz = new float[2];
+    /// <summary>The same for the low rubbery SCRUB of a slowly sliding patch (a crabbed touchdown, the tail of a spin-up,
+    /// a tight turn): seconds, level 0..1, centre frequency (Hz, <see cref="TyreScrubHz"/>).</summary>
+    public readonly float[] ScrubSeconds = new float[2], ScrubLevel = new float[2], ScrubCentreHz = new float[2];
     public readonly float[] ScrapeGain = new float[2], ScrapeHz = new float[2];
     public readonly float[] SquealGain = new float[2], SquealHz = new float[2];
     public float WaterSplash, WaterHiss, Spray, SkiHiss, KeelScrape;
@@ -102,7 +161,8 @@ public sealed class GroundSoundMix
         System.Array.Clear(RollingPitch, 0, RollingPitch.Length);
         for (int s = 0; s < 2; s++)
         {
-            WhirHz[s] = WhirGain[s] = ChirpSeconds[s] = ChirpGain[s] = ChirpSlip[s] = 0;
+            WhirHz[s] = WhirGain[s] = ChirpSeconds[s] = ChirpGain[s] = ChirpHz[s] = 0;
+            ScrubSeconds[s] = ScrubLevel[s] = ScrubCentreHz[s] = 0;
             ScrapeGain[s] = ScrapeHz[s] = SquealGain[s] = SquealHz[s] = 0;
             ThumpJ[s] = FlapHz[s] = FlapGain[s] = 0; Pops[s] = 0;
         }
@@ -119,7 +179,7 @@ public sealed class GroundSoundMix
             (double pl, double pr) = Pan(w.Side * PanWidth);
             double share = loadRef > 1e-9 ? System.Math.Max(0, w.LoadN) / loadRef : 0;
             double speed = System.Math.Abs(w.VFwdMs);
-            w.TakeSlip(out double slipJ, out double slipS);
+            w.TakeSlip(out WheelState.Slip fore, out WheelState.Slip side);
             double thumpJ = w.ThumpJ; w.ThumpJ = 0;
             int pops = w.Bursts - (i < _bursts.Length ? _bursts[i] : 0);
             if (i < _bursts.Length) _bursts[i] = w.Bursts;
@@ -150,7 +210,7 @@ public sealed class GroundSoundMix
             if (!quietBearing && rim > 0.2 && w.RadiusM > 0)
             {
                 double revS = rim / (2 * System.Math.PI * w.RollingRadiusM);
-                double g = WhirGainAtRef * System.Math.Pow(rim / WhirRefSpeedMs, 1.5);
+                double g = WhirGainAtRef * System.Math.Pow(rim / WhirRefSpeedMs, WhirSpeedExponent);
                 AddSide(WhirGain, pl, pr, g);
                 double hz = WhirHzPerRevS * revS;
                 if (hz > WhirHz[0]) WhirHz[0] = (float)hz;   // one tone per side, the fastest wheel's
@@ -186,21 +246,15 @@ public sealed class GroundSoundMix
                 pitchW[k] += g;
             }
 
-            // Spin-up chirp / skid: the slip energy the wheel actually dissipated, for as long as it slipped, scaled by
-            // how much of it the rubber makes heard on this ground (none on grass, a scuff on dirt).
+            // The tyre's voice: the slip power the patch actually dissipated, for as long as it slipped audibly, fore and
+            // aft and sideways, each split into squeal and scrub by how fast it slid, scaled by how much of it the rubber
+            // makes heard on this ground (none on grass, a scuff on dirt).
             double chirp = row!.Chirp;
-            if (chirp > 0 && slipS > 0)
+            if (chirp > 0)
             {
-                double power = slipJ / System.Math.Max(slipS, 1e-4);
-                double level = chirp * System.Math.Clamp(System.Math.Log10(power / WheelSpin.AudibleSlipPowerW) / 3.0, 0, 1);
                 int sIdx = w.Side < 0 ? 0 : w.Side > 0 ? 1 : -1;
-                for (int s = 0; s < 2; s++)
-                {
-                    if (sIdx >= 0 && s != sIdx) continue;
-                    ChirpSeconds[s] = System.Math.Max(ChirpSeconds[s], (float)slipS);
-                    ChirpGain[s] = System.Math.Max(ChirpGain[s], (float)(level * (s == 0 ? pl : pr) / 0.7071));
-                    ChirpSlip[s] = System.Math.Max(ChirpSlip[s], (float)System.Math.Abs(w.SlipRatio));
-                }
+                Voice(fore, w.SoundOdM, chirp, sIdx, pl, pr);
+                Voice(side, w.SoundOdM, chirp, sIdx, pl, pr);
             }
 
             // A worn or flat tyre: the thump is the work the axle did on its lumps (it arrives when the low strip passes
@@ -260,6 +314,33 @@ public sealed class GroundSoundMix
     }
 
     private readonly double[] _pitchW = new double[Keys];
+
+    /// <summary>One direction's slip into the squeal and scrub voices of the wheel's side(s); the loudest wheel on a side
+    /// sets that side's pitch.</summary>
+    private void Voice(in WheelState.Slip slip, double odM, double chirp, int sIdx, double pl, double pr)
+    {
+        if (slip.TimeS <= 0 || slip.EnergyJ <= 0) return;
+        double power = slip.EnergyJ / System.Math.Max(slip.TimeS, 1e-4);
+        double tonal = TonalFraction(slip.SpeedMs);
+        double squeal = chirp * SlipLevel(power * tonal), scrub = chirp * SlipLevel(power * (1 - tonal));
+        for (int s = 0; s < 2; s++)
+        {
+            if (sIdx >= 0 && s != sIdx) continue;
+            double pan = (s == 0 ? pl : pr) / 0.7071;
+            if (squeal > 0)
+            {
+                float g = (float)(squeal * pan);
+                ChirpSeconds[s] = System.Math.Max(ChirpSeconds[s], (float)slip.TimeS);
+                if (g >= ChirpGain[s]) { ChirpGain[s] = g; ChirpHz[s] = (float)TyreSquealHz(odM, slip.SpeedMs); }
+            }
+            if (scrub > 0)
+            {
+                float g = (float)(scrub * pan);
+                ScrubSeconds[s] = System.Math.Max(ScrubSeconds[s], (float)slip.TimeS);
+                if (g >= ScrubLevel[s]) { ScrubLevel[s] = g; ScrubCentreHz[s] = (float)TyreScrubHz(odM, slip.SpeedMs); }
+            }
+        }
+    }
 
     private static void AddSide(float[] a, double pl, double pr, double g)
     {

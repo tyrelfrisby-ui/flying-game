@@ -159,6 +159,8 @@ public static class WheelSpin
         /// when rolling forward).</summary>
         public double ForceN;
         public double SlipRatio, SlipPowerW, SlipEnergyJ, SlipTimeS, FallFactor;
+        /// <summary>∫|D|dt over the step (N·s): with SlipEnergyJ it gives the patch's mean slip speed, E / ∫|D|dt.</summary>
+        public double SlipImpulseNs;
         public bool Locked;
     }
 
@@ -218,6 +220,7 @@ public static class WheelSpin
             double slipV = System.Math.Abs(vFwd - omega * r);
             double p = System.Math.Abs(dUsed) * slipV;
             res.SlipEnergyJ += p * h;
+            res.SlipImpulseNs += System.Math.Abs(dUsed) * h;
             if (p > AudibleSlipPowerW) res.SlipTimeS += h;
             res.SlipPowerW = p;
             res.SlipRatio = kEnd;
@@ -318,7 +321,13 @@ public sealed class WheelState
 
     // Accumulated for whoever listens (the sound), read and cleared by them: slip energy (J) and time (s) spent
     // audibly slipping since the last read. A spin-up lasting 10 ms falls between two frames; these carry it across.
-    public double SlipEnergyJ, SlipTimeS;
+    // The impulses (∫|F|dt, N·s) give the patch's mean slip speed over the same time, E / ∫|F|dt: fore and aft (the
+    // spin-up, a skid) and sideways (a crabbed touchdown, a scrubbing turn), each from its own force and slip.
+    public double SlipEnergyJ, SlipTimeS, SlipImpulseNs;
+    public double SideSlipEnergyJ, SideSlipTimeS, SideSlipImpulseNs;
+    /// <summary>The tyre's outside diameter (m) for the sound: the catalog's, legacy sizes included, else twice the
+    /// leg's radius. It sets the pitch of the squeal (<see cref="GroundSoundMix.SquealResonanceHz"/>).</summary>
+    public readonly double SoundOdM;
 
     public WheelState(AircraftConfig c, GearConfig g)
     {
@@ -327,6 +336,7 @@ public sealed class WheelState
         RadiusM = LandingGear.TireRadiusOf(c, g);
         RollingRadiusM = RadiusM;
         TireSpec? spec = IsWheel ? TireCatalog.Of(g) : null;
+        SoundOdM = spec != null && spec.OdM > 0 ? spec.OdM : 2 * RadiusM;
         Tire = spec != null && spec.HasCarcass ? spec : null;     // a legacy size is rigid, as it always was
         if (Tire != null)
         {
@@ -412,6 +422,27 @@ public sealed class WheelState
     public void TakeSlip(out double energyJ, out double timeS)
     {
         energyJ = SlipEnergyJ; timeS = SlipTimeS;
-        SlipEnergyJ = 0; SlipTimeS = 0;
+        SlipEnergyJ = 0; SlipTimeS = 0; SlipImpulseNs = 0;
+        SideSlipEnergyJ = 0; SideSlipTimeS = 0; SideSlipImpulseNs = 0;
+    }
+
+    /// <summary>One direction of the patch's slip since the last read: energy, audible time, and the mean slip speed
+    /// E / ∫|F|dt (0 if there was no force).</summary>
+    public readonly struct Slip
+    {
+        public readonly double EnergyJ, TimeS, SpeedMs;
+        public Slip(double e, double t, double impulse)
+        {
+            EnergyJ = e; TimeS = t;
+            SpeedMs = impulse > 1e-9 && double.IsFinite(e / impulse) ? e / impulse : 0;
+        }
+    }
+
+    /// <summary>Read and clear both directions of slip accumulated since the last call.</summary>
+    public void TakeSlip(out Slip fore, out Slip side)
+    {
+        fore = new Slip(SlipEnergyJ, SlipTimeS, SlipImpulseNs);
+        side = new Slip(SideSlipEnergyJ, SideSlipTimeS, SideSlipImpulseNs);
+        TakeSlip(out double _, out double _);
     }
 }

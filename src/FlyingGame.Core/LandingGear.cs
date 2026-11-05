@@ -701,7 +701,7 @@ public static class LandingGear
                     ws.FallFactor = res.FallFactor;
                     ws.SlipRatio = res.SlipRatio; ws.SlipPowerW = res.SlipPowerW; ws.Locked = res.Locked;
                     ws.BrakeTorqueNm = brakeForceN * ws.RollingRadiusM;
-                    ws.SlipEnergyJ += res.SlipEnergyJ; ws.SlipTimeS += res.SlipTimeS;
+                    ws.SlipEnergyJ += res.SlipEnergyJ; ws.SlipTimeS += res.SlipTimeS; ws.SlipImpulseNs += res.SlipImpulseNs;
                 }
                 if (ws != null && ws.IsWheel && dt > 0)
                 {
@@ -719,6 +719,15 @@ public static class LandingGear
                 double longBudget = System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));
                 longN = System.Math.Clamp(longN, -longBudget, longBudget);
                 tireForce = tireRight * lateralN + tireFwd * longN;
+                // For the sound only (nothing reads it back): the side force's work on the patch's sideways slip, the
+                // scrub of a crabbed touchdown or a tight turn.
+                if (ws != null && ws.IsWheel && firstStage && dt > 0 && double.IsFinite(lateralN) && double.IsFinite(vSide))
+                {
+                    double pSide = System.Math.Abs(lateralN * vSide);
+                    ws.SideSlipEnergyJ += pSide * dt;
+                    ws.SideSlipImpulseNs += System.Math.Abs(lateralN) * dt;
+                    if (pSide > WheelSpin.AudibleSlipPowerW) ws.SideSlipTimeS += dt;
+                }
             }
             Vec3 wheelForce = normalForce + tireForce;
             Aero.ForceDebug.Add(g.PosVec(), s.Attitude.Conjugate().Rotate(wheelForce), Vec3.Zero, "gear");

@@ -39,6 +39,9 @@ namespace FlyingGame.Bridge
         private readonly int[] _chirpSeenUs = new int[2];      // audio thread
         private readonly float[] _chirpNewS = new float[2];    // audio thread
         private readonly double[] _chirpTotalS = new double[2]; // main thread
+        private readonly int[] _scrubSeenUs = new int[2];      // audio thread
+        private readonly float[] _scrubNewS = new float[2];    // audio thread
+        private readonly double[] _scrubTotalS = new double[2]; // main thread
         private readonly double[] _thumpTotalJ = new double[2]; // main thread
         private readonly int[] _popTotal = new int[2];          // main thread
         private readonly int[] _thumpSeenMj = new int[2], _popSeen = new int[2];   // audio thread
@@ -357,7 +360,10 @@ namespace FlyingGame.Bridge
                 _tele.WhirHz[s] = m.WhirHz[s]; _tele.WhirGain[s] = m.WhirGain[s];
                 _chirpTotalS[s] += m.ChirpSeconds[s];
                 System.Threading.Volatile.Write(ref _tele.ChirpTotalUs[s], (int)(_chirpTotalS[s] * 1e6 % int.MaxValue));
-                if (m.ChirpSeconds[s] > 0f) { _tele.ChirpGain[s] = m.ChirpGain[s]; _tele.ChirpSlip[s] = m.ChirpSlip[s]; }
+                if (m.ChirpSeconds[s] > 0f) { _tele.ChirpGain[s] = m.ChirpGain[s]; _tele.ChirpHz[s] = m.ChirpHz[s]; }
+                _scrubTotalS[s] += m.ScrubSeconds[s];
+                System.Threading.Volatile.Write(ref _tele.ScrubTotalUs[s], (int)(_scrubTotalS[s] * 1e6 % int.MaxValue));
+                if (m.ScrubSeconds[s] > 0f) { _tele.ScrubGain[s] = m.ScrubLevel[s]; _tele.ScrubHz[s] = m.ScrubCentreHz[s]; }
                 _tele.ScrapeGain[s] = m.ScrapeGain[s]; _tele.ScrapeHz[s] = m.ScrapeHz[s];
                 _tele.SquealGain[s] = m.SquealGain[s]; _tele.SquealHz[s] = m.SquealHz[s];
                 _thumpTotalJ[s] += m.ThumpJ[s];
@@ -396,6 +402,10 @@ namespace FlyingGame.Bridge
                 int d = total - _chirpSeenUs[s];
                 _chirpSeenUs[s] = total;
                 _chirpNewS[s] = d > 0 && d < 1000000 ? d * 1e-6f : 0f;
+                int sc = System.Threading.Volatile.Read(ref t.ScrubTotalUs[s]);
+                int dsc = sc - _scrubSeenUs[s];
+                _scrubSeenUs[s] = sc;
+                _scrubNewS[s] = dsc > 0 && dsc < 1000000 ? dsc * 1e-6f : 0f;
                 int th = System.Threading.Volatile.Read(ref t.ThumpTotalMj[s]);
                 int dth = th - _thumpSeenMj[s];
                 _thumpSeenMj[s] = th;
@@ -404,7 +414,7 @@ namespace FlyingGame.Bridge
                 _popsNew[s] = pops - _popSeen[s] > 0 ? pops - _popSeen[s] : 0;
                 _popSeen[s] = pops;
             }
-            _tyres.Prepare(t.WhirHz, t.WhirGain, _chirpNewS, t.ChirpGain, t.ChirpSlip, t.ScrapeGain, t.ScrapeHz, t.SquealGain, t.SquealHz,
+            _tyres.Prepare(t.WhirHz, t.WhirGain, _chirpNewS, t.ChirpGain, t.ChirpHz, _scrubNewS, t.ScrubGain, t.ScrubHz, t.ScrapeGain, t.ScrapeHz, t.SquealGain, t.SquealHz,
                            t.WaterSplash, t.WaterHiss, t.Spray, t.SkiHiss, t.KeelScrape,
                            _thumpNewJ, _popsNew, t.FlapHz, t.FlapGain);
             CrashSoundMixer crashes = _crashes;

@@ -227,7 +227,9 @@ namespace FlyingGame.Bridge
         public volatile float RollSpeedMs;
         public readonly float[] WhirHz = new float[2], WhirGain = new float[2];
         public readonly int[] ChirpTotalUs = new int[2];        // cumulative slip time per side, µs (the audio thread takes the difference)
-        public readonly float[] ChirpGain = new float[2], ChirpSlip = new float[2];
+        public readonly float[] ChirpGain = new float[2], ChirpHz = new float[2];
+        public readonly int[] ScrubTotalUs = new int[2];        // the same for the scrub
+        public readonly float[] ScrubGain = new float[2], ScrubHz = new float[2];
         public readonly float[] ScrapeGain = new float[2], ScrapeHz = new float[2], SquealGain = new float[2], SquealHz = new float[2];
         public volatile float WaterSplash, WaterHiss, Spray, SkiHiss, KeelScrape;
         // A worn or flat tyre (Core TyreWear): cumulative thump work per side (mJ) and bursts per side (the audio thread
