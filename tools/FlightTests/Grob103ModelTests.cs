@@ -115,7 +115,7 @@ public class Grob103ModelTests
         Assert.True(te.Z < -0.3, $"right rudder must move the trailing edge to starboard (-z): {te.Z:F3}");
 
         // The sim at full right pedal: 25 deg right (the ESTIMATED lock, Grob103Tests.SteerLockDeg).
-        RigInputs r = RigInputs.FromDeflections(0, 0, 0.5236, 0, 0.4363, 0.4065, 0.5236, LandingGear.NoseWheelSteerMaxRad(Grob103.Load()));
+        RigInputs r = RigInputs.FromDeflections(0, 0, 0.5236, 0, 0.4363, 0.4065, 0.5236, noseSteerMaxRad: LandingGear.NoseWheelSteerMaxRad(Grob103.Load()));
         Assert.Equal(25.0, r.NoseWheelSteerDeg, 2);
         double drawn = MapValue(steer, r.NoseWheelSteerDeg);
         var front = Turn((-1, 0, 0), Axis(steer), drawn);                       // the wheel's front

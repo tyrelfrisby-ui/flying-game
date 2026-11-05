@@ -223,7 +223,7 @@ namespace FlyingGame.Bridge
             FlyingGame.Core.RigInputs r = FlyingGame.Core.RigInputs.FromDeflections(
                 d.AileronRad, d.ElevatorRad, d.RudderRad, d.SpoilerFraction,
                 c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad,
-                FlyingGame.Core.LandingGear.NoseWheelSteerMaxRad(ac.Config));
+                noseSteerMaxRad: FlyingGame.Core.LandingGear.NoseWheelSteerMaxRad(ac.Config));
 
             // Total-energy variometer: the rate of change of HEIGHT PLUS KINETIC HEIGHT, so a pull-up reads as
             // the trade it is rather than as lift. Lagged about a second, like the capacity bottle on a real one.
@@ -770,7 +770,7 @@ namespace FlyingGame.Bridge
             // A model with its own rig moves ITS surfaces on the same deflections — so every caller that poses
             // an aeroplane (a remote player's, the widget's replay, a render) gets them, not only the live one.
             _rig?.SetControls(FlyingGame.Core.RigInputs.FromDeflections(aileronRad, elevatorRad, rudderRad, spoilerFrac,
-                                                                        _ailMaxRad, _eleMaxRad, _rudMaxRad, _noseSteerMaxRad));
+                                                                        _ailMaxRad, _eleMaxRad, _rudMaxRad, noseSteerMaxRad: _noseSteerMaxRad));
         }
 
         // ---- spinning propellers (owner 2026-10-04) ----------------------------------------------------------------
