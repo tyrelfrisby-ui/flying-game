@@ -1,7 +1,7 @@
 ## NEEDS YOU
 <!-- input-expo needs-you -->
 - **STICK EXPO ON EVERY INPUT, ONE CURVE, ONE SLIDER (Claude, 2026-11-04, lane/claude-input-expo; Ty 05:55 "hand flying
-  needs some expo"). iOS `2026.1104.1433` `** BUILD SUCCEEDED **` (lane HEAD b770986f = island-nav 94b70e6b + this); merge into island-nav waits for the Grob merge, as asked.**
+  needs some expo"). iOS `2026.1104.1433` `** BUILD SUCCEEDED **` (lane HEAD b770986f = island-nav 94b70e6b + this); **NOT merged into island-nav**: the brief was to merge only after a grob103 merge landed there; polled 14:38–17:38 PST, none landed (island-nav moved on to 6615db2d, 4b902fca C172 yoke, 73d7702b). **Not installed** (4016 at 14:37; at 17:38 another lane's Unity + xcodebuild were running). To land it: `git merge --no-ff lane/claude-input-expo` in `claude-island-nav-merge` (that worktree holds the branch; `claude-island-nav` is a DETACHED HEAD at aeb9695a), then the Quest lane the same day.**
   out = (1 − e)·x + e·x³ after the existing dead zone; 30 % pitch/roll, 20 % rudder by default; OPTIONS › Controls
   "Stick expo" 0–70 % (rudder follows at 2/3), and the VR menu's "Stick expo" row edits the same setting.
   **Two feel changes you should know about before flying:**
@@ -3047,7 +3047,7 @@ Ty 05:55: "hand flying needs some expo."
   Mac had other lanes' full suites running.
 - Build: `deploy.sh 00008150-001629A83662401C` on b770986f → Unity 0 `error CS`, `** BUILD SUCCEEDED **`, `2026.1104.1433`.
   Install: the iPhone refused (CoreDevice 4016, usage assertion, as for island-nav's 0957; usually locked). Retried after
-  the merge, see below. ProjectSettings bump and the StreamingAssets copies not committed.
+  the merge: not retried, merge not done (above). ProjectSettings bump and the StreamingAssets copies not committed.
 
 ### 2026-11-04 09:30– PST — Claude · lane/claude-crash-tuning · crash tuning: steel-tube fuselages crush, wreck friction, branch damage
 Ty, after flying 2026.1104.0427: "momentum is still too weak or the friction is too high. The fuselage is really strong
