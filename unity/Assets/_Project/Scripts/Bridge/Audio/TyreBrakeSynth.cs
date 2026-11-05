@@ -36,7 +36,8 @@ namespace FlyingGame.Bridge
         private readonly float _glide, _scrubAttack, _scrubRelease;
         private readonly float[] _scrapeG = new float[2], _scrapeGT = new float[2];
         private readonly float[] _squealPh = new float[2], _squealHz = new float[2], _squealG = new float[2], _squealGT = new float[2], _vibPh = new float[2];
-        private float _splashG, _splashGT, _hissG, _hissGT, _sprayG, _sprayGT, _skiG, _skiGT, _keelG, _keelGT, _sloshPh;
+        private float _splashG, _splashGT, _hissG, _hissGT, _sprayG, _sprayGT, _skiG, _skiGT, _keelG, _keelGT;
+        private readonly OnePole _lap = new OnePole();   // the splash's slow, irregular swell
         private readonly Biquad[] _thumpBp = { new Biquad(), new Biquad() }, _slapBp = { new Biquad(), new Biquad() }, _popLp = { new Biquad(), new Biquad() };
         private readonly float[] _thumpEnv = new float[2], _thumpPh = new float[2], _flapPh = new float[2], _flapHz = new float[2], _flapG = new float[2];
         private readonly float[] _slapEnv = new float[2], _popEnv = new float[2], _boomPh = new float[2];
@@ -62,6 +63,7 @@ namespace FlyingGame.Bridge
             }
             for (int s = 0; s < 2; s++) { _whirNoise[s].BandPass(fs, 2000f, 1.2f); _chirpBp[s].BandPass(fs, 2000f, 7f); _scrapeBp[s].BandPass(fs, 500f, 1.5f); }
             _splashLp.LowPass(fs, 450f, 0.7f);
+            _lap.SetCutoff(2f, fs);
             _hissHp.HighPass(fs, 3000f, 0.7f);
             _sprayBp.BandPass(fs, 6000f, 0.8f);
             _skiBp.BandPass(fs, 2500f, 0.7f);
@@ -196,8 +198,12 @@ namespace FlyingGame.Bridge
             float c = 0f;
             if (_splashG > 1e-5f)
             {
-                _sloshPh = Dsp.Wrap01(_sloshPh + 4.5f / _fs);
-                c += _splashG * 2.5f * _splashLp.Process(_n[0].Next()) * (0.6f + 0.4f * Dsp.Sin01(_sloshPh));
+                // Water lapping at a hull swells and falls irregularly. This voice used to be gated by a 4.5 Hz sine
+                // (66 % depth), a steady thump-thump four and a half times a second through every taxi and the start of
+                // every water take-off: Ty's "hammering noise" (2026-11-05). Now the swell is low-passed noise, ~15 %
+                // depth, with no period (tools/FloatAudio measures it).
+                float lap = _lap.Process(_n[3].Next());
+                c += _splashG * 2.5f * _splashLp.Process(_n[0].Next()) * (0.66f + 12.5f * lap);   // rms as the old pulsed voice (0.66 = its rms gain)
             }
             if (_hissG > 1e-5f) c += _hissG * 1.2f * _hissHp.Process(_n[1].Next());
             if (_sprayG > 1e-5f) c += _sprayG * 0.9f * _sprayBp.Process(_n[2].Next());

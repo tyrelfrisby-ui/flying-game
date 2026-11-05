@@ -121,6 +121,8 @@ namespace FlyingGame.Bridge
                 if (eng == null || i >= eng.Count) return rpm;
                 return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
             }, Time.deltaTime);
+            float propR0 = acp.Config.Propulsion != null ? (float)(0.5 * acp.Config.Propulsion.PropDiameterM) : 0f;
+            _builder.BendBlades(i => (propR0, (float)acp.PropBladeRadiusM(i, 0), (float)acp.PropBladeRadiusM(i, 1)));
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
             // A model that brought its own rig moves ITS parts — the same control positions the aero model is
             // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown. A model whose
@@ -1270,6 +1272,85 @@ namespace FlyingGame.Bridge
             public Transform Hub; public float Radius, Angle, DiscAngle; public int Engine; public Vector3 Body;   // (Body: the hub, body axes m)
             public GameObject Disc; public Material DiscMat; public Transform BladeBone; public bool ModelBound;
             public readonly List<GameObject> Blades = new();     // shown while slow; the blur disc takes over above ~400 rpm
+            // A bent prop (BendBlades): each blade mesh's own copy, its straight vertices, and the bend last drawn.
+            public List<(MeshFilter mf, Vector3[] straight, Matrix4x4 toHub)> Bent;
+            public float Shown0 = -1f, Shown1 = -1f;
+        }
+
+        /// <summary>
+        /// Draw the propeller as bent as the sim says it is (Aircraft.PropBladeRadiusM, Ty 2026-11-05: "a bent prop is
+        /// visible"): every blade mesh on the hub (the model's own Prop node or the procedural blades; not the blur disc
+        /// or the spinner) has the part of each blade beyond 3/4 of the radius folded aft at the station, by the angle that
+        /// takes its tip in by that blade's shortening: cos θ = 1 − ΔR/(R − 0.75 R). Which side of the hub a vertex is on
+        /// says which blade it belongs to. Redone only when a blade's radius changes; the blur disc shrinks to the longest
+        /// blade. <paramref name="bladeR"/> gives (straight radius, blade 0, blade 1) in m for each engine index.
+        /// </summary>
+        public void BendBlades(System.Func<int, (float r0, float b0, float b1)> bladeR)
+        {
+            foreach (PropHub h in _props)
+            {
+                if (h.Hub == null) continue;
+                (float r0, float b0, float b1) = bladeR(h.Engine);
+                if (r0 <= 0f || (Mathf.Abs(b0 - h.Shown0) < 1e-4f && Mathf.Abs(b1 - h.Shown1) < 1e-4f)) continue;
+                h.Shown0 = b0; h.Shown1 = b1;
+                if (h.Disc != null) h.Disc.transform.localScale = Vector3.one * Mathf.Clamp01(Mathf.Max(b0, b1) / r0);
+                if (h.Bent == null)
+                {
+                    if (b0 >= r0 - 1e-4f && b1 >= r0 - 1e-4f) continue;   // straight: leave the shared meshes alone
+                    h.Bent = new List<(MeshFilter, Vector3[], Matrix4x4)>();
+                    foreach (MeshFilter mf in h.Hub.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf.sharedMesh == null || !mf.sharedMesh.isReadable) continue;
+                        if (h.Disc != null && mf.gameObject == h.Disc) continue;
+                        if (mf.name.StartsWith("Spinner") || mf.name.StartsWith("Model:Spinner")) continue;
+                        // Mesh → hub, taking the blade bone at unit scale (SpinProps folds it onto the axis at speed).
+                        Matrix4x4 m = Matrix4x4.identity;
+                        for (Transform t = mf.transform; t != null && t != h.Hub; t = t.parent)
+                            m = Matrix4x4.TRS(t.localPosition, t.localRotation, t == h.BladeBone ? Vector3.one : t.localScale) * m;
+                        Mesh copy = Object.Instantiate(mf.sharedMesh);
+                        copy.name = mf.sharedMesh.name + " (bent)";
+                        h.Bent.Add((mf, mf.sharedMesh.vertices, m));
+                        mf.sharedMesh = copy;
+                    }
+                }
+                foreach ((MeshFilter mf, Vector3[] straight, Matrix4x4 toHub) in h.Bent)
+                {
+                    if (mf == null) continue;
+                    Matrix4x4 back = toHub.inverse;
+                    var pts = new Vector3[straight.Length];
+                    float rMesh = 0f; Vector2 tipDir = Vector2.right;
+                    for (int i = 0; i < straight.Length; i++)
+                    {
+                        Vector3 p = toHub.MultiplyPoint3x4(straight[i]);
+                        pts[i] = p;
+                        float r = new Vector2(p.x, p.y).magnitude;
+                        if (r > rMesh) { rMesh = r; tipDir = new Vector2(p.x, p.y) / Mathf.Max(r, 1e-6f); }
+                    }
+                    float rb = 0.75f * rMesh, outer = rMesh - rb;
+                    if (outer <= 1e-5f) continue;
+                    float scale = rMesh / r0;   // sim metres → this mesh's units
+                    float th0 = Mathf.Acos(Mathf.Clamp(1f - (r0 - b0) * scale / outer, -1f, 1f));
+                    float th1 = Mathf.Acos(Mathf.Clamp(1f - (r0 - b1) * scale / outer, -1f, 1f));
+                    th0 = Mathf.Min(th0, 100f * Mathf.Deg2Rad); th1 = Mathf.Min(th1, 100f * Mathf.Deg2Rad);
+                    var outV = new Vector3[straight.Length];
+                    for (int i = 0; i < pts.Length; i++)
+                    {
+                        Vector3 p = pts[i];
+                        var rad = new Vector2(p.x, p.y);
+                        float r = rad.magnitude;
+                        if (r <= rb) { outV[i] = straight[i]; continue; }
+                        Vector2 u = rad / r;
+                        float th = Vector2.Dot(u, tipDir) >= 0f ? th0 : th1;
+                        float e = r - rb;
+                        // Fold the excess radius aft (hub −z) about the station: rb·û, the vertex's own axial place.
+                        var q = new Vector3(u.x * (rb + e * Mathf.Cos(th)), u.y * (rb + e * Mathf.Cos(th)), p.z - e * Mathf.Sin(th));
+                        outV[i] = back.MultiplyPoint3x4(q);
+                    }
+                    mf.sharedMesh.vertices = outV;
+                    mf.sharedMesh.RecalculateBounds();
+                    mf.sharedMesh.RecalculateNormals();
+                }
+            }
         }
         private readonly List<PropHub> _props = new();
         /// <summary>Each propeller hub's position (body axes, m from the CG) — where the smoke's exhausts are placed from.</summary>
