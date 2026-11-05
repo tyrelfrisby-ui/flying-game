@@ -376,6 +376,7 @@ namespace FlyingGame.Bridge
                 return (loaded ? s.Kg : s.MaxKg) / KgPerUsGal;
             }
             r.FuelCentreFrac = loaded && load.FuelCapacityKg > 0.0 ? load.FuelKg / load.FuelCapacityKg : 1.0;
+            r.FuelTopWingFrac = RigInputs.TankFraction(load, "topWing");   // the Great Lakes' sight gauge (Ty 2026-11-05)
             r.FuelWingGal = Gal("wingLeft") + Gal("wingRight");
             r.FuelAkroGal = Gal("centre");
             // The fuel computer and the three-in-one's FUEL FLOW needle: the sim's own burn (BSFC x shaft power,

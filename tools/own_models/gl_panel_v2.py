@@ -213,6 +213,7 @@ def mesh_from(g, name, parts):
     prims = []
     for mat, v, t in parts:
         v, t = np.asarray(v, float), np.asarray(t, int).reshape(-1, 3)
+        t = outward(v, t)
         p = v[t].reshape(-1, 3)
         n = np.cross(v[t[:, 1]] - v[t[:, 0]], v[t[:, 2]] - v[t[:, 0]])
         n /= np.maximum(np.linalg.norm(n, axis=1)[:, None], 1e-12)
@@ -221,6 +222,31 @@ def mesh_from(g, name, parts):
                           material=mats[mat], mode=4))
     g.doc['meshes'].append(dict(name=name, primitives=prims))
     return len(g.doc['meshes']) - 1
+
+
+def outward(v, t):
+    """Every closed convex piece (a connected set of triangles) wound so its faces point away from its own centre:
+    single-sided materials cull by winding (CLAUDE.md, 'CPU GLB export preserves the winding you supply')."""
+    par = list(range(len(v)))
+    def find(a):
+        while par[a] != a:
+            par[a] = par[par[a]]; a = par[a]
+        return a
+    for a, b, c in t:
+        for x_ in (b, c):
+            ra, rb = find(a), find(x_)
+            if ra != rb: par[ra] = rb
+    root = np.array([find(a) for a in t[:, 0]])
+    t = t.copy()
+    for r in set(root.tolist()):
+        sel = root == r
+        idx = np.unique(t[sel])
+        centre = v[idx].mean(0)
+        tri = v[t[sel]]
+        n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+        flip = np.einsum('ij,ij->i', n, tri.mean(1) - centre) < 0
+        sub = t[sel]; sub[flip] = sub[flip][:, ::-1]; t[sel] = sub
+    return t
 
 
 def box(c, s):
@@ -372,6 +398,221 @@ def instrument_hardware(g):
     window('FrontPanel_Altimeter_Kollsman', 'Instruments_Front', fr, (FRONT_X + 0.0035, fy, fz - 0.025), 0.011, 0.007)
 
 
+# ---- the switch consoles: two MAG toggles join the six, every switch labelled below / aft, "ON" above, ON = FORWARD ----
+# Ty 2026-11-05: "the label goes BELOW/AFT of each switch, with the word ON above each switch, so you know what it is and
+# which way is on. ON = FORWARD. Shrink the switches as needed." The lid (gl_quadrant_v3's GL_SwitchStrip_*, 130 x 70 mm)
+# takes four fore/aft columns of two: the MAGS in the aft column, nearest the hand, L outboard (the pilot's left) and R
+# inboard; then MASTER / ALT, FUEL PUMP / NAV, STROBE / LDG. Each 32.5 mm cell: "ON" 14 mm forward of the pivot, the
+# switch, its name 12 mm aft. Text faces up and reads left to right for a pilot looking FORWARD (its "up" is forward).
+CONSOLE = [('MagL', 'MAG L', 'mag_left'), ('MagR', 'MAG R', 'mag_right'), ('Master', 'MASTER', None), ('Alternator', 'ALT', None),
+           ('FuelPump', 'F PUMP', None), ('NavLights', 'NAV', None), ('Strobe', 'STROBE', None), ('LandingLight', 'LDG', None)]
+COL_DX = (-0.0525, -0.0175, 0.0175, 0.0525)          # builder x of the four columns from the lid centre, aft -> forward
+ROW_DY = (0.017, -0.017)                             # outboard, inboard
+ON_DX, NAME_DX = 0.0135, -0.0135                     # "ON" forward of the pivot, the name aft of it
+ON_W = 0.016                                         # "ON" is the smaller word
+TIP = np.array((-0.0065, 0.0, 0.016))                # OFF: the stem leans aft; +80 deg about builder +y swings it forward
+CELL_W, CELL_H, CELL_SC = 44, 9, 6                   # label cell, font px (7 chars of 6 px, one line), image scale
+LABEL_W = 0.026
+
+
+def label_atlas(texts):
+    import gl_quadrant_v3 as q
+    cells = []
+    for t in texts:
+        img = np.zeros((CELL_H, CELL_W, 3), np.uint8); img[:] = (12, 12, 14)
+        left = (CELL_W - (len(t) * 6 - 1)) // 2
+        for k, ch in enumerate(t):
+            for y, row in enumerate(q.F[ch].split()):
+                for x, b in enumerate(row):
+                    if b == '1': img[1 + y, left + k * 6 + x] = (245, 245, 240)
+        cells.append(np.kron(img, np.ones((CELL_SC, CELL_SC, 1), np.uint8)))
+    n = len(texts)
+    return q.png(np.concatenate(cells, 0)), {t: (0.0, i / n, 1.0, (i + 1) / n) for i, t in enumerate(texts)}
+
+
+def consoles(g, doc):
+    import copy
+    import tempfile
+    import gl_quadrant_v3 as q
+    from vr_cockpit import Shape, gl
+    texts = ['ON'] + [lab for _, lab, _ in CONSOLE]
+    data, uv = label_atlas(texts)
+    uv['ON_'] = (0.25, uv['ON'][1], 0.75, uv['ON'][3])         # the middle half of the ON cell: the word, less padding
+    with tempfile.TemporaryDirectory() as td:
+        pth = Path(td) / 'gl-switch-labels.png'; pth.write_bytes(data)
+        g.material('GL_SwitchLabels', (1, 1, 1), png=pth)
+    h = LABEL_W * CELL_H / CELL_W
+    controls = control_lists(g, doc)
+    for seat, S in q.SEATS.items():
+        nm = names(g)
+        nodes = g.doc['nodes']
+        bx, by, z = S['px'] - 0.200, 0.305, S['ztop'] - 0.025
+        labels, luv, metal, black = Shape(), [], Shape(), Shape()
+        master = next(c for c in controls[0] if c['seat'] == seat and c['param'] == 'master')
+        master_row = next(r for r in doc['rig'] if r['node'] == master['node'])
+        for j, (short, lab, param) in enumerate(CONSOLE):
+            col, row = divmod(j, 2)
+            P = np.array((bx + COL_DX[col], by + ROW_DY[row], z + 0.002))
+            node = 'Ctl_Toggle_' + short + S['ctl']
+            if param is not None and node not in nm:                       # the two new MAG toggles: the master's copy
+                for L in controls:
+                    c = copy.deepcopy(next(c for c in L if c['node'] == master['node']))
+                    c.update(node=node, param=param, grip='Grip_' + short + S['ctl'], poke='Poke_' + short + S['ctl'])
+                    L.append(c)
+                row_ = copy.deepcopy(master_row); row_.update(node=node, param=param); doc['rig'].append(row_)
+                add_node(g, node)
+                for ch in ('Grip_', 'Poke_'):
+                    add_node(g, ch + short + S['ctl'], parent=node)
+                nm = names(g); nodes = g.doc['nodes']
+                nodes[nm['Grip_' + short + S['ctl']]]['rotation'] = [0, 1, 0, 0]
+            stem = Shape(); tip = P + TIP
+            stem.tube(P, tip, 0.0022, 12); stem.sphere(tip, 0.0026, 12, 8)
+            q.set_mesh(g, node, [('P3_ControlMetal', stem, None)], P)
+            n = nodes[nm[node]]
+            n['translation'] = gl(P).tolist()
+            for ch in n.get('children', []):
+                nodes[ch]['translation'] = gl(tip - P).tolist()
+            black.box(P + (0, 0, -0.00075), (0.016, 0.016, 0.0015)); metal.tube(P, P + (0, 0, 0.003), 0.0045, 12)
+            q.quad(labels, luv, P + (ON_DX, 0, 0.0002), (0, -1, 0), (1, 0, 0), ON_W, ON_W * CELL_H / CELL_W * 1.6, uv['ON_'])
+            q.quad(labels, luv, P + (NAME_DX, 0, 0.0002), (0, -1, 0), (1, 0, 0), LABEL_W, h, uv[lab])
+            placement = 'gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, "ON" above, name below (Ty 2026-11-05)'
+            for L in controls:
+                for c in L:
+                    if c['node'] == node:
+                        c.update(kind='Toggle', axis_gltf=[0., 0., 1.], pivot_gltf=gl(P).tolist(), travel=80, travel_unit='deg',
+                                 placement=placement, label=lab)
+            ex = n.setdefault('extras', {})
+            ex.update(rig_param=param or ex.get('rig_param'), rig_axis_gltf=[0., 0., 1.], rig_map_param=[0., 1.], rig_map_deg=[0., 80.],
+                      rig_param_model=0., interaction=next(c for c in controls[0] if c['node'] == node))
+            for r in doc['rig']:
+                if r['node'] == node:
+                    r.update(kind='rot', axis_gltf=[0., 0., 1.], pivot_gltf=gl(P).tolist(), map=[[0, 0], [1, 80]], model=0., desc=placement)
+            mt = nm.get('Mount_' + short + S['ctl'])
+            if mt is not None:
+                nodes[mt].pop('mesh', None); nodes[mt]['translation'] = gl(P).tolist()
+        for k in range(3):                                         # thin dividers between the columns: each ON goes with its own switch
+            metal.box((bx + 0.5 * (COL_DX[k] + COL_DX[k + 1]), by, z + 0.0021), (0.0012, 0.062, 0.0004))
+        # the six breakers on the inboard face, as v7 had them, relabelled from the same atlas
+        for j, lab in enumerate(['MASTER', 'ALT', 'F PUMP', 'NAV', 'STROBE', 'LDG']):
+            row, col = divmod(j, 3)
+            B = np.array((bx - .027 + col * .027, by - .037, z - .020 - row * .034))
+            black.box(B + (0, .001, 0), (.026, .003, .031))
+            metal.tube(B, B + (0, -.004, 0), .006, 16); black.tube(B + (0, -.004, 0), B + (0, -.012, 0), .0045, 12)
+            q.quad(labels, luv, B + (0, -.004, -.011), (1, 0, 0), (0, 0, 1), LABEL_W, h, uv[lab])
+        hw = 'GL_ConsoleHardware_' + S['sfx']
+        q.set_mesh(g, hw, [('P3_ControlMetal', metal, None), ('Cockpit_black', black, None), ('GL_SwitchLabels', labels, luv)], (bx, by, z))
+        nodes[names(g)[hw]]['translation'] = gl(np.array((bx, by, z))).tolist()
+        nodes[names(g)[hw]]['extras'] = {'switch_order': [p or {'Master': 'master', 'Alternator': 'alternator', 'FuelPump': 'fuel_pump', 'NavLights': 'nav_lights',
+                                                                 'Strobe': 'strobe', 'LandingLight': 'landing_light'}[c] for c, _, p in CONSOLE], 'layout': [4, 2], 'forward_on': True,
+                                         'labels': 'name aft of each switch, ON forward of it', 'switch_surface': 'top', 'breaker_surface': 'inboard face',
+                                         'breaker_order': ['master', 'alternator', 'fuel_pump', 'nav_lights', 'strobe', 'landing_light']}
+
+
+# ---- the fuel sight gauge: glass tube down from the top-wing tank beside the right aft cabane fitting ---------------
+# Ty 2026-11-05: "Glass fuel sight tubes coming down from the tank: clear glass with graduations for 3/4, 1/2, 1/4; a red
+# ball on a wire goes up into the tank and floats on the fuel with a cork, so it drops in the sight tube as fuel burns. Put
+# the sight gauge on the RIGHT side where the cabane attaches to the wing at the rear spar (a leak stays away from the pilot
+# with spiral slipstream)." The right aft cabane leg meets the wing at glTF (0.801, 0.620, -0.700); the tube hangs 35 mm
+# AFT of it, on the front seat's side, so the leg is behind it from both seats (36 mm ahead, the first try, put the leg
+# right across it from the front eye), and beside it, not inboard, because the leg slopes inboard as it goes down. GL_FuelSight_Float (ball + wire +
+# cork) is one rig node sliding along +y with fuel_top_wing_frac: the cork rides the fuel in the tank, the ball 150 mm
+# below it on the wire. Linear in the fraction (the centre-section tank is a flat box). Its scale plate faces the front seat.
+SIGHT_X, SIGHT_Z = 0.836, -0.690
+SIGHT_TOP, SIGHT_BOT = 0.600, 0.470                     # the glass
+BALL_FULL, BALL_EMPTY = 0.590, 0.482                    # ball centre at full / empty
+BALL_R, GLASS_R, WIRE_L = 0.0055, 0.0085, 0.150
+MARKS = (('1/4', 0.25), ('1/2', 0.50), ('3/4', 0.75))
+
+
+def cyl_y(y0, y1, x, z, r, n=20):
+    v, t = cyl_x(y0, y1, 0.0, 0.0, r, n)
+    return np.c_[v[:, 1] + x, v[:, 0], v[:, 2] + z], t[:, ::-1]
+
+
+def sphere(c, r, n=16, m=10):
+    v = [np.array(c) + r * np.array((math.sin(p) * math.cos(a), math.cos(p), math.sin(p) * math.sin(a)))
+         for p in np.linspace(0, math.pi, m + 1) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
+    t = []
+    for j in range(m):
+        for i in range(n):
+            a, b = j * n + i, j * n + (i + 1) % n
+            t += [(a, b + n, b), (a, a + n, b + n)]
+    return np.array(v), np.array(t)
+
+
+def sight_gauge(g, doc):
+    import gl_quadrant_v3 as q
+    import tempfile
+    q.F.update({'1': '00100 01100 00100 00100 00100 00100 01110', '2': '01110 10001 00001 00010 00100 01000 11111',
+                '3': '11110 00001 00001 01110 00001 00001 11110', '4': '00010 00110 01010 10010 11111 00010 00010',
+                '/': '00001 00010 00010 00100 01000 01000 10000'})
+    data, uv = label_atlas([m for m, _ in MARKS])
+    with tempfile.TemporaryDirectory() as td:
+        pth = Path(td) / 'gl-fuel-sight-marks.png'; pth.write_bytes(data)
+        g.material('GL_FuelSight_Labels', (1, 1, 1), png=pth)
+    next(m for m in g.doc['materials'] if m['name'] == 'GL_FuelSight_Labels')['doubleSided'] = True   # faces the seat from either side
+    mats = g.doc['materials']
+    g.material('GL_FuelSight_Glass', (0.95, 0.98, 1.0))
+    m = next(m for m in mats if m['name'] == 'GL_FuelSight_Glass')
+    m.update(alphaMode='BLEND', doubleSided=True); m['pbrMetallicRoughness'].update(baseColorFactor=[0.95, 0.98, 1.0, 0.18], roughnessFactor=0.04)
+    g.material('GL_FuelSight_Ball', (0.86, 0.05, 0.04)); g.material('GL_FuelSight_Cork', (0.63, 0.46, 0.29))
+    # the scale plate faces the front seat's eye across the tube (horizontal); "right" is the viewer's right
+    eye = np.array((1.22, 0.27, 0.0))
+    dh = eye - (SIGHT_X, 0.0, SIGHT_Z); dh[1] = 0.0; dh /= np.linalg.norm(dh)
+    right = np.cross(-dh, (0.0, 1.0, 0.0)); right /= np.linalg.norm(right)    # looking along -dh with +y up
+    up = np.array((0.0, 1.0, 0.0))
+    c0 = np.array((SIGHT_X, 0.0, SIGHT_Z))
+
+    def slab(centre, a, b, n, sa, sb, sn):
+        """box with half-extents along three orthogonal unit vectors"""
+        v = np.array([centre + i * sa * a + j * sb * b + k * sn * n for i in (-1, 1) for j in (-1, 1) for k in (-1, 1)])
+        t = [(0, 1, 3), (0, 3, 2), (4, 6, 7), (4, 7, 5), (0, 4, 5), (0, 5, 1), (2, 3, 7), (2, 7, 6), (0, 2, 6), (0, 6, 4), (1, 5, 7), (1, 7, 3)]
+        return v, np.array(t)
+    glass = cyl_y(SIGHT_BOT, SIGHT_TOP, SIGHT_X, SIGHT_Z, GLASS_R, 24)
+    metal = merge(cyl_y(SIGHT_TOP, 0.6205, SIGHT_X, SIGHT_Z, 0.0115, 20), cyl_y(SIGHT_BOT - 0.014, SIGHT_BOT, SIGHT_X, SIGHT_Z, 0.0115, 20),
+                  cyl_y(SIGHT_BOT - 0.024, SIGHT_BOT - 0.014, SIGHT_X, SIGHT_Z, 0.004, 12))           # top boss, bottom cap, drain
+    yl, yh = SIGHT_BOT - 0.010, SIGHT_TOP + 0.005
+    pc = c0 - 0.0135 * dh + 0.016 * right + up * (yl + yh) / 2
+    plate = slab(pc, right, up, dh, 0.030, (yh - yl) / 2, 0.001)
+    from vr_cockpit import builder
+    ticks, rings, labels, luv = [], [], Shape_(), []
+    for lab, f in MARKS:
+        y = BALL_EMPTY + f * (BALL_FULL - BALL_EMPTY)
+        ticks.append(slab(c0 - 0.0122 * dh + up * y + 0.004 * right, right, up, dh, 0.016, 0.0008, 0.0004))
+        rings.append(cyl_y(y - 0.0006, y + 0.0006, SIGHT_X, SIGHT_Z, GLASS_R + 0.0004, 24))
+        q.quad(labels, luv, builder(c0 - 0.0122 * dh + up * y + 0.033 * right), builder(right), builder(up), 0.026, 0.026 * CELL_H / CELL_W, uv[lab])
+    black = merge(*ticks, *rings)
+    add_node(g, 'GL_FuelSight', translation=(0, 0, 0), extras=dict(
+        note='gl_panel_v2: top-wing tank sight gauge (Ty 2026-11-05), right aft cabane fitting; marks 1/4 1/2 3/4 of the tank',
+        mark_heights_gltf_y={lab: round(BALL_EMPTY + f * (BALL_FULL - BALL_EMPTY), 4) for lab, f in MARKS}),
+        mesh=mesh_from(g, 'GL_FuelSight', [('GL_FuelSight_Glass', *glass), ('P3_ControlMetal', *metal), ('GL_Windshield_Trim_Aluminium', *plate),
+                                           ('Cockpit_black', *black)]))
+    # the labels need UVs: author them with the quadrant module's set_mesh (builder frame)
+    lab_node = add_node(g, 'GL_FuelSight_Marks')
+    q.set_mesh(g, 'GL_FuelSight_Marks', [('GL_FuelSight_Labels', labels, luv)], np.zeros(3))
+    lab_node['translation'] = [0.0, 0.0, 0.0]
+    # the float: ball on the wire, cork in the tank; origin = the ball's centre at FULL
+    rest = np.array((SIGHT_X, BALL_FULL, SIGHT_Z))
+    ball = sphere((0, 0, 0), BALL_R)
+    wire = cyl_y(BALL_R * 0.8, WIRE_L, 0.0, 0.0, 0.0006, 8)
+    cork = cyl_y(WIRE_L, WIRE_L + 0.016, 0.0, 0.0, 0.0075, 16)
+    add_node(g, 'GL_FuelSight_Float', translation=rest,
+             mesh=mesh_from(g, 'GL_FuelSight_Float', [('GL_FuelSight_Ball', *ball), ('Wire_steel', *wire), ('GL_FuelSight_Cork', *cork)]),
+             extras=dict(rig_param='fuel_top_wing_frac', rig_move_axis_gltf=[0.0, 1.0, 0.0], rig_map_param=[0.0, 1.0],
+                         rig_map_m=[round(BALL_EMPTY - BALL_FULL, 4), 0.0], rig_param_model=1.0))
+    doc['rig'] = [r for r in doc['rig'] if r['node'] != 'GL_FuelSight_Float']
+    doc['rig'].append(dict(node='GL_FuelSight_Float', parent=None, param='fuel_top_wing_frac', unit='0..1', kind='move',
+                           axis_gltf=[0.0, 1.0, 0.0], pivot_gltf=rest.tolist(), map=[[0.0, round(BALL_EMPTY - BALL_FULL, 4)], [1.0, 0.0]],
+                           model=1.0, desc='fuel sight gauge: red ball on the cork float\'s wire, modelled FULL; drops as the top-wing tank burns '
+                                            '(Ty 2026-11-05). Marks 1/4 1/2 3/4 at the ball heights for those fractions.',
+                           link='RigInputs.TankFraction(load, "topWing")', note='', extra={}))
+
+
+def Shape_():
+    from vr_cockpit import Shape
+    return Shape()
+
+
 def main():
     GLB.write_bytes(base_bytes(GLB_REL))
     doc = json.loads(base_bytes(RIG_REL))
@@ -380,6 +621,8 @@ def main():
     rear_panel(g, doc)
     cards(g)
     instrument_hardware(g)
+    consoles(g, doc)
+    sight_gauge(g, doc)
     g.doc.setdefault('extras', {})['glPanelV2'] = ('Ty 2026-11-05: centred rear IAC card space, decluttered rear panel, radios under '
                                                    'the panel, front card, altimeter knob / Kollsman / G reset nodes (gl_panel_v2.py)')
     validate(g, GLB)

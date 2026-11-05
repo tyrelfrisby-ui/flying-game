@@ -1605,7 +1605,7 @@
     1.0
    ],
    "pivot_gltf": [
-    2.0029999999999997,
+    1.9805,
     -0.11099999999999999,
     0.322
    ],
@@ -1621,7 +1621,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -1637,7 +1637,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9229999999999996,
+    1.9454999999999998,
     -0.11099999999999999,
     0.322
    ],
@@ -1653,7 +1653,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -1669,7 +1669,7 @@
     1.0
    ],
    "pivot_gltf": [
-    2.0029999999999997,
+    1.9454999999999998,
     -0.11099999999999999,
     0.288
    ],
@@ -1685,7 +1685,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -1701,9 +1701,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999996,
+    1.9104999999999999,
     -0.11099999999999999,
-    0.288
+    0.322
    ],
    "map": [
     [
@@ -1717,7 +1717,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -1733,7 +1733,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9229999999999996,
+    1.9104999999999999,
     -0.11099999999999999,
     0.288
    ],
@@ -1749,7 +1749,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -2249,7 +2249,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.333,
+    1.3105,
     -0.091,
     0.322
    ],
@@ -2265,7 +2265,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -2281,7 +2281,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.253,
+    1.2754999999999999,
     -0.091,
     0.322
    ],
@@ -2297,7 +2297,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -2313,7 +2313,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.333,
+    1.2754999999999999,
     -0.091,
     0.288
    ],
@@ -2329,7 +2329,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -2345,9 +2345,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.293,
+    1.2405,
     -0.091,
-    0.288
+    0.322
    ],
    "map": [
     [
@@ -2361,7 +2361,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -2377,7 +2377,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.253,
+    1.2405,
     -0.091,
     0.288
    ],
@@ -2393,7 +2393,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -2893,9 +2893,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999996,
+    1.9805,
     -0.11099999999999999,
-    0.322
+    0.288
    ],
    "map": [
     [
@@ -2909,7 +2909,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -2925,9 +2925,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.293,
+    1.3105,
     -0.091,
-    0.322
+    0.288
    ],
    "map": [
     [
@@ -2941,7 +2941,7 @@
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "extra": {},
    "link": "",
    "note": ""
@@ -3009,6 +3009,166 @@
    "extra": {},
    "link": "",
    "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_MagL",
+   "param": "mag_left",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    2.0155,
+    -0.11099999999999999,
+    0.322
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_MagR",
+   "param": "mag_right",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    2.0155,
+    -0.11099999999999999,
+    0.288
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_MagL_Front",
+   "param": "mag_left",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.3455,
+    -0.091,
+    0.322
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_MagR_Front",
+   "param": "mag_right",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.3455,
+    -0.091,
+    0.288
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     80
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "GL_FuelSight_Float",
+   "parent": null,
+   "param": "fuel_top_wing_frac",
+   "unit": "0..1",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.836,
+    0.59,
+    -0.69
+   ],
+   "map": [
+    [
+     0.0,
+     -0.108
+    ],
+    [
+     1.0,
+     0.0
+    ]
+   ],
+   "model": 1.0,
+   "desc": "fuel sight gauge: red ball on the cork float's wire, modelled FULL; drops as the top-wing tank burns (Ty 2026-11-05). Marks 1/4 1/2 3/4 at the ball heights for those fractions.",
+   "link": "RigInputs.TankFraction(load, \"topWing\")",
+   "note": "",
+   "extra": {}
   }
  ],
  "displays": [
@@ -3071,7 +3231,7 @@
     1.0
    ],
    "pivot_gltf": [
-    2.0029999999999997,
+    1.9805,
     -0.11099999999999999,
     0.322
    ],
@@ -3094,7 +3254,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "MASTER"
   },
   {
@@ -3108,7 +3268,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9229999999999996,
+    1.9454999999999998,
     -0.11099999999999999,
     0.322
    ],
@@ -3131,8 +3291,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
-   "label": "FUEL PUMP"
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "label": "F PUMP"
   },
   {
    "node": "Ctl_Toggle_NavLights",
@@ -3145,7 +3305,7 @@
     1.0
    ],
    "pivot_gltf": [
-    2.0029999999999997,
+    1.9454999999999998,
     -0.11099999999999999,
     0.288
    ],
@@ -3168,7 +3328,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "NAV"
   },
   {
@@ -3182,9 +3342,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999996,
+    1.9104999999999999,
     -0.11099999999999999,
-    0.288
+    0.322
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -3205,7 +3365,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "STROBE"
   },
   {
@@ -3219,7 +3379,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9229999999999996,
+    1.9104999999999999,
     -0.11099999999999999,
     0.288
    ],
@@ -3242,7 +3402,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "LDG"
   },
   {
@@ -3896,7 +4056,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.333,
+    1.3105,
     -0.091,
     0.322
    ],
@@ -3919,7 +4079,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "MASTER"
   },
   {
@@ -3933,7 +4093,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.253,
+    1.2754999999999999,
     -0.091,
     0.322
    ],
@@ -3956,8 +4116,8 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
-   "label": "FUEL PUMP"
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "label": "F PUMP"
   },
   {
    "node": "Ctl_Toggle_NavLights_Front",
@@ -3970,7 +4130,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.333,
+    1.2754999999999999,
     -0.091,
     0.288
    ],
@@ -3993,7 +4153,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "NAV"
   },
   {
@@ -4007,9 +4167,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.293,
+    1.2405,
     -0.091,
-    0.288
+    0.322
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4030,7 +4190,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "STROBE"
   },
   {
@@ -4044,7 +4204,7 @@
     1.0
    ],
    "pivot_gltf": [
-    1.253,
+    1.2405,
     -0.091,
     0.288
    ],
@@ -4067,7 +4227,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "LDG"
   },
   {
@@ -4721,9 +4881,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.9629999999999996,
+    1.9805,
     -0.11099999999999999,
-    0.322
+    0.288
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4744,7 +4904,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "ALT"
   },
   {
@@ -4758,9 +4918,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.293,
+    1.3105,
     -0.091,
-    0.322
+    0.288
    ],
    "travel": 80,
    "travel_unit": "deg",
@@ -4781,7 +4941,7 @@
    "position_status": "E",
    "sweep_radius_m": 0.04,
    "semantics": "absolute",
-   "placement": "v7 lid 2x3 fore/aft toggles; forward ON",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
    "label": "ALT"
   },
   {
@@ -4857,6 +5017,154 @@
    "semantics": "absolute",
    "placement": "Right wall shared fore/aft rod; ON down, OFF inboard toward knee",
    "label": "FUEL VALVE"
+  },
+  {
+   "node": "Ctl_Toggle_MagL",
+   "param": "mag_left",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    2.0155,
+    -0.11099999999999999,
+    0.322
+   ],
+   "travel": 80,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_MagL",
+   "grip": "Grip_MagL",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "label": "MAG L"
+  },
+  {
+   "node": "Ctl_Toggle_MagR",
+   "param": "mag_right",
+   "kind": "Toggle",
+   "seat": "Rear",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    2.0155,
+    -0.11099999999999999,
+    0.288
+   ],
+   "travel": 80,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_MagR",
+   "grip": "Grip_MagR",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "label": "MAG R"
+  },
+  {
+   "node": "Ctl_Toggle_MagL_Front",
+   "param": "mag_left",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.3455,
+    -0.091,
+    0.322
+   ],
+   "travel": 80,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_MagL_Front",
+   "grip": "Grip_MagL_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "label": "MAG L"
+  },
+  {
+   "node": "Ctl_Toggle_MagR_Front",
+   "param": "mag_right",
+   "kind": "Toggle",
+   "seat": "Front",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.3455,
+    -0.091,
+    0.288
+   ],
+   "travel": 80,
+   "travel_unit": "deg",
+   "sim_ends": [
+    0,
+    1
+   ],
+   "detents": [
+    0,
+    1
+   ],
+   "detent_count": 2,
+   "spring_return": false,
+   "spring_return_from": 1,
+   "spring_return_to": 0,
+   "poke": "Poke_MagR_Front",
+   "grip": "Grip_MagR_Front",
+   "position_status": "E",
+   "sweep_radius_m": 0.04,
+   "semantics": "absolute",
+   "placement": "gl_panel_v2: lid 4 x 2 fore/aft toggles; ON = FORWARD, \"ON\" above, name below (Ty 2026-11-05)",
+   "label": "MAG R"
   }
  ],
  "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."

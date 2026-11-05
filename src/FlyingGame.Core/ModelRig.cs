@@ -205,6 +205,21 @@ public struct RigInputs
     public double OilPressPsi, OilTempF, ChtF;
     /// <summary>Fuel remaining in the tank the gauge is plumbed to, 0..1.</summary>
     public double FuelCentreFrac;
+    /// <summary>The Great Lakes' top-wing tank, 0 empty .. 1 full, what its glass sight gauge's cork float reads (Ty
+    /// 2026-11-05): <see cref="TankFraction"/> of the loading's "topWing" tank.</summary>
+    public double FuelTopWingFrac;
+
+    /// <summary>One tank's fill, 0..1 of its placard, from the loading (the fuel system: the sim burns it out of the
+    /// tanks every step). An aeroplane flown with no fuel in ANY tank (the reference loading of most types, the open W&amp;B
+    /// decision) reads full, as <see cref="FuelCentreFrac"/> does, rather than empty under a running engine. A tank the
+    /// loading does not have reads full.</summary>
+    public static double TankFraction(AircraftLoad? load, string id)
+    {
+        if (load is null || load.FuelKg <= 1e-6) return 1.0;
+        AircraftLoad.Slot? s = load.Find(id);
+        if (s is null || s.MaxKg <= 0.0) return 1.0;
+        return System.Math.Clamp(s.Kg / s.MaxKg, 0.0, 1.0);
+    }
     /// <summary>Rate of turn, degrees per second, + = turning right (3 = standard rate).</summary>
     public double TurnRateDps;
     /// <summary>Inclinometer ball, -1..+1, + = ball to the pilot's RIGHT.</summary>
@@ -330,7 +345,7 @@ public struct RigInputs
             OilPressPsi = 0.0,
             OilTempF = 100.0,       // the bottom of the dial, as drawn
             ChtF = 200.0,
-            FuelCentreFrac = 1.0,
+            FuelCentreFrac = 1.0, FuelTopWingFrac = 1.0,
             ComFreqMhz = 122.8, ComStandbyMhz = 121.5, ComVolume = 0.5,
             XpdrSquawk = 1200, XpdrMode = 1,
         };
@@ -382,6 +397,7 @@ public struct RigInputs
             case "oil_temp_f": value = OilTempF; return true;
             case "cht_f": value = ChtF; return true;
             case "fuel_centre_frac": value = FuelCentreFrac; return true;
+            case "fuel_top_wing_frac": value = FuelTopWingFrac; return true;
             case "turn_rate_dps": value = TurnRateDps; return true;
             case "slip_ball": value = SlipBall; return true;
             case "g_load": value = GLoad; return true;
