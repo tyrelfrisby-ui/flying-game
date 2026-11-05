@@ -1,4 +1,15 @@
 ## NEEDS YOU
+- **CLOUD PLAYGROUND — lane/codex-clouds, 2026-11-05, UNCOMMITTED; no gate approved.** Lane A review/integration needed:
+  `Assets/Scripts/Clouds/CloudPlayground.cs` + three serialized materials, guarded zero-wake stub, three shared shaders.
+  27 billowing horseshoe banks at three altitude bands, real gaps/canyons, distance detail fade/culling; local thin
+  density sheets backtrace wake velocity at 15 Hz (one 256² tile per update), curl/clear with the real field when wired.
+  Handoff, texture packing proposal, geometry/memory budgets and limitations: `docs/CLOUDS-WAKE-VISUALS.md`.
+  Strict parity: OK (playable tips); diff whitespace: clean. No Unity/xcodebuild: process listing denied, idle slot
+  cannot be established. Compilation/render/device GPU checks remain OPEN; 90 Hz Quest / 60 Hz iPhone NOT measured.
+  No renders, builds, installs, commits or merges; Glass Overlay untouched. Lane A must wire the materials/camera,
+  replace the stub, agree RGBA field packing, render to the requested external render folder and obtain Ty's render
+  approval before playable merge/install. All visual code is shared across iOS/Mac/Quest.
+
 - **WATER RUDDER, RETRACTED AND DEPLOYED, IN THE FLOAT'S WAKE AND IN A CURRENT (Claude, 2026-11-05 03:50; Ty 2026-11-04
   20:28, merge pre-approved). lane/claude-wheel-hydroplane 53935b58 → island-nav 6124b5a3 → Quest 17126885. iOS
   2026.1105.0335 ** BUILD SUCCEEDED **, 0 error CS, installed on the EFB iPad and the iPad mini (the iPhone was not
