@@ -1,4 +1,23 @@
 ## NEEDS YOU
+- **EXTRA 300 REAR DIAGONALS (Ty 2026-11-05 08:37: "in the same plane as the upper longerons ... they go in toward the
+  center") — RENDERS FOR APPROVAL, NOT MERGED, NOT INSTALLED (Claude, 2026-11-05 09:35, lane/claude-extra-cockpit-v3).
+  Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/diagonals/` (rear-eye-iphone,
+  rear-eye-quest, look-left/right along each tube, top-down, measured plan/side before-after). Question Q095.**
+  - Pass 16 `tools/own_models/extra_rear_diagonals.py` (all three liveries): `Tube_P3h_PanelDiagonal_L/R` used to climb
+    from the rail (z 0.20) to the panel's top corners (z 0.345). Now they lie in the upper-longeron (canopy sill) plane,
+    each end at the sill's measured centre height, and run from the sill's inboard face at x -1.55 forward and inboard to
+    the panel face at |y| 0.272. That is only 5-6 cm in, because further in at that height they would cover the oil gauge
+    and the COM head (Q095 asks if that is enough).
+  - Moving the tube uncovered 2 sill faces still in the exterior livery (ExtraCanopySealTests caught it). Repainted only the
+    faces a 0.5 deg ray grid from the rear eye reaches with no glass in front. A denser version of pass 15's sampler also
+    repainted 168 OUTSIDE faces through seams, so I rejected it.
+  - Tests: new `ExtraRearDiagonalTests` (9: the sills match hand-copied literals; every tube vertex lies within the
+    longeron plane +/- (r + 6 mm); the aft end is on the sill; the forward end is >= 6 cm inboard of the sill, converges
+    >= 4 cm, and stays clear of the bezels). Extra/cockpit filter 155/157: the two failures (Pitts ground handling,
+    glider air brake) were already failing on this lane and are listed in the v3 entry below. Clearance: only the sill,
+    frame and hinge it mounts on are within 1 mm; oil bezel 3 mm. Unity CockpitEyeShots batch PASS, 5 shots. GLB/tool/test
+    only (nothing under src/ or configs/), so no iOS deploy run.
+
 - **EXTRA 300 COCKPIT v3 (Ty's 2026-11-05 spec, EXTRA 300 + ADDENDUM canopy gap) — RENDERS FOR APPROVAL, NOT MERGED
   (Claude, 2026-11-05, lane/claude-extra-cockpit-v3). Renders + README: `~/Developer/agent-lanes/renders/cockpit-1105/claude-extra-cockpit-v3/`
   (unity/ = seat-eye CockpitEyeShots, blender-wip/ = before/after). Questions Q070-Q072. Nothing installed, nothing approved by me.**

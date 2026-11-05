@@ -60,7 +60,7 @@ VERNIER_TRAVEL = .045
 VALVE_Y, VALVE_Z = -.284, .045
 VALVE_X = {'Rear': -1.400, 'Front': -.500}
 # Diagonal padded tubes: panel upper corner -> side rail (both sides).
-DIAG = ((-1.185, .335, .345), (-1.360, .365, .200))
+DIAG = ((-1.185, .335, .345), (-1.360, .365, .200))   # superseded by pass 16 (extra_rear_diagonals.py): in the longeron plane, inboard
 GRIP_CANT_DEG, GRIP_LEN = 15.0, .110
 
 
