@@ -69,7 +69,7 @@ namespace FlyingGame.Bridge
             if (live == null) return null;
             float span = 2f * Mathf.Max(3f, (float)WingPanels.Semispan(live.Config));
             Take = RecordingTake.NewTrack(session, Driver.AircraftId, null, LiveSmokeRgb?.Invoke() ?? 0xFFFFFF, punchInSec, FlightSession.DefaultSlot(span));
-            StartTakePlayback(null);
+            StartTakePlayback();
             return Take;
         }
 
@@ -78,16 +78,14 @@ namespace FlyingGame.Bridge
         {
             if (Driver?.Sim?.Aircraft == null) return null;
             Take = RecordingTake.Overdub(session, track, punchInSec);
-            StartTakePlayback(track);
+            StartTakePlayback();
             return Take;
         }
 
-        private void StartTakePlayback(FlightTrack exclude)
+        private void StartTakePlayback()
         {
             if (TakePlayback != null) Director.Stop(TakePlayback);
-            TakePlayback = Take.Session.Tracks.Count == 0 ? null
-                : Director.Play(Take.Session, new PlaybackOptions { StartOffsetSec = Take.PunchInSec }, null, exclude);
-            if (TakePlayback != null) TakePlayback.Paused = true;   // its clock follows the take's
+            TakePlayback = Take.Session.Tracks.Count == 0 ? null : Director.PlayAlong(Take);   // on the take's clock
         }
 
         /// <summary>Stop the take: commit it into its session and save the session to the library.</summary>
@@ -119,7 +117,6 @@ namespace FlyingGame.Bridge
             {
                 Vec3 wind = Atmosphere.WindAtPosition(live.State.Position);
                 Take.Tick(dt, live, wind, LiveFlags?.Invoke() ?? RecordFlags.None, LiveSmokeRgb?.Invoke() ?? 0xFFFFFF);
-                if (TakePlayback != null) TakePlayback.Seek(Take.Clock);
             }
             Director.Tick(running ? dt : 0.0);
             Draw(dt);

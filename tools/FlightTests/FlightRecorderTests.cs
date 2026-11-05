@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.IO;
 using FlyingGame.Core;
@@ -575,5 +576,158 @@ public class FlightRecorderTests : IDisposable
         SessionPlayback p = Director().Play(s, new PlaybackOptions { StartOffsetSec = take.PunchInSec }, exclude: take.Replacing);
         Assert.Single(p.Actors);
         Assert.Same(s.Tracks[0], p.Actors[0].Track);
+    }
+
+    [Fact]
+    public void TheOtherShipsPlayOnTheTakesClockThroughTheCountInAndAfterGo()
+    {
+        var session = new FlightSession { CountdownSec = 1.0 };
+        FlightTrack lead = Straight(new Vec3(0, 0, -500), 50, 10);
+        session.Tracks.Add(lead);
+        RecordingTake take = RecordingTake.NewTrack(session, "pa18-cub-like", null, 0xFFFFFF, 2.0, new Vec3(-15, 15, 0));
+        ReplayDirector d = Director();
+        SessionPlayback p = d.PlayAlong(take);
+        Assert.Same(take, p.Take);
+        ReplayActor ship = Assert.Single(p.Actors);
+        var (live, sim, hold) = Cub(at: take.StartPose!.Value.Position, att: take.StartPose!.Value.Attitude);
+        lead.TrySampleSession(2.0, out TrackSample atCue);
+        // The count-in: the lead waits at the punch-in, however long the frames take.
+        for (int i = 0; i < 30; i++)
+        {
+            take.Tick(1.0 / 60, live, Vec3.Zero, RecordFlags.None, 0xFFFFFF);
+            d.Tick(1.0 / 60);
+            Assert.Equal(TakeState.Countdown, take.State);
+            Assert.True((ship.Current.State.Position - atCue.State.Position).Length < 1e-9, "the lead moved during the count-in");
+        }
+        // After GO the lead runs on the take's clock, frame for frame, at a ragged display rate.
+        double[] dts = { 1.0 / 72, 1.0 / 60, 1.0 / 40, 1.0 / 90 };
+        for (int i = 0; i < 200; i++)
+        {
+            double dt = dts[i % dts.Length];
+            if (take.State == TakeState.Recording) sim.RunFor(dt, hold);
+            take.Tick(dt, live, Vec3.Zero, RecordFlags.None, 0xFFFFFF);
+            d.Tick(dt);
+            Assert.Equal(take.Clock, p.Clock);
+            lead.TrySampleSession(take.Clock, out TrackSample want);
+            Assert.True((ship.Current.State.Position - want.State.Position).Length < 1e-9);
+        }
+        Assert.Equal(TakeState.Recording, take.State);
+        Assert.InRange(take.Clock, 4.5, 5.5);
+        // The new ship and the lead share one clock: the take's frame 0 is at the punch-in, on the session's grid.
+        FlightTrack two = take.Commit()!;
+        Assert.Equal(2.0, two.BeginSec);
+        Assert.True((two.Frame(0).State.Position - take.StartPose!.Value.Position).Length < 1e-2);
+    }
+
+    [Fact]
+    public void EditingASessionWhileItPlaysAddsAndDropsItsShips()
+    {
+        FlightSession s = TwoShipSession();
+        s.Tracks[1].Muted = false;
+        s.CountdownSec = 1.0;
+        ReplayDirector d = Director();
+        SessionPlayback p = d.Play(s, new PlaybackOptions());
+        Assert.Equal(2, p.Actors.Count);
+
+        // Overdub ship 2 while ship 1 plays: the playback leaves it out during the take and then has the new take in its place.
+        FlightTrack old = s.Tracks[1];
+        d.Stop(p);
+        RecordingTake take = RecordingTake.Overdub(s, old, 5.0);
+        p = d.PlayAlong(take);
+        Assert.Same(s.Tracks[0], Assert.Single(p.Actors).Track);
+        RigidBodyState st = take.StartPose!.Value;
+        var (live, sim, hold) = Cub(at: st.Position, att: st.Attitude);
+        for (int i = 0; i < 151; i++)
+        {
+            if (take.State == TakeState.Recording) sim.RunFor(1.0 / 50, hold);
+            take.Tick(1.0 / 50, live, Vec3.Zero, RecordFlags.None, 0xFFFFFF);
+            d.Tick(1.0 / 50);
+        }
+        Assert.Equal(TakeState.Recording, take.State);
+        FlightTrack re = take.Commit()!;
+        Assert.NotNull(re);
+        p.ReleaseTake();
+        d.Tick(0);
+        Assert.Null(p.Take);
+        Assert.Equal(take.Clock, p.Clock, 9);
+        Assert.Equal(2, p.Actors.Count);
+        Assert.Same(re, p.Actors[1].Track);
+        Assert.DoesNotContain(p.Actors, a => a.Track == old);
+
+        // Delete a ship from the mixer while it plays: it goes. Add one: it comes.
+        s.DeleteTrack(re);
+        d.Tick(0.1);
+        Assert.Same(s.Tracks[0], Assert.Single(p.Actors).Track);
+        s.Tracks.Add(Straight(new Vec3(1000, 2040, -800), 50, 15));
+        s.Touch();
+        d.Tick(0.1);
+        Assert.Equal(2, p.Actors.Count);
+        Assert.Equal(2, p.Present().Count());
+    }
+
+    [Fact]
+    public void AJoiningPilotStartsInASlotWhereTheSessionIsDrawn()
+    {
+        var s = new FlightSession();
+        s.Tracks.Add(Straight(new Vec3(0, 0, -500), 50, 30));             // recorded going north
+        var (live, _, _) = Cub(at: new Vec3(5000, 7000, -900), att: new Quat(0, 0, Math.Sin(Math.PI / 4), Math.Cos(Math.PI / 4)));   // flying east
+        ReplayDirector d = Director();
+        SessionPlayback p = d.Play(s, new PlaybackOptions { Placement = PlacementMode.AtMyPosition, StartOffsetSec = 3.0 }, live.State);
+        ReplayActor lead = Assert.Single(p.Actors);
+        Vec3 slot = new(-15, 15, 0);
+        RigidBodyState join = p.JoinPose(slot)!.Value;
+        RigidBodyState l = lead.Current.State;
+        // The slot is on the lead as it is DRAWN (ahead of me, turned east), not where the recording was flown.
+        Assert.True((join.Position - (l.Position + l.Attitude.Rotate(slot))).Length < 1e-9);
+        Assert.True((l.Position - new Vec3(5000, 7150, -900)).Length < 1.0, $"lead at {l.Position}");
+        Assert.True((join.Attitude.Rotate(new Vec3(1, 0, 0)) - new Vec3(0, 1, 0)).Length < 1e-3, "joining ship not on the lead's heading");
+        // The joined ship is the live one: it can hit the recorded ships; in its slot it does not.
+        var (inSlot, _, _) = Cub(at: join.Position, att: join.Attitude);
+        Assert.Empty(d.Collisions(inSlot));
+        var (onLead, _, _) = Cub(at: l.Position, att: l.Attitude);
+        Assert.NotEmpty(d.Collisions(onLead));
+        // A session that has no ship flying at the play head has no slot to join.
+        p.Seek(40.0); d.Tick(0);
+        Assert.Null(p.JoinPose(slot));
+    }
+
+    [Fact]
+    public void SixShipsLayeredOneAtATimePlayTogetherInTheirSlots()
+    {
+        var session = new FlightSession { CountdownSec = 0.5 };
+        ReplayDirector d = Director();
+        var slots = new List<Vec3> { Vec3.Zero };
+        for (int k = 1; k < 6; k++) slots.Add(new Vec3(-12.0 * ((k + 1) / 2), 12.0 * ((k + 1) / 2) * (k % 2 == 1 ? 1 : -1), 0));   // a vic of six
+        for (int k = 0; k < 6; k++)
+        {
+            RecordingTake take = RecordingTake.NewTrack(session, "pa18-cub-like", null, 0x100000 * (k + 1), 0.0, slots[k]);
+            SessionPlayback? along = k == 0 ? null : d.PlayAlong(take);
+            if (along != null) Assert.Equal(k, along.Actors.Count);                // every ship already layered plays beside this take
+            var (ac, sim, roll) = k == 0 ? Cub() : Cub(at: take.StartPose!.Value.Position, att: take.StartPose!.Value.Attitude);
+            var hold = new ControlInputs(0, roll.Elevator, 0, 0);
+            for (int i = 0; i < 226; i++)
+            {
+                if (take.State == TakeState.Recording) sim.RunFor(1.0 / 50, hold);
+                take.Tick(1.0 / 50, ac, Vec3.Zero, RecordFlags.Smoke, 0x100000 * (k + 1));
+                d.Tick(1.0 / 50);
+            }
+            Assert.NotNull(take.Commit());
+            if (along != null) d.Stop(along);
+        }
+        Assert.Equal(6, session.Tracks.Count);
+        FlightSession back = RecordingCodec.FromBytes(RecordingCodec.ToBytes(session));
+        Assert.Equal(6, back.Tracks.Count);
+        SessionPlayback p = d.Play(back, new PlaybackOptions { StartOffsetSec = 3.0 });
+        Assert.Equal(6, p.Present().Count());
+        Assert.Empty(d.Collisions(null));
+        FlightTrack lead = back.Tracks[0];
+        lead.TrySampleSession(0.0, out TrackSample l0); lead.TrySampleSession(3.0, out TrackSample l3);
+        for (int k = 1; k < 6; k++)
+        {
+            back.Tracks[k].TrySampleSession(0.0, out TrackSample s0);
+            Vec3 drift = (p.Actors[k].Current.State.Position - l3.State.Position) - (s0.State.Position - l0.State.Position);
+            Assert.True(drift.Length < 0.05, $"ship {k + 1} drifted {drift.Length:F3} m from its slot");
+            Assert.Equal(0x100000 * (k + 1), back.Tracks[k].SmokeRgb);
+        }
     }
 }

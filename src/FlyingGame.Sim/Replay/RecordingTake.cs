@@ -112,6 +112,7 @@ public sealed class RecordingTake
             if (i >= 0) Session.Tracks[i] = Track; else Session.Tracks.Add(Track);
         }
         else Session.Tracks.Add(Track);
+        Session.Touch();
         return Track;
     }
 

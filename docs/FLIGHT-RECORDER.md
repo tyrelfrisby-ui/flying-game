@@ -8,7 +8,7 @@ Ty, 20:40, the core requirement: *MULTITRACK. A "session/formation" holds severa
 solo musician layering tracks. Pilot records track 1 (lead), then records track 2 while track 1 plays back synced from a
 common start cue/countdown, and so on to 4-6+ ships (design for N).*
 
-**Status: phase 1, for Ty's review.** The core is built and tested (`src/FlyingGame.Sim/Replay/`, 23 tests in
+**Status: phase 1, for Ty's review.** The core is built and tested (`src/FlyingGame.Sim/Replay/`, 27 tests in
 `tools/FlightTests/FlightRecorderTests.cs`). The Unity side (`Bridge/RecordedShips.cs`) compiles in the iOS build but is
 **not attached to any scene, button or menu**. Nothing a pilot can reach has changed. The UI below is a proposal.
 Lane `lane/claude-flight-recorder`. It is not merged into either playable lane.
@@ -198,20 +198,37 @@ track 4  muted|██████████████|
   and one span out. On GO the clock runs, the others play, and the live aircraft is recorded on the same clock. In the
   test the second ship starts in its slot, and with the same stick it holds the world offset to within 5 cm over 5 s
   (`LayeringASecondShipStartsItInSlotOnTheLeadAfterTheCountIn`).
+- **The others play on the take's clock** (`ReplayDirector.PlayAlong(take)`). That playback has no clock of its own:
+  it reads `take.Clock` every frame, so the other ships hold at the punch-in through the count-in and then run with
+  the take, frame for frame, whatever the display rate does. This is in the core, not the Bridge, so it is tested
+  (`TheOtherShipsPlayOnTheTakesClockThroughTheCountInAndAfterGo`, at a ragged 40-90 Hz). The game ticks the take,
+  then the director. When the take ends, `ReleaseTake()` lets the same playback carry on from where the take stopped,
+  with the new track in it.
 - **Overdub / punch-in** (`RecordingTake.Overdub`): re-fly one track from any point. Everything before the punch-in is
   kept frame for frame. The pilot starts where that track was at the punch-in, and the splice is continuous. During the
   take, the track being re-flown is left out of the playback (`ThePlaybackDuringATakeLeavesOutTheTrackBeingReflown`).
+- **Editing while it plays.** The mixer edits a session that may be playing. Mute, solo and nudge are read live. A
+  committed take, a deleted track, an added track or a re-typed track bumps `FlightSession.Revision`, and the
+  playback then rebuilds just the ships that changed (`SessionPlayback.Refresh`): an overdub's new take replaces the
+  old ship, a deleted ship goes (`EditingASessionWhileItPlaysAddsAndDropsItsShips`).
 - **Nothing changes until Commit.** A take that is cancelled, or stopped during its count-in, leaves the session byte
   for byte as it was (`AnOverdubPunchInKeepsWhatCameBeforeAndACancelChangesNothing`,
   `ATakeStoppedInItsCountInRecordsNothing`).
 - **Per track:** aircraft type, livery, smoke colour (plus colour-change events), name, mute, solo, nudge, re-record
   (overdub), delete. Mute and solo work like a mixing desk: with any track soloed, only soloed tracks play
   (`MuteAndSoloWorkLikeAMixingDesk`). The nudge slides a track against the others without re-flying it.
-- **Join as a live ship:** play the session, and `FlightSession.JoinPose(t, slot)` gives the pose for flying a slot
-  that was never recorded. The player is then simply one more ship.
-- **Spawn alignment:** a session plays at its recorded place and time base (`Original`). It can also be moved as a
-  whole (`AtMyPosition`).
-- **N ships:** nothing has a fixed count. The file caps a session at 64 tracks as a sanity check on reading.
+- **Join as a live ship:** play the session, and `SessionPlayback.JoinPose(slot)` gives the world pose for flying a
+  slot that was never recorded, on the ship leading at the play head, with the playback's placement applied (so an
+  "ahead of me" session is joined where it is drawn). The player is then simply one more ship, and collides with
+  the recorded ones (`AJoiningPilotStartsInASlotWhereTheSessionIsDrawn`). Joining with a count-in is a new-ship take
+  that is discarded at the end; KEEP instead adds the pilot as the next track.
+- **Spawn alignment:** a session plays at its recorded place and time base (`Original`): time 0 is the cue, every
+  track's frames sit on that one absolute grid, and the world positions are the recorded ones. It can also be moved
+  as a whole (`AtMyPosition`). The game has no time of day yet; when it gets one, the session header should record
+  it (a version-2 field) so a sunset show plays at sunset.
+- **N ships:** nothing has a fixed count. The file caps a session at 64 tracks as a sanity check on reading. Six ships
+  layered one take at a time (each take flown while all the earlier ones play) keep their slots to within 5 cm after
+  a save and load (`SixShipsLayeredOneAtATimePlayTogetherInTheirSlots`).
 
 ## Collisions
 

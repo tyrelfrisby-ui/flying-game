@@ -6,6 +6,25 @@
   collision damage; save-from-REPLAY; count-in/slot defaults). NOT merged into either playable lane, NOT installed,
   nothing reachable in the game changed. Nothing approved; no gate marked.
 
+### 2026-11-05 flight recorder: re-checked against the prompt + MULTITRACK addendum, four gaps closed (Claude, lane/claude-flight-recorder)
+- Re-read ~/Developer/agent-lanes/prompts/flight-recorder.md line by line against docs/FLIGHT-RECORDER.md and the core.
+  Found in the core only by name, now real and tested:
+  1. "track 2 recorded while track 1 plays back synced": the sync was a per-frame Seek in the unwired Bridge. Now core:
+     ReplayDirector.PlayAlong(take) slaves a playback to take.Clock (others hold through the count-in, run with GO);
+     ReleaseTake() carries on with the new track in. Bridge/RecordedShips uses it.
+  2. Editing while playing (overdub commit, delete, add, re-type): FlightSession.Revision + SessionPlayback.Refresh; before,
+     a playback kept the replaced/deleted ship.
+  3. "Join as an extra live ship": SessionPlayback.JoinPose(slot) applies the playback's placement (FlightSession.JoinPose
+     ignored "ahead of me") and returns null once the playback has ended.
+  4. "Design for N": a six-ship take-by-take layering test (saved, loaded, slots held to 5 cm).
+  Not changed, noted in the doc: the game has no time of day, so "time base" = the cue/timeline; a v2 header field when
+  one exists. Smoke trail / lights drawing still phase 2 (already in the doc).
+- Tests: FlightRecorderTests 27/27 (+4: TheOtherShipsPlayOnTheTakesClockThroughTheCountInAndAfterGo,
+  EditingASessionWhileItPlaysAddsAndDropsItsShips, AJoiningPilotStartsInASlotWhereTheSessionIsDrawn,
+  SixShipsLayeredOneAtATimePlayTogetherInTheirSlots). Full suite not run (only Replay/ files and the unwired Bridge file changed).
+- iOS deploy.sh (dummy UDID): ** BUILD SUCCEEDED **, 0 error CS, stamp 2026.1105.0118, installed on NO device. Byproducts uncommitted.
+- Still NOT merged into either playable lane, NOT installed, nothing reachable in the game changed. NEEDS YOU above unchanged.
+
 ### 2026-11-05 flight recorder phase 1: core + tests + unwired Bridge (Claude, lane/claude-flight-recorder off d0db5af1)
 - Core, shared (src/FlyingGame.Sim/Replay/): FlightTrack (54-byte quantised frames at a fixed 30 Hz: pos, quat, body vel,
   rates, surfaces, flap/slat/spoiler, throttle, gear, rpm, g, wind, flags smoke/pilot-out/lights/guns/on-ground; PartLost

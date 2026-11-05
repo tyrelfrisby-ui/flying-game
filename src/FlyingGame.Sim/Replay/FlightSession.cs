@@ -24,6 +24,14 @@ public sealed class FlightSession
 
     public readonly List<FlightTrack> Tracks = new();
 
+    /// <summary>Bumped whenever the track list or a track's aircraft changes (<see cref="AddTrack"/>,
+    /// <see cref="DeleteTrack"/>, a committed take, <see cref="Touch"/>), so a playback running while the pilot edits
+    /// the session picks the change up (<see cref="SessionPlayback.Refresh"/>). Mute, solo and nudge need no bump:
+    /// a playback reads them live.</summary>
+    public int Revision { get; private set; }
+    /// <summary>Tell running playbacks the tracks changed (after editing <see cref="Tracks"/> or a track's aircraft directly).</summary>
+    public void Touch() => Revision++;
+
     public bool AnySolo { get { foreach (FlightTrack t in Tracks) if (t.Solo) return true; return false; } }
 
     /// <summary>Mute / solo as on a mixing desk: with any track soloed only the soloed tracks play; otherwise every
@@ -62,10 +70,11 @@ public sealed class FlightSession
             RecordedUtcTicks = System.DateTime.UtcNow.Ticks,
         };
         Tracks.Add(t);
+        Touch();
         return t;
     }
 
-    public bool DeleteTrack(FlightTrack t) => Tracks.Remove(t);
+    public bool DeleteTrack(FlightTrack t) { bool gone = Tracks.Remove(t); if (gone) Touch(); return gone; }
 
     /// <summary>Where a live pilot should start to fly slot <paramref name="slotBody"/> (lead body axes: x forward, y
     /// right, z down, m) on the lead at <paramref name="sessionSec"/>: the lead's attitude and velocity, offset into the

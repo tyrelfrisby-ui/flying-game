@@ -91,6 +91,9 @@ public sealed class ReplayActor
     public readonly int Id;
     public readonly FlightTrack Track;
     public readonly AircraftConfig Config;
+    /// <summary>The track's aircraft id when this actor was built: a track re-typed since is rebuilt by
+    /// <see cref="SessionPlayback.Refresh"/>.</summary>
+    public readonly string BuiltAircraftId;
     public Aircraft Aircraft { get; private set; }
     public ActorMode Mode { get; private set; } = ActorMode.Absent;
     public GunTarget Target { get; private set; }
@@ -110,7 +113,7 @@ public sealed class ReplayActor
 
     public ReplayActor(int id, FlightTrack track, AircraftConfig config)
     {
-        Id = id; Track = track; Config = config;
+        Id = id; Track = track; Config = config; BuiltAircraftId = track.AircraftId;
         Volumes = HitVolumes.Build(config);
         SmokeRgb = track.SmokeRgb;
         Aircraft = null!; Target = null!;
@@ -222,30 +225,75 @@ public sealed class SessionPlayback
     public int Loops { get; private set; }
     public int Hits, Kills;
     /// <summary>A track that is not drawn here (the one being re-flown in a take).</summary>
-    public FlightTrack? Excluded;
+    public FlightTrack? Excluded { get; private set; }
+    /// <summary>The take this playback accompanies, or null. While set, the playback's clock IS the take's clock: the
+    /// other ships hold at the punch-in through the count-in and run with the take after GO, so a new track is flown
+    /// against exactly what will play beside it. No loop and no end while it records.</summary>
+    public RecordingTake? Take { get; private set; }
 
-    internal SessionPlayback(FlightSession session, PlaybackOptions options, SessionPlacement placement, Func<string, AircraftConfig?> configFor,
-        ref int nextId, FlightTrack? excluded)
+    private readonly ReplayDirector _director;
+    private int _revision;
+
+    internal SessionPlayback(ReplayDirector director, FlightSession session, PlaybackOptions options, SessionPlacement placement,
+        FlightTrack? excluded, RecordingTake? take)
     {
-        Session = session; Options = options; Placement = placement; Excluded = excluded;
-        Clock = options.StartOffsetSec;
-        foreach (FlightTrack t in session.Tracks)
+        _director = director;
+        Session = session; Options = options; Placement = placement; Excluded = excluded; Take = take;
+        Clock = take?.Clock ?? options.StartOffsetSec;
+        Refresh();
+    }
+
+    /// <summary>Match the ships to the session's tracks after an edit while playing: a deleted track's ship goes, an
+    /// added or committed track gets one (an overdub's new take replaces the old ship), a re-typed track is rebuilt.
+    /// <see cref="Advance"/> calls it whenever <see cref="FlightSession.Revision"/> has moved.</summary>
+    public void Refresh()
+    {
+        _revision = Session.Revision;
+        Actors.RemoveAll(a => a.Track == Excluded || a.Track.FrameCount == 0 || a.BuiltAircraftId != a.Track.AircraftId
+            || !Session.Tracks.Contains(a.Track));
+        foreach (FlightTrack t in Session.Tracks)
         {
-            if (t.FrameCount == 0 || t == excluded) continue;
-            AircraftConfig? cfg = configFor(t.AircraftId);
+            if (t.FrameCount == 0 || t == Excluded || Actors.Exists(a => a.Track == t)) continue;
+            AircraftConfig? cfg = _director.ConfigFor(t.AircraftId);
             if (cfg == null) continue;   // an aeroplane this build no longer has: that ship is left out, the rest still play
-            Actors.Add(new ReplayActor(nextId++, t, cfg));
+            Actors.Add(new ReplayActor(_director.NextActorId(), t, cfg));
         }
+        // Keep session order, so ship n is always drawn and listed as ship n.
+        Actors.Sort((a, b) => Session.Tracks.IndexOf(a.Track).CompareTo(Session.Tracks.IndexOf(b.Track)));
+    }
+
+    /// <summary>The take is over: let the playback run on its own clock again (from where the take stopped), with the
+    /// re-flown track back in it.</summary>
+    public void ReleaseTake()
+    {
+        if (Take == null) return;
+        Clock = Take.Clock; Take = null; Excluded = null; Finished = false;
+        Refresh();
     }
 
     public void Seek(double sessionSec) { Clock = sessionSec; Finished = false; }
 
+    /// <summary>Where a live pilot joining this playback as one more ship should be, in the WORLD: slot
+    /// <paramref name="slotBody"/> (lead body axes, m) on the ship leading now, with the playback's placement applied
+    /// (so "ahead of me" sessions are joined where they are drawn). Null when no ship is flying or the playback has ended.</summary>
+    public RigidBodyState? JoinPose(Vec3 slotBody)
+    {
+        if (Finished) return null;
+        FlightTrack? lead = Session.LeadAt(Clock, Excluded);
+        if (lead == null) return null;
+        lead.TrySampleSession(Clock, out TrackSample s);
+        RigidBodyState l = Placement.Apply(s).State;
+        return new RigidBodyState(l.Position + l.Attitude.Rotate(slotBody), l.Attitude, l.Velocity, l.Rates);
+    }
+
     /// <summary>Advance the clock (unless paused) and put every playing ship in place.</summary>
     public void Advance(double dt)
     {
-        if (!Paused && !Finished) Clock += dt;
+        if (Session.Revision != _revision) Refresh();
+        if (Take != null) { Clock = Take.Clock; Finished = false; }
+        else if (!Paused && !Finished) Clock += dt;
         double end = Session.Duration;
-        if (Clock > end)
+        if (Take == null && Clock > end)
         {
             if (Options.Loop && end > 0)
             {
@@ -295,12 +343,14 @@ public sealed class ReplayDirector
     /// <summary>Gunnery target ids for recorded ships start here (player 0, drones 100+, dogfight 999).</summary>
     public const int FirstActorId = 1000;
     public readonly List<SessionPlayback> Playing = new();
-    private readonly Func<string, AircraftConfig?> _configFor;
+    internal readonly Func<string, AircraftConfig?> ConfigFor;
     private int _nextId = FirstActorId;
     private double _wreckAccum;
     private readonly List<GunTarget> _targets = new();
 
-    public ReplayDirector(Func<string, AircraftConfig?> configFor) { _configFor = configFor; }
+    public ReplayDirector(Func<string, AircraftConfig?> configFor) { ConfigFor = configFor; }
+
+    internal int NextActorId() => _nextId++;
 
     /// <summary>Start playing <paramref name="session"/>. <paramref name="live"/> is the pilot (for "at my position").</summary>
     public SessionPlayback Play(FlightSession session, PlaybackOptions options, RigidBodyState? live = null, FlightTrack? exclude = null)
@@ -315,7 +365,19 @@ public sealed class ReplayDirector
                 placement = SessionPlacement.AtPilot(s.State, live.Value, options.AheadM);
             }
         }
-        var p = new SessionPlayback(session, options, placement, _configFor, ref _nextId, exclude);
+        var p = new SessionPlayback(this, session, options, placement, exclude, null);
+        Playing.Add(p);
+        p.Advance(0);
+        return p;
+    }
+
+    /// <summary>Play the rest of a take's session alongside it, on the take's clock (Ty: "records track 2 while track 1
+    /// plays back synced from a common start cue/countdown"). It plays where it was flown and leaves out the track an
+    /// overdub is re-flying. Tick the take before the director each frame. When the take ends, either
+    /// <see cref="Stop"/> it or <see cref="SessionPlayback.ReleaseTake"/> to keep playing with the new track in.</summary>
+    public SessionPlayback PlayAlong(RecordingTake take, PlaybackOptions? options = null)
+    {
+        var p = new SessionPlayback(this, take.Session, options ?? new PlaybackOptions(), SessionPlacement.Original, take.Replacing, take);
         Playing.Add(p);
         p.Advance(0);
         return p;
