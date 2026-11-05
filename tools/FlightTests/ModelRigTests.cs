@@ -333,7 +333,9 @@ public class ModelRigTests
             for (double tt = 0; tt < 8; tt += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));   // handle fully aft
             return ac.State.Position.X - x0;
         }
-        double linkedM = RollOut(true), freeM = RollOut(false);
+        double linkedM, freeM;
+        try { linkedM = RollOut(true); freeM = RollOut(false); }
+        finally { WorldTerrain.Active = null; }   // the island, installed above, is global: it was left for every later test
         Assert.True(linkedM < freeM - 5.0,
             $"full air brake should also brake the wheel: rolled {linkedM:F1} m linked against {freeM:F1} m with the linkage out");
     }

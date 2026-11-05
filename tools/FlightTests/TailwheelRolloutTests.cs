@@ -10,8 +10,10 @@ namespace FlyingGame.FlightTests;
 /// <summary>The game's rudder on a tailwheel rollout (owner 2026-10-06: "your pilot moves the rudder rather slowly on the stearman
 /// landing — it ground looped"): it must catch the swing (a yaw-rate cascade, latched to the ground law after touchdown).
 /// The Stearman in the GUSTY crosswind is left out: full rudder and the inside brake run out of authority at walking pace.</summary>
-public class TailwheelRolloutTests
+public class TailwheelRolloutTests : IDisposable
 {
+    /// <summary>The scenario sets Atmosphere.SteadyWind for its crosswind, and it is global.</summary>
+    public void Dispose() => SimGlobals.Calm();
     private readonly ITestOutputHelper _o; public TailwheelRolloutTests(ITestOutputHelper o) { _o = o; }
     [Theory]
     [InlineData("stearman-pt17-like.json", PracticeKind.LandingAileron, PracticeWind.Steady)]

@@ -25,10 +25,12 @@ namespace FlyingGame.FlightTests;
 ///   [CS-22]     CS 22.147 (roll reversal in b/3 s), CS 22.75 (brakes-out glide), CS 22.345 (brakes out: -1.5 g)
 /// </summary>
 [Collection("WorldTerrainActive")]
-public class Grob103Tests
+public class Grob103Tests : IDisposable
 {
     private readonly ITestOutputHelper _out;
     public Grob103Tests(ITestOutputHelper o) { _out = o; }
+    /// <summary>The taxi tests roll on flat ground in calm air and take it down even when they throw.</summary>
+    public void Dispose() => SimGlobals.Calm();
 
     private const double Kmh = 1 / 3.6;
 
@@ -424,13 +426,6 @@ public class Grob103Tests
     /// <summary>ESTIMATED steering lock: no Twin III figure is published, so +-25 deg is a flagged guess.</summary>
     private const double SteerLockDeg = 25.0;
 
-    private static void CalmGround()
-    {
-        WorldTerrain.Active = null; WorldTerrain.SurfaceOverride = null;
-        Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; Atmosphere.Field = null;
-        WorldDecks.All.Clear(); WorldSolids.Shapes.Clear(); WorldSolids.Boxes.Clear();
-    }
-
     private static double Deg(double r) => r * 180 / Math.PI;
     private static double Yaw(Quat q) => Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
 
@@ -439,7 +434,7 @@ public class Grob103Tests
     /// right), the ground speed, and the nose wheel's mean load over the measuring window.</summary>
     private static (double YawRate, double Speed, double NoseLoadN, double SteerRad) Taxi(AircraftConfig c, double rudder, double v = 3.0)
     {
-        CalmGround();
+        SimGlobals.Calm();
         RigidBodyState rest = LandingGear.RestingState(c, 0, 0, 0);
         var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, new Vec3(v, 0, 0), Vec3.Zero));
         var sim = new SimLoop(ac);
@@ -461,7 +456,7 @@ public class Grob103Tests
                 noseN += -fl.Z;
             }
         }
-        CalmGround();
+        SimGlobals.Calm();
         return (yawRate / n, speed / n, noseN / n, ac.NoseWheelSteerRad);
     }
 
@@ -518,7 +513,7 @@ public class Grob103Tests
     [Fact]
     public void AirbornePedalsDoNotSteer()
     {
-        CalmGround();
+        SimGlobals.Calm();
         AircraftConfig c = Grob103.Load();
         RigidBodyState rest = LandingGear.RestingState(c, 0, 0, 0);
         var up = new RigidBodyState(rest.Position + new Vec3(0, 0, -1.5), rest.Attitude, new Vec3(26.67, 0, 0), Vec3.Zero);
