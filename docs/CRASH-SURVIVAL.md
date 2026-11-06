@@ -83,9 +83,37 @@ are then detached with everything under them and flown as one `JettisonedCanopy`
 them back. While the bail-out works it (`CockpitRigState.EgressCanopy`) the headset's hands leave that canopy alone, so it
 is stepped once a frame.
 
+## 4. The glass in a crash (Core `Glazing`, Sim `AircraftGlazing`, Bridge `GlassShatter`)
+
+Ty 2026-11-05 ~13:32 (Q028b), replacing crash-tuning's "no canopy part in the breakup": "canopy is very tough plastic;
+stays attached if unlatched; breaks/shatters ONLY if it takes a hard enough DIRECT impact (not merely because of a crash)",
+with a jagged broken-glass look; ~18:23: every aeroplane's canopy, windshield and side windows.
+
+- **Sensors, not hard points.** Each pane is a few points on its outer surface. They push nothing, so a crash with glass
+  is exactly the crash without it (`GlazingTests.ADirectHitOnTheCanopyShattersItAndItStaysOn` runs both). In the game the
+  points are measured on the drawn glass itself (`GlassShatter` finds the model's transparent / glass-named meshes, never
+  an instrument cover, a light, a fuel sight or the Lexan floor panes, and hands up to 8 outermost vertices per pane to
+  `Aircraft.SetGlazing`); headless, `Glazing.DefaultPanes` estimates them from the seats' eyes.
+- **Direct hits only.** A pane shatters when one of its own points ARRIVES in the ground or a solid faster than its
+  material's speed (cast acrylic 6 m/s, the P-51's and F-86's stretched acrylic 8, the airliners' laminated glass 12:
+  chosen, see `Glazing`), or meets a tree stem that can push harder than the glass takes (a point load σ·t²/2.24 × 2:
+  1.4 kN for 3/16 in cast acrylic, so stems under ~2.3 cm, the soft top of a tree, snap on it and leave it whole), or the
+  water's slam bursts the matching hatch (`WaterSlam`). Deceleration, crush, a torn-off wing, a hard landing never do.
+  A high wing or a biplane's upper wing holds the glass off the ground on its back: there the glass stays whole.
+- **It stays on.** Shattering removes no part and sheds no mass; nothing opens a latch or pulls a hinge pin, so an
+  unlatched canopy rides through a crash too (airspeed tearing a canopy off its hinges is `Vr.CanopyDynamics`, unchanged).
+  A shattered canopy or windshield opens its water hatch, so the cabin floods through it.
+- **What you see.** `ContactEventKind.GlazingShattered` → the pane's glass is hidden and replaced by the jagged ring still
+  held in its frame (saw-toothed, larger pieces left further from the blow, cut from an evenly subdivided copy of the
+  pane), its fracture edges drawn pale, and 10-36 shards thrown off the blow that tumble down and lie where they land
+  (the language of `TreeDebris`). The remnant hangs on the pane's own transform (a sliding or jettisoned canopy carries it);
+  the next flight is whole again.
+
 ## Checks
 
-- `tools/FlightTests/OccupantInjuryTests.cs`, `CanopyEgressTests.cs`, `CanopyBailoutTests.cs` (.NET suite).
+- `tools/FlightTests/OccupantInjuryTests.cs`, `CanopyEgressTests.cs`, `CanopyBailoutTests.cs`, `GlazingTests.cs` (.NET suite).
+- `GlassShatterShots` (Unity, `-executeMethod FlyingGame.EditorTools.GlassShatterShots.Render`): the glass measured on
+  eight types' drawn airframes, shattered (really, for the Pitts and the Extra), drawn before / after, outside and seat eye.
 - `BailoutHeavenCheck` (Unity, `-executeMethod FlyingGame.EditorTools.BailoutHeavenCheck.Run`): every type, flying and at
   rest, against a hand-copied table of what each type loses (exactly those parts gone from the airframe, flown by
   `CanopyFlight`, nothing else spawned, he gets out; open cockpits lose nothing); a fatal crash → ghost rising and translucent; a gentle crash → lands, grade kept;

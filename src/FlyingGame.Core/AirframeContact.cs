@@ -220,6 +220,9 @@ public static class WorldSolids
             }
         }
 
+        /// <summary>Nothing solid near the region last gathered (the glazing's sensors skip their solid queries).</summary>
+        public bool Empty => _boxes.Count == 0 && _shapes.Count == 0;
+
         /// <summary><see cref="WorldSolids.Penetration"/> over the gathered solids; the point must lie inside the box last
         /// passed to <see cref="Update"/>.</summary>
         public (Vec3 normalNed, double depth)? Penetration(double x, double y, double up)
@@ -529,6 +532,8 @@ public static class AirframeContact
     /// tower, the arch or a hangar roof could be flown through).
     /// </summary>
     private const double ClearAboveM = 60.0;
+    /// <summary><see cref="ClearAboveM"/> for other airframe sensors (the glazing, Sim's AircraftGlazing).</summary>
+    public const double ClearOfGroundM = ClearAboveM;
 
     /// <summary>
     /// Five height samples that say whether the airframe is clear of the ground altogether: under the CG and at

@@ -93,6 +93,7 @@ namespace FlyingGame.Bridge
             if (GetComponent<ContactEffects>() == null) gameObject.AddComponent<ContactEffects>();   // placeholder scrape sound + dust
             if (GetComponent<PropDebris>() == null) gameObject.AddComponent<PropDebris>();           // a broken blade's pieces
             if (GetComponent<TreeDebris>() == null) gameObject.AddComponent<TreeDebris>();           // needles and twigs a tree hit throws
+            if (GetComponent<GlassShatter>() == null) gameObject.AddComponent<GlassShatter>();       // canopy / windshield / window glass: jagged on a direct hit
             if (GetComponent<TyreSmoke>() == null) gameObject.AddComponent<TyreSmoke>();             // rubber the tyres lose (Core TyreWear)
             LostLine = null;
             ReadLimits();

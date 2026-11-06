@@ -1,3 +1,38 @@
+## NEEDS YOU — canopy / windshield / window glass: tough plastic, shatters only on a DIRECT hit, jagged, every aeroplane (Claude, 2026-11-06 02:10 PT, lane/claude-canopy-shatter)
+<!-- canopy-shatter needs-you -->
+Ty Q028b (2026-11-05 ~13:32): "canopy is very tough plastic; stays attached if unlatched; breaks/shatters ONLY if it takes a
+hard enough DIRECT impact (not merely because of a crash)", jagged broken-glass look; t867u (~18:23): all aeroplanes'
+canopy, windshield and side-window glass. Replaces crash-tuning decision (c) "no canopy part in the breakup". Nothing
+approved by me. Queue: **Q143** (fly/visual), **Q144** (how tough).
+- **Rule (Core `Glazing`, Sim `AircraftGlazing`):** each pane is a few SENSOR points on its outer surface that push nothing,
+  so a crash is identical with or without glass (tested). A pane shatters only when its own surface arrives on the ground or
+  a solid faster than its material allows (cast acrylic 6 m/s, P-51/F-86 stretched acrylic 8, airliner laminated glass 12:
+  **chosen, not derived**), or meets a tree stem strong enough to out-push it (point load σ·t²/2.24 × 2 = 1.4 kN for 3/16 in
+  acrylic: stems under ~2.3 cm, a tree's soft top, snap on the glass and leave it whole), or the water's slam bursts its
+  hatch. Deceleration, crush, a torn-off wing, a hard landing never break it. Nothing detaches; no latch or hinge is
+  touched, so an unlatched canopy stays on too. A shattered canopy/windshield opens the water hatch (the cabin floods).
+- **Which glass:** in the game `GlassShatter` measures the DRAWN glass (model or procedural shell; not instrument covers,
+  lights, fuel sights or floor windows) and hands its outermost vertices to the sim. Measured: Pitts canopy + windshield,
+  Extra canopy, 172 windscreen + doors + rear windows, 2-33 canopy/skylight/rear window, Grob canopy, Great Lakes both
+  windscreens, J-3 windshield/window/skylight, SR22 glass. On its back a high wing or a biplane's upper wing (Pitts, Great
+  Lakes, Stearman, JN-4, Cubs, Beaver, Decathlon, Aircam) meets the ground first and the glass stays whole.
+- **Look:** the pane is replaced by the jagged ring still in its frame (saw-toothed, larger pieces away from the blow),
+  pale fracture edges, and 10-36 shards that tumble down and lie on the ground (the TreeDebris language). Rides on the
+  canopy's own transform (slides / jettisons with it); next flight is whole. Renders (before/after, outside + seat eye):
+  `~/Developer/agent-lanes/renders/canopy-shatter-jagged/` (GlassShatterShots PASS, 0 error CS; the Extra's is a real
+  14 m/s inverted strike, the rest raise the sim's event at the pane).
+- **Tests:** GlazingTests 14/14 (material literals; hard upright crash keeps glass on Pitts/172/Extra/2-33; slow 2.5 m/s
+  arrival keeps it; direct hit shatters and the crash equals the glassless one; measured pane 7 vs 5 m/s; stem 15 cm
+  shatters / 1.5 cm doesn't; water hatch; fleet on its back 14 vs 2 m/s). Crash/tree/water/bailout subset 82/82.
+- **Build / install:** iOS **2026.1106.0031** ** BUILD SUCCEEDED **, 0 error CS, installed on Ty's iPad mini. NOUPLOAD.
+  Quest not built.
+- **Not done:** no glass sound of its own (the crash crunch plays); replays don't redraw a shatter; sliding inverted on the
+  glass without a fresh arrival does not grind it through.
+- **Fly-check (iPad mini 2026.1106.0031):** (1) Extra or 2-33: roll inverted low and put it on its back hard → jagged canopy;
+  (2) a hard upright crash / belly slide → glass stays whole; (3) 172 nose-in hard → windscreen; (4) through treetops →
+  the glass stays whole.
+- CANOPY-SHATTER-JAGGED-DONE
+<!-- /canopy-shatter needs-you -->
 ## NEEDS YOU — local MP split screen: per-player touch tray, RESET / BAIL / FIRE (Claude, 2026-11-06 01:10 PT, lane/claude-local-mp-touch)
 <!-- local-mp-touch needs-you -->
 Queue #20 (t871u); HUD visuals approved by Ty pt818u (visual only). **Q114 and Q115 are still OPEN**: not answered here.
