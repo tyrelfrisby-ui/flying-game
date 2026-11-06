@@ -62,8 +62,8 @@ public static class ApproachSpawn
         return best;
     }
 
-    /// <summary>State on final for the airport's main runway (runway along +x, threshold at X − length/2), heading
-    /// north up the centreline. Ground velocity = best-glide air velocity + local wind (coordinated crab).</summary>
+    /// <summary>State on final for the airport's main runway (runway along +x, threshold at X − length/2), tracking
+    /// north up the centreline, crabbed into any crosswind (see <see cref="CrabFor"/>).</summary>
     public static (RigidBodyState State, BestGlide Glide, double AimX) Compute(AircraftConfig config, WorldTerrain.Airport airport)
     {
         var main = System.Array.Find(WorldTerrain.AirportStrips, st => st.Kind == "paved");
@@ -89,18 +89,65 @@ public static class ApproachSpawn
         return ComputeAt(config, lake.Cx - ax * AimPastThresholdM, lake.Cy - ay * AimPastThresholdM, lake.SurfaceM, heading);
     }
 
-    /// <summary>State on final: 300 ft above the surface, on the approach line through the aim point at the given heading.</summary>
+    /// <summary>Largest crab the final is started with (Ty 2026-11-05 Q129). Past it the crosswind is more than the
+    /// pilot would accept on final; the aeroplane is started at this crab and the rest of the crosswind is left to drift
+    /// it — nothing else (bank, extra speed, a side-slip) is invented to make up the difference.</summary>
+    public const double MaxCrabRad = 45.0 * System.Math.PI / 180.0;
+
+    /// <summary>The crab that puts the ground track on the centreline. CrabRad: heading minus runway heading, positive =
+    /// nose turned right of the centreline (into a wind from the right). ResidualCrossMs: ground drift across the
+    /// centreline left over (0 when attainable; positive = to the right). AlongGroundMs: ground speed along the
+    /// centreline toward the runway. Attainable: false when the crosswind needed more than <see cref="MaxCrabRad"/>.</summary>
+    public readonly struct Crab
+    {
+        public readonly double CrabRad, ResidualCrossMs, AlongGroundMs;
+        public readonly bool Attainable;
+        public Crab(double crabRad, double residualCrossMs, double alongGroundMs, bool attainable) { CrabRad = crabRad; ResidualCrossMs = residualCrossMs; AlongGroundMs = alongGroundMs; Attainable = attainable; }
+    }
+
+    /// <summary>Crab for a runway heading, a wind vector (velocity of the air, world NED) and the horizontal part of the
+    /// aeroplane's airspeed: the air vector's crosswind share cancels the wind's, sin(crab) = −w_cross / V_h, so ground
+    /// velocity = air + wind runs down the centreline. When |w_cross| / V_h exceeds sin(<see cref="MaxCrabRad"/>) — which
+    /// includes every wind faster across than the aeroplane flies, where no heading at all holds the line — the crab
+    /// is held at the cap and the remainder is reported as drift. Never calls asin outside [−1, 1].</summary>
+    public static Crab CrabFor(double headingRad, Vec3 wind, double airHorizMs)
+    {
+        double ux = System.Math.Cos(headingRad), uy = System.Math.Sin(headingRad);
+        double wAlong = wind.X * ux + wind.Y * uy, wCross = -wind.X * uy + wind.Y * ux;   // cross: + = toward the right (east of north)
+        if (!(airHorizMs > 1e-6)) return new Crab(0, wCross, wAlong, wCross == 0);   // no airspeed to crab with
+        double s = -wCross / airHorizMs, cap = System.Math.Sin(MaxCrabRad);
+        bool ok = System.Math.Abs(s) <= cap;
+        double crab = System.Math.Asin(System.Math.Clamp(s, -cap, cap));
+        return new Crab(crab, wCross + airHorizMs * System.Math.Sin(crab), wAlong + airHorizMs * System.Math.Cos(crab), ok);
+    }
+
+    /// <summary>State on final: 300 ft above the surface, on the approach line through the aim point, its ground track
+    /// down the given heading (Ty 2026-11-05: "the flight path should be already pointed to the runway so a crosswind
+    /// doesn't immediately cause it to be off course"). The wind is sampled ONCE at the start point with its gusts
+    /// (<see cref="Atmosphere.WindAtPosition"/>, the same sample the initial velocity is built from), the nose is
+    /// yawed into it by <see cref="CrabFor"/>, and the body velocity is the trimmed glide's airspeed at α plus that
+    /// wind — so the aeroplane starts in balance (no sideslip) with its ground velocity on the centreline. Pitch,
+    /// α, airspeed and the start point are those of the calm-air final.</summary>
     public static (RigidBodyState State, BestGlide Glide, double AimX) ComputeAt(AircraftConfig config, double aimX, double aimY, double surfaceM, double headingRad)
+    {
+        var r = ComputeWithCrab(config, aimX, aimY, surfaceM, headingRad);
+        return (r.State, r.Glide, r.AimX);
+    }
+
+    /// <summary><see cref="ComputeAt"/>, also returning the crab it chose.</summary>
+    public static (RigidBodyState State, BestGlide Glide, double AimX, Crab Crab) ComputeWithCrab(AircraftConfig config, double aimX, double aimY, double surfaceM, double headingRad)
     {
         double alt = surfaceM + AglM;
         BestGlide g = ApproachGlide(config, alt);
         double alongX = System.Math.Cos(headingRad), alongY = System.Math.Sin(headingRad);
         double back = AglM / System.Math.Tan(g.GammaRad);
         var pos = new Vec3(aimX - alongX * back, aimY - alongY * back, -alt);
-        double half = g.ThetaRad / 2.0, hh = headingRad / 2.0;
+        Vec3 wind = Atmosphere.WindAtPosition(pos);
+        Crab crab = CrabFor(headingRad, wind, g.SpeedMs * System.Math.Cos(g.ThetaRad - g.AlphaRad));
+        double half = g.ThetaRad / 2.0, hh = (headingRad + crab.CrabRad) / 2.0;
         var att = Quat.Multiply(new Quat(0, 0, System.Math.Sin(hh), System.Math.Cos(hh)), new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half)));   // yaw then pitch
         var vBody = new Vec3(g.SpeedMs * System.Math.Cos(g.AlphaRad), 0, g.SpeedMs * System.Math.Sin(g.AlphaRad))
-                    + att.Conjugate().Rotate(Atmosphere.WindAtPosition(pos));
-        return (new RigidBodyState(pos, att, vBody, Vec3.Zero), g, aimX);
+                    + att.Conjugate().Rotate(wind);
+        return (new RigidBodyState(pos, att, vBody, Vec3.Zero), g, aimX, crab);
     }
 }
