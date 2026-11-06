@@ -3,7 +3,9 @@
 Gauge layout / colours read by eye off Ty's cockpit photo (refs/j3-cub/ty-panel.png): cream faces, black markings, no
 maker names.
 Ty t934u: Cub exception — remove ALL colored bands/arcs; red limit lines ONLY for max oil temp, min AND max oil
-pressure, max RPM, max airspeed. Values MUST be approved/manual limits (A-691 / E-205), never dial scale ends.  Prop: laminated-birch look, varnish tint, red tip band (Ty) on both faces, brass LE sheath + rivet line
+pressure, max RPM, max airspeed. Ty chose KEEP 85-hp C-85 physics/config; match instrument redlines to C-85 (TCDS E-233),
+not A-65/E-205. Airframe ASI max from A-691 glide/dive 122 mph CAS (mph face). Never dial scale ends.
+t935: oil mid-line removed; otherwise J3 face styling approved (visual only).  Prop: laminated-birch look, varnish tint, red tip band (Ty) on both faces, brass LE sheath + rivet line
 (Ty's Sensenich-type photo refs/j3-cub/ty-prop.png; the maker's decal is a trademark and is NOT reproduced)."""
 import sys, os, math, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -38,10 +40,9 @@ def needle(cx, cy, a, L, col=RED, w=9, tail=40):
 cx, cy = face(0); a0, a1 = -135, 135
 ticks(cx, cy, 200, 238, a0, a1, 30, 4); ticks(cx, cy, 185, 238, a0, a1, 6, 11)
 for k, v in enumerate(range(5, 40, 5)): label(cx, cy, 138, a0 + 270 * k / 6, str(v), F(72))
-# Max RPM redline: FAA Spec A-691 (J3C-65) "Engine limits For all operations, 2350 r.p.m. (65 hp)".
-# (Prop static max 2300 is a different limit — tach operating redline follows engine limit.)
-# NOT config propulsion.maxRpm 2575 (inherited Super Cub / C-85 path; own model is A-65 per PROVENANCE).
-arc(cx, cy, 226, a0 + 270 * (23.5 - 5) / 30 - 1.5, a0 + 270 * (23.5 - 5) / 30 + 1.5, 26, RED)
+# Max RPM: Continental C-85 TCDS E-233 — max continuous 85 hp at 2575 rpm (matches config propulsion.maxRpm).
+# (Ty: keep 85-hp C-85; match instrument limits to it — not A-65 2350.)
+arc(cx, cy, 226, a0 + 270 * (25.75 - 5) / 30 - 1.5, a0 + 270 * (25.75 - 5) / 30 + 1.5, 26, RED)
 D.text((cx, cy - 30), 'R P M', font=F(52), fill=INK, anchor='mm'); D.text((cx, cy + 150), 'X 100', font=F(36), fill=INK, anchor='mm')
 needle(cx, cy, a0 + 270 * (18 - 5) / 30, 200, (200, 70, 30))
 # 1 airspeed (MPH): 40 at 1 o'clock clockwise to 140 at ~11 o'clock
@@ -103,18 +104,15 @@ for yo, lab, vals, red_at in ((-95, 'TEMPERATURE', ['100', '150', '200', '250'],
     for k, v in enumerate(vals):
         a = -60 + 120 * k / n; D.line([polar(cx, oc, 175, a), polar(cx, oc, 200, a)], fill=INK, width=9)
         label(cx, oc, 120, a, v, F(40))
-    # t934u: no color bands. Red lines ONLY at verified Continental / airframe limits — NOT dial scale ends.
-    # Oil temp max 220 F: FAA TCDS E-205 NOTE 1 (A-65) max oil inlet temperature 220 F (dial scale goes to 250 — scale end is NOT the limit).
-    # Oil press min 30 / max 60 psig: same NOTE 1 "Oil pressure limits: 30 to 60 p.s.i.g."
-    # (Do not use prior 0.125-of-scale paint or scale-end 80 as limits — those were not approved values.)
+    # t934/t935: no color bands; no mid-line. Red lines = C-85 certified limits (TCDS E-233), NOT dial scale ends.
+    # Oil temp max 225 F: E-233 NOTE 1 C85 series max oil inlet temperature 225 F (dial to 250 ≠ limit).
+    # Oil press min 30 / max 40 psig: E-233 NOTE 1 "oil pressure limits 30 to 40 p.s.i." (not scale-end 80; not A-65 30-60).
     if red_at is not None:
-        # TEMPERATURE dial: 100..250 F maps to -60..+60 deg
-        a_tmax = -60 + 120 * (220 - 100) / (250 - 100)
+        a_tmax = -60 + 120 * (225 - 100) / (250 - 100)
         D.line([polar(cx, oc, 170, a_tmax), polar(cx, oc, 215, a_tmax)], fill=RED, width=10)
     else:
-        # OIL PRESSURE dial: 0..80 psi maps to -60..+60 deg
         a_pmin = -60 + 120 * (30 / 80.0)
-        a_pmax = -60 + 120 * (60 / 80.0)
+        a_pmax = -60 + 120 * (40 / 80.0)
         D.line([polar(cx, oc, 170, a_pmin), polar(cx, oc, 215, a_pmin)], fill=RED, width=10)
         D.line([polar(cx, oc, 170, a_pmax), polar(cx, oc, 215, a_pmax)], fill=RED, width=10)
     D.text((cx, oc - 25), lab, font=F(30), fill=INK, anchor='mm')
