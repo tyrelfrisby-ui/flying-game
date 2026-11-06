@@ -1,3 +1,24 @@
+## NEEDS YOU — tyre screech back to its old loudness, bearing + ground contact stay −4 dB (Claude, 2026-11-05 22:55 PT, lane/claude-bearing-ground-minus4)
+<!-- bearing-ground-minus4 needs-you -->
+Ty ~15:57 (pt823u, "Tire screech"): screech/squeal volume UNCHANGED; wheel-bearing −4 dB and ground contact −4 dB vs the
+pre-t820 mix; engine, wind, crash untouched. Nothing approved by me. Queue: **Q138**.
+- **Was:** `GroundSoundMix.OutputGainDb = −4` (fa4d96f3) multiplied the whole ground bus, the tyre squeal included.
+- **Fix (b433cc82):** `TyreBrakeSynth.Next` returns the squeal voice (spin-up chirp, skid, locked wheel) on its own;
+  `FlightAudio.Render` adds it at `GroundSoundMix.ScreechGainDb = 0` (×1.000) and the rest at −4 dB (×0.631).
+  Net vs pre-t820: **screech 0 dB**; bearing whir, scrub, rolling ground (SurfaceSynth), brake scrape and brake pad
+  squeal, thump/flat slap/burst, water/ski/keel, airframe scrape (ContactEffects), prop strikes **−4 dB**. The whir's own
+  level (0.0032, §7b) has not moved since before t820, so the bus is its whole −4. No synth-internal level, pitch or
+  filter changed; the 08:50 squeal onset/fade-in (§7d) is untouched. Engine, wind, crash impacts untouched.
+- **Judgement call:** the brake PAD squeal (hard braking near lock-up, a disc sound) stays at −4 as a brake sound; only
+  the tyre's own squeal is kept. Say if you want the brake squeal kept too.
+- Tests: GroundSoundMix + TyreSqueal 37/37 (new `TyreScreechSkipsTheGroundBusCut`, literals by hand). The 2
+  StreamingAssetsTests failures in that run are from the base: 71 tracked StreamingAssets files that this lane does not touch.
+- **Build / install:** iOS **2026.1105.2245** ** BUILD SUCCEEDED **, 0 error CS, installed on **Ty's iPad mini** (launch
+  refused: locked); iPhone not connected, so not installed. Quest not built. NOUPLOAD.
+- **Fly-check:** a firm crabbed touchdown on asphalt: the chirp/screech should be as loud as before this morning's −4;
+  the rollout's rolling hum, the bearing whir and any scrape should stay quieter.
+<!-- /bearing-ground-minus4 needs-you -->
+
 ## NEEDS YOU — Pitts tree crash: the aircraft no longer vanishes into the tree (Claude, 2026-11-05 21:50 PT, lane/claude-pitts-tree-vis)
 <!-- pitts-tree-vis needs-you -->
 Ty 13:41 (Q028, iPhone 2026.1105.1140): Pitts into a tree lost the prop, kept the wings, pitched nearly vertical, VANISHED
