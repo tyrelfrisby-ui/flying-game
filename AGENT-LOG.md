@@ -38,6 +38,97 @@ Reference (staged): `docs/pending/t922-underwater/ty-ref-inverted-floats-cockpit
 Outcomes: pilot-view treatment follows world waterline at inverted/partial/full submersion; submerged cockpit geometry affected, dry portions clear; HUD legible; approved exterior/aerial water appearance preserved; no buoyancy/flight retune; no canceled buoyancy restart. Tests + BUILD SUCCEEDED; submerged + aerial before/after renders for Ty visual review. NOUPLOAD.
 
 Related t923u (separate): surface water PASS; splash **visual** FAIL (white spray, distinct V from each float) — other lane/queue; do not steal.
+### 2026-11-06 07:51 PST — Claude · Pitts elevator not visibly moving (TF 0703) · lane/claude-pitts-elevator-vis
+NEEDS YOU: Ty t917u / pt917u — testing newly received TF **2026.1106.0703**: "The elevator on the pitts is not visibly moving." Phone testing baseline is now **0703** (Ty confirmed received), not 1816.
+Outcomes (visual animation — do not retune pitch physics without evidence of a physics failure):
+1. Pitts elevator visibly moves in live flight: neutral / full aft / full forward, proportional, correct direction, hinge alignment, **both** halves.
+2. Visible in external camera and consistent in replay.
+3. Before/after visual evidence; exact build stamp when fixed. Do not claim fixed until verified on a BUILD SUCCEEDED artifact.
+4. Codex model/visual audit queued as next eligible if capacity (cap was 3/4 at register; Claude takes 4th) — model hinge/mesh ownership if animation path is correct but meshes/markers wrong.
+NOUPLOAD. Preserve smoke/crash-cam/skis/tow/WB/OTA; holds untouched.
+**RESULT 2026-11-06 08:20 PT (Claude) — PITTS-ELEVATOR-VIS: fixed in code, verified on the bench, BUILD SUCCEEDED; not on a device yet.**
+- **Cause (measured, not inferred):** the Pitts' cockpit rig (docs/models/pitts-s2b-own-rig.json, in since 2026-11-02 bad3a452)
+  makes AirframeVisual skip the hinge carve ("the model's own rig drives its moving parts; the hinge carve is skipped"),
+  and the rig has NO rows for Elevator_L/R, Aileron_UL/UR/LL/LR or Rudder. So every Pitts flight surface was drawn still:
+  live, external camera, replay and remote view. Not just the elevator: ailerons and rudder too. The sim was right all along:
+  full aft stick = -27.0 deg (TE up, q +66 deg/s), full forward +27.0, half aft -12.1, neutral 0 (no physics change made).
+- **Fix 13ce4aa1:** Core `SurfaceHinges`, the seven hinge lines from build_pitts_s2b.py (elevators x 3.30 / y 0.071; rudder
+  vertical at x 3.30; swept upper and 3-deg-dihedral lower aileron lines), checked against the drawn meshes. AirframeVisual
+  turns each named node about its line when the rig doesn't drive it, using the config's own surface on that side for sense
+  and gain. It also adds the slave-strut pins (Strut_Slave_*_PinUpper/Lower) before the rig binds, so the struts now follow
+  the ailerons (they were static: "has no PinUpper"). It logs what bound.
+- **Measured (Editor ControlSurfaceMotionCheck, vertex motion of the built aeroplane through SetDeflections, the path live,
+  replay and remote all use), at 0.35 rad:** BEFORE Pitts elevator L 0 / R 0 vertices, aileron 0, rudder 0. AFTER elevator
+  L and R 1853 vtx each, TE -16.7 cm both (= 0.49 m chord x sin 20 deg), half deflection -8.5 (proportional), reverse +16.7;
+  ailerons L -8.7 / R +8.7 cm (differential, right way); rudder +18.0 cm right; neutral returns 0.00 mm. Extra unchanged
+  (fleet before/after reports in the renders dir; other types untouched by the code path).
+- **Tests:** SurfaceHingeTests 9/9 (table vs meshes in all 4 Pitts liveries, strut pins, every rigged own model's surfaces
+  moved by something with the 172 as the named known gap, Pitts stick->elevator full/proportional/sense, replay round trip).
+- **Evidence:** ~/Developer/agent-lanes/renders/pitts-elevator-vis-t917u/: `*-before-*` vs `*-after-*`, elevator grids
+  (neutral | full aft | half aft | full fwd) in chase / tail34 / tailside views, roll (aileron + rudder), strut close-up.
+- **Build:** iOS **2026.1106.0816** (CFBundleVersion 202611060816), ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL (not
+  installed, not uploaded). Quest not built. Ty fly-check = **Q149**.
+- **Also found:** the Cessna 172 (own model) has the same fault (its rig has no surface rows, so all five surfaces are still).
+  Its nodes sit on their hinges, so it needs rig rows, not this table: **Q150**, not fixed here.
+- **Codex model audit:** not needed for the Pitts to work. Optional cleanup for it: re-origin the Pitts' surface nodes on their
+  hinges + `_HingeAxis` markers + strut pins in build_pitts_s2b.py (as build_ea300.py does), then drop the Pitts entry from
+  SurfaceHinges. Also noted: the GLB's lower-aileron horns sit ABOVE the hinge, not below as the script's v13 comment says.
+- **Suite:** a full `dotnet test` on this lane was killed at the 2 h limit while four other lanes' suites ran (partial
+  output: world/terrain failures in Alaska/Forest/Plateau, untouched by this change, so not compared). The three Pitts
+  failures in it (AerobatGroundHandlingTests ThreePointAndWheelLandingsAreWorkable x2, PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes)
+  fail ALONE on the base 2b47338f too: pre-existing, not this lane. A clean full-suite compare is still owed.
+- **Merge: NOT merged to playable / Quest.** island-nav is still at the base 2b47338f (this lane is a fast-forward + log),
+  but claude-island-nav-merge has another agent's UNCOMMITTED AGENT-LOG.md edit (plus the usual StreamingAssets mirrors),
+  and this lane also edits AGENT-LOG. I did not stash someone's in-progress log. Merge 13ce4aa1 + this log commit into
+  island-nav, then the Quest lane the same day (parity lock), once that worktree is clean and a quiet-machine suite compare
+  is done. Then build and fly-check Q149.
+- PITTS-ELEVATOR-VIS-T917 **PROGRESS** (fix verified on the bench + BUILD SUCCEEDED 2026.1106.0816; awaiting merge + device).
+## NEEDS YOU — replay smoke as flown + AS FLOWN / ON / OFF; smoke kept out of the airframe (Claude, 2026-11-06 ~09:00 PT, lane/claude-replay-smoke)
+<!-- replay-smoke needs-you -->
+Ty t912u / t914u. Nothing approved by me. Queue: **Q147** (replay SMOKE button), **Q148** (exact mesh clearance or enough).
+- **Why the replay had no smoke (two causes):** the replay recorder kept no smoke at all, and `SmokeController` returned the
+  moment a replay began under the comment "FlightReplay redraws" — nothing did. A clip of the replay copies the screen, so
+  it had none either.
+- **Fix:** each replay frame now records the switch and the flow the oil made or would have made (`ReplaySmoke`: same law
+  as live — engine, power, bus), plus jet / crank / rpm. In a replay the trail is rebuilt at the play head from the
+  recording; replay bar **SMOKE** button: **AS FLOWN** (default, every replay) → **ON** (add it after the fact) → **OFF**.
+  View only: the recording is never rewritten. Seek / rewind / scrub redraw exactly that moment (pure function, plus a
+  cache fix so no puff sticks where it was). Older frames without the channel: AS FLOWN none (button says "(none)"), ON
+  estimated from throttle. Clip camera = main camera: identical pixels in all three modes (measured, 0 of 1,024,000 differ).
+  Quest: same code, no replay page there today, so no button.
+- **Airframe (every type):** the marker paths already went round; what crossed the aeroplane was the DRAWING (puffs and
+  pulse tubes are blobs stretched along segments laid straight across the body) and an analytic tube that was not the
+  drawn fuselage. Now every piece under 3 s old near the aeroplane is held out of it at the pose shown (centre pushed
+  out, segment cut at the skin), live, replay and clip alike, and the fuselage is measured on the drawn model.
+  Independent check against the real mesh (MeshColliders, `SmokeAirframeRender`), 8 types × 5 attitudes (upright /
+  inverted flat, high α, cruise, inverted): **Pitts upright flat spin 3 → 0 pieces through the model**; fleet total
+  **71 → 43**; 24 of 40 cases at zero. **Not zero everywhere:** fins/rudders, wing roots, open cockpits (the surfaces are
+  still flat plates and the body a measured circle), and the **procedural Decathlon got worse at high α (2 → 15)**.
+  Q148 asks whether to go to exact mesh clearance. Cost: build 0.4–1.2 ms (editor) before and after alike; bench 2.2 µs a
+  piece, ~20–60 pieces a frame.
+- **Renders:** `~/Developer/agent-lanes/renders/replay-smoke-t912-t914/` — `pitts-s2b-like_upright-flat_{before,after}_{top,side}.png` (the report), every type/attitude
+  likewise, `replay_{before_oldcode,as_flown,on,off}.png` + `_clipcam`, `stats.txt`.
+- **Tests:** ReplaySmokeTests 6/6, SmokeClearanceTests 38/38, AirframeFlowTests + ReplayTests unchanged green (88/88).
+  Suite compare vs 2b47338f: full lane run (loaded Mac, 3 other suites running) 196 failed / 3230 passed; none smoke/replay/recorder/flow. Its 57 failing classes re-run alone on lane AND base: 140 / 716 on both, identical names, 0 only on the lane.
+- **Build:** iOS **2026.1106.0803** ** BUILD SUCCEEDED **, 0 error CS, installed on Ty's iPad mini. NOUPLOAD. Quest not built.
+- **Merge:** into lane/claude-island-nav and lane/claude-quest-islandnav (same day, parity) — see the merge line below.
+- **Fly-check (iPad mini 2026.1106.0803):** (1) smoke on, fly 30 s, smoke off, REPLAY → the trail is there as flown, ending
+  where you switched it off; (2) SMOKE → ON: smoke added along the whole replay; OFF: none; scrub back and forth — no
+  stuck or broken trail; (3) REC a clip in each mode — it matches the screen; (4) Pitts upright flat spin with smoke,
+  look at the cowling from the chase view: no smoke out of the top.
+<!-- /replay-smoke needs-you -->
+### 2026-11-06 07:32 PST — Claude · replay smoke + fleet airframe exclusion · lane/claude-replay-smoke
+
+NEEDS YOU: Ty t912u / t914u (pt912u). Flew with smoke ON; default replay showed none; video recorded from that replay also showed none. Also: smoke must not pass through ANY portion of ANY airplane (t914 supersedes Pitts-only); Pitts upright flat-spin smoke was seen emerging through the top cowling — reproduce and fix real particle movement/collision vs drawing, not draw-order hiding.
+
+Outcomes wanted (investigate mechanisms; do not assume a single cause):
+1. Default replay preserves actual flown smoke timing/state ("as flown").
+2. During playback: As flown / On / Off override; smoke can be added after the fact; seeking/rewinding stays correct; no broken particle trails; older recordings handled gracefully. Viewing overrides must NOT rewrite original flight telemetry.
+3. Replay export / clip recording of a replay honors the same selected override.
+4. Shared smoke-system airframe exclusion/deflection for fuselage/cowling/wings/tail/other parts on every type, live + replay + export, including spins/high AoA/inverted, with mobile performance in mind.
+5. Tests for replay default, overrides, seeking, export, old data, and airframe exclusion across types; ** BUILD SUCCEEDED ** before src/config integration; before/after visual evidence for Ty if needed. NOUPLOAD / no new TestFlight (0703 already uploaded).
+
+Status: lane started from playable 2b47338f. Other obligations (tow/WB/skis/OTA) untouched; holds preserved.
 
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).

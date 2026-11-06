@@ -207,6 +207,8 @@ namespace FlyingGame.Bridge
 
         /// <summary>The placed model's root, or null where the aeroplane on screen is the procedural shell.</summary>
         public Transform ModelRoot => _builder.ModelRoot;
+        /// <summary>The i-th propeller hub (null past the last): the smoke's fuselage measurement leaves the blades out.</summary>
+        public Transform PropHubTransform(int i) => _builder.PropHubTransform(i);
 
         /// <summary>True when the placed model brought its own rig (its stick, pedals and needles move by it).</summary>
         public bool HasOwnRig => _builder.HasOwnRig;
@@ -1344,6 +1346,10 @@ namespace FlyingGame.Bridge
         private sealed class ControlPart
         {
             public Transform T; public string Surface; public float Gain; public Vector3 AxisUnity;
+            /// <summary>A model node turned about a hinge line OFF its own origin (FlyingGame.Core.SurfaceHinges: the Pitts'
+            /// surfaces): <see cref="PivotP"/> / <see cref="AxisP"/> in T's PARENT frame, from T's rest pose. Otherwise T
+            /// turns about its own origin by <see cref="AxisUnity"/>, as every carved or procedural surface does.</summary>
+            public bool AboutPivot; public Vector3 PivotP, AxisP, RestPos; public Quaternion RestRot;
         }
         private readonly List<ControlPart> _controls = new();
         // Parts that ARE the wing (wing lofts, aileron rows, spoiler paddles, slats, wing/interplane struts):
@@ -1402,7 +1408,14 @@ namespace FlyingGame.Bridge
                     "spoiler" => -spoilerFrac * SpoilerMaxRad, // paddles rise (TE up)
                     _ => 0f,
                 } * c.Gain;
-                c.T.localRotation = Quaternion.AngleAxis(HingeSign * d * Mathf.Rad2Deg, c.AxisUnity);
+                if (c.AboutPivot)
+                {
+                    // Parent frame, from local transforms only: the aeroplane is routinely kilometres from the origin.
+                    Quaternion q = Quaternion.AngleAxis(HingeSign * d * Mathf.Rad2Deg, c.AxisP);
+                    c.T.localRotation = q * c.RestRot;
+                    c.T.localPosition = c.PivotP + q * (c.RestPos - c.PivotP);
+                }
+                else c.T.localRotation = Quaternion.AngleAxis(HingeSign * d * Mathf.Rad2Deg, c.AxisUnity);
             }
             // A model with its own rig moves ITS surfaces on the same deflections — so every caller that poses
             // an aeroplane (a remote player's, the widget's replay, a render) gets them, not only the live one.
@@ -3115,6 +3128,8 @@ namespace FlyingGame.Bridge
             // A model we drew ourselves may bring its OWN rig (docs/models/<model>-rig.json): every moving
             // part already a separate node with its origin on its pivot. Bind it here, on the untouched
             // instance, so each node's imported pose is its rest pose.
+            // Slave-strut pins the GLB does not carry go on first, so the rig's strut follower finds them.
+            AddHingedSurfacePins(inst, cfg.Id);
             _rig = AirframeRig.Bind(inst, AirframeModels.PlacedOwnName(cfg.Id));
             // The model's meshes join the part lists so wing/panel/nose/tail splits cut the real mesh.
             var filters = new List<MeshFilter>();
@@ -3138,6 +3153,10 @@ namespace FlyingGame.Bridge
                 // ...but the carve is ALSO where a model's propeller is handed to the turning hub, so skipping it
                 // left every rigged aeroplane with its propeller nailed to the cowling. Bind it here instead.
                 BindModelProp(inst);
+                // ...and the carve is where a NAMED surface mesh (Spec.NamedSurfaces) was turned about its hinge, so a rig
+                // with no rows for the flight surfaces left them nailed still too: the Pitts' elevators, ailerons and
+                // rudder from 2026-11-02, when its cockpit rig arrived, to Ty's report (t917u 2026-11-06).
+                BindHingedSurfaces(root, inst, cfg.Id);
             }
             else
             {
@@ -3161,6 +3180,120 @@ namespace FlyingGame.Bridge
         /// MATCHED BY EXACT NODE NAME, never by "contains prop". The Extra's own rig has a node called
         /// <c>Prop_R</c> and it is the blue rpm vernier on the rear panel: a looser match spins the knob.
         /// </summary>
+        /// <summary>The name a model node had in the GLB (the loader's "Model:" prefix off).</summary>
+        private static string GlbName(string n)
+        {
+            if (n.StartsWith("Model:")) n = n.Substring(6);
+            return n;
+        }
+
+        /// <summary>The topmost transform under <paramref name="inst"/> carrying a GLB node's name (glTFast hangs a mesh's
+        /// further primitives on children, which may repeat it), or null.</summary>
+        private static Transform FindModelNode(GameObject inst, string node)
+        {
+            foreach (Transform t in inst.GetComponentsInChildren<Transform>(true))
+                if (GlbName(t.name) == node && (t.parent == null || GlbName(t.parent.name) != node)) return t;
+            return null;
+        }
+
+        /// <summary>The slave struts' pins (FlyingGame.Core.SurfaceHinges.Pin), as empties under their ailerons, named as
+        /// <see cref="AirframeRig"/>'s strut follower looks for them. Only where the model has the strut and the aileron
+        /// and not already the pin. Call before the rig binds.</summary>
+        private static void AddHingedSurfacePins(GameObject inst, string aircraftId)
+        {
+            if (inst == null) return;
+            foreach (FlyingGame.Core.SurfaceHinges.Pin pin in FlyingGame.Core.SurfaceHinges.PinsFor(aircraftId))
+            {
+                if (FindModelNode(inst, pin.Node) != null || FindModelNode(inst, pin.Strut) == null) continue;
+                Transform on = FindModelNode(inst, pin.On);
+                if (on == null) continue;
+                var go = new GameObject(pin.Node);
+                go.transform.SetParent(on, false);
+                go.transform.localPosition = new Vector3(-(float)pin.X, (float)pin.Y, (float)pin.Z);   // glTFast mirrors glTF x
+            }
+        }
+
+        /// <summary>
+        /// A rigged model's NAMED flight surfaces that its rig does not drive (FlyingGame.Core.SurfaceHinges): each node turns
+        /// whole about the hinge line its build script drew, on the same deflections as every other surface. The sense and
+        /// gain are the config's own surface's on that side (the hidden procedural part nearest the hinge), so +elevator is
+        /// trailing edge down on both halves and the ailerons are differential, exactly as the carved and procedural ones are.
+        /// Logs what it bound and anything in the table it could not find, so a renamed node cannot fail silently.
+        /// </summary>
+        private void BindHingedSurfaces(Transform root, GameObject inst, string aircraftId)
+        {
+            IReadOnlyList<FlyingGame.Core.SurfaceHinges.Line> lines = FlyingGame.Core.SurfaceHinges.For(aircraftId);
+            if (lines.Count == 0 || inst == null) return;
+            var rigged = new HashSet<Transform>();
+            if (_rig != null) foreach (AirframeRig.Bound b in _rig.Nodes) rigged.Add(b.T);
+            var config = _controls.Where(c => c.T != null && !c.AboutPivot).ToList();
+            var bound = new List<string>(); var skipped = new List<string>();
+            foreach (FlyingGame.Core.SurfaceHinges.Line ln in lines)
+            {
+                Transform t = FindModelNode(inst, ln.Node);
+                if (t == null) { skipped.Add(ln.Node + " (not in the model)"); continue; }
+                if (rigged.Contains(t)) { skipped.Add(ln.Node + " (the rig drives it)"); continue; }
+                Transform parent = t.parent;
+                // The line in the node's own frame (glTF x mirrored, as glTFast mirrors the mesh), then in its parent's.
+                Vector3 m0 = new Vector3(-(float)ln.X0, (float)ln.Y0, (float)ln.Z0), m1 = new Vector3(-(float)ln.X1, (float)ln.Y1, (float)ln.Z1);
+                Matrix4x4 nodeToParent = Matrix4x4.TRS(t.localPosition, t.localRotation, t.localScale);
+                Vector3 p0 = nodeToParent.MultiplyPoint3x4(m0), p1 = nodeToParent.MultiplyPoint3x4(m1);
+                // Sanity: the line must lie on the drawn surface (its front face), or the table and the model disagree.
+                Bounds nb = default; bool any = false;
+                foreach (MeshFilter mf in t.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (mf.sharedMesh == null) continue;
+                    Matrix4x4 toNode = t.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                    Bounds mb = mf.sharedMesh.bounds;
+                    for (int k = 0; k < 8; k++)
+                    {
+                        Vector3 cpt = toNode.MultiplyPoint3x4(mb.center + Vector3.Scale(mb.extents, new Vector3((k & 1) == 0 ? -1 : 1, (k & 2) == 0 ? -1 : 1, (k & 4) == 0 ? -1 : 1)));
+                        if (!any) { nb = new Bounds(cpt, Vector3.zero); any = true; } else nb.Encapsulate(cpt);
+                    }
+                }
+                Vector3 mid = 0.5f * (m0 + m1);
+                if (!any || Mathf.Sqrt(nb.SqrDistance(mid)) > 0.03f)
+                {
+                    skipped.Add($"{ln.Node} (hinge {mid} is {(any ? Mathf.Sqrt(nb.SqrDistance(mid)) * 100f : -1f):F1} cm off its mesh {nb.min}..{nb.max})");
+                    continue;
+                }
+                // The config's surface on this side: its gain (the aileron's differential) and its axis's sense, root frame.
+                Vector3 r0 = root.InverseTransformPoint(parent.TransformPoint(p0)), r1 = root.InverseTransformPoint(parent.TransformPoint(p1));
+                Vector3 rMid = 0.5f * (r0 + r1), rAxis = (r1 - r0).normalized;
+                ControlPart near = null; float best = float.MaxValue;
+                foreach (ControlPart c in config)
+                {
+                    if (c.Surface != ln.Surface) continue;
+                    Vector3 cp = root.InverseTransformPoint(c.T.position);
+                    // Same side, unless the config's surface spans the centreline (the Pitts' elevator is one part).
+                    if (ln.Surface != "rudder" && Mathf.Abs(cp.x) > 0.15f && Mathf.Sign(cp.x) != Mathf.Sign(rMid.x)) continue;
+                    float dd = (cp - rMid).sqrMagnitude;
+                    if (dd < best) { best = dd; near = c; }
+                }
+                if (near == null)
+                {
+                    skipped.Add(ln.Node + $" (the config has no {ln.Surface} on that side; its {ln.Surface}s are at " +
+                                string.Join(", ", config.Where(c => c.Surface == ln.Surface).Select(c => root.InverseTransformPoint(c.T.position).ToString("F2"))) + ")");
+                    continue;
+                }
+                if (Vector3.Dot(rAxis, near.AxisUnity) < 0f) rAxis = -rAxis;
+                // Back into the parent frame. A mirrored chain (negative determinant) turns the other way about the image.
+                Matrix4x4 rootToParent = parent.worldToLocalMatrix * root.localToWorldMatrix;
+                Vector3 axisP = rootToParent.MultiplyVector(rAxis).normalized;
+                if (rootToParent.determinant < 0f) axisP = -axisP;
+                _controls.Add(new ControlPart
+                {
+                    T = t, Surface = ln.Surface, Gain = near.Gain, AxisUnity = near.AxisUnity,
+                    AboutPivot = true, PivotP = 0.5f * (p0 + p1), AxisP = axisP, RestPos = t.localPosition, RestRot = t.localRotation,
+                });
+                bound.Add($"{ln.Node} gain {near.Gain:+0.00;-0.00}");
+            }
+            Debug.Log($"[Airframe] {aircraftId}: {bound.Count} named surface(s) turn about their drawn hinge lines" +
+                      (bound.Count > 0 ? $" ({string.Join(", ", bound)})" : "") +
+                      (skipped.Count > 0 ? $"; NOT bound: {string.Join("; ", skipped)}" : ""));
+            if (skipped.Count > 0 && bound.Count == 0) Debug.LogWarning($"[Airframe] {aircraftId}: no named surface could be bound — its flight surfaces will not move.");
+        }
+
         private void BindModelProp(GameObject inst)
         {
             if (_props.Count == 0 || _root == null) return;
