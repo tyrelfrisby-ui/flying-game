@@ -65,8 +65,14 @@ namespace FlyingGame.Bridge
 
         private void Allocate(int lake)
         {
+            AllocateLake(WorldTerrain.Lakes[lake]);
+            _lake = lake;
+        }
+
+        // Editor fixtures can use the current island's water bounds without changing legacy lake tables.
+        private void AllocateLake(WorldTerrain.Lake l)
+        {
             Release();
-            var l = WorldTerrain.Lakes[lake];
             // ~2 m cells on a lake, coarser on the 3.2 km harbor (≤ 1024 across).
             _cell = Mathf.Max(2f, (float)(2 * l.Rx) / 1024f);
             // Sim x (north) → Unity z, sim y (east) → Unity x: the grid's u runs along Unity x (sim y), v along Unity z (sim x).
@@ -77,7 +83,7 @@ namespace FlyingGame.Bridge
             _min = new Vector2(c.x - _width / 2, c.z - _depth / 2);
             _prev = Make(tw, th); _curr = Make(tw, th); _next = Make(tw, th);
             if (_foamSim != null) { _foam = Make(tw, th); _foamNext = Make(tw, th); _foamSim.SetFloat("_Cell", _cell); }
-            _lake = lake; _acc = 0f;
+            _acc = 0f;
             QuestRig.Note($"wake field {tw}x{th} allocated");
             Shader.SetGlobalVector(WakeRectId, new Vector4(_min.x, _min.y, 1f / _width, 1f / _depth));
             Shader.SetGlobalVector(WakeTexelId, new Vector4(1f / tw, 1f / th, _cell, 0));

@@ -84,14 +84,17 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            // Local ground under the aircraft (plateau airports): the world height field — or the WATER surface
-            // when over a lake/river (owner: shadow on water, but subtler).
+            // Local ground under the aircraft (plateau airports): the world height field.
             var simPos = CoordinateMap.ToSim(transform.position);
             float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(simPos.X, simPos.Y);
             double? water = FlyingGame.Core.FloatHydro.WaterSurfaceAt(simPos.X, simPos.Y);
             bool onWater = water.HasValue && water.Value > ground;
-            GroundY = onWater ? (float)water.Value : ground;
-            _material.color = onWater ? new Color(Shade.r, Shade.g, Shade.b, Shade.a * 0.45f) : Shade;
+            // A dark cutout painted ON the surface is a second airplane beside the mirror
+            // (Ty's J-3 floats Tail screenshot). A water shadow belongs on the submerged bed,
+            // attenuated through the volume, not on the reflective interface. Keep land shadows.
+            if (onWater) return;
+            GroundY = ground;
+            _material.color = Shade;
             float altitude = transform.position.y - GroundY;
             if (altitude < -1f || altitude > MaxAltitudeM)
             {
@@ -111,7 +114,7 @@ namespace FlyingGame.Bridge
             proj.SetRow(0, new Vector4(1f, -kx, 0f, kx * GroundY));
             // Shadow plane 16 cm above the ground height: the runway slabs, aprons, roads and their painted markings
             // are stacked up to ~13 cm above the terrain, and a 3 cm plane sat UNDER them (no shadow on the runway).
-            proj.SetRow(1, new Vector4(0f, 0f, 0f, GroundY + (onWater ? 0.08f : 0.16f)));
+            proj.SetRow(1, new Vector4(0f, 0f, 0f, GroundY + 0.16f));
             proj.SetRow(2, new Vector4(0f, -kz, 1f, kz * GroundY));
             proj.SetRow(3, new Vector4(0f, 0f, 0f, 1f));
 

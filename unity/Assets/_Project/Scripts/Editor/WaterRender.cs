@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using FlyingGame.Bridge;
 using FlyingGame.Core;
@@ -23,9 +24,15 @@ namespace FlyingGame.EditorTools
                 .Invoke(null, new object[] { name, vertices, triangles, material, parent, true });
         // A controlled visual stage, not replacement terrain or a new simulated lake.
         // Uses the real harbour's surface and real FloatHydro/wake signals.
+        static WorldTerrain.Lake CaptureLake()
+        {
+            var lane = IslandSites.Fields.First(f => f.Surface == "water");
+            double surface = WorldTerrain.Active.WaterSurfaceAt(lane.Centre.X, lane.Centre.Y) ?? lane.Elevation;
+            return new WorldTerrain.Lake(lane.Centre.X, lane.Centre.Y, 600, 600, surface);
+        }
         static void BuildSunsetShore()
         {
-            var lake = WorldTerrain.Harbor;
+            var lake = CaptureLake();
             Vector3 origin = CoordinateMap.ToUnity(new Vec3(lake.Cx, lake.Cy, -lake.SurfaceM));
             var parent = new GameObject("Sunset comparison stage").transform;
             var water = WorldBuilder.Mat("FlyingGame/Water", new Color(.035f,.065f,.08f,1));
@@ -142,24 +149,31 @@ namespace FlyingGame.EditorTools
                 if (sunset) SunsetLighting.Apply(sun, calm);
                 var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
                 if (cfg.Floats == null) throw new ArgumentException("Water render requires a floatplane.");
-                var lake = WorldTerrain.Harbor;
+                var lake = CaptureLake();
                 var root = new GameObject("Water render " + id);
                 var driver = root.AddComponent<FlightSimDriver>(); driver.enabled = false;
                 var builder = new AirframeBuilder(); builder.Build(root.transform, cfg);
                 foreach (var child in root.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = WaterReflection.AircraftLayer;
+                var shadow = root.AddComponent<GroundShadow>(); Call(shadow, "Start");
                 var spray = root.AddComponent<FloatSplash>(); spray.Driver = driver;
                 var wake = root.AddComponent<WakeWaves>(); wake.Driver = driver; Call(wake, "Start");
-                Call(wake, "Allocate", WorldTerrain.Lakes.Length - 1);
+                Call(wake, "AllocateLake", lake);
+                var lane = IslandSites.Fields.First(f => f.Surface == "water");
+                double heading = lane.Heading * Math.PI / 180;
+                var yaw = new Quat(0,0,Math.Sin(heading/2),Math.Cos(heading/2));
+                var cameraYaw = Quaternion.Euler(0, (float)lane.Heading, 0);
                 for (int frame = 0; frame < 960; frame++)
                 {
-                    double north = lake.Cx + (frame - 959) * speed / 60;
+                    double travel = (frame - 959) * speed / 60;
+                    double north = lake.Cx + travel * Math.Cos(heading), east = lake.Cy + travel * Math.Sin(heading);
                     var attitude = new Quat(0, Math.Sin((displacement ? 0 : 3) * Math.PI / 360), 0, Math.Cos((displacement ? 0 : 3) * Math.PI / 360));
-                    var state = new RigidBodyState(new Vec3(north, lake.Cy, -lake.SurfaceM - cfg.Floats.KeelZ + .13 - lift), attitude, new Vec3(speed, 0, 0), Vec3.Zero);
+                    attitude = Quat.Multiply(yaw, attitude);
+                    var state = new RigidBodyState(new Vec3(north, east, -lake.SurfaceM - cfg.Floats.KeelZ + .13 - lift), attitude, new Vec3(speed, 0, 0), Vec3.Zero);
                     var ac = new Aircraft(cfg, state, ControlDeflections.Neutral);
                     ac.SetReplayPose(state, ControlDeflections.Neutral, throttle, 0, 1, 1);
                     driver.AdoptSim(new SimLoop(ac));
                     FloatHydro.Compute(cfg, state, 0);
-                    Call(spray, "LateUpdate");
+                    Call(spray, "Step", 1f / 60f);
                     var particles = new System.Collections.Generic.List<ParticleSystem>();
                     foreach (var field in typeof(FloatSplash).GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
                         if (field.FieldType == typeof(ParticleSystem[])) particles.AddRange((ParticleSystem[])field.GetValue(spray));
@@ -171,6 +185,7 @@ namespace FlyingGame.EditorTools
                     }
                     if (frame % 3 == 0) Call(wake, "Step", (int)Call(wake, "Sources", ac));
                 }
+                if (!FloatHydro.Floats[0].Wet && lift <= 0) throw new Exception("Water fixture is dry; cannot certify a water capture.");
                 Debug.Log($"WaterRender: wet={FloatHydro.Floats[0].Wet}, lift={FloatHydro.Floats[0].PlaningLiftN}, buoyancy={FloatHydro.Floats[0].BuoyancyN}, drag={FloatHydro.Floats[0].DragN}");
                 // Publish the final ping-pong texture, as Update does in play mode.
                 Shader.SetGlobalTexture("_WakeTex", (RenderTexture)typeof(WakeWaves).GetField("_curr", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(wake));
@@ -187,17 +202,18 @@ namespace FlyingGame.EditorTools
                 camera.nearClipPlane = .15f; camera.farClipPlane = 12000; camera.fieldOfView = 48;
                 var rt = new RenderTexture(1600, 1000, 24); camera.targetTexture = rt;
                 Vector3 at = root.transform.position;
-                var offsets = new[] { new Vector3(15, 5, 15), new Vector3(30, 40, -45), new Vector3(7, 2, 6) };
+                var offsets = new[] { new Vector3(0, 5, -22), new Vector3(-12, 7, -24), new Vector3(7, 2, 6) };
                 if (displacement && !calm)
                 {
-                    offsets[0] = new Vector3(12, 3, 13);
-                    offsets[1] = new Vector3(-10, 6, -13);
+                    offsets[0] = new Vector3(0, 5, -22);
+                    offsets[1] = new Vector3(-12, 7, -24);
                     offsets[2] = new Vector3(7, 2, 6);
                 }
-                var names = new[] { "spray", "wake", "bow" };
+                var names = new[] { "tail", "chase", "bow" };
                 for (int i = 0; i < offsets.Length; i++)
                 {
-                    camera.transform.position = at + offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, i == 1 ? (displacement ? -3 : -24) : 0));
+                    camera.transform.position = at + cameraYaw * offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, 0));
+                    Call(shadow, "LateUpdate");
                     Call(reflection, "OnPreCull");
                     camera.Render(); RenderTexture.active = rt;
                     var tex = new Texture2D(1600, 1000, TextureFormat.RGB24, false);
@@ -332,6 +348,7 @@ namespace FlyingGame.EditorTools
                         if (message.severity == UnityEditor.Rendering.ShaderCompilerMessageSeverity.Error) throw new Exception(name + ": " + message.message);
                 }
                 Debug.Log("WaterRender: wrote " + output);
+                EditorApplication.Exit(0);
             }
             catch (Exception e) { Debug.LogException(e); EditorApplication.Exit(1); }
         }

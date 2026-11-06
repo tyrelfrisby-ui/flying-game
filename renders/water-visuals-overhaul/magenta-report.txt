@@ -1,0 +1,8 @@
+1 water renderers checked for the Water layer
+25m: _ReflOn 1 plane 24.08; magenta px: view 0, reflection 0
+08m: _ReflOn 1 plane 24.08; magenta px: view 0, reflection 0
+60m: _ReflOn 1 plane 24.08; magenta px: view 0, reflection 0
+25m-slick60s: _ReflOn 1 plane 24.08; magenta px: view 0, reflection 0
+25m-slick240s: _ReflOn 1 plane 24.08; magenta px: view 0, reflection 0
+08m-slick240s: _ReflOn 1 plane 24.08; magenta px: view 0, reflection 0
+PASS
