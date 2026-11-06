@@ -1,3 +1,27 @@
+## NEEDS YOU — Pitts tree crash: the aircraft no longer vanishes into the tree (Claude, 2026-11-05 21:50 PT, lane/claude-pitts-tree-vis)
+<!-- pitts-tree-vis needs-you -->
+Ty 13:41 (Q028, iPhone 2026.1105.1140): Pitts into a tree lost the prop, kept the wings, pitched nearly vertical, VANISHED
+while the crash sounds went on, reappeared after the bailout. Nothing approved by me; **Q028 stays partial/open**. Queue: **Q136**.
+- **Cause, measured:** nothing culled, despawned or disabled the airframe — the TREE was drawn over it. Square on a stem
+  the Pitts loses its nose, stands at −85..−87° and slides down the stem; the sim's stem is 0.42 m thick (25 m fir) but the
+  drawn trunk is a 1.5 m box under opaque four-sided skirts reaching 4.3 m out. Headless: CG inside the drawn tree 2.83 s
+  of 4 s, at rest 0.39 m from the axis. Real island fir (31 m, PittsTreeVisCheck, crash-camera poses 30° up at 25/50 m):
+  only **15–64 %** of the occupied airframe's pixels on screen while it was in the crown.
+- **Fix (`StrippedTrees`, 1f055a04):** a tree the airframe's CG goes INTO is drawn as the sim has it — stem at its real
+  diameter, and without every skirt whose height overlaps where the airframe has been (± its half-size); skirts above
+  stay. A wing through a crown with the fuselage outside changes nothing. Untouched trees draw exactly as before; only the
+  chunk holding a stripped tree is rebuilt, only when a skirt goes. After: **97–100 %** on screen through the crash.
+- **Not fixed / not verified:** at rest, a side camera standing INSIDE a neighbouring crown still shows 56–62 % (crash
+  camera placement in timber, not this tree). Why it "reappeared after bailout" is unverified (likely the pilot-follow
+  camera's different angle). Tree-branch yaw/drag, soft water, canopy shatter, Extra water-ski untouched.
+- Tests: StrippedTreesTests 4/4 (literals by hand). Tree/crash/forest subset 56/58; the 2 failures
+  (ForestTests.NobodysRunwayApronOrStripHasTreesOnIt, NothingGrowsInTheWater…) fail identically on base 59d0f7ed.
+- **Build / install:** iOS **2026.1105.2144** ** BUILD SUCCEEDED **, 0 error CS, installed on **Ty's iPad mini** (launch
+  refused: locked); iPhone not connected — not installed. Quest not built.
+- **Fly-check:** Pitts square into a fir's trunk at mid-height (any view outside the cockpit): it should stay in sight the
+  whole way down, with that tree's lower branches gone and its top still standing. A wing clipping a tree should not strip it.
+<!-- /pitts-tree-vis needs-you -->
+
 ## NEEDS YOU — soft water no longer sheds the Cub's ailerons: fly-check (Claude, 2026-11-05 20:55 PT, lane/claude-soft-water-breakup)
 <!-- soft-water needs-you -->
 Ty 13:56 / 13:57 (Q028 addenda): the J-3 water-skied to a very soft nose-over and its ailerons fell off; water damage too
