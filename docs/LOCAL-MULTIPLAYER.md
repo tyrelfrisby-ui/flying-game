@@ -82,8 +82,37 @@ A component on a player's camera asks `LocalPlayerView.Of(this)`; **null = singl
 | `FlightSimDriver.PlayerIndex` | 0 / 1 on the aeroplane itself |
 
 GL drawn in `OnPostRender` is already clipped to its camera's rect (`HudOverlay` works per camera as it is). P1's
-full-screen OnGUI (touch tray, toolbar, analog dials, FlightHud) is not yet confined to the left half: that is the HUD
-lane's stripped layout. `LocalPlayerHud` is a placeholder line the HUD lane replaces.
+full-screen OnGUI (analog dials, FlightHud, combat HUD, AERO) stands down in the compact split (Codex,
+`LocalPlayerHud.CompactActive`, iOS); `LocalPlayerHud` draws each player's instruments in its own half (visuals approved,
+Ty 2026-11-05 pt818u).
+
+### Touch tray and the per-player RESET / BAIL / FIRE (2026-11-06)
+
+The single-player touch tray is laid out across the whole screen, so under a split its RESET, BAIL and FIRE sat on P2's
+half; hiding only the drawing would have left them there, invisible, for P2's thumb to press for P1. Core
+`SplitControls` decides, `TouchFlightControls.TrayLive` applies it, one flag for the drawing, the touch loop and the hit
+test (`IsControlAt`, which CockpitTaps also asks):
+
+| State | Tray | P1 fires | RESET / handle |
+|---|---|---|---|
+| not split | as always | tray FIRE, A, space | tray, R / E keys |
+| compact split, P1 on a pad | **off** (no drawing, no hit areas) | A (P1's pad only) | FLIGHT panel |
+| compact split, no pad at all | as single player (else nobody flies P1; Q114 open) | tray FIRE | tray and FLIGHT panel |
+
+- **FLIGHT panel** (`ViewPanel`, compact split only): the toolbar row (VIEW, REPLAY, CLIP, REC, AERO, TIME, CHART) is
+  replaced by one FLIGHT button on the seam (landscape: middle of the seam; portrait: left edge, level with P1's middle),
+  clear of the compact HUD's rows. It opens one column per player: **P1 RESET** / **P2 RESET**, **P1 BAIL OUT** (or
+  EJECT / DEPLOY BRS, whatever P1's handle is), **VIEW: <name>** for that player's camera, CLOSE. MENU and OPTIONS stay.
+- **RESET is per player.** P1's own RESET (tray, R, joystick, FLIGHT) is marked (`LocalCoop.MarkP1OwnReset`) and no
+  longer restarts P2, which it used to (every P1 AircraftChanged restarted the pair). FLY / restart from the menus still
+  starts both. P2's RESET (`LocalCoop.ResetP2`) puts P2 back in its slot beside the session start; P1 is not touched.
+- **BAIL is P1's only.** P2's aeroplane has no PilotEgress yet; its column offers no handle (P1's handle in P2's column
+  would be the cross-player press this exists to stop).
+- **FIRE:** P1's guns fire from P1's pad (`GamepadInput.Now` is seat 0 while split); the legacy joystick buttons only count
+  with no P1 pad, so P2's A never fires P1. P2 has no guns yet.
+- **Cockpit glass taps** (`CockpitTaps`): each aeroplane's through its own camera and only on its own half.
+- Logged: `[Touch] split screen, P1 on a pad: tray off ...`, `[LocalMP] P1 reset: P1's flight only, P2 flies on`,
+  `[LocalMP] P2 reset: P2's flight only`.
 
 ## Mode 2: LAN, full view on every device
 
@@ -109,7 +138,8 @@ Each device flies its own `Aircraft` full screen / full stereo; the others are `
 ## Not done / not verified
 
 - Nothing here has run on a device. Split screen and the Quest LAN join have not been seen by anyone.
-- P2 has no guns, no score, no bail-out, no BRS, no gear button; P1's flat HUD overlaps P2's half until the HUD lane lands.
+- P2 has no guns, no score, no bail-out, no BRS, no gear button. The FLIGHT panel and the tray-off state have not been
+  seen on a device.
 - No wake vortex between aircraft (that is lane/claude-wake-vortex, not merged; nothing here makes it harder).
 - Mixed LAN (phone + iPad + Quest + Mac) uses the existing mesh unchanged; it has been tested on the bench
   (`LanMeshTests`) but never with a Quest in the room.

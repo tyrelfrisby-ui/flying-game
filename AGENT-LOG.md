@@ -1,3 +1,38 @@
+## NEEDS YOU — local MP split screen: per-player touch tray, RESET / BAIL / FIRE (Claude, 2026-11-06 01:10 PT, lane/claude-local-mp-touch)
+<!-- local-mp-touch needs-you -->
+Queue #20 (t871u); HUD visuals approved by Ty pt818u (visual only). **Q114 and Q115 are still OPEN**: not answered here.
+Nothing approved by me. Not for TestFlight.
+- **Lane:** island-nav 25f1bda7 + lane/claude-local-mp 609a3b93 + Codex HUD 1524cc53 (merge c6cbfb84; ChaseCamera keeps
+  island-nav's crash-view removal, and the split crash radius went with it) + the touch-tray work. docs/LOCAL-MULTIPLAYER.md
+  has a new section, "Touch tray and the per-player RESET / BAIL / FIRE".
+- **Tray (Codex's hook):** with the compact split HUD up and P1 on a pad, the single-player tray is OFF as a whole. Nothing
+  is drawn and nothing is hit-tested (`TouchFlightControls.TrayLive`, one flag for OnGUI, the touch loop and `IsControlAt`),
+  so there is no invisible RESET/BAIL/FIRE on P2's half. P1's pad still flies and fires (A) and still opens the Menu. With
+  no pad at all, P1 keeps the full tray, otherwise nobody can fly P1 (that is a stopgap, not a Q114 answer).
+- **FLIGHT panel** (compact split only) replaces the toolbar row. It is one button on the seam (landscape: middle of the
+  seam; portrait: left edge, level with P1's middle) and opens one column per player: P1 RESET / P2 RESET, P1 BAIL OUT (or
+  EJECT / DEPLOY BRS, whichever P1's handle is), VIEW for that player's camera, CLOSE.
+- **Per player:** P1's own RESET no longer restarts P2. It used to, because every P1 AircraftChanged restarted both
+  aeroplanes. FLY or a restart still starts both. P2's RESET puts P2 back in its slot and leaves P1 alone. The handle is
+  P1's only, because P2 has no egress yet. P2's A never fires P1's guns, and P2 has no guns. Cockpit glass taps go through
+  each aeroplane's own camera and only work on its own half.
+- **Tests:** LocalSplitControlsTests 13/13 (the policy as literal truth tables, plus source checks of the wiring) and
+  LocalMultiplayerTests, LanMeshTests and FuselageFollowCameraTests, all green. NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs
+  fails, as already logged on island-nav: its "grob" pattern matches the Grob 103 folder. This lane does not touch Resources.
+- **Build / install:** iOS **2026.1106.0101** ** BUILD SUCCEEDED **, 0 error CS, parity OK. Installed on **Ty's iPad mini**,
+  which was locked, so it did not auto-launch. iPhone and iPad Air were unavailable. Quest not built.
+- **NOT MERGED into island-nav / Quest:** `claude-island-nav-merge` has another lane's uncommitted AGENT-LOG edit
+  (tree-branch-yaw, 00:03) and packaging byproducts. I left them alone, and the parity lock forbids a Quest-only merge.
+  Merge lane/claude-local-mp-touch (a fast-forward of 25f1bda7 plus this lane) once that worktree is clean, then Quest the
+  same day.
+- **Fly-check (iPad mini 2026.1106.0101; OPTIONS > Controls > "Local 2-player (split screen)", FLY free flight):**
+  (1) with two pads, no tray buttons appear and tapping where RESET / BAIL used to be does nothing; A fires only from P1's
+  pad in the combat zone. (2) FLIGHT > P1 RESET: P1 restarts and P2 keeps flying. P2 RESET: only P2 restarts.
+  (3) FLIGHT > P1 BAIL OUT: P1 goes over the side and P2's view is unchanged. (4) Each column's VIEW changes only that half.
+  (5) Unplug both pads: P1's full tray comes back.
+- LOCAL-MP-TOUCH-TRAY-DONE
+<!-- /local-mp-touch needs-you -->
+
 ## NEEDS YOU — compact iOS split HUD (Codex, 2026-11-05)
 - Lane `lane/codex-local-mp-hud`; engine API merged locally from `609a3b93`. No install or integration-lane merge.
 - Compact iPhone/iPad split instruments: cyan P1 / amber P2, IAS kt, altitude ft MSL, true heading, G,
