@@ -1,3 +1,13 @@
+### 2026-11-06 08:42 PST — Claude · pilot-view underwater cockpit (inverted floats) · lane/claude-underwater-cockpit
+
+NEEDS YOU: Ty t922u / pt922u — crashed J-3 on floats upside down in water. Instrument panel and top of cockpit look dry even though underwater. Make underwater area look underwater **from the pilot’s perspective only**; keep aerial see-through water unchanged.
+
+Reference (staged): `docs/pending/t922-underwater/ty-ref-inverted-floats-cockpit.png` (also `~/Developer/aero/references/t922-underwater-cockpit.png`). Shows diagonal translucent blue water band; black panel + yellow framework stay dry-looking behind it.
+
+Outcomes: pilot-view treatment follows world waterline at inverted/partial/full submersion; submerged cockpit geometry affected, dry portions clear; HUD legible; approved exterior/aerial water appearance preserved; no buoyancy/flight retune; no canceled buoyancy restart. Tests + BUILD SUCCEEDED; submerged + aerial before/after renders for Ty visual review. NOUPLOAD.
+
+Related t923u (separate): surface water PASS; splash **visual** FAIL (white spray, distinct V from each float) — other lane/queue; do not steal.
+
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
 - Shatter: already at **90ee4fc7** / Quest **13e45d72** / iOS 2026.1106.0249 — no duplicate.
