@@ -2,10 +2,23 @@
   "schemaVersion": 1,
   "id": "pitts-s2b-like",
   "displayName": "Pitts S-2-like Aerobat",
+  "structureType": "steelTube",
+  "structureTypeSource": "Pitts S-2B: welded 4130 steel-tube fuselage, fabric covered; wooden wings (FAA TCDS A8SO; Aviat S-2B maintenance manual).",
   "_wingStructureNote": "Contact damage (Ty 2026-11-03). Break stations = the I-strut attach on each wing and the aileron slave struts 10 in (0.254 m) inboard of them: tools/own_models/build_pitts_s2b.py v11/v12 (YI_U 2.28, YI_L 2.18, Y_SL_U/L). The stick drives the LOWER ailerons and the uppers follow through the struts (Ty: with the lower panel gone the upper aileron trails stick free).",
-  "wingBreakStationY": { "wing-upper": 2.28, "wing-lower": 2.18 },
-  "slaveStrut": { "drivenSurface": "wing-lower-aileron", "slavedSurface": "wing-upper-aileron", "drivenY": 1.926, "slavedY": 2.026, "hornArmM": 0.072, "drivenHornDownDeg": 20, "slavedHornDownDeg": 20,
-    "source": "Horns (2026-11-03): each aileron's horn runs FORWARD of its hinge line, inside the fixed wing's trailing-edge cove, its pin a little BELOW the chord line, and the strut passes through a slot in the skin (the lower wing's top skin; S-2s with symmetrical ailerons carry a small fairing over it). Pitts S-1-11 factory drawing Detail A (11-510-53 aileron link fork on an AN3-6 bolt, ahead of the 11-460 lower aileron's nose; biplaneforum.com 'Pitts S1-11 slave struts' thread 20836): measured off that unscaled section, the hinge-to-pin line runs ~20 deg below the chord, forward. The upper horn is made parallel and equal to it: owners rig the four ailerons to move together and 'the bends in the arms line up the two arcs' (biplaneforum thread 19463), i.e. a parallelogram, which moves the uppers 1:1 with the lowers. Arm 0.072 m (2.8 in) kept from the builder's pin offset; no published S-2 arm length found (Aviat S-2B parts catalogue not reachable). The old model's horns pointed opposite ways vertically (lower one standing ABOVE the lower wing), which across the strut's stagger lean moved the uppers at ~0.1 of the lowers (StrutStationTests)." },
+  "wingBreakStationY": {
+    "wing-upper": 2.28,
+    "wing-lower": 2.18
+  },
+  "slaveStrut": {
+    "drivenSurface": "wing-lower-aileron",
+    "slavedSurface": "wing-upper-aileron",
+    "drivenY": 1.926,
+    "slavedY": 2.026,
+    "hornArmM": 0.072,
+    "drivenHornDownDeg": 20,
+    "slavedHornDownDeg": 20,
+    "source": "Horns (2026-11-03): each aileron's horn runs FORWARD of its hinge line, inside the fixed wing's trailing-edge cove, its pin a little BELOW the chord line, and the strut passes through a slot in the skin (the lower wing's top skin; S-2s with symmetrical ailerons carry a small fairing over it). Pitts S-1-11 factory drawing Detail A (11-510-53 aileron link fork on an AN3-6 bolt, ahead of the 11-460 lower aileron's nose; biplaneforum.com 'Pitts S1-11 slave struts' thread 20836): measured off that unscaled section, the hinge-to-pin line runs ~20 deg below the chord, forward. The upper horn is made parallel and equal to it: owners rig the four ailerons to move together and 'the bends in the arms line up the two arcs' (biplaneforum thread 19463), i.e. a parallelogram, which moves the uppers 1:1 with the lowers. Arm 0.072 m (2.8 in) kept from the builder's pin offset; no published S-2 arm length found (Aviat S-2B parts catalogue not reachable). The old model's horns pointed opposite ways vertically (lower one standing ABOVE the lower wing), which across the strut's stagger lean moved the uppers at ~0.1 of the lowers (StrutStationTests)."
+  },
   "spawnIasMs": 65,
   "mass": {
     "massKg": 737,
@@ -2092,7 +2105,13 @@
     "_comment": "Crash-in-water damage (Core/Wreck, lane/claude-crash-water 2026-11-02). Welded steel-tube fuselage, wooden wings, doped fabric covering. Both cockpits under ONE acrylic canopy, measured from the own model (tools/own_models/build_pitts_s2b.py: X_CF/X_CA windscreen base -0.13 to rear bow -1.60, width from sill_w): plan area integrated over the sills 0.976 m2, mean width 0.664 m.",
     "covering": "fabric",
     "cockpits": [
-      { "frontX": -0.13, "aftX": -1.60, "widthM": 0.664, "areaM2": 0.976, "enclosure": "canopy" }
+      {
+        "frontX": -0.13,
+        "aftX": -1.6,
+        "widthM": 0.664,
+        "areaM2": 0.976,
+        "enclosure": "canopy"
+      }
     ]
   },
   "fuselage": {
@@ -2124,7 +2143,19 @@
   "spinAero": {
     "rollDueToSideslip": "biplane"
   },
-  "smoke": {"aftOfNoseM": 1.16, "downDeg": 14, "displacementCuIn": 541.5, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.727, -0.21, 0.63]},
+  "smoke": {
+    "cylinders": 6,
+    "aftOfNoseM": 1.16,
+    "downDeg": 14,
+    "displacementCuIn": 541.5,
+    "pipeDiameterIn": 4,
+    "exhaustTempK": 900,
+    "outletBodyM": [
+      0.727,
+      -0.21,
+      0.63
+    ]
+  },
   "propulsion": {
     "maxPowerW": 194000,
     "propDiameterM": 1.98,
@@ -2160,7 +2191,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tire": "legacy-pitts-main", "tirePressurePsi": 16.2
+      "tire": "legacy-pitts-main",
+      "tirePressurePsi": 16.2
     },
     {
       "pos": [
@@ -2176,7 +2208,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tire": "legacy-pitts-main", "tirePressurePsi": 16.2
+      "tire": "legacy-pitts-main",
+      "tirePressurePsi": 16.2
     },
     {
       "pos": [
@@ -2193,13 +2226,15 @@
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
       "steerSpringNmPerRad": 15,
-      "tire": "legacy-pitts-tail", "tirePressurePsi": 13
+      "tire": "legacy-pitts-tail",
+      "tirePressurePsi": 13
     }
   ],
   "limits": {
-    "vneMs": 90,
+    "vneMs": 94.77,
     "gMax": 6.0,
-    "gMin": -3.0
+    "gMin": -3.0,
+    "_vneSource": "TCDS A8SO S-2B VNE 212 mph CAS"
   },
   "loading": {
     "emptyMassKg": 0.0,
@@ -2310,5 +2345,35 @@
       }
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "gMeter": {
+      "_note": "the shared library g-meter (-10..+10 g, 0 g at 9 o'clock); its red lines are limits.gMax / gMin"
+    },
+    "airspeed": {
+      "units": "mph",
+      "scaleMin": 40,
+      "scaleMax": 240,
+      "arcs": {
+        "yellow": [
+          154,
+          212
+        ]
+      },
+      "redline": 212,
+      "_tcds": {
+        "sheet": "A8SO",
+        "rev": 28,
+        "revised": "2026-02-18",
+        "model": "S-2B",
+        "VNE_mph_CAS": 212,
+        "VNO_mph_CAS": 154,
+        "VA_mph_CAS": 154,
+        "greenFloor": "MISSING \u2014 AFM rev I 1998-01-14 or later; not on TCDS",
+        "authority": "Ty t903u Use the tcds; Q099"
+      },
+      "_source": "TCDS A8SO Rev 28 S-2B Airspeed Limits (CAS): VNE 212 mph, VNO/VA 154 mph. mph per t897u. Green arc floor (Vs1) NOT on TCDS \u2014 see AFM. Great Lakes arcs removed (Q099 t903u)."
+    },
+    "_source": "shared instrument library: the Great Lakes markings the Pitts' live dial has shown since 2026-11-02 (gl-dial-asi), unchanged; the Pitts' own S-2B markings are an open question (Q in QUESTIONS-FOR-TY)"
   }
 }
