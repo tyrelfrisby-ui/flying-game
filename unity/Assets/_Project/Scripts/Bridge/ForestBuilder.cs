@@ -99,9 +99,10 @@ namespace FlyingGame.Bridge
             if (detail)
             {
                 b.Box(U(tr.X, tr.Y, g + h * 0.16), new Vector3((float)tr.RadiusM * 1.2f, h * 0.34f, (float)tr.RadiusM * 1.2f), rot, Trunk);
-                Spire(b, tr, g + h * 0.22, h * 0.42f, r, needle, lit, twist, lean);
-                Spire(b, tr, g + h * 0.52, h * 0.34f, r * 0.72f, needle, lit, twist + 23, lean);
-                Spire(b, tr, g + h * 0.78, h * 0.24f, r * 0.42f, needle, lit, twist + 47, lean);
+                // The three skirts are the physics' crown (Core TreeStructure.Skirts): what a wing meets is what is drawn.
+                var sk = FlyingGame.Core.TreeStructure.Skirts;
+                for (int i = 0; i < sk.Length; i++)
+                    Spire(b, tr, g + h * sk[i].Base, h * (float)sk[i].Rise, r * (float)sk[i].Radius, needle, lit, twist + (i == 0 ? 0 : i == 1 ? 23 : 47), lean);
             }
             else
             {
