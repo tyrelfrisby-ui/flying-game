@@ -640,3 +640,14 @@ water in the distance and an aircraft reflection, but its floats were dry: no ph
 that never entered the water branch. Use the current `IslandSites` water lane, its heading and sampled surface,
 and reject a dry fixture before saving water review evidence (`WaterRender`). Keep the old failed captures
 labelled invalid rather than treating a plausible blue image as proof of water contact.
+
+### A mechanism that switches another off must cover everything the other one did
+`AirframeVisual` skips the hinge carve for any model with its own rig, because a rig "already has its parts pivoted".
+The Pitts' rig arrived for the VR cockpit (sticks, pedals, canopy) with no flight-surface rows, and from that day its
+elevators, ailerons and rudder were drawn still, live and in replay, for four days, until Ty saw it (t917u). The prop had
+hit the same switch earlier and got a special case (`BindModelProp`); the surfaces did not. When a branch says "X replaces
+Y", list everything Y did and check that X does each of them on the aircraft in question, not just the one the new code
+was written for. `ControlSurfaceMotionCheck` now measures every type's drawn surfaces moving, and
+`SurfaceHingeTests.EveryRiggedOwnModelsFlightSurfacesAreMovedBySomething` fails when a rig leaves one out (the 172 is the
+named known gap).
+
