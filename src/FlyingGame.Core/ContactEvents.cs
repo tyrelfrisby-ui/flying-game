@@ -48,6 +48,10 @@ public enum ContactEventKind
     /// (<c>Aircraft.WoodEventKg</c>). Intensity = the mass, kg; value = the wood's diameter there, m; PositionWorld /
     /// VelocityWorld = where, and the struck part's own velocity. Part = the edge ("wing-panel-R", "gear-left", "float-L").</summary>
     WoodThrown,
+    /// <summary>A pane of the canopy, windshield or windows shattered on a DIRECT arrival of its own surface (<see cref="Glazing"/>).
+    /// Part = the pane's id; intensity = the closing speed, m/s; value = the material's shatter speed onto a surface, m/s
+    /// (0 for a tree stem); PositionWorld / VelocityWorld = where it was struck and how fast the glass was moving.</summary>
+    GlazingShattered,
 }
 
 /// <summary>One contact event, raised by <c>Aircraft.ContactEvent</c> after the step in which it happened.</summary>
