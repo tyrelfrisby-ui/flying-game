@@ -22,9 +22,9 @@ screech fix isn't in yet." Nothing approved by me. Queue: **Q139**.
   glider/tyre/wheel/rig/tow class compared against 59d0f7ed: identical failing sets, apart from
   ModelRigTests.FullAirBrakeStops…, which pinned the bug and already returned NaN on 59d0f7ed (removed).
   NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs fails on 59d0f7ed too (its "grob" pattern matches the Grob 103 folder).
-- **Build / install:** iOS **2026.1105.2319** (this lane + island-nav 82f2e863) ** BUILD SUCCEEDED **, 0 error CS,
+- **Build / install:** iOS **2026.1105.2326** (this lane + island-nav 2eb30aab) ** BUILD SUCCEEDED **, 0 error CS,
   **installed on Ty's iPad mini** (locked, so no auto-launch); iPhone not connected. Quest not built (Q126).
-- **Fly-check (2-33, iPad mini 2026.1105.2319):** (1) land with the dive brakes full out (knob down to the top of the dead
+- **Fly-check (2-33, iPad mini 2026.1105.2326):** (1) land with the dive brakes full out (knob down to the top of the dead
   band) — no screech, the wheel keeps turning; (2) ease the knob into the brake band — light brake slows you quietly, a
   hard pull locks and screeches; (3) cruise ~50 kt, boards out — quieter roar with a low rumble under it.
 - SGS233-SPOILER-BRAKE-DONE
