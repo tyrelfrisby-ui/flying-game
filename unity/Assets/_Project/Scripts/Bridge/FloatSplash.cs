@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge
         private ParticleSystem _spray, _foam;
         private ParticleSystem.Particle[] _buf = new ParticleSystem.Particle[SprayField.MaxParcels], _foamBuf = new ParticleSystem.Particle[SprayField.MaxFoam];
         private readonly SprayField _field = new SprayField();
-        private Material _mat, _mistMat;
+        private Material _mat, _mistMat, _foamMat;
         private ParticleSystem[] _prop = new ParticleSystem[0];
         private Transform[] _discs = new Transform[0];
         private string _propAircraft, _fieldAircraft;
@@ -31,8 +31,9 @@ namespace FlyingGame.Bridge
         {
             _mat = new Material(Shader.Find("FlyingGame/Spray") ?? Shader.Find("FlyingGame/UnlitTransparent")) { color = new Color(0.92f, 0.97f, 1f, 0.75f) };
             _mistMat = new Material(_mat); _mistMat.SetFloat("_Mist", 1f);
+            _foamMat = new Material(_mistMat); _foamMat.SetFloat("_Foam", 1f);
             _spray = MakeDriven("FloatSpray", SprayField.MaxParcels, _mat, ParticleSystemRenderMode.Stretch);
-            _foam = MakeDriven("KelvinFoam", SprayField.MaxFoam, _mistMat, ParticleSystemRenderMode.HorizontalBillboard);
+            _foam = MakeDriven("KelvinFoam", SprayField.MaxFoam, _foamMat, ParticleSystemRenderMode.HorizontalBillboard);
             _built = true;
         }
 
@@ -58,7 +59,10 @@ namespace FlyingGame.Bridge
             return ps;
         }
 
-        private void LateUpdate()
+        private void LateUpdate() => Step(Mathf.Min(Time.deltaTime, 1f / 20f));
+
+        // Explicit time step also lets editor captures exercise the real parcel field.
+        private void Step(float dt)
         {
             if (Driver?.Sim == null || Driver.Sim.Aircraft.Config.Floats == null)
             {
@@ -69,7 +73,6 @@ namespace FlyingGame.Bridge
             UpdatePropSpray();
             var ac = Driver.Sim.Aircraft;
             if (_fieldAircraft != ac.Config.Id) { _field.Clear(); _fieldAircraft = ac.Config.Id; }
-            float dt = Mathf.Min(Time.deltaTime, 1f / 20f);
             if (dt > 0f) _field.Step(ac.Config, ac.State, dt);
 
             int n = 0;
@@ -80,9 +83,9 @@ namespace FlyingGame.Bridge
                 q.position = CoordinateMap.ToUnity(p.Pos);
                 q.velocity = CoordinateMap.ToUnity(p.Vel);
                 float fade = 1f - (float)(p.Age / SprayField.MaxLifeS);
-                // A parcel is a cloud of droplets that spreads as it flies: drawn 0.12 m at the root, growing ~0.25 m/s.
-                q.startSize = 0.12f + 0.25f * (float)p.Age;
-                q.startColor = new Color(0.93f, 0.97f, 1f, 0.75f * fade);
+                // Visual droplet footprint; parcel trajectories and mass flux stay in SprayField.
+                q.startSize = 0.08f + 0.18f * (float)p.Age;
+                q.startColor = new Color(0.93f, 0.97f, 1f, 0.60f * fade * fade);
                 q.startLifetime = 1000f; q.remainingLifetime = 999f; q.rotation = 0f;
             }
             _spray.SetParticles(_buf, n);
@@ -93,8 +96,10 @@ namespace FlyingGame.Bridge
                 ref ParticleSystem.Particle q = ref _foamBuf[m++];
                 q.position = CoordinateMap.ToUnity(f.Pos) + Vector3.up * 0.02f;
                 q.velocity = Vector3.zero;
-                q.startSize = 0.6f;
-                q.startColor = new Color(1f, 1f, 1f, 0.5f * (1f - (float)(f.Age / f.Life)));
+                float age = (float)(f.Age / f.Life);
+                q.startSize = .42f + .38f * age;
+                q.rotation = (m * 137.5f) % 360;
+                q.startColor = new Color(1f, 1f, 1f, 0.35f * (1f - age));
                 q.startLifetime = 1000f; q.remainingLifetime = 999f;
             }
             _foam.SetParticles(_foamBuf, m);
@@ -181,6 +186,7 @@ namespace FlyingGame.Bridge
             foreach (var p in _owned) if (p) Destroy(p.gameObject);
             if (_mat) Destroy(_mat);
             if (_mistMat) Destroy(_mistMat);
+            if (_foamMat) Destroy(_foamMat);
         }
 
         private static void SetRate(ParticleSystem ps, float rate)

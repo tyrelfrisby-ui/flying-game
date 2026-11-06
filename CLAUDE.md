@@ -633,3 +633,10 @@ The Extra's new test assumed its bottom 100 mm had the 391 mm half-width of the 
 is 293.5 mm there; its widest attachment is at z 195 mm. All three liveries failed the new test despite unchanged
 lower geometry. Compare original and edited sections at the actual attachment stations, then copy those measured
 literals into the regression check.
+
+### A legacy harbour is not the current island's water
+The water render fixture still towed at `WorldTerrain.Harbor` after `WaterSurfaceAt` moved to the island. It drew
+water in the distance and an aircraft reflection, but its floats were dry: no physics spray and a ground shadow
+that never entered the water branch. Use the current `IslandSites` water lane, its heading and sampled surface,
+and reject a dry fixture before saving water review evidence (`WaterRender`). Keep the old failed captures
+labelled invalid rather than treating a plausible blue image as proof of water contact.
