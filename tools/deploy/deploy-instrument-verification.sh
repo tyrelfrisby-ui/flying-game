@@ -5,7 +5,7 @@ cd "${0:A:h:h:h}"
 mkdir -p build
 instrument_reservation_pid=$$
 busy() {
- pgrep -f '^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity' >/dev/null || pgrep -x xcodebuild >/dev/null || pgrep -f '^zsh tools/deploy/deploy' | awk -v own="$instrument_reservation_pid" '$1 != own {found=1} END {exit !found}' || pgrep -f '^dotnet test' >/dev/null
+ pgrep -f '^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity' >/dev/null || pgrep -x xcodebuild >/dev/null || pgrep -f '^zsh tools/deploy/deploy' | awk -v own="$instrument_reservation_pid" '$1 != own {found=1} END {exit !found}' || pgrep -f '^([^ ]*/)?dotnet (test|exec .*testhost[.]dll)' >/dev/null
 }
 # Never remain registered while waiting on another reservation: that deadlocks
 # verifiers which see one another as busy. Retry the whole command when idle.

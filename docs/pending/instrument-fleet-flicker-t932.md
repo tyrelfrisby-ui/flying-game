@@ -69,3 +69,9 @@ Merge checklist remains blocked on this lane's serialized verifier, matched cock
 ## BUILD NOW attempt — 2026-11-06 12:42 PST
 
 At source a6f8f286 the authorized verifier exited 75, then after 20 seconds the single retry also exited 75. PID 99851 held a dotnet test reservation; left untouched. Neither attempt reached tests, Unity, captures or Xcode. BUILD NOT RUN; no new stamp, test PASS or flicker evidence. See render INDEX.md and verification-attempts-20261106-1242.md for exact observation and remaining proof. No further waiting/retries; no playable merge.
+
+## Resume #3 — verification gate and baseline assets
+
+At 7ecb459e, verifier exited 75 twice before any work. Spray 13759/14464 and Q007 25389/25393 remained active and untouched. Fixed the verifier matcher to include absolute dotnet paths and dotnet exec testhost processes; shell syntax passes and actual matcher finds all four. No .NET/Unity/Xcode result claimed.
+
+Prepared all 13 f9906913-parent asset blobs under external render directory baseline-assets/ with baseline-assets-manifest.json SHA256/byte lengths. No Cub, config or working artwork changed. Use this asset-only baseline in an isolated copy with CURRENT camera/config/runtime and the exclusive reservation. These files are not captures. See verification-resume3.md and INDEX.md. Remaining gates and untouched visible-fleet work above still apply.
