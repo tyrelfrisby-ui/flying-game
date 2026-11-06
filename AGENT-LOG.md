@@ -1,3 +1,53 @@
+## NEEDS YOU — crash camera / occupants' section: defect PROVEN on 0703 code, fixed on lane, NOT merged (Claude, 2026-11-06 08:45 PST, lane/claude-crash-cam-occupants)
+<!-- crash-cam-occupants needs-you -->
+Ty t915u (06:34 AKST), t919u ("strays sometimes" on 0703), t920u ("might be wrong ... it was good"). Acceptance stays
+**UNCERTAIN**; nothing approved by me. Queue **Q151**.
+- **Phone build:** last confirmed on phone 2026.1105.1816 (a8140de6, no fuselage-follow). 0703 (base 2b47338f) not
+  confirmed installed by me. The defect below IS in 2b47338f, so it is in 0703 too.
+- **Cause (measured, not inferred):** the camera's Target was right (the sim's Aircraft = the cabin; ChaseCamera has no
+  crash view). The CABIN was wrong: `AirframeContact.FuselageStations` set its tail cut off the wing root alone, x -0.70
+  on the Pitts, with the solo pilot's REAR seat at -1.14. A tail-boom break, or a tail BEND (BendPivot cuts at the same
+  station), puts the pilot's cockpit on the tail section. Intermittent by nature: only crashes that bend or break the
+  tail show it, which fits both t919u and t920u.
+- **Repro on base 2b47338f code** (CrashCamOccupantShots, Unity, the game's own DetachStatic on our Pitts GLB): Ty's
+  `-crashtest grass` crash (tail bends), a tail strike and a forced break-up: the tail section takes **93 % of the rear
+  cockpit** and the camera's target keeps **4 %**. Extra rear seat: 24 % taken. 172: unaffected. Natural Pitts sim crashes
+  (9 attitudes) never fully separated the steel tail boom; they bend it. So on 0703 the bent tail carries the rear cockpit
+  away from the airframe the camera follows, and a full break would carry it off.
+- **Fix (0e6e01e4):** every seat's mass station stays 0.5 m inside the cabin (Pitts tail cut -1.635, Extra -1.780, Great
+  Lakes -2.262, Grob nose 1.632; others unchanged). The visual's station cut and bend pivot now subtract the CG, as WingBand
+  does (0.76 m off on the Great Lakes). After: every scenario keeps 100 % of every seat on the target; PASS, 0 error CS.
+- **Evidence:** `~/Developer/agent-lanes/renders/crash-cam-occupants/before-2b47338f/` and `after-0e6e01e4/` (chase,
+  side, pieces per scenario + log.txt). Compare `pitts-s2b-like-breakup-side.png`.
+- **Tests:** OccupantCabinBreakupTests 16/16; FuselageFollowCameraTests 6/6. Crash subset (24 classes): lane 292/295, base
+  277/279. Pre-existing on both: BreakupTests.HardDropOnOneMainTearsThatLegOffOnly, HardImpactIsReportedForTheCrashSound.
+  **NEW RED:** WaterBreakupTests.AHardWheelsFirstArrivalOnWaterIsNotADeadStop(extra): 0.90 m/s after 1 s vs floor 1.0
+  (base 1.45). Identical to 0.335 s, then the left inner wing holds at a borderline load. Smooth decel, worst step 0.97 m/s
+  (bound 2.0). Not loosened: Q151.
+- **Build:** iOS **2026.1106.0829** ** BUILD SUCCEEDED ** from source **0e6e01e4** (NOINSTALL, not installed, NOUPLOAD).
+  bundleVersion bump not committed.
+- **Merge status:** NOT merged into island-nav / Quest. It waits on Q151 (red test) and on Ty, per STEER t920u. Parity
+  OK at build time (island-nav 2b47338f / Quest 9e675fe6).
+- **Not touched:** bailout rules, crash-autoexit/onfoot, smoke/skis/tow/WB/OTA. Seeking: n/a.
+- CRASH-CAM-OCCUPANTS-T915-PROGRESS
+<!-- /crash-cam-occupants needs-you -->
+
+### 2026-11-06 07:30 AKST — Ty fly outcomes on TF 0703 (t920u / t921u) — camera UNCERTAIN; ASI #2 PASSED (scoped)
+
+**t920u** (exact): "That Pitts crash comment might be wrong I crashed a few more times and it was good."
+- Crash-camera acceptance: **UNCERTAIN** (latest repeated tests good on **2026.1106.0703**). **Not** blanket gate approval. Supersedes treating t919u as confirmed FAILED.
+- Occupant-camera lane: verify reproducible defect before merging behavioral changes; preserve WIP/tests; no speculative retuning merge. See STEER-t920-t921u.md.
+
+**t921u** (exact): "Pitts airspeed fine."
+- Pitts ASI test (#2) on 0703: **PASSED** — **indicator only**. Not spin / elevator / shared-instrument library approval.
+- Still open: Q007 spin (t918u), Pitts elevator vis (t917u), smoke replay/exclusion (t912/t914).
+
+NOUPLOAD. No new coder for this log.
+
+### 2026-11-06 08:26 PST — STEER t919u (same lane) — Pitts camera still strays sometimes on 0703
+
+NEEDS YOU / acceptance **FAILED**: Ty t919u on phone TF **2026.1106.0703**: "The pitts camera still strays sometimes on crashes." Confirmed intermittent on current build (not 1816). Fold into this lane — see **STEER-t919u.md**. Require varied crash/fragment tests; continuous occupant-seat-bearing target through detach/tumble/settle; no wreck-center fallback. No duplicate lane. NOUPLOAD.
+
 ### 2026-11-06 07:35 PST — Claude · crash camera occupant/fuselage follow (Pitts regression) · lane/claude-crash-cam-occupants
 
 NEEDS YOU: Ty t915u 06:34 AKST — "On the build on my phone now the pitts crash still fails to follow the occupants portion of the wreck."
