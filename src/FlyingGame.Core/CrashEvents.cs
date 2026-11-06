@@ -67,14 +67,4 @@ public static class CrashEvents
     public static void RaiseImpact(CrashImpact e) => Impact?.Invoke(e);
     public static void RaiseFlood(FloodState e) => Flood?.Invoke(e);
     public static void ClearForTests() { Impact = null; Flood = null; }
-
-    /// <summary>
-    /// Does this impact put the chase camera into the water-crash view (framing the wreck)? Only a PIECE that broke off
-    /// arriving in the water (<see cref="CrashImpact.PieceId"/> ≥ 0). Ty 2026-11-04 20:24 PT: "no predetermined crash on
-    /// water touch; emergent forces, damage only by load." Until then ANY water impact of the airframe above 0.5 m/s
-    /// (CrashRelay.WaterSplashMinMs) — a skim, a float landing, a wheel touch — latched the crash view for the rest of the
-    /// flight. The airframe touching water is spray and sound; a crash is something breaking, and parts break only by load
-    /// (AirframeFlooding.CheckJoints, WaterSlam, the wing panels' bending), which is what makes a piece.
-    /// </summary>
-    public static bool OpensWaterCrashView(in CrashImpact e) => e.Surface == ImpactSurface.Water && e.PieceId >= 0;
 }

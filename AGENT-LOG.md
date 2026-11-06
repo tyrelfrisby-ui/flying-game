@@ -1,3 +1,31 @@
+## NEEDS YOU — crash camera: no more auto zoom-out; it always follows the fuselage with the seats (Claude, 2026-11-06 00:10 PT, lane/claude-fuselage-follow)
+<!-- fuselage-follow needs-you -->
+Ty 15:21 (pt813u): "The feature where it zooms out to capture the whole crash is a bug because it is deciding when it is a
+crash but pieces can fall off well before a crash so remove that feature and just follow the main fuselage with the
+seats." And 13:45: a J-3's outboard panel snapped off on takeoff in the flight-path view and the camera stayed with the
+broken wing. **Q076 rejected** (no "keep land-wreck view" option was built). Nothing approved by me.
+- **Cause (both reports):** the crash view (CrashFraming + ChaseCamera.CrashView, 2026-11-05 08:01) latched on the first
+  broken-off piece to land and parked the camera 30° above the mass-weighted cluster of airframe + pieces, eased over 2 s
+  with a fixed bearing. A Cub that shed a panel and flew on left the camera behind over the panel on the ground.
+- **Fix:** the crash view is deleted (CrashFraming.cs, CrashEvents.OpensWaterCrashView, the camera's CrashEvents.Impact
+  hook, its debris discovery and wreck framing). The camera follows its Target, the sim's own Aircraft, in whatever view
+  the pilot chose, whatever falls off; the only other subject is the bailed-out pilot (OverrideTarget: PilotEgress and its
+  replay). The 5 ft floor over ground/water stays and now always looks at the aircraft.
+- **"Main fuselage with the seats" is the Aircraft:** shedding never takes the cabin (Aircraft.LoseComponent keeps the
+  cabin's points: "it is what is left"); a shed part is its own WingDebris/DebrisBody object. Tested on J-3, PA-18 and
+  Pitts: shedding an outboard panel, a whole wing, the stabiliser or the prop at 30 m/s leaves the cabin, the seat and the
+  position on the Aircraft and it flies on.
+- **Tests:** FuselageFollowCameraTests 6/6 (camera has no crash view; CrashFraming gone everywhere; only SceneBootstrap
+  sets Target = aircraft root, only PilotEgress/FlightReplay set OverrideTarget; the shed-part theory) +
+  EmergentWaterContactTests 4/4. CrashCameraTests (the wreck-framing tests) removed with the feature.
+- **Build / install:** iOS **2026.1105.2357** ** BUILD SUCCEEDED **, 0 error CS, **installed on Ty's iPad mini** (locked,
+  no auto-launch); iPhone unavailable, not installed. Quest not built. NOUPLOAD.
+- **Fly-check (iPad mini 2026.1105.2357):** (1) J-3, flight-path view: break a wing panel (hard pull / tree) and fly on —
+  the camera stays behind the aeroplane, not the panel; (2) crash hard on grass and into water: the view you chose keeps
+  following the fuselage, no zoom-out or 30°-above wreck shot; (3) bail out: the pilot-follow view still takes over.
+- CRASH-CAM-FOLLOW-FUSELAGE-DONE
+<!-- /fuselage-follow needs-you -->
+
 ## NEEDS YOU — 2-33: braking screeched because full dive brake was full wheel brake; spoiler voice quieter + rumble (Claude, 2026-11-05 23:15 PT, lane/claude-sgs233-spoiler-brake)
 <!-- sgs233-spoiler-brake needs-you -->
 Your 16:06 (phone 2026.1105.1550; Q128): "The speed break noise is a little too loud and it should have a bit more rumble
