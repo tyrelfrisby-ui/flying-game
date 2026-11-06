@@ -356,3 +356,82 @@ gyration and the roll-out. Past flat, what is left scales with h.
   upright R does at ~85° with out-spin aileron. So the model still lacks a symmetric power-flattening term: the blown
   tail is a pure +x increment that ignores the jet bending in the crossflow, and the prop's in-plane (H) force is not
   modelled. That is the next piece of work, and the inertia should be re-examined with it.
+
+## 2026-11-06 — Q007 reopened: where the wakes go (Ty t918u)
+
+Owner, on 2026.1106.0703: "The pitts upright spin is still too flat and difficult recover from the inverted spin (right
+right is too nose low and too easy to recover from what changed it is dramatically more nose low now?"
+
+**What changed 1816 → 0703** was 3782cadf (gyro at the governor's rpm, prop inertia 9.0 → 3.5): at full power the gyro's
+angular momentum fell to 39 % of 1816's. `PittsQ007Probe` (Q007=1) flew both trees: incipient trace, developed spin (last
+20 of 45 s), PARE after three turns and from the developed spin.
+
+| full power | 1816 (acaf8ed2) | 0703 (74dfb90f) |
+|---|---|---|
+| upright L, neutral | α 90.5 (71..108), gyrating, 126 deg/s; PARE after 3 turns 1.81 | α 92.7 steady, 299 deg/s; PARE 4.91 |
+| inverted R + R aileron | flat by 4 s (α −94), rolls out every ~13 s | α −85.1, θ −4.4, but only flat after ~15 s (−76 at 4 s) |
+| inverted R, neutral | gyrates through the flat (−86..+88) | α −34, θ −55, PARE 0.36 turns |
+
+So the "dramatically more nose low" is the slower climb into the inverted flat and the loss of the full-power inverted
+flat with the ailerons neutral, both from the smaller gyro. The gyro mirrors exactly (upright L ↔ inverted R), so it can
+not make one of them flatter and the other steeper; that needs a term that does not mirror.
+
+**Evidence for the target.** Christen Eagle II Flight Manual §5 (a Pitts S-2 derivative; reprinted in IAC *In the Loop*,
+April 2023): the upright flat is entered from a left spin with full power AND out-spin aileron; the inverted flat from a
+right inverted spin with full power and stick toward the spin axis; both are "nearly horizontal in pitch or slightly nose
+up"; "application of power increases the difficulty of spin recovery", full power can hold the upright flat so that a
+normal recovery is impossible; power off and controls neutral recover the normal and the flat inverted spin. NACA TN 3480
+(Bowman, 1955): a clockwise rotor raises α in left spins and lowers it in right ones (the gyro's sense, already modelled).
+The owner's numbers: full-power upright ~85° "just shy of flat" (2026-11-03), out-spin flat at most 95° / 5° (2026-11-05),
+full-power inverted R + R 90–95°, a touch tail-low (2026-11-03); Q007a: the flat needs out-spin aileron.
+
+**Switching terms off** (`PropModel` spiral-slipstream yaw; the tail's slipstream increment), 40 % and full:
+
+- slip yaw off: inverted full R neutral −34 → −84 (flat), PARE 0.36 → 2.5 turns; upright 40 % L neutral 89 → 82;
+- tail slipstream off: upright flatter (+3°), inverted flatter (+4°);
+- both off, everywhere: upright neutral α 16 (a steep spiral: no blown elevator to hold the stall on entry), upright out-spin
+  flat 94–96, inverted R + R −88..−90, θ ≈ 0. The manual's shape, but too crude (the wash does reach the tail on entry).
+
+**1. The slipstream is carried off the tail past the stall** (`Aircraft.SlipstreamOverTail`). Momentum theory for a disc
+meeting the air at an angle (Glauert, ARC R&M 1111; Leishman §2.14) carries the wake along a skewed cylinder: the tube's
+centre at the tail, an arm L behind the disc, has moved Δ = L·V_cross / (V_axial + 0.75 ΔU). The share of the tube still
+over the tail is the overlap of two circles of the contracted radius at Δ. It scales the tail's ΔU, its swirl, and the
+spiral-slipstream yaw on the fin. Applied in proportion to the wing's separated share: in attached flow the wing's
+downwash turns the wash back to the tail and every rig, trim and elevator calibration was fitted with the straight wash,
+so normal flight and RigSolver are unchanged to the bit. Pitts: arm 4.382 m; at α 10°, 30 m/s, ΔU 15 m/s, share 0.498;
+flat, 0.
+
+**2. A biplane's wings sit in each other's wake near the flat** (`TailWake.WingQFactor`). The same NACA Report 648
+section wakes that fall on the tail now fall on the other wing of a two-wing cellule. Attached and through the ordinary
+stall each wing's wake runs aft clear of the other: every Pitts wing strip is exactly 1 from −30° to +60°. Near ±90° the
+windward wing is a plate in front of the other, a gap of 1.2 chords away (Hoerner, *Fluid-Dynamic Drag*, ch. 8: tandem
+plates). The stagger makes it asymmetric: upright (α 90) only the upper aileron is shaded (q 0.32), inverted (α −90) the
+lower wing is (q 0.16; from α −35 the lower aileron starts to be). Monoplanes: never. Report 648 at c_d ≈ 1 is the same
+extrapolation TailWake already makes for the tail.
+
+**Result** (Pitts, `PittsQ007Probe`, final tree; α (range), θ, Ω deg/s; PARE turns after three turns):
+
+| spin | 0703 | now |
+|---|---|---|
+| up idle L neutral | 31.5 / −57.1 / 200; 0.48 | unchanged |
+| up 40 % L neutral | 88.9 / −0.5 / 238; 3.13 | **34.3 / −54.8 / 183; 0.40** |
+| up 40 % L out-spin | 92.6 / 3.1 / 281; 4.57 | 87.0 (81..93) / −1.9 / 239; 3.51 |
+| up full L neutral | 92.7 / 3.3 / 299; 4.91 | **84.6 / −3.8 / 216; 3.48** |
+| up full L out-spin | 94.6 / 5.2 / 337; 5.75 | **89.7 (89..92) / 0.8 / 275; 3.85** |
+| inv idle R neutral | −29.0 / −59.9 / 178; 0.31 | unchanged |
+| inv 40 % R + R | −85.0 / −4.6 / 258; 2.12 | −56.7 (−70..−47) / −29.1 / 156; 0.79 |
+| inv full R neutral | −34.0 / −54.6 / 194; 0.91 | −50.5 (−61..−41) / −36.1 / 154; 0.44 |
+| inv full R + R | −85.1 / −4.4 / 291; 2.47 | **−92.6 / +2.4 / 312; 2.10** (flat by 10 s, was 15) |
+
+With the power left on, no upright flat and no inverted flat recovers within 30 s (the manual's "full power may hold the
+nose up"); with power idle every one does.
+
+**Lost / open.**
+- The 40 % inverted R + R spin no longer reaches the flat (−85 → −57). Its entry passes α −50..−70, exactly where the
+  upper wing's wake lands on the lower wing and takes its aileron's flat-spin power. At full power the gyro carries it
+  through. The manual enters the inverted flat at full power; whether a real S-2B flattens inverted at part power is the
+  owner's call.
+- The 40 % upright out-spin flat wobbles 12° (81..93; was 92..93).
+- The prop inertia was not re-fitted: EASA TCDS IM.P.130 caps the complete prop at 25.9 kg, which suggests 2.3–3.5 kg·m²;
+  3.5 stays. With the skewed wake alone 2.5 and 3.0 still left the full-power upright neutral spin flat (91–92°).
+- The upright RIGHT full-power spin is still not near flat (owner 2026-11-03: ~85°): unchanged, `PittsPowerSpinTargetTests`.

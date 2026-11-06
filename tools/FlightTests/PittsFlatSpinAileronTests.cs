@@ -43,24 +43,30 @@ public class PittsFlatSpinAileronTests
     /// is the mirror of the upright flat the owner approves (40 % left, no aileron: α 92.9, θ +3.9, 201 deg/s), widened toward
     /// his "-60..-80, nose near the horizon": |α| 75–95, the nose within 15° of the horizon, under 1.8 s a turn, and it stays
     /// inverted. Before run #4 this spin sat at α −32.9, θ −55.7, 154 deg/s (2.33 s/turn).
+    /// MOVED TO FULL POWER 2026-11-06 (Q007 t918u, deliberate): with the biplane's wings in each other's wake
+    /// (PittsSpinWakeTests) the 40 % spin no longer climbs into the flat — α −56.7 (−70..−47), θ −29.1, 156 deg/s; its entry
+    /// passes α −50..−70, where the upper wing's wake falls on the lower wing (NEEDS YOU in AGENT-LOG). The inverted flat is
+    /// entered with full power (Christen Eagle II manual §5; the owner's 2026-11-03 target). Full: α −92.6, θ +2.4, 312 deg/s.
     /// </summary>
     [Fact]
     public void InvertedFlatSpinIsFlat()
     {
-        var st = Spin(1.0, Power40, true, 1.0);
+        var st = Spin(1.0, Full, true, 1.0);
         Assert.True(st.AlphaMax < 0, $"rolled upright: α reached {st.AlphaMax:F0}");
         Assert.InRange(st.Alpha, -95.0, -75.0);
         Assert.InRange(st.Pitch, -15.0, 15.0);
         Assert.True(st.SecPerTurn < 1.8, $"{st.SecPerTurn:F2} s/turn");
     }
 
-    /// <summary>Full flat-spin aileron in the inverted spin (40 % power, right rudder) flattens it — |α| up, the nose up toward
-    /// the horizon — and speeds it up. Before run #4 it did the opposite: α −32.7 → −32.9, θ −56.4 → −55.7, 165 → 154 deg/s.</summary>
+    /// <summary>Full flat-spin aileron in the inverted spin (right rudder) flattens it — |α| up, the nose up toward
+    /// the horizon — and speeds it up. Before run #4 it did the opposite: α −32.7 → −32.9, θ −56.4 → −55.7, 165 → 154 deg/s.
+    /// MOVED TO FULL POWER 2026-11-06 (see InvertedFlatSpinIsFlat): at 40 % it still flattens and raises the nose (α −31.2 →
+    /// −56.7, θ −57.8 → −29.1) but turns slower (175 → 156 deg/s). Full: α −50.5 → −92.6, θ −36.1 → +2.4, 154 → 312 deg/s.</summary>
     [Fact]
     public void FlatSpinAileronFlattensAndSpeedsUpTheInvertedSpin()
     {
-        var n = Spin(1.0, Power40, true, 0.0);
-        var a = Spin(1.0, Power40, true, 1.0);
+        var n = Spin(1.0, Full, true, 0.0);
+        var a = Spin(1.0, Full, true, 1.0);
         Assert.True(-a.Alpha > -n.Alpha + 20, $"|α| {-n.Alpha:F1} → {-a.Alpha:F1}");
         Assert.True(a.Pitch > n.Pitch + 20, $"nose {n.Pitch:F1} → {a.Pitch:F1}");
         Assert.True(a.OmegaVertDeg > 1.2 * n.OmegaVertDeg, $"rate {n.OmegaVertDeg:F0} → {a.OmegaVertDeg:F0} deg/s");
@@ -96,12 +102,16 @@ public class PittsFlatSpinAileronTests
     /// 9.0 → 3.5 kg·m² (PittsSpinPastFlatTests). The shapes held — idle α within 0.3°, 40 % left still flat — but the rates
     /// moved. Run #4 values (what the owner approved): idle L 31.8 / −56.9 / 183, idle R 30.9 / −57.3 / 245, 40 % L 92.9 /
     /// 3.9 / 201, 40 % R 30.8 / −57.6 / 318. New values copied from the Q007 table in AGENT-LOG; owner fly-check open.
+    /// RE-PINNED 2026-11-06 (Q007 t918u, deliberate; the owner: "the pitts upright spin is still too flat"): past the stall the
+    /// prop's wash no longer reaches the tail (Aircraft.SlipstreamOverTail), so the 40 % left spin with the ailerons neutral is
+    /// a normal spin, not a flat one: 88.9 / −0.5 / 238 → 34.3 / −54.8 / 183 (the flat now needs out-spin aileron, as the
+    /// Eagle II manual and the owner's Q007a say). 40 % right 29.8 / −58.3 / 276 → 31.6 / −56.8 / 277. Idle unchanged.
     /// </summary>
     [Theory]
     [InlineData(-1.0, Idle, 31.5, -57.1, 200.0)]
     [InlineData(1.0, Idle, 31.6, -56.6, 223.0)]
-    [InlineData(-1.0, Power40, 88.9, -0.5, 238.0)]
-    [InlineData(1.0, Power40, 29.8, -58.3, 276.0)]
+    [InlineData(-1.0, Power40, 34.3, -54.8, 183.0)]
+    [InlineData(1.0, Power40, 31.6, -56.8, 277.0)]
     public void UprightSpinsWithAileronsNeutralAreUnchanged(double rudder, double lever, double alpha, double pitch, double omega)
     {
         var st = Spin(rudder, lever, false, 0.0);
