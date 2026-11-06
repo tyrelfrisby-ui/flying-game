@@ -83,6 +83,52 @@ NOUPLOAD. Preserve smoke/crash-cam/skis/tow/WB/OTA; holds untouched.
   island-nav, then the Quest lane the same day (parity lock), once that worktree is clean and a quiet-machine suite compare
   is done. Then build and fly-check Q149.
 - PITTS-ELEVATOR-VIS-T917 **PROGRESS** (fix verified on the bench + BUILD SUCCEEDED 2026.1106.0816; awaiting merge + device).
+## NEEDS YOU — replay smoke as flown + AS FLOWN / ON / OFF; smoke kept out of the airframe (Claude, 2026-11-06 ~09:00 PT, lane/claude-replay-smoke)
+<!-- replay-smoke needs-you -->
+Ty t912u / t914u. Nothing approved by me. Queue: **Q147** (replay SMOKE button), **Q148** (exact mesh clearance or enough).
+- **Why the replay had no smoke (two causes):** the replay recorder kept no smoke at all, and `SmokeController` returned the
+  moment a replay began under the comment "FlightReplay redraws" — nothing did. A clip of the replay copies the screen, so
+  it had none either.
+- **Fix:** each replay frame now records the switch and the flow the oil made or would have made (`ReplaySmoke`: same law
+  as live — engine, power, bus), plus jet / crank / rpm. In a replay the trail is rebuilt at the play head from the
+  recording; replay bar **SMOKE** button: **AS FLOWN** (default, every replay) → **ON** (add it after the fact) → **OFF**.
+  View only: the recording is never rewritten. Seek / rewind / scrub redraw exactly that moment (pure function, plus a
+  cache fix so no puff sticks where it was). Older frames without the channel: AS FLOWN none (button says "(none)"), ON
+  estimated from throttle. Clip camera = main camera: identical pixels in all three modes (measured, 0 of 1,024,000 differ).
+  Quest: same code, no replay page there today, so no button.
+- **Airframe (every type):** the marker paths already went round; what crossed the aeroplane was the DRAWING (puffs and
+  pulse tubes are blobs stretched along segments laid straight across the body) and an analytic tube that was not the
+  drawn fuselage. Now every piece under 3 s old near the aeroplane is held out of it at the pose shown (centre pushed
+  out, segment cut at the skin), live, replay and clip alike, and the fuselage is measured on the drawn model.
+  Independent check against the real mesh (MeshColliders, `SmokeAirframeRender`), 8 types × 5 attitudes (upright /
+  inverted flat, high α, cruise, inverted): **Pitts upright flat spin 3 → 0 pieces through the model**; fleet total
+  **71 → 43**; 24 of 40 cases at zero. **Not zero everywhere:** fins/rudders, wing roots, open cockpits (the surfaces are
+  still flat plates and the body a measured circle), and the **procedural Decathlon got worse at high α (2 → 15)**.
+  Q148 asks whether to go to exact mesh clearance. Cost: build 0.4–1.2 ms (editor) before and after alike; bench 2.2 µs a
+  piece, ~20–60 pieces a frame.
+- **Renders:** `~/Developer/agent-lanes/renders/replay-smoke-t912-t914/` — `pitts-s2b-like_upright-flat_{before,after}_{top,side}.png` (the report), every type/attitude
+  likewise, `replay_{before_oldcode,as_flown,on,off}.png` + `_clipcam`, `stats.txt`.
+- **Tests:** ReplaySmokeTests 6/6, SmokeClearanceTests 38/38, AirframeFlowTests + ReplayTests unchanged green (88/88).
+  Suite compare vs 2b47338f: full lane run (loaded Mac, 3 other suites running) 196 failed / 3230 passed; none smoke/replay/recorder/flow. Its 57 failing classes re-run alone on lane AND base: 140 / 716 on both, identical names, 0 only on the lane.
+- **Build:** iOS **2026.1106.0803** ** BUILD SUCCEEDED **, 0 error CS, installed on Ty's iPad mini. NOUPLOAD. Quest not built.
+- **Merge:** into lane/claude-island-nav and lane/claude-quest-islandnav (same day, parity) — see the merge line below.
+- **Fly-check (iPad mini 2026.1106.0803):** (1) smoke on, fly 30 s, smoke off, REPLAY → the trail is there as flown, ending
+  where you switched it off; (2) SMOKE → ON: smoke added along the whole replay; OFF: none; scrub back and forth — no
+  stuck or broken trail; (3) REC a clip in each mode — it matches the screen; (4) Pitts upright flat spin with smoke,
+  look at the cowling from the chase view: no smoke out of the top.
+<!-- /replay-smoke needs-you -->
+### 2026-11-06 07:32 PST — Claude · replay smoke + fleet airframe exclusion · lane/claude-replay-smoke
+
+NEEDS YOU: Ty t912u / t914u (pt912u). Flew with smoke ON; default replay showed none; video recorded from that replay also showed none. Also: smoke must not pass through ANY portion of ANY airplane (t914 supersedes Pitts-only); Pitts upright flat-spin smoke was seen emerging through the top cowling — reproduce and fix real particle movement/collision vs drawing, not draw-order hiding.
+
+Outcomes wanted (investigate mechanisms; do not assume a single cause):
+1. Default replay preserves actual flown smoke timing/state ("as flown").
+2. During playback: As flown / On / Off override; smoke can be added after the fact; seeking/rewinding stays correct; no broken particle trails; older recordings handled gracefully. Viewing overrides must NOT rewrite original flight telemetry.
+3. Replay export / clip recording of a replay honors the same selected override.
+4. Shared smoke-system airframe exclusion/deflection for fuselage/cowling/wings/tail/other parts on every type, live + replay + export, including spins/high AoA/inverted, with mobile performance in mind.
+5. Tests for replay default, overrides, seeking, export, old data, and airframe exclusion across types; ** BUILD SUCCEEDED ** before src/config integration; before/after visual evidence for Ty if needed. NOUPLOAD / no new TestFlight (0703 already uploaded).
+
+Status: lane started from playable 2b47338f. Other obligations (tow/WB/skis/OTA) untouched; holds preserved.
 
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).

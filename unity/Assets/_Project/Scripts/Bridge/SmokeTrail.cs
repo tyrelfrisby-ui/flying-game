@@ -49,6 +49,14 @@ namespace FlyingGame.Bridge
                 _defl[key] = c;
             }
             int i = System.Math.Min(c.n - 1, (int)(age / FlowDt));
+            if (i < c.n - 1 && c.d.Count == 1)
+            {
+                // Collapsed to its last step, and now shown YOUNGER (a replay seeked or rewound back over it): the young
+                // path again, or the puff would sit where its pass ended — a puff stuck in the wrong place.
+                var d = Flow.Deflection(e, s.VelBody, s.Rates, jd, s.JetU0, PipeDiameterM, s.AirDensity > 0 ? s.AirDensity : 1.225, FlowDt, seed: (uint)key.Item1 * 2654435761u + (uint)ei * 40503u + 1u);
+                c = (s.Pos, d, d.Count); _defl[key] = c;
+                i = System.Math.Min(c.n - 1, (int)(age / FlowDt));
+            }
             if (i == c.n - 1 && c.d.Count > 1) { c = (c.pos, new List<Vec3>(1) { c.d[^1] }, c.n); _defl[key] = c; }
             double t = i * FlowDt, w = s.Rates.Length;
             // The body axes at that moment: the release attitude turned on by ω·t (steady for the pass).
@@ -128,6 +136,8 @@ namespace FlyingGame.Bridge
         private readonly Mesh _mesh;
         private readonly List<Vector3> _v = new(); private readonly List<Vector2> _uv = new(); private readonly List<Color> _c = new(); private readonly List<int> _tri = new();
         private readonly List<(float d2, Vector3 p, Vector3 axis, float w, float l, float a)> _puffs = new();
+        /// <summary>What the last Build drew: each piece's centre, axis, width, length and alpha (review tools only).</summary>
+        public IReadOnlyList<(float d2, Vector3 p, Vector3 axis, float w, float l, float a)> Pieces => _puffs;
         private Vec3[] _exhaust = System.Array.Empty<Vec3>(), _jet = System.Array.Empty<Vec3>();
 
         /// <param name="alphaCapture">The widget's straight-alpha frame (Syphon / NDI / ProRes 4444) needs the shader's two
@@ -262,13 +272,14 @@ namespace FlyingGame.Bridge
                         double jl = jd.Length; if (jl < 1e-6) continue;                                   // a canister has no pulses
                         Vec3 dir = jd * (1.0 / jl);
                         double fs = Vec3.Dot(-1.0 * sn.VelBody, dir);                                     // the stream's speed along the pipe
-                        Vector3 p10 = Parcel(so, sn, ei, e, dir, t10, evo + Q10 * FlyingGame.Core.Aero.ExhaustPulse.WindowRev, meanU, fs, nowT, shown, out _);
-                        Vector3 p50 = Parcel(so, sn, ei, e, dir, t50, evo + Q50 * FlyingGame.Core.Aero.ExhaustPulse.WindowRev, meanU, fs, nowT, shown, out double pen50);
-                        Vector3 p90 = Parcel(so, sn, ei, e, dir, t90, evo + Q90 * FlyingGame.Core.Aero.ExhaustPulse.WindowRev, meanU, fs, nowT, shown, out _);
-                        if (!(float.IsFinite(p10.x) && float.IsFinite(p50.y) && float.IsFinite(p90.z) && float.IsFinite(p10.y) && float.IsFinite(p90.x))) continue;
-                        Vector3 span = p90 - p10, mid = 0.5f * (p10 + p90);
-                        float len = span.magnitude;
-                        Vector3 axis = len > 1e-4f ? span / len : CoordinateMap.ToUnity(velW * (1.0 / v));
+                        Vec3 p10 = Parcel(so, sn, ei, e, dir, t10, evo + Q10 * FlyingGame.Core.Aero.ExhaustPulse.WindowRev, meanU, fs, nowT, out _);
+                        Vec3 p50 = Parcel(so, sn, ei, e, dir, t50, evo + Q50 * FlyingGame.Core.Aero.ExhaustPulse.WindowRev, meanU, fs, nowT, out double pen50);
+                        Vec3 p90 = Parcel(so, sn, ei, e, dir, t90, evo + Q90 * FlyingGame.Core.Aero.ExhaustPulse.WindowRev, meanU, fs, nowT, out _);
+                        if (!(double.IsFinite(p10.X) && double.IsFinite(p50.Y) && double.IsFinite(p90.Z) && double.IsFinite(p10.Y) && double.IsFinite(p90.X))) continue;
+                        Vec3 spanW = p90 - p10, midW = 0.5 * (p10 + p90);
+                        float len = (float)spanW.Length;
+                        Vec3 axisW = len > 1e-4f ? spanW * (1.0 / len) : velW * (1.0 / v);
+                        Vector3 axis = CoordinateMap.ToUnity(axisW);
                         float width = (float)PipeDiameterM + 0.22f * (float)pen50 + TubeDiffusion * Mathf.Sqrt(age50);
                         // ... widening toward the trail's own puff at that age (the same law as below), so the handover is one
                         // column getting fatter, not a thin one fading inside a fat one.
@@ -278,6 +289,9 @@ namespace FlyingGame.Bridge
                         // The 2 % and 98 % parcels sit where the drawn puff is down to a quarter (r 0.82 in FlyingGame/Smoke),
                         // so a six's tubes overlap to a ~0.4 neck, near the pulse train's own 0.28 trough.
                         float length = Mathf.Max(width, len / 0.82f + 0.5f * width);
+                        Clear(ref midW, axisW, ref length, width, age50);
+                        Vector3 mid = shown(midW);
+                        if (!(float.IsFinite(mid.x) && float.IsFinite(mid.y) && float.IsFinite(mid.z))) continue;
                         // Opacity per tube, so the column of overlapping tubes is as dense as the trail it becomes; and the
                         // handover is in optical DEPTH (tube × hand, puff × (1 − hand)), so the two together are exactly as
                         // dense as either alone. (899ada84 crossfaded the alphas, which at the midpoint left 1 − (1 − a/2)² ≈ 0.75
@@ -298,8 +312,8 @@ namespace FlyingGame.Bridge
         /// <summary>One parcel of a pulse's gas, <paramref name="nowT"/> − <paramref name="tq"/> s after it left the pipe at the
         /// pulse's speed for that crank angle: the pipe where it was then, the airframe's flow and the mean jet (Pushed), and how
         /// much further (or less far) than the mean jet its own speed carried it.</summary>
-        private Vector3 Parcel(in Sample so, in Sample sn, int ei, Vec3 e, Vec3 dir, double tq, double crank, double meanU, double fs,
-                               double nowT, System.Func<Vec3, Vector3> shown, out double penetration)
+        private Vec3 Parcel(in Sample so, in Sample sn, int ei, Vec3 e, Vec3 dir, double tq, double crank, double meanU, double fs,
+                            double nowT, out double penetration)
         {
             double g = (tq - so.T) / (sn.T - so.T), age = System.Math.Max(0, nowT - tq);
             Vec3 pos = so.Pos + (sn.Pos - so.Pos) * g;
@@ -309,7 +323,39 @@ namespace FlyingGame.Bridge
             // The mean jet is already in the airframe flow's push; without that model the parcel carries all of its own.
             double extra = Flow != null ? penetration - FlyingGame.Core.Aero.ExhaustPulse.Penetration(meanU - fs, age, PipeDiameterM) : penetration;
             Vec3 drift = Atmosphere.SteadyWindAt(pos) * age + new Vec3(0, 0, -System.Math.Min(2.0, 0.12 * age));
-            return shown(pos + att.Rotate(e + dir * extra) + drift + Pushed(so, ei, e, dir, age));
+            return pos + att.Rotate(e + dir * extra) + drift + Pushed(so, ei, e, dir, age);
+        }
+
+        // AIRFRAME CLEARANCE (Ty t914u: "no smoke may pass through any portion of any airplane", the Pitts' upright flat spin
+        // the case). Each puff and pulse tube is a soft blob stretched along a segment. The markers' own paths go round the
+        // airframe (Pushed), but the DRAWING did not: a young puff is stretched back along the flight path, which in a flat
+        // spin is straight down, so it ran from the belly exhaust up through the cowling; a tube is drawn straight between
+        // parcels that went round opposite sides. So every piece younger than ClearAgeS and within reach of the airframe is
+        // taken into the body frame of the pose being SHOWN (the aeroplane on screen, live and in a replay alike), its centre
+        // held outside and its segment cut where it enters a body (AirframeFlow.ClearSegment). Older smoke is a cloud the
+        // aeroplane may fly back into; that is left to the depth buffer, as a real aeroplane parts a cloud.
+        private const double ClearAgeS = 3.0;
+        private Vec3 _bodyPos; private Quat _bodyAtt, _bodyInv; private bool _bodyOn; private double _reach;
+        /// <summary>Pieces the last Build tested against the airframe, and how many it had to move or cut (review plates).</summary>
+        public int ClearTested { get; private set; }
+        public int ClearTrimmed { get; private set; }
+        /// <summary>Off only for the before/after plates.</summary>
+        public bool ClearAirframe = true;
+
+        /// <summary>A piece centred at <paramref name="p"/> (true path, world NED), long <paramref name="len"/> along
+        /// <paramref name="axisW"/> (world, unit), <paramref name="age"/> s old: held out of the airframe being shown.</summary>
+        private void Clear(ref Vec3 p, Vec3 axisW, ref float len, float width, double age)
+        {
+            if (!_bodyOn || age > ClearAgeS) return;
+            Vec3 b = _bodyInv.Rotate(p - _bodyPos);
+            double half = 0.5 * System.Math.Max(0, len - width);   // the spine: the blob's round ends add half a width each
+            if (b.Length > _reach + half + width) return;
+            ClearTested++;
+            var (c, h) = Flow.ClearSegment(b, _bodyInv.Rotate(axisW), half, out bool trimmed);
+            if (!trimmed) return;
+            ClearTrimmed++;
+            p = _bodyPos + _bodyAtt.Rotate(c);
+            len = (float)(2 * h) + width;
         }
 
         /// <summary>Build the smoke as it was at <paramref name="nowT"/>: <paramref name="sample"/>(k) is the k-th sample back
@@ -322,6 +368,9 @@ namespace FlyingGame.Bridge
             _puffs.Clear();
             if (System.Math.Abs(nowT - _deflPruned) > 5) { _deflPruned = nowT; var old = new List<(long, int)>(); foreach (var kv in _defl) if (System.Math.Abs(nowT - kv.Key.Item1 * 1e-4) > LifeMaxS + 5) old.Add(kv.Key); foreach (var o in old) _defl.Remove(o); }
             Vector3 camPos = cam.transform.position, camFwd = cam.transform.forward;
+            ClearTested = ClearTrimmed = 0;
+            _bodyOn = ClearAirframe && Flow != null && sample(0) is Sample sb;
+            if (_bodyOn) { Sample b0 = sample(0).Value; _bodyPos = b0.Pos; _bodyAtt = b0.Att; _bodyInv = b0.Att.Conjugate(); _reach = Flow.Reach; }
             bool tubes = !Stream && sample(0) is Sample s0 && s0.Rpm > 1f;
             TubeCount = 0;
             if (tubes) BuildTubes(sample, nowT, shown, camPos, camFwd);
@@ -403,13 +452,17 @@ namespace FlyingGame.Bridge
                 // A puff covers the path from its release back to one frame earlier — it is drawn BEHIND the release point,
                 // never ahead of the airplane (owner 2026-10-12: "the smoke appears to come from in front of the engine").
                 Vec3 back = velW * (-0.5 * (stretch - grow) / v);
+                Vec3 axisW = velW * (1.0 / v), wanderW = CoordinateMap.ToSim(wander);
                 for (int ei = 0; ei < _exhaust.Length; ei++)
                 {
                     Vec3 e = _exhaust[ei], jd = ei < _jet.Length ? _jet[ei] : Vec3.Zero;
-                    Vector3 p = shown(s.Pos + s.Att.Rotate(e + jd * jetM) + back + drift + Pushed(s, ei, e, jd, age)) + wander;
+                    Vec3 pt = s.Pos + s.Att.Rotate(e + jd * jetM) + back + drift + Pushed(s, ei, e, jd, age) + wanderW;
+                    float stretchE = stretch;
+                    Clear(ref pt, axisW, ref stretchE, grow, age);
+                    Vector3 p = shown(pt);
                     // A non-finite puff (a NaN anywhere in its push) would poison every blend it touches: its colour came out
                     // NaN and the airframe under the smoke column rendered (0,0,0) (Ty 2026-10-13: "rendering as black").
-                    if (!(float.IsFinite(p.x) && float.IsFinite(p.y) && float.IsFinite(p.z) && float.IsFinite(a) && float.IsFinite(grow) && float.IsFinite(stretch)) || a < 0 || grow <= 0)
+                    if (!(float.IsFinite(p.x) && float.IsFinite(p.y) && float.IsFinite(p.z) && float.IsFinite(a) && float.IsFinite(grow) && float.IsFinite(stretchE)) || a < 0 || grow <= 0)
                     { if (_nanLogged++ < 5) Debug.LogWarning($"[Smoke] non-finite puff dropped: age {age:0.000} p {p} a {a} grow {grow} stretch {stretch} jet {s.JetU0:0.0} ρ {s.AirDensity:0.000}"); continue; }
                     float d2 = Vector3.Dot(p - camPos, camFwd);
                     if (d2 < 0.3f) continue;
@@ -419,7 +472,7 @@ namespace FlyingGame.Bridge
                     // ~35–70 m of the camera, which is most of what you see turning back round a loop into your own smoke.)
                     float near = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f * grow, 1.5f * grow, (p - camPos).magnitude));
                     if (a * near < 0.004f) continue;
-                    _puffs.Add((d2, p, axis, grow, stretch, a * near));
+                    _puffs.Add((d2, p, axis, grow, stretchE, a * near));
                 }
             }
             // Back to front, then a camera-facing quad per puff, long along its (screen-projected) path.

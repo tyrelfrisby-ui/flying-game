@@ -72,6 +72,16 @@ namespace FlyingGame.Bridge
         /// <summary>The replayed pilot's speed (m/s): the wind in his ears.</summary>
         public static float ReplayPilotSpeedMs { get; private set; }
 
+        /// <summary>How the replay shows the smoke (Ty t912u): AS FLOWN (every replay opens on it), ON (add it after the fact,
+        /// with the flow the engine had at each moment), OFF. A view setting only: the recording is never changed, and
+        /// SmokeController rebuilds the trail from the recording at the play head, so a seek or a mode change redraws
+        /// exactly the trail for that moment. A clip made from the replay records this same view.</summary>
+        public FlyingGame.Sim.Replay.SmokeReplayMode SmokeMode = FlyingGame.Sim.Replay.SmokeReplayMode.AsFlown;
+        public void CycleSmokeMode() => SmokeMode = FlyingGame.Sim.Replay.ReplaySmokeView.Next(SmokeMode);
+        /// <summary>The recording has no smoke channels at all (made before they existed): AS FLOWN then shows none.</summary>
+        public bool SmokeUnrecorded { get; private set; }
+        private SmokeController _smoke;
+
         public bool CanReplay => !Active && Recorder.Duration > 2.0 && !SessionSettings.MenuOpen && Time.timeScale > 0f;
 
         private void Awake()
@@ -121,7 +131,9 @@ namespace FlyingGame.Bridge
             if (_haveLast && (pos - _lastPos).magnitude > 500f) ClearAll();   // teleported (challenge / event start): a new flight
             _lastPos = pos; _haveLast = true;
             _clock += Time.deltaTime;
-            if (Recorder.Record(ReplayFrame.Capture(_clock, a, Atmosphere.WindAtPosition(a.State.Position)))) RecordActors();
+            if (_smoke == null) _smoke = GetComponent<SmokeController>();
+            ReplaySmoke smoke = _smoke != null ? _smoke.ReplayChannel() : default;
+            if (Recorder.Record(ReplayFrame.Capture(_clock, a, Atmosphere.WindAtPosition(a.State.Position), smoke))) RecordActors();
         }
 
         private void RecordActors()
@@ -239,6 +251,8 @@ namespace FlyingGame.Bridge
             Head = System.Math.Max(Recorder.StartTime, Recorder.EndTime - StartBackSec);
             Playing = true;
             Speed = 1f;
+            SmokeMode = FlyingGame.Sim.Replay.SmokeReplayMode.AsFlown;   // every replay opens on the flight as flown
+            SmokeUnrecorded = !FlyingGame.Sim.Replay.ReplaySmokeView.AnyRecorded(Recorder);
             Show();
         }
 

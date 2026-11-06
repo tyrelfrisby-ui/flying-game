@@ -651,3 +651,16 @@ was written for. `ControlSurfaceMotionCheck` now measures every type's drawn sur
 `SurfaceHingeTests.EveryRiggedOwnModelsFlightSurfacesAreMovedBySomething` fails when a rig leaves one out (the 172 is the
 named known gap).
 
+### A comment that says another component does the work is not that component doing it
+Ty flew with smoke on and the replay showed none. `SmokeController` returned the moment a replay began, under the comment
+"the replay owns the pose; FlightReplay redraws" — and FlightReplay never drew smoke, nor did its recorder keep any. The
+comment was believed for a month because it named a plausible owner. When code hands a job to someone else, grep that
+someone for the job before trusting the hand-off; and if a replay, a widget or a second camera is meant to show a thing,
+test that the thing is in what it draws from (`ReplaySmokeTests`).
+
+### A model is a shell: its centreline has skins, not a body
+Measuring the drawn fuselage as "the longest contiguous run of centreline points" found only a skin: a hollow fuselage
+has its top and its belly on the centreline and nothing between, so the longest run was 5 cm. Join skins across a gap
+when the gap is walled (the body's own sides have points beside it at mid-gap height) and not otherwise — that keeps an
+upper wing over its cabane, or a tailwheel under its spring, out of the body (`AirframeFlow.MeasureFuselage`). Test a
+point-cloud measurement on a hollow synthetic model, not a solid one.
