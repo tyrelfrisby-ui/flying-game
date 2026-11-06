@@ -15,7 +15,7 @@ DOWN) as separate hinged parts. Variant floats: EDO 1320 floats, struts and wire
 Frame while building: x = -(distance aft of the prop hub), z = up from the thrust line (the three-view frame), y port;
 at the end every mesh shifts by (+1.817, 0, +0.135) so the wing LE / thrust line match the Unity config, then the usual
 yaw of 180 deg for export (nose +x after glTF import, like the Pitts / EA300 / Great Lakes).
-  J3_VARIANT=wheels|floats blender -b --python tools/own_models/build_j3_cub.py
+  J3_VARIANT=wheels|floats|skis blender -b --python tools/own_models/build_j3_cub.py
 """
 import bpy, bmesh, sys, os, math, numpy as np
 from mathutils import Matrix, Vector
@@ -24,6 +24,10 @@ import paint
 from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 VAR = os.environ.get('J3_VARIANT', 'wheels').lower()
+if VAR == 'skis':
+    import runpy
+    runpy.run_path(os.path.join(HERE, 'build_j3_skis.py'), run_name='__main__')
+    raise SystemExit(0)
 assert VAR in ('wheels', 'floats'), VAR
 NAME = 'j3-cub-like' if VAR == 'wheels' else 'j3-cub-floats-like'
 OUT = os.environ.get('J3_OUT') or os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/%s/%s-own.glb' % (NAME, NAME))
