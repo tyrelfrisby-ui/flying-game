@@ -1,3 +1,15 @@
+### 2026-11-06 07:51 PST — Claude · Pitts elevator not visibly moving (TF 0703) · lane/claude-pitts-elevator-vis
+
+NEEDS YOU: Ty t917u / pt917u — testing newly received TF **2026.1106.0703**: "The elevator on the pitts is not visibly moving." Phone testing baseline is now **0703** (Ty confirmed received), not 1816.
+
+Outcomes (visual animation — do not retune pitch physics without evidence of a physics failure):
+1. Pitts elevator visibly moves in live flight: neutral / full aft / full forward, proportional, correct direction, hinge alignment, **both** halves.
+2. Visible in external camera and consistent in replay.
+3. Before/after visual evidence; exact build stamp when fixed. Do not claim fixed until verified on a BUILD SUCCEEDED artifact.
+4. Codex model/visual audit queued as next eligible if capacity (cap was 3/4 at register; Claude takes 4th) — model hinge/mesh ownership if animation path is correct but meshes/markers wrong.
+
+NOUPLOAD. Preserve smoke/crash-cam/skis/tow/WB/OTA; holds untouched.
+
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
 - Shatter: already at **90ee4fc7** / Quest **13e45d72** / iOS 2026.1106.0249 — no duplicate.
