@@ -312,7 +312,7 @@ namespace FlyingGame.Bridge
             }
             else
             {
-                float heroH = centre.height * 0.5f;
+                float heroH = centre.height * 0.35f;
                 DrawHero(new Rect(centre.x, centre.y, centre.width, heroH), flow, false);
                 DrawWeightBalance(new Rect(centre.x, centre.y + heroH + _gap, centre.width, centre.height - heroH - _gap), flow);
             }
@@ -391,9 +391,9 @@ namespace FlyingGame.Bridge
             if (wb == null) { UiLayout.Label(inner, "No loading data for this type", _small); return; }
             string head = $"WEIGHT & BALANCE  ·  {flow.MassText(wb.TotalKg)}" + (wb.HasGross ? $" of {flow.MassNumber(wb.MaxGrossKg)}" : "");
             UiLayout.Label(new Rect(inner.x, inner.y, inner.width, _bh * 0.8f), head, _head);
-            float warnH = _bh * 0.7f;
+            float warnH = _fs * 3.5f;
             float yGutter = _fs * 2.6f, xGutter = _fs * 2.1f;
-            var plot = new Rect(inner.x + yGutter, inner.y + _bh * 0.85f, inner.width - yGutter, inner.height - _bh * 0.85f - warnH - xGutter);
+            var plot = new Rect(inner.x + yGutter, inner.y + _bh * 0.85f, inner.width - yGutter - _fs, inner.height - _bh * 0.85f - warnH - xGutter);
             GUI.DrawTexture(plot, _btnBg);
             Vector2 P(double x, double y) => new Vector2(plot.x + (float)x * plot.width, plot.yMax - (float)y * plot.height);
 
@@ -413,7 +413,7 @@ namespace FlyingGame.Bridge
                 GUI.Label(new Rect(a.x - _fs * 1.6f, plot.yMax + 1, _fs * 3.2f, _fs), t.Label, tickC);
             }
             GUI.Label(new Rect(plot.x, plot.yMax + _fs * 1.0f, plot.width, _fs), wb.XAxisTitle, tickC);
-            GUI.Label(new Rect(inner.x, plot.y - _fs * 0.1f, yGutter + _fs * 4f, _fs), DisplayUnits.MassUnit(flow.Units), _tiny);
+            GUI.Label(new Rect(inner.x, plot.y - _fs * 0.1f, yGutter + _fs * 4f, _fs), "Weight (" + DisplayUnits.MassUnit(flow.Units) + ")", _tiny);
 
             // The envelope and its named limits; a gross with no CG limits is still drawn.
             if (wb.Envelope.Count > 1)
@@ -424,7 +424,21 @@ namespace FlyingGame.Bridge
                 if (!wb.HasEnvelope) for (int i = 1; i < lim.Points.Count; i++) Line(P(lim.Points[i - 1].x, lim.Points[i - 1].y), P(lim.Points[i].x, lim.Points[i].y), col, 1.5f);
                 Vector2 m = P((lim.Points[0].x + lim.Points[lim.Points.Count - 1].x) * 0.5, (lim.Points[0].y + lim.Points[lim.Points.Count - 1].y) * 0.5);
                 var st = new GUIStyle(_tiny) { wordWrap = false, normal = { textColor = col } };
-                GUI.Label(new Rect(m.x - _fs * 3f, m.y - _fs * (lim.Label == WeightBalance.MaxGrossLineLabel ? 1.1f : 0.5f), _fs * 6f, _fs), lim.Label, st);
+                bool gross = lim.Label == WeightBalance.MaxGrossLineLabel;
+                if (gross)
+                {
+                    st.alignment = TextAnchor.LowerCenter;
+                    GUI.Label(new Rect(m.x - _fs * 3f, m.y - _fs * 1.2f, _fs * 6f, _fs), lim.Label, st);
+                }
+                else
+                {
+                    // Follow the limit edge so the two names never run across the live points.
+                    var matrix = GUI.matrix;
+                    GUIUtility.RotateAroundPivot(-90, m);
+                    st.alignment = TextAnchor.MiddleCenter;
+                    GUI.Label(new Rect(m.x - _fs * 4.5f, m.y - _fs * 1.1f, _fs * 9f, _fs), lim.Label, st);
+                    GUI.matrix = matrix;
+                }
             }
             if (!wb.HasEnvelope) GUI.Label(new Rect(plot.x + 3, plot.yMax - _fs * 1.1f, plot.width, _fs), WeightBalance.NoEnvelopeLabel, _tiny);
 
@@ -432,11 +446,17 @@ namespace FlyingGame.Bridge
             Dot(P(wb.ZeroFuelX, wb.ZeroFuelY), _fs * 0.35f, wb.ZeroFuelInside ? new Color(0.8f, 0.8f, 0.8f) : new Color(1f, 0.35f, 0.25f));
             Dot(P(wb.PointX, wb.PointY), _fs * 0.6f, wb.TakeoffInside ? new Color(0.3f, 0.9f, 0.4f) : new Color(1f, 0.35f, 0.25f));
 
+            // A fixed legend identifies both markers even when their plotted positions overlap.
+            float legendY = inner.yMax - warnH;
+            var takeoffCol = wb.TakeoffInside ? new Color(0.3f, 0.9f, 0.4f) : new Color(1f, 0.35f, 0.25f);
+            var zeroCol = wb.ZeroFuelInside ? new Color(0.8f, 0.8f, 0.8f) : new Color(1f, 0.35f, 0.25f);
+            Dot(new Vector2(inner.x + _fs * 0.4f, legendY + _fs * 0.5f), _fs * 0.3f, takeoffCol);
+            GUI.Label(new Rect(inner.x + _fs, legendY, inner.width - _fs, _fs), $"{WeightBalance.TakeoffPointLabel}  {wb.TakeoffText}", _tiny);
+            Dot(new Vector2(inner.x + _fs * 0.4f, legendY + _fs * 1.6f), _fs * 0.2f, zeroCol);
+            GUI.Label(new Rect(inner.x + _fs, legendY + _fs * 1.1f, inner.width - _fs, _fs), $"{WeightBalance.ZeroFuelPointLabel}  {wb.ZeroFuelText}", _tiny);
             var warn = new GUIStyle(_tiny) { normal = { textColor = wb.InLimits ? new Color(0.6f, 0.95f, 0.6f) : new Color(1f, 0.7f, 0.3f) } };
-            string status = wb.InLimits
-                ? $"In limits.  {WeightBalance.TakeoffPointLabel} {wb.TakeoffText}  ·  {WeightBalance.ZeroFuelPointLabel} {wb.ZeroFuelText}"
-                : string.Join("  ·  ", wb.Warnings);
-            GUI.Label(new Rect(inner.x, inner.yMax - warnH, inner.width, warnH), status, warn);
+            string status = wb.InLimits ? (wb.HasEnvelope && wb.HasGross ? "In limits" : "Limits incomplete") : string.Join("  ·  ", wb.Warnings);
+            GUI.Label(new Rect(inner.x, legendY + _fs * 2.3f, inner.width, _fs * 1.2f), status, warn);
         }
 
         /// <summary>LAUNCH out of limits (Ty t881u / t882u): the exact message and Go back | Fly, over the page.</summary>

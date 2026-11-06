@@ -15,10 +15,24 @@ mkdir -p build/landing "$SHOTS"
 if [[ -z "$SKIP_BUILD" ]]; then
   # One Unity/xcodebuild at a time, machine-wide: two idle polls in a row (CLAUDE.md, "Other agents' prompts are in ps").
   idle=0
-  # (a deploy that is only installing to devices holds no build slot, so deploy.sh itself is not matched)
+  # An unreadable process list is not an idle slot. Fail closed in restricted agent sandboxes.
+  busy() {
+    local result=1 code
+    pgrep -f "^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity" >/dev/null && code=0 || code=$?
+    (( code > 1 )) && { echo "Cannot inspect Unity slot; coordinator must run this from a process-visible shell." >&2; return 2; }
+    (( code == 0 )) && result=0
+    for executable in xcodebuild devicectl; do
+      pgrep -x "$executable" >/dev/null && code=0 || code=$?
+      (( code > 1 )) && { echo "Cannot inspect $executable slot." >&2; return 2; }
+      (( code == 0 )) && result=0
+    done
+    return $result
+  }
   while (( idle < 2 )); do
-    if pgrep -f "^/Applications/Unity/Hub/Editor/[^ ]*/Unity.app/Contents/MacOS/Unity" >/dev/null || pgrep -x xcodebuild >/dev/null; then idle=0; else idle=$((idle+1)); fi
     sleep 20
+    busy && code=0 || code=$?
+    (( code > 1 )) && exit 2
+    if (( code == 0 )); then idle=0; else idle=$((idle+1)); fi
   done
   rm -rf "$OUT"
   FLYINGGAME_MAC_OUT=$OUT nice -n 10 "$UNITY" -batchmode -quit -projectPath "$REPO/unity" -buildTarget OSXUniversal \

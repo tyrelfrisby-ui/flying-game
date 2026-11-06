@@ -115,13 +115,43 @@ namespace FlyingGame.Bridge
                 flow.SetWeather("gusty");
                 yield return Settle();
                 yield return Shot($"{sh.name}-p2-overgross-sunset");
-                // The Pitts' page 2 (tandem, two tanks, baggage).
+                // Verified envelope and live points (wheel J-3 has certificate data; floats do not).
                 flow.GoTo(LandingPage.Choose);
-                flow.Pick(PickerKind.Aircraft, "pitts-s2b-like");
+                flow.Pick(PickerKind.Aircraft, "j3-cub-like");
+                flow.Pick(PickerKind.Configuration, "standard");
                 flow.Next();
-                flow.SetTimeOfDay(TimeOfDay.Morning);
-                yield return Settle();
-                yield return Shot($"{sh.name}-p2-pitts-morning");
+                flow.SetTimeOfDay(TimeOfDay.Midday);
+                flow.SetWeather("calm");
+                other = flow.Seats.FirstOrDefault(s => s.Occupant != Occupant.Me);
+                if (other != null) flow.SetSeat(other.SeatId, Occupant.Empty, SeatRole.Passenger);
+                flow.SetFuelFraction(0.5);
+                foreach (var b in flow.Stations.Where(s => s.Kind == FlyingGame.Core.AircraftLoad.StationKind.Baggage)) flow.SetStationKg(b.StationId, 0);
+                foreach (var units in new[] { UnitSystem.Standard, UnitSystem.Metric })
+                {
+                    flow.SetUnits(units);
+                    yield return Settle();
+                    yield return Shot($"{sh.name}-p2-envelope-{units.ToString().ToLowerInvariant()}");
+                }
+                // Deliberately over gross, verified before requesting the popup: never launch in this capture pass.
+                if (other != null)
+                {
+                    flow.SetSeat(other.SeatId, Occupant.InvitedPlayer, SeatRole.DualControl);
+                    flow.SetSeatKg(other.SeatId, 120);
+                }
+                flow.SetFuelFraction(1);
+                foreach (var b in flow.Stations.Where(s => s.Kind == FlyingGame.Core.AircraftLoad.StationKind.Baggage)) flow.SetStationKg(b.StationId, b.MaxKg);
+                foreach (var units in new[] { UnitSystem.Standard, UnitSystem.Metric })
+                {
+                    flow.SetUnits(units);
+                    yield return Settle();
+                    yield return Shot($"{sh.name}-p2-envelope-outside-{units.ToString().ToLowerInvariant()}");
+                    if (flow.WeightBalance == null || flow.WeightBalance.InLimits)
+                        throw new System.InvalidOperationException("W&B popup capture requires an out-of-limits load");
+                    flow.RequestLaunch();
+                    if (!flow.LaunchConfirmPending) throw new System.InvalidOperationException("W&B confirmation missing");
+                    yield return Shot($"{sh.name}-p2-wb-popup-{units.ToString().ToLowerInvariant()}");
+                    flow.ConfirmLaunch(fly: false);
+                }
                 flow.SetTimeOfDay(TimeOfDay.Midday);
                 flow.GoTo(LandingPage.Choose);
             }
