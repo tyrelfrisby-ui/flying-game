@@ -49,7 +49,7 @@ namespace FlyingGame.Bridge
         private readonly List<Shard> _shards = new();
         private readonly List<Undo> _undo = new();
         private static Mesh _shardMesh;
-        private static Material _edgeMat, _shardMat;
+        private static Material _shardMat;
 
         private void Awake() { _driver = GetComponent<FlightSimDriver>(); _visual = GetComponent<AirframeVisual>(); }
 
@@ -136,7 +136,7 @@ namespace FlyingGame.Bridge
             @"glass|window|windscreen|windshield|canopy|transparent|verre|perspex|plexi|acryl|skylight",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         private static readonly System.Text.RegularExpressions.Regex NotGlass = new(
-            @"inclinometer|instrument|dial|gauge|compass|fuel|sight|hose|lens|(?<!sky)light|lamp|edge|nav|strobe|beacon|card|placard|lcd|display|screen_face|avionics|lexan|floor|frame|trim|latch|hinge|seal|sill|bow|rail|handle|knob|jettison|hardware|red|green|propdisc|prop_disc|disc|shadow|decal",
+            @"inclinometer|instrument|dial|gauge|compass|fuel|sight|hose|lens|(?<!sky)light|lamp|edge|nav|strobe|beacon|card|placard|lcd|display|screen_face|avionics|lexan|floor|frame|trim|latch|hinge|seal|sill|bow|rail|handle|knob|jettison|hardware|stop_tab|tab_|red|green|propdisc|prop_disc|disc|shadow|decal",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
         /// <summary>Find the drawn glass, hand its panes to the sim.</summary>
@@ -197,6 +197,7 @@ namespace FlyingGame.Bridge
             {
                 List<Vector3> pts = SamplePoints(p, 8, out Vector3 meanNormal, out Vector3 centre);
                 if (pts.Count == 0) continue;
+                if (meanNormal.y < -0.6f) continue;   // a floor window (the Pitts' and the Extra's Lexan panes): not glazing a crash meets
                 p.Kind = KindOf(p.Id, meanNormal, centre, enc);
                 var body = new Vec3[pts.Count];
                 for (int i = 0; i < pts.Count; i++) body[i] = CoordinateMap.ToSim(pts[i]) + cg;   // driver-local is CG-relative body
@@ -305,7 +306,7 @@ namespace FlyingGame.Bridge
             {
                 // The sim's estimated panes (nothing was measured): break the drawn glass nearest the blow, if any.
                 pane = Nearest(hitLocal);
-                if (pane == null) { Debug.Log($"[Glass] {e.Part} shattered ({e.Intensity:0.0} m/s); nothing drawn to break"); Spray(hitWorld, vWorld, 10); return; }
+                if (pane == null) { _lastShardMat = null; Debug.Log($"[Glass] {e.Part} shattered ({e.Intensity:0.0} m/s); nothing drawn to break"); Spray(hitWorld, vWorld, 10); return; }
             }
             if (pane.Broken) return;
             pane.Broken = true;
@@ -364,37 +365,42 @@ namespace FlyingGame.Bridge
             if (remnant != null)
             {
                 go.AddComponent<MeshFilter>().sharedMesh = remnant;
-                go.AddComponent<MeshRenderer>().sharedMaterial = Crazed(glassMat);
+                go.AddComponent<MeshRenderer>().sharedMaterial = Tinted(glassMat, new Color(0.88f, 0.92f, 0.95f, 0f), 0.45f, "shattered");
             }
             if (edges != null)
             {
                 var eg = new GameObject("GlassFractureEdges");
                 eg.transform.SetParent(go.transform, false);
                 eg.AddComponent<MeshFilter>().sharedMesh = edges;
-                eg.AddComponent<MeshRenderer>().sharedMaterial = EdgeMat();
+                eg.AddComponent<MeshRenderer>().sharedMaterial = Tinted(glassMat, new Color(0.95f, 0.97f, 1f, 0.9f), 1f, "fracture edge");
             }
             undo.Remnant = go;
             _undo.Add(undo);
+            _lastShardMat = Tinted(glassMat, new Color(0.85f, 0.92f, 0.97f, 0.65f), 0.7f, "shard");
             return b.Removed;
         }
 
-        /// <summary>The glass that is left, as cracked acrylic is: the pane's own material, paler and less clear.</summary>
-        private static Material Crazed(Material m)
+        /// <summary>A copy of the pane's own material (the shader the model's glass is known to draw with, on every
+        /// platform), its colour moved <paramref name="amount"/> of the way to <paramref name="toward"/>: the remnant a little
+        /// paler and less clear, as crazed acrylic is; the fracture edges and the shards nearly white. An alpha of 0 in
+        /// <paramref name="toward"/> keeps the glass's own alpha, raised a little.</summary>
+        private static Material Tinted(Material m, Color toward, float amount, string tag)
         {
-            if (m == null) return EdgeMat();
-            var c = new Material(m) { name = m.name + " (shattered)" };
+            if (m == null) return ShardMat();
+            var c = new Material(m) { name = m.name + " (" + tag + ")" };
             foreach (string prop in new[] { "baseColorFactor", "_BaseColor", "_Color" })
             {
                 if (!c.HasProperty(prop)) continue;
                 Color col = c.GetColor(prop);
-                col = Color.Lerp(col, new Color(0.88f, 0.92f, 0.95f, col.a), 0.45f);
-                col.a = Mathf.Clamp(col.a * 1.6f + 0.08f, 0.15f, 0.7f);
+                float a = toward.a > 0 ? Mathf.Lerp(col.a, toward.a, amount) : Mathf.Clamp(col.a * 1.6f + 0.08f, 0.15f, 0.7f);
+                col = Color.Lerp(col, toward, amount);
+                col.a = a;
                 c.SetColor(prop, col);
             }
             return c;
         }
 
-        private static Material EdgeMat() => _edgeMat ??= new Material(Shader.Find("FlyingGame/UnlitTransparent") ?? Shader.Find("Unlit/Color")) { color = new Color(0.93f, 0.96f, 1f, 0.85f), name = "GlassFractureEdge" };
+        private Material _lastShardMat;
         private static Material ShardMat() => _shardMat ??= new Material(Shader.Find("FlyingGame/UnlitTransparent") ?? Shader.Find("Unlit/Color")) { color = new Color(0.82f, 0.9f, 0.96f, 0.6f), name = "GlassShard" };
 
         // ---- the shards -------------------------------------------------------------------------------------------------
@@ -406,7 +412,7 @@ namespace FlyingGame.Bridge
             {
                 var go = new GameObject("GlassShard");
                 go.AddComponent<MeshFilter>().sharedMesh = ShardMesh();
-                go.AddComponent<MeshRenderer>().sharedMaterial = ShardMat();
+                go.AddComponent<MeshRenderer>().sharedMaterial = _lastShardMat != null ? _lastShardMat : ShardMat();
                 // Most shards are a few centimetres; now and then a long sliver.
                 float size = Random.value < 0.15f ? Random.Range(0.10f, 0.22f) : Random.Range(0.025f, 0.08f);
                 go.transform.localScale = new Vector3(size * Random.Range(0.5f, 1.2f), size, size * Random.Range(0.6f, 1.4f));
@@ -488,7 +494,11 @@ namespace FlyingGame.Bridge
                 _rng = new System.Random(seed);
                 Vector3[] v = src.vertices; Vector3[] n = src.normals; Vector2[] uv = src.uv;
                 _hasN = n != null && n.Length == v.Length; _hasUv = uv != null && uv.Length == v.Length;
+                // Welded by position within each LAYER (the side the vertex's normal faces, out of or into the fuselage): a
+                // pane exported as a triangle soup, or split at UV seams, becomes one surface whose edges are shared, while the
+                // two coincident layers of a double-sided pane stay two.
                 var map = new Dictionary<int, int>();
+                var weld = new Dictionary<(int, int, int, bool), int>();
                 foreach (int sub in subs)
                 {
                     int[] tri = src.GetTriangles(sub);
@@ -496,12 +506,24 @@ namespace FlyingGame.Bridge
                     {
                         if (!map.TryGetValue(i, out int j))
                         {
-                            j = _v.Count; map[i] = j;
-                            _v.Add(v[i]); _n.Add(_hasN ? n[i] : Vector3.up); _uv.Add(_hasUv ? uv[i] : Vector2.zero);
+                            Vector3 pd = toDriver.MultiplyPoint3x4(v[i]);
+                            bool outer = !_hasN || Vector3.Dot(toDriver.MultiplyVector(n[i]), Outward(pd)) >= 0f;
+                            var key = (Mathf.RoundToInt(pd.x * 5000f), Mathf.RoundToInt(pd.y * 5000f), Mathf.RoundToInt(pd.z * 5000f), outer);
+                            if (!weld.TryGetValue(key, out j))
+                            {
+                                j = _v.Count; weld[key] = j;
+                                _v.Add(v[i]); _n.Add(_hasN ? n[i] : Vector3.up); _uv.Add(_hasUv ? uv[i] : Vector2.zero);
+                            }
+                            map[i] = j;
                         }
                         _t.Add(j);
                     }
                 }
+                // Welding can collapse a sliver to a line: drop those.
+                var t2 = new List<int>(_t.Count);
+                for (int i = 0; i + 2 < _t.Count; i += 3)
+                    if (_t[i] != _t[i + 1] && _t[i + 1] != _t[i + 2] && _t[i] != _t[i + 2]) { t2.Add(_t[i]); t2.Add(_t[i + 1]); t2.Add(_t[i + 2]); }
+                _t = t2;
             }
 
             public Mesh Build(out Mesh edges)

@@ -150,7 +150,10 @@ public static class Glazing
         foreach (ContactPoint p in contacts) if (p.Name == "cabin-top") top = p;
         double rBody = top is not null ? System.Math.Max(0.25, -top.Body.Z / 1.1) : 0.5;
         var eyes = new List<Vec3>();
-        if (c.Loading is { } ld) foreach (StationConfig s in ld.Seats) if (s.HasEye) eyes.Add(s.EyeVec());
+        // An authored eye is CG-rooted (Bridge CockpitView draws it straight in the aeroplane's CG frame); the panes are
+        // config-origin, like the hard points.
+        Vec3 cgv = c.Mass.CgVec();
+        if (c.Loading is { } ld) foreach (StationConfig s in ld.Seats) if (s.HasEye) eyes.Add(s.EyeVec() + cgv);
         if (eyes.Count == 0) eyes.Add(new Vec3(top?.Body.X ?? 0.3, 0, -0.55 * rBody));
         eyes.Sort((a, b) => b.X.CompareTo(a.X));   // front seat first
         Vec3 front = eyes[0], rear = eyes[^1];

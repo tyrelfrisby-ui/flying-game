@@ -9,14 +9,15 @@ using FlyingGame.Sim;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using ContactPoint = FlyingGame.Core.ContactPoint;
 
 namespace FlyingGame.EditorTools
 {
     /// <summary>
     /// Ty 2026-11-05 Q028b / t867u: canopy, windshield and window glass shatters only on a direct hit, jagged, on every
     /// aeroplane. For each case the airframe the game builds is drawn, its glass is measured by GlassShatter (the panes the
-    /// sim is given), a shatter is raised — a REAL one for the Pitts and the Extra (on its back onto flat ground at 14 m/s,
-    /// as tools/FlightTests/GlazingTests does), else the sim's event at the pane's own first sensor point — and the glass is
+    /// sim is given), a shatter is raised — a REAL one for the Extra (on its back onto flat ground at 14 m/s, as
+    /// tools/FlightTests/GlazingTests does; the Pitts' upper wing would meet the ground first), else the sim's event at the pane's own first sensor point — and the glass is
     /// drawn before and after, outside and from the seat eye.
     ///   Unity -batchmode -quit -projectPath unity -executeMethod FlyingGame.EditorTools.GlassShatterShots.Render
     /// Images to GLASS_RENDER_DIR (default build/glass-shatter/).
@@ -33,14 +34,14 @@ namespace FlyingGame.EditorTools
             int failures = 0;
             var cases = new[]
             {
-                new Case { Id = "pitts-s2b-like", Real = true },
-                new Case { Id = "extra-300-like", Real = true },
+                new Case { Id = "pitts-s2b-like", Pane = "Canopy_Glass" },   // on its back the upper wing meets the ground first
+                new Case { Id = "extra-300-like", Pane = "Canopy_Glass", Real = true },
                 new Case { Id = "c172-like", Pane = "Glass.Windscreen" },
                 new Case { Id = "glider-2-33-like", Pane = "Canopy_Glass" },
                 new Case { Id = "glider-grob103-acro-like", Pane = "Canopy_Glass" },
                 new Case { Id = "great-lakes-like", Pane = "Windscreen_Front" },
                 new Case { Id = "j3-cub-like", Pane = "Glass" },
-                new Case { Id = "cirrus-sr22-like", Pane = null },
+                new Case { Id = "cirrus-sr22-like", Pane = "Object_30" },
             };
             try
             {
@@ -93,7 +94,8 @@ namespace FlyingGame.EditorTools
             GlazingPane target = c.Pane == null ? ac.GlazingPanes.FirstOrDefault() : ac.GlazingPanes.FirstOrDefault(p => p.Id == c.Pane) ?? ac.GlazingPanes.FirstOrDefault(p => p.Id.StartsWith(c.Pane));
             if (target == null) { Debug.LogError($"[GlassShots] {c.Id}: no pane '{c.Pane}'"); Object.DestroyImmediate(root); return fails + 1; }
             Vector3 centre = Vector3.zero; foreach (Vec3 q in target.Points) centre += L(q); centre /= target.Points.Length;
-            Vector3 eye = cfg.Loading.Seats.Count > 0 ? L(cfg.Loading.Seats.OrderByDescending(s => s.EyeVec().X).First().EyeVec()) : centre + new Vector3(0, -0.15f, -0.5f);
+            Vector3 eye = cfg.Loading.Seats.Any(s => s.HasEye) ? CoordinateMap.ToUnity(cfg.Loading.Seats.Where(s => s.HasEye).OrderByDescending(s => s.EyeVec().X).First().EyeVec()) :   // eyes are CG-rooted
+                centre + new Vector3(0, -0.15f, -0.5f);
             Vector3 outside = (new Vector3(centre.x, centre.y, 0f).normalized + Vector3.forward * 0.6f + Vector3.left * 0.5f).normalized;
             void Shots(string tag)
             {
@@ -115,7 +117,6 @@ namespace FlyingGame.EditorTools
                 for (double t = 0; t < 1.0 && ac.GlazingLog.Count == 0; t += 0.005) ac.Step(new ControlInputs(0, 0, 0, -1), 0.005);
                 Debug.Log($"[GlassShots] {c.Id}: real strike shattered [{string.Join(", ", ac.GlazingLog.Select(p => $"{p.Id} at {p.ShatterClosingMs:F1} m/s by {p.ShatterBy}"))}]");
                 if (ac.GlazingLog.Count == 0) { Debug.LogError($"[GlassShots] {c.Id}: the strike broke no glass"); fails++; }
-                else target = ac.GlazingLog[0];
             }
             else
             {

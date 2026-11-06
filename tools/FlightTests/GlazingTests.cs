@@ -119,13 +119,13 @@ public class GlazingTests : IDisposable
 
     // ---- a direct hit -----------------------------------------------------------------------------------------------
 
-    /// <summary>On its back at 14 m/s (the fin arrives first and swings the canopy down at ~8 m/s), the canopy itself arrives on the ground: it shatters, stays on the aeroplane (the crash is
-    /// exactly the crash without glass: nothing more is lost, no more mass shed; the frame and what is left of the glass ride on, latched or not) and opens the water's canopy
+    /// <summary>The Extra (a low wing: nothing above the canopy) on its back at 14 m/s: the canopy itself arrives on the ground: it shatters, stays on the aeroplane (the crash is
+    /// exactly the crash without glass: nothing more is lost, no more mass shed; the frame and what is left of the glass ride on, latched or not) and opens the water's glazing
     /// hatch.</summary>
     [Fact]
     public void ADirectHitOnTheCanopyShattersItAndItStaysOn()
     {
-        AircraftConfig c = Load("pitts-s2b-like");
+        AircraftConfig c = Load("extra-300-like");
         var ac = Dropped(c, Inverted, 14.0);
         var bare = Dropped(c, Inverted, 14.0);
         bare.SetGlazing(Array.Empty<GlazingPane>());   // the same crash with no glass at all
@@ -142,7 +142,9 @@ public class GlazingTests : IDisposable
         Assert.Equal(bare.LostComponents.OrderBy(x => x), ac.LostComponents.OrderBy(x => x));
         Assert.Equal(bare.State.Position.X, ac.State.Position.X);
         Assert.Equal(bare.State.Position.Z, ac.State.Position.Z);
-        Assert.Contains(ac.Hydro.Attached.SelectMany(h => h.Panels), p => p.Why.StartsWith("canopy broken") && p.Broken >= 1);
+        // The Extra's water model has no canopy opening of its own (config construction.cockpits empty): its glazing hatch is
+        // the cabin's windshield, and that is what opens.
+        Assert.Contains(ac.Hydro.Attached.SelectMany(h => h.Panels), p => (p.Why.StartsWith("canopy broken") || p.Why.StartsWith("windshield broken")) && p.Broken >= 1);
     }
 
     /// <summary>A pane measured on the drawn glass (Aircraft.SetGlazing) is what is checked: a pane whose point sits 1 cm
@@ -198,15 +200,17 @@ public class GlazingTests : IDisposable
         Assert.Contains(ev, e => e.Part == "canopy" && e.SurfaceCode == ContactPoint.SurfaceWater);
     }
 
-    /// <summary>Across the fleet, on its back: at 14 m/s every type whose glass is the lowest thing on its back breaks some;
-    /// a high wing or a biplane's upper wing holds the glass off the ground, and it stays whole (the Beavers, the Decathlon,
-    /// the Super Cubs, the Aircams, the JN-4, the Great Lakes and the Stearman, from this test's run of 2026-11-06); and at
+    /// <summary>Across the fleet, on its back, with the headless estimated panes (the game measures the drawn glass; the
+    /// Pitts' measured canopy is under its upper wing too, GlassShatterShots): at 14 m/s every type whose glass is the lowest
+    /// thing on its back breaks some; a high wing or a biplane's upper wing holds the glass off the ground, and it stays whole
+    /// (the Beavers, the Decathlon, the Super Cubs, the Aircams, the JN-4, the Great Lakes, the Stearman and the Pitts, from
+    /// this test's run of 2026-11-06); and at
     /// 2 m/s no type breaks any.</summary>
     [Fact]
     public void OnItsBackGlassBreaksOnlyWhereItIsWhatHitsAndNeverOnATouch()
     {
         var shielded = new HashSet<string> { "dhc2-beaver-like", "dhc2-beaver-floats-like", "decathlon-8kcab-like", "pa18-cub-like", "pa18-bush-like", "pa18-floats-like",
-            "aircam-like", "aircam-amphib-like", "jn4-jenny-like", "great-lakes-like", "stearman-pt17-like" };
+            "aircam-like", "aircam-amphib-like", "jn4-jenny-like", "great-lakes-like", "stearman-pt17-like", "pitts-s2b-like" };
         string dir = Path.Combine(AppContext.BaseDirectory, "TestData");
         var wrong = new List<string>(); var soft = new List<string>();
         foreach (string f in Directory.GetFiles(dir, "*-like.json"))
