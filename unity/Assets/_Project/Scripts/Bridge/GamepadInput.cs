@@ -51,9 +51,59 @@ namespace FlyingGame.Bridge
             get
             {
                 if (SimulateConnectedForTest) return new Frame { Connected = true };
-                if (_frame != Time.frameCount) { _frame = Time.frameCount; _now = Read(); }
+                if (_frame != Time.frameCount) { _frame = Time.frameCount; _now = LocalSplit.Active ? For(0) : Read(); }
                 return _now;
             }
+        }
+
+        // ---- LOCAL 2-PLAYER (split screen): one pad per player, bound by device id ------------------------------------
+        //
+        // With split screen off nothing below runs and Now is the single-player read above, unchanged. With it on, Now is
+        // player 1's pad and nobody else's (TouchFlightControls reads Now, so the first player's touch / pad path is the
+        // same code as ever), and For(1) is the second player's. FlyingGame.Core.LocalMp.PadBinding decides who is who:
+        // first pad P1, second pad P2, sticky while connected, a pad that reconnects gets its own seat back.
+
+        private static readonly FlyingGame.Core.LocalMp.PadBinding _binding = new(2);
+        private static readonly Frame[] _seatNow = new Frame[2];
+        private static readonly System.Collections.Generic.List<int> _liveIds = new(4);
+        private static int _seatFrame = -1;
+
+        /// <summary>The pad of player <paramref name="player"/> (0 = P1) this frame; not connected when that seat has
+        /// no pad. Without split screen, player 0 is <see cref="Now"/> and every other player has none.</summary>
+        public static Frame For(int player)
+        {
+            if (!LocalSplit.Active) return player == 0 ? Now : default;
+            if (SimulateConnectedForTest) return new Frame { Connected = true };
+            if (player < 0 || player >= _seatNow.Length) return default;
+            if (_seatFrame != Time.frameCount) { _seatFrame = Time.frameCount; ReadSeats(); }
+            return _seatNow[player];
+        }
+
+        /// <summary>The name of player <paramref name="player"/>'s pad, or null.</summary>
+        public static string NameFor(int player)
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (!LocalSplit.Active) return player == 0 ? ConnectedName : null;
+            var p = PadById(_binding.PadFor(player));
+            return p != null ? p.displayName ?? p.name : null;
+#else
+            return null;
+#endif
+        }
+
+        private static void ReadSeats()
+        {
+#if ENABLE_INPUT_SYSTEM
+            _liveIds.Clear();
+            foreach (var g in Gamepad.all) if (g.added && g.enabled) _liveIds.Add(g.deviceId);
+            if (_binding.Update(_liveIds))
+                Debug.Log($"[Gamepad] split screen: P1 {NameOrNone(PadById(_binding.PadFor(0)))}, P2 {NameOrNone(PadById(_binding.PadFor(1)))}");
+            for (int i = 0; i < _seatNow.Length; i++)
+            {
+                var p = PadById(_binding.PadFor(i));
+                _seatNow[i] = p != null ? Read(p) : default;
+            }
+#endif
         }
 
         /// <summary>The pad's name, or null — for a status line.</summary>
@@ -99,10 +149,20 @@ namespace FlyingGame.Bridge
         //   d-pad up / down     pitch trim nose down / nose up (held)    d-pad right / left   flaps down / up a step
         //   A guns (held) · B smoke · X wheel brakes (held) · Y change view · Menu OPTIONS · View REC
         //   L3 held + d-pad     cockpit look (pan held, snap on a tap)   R3   recentre the cockpit view
-        private static Frame Read()
+        private static Frame Read() => Read(Pad());
+
+        private static Gamepad PadById(int id)
+        {
+            if (id == FlyingGame.Core.LocalMp.PadBinding.NoPad) return null;
+            foreach (var g in Gamepad.all) if (g.deviceId == id && g.added && g.enabled) return g;
+            return null;
+        }
+
+        private static string NameOrNone(Gamepad p) => p != null ? $"{p.displayName} (#{p.deviceId})" : "none (parked)";
+
+        private static Frame Read(Gamepad p)
         {
             var f = new Frame();
-            var p = Pad();
             if (p == null) return f;   // never connected, or gone: everything idle, which lets go of the controls
             f.Connected = true;
             Vector2 r = p.rightStick.ReadValue(), l = p.leftStick.ReadValue();

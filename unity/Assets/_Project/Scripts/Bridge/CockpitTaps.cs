@@ -67,7 +67,12 @@ namespace FlyingGame.Bridge
         public bool PopupOpen => _popup;
         private CockpitRigState Cockpit => _visual != null ? _visual.Cockpit : null;
 
-        private void Awake() { _visual = GetComponent<AirframeVisual>(); _touch = GetComponent<TouchFlightControls>(); Current = this; }
+        private void Awake()
+        {
+            _visual = GetComponent<AirframeVisual>(); _touch = GetComponent<TouchFlightControls>(); _driver = GetComponent<FlightSimDriver>();
+            if (_driver == null || _driver.PlayerIndex == 0) Current = this;   // (the second local player's never replaces the first's)
+        }
+        private FlightSimDriver _driver;
         private void OnDestroy() { if (Current == this) Current = null; Forget(); }
 
         // ---- binding ----
@@ -310,7 +315,10 @@ namespace FlyingGame.Bridge
 
         private void Taps()
         {
-            Camera cam = Camera.main;
+            // Split screen: this aeroplane's own camera, and only touches on its own half (P2's instruments are not
+            // touched through P1's camera, and a touch on P1's half is not P2's).
+            LocalPlayerView view = LocalSplit.Active ? LocalPlayerView.ForDriver(_driver) : null;
+            Camera cam = view != null ? view.Camera : Camera.main;
             if (cam == null) return;
             if (Input.touchCount > 0)
             {
@@ -336,6 +344,7 @@ namespace FlyingGame.Bridge
             if ((up - down).magnitude > UiLayout.S * 0.02f || Time.unscaledTime - _downT > 0.6f) return;
             if (_touch != null && _touch.IsControlAt(down)) return;
             if (SessionSettings.MenuOpen || SessionSettings.PanelPause) return;
+            if (LocalSplit.Active && !cam.pixelRect.Contains(down)) return;
             Ray ray = cam.ScreenPointToRay(down);
             Target best = null; float bestT = 3f;
             foreach (Target t in _targets)

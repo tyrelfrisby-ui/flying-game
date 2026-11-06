@@ -57,9 +57,14 @@ namespace FlyingGame.Bridge
             Shader.SetGlobalFloat(ReflOnId, 0f);
         }
 
+        /// <summary>LOCAL 2-PLAYER: off while the screen is split. The reflection is one texture, mirrored from the first
+        /// player's camera and read by the water shader in screen space, so the second view would show the first view's
+        /// mirror image; and a second planar camera is the most expensive thing that could be doubled on a phone.</summary>
+        public static bool SuppressedForSplit;
+
         private void OnPreCull()
         {
-            if (Driver == null || _refl == null) { Shader.SetGlobalFloat(ReflOnId, 0f); return; }
+            if (Driver == null || _refl == null || SuppressedForSplit) { Shader.SetGlobalFloat(ReflOnId, 0f); return; }
             // Water plane under the aircraft (nearest lake / river surface); none → no reflection.
             var simPos = CoordinateMap.ToSim(Driver.transform.position);
             double? water = FlyingGame.Core.FloatHydro.WaterSurfaceAt(simPos.X, simPos.Y);
