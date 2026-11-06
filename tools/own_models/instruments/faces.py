@@ -38,7 +38,7 @@ def base(fill=FACE):
 
 
 def tick(d, th, r0, r1, w=8, col=WHITE):
-    d.line([pol(th, r0), pol(th, r1)], fill=col, width=int(w))
+    d.line([pol(th, r0), pol(th, r1)], fill=col, width=int(w) + 2)
 
 
 def bar(d, th, r0, r1, w, col=WHITE):
@@ -50,7 +50,7 @@ def bar(d, th, r0, r1, w, col=WHITE):
 
 def label(d, th, r, s, size=60, col=WHITE):
     f = font(int(size)); x, y = pol(th, r); bb = d.textbbox((0, 0), s, font=f)
-    d.text((x - (bb[2] - bb[0]) / 2 - bb[0], y - (bb[3] - bb[1]) / 2 - bb[1]), s, fill=col, font=f)
+    d.text((x - (bb[2] - bb[0]) / 2 - bb[0], y - (bb[3] - bb[1]) / 2 - bb[1]), s, fill=col, font=f, stroke_width=1)
 
 
 def text_at(d, x, y, s, size=40, col=WHITE):
@@ -62,6 +62,8 @@ def text_at(d, x, y, s, size=40, col=WHITE):
 
 def arc(d, th0, th1, r, w, col):
     """A coloured band centred on radius r (face radii), w px wide, from th0 to th1 clockwise."""
+    # t933: slimmer operating bands; keep radius and angular limits calibrated.
+    w = max(2, round(w * 0.5))
     a0, a1 = sorted((th0, th1)); R = px(r)
     d.arc((C - R - w / 2, C - R - w / 2, C + R + w / 2, C + R + w / 2), a0 - 90, a1 - 90, fill=col, width=int(w))
 

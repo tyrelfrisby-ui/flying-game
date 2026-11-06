@@ -1,3 +1,14 @@
+## NEEDS YOU — t932/t933 instrument fleet + flicker PROGRESS (Codex, 2026-11-06)
+- Lane `lane/codex-instrument-visuals-t932`, based on Cub C-85 tip `1753cc6e`. **No playable merge yet.** Ty's t921 Pitts ASI PASS remains intact; no new approval asserted.
+- Shared non-Cub instruments: numerals gain 1 px stroke at 1024 px; ticks gain 2 px; operating arcs half width. Regenerated shared library and per-aircraft ASI/G faces. Redline bars, angular limits, configs and runtime needle maps unchanged. Cub atlas/airframes untouched.
+- Offline comparison PASS: all six changed GLBs retain identical nodes, meshes and every geometry/UV/index accessor; calibration manifest unchanged. Updated Pitts ASI texture opened and inspected.
+- Before face PNGs: `~/Developer/agent-lanes/renders/t932-instrument-fleet-flicker/before/`. These are texture evidence, **not phone cockpit evidence**. No new phone captures yet.
+- Verification did not start: existing t923/deploy reservations and Pitts probe occupied the slot. Released this lane's waiting process to avoid reservation deadlock. **No new .NET pass / Unity compile / BUILD SUCCEEDED claimed.** Prior 156/156 and build belong to `1753cc6e` only.
+- Resume `zsh tools/deploy/deploy-instrument-verification.sh` when idle (exits 75 if occupied): Instrument + NoRed233 tests, four Pitts/Great Lakes phone-size cockpit fixtures, then `deploy.sh NOINSTALL` (NOUPLOAD). Inspect logs and open all captures; fixtures are not physical-phone screenshots.
+- Remaining: embedded engine/other fleet face treatment beyond shared gauges; matched before/after cockpit evidence; reproduce flicker temporally with fixed inputs before choosing a fix. Inspected CockpitRigState, SharedInstruments, AirframeRig and instrument models: no added periodic needle jitter found; yaw-string flutter and damaged-prop camera shake are separate legitimate effects. Z-fighting/aliasing/data remain hypotheses.
+- Merge checklist for Claude: finish scope; targeted tests + serialized iOS ** BUILD SUCCEEDED **; inspect phone evidence and dynamic stability; local merge into island-nav then Quest same day under parity lock. No push/main/upload.
+- Pre-existing packaging/backup dirt preserved in stash named `t938u preserve pre-existing Unity packaging and Cub backups before fleet work`; retained as recovery copy after restoration.
+
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
 - Shatter: already at **90ee4fc7** / Quest **13e45d72** / iOS 2026.1106.0249 — no duplicate.
