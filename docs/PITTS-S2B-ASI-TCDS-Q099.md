@@ -49,3 +49,9 @@ When integrating `lane/claude-shared-instruments` **4e0d8575** (Q098 APPROVED):
 ## Out of scope
 - Great Lakes ASI unchanged (their own arcs).
 - Q100 g-meter, Q101 Extra ASI law, Q102 glider library — still open, untouched.
+
+## Green floor (Ty t904u ~05:30 AKST Nov 6)
+Ty: "It is just published stall speed."
+**Published:** Aviat Aircraft Inc. *Pitts Special S-2B Aircraft Owner’s and Maintenance Manual* 70197-001 (1-1-97 / performance page dated 4-1-97): **STALLING SPEED — 63 MPH IAS**.
+No CAS↔IAS conversion invented; figure already mph IAS. Not Great Lakes 58; not AOPA 52 KIAS.
+ASI green arc: **63–154 mph**; yellow **154–212**; red **212**.

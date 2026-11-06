@@ -2355,6 +2355,10 @@
       "scaleMin": 40,
       "scaleMax": 240,
       "arcs": {
+        "green": [
+          63,
+          154
+        ],
         "yellow": [
           154,
           212
@@ -2369,10 +2373,10 @@
         "VNE_mph_CAS": 212,
         "VNO_mph_CAS": 154,
         "VA_mph_CAS": 154,
-        "greenFloor": "MISSING \u2014 AFM rev I 1998-01-14 or later; not on TCDS",
+        "greenFloor": "63 MPH IAS \u2014 Aviat Owner's Manual 70197-001 STALLING SPEED (Ty t904u published stall); not GL; not AOPA 52 KIAS conversion",
         "authority": "Ty t903u Use the tcds; Q099"
       },
-      "_source": "TCDS A8SO Rev 28 S-2B Airspeed Limits (CAS): VNE 212 mph, VNO/VA 154 mph. mph per t897u. Green arc floor (Vs1) NOT on TCDS \u2014 see AFM. Great Lakes arcs removed (Q099 t903u)."
+      "_source": "TCDS A8SO Rev28 S-2B: VNE 212 / VNO\u00b7VA 154 mph CAS. Green floor 63 mph IAS from Aviat S-2B Owner's Manual STALLING SPEED (t904u). mph per t897u. Great Lakes arcs removed (t903u)."
     },
     "_source": "shared instrument library: the Great Lakes markings the Pitts' live dial has shown since 2026-11-02 (gl-dial-asi), unchanged; the Pitts' own S-2B markings are an open question (Q in QUESTIONS-FOR-TY)"
   }
