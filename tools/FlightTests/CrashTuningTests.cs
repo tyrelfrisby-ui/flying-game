@@ -306,15 +306,16 @@ public class CrashTuningTests : IDisposable
     public void BranchesThinFromTheStemToTheCrownEdge()
     {
         var t = new Forest.Tree(0, 0, 0.0, 30, 0.22 + 30 / 24.0, 0, 0);
-        // At 15 m: stem 0.25 m, crown radius 3.528·15/24 = 2.205 m. Branch 0.005 + 0.2·0.25 = 0.055 m at the stem, the twig
-        // 0.005 m at the edge, 0.030 half way.
-        Assert.Equal(2.205, TreeStructure.CrownRadiusAt(t, 15.0), 3);
+        // At 15 m: stem 0.25 m; crown radius (the drawn skirts, 2026-11-05) — half way up only the lowest skirt (base
+        // 0.22·30 = 6.6 m, rise 0.42·30 = 12.6 m, radius 3.528) reaches: 1.03·3.528·(1 − 8.4/12.6) = 1.2113 m. Branch
+        // 0.005 + 0.2·0.25 = 0.055 m at the stem, the twig 0.005 m at the edge, 0.030 half way.
+        Assert.Equal(1.2113, TreeStructure.CrownRadiusAt(t, 15.0), 4);
         Assert.Equal(0.055, TreeStructure.BranchDiameterAt(t, 15.0, 0.0), 6);
-        Assert.Equal(0.030, TreeStructure.BranchDiameterAt(t, 15.0, 1.1025), 6);
-        Assert.Equal(0.0, TreeStructure.BranchDiameterAt(t, 15.0, 2.3));
-        // λ = 10/(π·2.205) = 1.4436 m of branch per m³; a 1 m edge at 60 m/s crosses (2/π)·1.4436·60 = 55.1 a second.
-        Assert.Equal(1.4436, TreeStructure.BranchLengthDensity(t, 15.0), 4);
-        Assert.Equal(55.14, TreeStructure.CrossingsPerS(1.4436, 1.0, 60.0), 2);
+        Assert.Equal(0.030, TreeStructure.BranchDiameterAt(t, 15.0, 0.60564), 6);
+        Assert.Equal(0.0, TreeStructure.BranchDiameterAt(t, 15.0, 1.22));
+        // λ = 10/(π·1.2113) = 2.6279 m of branch per m³; a 1 m edge at 60 m/s crosses (2/π)·2.6279·60 = 100.38 a second.
+        Assert.Equal(2.6279, TreeStructure.BranchLengthDensity(t, 15.0), 4);
+        Assert.Equal(100.38, TreeStructure.CrossingsPerS(2.6279, 1.0, 60.0), 2);
         // A 2 cm branch at 60 m/s: 53e6·π·0.0004/64 + 600·0.0004·3600 = 1040.65 + 864 = 1904.65 N (dents a leading edge);
         // a 1 cm twig at 20 m/s: 260.16 + 24 = 284.16 N (does not).
         Assert.Equal(1904.65, TreeStructure.BranchStrikeForceN(0.02, 60.0), 2);
@@ -328,7 +329,8 @@ public class CrashTuningTests : IDisposable
     private (Aircraft ac, Aircraft twin, int events) CrownPass(string cfg, double v, double rhoFrac, double up = 15.0)
     {
         AircraftConfig c = Load(cfg);
-        double rc = 3.528 * (30 - up) / 24.0;
+        // The crown radius there: at 15 m, half way up, only the lowest skirt (base 6.6 m, rise 12.6 m) reaches: 1.03·3.528·(1 − 8.4/12.6).
+        double rc = up == 15.0 ? 1.2113 : throw new ArgumentException("work out the crown radius for this height");
         double semi = WingPanels.Semispan(c) + 0.3;
         var tree = new Forest.Tree(20, -(semi + rhoFrac * rc), 0.0, 30, 0.22 + 30 / 24.0, 0, 0);
         RigidBodyState s0 = new(new Vec3(0, 0, -up), Quat.Identity, new Vec3(v, 0, 0), Vec3.Zero);
@@ -349,7 +351,9 @@ public class CrashTuningTests : IDisposable
     [Fact]
     public void ACanopyPassAtCruiseDamagesAndDrags()
     {
-        (Aircraft ac, Aircraft twin, int events) = CrownPass("pitts-s2b-like", 60.0, 0.35);
+        // The tips to a quarter of the crown's radius from the stem (0.35 until 2026-11-05, when the crown became the drawn
+        // skirts: 1.21 m at this height instead of the cone's 2.21, so 0.35 of it was half the branch-path it had been).
+        (Aircraft ac, Aircraft twin, int events) = CrownPass("pitts-s2b-like", 60.0, 0.25);
         Assert.True(ac.MaxBranchDamage >= 0.1, $"strip damage {ac.MaxBranchDamage:F3}");
         Assert.True(events > 0, "no BranchDamage events");
         Assert.True(twin.State.Velocity.Length - ac.State.Velocity.Length > 0.2, "the canopy must drag");
