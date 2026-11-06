@@ -655,9 +655,12 @@ namespace FlyingGame.Bridge
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive || Current == Phase.InCockpit || string.IsNullOrEmpty(_status)) return;
             EnsureStyle();
             Rect view = ScreenLayout.ViewRect;            // screen px, bottom-left origin
-            float h = _fs * 1.9f;
             float y = Screen.height - view.yMax + view.height * 0.30f;   // GUI space (top-left origin)
-            var r = new Rect(view.x + view.width * 0.08f, y, view.width * 0.84f, h);
+            float left = Mathf.Max(view.x + view.width * 0.08f, UiLayout.SafeLeft);
+            float right = Mathf.Min(view.xMax - view.width * 0.08f, Screen.width - UiLayout.SafeRight);
+            // Measure the wrapped text at its actual width; a fixed one-line height clips the farewell in portrait.
+            float h = Mathf.Max(_fs * 1.9f, _style.CalcHeight(new GUIContent(_status), right - left) + _fs * 0.6f);
+            var r = new Rect(left, y, right - left, h);
             GUI.color = new Color(0f, 0f, 0f, 0.45f);
             GUI.DrawTexture(r, _bg);
             GUI.color = Color.white;
@@ -681,6 +684,7 @@ namespace FlyingGame.Bridge
                 fontSize = fs,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
+                wordWrap = true,
                 font = UiFont.Get(),
                 normal = { textColor = new Color(1f, 0.85f, 0.3f, 1f) },
             };
