@@ -37,6 +37,17 @@
         "approved_by": "Ty (asked for it; value measured against the model)",
         "approved_on": "2026-11-02",
         "supersedes_note": "Raised 25 mm (z -0.111 -> -0.136, +z down) after Ty asked for the 2-33 eye 'a touch higher (about 2-3 cm)'. Canopy clearance measured against glider-2-33-like-own.glb and -own-tf.glb with the canopy glass counted: straight up 0.344 -> 0.319 m, nearest geometry in any direction 0.249 -> 0.246 m; no skin within 12 cm. Still above the forward fuselage top line (higher only helps). The rear seat is unchanged."
+      },
+      "v8": {
+        "position_body": [
+          0.971,
+          0.0,
+          -0.2122
+        ],
+        "requested_by": "Ty t887u",
+        "requested_on": "2026-11-06",
+        "status": "implemented for review: NOT visually approved until Ty reviews before/after",
+        "supersedes_note": "Raised 76.2 mm (3 in; z -0.136 -> -0.2122, +z down) over playable v6 after Ty t887u 'Move eye position up 3 inches on 2-33'. Taken from current playable eye, NOT from unmerged v7 (-0.187 / +2 in). Rear unchanged. Panel Q118 merge is separate."
       }
     },
     {
