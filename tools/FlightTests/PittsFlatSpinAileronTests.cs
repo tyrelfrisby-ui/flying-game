@@ -90,14 +90,18 @@ public class PittsFlatSpinAileronTests
 
     /// <summary>
     /// Regression pin: the UPRIGHT spins with the ailerons neutral, which the owner flew on 2026.1103.1622 and approved
-    /// ("upright flat spin feels good"). Run #4 changes only what a deflected aileron does, so these must not move. Values
-    /// copied from the run #4 "before" table: α, θ (deg), Ω (deg/s).
+    /// ("upright flat spin feels good"). Run #4 changes only what a deflected aileron does, so these must not move. Values:
+    /// α, θ (deg), Ω (deg/s).
+    /// RE-PINNED 2026-11-05 (Q007, deliberate): the gyro now turns at the governed rpm and the Pitts' prop inertia went
+    /// 9.0 → 3.5 kg·m² (PittsSpinPastFlatTests). The shapes held — idle α within 0.3°, 40 % left still flat — but the rates
+    /// moved. Run #4 values (what the owner approved): idle L 31.8 / −56.9 / 183, idle R 30.9 / −57.3 / 245, 40 % L 92.9 /
+    /// 3.9 / 201, 40 % R 30.8 / −57.6 / 318. New values copied from the Q007 table in AGENT-LOG; owner fly-check open.
     /// </summary>
     [Theory]
-    [InlineData(-1.0, Idle, 31.8, -56.9, 183.0)]
-    [InlineData(1.0, Idle, 30.9, -57.3, 245.0)]
-    [InlineData(-1.0, Power40, 92.9, 3.9, 201.0)]
-    [InlineData(1.0, Power40, 30.8, -57.6, 318.0)]
+    [InlineData(-1.0, Idle, 31.5, -57.1, 200.0)]
+    [InlineData(1.0, Idle, 31.6, -56.6, 223.0)]
+    [InlineData(-1.0, Power40, 88.9, -0.5, 238.0)]
+    [InlineData(1.0, Power40, 29.8, -58.3, 276.0)]
     public void UprightSpinsWithAileronsNeutralAreUnchanged(double rudder, double lever, double alpha, double pitch, double omega)
     {
         var st = Spin(rudder, lever, false, 0.0);

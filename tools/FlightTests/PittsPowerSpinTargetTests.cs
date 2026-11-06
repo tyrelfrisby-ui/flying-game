@@ -21,7 +21,7 @@ public class PittsPowerSpinTargetTests
 
     private static AircraftConfig Load() => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pitts-s2b-like.json"));
 
-    [Fact(Skip = "OPEN (owner target 2026-11-03): rolls out of the inverted flat; see AGENT-LOG")]
+    [Fact(Skip = "OPEN (owner target 2026-11-03): since Q007 (2026-11-05) it holds inverted flat without rolling out (PittsSpinPastFlatTests), but at α −85.1, at the edge of this 90–95 band; see AGENT-LOG")]
     public void InvertedRightRudderRightAileronFullPowerStaysInvertedFlat()
     {
         var (st, _) = SpinBalanceProbe.Developed(Load(), rudder: 1.0, lever: -1.0, inverted: true, aileron: 1.0);
