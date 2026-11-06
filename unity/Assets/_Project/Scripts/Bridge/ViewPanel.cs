@@ -104,6 +104,8 @@ namespace FlyingGame.Bridge
             // The shared toolbar row (owner rule 2026-10-03: no overlap): VIEW · REPLAY · CLIP · REC between MENU and
             // OPTIONS; a lesson's END takes a fifth slot. The current view's name shows on the VIEW button when it isn't the
             // default.
+            if (FlyingGame.Core.LocalMp.SplitControls.CompactToolbar(LocalPlayerHud.CompactActive)) { _viewMenu = false; DrawFlightEntry(); return; }
+            _flightOpen = false;
             _practice ??= Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
             bool lesson = _practice != null && _practice.Active;
             int n = lesson ? 8 : 7;        // + CHART
@@ -142,6 +144,66 @@ namespace FlyingGame.Bridge
             else _talkRect = default;
             string radio = VoiceComms.MicProblem ?? (VoiceComms.Receiving != null ? $"RADIO: {VoiceComms.Receiving}" : null);
             if (radio != null) UiLayout.Label(UiLayout.NextLine(_fs * 1.4f), radio, _label);
+        }
+
+        // ---- LOCAL 2-PLAYER, compact split (SplitControls) -------------------------------------------------------------
+        //
+        // The full toolbar row runs across both halves and the touch tray is off (TouchFlightControls.TrayLive), so RESET
+        // and the handle would be out of reach. One FLIGHT entry takes the row's place, on the seam between the two views
+        // (landscape: the middle of the seam; portrait: the left edge of P1's half, level with its middle), clear of the
+        // compact HUD's top and bottom rows. It opens one column per player, and every button acts on that column's
+        // aeroplane only: P1's RESET resets P1, P2's resets P2 (LocalCoop.ResetP2), and the handle is P1's alone (the
+        // second aeroplane has no egress yet). MENU and OPTIONS stay where they are (OPTIONS pauses both players).
+        private bool _flightOpen;
+        private LocalCoop _coop;
+
+        private void DrawFlightEntry()
+        {
+            var views = LocalPlayerView.All;
+            if (views.Count < 2) { _flightOpen = false; return; }
+            float s = UiLayout.S, bw = s * 0.17f, bh = UiLayout.ButtonH;
+            Rect entry = ScreenLayout.Portrait
+                ? new Rect(UiLayout.SafeLeft + UiLayout.Margin, views[0].GuiRect.center.y - bh * 0.5f, bw, bh)
+                : new Rect(Screen.width * 0.5f - bw * 0.5f, Screen.height * 0.5f - bh * 0.5f, bw, bh);
+            if (!_flightOpen)
+            {
+                if (UiLayout.Button(entry, "FLIGHT", _btn)) _flightOpen = true;
+                BlockRect = entry; _blockFrame = Time.frameCount;
+                return;
+            }
+            UiLayout.ModalShown();
+            float gap = s * 0.015f, colW = Mathf.Min(s * 0.42f, (Screen.width * 0.92f - 3 * gap) / 2f), rowH = UiLayout.ButtonH * 1.1f;
+            const int rows = 4;   // header, RESET, handle, VIEW
+            float w = 2 * colW + 3 * gap, h = rows * (rowH + gap) + rowH + 2 * gap;
+            var panel = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
+            BlockRect = panel; _blockFrame = Time.frameCount;
+            GUI.DrawTexture(panel, _bg);
+            for (int i = 0; i < 2; i++)
+            {
+                var v = views[i];
+                float x = panel.x + gap + i * (colW + gap), y = panel.y + gap;
+                Rect Row(int k) => new Rect(x, y + k * (rowH + gap), colW, rowH);
+                string pad = GamepadInput.NameFor(i);
+                UiLayout.Label(Row(0), $"P{i + 1}" + (pad != null ? "" : "  (no controller)"), _label);
+                if (FlyingGame.Core.LocalMp.SplitControls.Offers(i, FlyingGame.Core.LocalMp.SplitControls.Action.Reset, false)
+                    && UiLayout.Button(Row(1), $"P{i + 1} RESET", _btn))
+                { ResetPlayer(i, v); _flightOpen = false; }
+                var touch = i == 0 && v.Driver != null ? v.Driver.GetComponent<TouchFlightControls>() : null;
+                bool handle = touch != null && touch.MenuHandleAvailable;
+                if (FlyingGame.Core.LocalMp.SplitControls.Offers(i, FlyingGame.Core.LocalMp.SplitControls.Action.Handle, handle)
+                    && UiLayout.Button(Row(2), $"P{i + 1} " + touch.MenuHandleLabel.ToUpperInvariant(), _btnRec))
+                { touch.MenuPullHandle(); _flightOpen = false; }
+                if (FlyingGame.Core.LocalMp.SplitControls.Offers(i, FlyingGame.Core.LocalMp.SplitControls.Action.View, false)
+                    && v.Chase != null && UiLayout.Button(Row(3), "VIEW: " + ChaseCamera.ViewNames[(int)v.Chase.CurrentView], _btn))
+                    v.Chase.NextView();
+            }
+            if (UiLayout.Button(new Rect(panel.x + gap, panel.yMax - gap - rowH, panel.width - 2 * gap, rowH), "CLOSE", _btn)) _flightOpen = false;
+        }
+
+        private void ResetPlayer(int player, LocalPlayerView v)
+        {
+            if (player == 0) { v.Driver?.GetComponent<TouchFlightControls>()?.MenuReset(); return; }   // marks it P1's own reset
+            (_coop != null ? _coop : _coop = Object.FindFirstObjectByType<LocalCoop>())?.ResetP2();
         }
 
         /// <summary>The view picker (owner 2026-10-05: "tapping the view button should bring up a menu of the views to choose

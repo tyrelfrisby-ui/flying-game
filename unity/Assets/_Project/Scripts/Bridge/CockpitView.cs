@@ -241,20 +241,23 @@ namespace FlyingGame.Bridge
             // VR owns the gyro while it is on: both applying would double every head movement, and VR
             // is one-for-one where this is geared. VrRig drives the camera instead.
             // A native headset (Quest) likewise: QuestRig drives the camera from the headset's own pose.
-            if (DeviceLook && !VrMode.HeadTracked && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
+            // Split screen: the device, the joystick's hat and the glass buttons are the FIRST player's; the second
+            // player's head turns only from their own pad (GamepadInput.For).
+            bool primary = Driver == null || Driver.PlayerIndex == 0;
+            if (primary && DeviceLook && !VrMode.HeadTracked && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
 
             // The stick's hat, then the buttons on glass. Either may be the only one present.
             int x = 0, y = 0;
-            if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 0)) y += 1;   // up
-            if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 1)) x += 1;   // right
-            if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 2)) y -= 1;   // down
-            if (JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 3)) x -= 1;   // left
+            if (primary && JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 0)) y += 1;   // up
+            if (primary && JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 1)) x += 1;   // right
+            if (primary && JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 2)) y -= 1;   // down
+            if (primary && JoystickInput.ButtonHeld(JoystickInput.HatButton0 + 3)) x -= 1;   // left
             // A gamepad's optional look: the d-pad while L3 is held (GamepadInput). R3 recentres. No stick or
             // trigger is read here -- the right stick FLIES (Ty, 2026-11-02), so it must never also turn the head.
-            var gp = GamepadInput.Now;
+            var gp = primary ? GamepadInput.Now : GamepadInput.For(Driver.PlayerIndex);
             if (gp.RecentrePressed) Centre();
             if (x == 0 && y == 0 && gp.LookHeld) { x = gp.LookX; y = gp.LookY; }
-            if (x == 0 && y == 0) { x = OnScreenHat.x; y = OnScreenHat.y; }
+            if (primary && x == 0 && y == 0) { x = OnScreenHat.x; y = OnScreenHat.y; }
 
             bool hat = x != 0 || y != 0;
             if (hat)

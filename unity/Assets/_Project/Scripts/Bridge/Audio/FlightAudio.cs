@@ -20,6 +20,9 @@ namespace FlyingGame.Bridge
     {
         /// <summary>Master volume 0..1 (menu slider, persisted).</summary>
         public static float MasterVolume = 1f;
+        /// <summary>LOCAL 2-PLAYER: this aeroplane's share of the one mix (both engines are heard through the one
+        /// listener; LocalCoop lowers each a little so the two together are not louder than one was). 1 = as always.</summary>
+        public float MixGain = 1f;
 #if UNITY_IOS && !UNITY_EDITOR
         [System.Runtime.InteropServices.DllImport("__Internal")] private static extern void FlyingGame_SetPlaybackAudioSession();
 #endif
@@ -360,7 +363,7 @@ namespace FlyingGame.Bridge
             }
             _tele.GroanSeverity = _groanSeverity;
             PushGroundSound(aircraft);
-            _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume);
+            _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume) * MixGain;
             // Pilot out: his own airspeed is the wind in his ears; the aircraft's engine, tyres and crashes fade with distance.
             bool pilotOut = _egress != null && _egress.PilotTransform != null && (SessionSettings.ReplayActive ? FlightReplay.ReplayPilotOut : _egress.PilotOut);
             _tele.PilotOut = pilotOut;
@@ -370,7 +373,7 @@ namespace FlyingGame.Bridge
             // is (Core Vr.CockpitWind). What a SHUT canopy lets through is already in the wind above; only the excess is added.
             _visual ??= GetComponent<AirframeVisual>();
             float air = 0f;
-            if (!pilotOut && _visual != null && ChaseCamera.InCockpit)
+            if (!pilotOut && _visual != null && LocalPlayerView.InCockpitFor(d))
             {
                 double q = 0.5 * 1.225 * d.IasMs * d.IasMs, e = _visual.Cockpit.CockpitExposure01;
                 air = (float)(FlyingGame.Core.Vr.CockpitWind.Amplitude(q, e) - FlyingGame.Core.Vr.CockpitWind.Amplitude(q, 0.0));

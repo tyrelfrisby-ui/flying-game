@@ -96,7 +96,7 @@ namespace FlyingGame.Bridge
 
         private void LateUpdate()
         {
-            ScreenLayout.UpdateAircraftKeepOut(Camera.main, transform);
+            if (_driver == null || _driver.PlayerIndex == 0) ScreenLayout.UpdateAircraftKeepOut(Camera.main, transform);   // the first player's screen
             var acFx = _driver?.Sim?.Aircraft;
             if (acFx != null)
             {
@@ -1037,7 +1037,7 @@ namespace FlyingGame.Bridge
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
             foreach (var sights in GetComponentsInChildren<CockpitSights>(true)) sights.BindLocal(_driver);
             GetComponent<GroundShadow>()?.Refresh();
-            if (Camera.main != null && Camera.main.TryGetComponent(out ChaseCamera chase))
+            if (LocalPlayerView.ChaseFor(_driver) is ChaseCamera chase)   // this aeroplane's own camera (split screen: each player's)
             {
                 // Length too (owner 2026-10-07: "the zoom … needs to take into account the size of the airplane — the H-4 is huge").
                 var cfg = _driver.Sim.Aircraft.Config;

@@ -318,7 +318,7 @@ MonoBehaviour:
   - visibleName: Quest 3S
     manifestName: quest3s
     enabled: 1
-  forceRemoveInternetPermission: 1
+  forceRemoveInternetPermission: 0
   m_symmetricProjection: 0
   m_foveatedRenderingApi: 0
   systemSplashScreen: {fileID: 0}
