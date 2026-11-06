@@ -119,7 +119,8 @@ for yo, lab, vals, red_at in ((-95, 'TEMPERATURE', ['100', '150', '200', '250'],
         D.line([polar(cx, oc, 170, a_pmax), polar(cx, oc, 215, a_pmax)], fill=RED, width=10)
     D.text((cx, oc - 25), lab, font=F(30), fill=INK, anchor='mm')
     if PAINT_NEEDLES: D.line([(cx, oc), polar(cx, oc, 190, -10 if red_at else 8)], fill=INK, width=8)
-D.line([(cx - 230, cy + 8), (cx + 230, cy + 8)], fill=(120, 112, 96), width=3)
+# t935u: Remove the mid line on the oil temp pressure otherwise approved for j3.
+# (horizontal divider across dual oil temp/pressure face ONLY — do not remove scales/ticks/fonts/redlines)
 # placard (aluminium, black letters)
 P0 = (0, S, 640, S + 128); D.rectangle(P0, fill=(178, 182, 186)); D.rectangle((8, S + 8, 632, S + 120), outline=INK, width=5)
 D.text((320, S + 42), 'REAR SEAT FOR', font=FC(46), fill=INK, anchor='mm'); D.text((320, S + 90), 'SOLO FLYING', font=FC(46), fill=INK, anchor='mm')
