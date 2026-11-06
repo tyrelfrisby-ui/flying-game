@@ -207,6 +207,8 @@ namespace FlyingGame.Bridge
 
         /// <summary>The placed model's root, or null where the aeroplane on screen is the procedural shell.</summary>
         public Transform ModelRoot => _builder.ModelRoot;
+        /// <summary>The i-th propeller hub (null past the last): the smoke's fuselage measurement leaves the blades out.</summary>
+        public Transform PropHubTransform(int i) => _builder.PropHubTransform(i);
 
         /// <summary>True when the placed model brought its own rig (its stick, pedals and needles move by it).</summary>
         public bool HasOwnRig => _builder.HasOwnRig;

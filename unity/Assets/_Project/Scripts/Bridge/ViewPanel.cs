@@ -324,7 +324,7 @@ namespace FlyingGame.Bridge
             float s = Mathf.Min(Screen.width, Screen.height);
             bool portrait = ScreenLayout.Portrait;
             float gap = s * 0.015f;
-            int perRow = portrait ? 4 : 8;
+            int perRow = portrait ? 5 : 9;
             int rows = portrait ? 2 : 1;
             float bh = s * (portrait ? 0.085f : 0.07f);
             float trackH = s * 0.05f, labelH = _fs * 1.6f;
@@ -365,6 +365,9 @@ namespace FlyingGame.Bridge
             if (GUI.Button(Next(), Replay.Playing ? "PAUSE" : "PLAY", _btnOn)) Replay.TogglePlay();
             if (GUI.Button(Next(), "+10 s", _btn)) Replay.Seek(Replay.Head + 10.0);
             if (GUI.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
+            // Smoke in the replay (Ty t912u): as flown by default, or added / muted after the fact; the clip records the same.
+            if (GUI.Button(Next(), "SMOKE\n" + FlyingGame.Sim.Replay.ReplaySmokeView.Label(Replay.SmokeMode) + (Replay.SmokeUnrecorded && Replay.SmokeMode == FlyingGame.Sim.Replay.SmokeReplayMode.AsFlown ? " (none)" : ""),
+                    Replay.SmokeMode == FlyingGame.Sim.Replay.SmokeReplayMode.AsFlown ? _btn : _btnOn)) Replay.CycleSmokeMode();
             if (GUI.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
             if (GUI.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool recOn = ClipRecorder.Recording;

@@ -245,6 +245,39 @@ What a collision should cost is Ty's call (Q3 below). The proposal: the recorded
 and becomes a wreck. The live aircraft takes the same contact damage it would take from a solid object at that closing
 speed, through the existing `AircraftContactDamage` path.
 
+## Smoke in the in-game REPLAY (Ty t912u, 2026-11-06)
+
+Ty flew with smoke on; the replay showed none, and a clip recorded from the replay showed none. Two causes, both in the
+REPLAY path (not the recorded-ships path below): `FlightRecorder`'s frames carried no smoke at all, and
+`SmokeController.LateUpdate` returned the moment a replay began, under a comment saying "FlightReplay redraws" — it
+never did. The trail on screen in a replay was simply not built.
+
+- **Recorded:** every replay frame carries `ReplaySmoke`: the switch (`On`), the flow the oil made or would have made
+  with the switch on (`FlowIfOn`: 0 with the engine stopped or the bus dead, `0.25 + 0.75 × power` otherwise, 1 for a
+  glider's canisters — the live law, now `ReplaySmoke.FlowIfOnNow` in Sim and used by both), the jet's exit speed, the
+  air density, the crank and the rpm (the pulse tubes are timed by them). Between frames the switch steps, the rest is
+  linear.
+- **Shown:** in a replay `SmokeController` rebuilds the trail at the play head from the recording
+  (`ReplaySmokeView.Window`: the head's own interpolated frame, then 90 s of frames before it, newest first) in the mode
+  the replay bar's **SMOKE** button shows: **AS FLOWN** (every replay opens on it: the switch's own timing), **ON** (add
+  smoke after the fact, with the flow the engine really had at each moment), **OFF**. The window is a pure function of
+  (recording, head, mode), so a seek, a rewind, a scrub or a mode change draws exactly that moment's trail: nothing is
+  carried over. (`SmokeTrail` caches each puff's path; a cached path that had been collapsed to its last step is
+  recomputed if the head goes back over it, so no puff is left stuck where its pass ended.) The live ring is not
+  touched, so the flight's own trail carries on when the replay ends.
+- **Never changes the recording:** the mode is a view setting on `FlightReplay`; frames are never rewritten
+  (`ReplaySmokeTests.AModeNeverChangesTheRecording`).
+- **Older recordings:** a frame without the channels (`ReplaySmoke.Recorded == false`: none exist on disk, because the
+  REPLAY is memory only, but a recording that outlived the change in memory would have them) shows no smoke AS FLOWN —
+  that is all it knows — and the replay bar says `AS FLOWN (none)`; ON estimates the flow from the recorded throttle
+  (gliders full), with no jet or pulse tubes. Nothing throws, mixed recordings keep each frame's own.
+- **Clips / export:** `ClipRecorder` renders a copy of the main camera (`CopyFrom`), and the Quest recorder renders
+  the main camera's culling mask less the overlay layer; the smoke is one world-space mesh on the aircraft's layer, so
+  a clip made from the replay records the same trail, in the same mode, as the screen (`SmokeAirframeRender` compares a
+  CopyFrom camera with the main one pixel for pixel).
+- **Quest:** the same code. The Quest has no REPLAY page today, so it has no SMOKE button either.
+- Tests: `ReplaySmokeTests` (default, overrides, seek/rewind, telemetry untouched, old data, the flow law).
+
 ## Smoke, lights, surfaces
 
 - **Surfaces, gear, prop:** `RecordedShips` sets the airframe builder's deflections, gear extension and prop rpm from
