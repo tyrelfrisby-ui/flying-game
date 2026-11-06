@@ -96,18 +96,29 @@ namespace FlyingGame.Bridge
             float twist = (float)tr.TwistDeg, lean = (float)tr.LeanDeg;
             Quaternion rot = Quaternion.Euler(lean, twist, 0);
 
+            // A tree the airframe has gone into (StrippedTrees, Ty 2026-11-05): its stem as the sim has it, not the 1.5 m
+            // trunk box an aeroplane against the stem disappears inside, and none of the skirts it went through.
+            if (StrippedTrees.TryGet(tr, out _))
+            {
+                float d0 = (float)TreeStructure.BaseDiameterM(tr), d1 = (float)TreeStructure.DiameterAt(tr, g + h * 0.5);
+                b.Box(U(tr.X, tr.Y, g + h * 0.25), new Vector3(d0, h * 0.5f, d0), rot, Trunk);
+                b.Box(U(tr.X, tr.Y, g + h * 0.75), new Vector3(Mathf.Max(d1, 0.05f), h * 0.5f, Mathf.Max(d1, 0.05f)), rot, Trunk);
+                foreach (StrippedTrees.Skirt s in StrippedTrees.DetailSkirts)
+                    if (StrippedTrees.SkirtDrawn(tr, s))
+                        Spire(b, tr, g + h * s.BaseFrac, h * (float)s.RiseFrac, r * (float)s.RadiusFrac, needle, lit, twist + (float)s.TwistDeg, lean);
+                return;
+            }
             if (detail)
             {
-                b.Box(U(tr.X, tr.Y, g + h * 0.16), new Vector3((float)tr.RadiusM * 1.2f, h * 0.34f, (float)tr.RadiusM * 1.2f), rot, Trunk);
-                // The three skirts are the physics' crown (Core TreeStructure.Skirts): what a wing meets is what is drawn.
-                var sk = FlyingGame.Core.TreeStructure.Skirts;
-                for (int i = 0; i < sk.Length; i++)
-                    Spire(b, tr, g + h * sk[i].Base, h * (float)sk[i].Rise, r * (float)sk[i].Radius, needle, lit, twist + (i == 0 ? 0 : i == 1 ? 23 : 47), lean);
+                float tw = (float)(tr.RadiusM * StrippedTrees.TrunkWidthOfRadius);
+                b.Box(U(tr.X, tr.Y, g + h * StrippedTrees.TrunkCentreFrac), new Vector3(tw, h * (float)StrippedTrees.TrunkHeightFrac, tw), rot, Trunk);
+                foreach (StrippedTrees.Skirt s in StrippedTrees.DetailSkirts)
+                    Spire(b, tr, g + h * s.BaseFrac, h * (float)s.RiseFrac, r * (float)s.RadiusFrac, needle, lit, twist + (float)s.TwistDeg, lean);
             }
             else
             {
-                Spire(b, tr, g + h * 0.20, h * 0.52f, r, needle, lit, twist, lean);
-                Spire(b, tr, g + h * 0.62, h * 0.40f, r * 0.60f, needle, lit, twist + 31, lean);
+                foreach (StrippedTrees.Skirt s in StrippedTrees.FarSkirts)
+                    Spire(b, tr, g + h * s.BaseFrac, h * (float)s.RiseFrac, r * (float)s.RadiusFrac, needle, lit, twist + (float)s.TwistDeg, lean);
             }
         }
 
@@ -187,10 +198,47 @@ namespace FlyingGame.Bridge
             return s;
         }
 
+        // Stripped trees (StrippedTrees): the chunks drawn with one in them, and the version they were drawn at.
+        private readonly HashSet<(int, int)> _strippedChunks = new(), _strippedNow = new();
+        private int _strippedVersion;
+
+        /// <summary>A tree the airframe went into is redrawn at once, whatever the budget: the pilot is looking at it, and it
+        /// is one chunk, a few times a crash (StrippedTrees.Version changes only when a skirt goes).</summary>
+        private void RedrawStripped()
+        {
+            int v = StrippedTrees.Version;
+            if (v == _strippedVersion) return;
+            _strippedVersion = v;
+            _strippedNow.Clear();
+            foreach ((int i, int j) c in StrippedTrees.Cells)
+                _strippedNow.Add((ForestBuilder.ChunkOf((c.i + 0.5) * Forest.CellM), ForestBuilder.ChunkOf((c.j + 0.5) * Forest.CellM)));
+            _strippedChunks.UnionWith(_strippedNow);   // and every chunk that had one, so a cleared tree stands again
+            foreach ((int, int) k in _strippedChunks)
+            {
+                if (!_live.TryGetValue(k, out GameObject old)) continue;   // not built: it is built stripped when it comes in
+                bool detail = true;
+                if (old != null)
+                {
+                    var mf = old.GetComponent<MeshFilter>();
+                    if (mf != null && mf.sharedMesh != null) Destroy(mf.sharedMesh);
+                    Destroy(old);
+                }
+                if (_cam != null)
+                {
+                    double cx = (k.Item1 + 0.5) * ForestBuilder.ChunkM - _cam.transform.position.z, cy = (k.Item2 + 0.5) * ForestBuilder.ChunkM - _cam.transform.position.x;
+                    detail = System.Math.Sqrt(cx * cx + cy * cy) < DetailRadiusM;
+                }
+                _live[k] = ForestBuilder.BuildChunk(_t, _root, k.Item1, k.Item2, detail);
+            }
+            _strippedChunks.Clear();
+            _strippedChunks.UnionWith(_strippedNow);
+        }
+
         private void LateUpdate()
         {
             if (_t == null) return;
             if (_cam == null) { _cam = Camera.main; if (_cam == null) return; }
+            RedrawStripped();
             // Unity x is the sim's y, Unity z is the sim's x.
             Vector3 p = _cam.transform.position;
             double x = p.z, y = p.x;

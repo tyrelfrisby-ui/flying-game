@@ -21,7 +21,7 @@ namespace FlyingGame.Core;
 ///    it can take is M_rupture / (2d) = MOR·π·d³/32 / (2d) = MOR·π·d²/64: 6.5 kN at 5 cm, 26 kN at 10 cm, 230 kN at 30 cm.
 ///  • Snapping it costs the airframe the momentum of the top it throws (m_top/4: a free rod struck at its end moves with
 ///    a quarter of its mass, Den Hartog) and the work of cutting through it (F·d over the time the edge takes to cross d).
-///  • Crown: the three skirts the game draws (<see cref="Skirts"/>), from 22 % of the height to the top, of bulk density
+///  • Crown: the three skirts the game draws (<see cref="StrippedTrees.DetailSkirts"/>), from 22 % of the height to the top, of bulk density
 ///    <see cref="CrownBulkDensityKgM3"/> — needles and branchwood. What goes through it pushes that much wood out of its
 ///    way at its own speed, F = ρ_c·A·v² over the band it sweeps (its thickness plus a branch's spray,
 ///    <see cref="FoliageSprayM"/>), and throws the outer part of every branch it cuts (<see cref="ThrownBranchKg"/>).
@@ -36,7 +36,7 @@ public static class TreeStructure
     public const double WoodDensityKgM3 = 600.0;
     /// <summary>Where a struck stem breaks: this many diameters from the blow (the lever arm of the failing section).</summary>
     public const double FailureArmDiameters = 2.0;
-    /// <summary>Crown base as a fraction of the height: the lowest skirt's (<see cref="Skirts"/>).</summary>
+    /// <summary>Crown base as a fraction of the height: the lowest skirt's (<see cref="StrippedTrees.DetailSkirts"/>).</summary>
     public const double CrownBaseFraction = 0.22;
     /// <summary>Needles, twigs and branchwood per crown volume, kg/m³. Fire science's canopy bulk density (fuel finer than
     /// 6 mm) is 0.05–0.3 kg/m³ for western conifers (Scott &amp; Reinhardt 2001, RMRS-RP-29); with the branchwood a crown
@@ -72,23 +72,22 @@ public static class TreeStructure
     // four-sided spire (base height, rise, radius, as fractions of the tree's height and crown radius), and the crown at
     // a height is the widest skirt there.
 
-    /// <summary>The drawn crown, lowest skirt first: (base, rise) as fractions of the height, radius as a fraction of
-    /// <see cref="Forest.Tree.CrownRadiusM"/>. Bridge ForestBuilder draws exactly these (its close-up trees).</summary>
-    public static readonly (double Base, double Rise, double Radius)[] Skirts = { (0.22, 0.42, 1.00), (0.52, 0.34, 0.72), (0.78, 0.24, 0.42) };
     /// <summary>A skirt's four sides stand out to 1.414 and 1.174 of its radius at alternate corners (ForestBuilder.Spire):
     /// a circle of the same area has 1.03 of it.</summary>
     public const double SkirtAreaRadius = 1.03;
 
-    /// <summary>Crown radius at height <paramref name="up"/> (the drawn skirts, <see cref="Skirts"/>); 0 outside.</summary>
+    /// <summary>Crown radius at height <paramref name="up"/>: the close-up skirts ForestBuilder draws
+    /// (<see cref="StrippedTrees.DetailSkirts"/>, one table for both); 0 outside.</summary>
     public static double CrownRadiusAt(in Forest.Tree t, double up)
     {
         double h = up - t.GroundM, H = t.HeightM, best = 0;
         if (h < 0 || h > H) return 0;
-        for (int i = 0; i < Skirts.Length; i++)
+        StrippedTrees.Skirt[] sk = StrippedTrees.DetailSkirts;
+        for (int i = 0; i < sk.Length; i++)
         {
-            double b = Skirts[i].Base * H, rise = Skirts[i].Rise * H;
+            double b = sk[i].BaseFrac * H, rise = sk[i].RiseFrac * H;
             if (h < b || h > b + rise) continue;
-            best = System.Math.Max(best, SkirtAreaRadius * Skirts[i].Radius * t.CrownRadiusM * (1.0 - (h - b) / rise));
+            best = System.Math.Max(best, SkirtAreaRadius * sk[i].RadiusFrac * t.CrownRadiusM * (1.0 - (h - b) / rise));
         }
         return best;
     }
