@@ -7,15 +7,16 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 
 class NoStoreHandler(SimpleHTTPRequestHandler):
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".ipa": "application/octet-stream",
+        ".plist": "application/xml",
+    }
+
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
-        # Helpful for itms-services + IPA
-        if self.path.endswith(".ipa"):
-            self.send_header("Content-Type", "application/octet-stream")
-        elif self.path.endswith(".plist"):
-            self.send_header("Content-Type", "application/xml")
         super().end_headers()
 
     def log_message(self, fmt: str, *args) -> None:
