@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "glasair3-like",
   "displayName": "Glasair III-like",
+  "structureType": "composite",
+  "structureTypeSource": "Glasair III: glass-fibre composite fuselage shell (Stoddard-Hamilton builder manual).",
   "spawnIasMs": 100,
   "mass": {
     "massKg": 1090,
@@ -1377,6 +1379,9 @@
   "propulsion": {
     "maxPowerW": 298000,
     "propDiameterM": 1.98,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hartzell two-blade aluminium constant-speed",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 4.0,

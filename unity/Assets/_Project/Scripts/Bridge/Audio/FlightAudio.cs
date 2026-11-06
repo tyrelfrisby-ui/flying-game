@@ -26,6 +26,8 @@ namespace FlyingGame.Bridge
 
         private const string PrefKey = "audio.masterVolume";
         private const float EngineMix = 0.55f, WindMix = 1f, FxMix = 0.8f;
+        /// <summary>Blade strikes are ground contact: they ride the ground bus (GroundSoundMix, Ty 2026-11-05 −4 dB).</summary>
+        private static float PropStrikeMix => FlyingGame.Core.GroundSoundMix.OutputGain;
         private const float GroanHoldS = 0.2f;   // StructuralGroan is per-frame; hold bridges frame gaps
 
         private FlightSimDriver _driver;
@@ -49,6 +51,9 @@ namespace FlyingGame.Bridge
         private readonly int[] _popsNew = new int[2];
         private OneShotSynth _fx;
         private volatile CrashSoundMixer _crashes;
+        private volatile PropStrikeMixer _propStrikes;
+        private FlyingGame.Sim.Aircraft _strikeWatched;
+        private double _strikeBatchSim = double.NaN;   // sim time of the first blade strike delivered this frame
         private CrashWaterVisuals _crashVisuals;
         private volatile EngineSynth _engine;
         private volatile bool _ready;
@@ -170,6 +175,7 @@ namespace FlyingGame.Bridge
             _tyres = new TyreBrakeSynth(_fs);
             _fx = new OneShotSynth(_fs);
             _crashes = new CrashSoundMixer(_fs);
+            _propStrikes = new PropStrikeMixer(_fs);
             _crashVisuals = gameObject.AddComponent<CrashWaterVisuals>();
             RebuildEngine();
             PushTelemetry();
@@ -210,6 +216,7 @@ namespace FlyingGame.Bridge
         {
             FlyingGame.Core.CrashEvents.Impact -= OnCrashImpact;
             FlyingGame.Core.CrashEvents.Flood -= OnFlood;
+            WatchStrikes(null);
             _delayed.Clear();
             _ready = false;
             if (_crashVisuals != null) _crashVisuals.enabled = false;
@@ -246,6 +253,7 @@ namespace FlyingGame.Bridge
             _delayed.Clear();
             _waterImpactTimes.Clear();
             if (_crashes != null) _crashes = new CrashSoundMixer(_fs);
+            if (_propStrikes != null) _propStrikes = new PropStrikeMixer(_fs);
             if (_crashVisuals != null) _crashVisuals.ClearAll();
         }
 
@@ -280,6 +288,46 @@ namespace FlyingGame.Bridge
 
             PushTelemetry();
             if (!Mathf.Approximately(_savedMaster, MasterVolume) && Time.frameCount % 120 == 0) SaveMaster();
+        }
+
+        private void LateUpdate()
+        {
+            // Whatever aeroplane is flying now; the next frame's blade strikes are timed from the first of them.
+            WatchStrikes(_driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null);
+            _strikeBatchSim = double.NaN;
+        }
+
+        private void WatchStrikes(FlyingGame.Sim.Aircraft ac)
+        {
+            if (ReferenceEquals(ac, _strikeWatched)) return;
+            if (_strikeWatched != null) _strikeWatched.Contact -= OnBladeContact;
+            _strikeWatched = ac;
+            if (ac != null) ac.Contact += OnBladeContact;
+        }
+
+        /// <summary>One blade through the ground or the water (Aircraft.PropStrike, Ty 2026-11-05 9:04 "accurate sounds on both
+        /// the ground and water too per blade strike"), or a blade breaking up. The sim steps several times a frame and a
+        /// prop chewing the ground meets it blades × rpm times a second (60-90 a second), so each strike keeps its own
+        /// instant: it is delayed from the first strike of this frame by the sim time between them, in whole samples
+        /// (PropStrikeMixer), and by the speed of sound once the pilot is out.</summary>
+        private void OnBladeContact(FlyingGame.Core.ContactEvent e)
+        {
+            if (_propStrikes == null) return;
+            PropStrikeKind kind;
+            bool water = e.SurfaceCode == FlyingGame.Core.ContactPoint.SurfaceWater;
+            if (e.Kind == FlyingGame.Core.ContactEventKind.PropBladeStrike)
+                kind = water ? PropStrikeKind.Water
+                    : e.Material == FlyingGame.Core.PropMaterial.Wood ? PropStrikeKind.WoodGround
+                    : e.Material == FlyingGame.Core.PropMaterial.Composite ? PropStrikeKind.CompositeGround : PropStrikeKind.MetalGround;
+            else if (e.Kind == FlyingGame.Core.ContactEventKind.PropBladeBroken)
+                kind = e.Material == FlyingGame.Core.PropMaterial.Wood ? PropStrikeKind.WoodSplinter : PropStrikeKind.CompositeFray;
+            else return;
+            if (double.IsNaN(_strikeBatchSim)) _strikeBatchSim = e.TimeSec;
+            float delay = Mathf.Max(0f, (float)(e.TimeSec - _strikeBatchSim));
+            float d = ListenerDistanceM;
+            float tip = e.Kind == FlyingGame.Core.ContactEventKind.PropBladeStrike ? (float)e.Intensity : 150f;
+            float depth = e.Kind == FlyingGame.Core.ContactEventKind.PropBladeStrike ? (float)e.Value : 0.02f;
+            _propStrikes.Strike(kind, tip, depth, DistanceGain(d), delay + d / SpeedOfSoundMs);
         }
 
         private void PushTelemetry()
@@ -391,7 +439,7 @@ namespace FlyingGame.Bridge
             int frames = data.Length / channels;
             AudioTelemetry t = _tele;
             float ias = t.IasMs, thr = t.Throttle01, rpm = t.EngineRpm;
-            float shakeHz = t.PropShakeHz, shakeDepth = shakeHz > 1f ? Mathf.Clamp01(t.PropShakeG / 0.05f) * 0.6f : 0f;
+            float shakeHz = t.PropShakeHz, shakeDepth = shakeHz > 1f ? (float)FlyingGame.Core.PropBladeDamage.Felt01(t.PropShakeG) * 0.6f : 0f;
             float masterTarget = t.MasterGain;
             EngineSynth engine = _engine;
             bool powered = engine != null;
@@ -423,6 +471,8 @@ namespace FlyingGame.Bridge
                            _thumpNewJ, _popsNew, t.FlapHz, t.FlapGain);
             CrashSoundMixer crashes = _crashes;
             crashes.Prepare();
+            PropStrikeMixer strikes = _propStrikes;
+            strikes?.Prepare();
             engine?.Prepare(rpm, thr);
 
             // Fully ducked and settled: emit silence without rendering.
@@ -430,7 +480,7 @@ namespace FlyingGame.Bridge
             {
                 _gain = 0f;
                 // Keep flood expiry and impact delays advancing while the menu mutes the output.
-                for (int f = 0; f < frames; f++) crashes.Next();
+                for (int f = 0; f < frames; f++) { crashes.Next(); strikes?.Next(); }
                 for (int i = 0; i < data.Length; i++) data[i] = 0f;
                 return;
             }
@@ -463,13 +513,13 @@ namespace FlyingGame.Bridge
                 if (shakeDepth > 0f)
                 {
                     // A bent prop (Aircraft.PropVibrationG): the engine note throbs once a revolution, with the airframe's
-                    // own low drone at that rate under it. Depth from the shake: 0.05 g (a few cm off one tip) is full.
+                    // own low drone at that rate under it. Depth from how strongly the shake is felt (PropBladeDamage.Felt01).
                     _shakePh = Dsp.Wrap01(_shakePh + shakeHz / _fs);
                     float sw = Dsp.Sin01(_shakePh);
                     el = el * (1f + shakeDepth * sw) + 0.12f * shakeDepth * sw;
                     er = er * (1f + shakeDepth * sw) + 0.12f * shakeDepth * sw;
                 }
-                float fx = (_fx.Next() + crashes.Next()) * FxMix;
+                float fx = (_fx.Next() + crashes.Next() + (strikes != null ? strikes.Next() * PropStrikeMix : 0f)) * FxMix;
 
                 float l = Dsp.SoftClip((wl * WindMix + (el * EngineMix + sl) * acGain + fx + gun) * _gain);
                 float r = Dsp.SoftClip((wr * WindMix + (er * EngineMix + sr) * acGain + fx + gun) * _gain);

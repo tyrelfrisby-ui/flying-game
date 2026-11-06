@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "pa25-pawnee-like",
   "displayName": "Pawnee-like Tow Plane",
+  "structureType": "steelTube",
+  "structureTypeSource": "Piper PA-25 Pawnee: welded 4130 steel-tube fuselage, fabric covered (FAA TCDS 2A8; Piper PA-25 service manual).",
   "wingBracing": "strut",
   "wingBreakStationY": { "wing": 3.531 },
   "wingBreakStationSource": "Strut attach |y| 139 in = 3.531 m from the centreline (front and rear strut alike): SSA/AIRW-D0026 'PA-25 Pawnee Front Spar Stress Analysis' Rev 1, p.39 Figs 15-1/15-2, where the spar shear steps (read off the chart, +/-1 in; that report's wing stations run from the centreline, root pin WS 19, tip ~217). Fuselage end (same report 6.69, author's estimate): both struts meet one point on the upper fuselage ~6 in ahead of the front spar; struts ~15 deg to the wing plane.",
@@ -1479,6 +1481,9 @@
   "propulsion": {
     "maxPowerW": 175000,
     "propDiameterM": 2.13,
+    "propMaterial": "metal",
+    "propMaterialSource": "McCauley / Sensenich forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2575,
     "propInertia": 6.0,

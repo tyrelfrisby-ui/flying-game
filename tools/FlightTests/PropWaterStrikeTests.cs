@@ -55,7 +55,8 @@ public class PropWaterStrikeTests
         {
             ac.State = new RigidBodyState(new Vec3(0, 0, -100), att, Vec3.Zero, Vec3.Zero);
             sim.RunFor(0.5, lever);   // the engine up to its rpm, nowhere near the water
-            if (phaseTimeS is { } ts) Atmosphere.SimTimeSec = ts;
+            // Where the blades are when the dip begins: the rotor turns on its own rpm, so a few more steps first (5 ms each).
+            if (phaseTimeS is { } ts) sim.RunFor(0.005 * Math.Round((ts - 0.5) / 0.001), lever);
             for (double t = 0; t < hold - 1e-9; t += 0.005)
             {
                 ac.State = new RigidBodyState(pos, att, Vec3.Zero, Vec3.Zero);
@@ -67,7 +68,7 @@ public class PropWaterStrikeTests
         }
         finally { FloatHydro.FlatWaterOverride = null; Atmosphere.SimTimeSec = 0; }
         _out.WriteLine($"dip {depth * 100:F1} cm {hold:F3} s throttle {throttle:F1}: rpm during {rpm:F0}, after {ac.EngineRpm:F0}, stopped {ac.EngineStopped}; " +
-                       $"blades {ac.PropBladeRadiusM(0, 0):F4} / {ac.PropBladeRadiusM(0, 1):F4} m, thrust x{ac.PropThrustScale():F4}, vibration {ac.PropVibrationG():F3} g at {ac.PropVibrationHz:F1} Hz; " +
+                       $"blades {ac.PropBladeRadiusM(0, 0):F9} / {ac.PropBladeRadiusM(0, 1):F9} m, thrust x{ac.PropThrustScale():F9}, vibration {ac.PropVibrationG():F3} g at {ac.PropVibrationHz:F1} Hz; " +
                        string.Join(" | ", ev.Where(e => e.Kind is ContactEventKind.PropStrike or ContactEventKind.PropStoppage).Select(e => e.Kind)));
         return (ac, ev, rpm);
     }
@@ -93,23 +94,31 @@ public class PropWaterStrikeTests
             if (Math.Max(b0, b1) <= 0) continue;
             bentOne++;
             Assert.InRange(Math.Max(b0, b1), 0.0035, 0.0050);
-            double expect = 0.5 * (1 + Math.Pow((0.915 - Math.Max(b0, b1)) / 0.915, 2.0 / 3.0));
-            Assert.Equal(expect, ac.PropThrustScale(), 9);
+            // Momentum theory on the disc the blades sweep, at the same power (PropBladeDamage.Performance; a few mm is far
+            // inside the overspeed the engine can take): (mean R_k² / R₀²)^(1/3).
+            double x = (0.915 - Math.Max(b0, b1)) / 0.915;
+            Assert.Equal(Math.Pow(0.5 * (1 + x * x), 1.0 / 3.0), ac.PropThrustScale(), 9);
             Assert.True(ac.PropThrustScale() < 1.0);
-            Assert.True(ac.PropVibrationG() > 0.005, $"vibration {ac.PropVibrationG():F4} g");
+            // A few millimetres of curl on one blade is a small shake on the rigid airframe (since 2026-11-05 9:04 the blade's
+            // mass comes from its section, not from the config's prop-and-crankshaft inertia, and the curl keeps its mass on
+            // the blade): present, and growing with the span (PropBladeDamageTests.VibrationGrowsWithTheAffectedSpan).
+            Assert.True(ac.PropVibrationG() > 1e-4, $"vibration {ac.PropVibrationG():F5} g");
+            Assert.True(ac.PropMountLoadN() > 1, $"mount {ac.PropMountLoadN():F2} N");
             Assert.True(ac.PropBend01() > 0);
         }
         Assert.True(bentOne >= 2, $"only {bentOne} of 12 brushes met a blade");
     }
 
-    /// <summary>A 4 cm dip held at full power: the water's drag slows the rotor to the hand-worked 682 rpm and the engine
-    /// keeps turning it (slows, does not stop); both blades fold back.</summary>
+    /// <summary>A 4 cm dip held at full power: the water's drag slows the rotor and the engine keeps turning it (slows, does
+    /// not stop); both blades fold back. With STRAIGHT blades the hand-worked rotor settles at 682 rpm; since 2026-11-05 9:04
+    /// each tip curls on its first pass, the curl reaches only 0.64 of its length past the bend and spends a shorter arc of
+    /// each turn in the water, so the rotor runs a little faster (784 rpm in the sim): never slower than the straight 682.</summary>
     [Fact]
     public void AHeldDipSlowsTheRotorWithoutStoppingIt()
     {
         (Aircraft ac, _, double rpm) = Dip(0.04, 2.0, 1.0);
         Assert.False(ac.EngineStopped);
-        Assert.InRange(rpm, 640, 730);
+        Assert.InRange(rpm, 682, 900);
         Assert.True(ac.PropBladeRadiusM(0, 0) < 0.915 - 0.03 && ac.PropBladeRadiusM(0, 1) < 0.915 - 0.03);
         Assert.True(ac.PropThrustScale() < 0.98);
     }

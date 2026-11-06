@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "target-drone-like",
   "displayName": "Target drone",
+  "structureType": "composite",
+  "structureTypeSource": "Target drone: composite airframe (generic jet target drone).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 340,
@@ -1244,6 +1246,9 @@
   "propulsion": {
     "maxPowerW": 75000,
     "propDiameterM": 1.5,
+    "propMaterial": "composite",
+    "propMaterialSource": "moulded glass-fibre drone prop",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2750,
     "propInertia": 1.5,

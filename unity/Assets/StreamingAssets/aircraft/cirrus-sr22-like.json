@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "cirrus-sr22-like",
   "displayName": "SR22-like",
+  "structureType": "composite",
+  "structureTypeSource": "Cirrus SR22: glass/carbon composite monocoque fuselage (FAA TCDS A00009CH; Cirrus POH Section 7).",
   "spawnIasMs": 75,
   "mass": {
     "massKg": 1500,
@@ -1505,6 +1507,9 @@
   "propulsion": {
     "maxPowerW": 231000,
     "propDiameterM": 1.98,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hartzell three-blade aluminium constant-speed (PHC-J3YF)",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 4.5,

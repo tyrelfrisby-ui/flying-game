@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "aircam-amphib-like",
   "displayName": "AirCam-like (amphib)",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Lockwood AirCam: riveted 6061 aluminium sheet and tube airframe (Lockwood Aircraft AirCam builder manual); no steel truss.",
   "wingBracing": "strut",
   "spawnIasMs": 31.0,
   "mass": {
@@ -1506,6 +1508,9 @@
   "propulsion": {
     "maxPowerW": 74600,
     "propDiameterM": 1.73,
+    "propMaterial": "composite",
+    "propMaterialSource": "Warp Drive ground-adjustable carbon blades, three per Rotax 912",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2400,
     "propInertia": 1.2,

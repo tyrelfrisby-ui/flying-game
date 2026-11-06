@@ -1481,6 +1481,9 @@
   "propulsion": {
     "maxPowerW": 175000,
     "propDiameterM": 2.13,
+    "propMaterial": "metal",
+    "propMaterialSource": "McCauley / Sensenich forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2575,
     "propInertia": 6.0,

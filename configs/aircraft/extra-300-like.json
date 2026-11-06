@@ -1760,6 +1760,9 @@
   "propulsion": {
     "maxPowerW": 224000,
     "propDiameterM": 2.0,
+    "propMaterial": "composite",
+    "propMaterialSource": "MT-Propeller MTV-9 three-blade natural-composite (wood core, glass/carbon skin)",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 2.5,

@@ -1439,6 +1439,9 @@
   "propulsion": {
     "maxPowerW": 134226,
     "propDiameterM": 1.8796,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hartzell two-blade aluminium constant-speed",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 5.0,

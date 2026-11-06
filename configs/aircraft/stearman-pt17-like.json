@@ -1519,6 +1519,9 @@
   "propulsion": {
     "maxPowerW": 164000,
     "propDiameterM": 2.55,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich / Hamilton Standard ground-adjustable aluminium",
+    "propBladeCount": 2,
     "idleRpm": 500,
     "maxRpm": 2075,
     "propInertia": 4.0,

@@ -497,8 +497,12 @@ public sealed partial class Aircraft
     public double EngineRpm => _propStriking.Length > 0 && _propStriking[0] ? Math.Min(FreeEngineRpm, StrikeRotorRpm(0)) : FreeEngineRpm;
 
     /// <summary>The rpm the engine runs at with nothing holding its propeller (<see cref="EngineRpm"/> is lower while a
-    /// strike is braking the blades).</summary>
-    public double FreeEngineRpm
+    /// strike is braking the blades). A prop whose blades a strike has shortened absorbs less torque and runs faster
+    /// (<see cref="PropBladeDamage.Performance"/>).</summary>
+    public double FreeEngineRpm => EngineRunning && _propDamaged.Length > 0 && _propDamaged[0] ? BaseEngineRpm * PropPerformance(0).rpmScale : BaseEngineRpm;
+
+    /// <summary>The rpm with an undamaged propeller.</summary>
+    private double BaseEngineRpm
     {
         get
         {

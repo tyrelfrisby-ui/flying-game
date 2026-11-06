@@ -1,3 +1,41 @@
+## NEEDS YOU — prop strikes per blade, metal curls / wood and composite break, strike sounds, renders (Claude, 2026-11-05)
+<!-- claude-prop-damage needs-you -->
+Lane lane/claude-floats (claude-prop-damage follow-up, from d7fcfd0d). Ty 9:04 (agent-lanes/prompts/ty-floats-1105.md).
+- **Ty, please look at the renders:** `~/Developer/agent-lanes/renders/prop-damage/` (README.md): metal curled forward
+  (power) and aft (idle on the roll), wood jagged break, composite break, each from a real strike in the sim.
+- **Ty, please fly-check:** dig a prop in on the ground and on the water. Each blade pass is its own sound: metal rings
+  (ting/clank), wood cracks, composite crunches, water slaps/thwacks; at blades x rpm while it lasts. Wood (the J-3 on
+  wheels) and composite (Extra, AirCam) lose only the span that hit and fly on shorter; metal (everything else, incl. the
+  J-3 on floats) curls by the sign of that blade's thrust. More span affected, more shake (iPhone cockpit view + engine
+  note; Quest sound only).
+- **Q120:** which prop each type flies (my choices in the line). Change `propulsion.propMaterial` / `propBladeCount`.
+- What it is (all emergent, ground and water one path, `AircraftContactDamage.PropStrike`, maths in Core `PropBladeDamage`):
+  each blade has its own reach (a shortened blade passes over ground its neighbour hits) and is struck each time it enters
+  the struck arc: one `PropBladeStrike` event per blade per pass, timed within the step. The ground takes the span that
+  went in; water takes it only past the depth whose tip load fails the section (metal 2025-T6 yield 255 MPa t/c 8 %, wood
+  birch MOR 114 MPa t/c 12 %, composite ~200 MPa t/c 10 %). METAL curls that span through a right angle, forward if the
+  blade's alpha above zero lift is positive (blade element: geometric pitch from the design point vs atan(V/wr)), aft if
+  negative; the curl is cosmetic, the air sees the straight span; a curl still drags its arc in the water. WOOD/COMPOSITE
+  break it off at the contact radius and the piece leaves (`PropBladeBroken`, debris drawn by `PropDebris`).
+  Thrust/rpm: blade element torque ~R^4 (fixed pitch overspeeds, up to 1.2 x red line; the CS governor takes up to 0.35
+  of torque), momentum thrust on the swept area mean(R^2). Shake: mass unbalance (lost piece / curl centroid), couple
+  (curl direction), thrust asymmetry, plus a stated assumption (DamageScatter 0.5 of the affected span's thrust share,
+  unknown phase) so equal damage still shakes. Camera/engine note use a perceptual scale (ISO 2631 log, Felt01).
+  Blade mass now from its section (J-3: 1.6 kg metal, 0.56 kg wood), not the config's prop+crank inertia.
+- Rotor phase now integrates from the prop's own rpm, not the sim clock (WorldIndex bit-identical tests caught the clock).
+- **Open finding, not fixed:** `WheelWaterTests.ASmallTyredAerobatGoesOverBelowItsVpAndSkisAboveIt(extra-300-like)` is red
+  here and green on the base. At 45 kt below V_p the Extra still stops dead (23 -> 2.4 m/s in 1 s, 9.5 g, nose to -29 deg)
+  but no longer goes over: its composite blades now shatter in the water and the engine idles on, where the metal prop
+  used to stop the engine and shed the propeller (with propMaterial metal it flips at 0.6 s, as before). The disc points
+  push nothing either way, so the difference is in what a stopped/shed prop does to the airframe; not chased here.
+  Test left as it is (not loosened).
+- Tests: PropBladeDamageTests (new: materials, hand-worked thrust/rpm and blade alpha, curl fwd under power / aft at idle on
+  ground and water, wood shortens only the struck blade by the contact depth, composite breaks only where it hit, thrust
+  falls with span lost, shake grows with span affected, one strike event per blade pass at blades x rpm, timed and in
+  order). PropWaterStrikeTests / ContactPatchTests literals re-derived for the new thrust law (comments say why).
+  Full suite vs base d7fcfd0d (failures re-run alone on both): 1 new red (above); WorldIndex bit-identical fixed in-lane.
+  Unity batch 0 error CS (PropDamageRender). Build / merge / install stamps below.
+
 ## NEEDS YOU — J-3 on floats: prop water strikes, the hammering noise, spray volume, the hump (Claude, 2026-11-05)
 <!-- claude-floats needs-you -->
 Lane lane/claude-floats (from island-nav 6a42a199). Ty 08:58 + 09:00 (agent-lanes/prompts/ty-floats-1105.md).
