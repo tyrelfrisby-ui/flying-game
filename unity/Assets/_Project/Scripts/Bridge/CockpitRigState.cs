@@ -135,9 +135,8 @@ namespace FlyingGame.Bridge
         /// <summary>The config id whose panel is the 1970s 172's vacuum/gyro/radio stack.</summary>
         public const string C172Id = "c172-like";
         private C172Panel _c172;
-        /// <summary>The frame the 172 panel last stepped on. AirframeVisual.LateUpdate fills the rig TWICE a frame
-        /// (two lanes each added the SetRig call and the merge kept both — logged, not changed, because the
-        /// other types' lagged needles are tuned on it); the gyros must integrate each frame's time once.</summary>
+        /// <summary>The frame the 172 panel last stepped on. AirframeVisual.LateUpdate fills the rig once per frame;
+        /// retain this guard so another caller cannot integrate the gyros twice in that frame.</summary>
         private int _c172Frame = -1;
         /// <summary>The 172 panel being flown, or null for any other aeroplane. Static so the RADIOS and OPTIONS
         /// panels can reach the knobs and the failure hooks, the way <see cref="NavRadios.Freq"/> already is.</summary>

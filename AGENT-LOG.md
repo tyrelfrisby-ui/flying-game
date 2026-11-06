@@ -8,6 +8,9 @@
 - Remaining: embedded engine/other fleet face treatment beyond shared gauges; matched before/after cockpit evidence; reproduce flicker temporally with fixed inputs before choosing a fix. Inspected CockpitRigState, SharedInstruments, AirframeRig and instrument models: no added periodic needle jitter found; yaw-string flutter and damaged-prop camera shake are separate legitimate effects. Z-fighting/aliasing/data remain hypotheses.
 - Merge checklist for Claude: finish scope; targeted tests + serialized iOS ** BUILD SUCCEEDED **; inspect phone evidence and dynamic stability; local merge into island-nav then Quest same day under parity lock. No push/main/upload.
 - Pre-existing packaging/backup dirt preserved in stash named `t938u preserve pre-existing Unity packaging and Cub backups before fleet work`; retained as recovery copy after restoration.
+- Resume audit: current source fills cockpit ONCE per frame; corrected stale twice-per-frame comment only. No proven artificial needle jitter; no runtime behavior changed. Full findings/capture/temporal proof plan: `docs/pending/instrument-fleet-flicker-t932.md`.
+- New offline evidence: 13 before/after/diff triptychs + `offline-texture-audit.json` in the render directory; six GLB geometry accessor buffers identical. Opened Pitts ASI comparison. Embedded engine/model-specific faces and text_at labels remain outside f9906913 coverage; no blanket generator run.
+- BUILD still blocked: observed spray `deploy-t923-verification.sh` reservation PID 84577 and active test processes during this resume. No verifier / Unity / Xcode / dotnet test launched. Four static after fixtures cannot prove flicker; matched cockpit before and fixed-input temporal sequences remain deferred.
 
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
