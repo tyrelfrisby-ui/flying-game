@@ -113,13 +113,24 @@ namespace FlyingGame.Bridge
             _splashGT = splash; _hissGT = hiss; _sprayGT = spray; _skiGT = ski; _keelGT = keel;
         }
 
+        /// <summary>Everything this synth makes, summed (the screech included).</summary>
         public void Next(out float l, out float r)
         {
-            l = 0f; r = 0f;
+            Next(out l, out r, out float ql, out float qr);
+            l += ql; r += qr;
+        }
+
+        /// <summary>The tyre SCREECH (the squeal voice: spin-up chirp, skid, locked wheel) on its own in
+        /// <paramref name="screechL"/>/<paramref name="screechR"/>, and every other voice in <paramref name="l"/>/
+        /// <paramref name="r"/>: FlightAudio puts only the rest on the −4 dB ground bus (Ty 2026-11-05 15:57, "Tire
+        /// screech": its loudness stays as it was).</summary>
+        public void Next(out float l, out float r, out float screechL, out float screechR)
+        {
+            l = 0f; r = 0f; screechL = 0f; screechR = 0f;
             float dtS = 1f / _fs;
             for (int s = 0; s < 2; s++)
             {
-                float y = 0f;
+                float y = 0f, q = 0f;
                 _whirG[s] += _slowSmooth * (_whirGT[s] - _whirG[s]);
                 if (_whirG[s] > 1e-6f && _whirHz[s] > 5f)
                 {
@@ -140,7 +151,7 @@ namespace FlyingGame.Bridge
                     _chirpPh[s] = Dsp.Wrap01(_chirpPh[s] + hz / _fs);
                     float p = _chirpPh[s];
                     float tone = Dsp.Sin01(p) + 0.35f * Dsp.Sin01(2f * p) + 0.15f * Dsp.Sin01(3f * p);
-                    y += _chirpEnv[s] * (0.55f * tone + 1.6f * _chirpBp[s].Process(nz));
+                    q = _chirpEnv[s] * (0.55f * tone + 1.6f * _chirpBp[s].Process(nz));
                 }
                 // Scrub: the same bookkeeping, a slower release; band noise and its low body under a rough flutter.
                 float st = _scrubLeft[s] > 0f ? _scrubG[s] : 0f;
@@ -188,7 +199,7 @@ namespace FlyingGame.Bridge
                     y += _popEnv[s] * (1.2f * _popLp[s].Process(_n[3].Next()) + 0.9f * Dsp.Sin01(_boomPh[s]));
                     _popEnv[s] *= _popDecay;
                 }
-                if (s == 0) l += y; else r += y;
+                if (s == 0) { l += y; screechL = q; } else { r += y; screechR = q; }
             }
             _splashG += _smooth * (_splashGT - _splashG);
             _hissG += _smooth * (_hissGT - _hissG);
