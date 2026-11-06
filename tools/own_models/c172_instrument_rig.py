@@ -25,12 +25,9 @@ def row(node,param,kind,axis,mp,desc,parent="",wrap=0,extrap=0,model=0.0):
                      map=mp,model=model,desc=desc,extra=extra))
 CW="+deg = clockwise as seen from the seat"
 # ---- the 172 instruments (FlyingGame.Core.Instruments) --------------------------------------------------------
-row('C172_AI_roll','ai_bank_deg','rot',X,[[-180,180],[180,-180]],"AI horizon/roll assembly: rolls the OPPOSITE way to the indicated bank (right bank = horizon tilts anticlockwise); "+CW)
-row('C172_AI_pitch','ai_pitch_deg','move',Y,[[-25,.020],[25,-.020]],"Flat horizon slide: 0.8 mm per degree; pitch up moves horizon DOWN, matching 5/10/15/20 degree ladder",parent='C172_AI_roll')
-row('C172_DG_card','dg_card_deg','rot',X,[[0,0],[360,-360]],"DG card: drawn N at 12 o'clock, numbers clockwise; the reading sits under the top lubber, so the card turns anticlockwise by it; "+CW,wrap=360)
+# The six-pack's moving parts (ASI, AI, altimeter, TC, DG, VSI) are the shared instrument library's
+# (FlyingGame.Core.Instruments.InstrumentLibrary.C172, Bridge/SharedInstruments), driven from the same params; not rigged here.
 row('C172_DG_sync_adjust','dg_knob_deg','rot',X,[[0,0],[360,360]],"DG push-and-turn knob, 1:1 with the card change it made",wrap=360)
-row('C172_TC_airplane','tc_needle','rot',X,[[-2,-40],[2,40]],"TC little aeroplane: 1 rate (standard rate) = 20 deg right wing down at the L/R standard-rate index; stops at 2 rates; "+CW)
-row('C172_TC_slip_ball','slip_ball','move',Z,[[-1,-0.015],[1,0.015]],"inclinometer ball, +1 = right end of the tube (12 deg of apparent-gravity lean)")
 for i in (1,2):
     row(f'C172_NAV{i}_CDI',f'nav{i}_cdi','move',Z,[[-1,-0.018],[1,0.018]],f"NAV{i} course needle: +1 = full scale right (course to the right); VOR 10 deg, localizer tailored")
     row(f'C172_NAV{i}_OBS_card',f'nav{i}_obs_deg','rot',X,[[0,0],[360,-360]],f"NAV{i} OBS card: the selected course under the top index, so the card turns anticlockwise by it",wrap=360)
@@ -44,11 +41,6 @@ row('C172_ADF_card_adjust','adf_card_deg','rot',X,[[0,0],[360,360]],"ADF card kn
 row('C172_Compass_card','compass_card_deg','rot',Y,[[0,0],[360,360]],"whisky compass card about the vertical: relative to the case it turns anticlockwise-from-above by the reading (it holds north while the aeroplane turns); +deg = right-handed about up",wrap=360)
 row('C172_Suction_needle','suction_inhg','rot',X,[[0,0],[10,270]],"suction gauge (1 in, yoke-v1): 0-10 inHg over 270 deg = 27 deg/inHg clockwise from 7:30; green 4.5-5.4 with red radials at both ends; drawn at 0 inHg",model=0)
 # ---- the rest of the six-pack and the engine cluster, from the params the sim already supplies ----------------
-row('C172_Airspeed_needle','airspeed_mph','rot',X,[[0,55],[200,415]],"ASI, MPH face: 1.8 deg/mph from 12 o'clock (labels every 20 mph at 36 deg, arcs at tau*v/200); drawn at -55 deg",model=-55/1.8)
-row('C172_Altimeter_needle','altitude_ft','rot',X,[[0,0],[1000,360]],"altimeter long hand, 1 turn per 1,000 ft (unbounded); drawn at 0",extrap=1)
-row('C172_Altimeter_1000','altitude_ft','rot',X,[[0,20],[10000,380]],"altimeter short hand, 1 turn per 10,000 ft; drawn at -20 deg",extrap=1)
-row('C172_Altimeter_10000','altitude_ft','rot',X,[[0,5],[100000,365]],"altimeter 10,000 ft pointer, 1 turn per 100,000 ft; drawn at -5 deg",extrap=1)
-row('C172_VSI_needle','vsi_fpm','rot',X,[[-2000,-170],[-1000,-90],[0,0],[1000,90],[2000,170]],"VSI: drawn zero at 9 o'clock (LEFT); +/-500 fpm at +/-45 clockwise degrees from zero; 1000 at top/bottom; 2000 near right",model=0)
 row('C172_Tach_needle','rpm','rot',X,[[0,35],[3500,350]],"tachometer: 0-35 hundred rpm every 45 deg = 0.09 deg/rpm; drawn at -35 deg")
 row('C172_Oil_press_needle','oil_press_psi','rot',X,[[0,35],[100,323]],"oil pressure: 0-100 psi, 72 deg per 25 psi; drawn at -35 deg")
 row('C172_Oil_temp_needle','oil_temp_f','rot',X,[[75,35],[100,107],[150,179],[200,251],[245,323]],"oil temperature: labels 75/100/150/200/245 F every 72 deg (non-linear face); drawn at -35 deg")
