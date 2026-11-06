@@ -27,8 +27,12 @@ Lane lane/claude-bend-damage. Your 06:28 pattern and 06:29 Pitts −5 g, impleme
 - Tests: OverstressPatternTests 9/9; Structural/Grob/BendDamage/ContactPatch/AirframeContact/Combat/CrashReset/Float/
   WheelWater subset (361) and a crash/prop/spin/lesson/combat subset (404): every failure (4 and 11) fails the same on the
   branch point e61c8268. Merged with island-nav 2710033d: 102/102 in the touched classes.
-- Builds / merges / installs: branch (merged with island-nav 2710033d) iOS **2026.1105.1532 ** BUILD SUCCEEDED ****, 0
-  error CS (NOINSTALL). Merges and installs: PENDING (this line is updated when they land).
+- Builds / merges / installs: branch (with island-nav 2710033d) iOS 2026.1105.1532 ** BUILD SUCCEEDED **, 0 error CS
+  (NOINSTALL). Merged island-nav **1ae220ea**, quest-islandnav **a154ce35**; `tools/check-parity.sh --strict` PARITY OK.
+  **iOS 2026.1105.1550** (island-nav 1ae220ea) ** BUILD SUCCEEDED **, 0 error CS: installed on the iPhone (launched) and
+  the iPad mini; the EFB iPad refused (locked). **Quest NOT installed:** the Quest build (205488e9) compiled with 0 error
+  CS but failed in Gradle, "Archive's size exceeds the limit of 4GByte" — the shared failure in Q126, not this lane;
+  it rides the first Quest build after Q126 is fixed.
 <!-- /overstress needs-you -->
 
 ## NEEDS YOU — Great Lakes panels v2 + Extra no-diagonals / compact front IAC: fly-check on the iPhone (Claude, 2026-11-05 15:31 PT)
