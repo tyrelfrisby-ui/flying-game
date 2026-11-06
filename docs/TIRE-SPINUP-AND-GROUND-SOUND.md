@@ -535,3 +535,38 @@ wheel, at 4.17 / 10.10 / 21.35 Hz against 4.16 / 10.06 / 21.34 rev/s; thump 37 /
 Not modelled: no unsprung wheel mass, so at speed a spot's far edge does not strike the way a real wheel's does; the bump
 is honest geometry and damping, which keeps a 1 mm spot a tick you hear more than feel, and a 2–3 mm one (a long lock) more.
 The wheel visual does not show the spot.
+
+## 10. The 2-33: full spoiler was full wheel brake (Ty 2026-11-05 16:06, lane/claude-sgs233-spoiler-brake)
+
+Ty, phone 2026.1105.1550: "The tire screeches with any braking at all on the 2-33 so the wheel brake is either too strong
+or the screech fix isn't in yet." The onset fix (§7d, 2a20429a) was in that build. The cause was the coupling:
+`Aircraft` added `SpoilerConfig.BrakeFromHandle(spoilerFraction)` (0.9..1 → brake 0..1) to the pilot's brake, reading
+the spoiler DEPLOYMENT as though it were the handle. On the strip and the hand in the headset the two are the same, but the
+touch knob (and the Quest/gamepad knob) puts the spoilers full at 25 % of the pad and its own brake band below 20 %. So
+the knob's full-spoiler position was already full wheel brake, before the brake band: 25 kt on asphalt, BrakeInput 0,
+locked 2.44 s, squeal 0.85, 20 m to stop. The handle's band is now the input's alone (`Core.Vr.SpoilerHandle`, the last
+15 % of the strip and the hand; the knob's band under 20 %), arriving as `BrakeInput`. The config's
+`wheelBrakeFromSpoiler` stays as the rig table's record and is not applied. The Grob 103 shared the bug and the fix.
+
+Measured after (`tools/FlightTests/Sgs233BrakeSquealTests`, main wheel, 8 s or to a stop, squeal = peak chirp level):
+
+| asphalt | brake 0 (full spoiler) | 0.1 | 0.2 | 0.35 | 0.5 | 0.75 | 1.0 |
+|---|---|---|---|---|---|---|---|
+| 25 kt decel / squeal / locked | 0.068 g / 0 / 0 | 0.107 g / 0 / 0 | 0.152 g / 0 / 0 | 0.220 g / 0 / 0 | 0.288 g / 0.77 / 0 | 0.383 g / 0.83 / 0.42 s | 0.417 g / 0.85 / 2.44 s |
+| 15 kt | 0.041 g / 0 / 0 | 0.085 g / 0 / 0 | 0.131 g / 0 / 0 | 0.200 g / 0 / 0 | 0.270 g / 0.69 / 0 | 0.382 g / 0.76 / 0.09 s | 0.473 g / 0.79 / 0.50 s |
+
+At 35 kt the wing still carries nearly all the weight; a wheel that skips off with any brake on is stopped in the air and
+chirps for ~60 ms as it spins up again on the next contact (0.36 at brake 0.1). On grass nothing squeals (the surface).
+
+The brake's size was NOT changed: full pedal is still the fleet's rule, a torque of 0.675·μ·W_static·r (§ LandingGear),
+which on the 2-33's single braked wheel carrying 88 % of the weight is 0.42–0.47 g once the wheel is loaded, and from
+brake 0.5 it passes the tyre's peak and squeals. Whether a 2-33's drum brake is that strong is Ty's call (NEEDS YOU).
+
+### The 2-33's spoiler voice
+
+"The speed break noise is a little too loud and it should have a bit more rumble to it." `SpoilerConfig.SoundLevel`
+(roar, 1 = stock) and `SoundRumble` (a 140 Hz band of noise under the 650 Hz roar, swelling and sagging on a random walk,
+no LFO; 1 = half the stock roar's RMS). 2-33: 0.6 / 1.0. `tools/SpoilerAudio` renders the voice alone (spoiler out minus
+spoiler in, same seeds): −2.1 dB overall against the stock voice, 17 % of its power under 250 Hz against 1 %, the
+envelope's strongest line 4 % deep (no beat). Every other type: 1 / 0, the stock voice sample for sample. No level was
+given by Ty; this is a first step to fly.

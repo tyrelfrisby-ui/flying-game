@@ -1,3 +1,35 @@
+## NEEDS YOU — 2-33: braking screeched because full dive brake was full wheel brake; spoiler voice quieter + rumble (Claude, 2026-11-05 23:15 PT, lane/claude-sgs233-spoiler-brake)
+<!-- sgs233-spoiler-brake needs-you -->
+Your 16:06 (phone 2026.1105.1550; Q128): "The speed break noise is a little too loud and it should have a bit more rumble
+to it on the 2-33. The tire screeches with any braking at all on the 2-33 so the wheel brake is either too strong or the
+screech fix isn't in yet." Nothing approved by me. Queue: **Q139**.
+- **Screech — cause:** the screech fix (2a20429a) WAS in 1550. The sim also read a wheel brake off the SPOILER (dive brake
+  0.9..1 → wheel brake 0..1). On the touch knob the spoilers are full at 25 % of the pad and the brake band starts below
+  20 %, so full dive brake was already FULL wheel brake before any brake was asked for. Measured, 25 kt on asphalt, brake
+  input 0: wheel locked 2.44 s, squeal 0.85, stopped in 20 m. (Strip and headset hand were unaffected: their handle IS the
+  spoiler.) The Grob 103 had the same coupling and gets the same fix.
+- **Fix:** the wheel brake comes only from the input's brake band (knob below 20 %, the strip's / hand's last 15 %). Full
+  spoiler, no brake, now: 0 squeal, never locks, 0.068 g. Light brake 0.2: 0.152 g, silent. Full brake still locks and
+  squeals (0.85), and the squeal level is unchanged (−4 dB bearing item untouched).
+- **Brake SIZE — your call (Q139), proposed, NOT done:** full brake is still the fleet rule (torque 0.675·μ·W·r), so on
+  the 2-33's one wheel it gives 0.42 g at 25 kt and 0.47 g at 15 kt and squeals from about half the brake band. Proposed:
+  halve the 2-33's brake (~0.2–0.25 g at full, no lock on dry asphalt once the wheel carries weight). I have no 2-33
+  brake figure, so I didn't pick one. Table: docs/TIRE-SPINUP-AND-GROUND-SOUND.md §10.
+- **Spoiler voice:** 2-33 only (new `controls.spoiler.soundLevel` / `soundRumble`; every other type unchanged, sample for
+  sample). Roar 0.6 (−4.4 dB) plus a 140 Hz wake rumble on a random walk (no LFO beat) → −2.1 dB overall, 17 % of the
+  voice under 250 Hz against 1 % (`tools/SpoilerAudio`). You gave no level, so this is a first step, not an approved one.
+- **Tests:** Sgs233BrakeSquealTests 4/4. Full suite stopped at the 60 min limit; its 52 failures + every brake/spoiler/
+  glider/tyre/wheel/rig/tow class compared against 59d0f7ed: identical failing sets, apart from
+  ModelRigTests.FullAirBrakeStops…, which pinned the bug and already returned NaN on 59d0f7ed (removed).
+  NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs fails on 59d0f7ed too (its "grob" pattern matches the Grob 103 folder).
+- **Build / install:** iOS **2026.1105.2309** ** BUILD SUCCEEDED **, 0 error CS, **installed on Ty's iPad mini** (it was
+  locked, so no auto-launch); iPhone not connected. Quest not built.
+- **Fly-check (2-33, iPad mini 2026.1105.2309):** (1) land with the dive brakes full out (knob down to the top of the dead
+  band) — no screech, the wheel keeps turning; (2) ease the knob into the brake band — light brake slows you quietly, a
+  hard pull locks and screeches; (3) cruise ~50 kt, boards out — quieter roar with a low rumble under it.
+- SGS233-SPOILER-BRAKE-DONE
+<!-- /sgs233-spoiler-brake needs-you -->
+
 ## NEEDS YOU — soft water no longer sheds the Cub's ailerons: fly-check (Claude, 2026-11-05 20:55 PT, lane/claude-soft-water-breakup)
 <!-- soft-water needs-you -->
 Ty 13:56 / 13:57 (Q028 addenda): the J-3 water-skied to a very soft nose-over and its ailerons fell off; water damage too

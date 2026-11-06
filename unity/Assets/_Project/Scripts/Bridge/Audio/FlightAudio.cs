@@ -345,6 +345,9 @@ namespace FlyingGame.Bridge
             _tele.PropShakeG = aircraft != null ? (float)aircraft.PropVibrationG() : 0f;
             _tele.PropShakeHz = aircraft != null ? (float)aircraft.PropVibrationHz : 0f;
             _tele.Spoiler01 = aircraft != null ? (float)aircraft.CurrentDeflections.SpoilerFraction : 0f;
+            var spoilerCfg = aircraft?.Config?.Controls?.Spoiler;
+            _tele.SpoilerRoar = spoilerCfg != null ? (float)spoilerCfg.SoundLevel : 1f;
+            _tele.SpoilerRumble = spoilerCfg != null ? (float)spoilerCfg.SoundRumble : 0f;
             _tele.OnGround = d.OnGround;
             _tele.TurbulenceLevel = SessionSettings.TurbulenceLevel;
             _tele.WindSpeedMs = SessionSettings.WindSpeedMs;
@@ -450,6 +453,7 @@ namespace FlyingGame.Bridge
             bool powered = engine != null;
 
             float acGain = t.AircraftGain;
+            _wind.SetSpoilerVoice(t.SpoilerRoar, t.SpoilerRumble);
             _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered && !t.PilotOut, t.CockpitAir);
             _fx.Prepare(ias, t.GroanSeverity, acGain);
             _surface.Prepare(t.RollVoiceLR, t.RollVoicePitch, t.RollSpeedMs);
