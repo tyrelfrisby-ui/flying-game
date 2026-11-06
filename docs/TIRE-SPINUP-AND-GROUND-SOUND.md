@@ -392,6 +392,14 @@ filter inside them moves: `FlightAudio.Render` multiplies the ground bus (`Surfa
 ski hiss, float keel scrape) by it, and `ContactEffects` multiplies the airframe-scrape voices by the same constant.
 Not touched: engine, wind, one-shots (`OneShotSynth`, incl. the unused `FxKind.TireChirp`) and crash impacts.
 
+**Screech kept at its old loudness (Ty 2026-11-05 ~15:57, "Tire screech", lane/claude-bearing-ground-minus4).** The
+"pretty good" sound Ty meant to keep is the tyre SCREECH. `TyreBrakeSynth.Next` now returns the squeal voice (spin-up
+chirp, skid, locked wheel) separately, and `FlightAudio.Render` adds it with `GroundSoundMix.ScreechGainDb = 0` instead
+of the bus's −4 dB. Everything else stays on the −4 dB bus, i.e. −4 dB against the mix before 7c: bearing whir, scrub,
+rolling ground (`SurfaceSynth`), brake scrape and brake (pad) squeal, thump / flat slap / burst, water / ski / keel,
+airframe scrape (`ContactEffects`) and prop strikes. No level inside a synth moved; the 7d onset is unchanged.
+Engine, wind and crash impacts untouched.
+
 ### 7d. Squeal onset at the friction peak, and a fade-in (Ty 2026-11-05 08:50, lane/claude-ground-volume)
 
 Ty: "a little too much screetching actually i took off in a crosswind in a cessna no brakes and the tires were howling

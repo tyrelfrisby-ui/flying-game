@@ -85,6 +85,7 @@ namespace FlyingGame.Bridge
             if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; _watched.Damage.Changed += OnDamage; _watched.Contact += OnContact; }
             // The old wreck goes with the old aeroplane, and the trees it snapped stand again (FlyingGame.Core.TreeStructure).
             FlyingGame.Core.Forest.ClearBroken();
+            FlyingGame.Core.StrippedTrees.Clear();
             foreach (GameObject g in _wreckVisuals) if (g != null) Destroy(g);
             _wreckVisuals.Clear();
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;
@@ -211,6 +212,28 @@ namespace FlyingGame.Bridge
                 : LostLine == null ? "BROKE OFF: " + name : LostLine + ", " + name;
         }
 
+        /// <summary>The occupied airframe inside a drawn tree has that tree drawn as the sim has it (StrippedTrees, Ty
+        /// 2026-11-05: the Pitts "vanished" against a stem inside the 1.5 m trunk box and the skirts round it).</summary>
+        private void ObserveTrees(Aircraft ac)
+        {
+            FlyingGame.Core.ITreeSource src = ac.Trees ?? (FlyingGame.Core.WorldTerrain.Active != null ? FlyingGame.Core.Forest.Live : null);
+            if (src == null) return;
+            if (!ReferenceEquals(_sizedFor, ac))
+            {
+                _sizedFor = ac;
+                var cf = ac.Config.Fuselage?.Crossflow;
+                double len = cf != null && cf.LengthM > 0 ? cf.LengthM : 6.0;
+                _treeHalfM = 0.5 * System.Math.Max(2.0 * FlyingGame.Core.WingPanels.Semispan(ac.Config), len);
+                _treeBodyM = cf != null && cf.BodyRadiusM > 0 ? cf.BodyRadiusM : 0.5;
+            }
+            FlyingGame.Core.MathTypes.Vec3 p = ac.State.Position;
+            FlyingGame.Core.WorldTerrain w = FlyingGame.Core.WorldTerrain.Active;
+            if (ac.Trees == null && w != null && -p.Z - _treeHalfM > w.HeightAt(p.X, p.Y) + FlyingGame.Core.Forest.MaxHeightM * 1.05) return;   // above every tree
+            FlyingGame.Core.StrippedTrees.Observe(src, p, _treeBodyM, _treeHalfM);
+        }
+        private Aircraft _sizedFor;
+        private double _treeHalfM, _treeBodyM;
+
         private void ReadLimits()
         {
             if (_watched == null) return;
@@ -232,6 +255,7 @@ namespace FlyingGame.Bridge
 
             // The wreck and the airframe's flooding, in step with the game clock.
             _relay?.Step(Time.deltaTime);
+            ObserveTrees(ac);
             // Bent wing panels follow their shape: the plastic set and twist, and the elastic flex under a tip contact.
             if (_visual == null) _visual = GetComponent<AirframeVisual>();
             if (_visual != null)

@@ -31,6 +31,14 @@ public class GroundSoundMixTests
         Assert.Equal(0.630957, GroundSoundMix.OutputGain, 5);
     }
 
+    /// <summary>Ty 2026-11-05 ~15:57: the tyre screech keeps its loudness from before the −4 dB (literal by hand).</summary>
+    [Fact]
+    public void TyreScreechSkipsTheGroundBusCut()
+    {
+        Assert.Equal(0.0, GroundSoundMix.ScreechGainDb);
+        Assert.Equal(1.0, GroundSoundMix.ScreechGain, 6);
+    }
+
     [Fact]
     public void CrossfadeWeightsSumToOneAndAreEqualPower()
     {

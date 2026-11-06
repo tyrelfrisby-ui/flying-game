@@ -514,9 +514,9 @@ namespace FlyingGame.Bridge
 
                 _wind.Next(out float wl, out float wr);
                 _surface.Next(out float sl, out float sr);
-                _tyres.Next(out float tl, out float tr);
-                sl = (sl + tl) * FlyingGame.Core.GroundSoundMix.OutputGain;   // the ground bus (Ty: −4 dB)
-                sr = (sr + tr) * FlyingGame.Core.GroundSoundMix.OutputGain;
+                _tyres.Next(out float tl, out float tr, out float ql, out float qr);
+                sl = (sl + tl) * FlyingGame.Core.GroundSoundMix.OutputGain + ql * FlyingGame.Core.GroundSoundMix.ScreechGain;   // ground bus −4 dB, screech unchanged
+                sr = (sr + tr) * FlyingGame.Core.GroundSoundMix.OutputGain + qr * FlyingGame.Core.GroundSoundMix.ScreechGain;
                 float el = 0f, er = 0f;
                 engine?.Next(out el, out er);
                 if (shakeDepth > 0f)
