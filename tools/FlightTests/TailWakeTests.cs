@@ -170,7 +170,7 @@ public class TailWakeTests
 
     /// <summary>
     /// Partial power does not flatten the spin through the AIRFRAME: with the propeller's gyroscopic couple removed, a 40 %
-    /// power spin either way stays below 60° α. (With it, PropInertia 9.0 kg·m², the LEFT spin goes flat at α ≈ 90: the
+    /// power spin either way stays below 60° α. (With it, PropInertia 3.5 kg·m² at the governed 2,500 rpm, the LEFT spin goes flat at α ≈ 90: the
     /// clockwise prop's precession pitches the nose up in a left yaw. That is a propeller-inertia question, lane/claude-inertia.)
     /// </summary>
     [Theory]

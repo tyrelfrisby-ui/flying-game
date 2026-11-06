@@ -689,6 +689,8 @@ public sealed class PropulsionConfig
     /// struck span and breaks a wooden or composite one's off (<see cref="PropBladeDamage"/>, Ty 2026-11-05 9:04).</summary>
     public string PropMaterial { get; set; } = "metal";
     public string PropMaterialSource { get; set; } = "";
+    /// <summary>Where <see cref="PropInertia"/> comes from. Reference only: nothing in the flight model reads it.</summary>
+    public string PropInertiaSource { get; set; } = "";
     /// <summary>How many blades (2 by default): each strikes, and is damaged, on its own.</summary>
     public int PropBladeCount { get; set; } = 2;
     private double? _idleDragCd;

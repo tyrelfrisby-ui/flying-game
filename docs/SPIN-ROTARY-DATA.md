@@ -290,3 +290,69 @@ The blocker named in October (the double count in attached flow) is measured awa
 types that have the table nothing. Turning the table on fleet-wide is now a decision about what each type
 should DO, not about whether the term is safe — and it is still the owner's call, because it changes how
 seven types behave at the stall.
+
+## 2026-11-05 — Q007: past flat, and the propeller's rpm
+
+Owner (Ty, 13:02): "It should not go more than 95 or 5 nose up and it should not gyrate or roll out of inverted flat
+right right spin. Look for the cause". On 3bf6ed2f the Pitts' upright left spin at full power with full out-spin
+aileron sat at α 107 (81..128), nose +17°, gyrating; the inverted right spin with right aileron at full power swung
+α −175..+170, rolling out through knife-edge into an upright spin every ~13 s.
+
+**What holds a spin past flat.** `SpinBalanceProbe` part `abin` averages each part's moment over the flown spin (25–45 s),
+binned by |α|. Upright full L, full R aileron, before:
+
+| \|α\| bin | gyro M | inertial (I_zz−I_xx)pr | stab | wings | fuselage (crossflow + Munk) |
+|---|---|---|---|---|---|
+| 80–90 | +7116 | −302 | −4181 | −1207 | −603 |
+| 100–110 | +5841 | −939 | −3171 | −1202 | −1257 |
+| 110–130 | +4961 | −1332 | −2348 | −1040 | −1484 |
+
+(N·m, body, + = nose up.) Past flat, the gyro h·r is the only large nose-up couple. The inertial couple changes sign as
+the nose crosses the horizon (p reverses), so it is the term that pulls the nose back; the aero couples do not rise to
+meet it, because a plate's normal force peaks at 90°.
+
+**The cause: the gyro turned at the throttle's rpm, not the engine's.** `PropModel` gave every running prop 700 + 2,000 ×
+throttle rpm. The engine model (`Aircraft.EngineRpm`) holds a constant-speed prop at its governed 2,500 from 30 %
+throttle, 2,700 only firewalled. So the gyro's prop turned at 1,500 at 40 % and 2,700 at full — 1.8× the angular momentum
+— while the engine turned 2,500 → 2,700. The Pitts' prop inertia, 9.0 kg·m² since 2026-09 (round 32), had been fitted
+against the 1,500 rpm figure; at full power it made h = 2,545 N·m·s.
+
+Held at the 40 % h (inertia 5.0 at full power, nothing else changed) the full-power inverted R+R spin settled at α −90.9
+(−92..−90) and stopped rolling out, and the upright out-spin case stopped gyrating (α 100, steady). So the gyro was the
+gyration and the roll-out. Past flat, what is left scales with h.
+
+**The fix.**
+- `PropModel.RunningRpm`: a constant-speed prop's gyro turns at the governor's rpm. This is the same law the engine
+  reports, moved into Core so RigSolver and the sim agree (`Aircraft.GovernedRpmAt` now calls it). The prop lever rides
+  in `PropDrive`. Fixed-pitch props keep the throttle law. Idle and full throttle are unchanged for every type; part
+  throttle changes for the 8 single-engine constant-speed types. The twins' per-engine copies (DC-3, Seminole, H-4) do
+  not carry `ConstantSpeed` and are unchanged. The gyro is zero at zero rates, so no stored rig moves.
+- The torque reaction (P/ω) still uses the throttle law. It should follow the real rpm too, but every stored rig was
+  solved against the old torque: moving it re-rigs 8 types (Extra aileron rig 0.2033° → 0.1793°). Open.
+- Pitts `propInertia` 9.0 → **3.5 kg·m²** (`propInertiaSource`). A mass estimate: ~16 kg of 80 in aluminium blades,
+  scaled from JSBSim's C172 (2.26 kg·m² for a 75 in prop), plus hub and crank. Depending on how the blade mass is
+  spread, 3–6 is plausible. Sweep, upright left, governed rpm (taken with the torque governed too; the shipped 40 %
+  values are ~1° lower, see Result):
+
+| I_p | 40 % neutral α / θ | 40 % out-spin | full neutral | full out-spin |
+|---|---|---|---|---|
+| 5.4 (keeps the 40 % h) | 96.5 / 7.1 | 99.4 / 9.9 | 99.6 / 10.3 | 101.4 / 12.0 |
+| 4.5 | 93.2 / 3.8 | 96.5 / 7.0 | 96.5 / 7.1 | 98.2 / 8.8 |
+| 4.0 | 91.7 / 2.2 | 94.9 / 5.4 | 94.6 / 5.3 | 96.4 / 7.0 |
+| **3.5** | **90.1 / 0.6** | **93.3 / 3.7** | **92.7 / 3.3** | **94.6 / 5.2** |
+
+  3.5 is the low end of the plausible range, and it was chosen *because* it is the value at which the full-power
+  out-spin flat meets the owner's 95° / 5° limit. That is a calibration inside a physical band, not a measurement.
+
+**Result** (full table in AGENT-LOG 2026-11-05):
+- upright full L + R aileron: α 94.6 (94..95), θ +5.2, steady;
+- upright 40 % L + R aileron: α 92.6 (92..93), θ +3.1, steady (was 98.3 / +9.0);
+- inverted R + R aileron: α −85.0 at 40 % and −85.1 at full, θ −4.6 / −4.4, steady, never upright.
+- With the ailerons neutral, the shapes hold: idle α within 0.3°, the 40 % left spin still flat (92.9 / +3.9 →
+  88.9 / −0.5). The rates move: idle L 183 → 200 deg/s, idle R 245 → 223, 40 % L 201 → 238, 40 % R 318 → 276.
+- Lost: idle upright with out-spin aileron no longer goes flat (89.5 → 41.8), and the full-power inverted R spin with
+  ailerons neutral no longer flattens on its own (it gyrated before; now α −34, steady).
+- Still open, unchanged: the gyro-adverse senses (upright R, inverted L) do not go flat with power. The owner says the
+  upright R does at ~85° with out-spin aileron. So the model still lacks a symmetric power-flattening term: the blown
+  tail is a pure +x increment that ignores the jet bending in the crossflow, and the prop's in-plane (H) force is not
+  modelled. That is the next piece of work, and the inertia should be re-examined with it.

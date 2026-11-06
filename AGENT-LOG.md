@@ -1,3 +1,32 @@
+## NEEDS YOU — Pitts spin Q007: no past-flat, no inverted roll-out; cause was the prop gyro's rpm (Claude, 2026-11-05)
+<!-- q007 needs-you -->
+Lane lane/claude-pitts-spin-cap (from island-nav acaf8ed2). Your 13:02: "It should not go more than 95 or 5 nose up and it
+should not gyrate or roll out of inverted flat right right spin. Look for the cause". Nothing approved by me.
+- **Ty, please fly-check the Pitts:** (1) upright LEFT, full power, full RIGHT (out-spin) aileron: should sit flat, nose
+  about +5°, steady, no gyrating (was α 107, nose +17°, gyrating); (2) inverted, stick forward, RIGHT rudder + RIGHT
+  aileron, 40 % and full power: should hold inverted flat, nose about 4–5° below the horizon, and never roll out (it used to
+  roll through knife-edge into an upright spin); (3) the upright flat with ailerons NEUTRAL that you approved: same shape
+  but FASTER (40 % L 201 → 238 deg/s, 1.79 → 1.51 s/turn). Tell me if that rate is wrong.
+- **Cause, measured** (`SpinBalanceProbe` part `abin`: each part's moment averaged over the flown spin, by |α|): past flat
+  the only big nose-up couple is the prop gyro h·r (+5.0 to +7.1 kN·m); the inertial (I_zz−I_xx)pr turns nose-down as the
+  nose crosses the horizon and is the only thing pulling it back. `PropModel` ran the gyro at 700 + 2,000 × throttle rpm
+  for every prop, while the engine itself (`Aircraft.EngineRpm`) holds a constant-speed prop at 2,500 rpm from 30 %:
+  1,500 rpm in the gyro at 40 %, 2,700 at full — 1.8× the angular momentum at full power. The Pitts' 9.0 kg·m² (Sep,
+  round 32) was fitted against the 1,500. Holding the full-power h at the 40 % value alone stopped the inverted roll-out
+  (α −90.9 steady) and the upright gyration.
+- **Fix:** the gyro of a constant-speed prop turns at the governor's rpm (`PropModel.RunningRpm`, the engine's own law,
+  now in Core). Pitts `propInertia` 9.0 → **3.5 kg·m²**. **This 3.5 is partly a calibration, please judge it:** a mass
+  estimate puts a two-blade 80 in aluminium Hartzell plus crank at 3–6 kg·m² (JSBSim C172 scaling gives ~3–3.5, a linear
+  blade taper 5–7). I took the low end BECAUSE it is where full-power out-spin meets your 95 / 5 (4.0 gives 96.4 / +7.0).
+  No published Hartzell inertia found. If you know the real number, it goes in `propInertiaSource`.
+- **What you lose:** idle upright with out-spin aileron no longer goes flat (α 89.5 → 41.8; it was gyro-held at 700 rpm);
+  the full-power inverted right spin with ailerons NEUTRAL no longer flattens on its own (it gyrated −86..+88, now a
+  steady α −34). Neutral-aileron idle spins: α within 0.3°, rates 183 → 200 (L) and 245 → 223 (R).
+- **Still open:** upright RIGHT at full power with out-spin aileron sits at α 33 (your Q007a says ~85): the model has no
+  symmetric power-flattening term (tail slipstream is a pure +x increment; no prop in-plane force). The torque reaction
+  P/ω still uses the throttle law (moving it re-rigs 8 constant-speed types). `PittsPowerSpinTargetTests` stays skipped
+  (inverted holds, but at −85.1 against its 90–95 band).
+
 ## NEEDS YOU — overstress pattern: wings, tail and engine flex, bend and break by your numbers (Claude, 2026-11-05)
 <!-- overstress needs-you -->
 Lane lane/claude-bend-damage. Your 06:28 pattern and 06:29 Pitts −5 g, implemented as written (write-up
@@ -780,6 +809,60 @@ in-world HUD, frustum fix) is merged with lane/claude-vr-stereo; both lanes carr
 - Renders (Unity batch, seat eye): ~/Developer/agent-lanes/renders/extra-front-seat/front.png, rear.png (iPhone 72 deg), front-quest.png, rear-quest.png (Quest eye),
   switches-closeup.png, verniers-left-wall.png, throttle-closeup.png, valve-rear.png, valve-front.png, and
   rear-compare.png / front-compare.png / throttle-compare.png beside the reference photos in ref/ (AirSpace N251EC, Wikimedia 330LX).
+
+### 2026-11-05 — Claude · lane/claude-pitts-spin-cap · Q007: Pitts past-flat and inverted R+R roll-out, the prop gyro's rpm
+Started from island-nav acaf8ed2 (run #4 fe232151 included). Evidence from run #3/#4 (lane/claude-pitts-spin AGENT-LOG),
+reproduced here before changing anything. Write-up: docs/SPIN-ROTARY-DATA.md § "2026-11-05 — Q007".
+
+**Reproduced (3bf6ed2f numbers held on acaf8ed2):** upright full L + R aileron α 107.2 (81..128), θ +17.4, 149 deg/s;
+inverted full R + R aileron α −28.0 (−175..+170): trace shows it flatten to −96..−99 (nose +13°, past flat inverted),
+bank to φ 90 at α −126, and come out upright at α +80, every ~13 s.
+
+**Budget (new probe part `abin`, upright full L + R aileron, N·m body, mean per |α| bin, 25–45 s):** gyro +7116 (80–90),
++5841 (100–110), +4961 (110–130); inertial (I_zz−I_xx)pr −302 / −939 / −1332 (it reverses as θ crosses 0: p changes
+sign); stab −4181 / −3171 / −2348; wings −1207 / −1202 / −1040. Nothing aerodynamic stiffens past 90 (plate normal force
+peaks there); gyro vs inertia sets how far past flat it goes.
+
+**Cause:** `PropModel` rpm = 700 + 2000·throttle for every prop; `Aircraft.EngineRpm` (governor) says 2,500 from 30 %.
+Gyro h at 40 % = 9.0 × 1,500 rpm = 1,414 N·m·s, at full 2,545 (1.8×). Experiment (old law, I_p 5.0 so full-power h =
+1,414): inverted full R + R aileron α −90.9 (−92..−90) θ +1.6, steady, no roll-out; upright full L + R α 100.0 steady.
+
+**Changes:** `src/FlyingGame.Core/PropModel.cs` (`RunningRpm`, `LowGovernorFraction`, `PropDrive.PropLever`; the gyro uses
+the governor's rpm; torque unchanged), `src/FlyingGame.Sim/AircraftEngine.cs` (`GovernedRpmAt` calls it; `Drive` carries
+the prop lever), `src/FlyingGame.Core/DataContracts/AircraftConfig.cs` (`PropInertiaSource`, reference only),
+`configs/aircraft/pitts-s2b-like.json` (`propInertia` 9.0 → 3.5 + source). First try also moved the torque to the
+governed rpm: it re-rigs all 8 single-engine CS types (`RigTests.ModelStillAsksForTheSameRig`/`HandsOffLevelAtRigPower`,
+Extra aileron rig 0.2033 → 0.1793°), so torque was put back and logged open.
+
+**I_p sweep** (upright L, governed gyro; torque governed in this sweep): 5.4 → 40 % 96.5 / 7.1, full out-spin 101.4 / 12.0;
+4.5 → 93.2 / 3.8, 98.2 / 8.8; 4.0 → 91.7 / 2.2, 96.4 / 7.0; 3.5 → 90.1 / 0.6, 94.6 / 5.2.
+
+**Table** (Pitts, flatgrid, final tree; α (range when > 1°), θ, Ω deg/s). Before = acaf8ed2 (run #4 after-table).
+
+| spin | aileron | before | after |
+|---|---|---|---|
+| up idle L | neutral | 31.8 / −56.9 / 183 | 31.5 / −57.1 / 200 |
+| up idle L | full R (out) | 89.5 / −0.3 / 248 | 41.8 / −46.6 / 159 |
+| up idle R | neutral | 30.9 / −57.4 / 245 | 31.6 / −56.6 / 223 |
+| up 40% L | neutral | 93.0 / 4.0 / 201 | 88.9 / −0.5 / 238 |
+| up 40% L | full R (out) | 98.3 / 9.0 / 248 | **92.6 (92..93) / 3.1 / 281** |
+| up 40% R | neutral | 30.7 / −57.7 / 318 | 29.8 / −58.3 / 276 |
+| up full L | neutral | 90.5 (71..108) / 3.6 / 126 | 92.7 / 3.3 / 299 |
+| up full L | full R (out) | 107.2 (81..128) / 17.4 / 149 | **94.6 (94..95) / 5.2 / 337** |
+| up full R | full L (out) | 32.8 / −54.9 / 389 | 33.3 / −53.5 / 278 |
+| inv idle R | full R | −36.3 / −51.6 / 132 | −33.3 / −54.2 / 159 |
+| inv 40% R | neutral | −32.8 / −56.3 / 164 | −31.9 / −57.0 / 180 |
+| inv 40% R | full R | −90.9 / 1.6 / 235 | **−85.0 (−86..−85) / −4.6 / 258** |
+| inv full R | neutral | −25.3 (−86..88) / −34.5 / 147 | −34.0 / −54.6 / 194 |
+| inv full R | full R | −28.0 (−175..170) / −24.1 / 152 | **−85.1 (−86..−85) / −4.4 / 291** |
+| inv full L | neutral | −28.3 / −60.3 / 351 | −27.9 / −60.6 / 260 |
+
+**Tests:** new `PittsSpinPastFlatTests` (5: upright out-spin ≤ 95.5 / θ ≤ 6 / steady at 40 % and full; inverted R+R stays
+inverted, −95..−80, steady at 40 % and full; governed-rpm gyro literals) PASS. `PittsFlatSpinAileronTests` 8/8 PASS after
+re-pinning the neutral-aileron pin (deliberate; old literals kept in its comment). TailWake, PropEffects, ExtraCoupling,
+EngineState PASS; `PittsPowerSpinTargetTests` 2 still skipped (reason updated). Filtered suite (Spin, Pitts, Extra, Prop,
+Engine, Rig, Roll, Stall, Tail, Aileron, Climb, Takeoff, Trim, … 847 tests): base acaf8ed2 21 failed / 819 passed;
+final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes alone: 2 failures, both on base.
 
 ### 2026-11-04 Extra front seat + rear panel + linked fuel valve (Claude, lane/claude-extra-front-seat)
 - Pass 13 `tools/own_models/extra_front_seat.py` on all three Extra GLBs + ea300-own-rig.json (docs/SHARED-COCKPIT.md row 13):
