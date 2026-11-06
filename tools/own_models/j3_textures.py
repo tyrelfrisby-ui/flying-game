@@ -3,7 +3,7 @@
 Gauge layout / colours read by eye off Ty's cockpit photo (refs/j3-cub/ty-panel.png): cream faces, black markings, no
 maker names.
 Ty t934u: Cub exception — remove ALL colored bands/arcs; red limit lines ONLY for max oil temp, min AND max oil
-pressure, max RPM, max airspeed. Preserve verified marks already in this file; do not invent new limit numbers.  Prop: laminated-birch look, varnish tint, red tip band (Ty) on both faces, brass LE sheath + rivet line
+pressure, max RPM, max airspeed. Values MUST be approved/manual limits (A-691 / E-205), never dial scale ends.  Prop: laminated-birch look, varnish tint, red tip band (Ty) on both faces, brass LE sheath + rivet line
 (Ty's Sensenich-type photo refs/j3-cub/ty-prop.png; the maker's decal is a trademark and is NOT reproduced)."""
 import sys, os, math, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -38,14 +38,19 @@ def needle(cx, cy, a, L, col=RED, w=9, tail=40):
 cx, cy = face(0); a0, a1 = -135, 135
 ticks(cx, cy, 200, 238, a0, a1, 30, 4); ticks(cx, cy, 185, 238, a0, a1, 6, 11)
 for k, v in enumerate(range(5, 40, 5)): label(cx, cy, 138, a0 + 270 * k / 6, str(v), F(72))
-arc(cx, cy, 226, a0 + 270 * (22.8 - 5) / 30, a0 + 270 * (23.2 - 5) / 30, 26, RED)             # A-65 red line 2300 (max RPM; t934u red-only)
+# Max RPM redline: FAA Spec A-691 (J3C-65) "Engine limits For all operations, 2350 r.p.m. (65 hp)".
+# (Prop static max 2300 is a different limit — tach operating redline follows engine limit.)
+# NOT config propulsion.maxRpm 2575 (inherited Super Cub / C-85 path; own model is A-65 per PROVENANCE).
+arc(cx, cy, 226, a0 + 270 * (23.5 - 5) / 30 - 1.5, a0 + 270 * (23.5 - 5) / 30 + 1.5, 26, RED)
 D.text((cx, cy - 30), 'R P M', font=F(52), fill=INK, anchor='mm'); D.text((cx, cy + 150), 'X 100', font=F(36), fill=INK, anchor='mm')
 needle(cx, cy, a0 + 270 * (18 - 5) / 30, 200, (200, 70, 30))
 # 1 airspeed (MPH): 40 at 1 o'clock clockwise to 140 at ~11 o'clock
 cx, cy = face(1)
 def asd(v): return 30 + (v - 40) * 300 / 100.0
 arc(cx, cy, 214, asd(38), asd(122) , 0, INK)
-# t934u: no green/yellow airspeed band — red max-airspeed line only (existing mark at 122 mph ≈ config vneMs 54.5)
+# t934u: no color band. Max airspeed red = FAA Spec A-691 Airspeed Limits (CAS) "Glide or dive 122 mph (106 knots)".
+# (Level flight or climb 90 mph is a separate limit — not painted as green here per t934.)
+# config limits.vneMs 54.5 = 122 mph matches A-691 glide/dive; build_j3.py had flagged secondary until TCDS check.
 D.line([polar(cx, cy, 196, asd(122)), polar(cx, cy, 250, asd(122))], fill=RED, width=12)
 ticks(cx, cy, 205, 238, asd(40), asd(140), 20, 4); ticks(cx, cy, 190, 238, asd(40), asd(140), 5, 11)
 for v in range(40, 160, 20): label(cx, cy, 128, asd(v), str(v), F(68))
@@ -98,14 +103,20 @@ for yo, lab, vals, red_at in ((-95, 'TEMPERATURE', ['100', '150', '200', '250'],
     for k, v in enumerate(vals):
         a = -60 + 120 * k / n; D.line([polar(cx, oc, 175, a), polar(cx, oc, 200, a)], fill=INK, width=9)
         label(cx, oc, 120, a, v, F(40))
-    # t934u: no green/yellow bands. Red limit lines only.
-    # TEMP (red_at set): max at scale end 250 F (existing).
-    # PRESSURE: keep prior min-side red at 0.125 of 0..80 scale; add max red at scale end 80 (dial's painted top — not a new invented POH value).
+    # t934u: no color bands. Red lines ONLY at verified Continental / airframe limits — NOT dial scale ends.
+    # Oil temp max 220 F: FAA TCDS E-205 NOTE 1 (A-65) max oil inlet temperature 220 F (dial scale goes to 250 — scale end is NOT the limit).
+    # Oil press min 30 / max 60 psig: same NOTE 1 "Oil pressure limits: 30 to 60 p.s.i.g."
+    # (Do not use prior 0.125-of-scale paint or scale-end 80 as limits — those were not approved values.)
     if red_at is not None:
-        D.line([polar(cx, oc, 170, 60), polar(cx, oc, 215, 60)], fill=RED, width=10)  # max oil temp
+        # TEMPERATURE dial: 100..250 F maps to -60..+60 deg
+        a_tmax = -60 + 120 * (220 - 100) / (250 - 100)
+        D.line([polar(cx, oc, 170, a_tmax), polar(cx, oc, 215, a_tmax)], fill=RED, width=10)
     else:
-        D.line([polar(cx, oc, 170, -60 + 120 * 0.125), polar(cx, oc, 215, -60 + 120 * 0.125)], fill=RED, width=10)  # min oil press (existing mark)
-        D.line([polar(cx, oc, 170, 60), polar(cx, oc, 215, 60)], fill=RED, width=10)  # max oil press at painted scale end
+        # OIL PRESSURE dial: 0..80 psi maps to -60..+60 deg
+        a_pmin = -60 + 120 * (30 / 80.0)
+        a_pmax = -60 + 120 * (60 / 80.0)
+        D.line([polar(cx, oc, 170, a_pmin), polar(cx, oc, 215, a_pmin)], fill=RED, width=10)
+        D.line([polar(cx, oc, 170, a_pmax), polar(cx, oc, 215, a_pmax)], fill=RED, width=10)
     D.text((cx, oc - 25), lab, font=F(30), fill=INK, anchor='mm')
     if PAINT_NEEDLES: D.line([(cx, oc), polar(cx, oc, 190, -10 if red_at else 8)], fill=INK, width=8)
 D.line([(cx - 230, cy + 8), (cx + 230, cy + 8)], fill=(120, 112, 96), width=3)
