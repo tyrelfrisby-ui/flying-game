@@ -10,6 +10,44 @@ Outcomes (visual animation — do not retune pitch physics without evidence of a
 
 NOUPLOAD. Preserve smoke/crash-cam/skis/tow/WB/OTA; holds untouched.
 
+**RESULT 2026-11-06 08:20 PT (Claude) — PITTS-ELEVATOR-VIS: fixed in code, verified on the bench, BUILD SUCCEEDED; not on a device yet.**
+- **Cause (measured, not inferred):** the Pitts' cockpit rig (docs/models/pitts-s2b-own-rig.json, in since 2026-11-02 bad3a452)
+  makes AirframeVisual skip the hinge carve ("the model's own rig drives its moving parts; the hinge carve is skipped"),
+  and the rig has NO rows for Elevator_L/R, Aileron_UL/UR/LL/LR or Rudder. So every Pitts flight surface was drawn still:
+  live, external camera, replay and remote view. Not just the elevator: ailerons and rudder too. The sim was right all along:
+  full aft stick = -27.0 deg (TE up, q +66 deg/s), full forward +27.0, half aft -12.1, neutral 0 (no physics change made).
+- **Fix 13ce4aa1:** Core `SurfaceHinges`, the seven hinge lines from build_pitts_s2b.py (elevators x 3.30 / y 0.071; rudder
+  vertical at x 3.30; swept upper and 3-deg-dihedral lower aileron lines), checked against the drawn meshes. AirframeVisual
+  turns each named node about its line when the rig doesn't drive it, using the config's own surface on that side for sense
+  and gain. It also adds the slave-strut pins (Strut_Slave_*_PinUpper/Lower) before the rig binds, so the struts now follow
+  the ailerons (they were static: "has no PinUpper"). It logs what bound.
+- **Measured (Editor ControlSurfaceMotionCheck, vertex motion of the built aeroplane through SetDeflections, the path live,
+  replay and remote all use), at 0.35 rad:** BEFORE Pitts elevator L 0 / R 0 vertices, aileron 0, rudder 0. AFTER elevator
+  L and R 1853 vtx each, TE -16.7 cm both (= 0.49 m chord x sin 20 deg), half deflection -8.5 (proportional), reverse +16.7;
+  ailerons L -8.7 / R +8.7 cm (differential, right way); rudder +18.0 cm right; neutral returns 0.00 mm. Extra unchanged
+  (fleet before/after reports in the renders dir; other types untouched by the code path).
+- **Tests:** SurfaceHingeTests 9/9 (table vs meshes in all 4 Pitts liveries, strut pins, every rigged own model's surfaces
+  moved by something with the 172 as the named known gap, Pitts stick->elevator full/proportional/sense, replay round trip).
+- **Evidence:** ~/Developer/agent-lanes/renders/pitts-elevator-vis-t917u/: `*-before-*` vs `*-after-*`, elevator grids
+  (neutral | full aft | half aft | full fwd) in chase / tail34 / tailside views, roll (aileron + rudder), strut close-up.
+- **Build:** iOS **2026.1106.0816** (CFBundleVersion 202611060816), ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL (not
+  installed, not uploaded). Quest not built. Ty fly-check = **Q149**.
+- **Also found:** the Cessna 172 (own model) has the same fault (its rig has no surface rows, so all five surfaces are still).
+  Its nodes sit on their hinges, so it needs rig rows, not this table: **Q150**, not fixed here.
+- **Codex model audit:** not needed for the Pitts to work. Optional cleanup for it: re-origin the Pitts' surface nodes on their
+  hinges + `_HingeAxis` markers + strut pins in build_pitts_s2b.py (as build_ea300.py does), then drop the Pitts entry from
+  SurfaceHinges. Also noted: the GLB's lower-aileron horns sit ABOVE the hinge, not below as the script's v13 comment says.
+- **Suite:** a full `dotnet test` on this lane was killed at the 2 h limit while four other lanes' suites ran (partial
+  output: world/terrain failures in Alaska/Forest/Plateau, untouched by this change, so not compared). The three Pitts
+  failures in it (AerobatGroundHandlingTests ThreePointAndWheelLandingsAreWorkable x2, PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes)
+  fail ALONE on the base 2b47338f too: pre-existing, not this lane. A clean full-suite compare is still owed.
+- **Merge: NOT merged to playable / Quest.** island-nav is still at the base 2b47338f (this lane is a fast-forward + log),
+  but claude-island-nav-merge has another agent's UNCOMMITTED AGENT-LOG.md edit (plus the usual StreamingAssets mirrors),
+  and this lane also edits AGENT-LOG. I did not stash someone's in-progress log. Merge 13ce4aa1 + this log commit into
+  island-nav, then the Quest lane the same day (parity lock), once that worktree is clean and a quiet-machine suite compare
+  is done. Then build and fly-check Q149.
+- PITTS-ELEVATOR-VIS-T917 **PROGRESS** (fix verified on the bench + BUILD SUCCEEDED 2026.1106.0816; awaiting merge + device).
+
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
 - Shatter: already at **90ee4fc7** / Quest **13e45d72** / iOS 2026.1106.0249 — no duplicate.
