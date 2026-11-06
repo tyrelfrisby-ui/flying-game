@@ -1,3 +1,13 @@
+### 2026-11-06 07:35 PST — Claude · crash camera occupant/fuselage follow (Pitts regression) · lane/claude-crash-cam-occupants
+
+NEEDS YOU: Ty t915u 06:34 AKST — "On the build on my phone now the pitts crash still fails to follow the occupants portion of the wreck."
+
+Phone-build evidence (do not invent): last confirmed on-phone TestFlight is **2026.1105.1816** (tip a8140de6). That tip **lacks** fuselage-follow merge 7d7e9afe/cc689768. **2026.1106.0703** was uploaded and is Apple PROCESSING — **not** confirmed installed on the phone. Do not dismiss the report as "old build only"; reopen acceptance and reproduce on playable including Pitts. Prior intent (7d7e9afe): follow seat-bearing fuselage / cabin, not wreck centroid or first debris, no auto zoom-out, until authorized bailout.
+
+Outcomes: camera stays with the occupant/seat-bearing fuselage fragment through Pitts (and general) breakup; tests + BUILD SUCCEEDED; occupant-fragment-follow evidence; report exact source/build containing the fix — no "fixed" claim from ancestry alone. No crash-autoexit/onfoot resume; no bailout rule changes; NOUPLOAD.
+
+Status: lane started from playable 2b47338f. Smoke/tow/WB/skis obligations untouched.
+
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
 - Shatter: already at **90ee4fc7** / Quest **13e45d72** / iOS 2026.1106.0249 — no duplicate.
