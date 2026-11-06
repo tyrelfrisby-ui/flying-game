@@ -313,8 +313,25 @@ public static class AirframeContact
             rootX = root.Pos[0]; chord = root.Chord;
             break;
         }
-        return (rootX + 0.25 * chord + 0.6, rootX - 0.75 * chord - 0.3);
+        double nose = rootX + 0.25 * chord + 0.6, tail = rootX - 0.75 * chord - 0.3;
+        // The cabin is the section with the SEATS in it (Ty 2026-11-06 t915u: the Pitts crash camera "fails to follow the
+        // occupants portion of the wreck"). Set off the wing alone, the Pitts' tail cut fell at x -0.70 with its solo rear
+        // seat at -1.14, so a break-up sent the pilot's cockpit off as the tail boom while the camera followed the front
+        // cockpit and wings; the Extra's and Great Lakes' rear seats and the Grob's front seat were outside it too. Every
+        // seat's mass station stays SeatClearM inside the cabin, so the piece that carries the occupants is the Aircraft.
+        if (c.Loading is { Seats.Count: > 0 } l)
+            foreach (StationConfig s in l.Seats)
+            {
+                if (s.Station is not { Length: > 0 }) continue;
+                nose = System.Math.Max(nose, s.Station[0] + SeatClearM);
+                tail = System.Math.Min(tail, s.Station[0] - SeatClearM);
+            }
+        return (nose, tail);
     }
+
+    /// <summary>How far a fuselage cut stays from any seat's mass station (the hip): the seat back, the pilot's head
+    /// and shoulders lie within about 0.3 m aft of it, the legs ahead.</summary>
+    public const double SeatClearM = 0.5;
 
     /// <summary>
     /// EFFECTIVE friction of a WRECKED airframe sliding on the surface: the fuselage, wing stubs and every wreck piece

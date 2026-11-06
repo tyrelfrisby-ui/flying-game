@@ -640,3 +640,14 @@ water in the distance and an aircraft reflection, but its floats were dry: no ph
 that never entered the water branch. Use the current `IslandSites` water lane, its heading and sampled surface,
 and reject a dry fixture before saving water review evidence (`WaterRender`). Keep the old failed captures
 labelled invalid rather than treating a plausible blue image as proof of water contact.
+
+### "The camera follows the cabin" is only true if the cabin is where the seats are
+The 2026-11-06 fuselage-follow fix proved the camera's Target is the sim's Aircraft and that the Aircraft keeps the
+cabin, and Ty's Pitts crash still left the camera on the wrong piece. The cabin was the span between two cuts set off
+the WING ROOT alone (`AirframeContact.FuselageStations`), and the Pitts' solo pilot sits in the rear seat 0.43 m aft of
+the tail cut: 100 % of the drawn rear cockpit went with the tail section, on a break and on a tail BEND, which cuts at
+the same station. The Extra's and Great Lakes' rear seats and the Grob's front seat were outside too. A test that
+checks "the part named X stays" must also check that X contains the thing the user means (here, the seats); measure
+the drawn geometry around the seat (`CrashCamOccupantShots`), not the name of the object it hangs on. And the visual
+compared root-local z (from the CG) with config-frame stations, so its cut sat `cg.x` off the sim's (0.76 m on the
+Great Lakes): when two systems cut at "the same" station, check they share a frame.
