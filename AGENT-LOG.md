@@ -1,3 +1,9 @@
+## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
+- Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
+- Shatter: already at **90ee4fc7** / Quest **13e45d72** / iOS 2026.1106.0249 — no duplicate.
+- Cap 4/4 — executor merge (no 5th Claude). Part B physics still on Claude 42216 separately.
+- Next: tests + BUILD SUCCEEDED + Quest parity + device install. NOUPLOAD. No push/main.
+
 ## NEEDS YOU — canopy / windshield / window glass: tough plastic, shatters only on a DIRECT hit, jagged, every aeroplane (Claude, 2026-11-06 02:10 PT, lane/claude-canopy-shatter)
 <!-- canopy-shatter needs-you -->
 Ty Q028b (2026-11-05 ~13:32): "canopy is very tough plastic; stays attached if unlatched; breaks/shatters ONLY if it takes a
