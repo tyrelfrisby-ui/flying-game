@@ -392,3 +392,22 @@ bm = bmesh.new(); box(bm, (TRP[0], TRP[1] + 0.012, TRP[2] + 0.09), (0.13, 0.006,
 for k in range(4): box(bm, (TRP[0] - 0.045 + 0.03 * k, TRP[1] + 0.008, TRP[2] + 0.115), (0.008, 0.01, 0.012))
 box(bm, (TRP[0], TRP[1] + 0.01, TRP[2]), (0.04, 0.02, 0.04))
 ck('Trim_Quadrant', bm, 'metal')
+
+# Ty 2026-11-05: visible padded crown 20 mm below the skin (Q118 follow-up), not just the face.
+# Translate the original D profile and all attached parts together, retaining UVs,
+# dial sizes, and control travel. Measure the actual tube vertices (its thickness
+# and sloping segments put the crown above ZT). Never move the fuselage or eyes.
+from sgs233_panel_flush import ASSEMBLY, BELOW_SKIN_M
+PANEL_SKIN_Z = mz(fus(PPX)[0])
+PANEL_TARGET_Z = PANEL_SKIN_Z - BELOW_SKIN_M
+PANEL_DZ = PANEL_TARGET_Z - max(v.co.z for v in P['Panel_Coaming'].data.vertices)
+assert PANEL_DZ < 0
+for _name in ASSEMBLY:
+    P[_name].data.transform(Matrix.Translation((0, 0, PANEL_DZ)))
+for _name in NEEDLES:
+    if _name in ASSEMBLY:
+        _x, _y, _z = NEEDLES[_name]; NEEDLES[_name] = (_x, _y, _z + PANEL_DZ)
+_x, _y, _z = RIGPTS['TowRelease_F']; RIGPTS['TowRelease_F'] = (_x, _y, _z + PANEL_DZ)
+ZB += PANEL_DZ; ZT += PANEL_DZ
+assert abs(max(v.co.z for v in P['Panel_Coaming'].data.vertices) - PANEL_TARGET_Z) < 1e-6
+print('PANEL FLUSH: lowered %.3f mm; crown %.8f m' % (-PANEL_DZ * 1000, PANEL_TARGET_Z))
