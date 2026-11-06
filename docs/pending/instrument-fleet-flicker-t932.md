@@ -24,7 +24,7 @@ Directory: `~/Developer/agent-lanes/renders/t932-instrument-fleet-flicker/`.
 
 ## Exact deferred capture / proof plan
 
-1. Wait for spray's full reservation, tests, Unity and Xcode to finish. Do not launch independent test/build commands or hold a waiting reservation. From this lane run only `zsh tools/deploy/deploy-instrument-verification.sh`; if it exits 75, let it exit and retry later when idle.
+1. Wait for smoke post-merge deploy on island-nav 16665d15 to release the exclusive slot (t932–t934 authority: spray FULL_SUITE finished and is in base-compare, not the holder). Do not launch independent test/build commands or hold a waiting reservation. From this lane run only `zsh tools/deploy/deploy-instrument-verification.sh`; if it exits 75, let it exit and retry later when idle.
 2. Verifier runs Instrument/NoRed233 tests, then CockpitEyeShots, then deploy.sh NOINSTALL. Preserve `build/instrument-tests.log`, `build/instrument-shots.log`, `build/instrument-ios.log` with run SHA/timestamp. Claim results only from that run. Require four shots / zero failures, no C# errors and actual `** BUILD SUCCEEDED **`.
 3. Exact four after fixtures (all sun, yaw 0, 2160x1000): Pitts rear pitch -15 vfov72 (`pitts-phone`); Pitts rear pitch -20 vfov40 (`pitts-closeup`); Great Lakes rear pitch -15 vfov72 (`great-lakes-phone`); Great Lakes rear pitch -20 vfov40 (`great-lakes-closeup`). Files go to `after/`. Fixtures force own models unless COCKPIT_OWN=default; record actual model-binding logs and environment. Fixed readings include 120 mph / 104 kt, 2500 ft, 2300 rpm, 70 psi, 185 F, 1 G. See CockpitEyeShots.One for complete values.
 4. Open all four at native resolution and at the intended phone display size. Check numeral/tick distinction, arc weight, needle contrast, hidden/overlapping gauges and surviving engine faces. Label 40-degree shots as closeups, not normal phone FOV. No approval inferred from successful file creation.
@@ -34,3 +34,34 @@ Directory: `~/Developer/agent-lanes/renders/t932-instrument-fleet-flicker/`.
 ## Claude merge checklist
 
 No playable merge yet. Review f9906913 plus this audit commit; finish visible untreated-face inventory and temporal proof. Run serialized verifier on final assets; inspect all images and logs. Preserve foreign packaging/backup dirt using the existing t938u recovery stash (never reset hard or force-add). Require tracked-ignore audit empty before commits. Merge local lane to island-nav and Quest same day under parity lock, with strict parity check; never bypass hooks. No push/main/upload/install authorized here. Remaining matched cockpit before capture and temporal proof need explicitly recorded evidence, not a static-shot PASS.
+
+## Resume #2 — source/evidence only (2026-11-06)
+
+Continued from 37846ceb. No verifier, Unity batch, Xcode or dotnet test invoked. BUILD remains deferred under the smoke reservation; no result from another lane is claimed here.
+
+### Additional draw / shared-face / UV audit
+
+- `SharedInstruments.Place` instantiates the library prefab, lights its materials, then clones the face material before assigning aircraft-specific FaceArt. It does not write per-aircraft art into the cached library material. This argues against that particular shared-material overwrite mechanism; it does not prove imported scenes have no duplicate faces.
+- Hide logic disables all descendant renderers of each named old node. It does not remove individual triangles from a combined panel mesh. A surviving face baked into a mixed mesh is still a candidate; source inventory now records material-to-node associations, but only imported visibility/depth inspection can establish overlap.
+- `InstrumentLighting.Lit` preserves texture scale/offset, skips a keyword-enabled nonzero texture rotation, copies blend state and disables depth writes for transparent materials. `Instrument.shader` uses TEXCOORD0 only. A source selecting a different texture coordinate set or transform convention needs a glTF/material comparison before changing this path. No UV defect established.
+- Library geometry uses independent disc UVs (geometry.py `_uv`), not a shared fleet atlas. Its embedded sampler requests linear magnification / mipmapped linear minification (9729/9987), clamp-to-edge (33071). Pitts per-aircraft PNG importer instead requests mipmaps, bilinear filtering, anisotropy 1 and repeat wrap. Those differing paths are worth recording during a small camera-angle sweep, not grounds to change filtering now. Cub atlas untouched.
+- Transparent compass-case overlays retain alpha blending/ZWrite off; their ordering against cards/glass is a plausible angle-dependent candidate. Instrument shader is two-sided. Record actual queues, alpha modes, facing/depth and near/far planes in the failing imported scene. No speculative depth bias or smoothing added.
+
+### Remaining source inventory (not a visible-survivor verdict)
+
+New `embedded-face-source-inventory.json` records 118 candidate face/marking/compass materials across 17 non-Cub GLBs, including variants and hidden originals; it deliberately is a broad name-based inventory, not an exhaustive semantic gauge detector. Plain-material geometry can contain markings too (172 is primarily `172_markings`).
+
+- Pitts: rear/front copied tachometer, oil pressure, oil temperature, compass art/scale, and mixed `Cockpit_gauge_face` originals remain outside the changed shared faces. Inspect both seats and all selected liveries before counting visible survivors.
+- Great Lakes: TACH, MP, combined OIL, front OILPRESS, CHT, HOBBS, MAG, front/rear compass cards and front case overlay remain untreated by f9906913. COM/XPDR and sequence card are separately drawn controls/placards, not implied engine-gauge work. Legacy livery GLBs still list mixed `Cockpit_gauge_face`; actual model selection matters.
+- Extra (all three own variants): Tach, MP, Temps, Amps, ThreeInOne and FuelComputer embedded materials; CockpitDials fuel/oil/MP/tach and live compass card also remain outside shared treatment. ASI/Alt/TC/G originals appear in source but can be hidden by replacement.
+- 172: inspect engine/auxiliary markings within the shared `172_markings` material rather than assuming each face has a separate texture.
+- SGS 2-33 and Grob 103: dedicated alt/ASI/vario/compass artwork remains outside f9906913; shared replacements may hide originals. Stearman generic gauge art also appears in the source scan. Other procedural/unmatched material names need imported fleet inspection; this list is not a claim of full visible-fleet coverage.
+- `untreated-art-source-comparison.json`: all 28 selected non-Cub dial/compass source PNGs are byte-identical to f9906913 parent. This establishes treatment coverage only, not poor readability. No art regeneration performed.
+
+### Review pack and capture additions
+
+`INDEX.md` links all 13 labelled LEFT-before / CENTRE-after / RIGHT-difference triptychs plus the pixel/geometry audit and new source inventories. Opened Great Lakes ASI comparison this resume: thicker ticks/numerals and slimmer arcs visible; no cockpit readability approval inferred. Existing before/after filenames are retained to avoid breaking review links.
+
+For each four-shot fixture above, preserve native 2160x1000 PNG and additionally inspect at 1080x500 (50% display) and 720x333 (one-third display); record display scale, not a claim of physical-phone capture. Before/after must match camera, lighting, model-binding and fixture values. Confirm Pitts rear plus Great Lakes rear engine survivors in normal 72-degree shots; use 40-degree closeups to localize issues only. Physical phone later: same aircraft/livery, rear seat, normal cockpit view, intact aircraft, look inputs held steady, record device/resolution/build and at least ten seconds of panel video plus a still. Render fixtures cannot substitute for device flicker evidence.
+
+Merge checklist remains blocked on this lane's serialized verifier, matched cockpit baseline, inspection and temporal reproduction. Claude merges after BUILD and same-day Quest parity. Preserve foreign packaging and Cub backup files: fresh recovery stash `t932 resume2 preserve foreign packaging and Cub backup dirt` was created and reapplied; stash retained. No packaging or backup asset staged.

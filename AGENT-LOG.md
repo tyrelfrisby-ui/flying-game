@@ -12,6 +12,11 @@
 - New offline evidence: 13 before/after/diff triptychs + `offline-texture-audit.json` in the render directory; six GLB geometry accessor buffers identical. Opened Pitts ASI comparison. Embedded engine/model-specific faces and text_at labels remain outside f9906913 coverage; no blanket generator run.
 - BUILD still blocked: observed spray `deploy-t923-verification.sh` reservation PID 84577 and active test processes during this resume. No verifier / Unity / Xcode / dotnet test launched. Four static after fixtures cannot prove flicker; matched cockpit before and fixed-input temporal sequences remain deferred.
 
+- Resume #2 (t932–t934): continued from **37846ceb**, source/evidence only. Correct BUILD holder is smoke post-merge deploy on island-nav **16665d15**; spray suite finished/base-compare. No verifier/Unity/Xcode/dotnet test launched; no new BUILD claim.
+- New render `INDEX.md` links 13 labelled comparisons; added `embedded-face-source-inventory.json` (118 candidate materials / 17 non-Cub GLBs; includes variants/hidden originals) and `untreated-art-source-comparison.json` (28 dial/compass PNGs unchanged). Great Lakes ASI comparison opened. No runtime/art/Cub changes.
+- Additional candidates documented: combined-mesh old faces escape node hides; transparent compass ordering; TEXCOORD0 / transform conventions and differing mip/wrap settings. Per-aircraft face art clones its material, so no obvious cached-material overwrite there. All remain hypotheses pending imported/temporal evidence. Exact capture plan and named untreated faces expanded in pending doc.
+- Fresh foreign-dirt recovery stash `t932 resume2 preserve foreign packaging and Cub backup dirt` created/reapplied and retained. Claude: merge only after this lane's BUILD, matched cockpit/temporal review and same-day Quest parity; no push/upload/install.
+
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
 - Shatter: already at **90ee4fc7** / Quest **13e45d72** / iOS 2026.1106.0249 — no duplicate.
