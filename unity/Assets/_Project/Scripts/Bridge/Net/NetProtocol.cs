@@ -13,6 +13,7 @@ namespace FlyingGame.Bridge.Net
     {
         public int w;   // 1 = wings gone (StructuralDamage.WingsGone)
         public int o;   // 1 = pilot out (PilotEgress.PilotOut)
+        public int? a;  // tenths of a second since this pilot's flight began (Core LocalMp.SpawnSpread); absent from older builds
     }
 
     /// <summary>A pilot's state: pose in Unity world axes (all clients share WorldTerrain), velocity,

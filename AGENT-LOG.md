@@ -1,3 +1,58 @@
+## NEEDS YOU — compact iOS split HUD (Codex, 2026-11-05)
+- Lane `lane/codex-local-mp-hud`; engine API merged locally from `609a3b93`. No install or integration-lane merge.
+- Compact iPhone/iPad split instruments: cyan P1 / amber P2, IAS kt, altitude ft MSL, true heading, G,
+  own-camera ballistic pipper at 300 m when armed; an unarmed view has a boresight cross. Intersects each
+  camera pixel rect with the screen safe area and clips all drawing to that half. Normal LAN, Mac and Quest HUDs keep
+  their existing behavior. Full HUD/analog/combat overlays and AERO panel are suppressed in compact mode.
+- **Engine-lane hook needed (input files deliberately untouched):** `LocalPlayerHud.CompactActive` is the HUD mode flag.
+  `TouchFlightControls` must suppress its full-screen tray AND its raw touch hit regions together (keep gamepad flight
+  and Menu processing), and the shared ViewPanel toolbar needs a compact menu entry. Hiding only OnGUI would leave
+  invisible RESET/BAIL/FIRE hit areas. Until that hook lands, those shared controls still overlay both halves.
+- **Validation:** final iOS-target Unity script compile + IMGUI capture run 2026-11-05 14:25, zero `error CS`,
+  all three captures produced and opened for visual inspection. `renders/local-mp-hud/` contains iPhone landscape,
+  iPad landscape and iPhone portrait, both seats, using the live draw method with fixture readings (not device shots).
+  No xcodebuild or device install for this HUD-only lane. Nothing approved by this lane.
+
+## NEEDS YOU
+- **ANSWERED by Ty ~10:57–10:59 PST (Aero steer):** Quest is **NOT** same-device split / half virtual screen / Mac-TV mirror for 2P.
+  - Quest 2P = **two Quest users**, each in **their own headset**, **full stereo view**, same Wi‑Fi / local network.
+  - Also: **mixed-device LAN** — phone + iPad + Quest + Mac, **full screen on each device**, one shared LAN session.
+  - Prefer **one networking core** (`NetSession` + `LanLink` + `LanMesh` already in tree) for Quest and phone/iPad/Mac.
+  - iOS/iPad **same-device split** (two 8BitDo) stays a **separate** mode.
+  - Codex half-HUD = **iOS/iPad split only** — do not build Quest half HUD.
+- Re-read prompts (mtime ~10:59): `~/Developer/agent-lanes/prompts/ty-local-mp-1105.md` and `claude-local-mp.md`. Follow `~/Developer/agent-lanes/prompts/claude-local-mp-steer-1105.md` and `STEER-local-mp-1105-1059.md` if present.
+- Old open Q (Quest half shared virtual screen vs TV mirror) is **closed** — do not ask again.
+
+## NEEDS YOU — local multiplayer: split screen (iOS/iPad/Mac) + LAN full view (all devices) (Claude, 2026-11-05)
+<!-- claude-local-mp needs-you -->
+Lane lane/claude-local-mp (from island-nav 7919f5c5). Ty 10:50 + 10:57–10:59 (agent-lanes/prompts/ty-local-mp-1105.md).
+Full write-up: docs/LOCAL-MULTIPLAYER.md. **Not merged, not installed, not seen on a device** (steer: wait for Aero).
+- **World clock bug (fixed for everyone, 1P included):** every `Aircraft.Step` advanced `Atmosphere.SimTimeSec`, so
+  the turbulence/tide/thermal clock ran once per aircraft: P1 + 3 drones measured 3.995 s per real second (15 drones:
+  16x; a tow tug: 2x). Now only `Atmosphere.ClockOwner` (P1's aeroplane, set by FlightSimDriver) moves it: P1 + P2 +
+  3 AI = 0.995 s. A lone player is bit-for-bit the same flight with or without the owner. Combat-zone turbulence will
+  feel calmer/slower than before because it now runs at real time.
+- **Mode 1, split screen** (OPTIONS > Controls "Local 2-player (split screen)", OFF by default, next FLY; free flight
+  or combat-zone start, Solo): P2 gets a full aeroplane of the same type abreast on the right, 30 m tip to tip (runway
+  / water: in line ahead), flown by the second pad; P1 left half, P2 right half (portrait: top / bottom). Pads bound by
+  device id, sticky, hot-plug safe; **one pad: P2 is parked level hands-off (Q114)**. One listener, both engines at
+  -2.9 dB. Water reflection off while split. `[Perf] split 2P:` every 5 s. P2 has no guns / score / bail-out yet;
+  P1's flat HUD and touch tray still cover the whole screen until the Codex HUD lane's split layout lands.
+- **Mode 2, LAN full view** (one core: NetSession > LanLink > LanMesh, unchanged protocol, unbilled): Quest VR menu now
+  has **Multiplayer: Solo / Same network (Wi-Fi)** and an in-flight status row; the Quest build KEEPS the INTERNET
+  permission (it was stripped; Android sockets need it, **Q115**). New: the spawn spread, so the second pilot no longer
+  appears inside the first: a newcomer within span + 15 m of another pilot moves once to the first free formation slot
+  in its first 4 s (tie: later id moves); flight age rides in `NetFlags.a`. Unnamed pilots are "Pilot XXXX".
+- Tests: LocalMultiplayerTests 25/25 (clock with 2 players + AI, 1P bit-identical, pad binding / hot-plug, layout,
+  formation, P2 pad pilot, spawn spread), LanMeshTests 8/8. Unity batch, scripts only, iOS target (14:03): **0 error CS**, exit 0; Core/Sim/Bridge rebuilt from this worktree's src (a80e3ae6). Android batch not run; no xcodebuild, no APK.
+- Nothing here is an approved gate. HUD API for the split-screen HUD lane: docs/LOCAL-MULTIPLAYER.md "Per-player HUD API".
+
+## 2026-11-05 10:59 PST — URGENT STEER (Aero / Grok)
+Pivot Quest work to **LAN full-view multiplayer** (Mode 2). Keep Mode 1 iOS split. Do not kill/restart unless Quest half-screen is already deeply committed — prefer pivot. No merge/install until Mode 1+2 P1 land with tests. Details in updated lane prompt.
+
+## 2026-11-05 10:58 PST — lane opened by Aero
+Base lane/claude-island-nav 7919f5c5. Prompt ~/Developer/agent-lanes/prompts/claude-local-mp.md. Codex HUD lane queued on logs/local-mp-hud-api.ready.
+
 ## NEEDS YOU — crash camera: no more auto zoom-out; it always follows the fuselage with the seats (Claude, 2026-11-06 00:10 PT, lane/claude-fuselage-follow)
 <!-- fuselage-follow needs-you -->
 Ty 15:21 (pt813u): "The feature where it zooms out to capture the whole crash is a bug because it is deciding when it is a

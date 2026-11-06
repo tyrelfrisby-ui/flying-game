@@ -225,6 +225,10 @@ namespace FlyingGame.Bridge
             pHud.Driver = aircraft.GetComponent<FlightSimDriver>();
             pHud.Debrief = aircraft.GetComponent<Practice.LessonDebrief>();
 
+            // LOCAL 2-PLAYER, split screen (off by default: with it off this object builds nothing).
+            var coop = new GameObject("LocalCoop").AddComponent<LocalCoop>();
+            coop.P1 = aircraft.GetComponent<FlightSimDriver>(); coop.P1Camera = cam;
+
             var weather = aircraft.AddComponent<WeatherController>();
             weather.Bubbles = bubbles;
 

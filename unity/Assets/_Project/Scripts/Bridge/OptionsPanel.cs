@@ -393,6 +393,19 @@ namespace FlyingGame.Bridge
             y += _gap * 0.5f;
             if (Check("Gamepad: stick-free (controls float when the stick is centred)", SessionSettings.GamepadStickFree, ref y))
                 SessionSettings.GamepadStickFree = !SessionSettings.GamepadStickFree;
+            // LOCAL 2-PLAYER, SPLIT SCREEN (Ty 2026-11-05): two gamepads, two aeroplanes, one screen. Off by default; it is
+            // a CONTROLS choice (who flies with which pad), so it lives here beside the pad's other option. Not offered in
+            // a headset: two Quest players fly in two headsets on the LAN.
+            if (LocalSplit.Allowed)
+            {
+                if (Check("Local 2-player (split screen): two gamepads, from the next FLY", LocalSplit.Enabled, ref y))
+                    LocalSplit.Enabled = !LocalSplit.Enabled;
+                if (LocalSplit.Enabled && LocalSplit.NotStartedReason != null)
+                {
+                    UiLayout.Label(new Rect(_x, y, _cw, _lh), $"   second player not started: {LocalSplit.NotStartedReason}", _label);
+                    y += _lh;
+                }
+            }
             // LOOKING AROUND (owner 2026-10-31; moved out of the Audio tab 2026-11-01 after Ty found it there and
             // said it makes no sense in Audio). These are CONTROLS: they decide how the pilot's head is pointed,
             // the same way expo and dead zone decide how his hands reach the stick. The hat on a real stick and the
