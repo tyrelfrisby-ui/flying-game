@@ -274,6 +274,7 @@ public sealed partial class Aircraft
                 StemTest(src, tree, e, pre, cg);
             }
         }
+        GlazingStems(src, pre, cg);   // the glass meets a stem only where its own surface does (AircraftGlazing)
         CrownDrag(src, cg, dt);
     }
 

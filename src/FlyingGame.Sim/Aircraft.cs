@@ -1464,6 +1464,7 @@ public sealed partial class Aircraft
         UpdateLoad(dt);
         Electrics.Step(dt, EngineRpm);
         StepTrees(preStep, dt);   // stems and crowns: snap, stop, or take the part that hit them (AircraftTreeStrike)
+        StepGlazing(dt);          // the canopy, windshield and windows: shattered only by a direct arrival (AircraftGlazing)
         if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
         FilterFuselageBreaks();   // a fuselage section crushes before it breaks (AircraftFuselageCrush)
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);

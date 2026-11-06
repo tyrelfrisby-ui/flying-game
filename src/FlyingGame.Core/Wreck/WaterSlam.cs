@@ -74,6 +74,23 @@ public static class WaterSlam
         return broke;
     }
 
+    /// <summary>Break open, as the slam would, every intact hatch whose <see cref="Panel.Why"/> <paramref name="which"/>
+    /// accepts, with the panels linked to it (Sim's AircraftGlazing: a canopy shattered on the ground is a hole for the
+    /// water too). Returns how many opened.</summary>
+    public static int BreakHatches(IEnumerable<HydroElement> els, System.Func<string, bool> which)
+    {
+        int n = 0;
+        foreach (HydroElement e in els)
+            foreach (Panel p in e.Panels)
+            {
+                if (p.Skin || p.Broken >= 1 || !which(p.Why)) continue;
+                p.Broken = 1; Open(e, p); n++;
+                foreach (Panel q in p.Linked)
+                    if (q.Broken < 1 && q.Owner != null) { q.Broken = 1; Open(q.Owner, q); n++; }
+            }
+        return n;
+    }
+
     private static void Open(HydroElement e, Panel p)
     {
         if (p.Holes.Count == 0)
