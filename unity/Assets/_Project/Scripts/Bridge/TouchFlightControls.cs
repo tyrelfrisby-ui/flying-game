@@ -67,6 +67,13 @@ namespace FlyingGame.Bridge
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
             "dc3-like", "hughes-h4-like", "pa18-cub-like", "dhc2-beaver-like", "dhc2-beaver-floats-like", "decathlon-8kcab-like",
         };
+        // What the button and the number keys actually cycle: Fleet, except in the TestFlight slim package (FG_TF_SLIM,
+        // FlyingGame.Core.TestFlightFleet), which ships only its own six types.
+#if FG_TF_SLIM
+        private static readonly string[] Cycle = System.Linq.Enumerable.ToArray(FlyingGame.Core.TestFlightFleet.Listed);
+#else
+        private static readonly string[] Cycle = Fleet;
+#endif
 
         private FlightSimDriver _driver;
 
@@ -930,9 +937,9 @@ namespace FlyingGame.Bridge
             if (Input.GetKey(KeyCode.B)) _brakeHeld = true;
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
             if (Input.GetKeyDown(KeyCode.E) && MenuHandleAvailable) MenuPullHandle();   // the handle: bail out (eject / BRS where fitted) — one press (Ty 2026-11-05)
-            for (int i = 0; i < Fleet.Length && i < 10; i++)
+            for (int i = 0; i < Cycle.Length && i < 10; i++)
             {
-                if (Input.GetKeyDown(KeyCode.Alpha1 + i)) _driver.SwitchAircraft(Fleet[i]);
+                if (Input.GetKeyDown(KeyCode.Alpha1 + i)) _driver.SwitchAircraft(Cycle[i]);
             }
         }
 
@@ -1204,8 +1211,8 @@ namespace FlyingGame.Bridge
 
         private void CycleAircraft()
         {
-            int idx = System.Array.IndexOf(Fleet, _driver.AircraftId);
-            _driver.SwitchAircraft(Fleet[(idx + 1 + Fleet.Length) % Fleet.Length]);
+            int idx = System.Array.IndexOf(Cycle, _driver.AircraftId);
+            _driver.SwitchAircraft(Cycle[(idx + 1 + Cycle.Length) % Cycle.Length]);
         }
 
         // ---- rendering (display only) ----------------------------------------

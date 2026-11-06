@@ -515,6 +515,11 @@ namespace FlyingGame.Bridge
 
         public void SwitchAircraft(string id)
         {
+#if FG_TF_SLIM
+            // The TestFlight slim package ships only FlyingGame.Core.TestFlightFleet's types (KeyboardTestControls still
+            // names the others); an unlisted one is ignored rather than flown without its model.
+            if (!FlyingGame.Core.TestFlightFleet.IsListed(id)) { Debug.Log($"[TF slim] {id} is not in this package"); return; }
+#endif
             AircraftId = id;
             ResetFlight();
         }

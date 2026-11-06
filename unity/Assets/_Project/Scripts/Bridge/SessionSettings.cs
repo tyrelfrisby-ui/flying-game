@@ -396,8 +396,20 @@ namespace FlyingGame.Bridge
             ("aircam-like", "AirCam-like"), ("aircam-amphib-like", "AirCam-like Amphib"),
         };
 
+#if FG_TF_SLIM
+        /// <summary>THE TESTFLIGHT SLIM PACKAGE (Ty 2026-11-05; FlyingGame.Core.TestFlightFleet): only the 2-33, both J-3s,
+        /// the Pitts, the Extra and the Great Lakes are offered, and the other types' models are left out of the build. A
+        /// saved aircraft that is not listed falls back to Fleet[0], the 2-33. Compiled only into that package
+        /// (FLYINGGAME_TF_SLIM=1 tools/deploy/deploy.sh); every other build offers the whole list above.</summary>
+        static SessionSettings() { Fleet = FlyingGame.Core.TestFlightFleet.Filter(Fleet); }
+#endif
+
         /// <summary>Dogfight 1 v 1 (owner 2026-10-01): the opponent's aircraft and skill (0 easy, 1 moderate, 2 difficult).</summary>
+#if FG_TF_SLIM
+        public static string DogfightOpponentId = "pitts-s2b-like";   // the slim package has no P-51 (TestFlightFleet)
+#else
         public static string DogfightOpponentId = "p51d-like";
+#endif
         public static int DogfightSkill = 1;
         public static readonly string[] SkillNames = { "Easy", "Moderate", "Difficult" };
 
