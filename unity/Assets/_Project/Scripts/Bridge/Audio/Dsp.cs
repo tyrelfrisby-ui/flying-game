@@ -217,6 +217,7 @@ namespace FlyingGame.Bridge
         public volatile float Throttle01;
         public volatile float EngineRpm;
         public volatile float Spoiler01;
+        public volatile float SpoilerRoar = 1f, SpoilerRumble;   // the type's spoiler voice (SpoilerConfig.SoundLevel / SoundRumble)
         public volatile float TurbulenceLevel;
         public volatile float WindSpeedMs;
         public volatile float MasterGain;   // MasterVolume × (menu open ? 0 : 1)

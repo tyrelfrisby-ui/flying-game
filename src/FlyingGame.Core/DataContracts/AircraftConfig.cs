@@ -461,9 +461,18 @@ public sealed class SpoilerConfig
     /// whole-wing plate dove vertically at 27 kt). Drag = q · area · Cd 1.2 · fraction.</summary>
     public double PlateAreaM2 { get; set; }
 
+    /// <summary>The spoiler roar's level, 1 = the stock voice (WindSynth: a 650 Hz band of noise growing with the
+    /// deployment and the airspeed). The 2-33's is quieter (Ty 2026-11-05 16:06: "a little too loud").</summary>
+    public double SoundLevel { get; set; } = 1.0;
+    /// <summary>How much low wake rumble sits under the roar, 0 = none (the stock voice); 1 is about half the stock
+    /// roar's RMS on its own (tools/SpoilerAudio). The 2-33's dive brakes: "a bit more rumble to it".</summary>
+    public double SoundRumble { get; set; }
+
     /// <summary>Handle position (0..1) at which the WHEEL BRAKE starts to bite, for a glider whose brake is on
     /// the end of the dive-brake handle's travel (SGS 2-33: 0.9, i.e. the last tenth; the AFM has the pilot go
-    /// full aft after touchdown). 0 = no such linkage, which is every other type.</summary>
+    /// full aft after touchdown). 0 = no such linkage, which is every other type. A RECORD of the rig table's band
+    /// (ModelRigTests): since 2026-11-05 the sim does not apply it, because the sim only sees the spoiler, not the
+    /// handle. The input owns the handle and its brake band (Core.Vr.SpoilerHandle, 0.85).</summary>
     public double WheelBrakeFromSpoiler { get; set; }
     /// <summary>Handle position at which that brake is full on.</summary>
     public double WheelBrakeFullSpoiler { get; set; } = 1.0;

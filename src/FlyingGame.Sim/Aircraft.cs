@@ -1344,9 +1344,13 @@ public sealed partial class Aircraft
             else if (Config.Gear.Count > 0 && (GearExtension > 0.9 || amphibUp))   // retracted gear carries nothing (belly contact does)
             {
                 double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
-                // The 2-33's wheel brake is ON the dive-brake handle, at the end of its travel: full air
-                // brake is also full brake, whatever the pilot's own brake input is doing (SpoilerConfig).
-                double wheelBrake = Math.Max(BrakeInput, Config.Controls.Spoiler.BrakeFromHandle(_spoilerFraction));
+                // The 2-33's wheel brake is ON the dive-brake handle, at the end of its travel, but the HANDLE is the
+                // input's (Core.Vr.SpoilerHandle: the strip's and the hand's last 15 %, the knob's band under 20 %),
+                // which already writes it into BrakeInput. The spoiler deployment is not the handle: the knob has its
+                // spoilers full at 25 % and its brake from 20 %, so reading the brake off the spoiler here as well
+                // put full wheel brake on at full spoiler, before any brake was asked for (Ty 2026-11-05 16:06:
+                // "the tire screeches with any braking at all on the 2-33").
+                double wheelBrake = BrakeInput;
                 long tGear = SimProfile.Begin();
                 (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, wheelBrake, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, amphibUp, stage, stepDt, _gearStageClear, _wheels);
                 SimProfile.End(SimProfile.Scope.Gear, tGear);
