@@ -110,7 +110,7 @@ namespace FlyingGame.EditorTools
             }
             // 11th field, ','-separated (cockpit-common renders, Ty 2026-11-05): belts (keep the GLB's belts: the "before"),
             // card=<id> (the deck's card on every holder), kollsman=<inHg>, gmax=<g>, gmin=<g>, g=<g>, fuel=<0..1>,
-            // alt=<ft>, cam=<x>/<y>/<z> (Unity, CG frame: overrides the eye).
+            // alt=<ft>, turn/slip/bank/pitch/vsi/dg (below), cam=<x>/<y>/<z> (Unity, CG frame: overrides the eye).
             var ex = new System.Collections.Generic.Dictionary<string, string>();
             foreach (string kv in extras.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
             { int i = kv.IndexOf('='); ex[i < 0 ? kv : kv.Substring(0, i)] = i < 0 ? "" : kv.Substring(i + 1); }
@@ -119,6 +119,14 @@ namespace FlyingGame.EditorTools
             if (ex.TryGetValue("g", out string gg)) reading.GLoad = F(gg);
             if (ex.TryGetValue("fuel", out string fu)) reading.Fuel = F(fu);
             if (ex.TryGetValue("alt", out string al)) reading.AltitudeFt = F(al);
+            // The gyros (shared instrument library renders, 2026-11-05): turn=<deg/s> (also the 172's tc_needle in rates),
+            // slip=<-1..1>, bank=<deg>, pitch=<deg> (also the 172's AI), vsi=<ft/min>, dg=<deg> (heading and the 172's DG card).
+            if (ex.TryGetValue("turn", out string tr)) { reading.TurnRateDps = F(tr); reading.TcNeedle = F(tr) / 3.0; }
+            if (ex.TryGetValue("slip", out string sl)) reading.SlipBall = F(sl);
+            if (ex.TryGetValue("bank", out string bk)) { reading.BankDeg = F(bk); reading.AiBankDeg = F(bk); }
+            if (ex.TryGetValue("pitch", out string pt)) { reading.PitchDeg = F(pt); reading.AiPitchDeg = F(pt); }
+            if (ex.TryGetValue("vsi", out string vs)) reading.VsiFpm = F(vs);
+            if (ex.TryGetValue("dg", out string dgv)) { reading.HeadingDeg = F(dgv); reading.DgCardDeg = F(dgv); }
             if (!ex.ContainsKey("belts") && builder.ModelRoot != null) CockpitBeltStrip.Strip(builder.ModelRoot);
             builder.SetRig(reading, 0.02f);
             // The painted panels the game makes live (the Pitts' and the Extra's: CockpitLive's dial art and needles), as

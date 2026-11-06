@@ -32,7 +32,13 @@ def check(path):
    index=parents[index]
   x,y,z=e['pivot_blender_m'];expected=[x,z,-y]
   assert max(abs(a-b) for a,b in zip(pos,expected))<.00001,(e['node'],'pivot mismatch',pos,expected)
- required=['Airspeed_needle','Altimeter_needle','Altimeter_1000','Altimeter_10000','VSI_needle','AI_roll','AI_pitch','DG_card','DG_heading_bug','DG_sync_adjust','DG_bug_adjust','TC_airplane','TC_slip_ball','NAV1_CDI','NAV1_GS','NAV2_CDI','NAV1_OBS_card','NAV2_OBS_card','ADF_bearing','DME_channel','KR85_ADF_tune','Trim_wheel','Trim_indicator','Fuel_selector','Throttle','Mixture','Carb_heat','Flap_switch','Flap_indicator','Mags_key','Primer','Cabin_heat','Cabin_air']
+ # The six-pack is the shared instrument library's (tools/own_models/instruments, Ty 2026-11-05) in a GLB built since:
+ # its cases say library=True and the builder draws no ASI/AI/altimeter/TC/DG/VSI parts of its own. An older GLB still has them.
+ LIB=any(json.loads(n.get('extras',{}).get('layout','{}')).get('library') for n in nodes if n.get('name','').endswith('_case'))
+ SIXPACK=['Airspeed_needle','Altimeter_needle','Altimeter_1000','Altimeter_10000','VSI_needle','AI_roll','AI_pitch','DG_card','DG_heading_bug','TC_airplane','TC_slip_ball']
+ if LIB:
+  for n in SIXPACK+['TC_rate_mark']:assert 'C172_'+n not in names,(n,'drawn by the builder: it is the library instrument')
+ required=([] if LIB else SIXPACK)+['DG_sync_adjust','DG_bug_adjust','NAV1_CDI','NAV1_GS','NAV2_CDI','NAV1_OBS_card','NAV2_OBS_card','ADF_bearing','DME_channel','KR85_ADF_tune','Trim_wheel','Trim_indicator','Fuel_selector','Throttle','Mixture','Carb_heat','Flap_switch','Flap_indicator','Mags_key','Primer','Cabin_heat','Cabin_air']
  required+=['Tach_needle','Suction_needle','Oil_press_needle','Oil_temp_needle','Fuel_L_needle','Fuel_R_needle','Ammeter_needle','EGT_needle']
  for side in ['L','R']:
   required+=['Yoke_'+side+'_pitch','Yoke_'+side+'_roll']
@@ -86,11 +92,12 @@ def check(path):
  def bounds(name):
   n=nodes[names.index(name)];aa=[g['accessors'][p['attributes']['POSITION']] for p in g['meshes'][n['mesh']]['primitives']]
   return [min(a['min'][i] for a in aa) for i in range(3)],[max(a['max'][i] for a in aa) for i in range(3)]
- # The moving horizon and ladder remain behind the aperture but within 5 mm of the dial plane.
- lo,hi=bounds('C172_AI_pitch')
- n=nodes[names.index('C172_AI_pitch')];par=nodes[parents[names.index('C172_AI_pitch')]]
- world_f=n['translation'][0]+par['translation'][0]
- assert world_f+lo[0]>.2975 and world_f+hi[0]-.2975<.005,('AI face depth',world_f,lo,hi)
+ if not LIB:
+  # The moving horizon and ladder remain behind the aperture but within 5 mm of the dial plane.
+  lo,hi=bounds('C172_AI_pitch')
+  n=nodes[names.index('C172_AI_pitch')];par=nodes[parents[names.index('C172_AI_pitch')]]
+  world_f=n['translation'][0]+par['translation'][0]
+  assert world_f+lo[0]>.2975 and world_f+hi[0]-.2975<.005,('AI face depth',world_f,lo,hi)
  # Full yoke-roll sweep is confined to the seat side even at maximum pitch travel.
  for side in ['L','R']:
   name='C172_Yoke_'+side+'_roll';lo,hi=bounds(name)
@@ -108,38 +115,39 @@ def check(path):
    assert n['translation'][0]+lo[0]>.2975+.15,(name,'not forward of the panel face')
    toe=nodes[names.index('C172_Toe_brake_'+side+'_'+tag)]
    assert n['translation'][1]+toe['translation'][1]>-.5475+.15,(name,'toe brake under 150 mm above the carpet')
- # Moving TC geometry is exactly symmetric about its own origin, centred on its case/pivot.
- lo,hi=bounds('C172_TC_airplane');assert abs(lo[2]+hi[2])<.0001,('asymmetric TC wings',lo,hi)
- tc=nodes[names.index('C172_TC_airplane')]['translation']
- assert next(e for e in rig if e['node']=='C172_TC_airplane')['range']==[-40,40]
- assert abs(tc[1]-layout['Turn_coordinator']['z'])<1e-6 and abs(tc[2]-layout['Turn_coordinator']['x'])<1e-6
- # Decode exported vertices: the rate marks' principal axes must lie on the pivot radial at +/-20deg.
- bin_start=20+size+8
- def vertices(n):
-  for p in g['meshes'][n['mesh']]['primitives']:
-   a=g['accessors'][p['attributes']['POSITION']];v=g['bufferViews'][a['bufferView']]
-   assert a['componentType']==5126
-   offset=bin_start+v.get('byteOffset',0)+a.get('byteOffset',0)
-   for i in range(a['count']):yield struct.unpack_from('<fff',raw,offset+i*v.get('byteStride',12))
+ if not LIB:
+  # Moving TC geometry is exactly symmetric about its own origin, centred on its case/pivot.
+  lo,hi=bounds('C172_TC_airplane');assert abs(lo[2]+hi[2])<.0001,('asymmetric TC wings',lo,hi)
+  tc=nodes[names.index('C172_TC_airplane')]['translation']
+  assert next(e for e in rig if e['node']=='C172_TC_airplane')['range']==[-40,40]
+  assert abs(tc[1]-layout['Turn_coordinator']['z'])<1e-6 and abs(tc[2]-layout['Turn_coordinator']['x'])<1e-6
+  # Decode exported vertices: the rate marks' principal axes must lie on the pivot radial at +/-20deg.
+  bin_start=20+size+8
+  def vertices(n):
+   for p in g['meshes'][n['mesh']]['primitives']:
+    a=g['accessors'][p['attributes']['POSITION']];v=g['bufferViews'][a['bufferView']]
+    assert a['componentType']==5126
+    offset=bin_start+v.get('byteOffset',0)+a.get('byteOffset',0)
+    for i in range(a['count']):yield struct.unpack_from('<fff',raw,offset+i*v.get('byteStride',12))
+  for n in nodes:
+   if not n.get('name','').startswith('C172_TC_rate_mark'):continue
+   vv=list(vertices(n));cx=sum(v[2] for v in vv)/len(vv);cy=sum(v[1] for v in vv)/len(vv)
+   xx=sum((v[2]-cx)**2 for v in vv);yy=sum((v[1]-cy)**2 for v in vv);xy=sum((v[2]-cx)*(v[1]-cy) for v in vv)
+   angle=math.degrees(.5*math.atan2(2*xy,xx-yy))
+   assert abs(abs(angle)-20)<.001,(n['name'],angle)
+   px=n['translation'][2]+cx-tc[2];py=n['translation'][1]+cy-tc[1]
+   assert abs(-angle-math.copysign(20,px))<.001,('signed TC radial',n['name'],angle,px)
+   assert abs(px*math.sin(math.radians(angle))-py*math.cos(math.radians(angle)))<.0001,'mark misses pivot radial'
+   assert rr['C172_TC_airplane']['map']==[[-2,-40],[2,40]]
+  assert rr['C172_VSI_needle']['map']==[[-2000,-170],[-1000,-90],[0,0],[1000,90],[2000,170]]
+  assert rr['C172_VSI_needle']['model']==0
+  lo,hi=bounds('C172_VSI_needle')
+  assert lo[2]<-.030 and hi[2]<.006 and max(abs(lo[1]),abs(hi[1]))<.0011,('VSI drawn zero must be exactly LEFT',lo,hi)
+  # Apply runtime CW rotation to the actual left-pointing tip: +/-500 hits the upper/lower 45deg radials.
+  for angle in [-45,45]:
+   right=lo[2]*math.cos(math.radians(angle));up=-lo[2]*math.sin(math.radians(angle))
+   assert right<0 and math.copysign(1,up)==math.copysign(1,angle) and abs(abs(up)-abs(right))<1e-8
  runtime=json.loads((ROOT/'docs/models/c172-like-own-rig.json').read_text())['rig'];rr={r['node']:r for r in runtime}
- for n in nodes:
-  if not n.get('name','').startswith('C172_TC_rate_mark'):continue
-  vv=list(vertices(n));cx=sum(v[2] for v in vv)/len(vv);cy=sum(v[1] for v in vv)/len(vv)
-  xx=sum((v[2]-cx)**2 for v in vv);yy=sum((v[1]-cy)**2 for v in vv);xy=sum((v[2]-cx)*(v[1]-cy) for v in vv)
-  angle=math.degrees(.5*math.atan2(2*xy,xx-yy))
-  assert abs(abs(angle)-20)<.001,(n['name'],angle)
-  px=n['translation'][2]+cx-tc[2];py=n['translation'][1]+cy-tc[1]
-  assert abs(-angle-math.copysign(20,px))<.001,('signed TC radial',n['name'],angle,px)
-  assert abs(px*math.sin(math.radians(angle))-py*math.cos(math.radians(angle)))<.0001,'mark misses pivot radial'
-  assert rr['C172_TC_airplane']['map']==[[-2,-40],[2,40]]
- assert rr['C172_VSI_needle']['map']==[[-2000,-170],[-1000,-90],[0,0],[1000,90],[2000,170]]
- assert rr['C172_VSI_needle']['model']==0
- lo,hi=bounds('C172_VSI_needle')
- assert lo[2]<-.030 and hi[2]<.006 and max(abs(lo[1]),abs(hi[1]))<.0011,('VSI drawn zero must be exactly LEFT',lo,hi)
- # Apply runtime CW rotation to the actual left-pointing tip: +/-500 hits the upper/lower 45deg radials.
- for angle in [-45,45]:
-  right=lo[2]*math.cos(math.radians(angle));up=-lo[2]*math.sin(math.radians(angle))
-  assert right<0 and math.copysign(1,up)==math.copysign(1,angle) and abs(abs(up)-abs(right))<1e-8
  knobs=[]
  for name,radius in [('Throttle',.013),('Mixture',.010),('Carb_heat',.008)]:
   node='C172_'+name;lo,hi=bounds(node);knobs.append((nodes[names.index(node)]['translation'][2],(hi[2]-lo[2])/2))
@@ -150,7 +158,7 @@ def check(path):
  assert 'C172_Carb_heat' not in rr and 'C172_Ammeter_needle' not in rr and 'C172_EGT_needle' not in rr
  labels=json.loads(nodes[names.index('C172_Interior_static')]['extras']['printed_labels'])
  texts={l['text'] for l in labels}
- for t in ['THROTTLE','MIXTURE','CARB HEAT','PRIMER','CABIN HEAT','CABIN AIR','FLAPS','0 10 20 30 40','BAT','ALT','BCN','LAND','TAXI','NAV','PITOT HT','OFF R L BOTH START','AIRSPEED','MPH','VERTICAL SPEED','UP','DOWN','100 FEET','PER MINUTE','VAC','TURN\nCOORDINATOR','2 MIN','D.C. ELEC.','OIL PRESS','OIL TEMP','AMPS','EGT','FUEL QTY L','FUEL QTY R']:
+ for t in ['THROTTLE','MIXTURE','CARB HEAT','PRIMER','CABIN HEAT','CABIN AIR','FLAPS','0 10 20 30 40','BAT','ALT','BCN','LAND','TAXI','NAV','PITOT HT','OFF R L BOTH START']+([] if LIB else ['AIRSPEED','MPH','VERTICAL SPEED','UP','DOWN','100 FEET','PER MINUTE','VAC','TURN\nCOORDINATOR','2 MIN','D.C. ELEC.'])+['OIL PRESS','OIL TEMP','AMPS','EGT','FUEL QTY L','FUEL QTY R']:
   assert t in texts,('missing legend',t)
  for label in labels:
   assert label['depth_m']<.000001,('label not flat',label)

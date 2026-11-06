@@ -172,12 +172,14 @@ EYE_F, EYE_R = (-0.80, 0.0, 0.55), (-1.70, 0.0, 0.55)
 
 # ---- instruments: front arch panel (vertical, FL = 0) and the rear (PIC) panel ----------------------------------
 XP_F, XP_R = FPX - 0.01, RPX
-DIALMAT = {k: 'dial_' + k.lower() for k in ('ASI', 'ALT', 'VSI', 'TACH', 'MP', 'OIL', 'CHT', 'G', 'TC', 'MAG', 'FUEL')}
-HANDS = {'ASI': [('ASI', 0.86, 0.075)], 'ALT': [('ALT100', 0.86, 0.06), ('ALT1000', 0.56, 0.12)], 'VSI': [('VSI', 0.86, 0.075)],
-         'TACH': [('TACH', 0.86, 0.075)], 'MP': [('MP', 0.86, 0.075)], 'OIL': [('OILP', 0.84, 0.09), ('OILT', 0.84, 0.09)],
-         'CHT': [('CHT', 0.84, 0.09)], 'FUEL': [('FUEL', 0.84, 0.09)], 'G': [('G', 0.86, 0.075), ('GMAX', 0.80, 0.05), ('GMIN', 0.80, 0.05)]}
-HNAME = {'ASI': 'ASI', 'ALT100': 'Alt100', 'ALT1000': 'Alt1000', 'VSI': 'VSI', 'TACH': 'Tach', 'MP': 'MP', 'OILP': 'OilP', 'OILT': 'OilT',
-         'CHT': 'CHT', 'FUEL': 'Fuel', 'G': 'G', 'GMAX': 'GMax', 'GMIN': 'GMin'}
+# ASI, ALT, TC, VSI and G are the SHARED INSTRUMENT LIBRARY'S (tools/own_models/instruments, Ty 2026-11-05): the panel
+# draws their bezels only and the game puts the library instrument in each (InstrumentLibrary.Extra, SharedInstruments).
+LIBRARY = ('ASI', 'ALT', 'TC', 'VSI', 'G')
+DIALMAT = {k: 'dial_' + k.lower() for k in ('TACH', 'MP', 'OIL', 'CHT', 'MAG', 'FUEL')}
+HANDS = {'TACH': [('TACH', 0.86, 0.075)], 'MP': [('MP', 0.86, 0.075)], 'OIL': [('OILP', 0.84, 0.09), ('OILT', 0.84, 0.09)],
+         'CHT': [('CHT', 0.84, 0.09)], 'FUEL': [('FUEL', 0.84, 0.09)]}
+HNAME = {'TACH': 'Tach', 'MP': 'MP', 'OILP': 'OilP', 'OILT': 'OilT',
+         'CHT': 'CHT', 'FUEL': 'Fuel'}
 # (y, z, bezel radius), +y = pilot's left. 3-1/8 in r 0.040, 2-1/4 in r 0.028 (E layout by eye off the 300L photos)
 PANEL = {'F': (XP_F, {'ASI': (0.095, 0.255, 0.040), 'G': (0.0, 0.255, 0.040), 'ALT': (-0.095, 0.255, 0.040),   # Ty: front ASI, ALT, G
                       'TACH': (0.200, 0.230, 0.028), 'OIL': (-0.200, 0.230, 0.028)}),                          # (E) small engine pair
@@ -189,25 +191,18 @@ for sfx, (xp, inst) in PANEL.items():
     put(CK_INT, 'ck_plug', gbox, (xp + 0.0005, 0, 0.2 if sfx == 'F' else 0.204), (0.001, 0.001, 0.001))   # keeps the palette order stable
     for key, (y, z, r) in inst.items():
         rf = 0.9 * r if key != 'MAG' else r
+        if key in LIBRARY:                                              # the library's: the panel's bezel only
+            put(CK_INT, 'ck_bezel', bezel, xp, y, z, r)
+            continue
         put(CK_INT, DIALMAT[key], dial, xp, y, z, rf)
         if key != 'MAG': put(CK_INT, 'ck_bezel', bezel, xp, y, z, r)
         c = (xp, y, z)
         for hk, lf, wf in HANDS.get(key, []):
-            n = 'Needle_%s_%s' % (HNAME[hk], sfx); mat = 'ck_telltale' if hk in ('GMAX', 'GMIN') else 'ck_needle'
-            dx = {'GMAX': 0.0, 'GMIN': 0.0015, 'ALT1000': 0.0015}.get(hk, 0.0028)
+            n = 'Needle_%s_%s' % (HNAME[hk], sfx); mat = 'ck_needle'
+            dx = 0.0028
             put(n, mat, needle, xp - 0.0045 - (0.0028 - dx), c, lf * rf, wf * rf * 0.6, DIALS[hk][3])
-            if hk in ('ASI', 'ALT100', 'VSI', 'TACH', 'MP', 'OILP', 'CHT', 'G', 'FUEL'): put(n, 'ck_hub', hub, xp - 0.003, c, 0.06 * rf + 0.0015)
+            if hk in ('TACH', 'MP', 'OILP', 'CHT', 'FUEL'): put(n, 'ck_hub', hub, xp - 0.003, c, 0.06 * rf + 0.0015)
             NEEDLES[n] = dict(c=c, key=hk, grp=sfx)
-        if key == 'TC':
-            n = 'TC_Symbol_' + sfx; s_ = rf / 0.492 / 512
-            put(n, 'ck_needle', prism, [V3(c) + V3((-0.0045, 0, 0)) + q for q in (dirv(-90) * 0.62 * rf + V3((0, 0, -0.003)), dirv(90) * 0.62 * rf + V3((0, 0, -0.003)),
-                                                                              dirv(90) * 0.62 * rf + V3((0, 0, 0.003)), dirv(-90) * 0.62 * rf + V3((0, 0, 0.003)))], (-0.0012, 0, 0))
-            put(n, 'ck_needle', gcyl, V3(c) + V3((-0.003, 0, 0)), V3(c) + V3((-0.0058, 0, 0)), 0.09 * rf, 12)
-            put(n, 'ck_needle', segbox, V3(c) + V3((-0.0052, 0, 0.0)), V3(c) + V3((-0.0052, 0, 0.2 * rf)), 0.006, 0.001, (0, 1, 0))
-            NEEDLES[n] = dict(c=c, key='TC', grp=sfx)
-            pv = V3(c) + V3((0, 0, 40 * s_)); n = 'TC_Ball_' + sfx
-            put(n, 'ck_ball', gsph, pv + V3((-0.004, 0, -200 * s_)), 18 * s_, 10, 6)
-            NEEDLES[n] = dict(c=tuple(pv), key='BALL', grp=sfx)
         if key == 'MAG':
             n = 'MagKey_' + sfx; a0 = DIALS['MAG'][3]
             put(n, 'ck_buckle', gcyl, V3(c) + V3((-0.003, 0, 0)), V3(c) + V3((-0.012, 0, 0)), 0.0035, 8)
