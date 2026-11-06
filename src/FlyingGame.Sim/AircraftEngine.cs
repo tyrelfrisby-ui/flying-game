@@ -41,7 +41,7 @@ public sealed partial class Aircraft
     public bool HasMixture => Config.Propulsion is { PropDiameterM: > 0, MaxPowerW: > 0 };
 
     /// <summary>Lowest governed rpm, as a fraction of <c>MaxRpm</c> (a 2,700 rpm Lycoming's governor bottoms near 1,900).</summary>
-    public const double LowGovernorFraction = 0.7;
+    public const double LowGovernorFraction = PropModel.LowGovernorFraction;
     /// <summary>How long a re-fuelled engine takes to catch.</summary>
     public const double RelightSec = 1.0;
 
@@ -88,7 +88,7 @@ public sealed partial class Aircraft
 
     /// <summary>What the propeller model is given this step.</summary>
     public PropModel.PropDrive Drive =>
-        EngineRunning ? (PowerScale == 1.0 ? PropModel.PropDrive.Running : PropModel.PropDrive.RunningAt(PowerScale))
+        EngineRunning ? (PowerScale == 1.0 && _propLever == 1.0 ? PropModel.PropDrive.Running : PropModel.PropDrive.RunningAt(PowerScale, _propLever))
                       : PropModel.PropDrive.Dead(_noseLost ? 0.0 : WindmillRpm);
 
     /// <summary>How fast the air turns a dead engine's prop (0 when it is too slow to, or there is no prop).</summary>
@@ -96,19 +96,7 @@ public sealed partial class Aircraft
         ? MixtureModel.WindmillRpm(State.Velocity.Length, p.PropDiameterM, p.MaxRpm) : 0.0;
 
     /// <summary>Constant-speed rpm for a governor lever position at the current throttle (the old law at lever 1).</summary>
-    private double GovernedRpmAt(double lever)
-    {
-        PropulsionConfig p = Config.Propulsion!;
-        double idle = p.IdleRpm, max = p.MaxRpm, thr = _throttle01;
-        double low = System.Math.Max(idle, LowGovernorFraction * max);
-        double govTop = System.Math.Clamp(p.GovernedRpm, idle, max);
-        double gov = low + (govTop - low) * lever;
-        double takeoff = low + (max - low) * lever;   // full forward and firewalled: up to the red line, as before
-        double finePitch = idle + (System.Math.Min(gov, 1800.0) - idle) * System.Math.Min(1.0, thr / 0.3);
-        if (thr < 0.3) return finePitch;
-        double t = System.Math.Clamp((thr - 0.9) / 0.1, 0.0, 1.0);
-        return gov + (takeoff - gov) * t * t * (3 - 2 * t);
-    }
+    private double GovernedRpmAt(double lever) => PropModel.RunningRpm(Config.Propulsion!, _throttle01, lever);   // one law: the gyro uses it too
 
     /// <summary>At the same manifold pressure a piston's power goes with its rpm: the governor lever's share.</summary>
     private double GovernorPowerFactor()
