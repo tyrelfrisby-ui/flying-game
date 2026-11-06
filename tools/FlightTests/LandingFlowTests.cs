@@ -260,12 +260,300 @@ public sealed class LandingFlowTests
         Assert.Equal(-0.108108, wb.CgM, 6);
         Assert.True(wb.OverGross);
         Assert.True(wb.CgAft);
-        // Worded in the default units (Standard): 40 kg / 0.45359237 = 88.18 lb. Metric words it in kg.
-        Assert.Equal(new[] { "Over gross by 88 lb: it will fly like it", "CG aft of the limit: light, twitchy pitch, hard to recover from a spin" }, wb.Warnings.ToArray());
+        // Zero fuel: 710 kg, CG −80/710 = −0.112676 m, also aft of −0.10.
+        Assert.Equal(710.0, wb.ZeroFuelKg, 6);
+        Assert.Equal(-0.112676, wb.ZeroFuelCgM, 6);
+        Assert.True(wb.ZeroFuelCgAft);
+        // Factual labels only (Ty t881u); the amounts ride separately, in the default units (Standard):
+        // 40 kg / 0.45359237 = 88.18 lb; 0.008108 m = 0.32 in; 0.012676 m = 0.50 in. Metric: 40 kg, 8 mm, 13 mm.
+        Assert.Equal(new[] { "Over gross", "Aft c.g.", "Aft c.g. at zero fuel" }, wb.Warnings.ToArray());
+        Assert.Equal(new[] { "Over gross by 88 lb", "Aft c.g. by 0.3 in", "Aft c.g. at zero fuel by 0.5 in" }, wb.Details.ToArray());
         f.SetUnits(UnitSystem.Metric);
-        Assert.Equal(new[] { "Over gross by 40 kg: it will fly like it", "CG aft of the limit: light, twitchy pitch, hard to recover from a spin" }, f.WeightBalance!.Warnings.ToArray());
+        Assert.Equal(new[] { "Over gross", "Aft c.g.", "Aft c.g. at zero fuel" }, f.WeightBalance!.Warnings.ToArray());
+        Assert.Equal(new[] { "Over gross by 40 kg", "Aft c.g. by 8 mm", "Aft c.g. at zero fuel by 13 mm" }, f.WeightBalance!.Details.ToArray());
         Assert.True(wb.CanLaunch);
         Assert.True(f.Launch());
+    }
+
+    // ---------------------------------------------------------------- W&B envelope, labels, launch question (Ty t880u / t881u / t882u, 2026-11-06)
+
+    /// <summary>The synthetic tandem with an envelope whose forward limit moves with weight, as a certificate writes it:
+    /// +0.10 m at 550 kg or less, straight line to +0.02 m at 650 kg and above; aft −0.10 m throughout.</summary>
+    private static AircraftConfig Sloped()
+    {
+        var c = Tandem();
+        c.Loading.CgLimits = new List<CgLimitConfig>
+        {
+            new() { MassKg = 650, ForwardM = 0.02, AftM = -0.10 },   // out of order on purpose: rows are sorted by weight
+            new() { MassKg = 550, ForwardM = 0.10, AftM = -0.10 },
+        };
+        return c;
+    }
+
+    [Fact]
+    public void AWeightDependentEnvelopeIsInterpolatedAndHeldAtItsEnds()
+    {
+        var load = new FlyingGame.Core.AircraftLoad(Sloped());
+        Assert.True(load.HasCgEnvelope);
+        Assert.Equal((0.10, -0.10), load.CgLimitsAt(400));    // "at 550 kg or less"
+        Assert.Equal((0.10, -0.10), load.CgLimitsAt(550));
+        var mid = load.CgLimitsAt(600);                        // half way: 0.10 − 0.5 × 0.08
+        Assert.Equal(0.06, mid.forwardM, 12);
+        Assert.Equal(-0.10, mid.aftM, 12);
+        var top = load.CgLimitsAt(650);
+        Assert.Equal(0.02, top.forwardM, 12);
+        Assert.Equal(-0.10, top.aftM, 12);
+        Assert.Equal((0.02, -0.10), load.CgLimitsAt(900));    // above the last row it holds
+
+        // A row with its forward limit aft of its aft limit is not an envelope: refused whole, never half-used.
+        var bad = Sloped();
+        bad.Loading.CgLimits[1].ForwardM = -0.2;
+        Assert.False(new FlyingGame.Core.AircraftLoad(bad).HasCgEnvelope);
+    }
+
+    [Fact]
+    public void TheEnvelopeIsDrawnUpTheForwardLimitAcrossTheGrossAndDownTheAft()
+    {
+        var wb = WeightBalance.From(new FlyingGame.Core.AircraftLoad(Sloped()));
+        // Floor = empty weight 493 kg (a certificate's lowest weight is "or less", not a limit); top = gross 700 kg.
+        var expect = new (double cg, double kg)[]
+        {
+            (0.10, 493), (0.10, 550), (0.02, 650), (0.02, 700), (-0.10, 700), (-0.10, 650), (-0.10, 550), (-0.10, 493), (0.10, 493),
+        };
+        Assert.Equal(expect.Length, wb.EnvelopeCg.Count);
+        for (int i = 0; i < expect.Length; i++)
+        {
+            Assert.Equal(expect[i].cg, wb.EnvelopeCg[i].cgM, 9);
+            Assert.Equal(expect[i].kg, wb.EnvelopeCg[i].kg, 9);
+            Assert.Equal(wb.PlotX(expect[i].cg), wb.Envelope[i].x, 9);
+            Assert.Equal(wb.PlotY(expect[i].kg), wb.Envelope[i].y, 9);
+        }
+        Assert.Equal(new[] { "Forward c.g. limit", "Aft c.g. limit", "Max gross" }, wb.Limits.Select(l => l.Label).ToArray());
+        Assert.Equal(4, wb.Limits[0].Points.Count);
+        Assert.Equal(0.0, wb.Envelope[0].y, 9);                // the bottom edge sits on the plot's floor
+        Assert.True(wb.PlotX(0.10) < wb.PlotX(-0.10), "forward must be on the LEFT, as on a paper chart");
+    }
+
+    [Fact]
+    public void ASlopedForwardLimitCatchesWhatABoxWouldMiss()
+    {
+        // 120 kg in front: 643 kg, CG 21.5 / 643 = +0.033437 m. The limit at 643 kg is 0.10 − 0.93 × 0.08 = +0.0256 m.
+        var f = NewFlow(cfg: _ => Sloped());
+        f.Next();
+        f.SetSeatKg("front", 120);
+        var wb = f.WeightBalance!;
+        Assert.Equal(643.0, wb.TotalKg, 6);
+        Assert.Equal(0.033437, wb.CgM, 6);
+        Assert.Equal(0.0256, wb.FwdLimitM, 9);
+        Assert.True(wb.CgForward);
+        Assert.False(wb.TakeoffInside);
+        // Zero fuel is 613 kg at +0.035073 m, inside its own weight's limit of 0.10 − 0.63 × 0.08 = +0.0496 m.
+        Assert.True(wb.ZeroFuelInside);
+        Assert.Equal(new[] { "Forward c.g." }, wb.Warnings.ToArray());
+    }
+
+    [Fact]
+    public void TheZeroFuelPointIsCheckedAgainstItsOwnWeightsLimits()
+    {
+        // The tank moved forward to +0.5 m (the empty CG re-solves, the reference is still 600 kg at 0); gross 800.
+        // 120 kg in the back: 720 kg, CG −60/720 = −0.083333 m, inside. Burn the 30 kg off: 690 kg, −75/690 = −0.108696.
+        var c = Tandem(gross: 800);
+        c.Loading.Tanks[0].Station = new double[] { 0.5, 0, 0 };
+        var f = NewFlow(cfg: _ => c);
+        f.Next();
+        f.SetSeat("rear", Occupant.DefaultPerson);
+        f.SetSeatKg("rear", 120);
+        var wb = f.WeightBalance!;
+        Assert.Equal(-0.083333, wb.CgM, 6);
+        Assert.True(wb.TakeoffInside);
+        Assert.Equal(690.0, wb.ZeroFuelKg, 6);
+        Assert.Equal(-0.108696, wb.ZeroFuelCgM, 6);
+        Assert.False(wb.ZeroFuelInside);
+        Assert.Equal(new[] { "Aft c.g. at zero fuel" }, wb.Warnings.ToArray());
+        Assert.False(wb.InLimits);
+        Assert.Equal(LandingFlow.LaunchRequest.NeedsConfirmation, f.RequestLaunch());
+        Assert.Equal(-0.083333, f.WeightBalance!.CgM, 6);           // and the fuel was put back exactly
+    }
+
+    [Fact]
+    public void TheAxesTickInTheChosenUnitsFromTheTypesDatum()
+    {
+        // Datum 1 m forward of body 0. Limits ±0.10 m, both points at 0, so the frame is ±0.124 m: 0.876 .. 1.124 m aft of
+        // datum = 34.49 .. 44.25 in (step 2) or 876 .. 1124 mm (step 50). Weight 493 .. 770 kg = 1086.9 .. 1697.6 lb (step
+        // 200) or step 100 kg.
+        var c = Tandem();
+        c.Loading.HasCgDatum = true; c.Loading.CgDatumM = 1.0;
+        var std = WeightBalance.From(new FlyingGame.Core.AircraftLoad(c), units: UnitSystem.Standard);
+        Assert.Equal("C.G. (in aft of datum)", std.XAxisTitle);
+        Assert.Equal("Weight (lb)", std.YAxisTitle);
+        Assert.Equal(new[] { "36", "38", "40", "42", "44" }, std.XTicks.Select(t => t.Label).ToArray());
+        Assert.Equal(0.154839, std.XTicks[0].At, 6);
+        Assert.Equal(new[] { "1,200", "1,400", "1,600" }, std.YTicks.Select(t => t.Label).ToArray());
+        Assert.Equal(0.185238, std.YTicks[0].At, 6);
+        Assert.Equal("39.4 in", std.CgText(0.0));
+        Assert.Equal("1323 lb at 39.4 in", std.TakeoffText);
+
+        var met = WeightBalance.From(new FlyingGame.Core.AircraftLoad(c), units: UnitSystem.Metric);
+        Assert.Equal("C.G. (mm aft of datum)", met.XAxisTitle);
+        Assert.Equal("Weight (kg)", met.YAxisTitle);
+        Assert.Equal(new[] { "900", "950", "1000", "1050", "1100" }, met.XTicks.Select(t => t.Label).ToArray());
+        Assert.Equal(0.096774, met.XTicks[0].At, 6);
+        Assert.Equal(new[] { "500", "600", "700" }, met.YTicks.Select(t => t.Label).ToArray());
+        Assert.Equal(0.025271, met.YTicks[0].At, 6);
+        Assert.Equal("1000 mm", met.CgText(0.0));
+        // The units change the words, never the aeroplane.
+        Assert.Equal(std.PointX, met.PointX, 12);
+        Assert.Equal(std.PointY, met.PointY, 12);
+
+        // No datum located: measured from the body reference, and the axis says so.
+        Assert.Equal("C.G. (in aft of reference)", WeightBalance.From(new FlyingGame.Core.AircraftLoad(Tandem())).XAxisTitle);
+    }
+
+    [Fact]
+    public void OutOfLimitsIsWordedFactuallyAndNeverCoaxes()
+    {
+        var f = NewFlow();
+        f.Next();
+        f.SetSeat("rear", Occupant.DefaultPerson);
+        f.SetSeatKg("rear", 120);
+        f.SetStationKg("bags", 20);
+        var allowed = new[] { "Over gross", "Forward c.g.", "Aft c.g.", "Forward c.g. at zero fuel", "Aft c.g. at zero fuel" };
+        var wb = f.WeightBalance!;
+        Assert.NotEmpty(wb.Warnings);
+        Assert.All(wb.Warnings, w => Assert.Contains(w, allowed));
+        foreach (string line in wb.Warnings.Concat(wb.Details).Concat(f.Summary()))
+            Assert.DoesNotContain("still fly", line, System.StringComparison.OrdinalIgnoreCase);
+
+        // Nor anywhere in the landing page's code, flat or headset (Ty t881u: "Never say 'you can still fly'").
+        string root = RepoRoot();
+        var files = new[] { "src/FlyingGame.Core/Landing", "unity/Assets/_Project/Scripts/Bridge/Landing" }
+            .SelectMany(d => System.IO.Directory.GetFiles(System.IO.Path.Combine(root, d), "*.cs"))
+            .Append(System.IO.Path.Combine(root, "unity/Assets/_Project/Scripts/Bridge/QuestMenu.cs"));
+        foreach (string file in files)
+            Assert.DoesNotContain("still fly", System.IO.File.ReadAllText(file), System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void LaunchOutOfLimitsAsksInTyesExactWordsAndGoBackLaunchesNothing()
+    {
+        // t882u, copied by hand. The t881u draft ("...affect handling and aircraft performance.") must not ship.
+        Assert.Equal("Your W&B is out of limits which will negatively affect aircraft handling and performance.", LandingFlow.WbOutOfLimitsMessage);
+        Assert.NotEqual("Your W&B is out of limits which will negatively affect handling and aircraft performance.", LandingFlow.WbOutOfLimitsMessage);
+        Assert.Equal("Go back", LandingFlow.WbGoBackLabel);
+        Assert.Equal("Fly", LandingFlow.WbFlyLabel);
+
+        var store = new MemoryLandingStore();
+        var f = NewFlow(store);
+        int launched = 0;
+        f.Launched += _ => launched++;
+        f.Next();
+        f.SetSeat("rear", Occupant.DefaultPerson);
+        f.SetSeatKg("rear", 120);
+        Assert.False(f.WeightBalance!.InLimits);
+
+        Assert.Equal(LandingFlow.LaunchRequest.NeedsConfirmation, f.RequestLaunch());
+        Assert.True(f.LaunchConfirmPending);
+        Assert.Equal(0, launched);
+        Assert.False(store.Values.ContainsKey("landing.lastFlown"));   // nothing remembered either
+
+        Assert.False(f.ConfirmLaunch(fly: false));                    // Go back
+        Assert.False(f.LaunchConfirmPending);
+        Assert.Equal(LandingPage.Load, f.Page);                       // back on the loading, the load untouched
+        Assert.Equal(120.0, f.Seats.Single(x => x.SeatId == "rear").Kg, 9);
+        Assert.Equal(0, launched);
+        Assert.False(f.ConfirmLaunch(fly: true));                     // no question pending: nothing to answer
+        Assert.Equal(0, launched);
+    }
+
+    [Fact]
+    public void FlyAtTheQuestionLaunchesAsLoaded()
+    {
+        var f = NewFlow();
+        int launched = 0;
+        f.Launched += _ => launched++;
+        f.Next();
+        f.SetSeat("rear", Occupant.DefaultPerson);
+        f.SetSeatKg("rear", 120);
+        Assert.Equal(LandingFlow.LaunchRequest.NeedsConfirmation, f.RequestLaunch());
+        Assert.True(f.ConfirmLaunch(fly: true));
+        Assert.Equal(1, launched);
+        Assert.False(f.LaunchConfirmPending);
+        Assert.False(f.WeightBalance!.InLimits);                      // flown out of limits, as asked: a warning, never a block
+    }
+
+    [Fact]
+    public void InLimitsLaunchesWithoutAsking()
+    {
+        var f = NewFlow();
+        int launched = 0;
+        f.Launched += _ => launched++;
+        f.Next();
+        Assert.True(f.WeightBalance!.InLimits);
+        Assert.Equal(LandingFlow.LaunchRequest.Launched, f.RequestLaunch());
+        Assert.False(f.LaunchConfirmPending);
+        Assert.Equal(1, launched);
+    }
+
+    /// <summary>The verified envelopes, against the certificates' own numbers copied by hand (CLAUDE.md: literals, not
+    /// the file under test). Arms are read back off the chart's own axis (inches / mm aft of the type's datum), so this
+    /// also pins each datum. Sources: FAA TCDS A8SO Rev. 21 (Pitts S-2B), A-691 (J3C-65), A18EA Rev. 11 (2T-1A-2), EASA
+    /// TCDS A.038 (Swift S-1), Grob G 103 Acro [POH] 2.7.</summary>
+    [Theory]
+    //          id                          kg at     fwd arm  aft arm   units      gross kg
+    [InlineData("pitts-s2b-like",           737.09,   89.58,   90.50,   "in",      737.09)]    // acrobatic at 1625 lb
+    [InlineData("pitts-s2b-like",           669.05,   86.35,   90.50,   "in",      737.09)]    // 1475 lb
+    [InlineData("pitts-s2b-like",           600.00,   86.35,   90.50,   "in",      737.09)]    // "1475 lb or less"
+    [InlineData("pitts-s2b-like",           703.07,   87.965,  90.50,   "in",      737.09)]    // straight line, half way
+    [InlineData("j3-cub-like",              553.38,   10.6,    22.7,    "in",      553.38)]
+    [InlineData("great-lakes-like",         816.47,   20.0,    23.8,    "in",      816.47)]
+    [InlineData("glider-swift-s1-like",     410.0,    257,     414,     "mm",      410.0)]
+    [InlineData("glider-grob103-acro-like", 600.0,    270,     480,     "mm",      600.0)]
+    public void TheVerifiedEnvelopesAreTheCertificatesOwnNumbers(string id, double kg, double fwdArm, double aftArm, string unit, double grossKg)
+    {
+        var load = new FlyingGame.Core.AircraftLoad(Real(id));
+        Assert.True(load.HasCgEnvelope, $"{id} has no envelope");
+        Assert.True(load.HasCgDatum, $"{id} has no datum");
+        var wb = WeightBalance.From(load, units: unit == "mm" ? UnitSystem.Metric : UnitSystem.Standard);
+        (double f, double a) = load.CgLimitsAt(kg);
+        double tol = unit == "mm" ? 0.1 : 0.01;
+        Assert.InRange(wb.ArmValue(f), fwdArm - tol, fwdArm + tol);
+        Assert.InRange(wb.ArmValue(a), aftArm - tol, aftArm + tol);
+        Assert.Equal(grossKg, wb.MaxGrossKg, 2);
+        // And each type as authored sits inside its own certificate, takeoff and zero fuel (the check that validates a
+        // datum mapping, docs/WEIGHT-AND-BALANCE.md).
+        Assert.True(wb.InLimits, $"{id} as authored: {string.Join(", ", wb.Details)}");
+    }
+
+    /// <summary>Exactly these types have a verified CG envelope. A new one is a deliberate edit here, with its source;
+    /// a type left out shows "No envelope authored" and no invented box (Ty t880u: never invent aircraft limits).</summary>
+    [Fact]
+    public void OnlyTheVerifiedTypesHaveAnEnvelope()
+    {
+        string dir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "TestData");
+        var withEnvelope = System.IO.Directory.GetFiles(dir, "*.json")
+            .Select(System.IO.Path.GetFileNameWithoutExtension)
+            .Where(id => new FlyingGame.Core.AircraftLoad(Real(id!)).HasCgEnvelope)
+            .OrderBy(id => id, System.StringComparer.Ordinal).ToArray();
+        Assert.Equal(new[] { "glider-grob103-acro-like", "glider-swift-s1-like", "great-lakes-like", "j3-cub-like", "pitts-s2b-like" }, withEnvelope);
+
+        foreach (string id in new[] { "c172-like", "extra-300-like", "glider-2-33-like", "j3-cub-floats-like" })
+        {
+            var wb = WeightBalance.From(new FlyingGame.Core.AircraftLoad(Real(id)));
+            Assert.False(wb.HasEnvelope, id);
+            Assert.Empty(wb.Envelope);
+            Assert.DoesNotContain(wb.Limits, l => l.Label != WeightBalance.MaxGrossLineLabel);
+        }
+    }
+
+    private static AircraftConfig Real(string id) =>
+        FlyingGame.Core.DataContracts.AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(System.AppContext.BaseDirectory, "TestData", id + ".json"));
+
+    private static string RepoRoot()
+    {
+        var d = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
+        while (d != null && !System.IO.Directory.Exists(System.IO.Path.Combine(d.FullName, "configs"))) d = d.Parent;
+        Assert.True(d != null, "could not find the repo root above " + System.AppContext.BaseDirectory);
+        return d!.FullName;
     }
 
     // ---------------------------------------------------------------- units (Ty 2026-11-05 10:56)

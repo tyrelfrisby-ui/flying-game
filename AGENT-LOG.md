@@ -1,5 +1,45 @@
+## ACTIVE BRIEF ADDENDUM — t881u + t882u (same W&B job)
+- No "you can still fly". Labels: Over gross / Aft c.g. / Forward c.g. (factual only).
+- Popup EXACT: "Your W&B is out of limits which will negatively affect aircraft handling and performance." · Go back | Fly.
+- Still NO merge/install until revised renders approved. Queued first free slot.
+
+## ACTIVE BRIEF — Ty t880u W&B envelope (2026-11-06 ~04:51 PT) — NO MERGE/INSTALL
+Ty rejected landing-units merge: W&B graph must plot **CG and weight limits** so the user can see where they fall.
+Reuse tip **a1ca8481**. Claude: envelope calc/config/tests from verified data only (flag missing). Codex: UI + iPhone/iPad Standard|Metric renders. **Do not merge or install** until revised renders approved.
+Launch briefs in agent-lanes/prompts/*landing-wb-envelope-1106*. Job QUEUED first free slot (cap full).
+
 ## NEEDS YOU
+- **TY SPOKEN APPROVAL — LANDING FLOW (Grok Bot, 2026-11-05 11:00 PT).** Ty ~10:56 PT: "Landing page is good but give page two a standard or metric option; most users will be American/standard." **Q088 APPROVED** (two-page Choose → Load & Launch). Units follow-up: lane follow-up on this worktree (`prompts/claude-landing-units.md`); default **Standard**; persist preference. Do not redesign the flow. Q089–Q094 still open. Nothing else marked approved by me.
+
 <!-- landing-v2 needs-you -->
+- **LANDING-WB-ENVELOPE-CALC-DONE (Claude, lane/claude-landing-v2, 2026-11-06; Ty t880u + t881u + t882u). Local commit only:
+  NOT merged, NOT pushed, NOT installed, renders NOT made, nothing approved by me.** Codex's turn:
+  `prompts/codex-landing-wb-envelope-1106-launch.md` (UI restyle + iPhone/iPad Standard|Metric renders + popup render).
+  - **What it does.** The W&B chart is now handbook-style (CG across, weight up) with the type's verified envelope:
+    forward/aft limits that move with weight (`loading.cgLimits`, straight line between certificate rows), named limit
+    lines (`Forward c.g. limit` / `Aft c.g. limit` / `Max gross`), ticks in lb + in (Standard, default) or kg + mm
+    (Metric) aft of the type's own datum, the takeoff point and the zero-fuel point, each checked at its own weight.
+    Labels are factual only: `Over gross` / `Forward c.g.` / `Aft c.g.` (+ `... at zero fuel`); "(you can still fly)"
+    is gone. LAUNCH / FLY out of limits asks first with exactly "Your W&B is out of limits which will negatively affect
+    aircraft handling and performance." and **Go back** | **Fly** (flat page, classic FLY, Quest rows). In limits: no popup.
+  - **Envelopes drawn (verified, cited in each config):** Pitts S-2B (FAA A8SO: +86.35 at 1475 lb or less → +89.58 at
+    1625, aft +90.50), J-3 (A-691: +10.6 to +22.7), Great Lakes (A18EA: +20.0 to +23.8; datum anchor MEDIUM, ±25 mm),
+    Swift S-1 (EASA A.038: 257–414 mm), Grob 103 (POH 2.7: 270–480 mm, was already wired). Every type as authored sits
+    inside its own envelope.
+  - **NEEDS YOU: types with NO envelope drawn** (they show "No envelope authored"; nothing invented):
+    - `c172-like`: the POH envelope is known (git e4755c98) but its config's derived empty weight is 877 kg, so the real
+      2300 lb gross would flag every two-person load "Over gross". Re-adding it means retuning the 172's mass: your call.
+    - `extra-300-like`: EASA A.362 gives 75.0–89.8 cm aft of the firewall at 820 kg, but the firewall's body x is only
+      known ±5 cm (a third of the range) and no gross is authored. Needs the firewall located on the model.
+    - `glider-2-33-like` (the first-timer default): no certificate limits in the repo. Needs the SGS 2-33 type certificate's
+      C.G. range and the datum's body x.
+    - `j3-cub-floats-like`: shows the 1.2× float gross only. Needs the J3C-65S float C.G. range (not assumed equal to wheels).
+    - No loading block at all (no W&B plot): pa18 family, pa28-archer (blocked, datum mapping fails, docs/WEIGHT-AND-BALANCE.md),
+      decathlon, stearman, cassutt, p51d, cirrus, glasair, seminole, pawnee, beaver, jenny, geebee, eb29r, aircam, dc3, f86,
+      737, h4, hang glider, paraglider, target drone.
+  - **Checks:** LandingFlowTests + AircraftLoadTests + Grob103Tests: 158 / 160, the 2 failures (`Grob103Tests.RecoveryControlsSlowTheSpin`,
+    `PedalsSteerTheNoseWheelOnTheGround(0.5)`) fail identically on the base a1ca8481 (same 11.588 value), so not this change.
+    Full suite not run (other lanes' suites were running). iOS `deploy.sh NOINSTALL`: see the line below.
 - **LANDING V2: STANDARD / METRIC ON PAGE 2 (Claude, lane/claude-landing-v2, 2026-11-05 13:40; Ty 10:56 "give page two a
   standard or metric option; most users will be American/standard"). Local commit only: NOT merged, NOT pushed, NOT
   installed. Nothing approved by me.**
@@ -12,11 +52,21 @@
     read `LandingSession.SavedUnits`, never a second key. docs/LANDING-V2.md.
   - **Checks:** LandingFlowTests 25/25 (.NET, 4 new); LandingV2Tests 7/7 EditMode (MemoryLandingStore round-trip + the
     Bridge reader), 0 error CS; iOS `deploy.sh NOINSTALL` ** BUILD SUCCEEDED ** (12:51). Ignore check clean.
-  - **NOT done: the renders.** The Quest-panel shots and Mac page shots (`*-p2-load` Standard, `*-p2-load-metric`,
-    `quest-landing-units-standard/metric`) are wired into `AERO_SELFTEST=landing` and `LandingQuestShots` but never ran:
-    the job sat gated behind other lanes' Unity batches until it hit its 2 h limit. Run `tools/landing-v2/mac-shots.sh
-    pages` and the `LandingQuestShots.Run` batch when a slot is free. The control's layout has therefore NOT been looked
-    at on screen yet. Codex may restyle it (binding: `UnitItems()` / `SetUnits`).
+  - **RENDERS DONE 2026-11-05 19:37 (Q134, please look; NOT approved by me, NOT merged, NOT installed).** In
+    `~/Developer/agent-lanes/renders/landing-v2/claude/`: `iphone-land-p2-load.png` (Standard) / `iphone-land-p2-load-metric.png`,
+    same for `ipad-land-*`, and `quest-landing-units-standard.png` / `quest-landing-units-metric.png`. The 09:40 set is kept
+    in `prior-0940/`. Made by `LandingQuestShots.Run` (exit 0, both summary checks passed) and `tools/landing-v2/mac-shots.sh
+    pages` (macOS build SUCCEEDED, `[LandingSelfTest] DONE pages`) from a1ca8481, with no code changes.
+    Checked by eye: UNITS is the last block of the right-hand column, under Reliability, Standard highlighted by default.
+    The numbers agree across systems: 190 lb = 86 kg, 265 lb = 120 kg, 1657 of 1464 lb = 751 of 664 kg, over gross 193 lb = 87 kg,
+    10/18/25/6 kt = 19/33/46/11 km/h. Quest: `Units: Standard (lb · ft · kt)` and the W&B line `1542 / 1464 lb OVER GROSS 78 lb`
+    = `699 / 664 kg OVER GROSS 35 kg`.
+    Things to note, none caused by units: (a) the Units tiles sit flush on the column's bottom edge on iPhone and iPad
+    landscape (tight, not clipped); (b) the shots keep the self-test's earlier state: the friend weighs 120 kg and the baggage is full
+    in `*-p2-load` (the 09:40 set had this too), and the iPad set inherits Gusty from the iPhone pass; (c) `ipad-port-*`
+    rendered at 410x542 (the player window could not take the portrait shape), so those are unusable as before; (d) the
+    live preview's camera framing differs between the Standard and Metric shots (the preview kept moving between the two
+    shots). Codex may restyle the control (binding: `UnitItems()` / `SetUnits`).
   - My first deploy attempt started 1 s after ground-volume's island-nav install; stopped at once on claude-floats-f8's
     request, retried after the slot was idle (CLAUDE.md lesson added: sleep before the gate's last check, not after).
 

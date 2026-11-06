@@ -62,6 +62,8 @@ namespace FlyingGame.Bridge
             public System.Func<bool> Visible;
             /// <summary>On the Rudder pedals page rather than the main one.</summary>
             public bool PedalPage;
+            /// <summary>One of the W&amp;B launch confirmation's rows, the only ones shown while it is up.</summary>
+            public bool Confirm;
             public TextMesh Text;
         }
 
@@ -288,6 +290,7 @@ namespace FlyingGame.Bridge
                 visible: () => !OnLanding && Controls != null && Controls.MenuHandleAvailable);
 
             BuildPedalRows();
+            BuildConfirmRows();
 
             var panel = Quad("Panel", _panelMat);
             panel.SetParent(_root.transform, false);
@@ -307,8 +310,29 @@ namespace FlyingGame.Bridge
             _laser.receiveShadows = false;
         }
 
-        private void AddRow(System.Func<string> label, System.Action activate, System.Action<int> cycle = null, System.Func<bool> visible = null, bool pedalPage = false) =>
-            _rows.Add(new Row { Label = label, Activate = activate, Cycle = cycle, Visible = visible ?? (() => true), PedalPage = pedalPage });
+        private void AddRow(System.Func<string> label, System.Action activate, System.Action<int> cycle = null, System.Func<bool> visible = null, bool pedalPage = false, bool confirm = false) =>
+            _rows.Add(new Row { Label = label, Activate = activate, Cycle = cycle, Visible = visible ?? (() => true), PedalPage = pedalPage, Confirm = confirm });
+
+        // ---- the W&B launch confirmation (Ty t881u / t882u), the same question the flat page asks ----
+
+        private bool Confirming => OnLanding && Flow.LaunchConfirmPending;
+
+        private void BuildConfirmRows()
+        {
+            // The exact message, broken over two rows at a word (the panel is not wide enough for it on one).
+            string msg = LandingFlow.WbOutOfLimitsMessage;
+            int k = msg.IndexOf(" affect", System.StringComparison.Ordinal);
+            string a = k > 0 ? msg.Substring(0, k) : msg, b = k > 0 ? msg.Substring(k + 1) : "";
+            AddRow(() => a, null, confirm: true);
+            AddRow(() => b, null, visible: () => b.Length > 0, confirm: true);
+            AddRow(() => LandingFlow.WbGoBackLabel, () => { Flow.ConfirmLaunch(fly: false); _sel = 0; }, confirm: true);
+            AddRow(() => LandingFlow.WbFlyLabel, () =>
+            {
+                try { Flow.ConfirmLaunch(fly: true); }
+                catch (System.Exception e) { Debug.LogError($"[Quest] FLY: the flight did not start: {e}"); }
+                FinishFly();
+            }, confirm: true);
+        }
 
         // ---- the rudder pedals page ----
 
@@ -384,7 +408,7 @@ namespace FlyingGame.Bridge
             _shown.Clear();
             foreach (Row r in _rows)
             {
-                bool v = r.PedalPage == _pedalPage && r.Visible();
+                bool v = r.PedalPage == _pedalPage && r.Confirm == Confirming && r.Visible();
                 r.Text.gameObject.SetActive(v);
                 if (v) _shown.Add(r);
             }
@@ -456,6 +480,7 @@ namespace FlyingGame.Bridge
             _prevTrig = trig; _prevA = f.A; _prevX = f.X; _prevB = f.B; _prevY = f.Y; _prevPinch = pinch;
 
             if (select && _sel < _shown.Count) _shown[_sel].Activate?.Invoke();
+            else if (back && Confirming) { Flow.ConfirmLaunch(fly: false); _sel = 0; }   // B / Y on the question: Go back
             else if (back && _pedalPage) { _pedalPage = false; _sel = 0; }   // B / Y: up a page first
             else if (back) Close(force: false, f.B && !f.Y ? "B" : "Y");
         }
@@ -528,11 +553,23 @@ namespace FlyingGame.Bridge
                     flow.Adopt(SessionSettings.AircraftId, SessionSettings.Bushwheels, SessionSettings.Skis, SessionSettings.AirportIndex,
                                (Viewpoint)(int)SessionSettings.StartMode, null);
                     flow.GoTo(LandingPage.Load);
-                    flow.Launch();
+                    if (flow.RequestLaunch() == LandingFlow.LaunchRequest.NeedsConfirmation)
+                    {
+                        // Out of limits: ask first, menu open (Go back | Fly rows; Fly finishes the start).
+                        _sel = 2;
+                        Debug.Log("[QuestInput] FLY: W&B out of limits - asking first");
+                        return;
+                    }
                 }
                 else if (Landing != null) Landing.Fly();
             }
             catch (System.Exception e) { Debug.LogError($"[Quest] FLY: the flight did not start: {e}"); }
+            FinishFly();
+        }
+
+        /// <summary>Everything FLY does once the flight has been started: close the menu and seat the pilot.</summary>
+        private void FinishFly()
+        {
             Close(force: true, "FLY");
             Debug.Log($"[QuestInput] FLY: {SessionSettings.AircraftId}, {StartName()}");
             if (Chase != null) Chase.SetView(ChaseCamera.View.Cockpit);
@@ -763,7 +800,7 @@ namespace FlyingGame.Bridge
         {
             var wb = Flow.WeightBalance;
             if (wb == null) return "";
-            return $"   {Flow.MassNumber(wb.TotalKg)}" + (wb.HasGross ? $" / {Flow.MassText(wb.MaxGrossKg)}" : " " + Flow.MassUnit) + (wb.InLimits ? "   in limits" : wb.OverGross ? $"   OVER GROSS {Flow.MassText(wb.TotalKg - wb.MaxGrossKg)}" : "   CG OUT OF LIMITS");
+            return $"   {Flow.MassNumber(wb.TotalKg)}" + (wb.HasGross ? $" / {Flow.MassText(wb.MaxGrossKg)}" : " " + Flow.MassUnit) + (wb.InLimits ? "   in limits" : "   " + string.Join(", ", wb.Warnings));
         }
 
         private static void CycleAircraft(int step)

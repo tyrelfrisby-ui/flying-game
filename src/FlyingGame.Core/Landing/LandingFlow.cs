@@ -127,8 +127,8 @@ public sealed class LandingFlow
     public bool CanLaunch => Page == LandingPage.Load;   // W&B never blocks (Ty 2026-11-05 addendum)
 
     public void Next() { if (CanGoNext) { OpenPicker = PickerKind.None; Page = LandingPage.Load; RebuildLoad(); Bump(); } }
-    public void Back() { if (OpenPicker != PickerKind.None) ClosePicker(); else if (CanGoBack) { Page = LandingPage.Choose; Bump(); } }
-    public void GoTo(LandingPage p) { OpenPicker = PickerKind.None; Page = p; if (p == LandingPage.Load) RebuildLoad(); Bump(); }
+    public void Back() { if (LaunchConfirmPending) { LaunchConfirmPending = false; Bump(); return; } if (OpenPicker != PickerKind.None) ClosePicker(); else if (CanGoBack) { Page = LandingPage.Choose; Bump(); } }
+    public void GoTo(LandingPage p) { OpenPicker = PickerKind.None; LaunchConfirmPending = false; Page = p; if (p == LandingPage.Load) RebuildLoad(); Bump(); }
 
     public void Open(PickerKind k)
     {
@@ -519,11 +519,49 @@ public sealed class LandingFlow
         return lines;
     }
 
-    /// <summary>LAUNCH from page 2. Never refused for weight and balance. Remembers everything, then raises
-    /// <see cref="Launched"/>.</summary>
+    /// <summary>The confirmation LAUNCH asks for when the weight and balance is out of limits (Ty t882u, 2026-11-06: this
+    /// exact text; it supersedes the t881u draft). Buttons <see cref="WbGoBackLabel"/> | <see cref="WbFlyLabel"/>.</summary>
+    public const string WbOutOfLimitsMessage = "Your W&B is out of limits which will negatively affect aircraft handling and performance.";
+    public const string WbGoBackLabel = "Go back";
+    public const string WbFlyLabel = "Fly";
+
+    public enum LaunchRequest { NotAllowed, Launched, NeedsConfirmation }
+
+    /// <summary>True while the W&amp;B confirmation is up: the page shows <see cref="WbOutOfLimitsMessage"/> and waits for
+    /// <see cref="ConfirmLaunch"/>.</summary>
+    public bool LaunchConfirmPending { get; private set; }
+
+    /// <summary>What every LAUNCH / FLY button calls. In limits (or no plot) it launches at once; out of limits it raises
+    /// <see cref="LaunchConfirmPending"/> and launches nothing until <see cref="ConfirmLaunch"/> says which.</summary>
+    public LaunchRequest RequestLaunch()
+    {
+        if (!CanLaunch) return LaunchRequest.NotAllowed;
+        if (WeightBalance is { InLimits: false })
+        {
+            LaunchConfirmPending = true;
+            Bump();
+            return LaunchRequest.NeedsConfirmation;
+        }
+        return Launch() ? LaunchRequest.Launched : LaunchRequest.NotAllowed;
+    }
+
+    /// <summary>The confirmation's answer: <paramref name="fly"/> false is "Go back" (back to the loading, nothing
+    /// launched), true is "Fly" (launches as loaded). False when no confirmation was pending.</summary>
+    public bool ConfirmLaunch(bool fly)
+    {
+        if (!LaunchConfirmPending) return false;
+        LaunchConfirmPending = false;
+        if (!fly) { Page = LandingPage.Load; Bump(); return false; }
+        Bump();
+        return Launch();
+    }
+
+    /// <summary>LAUNCH from page 2, unconditionally: the W&amp;B is a question, never a block, and this is the answer
+    /// "Fly". Buttons call <see cref="RequestLaunch"/>. Remembers everything, then raises <see cref="Launched"/>.</summary>
     public bool Launch()
     {
         if (!CanLaunch) return false;
+        LaunchConfirmPending = false;
         Save();
         Launched?.Invoke(this);
         return true;

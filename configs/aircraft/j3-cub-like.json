@@ -1527,6 +1527,12 @@
     "isTug": true
   },
   "loading": {
+    "cgLimits": [
+      { "massKg": 553.38, "forwardM": 0.13806, "aftM": -0.16928 }
+    ],
+    "cgDatumM": 0.4073,
+    "hasCgDatum": true,
+    "_cgLimitsSource": "FAA TCDS A-691, J3C-65 (docs/WEIGHT-AND-BALANCE.md): datum = wing leading edge, body x +0.4073 (docs/pending/loading-arm-estimates.md: inner strip LE, anchor HIGH), so body x = 0.4073 - arm x 0.0254. C.G. range (+10.6) to (+22.7), one range at all weights: forward 0.13806 m, aft -0.16928 m. Gross: maxTakeoffMassKg 553.38 = 1220 lb.",
     "emptyMassKg": 0,
     "emptyCg": [
       -0.0855,

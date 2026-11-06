@@ -82,7 +82,8 @@ namespace FlyingGame.Bridge
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bg);
 
             bool menuOpen = flow.OpenPicker != PickerKind.None;
-            GUI.enabled = !menuOpen;
+            bool confirming = flow.LaunchConfirmPending;
+            GUI.enabled = !menuOpen && !confirming;
             float headH = _bh * 1.1f, footH = _bh * 1.35f;
             DrawHeader(new Rect(safe.x, safe.y, safe.width, headH), flow);
             var body = new Rect(safe.x, safe.y + headH + _gap, safe.width, safe.height - headH - footH - 2 * _gap);
@@ -90,6 +91,7 @@ namespace FlyingGame.Bridge
             DrawFooter(new Rect(safe.x, safe.yMax - footH, safe.width, footH), flow);
             GUI.enabled = true;
             if (menuOpen) DrawStrip(safe, flow);
+            if (confirming) DrawLaunchConfirm(safe, flow);
         }
 
         private void DrawHeader(Rect r, LandingFlow flow)
@@ -111,7 +113,7 @@ namespace FlyingGame.Bridge
             else
             {
                 if (UiLayout.Button(new Rect(r.x, r.y, sw, r.height), "‹  BACK", _btn)) flow.Back();
-                if (UiLayout.Button(new Rect(r.xMax - bw, r.y, bw, r.height), "LAUNCH", _btnBig)) flow.Launch();
+                if (UiLayout.Button(new Rect(r.xMax - bw, r.y, bw, r.height), "LAUNCH", _btnBig)) flow.RequestLaunch();
             }
             float x0 = flow.Page == LandingPage.Load ? r.x + sw + _gap : r.x;
             float small = r.height * 0.62f, sbw = Mathf.Min(_fs * 7.5f, (r.xMax - bw - _gap - x0) / 3.2f);
@@ -378,7 +380,9 @@ namespace FlyingGame.Bridge
                 GUI.Label(new Rect(inner.x, y, inner.width, inner.yMax - y), "This type has no loading stations authored yet: it flies at its authored weight and balance.", _tiny);
         }
 
-        /// <summary>The W&amp;B plot: the envelope, the loaded point, and the line the CG walks as the fuel burns.</summary>
+        /// <summary>The W&amp;B plot, laid out like a handbook's chart (CG across, weight up): the type's verified envelope
+        /// with its limit lines named, the takeoff point, and the line the CG walks to the zero-fuel point as the fuel
+        /// burns (Ty t880u). Factual labels only (t881u). The visual lane restyles this; the data is WeightBalance's.</summary>
         private void DrawWeightBalance(Rect r, LandingFlow flow)
         {
             GUI.DrawTexture(r, _panel);
@@ -387,20 +391,67 @@ namespace FlyingGame.Bridge
             if (wb == null) { UiLayout.Label(inner, "No loading data for this type", _small); return; }
             string head = $"WEIGHT & BALANCE  ·  {flow.MassText(wb.TotalKg)}" + (wb.HasGross ? $" of {flow.MassNumber(wb.MaxGrossKg)}" : "");
             UiLayout.Label(new Rect(inner.x, inner.y, inner.width, _bh * 0.8f), head, _head);
-            float warnH = wb.InLimits ? _bh * 0.7f : _bh * 0.7f * wb.Warnings.Count;
-            var plot = new Rect(inner.x, inner.y + _bh * 0.85f, inner.width, inner.height - _bh * 0.85f - warnH);
+            float warnH = _bh * 0.7f;
+            float yGutter = _fs * 2.6f, xGutter = _fs * 2.1f;
+            var plot = new Rect(inner.x + yGutter, inner.y + _bh * 0.85f, inner.width - yGutter, inner.height - _bh * 0.85f - warnH - xGutter);
             GUI.DrawTexture(plot, _btnBg);
             Vector2 P(double x, double y) => new Vector2(plot.x + (float)x * plot.width, plot.yMax - (float)y * plot.height);
+
+            // Axes: ticks in the chosen units, and what each axis measures.
+            var tickR = new GUIStyle(_tiny) { alignment = TextAnchor.MiddleRight, wordWrap = false };
+            var tickC = new GUIStyle(_tiny) { alignment = TextAnchor.UpperCenter, wordWrap = false };
+            foreach (var t in wb.YTicks)
+            {
+                Vector2 a = P(0, t.At);
+                Line(a, P(1, t.At), new Color(1f, 1f, 1f, 0.08f), 1f);
+                GUI.Label(new Rect(inner.x, a.y - _fs * 0.5f, yGutter - 4, _fs), t.Label, tickR);
+            }
+            foreach (var t in wb.XTicks)
+            {
+                Vector2 a = P(t.At, 0);
+                Line(a, P(t.At, 1), new Color(1f, 1f, 1f, 0.08f), 1f);
+                GUI.Label(new Rect(a.x - _fs * 1.6f, plot.yMax + 1, _fs * 3.2f, _fs), t.Label, tickC);
+            }
+            GUI.Label(new Rect(plot.x, plot.yMax + _fs * 1.0f, plot.width, _fs), wb.XAxisTitle, tickC);
+            GUI.Label(new Rect(inner.x, plot.y - _fs * 0.1f, yGutter + _fs * 4f, _fs), DisplayUnits.MassUnit(flow.Units), _tiny);
+
+            // The envelope and its named limits; a gross with no CG limits is still drawn.
             if (wb.Envelope.Count > 1)
                 for (int i = 1; i < wb.Envelope.Count; i++) Line(P(wb.Envelope[i - 1].x, wb.Envelope[i - 1].y), P(wb.Envelope[i].x, wb.Envelope[i].y), new Color(0.55f, 0.95f, 1f), 2f);
-            if (wb.HasGross) Line(P(0, wb.PlotY(wb.MaxGrossKg)), P(1, wb.PlotY(wb.MaxGrossKg)), new Color(1f, 0.6f, 0.3f, 0.7f), 1f);
+            foreach (var lim in wb.Limits)
+            {
+                var col = lim.Label == WeightBalance.MaxGrossLineLabel ? new Color(1f, 0.6f, 0.3f, 0.85f) : new Color(0.55f, 0.95f, 1f);
+                if (!wb.HasEnvelope) for (int i = 1; i < lim.Points.Count; i++) Line(P(lim.Points[i - 1].x, lim.Points[i - 1].y), P(lim.Points[i].x, lim.Points[i].y), col, 1.5f);
+                Vector2 m = P((lim.Points[0].x + lim.Points[lim.Points.Count - 1].x) * 0.5, (lim.Points[0].y + lim.Points[lim.Points.Count - 1].y) * 0.5);
+                var st = new GUIStyle(_tiny) { wordWrap = false, normal = { textColor = col } };
+                GUI.Label(new Rect(m.x - _fs * 3f, m.y - _fs * (lim.Label == WeightBalance.MaxGrossLineLabel ? 1.1f : 0.5f), _fs * 6f, _fs), lim.Label, st);
+            }
+            if (!wb.HasEnvelope) GUI.Label(new Rect(plot.x + 3, plot.yMax - _fs * 1.1f, plot.width, _fs), WeightBalance.NoEnvelopeLabel, _tiny);
+
             Line(P(wb.ZeroFuelX, wb.ZeroFuelY), P(wb.PointX, wb.PointY), new Color(1f, 1f, 1f, 0.6f), 2f);
-            Dot(P(wb.ZeroFuelX, wb.ZeroFuelY), _fs * 0.35f, new Color(0.8f, 0.8f, 0.8f));
-            Dot(P(wb.PointX, wb.PointY), _fs * 0.6f, wb.InLimits ? new Color(0.3f, 0.9f, 0.4f) : new Color(1f, 0.35f, 0.25f));
-            GUI.Label(new Rect(plot.x + 3, plot.yMax - _fs, plot.width * 0.5f, _fs), wb.HasEnvelope ? "fwd" : "no envelope authored", _tiny);
-            if (wb.HasEnvelope) GUI.Label(new Rect(plot.xMax - _fs * 2f, plot.yMax - _fs, _fs * 2f, _fs), "aft", _tiny);
+            Dot(P(wb.ZeroFuelX, wb.ZeroFuelY), _fs * 0.35f, wb.ZeroFuelInside ? new Color(0.8f, 0.8f, 0.8f) : new Color(1f, 0.35f, 0.25f));
+            Dot(P(wb.PointX, wb.PointY), _fs * 0.6f, wb.TakeoffInside ? new Color(0.3f, 0.9f, 0.4f) : new Color(1f, 0.35f, 0.25f));
+
             var warn = new GUIStyle(_tiny) { normal = { textColor = wb.InLimits ? new Color(0.6f, 0.95f, 0.6f) : new Color(1f, 0.7f, 0.3f) } };
-            GUI.Label(new Rect(inner.x, plot.yMax + 2, inner.width, warnH), wb.InLimits ? "In limits. Fuel burns along the line to the grey dot." : string.Join("\n", wb.Warnings) + "  (you can still fly)", warn);
+            string status = wb.InLimits
+                ? $"In limits.  {WeightBalance.TakeoffPointLabel} {wb.TakeoffText}  ·  {WeightBalance.ZeroFuelPointLabel} {wb.ZeroFuelText}"
+                : string.Join("  ·  ", wb.Warnings);
+            GUI.Label(new Rect(inner.x, inner.yMax - warnH, inner.width, warnH), status, warn);
+        }
+
+        /// <summary>LAUNCH out of limits (Ty t881u / t882u): the exact message and Go back | Fly, over the page.</summary>
+        private void DrawLaunchConfirm(Rect safe, LandingFlow flow)
+        {
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _dim);
+            float w = Mathf.Min(safe.width * 0.8f, _fs * 30f), h = _bh * 4.2f;
+            var box = new Rect(safe.center.x - w * 0.5f, safe.center.y - h * 0.5f, w, h);
+            GUI.DrawTexture(box, _panel);
+            var inner = Inset(box, _gap);
+            var msg = new GUIStyle(_label) { wordWrap = true, alignment = TextAnchor.MiddleCenter };
+            GUI.Label(new Rect(inner.x, inner.y, inner.width, inner.height - _bh * 1.3f), LandingFlow.WbOutOfLimitsMessage, msg);
+            float bw = (inner.width - _gap) * 0.5f, by = inner.yMax - _bh * 1.1f;
+            if (UiLayout.Button(new Rect(inner.x, by, bw, _bh * 1.1f), LandingFlow.WbGoBackLabel, _btn)) flow.ConfirmLaunch(fly: false);
+            if (UiLayout.Button(new Rect(inner.x + bw + _gap, by, bw, _bh * 1.1f), LandingFlow.WbFlyLabel, _btnBig)) flow.ConfirmLaunch(fly: true);
         }
 
         private void DrawSettings(Rect r, LandingFlow flow)

@@ -15,12 +15,12 @@ All in `src/FlyingGame.Core/Landing/` (namespace `FlyingGame.Core.Landing`), pur
 
 | Type | What the view reads / calls |
 |---|---|
-| `LandingFlow` | THE state machine. `Page` (`Choose`/`Load`), `OpenPicker` (`PickerKind`), `Version` (bumps on every change; redraw/refresh on change), `Changed` event. Navigation: `Next()`, `Back()` (closes an open menu first), `GoTo(page)`, `Open(PickerKind)` (toggles), `ClosePicker()`, `CanGoNext/CanGoBack/CanLaunch`, `Launch()`. |
+| `LandingFlow` | THE state machine. `Page` (`Choose`/`Load`), `OpenPicker` (`PickerKind`), `Version` (bumps on every change; redraw/refresh on change), `Changed` event. Navigation: `Next()`, `Back()` (closes an open menu first), `GoTo(page)`, `Open(PickerKind)` (toggles), `ClosePicker()`, `CanGoNext/CanGoBack/CanLaunch`, `RequestLaunch()` (what buttons call: asks first when the W&B is out of limits), `ConfirmLaunch(fly)`, `LaunchConfirmPending`, `Launch()` (unconditional). |
 | page 1 | `Items(PickerKind)` → `List<PickerItem>` for Aircraft / Configuration / Location / Viewpoint / Challenge / Lesson (already RESTRICTED by the activity's rules; disallowed cards are not in the list). `Pick(kind, id)` (closes the menu). `IsFixed(kind)`: a menu with nothing to choose (draw a fixed line). Hero: `HeroTitle`, `HeroSubtitle`, `HeroThumbnails`; current choice: `Family`, `Gear`, `Location`, `Viewpoint`, `ViewpointName`, `Activity`, `ActivityKind`, `Rules` (`AircraftNote`, `FixedViewpointNote`, `ConditionsLocked`). |
 | `PickerItem` | `Kind, Id, Title, Subtitle, Selected, Enabled, DisabledReason, Thumbnails` (keys, most specific first), `IconKey` (`icon/<group>/<id>`, for the visual lane's drawn icons), `ThumbnailKey`. |
 | page 2 seats | `Seats` → `SeatRow { SeatId, Label, HasControls, Occupant (Empty/Me/DefaultPerson/InvitedPlayer), Role (Passenger/DualControl), Kg, MaxKg, InviteName, IconKey }`. `CycleSeat(id)` (one tap: empty → person → invited passenger → invited on the controls → empty), `SetSeat(id, who, role)`, `SetSeatKg(id, kg)`, `SetInviteName(name)`. Exactly one seat is `Me`. |
 | page 2 load | `Stations` → `StationRow { StationId, Label, Kind (Fuel/Baggage), Kg, MaxKg, Fraction }`, `SetStationKg`, `SetFuelFraction(0..1)`, `FuelFraction`. |
-| W&B | `WeightBalance` → `{ TotalKg, MaxGrossKg, HasGross, HasEnvelope, PointX/PointY, ZeroFuelX/ZeroFuelY, Envelope (closed polyline), Warnings, InLimits, CanLaunch (always true) }`. Plot space 0..1, x = forward limit → aft limit (nose left), y = empty → 110 % gross. |
+| W&B | `WeightBalance` → `{ TotalKg, MaxGrossKg, HasGross, HasEnvelope, CgM / ZeroFuelCgM, FwdLimitM / AftLimitM (at the loaded weight), PointX/PointY, ZeroFuelX/ZeroFuelY, Envelope / EnvelopeCg (closed), Limits (named lines: "Forward c.g. limit", "Aft c.g. limit", "Max gross"), XTicks / YTicks + XAxisTitle / YAxisTitle (Standard: in aft of datum, lb; Metric: mm, kg), Warnings (factual labels), Details (with amounts), InLimits, TakeoffInside / ZeroFuelInside, CanLaunch (always true) }`. Handbook layout: CG across (x 0 = forward edge, nose left), weight up (empty → 110 % gross). Limits vary with weight (`AircraftLoad.CgLimitsAt`). See "W&B envelope" below. |
 | settings | `TimeItems()`, `ReliabilityItems()`, `WeatherItems()` (each a `List<PickerItem>`), `SetTimeOfDay`, `SetReliability`, `SetWeather(id)`; `Light` (0..1), `IsDark` (use for `LandingVisuals.Theme(night)`), `ConditionsLocked`. |
 | units | `Units` (`UnitSystem.Standard` / `Metric`), `UnitItems()` (two `PickerItem`s), `SetUnits(u)`; for labels `MassText(kg)` ("170 lb" / "77 kg"), `MassNumber(kg)`, `MassUnit`, and `MassStepKg` (one − / + tap: 10 lb or 5 kg, in kg). Formatting lives in `DisplayUnits`. |
 | summary | `Summary()` → the lines LAUNCH will do. |
@@ -67,3 +67,20 @@ Bridge side (`unity/Assets/_Project/Scripts/Bridge/Landing/`):
 captures `loc/…` whenever the page shows a combination that has no picture yet, and again from the first frame
 after LAUNCH (what the pilot really first sees); (2) bundled in `Resources/LandingThumbs/` (made on the bench with
 `AERO_SELFTEST=landing-thumbs`, which walks the fleet and every location through the same capture code).
+
+## W&B envelope, labels and the launch question (Ty t880u / t881u / t882u, 2026-11-06)
+
+- **Only verified limits are drawn.** `loading.cgLimits` (rows of `massKg / forwardM / aftM`, body x, +forward; straight
+  line between rows, held beyond the end rows) or the constant `cgForwardLimitM / cgAftLimitM`. Each config cites its
+  certificate in `_cgLimitsSource`; `cgDatumM` + `hasCgDatum` let the axis read "aft of datum" as the handbook does.
+  Done: Pitts S-2B (A8SO, sloped forward limit 1475 → 1625 lb), J-3 (A-691), Great Lakes (A18EA, anchor ±25 mm),
+  Swift S-1 (EASA A.038), Grob 103 (POH 2.7). `OnlyTheVerifiedTypesHaveAnEnvelope` pins the list; everything else shows
+  `No envelope authored` (and its gross line when it has a gross). Missing types: AGENT-LOG NEEDS YOU.
+- **Points:** takeoff (as loaded) and zero fuel (every tank drained), each checked against the limits AT ITS OWN WEIGHT.
+- **Labels are factual only:** `Over gross`, `Forward c.g.`, `Aft c.g.`, `Forward c.g. at zero fuel`, `Aft c.g. at zero
+  fuel`. No coaxing copy anywhere (a test scans the landing code for "still fly").
+- **LAUNCH / FLY out of limits** (`RequestLaunch` → `NeedsConfirmation`): the page shows exactly
+  `LandingFlow.WbOutOfLimitsMessage` = "Your W&B is out of limits which will negatively affect aircraft handling and
+  performance." with **Go back** (`ConfirmLaunch(false)`: back to the loading, nothing launched or saved) and **Fly**
+  (`ConfirmLaunch(true)`: launches as loaded). In limits it launches at once. Flat page: `LandingView.DrawLaunchConfirm`;
+  classic FLY routes through the same flow; Quest: confirm rows in `QuestMenu` (B / Y = Go back).

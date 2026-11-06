@@ -1516,6 +1516,12 @@
     "gMin": -4.0
   },
   "loading": {
+    "cgLimits": [
+      { "massKg": 816.47, "forwardM": -0.708, "aftM": -0.80452 }
+    ],
+    "cgDatumM": -0.2,
+    "hasCgDatum": true,
+    "_cgLimitsSource": "FAA TCDS A18EA Rev. 11, Model 2T-1A-2 (docs/WEIGHT-AND-BALANCE.md): datum = centre of the most forward lateral fuselage tube, located at body x -0.200 (MAC 46.0 in with its leading edge at Sta. 9.0, and the firewall route 25 mm away: anchor MEDIUM, +/-25 mm), so body x = -0.200 - arm x 0.0254. C.G. range (+20.0) to (+23.8), one range at all weights: forward -0.708 m, aft -0.80452 m. Gross: maxTakeoffMassKg 816.47 = 1800 lb. These are the stations the 2026-10-30 percent-MAC envelope maps back to on this config's wing.",
     "emptyMassKg": 0,
     "emptyCg": [
       0.0,

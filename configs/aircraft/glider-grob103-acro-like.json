@@ -8878,6 +8878,9 @@
   "canRelease": true
  },
  "loading": {
+  "cgDatumM": 0.0,
+  "hasCgDatum": true,
+  "_cgDatumNote": "[POH] 2.7: datum = wing root leading edge = body x 0, the frame cgForwardLimitM / cgAftLimitM (270-480 mm aft) are already written in.",
   "emptyMassKg": 399.0,
   "maxGrossMassKg": 600.0,
   "cgForwardLimitM": -0.27,

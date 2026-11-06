@@ -2207,6 +2207,13 @@
     "gMin": -3.0
   },
   "loading": {
+    "cgLimits": [
+      { "massKg": 669.05, "forwardM": 0.138684, "aftM": 0.033274 },
+      { "massKg": 737.09, "forwardM": 0.056642, "aftM": 0.033274 }
+    ],
+    "cgDatumM": 2.331974,
+    "hasCgDatum": true,
+    "_cgLimitsSource": "FAA TCDS A8SO Rev. 21, Model S-2B (docs/CONTROL-SURFACES.md): datum 91.81 in forward of the lower wing leading edge, which is body x 0 here, so body x = (91.81 - arm) x 0.0254 and the datum is body x +2.331974. C.G. range Acrobatic (+89.58 to +90.50) at 1625 lb, (+86.35) at 1475 lb or less, straight line between: forward 0.138684 m at 669.05 kg (1475 lb) to 0.056642 m at 737.09 kg (1625 lb); aft 0.033274 m (+90.50). The aft limit below 1625 lb is not quoted separately and is held at +90.50, as the 2026-10-30 envelope already did. Gross: maxTakeoffMassKg 737.09 = 1625 lb, the acrobatic maximum (the normal category's 1700 lb is not drawn).",
     "emptyMassKg": 0.0,
     "emptyCg": [
       0.0,

@@ -395,7 +395,7 @@ namespace FlyingGame.Bridge
                 ShowLanding();
                 var flow = LandingSession.Flow;
                 flow.GoTo(FlyingGame.Core.Landing.LandingPage.Load);
-                flow.Launch();
+                flow.RequestLaunch();   // out of limits, the landing page now showing asks first (Ty t881u / t882u)
             }
 
             // ---- HELP, bottom left, in the strip the page's viewport already leaves clear for FLY (no-overlap

@@ -245,13 +245,59 @@ public sealed class AircraftLoad
     public double PlacardGrossKg => MaxGrossMassKg > 0.0 ? MaxGrossMassKg : _config.Loading?.MaxTakeoffMassKg ?? 0.0;
     public bool Overweight => HasWeightPlacard && TotalMassKg > MaxGrossMassKg + 1e-9;
 
-    /// <summary>+x is FORWARD in this frame, so a published envelope has its forward limit ABOVE its aft limit.</summary>
-    public bool HasCgEnvelope =>
-        _config.Loading is { } l && l.CgForwardLimitM > l.CgAftLimitM;
+    /// <summary>The CG envelope as limit rows sorted by weight: <see cref="LoadingConfig.CgLimits"/> when authored,
+    /// else the constant <see cref="LoadingConfig.CgForwardLimitM"/> / <see cref="LoadingConfig.CgAftLimitM"/> as one
+    /// row at the gross (its weight does not matter: a single row holds at every weight). Empty without an envelope.
+    /// +x is FORWARD in this frame, so every row has its forward limit ABOVE its aft limit; a row that does not is
+    /// not an envelope and the whole set is refused rather than half-used.
+    /// Built on each read (a handful of rows), so a config edited after construction is never seen stale.</summary>
+    public IReadOnlyList<CgLimitConfig> CgLimitRows => BuildLimitRows();
 
-    /// <summary>The authored CG limits, body x (m, +forward); 0 when the type has no envelope.</summary>
-    public double CgForwardLimitM => _config.Loading?.CgForwardLimitM ?? 0.0;
-    public double CgAftLimitM => _config.Loading?.CgAftLimitM ?? 0.0;
+    private List<CgLimitConfig> BuildLimitRows()
+    {
+        var rows = new List<CgLimitConfig>();
+        if (_config.Loading is not { } l) return rows;
+        if (l.CgLimits is { Count: > 0 })
+        {
+            foreach (CgLimitConfig r in l.CgLimits)
+            {
+                if (!(r.ForwardM > r.AftM) || !(r.MassKg > 0)) return new List<CgLimitConfig>();
+                rows.Add(r);
+            }
+            rows.Sort((a, b) => a.MassKg.CompareTo(b.MassKg));
+        }
+        else if (l.CgForwardLimitM > l.CgAftLimitM)
+            rows.Add(new CgLimitConfig { MassKg = PlacardGrossKg, ForwardM = l.CgForwardLimitM, AftM = l.CgAftLimitM });
+        return rows;
+    }
+
+    public bool HasCgEnvelope => CgLimitRows.Count > 0;
+
+    /// <summary>The type's weight-and-balance datum, body x (m), when one has been located (<see cref="LoadingConfig.CgDatumM"/>).</summary>
+    public bool HasCgDatum => _config.Loading?.HasCgDatum ?? false;
+    public double CgDatumM => _config.Loading?.CgDatumM ?? 0.0;
+
+    /// <summary>The CG limits at a weight, body x (m, +forward): straight-line between the authored rows, held at the end
+    /// rows outside them. (0, 0) without an envelope.</summary>
+    public (double forwardM, double aftM) CgLimitsAt(double kg)
+    {
+        var rows = CgLimitRows;
+        if (rows.Count == 0) return (0.0, 0.0);
+        if (kg <= rows[0].MassKg) return (rows[0].ForwardM, rows[0].AftM);
+        for (int i = 1; i < rows.Count; i++)
+        {
+            CgLimitConfig a = rows[i - 1], b = rows[i];
+            if (kg > b.MassKg) continue;
+            double t = b.MassKg - a.MassKg > 1e-9 ? (kg - a.MassKg) / (b.MassKg - a.MassKg) : 1.0;
+            return (a.ForwardM + t * (b.ForwardM - a.ForwardM), a.AftM + t * (b.AftM - a.AftM));
+        }
+        CgLimitConfig last = rows[rows.Count - 1];
+        return (last.ForwardM, last.AftM);
+    }
+
+    /// <summary>The CG limits at the weight as loaded, body x (m, +forward); 0 when the type has no envelope.</summary>
+    public double CgForwardLimitM => CgLimitsAt(TotalMassKg).forwardM;
+    public double CgAftLimitM => CgLimitsAt(TotalMassKg).aftM;
 
     public bool CgOutOfLimits
     {
@@ -259,7 +305,8 @@ public sealed class AircraftLoad
         {
             if (!HasCgEnvelope) return false;
             double x = Cg.X;
-            return x > _config.Loading.CgForwardLimitM + 1e-9 || x < _config.Loading.CgAftLimitM - 1e-9;
+            (double fwd, double aft) = CgLimitsAt(TotalMassKg);
+            return x > fwd + 1e-9 || x < aft - 1e-9;
         }
     }
 
@@ -271,8 +318,7 @@ public sealed class AircraftLoad
             if (Overweight) return $"OVER GROSS by {TotalMassKg - MaxGrossMassKg:F0} kg";
             if (CgOutOfLimits)
             {
-                double x = Cg.X;
-                return x > _config.Loading.CgForwardLimitM ? "CG FORWARD of the limit" : "CG AFT of the limit";
+                return Cg.X > CgForwardLimitM ? "CG FORWARD of the limit" : "CG AFT of the limit";
             }
             return null;
         }
@@ -280,8 +326,13 @@ public sealed class AircraftLoad
 
     /// <summary>Where the CG sits across its envelope: 0 at the forward limit, 1 at the aft limit. Since +x is
     /// forward, that counts DOWN in x. NaN without an envelope to measure against.</summary>
-    public double CgFraction =>
-        HasCgEnvelope
-            ? (_config.Loading.CgForwardLimitM - Cg.X) / (_config.Loading.CgForwardLimitM - _config.Loading.CgAftLimitM)
-            : double.NaN;
+    public double CgFraction
+    {
+        get
+        {
+            if (!HasCgEnvelope) return double.NaN;
+            (double fwd, double aft) = CgLimitsAt(TotalMassKg);
+            return (fwd - Cg.X) / (fwd - aft);
+        }
+    }
 }

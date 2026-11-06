@@ -192,9 +192,10 @@ public sealed class LoadingConfig
     public double EmptyMassKg { get; set; }
     /// <summary>Maximum certificated take-off mass. 0 = no placard, and the page will not complain about weight.</summary>
     public double MaxGrossMassKg { get; set; }
-    /// <summary>The same placard as several configs author it (with an "envelope" in datum inches beside it, which is
-    /// not read). Read by the landing page's weight-and-balance plot only, when <see cref="MaxGrossMassKg"/> is 0
-    /// (<see cref="FlyingGame.Core.AircraftLoad.PlacardGrossKg"/>); nothing in the sim reads it.</summary>
+    /// <summary>The same placard as several configs author it. Read by the landing page's weight-and-balance plot only,
+    /// when <see cref="MaxGrossMassKg"/> is 0 (<see cref="FlyingGame.Core.AircraftLoad.PlacardGrossKg"/>); nothing in the
+    /// sim reads it. (The "envelope" beside it in some configs is the 2026-10-30 lane's percent-MAC copy of the same
+    /// certificate limits; it is not read. <see cref="CgLimits"/> is.)</summary>
     public double MaxTakeoffMassKg { get; set; }
     /// <summary>CG envelope in the body reference frame's x, metres. The frame has +x FORWARD, so the forward limit
     /// is the LARGER number and the aft limit the smaller one — a nose-heavy aeroplane has a bigger x than a
@@ -202,6 +203,17 @@ public sealed class LoadingConfig
     /// will not complain about balance.</summary>
     public double CgForwardLimitM { get; set; }
     public double CgAftLimitM { get; set; }
+    /// <summary>A CG envelope whose limits change with weight, as a type certificate writes it: one row per weight the
+    /// certificate quotes, body x metres (+forward). Between rows the limits vary in a straight line; below the lightest
+    /// row and above the heaviest they hold that row's values (a certificate's "at 1475 lb or less"). Empty = use
+    /// <see cref="CgForwardLimitM"/> / <see cref="CgAftLimitM"/>, constant with weight. Only from a published source,
+    /// cited in the config beside it: no envelope is better than an invented one (Ty 2026-11-06).</summary>
+    public List<CgLimitConfig> CgLimits { get; set; } = new();
+    /// <summary>Body x (m) of the type's own weight-and-balance datum, so the plot can label the CG the way the type's
+    /// handbook does (inches / mm aft of datum). 0 with <see cref="HasCgDatum"/> false = no datum located, and the plot
+    /// measures from the body reference instead and says so.</summary>
+    public double CgDatumM { get; set; }
+    public bool HasCgDatum { get; set; }
 
     public List<StationConfig> Seats { get; set; } = new();
     /// <summary>Fuel: wing tanks, a belly tank, or a bladder bag strapped in the cabin — a bag is just a tank with a
@@ -209,6 +221,14 @@ public sealed class LoadingConfig
     public List<StationConfig> Tanks { get; set; } = new();
     /// <summary>Dead weight that does not burn: baggage, freight, a dog.</summary>
     public List<StationConfig> Baggage { get; set; } = new();
+}
+
+/// <summary>One weight's CG limits (<see cref="LoadingConfig.CgLimits"/>). Body x, metres, +forward, so ForwardM &gt; AftM.</summary>
+public sealed class CgLimitConfig
+{
+    public double MassKg { get; set; }
+    public double ForwardM { get; set; }
+    public double AftM { get; set; }
 }
 
 public sealed class MassConfig
