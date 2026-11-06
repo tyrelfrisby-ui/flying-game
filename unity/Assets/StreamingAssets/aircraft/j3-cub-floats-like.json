@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "j3-cub-floats-like",
   "displayName": "J-3 Cub-like on Floats",
+  "structureType": "steelTube",
+  "structureTypeSource": "Piper J-3 Cub: welded 4130/1025 steel-tube fuselage, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
   "wingBracing": "strut",
   "wingBreakStationY": { "wing": 3.4 },
   "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in) from the centreline: our own J-3 model (tools/own_models/build_j3_cub.py Y_ST, traced from the J-3 three-view). Checks: Piper spar drawing 14383 (J-3 to PA-18) puts the strut fitting 121.25 in from the root bolt hole, measured 123.5 front / 122.25 rear in from the spar root end on a PA-18 spar (supercub.org 'Spar Drilling', quoting drawings 14388/14453), plus ~13 in root-end offset (scaled) = 135-136.5 in; the PA-18 Information Manual three-view (p.4) scales to 129-131 in. 3.40 m sits inside that 130-136 in spread.",
@@ -1440,10 +1442,13 @@
       "lengthM": 6.83
     }
   },
-  "smoke": {"aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.568]},
+  "smoke": {"cylinders": 4, "compressionRatio": 6.3, "aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.568]},
   "propulsion": {
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich 76AM-2 forged aluminium: a seaplane flies metal, spray erodes wood",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2575,
     "propInertia": 2.4,

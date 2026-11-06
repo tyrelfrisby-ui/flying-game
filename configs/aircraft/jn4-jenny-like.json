@@ -1694,6 +1694,9 @@
   "propulsion": {
     "maxPowerW": 67000,
     "propDiameterM": 2.413,
+    "propMaterial": "wood",
+    "propMaterialSource": "laminated wood, as built 1917",
+    "propBladeCount": 2,
     "idleRpm": 350,
     "maxRpm": 1400,
     "propInertia": 10.0,

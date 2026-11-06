@@ -1497,6 +1497,9 @@
   "propulsion": {
     "maxPowerW": 1100000,
     "propDiameterM": 3.4,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 24D50 four-blade aluminium",
+    "propBladeCount": 4,
     "idleRpm": 700,
     "maxRpm": 3000,
     "propInertia": 14.0,

@@ -1246,6 +1246,9 @@
   "propulsion": {
     "maxPowerW": 75000,
     "propDiameterM": 1.5,
+    "propMaterial": "composite",
+    "propMaterialSource": "moulded glass-fibre drone prop",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2750,
     "propInertia": 1.5,

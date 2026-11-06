@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "jn4-jenny-like",
   "displayName": "JN-4D-like Trainer Biplane",
+  "structureType": "wood",
+  "structureTypeSource": "Curtiss JN-4D: wire-braced spruce and ash wooden-truss fuselage, fabric covered.",
   "wingBreakStationY": { "wing-upper": 4.521, "wing-lower": 4.521 },
   "wingBreakStationSource": "OUTER interplane strut station 178 in = 4.521 m from the centreline, both wings (struts vertical in front view; the inner bay's strut is at ~96 in): scaled (+/-4 in) off the Curtiss JN-4 line three-view on Wikimedia Commons ('Curtiss_JN-4B_Jenny_3-view_line_drawing.svg', drawn as a JN-4D2), front view fitted to the 261.7 in upper half-span; the plan view's strut marks fall on the same station. Secondary source (not a factory drawing).",
   "mass": {
@@ -1692,6 +1694,9 @@
   "propulsion": {
     "maxPowerW": 67000,
     "propDiameterM": 2.413,
+    "propMaterial": "wood",
+    "propMaterialSource": "laminated wood, as built 1917",
+    "propBladeCount": 2,
     "idleRpm": 350,
     "maxRpm": 1400,
     "propInertia": 10.0,

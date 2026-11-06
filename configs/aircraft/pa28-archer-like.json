@@ -1507,6 +1507,9 @@
   "propulsion": {
     "maxPowerW": 134000,
     "propDiameterM": 1.93,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich 76EM8 forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 1.7,

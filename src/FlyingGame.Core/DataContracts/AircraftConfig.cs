@@ -685,6 +685,12 @@ public sealed class PropulsionConfig
     /// <summary>Fixed-pitch prop: the speed its efficiency peaks at (m/s; default 45 ≈ 87 kt, a cruise prop). A slow type with
     /// a fine-pitched prop (the AirCam's ground-adjustable Warp Drives) peaks far lower — and so does its best climb speed.</summary>
     public double DesignSpeedMs { get; set; } = 45.0;
+    /// <summary>What the blades are made of: "metal" (default), "wood" or "composite". A strike curls a metal blade's
+    /// struck span and breaks a wooden or composite one's off (<see cref="PropBladeDamage"/>, Ty 2026-11-05 9:04).</summary>
+    public string PropMaterial { get; set; } = "metal";
+    public string PropMaterialSource { get; set; } = "";
+    /// <summary>How many blades (2 by default): each strikes, and is damaged, on its own.</summary>
+    public int PropBladeCount { get; set; } = 2;
     private double? _idleDragCd;
 }
 

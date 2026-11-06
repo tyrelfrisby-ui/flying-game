@@ -1472,6 +1472,9 @@
   "propulsion": {
     "maxPowerW": 336000,
     "propDiameterM": 2.59,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 2D30 two-blade aluminium",
+    "propBladeCount": 2,
     "idleRpm": 600,
     "maxRpm": 2300,
     "propInertia": 9.0,

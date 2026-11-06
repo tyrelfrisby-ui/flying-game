@@ -2130,6 +2130,9 @@
   "propulsion": {
     "maxPowerW": 194000,
     "propDiameterM": 1.98,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hartzell HC-C2YR two-blade aluminium constant-speed",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 9.0,
