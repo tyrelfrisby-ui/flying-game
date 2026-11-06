@@ -1,3 +1,34 @@
+## NEEDS YOU — pilot-view underwater cockpit (Ty t922u / pt922u) — Claude, 2026-11-06 09:30 PT, lane/claude-underwater-cockpit
+<!-- underwater-cockpit needs-you -->
+Ty t922u: the J-3 on floats upside down in the lake; the panel and the top of the cockpit looked dry. Reference
+`docs/pending/t922-underwater/ty-ref-inverted-floats-cockpit.png`. Nothing approved by me. Queue **Q152** (visual).
+- **Mechanism (measured, not assumed):** the water is one flat transparent surface (FlyingGame/Water). From above it
+  tints what is under it by path length; from BELOW nothing lies between a head in the lake and the panel, so the cabin
+  drew dry. The pale band in Ty's shot is the surface's underside, which drew the sky mirror at fresnel 1.
+- **Fix:** Core `UnderwaterView` (submerged length of each eye ray under the plane; mode gate) + `PilotUnderwater` on the
+  main camera: Hidden/FlyingGame/PilotUnderwater on a box round the eye for the seat camera's own render only (on in
+  OnPreCull, off in OnPostRender), queue Transparent-1, from the depth texture: absorption (red first) + lake-colour
+  in-scatter. The waterline on screen is where the real surface crosses each part. Water.shader, only while the pilot
+  mode is on: Snell's window / total internal reflection from below, and the same murk on other water seen through the
+  lake. Off (mode 0) for every outside view, the planar mirror, split-screen P2 and the clip recorder.
+- **Gate:** seat view, water under the eye, eye in it (Full) or within 1.0 m above (NearField: extra murk only within
+  4–8 m, so the lake beyond keeps its own look). Upright afloat the J-3 eye is ≥1.43 m up → never treated.
+- **Chosen, not derived:** murk 0.55 /m, day colour (.06,.19,.22), sunset (.018,.03,.038), absorption ratios 1.7/.85/.7.
+- **Renders** (`~/Developer/agent-lanes/renders/underwater-cockpit-t922u/`, `*-board.png` = before | after; seat eye,
+  portrait, real island world + first float lane surface 24.08 m): inverted-deep, inverted-deep-look-down,
+  inverted-partial, nose-in-partial, full-submersion. **aerial-inverted, aerial-afloat, afloat-upright-seat: 0 px
+  changed (asserted identical).** UnderwaterCockpitShots PASS, 0 shader errors.
+- **Tests:** UnderwaterViewTests 13/13. Related subset 59/62: the 3 failures (NoRed233 ResourcesHoldOnlyTheYellowGlbs,
+  StreamingAssets EveryGeneratedPathIsIgnored / NothingGeneratedIsCommitted) are repo state already on base 2b47338f
+  (committed StreamingAssets, Grob 103 resource names), not this change.
+- **Build:** iOS **2026.1106.0910** ** BUILD SUCCEEDED **, 0 error CS, NOINSTALL (not on a device). NOUPLOAD.
+- **Not done / limits:** no refraction; bubbles/glass/spray drawn after the murk are not murked; the clip recorder does
+  not show it (no depth texture there); Quest look not yet seen in a headset. Waterline is the local flat plane (the
+  water mesh is flat; wakes are normal-only), so it is exact for this game.
+- **Fly-check:** J-3 on floats, roll it onto its back on the lake, Cockpit view: cabin teal and murky, panel legible,
+  surface from below dark teal with a bright window overhead; chase/aerial view of the same wreck unchanged.
+<!-- /underwater-cockpit needs-you -->
+
 ### 2026-11-06 08:42 PST — Claude · pilot-view underwater cockpit (inverted floats) · lane/claude-underwater-cockpit
 
 NEEDS YOU: Ty t922u / pt922u — crashed J-3 on floats upside down in water. Instrument panel and top of cockpit look dry even though underwater. Make underwater area look underwater **from the pilot’s perspective only**; keep aerial see-through water unchanged.
