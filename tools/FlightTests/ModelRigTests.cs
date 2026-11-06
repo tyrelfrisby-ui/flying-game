@@ -322,39 +322,10 @@ public class ModelRigTests
         Assert.Equal(0.0, none.BrakeFromHandle(1.0), 6);
     }
 
-    [Fact]
-    public void FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake()
-    {
-        // The linkage, not just the arithmetic: the same aeroplane, the same handle fully aft (so the same
-        // air brake drag), the pilot's own brake input at zero — only the coupling differs.
-        static double RollOut(bool linked)
-        {
-            AircraftConfig c = TestAircraftConfig.Load();
-            if (!linked) c.Controls.Spoiler.WheelBrakeFromSpoiler = 0.0;
-            var t = new WorldTerrain(); WorldTerrain.Active = t;
-            WorldTerrain.Airport a = WorldTerrain.Airports[0];
-            var mains = c.Gear.FindAll(g => !g.IsTailwheel); var tw = c.Gear.Find(g => g.IsTailwheel)!;
-            double pitch = Math.Atan((mains[0].Pos[2] - tw.Pos[2]) / (mains[0].Pos[0] - tw.Pos[0]));
-            var att = new Quat(0, Math.Sin(pitch / 2), 0, Math.Cos(pitch / 2));
-            double maxWz = -999; foreach (var g in c.Gear) maxWz = Math.Max(maxWz, att.Rotate(g.PosVec() - c.Mass.CgVec()).Z);
-            double x0 = a.X - 600;
-            var ac = new Aircraft(c, new RigidBodyState(new Vec3(x0, a.Y, -(a.ElevationM + maxWz + 0.01)), att,
-                                                        att.Conjugate().Rotate(new Vec3(12, 0, 0)), Vec3.Zero),
-                                  ControlDeflections.Neutral);
-            ac.BrakeInput = 0.0;                       // hands off the brake: the handle is doing it or nothing is
-            var sim = new SimLoop(ac);
-            for (double tt = 0; tt < 8; tt += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));   // handle fully aft
-            return ac.State.Position.X - x0;
-        }
-        // RollOut installs a world into the process-wide WorldTerrain.Active; put back what was there, or every test that
-        // steps an aeroplane at the origin afterwards flies into the airport's ground (AircraftLoadTests did).
-        WorldTerrain? oldTerrain = WorldTerrain.Active;
-        double linkedM, freeM;
-        try { linkedM = RollOut(true); freeM = RollOut(false); }
-        finally { WorldTerrain.Active = oldTerrain; }
-        Assert.True(linkedM < freeM - 5.0,
-            $"full air brake should also brake the wheel: rolled {linkedM:F1} m linked against {freeM:F1} m with the linkage out");
-    }
+    // What the band does in play is Sgs233BrakeSquealTests: since 2026-11-05 the sim no longer reads the wheel brake
+    // off the spoiler (full spoiler on the touch knob was full wheel brake), the input's handle band does. The rollout
+    // that stood here (FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake) already returned NaN for both runs at
+    // 59d0f7ed, so it had stopped measuring anything.
 
     [Fact]
     public void TheConfigAndTheRigTableAgreeAboutThatBrake()

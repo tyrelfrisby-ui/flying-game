@@ -1558,7 +1558,10 @@
       "axisMap": "aftOnly",
       "plateAreaM2": 1.2,
       "wheelBrakeFromSpoiler": 0.9,
-      "wheelBrakeFullSpoiler": 1.0
+      "wheelBrakeFullSpoiler": 1.0,
+      "_soundComment": "Ty 2026-11-05 16:06: the dive-brake noise 'a little too loud' with 'a bit more rumble'. No level was given: roar 0.6 (-4.4 dB) with a 140 Hz wake rumble at half the stock roar's RMS, -2.1 dB overall, 17 % of the voice under 250 Hz against 1 % (tools/SpoilerAudio). A first step for Ty to fly, not an approved level.",
+      "soundLevel": 0.6,
+      "soundRumble": 1.0
     }
   },
   "fuselage": {
