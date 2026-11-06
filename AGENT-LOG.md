@@ -1,3 +1,16 @@
+### 2026-11-06 07:32 PST — Claude · replay smoke + fleet airframe exclusion · lane/claude-replay-smoke
+
+NEEDS YOU: Ty t912u / t914u (pt912u). Flew with smoke ON; default replay showed none; video recorded from that replay also showed none. Also: smoke must not pass through ANY portion of ANY airplane (t914 supersedes Pitts-only); Pitts upright flat-spin smoke was seen emerging through the top cowling — reproduce and fix real particle movement/collision vs drawing, not draw-order hiding.
+
+Outcomes wanted (investigate mechanisms; do not assume a single cause):
+1. Default replay preserves actual flown smoke timing/state ("as flown").
+2. During playback: As flown / On / Off override; smoke can be added after the fact; seeking/rewinding stays correct; no broken particle trails; older recordings handled gracefully. Viewing overrides must NOT rewrite original flight telemetry.
+3. Replay export / clip recording of a replay honors the same selected override.
+4. Shared smoke-system airframe exclusion/deflection for fuselage/cowling/wings/tail/other parts on every type, live + replay + export, including spins/high AoA/inverted, with mobile performance in mind.
+5. Tests for replay default, overrides, seeking, export, old data, and airframe exclusion across types; ** BUILD SUCCEEDED ** before src/config integration; before/after visual evidence for Ty if needed. NOUPLOAD / no new TestFlight (0703 already uploaded).
+
+Status: lane started from playable 2b47338f. Other obligations (tow/WB/skis/OTA) untouched; holds preserved.
+
 ## MERGED — J-3 ski Part A model (Ty t876u visual APPROVED Q142) — 2026-11-06 ~04:40 PT
 - Cherry-pick **96e700d9** onto island-nav after shatter tip **90ee4fc7**. Visual approval only (not flight gates).
 - Shatter: already at **90ee4fc7** / Quest **13e45d72** / iOS 2026.1106.0249 — no duplicate.
