@@ -1,3 +1,29 @@
+## NEEDS YOU — soft water no longer sheds the Cub's ailerons: fly-check (Claude, 2026-11-05 20:55 PT, lane/claude-soft-water-breakup)
+<!-- soft-water needs-you -->
+Ty 13:56 / 13:57 (Q028 addenda): the J-3 water-skied to a very soft nose-over and its ailerons fell off; water damage too
+severe vs ground. Nothing approved by me; **Q028 stays partial/open** (no fly-test pass claimed). Queue: **Q135**.
+- **What did it:** not the nose-over. Seconds after it, floating inverted at 0.2–0.5 m/s and rocking up to 43°/s, a wing
+  rolling flat onto the water was charged the whole slam of its ω × r (WaterSlam.ElementForce → the joint and panel
+  loads), while HydroBody.Correct gave the ROTATIONS no added mass, so the airframe never felt the slam its wing was
+  loaded with: one 5 ms step read 67 kN·m on the J-3's 28 kN·m wing root.
+- **Fix:** HydroBody carries the entrained water's inertia (Σ m_a·r²) in the rates with the same momentum rule as the
+  translations (FloatHydro already did this for floats). No new factor, no threshold changed.
+- **Numbers (before acaf8ed2 → after):** J-3 42 kt water-ski, 2° held, 20 % power: both wings + ailerons off → intact.
+  J-3 15 m/s, 1.5 m/s sink, 20° bank: both wings + ailerons off (WingLeft 124.8 vs 28.0 kN·m) → intact. Every J-3
+  water-ski nose-over tried (0–10° held, 0–30 % power) and 15–20 m/s arrivals at 1–2 m/s sink, 0–20° bank: intact.
+  **Hard still breaks:** Extra 40 m/s / 6 m/s / 30° loses the right outer wing (12.9 vs 11.7 kN·m); J-3 25 / 4 / 30
+  loses the right wing (37.2 vs 28.0) and the nose.
+- **Tried and rejected:** a 50 ms structural lag on the water joint loads (the overstress lag) — fixed the soft cases but
+  also removed EVERY hard-case wing break (Extra 40–60 m/s kept its wings).
+- Tests: SoftWaterBreakupTests 11/11 (literals by hand for the mechanism). Water/crash/wreck subset 195/198; the 3
+  failures (WaterSki Extra 45/55 kt, WheelHydro Cub shallow, WheelWater just-below-Vp) fail identically on acaf8ed2.
+- **Build / install:** lane (with island-nav 72d04a0a) iOS **2026.1105.2046** ** BUILD SUCCEEDED **, 0 error CS,
+  **installed on Ty's iPad mini**; iPhone and EFB iPad were unavailable (not connected) — not installed. Quest not built
+  (Q126 Gradle 4 GB). Merge status: see the merge line below.
+- **Fly-check:** J-3 on wheels, water-ski then slow until it noses over — wings and ailerons should stay on; a hard
+  wing-low arrival at speed should still tear a wing.
+<!-- /soft-water needs-you -->
+
 ## NEEDS YOU — Pitts spin Q007: no past-flat, no inverted roll-out; cause was the prop gyro's rpm (Claude, 2026-11-05)
 <!-- q007 needs-you -->
 Lane lane/claude-pitts-spin-cap (from island-nav acaf8ed2). Your 13:02: "It should not go more than 95 or 5 nose up and it
