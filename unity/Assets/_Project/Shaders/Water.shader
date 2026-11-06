@@ -26,6 +26,8 @@ Shader "FlyingGame/Water"
             #pragma fragment frag
             #include "UnityCG.cginc"
             #include "SunsetSky.cginc"
+            // The pilot's head in or by the lake (PilotUnderwater.cs; _PilotWaterMode is 0 for every other camera and view).
+            #include "PilotUnderwater.cginc"
             UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
             struct appdata { float4 vertex : POSITION; float2 depth : TEXCOORD1; };
             struct v2f { float4 pos : SV_POSITION; float3 wp : TEXCOORD0; float4 sp : TEXCOORD1; float2 depth : TEXCOORD2; };
@@ -185,7 +187,17 @@ Shader "FlyingGame/Water"
                 float3 v = normalize(_WorldSpaceCameraPos - i.wp);
                 float ndv = saturate(dot(n, v));
                 float fresnel = .0204 + .9796 * pow(1.0 - ndv, 5.0);
-
+                if (_PilotWaterMode > 1.5 && _WorldSpaceCameraPos.y < i.wp.y - .01)
+                {
+                    // Seen from under the surface by the pilot: Snell's window (the sky, inside 48.6 deg of straight up,
+                    // already murked behind this by PilotUnderwater) and, outside it, total internal reflection of the
+                    // lit water. Without this the underside drew the sky mirror at fresnel 1: a pale opaque band across
+                    // the flooded cockpit (Ty's t922u screenshot).
+                    float window = smoothstep(.62, .70, saturate(dot(n, -v)));
+                    float3 seen = PilotPath(_WorldSpaceCameraPos, i.wp - _WorldSpaceCameraPos);
+                    float3 lit = _PilotWaterColor.rgb * seen.z;
+                    return fixed4(lerp(lit * 1.25, lit, seen.y), lerp(1, .06 + .9 * seen.y, window));
+                }
                 float3 refl;
                 if (_SunsetOn > .5) refl = SunsetSky(reflect(-v,n));
                 else refl = DaySkyRough(reflect(-v,n), .85 * (1-fresnel));
@@ -244,6 +256,15 @@ Shader "FlyingGame/Water"
                 alpha = lerp(alpha, 1, foam);
                 // Sub-metre edge blends the existing mesh into the damp bank rather than a blue cutout.
                 if (scenery > .5 && i.depth.y > .5) alpha *= smoothstep(0,.18,depth);
+                if (_PilotWaterMode > .5)
+                {
+                    // Another surface seen through the pilot's lake (the sea below a hill lake, the far shore's water):
+                    // this pass draws after PilotUnderwater, so it takes the same murk itself. A surface the eye looks
+                    // down on through air has no submerged path and is untouched.
+                    float3 seen = PilotPath(_WorldSpaceCameraPos, i.wp - _WorldSpaceCameraPos);
+                    col = lerp(col, _PilotWaterColor.rgb * seen.z, seen.y);
+                    alpha = lerp(alpha, 1, seen.y);
+                }
                 return fixed4(col, alpha);
             }
             ENDCG

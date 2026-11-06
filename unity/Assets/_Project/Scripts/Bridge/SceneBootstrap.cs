@@ -169,6 +169,7 @@ namespace FlyingGame.Bridge
             cam.gameObject.AddComponent<TracerOverlay>().Combat = aircraft.GetComponent<CombatController>();
             var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
             reflection.Driver = aircraft.GetComponent<FlightSimDriver>();
+            cam.gameObject.AddComponent<PilotUnderwater>();   // the seat view with the head in the lake (Ty t922u)
             // Instruments: round analog dials (default), the green conformal HUD, or none — SessionSettings.Instruments.
             var gauges = cam.gameObject.AddComponent<AnalogGauges>();
             gauges.Driver = aircraft.GetComponent<FlightSimDriver>();
