@@ -1779,6 +1779,9 @@
   "propulsion": {
     "maxPowerW": 895000,
     "propDiameterM": 3.53,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 23E50 three-blade aluminium Hydromatic",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 16.0,

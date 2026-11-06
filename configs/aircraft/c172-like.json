@@ -1511,6 +1511,9 @@
   "propulsion": {
     "maxPowerW": 134000,
     "propDiameterM": 1.9,
+    "propMaterial": "metal",
+    "propMaterialSource": "McCauley 1C160 fixed-pitch forged aluminium",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 1.7,

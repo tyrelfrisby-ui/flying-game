@@ -1475,6 +1475,9 @@
   "propulsion": {
     "maxPowerW": 112000,
     "propDiameterM": 1.88,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich forged aluminium (seaplane)",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 3.5,

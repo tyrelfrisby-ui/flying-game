@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "cassutt-f1-like",
   "displayName": "Cassutt-like Racer",
+  "structureType": "steelTube",
+  "structureTypeSource": "Cassutt IIIM: welded 4130 steel-tube fuselage, fabric covered; wooden wing (Cassutt plans / EAA Formula One notes).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 340,
@@ -1339,6 +1341,9 @@
   "propulsion": {
     "maxPowerW": 75000,
     "propDiameterM": 1.5,
+    "propMaterial": "wood",
+    "propMaterialSource": "Formula One racers fly carved wooden props (Sensenich / Culver wood)",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2750,
     "propInertia": 1.5,

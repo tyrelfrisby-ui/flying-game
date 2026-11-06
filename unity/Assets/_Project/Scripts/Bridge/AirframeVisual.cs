@@ -24,6 +24,7 @@ namespace FlyingGame.Bridge
     {
         private FlightSimDriver _driver;
         private readonly AirframeBuilder _builder = new();
+        private AirframeBuilder.PropBladeLook[] _bladeLook;   // reused every frame for DamageBlades
 
         /// <summary>The propeller hubs in body axes, read-only, for anything that has to sit relative to the disc —
         /// the smoke stacks (SmokeController) hang just ahead of a tractor's. A getter only: nothing here is changed
@@ -122,7 +123,17 @@ namespace FlyingGame.Bridge
                 return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
             }, Time.deltaTime);
             float propR0 = acp.Config.Propulsion != null ? (float)(0.5 * acp.Config.Propulsion.PropDiameterM) : 0f;
-            _builder.BendBlades(i => (propR0, (float)acp.PropBladeRadiusM(i, 0), (float)acp.PropBladeRadiusM(i, 1)));
+            if (_bladeLook == null || _bladeLook.Length != acp.PropBladeCount) _bladeLook = new AirframeBuilder.PropBladeLook[acp.PropBladeCount];
+            _builder.DamageBlades(i =>
+            {
+                for (int k = 0; k < _bladeLook.Length; k++)
+                    _bladeLook[k] = new AirframeBuilder.PropBladeLook
+                    {
+                        Aero = (float)acp.PropBladeRadiusM(i, k), Affected = (float)acp.PropBladeAffectedM(i, k),
+                        Curl = acp.PropBladeCurl(i, k), Broken = acp.PropBladeBroken(i, k),
+                    };
+                return (propR0, acp.PropBladeMaterial, _bladeLook);
+            });
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
             // A model that brought its own rig moves ITS parts — the same control positions the aero model is
             // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown. A model whose
@@ -1405,37 +1416,62 @@ namespace FlyingGame.Bridge
             public Transform Hub; public float Radius, Angle, DiscAngle; public int Engine; public Vector3 Body;   // (Body: the hub, body axes m)
             public GameObject Disc; public Material DiscMat; public Transform BladeBone; public bool ModelBound;
             public readonly List<GameObject> Blades = new();     // shown while slow; the blur disc takes over above ~400 rpm
-            // A bent prop (BendBlades): each blade mesh's own copy, its straight vertices, and the bend last drawn.
+            // A damaged prop (DamageBlades): each blade mesh's own copy, its straight vertices, and the state last drawn.
             public List<(MeshFilter mf, Vector3[] straight, Matrix4x4 toHub)> Bent;
-            public float Shown0 = -1f, Shown1 = -1f;
+            public PropBladeLook[] Shown;
+            public readonly List<GameObject> Breaks = new();
+        }
+
+        /// <summary>One blade as the sim has it (Aircraft.PropBladeRadiusM / PropBladeAffectedM / PropBladeCurl /
+        /// PropBladeBroken), m.</summary>
+        public struct PropBladeLook
+        {
+            public float Aero, Affected; public int Curl; public bool Broken;
+            public bool Same(in PropBladeLook o) => Mathf.Abs(Aero - o.Aero) < 1e-4f && Mathf.Abs(Affected - o.Affected) < 1e-4f && Curl == o.Curl && Broken == o.Broken;
         }
 
         /// <summary>
-        /// Draw the propeller as bent as the sim says it is (Aircraft.PropBladeRadiusM, Ty 2026-11-05: "a bent prop is
-        /// visible"): every blade mesh on the hub (the model's own Prop node or the procedural blades; not the blur disc
-        /// or the spinner) has the part of each blade beyond 3/4 of the radius folded aft at the station, by the angle that
-        /// takes its tip in by that blade's shortening: cos θ = 1 − ΔR/(R − 0.75 R). Which side of the hub a vertex is on
-        /// says which blade it belongs to. Redone only when a blade's radius changes; the blur disc shrinks to the longest
-        /// blade. <paramref name="bladeR"/> gives (straight radius, blade 0, blade 1) in m for each engine index.
+        /// Draw the propeller as damaged as the sim says it is (Ty 2026-11-05 9:00 "a bent prop is visible", 9:04 "metal blades
+        /// curl back if less than zero thrust and curl forward if more ... wood props shatter with jagged wood at the point
+        /// they are broken off"). Every blade mesh on the hub (the model's own Prop node or the procedural blades; not the
+        /// blur disc or the spinner) is split into the sim's n blades by which sector of the disc a vertex is in, and each
+        /// blade is drawn from its own state:
+        ///  - METAL: beyond its straight span the blade curls through a right-angle arc (FlyingGame.Core.PropBladeDamage.MetalCurlRad),
+        ///    forward (hub +z) or aft by the sign the sim gave it;
+        ///  - WOOD / COMPOSITE: beyond its break the vertices are pulled back to the break, ragged, and a cap of splinters
+        ///    (long and pale for wood, short and frayed for composite) is drawn on the broken end.
+        /// Redone only when a blade's state changes; the blur disc shrinks to the longest blade. <paramref name="state"/>
+        /// gives (straight radius, material, blades) for each engine index; it may hand back the same array each time.
         /// </summary>
-        public void BendBlades(System.Func<int, (float r0, float b0, float b1)> bladeR)
+        public void DamageBlades(System.Func<int, (float r0, FlyingGame.Core.PropMaterial material, PropBladeLook[] blades)> state)
         {
             foreach (PropHub h in _props)
             {
                 if (h.Hub == null) continue;
-                (float r0, float b0, float b1) = bladeR(h.Engine);
-                if (r0 <= 0f || (Mathf.Abs(b0 - h.Shown0) < 1e-4f && Mathf.Abs(b1 - h.Shown1) < 1e-4f)) continue;
-                h.Shown0 = b0; h.Shown1 = b1;
-                if (h.Disc != null) h.Disc.transform.localScale = Vector3.one * Mathf.Clamp01(Mathf.Max(b0, b1) / r0);
+                (float r0, FlyingGame.Core.PropMaterial material, PropBladeLook[] blades) = state(h.Engine);
+                if (r0 <= 0f || blades == null || blades.Length == 0) continue;
+                int n = blades.Length;
+                bool changed = h.Shown == null || h.Shown.Length != n;
+                for (int k = 0; !changed && k < n; k++) changed = !blades[k].Same(h.Shown[k]);
+                if (!changed) continue;
+                h.Shown = (PropBladeLook[])blades.Clone();
+                float reachMax = 0f; bool damaged = false;
+                foreach (PropBladeLook b in blades)
+                {
+                    float reach = b.Broken ? b.Aero : b.Aero + (float)FlyingGame.Core.PropBladeDamage.CurledReach(b.Affected);
+                    reachMax = Mathf.Max(reachMax, reach);
+                    damaged |= b.Affected > 1e-5f;
+                }
+                if (h.Disc != null) h.Disc.transform.localScale = Vector3.one * Mathf.Clamp01(reachMax / r0);
                 if (h.Bent == null)
                 {
-                    if (b0 >= r0 - 1e-4f && b1 >= r0 - 1e-4f) continue;   // straight: leave the shared meshes alone
+                    if (!damaged) continue;   // straight: leave the shared meshes alone
                     h.Bent = new List<(MeshFilter, Vector3[], Matrix4x4)>();
                     foreach (MeshFilter mf in h.Hub.GetComponentsInChildren<MeshFilter>(true))
                     {
                         if (mf.sharedMesh == null || !mf.sharedMesh.isReadable) continue;
                         if (h.Disc != null && mf.gameObject == h.Disc) continue;
-                        if (mf.name.StartsWith("Spinner") || mf.name.StartsWith("Model:Spinner")) continue;
+                        if (mf.name.StartsWith("Spinner") || mf.name.StartsWith("Model:Spinner") || mf.name.StartsWith("PropBreak")) continue;
                         // Mesh → hub, taking the blade bone at unit scale (SpinProps folds it onto the axis at speed).
                         Matrix4x4 m = Matrix4x4.identity;
                         for (Transform t = mf.transform; t != null && t != h.Hub; t = t.parent)
@@ -1444,6 +1480,26 @@ namespace FlyingGame.Bridge
                         copy.name = mf.sharedMesh.name + " (bent)";
                         h.Bent.Add((mf, mf.sharedMesh.vertices, m));
                         mf.sharedMesh = copy;
+                    }
+                }
+                foreach (GameObject g in h.Breaks) if (g != null) { if (Application.isPlaying) Object.Destroy(g); else Object.DestroyImmediate(g); }
+                h.Breaks.Clear();
+                // One "blade 0" for the whole hub (the farthest vertex of any of its meshes, in the hub's frame): a model may
+                // carry each blade as a mesh of its own, and each must agree which sim blade it is.
+                // And one scale for each set of meshes that draw the same blades (the model's own, under one child of the hub;
+                // or a procedural blade): its longest reach is the sim's straight radius.
+                float hubTip = 0f, hubR = 0f;
+                var groupR = new Dictionary<Transform, float>();
+                foreach ((MeshFilter mf, Vector3[] straight, Matrix4x4 toHub) in h.Bent)
+                {
+                    if (mf == null) continue;
+                    Transform g = GroupUnder(h.Hub, mf.transform);
+                    foreach (Vector3 v in straight)
+                    {
+                        Vector3 p = toHub.MultiplyPoint3x4(v);
+                        float r = p.x * p.x + p.y * p.y;
+                        if (r > hubR) { hubR = r; hubTip = Mathf.Atan2(p.y, p.x); }
+                        groupR[g] = Mathf.Max(groupR.TryGetValue(g, out float gr) ? gr : 0f, Mathf.Sqrt(r));
                     }
                 }
                 foreach ((MeshFilter mf, Vector3[] straight, Matrix4x4 toHub) in h.Bent)
@@ -1459,33 +1515,135 @@ namespace FlyingGame.Bridge
                         float r = new Vector2(p.x, p.y).magnitude;
                         if (r > rMesh) { rMesh = r; tipDir = new Vector2(p.x, p.y) / Mathf.Max(r, 1e-6f); }
                     }
-                    float rb = 0.75f * rMesh, outer = rMesh - rb;
-                    if (outer <= 1e-5f) continue;
-                    float scale = rMesh / r0;   // sim metres → this mesh's units
-                    float th0 = Mathf.Acos(Mathf.Clamp(1f - (r0 - b0) * scale / outer, -1f, 1f));
-                    float th1 = Mathf.Acos(Mathf.Clamp(1f - (r0 - b1) * scale / outer, -1f, 1f));
-                    th0 = Mathf.Min(th0, 100f * Mathf.Deg2Rad); th1 = Mathf.Min(th1, 100f * Mathf.Deg2Rad);
+                    // A part that does not reach out along the blades (the hub, its bolts) is not a blade: leave it whole.
+                    float groupRadius = groupR.TryGetValue(GroupUnder(h.Hub, mf.transform), out float gR) ? gR : rMesh;
+                    if (rMesh <= 1e-5f || rMesh < 0.5f * groupRadius) continue;
+                    rMesh = groupRadius;
+                    float scale = rMesh / r0;   // sim metres → this set of meshes' units
+                    float tip0 = hubTip;
+                    // Each blade's cut-off, in mesh units, and what is near it (for the splinter cap).
+                    var ends = new List<Vector3>[n];   // each broken blade's vertices where they now end (hub frame)
+                    for (int k = 0; k < n; k++) ends[k] = new List<Vector3>();
                     var outV = new Vector3[straight.Length];
                     for (int i = 0; i < pts.Length; i++)
                     {
                         Vector3 p = pts[i];
                         var rad = new Vector2(p.x, p.y);
                         float r = rad.magnitude;
-                        if (r <= rb) { outV[i] = straight[i]; continue; }
+                        int k = Sector(Mathf.Atan2(p.y, p.x) - tip0, n);
+                        PropBladeLook b = blades[k];
+                        float rb = b.Aero * scale;
+                        if (r <= rb || b.Affected <= 1e-5f)
+                        {
+                            outV[i] = straight[i];
+                            continue;
+                        }
                         Vector2 u = rad / r;
-                        float th = Vector2.Dot(u, tipDir) >= 0f ? th0 : th1;
                         float e = r - rb;
-                        // Fold the excess radius aft (hub −z) about the station: rb·û, the vertex's own axial place.
-                        var q = new Vector3(u.x * (rb + e * Mathf.Cos(th)), u.y * (rb + e * Mathf.Cos(th)), p.z - e * Mathf.Sin(th));
+                        Vector3 q;
+                        if (b.Broken)
+                        {
+                            // Pulled back to the break, ragged by where it sat across the blade.
+                            float jag = Ragged(Vector2.Dot(rad, new Vector2(-u.y, u.x)) / rMesh, p.z / rMesh, material) * rMesh;
+                            float rr = rb + Mathf.Min(e, jag);
+                            q = new Vector3(u.x * rr, u.y * rr, p.z);
+                            ends[k].Add(q);
+                        }
+                        else
+                        {
+                            // A right-angle arc of the blade's curl length, toward its curl (+z forward).
+                            float l = Mathf.Max(b.Affected * scale, 1e-5f), rho = l / (float)FlyingGame.Core.PropBladeDamage.MetalCurlRad;
+                            float phi = Mathf.Min(e, l) / rho, over = Mathf.Max(0f, e - l);
+                            float rr = rb + rho * Mathf.Sin(phi) + over * Mathf.Cos(phi);
+                            float dz = b.Curl * (rho * (1f - Mathf.Cos(phi)) + over * Mathf.Sin(phi));
+                            q = new Vector3(u.x * rr, u.y * rr, p.z + dz);
+                        }
                         outV[i] = back.MultiplyPoint3x4(q);
                     }
                     mf.sharedMesh.vertices = outV;
                     mf.sharedMesh.RecalculateBounds();
                     mf.sharedMesh.RecalculateNormals();
+                    // A cap only where THIS mesh has that blade's broken end, drawn when the blade itself is.
+                    var mr = mf.GetComponent<MeshRenderer>();
+                    for (int k = 0; k < n; k++)
+                        if (blades[k].Broken && blades[k].Affected > 1e-5f && ends[k].Count >= 2)
+                        {
+                            GameObject cap = SplinterCap(mf.transform, back, ends[k], rMesh, material, k);
+                            cap.GetComponent<MeshRenderer>().enabled = mr == null || mr.enabled;
+                            h.Breaks.Add(cap);
+                        }
                 }
             }
         }
+
+        /// <summary>The hub's child that <paramref name="t"/> hangs under (itself, if it is one).</summary>
+        private static Transform GroupUnder(Transform hub, Transform t)
+        {
+            while (t != null && t.parent != hub) t = t.parent;
+            return t;
+        }
+
+        /// <summary>Which of n blades a hub-plane angle (from blade 0's tip) belongs to.</summary>
+        private static int Sector(float angle, int n)
+        {
+            float step = 2f * Mathf.PI / n;
+            int k = Mathf.RoundToInt(angle / step) % n;
+            return k < 0 ? k + n : k;
+        }
+
+        /// <summary>How far past the break a broken blade's own surface still runs at a place across it (fractions of R):
+        /// splintered wood in long uneven slivers, a composite's frayed skin short and fine. Deterministic.</summary>
+        private static float Ragged(float across, float axial, FlyingGame.Core.PropMaterial material)
+        {
+            float f = material == FlyingGame.Core.PropMaterial.Wood ? 90f : 260f, amp = material == FlyingGame.Core.PropMaterial.Wood ? 0.045f : 0.014f;
+            float s = Mathf.Abs(Mathf.Sin(across * f + 1.7f) * Mathf.Sin(across * f * 0.37f + axial * 40f + 0.4f));
+            return amp * s * s;
+        }
+
+        /// <summary>The broken end of a blade: splinters standing out from the break along the blade, grown from the
+        /// blade's own vertices where the break left them (so they can only be where the blade ends): long and pale for wood
+        /// (raw birch), short, fine and pale grey for a composite's frayed glass. Built in the blade mesh's own frame and
+        /// parented to it, so it turns, hides and folds with the blade.</summary>
+        private static GameObject SplinterCap(Transform blade, Matrix4x4 back, List<Vector3> ends, float rMesh, FlyingGame.Core.PropMaterial material, int k)
+        {
+            bool wood = material == FlyingGame.Core.PropMaterial.Wood;
+            int want = wood ? 14 : 28;
+            float longest = (wood ? 0.07f : 0.022f) * rMesh, half = (wood ? 0.010f : 0.004f) * rMesh;
+            var rng = new System.Random(911 + 31 * k + (wood ? 0 : 7));
+            var verts = new List<Vector3>(); var tris = new List<int>();
+            int stride = Mathf.Max(1, ends.Count / want);
+            for (int i = 0; i < ends.Count; i += stride)
+            {
+                Vector3 q = ends[i];
+                var rad = new Vector2(q.x, q.y);
+                if (rad.sqrMagnitude < 1e-10f) continue;
+                Vector2 u2 = rad.normalized;
+                Vector3 u = new(u2.x, u2.y, 0f), e1 = new(-u2.y, u2.x, 0f), e2 = Vector3.forward;
+                float len = longest * (0.2f + 0.8f * (float)rng.NextDouble());
+                float lean = ((float)rng.NextDouble() - 0.5f) * (wood ? 0.6f : 1.2f);
+                Vector3 apex = q + u * len + e1 * (lean * len * 0.3f) + e2 * (((float)rng.NextDouble() - 0.5f) * half);
+                int o = verts.Count;
+                verts.Add(back.MultiplyPoint3x4(q - e1 * half - e2 * (0.5f * half)));
+                verts.Add(back.MultiplyPoint3x4(q + e1 * half - e2 * (0.5f * half)));
+                verts.Add(back.MultiplyPoint3x4(q + e2 * (0.5f * half)));
+                verts.Add(back.MultiplyPoint3x4(apex));
+                int[] f = { 0, 1, 3, 1, 2, 3, 2, 0, 3, 0, 2, 1 };
+                foreach (int x in f) tris.Add(o + x);
+            }
+            var mesh = new Mesh { name = "PropBreak" + k };
+            mesh.SetVertices(verts); mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            var go = new GameObject("PropBreak" + k);
+            go.transform.SetParent(blade, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = UnlitMat(wood ? new Color(0.86f, 0.74f, 0.52f) : new Color(0.82f, 0.82f, 0.78f));
+            return go;
+        }
         private readonly List<PropHub> _props = new();
+        /// <summary>Propeller hub <paramref name="i"/>'s turning transform (null if none), and how many blade meshes a
+        /// damaged prop is drawing on (0 = straight, or nothing it could reshape). For the render tools.</summary>
+        public Transform PropHubTransform(int i) => i < _props.Count ? _props[i].Hub : null;
+        public int PropDamageMeshCount(int i) => i < _props.Count && _props[i].Bent != null ? _props[i].Bent.Count : 0;
         /// <summary>Each propeller hub's position (body axes, m from the CG) — where the smoke's exhausts are placed from.</summary>
         public List<Vector3> PropHubsBody() { var l = new List<Vector3>(); foreach (var h in _props) l.Add(h.Body); return l; }
         private static Shader _propBlurShader;

@@ -90,6 +90,7 @@ namespace FlyingGame.Bridge
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;
             if (GetComponent<FuelSlickVisual>() == null) gameObject.AddComponent<FuelSlickVisual>();
             if (GetComponent<ContactEffects>() == null) gameObject.AddComponent<ContactEffects>();   // placeholder scrape sound + dust
+            if (GetComponent<PropDebris>() == null) gameObject.AddComponent<PropDebris>();           // a broken blade's pieces
             if (GetComponent<TyreSmoke>() == null) gameObject.AddComponent<TyreSmoke>();             // rubber the tyres lose (Core TyreWear)
             LostLine = null;
             ReadLimits();

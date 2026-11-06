@@ -1508,6 +1508,9 @@
   "propulsion": {
     "maxPowerW": 74600,
     "propDiameterM": 1.73,
+    "propMaterial": "composite",
+    "propMaterialSource": "Warp Drive ground-adjustable carbon blades, three per Rotax 912",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2400,
     "propInertia": 1.2,

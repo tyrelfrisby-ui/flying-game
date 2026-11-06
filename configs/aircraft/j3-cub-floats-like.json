@@ -1448,6 +1448,9 @@
   "propulsion": {
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich 76AM-2 forged aluminium: a seaplane flies metal, spray erodes wood",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2575,
     "propInertia": 2.4,

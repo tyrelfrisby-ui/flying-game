@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "p51d-like",
   "displayName": "P-51D-like Fighter",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "North American P-51D: aluminium semi-monocoque fuselage.",
   "spawnIasMs": 110,
   "mass": {
     "massKg": 4600,
@@ -1495,6 +1497,9 @@
   "propulsion": {
     "maxPowerW": 1100000,
     "propDiameterM": 3.4,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 24D50 four-blade aluminium",
+    "propBladeCount": 4,
     "idleRpm": 700,
     "maxRpm": 3000,
     "propInertia": 14.0,

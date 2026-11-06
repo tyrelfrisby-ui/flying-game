@@ -27,12 +27,16 @@ public sealed partial class Aircraft
     // Propellers (one per engine; one for a single-engine type).
     private int[] _propPatch = Array.Empty<int>();
     private double[] _propRadius0 = Array.Empty<double>(), _propRadius = Array.Empty<double>(), _propOmega = Array.Empty<double>(), _propStrikeDepth = Array.Empty<double>();
-    private double[] _propThrustScale = Array.Empty<double>();
-    private bool[] _propStriking = Array.Empty<bool>(), _propStopped = Array.Empty<bool>();
-    // Per blade (WaterBladeCount per prop, flattened [prop * n + blade]): tip radius now, and how far this strike has
-    // pushed it back so far; the rotor's angle (blade 0 from the bottom of the disc) while a strike lasts.
-    private double[] _bladeRadius = Array.Empty<double>(), _bladeDemand = Array.Empty<double>(), _propPhase = Array.Empty<double>();
-    private double[] _propVibG = Array.Empty<double>();
+    private bool[] _propStriking = Array.Empty<bool>(), _propStopped = Array.Empty<bool>(), _propDamaged = Array.Empty<bool>();
+    // Per blade (_bladeN per prop, flattened [prop * n + blade]): the straight span the air works on, the span the strike
+    // affected (a metal curl, or the piece a wooden / composite blade lost), which way a curl went (+1 forward, −1 aft),
+    // and whether it broke. The rotor's angle (blade 0 from the bottom of the disc) while a strike lasts.
+    private int _bladeN = 2;
+    private PropMaterial _propMaterial = PropMaterial.Metal;
+    private double[] _bladeAero = Array.Empty<double>(), _bladeBent = Array.Empty<double>(), _propPhase = Array.Empty<double>();
+    private int[] _bladeCurl = Array.Empty<int>(), _bladeStrikes = Array.Empty<int>();
+    private bool[] _bladeBroken = Array.Empty<bool>();
+    private readonly List<(double t, int k, ContactPoint? where, double tip, double depth)> _strikeBuf = new();
     // What the thrust model flies with: the blades' own scale × (ω/ω_run)² while a strike is slowing the rotor.
     private double[] _propThrustNow = Array.Empty<double>();
 
@@ -49,28 +53,82 @@ public sealed partial class Aircraft
     public IReadOnlyList<ScrapeState> Scrapes => _scrapeList;
     /// <summary>Scrape start/stop, panel bent/broken, prop strike/stoppage — raised after the step they happen in.</summary>
     public event Action<ContactEvent>? Contact;
-    /// <summary>Thrust left on propeller <paramref name="i"/> after curled tips (1 = undamaged).</summary>
-    public double PropThrustScale(int i = 0) => i < _propThrustScale.Length ? _propThrustScale[i] : 1.0;
-    /// <summary>Blade-tip radius of propeller <paramref name="i"/> now, m (shortened by a strike): its LONGEST blade, the
-    /// disc it still sweeps.</summary>
+    /// <summary>Thrust left on propeller <paramref name="i"/> after a strike (1 = undamaged), at the throttle now: the blades'
+    /// aero radii through <see cref="PropBladeDamage.Performance"/>.</summary>
+    public double PropThrustScale(int i = 0) => PropPerformance(i).thrustScale;
+    /// <summary>Blade-tip radius of propeller <paramref name="i"/> now, m (shortened by a strike): its LONGEST blade's
+    /// reach, the disc it still sweeps.</summary>
     public double PropRadiusM(int i = 0) => i < _propRadius.Length ? _propRadius[i] : 0.0;
-    /// <summary>Tip radius of blade <paramref name="blade"/> of propeller <paramref name="i"/>, m (each bends on its own).</summary>
+    /// <summary>How many blades each propeller has (config propulsion.propBladeCount).</summary>
+    public int PropBladeCount => _bladeN;
+    /// <summary>What the blades are made of (config propulsion.propMaterial).</summary>
+    public PropMaterial PropBladeMaterial => _propMaterial;
+    /// <summary>The straight span of blade <paramref name="blade"/> of propeller <paramref name="i"/>, m: what the air works
+    /// on (a metal blade's curl is cosmetic and not in it; a broken blade ends here).</summary>
     public double PropBladeRadiusM(int i = 0, int blade = 0)
-        => i * WaterBladeCount + blade < _bladeRadius.Length ? _bladeRadius[i * WaterBladeCount + blade] : PropRadiusM(i);
-    /// <summary>How bent propeller <paramref name="i"/> is, 0 (straight) .. 1: the mean tip shortening over the blades,
-    /// against the 70 % a strike can take off (the 0.3 R floor). For the visual.</summary>
+        => i * _bladeN + blade < _bladeAero.Length && blade < _bladeN ? _bladeAero[i * _bladeN + blade] : PropRadiusM(i);
+    /// <summary>The span of that blade a strike affected, m: its curl (metal) or the piece it lost (wood, composite).</summary>
+    public double PropBladeAffectedM(int i = 0, int blade = 0) => Blade(i, blade) is int b and >= 0 ? _bladeBent[b] : 0.0;
+    /// <summary>Which way that blade's struck span curled: +1 forward, −1 aft, 0 straight or broken.</summary>
+    public int PropBladeCurl(int i = 0, int blade = 0) => Blade(i, blade) is int b and >= 0 ? _bladeCurl[b] : 0;
+    /// <summary>Whether that blade's struck span broke off (wood, composite).</summary>
+    public bool PropBladeBroken(int i = 0, int blade = 0) => Blade(i, blade) is int b and >= 0 && _bladeBroken[b];
+    /// <summary>How many times that blade has met the ground or the water (one <see cref="ContactEventKind.PropBladeStrike"/>
+    /// each).</summary>
+    public int PropBladeStrikes(int i = 0, int blade = 0) => Blade(i, blade) is int b and >= 0 ? _bladeStrikes[b] : 0;
+    /// <summary>How far that blade reaches from the hub, m: its straight span, plus what a curl still reaches past the bend.</summary>
+    public double PropBladeReachM(int i = 0, int blade = 0) => Blade(i, blade) is int b and >= 0 ? Reach(b) : PropRadiusM(i);
+    private int Blade(int i, int blade) => blade >= 0 && blade < _bladeN && i * _bladeN + blade < _bladeAero.Length ? i * _bladeN + blade : -1;
+    private double Reach(int b) => _bladeBroken[b] ? _bladeAero[b] : _bladeAero[b] + PropBladeDamage.CurledReach(_bladeBent[b]);
+    /// <summary>How damaged propeller <paramref name="i"/> is, 0 (straight) .. 1: the mean affected span over the blades,
+    /// against the 70 % a strike can take (the 0.3 R floor). For the visual.</summary>
     public double PropBend01(int i = 0)
     {
         if (i >= _propRadius0.Length || _propRadius0[i] <= 0) return 0;
         double sum = 0;
-        for (int k = 0; k < WaterBladeCount; k++) sum += _propRadius0[i] - PropBladeRadiusM(i, k);
-        return Math.Clamp(sum / WaterBladeCount / (0.7 * _propRadius0[i]), 0, 1);
+        for (int k = 0; k < _bladeN; k++) sum += PropBladeAffectedM(i, k);
+        return Math.Clamp(sum / _bladeN / (0.7 * _propRadius0[i]), 0, 1);
     }
-    /// <summary>The airframe's shake from propeller <paramref name="i"/>'s imbalance, g, once per revolution
+    /// <summary>The airframe's shake from propeller <paramref name="i"/>'s imbalance, g at the pilot, once per revolution
     /// (<see cref="PropVibrationHz"/>): zero for a straight prop or a stopped one.</summary>
-    public double PropVibrationG(int i = 0) => i < _propVibG.Length && !_propStopped[i] && !_noseLost && EngineRunning ? _propVibG[i] : 0.0;
+    public double PropVibrationG(int i = 0)
+    {
+        if (i >= _propDamaged.Length || !_propDamaged[i] || _propStopped[i] || _noseLost || !EngineRunning) return 0.0;
+        PropBladeDamage.Shake s = PropShake(i);
+        double arm = 2.0;   // prop to the pilot's seat, m (the fleet's single-engine types: 1.5–2.5)
+        return (s.ForceN / Math.Max(1.0, MassProperties.MassKg) + s.MomentNm * arm / Math.Max(1.0, MassProperties.Iyy)) / Atmosphere.GravityMs2;
+    }
+    /// <summary>The rotating load propeller <paramref name="i"/>'s imbalance puts on its engine mount, N, once per
+    /// revolution (<see cref="PropBladeDamage.Shake.MountLoadN"/>).</summary>
+    public double PropMountLoadN(int i = 0)
+        => i < _propDamaged.Length && _propDamaged[i] && !_propStopped[i] && !_noseLost && EngineRunning ? PropShake(i).MountLoadN : 0.0;
     /// <summary>Once per revolution of the running propeller, Hz.</summary>
     public double PropVibrationHz => EngineRpm / 60.0;
+
+    private PropBladeDamage.Shake PropShake(int e)
+    {
+        if (Config.Propulsion is not { PropDiameterM: > 0 } pc) return default;
+        int n = _bladeN;
+        Span<double> aero = stackalloc double[n], bent = stackalloc double[n];
+        Span<int> curl = stackalloc int[n];
+        Span<bool> broken = stackalloc bool[n];
+        for (int k = 0; k < n; k++) { int b = e * n + k; aero[k] = _bladeAero[b]; bent[k] = _bladeBent[b]; curl[k] = _bladeCurl[b]; broken[k] = _bladeBroken[b]; }
+        double w = FreeEngineRpm * Math.PI / 30.0;
+        double thrust = PropModel.StaticThrustN(pc, ShaftPower01) * PropPerformance(e).thrustScale;
+        return PropBladeDamage.Imbalance(aero, bent, curl, broken, _propRadius0[e], PropBladeDamage.BladeMassKg(_propRadius0[e], _propMaterial), w, thrust);
+    }
+
+    /// <summary>The disc's thrust and rpm against an undamaged one's at the rpm the engine would run at now.</summary>
+    private (double thrustScale, double rpmScale) PropPerformance(int e)
+    {
+        if (e >= _propDamaged.Length || !_propDamaged[e] || Config.Propulsion is not { PropDiameterM: > 0 } pc) return (1, 1);
+        int n = _bladeN;
+        Span<double> aero = stackalloc double[n];
+        for (int k = 0; k < n; k++) aero[k] = _bladeAero[e * n + k];
+        double cap = EngineRunning ? PropBladeDamage.EngineOverspeedLimit * pc.MaxRpm / Math.Max(1.0, BaseEngineRpm) : 1.0;
+        return PropBladeDamage.Performance(aero, _propRadius0[e], pc.ConstantSpeed, cap);
+    }
+
     /// <summary>The thrust factor the prop model flies with now, per propeller.</summary>
     private double[] PropThrustNow
     {
@@ -78,7 +136,7 @@ public sealed partial class Aircraft
         {
             for (int e = 0; e < _propThrustNow.Length; e++)
             {
-                double f = _propThrustScale[e];
+                double f = PropPerformance(e).thrustScale;
                 if (_propStriking[e])
                 {
                     double wRun = Math.Max(1e-6, FreeEngineRpm * Math.PI / 30.0), r = Math.Clamp(_propOmega[e] / wRun, 0, 1);
@@ -129,14 +187,18 @@ public sealed partial class Aircraft
         _propPatch = patches.ToArray();
         int np = _propPatch.Length;
         double r0 = Config.Propulsion is { PropDiameterM: > 0 } pc ? 0.5 * pc.PropDiameterM : 0;
+        _bladeN = PropBladeDamage.BladeCountOf(Config.Propulsion);
+        _propMaterial = PropBladeDamage.MaterialOf(Config.Propulsion);
         _propRadius0 = Enumerable.Repeat(r0, np).ToArray();
         _propRadius = Enumerable.Repeat(r0, np).ToArray();
         _propOmega = new double[np]; _propStrikeDepth = new double[np];
-        _propThrustScale = Enumerable.Repeat(1.0, np).ToArray();
-        _propStriking = new bool[np]; _propStopped = new bool[np];
-        _bladeRadius = Enumerable.Repeat(r0, np * WaterBladeCount).ToArray();
-        _bladeDemand = new double[np * WaterBladeCount];
-        _propPhase = new double[np]; _propVibG = new double[np];
+        _propStriking = new bool[np]; _propStopped = new bool[np]; _propDamaged = new bool[np];
+        _bladeAero = Enumerable.Repeat(r0, np * _bladeN).ToArray();
+        _bladeBent = new double[np * _bladeN];
+        _bladeCurl = new int[np * _bladeN]; _bladeStrikes = new int[np * _bladeN];
+        _bladeBroken = new bool[np * _bladeN];
+        _propPhase = new double[np];
+        for (int e = 0; e < np; e++) _propPhase[e] = 1.3 * e;   // the engines' props are not in step
         _propThrustNow = Enumerable.Repeat(1.0, np).ToArray();
     }
 
@@ -523,42 +585,48 @@ public sealed partial class Aircraft
     ///
     /// THE ROTOR. I·dω/dt = Q_engine − Q_air(ω) − Q_contact. A piston engine's torque is roughly flat with rpm (its mean
     /// effective pressure is), so Q_engine = Q_rated·(throttle, or the share that just holds idle) with Q_rated =
-    /// P_max/ω_max; it used to be P/ω, which grew without bound as the prop slowed and let a running engine turn any prop
-    /// through any water (Ty 2026-11-05: "a water strike does not stop the prop it should"). Q_air is the prop's own
-    /// load, ∝ ω², which the engine balances at its running rpm. The ground drags each tip round with the Coulomb force
-    /// of its surface, μ·N·R; the water with ½ρ_w(ωR)² on the dipped blade (<see cref="WaterBladeTorque"/>). Below
-    /// <see cref="EngineStallFractionOfIdle"/> of idle the engine cannot keep firing: sudden stoppage, the engine stops,
-    /// the prop is bent. Nothing here asks what the surface was, only what it did to the rotor (Ty 2026-11-04 / 11-05 9:00:
-    /// "they don't have to stop the engine but they can").
+    /// P_max/ω_max. Q_air is the prop's own load, ∝ ω², which the engine balances at its running rpm. The ground drags
+    /// each tip round with the Coulomb force of its surface, μ·N·R; the water with ½ρ_w(ωR)² on each dipped blade
+    /// (<see cref="WaterBladeTorque"/>, blade by blade at its own reach). Below <see cref="EngineStallFractionOfIdle"/> of
+    /// idle the engine cannot keep firing: sudden stoppage. Nothing here asks what the surface was, only what it did to
+    /// the rotor (Ty 2026-11-05 9:00: "they don't have to stop the engine but they can").
     ///
-    /// THE BLADES. Each blade is struck only when it sweeps through the part of the disc that is in the ground or the
-    /// water (the arc acos(1 − d/R) either side of the lowest point, against the rotor's own angle), so a brush that lasts
-    /// less than half a turn bends one blade and leaves the other straight. A solid surface curls the tip back by the
-    /// depth it went in. Water bends a tip only where its load exceeds the blade: the dipped tip's normal force at the
-    /// bend station (<see cref="BladeBendStationOverR"/>) against the section's yield moment
-    /// (<see cref="BladeYieldMomentNm"/>), so the tip folds back until what is left in the water no longer overloads it
-    /// (<see cref="WaterBladeYieldDepth"/>: about a millimetre at full power, a centimetre at idle). When the strike ends
-    /// each blade keeps its shorter radius: the disc reaches as far as its longest blade, the thrust at the same power
-    /// is the mean of the blades' (R_k/R₀)^(2/3) (momentum theory, as before), and blades of unequal length are an
-    /// imbalance that shakes the airframe once a revolution (<see cref="BladeImbalanceG"/>).
+    /// THE BLADES (Ty 2026-11-05 9:04). The disc stations sit at the longest blade's reach; blade k reaches R_k and goes
+    /// d − (R_disc − R_k) in, so a blade already shortened can pass over ground its neighbour hits. A blade meets the
+    /// surface each time its angle enters the struck arc acos(1 − d_k/R_k) either side of the bottom of the disc: one
+    /// <see cref="ContactEventKind.PropBladeStrike"/> per blade per pass (blades × rpm), timed within the step, which the
+    /// sound plays one by one. What the pass does depends on the material (<see cref="StrikeBlade"/>):
+    ///  - the ground always takes the span that went in; the water only past the depth whose tip load fails the section
+    ///    (<see cref="WaterBladeFailDepth"/>: about a millimetre at full power, a centimetre at idle);
+    ///  - METAL: that span curls, forward if the blade's thrust at that instant was positive and aft if negative
+    ///    (<see cref="PropBladeDamage.BladeAlphaRad"/>), and stays on as a cosmetic curl the air does not see;
+    ///  - WOOD / COMPOSITE: that span breaks off at the contact radius and leaves (<see cref="ContactEventKind.PropBladeBroken"/>);
+    ///    the blade flies on shorter. In the water a brittle blade loses its whole wetted span once the load breaks it.
+    /// The disc's thrust and rpm then follow the blades' aero radii (<see cref="PropBladeDamage.Performance"/>), and
+    /// unequal or damaged blades shake once a revolution (<see cref="PropVibrationG"/>, <see cref="PropMountLoadN"/>).
     /// </summary>
     private void PropStrike(double dt)
     {
         if (Config.Propulsion is not { PropDiameterM: > 0 } pc) return;
-        int nb = WaterBladeCount;
+        int nb = _bladeN;
+        double t0 = Atmosphere.SimTimeSec - dt;   // the step began here (the clock has already moved on)
+        double wFreeNow = FreeEngineRpm * Math.PI / 30.0;
         for (int e = 0; e < _propPatch.Length; e++)
         {
             if (_propStopped[e] || _noseLost) continue;
-            double dMax = 0, dSolid = 0, dWater = 0, muN = 0; ContactPoint? at = null;
+            // The rotor's own angle, from its own rpm: never from the sim clock, which other flights have moved (two flights
+            // that are the same must strike the same blade).
+            if (!_propStriking[e]) _propPhase[e] = (_propPhase[e] + wFreeNow * dt) % (2 * Math.PI);
+            double dMax = 0, dSolid = 0, dWater = 0, muN = 0; ContactPoint? at = null, solidAt = null, waterAt = null;
             for (int i = 0; i < _contacts.Count; i++)
             {
                 ContactPoint p = _contacts[i];
                 if (!p.PropDisc || p.Patch != _propPatch[e] || p.DepthM <= 0) continue;
                 if (p.DepthM > dMax) { dMax = p.DepthM; at = p; }
-                if (p.SurfaceCode == ContactPoint.SurfaceWater) dWater = Math.Max(dWater, p.DepthM);
+                if (p.SurfaceCode == ContactPoint.SurfaceWater) { if (p.DepthM > dWater) { dWater = p.DepthM; waterAt = p; } }
                 else
                 {
-                    dSolid = Math.Max(dSolid, p.DepthM);
+                    if (p.DepthM > dSolid) { dSolid = p.DepthM; solidAt = p; }
                     muN += (p.SurfaceCode >= 0 ? WorldTerrain.KeelSlidingCoefficient((WorldTerrain.Surface)p.SurfaceCode) : AirframeContact.FrictionMu) * p.NormalN;   // a blade tip is smooth metal, not a ploughing wreck (AirframeContact.SlidingMu)
                 }
             }
@@ -566,21 +634,20 @@ public sealed partial class Aircraft
             {
                 if (_propStriking[e])
                 {
-                    // The strike is over: each blade keeps what it lost.
+                    // The strike is over: the disc stations go to the longest blade's reach.
                     _propStriking[e] = false;
-                    KeepBends(e);
+                    SettleDisc(e);
                 }
                 continue;
             }
             double rpm = FreeEngineRpm;
             double wRun = rpm * Math.PI / 30.0;
-            if (!_propStriking[e])
+            bool onset = !_propStriking[e];
+            if (onset)
             {
                 _propStriking[e] = true;
                 _propStrikeDepth[e] = 0;
                 _propOmega[e] = wRun;
-                // Where the blades are: as if the prop had turned at this rpm since the sim began (deterministic).
-                _propPhase[e] = (Atmosphere.SimTimeSec * wRun + 1.3 * e) % (2 * Math.PI);
                 Raise(ContactEventKind.PropStrike, "prop-tip", AirframeComponent.Propeller, at, muN * _propRadius[e], dMax);
             }
             _propStrikeDepth[e] = Math.Max(_propStrikeDepth[e], dSolid);
@@ -591,34 +658,55 @@ public sealed partial class Aircraft
             double qRated = pc.MaxPowerW / wMax;
             // A running engine at closed throttle still makes the torque that holds its idle against its own prop.
             bool driving = EngineRunning && (Config.Engines.Count <= e || Config.Engines[e].ThrottleScale > 0);
-            double share = driving ? Math.Max(throttle, (wIdle / wMax) * (wIdle / wMax)) : 0;
+            double idleShare = (wIdle / wMax) * (wIdle / wMax);
+            double share = driving ? Math.Max(throttle, idleShare) : 0;
             double qEngine = qRated * share;
             double wFree = Math.Max(wIdle, wRun);
             double qAir = qEngine * (_propOmega[e] / wFree) * (_propOmega[e] / wFree);
-            double qGround = muN * _propRadius[e] + WaterBladeTorque(_propRadius[e], dWater, _propOmega[e]);
+            double omega = _propOmega[e];
+            double qContact = muN * _propRadius[e];
+            double sweep = omega * dt;
+            bool governing = driving && throttle > 0.3;   // a constant-speed prop's governor holds it above ~30 % power
 
-            // Which blades swept through the struck arc this step, and what each took.
-            double alpha = Math.Acos(Math.Clamp(1.0 - dMax / Math.Max(_propRadius[e], 1e-6), -1.0, 1.0));
-            double sweep = _propOmega[e] * dt;
-            double dYield = dWater > 0 ? WaterBladeYieldDepth(_propRadius[e], _propOmega[e]) : 0;
-            double demand = Math.Max(dSolid, dWater - dYield);
             for (int k = 0; k < nb; k++)
             {
-                double start = (_propPhase[e] + k * 2 * Math.PI / nb + alpha) % (2 * Math.PI);
-                if (start < 0) start += 2 * Math.PI;
-                bool swept = sweep >= 2 * Math.PI || start <= 2 * alpha || start + sweep >= 2 * Math.PI;
                 int b = e * nb + k;
-                if (swept && demand > _bladeDemand[b]) _bladeDemand[b] = demand;
+                double reach = Reach(b), gap = _propRadius[e] - reach;
+                double dk = dMax - gap, ds = dSolid - gap, dw = dWater - gap;
+                if (dw > 0) qContact += WaterBladeTorque(reach, dw, omega, 1, WetSpan(b, dw));
+                if (dk <= 0) continue;   // this blade passes over what its longer neighbour hits
+                double arc = Math.Acos(Math.Clamp(1.0 - dk / Math.Max(reach, 1e-6), -1.0, 1.0));
+                double start = (_propPhase[e] + k * 2 * Math.PI / nb + arc) % (2 * Math.PI);
+                if (start < 0) start += 2 * Math.PI;
+                bool inside = start <= 2 * arc;
+                int entries = (int)Math.Floor((start + sweep) / (2 * Math.PI));
+                if (onset && inside) entries++;
+                if (!inside && entries == 0) continue;
+                ContactPoint? where = ds > 0 ? solidAt : waterAt;
+                for (int c = 0; c < entries; c++)
+                {
+                    // The c-th time this step the blade's angle comes round to the edge of the struck arc (or now, if the
+                    // surface came up to a blade already inside it).
+                    double tIn = onset && inside && c == entries - 1 ? 0.0 : (2 * Math.PI * (c + 1) - start) / Math.Max(omega, 1e-6);
+                    _bladeStrikes[b]++;
+                    _strikeBuf.Add((t0 + Math.Min(tIn, dt), k, where, omega * reach, dk));
+                }
+                StrikeBlade(e, k, ds, dw, omega, governing, where);
             }
             _propPhase[e] = (_propPhase[e] + sweep) % (2 * Math.PI);
+            // The passes in the order they happened (blade by blade above), so whatever plays them can time each from the first.
+            if (_strikeBuf.Count > 1) _strikeBuf.Sort((x, y) => x.t.CompareTo(y.t));
+            foreach ((double t, int k, ContactPoint? where, double tip, double depth) in _strikeBuf)
+                Raise(ContactEventKind.PropBladeStrike, "prop-blade", AirframeComponent.Propeller, where, tip, depth, k, e, t);
+            _strikeBuf.Clear();
 
-            _propOmega[e] = Math.Min(wRun, _propOmega[e] + (qEngine - qAir - qGround) / inertia * dt);
+            _propOmega[e] = Math.Min(wRun, _propOmega[e] + (qEngine - qAir - qContact) / inertia * dt);
             if (_propOmega[e] < EngineStallFractionOfIdle * wIdle)
             {
                 _propStopped[e] = true;
                 _propStriking[e] = false;
-                KeepBends(e);   // the stopped prop shows what its blades took
-                Raise(ContactEventKind.PropStoppage, "prop-tip", AirframeComponent.Propeller, at, qGround, rpm);
+                SettleDisc(e);   // the stopped prop shows what its blades took
+                Raise(ContactEventKind.PropStoppage, "prop-tip", AirframeComponent.Propeller, at, qContact, rpm);
                 if (Config.Engines.Count == 0) LoseComponent(AirframeComponent.Propeller);
                 else
                 {
@@ -630,23 +718,78 @@ public sealed partial class Aircraft
         }
     }
 
-    /// <summary>Each blade keeps the shortening this strike gave it; the disc reaches as far as the longest, the thrust is
-    /// the blades' mean (R_k/R₀)^(2/3), and unequal blades shake.</summary>
-    private void KeepBends(int e)
+    /// <summary>One pass of blade <paramref name="k"/> through ground <paramref name="solidDepth"/> or water
+    /// <paramref name="waterDepth"/> deep at its own reach: the span that fails, and what the material does with it.</summary>
+    private void StrikeBlade(int e, int k, double solidDepth, double waterDepth, double omega, bool governing, ContactPoint? where)
     {
-        int nb = WaterBladeCount;
-        double rMax = 0, sMean = 0;
-        for (int k = 0; k < nb; k++)
+        int b = e * _bladeN + k;
+        double reach = Reach(b);
+        bool brittle = _propMaterial != PropMaterial.Metal;
+        double lose = Math.Max(0, solidDepth);
+        if (waterDepth > 0)
         {
-            int b = e * nb + k;
-            _bladeRadius[b] = Math.Max(0.3 * _propRadius0[e], _bladeRadius[b] - _bladeDemand[b]);
-            _bladeDemand[b] = 0;
-            rMax = Math.Max(rMax, _bladeRadius[b]);
-            sMean += Math.Pow(_bladeRadius[b] / _propRadius0[e], 2.0 / 3.0) / nb;
+            double fail = WaterBladeFailDepth(reach, omega, _propMaterial);
+            // Metal yields only as far as the load overloads it; a brittle blade, once broken, loses the whole wetted span.
+            if (waterDepth > fail) lose = Math.Max(lose, brittle ? waterDepth : waterDepth - fail);
         }
-        MoveDisc(e, rMax);
-        _propThrustScale[e] = sMean;
-        _propVibG[e] = BladeImbalanceG(e);
+        if (lose > 0) DamageBlade(e, k, reach - lose, omega, governing, where, raise: true);
+    }
+
+    /// <summary>Blade <paramref name="k"/>'s straight span cut back to <paramref name="aero"/> (no further than 0.3 R): a metal
+    /// blade curls the rest by the sign of its thrust now, a wooden or composite one loses it.</summary>
+    private void DamageBlade(int e, int k, double aero, double omega, bool governing, ContactPoint? where, bool raise)
+    {
+        if (Config.Propulsion is not { PropDiameterM: > 0 } pc) return;
+        int b = e * _bladeN + k;
+        double r0 = _propRadius0[e];
+        aero = Math.Max(0.3 * r0, aero);
+        if (aero >= _bladeAero[b] - 1e-6) return;
+        double before = _bladeAero[b];
+        _bladeAero[b] = aero;
+        _bladeBent[b] = r0 - aero;
+        _propDamaged[e] = true;
+        if (_propMaterial == PropMaterial.Metal)
+        {
+            double vAxial = State.Velocity.X;
+            _bladeCurl[b] = PropBladeDamage.BladeAlphaRad(pc, aero, omega, vAxial, governing) >= 0 ? 1 : -1;
+            if (raise) Raise(ContactEventKind.PropBladeBent, "prop-blade", AirframeComponent.Propeller, where, _bladeCurl[b], _bladeBent[b], k, e, Atmosphere.SimTimeSec);
+        }
+        else
+        {
+            _bladeBroken[b] = true;
+            _bladeCurl[b] = 0;
+            if (!raise) return;
+            double mBlade = PropBladeDamage.BladeMassKg(r0, _propMaterial);
+            double piece = mBlade * (PropBladeDamage.Outboard(aero / r0).fraction - PropBladeDamage.Outboard(before / r0).fraction);
+            // The piece leaves with its tip's speed: across the bottom of the disc, opposite to the rotation (a right-hand prop
+            // seen from behind turns clockwise, so its lowest blade moves to the left), on top of the aeroplane's own.
+            Vec3 tipBody = new(0, -(pc.RotationSign >= 0 ? 1 : -1) * omega * 0.5 * (aero + before), 0);
+            Vec3 vel = State.Attitude.Rotate(State.Velocity + tipBody);
+            Vec3 pos = where?.WorldPos ?? State.Position;
+            Contact?.Invoke(new ContactEvent(ContactEventKind.PropBladeBroken, "prop-blade", AirframeComponent.Propeller,
+                where?.SurfaceCode ?? ContactPoint.SurfaceNone, piece, before - aero, pos, vel, k, e, _propMaterial, Atmosphere.SimTimeSec));
+        }
+    }
+
+    /// <summary>How much of blade <paramref name="b"/> is under water when its tip is <paramref name="depth"/> in, m along the
+    /// blade: a curl is an arc (<see cref="PropBladeDamage.MetalCurlRad"/>) and all of it below the waterline drags, so a
+    /// curled tip drags about as much as the straight one did.</summary>
+    private double WetSpan(int b, double depth)
+    {
+        double l = _bladeBent[b];
+        if (_bladeBroken[b] || l <= 0) return depth;
+        double aero = _bladeAero[b], rw = Reach(b) - depth, rho = l / PropBladeDamage.MetalCurlRad;
+        double sw = rw > aero ? rho * Math.Asin(Math.Clamp((rw - aero) / rho, 0, 1)) : 0;
+        return Math.Max(0, aero - rw) + Math.Max(0, l - sw);
+    }
+
+    /// <summary>The disc stations go to the longest blade's reach (between strikes: moving them mid-strike would move the
+    /// contact it is measuring).</summary>
+    private void SettleDisc(int e)
+    {
+        double rMax = 0;
+        for (int k = 0; k < _bladeN; k++) rMax = Math.Max(rMax, Reach(e * _bladeN + k));
+        if (rMax > 0 && Math.Abs(rMax - _propRadius[e]) > 1e-9) MoveDisc(e, rMax);
     }
 
     /// <summary>The rotor of a struck prop while the strike lasts, rpm (the engine's own rpm otherwise).</summary>
@@ -656,26 +799,19 @@ public sealed partial class Aircraft
     /// 150–300 rpm and none runs steadily much below idle (the fleet's idles are 550–800 rpm), so half of idle.</summary>
     public const double EngineStallFractionOfIdle = 0.5;
 
-    /// <summary>Blade geometry the configs do not carry, typical of the fleet's metal props: two blades, a tip chord of
-    /// 0.12 R (11-12 cm on a 76-80 in prop), and an in-plane force coefficient of 0.2 — a thin blade at the tip's ~6°
-    /// incidence in water (normal force 2π·sin 6° ≈ 0.7, <see cref="WaterBladeNormalCoeff"/>) resolved into the plane of
-    /// rotation through its ~18° blade angle.</summary>
+    /// <summary>Blade geometry the configs do not carry, typical of the fleet's props: two blades by default (the configs
+    /// say how many), a tip chord of 0.12 R (11-12 cm on a 76-80 in prop), and an in-plane force coefficient of 0.2 — a thin
+    /// blade at the tip's ~6° incidence in water (normal force 2π·sin 6° ≈ 0.7, <see cref="WaterBladeNormalCoeff"/>)
+    /// resolved into the plane of rotation through its ~18° blade angle.</summary>
     public const int WaterBladeCount = 2;
-    public const double WaterBladeTipChordOverR = 0.12, WaterBladeInPlaneCoeff = 0.2, WaterBladeNormalCoeff = 0.7;
+    public const double WaterBladeTipChordOverR = PropBladeDamage.TipChordOverR, WaterBladeInPlaneCoeff = 0.2, WaterBladeNormalCoeff = 0.7;
 
-    /// <summary>The section a blade bends at, as a fraction of R: a strike folds the outer quarter (the tip curls that a
-    /// ground strike leaves). The section there: chord <see cref="WaterBladeTipChordOverR"/>·R, thickness
-    /// <see cref="BladeThicknessRatio"/> of it, 2025-T6 forging (the McCauley / Sensenich blade alloy) yielding at
-    /// <see cref="BladeYieldPa"/>; an aerofoil's section modulus about its chord is ≈ 0.075·c·t².</summary>
-    public const double BladeBendStationOverR = 0.75, BladeThicknessRatio = 0.08, BladeYieldPa = 255e6;
+    /// <summary>The section a blade fails at, as a fraction of R (see <see cref="PropBladeDamage.Section"/>).</summary>
+    public const double BladeBendStationOverR = PropBladeDamage.BendStationOverR;
 
-    /// <summary>The flatwise bending moment the blade section at <see cref="BladeBendStationOverR"/> yields at, N·m
+    /// <summary>The flatwise bending moment a metal blade's section at <see cref="BladeBendStationOverR"/> yields at, N·m
     /// (162 N·m on the J-3's 0.915 m blade, 205 on an SR22's 0.99 m).</summary>
-    public static double BladeYieldMomentNm(double radius)
-    {
-        double c = WaterBladeTipChordOverR * radius, t = BladeThicknessRatio * c;
-        return BladeYieldPa * 0.075 * c * t * t;
-    }
+    public static double BladeYieldMomentNm(double radius) => PropBladeDamage.FailMomentNm(radius, PropMaterial.Metal);
 
     /// <summary>The normal (bending) force on a blade tip dipped <paramref name="depth"/> into water at ω, N: the wetted
     /// tip ⅔·d by its chord at ½ρ_w(ωR)², normal coefficient <see cref="WaterBladeNormalCoeff"/>.</summary>
@@ -686,74 +822,49 @@ public sealed partial class Aircraft
         return 0.5 * FloatHydro.WaterDensity * u * u * WaterBladeTipChordOverR * radius * wet * WaterBladeNormalCoeff;
     }
 
-    /// <summary>How deep a blade tip can go into water at ω before the load bends it: the depth whose tip force, at its
-    /// arm from the bend station, is the section's yield moment. Deeper than this the tip folds back by the
-    /// difference. Bisection (the moment is monotonic in depth over the outer quarter).</summary>
-    public static double WaterBladeYieldDepth(double radius, double omega)
+    /// <summary>How deep a metal blade tip can go into water at ω before the load bends it (<see cref="WaterBladeFailDepth"/>).</summary>
+    public static double WaterBladeYieldDepth(double radius, double omega) => WaterBladeFailDepth(radius, omega, PropMaterial.Metal);
+
+    /// <summary>How deep a blade tip can go into water at ω before the load fails its section (yields metal, breaks wood or
+    /// composite): the depth whose tip force, at its arm from the bend station, is the section's failing moment
+    /// (<see cref="PropBladeDamage.FailMomentNm"/>). Bisection (the moment is monotonic in depth over the outer quarter).</summary>
+    public static double WaterBladeFailDepth(double radius, double omega, PropMaterial material)
     {
-        double my = BladeYieldMomentNm(radius), rb = BladeBendStationOverR * radius, lo = 0, hi = radius - rb;
+        double my = PropBladeDamage.FailMomentNm(radius, material), rb = BladeBendStationOverR * radius, lo = 0, hi = radius - rb;
         double Moment(double d) => WaterBladeNormalForce(radius, d, omega) * Math.Max(0.0, radius - d / 3.0 - rb);
         if (Moment(hi) <= my) return hi;
         for (int i = 0; i < 40; i++) { double m = 0.5 * (lo + hi); if (Moment(m) > my) hi = m; else lo = m; }
         return 0.5 * (lo + hi);
     }
 
-    /// <summary>
-    /// The airframe's once-a-revolution shake from blades of unequal length, g at the pilot. Two parts:
-    ///  - MASS: a curled tip carries its outer segment's mass inward by about half the shortening; the blades' masses come
-    ///    from the config's prop inertia (two rods, I = 2·⅓·m·R²), the outer quarter of a tapered blade ≈ 15 % of its
-    ///    mass. The unbalance m·Δr whirls at ω²: F = m·|Δr₀ − Δr₁|·ω², on the aeroplane's mass.
-    ///  - THRUST: each blade's share ∝ (R_k/R₀)^(2/3); the difference, ½·T·|s₀ − s₁|, acts at 0.7 R, a rotating
-    ///    moment that rocks the airframe about its pitch/yaw axes, felt at the pilot's arm from the prop.
-    /// Zero for straight or equally bent blades.
-    /// </summary>
-    private double BladeImbalanceG(int e)
-    {
-        if (Config.Propulsion is not { PropDiameterM: > 0 } pc || WaterBladeCount != 2) return 0;
-        double r0 = _propRadius0[e];
-        double mBlade = 1.5 * (pc.PropInertia > 0 ? pc.PropInertia : 1.0) / (r0 * r0), mSeg = 0.15 * mBlade;
-        double dr0 = r0 - _bladeRadius[e * 2], dr1 = r0 - _bladeRadius[e * 2 + 1];
-        double w = FreeEngineRpm * Math.PI / 30.0;
-        double m = Math.Max(1.0, MassProperties.MassKg);
-        double aMass = mSeg * 0.5 * Math.Abs(dr0 - dr1) * w * w / m;
-        double s0 = Math.Pow(_bladeRadius[e * 2] / r0, 2.0 / 3.0), s1 = Math.Pow(_bladeRadius[e * 2 + 1] / r0, 2.0 / 3.0);
-        double thrust = PropModel.StaticThrustN(pc, ShaftPower01);
-        double arm = 2.0;   // prop to the pilot's seat, m (the fleet's single-engine types: 1.5–2.5)
-        double iyy = Math.Max(1.0, MassProperties.Iyy);
-        double aThrust = 0.5 * thrust * Math.Abs(s0 - s1) * 0.7 * r0 * arm / iyy;
-        return (aMass + aThrust) / Atmosphere.GravityMs2;
-    }
+    /// <summary>The mean torque the water puts on <paramref name="blades"/> blades of radius R whose lowest tip is
+    /// <paramref name="depth"/> under the surface, turning at ω. Each blade spends acos(1 − d/R)/π of a turn in the wet arc,
+    /// with on average ⅔·d of its tip under (a parabolic segment), moving at ωR through water of ρ_w:
+    /// Q = n·(arc/π)·½ρ_w(ωR)²·c·(⅔d)·C·(R − ⅓d). On an SR22's 0.99 m blades at 2700 rpm (its engine makes ~820 N·m
+    /// there) a 5 mm brush costs ~200 N·m for two blades and a 2 cm dip ~1,560; at idle the same 2 cm costs ~105.</summary>
+    public static double WaterBladeTorque(double radius, double depth, double omega, int blades = WaterBladeCount) => WaterBladeTorque(radius, depth, omega, blades, depth);
 
-    /// <summary>The mean torque the water puts on a disc of radius R whose lowest tip is <paramref name="depth"/> under the
-    /// surface, turning at ω. Each blade spends acos(1 − d/R)/π of a turn in the wet arc, with on average ⅔·d of its tip
-    /// under (a parabolic segment), moving at ωR through water of ρ_w: Q = n·(arc/π)·½ρ_w(ωR)²·c·(⅔d)·C·(R − ⅓d).
-    /// On an SR22's 0.99 m blades at 2700 rpm (its engine makes ~820 N·m there) a 5 mm brush costs ~200 N·m and a 2 cm dip
-    /// ~1,560; at idle the same 2 cm costs ~105 against an idling engine's next to nothing.</summary>
-    public static double WaterBladeTorque(double radius, double depth, double omega)
+    /// <summary>The same with the blade's own wetted span along it, m, which a curled tip makes longer than the depth.</summary>
+    public static double WaterBladeTorque(double radius, double depth, double omega, int blades, double span)
     {
         if (depth <= 0 || omega <= 0 || radius <= 0) return 0;
         double d = Math.Min(depth, radius);
         double duty = Math.Acos(1.0 - d / radius) / Math.PI;
-        double wet = 2.0 / 3.0 * d, u = omega * radius;
+        double wet = 2.0 / 3.0 * Math.Min(Math.Max(span, d), radius), u = omega * radius;
         double force = 0.5 * FloatHydro.WaterDensity * u * u * WaterBladeTipChordOverR * radius * wet * WaterBladeInPlaneCoeff;
-        return WaterBladeCount * duty * force * (radius - 0.5 * wet);
+        return blades * duty * force * (radius - 0.5 * wet);
     }
 
-    /// <summary>Every blade no longer than <paramref name="r1"/> (a branch chews them all alike), then the disc and the
-    /// thrust follow the blades.</summary>
+    /// <summary>Every blade cut back to no more than <paramref name="r1"/> (a branch chews them all alike: metal curls,
+    /// wood and composite splinter), then the disc follows the blades.</summary>
     private void ShrinkDisc(int e, double r1)
     {
-        int nb = WaterBladeCount;
-        double rMax = 0, sMean = 0;
-        for (int k = 0; k < nb; k++)
+        for (int k = 0; k < _bladeN; k++)
         {
-            int b = e * nb + k;
-            if (b < _bladeRadius.Length) { _bladeRadius[b] = Math.Min(_bladeRadius[b], r1); rMax = Math.Max(rMax, _bladeRadius[b]); sMean += Math.Pow(_bladeRadius[b] / _propRadius0[e], 2.0 / 3.0) / nb; }
+            int b = e * _bladeN + k;
+            if (b < _bladeAero.Length && Reach(b) > r1) DamageBlade(e, k, _bladeAero[b] - (Reach(b) - r1), FreeEngineRpm * Math.PI / 30.0, ShaftPower01 > 0.3, null, raise: false);
         }
-        if (rMax <= 0) { rMax = r1; sMean = Math.Pow(r1 / _propRadius0[e], 2.0 / 3.0); }
-        MoveDisc(e, rMax);
-        _propThrustScale[e] = sMean;
-        if (e < _propVibG.Length) _propVibG[e] = BladeImbalanceG(e);
+        if (!_propStriking[e]) SettleDisc(e);
     }
 
     /// <summary>The disc stations at radius <paramref name="r1"/> from the hub: the reach of the longest blade.</summary>
@@ -826,5 +937,11 @@ public sealed partial class Aircraft
     {
         Vec3 pos = at?.WorldPos ?? State.Position, vel = at?.WorldVel ?? State.Attitude.Rotate(State.Velocity);
         Contact?.Invoke(new ContactEvent(kind, part, comp, at?.SurfaceCode ?? ContactPoint.SurfaceNone, intensity, value, pos, vel));
+    }
+
+    private void Raise(ContactEventKind kind, string part, AirframeComponent comp, ContactPoint? at, double intensity, double value, int blade, int prop, double timeSec)
+    {
+        Vec3 pos = at?.WorldPos ?? State.Position, vel = at?.WorldVel ?? State.Attitude.Rotate(State.Velocity);
+        Contact?.Invoke(new ContactEvent(kind, part, comp, at?.SurfaceCode ?? ContactPoint.SurfaceNone, intensity, value, pos, vel, blade, prop, _propMaterial, timeSec));
     }
 }
