@@ -43,6 +43,11 @@ public enum ContactEventKind
     /// <summary>A wooden or composite blade's struck span broke off and left. Intensity = the piece's mass, kg; value =
     /// its length, m; PositionWorld / VelocityWorld = where the piece starts and how fast it goes.</summary>
     PropBladeBroken,
+    /// <summary>Wood the airframe threw off going through a tree (Ty 2026-11-05 13:52: "throw bits of tree flying off"): a
+    /// snapped top, or the branches and needles one third of an edge has cut since the last report
+    /// (<c>Aircraft.WoodEventKg</c>). Intensity = the mass, kg; value = the wood's diameter there, m; PositionWorld /
+    /// VelocityWorld = where, and the struck part's own velocity. Part = the edge ("wing-panel-R", "gear-left", "float-L").</summary>
+    WoodThrown,
 }
 
 /// <summary>One contact event, raised by <c>Aircraft.ContactEvent</c> after the step in which it happened.</summary>
