@@ -33,8 +33,11 @@ namespace FlyingGame.Sim;
 /// v_break the closing speed that breaks it on the ground (AirframeContact) and δ_crush = <see cref="CrushTravelM"/>:
 /// the same energy the ground rule already says it absorbs.
 ///
-/// Inside a crown the branches push back along the relative wind, F = ρ_c·A·v² on each third of each edge (A = a third
-/// of its length × <see cref="CrownSweepHeightM"/>).
+/// Inside a crown the branches push back along the relative wind, F = ρ_c·A·v² on each third of each edge (A = the band
+/// that third sweeps: its length across the motion × its thickness plus a branch's spray, <see cref="TreeStructure.FoliageSprayM"/>,
+/// and a nose's or a float's bow face where it leads), and every branch it cuts throws its outer part
+/// (<see cref="TreeStructure.ThrownBranchKg"/>). The landing gear and the floats are edges too (Ty 2026-11-05 13:50): low
+/// under the CG, what they meet pitches the nose down as it slows the aeroplane.
 /// </summary>
 public sealed partial class Aircraft
 {
@@ -45,8 +48,14 @@ public sealed partial class Aircraft
     /// <summary>Tree strikes so far (tests, probe): edge, tree, outcome, closing speed, impulse on the airframe.</summary>
     public readonly List<TreeStrikeRecord> TreeStrikeLog = new();
 
-    public const double FailureTravelM = 0.05, CrushTravelM = 0.15, CrownSweepHeightM = 0.3;
+    public const double FailureTravelM = 0.05, CrushTravelM = 0.15;
+    /// <summary>Half the width a leg and its wheel show the branches, m (a 6.00-6 or 8.00-6 tyre is 15–20 cm across).</summary>
+    public const double GearHalfWidthM = 0.09;
+    /// <summary>Wood thrown off one third of an edge before it is reported (<see cref="ContactEventKind.WoodThrown"/>), kg.</summary>
+    public const double WoodEventKg = 0.4;
     private const int SweepSamples = 8;
+    /// <summary>Points along each third of an edge tested against a crown.</summary>
+    private const int CrownSamples = 6;
 
     private List<StrikeEdge>? _edges;
     private readonly List<Forest.Tree> _treesNear = new();
@@ -119,7 +128,7 @@ public sealed partial class Aircraft
             (double noseCut, double tailCut) = AirframeContact.FuselageStations(c);
             Vec3 At(double x) => nose.Body + (tail.Body - nose.Body) * ((nose.Body.X - x) / Math.Max(1e-6, nose.Body.X - tail.Body.X));
             double r = belly is not null ? Math.Max(0.2, belly.Body.Z) : 0.5;
-            edges.Add(new StrikeEdge { A = nose.Body, B = At(noseCut), Component = AirframeComponent.Nose, RadiusM = r, CrushVBreakMs = AirframeContact.NoseBreakMs * strength, Name = "fuselage-nose" });
+            edges.Add(new StrikeEdge { A = nose.Body, B = At(noseCut), Component = AirframeComponent.Nose, RadiusM = r, FrontWidthM = 2 * r, FrontHeightM = 2 * r, CrushVBreakMs = AirframeContact.NoseBreakMs * strength, Name = "fuselage-nose" });
             edges.Add(new StrikeEdge { A = At(noseCut), B = At(tailCut), Component = AirframeComponent.Cabin, RadiusM = r, CrushVBreakMs = AirframeContact.CabinBreakMs * strength, Name = "fuselage-cabin" });
             edges.Add(new StrikeEdge { A = At(tailCut), B = tail.Body, Component = AirframeComponent.TailBoom, RadiusM = 0.6 * r, CrushVBreakMs = AirframeContact.TailBoomBreakMs * strength, Name = "fuselage-tail" });
         }
@@ -150,6 +159,36 @@ public sealed partial class Aircraft
                 edges.Add(MapThirds(new StrikeEdge { A = Le(s[0]), B = top, Component = AirframeComponent.TailVertical, RadiusM = 0.5 * tc * s[0].Chord,
                     CrushVBreakMs = 5.0 * strength, Name = "fin", GoneWith = new[] { AirframeComponent.TailBoom } }, sf.Id, 2));
             }
+        }
+
+        // The landing gear: each leg from its wheel's contact point up to the fuselage's underside. It breaks as it does on
+        // the ground, at its own break sink rate (LandingGear).
+        double bellyZ = belly is not null ? belly.Body.Z : 0.0;
+        foreach (GearConfig leg in c.Gear)
+        {
+            if (leg.GearType == "float-keel") continue;
+            Vec3 wheel = leg.PosVec();
+            double topZ = Math.Min(wheel.Z - 0.1, bellyZ > 0 ? bellyZ : 0.4 * wheel.Z);
+            if (wheel.Z - topZ < 0.1) continue;
+            double breakSink = (leg.BreakSinkMs > 0 ? leg.BreakSinkMs : leg.IsTailwheel ? LandingGear.DefaultTailwheelBreakSinkMs : LandingGear.DefaultBreakSinkMs) * strength;
+            AirframeComponent comp = AirframeContact.GearComponent(leg);
+            edges.Add(new StrikeEdge
+            {
+                A = wheel, B = new Vec3(wheel.X, wheel.Y, topZ), Component = comp, Gear = true, RadiusM = GearHalfWidthM,
+                CrushVBreakMs = breakSink, Side = Math.Sign(wheel.Y), Name = "gear-" + comp.ToString().Substring(4).ToLowerInvariant(),
+            });
+        }
+        // The floats: each along its keel line at half its depth, its bow the face it leads with.
+        if (c.Floats is FloatsConfig fl && fl.LengthM > 0)
+        {
+            double zMid = fl.KeelZ - 0.5 * fl.DepthM;
+            foreach (double yF in fl.Count == 1 ? new[] { 0.0 } : new[] { -0.5 * fl.SpreadM, 0.5 * fl.SpreadM })
+                edges.Add(new StrikeEdge
+                {
+                    A = new Vec3(fl.BowX, yF, zMid), B = new Vec3(fl.BowX - fl.LengthM, yF, zMid), Component = AirframeComponent.Fuselage,
+                    Unbreakable = true, RadiusM = 0.5 * fl.BeamM, FrontWidthM = fl.BeamM, FrontHeightM = fl.DepthM, Side = Math.Sign(yF),
+                    Name = fl.Count == 1 ? "float" : yF < 0 ? "float-L" : "float-R",
+                });
         }
         return edges;
     }
@@ -195,6 +234,7 @@ public sealed partial class Aircraft
         if (e.Component != AirframeComponent.Cabin && _lost.Contains(e.Component)) return false;
         for (int i = 0; i < e.GoneWith.Length; i++) if (_lost.Contains(e.GoneWith[i])) return false;
         if (e.Panel >= 0 && _panels[e.Panel].State == PanelState.Broken) return false;
+        if (e.Gear && (GearExtension < 0.9 || _lostGear.Contains(e.Component))) return false;
         return true;
     }
 
@@ -288,7 +328,7 @@ public sealed partial class Aircraft
         double fDemand = closing * Math.Sqrt(AirframeContact.SpringNPerM * mEff);
         // The part's strength at this point, along this normal.
         double fPart, perNVert = 0;
-        bool unbreakable = e.Component == AirframeComponent.Cabin && _lost.Contains(AirframeComponent.Cabin);
+        bool unbreakable = e.Unbreakable || (e.Component == AirframeComponent.Cabin && _lost.Contains(AirframeComponent.Cabin));
         if (e.UltimateNm > 0)
         {
             double arm = Math.Abs(bodyPt.Y) - e.StationY;
@@ -321,13 +361,20 @@ public sealed partial class Aircraft
         }
         else if (fStem <= fPart)
         {
-            double mTop = TreeStructure.MassAboveKg(tree, up);
+            // The top it throws is its stem and the crown on it (Ty 2026-11-05: "can fly through every treetop with little
+            // or no slowdown" — the stem alone is a few hundred grams at the top; its needles and branches are kilograms).
+            double mTop = TreeStructure.MassAboveKg(tree, up) + TreeStructure.CrownMassAboveKg(tree, up);
             j = Math.Min(mEff * closing, 0.25 * mTop * closing + fStem * d / closing);
             outcome = TreeStrikeOutcome.StemSnapped;
+            // The stem's blow on the edge dents it like a branch's (BranchStrike): below the soft top (a stem of ~2 cm, the
+            // top 1.0–1.3 m of any tree at H/D 60) its force passes LeadingEdgeDentN and the third it struck loses lift and
+            // gains drag — the struck side keeps pulling round after the snap.
+            StemDent(e, bodyPt, d, closing, qWorld, vQ);
             // The edge cuts its own thickness out of the stem: what is left stands below the band it swept.
             src.BreakAt(tree, up - e.RadiusM - 0.05);
             BendFromStrike(e, perNVert * fStem);
             Contact?.Invoke(new ContactEvent(ContactEventKind.TreeSnapped, e.Name, e.Component, ContactPoint.SurfaceSolid, fStem, d, qWorld, vQ));
+            Contact?.Invoke(new ContactEvent(ContactEventKind.WoodThrown, e.Name, e.Component, ContactPoint.SurfaceSolid, mTop, d, qWorld, vQ));
         }
         else
         {
@@ -373,44 +420,79 @@ public sealed partial class Aircraft
     private void CrownDrag(ITreeSource src, Vec3 cg, double dt)
     {
         Vec3 jSum = Vec3.Zero, hSum = Vec3.Zero;   // impulse (body) and its moment about P (body)
-        int n3 = _edges!.Count * 3;
-        if (_thirdDamage.Length != n3) { _thirdDamage = new double[n3]; _thirdCtrlDamage = new double[n3]; _thirdReported = new int[n3]; }
+        EnsureThirds();
         _ctrlToLose.Clear();
         for (int ei = 0; ei < _edges.Count; ei++)
         {
             StrikeEdge e = _edges[ei];
             if (!EdgeActive(e)) continue;
             double len3 = (e.B - e.A).Length / 3.0;
-            double area = len3 * CrownSweepHeightM;
+            double band = 2.0 * e.RadiusM + TreeStructure.FoliageSprayM;
+            // How far to the side of its line the part reaches into a crown: a float's or a nose's half-width, a leg's wheel.
+            // A wing's line is its leading edge, and its depth is along the motion.
+            double reachSide = e.FrontWidthM > 0 ? 0.5 * e.FrontWidthM : e.Gear ? e.RadiusM : 0.0;
             Vec3 u = (e.B - e.A).Normalized();
             for (int k = 0; k < 3; k++)
             {
-                Vec3 b = e.A + (e.B - e.A) * ((k + 0.5) / 3.0);
-                Vec3 wPt = World(State, b, cg);
-                double up = -wPt.Z;
+                Vec3 bMid = e.A + (e.B - e.A) * ((k + 0.5) / 3.0);
+                Vec3 wMid = World(State, bMid, cg);
                 for (int ti = 0; ti < _treesNear.Count; ti++)
                 {
                     Forest.Tree t = _treesNear[ti];
-                    if (up > src.TopOf(t)) continue;
-                    double rc = TreeStructure.CrownRadiusAt(t, up);
-                    if (rc <= 0) continue;
-                    double dx = wPt.X - t.X, dy = wPt.Y - t.Y, rho2 = dx * dx + dy * dy;
-                    if (rho2 > rc * rc) continue;
+                    double top = src.TopOf(t), reachC = 0.5 * len3 + reachSide + TreeStructure.SkirtAreaRadius * t.CrownRadiusM;
+                    double mx = wMid.X - t.X, my = wMid.Y - t.Y;
+                    if (mx * mx + my * my > reachC * reachC || -wMid.Z - 0.5 * len3 > top || -wMid.Z + 0.5 * len3 < t.GroundM + TreeStructure.CrownBaseFraction * t.HeightM) continue;
+                    // How much of this third is inside the crown, sampled along it (Ty 2026-11-05: "can fly through every
+                    // treetop ... with little/no slowdown"): the third's MIDPOINT alone was tested, so a 1.8 m third of a
+                    // wing through a treetop 0.4 m across met nothing unless its middle passed within 0.4 m of the stem.
+                    double lIn = 0, dSum = 0, rhoMin = double.MaxValue, dMax = 0;
+                    Vec3 bSum = Vec3.Zero, bMin = bMid, wMin = wMid;
+                    for (int j = 0; j < CrownSamples; j++)
+                    {
+                        Vec3 bj = e.A + (e.B - e.A) * ((k + (j + 0.5) / CrownSamples) / 3.0);
+                        Vec3 wj = World(State, bj, cg);
+                        double upj = -wj.Z;
+                        if (upj > top) continue;
+                        double rcj = TreeStructure.CrownRadiusAt(t, upj);
+                        double dx = wj.X - t.X, dy = wj.Y - t.Y;
+                        double rhoj = Math.Max(0.0, Math.Sqrt(dx * dx + dy * dy) - reachSide);
+                        if (rcj <= 0 || rhoj >= rcj) continue;
+                        double dj = TreeStructure.BranchDiameterAt(t, upj, rhoj);
+                        lIn += len3 / CrownSamples; dSum += dj; bSum += bj;
+                        if (rhoj < rhoMin) { rhoMin = rhoj; bMin = bj; wMin = wj; dMax = dj; }
+                    }
+                    if (lIn <= 0) continue;
+                    int nIn = (int)Math.Round(lIn / len3 * CrownSamples);
+                    Vec3 b = bSum / nIn;
+                    Vec3 wPt = World(State, b, cg);
+                    double up = -wPt.Z;
                     Vec3 rb = b - cg;
                     Vec3 v = State.Velocity + Vec3.Cross(State.Rates, rb);
                     double speed = v.Length;
-                    Vec3 jb = v * (-TreeStructure.CrownBulkDensityKgM3 * area * speed * dt);
-                    // Branches: how many this third crosses this step, how thick, and how hard each pushes.
-                    double rho = Math.Sqrt(rho2);
-                    double d = TreeStructure.BranchDiameterAt(t, up, rho);
-                    Vec3 vAcross = v - u * Vec3.Dot(v, u);
+                    if (speed < 1e-6) break;
+                    double along = Vec3.Dot(v, u);
+                    Vec3 vAcross = v - u * along;
                     double va = vAcross.Length;
+                    // The band this third sweeps inside the crown, seen along its motion: its length across the motion ×
+                    // (thickness + spray), and the face a nose or a float leads with, on the third at its leading end.
+                    double area = lIn * band * va / speed;
+                    if (e.FrontWidthM > 0 && k == (along < 0 ? 0 : 2))
+                        area += (e.FrontWidthM + TreeStructure.FoliageSprayM) * (e.FrontHeightM + TreeStructure.FoliageSprayM) * Math.Abs(along) / speed * (lIn / len3);
+                    Vec3 jb = v * (-TreeStructure.CrownBulkDensityKgM3 * area * speed * dt);
+                    int slot = ei * 3 + k;
+                    _woodThrown[slot] += TreeStructure.CrownBulkDensityKgM3 * area * speed * dt;
+                    // Branches: how many this third crosses this step, how thick, and how hard each pushes.
+                    double d = dSum / nIn;
                     if (d > 0 && va > 0.5)
                     {
-                        double n = TreeStructure.CrossingsPerS(TreeStructure.BranchLengthDensity(t, up), len3, va) * dt;
+                        double n = TreeStructure.CrossingsPerS(TreeStructure.BranchLengthDensity(t, up), lIn, va) * dt;
                         double f = TreeStructure.BranchStrikeForceN(d, va);
                         jb -= vAcross / va * (n * f * d / va);   // the work F·d of each, as an impulse along the motion
-                        int slot = ei * 3 + k;
+                        // ... and the outer part of each, thrown at the edge's speed.
+                        double rhoMean = Math.Max(0.0, Math.Sqrt((wPt.X - t.X) * (wPt.X - t.X) + (wPt.Y - t.Y) * (wPt.Y - t.Y)) - reachSide);
+                        double mOut = n * TreeStructure.ThrownBranchKg(t, up, rhoMean);
+                        jb -= vAcross * mOut;
+                        _woodThrown[slot] += mOut;
                         double dmg = n * BranchStrike.DamageFrom(f, BranchStrike.LeadingEdgeDentN, len3);
                         if (dmg > 0) DamageThird(e, k, slot, dmg, f, d, wPt, v);
                         if (e.ThirdControl[k] is { } ctl && !_lost.Contains(ctl))
@@ -418,15 +500,23 @@ public sealed partial class Aircraft
                             _thirdCtrlDamage[slot] += n * BranchStrike.DamageFrom(f, BranchStrike.ControlSurfaceN, len3);
                             if (_thirdCtrlDamage[slot] >= 1.0 && !_ctrlToLose.Contains(ctl)) _ctrlToLose.Add(ctl);
                         }
-                        // A limb is struck when the edge first meets one, and again each time the limbs it meets are a
-                        // third thicker than the last it struck (going deeper toward the stem).
-                        if (d >= BranchStrike.LimbM && (!_limbsStruck.TryGetValue((TreeKey(t), slot), out double last) || d >= BranchStrike.LimbStepRatio * last))
-                        {
-                            _limbsStruck[(TreeKey(t), slot)] = d;
-                            LimbStrike(t, e, b, d, vAcross, wPt, cg);
-                        }
                     }
+                    // A limb is struck when the edge first meets one, and again each time the limbs it meets are a third
+                    // thicker than the last it struck (going deeper toward the stem): the thickest this third meets, nearest
+                    // the stem.
+                    if (dMax >= BranchStrike.LimbM && va > 0.5 && (!_limbsStruck.TryGetValue((TreeKey(t), slot), out double last) || dMax >= BranchStrike.LimbStepRatio * last))
+                    {
+                        _limbsStruck[(TreeKey(t), slot)] = dMax;
+                        Vec3 vMin = State.Velocity + Vec3.Cross(State.Rates, bMin - cg);
+                        LimbStrike(t, e, bMin, dMax, vMin - u * Vec3.Dot(vMin, u), wMin, cg);
+                    }
+                    jb *= BranchStrike.CrownGrip;
                     jSum += jb; hSum += Vec3.Cross(rb, jb);
+                    if (_woodThrown[slot] >= WoodEventKg)
+                    {
+                        Contact?.Invoke(new ContactEvent(ContactEventKind.WoodThrown, e.Name, e.Component, ContactPoint.SurfaceSolid, _woodThrown[slot], d, wPt, State.Attitude.Rotate(v)));
+                        _woodThrown[slot] = 0;
+                    }
                     break;
                 }
             }
@@ -441,7 +531,7 @@ public sealed partial class Aircraft
         }
     }
 
-    private double[] _thirdDamage = Array.Empty<double>(), _thirdCtrlDamage = Array.Empty<double>(), _stripDamage = Array.Empty<double>();
+    private double[] _thirdDamage = Array.Empty<double>(), _thirdCtrlDamage = Array.Empty<double>(), _stripDamage = Array.Empty<double>(), _woodThrown = Array.Empty<double>();
     private int[] _thirdReported = Array.Empty<int>();
     private readonly List<AirframeComponent> _ctrlToLose = new();
     private readonly Dictionary<(long, int), double> _limbsStruck = new();
@@ -449,6 +539,27 @@ public sealed partial class Aircraft
     public IReadOnlyList<double> StripBranchDamage => _stripDamage;
     /// <summary>Highest branch damage on any strip, 0..1.</summary>
     public double MaxBranchDamage { get { double m = 0; for (int i = 0; i < _stripDamage.Length; i++) m = Math.Max(m, _stripDamage[i]); return m; } }
+
+    private void EnsureThirds()
+    {
+        int n3 = _edges!.Count * 3;
+        if (_thirdDamage.Length != n3) { _thirdDamage = new double[n3]; _thirdCtrlDamage = new double[n3]; _thirdReported = new int[n3]; _woodThrown = new double[n3]; }
+    }
+
+    /// <summary>A snapped stem's blow on the third of <paramref name="e"/> it struck: the branch rule's dent
+    /// (<see cref="BranchStrike.DamageFrom"/>) for a force F_s(d) + ρ_w·d²·v².</summary>
+    private void StemDent(StrikeEdge e, Vec3 bodyPt, double d, double closing, Vec3 qWorld, Vec3 vWorld)
+    {
+        EnsureThirds();
+        Vec3 ab = e.B - e.A;
+        double l2 = ab.LengthSquared;
+        if (l2 < 1e-9) return;
+        int k = Math.Clamp((int)(3.0 * Vec3.Dot(bodyPt - e.A, ab) / l2), 0, 2);
+        int slot = _edges!.IndexOf(e) * 3 + k;
+        double f = TreeStructure.BranchStrikeForceN(d, closing);
+        double dmg = BranchStrike.DamageFrom(f, BranchStrike.LeadingEdgeDentN, Math.Sqrt(l2) / 3.0);
+        if (dmg > 0) DamageThird(e, k, slot, dmg, f, d, qWorld, State.Attitude.Conjugate().Rotate(vWorld));
+    }
 
     private static long TreeKey(in Forest.Tree t) => (long)Math.Round(t.X * 100.0) * 1_000_003L ^ (long)Math.Round(t.Y * 100.0);
 
@@ -510,7 +621,7 @@ public sealed partial class Aircraft
                 fPart = double.PositiveInfinity;
             }
         }
-        if (e.Component == AirframeComponent.Cabin && _lost.Contains(AirframeComponent.Cabin)) fPart = double.PositiveInfinity;
+        if (e.Unbreakable || (e.Component == AirframeComponent.Cabin && _lost.Contains(AirframeComponent.Cabin))) fPart = double.PositiveInfinity;
         Vec3 nWorld = State.Attitude.Rotate(nb);
         double j; TreeStrikeOutcome outcome;
         if (fLimb <= fPart)

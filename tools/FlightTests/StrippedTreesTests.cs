@@ -86,7 +86,9 @@ public class StrippedTreesTests : IDisposable
         // Ty's report, reproduced: the nose goes, the wings stay, it stands near vertical against the stem.
         Assert.Contains(AirframeComponent.Nose, ac.LostComponents);
         Assert.DoesNotContain(AirframeComponent.WingLeft, ac.LostComponents);
-        Assert.True(minPitch < -75, $"pitch {minPitch:0}");
+        // −87° when this was written (82f2e863); −70° since the tree-branch lane (crown matched to the drawn skirts,
+        // CrownGrip 3, gear strike edges) slows it in the crown before the stem: still nose down against the stem.
+        Assert.True(minPitch < -65, $"pitch {minPitch:0}");
         Assert.True(rho < 1.0, $"rests {rho:0.00} m from the axis, inside the old 1.07 m trunk box");
         Assert.True(insideS > 1.5, $"inside the drawn tree {insideS:0.00} s");
         // Entered at about 8.5 m up and slid to the ground: the lowest skirt (5.5–16 m) is gone, the middle one (13–21.5 m)

@@ -54,10 +54,11 @@ public class TreeStrikeTests : IDisposable
         Assert.Equal(6504, TreeStructure.BreakForceN(0.05), 0);
         // The top 10 m above 20 m: 600·π/12·0.1667²·10 = 43.6 kg.
         Assert.Equal(43.6, TreeStructure.MassAboveKg(t, 20.0), 1);
-        // Crown: none below 20 % of the height (6 m), widest there (2.4·(0.22 + 30/24) = 3.528 m), none at the top.
-        Assert.Equal(0.0, TreeStructure.CrownRadiusAt(t, 5.9));
-        Assert.Equal(3.528, TreeStructure.CrownRadiusAt(t, 6.0), 3);
-        Assert.Equal(0.0, TreeStructure.CrownRadiusAt(t, 30.0), 6);
+        // Crown (the drawn skirts, 2026-11-05): none below 22 % of the height (6.6 m), widest there (1.03·2.4·(0.22 + 30/24)
+        // = 3.634 m); at the top only the third skirt (base 23.4 m, rise 7.2 m, radius 0.42) is left: 1.03·0.42·3.528·(0.6/7.2).
+        Assert.Equal(0.0, TreeStructure.CrownRadiusAt(t, 6.5));
+        Assert.Equal(3.634, TreeStructure.CrownRadiusAt(t, 6.6), 3);
+        Assert.Equal(0.1272, TreeStructure.CrownRadiusAt(t, 30.0), 4);
     }
 
     // ---- 1. only the part that is hit -------------------------------------------------------------------------------
@@ -171,7 +172,10 @@ public class TreeStrikeTests : IDisposable
     public void AHighSpeedTreetopStrikeCostsAModestDeltaVNotAStop()
     {
         // Pitts at 70 m/s straight through the top of a 30 m fir, 2 m below its top: the stem there is 3.3 cm through
-        // (0.5·2/30), 3.6 kN — it snaps; the top it throws is 600·π/12·0.033²·2 = 0.34 kg.
+        // (0.5·2/30), 3.6 kN — it snaps; the top it throws is 600·π/12·0.033²·2 = 0.34 kg of stem and its crown.
+        // Until 2026-11-05 this allowed 1 m/s; then Ty asked for treetops to cost more ("can fly through every treetop with
+        // little/no slowdown") and the crown grips harder (BranchStrike.CrownGrip): 1.96 m/s measured, 3 m/s allowed — under
+        // 5 % of the speed, still not a stop.
         var c = Load("pitts-s2b-like");
         var ac = Flying(c, 70, 28);
         ac.Trees = new FixedTrees(Tree(40, 0, 30));
@@ -183,7 +187,7 @@ public class TreeStrikeTests : IDisposable
         Assert.NotEmpty(ac.TreeStrikeLog);
         Assert.All(ac.TreeStrikeLog, r => Assert.Equal(TreeStrikeOutcome.StemSnapped, r.Outcome));
         Assert.Empty(ac.LostComponents);
-        Assert.True(dv < 1.0, $"Δv {dv:0.00}");
+        Assert.True(dv < 3.0, $"Δv {dv:0.00}");
     }
 
     [Fact]
