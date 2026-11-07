@@ -426,6 +426,15 @@ namespace FlyingGame.Bridge
         /// <returns>The debris object (a <see cref="WingDebris"/>), or null when nothing visible left.</returns>
         public GameObject DetachComponent(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
         {
+            // In the replay the piece rides on the aeroplane until this moment (Ty pt1001: the replay began with the parts
+            // already gone). Its origin is the aeroplane at the break, so it is registered where it is made, before it moves.
+            GameObject d = DetachComponentNow(comp, worldVelocityUnity);
+            ReplayActors.RegisterAirframePart(d, transform);
+            return d;
+        }
+
+        private GameObject DetachComponentNow(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
+        {
             _componentsDetached = true;
             if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return null; }
             // A wing panel that was bent first: its pieces are already on their own pivot — that pivot is the debris.
@@ -498,6 +507,7 @@ namespace FlyingGame.Bridge
             cut.transform.SetParent(pivot, true);
             _bentPanels[comp] = pivot;
             _fuselageBent = true;
+            ReplayActors.RegisterAirframePart(pivot.gameObject, transform);   // straight in the replay until the bend (Ty pt1001)
             return pivot;
         }
 
@@ -1062,7 +1072,10 @@ namespace FlyingGame.Bridge
         {
             if (_wingsDetached) return (null, null);
             _wingsDetached = true;
-            return DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity);
+            var (l, r) = DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity);
+            ReplayActors.RegisterAirframePart(l, transform);   // on the aeroplane in the replay until now (Ty pt1001)
+            ReplayActors.RegisterAirframePart(r, transform);
+            return (l, r);
         }
 
         /// <summary><see cref="DetachWings"/> for any AirframeBuilder-built airframe (the editor's DebrisPaintCheck too).
