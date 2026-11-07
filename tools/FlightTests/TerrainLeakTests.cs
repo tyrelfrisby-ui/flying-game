@@ -16,7 +16,7 @@ namespace FlyingGame.FlightTests;
 /// These run each IslandStartupCostTests test the way xUnit does (constructor, method, Dispose) and require the
 /// terrain to be exactly what it was before, and the ground at the origin flat again. A test added to that class later
 /// is covered without touching this file. The same holds for the island's solids and decks (IslandWorldScope), which
-/// IosLowAltitudeProbe and SolidsBroadphaseTests left registered.
+/// IosLowAltitudeProbe, SolidsBroadphaseTests, UrbanLowRiseTests and ApproachSpawnTests left registered.
 /// </summary>
 [Collection("WorldTerrainActive")]   // swaps the global terrain: never in parallel with the legacy-world tests
 public sealed class TerrainLeakTests
@@ -125,6 +125,40 @@ public sealed class TerrainLeakTests
         Assert.False(WorldSolids.IndexEnabled);
         Assert.NotEqual(version, WorldSolids.Version);
     }
+
+    public static IEnumerable<object[]> UrbanLowRiseTestNames() =>
+        typeof(UrbanLowRiseTests).GetMethods()
+            .Where(m => m.GetCustomAttribute<FactAttribute>() is { Skip: null })
+            .Select(m => new object[] { m.Name })
+            .OrderBy(r => (string)r[0], StringComparer.Ordinal);
+
+    /// <summary>UrbanLowRiseTests installs the island and builds into the world's solids (t971u: left behind, they put
+    /// StructuralTests 2,460 m underground). After each of its tests the world must be as it was.</summary>
+    [Theory]
+    [MemberData(nameof(UrbanLowRiseTestNames))]
+    public void UrbanLowRiseTestsPutTheWorldBack(string method)
+    {
+        using var outer = new IslandWorldScope();
+        Empty();
+        var test = new UrbanLowRiseTests(new Quiet());
+        try { typeof(UrbanLowRiseTests).GetMethod(method)!.Invoke(test, null); }
+        finally { if ((object)test is IDisposable d) d.Dispose(); }   // as xUnit does
+        AssertEmpty();
+    }
+
+    /// <summary>ApproachSpawnTests' corridor check registers the landmarks (Landmarks.RegisterSolids) and cleared only
+    /// the boxes: 44 solids and 4 decks stayed for every class after it.</summary>
+    [Fact]
+    public void ApproachSpawnCorridorCheckPutsTheWorldBack()
+    {
+        using var outer = new IslandWorldScope();
+        Empty();
+        var test = new ApproachSpawnTests(new Quiet());
+        try { test.FinalApproachCorridorIsClearOfSolids(); }
+        finally { if ((object)test is IDisposable d) d.Dispose(); }   // as xUnit does
+        AssertEmpty();
+    }
+
 
     private static void Empty()
     {

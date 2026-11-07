@@ -12,11 +12,19 @@ namespace FlyingGame.FlightTests;
 /// houses, terraces, shops and warehouses and registers each one through <see cref="UrbanLowRise"/>; these
 /// tests own the other half — the roof a box with a gable really has, the ground a building may not stand
 /// on, and the cost of asking five hundred of them a question twenty times a step.
+///
+/// Every test here installs the island (<c>WorldTerrain.Active ??= …</c>) and builds into the world's solids, and none
+/// took them away: in the B1 qualification run (t971u) StructuralTests ran next, started 2,460 m underground and went
+/// NaN (40 names, and MultiEngineTests after it). <see cref="Dispose"/> puts the world back and empties the city's
+/// infill after every test, pass or fail; the tests' own <c>UrbanLowRise.Clear()</c> at the end never ran on a failure.
 /// </summary>
-public class UrbanLowRiseTests
+[Collection("WorldTerrainActive")]   // swaps the global terrain: never in parallel with the legacy-world tests
+public class UrbanLowRiseTests : IDisposable
 {
     private readonly ITestOutputHelper _o;
+    private readonly IslandWorldScope _world = new();
     public UrbanLowRiseTests(ITestOutputHelper o) { _o = o; }
+    public void Dispose() { UrbanLowRise.Clear(); _world.Dispose(); }
     private static readonly WorldTerrain T = new();
     /// <summary>Open ground, well outside every airport pad and city — the keep-clear rules are staked out of
     /// Core's own data the moment anything asks to build, so a fixture dropped on the Valley runway is
