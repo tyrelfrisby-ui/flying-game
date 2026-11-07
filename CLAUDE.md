@@ -640,3 +640,10 @@ water in the distance and an aircraft reflection, but its floats were dry: no ph
 that never entered the water branch. Use the current `IslandSites` water lane, its heading and sampled surface,
 and reject a dry fixture before saving water review evidence (`WaterRender`). Keep the old failed captures
 labelled invalid rather than treating a plausible blue image as proof of water contact.
+
+### A source PNG may be lighter than the face actually embedded in the model
+The Great Lakes source faces had already received a second style pass when embedded in the GLB. Replacing a face
+from its source PNG while thinning a band removed that existing lettering stroke. Decode the ACTIVE embedded image
+and migrate its pixels directly for a texture-only change. Assert that every pixel outside the intended colour mask
+is identical, alongside the geometry checks; a correct source PNG alone cannot establish that the rendered typography
+was preserved. Extra dilation also closes counters on small faces: inspect a comparison before retaining it.

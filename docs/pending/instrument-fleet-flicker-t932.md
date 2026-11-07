@@ -75,3 +75,73 @@ At source a6f8f286 the authorized verifier exited 75, then after 20 seconds the 
 At 7ecb459e, verifier exited 75 twice before any work. Spray 13759/14464 and Q007 25389/25393 remained active and untouched. Fixed the verifier matcher to include absolute dotnet paths and dotnet exec testhost processes; shell syntax passes and actual matcher finds all four. No .NET/Unity/Xcode result claimed.
 
 Prepared all 13 f9906913-parent asset blobs under external render directory baseline-assets/ with baseline-assets-manifest.json SHA256/byte lengths. No Cub, config or working artwork changed. Use this asset-only baseline in an isolated copy with CURRENT camera/config/runtime and the exclusive reservation. These files are not captures. See verification-resume3.md and INDEX.md. Remaining gates and untouched visible-fleet work above still apply.
+
+## Resume #4 — actual verification and matched review pack (2026-11-06)
+
+Intentional source commits: 31ca88b2 (fixed-input telemetry and isolated baseline tooling), c20ce0e5 (engine bands),
+e1426ea0 (preserve the actual embedded lettering). Final verification source is e1426ea0.
+
+### Additional paint coverage
+
+Eight source PNGs (EA tach/MP/oil/CHT, GL tach/oil/oil-pressure/CHT) and three live CockpitDials PNGs (EA tach/MP/oil,
+used by the Pitts live faces too) now have narrower green/yellow bands. Only those coloured pixels change; existing
+bold numerals, ticks, backgrounds and redlines stay intact. The GL own model migrates its ACTUAL embedded pixels,
+which have a heavier existing stroke than the source PNGs. Seven dedicated GL materials are processed, four have
+operating bands; MP/Hobbs/mag retain the same pixels. All seven embedded images preserve every non-band pixel.
+Geometry node/mesh/accessor/scene arrays and the entire original GLB BIN prefix remain identical. Source generators
+now draw half-width arcs; the explicit-baseline migration avoids unrelated raster drift in existing artwork.
+Evidence: engine-texture-manifest.json (11 changed source/live PNGs; exact red pixels retained),
+engine-geometry-audit.json, engine-textures/embedded-gl-*-comparison.png.
+
+This still does not cover every fleet-specific face: Extra phase-3 bespoke dials, glider-specific art/compasses,
+172 auxiliary markings, legacy livery models and other imported survivors require their own visibility/readability
+review. Cub remains untouched. t921 Pitts ASI PASS is retained; no new marking/flight/visual approval asserted.
+
+### Matched captures and visual inspection
+
+The isolated APFS clone is recorded in baseline-capture-run.json. It supplied six before-cockpit PNGs;
+baseline-source-config-audit.json confirms 627 runtime/fixture/shader/config files identical to the working fixture (eight generated .NET obj metadata files excluded).
+The 13 baseline shared assets are recorded in baseline-assets-manifest.json. baseline-engine-assets-audit.json
+confirms that all four original runtime engine assets (GL model and three live PNGs) also match that captured clone.
+Working assets were never replaced for the baseline. Future baseline tooling substitutes those engine assets too.
+
+Six matching after fixtures at 2160x1000 come from e1426ea0. cockpit-comparison-manifest.json checks identical
+aircraft/seat/eye/yaw/pitch/FOV/light spec strings for every pair. cockpit-comparisons/ supplies native, 1080x500 and
+720x333 displays plus pixel differences. Opened all six final native after images and the Pitts/GL panel comparisons
+at half and third size. Numerals/needle contrast is maintained and engine arcs are visibly slimmer in closeups; at
+720x333 normal 72-degree FOV, small numerals/units remain difficult to read. This is display-scale review, not a
+physical-phone readability PASS. The original GL pitch -20/FOV40 fixture crops most of the lower panel, so retained
+it as such and added GL panel-phone pitch -30/FOV72 and panel-closeup pitch -40/FOV40 on BOTH sides.
+
+### Temporal evidence and its limits
+
+COCKPIT_TEMPORAL=1 records 101 manual edit-mode frames per normal phone fixture over at least ten wall-clock
+seconds, reapplies constant RigInputs, and saves inputs.tsv, frames.tsv, transforms.tsv and renderers.tsv.
+Camera matrix samples are outside Camera.Render; the render target fixes image dimensions. This is an origin-centred
+bench, not the runtime/device update loop or a world-coordinate flight. No live sim, motion-look or damaged-prop
+proof is implied. audit_instrument_temporal.py measures raw RGB pixels and complete local transform records.
+No artificial jitter was reproduced by this bench, so no speculative smoothing, depth bias or legitimate-motion
+removal was added. Live intact flight/device reproduction and the full visible-fleet audit remain required.
+
+### Verification record
+
+The targeted suite reports 160 passed / 1 failed (161 total): unchanged NoRed233Tests.ResourcesHoldOnlyTheYellowGlbs
+flags five Grob 103 filenames. Exact paths: no-red233-failure-files.json. The verifier collects render/build evidence
+after a test failure and still returns that failure; no test was excluded or weakened, and the overall gate is RED.
+The original shared-only build 2026.1106.1711 succeeded. Intermediate dilation captures/build attempts are superseded:
+one owned Xcode process and one owned shot process were stopped (143); they are not final build evidence.
+Final source build/stamp is recorded in the next verification-result entry once its actual command completes.
+No install, upload, push or playable merge. Foreign packaging/Cub backup recovery stash retained.
+
+### Final verification result — source e1426ea0
+
+** BUILD SUCCEEDED **, iOS stamp **2026.1106.1724** (app plist short version; bundle build 202611061724),
+NOINSTALL / NOUPLOAD. Six final shots / zero failures; zero error CS in shot and export logs. Targeted tests
+160 passed / 1 failed, verifier exit 1, so the overall gate remains RED. Final three sequences each contain
+101 frames over 10.07 seconds; raw RGB, all recorded local transforms and camera samples are identical within
+each sequence. No live/device stability approval. Final logs are final-instrument-tests.log, final-instrument-shots.log,
+final-instrument-ios.log and final-ios.log in the render directory; verification-resume4.json summarizes the run.
+
+Foreign recovery equality checked: all twelve original tracked packaging files and six untracked Cub backup
+files match resume4 stash byte-for-byte. No source/asset version bump staged. Remaining gates: broad Grob filename
+NoRed233 failure, live-flight/device reproduction, and remaining bespoke fleet/livery review. PROGRESS; no merge.

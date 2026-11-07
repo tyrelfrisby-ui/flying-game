@@ -1,7 +1,7 @@
 """Called under deploy-instrument-baseline.sh reservation; never overwrite working assets.
 
 Clone current project, sources and Library using APFS copy-on-write; substitute only
-13 audited baseline blobs in that isolated copy. Retain clone/logs as evidence.
+audited baseline blobs in that isolated copy. Retain clone/logs as evidence.
 """
 import hashlib
 import json
@@ -48,7 +48,7 @@ env = os.environ.copy()
 env.update(COCKPIT_OUT=str(evidence / 'before-cockpit'), COCKPIT_TEMPORAL='0',
            COCKPIT_SHOTS='pitts-phone|pitts-s2b-like|rear|0|-15|72|sun||2160x1000;pitts-closeup|pitts-s2b-like|rear|0|-20|40|sun||2160x1000;great-lakes-phone|great-lakes-like|rear|0|-15|72|sun||2160x1000;great-lakes-closeup|great-lakes-like|rear|0|-20|40|sun||2160x1000;great-lakes-panel-phone|great-lakes-like|rear|0|-30|72|sun||2160x1000;great-lakes-panel-closeup|great-lakes-like|rear|0|-40|40|sun||2160x1000')
 run = dict(clone=str(clone), sourceRoot=str(root), baselineRef=manifest['baselineRef'],
-           assets=manifest['assets'], scope='Current source/config/camera; only thirteen baseline PNG/GLB blobs substituted in isolated project. No working assets overwritten.')
+           assets=manifest['assets'], scope='Current source/config/camera; baseline shared and engine PNG/GLB blobs substituted in isolated project. No working assets overwritten.')
 (evidence / 'baseline-capture-run.json').write_text(json.dumps(run, indent=2) + '\n')
 result = subprocess.run(['/Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity',
                          '-batchmode', '-quit', '-projectPath', str(clone / 'unity'), '-buildTarget', 'iOS',
