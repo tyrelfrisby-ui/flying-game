@@ -14,8 +14,11 @@ namespace FlyingGame.FlightTests;
 public class ApproachSpawnTests : IDisposable
 {
     /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
-    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
-    public void Dispose() => WorldTerrain.Active = null;
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.
+    /// The world is more than the terrain: Landmarks.RegisterSolids leaves 44 solids and 4 decks that the corridor
+    /// test's own cleanup (boxes only) missed, so the scope puts back the solids and decks too (t971u).</summary>
+    private readonly IslandWorldScope _world = new();
+    public void Dispose() => _world.Dispose();
 
     private readonly ITestOutputHelper _out;
     public ApproachSpawnTests(ITestOutputHelper o) { _out = o; }
