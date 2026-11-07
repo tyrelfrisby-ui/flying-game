@@ -5,6 +5,8 @@
   "schemaVersion": 1,
   "id": "glider-swift-s1-like",
   "displayName": "Swift S-1-like Aerobat",
+  "structureType": "composite",
+  "structureTypeSource": "Swift S-1: glass/carbon composite fuselage shell.",
   "spawnIasMs": 30,
   "mass": {
     "massKg": 330,
@@ -1896,7 +1898,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "tireRadiusM": 0.15, "wheelMassKg": 3.5
+      "tire": "legacy-swift-main", "tirePressurePsi": 5.8
     },
     {
       "pos": [
@@ -1912,7 +1914,7 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 800,
-      "tireRadiusM": 0.1, "wheelMassKg": 0.6
+      "tire": "legacy-swift-tail", "tirePressurePsi": 5.8
     },
     {
       "pos": [

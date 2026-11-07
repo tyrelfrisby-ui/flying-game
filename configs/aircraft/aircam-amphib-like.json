@@ -1508,6 +1508,9 @@
   "propulsion": {
     "maxPowerW": 74600,
     "propDiameterM": 1.73,
+    "propMaterial": "composite",
+    "propMaterialSource": "Warp Drive ground-adjustable carbon blades, three per Rotax 912",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2400,
     "propInertia": 1.2,
@@ -1636,7 +1639,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 3000,
-      "tireRadiusM": 0.15, "wheelMassKg": 3.5
+      "tire": "legacy-aircam-amphib-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1652,7 +1655,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 3000,
-      "tireRadiusM": 0.15, "wheelMassKg": 3.5
+      "tire": "legacy-aircam-amphib-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1668,7 +1671,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "tireRadiusM": 0.21, "wheelMassKg": 7.0
+      "tire": "legacy-aircam-main", "tirePressurePsi": 19.4
     },
     {
       "pos": [
@@ -1684,7 +1687,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "tireRadiusM": 0.21, "wheelMassKg": 7.0
+      "tire": "legacy-aircam-main", "tirePressurePsi": 19.4
     }
   ],
   "limits": {

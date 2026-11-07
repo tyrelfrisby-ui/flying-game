@@ -20,12 +20,17 @@ namespace FlyingGame.Bridge
     {
         /// <summary>Master volume 0..1 (menu slider, persisted).</summary>
         public static float MasterVolume = 1f;
+        /// <summary>LOCAL 2-PLAYER: this aeroplane's share of the one mix (both engines are heard through the one
+        /// listener; LocalCoop lowers each a little so the two together are not louder than one was). 1 = as always.</summary>
+        public float MixGain = 1f;
 #if UNITY_IOS && !UNITY_EDITOR
         [System.Runtime.InteropServices.DllImport("__Internal")] private static extern void FlyingGame_SetPlaybackAudioSession();
 #endif
 
         private const string PrefKey = "audio.masterVolume";
         private const float EngineMix = 0.55f, WindMix = 1f, FxMix = 0.8f;
+        /// <summary>Blade strikes are ground contact: they ride the ground bus (GroundSoundMix, Ty 2026-11-05 −4 dB).</summary>
+        private static float PropStrikeMix => FlyingGame.Core.GroundSoundMix.OutputGain;
         private const float GroanHoldS = 0.2f;   // StructuralGroan is per-frame; hold bridges frame gaps
 
         private FlightSimDriver _driver;
@@ -39,6 +44,9 @@ namespace FlyingGame.Bridge
         private readonly int[] _chirpSeenUs = new int[2];      // audio thread
         private readonly float[] _chirpNewS = new float[2];    // audio thread
         private readonly double[] _chirpTotalS = new double[2]; // main thread
+        private readonly int[] _scrubSeenUs = new int[2];      // audio thread
+        private readonly float[] _scrubNewS = new float[2];    // audio thread
+        private readonly double[] _scrubTotalS = new double[2]; // main thread
         private readonly double[] _thumpTotalJ = new double[2]; // main thread
         private readonly int[] _popTotal = new int[2];          // main thread
         private readonly int[] _thumpSeenMj = new int[2], _popSeen = new int[2];   // audio thread
@@ -46,11 +54,15 @@ namespace FlyingGame.Bridge
         private readonly int[] _popsNew = new int[2];
         private OneShotSynth _fx;
         private volatile CrashSoundMixer _crashes;
+        private volatile PropStrikeMixer _propStrikes;
+        private FlyingGame.Sim.Aircraft _strikeWatched;
+        private double _strikeBatchSim = double.NaN;   // sim time of the first blade strike delivered this frame
         private CrashWaterVisuals _crashVisuals;
         private volatile EngineSynth _engine;
         private volatile bool _ready;
         private float _fs;
         private float _gain;                 // audio-thread smoothed master gain
+        private float _shakePh;              // audio thread: the bent prop's once-a-revolution throb
         private float _gainA;
         private float _groanSeverity, _groanHold;
         private float _savedMaster;
@@ -166,6 +178,7 @@ namespace FlyingGame.Bridge
             _tyres = new TyreBrakeSynth(_fs);
             _fx = new OneShotSynth(_fs);
             _crashes = new CrashSoundMixer(_fs);
+            _propStrikes = new PropStrikeMixer(_fs);
             _crashVisuals = gameObject.AddComponent<CrashWaterVisuals>();
             RebuildEngine();
             PushTelemetry();
@@ -206,6 +219,7 @@ namespace FlyingGame.Bridge
         {
             FlyingGame.Core.CrashEvents.Impact -= OnCrashImpact;
             FlyingGame.Core.CrashEvents.Flood -= OnFlood;
+            WatchStrikes(null);
             _delayed.Clear();
             _ready = false;
             if (_crashVisuals != null) _crashVisuals.enabled = false;
@@ -242,6 +256,7 @@ namespace FlyingGame.Bridge
             _delayed.Clear();
             _waterImpactTimes.Clear();
             if (_crashes != null) _crashes = new CrashSoundMixer(_fs);
+            if (_propStrikes != null) _propStrikes = new PropStrikeMixer(_fs);
             if (_crashVisuals != null) _crashVisuals.ClearAll();
         }
 
@@ -278,6 +293,46 @@ namespace FlyingGame.Bridge
             if (!Mathf.Approximately(_savedMaster, MasterVolume) && Time.frameCount % 120 == 0) SaveMaster();
         }
 
+        private void LateUpdate()
+        {
+            // Whatever aeroplane is flying now; the next frame's blade strikes are timed from the first of them.
+            WatchStrikes(_driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null);
+            _strikeBatchSim = double.NaN;
+        }
+
+        private void WatchStrikes(FlyingGame.Sim.Aircraft ac)
+        {
+            if (ReferenceEquals(ac, _strikeWatched)) return;
+            if (_strikeWatched != null) _strikeWatched.Contact -= OnBladeContact;
+            _strikeWatched = ac;
+            if (ac != null) ac.Contact += OnBladeContact;
+        }
+
+        /// <summary>One blade through the ground or the water (Aircraft.PropStrike, Ty 2026-11-05 9:04 "accurate sounds on both
+        /// the ground and water too per blade strike"), or a blade breaking up. The sim steps several times a frame and a
+        /// prop chewing the ground meets it blades × rpm times a second (60-90 a second), so each strike keeps its own
+        /// instant: it is delayed from the first strike of this frame by the sim time between them, in whole samples
+        /// (PropStrikeMixer), and by the speed of sound once the pilot is out.</summary>
+        private void OnBladeContact(FlyingGame.Core.ContactEvent e)
+        {
+            if (_propStrikes == null) return;
+            PropStrikeKind kind;
+            bool water = e.SurfaceCode == FlyingGame.Core.ContactPoint.SurfaceWater;
+            if (e.Kind == FlyingGame.Core.ContactEventKind.PropBladeStrike)
+                kind = water ? PropStrikeKind.Water
+                    : e.Material == FlyingGame.Core.PropMaterial.Wood ? PropStrikeKind.WoodGround
+                    : e.Material == FlyingGame.Core.PropMaterial.Composite ? PropStrikeKind.CompositeGround : PropStrikeKind.MetalGround;
+            else if (e.Kind == FlyingGame.Core.ContactEventKind.PropBladeBroken)
+                kind = e.Material == FlyingGame.Core.PropMaterial.Wood ? PropStrikeKind.WoodSplinter : PropStrikeKind.CompositeFray;
+            else return;
+            if (double.IsNaN(_strikeBatchSim)) _strikeBatchSim = e.TimeSec;
+            float delay = Mathf.Max(0f, (float)(e.TimeSec - _strikeBatchSim));
+            float d = ListenerDistanceM;
+            float tip = e.Kind == FlyingGame.Core.ContactEventKind.PropBladeStrike ? (float)e.Intensity : 150f;
+            float depth = e.Kind == FlyingGame.Core.ContactEventKind.PropBladeStrike ? (float)e.Value : 0.02f;
+            _propStrikes.Strike(kind, tip, depth, DistanceGain(d), delay + d / SpeedOfSoundMs);
+        }
+
         private void PushTelemetry()
         {
             FlightSimDriver d = _driver;
@@ -290,7 +345,12 @@ namespace FlyingGame.Bridge
             bool running = aircraft == null || aircraft.EngineRunning;
             _tele.Throttle01 = aircraft != null ? (float)aircraft.ShaftPower01 : (float)d.Throttle01;
             _tele.EngineRpm = running ? (float)d.EngineRpm : 0f;
+            _tele.PropShakeG = aircraft != null ? (float)aircraft.PropVibrationG() : 0f;
+            _tele.PropShakeHz = aircraft != null ? (float)aircraft.PropVibrationHz : 0f;
             _tele.Spoiler01 = aircraft != null ? (float)aircraft.CurrentDeflections.SpoilerFraction : 0f;
+            var spoilerCfg = aircraft?.Config?.Controls?.Spoiler;
+            _tele.SpoilerRoar = spoilerCfg != null ? (float)spoilerCfg.SoundLevel : 1f;
+            _tele.SpoilerRumble = spoilerCfg != null ? (float)spoilerCfg.SoundRumble : 0f;
             _tele.OnGround = d.OnGround;
             _tele.TurbulenceLevel = SessionSettings.TurbulenceLevel;
             _tele.WindSpeedMs = SessionSettings.WindSpeedMs;
@@ -303,7 +363,7 @@ namespace FlyingGame.Bridge
             }
             _tele.GroanSeverity = _groanSeverity;
             PushGroundSound(aircraft);
-            _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume);
+            _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume) * MixGain;
             // Pilot out: his own airspeed is the wind in his ears; the aircraft's engine, tyres and crashes fade with distance.
             bool pilotOut = _egress != null && _egress.PilotTransform != null && (SessionSettings.ReplayActive ? FlightReplay.ReplayPilotOut : _egress.PilotOut);
             _tele.PilotOut = pilotOut;
@@ -313,7 +373,7 @@ namespace FlyingGame.Bridge
             // is (Core Vr.CockpitWind). What a SHUT canopy lets through is already in the wind above; only the excess is added.
             _visual ??= GetComponent<AirframeVisual>();
             float air = 0f;
-            if (!pilotOut && _visual != null && ChaseCamera.InCockpit)
+            if (!pilotOut && _visual != null && LocalPlayerView.InCockpitFor(d))
             {
                 double q = 0.5 * 1.225 * d.IasMs * d.IasMs, e = _visual.Cockpit.CockpitExposure01;
                 air = (float)(FlyingGame.Core.Vr.CockpitWind.Amplitude(q, e) - FlyingGame.Core.Vr.CockpitWind.Amplitude(q, 0.0));
@@ -357,10 +417,18 @@ namespace FlyingGame.Bridge
                 _tele.WhirHz[s] = m.WhirHz[s]; _tele.WhirGain[s] = m.WhirGain[s];
                 _chirpTotalS[s] += m.ChirpSeconds[s];
                 System.Threading.Volatile.Write(ref _tele.ChirpTotalUs[s], (int)(_chirpTotalS[s] * 1e6 % int.MaxValue));
-                if (m.ChirpSeconds[s] > 0f) { _tele.ChirpGain[s] = m.ChirpGain[s]; _tele.ChirpSlip[s] = m.ChirpSlip[s]; }
+                if (m.ChirpSeconds[s] > 0f) { _tele.ChirpGain[s] = m.ChirpGain[s]; _tele.ChirpHz[s] = m.ChirpHz[s]; }
+                _scrubTotalS[s] += m.ScrubSeconds[s];
+                System.Threading.Volatile.Write(ref _tele.ScrubTotalUs[s], (int)(_scrubTotalS[s] * 1e6 % int.MaxValue));
+                if (m.ScrubSeconds[s] > 0f) { _tele.ScrubGain[s] = m.ScrubLevel[s]; _tele.ScrubHz[s] = m.ScrubCentreHz[s]; }
                 _tele.ScrapeGain[s] = m.ScrapeGain[s]; _tele.ScrapeHz[s] = m.ScrapeHz[s];
                 _tele.SquealGain[s] = m.SquealGain[s]; _tele.SquealHz[s] = m.SquealHz[s];
                 _thumpTotalJ[s] += m.ThumpJ[s];
+                // Felt as well as heard (2026-11-05, flat spots): in a headset each thump is a short knock in the
+                // controller on that side, as loud as the sound's (√ of the work against the reference). The phone
+                // has no haptics path; there the bump is the aeroplane's own pitch and bounce.
+                if (m.ThumpJ[s] > 0f && XrHeadset.Active)
+                    XrHandInput.Tick(s == 0, Mathf.Clamp01(0.5f * Mathf.Sqrt(m.ThumpJ[s] / (float)FlyingGame.Core.GroundSoundMix.ThumpRefJ)), 0.03f);
                 System.Threading.Volatile.Write(ref _tele.ThumpTotalMj[s], (int)(_thumpTotalJ[s] * 1e3 % int.MaxValue));
                 _popTotal[s] += m.Pops[s];
                 System.Threading.Volatile.Write(ref _tele.PopTotal[s], _popTotal[s]);
@@ -382,11 +450,13 @@ namespace FlyingGame.Bridge
             int frames = data.Length / channels;
             AudioTelemetry t = _tele;
             float ias = t.IasMs, thr = t.Throttle01, rpm = t.EngineRpm;
+            float shakeHz = t.PropShakeHz, shakeDepth = shakeHz > 1f ? (float)FlyingGame.Core.PropBladeDamage.Felt01(t.PropShakeG) * 0.6f : 0f;
             float masterTarget = t.MasterGain;
             EngineSynth engine = _engine;
             bool powered = engine != null;
 
             float acGain = t.AircraftGain;
+            _wind.SetSpoilerVoice(t.SpoilerRoar, t.SpoilerRumble);
             _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered && !t.PilotOut, t.CockpitAir);
             _fx.Prepare(ias, t.GroanSeverity, acGain);
             _surface.Prepare(t.RollVoiceLR, t.RollVoicePitch, t.RollSpeedMs);
@@ -396,6 +466,10 @@ namespace FlyingGame.Bridge
                 int d = total - _chirpSeenUs[s];
                 _chirpSeenUs[s] = total;
                 _chirpNewS[s] = d > 0 && d < 1000000 ? d * 1e-6f : 0f;
+                int sc = System.Threading.Volatile.Read(ref t.ScrubTotalUs[s]);
+                int dsc = sc - _scrubSeenUs[s];
+                _scrubSeenUs[s] = sc;
+                _scrubNewS[s] = dsc > 0 && dsc < 1000000 ? dsc * 1e-6f : 0f;
                 int th = System.Threading.Volatile.Read(ref t.ThumpTotalMj[s]);
                 int dth = th - _thumpSeenMj[s];
                 _thumpSeenMj[s] = th;
@@ -404,11 +478,13 @@ namespace FlyingGame.Bridge
                 _popsNew[s] = pops - _popSeen[s] > 0 ? pops - _popSeen[s] : 0;
                 _popSeen[s] = pops;
             }
-            _tyres.Prepare(t.WhirHz, t.WhirGain, _chirpNewS, t.ChirpGain, t.ChirpSlip, t.ScrapeGain, t.ScrapeHz, t.SquealGain, t.SquealHz,
+            _tyres.Prepare(t.WhirHz, t.WhirGain, _chirpNewS, t.ChirpGain, t.ChirpHz, _scrubNewS, t.ScrubGain, t.ScrubHz, t.ScrapeGain, t.ScrapeHz, t.SquealGain, t.SquealHz,
                            t.WaterSplash, t.WaterHiss, t.Spray, t.SkiHiss, t.KeelScrape,
                            _thumpNewJ, _popsNew, t.FlapHz, t.FlapGain);
             CrashSoundMixer crashes = _crashes;
             crashes.Prepare();
+            PropStrikeMixer strikes = _propStrikes;
+            strikes?.Prepare();
             engine?.Prepare(rpm, thr);
 
             // Fully ducked and settled: emit silence without rendering.
@@ -416,7 +492,7 @@ namespace FlyingGame.Bridge
             {
                 _gain = 0f;
                 // Keep flood expiry and impact delays advancing while the menu mutes the output.
-                for (int f = 0; f < frames; f++) crashes.Next();
+                for (int f = 0; f < frames; f++) { crashes.Next(); strikes?.Next(); }
                 for (int i = 0; i < data.Length; i++) data[i] = 0f;
                 return;
             }
@@ -441,11 +517,21 @@ namespace FlyingGame.Bridge
 
                 _wind.Next(out float wl, out float wr);
                 _surface.Next(out float sl, out float sr);
-                _tyres.Next(out float tl, out float tr);
-                sl += tl; sr += tr;
+                _tyres.Next(out float tl, out float tr, out float ql, out float qr);
+                sl = (sl + tl) * FlyingGame.Core.GroundSoundMix.OutputGain + ql * FlyingGame.Core.GroundSoundMix.ScreechGain;   // ground bus −4 dB, screech unchanged
+                sr = (sr + tr) * FlyingGame.Core.GroundSoundMix.OutputGain + qr * FlyingGame.Core.GroundSoundMix.ScreechGain;
                 float el = 0f, er = 0f;
                 engine?.Next(out el, out er);
-                float fx = (_fx.Next() + crashes.Next()) * FxMix;
+                if (shakeDepth > 0f)
+                {
+                    // A bent prop (Aircraft.PropVibrationG): the engine note throbs once a revolution, with the airframe's
+                    // own low drone at that rate under it. Depth from how strongly the shake is felt (PropBladeDamage.Felt01).
+                    _shakePh = Dsp.Wrap01(_shakePh + shakeHz / _fs);
+                    float sw = Dsp.Sin01(_shakePh);
+                    el = el * (1f + shakeDepth * sw) + 0.12f * shakeDepth * sw;
+                    er = er * (1f + shakeDepth * sw) + 0.12f * shakeDepth * sw;
+                }
+                float fx = (_fx.Next() + crashes.Next() + (strikes != null ? strikes.Next() * PropStrikeMix : 0f)) * FxMix;
 
                 float l = Dsp.SoftClip((wl * WindMix + (el * EngineMix + sl) * acGain + fx + gun) * _gain);
                 float r = Dsp.SoftClip((wr * WindMix + (er * EngineMix + sr) * acGain + fx + gun) * _gain);

@@ -173,24 +173,9 @@ public static class CockpitLive
     private static readonly float[] White = { 0.95f, 0.95f, 0.92f };
     private static DialNeedle N(string param, double ang0, double[] p, double[] d, NeedleShape s = NeedleShape.Pointer, bool unbounded = false) =>
         new(param, ang0, p, d, s, White[0], White[1], White[2], unbounded);
-    private static DialNeedle Tell(string param, double ang0, double[] p, double[] d) =>
-        new(param, ang0, p, d, NeedleShape.TellTale, 0.95f, 0.55f, 0.15f);
 
-    public static LiveDial AirspeedKt => new("Airspeed", "ea-dial-asi", new[]
-        { N("airspeed_kias", 0, new[] { 0.0, 40.0, 260.0 }, new[] { 0.0, 25.0, 335.0 }) });
-    public static LiveDial AirspeedMph => new("Airspeed", "gl-dial-asi", new[]
-        { N("airspeed_mph", 0, new[] { 0.0, 40.0, 200.0 }, new[] { 0.0, 30.0, 330.0 }) });
-    public static LiveDial Altimeter => new("Altimeter", "ea-dial-alt", new[]
-    {
-        N("altitude_ft", 0, new[] { 0.0, 10000.0 }, new[] { 0.0, 360.0 }, NeedleShape.Hand, unbounded: true),
-        N("altitude_ft", 0, new[] { 0.0, 1000.0 }, new[] { 0.0, 360.0 }, NeedleShape.Pointer, unbounded: true),
-    });
-    public static LiveDial GMeter => new("G_meter", "ea-dial-g", new[]
-    {
-        Tell("g_max_seen", -90, new[] { 0.0, 10.0 }, new[] { 0.0, 120.0 }),
-        Tell("g_min_seen", -90, new[] { -10.0, 0.0 }, new[] { -120.0, 0.0 }),
-        N("g_load", -90, new[] { -10.0, 0.0, 10.0 }, new[] { -120.0, 0.0, 120.0 }),
-    });
+    // The airspeed indicator and altimeter that were here (EA / Great Lakes art for the Pitts) are the shared instrument
+    // library's since 2026-11-05: FlyingGame.Core.Instruments.InstrumentLibrary, placed by Bridge/SharedInstruments.
     public static LiveDial Tachometer => new("Tachometer", "ea-dial-tach", new[]
         { N("rpm", -150, new[] { 0.0, 3500.0 }, new[] { 0.0, 300.0 }) });
     /// <summary>The EA's oil gauge is one dial with two needles: pressure over the top, temperature under.</summary>
@@ -207,13 +192,6 @@ public static class CockpitLive
     /// under the fixed lubber line at 12 o'clock.</summary>
     public static LiveDial Compass => new("Compass", "live-compass-card", new[]
         { DialNeedle.Fixed(0.0, NeedleShape.Lubber, 1f, 0.55f, 0.1f) }, "heading_deg", -1.0);
-    /// <summary>Bank only: the horizon card turns opposite the bank so it stays level with the real one. (The
-    /// pitch ladder would need the card to slide too; the face is a disc on fixed UVs and cannot.)</summary>
-    public static LiveDial AttitudeBank => new("Attitude", "live-attitude", new[]
-    {
-        DialNeedle.Fixed(0.0, NeedleShape.Lubber, 1f, 0.6f, 0.1f),    // the bank index the card's marks pass under
-        DialNeedle.Fixed(90.0, NeedleShape.Bar, 1f, 0.6f, 0.1f),      // the miniature aeroplane
-    }, "bank_deg", -1.0);
 
     // ---- the models ----
 
@@ -226,12 +204,11 @@ public static class CockpitLive
     /// nothing, and left every part static on the headset; CockpitLiveParts now reads them all.</summary>
     public static CockpitLiveSpec Pitts() => new()
     {
+        // The airspeed indicators, altimeters and g-meters are the shared library's (Instruments.InstrumentLibrary.Pitts, Bridge
+        // SharedInstruments), placed over these faces; what is left here are the instruments the library has not got yet.
         Dials = new[]
         {
-            AirspeedMph, Altimeter, GMeter, Tachometer, Oil("Oil_pressure"),
-            new LiveDial("Airspeed", AirspeedMph.Art, AirspeedMph.Needles, facePrefix: "FrontPanel_"),
-            new LiveDial("Altimeter", Altimeter.Art, Altimeter.Needles, facePrefix: "FrontPanel_"),
-            new LiveDial("G_meter", GMeter.Art, GMeter.Needles, facePrefix: "FrontPanel_"),
+            Tachometer, Oil("Oil_pressure"),
             new LiveDial("Tachometer", Tachometer.Art, Tachometer.Needles, facePrefix: "FrontPanel_"),
             // The slot rear_panel.py labelled "oil temperature": the oil dial beside it already shows both oil
             // needles, so this one carries manifold pressure, the engine reading a constant-speed Pitts flies by.

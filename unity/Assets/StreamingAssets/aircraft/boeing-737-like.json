@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "boeing-737-like",
   "displayName": "737-like Airliner",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Boeing 737: 2024/7075 aluminium semi-monocoque fuselage.",
   "spawnIasMs": 130,
   "mass": {
     "massKg": 65000,
@@ -1969,8 +1971,7 @@
       "maxSteerRad": 1.2,
       "tireMu": 0.8,
       "corneringStiffnessN": 40000,
-      "wheelMassKg": 70,
-      "tireRadiusM": 0.343
+      "tire": "legacy-737-nose", "tirePressurePsi": 190
     },
     {
       "pos": [
@@ -1986,8 +1987,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 80000,
-      "wheelMassKg": 380,
-      "tireRadiusM": 0.55
+      "tire": "legacy-737-main", "tirePressurePsi": 205
     },
     {
       "pos": [
@@ -2003,8 +2003,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 80000,
-      "wheelMassKg": 380,
-      "tireRadiusM": 0.55
+      "tire": "legacy-737-main", "tirePressurePsi": 205
     }
   ],
   "limits": {

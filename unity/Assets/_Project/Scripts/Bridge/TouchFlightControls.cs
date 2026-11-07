@@ -99,6 +99,13 @@ namespace FlyingGame.Bridge
         /// The buttons (Reset, Aircraft, Flaps, Gear, Smoke, Tow, Bail, Fire, Eject, Look) stay.
         /// </summary>
         public static bool TouchSticksHidden => !DeskMode && !FlyingGame.Core.GamepadShaping.TouchSticksShown(DeskMode, GamepadInput.Now.Connected);
+
+        /// <summary>LOCAL 2-PLAYER: the tray is drawn AND hit-tested, or neither (<see cref="FlyingGame.Core.LocalMp.SplitControls"/>).
+        /// Off while the compact split HUD is up and P1 has a pad: the single-player tray spans both halves, and an
+        /// invisible RESET / BAIL / FIRE on P2's half would be P1's buttons under P2's thumb. P1 then flies the pad (A fires,
+        /// Menu opens OPTIONS) and RESET / the handle are on the toolbar's FLIGHT panel (ViewPanel), one column per player.
+        /// Always true outside split screen.</summary>
+        public static bool TrayLive => FlyingGame.Core.LocalMp.SplitControls.TouchTrayLive(LocalPlayerHud.CompactActive, GamepadInput.Now.Connected);
         private bool _touchSticksWereHidden;
         private Rect _eleStrip, _thrStrip; private float _stripY;
 
@@ -225,7 +232,8 @@ namespace FlyingGame.Bridge
                 _leftFinger = _rightFinger = _trimFinger = _ailTrimFinger = _rudTrimFinger = _fireFinger = _ejectFinger = int.MinValue;
                 _ejectHold = 0f; _lookFinger = int.MinValue; _lookDir = 0;
             }
-            else ReadPointers();
+            else if (TrayLive) ReadPointers();
+            else PadOnly();
             if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
             GamepadFlight();
             QuestInput();   // last: in the headset the Touch controllers and the hands own the controls they move
@@ -711,6 +719,25 @@ namespace FlyingGame.Bridge
             // Hand the held direction to CockpitView, which runs the same tap-vs-pan window a stick's hat runs
             // through. Zero every frame no finger is down, or the head would keep turning after the lift.
             if (_cockpit != null) _cockpit.OnScreenHat = new Vector2Int(_lookFinger != int.MinValue ? _lookDir : 0, 0);
+            FireEjectAndTaps();
+        }
+
+        /// <summary>Split screen with the tray off (<see cref="TrayLive"/>): no touch reaches a tray control — every finger is
+        /// let go, as when a menu opens — but the pad's FIRE, a pending eject hold's cancel and the queued taps (keyboard,
+        /// joystick, gamepad flaps / gear) still run.</summary>
+        private void PadOnly()
+        {
+            _brakeHeld = false;
+            if (_leftFinger != int.MinValue) ReleaseLeft();
+            if (_rightFinger != int.MinValue) ReleaseRight();
+            _trimFinger = _ailTrimFinger = _rudTrimFinger = _fireFinger = _ejectFinger = int.MinValue;
+            _ejectHold = 0f; _lookFinger = int.MinValue; _lookDir = 0;
+            if (_cockpit != null) _cockpit.OnScreenHat = Vector2Int.zero;
+            FireEjectAndTaps();
+        }
+
+        private void FireEjectAndTaps()
+        {
             _combat ??= GetComponent<CombatController>();
             // Fire: the on-screen button, the space bar, or a game controller's A / right shoulder (MFi / PlayStation /
             // Xbox over Bluetooth — the phone's own volume, Action and Camera Control buttons are reserved by iOS for
@@ -844,7 +871,12 @@ namespace FlyingGame.Bridge
             if (hidden != _touchSticksWereHidden)
                 Debug.Log(hidden ? "[Touch] gamepad connected: touch sticks hidden" : "[Touch] no gamepad: touch sticks shown");
             _touchSticksWereHidden = hidden;
+            bool live = TrayLive;
+            if (live != _trayWasLive)
+                Debug.Log(live ? "[Touch] tray live (drawn and hit-tested)" : "[Touch] split screen, P1 on a pad: tray off, drawing and hit areas together; RESET / handle on the FLIGHT panel");
+            _trayWasLive = live;
         }
+        private bool _trayWasLive = true;
 
         private void ReleaseLeft()
         {
@@ -897,6 +929,7 @@ namespace FlyingGame.Bridge
 
             if (Input.GetKey(KeyCode.B)) _brakeHeld = true;
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
+            if (Input.GetKeyDown(KeyCode.E) && MenuHandleAvailable) MenuPullHandle();   // the handle: bail out (eject / BRS where fitted) — one press (Ty 2026-11-05)
             for (int i = 0; i < Fleet.Length && i < 10; i++)
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1 + i)) _driver.SwitchAircraft(Fleet[i]);
@@ -1094,6 +1127,25 @@ namespace FlyingGame.Bridge
             ActOnTaps();
         }
 
+        /// <summary>True when a touch that begins at <paramref name="p"/> (screen pixels, y up) belongs to one of the glass
+        /// controls — a button, a trim slider, a stick pad or strip — so the cockpit's own tap targets (CockpitTaps: the
+        /// card, the altimeter, the g-meter) leave it alone. The same tests, in the same order, as the touch loop.</summary>
+        public bool IsControlAt(Vector2 p)
+        {
+            if (ViewPanel.BlocksTouch(p)) return true;
+            if (!TrayLive) return false;   // split screen, tray off: none of its rects is a control
+            if (EjectAvailable && _ejectRect.Contains(p)) return true;
+            if (FireAvailable && _fireRect.Contains(p)) return true;
+            if (BailAvailable && _bailRect.Contains(p)) return true;
+            if (_resetRect.Contains(p) || _acftRect.Contains(p) || _brakeRect.Contains(p) || _gearRect.Contains(p) || _camRefRect.Contains(p) || _towRect.Contains(p)) return true;
+            if (SmokeAvailable && _smokeRect.Contains(p)) return true;
+            if (LookAvailable && (_lookCentreRect.Contains(p) || _lookLeftRect.Contains(p) || _lookRightRect.Contains(p))) return true;
+            if (DeskMode || TouchSticksHidden) return false;
+            if (_trimRect.Contains(p) || _ailTrimRect.Contains(p) || _rudTrimRect.Contains(p)) return true;
+            if (StripMode) return _eleStrip.Contains(p) || ((StripThrottle || StripBrakes) && _thrStrip.Contains(p));
+            return NearPad(p, _leftCenter) || NearPad(p, _rightCenter);
+        }
+
         // The VR menu's handles on the buttons a pilot would otherwise tap on the glass.
         public void MenuReset() => DoReset();
         public bool MenuHandleAvailable => EjectAvailable || BailAvailable;
@@ -1146,6 +1198,7 @@ namespace FlyingGame.Bridge
             _rudder = _aileron = _elevator = 0f;
             _leftFinger = _rightFinger = _trimFinger = int.MinValue;
             _rightKnob = _rightCenter;
+            if (LocalSplit.Active) LocalCoop.MarkP1OwnReset();   // P1's RESET is P1's flight only: the second player flies on
             _driver.ResetFlight(); // fires AircraftChanged → PresetTrim
         }
 
@@ -1164,6 +1217,7 @@ namespace FlyingGame.Bridge
             // switch VR back off.
             if (VrMode.SuppressFlatOverlays) return;
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) return;   // the replay bar owns the tray
+            if (!TrayLive) return;   // split screen: the tray is off as a whole, drawing and hit areas together
             EnsureStyles();
 
             // Portrait: opaque tray under the controls. The camera only clears its own (upper) viewport,
@@ -1335,7 +1389,7 @@ namespace FlyingGame.Bridge
         private ChaseCamera _joyChase;
 
         /// <summary>Keyboard: arrows = stick (Up = nose down, realistic), A/D = rudder, W/S = throttle, =/- pitch trim,
-        /// F flaps, L gear, B brakes, Space fire. Joystick (any connected): X/Y = stick, twist/4th axis = rudder, 3rd axis
+        /// F flaps, L gear, B brakes, E bail out (the handle), Space fire. Joystick (any connected): X/Y = stick, twist/4th axis = rudder, 3rd axis
         /// = throttle. Released keys ramp the stick home — and on a reversible aircraft the controls then go free.</summary>
         private void DeskInput()
         {
@@ -1386,6 +1440,7 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.F)) { _deskFlapStep = (_deskFlapStep + 1) % 3; _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
             if (Input.GetKeyDown(KeyCode.L)) _tapped.Add(Btn.Gear);
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
+            if (Input.GetKeyDown(KeyCode.E) && MenuHandleAvailable) MenuPullHandle();   // the handle, one press
             _leftKnob = IdleLeftKnob();
         }
 
@@ -1406,7 +1461,7 @@ namespace FlyingGame.Bridge
             if (JoystickInput.Held("trimDown")) _pitchTrim = Mathf.Clamp(_pitchTrim + 0.5f * dt, -1f, 1f);
             if (jp.RudderTrim.Set) { float rt = jp.RudderTrim.Value(); _rudderTrim = Mathf.Clamp(_rudderTrim + rt * Mathf.Abs(rt) * 0.083f * dt, -1f, 1f); }   // the rocker runs the rudder trim, progressive and slow (∝ deflection², centre → full ~12 s); it stays
             if (JoystickInput.Pressed("reset")) DoReset();
-            if (JoystickInput.Pressed("view")) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
+            if (JoystickInput.Pressed("view")) (LocalSplit.Active ? LocalPlayerView.ChaseFor(_driver) : (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>()))?.NextView();
             if (JoystickInput.Pressed("smoke") && SmokeAvailable) _smoke.Toggle();
             if (JoystickInput.Pressed("apDisconnect")) Object.FindFirstObjectByType<Widget.GameAeroHost>()?.Autopilot?.Off(disconnect: true);
             if (JoystickInput.Pressed("pause")) Object.FindFirstObjectByType<FlightReplay>()?.Enter();
@@ -1499,7 +1554,7 @@ namespace FlyingGame.Bridge
                 _deskFlapStep = Mathf.Clamp(at + (gp.FlapsDownPressed ? 1 : -1), 0, 2); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps);
             }
             if (gp.SmokePressed && SmokeAvailable) _smoke.Toggle();
-            if (gp.ViewPressed) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
+            if (gp.ViewPressed) (LocalSplit.Active ? LocalPlayerView.ChaseFor(_driver) : (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>()))?.NextView();
         }
 
         private static float SafeAxis(string name)

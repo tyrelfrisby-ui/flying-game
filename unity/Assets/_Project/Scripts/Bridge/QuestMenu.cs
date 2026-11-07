@@ -64,6 +64,8 @@ namespace FlyingGame.Bridge
             public bool PedalPage;
             /// <summary>One of the W&amp;B launch confirmation's rows, the only ones shown while it is up.</summary>
             public bool Confirm;
+            /// <summary>A name to open the menu ON this row (<see cref="OpenAt"/>), or null.</summary>
+            public string Key;
             public TextMesh Text;
         }
 
@@ -77,6 +79,8 @@ namespace FlyingGame.Bridge
         private TextMesh _title, _hint;
         private bool _open, _built, _pedalPage;
         private int _sel, _openedFrame;
+        private string _pendingKey;
+        private string _cardsNote = "";
         private float _navHeld, _cycleHeld;
         private bool _prevTrig, _prevA, _prevX, _prevB, _prevY, _prevPinch;
         private float _confirmUntil;
@@ -258,6 +262,14 @@ namespace FlyingGame.Bridge
                 d => CycleSetting(Flow.UnitItems(), d, SetUnits), () => OnLanding);
             AddRow(() => WeightLine(), null, visible: () => OnLanding && Flow.WeightBalance != null);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
+            // MULTIPLAYER (Ty 2026-11-05: two Quest users on the same Wi-Fi, each in their own headset): Solo or the
+            // "Same network" room, the one the phones, iPads and Macs join from their landing page (LanMesh: no
+            // server, no internet, nothing billed). Each headset flies its own aeroplane with its own full view; the
+            // others are drawn as they fly. Takes effect on FLY / restart. In flight the next row says who is there.
+            AddRow(() => $"Multiplayer:  {MultiplayerName()}" + (!OnLanding && Session != null && Session.Active != (SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo) ? "   (restart to join)" : ""),
+                () => CycleMultiplayer(1), CycleMultiplayer);
+            AddRow(() => $"   {Session?.StatusLine ?? "Same network: starting"}", null,
+                visible: () => !OnLanding && Session != null && Session.Active);
             AddRow(() => $"Seat:  {(OnLanding && Flow.Seats.FirstOrDefault(x => x.Occupant == Occupant.Me) is SeatRow me ? me.Label : SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId)))}",
                 () => CycleSeat(1), CycleSeat, () => SeatsOf(SeatAircraftId).Count > 1);
             // VIEWS (Ty 2026-11-04: "no views are available except 'outside' which is actually cockpit"). The row used to
@@ -276,6 +288,15 @@ namespace FlyingGame.Bridge
             AddRow(() => $"Stick expo:  {StickExpo() * 100:0} %" + (SessionSettings.FeelExpo[0] < 0f ? "  (default)" : "") + "   < >",
                 () => SetStickExpo(-1f), d => SetStickExpo(Mathf.Clamp(Mathf.Round(StickExpo() * 20f + d) / 20f, 0f, 0.9f)));
             AddRow(() => $"Gamepad:  {XrControllers.GamepadLine}", null);
+            // THE COCKPIT'S OWN (Ty 2026-11-05): the IAC card (poke the card itself to go to the next), the cards copied into
+            // the headset's inbox, and the altimeter's Kollsman setting (< > a hundredth; select = field elevation / zero).
+            AddRow(() => $"IAC card:  {Short(SequenceCardLibrary.Current.LabelAscii, 30)}   < >", () => SequenceCardLibrary.Next(),
+                d => { if (d > 0) SequenceCardLibrary.Next(); else SequenceCardLibrary.Previous(); }, key: "card");
+            AddRow(() => "Import cards from the inbox" + (_cardsNote.Length > 0 ? $"   ({Short(_cardsNote, 26)})" : ""),
+                () => { SequenceCardLibrary.ImportInbox(out _cardsNote); Debug.Log("[SequenceCard] inbox: " + _cardsNote); });
+            AddRow(() => $"Remove this card ({Short(SequenceCardLibrary.Current.Title, 22)})", () => SequenceCardLibrary.Remove(SequenceCardLibrary.Current.Id),
+                visible: () => SequenceCardLibrary.Current.IsUser);
+            AddRow(AltimeterLabel, AltimeterSelect, d => FlyingCockpit?.Altimeter.Step(d), visible: () => !OnLanding && FlyingCockpit != null, key: "altimeter");
             // Starting a recording from the menu in flight closes it, so the film starts on the flying, not on
             // the menu; stopping leaves it open. A + B held does the same from the air (QuestRecordChord).
             AddRow(() => QuestRecorder.MenuLabel, () =>
@@ -310,8 +331,8 @@ namespace FlyingGame.Bridge
             _laser.receiveShadows = false;
         }
 
-        private void AddRow(System.Func<string> label, System.Action activate, System.Action<int> cycle = null, System.Func<bool> visible = null, bool pedalPage = false, bool confirm = false) =>
-            _rows.Add(new Row { Label = label, Activate = activate, Cycle = cycle, Visible = visible ?? (() => true), PedalPage = pedalPage, Confirm = confirm });
+        private void AddRow(System.Func<string> label, System.Action activate, System.Action<int> cycle = null, System.Func<bool> visible = null, bool pedalPage = false, bool confirm = false, string key = null) =>
+            _rows.Add(new Row { Label = label, Activate = activate, Cycle = cycle, Visible = visible ?? (() => true), PedalPage = pedalPage, Confirm = confirm, Key = key });
 
         // ---- the W&B launch confirmation (Ty t881u / t882u), the same question the flat page asks ----
 
@@ -332,6 +353,34 @@ namespace FlyingGame.Bridge
                 catch (System.Exception e) { Debug.LogError($"[Quest] FLY: the flight did not start: {e}"); }
                 FinishFly();
             }, confirm: true);
+        }
+
+        /// <summary>Open the menu with the row named <paramref name="key"/> selected: a poke on the altimeter opens it on the
+        /// altimeter row (CockpitTaps), the headset's stand-in for the glass's Kollsman popup.</summary>
+        public void OpenAt(QuestRig rig, string key)
+        {
+            if (!_open) Open(rig, "poke " + key);
+            _pedalPage = false;
+            _pendingKey = key;
+        }
+
+        private CockpitRigState FlyingCockpit => Driver != null ? Driver.GetComponent<AirframeVisual>()?.Cockpit : null;
+
+        private string AltimeterLabel()
+        {
+            CockpitRigState c = FlyingCockpit;
+            if (c == null) return "Altimeter:  -";
+            var a = c.Altimeter;
+            return $"Altimeter:  {FlyingGame.Core.Instruments.KollsmanAltimeter.Window(a.InHg)} inHg   reads {a.IndicatedFt(c.StaticPa):N0} ft   < >";
+        }
+
+        /// <summary>Select: field elevation, then zero, then field elevation again (each press).</summary>
+        private void AltimeterSelect()
+        {
+            CockpitRigState c = FlyingCockpit;
+            if (c == null) return;
+            bool atField = System.Math.Abs(c.Altimeter.IndicatedFt(c.StaticPa) - c.TrueAltitudeFt) < 15.0;
+            if (atField) c.SetAltimeterToRead(0.0); else c.SetAltimeterToRead(c.TrueAltitudeFt);
         }
 
         // ---- the rudder pedals page ----
@@ -411,6 +460,12 @@ namespace FlyingGame.Bridge
                 bool v = r.PedalPage == _pedalPage && r.Confirm == Confirming && r.Visible();
                 r.Text.gameObject.SetActive(v);
                 if (v) _shown.Add(r);
+            }
+            if (_pendingKey != null)
+            {
+                int k = _shown.FindIndex(r => r.Key == _pendingKey);
+                if (k >= 0) _sel = k;
+                _pendingKey = null;
             }
             _sel = Mathf.Clamp(_sel, 0, Mathf.Max(0, _shown.Count - 1));
             float h = (_shown.Count + 2.6f) * RowHeight;
@@ -808,6 +863,25 @@ namespace FlyingGame.Bridge
             var fleet = HeadsetFleet;
             int i = System.Array.FindIndex(fleet, f => f.id == SessionSettings.AircraftId);
             SessionSettings.AircraftId = fleet[((i < 0 ? 0 : i) + step + fleet.Length) % fleet.Length].id;
+        }
+
+        private FlyingGame.Bridge.Net.NetSession _net;
+        private FlyingGame.Bridge.Net.NetSession Session => _net != null ? _net : Driver != null ? (_net = Driver.GetComponent<FlyingGame.Bridge.Net.NetSession>()) : null;
+
+        /// <summary>The headset offers Solo and the LAN room only: the online rooms are the relay's, chosen on a flat screen.</summary>
+        private static string MultiplayerName() => SessionSettings.Multiplayer switch
+        {
+            SessionSettings.MultiplayerMode.Solo => "Solo",
+            SessionSettings.MultiplayerMode.Lan => "Same network (Wi-Fi)",
+            SessionSettings.MultiplayerMode.FreeForAll => "Free-for-all (online)",
+            _ => "Room by code (online)",
+        };
+
+        private static void CycleMultiplayer(int step)
+        {
+            SessionSettings.Multiplayer = SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan
+                ? SessionSettings.MultiplayerMode.Solo : SessionSettings.MultiplayerMode.Lan;
+            Debug.Log($"[QuestInput] menu: Multiplayer {MultiplayerName()}");
         }
 
         private static string StartName()

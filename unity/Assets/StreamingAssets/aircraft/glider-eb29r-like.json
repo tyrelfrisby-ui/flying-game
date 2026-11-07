@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "glider-eb29r-like",
   "displayName": "EB29R-like Open Class",
+  "structureType": "composite",
+  "structureTypeSource": "Schempp-Hirth/Binder EB29R: carbon/aramid composite fuselage shell.",
   "spawnIasMs": 30,
   "mass": {
     "massKg": 700,
@@ -1823,7 +1825,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.19, "wheelMassKg": 6.0
+      "tire": "legacy-eb29r-main", "tirePressurePsi": 12.3
     },
     {
       "pos": [
@@ -1839,7 +1841,7 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 800,
-      "tireRadiusM": 0.105, "wheelMassKg": 1.0
+      "tire": "legacy-eb29r-tail", "tirePressurePsi": 12.3
     },
     {
       "pos": [

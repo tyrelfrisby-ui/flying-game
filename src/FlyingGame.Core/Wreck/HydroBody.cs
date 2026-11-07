@@ -20,11 +20,16 @@ public readonly struct WaterCoeffs
     public readonly Vec3 FlowMoment;
     /// <summary>Σ m_a,e·v_water,e along body x, y, z, kg·m/s: the momentum the entrained water had before the body took it up.</summary>
     public readonly Vec3 AddedMassFlow;
+    /// <summary>Added moment of inertia about body x, y, z, kg·m²: each element's added mass at its lever from the CG
+    /// (the same levers as <see cref="RotDamping"/>).</summary>
+    public readonly Vec3 AddedInertia;
     public WaterCoeffs(Vec3 addedMass, Vec3 damping, Vec3 rotDamping) : this(addedMass, damping, rotDamping, Vec3.Zero, Vec3.Zero, Vec3.Zero) { }
     public WaterCoeffs(Vec3 addedMass, Vec3 damping, Vec3 rotDamping, Vec3 flowForce, Vec3 flowMoment, Vec3 addedMassFlow)
+        : this(addedMass, damping, rotDamping, flowForce, flowMoment, addedMassFlow, Vec3.Zero) { }
+    public WaterCoeffs(Vec3 addedMass, Vec3 damping, Vec3 rotDamping, Vec3 flowForce, Vec3 flowMoment, Vec3 addedMassFlow, Vec3 addedInertia)
     {
         AddedMass = addedMass; Damping = damping; RotDamping = rotDamping;
-        FlowForce = flowForce; FlowMoment = flowMoment; AddedMassFlow = addedMassFlow;
+        FlowForce = flowForce; FlowMoment = flowMoment; AddedMassFlow = addedMassFlow; AddedInertia = addedInertia;
     }
     public static readonly WaterCoeffs None = new(Vec3.Zero, Vec3.Zero, Vec3.Zero);
 }
@@ -42,7 +47,9 @@ public readonly struct WaterCoeffs
 ///    added mass the way (m + m_a)·a = F says, and — when m_a grows because the body is entering the water — is
 ///    exactly von Kármán's (1929) momentum theory of water impact: the body's momentum is shared with the water it
 ///    sets moving, and that is the slam. When m_a shrinks (leaving the water) the water's momentum is not handed
-///    back, so the old m_a is used.
+///    back, so the old m_a is used. The rates are updated the same way about each body axis with the added inertia
+///    Σ m_a·r² (<see cref="WaterCoeffs.AddedInertia"/>, since 2026-11-05): a wing slapping the water because the body
+///    is rolling shares the roll's momentum with the water, just as one slapping it because the body is sinking does.
 ///
 /// MOVING WATER (<see cref="WaterCurrent"/>): every velocity above is the element's velocity THROUGH THE WATER. Drag is
 /// −C·(v − v_w), so a body left in a river is carried at the river's speed; water newly entrained starts at the current's
@@ -100,7 +107,7 @@ public static class HydroBody
     public static WaterCoeffs Coefficients(IReadOnlyList<HydroElement> els, Vec3 cgBody, RigidBodyState s, double waterUp, bool airDrag, in WaterCurrent.Local flow)
     {
         bool water = !double.IsNaN(waterUp);
-        double ma0 = 0, ma1 = 0, ma2 = 0, c0 = 0, c1 = 0, c2 = 0, d0 = 0, d1 = 0, d2 = 0;
+        double ma0 = 0, ma1 = 0, ma2 = 0, c0 = 0, c1 = 0, c2 = 0, d0 = 0, d1 = 0, d2 = 0, j0 = 0, j1 = 0, j2 = 0;
         double wMag = s.Rates.Length;
         bool moving = water && flow.Moving;
         Quat qi = s.Attitude.Conjugate();
@@ -135,14 +142,17 @@ public static class HydroBody
                 flowM += Vec3.Cross(rb, new Vec3(wx * (vc.X - vRef.X), wy * (vc.Y - vRef.Y), wz * (vc.Z - vRef.Z)));
                 amFlow += new Vec3(e.AddedMass(0) * sub * vc.X, e.AddedMass(1) * sub * vc.Y, e.AddedMass(2) * sub * vc.Z);
             }
-            ma0 += e.AddedMass(0) * sub; ma1 += e.AddedMass(1) * sub; ma2 += e.AddedMass(2) * sub;
+            double mx = e.AddedMass(0) * sub, my = e.AddedMass(1) * sub, mz = e.AddedMass(2) * sub;
+            ma0 += mx; ma1 += my; ma2 += mz;
             double hx = e.Half.X, hy = e.Half.Y, hz = e.Half.Z;
+            double lx = rb.X * rb.X + hx * hx / 3, ly = rb.Y * rb.Y + hy * hy / 3, lz = rb.Z * rb.Z + hz * hz / 3;
+            j0 += my * lz + mz * ly; j1 += mx * lz + mz * lx; j2 += mx * ly + my * lx;
             // About x: points move along y (lever z) and along z (lever y).
             d0 += (ay + ky * wMag * hz) * (rb.Z * rb.Z + hz * hz / 3) + (az + kz * wMag * hy) * (rb.Y * rb.Y + hy * hy / 3);
             d1 += (ax + kx * wMag * hz) * (rb.Z * rb.Z + hz * hz / 3) + (az + kz * wMag * hx) * (rb.X * rb.X + hx * hx / 3);
             d2 += (ax + kx * wMag * hy) * (rb.Y * rb.Y + hy * hy / 3) + (ay + ky * wMag * hx) * (rb.X * rb.X + hx * hx / 3);
         }
-        return new WaterCoeffs(new Vec3(ma0, ma1, ma2), new Vec3(c0, c1, c2), new Vec3(d0, d1, d2), flowF, flowM, amFlow);
+        return new WaterCoeffs(new Vec3(ma0, ma1, ma2), new Vec3(c0, c1, c2), new Vec3(d0, d1, d2), flowF, flowM, amFlow, new Vec3(j0, j1, j2));
     }
 
     /// <summary>The implicit drag / added-mass update after an RK4 step (see the class summary). Position is
@@ -165,11 +175,23 @@ public static class HydroBody
             Axis(vo.X, vr.X, oldC.AddedMass.X, newC.AddedMass.X, newC.Damping.X, newC.FlowForce.X, newC.AddedMassFlow.X),
             Axis(vo.Y, vr.Y, oldC.AddedMass.Y, newC.AddedMass.Y, newC.Damping.Y, newC.FlowForce.Y, newC.AddedMassFlow.Y),
             Axis(vo.Z, vr.Z, oldC.AddedMass.Z, newC.AddedMass.Z, newC.Damping.Z, newC.FlowForce.Z, newC.AddedMassFlow.Z));
-        Vec3 wr = after.Rates;
+        // The rotations carry their entrained water too (the rule FloatHydro.CorrectForAddedMass applies to the floats).
+        // Until 2026-11-05 they did not: a wing slapping the water because the airframe was ROLLING handed no momentum to
+        // the water here, yet WaterSlam.ElementForce, which loads the joints and the panels, charged that wing the whole
+        // slam of its ω × r. A J-3 floating inverted at 0.2 m/s and rocking 43°/s read 67 kN·m on its 28 kN·m wing root
+        // with the airframe barely slowed (Ty 2026-11-05 13:56, the ailerons lost after a soft nose-over). Now the slam
+        // that loads the wing also slows the roll that drove it.
+        double Spin(double wOld, double wRk, double i, double jOld, double jNew, double d, double flowM)
+        {
+            double iOld = i + jOld, iNew = i + jNew;
+            double l = (iNew >= iOld ? iOld : iNew) * wOld + i * (wRk - wOld) + dt * flowM;
+            return l / (iNew + dt * d);
+        }
+        Vec3 wo = before.Rates, wr = after.Rates;
         var w = new Vec3(
-            (wr.X * inertia.X + dt * newC.FlowMoment.X) / (inertia.X + dt * newC.RotDamping.X),
-            (wr.Y * inertia.Y + dt * newC.FlowMoment.Y) / (inertia.Y + dt * newC.RotDamping.Y),
-            (wr.Z * inertia.Z + dt * newC.FlowMoment.Z) / (inertia.Z + dt * newC.RotDamping.Z));
+            Spin(wo.X, wr.X, inertia.X, oldC.AddedInertia.X, newC.AddedInertia.X, newC.RotDamping.X, newC.FlowMoment.X),
+            Spin(wo.Y, wr.Y, inertia.Y, oldC.AddedInertia.Y, newC.AddedInertia.Y, newC.RotDamping.Y, newC.FlowMoment.Y),
+            Spin(wo.Z, wr.Z, inertia.Z, oldC.AddedInertia.Z, newC.AddedInertia.Z, newC.RotDamping.Z, newC.FlowMoment.Z));
         Vec3 pos = after.Position + after.Attitude.Rotate(v - vr) * dt;
         return new RigidBodyState(pos, after.Attitude, v, w);
     }

@@ -38,18 +38,16 @@ namespace FlyingGame.Bridge
 
         /// <summary>The oil's flow now: none with the engine stopped, more with power, because the exhaust carries it.
         /// A glider's canisters are always full. Same law the widget uses. The oil pump is electric: with the master
-        /// off or a flat battery (Aircraft.Electrics) there is no smoke, whatever the switch says.</summary>
-        public float Flow
+        /// off or a flat battery (Aircraft.Electrics) there is no smoke, whatever the switch says.
+        /// (<see cref="FlyingGame.Sim.Replay.ReplaySmoke.FlowIfOnNow"/>: the recorder keeps the same number.)</summary>
+        public float Flow => On ? FlyingGame.Sim.Replay.ReplaySmoke.FlowIfOnNow(Driver?.Sim?.Aircraft) : 0f;
+
+        /// <summary>This moment's smoke for the replay recorder (Ty t912u): the switch, the flow it makes or would make,
+        /// the jet and the crank, so the replay draws the trail as it was flown and can add or mute it after the fact.</summary>
+        public FlyingGame.Sim.Replay.ReplaySmoke ReplayChannel()
         {
-            get
-            {
-                FlyingGame.Sim.Aircraft ac = Driver?.Sim?.Aircraft;
-                if (!On || ac == null) return 0f;
-                if (ac.Config.Propulsion == null) return 1f;                  // wingtip canisters
-                if (!ac.Electrics.BusLive) return 0f;                         // the pump has no power
-                if (!ac.EngineRunning || ac.EngineRpm < 100) return 0f;       // no exhaust (a windmilling dead engine has none)
-                return (float)(0.25 + 0.75 * Mathf.Clamp01((float)ac.ShaftPower01));
-            }
+            FlyingGame.Sim.Aircraft ac = Driver?.Sim?.Aircraft;
+            return ac == null ? default : FlyingGame.Sim.Replay.ReplaySmoke.Capture(ac, On, _crank);
         }
 
         private SmokeTrail _smoke;
@@ -111,6 +109,7 @@ namespace FlyingGame.Bridge
             _smoke.Stream = cfg.Propulsion == null;                           // a glider's canisters stream, they do not puff
             _smoke.Cylinders = cfg.Smoke?.Cylinders ?? 6;
             _crank = 0; _crankT = double.NaN;
+            _measuredModel = _triedModel = null; _measureTries = 0;
         }
 
         /// <summary>The propeller hubs, for the exhausts that sit ahead of a tractor's disc. The visual knows them;
@@ -125,14 +124,7 @@ namespace FlyingGame.Bridge
             return System.Array.Empty<Vector3>();
         }
 
-        private double JetU0(FlyingGame.Sim.Aircraft ac, double altM)
-        {
-            PropulsionConfig pr = ac.Config.Propulsion;
-            if (pr == null) return 0;
-            if (pr.PropDiameterM <= 0) return 25.0 * Mathf.Clamp01((float)ac.Throttle01);
-            // The smoke lane's exhaust model, fed what the engine really does (a dead engine blows no exhaust).
-            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(ac.Config.Smoke, pr, ac.EngineRunning ? ac.EngineRpm : 0.0, ac.ShaftPower01, Atmosphere.DensityAtAltitude(altM));
-        }
+        private static double JetU0(FlyingGame.Sim.Aircraft ac, double altM) => FlyingGame.Sim.Replay.ReplaySmoke.JetU0Now(ac, Atmosphere.DensityAtAltitude(altM));
 
         // LateUpdate, so the sample is the pose the camera is about to see rather than one frame behind it.
         private void LateUpdate()
@@ -141,7 +133,8 @@ namespace FlyingGame.Bridge
             if (ac == null) { _smoke?.Hide(); return; }
             if (!ReferenceEquals(ac, _builtFor)) Rebuild(ac);
             ac.Electrics.SmokePump = On && ac.Config.Propulsion != null;     // the pump's load on the bus
-            if (Driver.Replaying) return;                                     // the replay owns the pose; FlightReplay redraws
+            MeasureAirframe();
+            if (Driver.Replaying) { BuildReplay(); return; }                 // the replay owns the pose and the trail's samples
 
             double now = Atmosphere.SimTimeSec;
             double altM = -ac.State.Position.Z;
@@ -172,6 +165,89 @@ namespace FlyingGame.Bridge
                 int i = _hist.Count - 1 - k;                                  // newest first, which is Build's contract
                 return i < 0 ? (SmokeTrail.Sample?)null : _hist[i];
             }, now, p => CoordinateMap.ToUnity(p), _cam);
+        }
+
+        // ---- the replay's trail (Ty t912u) ----
+        private FlightReplay _replay;
+        private readonly List<FlyingGame.Sim.Replay.ReplaySmokePoint> _replayPts = new();
+        private readonly List<SmokeTrail.Sample> _replaySamples = new();
+
+        /// <summary>In a replay, the trail is rebuilt at the play head from the RECORDING (FlightReplay.Recorder), in the mode
+        /// the replay bar has chosen (as flown / on / off). The live ring (_hist) is left exactly as it was, so the flight's
+        /// own trail carries on when the replay ends. The clip recorders copy this same camera's view, so a clip made from
+        /// the replay shows the same smoke.</summary>
+        private void BuildReplay()
+        {
+            if (_replay == null) _replay = GetComponent<FlightReplay>();
+            FlyingGame.Sim.Aircraft ac = Driver.Sim.Aircraft;
+            if (_replay == null || !_replay.Active
+                || !FlyingGame.Sim.Replay.ReplaySmokeView.Window(_replay.Recorder, _replay.Head, _replay.SmokeMode, ac.Config.Propulsion == null, SmokeTrail.LifeMaxS, _replayPts))
+            { _smoke.Hide(); return; }
+            _replaySamples.Clear();
+            foreach (var p in _replayPts)
+                _replaySamples.Add(new SmokeTrail.Sample { T = p.T, Pos = p.Pos, Att = p.Att, VelBody = p.VelBody, Rates = p.Rates, Flow = p.Flow,
+                    JetU0 = p.JetU0, AirDensity = p.AirDensity > 0 ? p.AirDensity : Atmosphere.DensityAtAltitude(-p.Pos.Z), Crank = p.Crank, Rpm = p.Rpm });
+            if (_cam == null) _cam = Camera.main;
+            double now = _replayPts[0].T;
+            _smoke.Build(k => k < _replaySamples.Count ? _replaySamples[k] : (SmokeTrail.Sample?)null, now, p => CoordinateMap.ToUnity(p), _cam);
+        }
+
+        // ---- the airframe the smoke keeps out of (Ty t914u: every aeroplane, every part) ----
+        private Transform _measuredModel, _triedModel;
+        private int _measureTries;
+
+        /// <summary>Once the model is placed, measure its fuselage (AirframeFlow.MeasureFuselage) so the smoke goes round the
+        /// body that is DRAWN, not an analytic tube of the config's radius. The model is placed after the aircraft is built,
+        /// so this waits for it; a model whose meshes cannot be read keeps the analytic shape (and says so once).</summary>
+        private void MeasureAirframe()
+        {
+            if (_smoke?.Flow == null || Visual == null) return;
+            Transform model = Visual.ModelRoot != null ? Visual.ModelRoot : Visual.transform;
+            if (ReferenceEquals(model, _measuredModel)) return;
+            if (!ReferenceEquals(model, _triedModel)) { _triedModel = model; _measureTries = 0; }
+            if (_measureTries > 3) return;
+            _measureTries++;
+            var hubs = new List<Transform>();
+            for (int i = 0; ; i++) { Transform h = Visual.PropHubTransform(i); if (h == null) break; hubs.Add(h); }
+            List<Vec3> pts = ModelPoints(transform, model, hubs);
+            if (FlyingGame.Core.Aero.AirframeFlow.MeasureFuselage(pts, Driver.Sim.Aircraft.Config, out double[] xs, out double[] rs, out double[] zs))
+            {
+                _smoke.Flow.SetFuselage(xs, rs, zs);
+                _measuredModel = model;
+                double rmax = 0; foreach (double r in rs) rmax = System.Math.Max(rmax, r);
+                Debug.Log($"[Smoke] {Driver.AircraftId}: fuselage measured on the drawn model, {xs.Length} stations x {xs[0]:0.00}..{xs[^1]:0.00} m, max radius {rmax:0.00} m, reach {_smoke.Flow.Reach:0.0} m");
+            }
+            else if (_measureTries > 3) Debug.Log($"[Smoke] {Driver.AircraftId}: model not readable ({pts.Count} points): smoke keeps out of the analytic body");
+        }
+
+        /// <summary>The drawn model's vertices in body axes from the CG (<paramref name="aircraft"/> is the transform at the
+        /// CG, rotated to the body by CoordinateMap), up to ~40,000 of them: every enabled, readable mesh under
+        /// <paramref name="model"/> except the propellers (under a hub, or named prop / blade / disc) and anything named smoke.
+        /// Names are read here, once per model, never per frame.</summary>
+        public static List<Vec3> ModelPoints(Transform aircraft, Transform model, IReadOnlyList<Transform> propHubs)
+        {
+            var pts = new List<Vec3>();
+            foreach (var mf in model.GetComponentsInChildren<MeshFilter>(false))
+            {
+                Mesh m = mf.sharedMesh; var mr = mf.GetComponent<MeshRenderer>();
+                if (m == null || !m.isReadable || mr == null || !mr.enabled) continue;
+                bool prop = false;
+                for (Transform t = mf.transform; t != null && t != aircraft && !prop; t = t.parent)
+                {
+                    if (propHubs != null) foreach (var h in propHubs) if (t == h) prop = true;
+                    string n = t.name.ToLowerInvariant();
+                    if (n.Contains("prop") || n.Contains("blade") || n.Contains("disc") || n.Contains("smoke")) prop = true;
+                }
+                if (prop) continue;
+                var vs = m.vertices; var tf = mf.transform;
+                int stride = System.Math.Max(1, vs.Length / 40000);
+                for (int i = 0; i < vs.Length; i += stride)
+                {
+                    Vector3 u = aircraft.InverseTransformPoint(tf.TransformPoint(vs[i]));
+                    pts.Add(new Vec3(u.z, u.x, -u.y));   // Unity local → body (x fwd, y right, z down)
+                }
+            }
+            return pts;
         }
 
         private bool AnyFlow()

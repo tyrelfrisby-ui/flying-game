@@ -204,7 +204,7 @@ def pitts(path):
         sh=Shape();sh.tube(p,(tx-.04,ty,-.065),.007);sh.sphere((tx-.04,ty,-.065),.019)
         n='Throttle_'+seat;a.node(n,p,shape=sh,mat=black);a.rigged(n,'throttle',(0,1,0),[0,1],[0,50])
         grip=(tx-.04,ty,-.065);a.node('Grip_Throttle_'+seat,grip,n);grips['Grip_Throttle_'+seat]=grip
-        a.node('Harness_Buckle_'+seat,(x-.20,0,-.42));a.node('Headset_Jack_'+seat,(x-.20,-.26,.0))
+        a.node('Headset_Jack_'+seat,(x-.20,-.26,.0))   # no Harness_Buckle_: no belts (Ty 2026-11-05)
     # Aft translation parent; rotation child keeps its axis attached to the translating right sill.
     a.node('Canopy_Slide',(-.8,-.36,.16));a.rigged('Canopy_Slide','canopy_open',(-1,0,0),[0,.2,1],[0,.1016,.1016],kind='move',desc='S-2B 4 inch estimated aft track; slide first, then hinge')
     a.node('Canopy',(-.8,-.36,.16),'Canopy_Slide');a.rigged('Canopy','canopy_open',(1,0,0),[0,.2,1],[0,0,100],desc='Right side hinge; estimated 100 degree stop; first 20 percent is aft slide')

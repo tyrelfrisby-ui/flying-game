@@ -87,7 +87,7 @@ public sealed class TyreWear
         WearThroughM = WearThroughPerRadius * radiusM;
         RimRadiusM = RimPerRadius * radiusM;
         FlatRadiusM = RimRadiusM + 2 * CasingPerRadius * radiusM;
-        InflationPa = TirePressure.Psi(c, g, c.Bushwheels) * 6894.76;
+        InflationPa = TirePressure.Psi(c, g) * 6894.76;   // the bushwheel option already put its own tyre and pressure on g (TireFit)
         StaticLoadN = System.Math.Max(1, staticLoadN);
         ReferenceDeflectionM = System.Math.Max(0.02 * radiusM, Deflection(StaticLoadN, InflationPa));
     }
@@ -124,13 +124,63 @@ public sealed class TyreWear
     /// deflection to subtract, a smaller drop, more load) and set the axle chattering. So the lumps come only from the
     /// tread turning under the axle.
     /// </summary>
-    public double Drop(double patchAngleRad)
+    public double Drop(double patchAngleRad) => Drop(patchAngleRad, patchAngleRad);
+
+    /// <summary>
+    /// The MEAN drop over a step in which the patch moves round the tread from <paramref name="phiFrom"/> to
+    /// <paramref name="phiTo"/> (Ty 2026-11-05: a flat spot's bump "should be modeled after the actual tire rotation
+    /// rate"). Sampled at one angle, a wheel turning more than a patch length per 5 ms step (a 172 main above ~25 m/s)
+    /// can step clean over its own flat spot: some revolutions bump, some do not, and the rhythm is no longer the
+    /// wheel's. Averaged over the arc swept, every pass of the spot lands in the step(s) it happened in, with the
+    /// impulse (depth × the share of the step it was under the axle) it really had: one bump per revolution, V/(2πr).
+    /// </summary>
+    public double Drop(double phiFrom, double phiTo)
     {
         if (MaxWornM <= 0 && PressureFraction >= 1) return 0;
-        double l = PatchLengthM(StaticLoadN, EffectivePressurePa);
-        double worn = MeanWorn(patchAngleRad, System.Math.Max(l, 2 * System.Math.PI * RadiusM / Bins));
+        double l = System.Math.Max(PatchLengthM(StaticLoadN, EffectivePressurePa), 2 * System.Math.PI * RadiusM / Bins);
+        double worn = 0;
+        if (MaxWornM > 0 && double.IsFinite(phiFrom) && double.IsFinite(phiTo))
+        {
+            double sweep = System.Math.Min(System.Math.Abs(phiTo - phiFrom), 2 * System.Math.PI);
+            int n = 1 + (int)System.Math.Ceiling(sweep / (2 * System.Math.PI / Bins));
+            if (n == 1) worn = MeanWorn(phiFrom, l);
+            else for (int k = 0; k < n; k++) worn += MeanWorn(phiFrom + (phiTo - phiFrom) * k / (n - 1), l) / n;
+        }
         double d = ExtraDeflection(StaticLoadN) + worn;
         return System.Math.Clamp(d, 0, RadiusM - RimRadiusM);
+    }
+
+    /// <summary>
+    /// The tyre's flat spots, read off the strips (nothing else stores them: a spot is simply where the tread is worn
+    /// deeper than round it). Each run of strips worn deeper than <paramref name="floorM"/> and a fifth of the deepest is
+    /// one spot: its centre (tread angle, rad, depth-weighted), its depth (the deepest strip) and its length. A second lock-up with the wheel
+    /// at a new angle makes a second spot; one at the same angle deepens the first.
+    /// </summary>
+    public System.Collections.Generic.List<(double AngleRad, double DepthM, double LengthM)> FlatSpots(double floorM = 5e-5)
+    {
+        var spots = new System.Collections.Generic.List<(double, double, double)>();
+        if (MaxWornM <= floorM) return spots;
+        double cut = System.Math.Max(floorM, 0.2 * MaxWornM), binLen = 2 * System.Math.PI * RadiusM / Bins;
+        // Start the scan at a strip below the cut so a spot that straddles strip 0 is counted once.
+        int start = 0;
+        while (start < Bins && WornM[start] > cut) start++;
+        if (start == Bins) { spots.Add((0, MaxWornM, 2 * System.Math.PI * RadiusM)); return spots; }
+        for (int k = 0; k < Bins; k++)
+        {
+            int i = (start + k) % Bins;
+            if (WornM[i] <= cut) continue;
+            int len = 0; double deepest = 0, sumW = 0, sumWi = 0;
+            while (k < Bins && WornM[(start + k) % Bins] > cut)
+            {
+                double h = WornM[(start + k) % Bins];
+                deepest = System.Math.Max(deepest, h);
+                sumW += h; sumWi += h * (start + k + 0.5);   // unwrapped strip index: a spot across strip 0 averages right
+                len++; k++;
+            }
+            double centre = (sumWi / sumW) * 2 * System.Math.PI / Bins;
+            spots.Add((centre - 2 * System.Math.PI * System.Math.Floor(centre / (2 * System.Math.PI)), deepest, len * binLen));
+        }
+        return spots;
     }
 
     /// <summary>Extra rolling-resistance coefficient: a tyre's hysteresis loss per metre goes with how far it is squashed

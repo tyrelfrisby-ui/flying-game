@@ -23,6 +23,22 @@ public class GroundSoundMixTests
         return w;
     }
 
+    /// <summary>Ty 2026-11-05: every ground-contact voice −4 dB through one shared gain (literal copied by hand).</summary>
+    [Fact]
+    public void GroundBusIsFourDecibelsDown()
+    {
+        Assert.Equal(-4.0, GroundSoundMix.OutputGainDb);
+        Assert.Equal(0.630957, GroundSoundMix.OutputGain, 5);
+    }
+
+    /// <summary>Ty 2026-11-05 ~15:57: the tyre screech keeps its loudness from before the −4 dB (literal by hand).</summary>
+    [Fact]
+    public void TyreScreechSkipsTheGroundBusCut()
+    {
+        Assert.Equal(0.0, GroundSoundMix.ScreechGainDb);
+        Assert.Equal(1.0, GroundSoundMix.ScreechGain, 6);
+    }
+
     [Fact]
     public void CrossfadeWeightsSumToOneAndAreEqualPower()
     {
@@ -86,7 +102,8 @@ public class GroundSoundMixTests
         var w = Rolling(c, main, m, 25);
         w.OverWater = m == GroundMaterial.Water;
         w.Brake01 = 1.0; w.SlipRatio = 0.5;
-        w.SlipEnergyJ = 500; w.SlipTimeS = 0.04;   // a full spin-up's worth of slip
+        w.SlipEnergyJ = 500; w.SlipTimeS = 0.04; w.SlipImpulseNs = 25;   // a full spin-up's worth of slip
+        w.SideSlipEnergyJ = 200; w.SideSlipTimeS = 0.04; w.SideSlipImpulseNs = 70;
         var mix = new GroundSoundMix(1);
         mix.Update(new[] { w }, 5000, 0.016);
         for (int s = 0; s < 2; s++)
@@ -94,6 +111,7 @@ public class GroundSoundMixTests
             Assert.Equal(0f, mix.WhirGain[s]);
             Assert.Equal(0f, mix.ChirpSeconds[s]);
             Assert.Equal(0f, mix.ChirpGain[s]);
+            Assert.Equal(0f, mix.ScrubSeconds[s] + mix.ScrubLevel[s]);
             Assert.Equal(0f, mix.ScrapeGain[s]);
             Assert.Equal(0f, mix.SquealGain[s]);
         }
@@ -126,7 +144,7 @@ public class GroundSoundMixTests
         foreach (var (m, heard) in new[] { (GroundMaterial.Asphalt, true), (GroundMaterial.Grass, false) })
         {
             var w = Rolling(c, left, m, 25);
-            w.SlipEnergyJ = 900; w.SlipTimeS = 0.031; w.SlipRatio = 0.3;
+            w.SlipEnergyJ = 900; w.SlipTimeS = 0.031; w.SlipImpulseNs = 45; w.SlipRatio = 0.3;   // sliding at 20 m/s
             var mix = new GroundSoundMix(1);
             mix.Update(new[] { w }, 10000, 0.016);
             if (heard)

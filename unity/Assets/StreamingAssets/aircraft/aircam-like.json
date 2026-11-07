@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "aircam-like",
   "displayName": "AirCam-like",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Lockwood AirCam: riveted 6061 aluminium sheet and tube airframe (Lockwood Aircraft AirCam builder manual); no steel truss.",
   "wingBracing": "strut",
   "spawnIasMs": 31.0,
   "mass": {
@@ -1506,6 +1508,9 @@
   "propulsion": {
     "maxPowerW": 74600,
     "propDiameterM": 1.73,
+    "propMaterial": "composite",
+    "propMaterialSource": "Warp Drive ground-adjustable carbon blades, three per Rotax 912",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2400,
     "propInertia": 1.2,
@@ -1538,7 +1543,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tireRadiusM": 0.21, "wheelMassKg": 7.0
+      "tire": "legacy-aircam-main", "tirePressurePsi": 16.1
     },
     {
       "pos": [
@@ -1554,7 +1559,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tireRadiusM": 0.21, "wheelMassKg": 7.0
+      "tire": "legacy-aircam-main", "tirePressurePsi": 16.1
     },
     {
       "pos": [
@@ -1570,7 +1575,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "tireRadiusM": 0.1, "wheelMassKg": 1.3,
+      "tire": "scott-8in", "tirePressurePsi": 25.6,
       "steerSpringNmPerRad": 7
     }
   ],

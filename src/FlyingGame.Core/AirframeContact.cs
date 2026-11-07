@@ -66,6 +66,13 @@ public sealed class ContactPoint
     /// <summary>The <see cref="WingStructure"/> panel this point is on (-1 = none). Such a point breaks nothing by its
     /// closing speed: the aeroplane checks the bending moment its force puts on the panel's station.</summary>
     public int Panel = -1;
+    /// <summary>That panel itself (set by the aeroplane once its strengths are known): the panel's points push no harder
+    /// than its plastic hinges can carry (<see cref="WingPanel.CapUpNm"/>); null = an ordinary hard point.</summary>
+    public WingPanel? PanelRef;
+    // A panel point's force this evaluation, held until its whole panel has been capped (ComputeEveryPoint).
+    internal Vec3 PendingF, PendingR;
+    internal bool Pending;
+    internal double PendingK, PendingC;
     /// <summary>A blade-tip station on the propeller disc. The disc is not a hard point — a turning blade cuts or curls,
     /// it cannot hold the aeroplane up — so it pushes nothing; its penetration is the prop strike (Aircraft).</summary>
     public bool PropDisc;
@@ -212,6 +219,9 @@ public static class WorldSolids
                 _shapes.Add(sh);
             }
         }
+
+        /// <summary>Nothing solid near the region last gathered (the glazing's sensors skip their solid queries).</summary>
+        public bool Empty => _boxes.Count == 0 && _shapes.Count == 0;
 
         /// <summary><see cref="WorldSolids.Penetration"/> over the gathered solids; the point must lie inside the box last
         /// passed to <see cref="Update"/>.</summary>
@@ -522,6 +532,8 @@ public static class AirframeContact
     /// tower, the arch or a hangar roof could be flown through).
     /// </summary>
     private const double ClearAboveM = 60.0;
+    /// <summary><see cref="ClearAboveM"/> for other airframe sensors (the glazing, Sim's AircraftGlazing).</summary>
+    public const double ClearOfGroundM = ClearAboveM;
 
     /// <summary>
     /// Five height samples that say whether the airframe is clear of the ground altogether: under the CG and at
@@ -700,6 +712,7 @@ public static class AirframeContact
         // A patch is ONE contact: its touching points share one contact stiffness (each takes k/m, c/m of m touching),
         // or a wingtip lying flat would press five times as hard as a point.
         int sharePatch = int.MinValue, shareCount = 1, head = 0;
+        bool anyPanel = false;
         for (int idx = 0; idx < points.Count; idx++)
         {
             ContactPoint p = points[idx];
@@ -713,6 +726,10 @@ public static class AirframeContact
             Vec3 normal = new(0, 0, -1);   // outward (NED up)
             double depth;
             bool onWater = false;
+            // The floats carry the airframe on the water (FloatHydro), not its propeller: a blade-tip station reads the
+            // water it is in. Skipping it with the rest of a floatplane left every floatplane's prop unable to touch the
+            // water at all, so no water strike could slow or stop it (Ty 2026-11-05, the J-3 on floats).
+            bool carried = floatsCarryWater && !p.PropDisc;
             double groundH = double.NegativeInfinity;   // the ditching bed below needs it; unset only where onWater stays false
             if (groundClear || (cull && stage > 0 && p.StageClearM > p.StageMarginM))
             {
@@ -741,7 +758,7 @@ public static class AirframeContact
             // being over the sea. Water now pushes back on an airframe that cannot float, at a tenth of the ground's
             // stiffness and three times its damping: an arrival, not a trampoline, and not a runway either.
             depth = onWater
-                ? (floatsCarryWater ? -1.0 : (w.Z + surfaceOffsetZ) - (-waterH!.Value))
+                ? (carried ? -1.0 : (w.Z + surfaceOffsetZ) - (-waterH!.Value))
                 : (w.Z + surfaceOffsetZ) - (-groundH);
             if (cull && stage == 0)
             {
@@ -776,7 +793,7 @@ public static class AirframeContact
                 for (int j = idx; j < points.Count && points[j].Patch == p.Patch; j++)
                 {
                     Vec3 wj = s.Position + s.Attitude.Rotate(points[j].Body - cg);
-                    double topJ = patchWater.HasValue && patchWater.Value > patchGround && !floatsCarryWater ? patchWater.Value : patchGround;
+                    double topJ = patchWater.HasValue && patchWater.Value > patchGround && !carried ? patchWater.Value : patchGround;
                     if ((wj.Z + surfaceOffsetZ) + topJ > 0.0) shareCount++;
                 }
                 if (shareCount < 1) shareCount = 1;
@@ -784,7 +801,7 @@ public static class AirframeContact
             double share = p.Patch >= 0 && p.Patch == sharePatch ? 1.0 / shareCount : 1.0;
 
             double closing = -Vec3.Dot(vel, normal);          // + = moving INTO the surface
-            bool ditching = onWater && !floatsCarryWater && !solidWins;
+            bool ditching = onWater && !carried && !solidWins;
             if (!p.Touching)
             {
                 p.Touching = true;
@@ -792,7 +809,7 @@ public static class AirframeContact
                 // On water whose forces are the airframe's own (waterByHydro) the break-up is load-based
                 // (Wreck/AirframeFlooding.CheckJoints): a closing speed at first touch says nothing about the load once
                 // the water's added mass has taken it up. A propeller blade in the water still bends.
-                bool loadRuled = onWater && !floatsCarryWater && !solidWins && waterByHydro && p.Component != AirframeComponent.Propeller;
+                bool loadRuled = onWater && !carried && !solidWins && waterByHydro && p.Component != AirframeComponent.Propeller;
                 if (broken is not null && p.BreakSpeedMs > 0 && closing > p.BreakSpeedMs && !loadRuled)
                 {
                     if (!p.ArrivalPending || closing > p.ArrivalMs)
@@ -840,12 +857,72 @@ public static class AirframeContact
                 double mu = muSurface * System.Math.Min(1.0, vtLen / 0.3);
                 f -= vt / vtLen * (mu * n);
             }
+            if (p.PanelRef is { Bending: not null })
+            {
+                // A wing panel's point: held until the panel's whole push is known, then capped at what its hinges carry.
+                p.Pending = true; p.PendingF = f; p.PendingR = rWorld;
+                p.PendingK = (ditching ? WaterSpringNPerM : SpringNPerM) * share * p.StiffnessScale;
+                p.PendingC = (ditching ? WaterDampNsPerM : DampNsPerM) * share * p.StiffnessScale;
+                anyPanel = true;
+                continue;
+            }
             totalF += f;
             totalM += Vec3.Cross(rWorld, f);
             if (record) p.ForceBody = s.Attitude.Conjugate().Rotate(f);
             Aero.ForceDebug.Add(p.Body, s.Attitude.Conjugate().Rotate(f), Vec3.Zero, "contact");
         }
+        if (anyPanel) CapPanels(points, s, record, ref totalF, ref totalM);
         return (totalF, totalM);
+    }
+
+    /// <summary>
+    /// A wing panel is a cantilever on two plastic hinges at its station (<see cref="WingStructure"/>): the ground cannot
+    /// push its tip harder than the hinges carry. The panel's points' forces are scaled together until their bending moment
+    /// about the station and their torque about the flexural axis are within the hinges' caps; what they asked for, and
+    /// the stiffness of that push about each axis, is recorded on the panel for the aeroplane's plastic step.
+    /// </summary>
+    private static void CapPanels(List<ContactPoint> points, RigidBodyState s, bool record, ref Vec3 totalF, ref Vec3 totalM)
+    {
+        Quat toBody = s.Attitude.Conjugate();
+        for (int i = 0; i < points.Count; i++)
+        {
+            ContactPoint head = points[i];
+            if (!head.Pending) continue;
+            WingPanel w = head.PanelRef!;
+            double up = 0, tw = 0, kU = 0, cU = 0, kT = 0, cT = 0;
+            for (int j = i; j < points.Count; j++)
+            {
+                ContactPoint q = points[j];
+                if (!q.Pending || q.PanelRef != w) continue;
+                Vec3 fb = toBody.Rotate(q.PendingF);
+                up += w.MomentUp(q.Body, fb);
+                tw += w.TorqueNoseUp(q.Body, fb);
+                (double lu, double lt) = w.Levers(q.Body);
+                kU += q.PendingK * lu * lu; cU += q.PendingC * lu * lu;
+                kT += q.PendingK * lt * lt; cT += q.PendingC * lt * lt;
+            }
+            double scale = 1.0;
+            double capUp = up >= 0 ? w.CapUpNm : w.CapDownNm;
+            if (System.Math.Abs(up) > capUp) scale = System.Math.Min(scale, capUp / System.Math.Abs(up));
+            if (System.Math.Abs(tw) > w.CapTwistNm) scale = System.Math.Min(scale, w.CapTwistNm / System.Math.Abs(tw));
+            for (int j = i; j < points.Count; j++)
+            {
+                ContactPoint q = points[j];
+                if (!q.Pending || q.PanelRef != w) continue;
+                q.Pending = false;
+                Vec3 f = q.PendingF * scale;
+                totalF += f;
+                totalM += Vec3.Cross(q.PendingR, f);
+                if (record) q.ForceBody = toBody.Rotate(f);
+                Aero.ForceDebug.Add(q.Body, toBody.Rotate(f), Vec3.Zero, "contact");
+            }
+            if (record)
+            {
+                w.RawUpNm = up; w.RawTwistNm = tw; w.ContactScale = scale;
+                w.KUpSpring = kU; w.KUpDamp = cU; w.KTwSpring = kT; w.KTwDamp = cT;
+                w.ContactRecorded = true;
+            }
+        }
     }
 
     /// <summary>The patch's ground and water, sampled under its first point at the height of its LOWEST point: the

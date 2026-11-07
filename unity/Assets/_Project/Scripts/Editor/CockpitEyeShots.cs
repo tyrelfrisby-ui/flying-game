@@ -60,7 +60,8 @@ namespace FlyingGame.EditorTools
                     int w = W, h = H;
                     if (f.Length > 8 && f[8].Length > 0) { string[] wh = f[8].Split('x'); w = int.Parse(wh[0]); h = int.Parse(wh[1]); }
                     bool moved = f.Length > 9 && f[9] == "moved";
-                    if (One(f[0], f[1], f[2], F(f[3]), F(f[4]), vfov, outDir, light, hand, w, h, moved)) shots++; else failures++;
+                    string extras = f.Length > 10 ? f[10] : "";
+                    if (One(f[0], f[1], f[2], F(f[3]), F(f[4]), vfov, outDir, light, hand, w, h, moved, extras)) shots++; else failures++;
                 }
             }
             catch (Exception e) { failures++; Debug.LogException(e); }
@@ -75,7 +76,7 @@ namespace FlyingGame.EditorTools
         private static float F(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
 
         private static bool One(string name, string id, string seatId, float yaw, float pitch, float vfov, string outDir,
-                                string light, bool hand, int w, int h, bool moved = false)
+                                string light, bool hand, int w, int h, bool moved = false, string extras = "")
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
@@ -107,6 +108,26 @@ namespace FlyingGame.EditorTools
                 reading.PropLock = 1.0; reading.PropLever = 0.0; reading.Mixture = 0.0; reading.FuelValve = 0.0;
                 reading.CowlFlap = 1.0; reading.Trim = 1.0; reading.Throttle = 0.0;
             }
+            // 11th field, ','-separated (cockpit-common renders, Ty 2026-11-05): belts (keep the GLB's belts: the "before"),
+            // card=<id> (the deck's card on every holder), kollsman=<inHg>, gmax=<g>, gmin=<g>, g=<g>, fuel=<0..1>,
+            // alt=<ft>, turn/slip/bank/pitch/vsi/dg (below), cam=<x>/<y>/<z> (Unity, CG frame: overrides the eye).
+            var ex = new System.Collections.Generic.Dictionary<string, string>();
+            foreach (string kv in extras.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            { int i = kv.IndexOf('='); ex[i < 0 ? kv : kv.Substring(0, i)] = i < 0 ? "" : kv.Substring(i + 1); }
+            if (ex.TryGetValue("gmax", out string gx)) reading.GMaxSeen = F(gx);
+            if (ex.TryGetValue("gmin", out string gn)) reading.GMinSeen = F(gn);
+            if (ex.TryGetValue("g", out string gg)) reading.GLoad = F(gg);
+            if (ex.TryGetValue("fuel", out string fu)) reading.Fuel = F(fu);
+            if (ex.TryGetValue("alt", out string al)) reading.AltitudeFt = F(al);
+            // The gyros (shared instrument library renders, 2026-11-05): turn=<deg/s> (also the 172's tc_needle in rates),
+            // slip=<-1..1>, bank=<deg>, pitch=<deg> (also the 172's AI), vsi=<ft/min>, dg=<deg> (heading and the 172's DG card).
+            if (ex.TryGetValue("turn", out string tr)) { reading.TurnRateDps = F(tr); reading.TcNeedle = F(tr) / 3.0; }
+            if (ex.TryGetValue("slip", out string sl)) reading.SlipBall = F(sl);
+            if (ex.TryGetValue("bank", out string bk)) { reading.BankDeg = F(bk); reading.AiBankDeg = F(bk); }
+            if (ex.TryGetValue("pitch", out string pt)) { reading.PitchDeg = F(pt); reading.AiPitchDeg = F(pt); }
+            if (ex.TryGetValue("vsi", out string vs)) reading.VsiFpm = F(vs);
+            if (ex.TryGetValue("dg", out string dgv)) { reading.HeadingDeg = F(dgv); reading.DgCardDeg = F(dgv); }
+            if (!ex.ContainsKey("belts") && builder.ModelRoot != null) CockpitBeltStrip.Strip(builder.ModelRoot);
             builder.SetRig(reading, 0.02f);
             // The painted panels the game makes live (the Pitts' and the Extra's: CockpitLive's dial art and needles), as
             // AirframeVisual does in flight, so the shot shows what the pilot sees rather than the GLB's own pictures.
@@ -116,6 +137,21 @@ namespace FlyingGame.EditorTools
 
             var displays = new CockpitDisplays();
             displays.Bind(builder.FindInModel);
+            SequenceCard card = null;
+            if (ex.TryGetValue("card", out string cardId))
+            {
+                if (!SequenceCardLibrary.Deck.Select(cardId)) Debug.LogWarning($"[CockpitEye] no card '{cardId}' in the deck");
+                card = new SequenceCard();
+                card.Bind(builder.FindInModel);
+                Debug.Log($"[CockpitEye] card on {card.Faces.Count} holder(s): {SequenceCardLibrary.Current.LabelAscii}");
+            }
+            CockpitTaps taps = null;
+            if (builder.ModelRoot != null && !ex.ContainsKey("belts"))
+            {
+                taps = root.AddComponent<CockpitTaps>();
+                taps.Bind(builder.ModelRoot, builder.FindInModel, root.transform);
+                taps.ShowWindowsForShots(ex.TryGetValue("kollsman", out string ks) ? F(ks) : 29.92);
+            }
             displays.Update(new RigInputs { ComFreqMhz = 122.750, ComStandbyMhz = 121.500, ComVolume = 0.6, XpdrSquawk = 1200, XpdrMode = 3,
                                             Master = 1.0, FuelFlowGph = 17.8, FuelUsedGal = 3.4 });
 
@@ -150,6 +186,7 @@ namespace FlyingGame.EditorTools
             ground.GetComponent<Renderer>().sharedMaterial = gm;
 
             Vector3 eye = CoordinateMap.ToUnity(at ?? seat.EyeVec());
+            if (ex.TryGetValue("cam", out string cp)) { string[] c3 = cp.Split('/'); eye = new Vector3(F(c3[0]), F(c3[1]), F(c3[2])); }
             var camGo = new GameObject("Eye");
             Camera cam = camGo.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = sky;
@@ -157,12 +194,72 @@ namespace FlyingGame.EditorTools
             camGo.transform.SetPositionAndRotation(eye, Quaternion.Euler(-pitch, yaw, 0f));
             string path = Path.Combine(outDir, name + ".png");
             Shoot(cam, path, w, h);
+            if (Environment.GetEnvironmentVariable("COCKPIT_TEMPORAL") == "1" && name.EndsWith("-phone", StringComparison.Ordinal))
+                Temporal(cam, root, builder, live, reading, outDir, name, w, h);
             Debug.Log($"[CockpitEye] {name}: {id} seat {seatId} eye {eye.x:F3},{eye.y:F3},{eye.z:F3} (Unity, CG frame) yaw {yaw} pitch {pitch} vfov {vfov} light {light}{(fist != null ? " hand" : "")} -> {path}");
             displays.Forget();
+            card?.Forget();
+            if (taps != null) { taps.Forget(); Object.DestroyImmediate(taps); }
             if (fist != null) Object.DestroyImmediate(fist);
             builder.Clear();
             Object.DestroyImmediate(root); Object.DestroyImmediate(camGo); Object.DestroyImmediate(gm);
             return true;
+        }
+
+        // Bench evidence only: edit-mode manual renders, fixed inputs and camera. This does not
+        // execute the live simulator or device render loop. Wall time and every local transform
+        // are recorded so a pixel change can be distinguished from a moving part.
+        private static void Temporal(Camera cam, GameObject root, AirframeBuilder builder,
+            CockpitLiveParts live, RigInputs reading, string outDir, string name, int w, int h)
+        {
+            string dir = Path.Combine(outDir, name + "-fixed-input");
+            Directory.CreateDirectory(dir);
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            string V(Vector3 v) => v.x.ToString("R", culture) + "," + v.y.ToString("R", culture) + "," + v.z.ToString("R", culture);
+            string Q(Quaternion q) => q.x.ToString("R", culture) + "," + q.y.ToString("R", culture) + "," + q.z.ToString("R", culture) + "," + q.w.ToString("R", culture);
+            string NodePath(Transform t)
+            {
+                string result = t.name;
+                while (t.parent != null) { t = t.parent; result = t.name + "/" + result; }
+                return result;
+            }
+            using (var inputs = new StreamWriter(Path.Combine(dir, "inputs.tsv")))
+                foreach (var field in typeof(RigInputs).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                    inputs.WriteLine(field.Name + "\t" + Convert.ToString(field.GetValue(reading), culture));
+            using (var materials = new StreamWriter(Path.Combine(dir, "renderers.tsv")))
+            {
+                materials.WriteLine("path\tenabled\tactive\tmaterial\tshader\tqueue\tzwrite\tcull");
+                foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+                    foreach (Material m in r.sharedMaterials)
+                        if (m != null) materials.WriteLine(NodePath(r.transform) + "\t" + r.enabled + "\t" + r.gameObject.activeInHierarchy + "\t" + m.name + "\t" + m.shader.name + "\t" + m.renderQueue + "\t" + (m.HasProperty("_ZWrite") ? m.GetFloat("_ZWrite").ToString(culture) : "shader") + "\t" + (m.HasProperty("_Cull") ? m.GetFloat("_Cull").ToString(culture) : "shader"));
+            }
+            Transform[] nodes = root.GetComponentsInChildren<Transform>(true);
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            using (var frames = new StreamWriter(Path.Combine(dir, "frames.tsv")))
+            using (var transforms = new StreamWriter(Path.Combine(dir, "transforms.tsv")))
+            {
+                frames.WriteLine("frame\twallSeconds\tcameraPosition\tcameraRotation\tnear\tfar\tfov\tworldToCamera\tprojection");
+                transforms.WriteLine("frame\tnodeIndex\tpath\tlocalPosition\tlocalRotation\tlocalScale");
+                for (int frame = 0; frame <= 100; frame++)
+                {
+                    int wait = (int)(frame * 100 - clock.Elapsed.TotalMilliseconds);
+                    if (wait > 0) System.Threading.Thread.Sleep(wait);
+                    builder.SetRig(reading, 0.1f);
+                    live.Update(reading);
+                    string Matrix(Matrix4x4 matrix)
+                    {
+                        string[] values = new string[16];
+                        for (int i = 0; i < 16; i++) values[i] = matrix[i].ToString("R", culture);
+                        return string.Join(",", values);
+                    }
+                    frames.WriteLine(frame + "\t" + clock.Elapsed.TotalSeconds.ToString("R", culture) + "\t" + V(cam.transform.position) + "\t" + Q(cam.transform.rotation) + "\t" + cam.nearClipPlane.ToString("R", culture) + "\t" + cam.farClipPlane.ToString("R", culture) + "\t" + cam.fieldOfView.ToString("R", culture) + "\t" + Matrix(cam.worldToCameraMatrix) + "\t" + Matrix(cam.projectionMatrix));
+                    for (int n = 0; n < nodes.Length; n++)
+                        transforms.WriteLine(frame + "\t" + n + "\t" + NodePath(nodes[n]) + "\t" + V(nodes[n].localPosition) + "\t" + Q(nodes[n].localRotation) + "\t" + V(nodes[n].localScale));
+                    Shoot(cam, Path.Combine(dir, frame.ToString("D4") + ".png"), w, h);
+                }
+            }
+            File.WriteAllText(Path.Combine(dir, "SCOPE.txt"), "101 manual edit-mode renders over at least 10 seconds wall time. Fixed RigInputs reapplied at dt=0.1; camera and aircraft at fixture origin. No live simulation, device input, world-coordinate flight, or device GPU evidence.\n");
+            Debug.Log($"[CockpitTemporal] {name}: 101 frames, {clock.Elapsed.TotalSeconds:F3}s wall time -> {dir}");
         }
 
         /// <summary>The gloved fist on the stick (see the class note). Null where the seat's grip node is missing.</summary>

@@ -2,10 +2,18 @@
   "schemaVersion": 1,
   "id": "glider-2-33-like",
   "displayName": "2-33-like Trainer Glider",
+  "structureType": "steelTube",
+  "structureTypeSource": "Schweizer SGS 2-33: welded steel-tube fuselage, fabric covered; aluminium wing (FAA TCDS G16EA; Schweizer 2-33 maintenance manual).",
   "wingBracing": "strut",
-  "wingBreakStationY": { "wing": 3.13 },
+  "wingBreakStationY": {
+    "wing": 3.13
+  },
   "wingBreakStationSource": "Lift-strut wing attach |y| 3.13 m (123.2 in) from the centreline: our own SGS 2-33 model (tools/own_models/build_sgs233.py, single strut per side, at 30 % chord). Check: a 2019 three-view (Wikimedia Commons, scaled to the 51 ft span) gives ~125 in (+/-6). The Schweizer 2-33 Flight-Erection-Maintenance Manual gives the strut bolts (AN7) but no station.",
-  "liftStrutFuselageAttach": [-0.07, 0.336, 0.754],
+  "liftStrutFuselageAttach": [
+    -0.07,
+    0.336,
+    0.754
+  ],
   "liftStrutFuselageAttachSource": "Own 2-33 model (build_sgs233.py STRUT_FUS): lower fuselage side, 0.519 m (20.4 in) aft of the root wing LE, BL 0.336 m (13.2 in), 1.054 m (41.5 in) below the root chord line; put in this config's frame from its root wing LE (x 0.450) and chord line (z -0.30).",
   "spawnIasMs": 22,
   "mass": {
@@ -1591,7 +1599,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "tireRadiusM": 0.18, "wheelMassKg": 5.0
+      "tire": "5.00-5",
+      "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1607,7 +1616,8 @@
       "maxSteerRad": 0,
       "tireMu": 0.5,
       "corneringStiffnessN": 800,
-      "tireRadiusM": 0.075, "wheelMassKg": 0.6
+      "tire": "legacy-233-tail",
+      "tirePressurePsi": 6.2
     },
     {
       "pos": [
@@ -1694,7 +1704,7 @@
         "eye": [
           0.971,
           0,
-          -0.136
+          -0.2122
         ]
       },
       {

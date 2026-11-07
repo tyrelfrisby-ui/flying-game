@@ -61,9 +61,6 @@ public static class WheelSpin
     /// <summary>The viscous part, as the spin-down time of a free wheel in the air: 20–40 s (docs §4). It is what lets
     /// the bearing whir fade out over half a minute after take-off rather than stop.</summary>
     public const double BearingSpinDownS = 30.0;
-    /// <summary>What a bushwheel option weighs against the standard wheel: a 26–31 in tundra tyre and its wheel are
-    /// 15–18 kg against 8–9 for an 8.00-6 assembly.</summary>
-    public const double BushwheelMassFactor = 2.0;
     /// <summary>Slip power (W) above which a tyre is audibly slipping (the chirp and the skid voice).</summary>
     public const double AudibleSlipPowerW = 50.0;
 
@@ -71,17 +68,23 @@ public static class WheelSpin
     public static bool IsWheel(GearConfig g)
         => g.GearType is not ("float-keel" or "nose-skid" or "tip-skid" or "tail-skid" or "feet");
 
-    /// <summary>The wheel's rotating mass: the config's, or ~160·r² kg, which is a fit through light-aircraft
-    /// assemblies (5.00-5 ≈ 5 kg, 6.00-6 ≈ 7.6, 8.00-6 ≈ 10–12).</summary>
+    /// <summary>The wheel's rotating mass: the catalog tyre's (tyre, tube, wheel and — on a braked leg — the disc), a
+    /// test's override, or for a code-built leg with no tyre ~160·r² kg (a fit through light-aircraft assemblies).</summary>
     public static double MassOf(AircraftConfig c, GearConfig g)
     {
-        double m = g.WheelMassKg > 0 ? g.WheelMassKg : 160.0 * System.Math.Pow(LandingGear.TireRadiusOf(c, g) / (c.Bushwheels ? TirePressure.BushwheelRadiusFactor : 1.0), 2);
-        return c.Bushwheels ? m * BushwheelMassFactor : m;
+        if (g.WheelMassKg > 0) return g.WheelMassKg;
+        TireSpec? t = TireCatalog.Of(g);
+        if (t != null) return t.RotatingMassKg(g.Brake);
+        return 160.0 * System.Math.Pow(LandingGear.TireRadiusOf(c, g), 2);
     }
 
+    /// <summary>The wheel's polar inertia: DERIVED from where the catalog tyre's mass is (TireSpec.InertiaKgM2), or
+    /// for an override mass / a leg with no tyre, 0.65·m·r².</summary>
     public static double InertiaOf(AircraftConfig c, GearConfig g)
     {
-        if (g.WheelInertiaKgM2 > 0 && !c.Bushwheels) return g.WheelInertiaKgM2;
+        if (g.WheelInertiaKgM2 > 0) return g.WheelInertiaKgM2;
+        TireSpec? t = TireCatalog.Of(g);
+        if (t != null && g.WheelMassKg <= 0) return t.InertiaKgM2(g.Brake);
         double r = LandingGear.TireRadiusOf(c, g);
         return InertiaFactor * MassOf(c, g) * r * r;
     }
@@ -89,11 +92,11 @@ public static class WheelSpin
     /// <summary>The longitudinal force D (≥ 0 when the patch slips forward over the ground, i.e. the wheel is slower
     /// than the ground; D pushes the aircraft back) for slip ratio κ and lateral demand σy (cornering force over μN,
     /// unsigned). <paramref name="muN"/> is the peak μ times the load.</summary>
-    public static double Longitudinal(double kappa, double sigmaY, double muN)
+    public static double Longitudinal(double kappa, double sigmaY, double muN, double kappa0 = SlipRatioScale)
     {
-        double sx = kappa / SlipRatioScale, sy = System.Math.Abs(sigmaY);
+        double sx = kappa / kappa0, sy = System.Math.Abs(sigmaY);
         double s2 = sx * sx + sy * sy;
-        if (s2 < 1e-18) return muN * kappa / SlipRatioScale;
+        if (s2 < 1e-18) return muN * kappa / kappa0;
         double sig = System.Math.Sqrt(s2);
         double wx = sx * sx / s2;
         double sat = wx * System.Math.Tanh(sig) + (1 - wx) * System.Math.Min(sig, 1.0);
@@ -109,10 +112,10 @@ public static class WheelSpin
 
     /// <summary>The most longitudinal force the tyre can give at this load and lateral demand, over all slips: the brake
     /// torque that locks the wheel is this × r.</summary>
-    public static double Peak(double sigmaY, double muN)
+    public static double Peak(double sigmaY, double muN, double kappa0 = SlipRatioScale)
     {
         double best = 0;
-        for (int i = 1; i <= 40; i++) best = System.Math.Max(best, Longitudinal(i * 0.025, sigmaY, muN));
+        for (int i = 1; i <= 80; i++) best = System.Math.Max(best, Longitudinal(i * 0.0125, sigmaY, muN, kappa0));
         return best;
     }
 
@@ -135,7 +138,14 @@ public static class WheelSpin
             MathTypes.Vec3 v = s.Attitude.Rotate(s.Velocity + MathTypes.Vec3.Cross(s.Rates, rBody));
             double fl = System.Math.Sqrt(fwd.X * fwd.X + fwd.Y * fwd.Y);
             double vFwd = fl > 1e-6 ? (v.X * fwd.X + v.Y * fwd.Y) / fl : 0;
-            w.OmegaRadS = double.IsFinite(vFwd) ? vFwd / w.RadiusM : 0;
+            // The tyre sits as deep as the static split of the leg's compression puts it, and rolls on that radius.
+            double x = System.Math.Max(0, p.Z + groundH);
+            if (w.Tire != null && x > 0)
+            {
+                w.TireDeflM = w.TireDeflNextM = c.Gear[i].SpringN > 0 ? x * c.Gear[i].SpringN / (c.Gear[i].SpringN + w.TireStiffnessNPerM) : x;
+                w.RollingRadiusM = TireModel.RollingRadiusM(w.Tire, w.TireDeflM);
+            }
+            w.OmegaRadS = double.IsFinite(vFwd) ? vFwd / w.RollingRadiusM : 0;
         }
     }
 
@@ -149,6 +159,11 @@ public static class WheelSpin
         /// when rolling forward).</summary>
         public double ForceN;
         public double SlipRatio, SlipPowerW, SlipEnergyJ, SlipTimeS, FallFactor;
+        /// <summary>∫|D|dt over the step (N·s): with SlipEnergyJ it gives the patch's mean slip speed, E / ∫|D|dt.</summary>
+        public double SlipImpulseNs;
+        /// <summary>The share of SlipEnergyJ the sound leaves quiet because the slip ratio was still under the squeal's
+        /// (and the scrub's) onset band, J (<see cref="GroundSoundMix.ForeSquealOnset"/>).</summary>
+        public double SlipUnderSquealJ, SlipUnderScrubJ;
         public bool Locked;
     }
 
@@ -157,7 +172,7 @@ public static class WheelSpin
     /// given (the step's first stage). <paramref name="brakeTorqueNm"/> ≥ 0 is the brake's Coulomb torque.
     /// </summary>
     public static StepResult Advance(ref double omega, double inertia, double r, double muN, double vFwd, double sigmaY,
-                                     double brakeTorqueNm, double bearingTorqueNm, double dt)
+                                     double brakeTorqueNm, double bearingTorqueNm, double dt, double kappa0 = SlipRatioScale)
     {
         var res = new StepResult { FallFactor = 1 };
         if (dt <= 0 || inertia <= 0 || r <= 0) return res;
@@ -176,9 +191,9 @@ public static class WheelSpin
         for (int i = 0; i < n; i++)
         {
             double k = (vFwd - omega * r) / vref;
-            double d = Longitudinal(k, sigmaY, muN);
+            double d = Longitudinal(k, sigmaY, muN, kappa0);
             const double eps = 1e-4;
-            double dDdk = (Longitudinal(k + eps, sigmaY, muN) - Longitudinal(k - eps, sigmaY, muN)) / (2 * eps);
+            double dDdk = (Longitudinal(k + eps, sigmaY, muN, kappa0) - Longitudinal(k - eps, sigmaY, muN, kappa0)) / (2 * eps);
             // ∂D/∂ω = −∂D/∂κ · r/v_ref. Only the stabilising (falling-with-ω) part goes in the implicit denominator: past
             // the peak the curve turns over, which is the physical instability that locks a wheel, and is left explicit.
             double stiff = System.Math.Max(0, dDdk) * r / vref;   // −∂D/∂ω
@@ -208,6 +223,10 @@ public static class WheelSpin
             double slipV = System.Math.Abs(vFwd - omega * r);
             double p = System.Math.Abs(dUsed) * slipV;
             res.SlipEnergyJ += p * h;
+            res.SlipImpulseNs += System.Math.Abs(dUsed) * h;
+            double kRel = System.Math.Abs(kEnd) / System.Math.Max(kappa0, 1e-6);
+            res.SlipUnderSquealJ += p * h * (1 - GroundSoundMix.ForeSquealOnset(kRel));
+            res.SlipUnderScrubJ += p * h * (1 - GroundSoundMix.ForeScrubOnset(kRel));
             if (p > AudibleSlipPowerW) res.SlipTimeS += h;
             res.SlipPowerW = p;
             res.SlipRatio = kEnd;
@@ -224,15 +243,16 @@ public static class WheelSpin
     /// balanced by the ground, D = T/r; if it asks for more than the tyre's peak, the wheel locks and slides at
     /// the sliding friction. Returns the longitudinal force on the aircraft along the tyre (signed against v_fwd).
     /// </summary>
-    public static double QuasiStatic(double vFwd, double sigmaY, double muN, double brakeForceN, out bool locked, out double fall)
+    public static double QuasiStatic(double vFwd, double sigmaY, double muN, double brakeForceN, out bool locked, out double fall,
+                                     double kappa0 = SlipRatioScale)
     {
         locked = false; fall = 1;
         if (brakeForceN <= 0) return 0;
         double sign = System.Math.Sign(double.IsFinite(vFwd) && vFwd != 0 ? vFwd : 1);
-        double peak = Peak(sigmaY, muN);
+        double peak = Peak(sigmaY, muN, kappa0);
         if (brakeForceN <= peak || System.Math.Abs(vFwd) <= 0.3) return -sign * System.Math.Min(brakeForceN, peak);
         locked = true; fall = KineticRatio;
-        return -sign * Longitudinal(1.0, sigmaY, muN);
+        return -sign * Longitudinal(1.0, sigmaY, muN, kappa0);
     }
 }
 
@@ -247,7 +267,18 @@ public sealed class WheelState
     public readonly bool IsWheel;
     /// <summary>A float keel or a skid: metal or wood sliding on the ground, which scrapes (a hang glider's feet do not).</summary>
     public readonly bool Scrapes;
+    /// <summary>RadiusM is the tyre's FREE radius; the wheel rolls on <see cref="RollingRadiusM"/>.</summary>
     public readonly double InertiaKgM2, RadiusM, BearingTorqueNm;
+    /// <summary>The catalog tyre on this leg (null: a skid, feet, or a code-built leg with no tyre — rigid, as before),
+    /// its pressure, and what they make of it: spring, damper, the deflection where the rim bottoms.</summary>
+    public readonly TireSpec? Tire;
+    public readonly double PressurePsi, TireStiffnessNPerM, TireDampingNsPerM, TireBottomM;
+    /// <summary>The tyre's deflection at the start of this step, and the end-of-step value the step's stages work out
+    /// (the next step starts from it).</summary>
+    public double TireDeflM, TireDeflNextM;
+    /// <summary>The contact patch as the step's first stage found it, the ground pressure under it, and the slip ratio
+    /// scale it gave the tyre (TireModel.SlipRatioScale).</summary>
+    public double FootprintLengthM, FootprintWidthM, GroundPressurePa, SlipScale = WheelSpin.SlipRatioScale;
     /// <summary>−1 left of the centreline, +1 right, 0 on it.</summary>
     public readonly int Side;
 
@@ -262,6 +293,9 @@ public sealed class WheelState
     /// a wheel nobody advanced coast in its bearings.</summary>
     public bool Advanced;
 
+    /// <summary>Set by the gear when this leg touched down faster than its break sink (and cleared by the aeroplane, which
+    /// decides whether it bends or breaks, MemberMaterials.CrushCapacityM): the arrival and the break sink, m/s.</summary>
+    public double ArrivalMs, ArrivalBreakMs;
     public bool InContact, OnSki, OverWater, Locked;
     public double LoadN, VFwdMs, SlipRatio, SlipPowerW, Brake01, BrakeTorqueNm;
     public WorldTerrain.Surface Surface;
@@ -276,12 +310,22 @@ public sealed class WheelState
     /// <summary>How much lower the axle stands than on a sound tyre this step (<see cref="TyreWear.Drop"/>): what the
     /// gear's contact point is raised by, and what comes off the rolling radius.</summary>
     public double DropM;
+    /// <summary>How fast <see cref="DropM"/> changed into this step (m/s): the worn profile turning under the axle, which the
+    /// tyre's and the leg's dampers see as an opening of the contact.</summary>
+    public double DropRateMs;
     /// <summary>The ground's load on this tyre at the last step it touched (kept across steps: the patch it sizes is the
     /// one the next step's drop is measured over).</summary>
     public double TyreLoadN;
     /// <summary>The tyre's contact point (world, NED) on the last step it touched.</summary>
     public MathTypes.Vec3 PatchWorld;
-    public double RollingRadiusM => System.Math.Max(RadiusM - DropM, 0.25 * RadiusM);
+    /// <summary>R − δ/3 at the current deflection (TireModel): what a sound tyre rolls on, before any flat.</summary>
+    public double SoundRollingRadiusM;
+    /// <summary>What the wheel rolls on: the sound tyre's rolling radius, less a worn or flat tyre's drop.</summary>
+    public double RollingRadiusM
+    {
+        get => System.Math.Max(SoundRollingRadiusM - DropM, 0.25 * RadiusM);
+        set => SoundRollingRadiusM = value;
+    }
     // For whoever listens or draws, read and cleared by them: rubber torn off (m³: the smoke), the work the axle did
     // falling into and climbing out of a worn or flat patch (J: the thump), and how many times the tyre has burst.
     public double AbradedM3, ThumpJ;
@@ -289,13 +333,34 @@ public sealed class WheelState
 
     // Accumulated for whoever listens (the sound), read and cleared by them: slip energy (J) and time (s) spent
     // audibly slipping since the last read. A spin-up lasting 10 ms falls between two frames; these carry it across.
-    public double SlipEnergyJ, SlipTimeS;
+    // The impulses (∫|F|dt, N·s) give the patch's mean slip speed over the same time, E / ∫|F|dt: fore and aft (the
+    // spin-up, a skid) and sideways (a crabbed touchdown, a scrubbing turn), each from its own force and slip.
+    public double SlipEnergyJ, SlipTimeS, SlipImpulseNs;
+    public double SideSlipEnergyJ, SideSlipTimeS, SideSlipImpulseNs;
+    // The part of each energy spent while the slip was still under the squeal's and the scrub's onset band (weighted by
+    // how far under, GroundSoundMix.*Onset): a tyre that is still gripping makes it, and it is not heard. Zero (the
+    // default) is a patch sliding past its friction peak all the time.
+    public double SlipUnderSquealJ, SlipUnderScrubJ, SideSlipUnderSquealJ, SideSlipUnderScrubJ;
+    /// <summary>The tyre's outside diameter (m) for the sound: the catalog's, legacy sizes included, else twice the
+    /// leg's radius. It sets the pitch of the squeal (<see cref="GroundSoundMix.SquealResonanceHz"/>).</summary>
+    public readonly double SoundOdM;
 
     public WheelState(AircraftConfig c, GearConfig g)
     {
         IsWheel = WheelSpin.IsWheel(g);
         Scrapes = !IsWheel && g.GearType != "feet";
         RadiusM = LandingGear.TireRadiusOf(c, g);
+        RollingRadiusM = RadiusM;
+        TireSpec? spec = IsWheel ? TireCatalog.Of(g) : null;
+        SoundOdM = spec != null && spec.OdM > 0 ? spec.OdM : 2 * RadiusM;
+        Tire = spec != null && spec.HasCarcass ? spec : null;     // a legacy size is rigid, as it always was
+        if (Tire != null)
+        {
+            PressurePsi = TirePressure.Psi(c, g);
+            TireStiffnessNPerM = TireModel.StiffnessNPerM(Tire, PressurePsi);
+            TireDampingNsPerM = TireModel.DampingNsPerM(Tire, TireStiffnessNPerM, WheelSpin.MassOf(c, g));
+            TireBottomM = TireModel.BottomDeflectionM(Tire);
+        }
         InertiaKgM2 = IsWheel ? WheelSpin.InertiaOf(c, g) : 0;
         BearingTorqueNm = IsWheel ? WheelSpin.BearingTorquePerKg * WheelSpin.MassOf(c, g) : 0;
         Side = g.Pos[1] < -0.05 ? -1 : g.Pos[1] > 0.05 ? 1 : 0;
@@ -342,6 +407,7 @@ public sealed class WheelState
     {
         InContact = false; OnSki = false; OverWater = false; Locked = false;
         LoadN = 0; SlipPowerW = 0; SlipRatio = 0; Brake01 = 0; BrakeTorqueNm = 0; ForcePerLoad = 0; FallFactor = 1;
+        FootprintLengthM = 0; FootprintWidthM = 0; GroundPressurePa = 0;
     }
 
     /// <summary>Not advanced against the ground this step (in the air, on a ski, in the water): the wheel turns down in
@@ -356,7 +422,7 @@ public sealed class WheelState
         OmegaRadS = System.Math.Abs(w) <= stop ? 0 : w - System.Math.Sign(w) * stop;
         if (double.IsFinite(OmegaRadS)) AngleRad = WrapAngle(AngleRad + 0.5 * (w0 + OmegaRadS) * dt);
         // Off the ground: nothing squashes the tyre, and the strips cool.
-        TyreLoadN = 0; DropM = Tyre != null ? Tyre.Drop(-AngleRad) : 0;
+        TyreLoadN = 0; DropRateMs = 0; DropM = Tyre != null ? Tyre.Drop(-AngleRad) : 0;
         if (Tyre != null) { Tyre.LeaveGround(); Tyre.Leak(dt); }
     }
 
@@ -372,6 +438,31 @@ public sealed class WheelState
     public void TakeSlip(out double energyJ, out double timeS)
     {
         energyJ = SlipEnergyJ; timeS = SlipTimeS;
-        SlipEnergyJ = 0; SlipTimeS = 0;
+        SlipEnergyJ = 0; SlipTimeS = 0; SlipImpulseNs = 0;
+        SideSlipEnergyJ = 0; SideSlipTimeS = 0; SideSlipImpulseNs = 0;
+        SlipUnderSquealJ = SlipUnderScrubJ = SideSlipUnderSquealJ = SideSlipUnderScrubJ = 0;
+    }
+
+    /// <summary>One direction of the patch's slip since the last read: energy, audible time, and the mean slip speed
+    /// E / ∫|F|dt (0 if there was no force), and how much of it was past the squeal's and the scrub's onset (0..1, energy
+    /// weighted).</summary>
+    public readonly struct Slip
+    {
+        public readonly double EnergyJ, TimeS, SpeedMs, SquealOnset, ScrubOnset;
+        public Slip(double e, double t, double impulse, double underSquealJ = 0, double underScrubJ = 0)
+        {
+            EnergyJ = e; TimeS = t;
+            SpeedMs = impulse > 1e-9 && double.IsFinite(e / impulse) ? e / impulse : 0;
+            SquealOnset = e > 1e-12 && double.IsFinite(underSquealJ) ? System.Math.Clamp(1 - underSquealJ / e, 0, 1) : 0;
+            ScrubOnset = e > 1e-12 && double.IsFinite(underScrubJ) ? System.Math.Clamp(1 - underScrubJ / e, 0, 1) : 0;
+        }
+    }
+
+    /// <summary>Read and clear both directions of slip accumulated since the last call.</summary>
+    public void TakeSlip(out Slip fore, out Slip side)
+    {
+        fore = new Slip(SlipEnergyJ, SlipTimeS, SlipImpulseNs, SlipUnderSquealJ, SlipUnderScrubJ);
+        side = new Slip(SideSlipEnergyJ, SideSlipTimeS, SideSlipImpulseNs, SideSlipUnderSquealJ, SideSlipUnderScrubJ);
+        TakeSlip(out double _, out double _);
     }
 }

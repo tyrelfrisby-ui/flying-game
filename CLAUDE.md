@@ -570,6 +570,120 @@ near the sea the second run started a flight's length later in the tide and diff
 first looked like an order-dependent cache. Before blaming a cache for "same inputs, different answer", list every
 global the new code READS, and reset the clock (`Atmosphere.SimTimeSec = 0`) when a test compares two runs.
 
+### A "gap" a pilot sees may be paint, not geometry
+Ty reported a gap between the Extra's canopy and the fuselage from the front seat. The rim touched the sill to 0.0 mm and
+no ray from the eye left the airframe; a hole-hunting check would have said "sealed" and changed nothing. The skin, sill
+and frame were DOUBLE-SIDED with the exterior livery, the dark liner stopped 6-13 cm under the sill, and the wing's own
+skin ran through the front cockpit: white and red outside paint, seen from inside, reads exactly like daylight. Check
+what the eye sees, not only whether it can see out: cast rays from the seat eye and fail any that reach exterior paint
+without passing through glass first (`ExtraCanopySealTests`). And place the liner's top ON the glass edge — 2 mm short
+left a slot rays slipped through.
+### A wait-for-the-build-slot loop must not match other lanes' wait loops
+On 2026-11-04 the flight-recorder lane waited four hours for a free slot that never came: its `ps | grep -E
+"…deploy(-quest)?\.sh…"` also matched every OTHER agent's waiting shell (`/bin/zsh -c source … until … deploy.sh …`),
+whose command lines contain the same words, and theirs matched mine. Every lane saw every other lane's wait loop as a
+running build, so nobody could start. The `[U]nity` bracket trick only stops a loop matching ITSELF. Anchor the pattern to
+the start of the command line so only real build processes count:
+`'^(/Applications/Unity/Hub/Editor/[^ ]+/Unity\.app/Contents/MacOS/Unity |xcodebuild |/[^ ]*/il2cpp |zsh tools/deploy/deploy)'`.
+
+### A collision check must not count your own build's children
+After an 8 s overlap with another lane's deploy (three 20 s idle polls are a race when several lanes queue), I added a
+"did anyone else start a deploy in my first 30 s?" back-off. It matched `zsh tools/deploy/deploy` and skipped only my own
+PID, but deploy.sh's own subshells carry the same command line, so every start "collided" with itself and was killed;
+ten starts in 30 min, then the 2 h limit. Count only top-level deploys (parent is not itself a deploy.sh), dry-run the
+check against `ps` once before trusting it, and poll often (10 s) with a random wait and a re-check just before launch.
+
+### A render pass that reads its own target looks fine on the bench and breaks on the device
+The magenta "grid" over the island's water (Ty, 2026-11-01 and again 2026-11-05) was hunted as a stripped shader twice.
+It was a layer: `SeasideBuilder.B.Build`, which builds "Ocean-lakes-water-lanes", never put the water on
+`WaterReflection.WaterLayer` (only `WorldBuilder.Spawn` did), so the mirror camera drew the water into its own
+reflection, and the water's shader sampled `_ReflectionTex` while rendering into it. Reading a bound render target is
+undefined: the Mac's GPU returned the last frame and every render looked right; the iPad's A17 returned magenta blocks,
+weighted by Fresnel so they grew with distance. What found it was reading the mirror target's raw RGBA in a batch
+render (`WaterMagentaCheck`): alpha 255 everywhere where the cleared sky should be 0. When a convention lives in one
+builder (a layer, a tag), every other builder must apply it too, and the consumer should check it at runtime
+(`WaterReflection.ExcludeStrayWater`). And when only the device shows a fault, look for undefined behaviour the
+bench happens to tolerate before looking for a missing asset.
+
+### A blanket exemption silences everything it covers, including the part you just fixed
+The 2026-11-04 water lane made a dipped propeller brake by blade drag and tested it on landplanes. Ty then dug the J-3
+on floats' prop into the lake and nothing happened: `AirframeContact` skips every hard point of a FLOATPLANE over water
+("the floats carry it"), and the propeller disc stations were hard points too, so on a floatplane the prop could never
+touch the water at all. Every test passed because none of them put a floatplane's prop in the water. When a fix lives
+behind a contact or sensor path, test it on the aircraft from the report, and grep for the switches that skip that path
+(`floatsCarryWater`, `groundClear`, a cull) before believing it reaches everything.
+And the splash "hammering" was a fixed 4.5 Hz sine on the water voice (66 % depth): a periodic modulation on a sound
+the physics drives is a metronome the player hears as a fault. Measure a voice's envelope spectrum
+(`tools/FloatAudio`) before shipping any LFO on it.
+
+### Reserve the whole verification workflow, including the headless tests
+A Unity-only idle poll let other lanes start their exports while the Extra's .NET tests were running.
+Keep the lane's complete verification visible to the existing deploy gates, including tests and gaps between stages;
+`tools/deploy/deploy-extra-verification.sh` does this and excludes only its own reservation PID. Leave other active
+builds visible to the gate and let their owners release them.
+
+### A completed shot tool can wait forever during Unity shutdown
+The Extra tool wrote all eight PNGs, logged PASS and called Exit(0), then waited in CoreShutdown -> PreloadManager::Stop.
+A sample distinguished completed work from an incomplete export. Preserve the logs, inspect the PNGs and sample the
+owned process before stopping it; an idle log alone is not proof of completion. The Extra verifier's guarded `ios`
+resume reuses only a completed eight-shot / zero-C#-error log and retains the deploy reservation.
+
+### Measure where a panel actually meets the wall before asserting its width
+The Extra's new test assumed its bottom 100 mm had the 391 mm half-width of the wall attachment. The unchanged original
+is 293.5 mm there; its widest attachment is at z 195 mm. All three liveries failed the new test despite unchanged
+lower geometry. Compare original and edited sections at the actual attachment stations, then copy those measured
+literals into the regression check.
+
+### A legacy harbour is not the current island's water
+The water render fixture still towed at `WorldTerrain.Harbor` after `WaterSurfaceAt` moved to the island. It drew
+water in the distance and an aircraft reflection, but its floats were dry: no physics spray and a ground shadow
+that never entered the water branch. Use the current `IslandSites` water lane, its heading and sampled surface,
+and reject a dry fixture before saving water review evidence (`WaterRender`). Keep the old failed captures
+labelled invalid rather than treating a plausible blue image as proof of water contact.
+
+### A mechanism that switches another off must cover everything the other one did
+`AirframeVisual` skips the hinge carve for any model with its own rig, because a rig "already has its parts pivoted".
+The Pitts' rig arrived for the VR cockpit (sticks, pedals, canopy) with no flight-surface rows, and from that day its
+elevators, ailerons and rudder were drawn still, live and in replay, for four days, until Ty saw it (t917u). The prop had
+hit the same switch earlier and got a special case (`BindModelProp`); the surfaces did not. When a branch says "X replaces
+Y", list everything Y did and check that X does each of them on the aircraft in question, not just the one the new code
+was written for. `ControlSurfaceMotionCheck` now measures every type's drawn surfaces moving, and
+`SurfaceHingeTests.EveryRiggedOwnModelsFlightSurfacesAreMovedBySomething` fails when a rig leaves one out (the 172 is the
+named known gap).
+
+### A comment that says another component does the work is not that component doing it
+Ty flew with smoke on and the replay showed none. `SmokeController` returned the moment a replay began, under the comment
+"the replay owns the pose; FlightReplay redraws" — and FlightReplay never drew smoke, nor did its recorder keep any. The
+comment was believed for a month because it named a plausible owner. When code hands a job to someone else, grep that
+someone for the job before trusting the hand-off; and if a replay, a widget or a second camera is meant to show a thing,
+test that the thing is in what it draws from (`ReplaySmokeTests`).
+
+### A model is a shell: its centreline has skins, not a body
+Measuring the drawn fuselage as "the longest contiguous run of centreline points" found only a skin: a hollow fuselage
+has its top and its belly on the centreline and nothing between, so the longest run was 5 cm. Join skins across a gap
+when the gap is walled (the body's own sides have points beside it at mid-gap height) and not otherwise — that keeps an
+upper wing over its cabane, or a tailwheel under its spring, out of the body (`AirframeFlow.MeasureFuselage`). Test a
+point-cloud measurement on a hollow synthetic model, not a solid one.
+
+### A source PNG may be lighter than the face actually embedded in the model
+The Great Lakes source faces had already received a second style pass when embedded in the GLB. Replacing a face
+from its source PNG while thinning a band removed that existing lettering stroke. Decode the ACTIVE embedded image
+and migrate its pixels directly for a texture-only change. Assert that every pixel outside the intended colour mask
+is identical, alongside the geometry checks; a correct source PNG alone cannot establish that the rendered typography
+was preserved. Extra dilation also closes counters on small faces: inspect a comparison before retaining it.
+
+### Find state leaks by scanning classes, not by reading one suite at a time
+The B1 qualification run failed 40 StructuralTests names (NaN) that passed on the branch point. Seven new tests had
+reshuffled xUnit's class order and put StructuralTests after IslandStartupCostTests, which left the island installed
+(ground at the origin 2,460 m). I fixed that class and paid two hours for the next suite run, which failed the same 40
+names because the new order now put StructuralTests after UrbanLowRiseTests, a different class with the same leak.
+Each fix moves the order, and another producer turns up. What ended it was a scan: run every class that touches a
+process-wide global on its own, snapshot the globals after it, reset them, and list every class that left something
+behind (152 classes, 90 minutes, two more leakers; `IslandWorldScope` is the restore). Prove each producer with a
+fixed-order replay (producer, then consumer, fail; producer, clear only that global, consumer, pass), and give the
+restore a regression row that fails on the old class. An isolated pass only proves the test is order-dependent;
+it says nothing about what it depends on.
+
 ### A gate that sleeps after its last check is 20 seconds stale when it fires
 The landing-units wait loop was `check; sleep 20` three times, then `deploy.sh`. Its last idle check was 20 s old
 when the build started, and an island-nav install to Ty's devices had started in that gap: two deploys into the same

@@ -1246,6 +1246,9 @@
   "propulsion": {
     "maxPowerW": 75000,
     "propDiameterM": 1.5,
+    "propMaterial": "composite",
+    "propMaterialSource": "moulded glass-fibre drone prop",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2750,
     "propInertia": 1.5,
@@ -1277,7 +1280,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.15, "wheelMassKg": 2.5,
+      "tire": "legacy-drone-main", "tirePressurePsi": 7.5,
       "gearType": "spring-steel"
     },
     {
@@ -1294,7 +1297,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.15, "wheelMassKg": 2.5,
+      "tire": "legacy-drone-main", "tirePressurePsi": 7.5,
       "gearType": "spring-steel"
     },
     {
@@ -1311,7 +1314,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 1500,
-      "tireRadiusM": 0.06, "wheelMassKg": 0.4,
+      "tire": "legacy-drone-tail", "tirePressurePsi": 6,
       "steerSpringNmPerRad": 20
     }
   ],

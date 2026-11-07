@@ -149,13 +149,16 @@ def panel_plate(xp, zb):
     pts = [(xp, *se_pt(t, top, bot, hw)) for t in np.linspace(t0, math.pi - t0, 31)]
     put(CK_INT, 'ck_panel', prism, pts, (0.006, 0, 0))
 panel_plate(XP_F, ZPB_F); panel_plate(XP_R, ZPB_R)
-DIALMAT = {'ASI': 'dial_asi', 'ALT': 'dial_alt', 'VSI': 'dial_vsi', 'TACH': 'dial_tach', 'MP': 'dial_mp', 'OIL': 'dial_oil', 'CHT': 'dial_cht',
-           'G': 'dial_g', 'TC': 'dial_tc', 'HOBBS': 'dial_hobbs', 'MAG': 'dial_mag', 'OILP2': 'dial_oilpress'}
-HANDS = {'ASI': [('ASI', 0.86, 0.075)], 'ALT': [('ALT100', 0.86, 0.06), ('ALT1000', 0.56, 0.12)], 'VSI': [('VSI', 0.86, 0.075)],
-         'TACH': [('TACH', 0.86, 0.075)], 'MP': [('MP', 0.86, 0.075)], 'OIL': [('OILP', 0.84, 0.09), ('OILT', 0.84, 0.09)], 'OILP2': [('OILP2', 0.86, 0.075)],
-         'CHT': [('CHT', 0.84, 0.09)], 'G': [('G', 0.86, 0.075), ('GMAX', 0.80, 0.05), ('GMIN', 0.80, 0.05)]}
-HNAME = {'ASI': 'ASI', 'ALT100': 'Alt100', 'ALT1000': 'Alt1000', 'VSI': 'VSI', 'TACH': 'Tach', 'MP': 'MP', 'OILP': 'OilP', 'OILT': 'OilT',
-         'CHT': 'CHT', 'G': 'G', 'GMAX': 'GMax', 'GMIN': 'GMin', 'OILP2': 'OilP2'}
+# ASI, ALT, TC, VSI and G are the SHARED INSTRUMENT LIBRARY'S (tools/own_models/instruments, Ty 2026-11-05: one of each,
+# used by every aircraft): this panel draws only their bezels, and the game puts the library instrument in each
+# (FlyingGame.Core.Instruments.InstrumentLibrary.GreatLakes, Bridge/SharedInstruments). No face, needle or symbol here.
+LIBRARY = ('ASI', 'ALT', 'TC', 'VSI', 'G')
+DIALMAT = {'TACH': 'dial_tach', 'MP': 'dial_mp', 'OIL': 'dial_oil', 'CHT': 'dial_cht',
+           'HOBBS': 'dial_hobbs', 'MAG': 'dial_mag', 'OILP2': 'dial_oilpress'}
+HANDS = {'TACH': [('TACH', 0.86, 0.075)], 'MP': [('MP', 0.86, 0.075)], 'OIL': [('OILP', 0.84, 0.09), ('OILT', 0.84, 0.09)], 'OILP2': [('OILP2', 0.86, 0.075)],
+         'CHT': [('CHT', 0.84, 0.09)]}
+HNAME = {'TACH': 'Tach', 'MP': 'MP', 'OILP': 'OilP', 'OILT': 'OilT',
+         'CHT': 'CHT', 'OILP2': 'OilP2'}
 # (y, z, bezel radius) on each panel, +y = pilot's left. 3-1/8 in instruments r 0.040, 2-1/4 in r 0.028 (by eye off the photos)
 # FRONT, laid out from Ty's photograph of the real front cockpit (art/GL-FRONT-PANEL-AUDIT.md). One row of SIX,
 # left to right as the pilot sees it (+y is his LEFT, so y descends across the row): altimeter, airspeed, the
@@ -198,6 +201,9 @@ PANEL = {'F': (XP_F, dict(_FY)),
 for sfx, (xp, inst) in PANEL.items():
     for key, (y, z, r) in inst.items():
         rf = 0.9 * r if key != 'MAG' else r
+        if key in LIBRARY:                                              # the library's: the panel's bezel only
+            put(CK_INT, 'ck_bezel', bezel, xp, y, z, r, 6)
+            continue
         put(CK_INT, DIALMAT[key], dial, xp, y, z, rf)
         # The standalone oil-pressure gauge is the one bright rim on a black panel (audit): chrome, not the
         # shared dark bezel every other instrument gets.
@@ -206,21 +212,11 @@ for sfx, (xp, inst) in PANEL.items():
             put(CK_INT, 'ck_bezel_chrome' if chrome else 'ck_bezel', bezel, xp, y, z, r, 16 if chrome else 6)
         c = (xp, y, z)
         for hk, lf, wf in HANDS.get(key, []):
-            n = 'Needle_%s_%s' % (HNAME[hk], sfx); mat = 'ck_telltale' if hk in ('GMAX', 'GMIN') else 'ck_needle'
-            dx = {'GMAX': 0.0, 'GMIN': 0.0015, 'ALT1000': 0.0015}.get(hk, 0.0028)
+            n = 'Needle_%s_%s' % (HNAME[hk], sfx); mat = 'ck_needle'
+            dx = 0.0028
             put(n, mat, needle, xp - 0.0045 - (0.0028 - dx), c, lf * rf, wf * rf * 0.6, DIALS[hk][3])
-            if hk in ('ASI', 'ALT100', 'VSI', 'TACH', 'MP', 'OILP', 'CHT', 'G'): put(n, 'ck_hub', hub, xp - 0.003, c, 0.06 * rf + 0.0015)
+            if hk in ('TACH', 'MP', 'OILP', 'CHT'): put(n, 'ck_hub', hub, xp - 0.003, c, 0.06 * rf + 0.0015)
             NEEDLES[n] = dict(c=c, key=hk, grp=sfx)
-        if key == 'TC':                                                 # airplane symbol + ball
-            n = 'TC_Symbol_' + sfx; s_ = rf / 0.492 / 512                   # metres per artwork px
-            put(n, 'ck_needle', prism, [V3(c) + V3((-0.0045, 0, 0)) + q for q in (dirv(-90) * 0.62 * rf + V3((0, 0, -0.003)), dirv(90) * 0.62 * rf + V3((0, 0, -0.003)),
-                                                                              dirv(90) * 0.62 * rf + V3((0, 0, 0.003)), dirv(-90) * 0.62 * rf + V3((0, 0, 0.003)))], (-0.0012, 0, 0))
-            put(n, 'ck_needle', gcyl, V3(c) + V3((-0.003, 0, 0)), V3(c) + V3((-0.0058, 0, 0)), 0.09 * rf, 12)
-            put(n, 'ck_needle', segbox, V3(c) + V3((-0.0052, 0, 0.0)), V3(c) + V3((-0.0052, 0, 0.2 * rf)), 0.006, 0.001, (0, 1, 0))
-            NEEDLES[n] = dict(c=c, key='TC', grp=sfx)
-            pv = V3(c) + V3((0, 0, 40 * s_)); n = 'TC_Ball_' + sfx
-            put(n, 'ck_ball', gsph, pv + V3((-0.004, 0, -200 * s_)), 18 * s_, 10, 6)
-            NEEDLES[n] = dict(c=tuple(pv), key='BALL', grp=sfx)
         if key == 'MAG':
             n = 'MagKey_' + sfx; a0 = DIALS['MAG'][3]
             put(n, 'ck_buckle', gcyl, V3(c) + V3((-0.003, 0, 0)), V3(c) + V3((-0.012, 0, 0)), 0.0035, 8)

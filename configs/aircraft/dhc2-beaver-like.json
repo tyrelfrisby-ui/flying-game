@@ -1472,6 +1472,9 @@
   "propulsion": {
     "maxPowerW": 336000,
     "propDiameterM": 2.59,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 2D30 two-blade aluminium",
+    "propBladeCount": 2,
     "idleRpm": 600,
     "maxRpm": 2300,
     "propInertia": 9.0,
@@ -1504,7 +1507,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20554,
-      "tireRadiusM": 0.33, "wheelMassKg": 14
+      "tire": "8.50-10", "tirePressurePsi": 30, "tundraTire": "351510.R"
     },
     {
       "pos": [
@@ -1520,7 +1523,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20554,
-      "tireRadiusM": 0.33, "wheelMassKg": 14
+      "tire": "8.50-10", "tirePressurePsi": 30, "tundraTire": "351510.R"
     },
     {
       "pos": [
@@ -1536,7 +1539,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 5652,
-      "tireRadiusM": 0.13, "wheelMassKg": 2.5,
+      "tire": "legacy-beaver-tail", "tirePressurePsi": 38,
       "steerSpringNmPerRad": 18.0
     }
   ],

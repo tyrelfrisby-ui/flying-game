@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "extra-300-like",
   "displayName": "Extra 300-like Aerobat",
+  "structureType": "steelTube",
+  "structureTypeSource": "Extra 300: welded 4130 chrome-moly steel-tube fuselage with aluminium/composite fairings; carbon wing (FAA TCDS A67EU; Extra 300 maintenance manual).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 820,
@@ -1748,6 +1750,7 @@
     "rollDueToSideslip": "monoplane"
   },
   "smoke": {
+    "cylinders": 6,
     "aftOfNoseM": 1.22,
     "downDeg": 30,
     "displacementCuIn": 540,
@@ -1757,6 +1760,9 @@
   "propulsion": {
     "maxPowerW": 224000,
     "propDiameterM": 2.0,
+    "propMaterial": "composite",
+    "propMaterialSource": "MT-Propeller MTV-9 three-blade natural-composite (wood core, glass/carbon skin)",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 2.5,
@@ -1789,8 +1795,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "wheelMassKg": 5.6,
-      "tireRadiusM": 0.155
+      "tire": "legacy-extra-main", "tirePressurePsi": 18.1
     },
     {
       "pos": [
@@ -1806,8 +1811,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "wheelMassKg": 5.6,
-      "tireRadiusM": 0.155
+      "tire": "legacy-extra-main", "tirePressurePsi": 18.1
     },
     {
       "pos": [
@@ -1823,9 +1827,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "wheelMassKg": 0.8,
       "steerSpringNmPerRad": 60,
-      "tireRadiusM": 0.071
+      "tire": "legacy-extra-tail", "tirePressurePsi": 14.5
     }
   ],
   "limits": {

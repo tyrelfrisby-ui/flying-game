@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "seminole-like",
   "displayName": "Seminole-like Twin",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "Piper PA-44 Seminole: all-metal aluminium semi-monocoque (Piper PA-44 service manual).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 1724,
@@ -1467,6 +1469,9 @@
   "propulsion": {
     "maxPowerW": 134000,
     "propDiameterM": 1.88,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hartzell two-blade aluminium, feathering",
+    "propBladeCount": 2,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 3.5,
@@ -1499,7 +1504,7 @@
       "maxSteerRad": 0.5,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "tireRadiusM": 0.18, "wheelMassKg": 4.6
+      "tire": "5.00-5", "tirePressurePsi": 30.4
     },
     {
       "pos": [
@@ -1515,7 +1520,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 14000,
-      "tireRadiusM": 0.222, "wheelMassKg": 8.0
+      "tire": "6.00-6", "tirePressurePsi": 42
     },
     {
       "pos": [
@@ -1531,7 +1536,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 14000,
-      "tireRadiusM": 0.222, "wheelMassKg": 8.0
+      "tire": "6.00-6", "tirePressurePsi": 42
     }
   ],
   "limits": {

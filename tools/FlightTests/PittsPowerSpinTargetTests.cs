@@ -21,7 +21,8 @@ public class PittsPowerSpinTargetTests
 
     private static AircraftConfig Load() => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pitts-s2b-like.json"));
 
-    [Fact(Skip = "OPEN (owner target 2026-11-03): rolls out of the inverted flat; see AGENT-LOG")]
+    /// <summary>Met 2026-11-06 (Q007 t918u, PittsSpinWakeTests): α −92.6 (−93..−92), θ +2.4. Was −85.1 (2026-11-05).</summary>
+    [Fact]
     public void InvertedRightRudderRightAileronFullPowerStaysInvertedFlat()
     {
         var (st, _) = SpinBalanceProbe.Developed(Load(), rudder: 1.0, lever: -1.0, inverted: true, aileron: 1.0);
@@ -30,10 +31,14 @@ public class PittsPowerSpinTargetTests
         Assert.InRange(st.Alpha, -100.0, -85.0);
     }
 
-    [Theory(Skip = "OPEN (owner target 2026-11-03): the right-rudder spin sits at α 30 at full power; see AGENT-LOG")]
-    [InlineData(-1.0)]
-    [InlineData(1.0)]
-    public void UprightFullPowerSpinIsNearlyFlat(double rudder)
+    /// <summary>Left: met 2026-11-06 (Q007 t918u): α 84.6 (84..85), θ −3.8 (was 92.7 / +3.3).</summary>
+    [Fact]
+    public void UprightFullPowerLeftSpinIsNearlyFlat() => UprightFullPowerSpinIsNearlyFlat(-1.0);
+
+    [Fact(Skip = "OPEN (owner target 2026-11-03): the right-rudder (gyro-adverse) spin sits near α 30 at full power; see AGENT-LOG")]
+    public void UprightFullPowerRightSpinIsNearlyFlat() => UprightFullPowerSpinIsNearlyFlat(1.0);
+
+    private void UprightFullPowerSpinIsNearlyFlat(double rudder)
     {
         var (st, _) = SpinBalanceProbe.Developed(Load(), rudder, lever: -1.0);
         _out.WriteLine($"rudder {rudder}: α {st.Alpha:F1} ({st.AlphaMin:F0}..{st.AlphaMax:F0})");

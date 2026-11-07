@@ -4,16 +4,19 @@ No position displays. Author axes: +Y is pilot's LEFT.
 import math
 import numpy as np
 
+BELTS=False   # Ty 2026-11-05: "Remove seat belts and headset wires completely (may revisit)"
+
 def build_cockpit(b):
  from build_grob103 import canopy,section
  for seat,x,zeye,px in [('F',1.15,.18,1.63),('R',-.04,.26,.53)]:
     b.box('Seat_Pan_'+seat,(x-.06,0,-.29),(.35,.40,.065),'seat')
     b.box('Seat_Back_'+seat,(x-.27,0,-.08),(.065,.40,.44),'seat')
     b.box('Headrest_'+seat,(x-.30,0,.21),(.09,.20,.13),'seat')
-    for sg in [-1,1]:
+    if BELTS:   # no seat belts (Ty 2026-11-05)
+     for sg in [-1,1]:
         b.box(f'Shoulder_Harness_{seat}_{sg}',(x-.23,sg*.105,-.02),(.012,.045,.34),'belt')
         b.box(f'Lap_Harness_{seat}_{sg}',(x+.02,sg*.12,-.247),(.055,.22,.012),'belt')
-    b.box('Buckle_'+seat,(x+.02,0,-.230),(.065,.060,.022),'metal')
+     b.box('Buckle_'+seat,(x+.02,0,-.230),(.065,.060,.022),'metal')
     # Rounded-top panel shield, three primary instruments and separate compass front.
     z=0.0 if seat=='F' else .18
     outline=[(-.25,z-.15),(.25,z-.15),(.25,z+.08),(.20,z+.17),(.11,z+.20),(-.11,z+.20),(-.20,z+.17),(-.25,z+.08)]

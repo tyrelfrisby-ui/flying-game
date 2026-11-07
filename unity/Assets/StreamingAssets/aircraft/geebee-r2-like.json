@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "geebee-r2-like",
   "displayName": "Gee Bee R-2-like",
+  "structureType": "steelTube",
+  "structureTypeSource": "Granville Bros Gee Bee R-1/R-2: welded steel-tube fuselage with wooden formers and fabric; plywood-covered wooden wing.",
   "spawnIasMs": 80,
   "mass": {
     "massKg": 1300,
@@ -1182,6 +1184,9 @@
   "propulsion": {
     "maxPowerW": 410000,
     "propDiameterM": 2.6,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard two-blade aluminium",
+    "propBladeCount": 2,
     "idleRpm": 550,
     "maxRpm": 2300,
     "propInertia": 9.0,
@@ -1213,7 +1218,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.28, "wheelMassKg": 10
+      "tire": "legacy-geebee-main", "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1229,7 +1234,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tireRadiusM": 0.28, "wheelMassKg": 10
+      "tire": "legacy-geebee-main", "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1245,7 +1250,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.8,
       "corneringStiffnessN": 2000,
-      "tireRadiusM": 0.1, "wheelMassKg": 1.5,
+      "tire": "legacy-geebee-tail", "tirePressurePsi": 22.9,
       "steerSpringNmPerRad": 120
     }
   ],

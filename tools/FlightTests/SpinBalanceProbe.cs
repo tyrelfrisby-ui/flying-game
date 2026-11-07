@@ -206,6 +206,7 @@ public class SpinBalanceProbe
         string parts = Environment.GetEnvironmentVariable("SPINBAL_PARTS") ?? "spin,recover,table,budget";
         AircraftConfig cfg = Load(id);
         if (Environment.GetEnvironmentVariable("SPINBAL_NOGYRO") != null) cfg.Propulsion!.PropInertia = 0;
+        if (Environment.GetEnvironmentVariable("SPINBAL_IP") is string ip) cfg.Propulsion!.PropInertia = double.Parse(ip);
         if (Environment.GetEnvironmentVariable("SPINBAL_SLIPK") is string slipK) cfg.Propulsion!.SlipstreamK = double.Parse(slipK);
         var tables = Aircraft.BuildAirfoilTables(cfg);
         double S = RefArea(cfg), c = RefChord(cfg), eMax = cfg.Controls.Elevator.MaxDeflRad, rMax = cfg.Controls.Rudder.MaxDeflRad;
@@ -504,6 +505,47 @@ public class SpinBalanceProbe
                         _out.WriteLine(line);
                     }
 
+        if (parts.Contains("abin"))
+        {
+            // Q007 (owner 2026-11-05): "it should not go more than 95 or 5 nose up and it should not gyrate or roll out of inverted
+            // flat right right spin". The flown spin (not a held snapshot), each part's moment averaged over the last 20 s in bins
+            // of |α|: what pushes |α| past 90 and what pulls it back, in the spin as flown.
+            double ail = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_AIL") ?? "1");
+            double rud = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_RUD") ?? "-1");
+            double lev = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_LEVER") ?? "-1");
+            bool inv = (Environment.GetEnvironmentVariable("SPINBAL_INVB") ?? "0") == "1";
+            double[] edges = { 0, 30, 45, 60, 80, 90, 95, 100, 110, 130, 181 };
+            double abinT0 = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_ABIN_T0") ?? "25");   // 0: the entry too
+            var sums = new Dictionary<string, Vec3>[edges.Length - 1]; var cnt = new int[edges.Length - 1];
+            for (int i = 0; i < sums.Length; i++) sums[i] = new();
+            var tr = new System.Text.StringBuilder();
+            EnterSpin(cfg, rud, lev, 45, (t, a) =>
+            {
+                a.CaptureForces = true;
+                if (t < abinT0 || a.LastForces is null) return;
+                double al = Math.Abs(Alpha(a.State)); int b = 0; while (b < cnt.Length - 1 && al >= edges[b + 1]) b++;
+                cnt[b]++;
+                foreach (var kv in Classify(cfg, a.LastForces, a.State.Rates)) sums[b][kv.Key] = (sums[b].TryGetValue(kv.Key, out var o) ? o : Vec3.Zero) + kv.Value;
+                if (Math.Abs(t * 2 - Math.Round(t * 2)) < SimLoop.DefaultFixedDtSec)
+                {
+                    var e = FormationPilot.Euler(a.State.Attitude); var w = a.State.Rates;
+                    tr.Append($"[{t:F1} α{Alpha(a.State):F0} φ{e.Item1 * D:F0} θ{e.Item2 * D:F0} p{w.X * D:F0} q{w.Y * D:F0} r{w.Z * D:F0}] ");
+                }
+            }, inv, ail);
+            _out.WriteLine($"ABIN inv {inv} rud {rud} lever {lev} ail {ail}: mean moments (N·m, body) per |α| bin over {abinT0:F0}..45 s");
+            _out.WriteLine("   " + tr.ToString());
+            for (int b = 0; b < cnt.Length; b++)
+            {
+                if (cnt[b] == 0) continue;
+                _out.WriteLine($" |α| {edges[b]:F0}..{edges[b + 1]:F0}: {cnt[b] * SimLoop.DefaultFixedDtSec:F1} s");
+                foreach (var kv in sums[b].OrderBy(k => k.Key))
+                {
+                    Vec3 m = kv.Value * (1.0 / cnt[b]);
+                    _out.WriteLine($"   {kv.Key,-20} L {m.X,7:F0}  M {m.Y,7:F0}  N {m.Z,7:F0}");
+                }
+            }
+        }
+
         if (parts.Contains("recover"))
             foreach (double rud in new[] { -1.0, 1.0 })
                 foreach (double eleTo in new[] { 0.0, 1.0 })
@@ -589,9 +631,16 @@ public class SpinBalanceProbe
         }
         for (double t = 0; t < 1.0; t += h) { a.State = st; a.Step(ci, h); }
         a.State = st; a.CaptureForces = true; a.Step(ci, h);
+        return Classify(cfg, a.LastForces, st.Rates);
+    }
+
+    /// <summary>The captured forces of one step, by part, as moments about the CG (body, N·m), with the rigid-body inertial couples.</summary>
+    public static Dictionary<string, Vec3> Classify(AircraftConfig cfg, IEnumerable<ForceSample> forces, Vec3 w)
+    {
+        var mI = cfg.Mass.Inertia; Vec3 cg = cfg.Mass.CgVec(); var cfgP = cfg.Fuselage.Crossflow;
         var m = new Dictionary<string, Vec3>();
         void Add(string k, Vec3 v) => m[k] = (m.TryGetValue(k, out var o) ? o : Vec3.Zero) + v;
-        foreach (var f in a.LastForces)
+        foreach (var f in forces)
         {
             Vec3 mm = Vec3.Cross(f.PosBody - cg, f.ForceBody) + f.MomentBody;
             switch (f.Kind)
@@ -610,7 +659,6 @@ public class SpinBalanceProbe
                 default: Add(f.Kind, mm); break;
             }
         }
-        Vec3 w = st.Rates;
         m["inertial"] = new Vec3((mI.Iyy - mI.Izz) * w.Y * w.Z, (mI.Izz - mI.Ixx) * w.X * w.Z, (mI.Ixx - mI.Iyy) * w.X * w.Y);
         m["inertial Ixz"] = new Vec3(mI.Ixz * w.X * w.Y, -mI.Ixz * (w.X * w.X - w.Z * w.Z), -mI.Ixz * w.Y * w.Z);
         return m;

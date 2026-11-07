@@ -50,9 +50,9 @@ namespace FlyingGame.EditorTools
     ///    Without AERO_QUEST_RELEASE the APK is debug-signed, as before, for sideloading.
     ///  • Meta's manifest rules (VRC.Quest.Packaging.1, developers.meta.com/horizon/resources/publish-mobile-manifest):
     ///    targetSdk 34, installLocation auto, excludeFromRecents on the launcher activity, supportedDevices from
-    ///    Meta's own list (no Quest 1), and no INTERNET permission: nothing a pilot can reach in the headset uses the
-    ///    network (online rooms are chosen only on the OnGUI landing page, which the headset cannot show, and the
-    ///    stored mode defaults to Solo). Give the VR menu an online option and ForceRemoveInternetPermission must go.
+    ///    Meta's own list (no Quest 1). The INTERNET permission is KEPT (2026-11-05): the VR menu's Multiplayer row
+    ///    joins the "Same network" room (LanMesh: UDP to the other headsets, phones and Macs on the same Wi-Fi), and on
+    ///    Android every socket needs INTERNET. It was removed while nothing in the headset used the network.
     /// </summary>
     public static class QuestBuild
     {
@@ -114,11 +114,11 @@ namespace FlyingGame.EditorTools
             }
             foreach (var t in wanted)
                 if (oxr.GetFeature(t) == null) Debug.LogError($"[QuestBuild] OpenXR feature {t.Name} is not available for Android");
-            // Nothing in the headset goes online (see the summary); Unity adds INTERNET for UnityWebRequest, which here
-            // only reads StreamingAssets out of the APK.
-            if (oxr.GetFeature<MetaQuestFeature>() is MetaQuestFeature quest && !quest.ForceRemoveInternetPermission)
+            // The headset talks to the other pilots on its Wi-Fi (the VR menu's Multiplayer row, the LAN room): keep the
+            // INTERNET permission that every Android socket needs (see the summary).
+            if (oxr.GetFeature<MetaQuestFeature>() is MetaQuestFeature quest && quest.ForceRemoveInternetPermission)
             {
-                quest.ForceRemoveInternetPermission = true;
+                quest.ForceRemoveInternetPermission = false;
                 EditorUtility.SetDirty(quest);
             }
             EditorUtility.SetDirty(oxr);
@@ -156,6 +156,7 @@ namespace FlyingGame.EditorTools
             // Shared settings, changed only for this build and restored in `finally`.
             UIOrientation orientWas = PlayerSettings.defaultInterfaceOrientation;
             bool frameStatsWas = PlayerSettings.enableFrameTimingStats;
+            bool internetWas = PlayerSettings.Android.forceInternetPermission;
             string versionWas = PlayerSettings.bundleVersion;
             int codeWas = PlayerSettings.Android.bundleVersionCode;
             int inputWas = InputHandler();
@@ -167,6 +168,7 @@ namespace FlyingGame.EditorTools
             {
                 PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;   // Meta Quest: Landscape Left only
                 PlayerSettings.enableFrameTimingStats = true;                                 // the [QuestPerf] cpu numbers
+                PlayerSettings.Android.forceInternetPermission = true;                       // LAN multiplayer: UDP sockets need INTERNET
                 if (System.Environment.GetEnvironmentVariable("AERO_QUEST_OLD_INPUT") != "1") SetInputHandler(2);   // Both: USB pedals
                 Debug.Log($"[QuestBuild] active input handler {InputHandler()} (0 Old, 2 Both; was {inputWas})");
                 string stamp = System.DateTime.Now.ToString("yyyy.MMdd.HHmm");
@@ -195,6 +197,7 @@ namespace FlyingGame.EditorTools
             {
                 PlayerSettings.defaultInterfaceOrientation = orientWas;
                 PlayerSettings.enableFrameTimingStats = frameStatsWas;
+                PlayerSettings.Android.forceInternetPermission = internetWas;
                 PlayerSettings.bundleVersion = versionWas;
                 PlayerSettings.Android.bundleVersionCode = codeWas;
                 if (release)   // only a release touches signing; assigning even "" re-serialises the name as '{inproject}: '

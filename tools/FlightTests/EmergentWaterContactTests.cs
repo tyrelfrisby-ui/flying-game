@@ -37,18 +37,6 @@ public class EmergentWaterContactTests
         Assert.True(Aircraft.WaterBladeTorque(0.99, 0.02, 700 * Math.PI / 30) < Aircraft.WaterBladeTorque(0.99, 0.02, w));
     }
 
-    /// <summary>The chase camera's crash view opens only for a piece that broke off arriving in the water, never for the
-    /// intact airframe touching it, however hard (a hard arrival that breaks something makes a piece, by load).</summary>
-    [Fact]
-    public void TouchingWaterIsNotACrashOnlyABrokenOffPieceIs()
-    {
-        var at = new Vec3(0, 0, -3);
-        Assert.False(CrashEvents.OpensWaterCrashView(new CrashImpact(ImpactSurface.Water, at, Vec3.Zero, 0.6, 1100, 0.05, -1)));
-        Assert.False(CrashEvents.OpensWaterCrashView(new CrashImpact(ImpactSurface.Water, at, Vec3.Zero, 25, 1100, 1.0, -1)));
-        Assert.True(CrashEvents.OpensWaterCrashView(new CrashImpact(ImpactSurface.Water, at, Vec3.Zero, 12, 80, 0.7, 3)));
-        Assert.False(CrashEvents.OpensWaterCrashView(new CrashImpact(ImpactSurface.Land, at, Vec3.Zero, 12, 80, 0.7, 3)));
-    }
-
     /// <summary>A gentle wheels-first touch on water (0.5 m/s of sink at the skim speed, idle) loses nothing on the 172
     /// and the Cub, and no part of the code path decides "crash" from the water alone.</summary>
     [Theory]
@@ -69,7 +57,7 @@ public class EmergentWaterContactTests
     }
 
     /// <summary>No code decides a crash because the surface is water: the prop's stoppage is the rotor's speed alone, and
-    /// the camera's crash view goes through <see cref="CrashEvents.OpensWaterCrashView"/>.</summary>
+    /// the camera has no crash view at all (Ty 2026-11-05 15:21; FuselageFollowCameraTests).</summary>
     [Fact]
     public void NoTouchRuleIsLeft()
     {
@@ -79,6 +67,6 @@ public class EmergentWaterContactTests
         Assert.DoesNotContain("if (water ||", prop);
         Assert.Contains("WaterBladeTorque(", prop);
         string cam = File.ReadAllText(Path.Combine(d.FullName, "unity", "Assets", "_Project", "Scripts", "Bridge", "ChaseCamera.cs"));
-        Assert.Contains("CrashEvents.OpensWaterCrashView(hit)", cam);
+        Assert.DoesNotContain("CrashEvents.Impact", cam);
     }
 }

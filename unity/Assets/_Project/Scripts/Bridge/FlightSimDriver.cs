@@ -34,6 +34,9 @@ namespace FlyingGame.Bridge
             {
                 Aircraft before = _sim?.Aircraft;
                 _sim = value;
+                // The first player's aeroplane owns the world clock (Atmosphere.ClockOwner): every other aircraft --
+                // the second local player, the combat drones, a tow tug -- reads it and never moves it.
+                if (_sim?.Aircraft != null && PlayerIndex == 0) Atmosphere.ClockOwner = _sim.Aircraft;
                 if (_sim?.Aircraft != null) SessionSettings.ApplyLoadTo(AircraftId, _sim.Aircraft);
                 if (_sim?.Aircraft != null && !ReferenceEquals(before, _sim.Aircraft)) AirframeReplaced?.Invoke();
             }
@@ -55,6 +58,15 @@ namespace FlyingGame.Bridge
         /// <summary>Raised after the sim is rebuilt for a (possibly different) aircraft — visuals rebuild on it.</summary>
         public event System.Action AircraftChanged;
         public ControlInputs Inputs { get; set; } = ControlInputs.Neutral;
+
+        /// <summary>LOCAL 2-PLAYER: 0 = the first player (the only one, unless split screen is on). Set before the root is
+        /// activated. Only player 0 owns the world clock, the screen keep-out and the main camera.</summary>
+        public int PlayerIndex;
+        /// <summary>LOCAL 2-PLAYER: where this aeroplane starts relative to the session's start, in the start's heading
+        /// frame (FormationSlot). Zero for the first player, so its start is exactly the one the game always made.</summary>
+        public FlyingGame.Core.LocalMp.FormationSlot.Offset SpawnSlot;
+        private bool HasSlot => SpawnSlot.ForwardM != 0.0 || SpawnSlot.RightM != 0.0;
+        private bool _slotApplied;
         /// <summary>Practice exercises: the game replaces every axis but the user's before each step (PracticeController).</summary>
         public System.Func<ControlInputs, float, ControlInputs> InputFilter;
         /// <summary>The autopilot / yaw damper (AERO panel), applied after <see cref="InputFilter"/>: it replaces only the channels it flies.</summary>
@@ -142,14 +154,17 @@ namespace FlyingGame.Bridge
         /// </summary>
         private void Spawn()
         {
+            _slotApplied = false;
             SpawnAircraft();
+            if (HasSlot && !_slotApplied) ShiftBySlot();
             double lever = Powered ? (GroundStart || IdleStart ? 1.0 : 1.0 - 2.0 * RigSolver.RigThrottle)   // idle, or the air start's 75 %
                 : GroundStart ? 1.0 : IdleStart ? StartSpoilerFraction : 0.0;                              // glider: spoilers as TouchFlightControls.PresetTrim sets them
             Inputs = new ControlInputs(0, TrimStick, 0, lever);
         }
 
         // The scripted crash (FlyingGame.Sim.CrashScenario): with the launch argument "-crashtest runway|grass" the first flight
-        // of the session is the Pitts cartwheel DebrisGroundTests crash, so the phone build reproduces it on demand.
+        // of the session is the Pitts cartwheel DebrisGroundTests crash, so the phone build reproduces it on demand ("water": Ty's
+        // 2026-11-05 touch on the seaplane lane).
         private static bool _crashTestDone;
 
         private void SpawnAircraft()
@@ -162,7 +177,8 @@ namespace FlyingGame.Bridge
                 var pitts = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
                 AircraftName = string.IsNullOrEmpty(pitts.DisplayName) ? AircraftId : pitts.DisplayName;
                 TrimStick = 0;
-                Sim = new SimLoop(new Aircraft(pitts, CrashScenario.PittsStart(pitts, crash == "grass"), ControlDeflections.Neutral));
+                Sim = new SimLoop(new Aircraft(pitts, crash == "water" ? CrashScenario.PittsWaterStart(pitts)
+                    : CrashScenario.PittsStart(pitts, crash == "grass"), ControlDeflections.Neutral));
                 Debug.Log($"[CrashTest] Pitts scripted crash on the {crash}");
                 ApplyStateToTransform();
                 return;
@@ -249,6 +265,11 @@ namespace FlyingGame.Bridge
                 // wheels (three-point stance for a taildragger — spawned level, the tail dropped and broke off).
                 var rw = SessionSettings.ChosenRunway();   // headwind or crosswind runway, lined up on its heading
                 (double sx, double sy) = rw.Start;
+                if (HasSlot)
+                {
+                    var slotGround = FlyingGame.Core.LocalMp.FormationSlot.World(SpawnSlot, rw.HeadingRad);
+                    sx += slotGround.Dx; sy += slotGround.Dy; _slotApplied = true;
+                }
                 // Sit on the ground that is actually there. A field-wide elevation is a metre or two out on a
                 // sloping strip (3U2 is 0.5 %, Cabin Creek 3 %) and was hundreds of metres out while the runway
                 // itself came from a template instead of the world: an aeroplane spawned inside terrain takes
@@ -325,11 +346,42 @@ namespace FlyingGame.Bridge
             // Start HANDS OFF at the type's rig condition (owner 2026-11-02): level at 75 % power on the rig, trimmed, or a glider
             // at best glide. FlyingGame.Sim.AirStart is the whole computation, engine-free, so LaunchReplicationTests fly
             // exactly this launch.
+            if (HasSlot)
+            {
+                var slotAir = FlyingGame.Core.LocalMp.FormationSlot.World(SpawnSlot, spawnHdg);
+                spawnX += slotAir.Dx; spawnY += slotAir.Dy; _slotApplied = true;
+            }
             AirStart.Plan start = AirStart.Compute(config, spawnX, spawnY, spawnAlt, spawnHdg, SpawnIasMs);
             if (start.Warning != null) Debug.LogWarning(start.Warning);
             TrimStick = start.TrimStick;
             Sim = new SimLoop(AirStart.Build(config, start));
             ApplyFixedSlats(config);
+            ApplyStateToTransform();
+        }
+
+        /// <summary>The starts that build their state whole (thermal, final, water, the crash test): move it by the slot
+        /// along the start's own heading, height unchanged.</summary>
+        private void ShiftBySlot()
+        {
+            var d = FlyingGame.Core.LocalMp.FormationSlot.World(SpawnSlot, HeadingRad);
+            MoveBy(d.Dx, d.Dy);
+        }
+
+        /// <summary>The aeroplane's true heading, rad (0 north, + clockwise).</summary>
+        public double HeadingRad
+        {
+            get { Vec3 fwd = Sim.Aircraft.State.Attitude.Rotate(new Vec3(1, 0, 0)); return System.Math.Atan2(fwd.Y, fwd.X); }
+        }
+
+        /// <summary>Move the aeroplane sideways by (dx north, dy east) metres, everything else as it is — a start slot
+        /// (local split screen, a room's spawn spread). On the ground it keeps its height above the ground.</summary>
+        public void MoveBy(double dx, double dy)
+        {
+            RigidBodyState s = Sim.Aircraft.State;
+            double nx = s.Position.X + dx, ny = s.Position.Y + dy, nz = s.Position.Z;
+            if (OnGround && FlyingGame.Core.WorldTerrain.Active != null)
+                nz -= FlyingGame.Core.WorldTerrain.GroundHeightAt(nx, ny) - FlyingGame.Core.WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
+            Sim.Aircraft.State = new RigidBodyState(new Vec3(nx, ny, nz), s.Attitude, s.Velocity, s.Rates);
             ApplyStateToTransform();
         }
 

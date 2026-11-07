@@ -1694,6 +1694,9 @@
   "propulsion": {
     "maxPowerW": 67000,
     "propDiameterM": 2.413,
+    "propMaterial": "wood",
+    "propMaterialSource": "laminated wood, as built 1917",
+    "propBladeCount": 2,
     "idleRpm": 350,
     "maxRpm": 1400,
     "propInertia": 10.0,
@@ -1725,7 +1728,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 7000,
-      "tireRadiusM": 0.33, "wheelMassKg": 9.0
+      "tire": "legacy-jn4-main", "tirePressurePsi": 19.2
     },
     {
       "pos": [
@@ -1741,7 +1744,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 7000,
-      "tireRadiusM": 0.33, "wheelMassKg": 9.0
+      "tire": "legacy-jn4-main", "tirePressurePsi": 19.2
     },
     {
       "pos": [

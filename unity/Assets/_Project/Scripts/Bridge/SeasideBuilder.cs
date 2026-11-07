@@ -180,6 +180,10 @@ namespace FlyingGame.Bridge
                 }
                 mesh.RecalculateBounds();
                 var go = new GameObject(name);
+                // Water must never be drawn into its own planar reflection (Ty 2026-11-05: magenta grid on the island's
+                // water): the mirror pass would sample _ReflectionTex while rendering into it. WorldBuilder.Spawn does
+                // the same; IslandWorldBuilder's "Ocean-lakes-water-lanes" comes through here.
+                if (m.shader.name == "FlyingGame/Water") go.layer = WaterReflection.WaterLayer;
                 go.transform.SetParent(parent, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = m;

@@ -73,20 +73,27 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Restore an intact airframe (ResetFlight / aircraft switch).</summary>
+        private bool _engineShownBent;   // the engine has been drawn drooped this flight (redrawn as the droop comes off)
+
         public void Repair()
         {
             WingsGone = false;
+            _engineShownBent = false;
             Severity = 0f;
             if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; _watched.Damage.Changed -= OnDamage; _watched.Contact -= OnContact; }
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
             if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; _watched.Damage.Changed += OnDamage; _watched.Contact += OnContact; }
             // The old wreck goes with the old aeroplane, and the trees it snapped stand again (FlyingGame.Core.TreeStructure).
             FlyingGame.Core.Forest.ClearBroken();
+            FlyingGame.Core.StrippedTrees.Clear();
             foreach (GameObject g in _wreckVisuals) if (g != null) Destroy(g);
             _wreckVisuals.Clear();
             _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;
             if (GetComponent<FuelSlickVisual>() == null) gameObject.AddComponent<FuelSlickVisual>();
             if (GetComponent<ContactEffects>() == null) gameObject.AddComponent<ContactEffects>();   // placeholder scrape sound + dust
+            if (GetComponent<PropDebris>() == null) gameObject.AddComponent<PropDebris>();           // a broken blade's pieces
+            if (GetComponent<TreeDebris>() == null) gameObject.AddComponent<TreeDebris>();           // needles and twigs a tree hit throws
+            if (GetComponent<GlassShatter>() == null) gameObject.AddComponent<GlassShatter>();       // canopy / windshield / window glass: jagged on a direct hit
             if (GetComponent<TyreSmoke>() == null) gameObject.AddComponent<TyreSmoke>();             // rubber the tyres lose (Core TyreWear)
             LostLine = null;
             ReadLimits();
@@ -139,10 +146,12 @@ namespace FlyingGame.Bridge
                 if (LostLine == null || !LostLine.Contains(what)) LostLine = LostLine == null ? what : LostLine + ", " + what;
                 return;
             }
-            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent) return;
+            if (e.Kind != FlyingGame.Core.ContactEventKind.PanelBent && e.Kind != FlyingGame.Core.ContactEventKind.MemberBent) return;
             FlyingGame.Core.CrashEvents.RaiseImpact(new FlyingGame.Core.CrashImpact(FlyingGame.Core.ImpactSurface.Land, e.PositionWorld, e.VelocityWorld,
                 e.VelocityWorld.Length, _watched.MassProperties.MassKg, System.Math.Clamp(e.Intensity, 0.2, 1.0), -1));
-            string name = PanelName(e.Component);
+            // A panel reports again every further 5° it folds (the crunch each time); the line names it once.
+            string name = e.Kind == FlyingGame.Core.ContactEventKind.PanelBent ? PanelName(e.Component) : e.Component.ToString().ToUpperInvariant();
+            if (LostLine != null && LostLine.Contains(name)) return;
             LostLine = LostLine == null ? "BENT: " + name : LostLine + ", BENT " + name;
         }
 
@@ -205,6 +214,28 @@ namespace FlyingGame.Bridge
                 : LostLine == null ? "BROKE OFF: " + name : LostLine + ", " + name;
         }
 
+        /// <summary>The occupied airframe inside a drawn tree has that tree drawn as the sim has it (StrippedTrees, Ty
+        /// 2026-11-05: the Pitts "vanished" against a stem inside the 1.5 m trunk box and the skirts round it).</summary>
+        private void ObserveTrees(Aircraft ac)
+        {
+            FlyingGame.Core.ITreeSource src = ac.Trees ?? (FlyingGame.Core.WorldTerrain.Active != null ? FlyingGame.Core.Forest.Live : null);
+            if (src == null) return;
+            if (!ReferenceEquals(_sizedFor, ac))
+            {
+                _sizedFor = ac;
+                var cf = ac.Config.Fuselage?.Crossflow;
+                double len = cf != null && cf.LengthM > 0 ? cf.LengthM : 6.0;
+                _treeHalfM = 0.5 * System.Math.Max(2.0 * FlyingGame.Core.WingPanels.Semispan(ac.Config), len);
+                _treeBodyM = cf != null && cf.BodyRadiusM > 0 ? cf.BodyRadiusM : 0.5;
+            }
+            FlyingGame.Core.MathTypes.Vec3 p = ac.State.Position;
+            FlyingGame.Core.WorldTerrain w = FlyingGame.Core.WorldTerrain.Active;
+            if (ac.Trees == null && w != null && -p.Z - _treeHalfM > w.HeightAt(p.X, p.Y) + FlyingGame.Core.Forest.MaxHeightM * 1.05) return;   // above every tree
+            FlyingGame.Core.StrippedTrees.Observe(src, p, _treeBodyM, _treeHalfM);
+        }
+        private Aircraft _sizedFor;
+        private double _treeHalfM, _treeBodyM;
+
         private void ReadLimits()
         {
             if (_watched == null) return;
@@ -226,13 +257,27 @@ namespace FlyingGame.Bridge
 
             // The wreck and the airframe's flooding, in step with the game clock.
             _relay?.Step(Time.deltaTime);
-            // Bent wing panels follow their deflection (it grows with the load factor until they snap).
+            ObserveTrees(ac);
+            // Bent wing panels follow their shape: the plastic set and twist, and the elastic flex under a tip contact.
             if (_visual == null) _visual = GetComponent<AirframeVisual>();
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)
-                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003) _visual.ShowPanelBend(p, ac.Config);
-            // A crushed tail boom or engine mount bends on the model too.
-            if (_visual != null && (ac.Crush.TailCrushM > 0 || ac.Crush.NoseCrushM > 0)) _visual.ShowFuselageBend(ac.Crush, ac.Config);
+                    if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003 || System.Math.Abs(p.FlightFlexRad) > 0.003
+                        || (p.State != FlyingGame.Core.PanelState.Broken && _visual.HasBentPanel(p.Component))) _visual.ShowPanelBend(p, ac.Config);
+            // A crushed tail boom or engine mount bends on the model too, and an overstressed engine mount droops (Ty 2026-11-05).
+            // The engine is drawn drooping once its mount is past 1.5 × limit or has kept a set: putting the nose on its
+            // pivot cuts the model and freezes its rig, as the crash bend does, and a pull just past the limit must not
+            // stop the control surfaces moving for the rest of the flight. Below that the droop is in the thrust line only.
+            FlyingGame.Core.OverstressMember em = ac.Structure.EngineMount;
+            bool engineDrawn = em != null && (em.Overstressed || System.Math.Abs(em.SetRad) >= FlyingGame.Core.WingStructure.VisibleSetRad);
+            double sag = (engineDrawn ? em.DeflectionRad : 0.0) + ac.Crush.NoseBendRad;
+            if (_visual != null && (ac.Crush.TailCrushM > 0 || ac.Crush.NoseCrushM > 0 || System.Math.Abs(sag) > 0.003 || _engineShownBent))
+            {
+                _visual.ShowFuselageBend(ac.Crush, ac.Config, sag);
+                _engineShownBent |= System.Math.Abs(sag) > 0.003;
+            }
+            // The horizontal tail's overstress bend (tips down under positive g).
+            if (_visual != null) _visual.ShowTailBend(ac.TailBendRad);
 
             StructuralState st = ac.Structure;
             LoadFactorG = (float)ac.LoadFactorZ;

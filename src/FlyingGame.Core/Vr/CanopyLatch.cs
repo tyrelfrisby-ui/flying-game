@@ -7,8 +7,9 @@ namespace FlyingGame.Core.Vr
     {
         /// <summary>No latch to grab: an open cockpit (Great Lakes), a door (Cub, 172), or not built yet.</summary>
         None = 0,
-        /// <summary>The Pitts S-2: a black ball on top of the rear panel that slides LEFT / RIGHT; fully right = locked.</summary>
-        SlideBall = 1,
+        /// <summary>The Pitts S-2B (v2, Ty 2026-11-05): a black lever at each cockpit's left canopy frame, joined by a cable;
+        /// pushed FORWARD = latched.</summary>
+        CableLever = 1,
         /// <summary>The Extra 300: a fixed rear handle and a spring-loaded front handle on the canopy frame; squeezing them
         /// together draws the latch pins (v2, Ty 2026-11-02).</summary>
         Squeeze = 2,
@@ -25,65 +26,85 @@ namespace FlyingGame.Core.Vr
         void Reset();
     }
 
+    /// <summary>The two Pitts latch levers, one per cockpit, joined by the cable.</summary>
+    public enum PittsLatchLever { Front = 0, Rear = 1 }
+
     /// <summary>
-    /// THE PITTS S-2 CANOPY LATCH (owner Ty: "the pitts has a black ball that slides left/right"). The ball rides a
-    /// slot ~3 in long on top of the rear panel; its pin drops into the block that captures the canopy bows.
-    /// Fully RIGHT = LOCKED (CONTRACT.md), with a DETENT at that end.
+    /// THE PITTS S-2B CANOPY LATCH, v2 (Ty 2026-11-05: "a BLACK canopy latch at the forward-left corner of the canopy,
+    /// left of the front pilot's head. Push FORWARD = latched, pull BACK = unlatched. Lever ~2 in long, ~90 deg throw. A
+    /// cable runs from it along the bottom of the left canopy sill, between the two curved tubes, to the black lever the
+    /// rear pilot operates"). Both levers and the cable are on the CANOPY frame; the hook they work engages the keeper
+    /// on the fuselage's left sill.
     ///
-    ///   position s, metres from the full-LEFT (open) end, 0 .. <see cref="TravelM"/>
-    ///   held:     s follows the hand's lateral travel since the grab (1:1)
-    ///   detent:   reaching within <see cref="DetentCaptureM"/> of the right end snaps it home → LOCKED (a click);
-    ///             once home it stays home until the hand pulls <see cref="DetentBreakoutM"/> to the left of it —
-    ///             that breakout is the detent's spring, in hand travel, since a controller has no force to measure
-    ///   released: it stays where it was left (a sliding pin in a slot has friction, no spring)
-    ///   Latch01 = 1 − s / travel  (0 locked .. 1 fully open)
+    ///   lever    θ, degrees back from full FORWARD: 0 latched .. <see cref="ThrowDeg"/> unlatched. The cable makes it ONE
+    ///            angle: whichever lever a hand moves, the other follows (the rig's `canopy_latch` = θ / throw drives both).
+    ///   held     θ follows the hand's angle about the lever's pivot (the Bridge's HingedLever, 1:1); two hands on the two
+    ///            levers: the last one to close on its lever drives (the cable cannot be in two places).
+    ///   detent   the latched end is OVER CENTRE: within <see cref="DetentCaptureDeg"/> of forward it snaps home (a click)
+    ///            and stays until the hand pulls it <see cref="DetentBreakoutDeg"/> back. That breakout is the over-centre
+    ///            spring in hand travel, since a controller has no force to measure.
+    ///   released it stays where it was left (cable friction), except that inside the capture it snaps home.
+    ///   Locked   = hook home AND canopy shut: a hook pushed forward with the canopy slid back or open swings in free air,
+    ///            and closing the canopy onto it rides the keeper's ramp and locks (same rule as the Extra's sill).
     ///
-    /// Numbers: travel 3 in = 0.0762 m (Ty, "~3 in"); capture 4 mm and breakout 10 mm are estimates (E) of a
-    /// spring-ball detent's feel — tune on the headset.
+    /// Numbers: arm 2 in = 0.0508 m and throw 90° (Ty); capture 6° and breakout 12° are estimates (E) of an over-centre
+    /// latch's feel, about 5 and 11 mm at the knob. Tune on the headset.
     /// </summary>
     public sealed class PittsCanopyLatch : ICanopyLatch
     {
-        public const double TravelM = 0.0762, DetentCaptureM = 0.004, DetentBreakoutM = 0.010;
+        public const double ThrowDeg = 90.0, ArmM = 0.0508, DetentCaptureDeg = 6.0, DetentBreakoutDeg = 12.0;
 
-        public CanopyLatchKind Kind => CanopyLatchKind.SlideBall;
-        /// <summary>The ball's position, metres from the full-left end.</summary>
-        public double PositionM { get; private set; } = TravelM;
+        public CanopyLatchKind Kind => CanopyLatchKind.CableLever;
+        /// <summary>Both levers' angle, degrees back from full forward.</summary>
+        public double LeverDeg { get; private set; }
+        /// <summary>The hook is in its over-centre detent (lever home, forward).</summary>
+        public bool HookHome { get; private set; } = true;
         public bool Locked { get; private set; } = true;
-        public double Latch01 => 1.0 - PositionM / TravelM;
+        public double Latch01 => LeverDeg / ThrowDeg;
+        /// <summary>The lever a hand is driving, or null.</summary>
+        public PittsLatchLever? HeldBy { get; private set; }
 
-        private bool _held;
-        private double _grabHandX, _grabPos;
+        private bool _shut = true;
 
-        public void Reset() { PositionM = TravelM; Locked = true; _held = false; }
+        public void Reset() { LeverDeg = 0.0; HookHome = true; Locked = true; HeldBy = null; _shut = true; }
 
-        /// <summary>The hand closes on the ball. <paramref name="handRightM"/> is the hand's position along the
-        /// aeroplane's lateral axis (+ right), any origin.</summary>
-        public void Grab(double handRightM) { _held = true; _grabHandX = handRightM; _grabPos = PositionM; }
+        /// <summary>A hand closes on one lever: from now on that lever (and through the cable the other) follows it.</summary>
+        public void Grab(PittsLatchLever which) => HeldBy = which;
 
-        public void Release() => _held = false;
+        /// <summary>That hand lets go (a hand letting go of the OTHER lever changes nothing).</summary>
+        public void Release(PittsLatchLever which) { if (HeldBy == which) HeldBy = null; }
 
-        /// <summary>One frame of a held ball. Returns true on the frame it clicks into the detent (a haptic click).</summary>
-        public bool Follow(double handRightM)
+        /// <summary>One frame of a held lever. <paramref name="handDeg"/>: where the hand puts that lever, degrees back
+        /// from full forward (the Bridge's HingedLever.Follow × throw, grab offset included). Ignored unless
+        /// <paramref name="which"/> is the lever being driven. Returns true on the frame the hook snaps home (a click).</summary>
+        public bool Follow(PittsLatchLever which, double handDeg)
         {
-            if (!_held) return false;
-            double want = Math.Clamp(_grabPos + (handRightM - _grabHandX), 0.0, TravelM);
-            if (Locked)
+            if (HeldBy != which) return false;
+            double want = Math.Clamp(handDeg, 0.0, ThrowDeg);
+            bool click = false;
+            if (HookHome)
             {
-                // Home in the detent: the hand has to pull past the breakout to get it out.
-                if (want > TravelM - DetentBreakoutM) { PositionM = TravelM; return false; }
-                Locked = false;
-                PositionM = want;
-                return false;
+                if (want < DetentBreakoutDeg) { LeverDeg = 0.0; Refresh(); return false; }
+                HookHome = false;
+                LeverDeg = want;
             }
-            if (want >= TravelM - DetentCaptureM)
-            {
-                PositionM = TravelM;
-                Locked = true;
-                return true;
-            }
-            PositionM = want;
-            return false;
+            else if (want <= DetentCaptureDeg) { LeverDeg = 0.0; HookHome = true; click = true; }
+            else LeverDeg = want;
+            Refresh();
+            return click;
         }
+
+        /// <summary>Every frame, with the canopy's state BEFORE this frame's canopy step (CanopyDynamics.Shut). Returns true
+        /// when <see cref="Locked"/> changes.</summary>
+        public bool Update(bool canopyShut)
+        {
+            bool was = Locked;
+            _shut = canopyShut;
+            Refresh();
+            return was != Locked;
+        }
+
+        private void Refresh() => Locked = HookHome && _shut;
     }
 
     /// <summary>The hands on the Extra's latch this frame. Positions are along the canopy frame's AFT axis, metres, any

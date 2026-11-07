@@ -10,11 +10,21 @@ namespace FlyingGame.Core.DataContracts;
 public sealed class AircraftConfig
 {
     /// <summary>
-    /// BUSHWHEELS (owner 2026-10-16): any aeroplane can be put on big soft tyres. Twice the tyre diameter,
-    /// no wheel pants, and half the pressure — which is what lets it skim water and land on a gravel bar.
-    /// Set from the session when the option is chosen; not part of the type's own data.
+    /// BUSHWHEELS (owner 2026-10-16): any aeroplane can be put on big soft tyres, which is what lets it skim water
+    /// and land on a gravel bar. Set from the session when the option is chosen; not part of the type's own data.
+    ///
+    /// Since 2026-11-04 (Ty: "proper tundra tires") the option FITS A REAL TYRE from <see cref="TireCatalog"/> to each
+    /// main wheel — the leg's own <see cref="GearConfig.TundraTire"/>, or the smallest Alaskan Bushwheel rated for the
+    /// leg's static load — at that tyre's own pressure, on the same axle (so the contact point drops by the
+    /// difference in radius). It used to double the radius and the rotating mass and halve the pressure. Setting it
+    /// back to false puts the stock tyre back; see <see cref="TireFit"/>.
     /// </summary>
-    public bool Bushwheels { get; set; }
+    public bool Bushwheels
+    {
+        get => _bushwheels;
+        set { if (value != _bushwheels) { _bushwheels = value; TireFit.Apply(this, value); } }
+    }
+    private bool _bushwheels;
 
     /// <summary>
     /// WHEEL-SKIS (owner 2026-10-16): skis with the wheels still protruding, so the same aeroplane lands on
@@ -54,6 +64,12 @@ public sealed class AircraftConfig
     public string StructureType { get; set; } = "";
     /// <summary>Where <see cref="StructureType"/> came from (type certificate, maintenance manual, builder's notes).</summary>
     public string StructureTypeSource { get; set; } = "";
+    /// <summary>How the WING is built, which decides how its panels bend and how far before they let go (Ty 2026-11-05,
+    /// <see cref="FlyingGame.Core.MemberMaterials"/>): "wood" (spruce spars, fabric), "aluminumFabric" (aluminium spars,
+    /// fabric), "aluminum" (stressed aluminium skin), "composite". Empty = what the fuselage implies (steel tube or wood →
+    /// wood, composite → composite, otherwise aluminium skin).</summary>
+    public string WingSpar { get; set; } = "";
+    public string WingSparSource { get; set; } = "";
 
     public MassConfig Mass { get; set; } = new();
     /// <summary>Seats, tanks and baggage, and the weight-and-balance envelope. Optional; absent means the authored
@@ -469,9 +485,18 @@ public sealed class SpoilerConfig
     /// whole-wing plate dove vertically at 27 kt). Drag = q · area · Cd 1.2 · fraction.</summary>
     public double PlateAreaM2 { get; set; }
 
+    /// <summary>The spoiler roar's level, 1 = the stock voice (WindSynth: a 650 Hz band of noise growing with the
+    /// deployment and the airspeed). The 2-33's is quieter (Ty 2026-11-05 16:06: "a little too loud").</summary>
+    public double SoundLevel { get; set; } = 1.0;
+    /// <summary>How much low wake rumble sits under the roar, 0 = none (the stock voice); 1 is about half the stock
+    /// roar's RMS on its own (tools/SpoilerAudio). The 2-33's dive brakes: "a bit more rumble to it".</summary>
+    public double SoundRumble { get; set; }
+
     /// <summary>Handle position (0..1) at which the WHEEL BRAKE starts to bite, for a glider whose brake is on
     /// the end of the dive-brake handle's travel (SGS 2-33: 0.9, i.e. the last tenth; the AFM has the pilot go
-    /// full aft after touchdown). 0 = no such linkage, which is every other type.</summary>
+    /// full aft after touchdown). 0 = no such linkage, which is every other type. A RECORD of the rig table's band
+    /// (ModelRigTests): since 2026-11-05 the sim does not apply it, because the sim only sees the spoiler, not the
+    /// handle. The input owns the handle and its brake band (Core.Vr.SpoilerHandle, 0.85).</summary>
     public double WheelBrakeFromSpoiler { get; set; }
     /// <summary>Handle position at which that brake is full on.</summary>
     public double WheelBrakeFullSpoiler { get; set; } = 1.0;
@@ -693,6 +718,14 @@ public sealed class PropulsionConfig
     /// <summary>Fixed-pitch prop: the speed its efficiency peaks at (m/s; default 45 ≈ 87 kt, a cruise prop). A slow type with
     /// a fine-pitched prop (the AirCam's ground-adjustable Warp Drives) peaks far lower — and so does its best climb speed.</summary>
     public double DesignSpeedMs { get; set; } = 45.0;
+    /// <summary>What the blades are made of: "metal" (default), "wood" or "composite". A strike curls a metal blade's
+    /// struck span and breaks a wooden or composite one's off (<see cref="PropBladeDamage"/>, Ty 2026-11-05 9:04).</summary>
+    public string PropMaterial { get; set; } = "metal";
+    public string PropMaterialSource { get; set; } = "";
+    /// <summary>Where <see cref="PropInertia"/> comes from. Reference only: nothing in the flight model reads it.</summary>
+    public string PropInertiaSource { get; set; } = "";
+    /// <summary>How many blades (2 by default): each strikes, and is damaged, on its own.</summary>
+    public int PropBladeCount { get; set; } = 2;
     private double? _idleDragCd;
 }
 
@@ -851,14 +884,22 @@ public sealed class GearConfig
     public double TireMu { get; set; } = 0.8;         // dry tarmac friction (limits tire force)
     public double CorneringStiffnessN { get; set; } = 6000; // side force per rad slip (before mu limit)
     public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
-    public double TireRadiusM { get; set; }           // tyre's free radius, the visual and the rolling one (0 = auto from fuselage length); 0.445 = 35" bushwheel
-    // The wheel's SPIN (2026-11-04, WheelSpin): what has to be spun up from rest at touchdown and stopped by the brake.
-    // WheelMassKg is the ROTATING mass of one wheel — tyre, tube, wheel halves and brake disc (the caliper does not turn);
-    // 0 = estimated from the tyre size (WheelSpin.MassOf). WheelInertiaKgM2 overrides the I = 0.65·m·r² it implies.
+    // THE TYRE (Ty 2026-11-04, "proper tundra tires"): which tyre is on this leg, by TireCatalog id. Its size, width,
+    // masses, inertia, carcass and pressures all come from the catalog — one source of truth — and a config never
+    // states a tyre's radius or mass by hand any more (TireCatalogTests holds every config to it).
+    public string Tire { get; set; } = "";
+    // The tyre the BUSHWHEELS option fits to this leg (a main wheel), by catalog id; "" = the smallest tundra tyre in
+    // the catalog rated for the leg's static load (TireFit). Its pressure: TundraPressurePsi, 0 = the tyre's typical.
+    public string TundraTire { get; set; } = "";
+    public double TundraPressurePsi { get; set; }
+    // A SKID's (or a code-built test leg's) radius, where there is no catalog tyre. 0 = auto from fuselage length.
+    public double TireRadiusM { get; set; }
+    // Overrides of the catalog's rotating mass (tyre, tube, wheel halves and brake disc) and the inertia it derives,
+    // for tests and probes only: no config may set them (TireCatalogTests).
     public double WheelMassKg { get; set; }
     public double WheelInertiaKgM2 { get; set; }
-    // Tyre pressure (psi), which is what decides when a wheel hydroplanes: V_p (kt) = 9√p. 0 = estimate it
-    // from the tyre's size and the aeroplane's weight (WheelHydro.TirePressurePsi).
+    // Operating pressure (psi) of the tyre on this leg. It decides the tyre's spring, its footprint, its ground
+    // pressure (sinkage) and when it hydroplanes (V_p kt = 9√p). 0 = the catalog tyre's typical pressure.
     public double TirePressurePsi { get; set; }
     public double BreakSinkMs { get; set; }           // first-contact sink rate that tears this leg off (0 = LandingGear.DefaultBreakSinkMs)
     // Tailwheel (owner 2026-09-12): the wheel CASTORS about its pivot; springs to the rudder pull it toward the
@@ -869,6 +910,11 @@ public sealed class GearConfig
     public double BreakoutRad { get; set; }           // castor angle at which the steering UNLOCKS (free swivel until re-engaged)
 
     public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
+
+    // What TireFit took off when the bushwheel option went on, to put back when it comes off. Not data.
+    internal bool TundraFitted;
+    internal string StockTire = "";
+    internal double StockPosZ, StockPressurePsi;
 }
 
 /// <summary>A wing with no moving surface at all, flown by swinging the pilot's own mass about the hang point: a hang
@@ -912,6 +958,8 @@ public sealed class LimitsConfig
     /// <summary>LIMIT load factors (g): the loads the structure must carry without permanent deformation.</summary>
     public double GMax { get; set; } = 10;
     public double GMin { get; set; } = -10;
+    /// <summary>Where the limit load factors came from (documentation only).</summary>
+    public string GMinSource { get; set; } = "";
 
     /// <summary>Where the airframe starts to COMPLAIN, as a multiple of the limit load (owner 2026-10-31: "make the
     /// wings pop and groan above 1.5 limit load"). Real certification has no such band — a limit load is the load the
@@ -984,6 +1032,28 @@ public sealed class LimitsConfig
         if (MaxNonLiftingMassKg <= 0.0) return 1.0;
         double nonLifting = massKg - LiftingMassKg;
         return nonLifting > MaxNonLiftingMassKg ? MaxNonLiftingMassKg / nonLifting : 1.0;
+    }
+
+    /// <summary>
+    /// How heavily the WINGS (and the horizontal tail) are loaded against what their limit load factors were rated for,
+    /// as a multiple (Ty 2026-11-05 overstress pattern: "this accounts for actual weight so it could be higher than
+    /// published if flying light weight"): the wing root bending is n x the weight it carries, so the same g at half the
+    /// weight is half the bending. A type that states its certificated non-lifting mass (a sailplane) is measured on that:
+    /// (m - wings) / max non-lifting. Otherwise m / gross, the gross being the placard's maximum take-off mass, else the
+    /// config's authored mass (which is the gross for every type that has no placard). 1 = exactly at gross.
+    /// </summary>
+    public double WingWeightRatio(double massKg, double grossKg)
+    {
+        if (MaxNonLiftingMassKg > 0.0) return Math.Max(0.0, massKg - LiftingMassKg) / MaxNonLiftingMassKg;
+        return grossKg > 1e-9 ? massKg / grossKg : 1.0;
+    }
+
+    /// <summary>The active category's limit load factors at or below VA, with no airbrake and no weight adjustment: the
+    /// published numbers the overstress pattern is measured against.</summary>
+    public (double Pos, double Neg) PublishedLimits()
+    {
+        LoadCategoryConfig c = Active();
+        return (c.GMax > 0.0 ? c.GMax : 10.0, c.GMin < 0.0 ? c.GMin : -10.0);
     }
 
     /// <summary>The limit load factors (positive, negative) at this indicated airspeed, airbrake deflection and total

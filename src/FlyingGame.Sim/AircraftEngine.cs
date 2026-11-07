@@ -29,13 +29,19 @@ public sealed partial class Aircraft
     public double PropLever { get => _propLever; set => _propLever = System.Math.Clamp(value, 0.0, 1.0); }
     private double _propLever = 1.0;
 
+    /// <summary>The left and right magneto switches (the Great Lakes' MAG L / MAG R toggles, Ty 2026-11-05): both on by
+    /// default, as every type has always flown. One off: the mag drop (<see cref="Magnetos.PowerFactor"/>). Both off: no
+    /// spark, the engine stops at once and the prop windmills; either back on with the prop turning and it fires again.</summary>
+    public bool MagLeft { get; set; } = true;
+    public bool MagRight { get; set; } = true;
+
     /// <summary>True when this type has a governor for <see cref="PropLever"/> to set.</summary>
     public bool HasPropLever => Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0 };
     /// <summary>True when this type has a mixture for <see cref="MixtureLever"/> to meter (a piston; not a jet).</summary>
     public bool HasMixture => Config.Propulsion is { PropDiameterM: > 0, MaxPowerW: > 0 };
 
     /// <summary>Lowest governed rpm, as a fraction of <c>MaxRpm</c> (a 2,700 rpm Lycoming's governor bottoms near 1,900).</summary>
-    public const double LowGovernorFraction = 0.7;
+    public const double LowGovernorFraction = PropModel.LowGovernorFraction;
     /// <summary>How long a re-fuelled engine takes to catch.</summary>
     public const double RelightSec = 1.0;
 
@@ -44,8 +50,9 @@ public sealed partial class Aircraft
     private double _sigma = 1.0;      // density ratio at the last step
     private double _roughPhase;
 
-    /// <summary>The engine is making power: it has a propeller, fuel and a mixture that fires.</summary>
-    public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0 && !_noseLost && !_mixtureDead && !_fuelStarved;
+    /// <summary>The engine is making power: it has a propeller, fuel, a mixture that fires and a spark (a magneto on).</summary>
+    public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0 && !_noseLost && !_mixtureDead && !_fuelStarved
+                                 && Magnetos.Fires(MagLeft, MagRight);
 
     /// <summary>The engine has quit for want of fuel (idle cut-off, a mixture too lean to fire, or the fuel valve shut:
     /// <see cref="FuelStarved"/>). Not damage.</summary>
@@ -72,6 +79,7 @@ public sealed partial class Aircraft
             if (!EngineRunning) return 0.0;
             double s = HasMixture ? MixtureModel.PowerFactor(_mixtureLever, _sigma) : 1.0;
             if (HasPropLever) s *= GovernorPowerFactor();
+            s *= Magnetos.PowerFactor(MagLeft, MagRight);
             double rough = EngineRoughness;
             if (rough > 0.0) s *= 1.0 - 0.15 * rough * (0.5 + 0.5 * System.Math.Sin(_roughPhase));
             return s;
@@ -80,7 +88,7 @@ public sealed partial class Aircraft
 
     /// <summary>What the propeller model is given this step.</summary>
     public PropModel.PropDrive Drive =>
-        EngineRunning ? (PowerScale == 1.0 ? PropModel.PropDrive.Running : PropModel.PropDrive.RunningAt(PowerScale))
+        EngineRunning ? (PowerScale == 1.0 && _propLever == 1.0 ? PropModel.PropDrive.Running : PropModel.PropDrive.RunningAt(PowerScale, _propLever))
                       : PropModel.PropDrive.Dead(_noseLost ? 0.0 : WindmillRpm);
 
     /// <summary>How fast the air turns a dead engine's prop (0 when it is too slow to, or there is no prop).</summary>
@@ -88,19 +96,7 @@ public sealed partial class Aircraft
         ? MixtureModel.WindmillRpm(State.Velocity.Length, p.PropDiameterM, p.MaxRpm) : 0.0;
 
     /// <summary>Constant-speed rpm for a governor lever position at the current throttle (the old law at lever 1).</summary>
-    private double GovernedRpmAt(double lever)
-    {
-        PropulsionConfig p = Config.Propulsion!;
-        double idle = p.IdleRpm, max = p.MaxRpm, thr = _throttle01;
-        double low = System.Math.Max(idle, LowGovernorFraction * max);
-        double govTop = System.Math.Clamp(p.GovernedRpm, idle, max);
-        double gov = low + (govTop - low) * lever;
-        double takeoff = low + (max - low) * lever;   // full forward and firewalled: up to the red line, as before
-        double finePitch = idle + (System.Math.Min(gov, 1800.0) - idle) * System.Math.Min(1.0, thr / 0.3);
-        if (thr < 0.3) return finePitch;
-        double t = System.Math.Clamp((thr - 0.9) / 0.1, 0.0, 1.0);
-        return gov + (takeoff - gov) * t * t * (3 - 2 * t);
-    }
+    private double GovernedRpmAt(double lever) => PropModel.RunningRpm(Config.Propulsion!, _throttle01, lever);   // one law: the gyro uses it too
 
     /// <summary>At the same manifold pressure a piston's power goes with its rpm: the governor lever's share.</summary>
     private double GovernorPowerFactor()

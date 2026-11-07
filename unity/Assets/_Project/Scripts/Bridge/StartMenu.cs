@@ -761,7 +761,7 @@ namespace FlyingGame.Bridge
             }
 
             if (locked) GUI.enabled = wasEnabled;
-            // Bushwheels: twice the tyre, no pants, half the pressure. It changes how the aeroplane lands on
+            // Bushwheels: a real tundra tyre from the catalog on each main wheel, at its own pressure (TireFit). It changes how the aeroplane lands on
             // a bar or skims water, so it belongs with the conditions rather than buried in a menu.
             if (locked) GUI.enabled = false;
             if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.Bushwheels ? "Bushwheels ON" : "Bushwheels off",

@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "p51d-like",
   "displayName": "P-51D-like Fighter",
+  "structureType": "aluminumMonocoque",
+  "structureTypeSource": "North American P-51D: aluminium semi-monocoque fuselage.",
   "spawnIasMs": 110,
   "mass": {
     "massKg": 4600,
@@ -1495,6 +1497,9 @@
   "propulsion": {
     "maxPowerW": 1100000,
     "propDiameterM": 3.4,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 24D50 four-blade aluminium",
+    "propBladeCount": 4,
     "idleRpm": 700,
     "maxRpm": 3000,
     "propInertia": 14.0,
@@ -1527,8 +1532,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 15000,
-      "wheelMassKg": 30,
-      "tireRadiusM": 0.34
+      "tire": "legacy-p51-main", "tirePressurePsi": 101.4
     },
     {
       "pos": [
@@ -1544,8 +1548,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 15000,
-      "wheelMassKg": 30,
-      "tireRadiusM": 0.34
+      "tire": "legacy-p51-main", "tirePressurePsi": 101.4
     },
     {
       "pos": [
@@ -1561,8 +1564,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "wheelMassKg": 5,
-      "tireRadiusM": 0.16,
+      "tire": "legacy-p51-tail", "tirePressurePsi": 81.1,
       "steerSpringNmPerRad": 150
     }
   ],

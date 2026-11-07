@@ -169,6 +169,7 @@ namespace FlyingGame.Bridge
             cam.gameObject.AddComponent<TracerOverlay>().Combat = aircraft.GetComponent<CombatController>();
             var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
             reflection.Driver = aircraft.GetComponent<FlightSimDriver>();
+            cam.gameObject.AddComponent<PilotUnderwater>();   // the seat view with the head in the lake (Ty t922u)
             // Instruments: round analog dials (default), the green conformal HUD, or none — SessionSettings.Instruments.
             var gauges = cam.gameObject.AddComponent<AnalogGauges>();
             gauges.Driver = aircraft.GetComponent<FlightSimDriver>();
@@ -224,6 +225,10 @@ namespace FlyingGame.Bridge
             pHud.Controller = aircraft.GetComponent<Practice.PracticeController>();
             pHud.Driver = aircraft.GetComponent<FlightSimDriver>();
             pHud.Debrief = aircraft.GetComponent<Practice.LessonDebrief>();
+
+            // LOCAL 2-PLAYER, split screen (off by default: with it off this object builds nothing).
+            var coop = new GameObject("LocalCoop").AddComponent<LocalCoop>();
+            coop.P1 = aircraft.GetComponent<FlightSimDriver>(); coop.P1Camera = cam;
 
             var weather = aircraft.AddComponent<WeatherController>();
             weather.Bubbles = bubbles;

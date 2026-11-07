@@ -1,4 +1,4 @@
-// Glassy water: directional sky + tiered planar reflection of aircraft and scenery (WaterReflection
+// Water volume: directional sky + tiered planar reflection of aircraft and scenery (WaterReflection
 // writes _ReflectionTex), depth absorption, sun glint and ambient ripples. Reflection is valid for the
 // water plane at _ReflPlaneY (the lake under the aircraft); other lakes fall back to the sky term.
 Shader "FlyingGame/Water"
@@ -26,11 +26,14 @@ Shader "FlyingGame/Water"
             #pragma fragment frag
             #include "UnityCG.cginc"
             #include "SunsetSky.cginc"
+            // The pilot's head in or by the lake (PilotUnderwater.cs; _PilotWaterMode is 0 for every other camera and view).
+            #include "PilotUnderwater.cginc"
             UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
             struct appdata { float4 vertex : POSITION; float2 depth : TEXCOORD1; };
             struct v2f { float4 pos : SV_POSITION; float3 wp : TEXCOORD0; float4 sp : TEXCOORD1; float2 depth : TEXCOORD2; };
             fixed4 _Color, _SkyColor;
             sampler2D _ReflectionTex;
+            float4 _ReflectionTex_TexelSize;
             float _ReflPlaneY, _ReflOn;
             float _SceneryWater, _RiverFlow, _PowellWater; float4 _FlowDirection;
             float4 _BubbleSunDir;
@@ -184,14 +187,32 @@ Shader "FlyingGame/Water"
                 float3 v = normalize(_WorldSpaceCameraPos - i.wp);
                 float ndv = saturate(dot(n, v));
                 float fresnel = .0204 + .9796 * pow(1.0 - ndv, 5.0);
-
+                if (_PilotWaterMode > 1.5 && _WorldSpaceCameraPos.y < i.wp.y - .01)
+                {
+                    // Seen from under the surface by the pilot: Snell's window (the sky, inside 48.6 deg of straight up,
+                    // already murked behind this by PilotUnderwater) and, outside it, total internal reflection of the
+                    // lit water. Without this the underside drew the sky mirror at fresnel 1: a pale opaque band across
+                    // the flooded cockpit (Ty's t922u screenshot).
+                    float window = smoothstep(.62, .70, saturate(dot(n, -v)));
+                    float3 seen = PilotPath(_WorldSpaceCameraPos, i.wp - _WorldSpaceCameraPos);
+                    float3 lit = _PilotWaterColor.rgb * seen.z;
+                    return fixed4(lerp(lit * 1.25, lit, seen.y), lerp(1, .06 + .9 * seen.y, window));
+                }
                 float3 refl;
                 if (_SunsetOn > .5) refl = SunsetSky(reflect(-v,n));
                 else refl = DaySkyRough(reflect(-v,n), .85 * (1-fresnel));
                 if (_ReflOn > 0.5 && abs(i.wp.y - _ReflPlaneY) < 1.5)
                 {
                     float4 uv = i.sp; uv.xy += n.xz * 0.025 * uv.w;   // ripple distortion
-                    fixed4 r = tex2Dproj(_ReflectionTex, UNITY_PROJ_COORD(uv));
+                    float2 mirrorUV = uv.xy / uv.w;
+                    // A small fixed five-tap footprint softens the finite mirror target.
+                    // No second camera, full-screen colour copy, or temporal image history.
+                    float2 blur = _ReflectionTex_TexelSize.xy * lerp(1.8, .65, _WaterCalm);
+                    fixed4 r = tex2D(_ReflectionTex, mirrorUV) * .4;
+                    r += tex2D(_ReflectionTex, mirrorUV + float2(blur.x, 0)) * .15;
+                    r += tex2D(_ReflectionTex, mirrorUV - float2(blur.x, 0)) * .15;
+                    r += tex2D(_ReflectionTex, mirrorUV + float2(0, blur.y)) * .15;
+                    r += tex2D(_ReflectionTex, mirrorUV - float2(0, blur.y)) * .15;
                     refl = lerp(refl, r.rgb, r.a);
                 }
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
@@ -200,7 +221,8 @@ Shader "FlyingGame/Water"
                 // Screen depth is measured along the view ray; vertical depth removes the grazing-angle bias.
                 float sceneZ = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.sp)));
                 float surfaceZ = -mul(UNITY_MATRIX_V, float4(i.wp,1)).z;
-                float depth = max(0, sceneZ - surfaceZ) * max(.05, v.y);
+                float path = max(0, sceneZ - surfaceZ);
+                float depth = path * max(.05, v.y);
                 // Out where the buffer cannot resolve the seabed from the surface, read it as deep water, smoothly.
                 depth = lerp(depth, 12, saturate(surfaceZ * surfaceZ * _WaterDepthErrK - .25));
                 if (_WaterSceneDepthOff > .5) depth = 12;
@@ -208,21 +230,41 @@ Shader "FlyingGame/Water"
                 float3 shallow = lerp(_Color.rgb * float3(.72,1.0,.80), float3(.16,.14,.105), _SunsetOn);
                 if (scenery > .5)
                 {
-                    if (i.depth.y > .5) depth = max(0,i.depth.x);
+                    // Authored bed depth is a fallback/cap; closer submerged hulls still win.
+                    if (i.depth.y > .5) depth = min(depth, max(0,i.depth.x));
                     shallow = lerp(float3(.24,.30,.24),float3(.13,.43,.43),_PowellWater);
                     deep = _Color.rgb * float3(.78,.90,.80);
                 }
                 float3 body = lerp(shallow, deep, 1-exp(-depth*.22));
                 float3 sunTint = lerp(float3(1,1,1),float3(1,.68,.36),_SunsetOn);
-                // A calm sunset lake reflects the luminous deck well into the foreground.
-                // Keep silhouettes and sky on the same reflection weight; no additive sky wash.
-                float mirror = lerp(fresnel, max(fresnel, .91 + .07 * pow(1-ndv, 2)), _WaterCalm * _SunsetOn);
-                float3 col = lerp(body, refl, mirror) + spec * sunTint * (1 - foam);
+                // Beer-Lambert transmission along the ray, with Fresnel reflection at the surface.
+                // The opaque scene is already behind this transparent pass: alpha blending preserves
+                // submerged floats and the bank without a costly mobile GrabPass. Calm changes the
+                // normals/roughness, never the refractive index (the old sunset override forced 91%).
+                if (_WaterSceneDepthOff > .5) path = 18;
+                float uncertain = saturate(surfaceZ * surfaceZ * _WaterDepthErrK - .25);
+                path = lerp(path, 18, uncertain);
+                if (scenery > .5 && i.depth.y > .5) path = min(path, max(0,i.depth.x) / max(.1,v.y));
+                float transmission = exp(-min(path, 80) * .28);
+                float alpha = 1 - (1-fresnel) * transmission;
+                float3 col = (body * (1-fresnel) * (1-transmission) + refl * fresnel)
+                    / max(.001, alpha);
+                col += spec * sunTint * (1 - foam);
                 // Small reflective crests, no aerated planing foam.
                 col += lerp(float3(.38,.53,.66),refl,.65) * taxiGlint;
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
+                alpha = lerp(alpha, 1, foam);
                 // Sub-metre edge blends the existing mesh into the damp bank rather than a blue cutout.
-                float alpha = scenery > .5 && i.depth.y > .5 ? smoothstep(0,1.2,depth) : 1;
+                if (scenery > .5 && i.depth.y > .5) alpha *= smoothstep(0,.18,depth);
+                if (_PilotWaterMode > .5)
+                {
+                    // Another surface seen through the pilot's lake (the sea below a hill lake, the far shore's water):
+                    // this pass draws after PilotUnderwater, so it takes the same murk itself. A surface the eye looks
+                    // down on through air has no submerged path and is untouched.
+                    float3 seen = PilotPath(_WorldSpaceCameraPos, i.wp - _WorldSpaceCameraPos);
+                    col = lerp(col, _PilotWaterColor.rgb * seen.z, seen.y);
+                    alpha = lerp(alpha, 1, seen.y);
+                }
                 return fixed4(col, alpha);
             }
             ENDCG

@@ -137,6 +137,25 @@ public static class Atmosphere
 
     public static void AdvanceTime(double dt) => SimTimeSec += dt;
 
+    /// <summary>
+    /// THE ONE CLOCK (local 2-player, 2026-11-05). Every <c>Aircraft.Step</c> used to add its own dt to
+    /// <see cref="SimTimeSec"/>, so the world clock ran once per aircraft: the player at 200 Hz and every combat drone,
+    /// formation ship, dogfight opponent and tow tug at their own rate each added a full second per second. Fifteen
+    /// drones made the turbulence field, the tide and the thermals run sixteen times too fast. A second local player
+    /// would have doubled it again.
+    ///
+    /// When an owner is set, only the owner's steps advance the clock (<see cref="AdvanceTime(object, double)"/>); every
+    /// other aircraft reads it. The game sets the first player's aeroplane (FlightSimDriver, on every new Aircraft).
+    /// Null (headless tools, tests, the Aero Widget) keeps the old rule: every step advances it.
+    /// </summary>
+    public static object? ClockOwner { get; set; }
+
+    /// <summary>Advance the clock by <paramref name="dt"/> if <paramref name="stepper"/> owns it (or nobody does).</summary>
+    public static void AdvanceTime(object stepper, double dt)
+    {
+        if (ClockOwner is null || ReferenceEquals(ClockOwner, stepper)) SimTimeSec += dt;
+    }
+
     /// <summary>Thermals (rising columns) active in the world; glider soaring energy.</summary>
     public static System.Collections.Generic.List<Thermal> Thermals { get; } = new();
 

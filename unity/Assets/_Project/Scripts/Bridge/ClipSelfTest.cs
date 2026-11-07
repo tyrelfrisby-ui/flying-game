@@ -56,6 +56,7 @@ namespace FlyingGame.Bridge
             if (mode == "desert") { yield return DesertTest(); yield break; }
             if (mode == "brs") { yield return BrsTest(); yield break; }
             if (mode == "lesson") { yield return LessonTest(); yield break; }
+            if (mode == "cockpit1105") { yield return Cockpit1105Test(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -372,6 +373,72 @@ namespace FlyingGame.Bridge
                 cam?.SetView(ChaseCamera.View.RelativeWind);
             }
             Debug.Log("[SelfTest] skins DONE");
+        }
+
+        /// <summary>AERO_SELFTEST=cockpit1105 (Ty's 2026-11-05 cockpit spec): the Pitts from the rear seat; the Kollsman popup as
+        /// opened by a touch on the altimeter, then with an out-of-window value refused; Options > Display at the card and
+        /// altimeter rows with a card of the pilot's own added (Remove shown). PNGs into AERO_SHOT_DIR.</summary>
+        private IEnumerator Cockpit1105Test()
+        {
+            string dir = System.Environment.GetEnvironmentVariable("AERO_SHOT_DIR") ?? ".";
+            string keepCard = SequenceCardLibrary.Current.Id;
+            SessionSettings.ChallengeId = null; SessionSettings.AircraftId = "pitts-s2b-like";
+            SessionSettings.UseAirframeModels = true; SessionSettings.UseOwnModels = true;
+            yield return new WaitForSecondsRealtime(2f);
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(4f);
+            Chase.SetView(ChaseCamera.View.Cockpit);
+            yield return new WaitForSecondsRealtime(2f);
+            var taps = Object.FindFirstObjectByType<CockpitTaps>();
+            if (taps != null)
+            {
+                taps.OpenPopup();
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "popup-kollsman_pitts.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                taps.TypeForShots("31.50");
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "popup-kollsman-refused_pitts.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                taps.TypeForShots("23.98");
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "popup-kollsman-zeroed6000_pitts.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                taps.ClosePopupForShots();
+            }
+            else Debug.LogError("[SelfTest] cockpit1105: no CockpitTaps");
+            // A card of his own, so the Options rows show Remove.
+            var sample = Resources.Load<Texture2D>("SequenceCards/iac-2026-unlimited-right");
+            string added = null;
+            if (sample != null)
+            {
+                var rt = RenderTexture.GetTemporary(sample.width, sample.height);
+                Graphics.Blit(sample, rt);
+                var prev = RenderTexture.active; RenderTexture.active = rt;
+                var cpu = new Texture2D(sample.width, sample.height, TextureFormat.RGB24, false);
+                cpu.ReadPixels(new Rect(0, 0, sample.width, sample.height), 0, 0); cpu.Apply();
+                RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
+                added = SequenceCardLibrary.Import(cpu.EncodeToPNG(), "My airshow card", out string why);
+                Object.Destroy(cpu);
+                if (added == null) Debug.LogError("[SelfTest] cockpit1105: import failed: " + why);
+            }
+            var opts = Object.FindFirstObjectByType<OptionsPanel>();
+            if (opts != null)
+            {
+                opts.ShowPageForTest("Display");
+                opts.ScrollForTest(99999f);
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "settings-cards-altimeter_display-page.png"));
+                yield return new WaitForSecondsRealtime(0.5f);
+                opts.Close();
+            }
+            yield return new WaitForSecondsRealtime(1f);
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "settings-uploaded-card-on-holder_pitts.png"));
+            yield return new WaitForSecondsRealtime(0.5f);
+            if (added != null) SequenceCardLibrary.Remove(added);
+            SequenceCardLibrary.Select(keepCard);   // leave the deck as it was found
+            Debug.Log("[SelfTest] DONE cockpit1105");
+            Application.Quit();
         }
 
         /// <summary>AERO_SELFTEST=ui (owner 2026-10-03: no text or UI may overlap — landing page AND flying, landscape AND

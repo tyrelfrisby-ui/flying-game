@@ -354,6 +354,89 @@ Snow: with skis carrying the load (`OnSki`, wheel-ski load share), there is no c
   (`TaildraggerNoTipStrikeTests`, left red). With zero wheel mass it passes.
 - **Swift S-1 on water:** its real 300×100 tyre (r 0.15) digs in where the auto rule's 0.31 skimmed (`WheelWaterTests`, left red).
 
+### 7b. Squeal pitch, scrub and a quieter bearing (Ty 2026-11-05, lane/claude-tire-audio)
+Ty, after a stiff-crosswind J-3 landing: "the tire sounds need work it is a pitch/frequency thing for the chirp and
+bearing noise is too loud".
+- **What was wrong.** The chirp's pitch came from the slip RATIO alone: 1500 + 2200·min(3|κ|, 1) Hz. At touchdown
+  κ ≈ 1, so every tyre on every type chirped at the same 3.7 kHz narrow band (measured in the harness: 3700 Hz for the
+  first four frames of the J-3's spin-up). Sideways slip was not heard at all. The whir was 0.016 at 25.7 m/s.
+- **Now (Core `GroundSoundMix`, tested in `TyreSquealTests`).** Each wheel keeps its patch's slip energy, audible time
+  and ∫|F|dt fore-aft (WheelSpin's own slip) AND sideways (`LandingGear`: |F_y·v_side|, for the sound only), so the
+  mean slip speed is E / ∫|F|dt.
+  - Pitch: f = 700 Hz·m / OD × (v_slip / 10 m/s)^0.2, bounded ×0.6–1.35. The 700 Hz·m is an ESTIMATE from passenger-
+    car tyre squeal (~1.1 kHz on a 25 in tyre); f ∝ 1/OD is the tread band's modes scaling with the tyre. 8.00-4
+    (J-3) 1531 Hz, 6.00-6 1575, 8.00-6 1413, 5.00-5 1941, 8 in tailwheel 3445, 35 in bushwheel 787.
+  - Squeal or scrub: the share of the slip power that squeals is a smoothstep of slip speed from 1.5 to 6 m/s
+    (ESTIMATE; rubber friction falls past a low sliding speed, and that falling branch is what locks stick-slip into a
+    tone). The rest is a broad, low SCRUB at 0.42 × the resonance × (v/3 m/s)^0.3.
+  - Level: log10(P/50 W)/3, as before, per voice, times the row's chirp (0 on grass, so no scrub there either).
+  - Whir: 0.0032 × (v_rim/25.7)² (−14 dB at the reference, and steeper: at a 5 m/s taxi it is a further 28 dB down).
+- **Bridge `TyreBrakeSynth`.** The squeal is a gliding tone with 2nd/3rd partials, ±2–3 % stick-slip jitter and a
+  narrow (Q 9) band of noise at the same pitch; the scrub is Q 1.1 band noise plus a low body under a 35 Hz rough
+  flutter. Both play for exactly the slip time given (cumulative µs counters, as the chirp already did). The whir's
+  noise shimmer is halved.
+- **J-3, three-point on asphalt at 17 m/s, crabbed (harness and `CrabbedTouchdown…` test):** 1.5 m/s drift: squeal
+  1697 → 1154 Hz over ~70 ms, then a scrub 600 → 386 Hz for ~300 ms as the drift dies. 4 m/s drift: squeal 225 ms
+  (part of the faster side slide squeals, as a car tyre does at the limit), scrub ≤ 696 Hz. Other taildraggers: PA-18
+  and Pawnee (8.00-6) 1590–1700 Hz start, Decathlon and Great Lakes (6.00-6) ~1890–1900, PA-18 bush (35 in) 865 Hz.
+  Spectrograms and WAVs: `~/Developer/agent-lanes/renders/tire-audio/` (`compare-touchdown-*.png`: before above,
+  after below; the harness renders tyre voices and the unchanged rolling voices only, no engine).
+- Not changed: the rolling (ground) voices in `SurfaceSynth`, the brake scrape/squeal, the unused `FxKind.TireChirp`.
+
+### 7c. All ground contact −4 dB (Ty 2026-11-05 08:48, lane/claude-ground-volume)
+
+Ty: "the tire screeching and scraping is pretty good just a little too loud so lower all ground contact volume a bit".
+One shared gain, `GroundSoundMix.OutputGainDb = −4` (linear 0.630957), applied after the synths so no level, pitch or
+filter inside them moves: `FlightAudio.Render` multiplies the ground bus (`SurfaceSynth` rolling voices +
+`TyreBrakeSynth`: squeal, scrub, whir, brake scrape/squeal, thump, flat-tyre slap, burst, water splash/hiss/spray,
+ski hiss, float keel scrape) by it, and `ContactEffects` multiplies the airframe-scrape voices by the same constant.
+Not touched: engine, wind, one-shots (`OneShotSynth`, incl. the unused `FxKind.TireChirp`) and crash impacts.
+
+**Screech kept at its old loudness (Ty 2026-11-05 ~15:57, "Tire screech", lane/claude-bearing-ground-minus4).** The
+"pretty good" sound Ty meant to keep is the tyre SCREECH. `TyreBrakeSynth.Next` now returns the squeal voice (spin-up
+chirp, skid, locked wheel) separately, and `FlightAudio.Render` adds it with `GroundSoundMix.ScreechGainDb = 0` instead
+of the bus's −4 dB. Everything else stays on the −4 dB bus, i.e. −4 dB against the mix before 7c: bearing whir, scrub,
+rolling ground (`SurfaceSynth`), brake scrape and brake (pad) squeal, thump / flat slap / burst, water / ski / keel,
+airframe scrape (`ContactEffects`) and prop strikes. No level inside a synth moved; the 7d onset is unchanged.
+Engine, wind and crash impacts untouched.
+
+### 7d. Squeal onset at the friction peak, and a fade-in (Ty 2026-11-05 08:50, lane/claude-ground-volume)
+
+Ty: "a little too much screetching actually i took off in a crosswind in a cessna no brakes and the tires were howling
+so make the threshold higher on when the screetching starts and make it more of a fade in".
+
+Before, every joule of slip above 50 W was heard, whatever the tyre was doing. Now each joule is heard in proportion to
+how far past the TYRE MODEL's own friction peak the tyre was when it made it (`GroundSoundMix.*Onset`, smoothsteps):
+
+| direction | measure (1 = the model's peak) | squeal fades in | scrub fades in |
+|---|---|---|---|
+| sideways | cornering force asked for / what the tyre has left sideways (`LandingGear`): 1 = 3.8° on a main (μ 0.8 / 12 per rad), 5.7° on a tailwheel | 1× → 2× (full by 7.6° on a main) | 0.75× → 1.5× |
+| fore-aft | slip ratio / the tyre's own κ0 (`TireModel.SlipRatioScale`; 0.08 nominal) | 1.25 κ0 → 2.5 κ0 (0.10 → 0.20 nominal) | 0.5 κ0 → 1.25 κ0 |
+
+The sideways squeal also builds up in time, per wheel: attack τ 0.2 s, release τ 0.1 s (`SideSquealAttackS`). The
+fore-aft squeal is not time-smoothed: a touchdown spin-up is over in tens of ms at slip ratios near 1, and that chirp is
+the sound Ty called "pretty good"; a locked wheel is at slip ratio 1 from its first frame. The onset scales levels
+only: pitch still follows slip speed and tyre size (7b), and the −4 dB ground bus (7c) is unchanged. `WheelSpin.Advance`
+and `LandingGear` keep, for the sound only, the part of each slip energy that was under the bands
+(`WheelState.SlipUnderSquealJ` etc.); nothing reads them back into the physics.
+
+Measured (`tools/FlightTests/TyreSquealOnsetTests`, C172, asphalt, 15 kt direct crosswind, full power, no brakes, aileron
+into wind, rudder holding the centreline to 55 kt):
+
+| C172 nosewheel pedal steering | squeal peak (before → after) | scrub peak above 10 kt |
+|---|---|---|
+| ±29° (`maxSteerRad` 0.5, the config today) | 0.694 → **0.693** | 0.605 |
+| ±10° (the C172 POH figure), test-only | → **0.002** | 0.244 |
+
+Locked main at 40 kt: squeal 1.06 from the first frame, mean 1.11, 1800 Hz on the 6.00-6 (resonance 1575 Hz).
+
+**What the howl actually was.** It was the NOSE tyre, not the mains. Holding the centreline in that crosswind takes ~0.6
+left rudder with any pilot that holds it, and the config links the nosewheel to the pedals rigidly at ±29°, so the nose is
+steered ~17° and slides sideways at 3–4× its friction peak (5.5 m/s of side slip at 45 kt). That is a real skid in this
+model and no slip-based threshold can honestly call it quiet. A real 172 steers ±10° on the pedals (castering beyond,
+to ±30°, with differential brake). With that the same pilot holds the centreline as well (|y| ≤ 2.4 m) and the roll is
+silent. Changing the 172's ground steering is a handling change, so it is queued for Ty, not made here.
+
 ## 8. Tyre wear, burst and the flat tyre (Ty 2026-11-04 20:21, Q026 item 1)
 
 Ty: keep the 172's full-pedal main-wheel lock-up (it is real), and let a locked tyre screech, smoke and wear through to a
@@ -414,3 +497,84 @@ Flat left main at rest: the 172 sits 2.3° left-wing-down; rolling at 8 m/s it d
 
 Not modelled: lateral (scrub) slip work does not wear the tread (only the longitudinal slip's); a flat's cornering stiffness is
 unchanged; the wheel visual does not show the flat (the aeroplane's sit and roll do); tyres are new at every spawn.
+
+## 9. Flat spots that do not pop (Ty 2026-11-05 08:53, lane/claude-flat-spot)
+
+Ty: "model flat spotted tires even if they don't pop. a tire that has been locked up introduces a flat spot that is felt
+as it rolls; the longer it locks up the deeper the flat spot, the more significant the bump as it rolls, and the frequency
+should be modeled after the actual tire rotation rate."
+
+**What was already there (§8, measured before changing anything).** A lock-up already IS a flat spot: the locked wheel puts
+all its slip work on the strips under the patch, the same wear law as everywhere else, and the worn strips stand the axle
+lower when they come round (`TyreWear.Drop` raises the gear's contact point). `WheelState.AngleRad` turns at the wheel's own
+ω, so the spot comes under the axle once a revolution at V/(2πr), and only if there is wear. Multiple lock-ups at different
+wheel angles leave separate spots; one at the same angle deepens the first. Wearing through still bursts. Tyres are new
+with every `Aircraft` (respawn, aeroplane change), and keep their spots for the flight.
+
+**What was missing, and what changed.**
+1. **A fast wheel could step over its own spot.** The drop was sampled at one wheel angle per 5 ms step. A 172 main at
+   28 m/s turns 0.65 rad a step, about the spot's own arc plus the patch, so at higher speed some revolutions would have
+   had no bump. `TyreWear.Drop(phiFrom, phiTo)` now averages the drop over the arc the wheel turns that step: each pass
+   lands in the step it happened in, with the impulse it really has (depth × the share of the step it was under the axle).
+2. **The dampers never saw the spot's edge.** The drop only moved the contact point (a height), so a 1 mm spot gave a
+   quasi-static ~25–45 N on the leg. The profile moves under the axle at d(drop)/dt; that is an opening of the contact
+   exactly as a dip in the ground is, so it now comes off the closing rate the tyre's and leg's dampers act on
+   (`WheelState.DropRateMs`). Measured against an identical twin with its tread made good: the load swing roughly
+   doubled (54–66 N), the vertical acceleration 0.008–0.013 g for a 1 mm spot.
+3. **`TyreWear.FlatSpots()`**: the spots read off the strips (centre angle, depth, length), for tests and anything that
+   wants to show them. Nothing new is stored.
+4. **Felt in a headset**: each thump is a short knock in the Touch controller on that side (`FlightAudio`, level √(J/30 J)
+   like the sound, gated on `XrHeadset.Active`). The phone has no haptics path in this game; there the bump is the
+   aeroplane's own bounce and the thump in the sound.
+
+**Measured (`tools/FlightTests/FlatSpotTests`, C172 at 15 m/s, full pedal, then released).**
+
+| locked | spot depth | spot length |
+|---|---|---|
+| 0.5 s | 0.11 mm | 8 cm |
+| 0.8 s | 0.70 mm | 12 cm |
+| 1.1 s | 1.27 mm | 10 cm |
+| 1.6 s | 2.00 mm | 8 cm |
+
+The depth grows faster than the lock time because the patch heats toward the rubber's reversion (§8: γ goes up 500×).
+With a 1.07 mm spot, rolling at 4 / 12 / 28 m/s: 9 / 21 / 42 bumps in 2 s against 8.3 / 20.1 / 42.7 revolutions of the
+wheel, at 4.17 / 10.10 / 21.35 Hz against 4.16 / 10.06 / 21.34 rev/s; thump 37 / 78 / 97 J; the sound twin 0 bumps, 0 J.
+
+Not modelled: no unsprung wheel mass, so at speed a spot's far edge does not strike the way a real wheel's does; the bump
+is honest geometry and damping, which keeps a 1 mm spot a tick you hear more than feel, and a 2–3 mm one (a long lock) more.
+The wheel visual does not show the spot.
+
+## 10. The 2-33: full spoiler was full wheel brake (Ty 2026-11-05 16:06, lane/claude-sgs233-spoiler-brake)
+
+Ty, phone 2026.1105.1550: "The tire screeches with any braking at all on the 2-33 so the wheel brake is either too strong
+or the screech fix isn't in yet." The onset fix (§7d, 2a20429a) was in that build. The cause was the coupling:
+`Aircraft` added `SpoilerConfig.BrakeFromHandle(spoilerFraction)` (0.9..1 → brake 0..1) to the pilot's brake, reading
+the spoiler DEPLOYMENT as though it were the handle. On the strip and the hand in the headset the two are the same, but the
+touch knob (and the Quest/gamepad knob) puts the spoilers full at 25 % of the pad and its own brake band below 20 %. So
+the knob's full-spoiler position was already full wheel brake, before the brake band: 25 kt on asphalt, BrakeInput 0,
+locked 2.44 s, squeal 0.85, 20 m to stop. The handle's band is now the input's alone (`Core.Vr.SpoilerHandle`, the last
+15 % of the strip and the hand; the knob's band under 20 %), arriving as `BrakeInput`. The config's
+`wheelBrakeFromSpoiler` stays as the rig table's record and is not applied. The Grob 103 shared the bug and the fix.
+
+Measured after (`tools/FlightTests/Sgs233BrakeSquealTests`, main wheel, 8 s or to a stop, squeal = peak chirp level):
+
+| asphalt | brake 0 (full spoiler) | 0.1 | 0.2 | 0.35 | 0.5 | 0.75 | 1.0 |
+|---|---|---|---|---|---|---|---|
+| 25 kt decel / squeal / locked | 0.068 g / 0 / 0 | 0.107 g / 0 / 0 | 0.152 g / 0 / 0 | 0.220 g / 0 / 0 | 0.288 g / 0.77 / 0 | 0.383 g / 0.83 / 0.42 s | 0.417 g / 0.85 / 2.44 s |
+| 15 kt | 0.041 g / 0 / 0 | 0.085 g / 0 / 0 | 0.131 g / 0 / 0 | 0.200 g / 0 / 0 | 0.270 g / 0.69 / 0 | 0.382 g / 0.76 / 0.09 s | 0.473 g / 0.79 / 0.50 s |
+
+At 35 kt the wing still carries nearly all the weight; a wheel that skips off with any brake on is stopped in the air and
+chirps for ~60 ms as it spins up again on the next contact (0.36 at brake 0.1). On grass nothing squeals (the surface).
+
+The brake's size was NOT changed: full pedal is still the fleet's rule, a torque of 0.675·μ·W_static·r (§ LandingGear),
+which on the 2-33's single braked wheel carrying 88 % of the weight is 0.42–0.47 g once the wheel is loaded, and from
+brake 0.5 it passes the tyre's peak and squeals. Whether a 2-33's drum brake is that strong is Ty's call (NEEDS YOU).
+
+### The 2-33's spoiler voice
+
+"The speed break noise is a little too loud and it should have a bit more rumble to it." `SpoilerConfig.SoundLevel`
+(roar, 1 = stock) and `SoundRumble` (a 140 Hz band of noise under the 650 Hz roar, swelling and sagging on a random walk,
+no LFO; 1 = half the stock roar's RMS). 2-33: 0.6 / 1.0. `tools/SpoilerAudio` renders the voice alone (spoiler out minus
+spoiler in, same seeds): −2.1 dB overall against the stock voice, 17 % of its power under 250 Hz against 1 %, the
+envelope's strongest line 4 % deep (no beat). Every other type: 1 / 0, the stock voice sample for sample. No level was
+given by Ty; this is a first step to fly.

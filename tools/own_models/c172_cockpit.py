@@ -85,79 +85,19 @@ def dial(n,x,z,r=.040,labels=None):
  if n in ('Airspeed','Altimeter'):text(n+'_label',n.upper(),(x,.2658,z+(.010 if n=='Altimeter' else -r*.34)),.0063)
  return (x,z)
 # Pilot primary six-pack, clear of the separate nav heads.
-for n,x,z,labels in [('Airspeed',-.423,.323,list(range(0,200,20))),('Attitude',-.321,.323,None),('Altimeter',-.219,.323,list(range(10))),('Turn_coordinator',-.423,.218,None),('DG',-.321,.218,['N',3,6,'E',12,15,'S',21,24,'W',30,33]),('VSI',-.219,.218,None)]:
- dial(n,x,z,labels=labels)
- if n=='Attitude':
-  # Flat sliding horizon, masked by the fixed dial annulus. 0.8 mm / degree.
-  o=cyl('AI_roll',(x,.310,z),.001,.0002,face);rig(o,'rotation','+X',[-180,180],'attitude.roll')
-  q=box('AI_pitch',(x,.282,z),(.12,.0002,.12),blue,0)
-  rig(q,'translation','+Z',[-.020,.020],'attitude.pitch');parent(q,o)
-  parent(box('AI_earth',(x,.280,z-.060),(.12,.0002,.12),earth,0),q)
-  parent(line('AI_horizon',(x-.060,.280,z),(x+.060,.280,z),.00045,white),q)
-  for deg in [-20,-15,-10,-5,5,10,15,20]:
-   zz=deg*.0008
-   parent(line('AI_pitch_mark',(x-.009,.280,z+zz),(x+.009,.280,z+zz),.00035,white),q)
-   if abs(deg)%10==0:parent(text('AI_pitch_number',str(abs(deg)),(x+.018,.2798,z+zz),.0065),q)
-  # Fixed mask outside the viewing aperture, close to the moving art.
-  mask=cyl('AI_mask',(x,.266,z),.041,.001,face);cut_hole(mask,x,z,.030)
-  silhouette('AI_fixed_airplane',x,.2658,z,[(-.025,.001),(-.004,.001),(-.004,-.001),(-.025,-.001)],orange)
-  silhouette('AI_fixed_airplane_R',x,.2658,z,[(.004,.001),(.025,.001),(.025,-.001),(.004,-.001)],orange)
-  cyl('AI_centre_dot',(x,.2658,z),.0018,.0003,orange)
-  for deg in [-90,-60,-30,-20,-10,0,10,20,30,60,90]:
-   a=math.radians(deg)
-   line('AI_bank_mark',(x+math.sin(a)*.032,.2658,z+math.cos(a)*.032),(x+math.sin(a)*.037,.2658,z+math.cos(a)*.037),.0006,white)
-  parent(silhouette('AI_sky_pointer',x,.2658,z,[(0,.030),(-.002,.026),(.002,.026)],orange),o)
-  knob('AI_cage',x+.025,z-.030,r=.004);text('Vacuum','VAC',(x,.2653,z-.035),.0063)
- elif n=='DG':
-  # The compass rose itself rotates; fixed aircraft remains on the face.
-  o=cyl('DG_card',(x,.259,z),.030,.001,face);rig(o,'rotation','+X',[0,360],'heading.nonSlavedDeg')
-  for i,t in enumerate(['N',3,6,'E',12,15,'S',21,24,'W',30,33]):
-   a=math.tau*i/12;parent(text('DG_card_text',str(t),(x+math.sin(a)*.024,.2573,z+math.cos(a)*.024),.0085),o)
-  silhouette('DG_aircraft',x,.254,z,[(0,.018),(.002,.014),(.002,.004),(.018,-.003),(.018,-.006),(.002,-.002),(.0015,-.012),(.007,-.015),(.007,-.017),(0,-.015),(-.007,-.017),(-.007,-.015),(-.0015,-.012),(-.002,-.002),(-.018,-.006),(-.018,-.003),(-.002,.004),(-.002,.014)])
-  bug=box('DG_heading_bug',(x,.251,z),(.006,.001,.006),orange,.0005)
-  for v in bug.data.vertices:v.co.z+=.031
-  rig(bug,'rotation','+X',[0,360],'headingBugDeg');knob('DG_sync_adjust',x-.027,z-.030,.005);knob('DG_bug_adjust',x+.027,z-.030,.005)
- elif n=='Turn_coordinator':
-  # Rear-view aeroplane: straight wings, round fuselage, vertical fin and tailplane.
-  q=silhouette('TC_airplane',x,.251,z,[(-.026,.001),(-.004,.001),(-.002,.003),(-.001,.011),(.001,.011),(.002,.003),(.004,.001),(.026,.001),(.026,-.001),(.004,-.002),(.002,-.004),(-.002,-.004),(-.004,-.002),(-.026,-.001)])
-  parent(cyl('TC_fuselage',(x,.250,z),.003,.001,white),q);rig(q,'rotation','+X',[-40,40],'turn.rate')
-  for side,label in [(-1,'L'),(1,'R')]:
-   # Marks share the exact pivot radial reached at one rate (20 degrees).
-   a=math.radians(20)
-   mark=line('TC_rate_mark',(x+side*.024*math.cos(a),.2658,z-.024*math.sin(a)),(x+side*.034*math.cos(a),.2658,z-.034*math.sin(a)),.0007,white);mark['tc_mark_angle_deg']=side*20;mark['tc_pivot_design']=json.dumps([x,z])
-   text('TC_direction',label,(x+side*.030,.2658,z+.009),.006)
-  text('TC_title','TURN\nCOORDINATOR',(x,.2658,z+.025),.0063)
-  text('TC_two_min','2 MIN',(x,.2658,z-.010),.0063)
-  text('TC_electric','D.C. ELEC.',(x,.2658,z-.033),.0063)
-  # Glass tube follows a shallow U; black ball lies between two wire references.
-  for i in range(40):
-   a=-.020+i*.001;b=a+.001
-   za=z-.022+12*a*a;zb=z-.022+12*b*b
-   line('TC_glass_tube',(x+a,.253,za),(x+b,.253,zb),.0038,tube_glass)
-   line('TC_glass_highlight',(x+a,.2488,za+.002),(x+b,.2488,zb+.002),.00045,white)
-  for side in [-1,1]:line('TC_reference_wire',(x+side*.0045,.248,z-.026),(x+side*.0045,.248,z-.017),.00045,black)
-  q=cyl('TC_slip_ball',(x,.248,z-.022),.003,.0015,black);rig(q,'translation','-Y',[-.015,.015],'slip')
- else:
-  if n=='Airspeed':
-   for lo,hi,rr,ma in [(49,100,.034,white),(57,128,.037,green),(128,164,.037,yellow)]:
-    for v in range(lo,hi,2):
-     a=math.tau*v/200;b=math.tau*(v+2)/200
-     line('ASI_speed_arc',(x+math.sin(a)*rr,.2658,z+math.cos(a)*rr),(x+math.sin(b)*rr,.2658,z+math.cos(b)*rr),.0012,ma)
-   text('ASI_units','MPH',(x,.2658,z+.009),.0063)
-  if n=='VSI':
-   def vsi_angle(fpm):
-    v=abs(fpm);return math.copysign(v*.09 if v<=1000 else 90+(v-1000)*.08,fpm)
-   def vsi_point(fpm,rr):
-    a=math.radians(-90+vsi_angle(fpm));return (x+math.sin(a)*rr,.2658,z+math.cos(a)*rr)
-   for fpm in range(-2000,2001,100):
-    line('VSI_tick',vsi_point(fpm,.035),vsi_point(fpm,.031 if fpm%500==0 else .033),.00045,white)
-   for fpm in [-2000,-1500,-1000,-500,0,500,1000,1500,2000]:text('VSI_number',str(abs(fpm)//100),vsi_point(fpm,.025 if abs(fpm)==2000 else .026),.009)
-   for title,zz in [('VERTICAL SPEED',.012),('UP',.004),('DOWN',-.005),('100 FEET',-.011),('PER MINUTE',-.019)]:
-    legend=text('VSI_legend',title,(x+(0 if title=='PER MINUTE' else .006),.2658,z+zz),.0063)
-    if title=='PER MINUTE':legend.scale.x=.68  # Narrow printed type, same 4.6 mm cap height; clears both 15/5 numerals.
-  needle(n+'_needle',x,z,55 if n=='Airspeed' else (90 if n=='VSI' else 0),.038 if n=='VSI' else .028)
-  if n=='Altimeter':
-   needle('Altimeter_1000',x,z,20,.019);needle('Altimeter_10000',x,z,5,.012);knob('Altimeter_baro',x-.027,z-.030,.005);text('Baro_window','29.92',(x+.014,.2658,z-.014),.005)
+# THE SIX-PACK IS THE SHARED INSTRUMENT LIBRARY'S (Ty 2026-11-05: one of each instrument, used by every aircraft):
+# tools/own_models/instruments draws the ASI, AI, altimeter, turn coordinator, DG and VSI once, and the game puts them
+# in these cases (FlyingGame.Core.Instruments.InstrumentLibrary.C172, Bridge/SharedInstruments). This builder draws only
+# what is the PANEL's: each case and bezel, and the knobs on them (AI cage, DG sync and bug, altimeter baro).
+def library_case(n,x,z,r=.040):
+ DIALS.append((n,x,z,r,len(CREATED)))
+ case=cyl(n+'_case',(x,.286,z),r+.004,.018,metal);case['layout']=json.dumps(dict(name=n,x=x,z=z,half_extent=r+.005,library=True))
+ cyl(n+'_bezel',(x,.274,z),r+.002,.010,black)
+for n,x,z in [('Airspeed',-.423,.323),('Attitude',-.321,.323),('Altimeter',-.219,.323),('Turn_coordinator',-.423,.218),('DG',-.321,.218),('VSI',-.219,.218)]:
+ library_case(n,x,z)
+ if n=='Attitude':knob('AI_cage',x+.025,z-.030,r=.004)
+ if n=='DG':knob('DG_sync_adjust',x-.027,z-.030,.005);knob('DG_bug_adjust',x+.027,z-.030,.005)
+ if n=='Altimeter':knob('Altimeter_baro',x-.027,z-.030,.005)
 # Two distinct nav heads and ADF, not an HSI. As in a real 172 they sit beside the six-pack, LEFT of the engine column
 # (Ty, 2026-11-03: "engine instruments to the right of the nav heads").
 NAV_X=-.112;ENGINE_X=0
@@ -342,6 +282,7 @@ for i in range(24):
 rig(box('Trim_indicator',(-.086,-.037,-.202),(.002,.010,.005),white,0),'translation','+Z',[-.04,.04],'elevatorTrim');text('Trim_label','TRIM',(-.086,-.04,-.17),.007)
 box('Fuel_selector_base',(0,-.29,-.51),(.17,.18,.055),black,.012)
 q=box('Fuel_selector',(0,-.29,-.466),(.018,.095,.014),red,.004);rig(q,'rotation','+Z',[-90,180],'fuelSelector')
+BELTS=False   # no seat belts (Ty 2026-11-05)
 # Both fully modelled front seats, rear bench, seat tracks, belts, stitched upholstery.
 # SEATS (Ty, 2026-11-04: "the pilot should sit at the back of the seat with his back against the backrest/backboard
 # of the seat... move the seat forward so that is the case"). The seat used to stand where the 1.778 m mannequin at
@@ -372,15 +313,15 @@ for side,x in [('L',-SEAT_X),('R',SEAT_X)]:
  for k in range(7):
   xx=x-.132+k*.044;back_box('Seat_stitch_'+side,xx,.073,.004,(.0015,.002,.38),ivory,.0005);box('Seat_cushion_pleat',(xx,f0,-.193+SEAT_DZ),(.0015,.30,.0015),ivory,.0004)
  for xx in [x-.175,x+.175]:
-  box('Lap_belt_'+side,(xx,f0,-.190+SEAT_DZ),(.040,.32,.009),carpet,.002)
- box('Belt_buckle_'+side,(x+.145,f0+.05,-.183+SEAT_DZ),(.048,.043,.014),metal,.003)
+  if BELTS: box('Lap_belt_'+side,(xx,f0,-.190+SEAT_DZ),(.040,.32,.009),carpet,.002)
+ if BELTS: box('Belt_buckle_'+side,(x+.145,f0+.05,-.183+SEAT_DZ),(.048,.043,.014),metal,.003)
  knob('Seat_adjust_'+side,x,-.31+SEAT_DZ,.010,f=-.69+SEAT_DF,kind='translation')
 box('Rear_bench_base',(0,-1.22,-.33),(.94,.43,.29),tan,.035)
 box('Rear_bench_cushion',(0,-1.22,-.155),(.94,.45,.08),cloth,.035)
 box('Rear_bench_back',(0,-1.48,.065),(.94,.11,.46),tan,.035)
 box('Rear_bench_insert',(0,-1.414,.070),(.84,.018,.35),cloth,.020)
 for i in range(19):box('Rear_pleat',(-.405+i*.045,-1.402,.070),(.0015,.002,.32),ivory,.0004)
-for x in [-.29,-.19,.19,.29]:box('Rear_lap_belt',(x,-1.22,-.106),(.036,.34,.008),carpet,.002)
+for x in ([-.29,-.19,.19,.29] if BELTS else []):box('Rear_lap_belt',(x,-1.22,-.106),(.036,.34,.008),carpet,.002)
 box('Baggage_shelf',(0,-1.65,.18),(.88,.23,.035),carpet,.008)
 # Sculpted door cards below window line; matching headliner and pillars.
 for side,x in [('L',-.516),('R',.516)]:
@@ -448,7 +389,7 @@ for e in RIG:
   for o in children:o.select_set(True)
   bpy.context.view_layer.objects.active=target;bpy.ops.object.join()
 keep={'Seat_base_L','Seat_base_R','Rear_bench_base','Door_L','Door_R','Headliner','Compass_mount','KX170B_1','KX170B_2','KR85_ADF','DME'}
-static=[o for o in bpy.context.scene.objects if o.name.startswith('C172_') and o.type=='MESH' and not o.parent and o.name not in rig_names and o.name.removeprefix('C172_') not in keep and not o.name.endswith('_case') and not o.name.startswith('C172_TC_rate_mark')]
+static=[o for o in bpy.context.scene.objects if o.name.startswith('C172_') and o.type=='MESH' and not o.parent and o.name not in rig_names and o.name.removeprefix('C172_') not in keep and not o.name.endswith('_case')]
 if static:
  bpy.ops.object.select_all(action='DESELECT')
  for o in static:o.select_set(True)

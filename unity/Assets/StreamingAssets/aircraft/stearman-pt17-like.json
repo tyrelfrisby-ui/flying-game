@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "id": "stearman-pt17-like",
   "displayName": "Stearman-like Trainer Biplane",
+  "structureType": "steelTube",
+  "structureTypeSource": "Boeing-Stearman PT-17: welded steel-tube fuselage, fabric covered; wooden-spar wings (Stearman erection and maintenance manual).",
   "wingBreakStationY": { "wing-upper": 3.48, "wing-lower": 3.251 },
   "wingBreakStationSource": "Interplane (N-) strut stations from the centreline, upper 137 in = 3.480 m, lower 128 in = 3.251 m (the struts lean outward at the top): scaled (+/-3 in) off the US Navy N2S three-view (Naval Aviation News Jan-Feb 1990 p.17, Wikimedia 'Boeing_Stearman_N2S_Kaydet_drawings.PNG'), front view fitted to the 386 in upper span; the same drawing's lower span reads 374 in = the published 31 ft 2 in. No dimensioned station found (E&M manual AN 01-70AC-2 not reachable).",
   "spawnIasMs": 45,
@@ -1517,6 +1519,9 @@
   "propulsion": {
     "maxPowerW": 164000,
     "propDiameterM": 2.55,
+    "propMaterial": "metal",
+    "propMaterialSource": "Sensenich / Hamilton Standard ground-adjustable aluminium",
+    "propBladeCount": 2,
     "idleRpm": 500,
     "maxRpm": 2075,
     "propInertia": 4.0,
@@ -1548,7 +1553,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tireRadiusM": 0.31, "wheelMassKg": 13
+      "tire": "legacy-stearman-main", "tirePressurePsi": 26.5
     },
     {
       "pos": [
@@ -1564,7 +1569,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tireRadiusM": 0.31, "wheelMassKg": 13
+      "tire": "legacy-stearman-main", "tirePressurePsi": 26.5
     },
     {
       "pos": [
@@ -1580,7 +1585,7 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "tireRadiusM": 0.11, "wheelMassKg": 2.0,
+      "tire": "legacy-stearman-tail", "tirePressurePsi": 21.2,
       "steerSpringNmPerRad": 20
     }
   ],

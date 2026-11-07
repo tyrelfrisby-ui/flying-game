@@ -48,13 +48,45 @@ public sealed class WingPanel
     public bool StrengthKnown;
 
     public PanelState State;
-    /// <summary>Signed deflection about the station, rad: + = tip UP. Zero while intact.</summary>
+    /// <summary>Permanent bend about the station, rad: + = tip UP (the bending hinge's set). Zero while intact.</summary>
     public double BendRad;
+    /// <summary>Permanent twist of the panel's outer edge about its flexural axis, rad: + = nose UP (the torsion hinge's
+    /// set), growing linearly from nothing at the station.</summary>
+    public double TwistRad;
     /// <summary>The ELASTIC rotation of the panel about its station under the contact force right now, rad (+ = tip up):
     /// the tip's flex F/k_w, as a cantilever's tip slope 1.5·δ/L. It comes off with the load; <see cref="BendRad"/> stays.</summary>
     public double ElasticRad;
+    /// <summary>The wings' permanent overstress set, rad (+ = tip up; Ty's overstress pattern, StructuralState.Wings): part
+    /// of <see cref="BendRad"/>, which is the hinges' set plus this.</summary>
+    public double OverstressSetRad;
+    /// <summary>The wings' flex under the load factor right now on top of their set, rad (+ = tip up): what the panel flies
+    /// and is drawn at beyond <see cref="BendRad"/>. It comes off with the load.</summary>
+    public double FlightFlexRad;
     /// <summary>Largest contact bending moment the station has carried, N·m (tests / probe).</summary>
     public double PeakContactNm;
+
+    // The panel as a structure (Ty 2026-11-05: bends before it breaks; WingStructure.EnsureStrength builds them).
+    public WingConstruction Construction;
+    /// <summary>Bending about the station (tip up/down) and twist about the flexural axis (nose up/down).</summary>
+    public PlasticHinge? Bending, Twisting;
+    /// <summary>Chord geometry at the station and at the outer edge: leading-edge x, chord, chord-line z.</summary>
+    public double StationLeX, StationChord, TipLeX, TipChord, TipZ;
+
+    // The contact model's side of the hinges (AirframeContact): what the tip's hard points may push before the panel
+    // yields (set by the aeroplane each step from what the air and the water already put on it) and what they asked for
+    // on the step's first stage, before that cap, with the stiffness of the push about each axis.
+    public double CapUpNm = double.PositiveInfinity, CapDownNm = double.PositiveInfinity, CapTwistNm = double.PositiveInfinity;
+    public double RawUpNm, RawTwistNm, ContactScale = 1.0;
+    /// <summary>Σ k·r² and Σ c·r² of the touching points about the station (Up) and the flexural axis (Tw).</summary>
+    public double KUpSpring, KUpDamp, KTwSpring, KTwDamp;
+    public bool ContactRecorded;
+
+    /// <summary>The share of the way from the station to the outer edge at |y| (0..1).</summary>
+    public double SpanFraction(double absY) => TipY - BreakY > 1e-6 ? System.Math.Clamp((absY - BreakY) / (TipY - BreakY), 0.0, 1.0) : 0.0;
+    private double Lerp(double a, double b, double absY) => a + (b - a) * SpanFraction(absY);
+    /// <summary>The flexural axis's x and the chord line's z at |y|.</summary>
+    public double FlexuralX(double absY) => Lerp(StationLeX, TipLeX, absY) - MemberMaterials.FlexuralAxisX * Lerp(StationChord, TipChord, absY);
+    public double ChordLineZ(double absY) => Lerp(BreakZ, TipZ, absY);
 
     /// <summary>Rotate a body point outboard of the station about the bend axis by <paramref name="rad"/> (+ = tip up).</summary>
     public Vec3 Bend(Vec3 p, double rad)
@@ -62,6 +94,42 @@ public sealed class WingPanel
         if (rad == 0 || System.Math.Sign(p.Y) != Side || System.Math.Abs(p.Y) <= BreakY) return p;
         double dy = p.Y - Side * BreakY, dz = p.Z - BreakZ, c = System.Math.Cos(rad), s = System.Math.Sin(rad);
         return new Vec3(p.X, Side * BreakY + dy * c + Side * dz * s, BreakZ + dz * c - Side * dy * s);
+    }
+
+    /// <summary>Twist a body point outboard of the station about the flexural axis: its section turns nose-up by
+    /// <paramref name="tipRad"/> × its share of the way to the outer edge (a uniform shaft under an end torque).</summary>
+    public Vec3 Twist(Vec3 p, double tipRad)
+    {
+        if (tipRad == 0 || System.Math.Sign(p.Y) != Side || System.Math.Abs(p.Y) <= BreakY) return p;
+        double ay = System.Math.Abs(p.Y), phi = tipRad * SpanFraction(ay);
+        double xa = FlexuralX(ay), za = ChordLineZ(ay), dx = p.X - xa, dz = p.Z - za, c = System.Math.Cos(phi), s = System.Math.Sin(phi);
+        return new Vec3(xa + dx * c + dz * s, p.Y, za - dx * s + dz * c);
+    }
+
+    /// <summary>The panel's permanent shape applied to a straight-wing body point: twisted, then bent (plus any extra
+    /// <paramref name="extraBendRad"/>, the elastic flex).</summary>
+    public Vec3 Deform(Vec3 p, double extraBendRad = 0.0) => Bend(Twist(p, TwistRad), BendRad + extraBendRad);
+
+    /// <summary>The bending moment a body force at a body point puts on the station, N·m (+ = tip up).</summary>
+    public double MomentUp(Vec3 at, Vec3 force)
+    {
+        double ry = at.Y - Side * BreakY, rz = at.Z - BreakZ;
+        return -Side * (ry * force.Z - rz * force.Y);
+    }
+
+    /// <summary>The torque a body force at a body point puts about the flexural axis there, N·m (+ = nose up).</summary>
+    public double TorqueNoseUp(Vec3 at, Vec3 force)
+    {
+        double ay = System.Math.Abs(at.Y);
+        return (at.Z - ChordLineZ(ay)) * force.X - (at.X - FlexuralX(ay)) * force.Z;
+    }
+
+    /// <summary>Lever arms of a body point about the station (for a tip-up rotation) and about the flexural axis (for a
+    /// nose-up twist at the panel's outer edge): how far the point moves along z per radian of each.</summary>
+    public (double up, double twist) Levers(Vec3 at)
+    {
+        double ay = System.Math.Abs(at.Y);
+        return (System.Math.Max(0.0, ay - BreakY), (at.X - FlexuralX(ay)) * SpanFraction(ay));
     }
 }
 
@@ -76,24 +144,23 @@ public sealed class WingPanel
 /// without permanent set (the LIMIT, 14 CFR 23.305) and gMax·ultimateFactor·M1 before it breaks (the ULTIMATE; the game's
 /// ultimate factor, the same one the in-flight wing failure uses). A ground strike is checked against those moments.
 ///
-/// BENT PANEL (Ty 2026-11-03). A strike between the limit and the ultimate leaves the panel bent 5° tip-up (down, struck
-/// from above) and much weaker: in flight its deflection follows the load, 5° at 1 g rising to 15° at 2 g, and past 15°
-/// it snaps off. Read as a damaged spar, that is a plastic set of 5° held by a tangent stiffness K_t = M1 / 10°, and the
-/// set ratchets — a panel taken to 1.5 g stays at 10° when the load comes off. Below the deflection it already has it is
-/// treated as rigid (a real spar unloads along its elastic slope, a fraction of a degree here; see the log).
+/// BENT PANEL (Ty 2026-11-05, replacing the 11-03 rule of a 5° set that snapped past 15° / 2 g: "the airplanes are all
+/// like porcelain dolls … we need a lot more bends before it breaks"). The station is a pair of PLASTIC HINGES
+/// (<see cref="PlasticHinge"/>), one in bending (tip up/down, yield at 1.5 × the limit moment, peak at the ultimate) and one in
+/// torsion (nose up/down about the flexural axis, <see cref="MemberMaterials.UltimateTorqueNm"/>), each on its
+/// construction's backbone (<see cref="MemberMaterials"/>): elastic below yield; plastic with a permanent set beyond it;
+/// past the peak cracked or buckled, carrying less each time it is pushed further; off only when its accumulated plastic
+/// rotation reaches the rupture rotation of what still holds it on. The ground cannot push a tip harder than the hinge
+/// can carry (AirframeContact caps it): the rest of the strike's energy goes into bending the panel, not into a moment
+/// spike. The bent and twisted shape is the panel's geometry: its hard points, its strips' load points, dihedral and
+/// incidence move with it (<see cref="WingPanel.Deform"/>).
 /// </summary>
 public static class WingStructure
 {
+    /// <summary>The set <see cref="FlyingGame.Sim"/>'s BendPanel puts in by default (scenarios, tests), rad.</summary>
     public const double BentSetRad = 5.0 * System.Math.PI / 180.0;
-    public const double SnapRad = 15.0 * System.Math.PI / 180.0;
-    /// <summary>The load factor at which a bent panel reaches <see cref="SnapRad"/> (Ty: 2 g).</summary>
-    public const double SnapLoadFactor = 2.0;
-    /// <summary>A bent panel's deflection per g beyond 1 g: (15° − 5°) / (2 g − 1 g).</summary>
-    public const double TangentRadPerG = (SnapRad - BentSetRad) / (SnapLoadFactor - 1.0);
-
-    /// <summary>A bent panel's deflection magnitude at load factor <paramref name="n"/> (in the sense that opens the
-    /// bend), given the most it has reached so far.</summary>
-    public static double BentDeflection(double n, double peakRad) => System.Math.Max(System.Math.Abs(peakRad), BentSetRad + TangentRadPerG * (n - 1.0));
+    /// <summary>A set this large (or any crack) makes the panel <see cref="PanelState.Bent"/> and is reported (the crunch).</summary>
+    public const double VisibleSetRad = 0.5 * System.Math.PI / 180.0;
 
     /// <summary>The wing surfaces ("wing", "wing-upper", "wing-lower"): ids with "wing" and no control-row suffix.</summary>
     public static bool IsWingBase(string id) =>
@@ -209,17 +276,39 @@ public static class WingStructure
                 foreach (StripConfig st in b.Strips)
                     if (System.Math.Sign(st.Pos[1]) == side && (System.Math.Sign(near.Pos[1]) != side || System.Math.Abs(System.Math.Abs(st.Pos[1]) - ys) < System.Math.Abs(System.Math.Abs(near.Pos[1]) - ys))) near = st;
                 double zs = ChordZ(b, near, ys);
+                StripConfig? outer = null;
+                foreach (StripConfig st in b.Strips)
+                    if (System.Math.Sign(st.Pos[1]) == side && (outer is null || System.Math.Abs(st.Pos[1]) > System.Math.Abs(outer.Pos[1]))) outer = st;
+                outer ??= near;
                 panels.Add(new WingPanel
                 {
                     Component = lower ? (side < 0 ? AirframeComponent.WingTipLowerLeft : AirframeComponent.WingTipLowerRight)
                                       : (side < 0 ? AirframeComponent.WingTipLeft : AirframeComponent.WingTipRight),
                     SurfaceId = b.Id, Side = side, Lower = lower, BreakY = ys, BreakZ = zs, TipY = tip, StationSource = why,
+                    StationLeX = near.Pos[0] + 0.25 * near.Chord, StationChord = FullChord(c, b.Id, side, near, ys),
+                    TipLeX = outer.Pos[0] + 0.25 * outer.Chord, TipChord = FullChord(c, b.Id, side, outer, System.Math.Abs(outer.Pos[1])), TipZ = ChordZ(b, outer, tip),
                     Braced = biplane || why.StartsWith("measured") || !string.IsNullOrEmpty(c.WingBracing),
                     Strips = strips.ToArray(), AileronHinged = hinged.ToArray(), AileronFixed = fixedAil.ToArray(), AreaM2 = area,
                 });
             }
         }
         return panels;
+    }
+
+    /// <summary>The wing's whole chord at |y| = <paramref name="absY"/>: from the leading edge of base row
+    /// <paramref name="baseRow"/> to the furthest-aft trailing edge of any of the wing's rows (aileron, flap) there — the
+    /// spars sit in the fixed part, but they are placed on the whole section.</summary>
+    private static double FullChord(AircraftConfig c, string baseId, int side, StripConfig baseRow, double absY)
+    {
+        double le = baseRow.Pos[0] + 0.25 * baseRow.Chord, te = baseRow.Pos[0] - 0.75 * baseRow.Chord;
+        foreach (SurfaceConfig sf in c.Surfaces)
+        {
+            if (sf.Id == baseId || !BelongsTo(sf.Id, baseId, c)) continue;
+            foreach (StripConfig st in sf.Strips)
+                if (System.Math.Sign(st.Pos[1]) == side && System.Math.Abs(System.Math.Abs(st.Pos[1]) - absY) <= 0.5 * Width(st) + 0.05)
+                    te = System.Math.Min(te, st.Pos[0] - 0.75 * st.Chord);
+        }
+        return le - te;
     }
 
     /// <summary>Fill in M1, the limit and ultimate moments and the panel mass (see the class summary).
@@ -234,6 +323,7 @@ public static class WingStructure
         double g = Atmosphere.GravityMs2, w = c.Mass.MassKg;
         double gMax = c.Limits.GMax > 0 ? c.Limits.GMax : 3.8;
         double uf = c.Limits.UltimateFactor > 0 ? c.Limits.UltimateFactor : 1.5;
+        double groan = c.Limits.GroanFactor > 1.0 ? c.Limits.GroanFactor : 1.0;
         double kgPerM2 = structureScale * Wreck.WaterPhysics.RaymerWingKgPerM2;
         double strength = c.ImpactStrength > 0 ? c.ImpactStrength : 1.0;
         foreach (WingPanel p in panels)
@@ -288,6 +378,14 @@ public static class WingStructure
             // EI of a spar that fails at the ultimate moment: I/c = M_ult/σ_u, c = h/2 → EI = (E/σ_u)·M_ult·h/2.
             double h = DepthAt(p, c), len = p.TipY - p.BreakY;
             if (h > 0 && len > 0) p.TipStiffnessNPerM = 3.0 * (p.UltimateNm * h / (2.0 * SparSigmaOverE)) / (len * len * len);
+            p.Construction = MemberMaterials.Of(c);
+            HingeLaw law = MemberMaterials.Law(p.Construction);
+            // Permanent deformation begins past 1.5 × the limit (Ty 2026-11-05 overstress pattern; Limits.GroanFactor):
+            // below it the panel is elastic, on the ground as in the air.
+            double yieldNm = System.Math.Min(groan * p.LimitNm, p.UltimateNm);
+            p.Bending = new PlasticHinge(yieldNm, p.UltimateNm, law);
+            double tu = MemberMaterials.UltimateTorqueNm(p.Construction, p.UltimateNm, p.StationChord, len);
+            p.Twisting = new PlasticHinge(tu * yieldNm / p.UltimateNm, tu, law);
             p.StrengthKnown = true;
         }
     }

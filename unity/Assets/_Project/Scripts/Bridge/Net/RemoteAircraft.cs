@@ -38,6 +38,12 @@ namespace FlyingGame.Bridge.Net
         private TextMesh _tag;
         private Transform _tagT;
         private bool _hasPose;
+        private float? _ageS; private float _ageT;
+
+        /// <summary>Has a pose arrived yet (before that the transform is wherever it was made).</summary>
+        public bool HasPose => _hasPose;
+        /// <summary>How long ago this pilot's flight began, s, as of now; null from a build that does not say.</summary>
+        public float? FlightAgeS => _ageS.HasValue ? _ageS.Value + (Time.realtimeSinceStartup - _ageT) : (float?)null;
         private string _builtAc;
 
         private static readonly Dictionary<string, AircraftConfig> Configs = new();
@@ -155,6 +161,7 @@ namespace FlyingGame.Bridge.Net
             if (snap.Q.x == 0 && snap.Q.y == 0 && snap.Q.z == 0 && snap.Q.w == 0) snap.Q = Quaternion.identity;
             if (s.d != null && s.d.Length >= 5) { snap.Ail = s.d[0]; snap.Ele = s.d[1]; snap.Rud = s.d[2]; snap.Spoil = s.d[3]; snap.Flap = s.d[4]; }
             if (s.f != null) { snap.W = s.f.w != 0; snap.O = s.f.o != 0; }
+            if (s.f?.a != null) { _ageS = s.f.a.Value * 0.1f; _ageT = snap.T; }
 
             _buf.Add(snap);
             if (_buf.Count > MaxSnapshots) _buf.RemoveAt(0);

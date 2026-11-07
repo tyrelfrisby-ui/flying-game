@@ -217,6 +217,7 @@ namespace FlyingGame.Bridge
         public volatile float Throttle01;
         public volatile float EngineRpm;
         public volatile float Spoiler01;
+        public volatile float SpoilerRoar = 1f, SpoilerRumble;   // the type's spoiler voice (SpoilerConfig.SoundLevel / SoundRumble)
         public volatile float TurbulenceLevel;
         public volatile float WindSpeedMs;
         public volatile float MasterGain;   // MasterVolume × (menu open ? 0 : 1)
@@ -227,7 +228,9 @@ namespace FlyingGame.Bridge
         public volatile float RollSpeedMs;
         public readonly float[] WhirHz = new float[2], WhirGain = new float[2];
         public readonly int[] ChirpTotalUs = new int[2];        // cumulative slip time per side, µs (the audio thread takes the difference)
-        public readonly float[] ChirpGain = new float[2], ChirpSlip = new float[2];
+        public readonly float[] ChirpGain = new float[2], ChirpHz = new float[2];
+        public readonly int[] ScrubTotalUs = new int[2];        // the same for the scrub
+        public readonly float[] ScrubGain = new float[2], ScrubHz = new float[2];
         public readonly float[] ScrapeGain = new float[2], ScrapeHz = new float[2], SquealGain = new float[2], SquealHz = new float[2];
         public volatile float WaterSplash, WaterHiss, Spray, SkiHiss, KeelScrape;
         // A worn or flat tyre (Core TyreWear): cumulative thump work per side (mJ) and bursts per side (the audio thread
@@ -238,5 +241,6 @@ namespace FlyingGame.Bridge
         public volatile float AircraftGain = 1f;         // distance attenuation of the aircraft's own sounds (pilot out)
         public volatile bool PilotOut;                    // listener = the pilot: wind is HIS airspeed, no engine in the ear
         public volatile float CockpitAir;                 // extra wind in an open / canopy-less cockpit (Core Vr.CockpitWind), cockpit view only
+        public volatile float PropShakeG, PropShakeHz;    // a bent prop's once-a-revolution imbalance (Aircraft.PropVibrationG) and its rate
     }
 }

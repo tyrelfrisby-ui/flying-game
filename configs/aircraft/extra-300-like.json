@@ -4,6 +4,8 @@
   "displayName": "Extra 300-like Aerobat",
   "structureType": "steelTube",
   "structureTypeSource": "Extra 300: welded 4130 chrome-moly steel-tube fuselage with aluminium/composite fairings; carbon wing (FAA TCDS A67EU; Extra 300 maintenance manual).",
+  "wingSpar": "composite",
+  "wingSparSource": "Extra 300: carbon-fibre wing spar and glass/carbon shell (FAA TCDS A67EU; Extra 300 maintenance manual).",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 820,
@@ -1760,6 +1762,9 @@
   "propulsion": {
     "maxPowerW": 224000,
     "propDiameterM": 2.0,
+    "propMaterial": "composite",
+    "propMaterialSource": "MT-Propeller MTV-9 three-blade natural-composite (wood core, glass/carbon skin)",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 2.5,
@@ -1792,8 +1797,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "wheelMassKg": 5.6,
-      "tireRadiusM": 0.155
+      "tire": "legacy-extra-main", "tirePressurePsi": 18.1
     },
     {
       "pos": [
@@ -1809,8 +1813,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "wheelMassKg": 5.6,
-      "tireRadiusM": 0.155
+      "tire": "legacy-extra-main", "tirePressurePsi": 18.1
     },
     {
       "pos": [
@@ -1826,9 +1829,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "wheelMassKg": 0.8,
       "steerSpringNmPerRad": 60,
-      "tireRadiusM": 0.071
+      "tire": "legacy-extra-tail", "tirePressurePsi": 14.5
     }
   ],
   "limits": {
@@ -1912,5 +1914,27 @@
       }
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "gMeter": {
+      "_note": "the shared library g-meter (-10..+10 g, 0 g at 9 o'clock); its red lines are limits.gMax / gMin"
+    },
+    "airspeed": {
+      "units": "kt",
+      "scaleMin": 40,
+      "scaleMax": 260,
+      "arcs": {
+        "green": [
+          60,
+          158
+        ],
+        "yellow": [
+          158,
+          220
+        ]
+      },
+      "redline": 220
+    },
+    "_source": "shared instrument library: POH section 2 markings as ea_dialmaps.py had them (VS0 60, VNO 158, VNE 220 KIAS)"
   }
 }

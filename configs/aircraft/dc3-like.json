@@ -1779,6 +1779,9 @@
   "propulsion": {
     "maxPowerW": 895000,
     "propDiameterM": 3.53,
+    "propMaterial": "metal",
+    "propMaterialSource": "Hamilton Standard 23E50 three-blade aluminium Hydromatic",
+    "propBladeCount": 3,
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 16.0,
@@ -1811,8 +1814,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20000,
-      "wheelMassKg": 85,
-      "tireRadiusM": 0.58
+      "tire": "legacy-dc3-main", "tirePressurePsi": 255.5
     },
     {
       "pos": [
@@ -1828,8 +1830,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20000,
-      "wheelMassKg": 85,
-      "tireRadiusM": 0.58
+      "tire": "legacy-dc3-main", "tirePressurePsi": 255.5
     },
     {
       "pos": [
@@ -1845,8 +1846,7 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.6,
       "corneringStiffnessN": 6000,
-      "wheelMassKg": 15,
-      "tireRadiusM": 0.25
+      "tire": "legacy-dc3-tail", "tirePressurePsi": 204.4
     }
   ],
   "limits": {

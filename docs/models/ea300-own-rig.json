@@ -430,9 +430,9 @@
     1.0
    ],
    "pivot_gltf": [
-    0.45,
-    0.2178,
-    0.34
+    0.411,
+    -0.0382,
+    0.272
    ],
    "map": [
     [
@@ -463,7 +463,7 @@
    ],
    "pivot_gltf": [
     1.3,
-    0.0195,
+    -0.0805,
     0.278
    ],
    "map": [
@@ -6884,6 +6884,29 @@
    "default_texture": "tools/own_models/art/sequence-card-sportsman-known-2026.png",
    "holder_top_above_dash_m": 0.1149,
    "note": "extra_cockpit_shared: centred on the rear panel (Ty)"
+  },
+  {
+   "node": "FrontPanel_SequenceCard_Face",
+   "parent": "Instruments_Rear",
+   "material": "SequenceCard_Face",
+   "centre_gltf": [
+    0.1525,
+    0.3,
+    -0.19275
+   ],
+   "facing_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "size_m": [
+    0.0593725,
+    0.076835
+   ],
+   "aspect": "8.5x11 portrait",
+   "uv": "one quad, UV 0..1: (0,0) bottom-left, (1,1) top-right as the pilot sees it (u to the pilot's right, v up); material SequenceCard_Face",
+   "default_texture": "tools/own_models/art/sequence-card-sportsman-known-2026.png",
+   "note": "Ty Q070 2026-11-05: compact card + backing right of front subpanel; same rear selection"
   }
  ],
  "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.",

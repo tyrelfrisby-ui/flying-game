@@ -54,7 +54,10 @@ namespace FlyingGame.Bridge
         public bool Bound => _looked;
 
         /// <summary>True once anything on this aeroplane is being driven.</summary>
-        public bool Active => _dials.Count > 0 || _parts.Count > 0;
+        public bool Active => _dials.Count > 0 || _parts.Count > 0 || _library.Active;
+
+        /// <summary>The shared instrument library on this aeroplane (FlyingGame.Core.Instruments.InstrumentLibrary).</summary>
+        private readonly SharedInstruments _library = new();
 
         /// <summary>Gap between a face and the first needle, and between stacked needles, metres. Far more than
         /// the depth buffer resolves at arm's length with the cockpit's 5 cm near plane.</summary>
@@ -75,6 +78,9 @@ namespace FlyingGame.Bridge
         {
             if (_looked || air == null || find == null) return;
             _looked = true;
+            // The shared instrument library first (SharedInstruments): its instruments replace the model's own wherever
+            // the library has a mount, on every model and in every caller of Bind (the game and the editor shot tools).
+            _library.Bind(air, find, ownModelName);
             CockpitLiveSpec spec = FlyingGame.Core.CockpitLive.For(ownModelName);
             if (spec.IsEmpty)
             {
@@ -100,6 +106,7 @@ namespace FlyingGame.Bridge
         public void Forget()
         {
             _looked = false;
+            _library.Forget();
             _dials.Clear(); _parts.Clear();
             foreach (Object o in _owned) if (o != null) Object.Destroy(o);
             _owned.Clear();
@@ -108,6 +115,7 @@ namespace FlyingGame.Bridge
         /// <summary>Move every needle, card, stick, pedal and lever to this frame's state.</summary>
         public void Update(in RigInputs r)
         {
+            _library.Update(r);
             foreach (Dial d in _dials)
             {
                 if (d.Face == null) continue;

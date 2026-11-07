@@ -23,6 +23,18 @@ public static class PropModel
     /// and the gyroscopic moment. <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double)"/> is their sum.</summary>
     public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw; public Vec3 Gyro; }
 
+    /// <summary>The static thrust <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double, PropDrive, out Parts)"/>
+    /// caps the thrust at (momentum theory × the static figure of merit, sea level), N.</summary>
+    public static double StaticThrustN(PropulsionConfig prop, double throttle01, double airDensity = 1.225)
+    {
+        if (prop.PropDiameterM <= 0) return prop.MaxPowerW * Math.Clamp(throttle01, 0, 1);
+        double powerW = prop.MaxPowerW * Math.Clamp(throttle01, 0, 1), r = 0.5 * prop.PropDiameterM;
+        return StaticFigureOfMerit * Math.Pow(powerW * powerW * 2.0 * airDensity * Math.PI * r * r, 1.0 / 3.0);
+    }
+
+    /// <summary>Real fixed-pitch/CS props make ~55-65 % of the ideal (momentum-theory) thrust at zero airspeed.</summary>
+    public const double StaticFigureOfMerit = 0.6;
+
     public static (Vec3 Force, Vec3 Moment) Compute(
         PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity)
         => Compute(prop, throttle01, bodyVelocity, bodyRates, airDensity, out _);
@@ -50,10 +62,40 @@ public static class PropModel
         public readonly double PowerScale;
         /// <summary>Dead: how fast the air turns the prop (0 = stopped). Ignored when running.</summary>
         public readonly double Rpm;
-        private PropDrive(bool running, double scale, double rpm) { EngineRunning = running; PowerScale = scale; Rpm = rpm; }
+        /// <summary>Running, constant-speed: the governor (prop) lever, 0..1 (1 = fine, full rpm). Ignored otherwise.</summary>
+        public readonly double PropLever;
+        private PropDrive(bool running, double scale, double rpm, double propLever = 1.0) { EngineRunning = running; PowerScale = scale; Rpm = rpm; PropLever = propLever; }
         public static readonly PropDrive Running = new(true, 1.0, 0.0);
         public static PropDrive RunningAt(double powerScale) => new(true, Math.Max(0.0, powerScale), 0.0);
+        public static PropDrive RunningAt(double powerScale, double propLever) => new(true, Math.Max(0.0, powerScale), 0.0, Math.Clamp(propLever, 0.0, 1.0));
         public static PropDrive Dead(double windmillRpm) => new(false, 0.0, Math.Max(0.0, windmillRpm));
+    }
+
+    /// <summary>Lowest governed rpm, as a fraction of <c>MaxRpm</c> (a 2,700 rpm Lycoming's governor bottoms near 1,900).</summary>
+    public const double LowGovernorFraction = 0.7;
+
+    /// <summary>
+    /// The rpm a RUNNING engine's propeller turns at, for its gyroscopic couple. Fixed pitch: the throttle law
+    /// (idle → MaxRpm). Constant speed: the governor (the engine's own rpm, <c>Aircraft.EngineRpm</c>): on the fine-pitch
+    /// stop below 30 % throttle, then <see cref="PropulsionConfig.GovernedRpm"/> as the prop lever sets it, rising to MaxRpm
+    /// only firewalled (take-off). Q007, owner 2026-11-05: the gyro used the throttle law for every prop, so a governed
+    /// prop's angular momentum grew 1.8× from 40 % power (1,500 rpm) to full (2,700) while the engine itself turned
+    /// 2,500 → 2,700, and that extra gyro couple pitched the Pitts' full-power flat spin past flat and rolled its
+    /// inverted flat out.
+    /// </summary>
+    public static double RunningRpm(PropulsionConfig prop, double throttle01, double propLever = 1.0)
+    {
+        double idle = prop.IdleRpm, max = prop.MaxRpm, thr = Math.Clamp(throttle01, 0.0, 1.0);
+        if (!prop.ConstantSpeed) return idle + (max - idle) * thr;
+        double lever = Math.Clamp(propLever, 0.0, 1.0);
+        double low = Math.Max(idle, LowGovernorFraction * max);
+        double govTop = Math.Clamp(prop.GovernedRpm, idle, max);
+        double gov = low + (govTop - low) * lever;
+        double takeoff = low + (max - low) * lever;   // full forward and firewalled: up to the red line
+        double finePitch = idle + (Math.Min(gov, 1800.0) - idle) * Math.Min(1.0, thr / 0.3);
+        if (thr < 0.3) return finePitch;
+        double t = Math.Clamp((thr - 0.9) / 0.1, 0.0, 1.0);
+        return gov + (takeoff - gov) * t * t * (3 - 2 * t);
     }
 
     /// <summary>A stopped (not windmilling) prop's drag as a fraction of the windmilling one: a fixed blade blocks
@@ -76,8 +118,10 @@ public static class PropModel
             return (new Vec3(jetThrust, 0, jetThrust * prop.ThrustLineZ * 0), new Vec3(0, jetThrust * prop.ThrustLineZ, 0));
         }
 
-        double rpm = drive.EngineRunning ? prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * thr : drive.Rpm;
-        double omegaProp = rpm * 2.0 * Math.PI / 60.0;
+        double rpm = drive.EngineRunning ? RunningRpm(prop, thr, drive.PropLever) : drive.Rpm;   // the gyro's
+        // The torque reaction keeps the throttle law: every type's stored rig (RigTests) was solved against it, so moving it
+        // to the governed rpm is a re-rig of the constant-speed fleet, not part of Q007 (AGENT-LOG 2026-11-05, open).
+        double omegaProp = (drive.EngineRunning ? prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * thr : drive.Rpm) * 2.0 * Math.PI / 60.0;
         double powerW = drive.EngineRunning ? prop.MaxPowerW * thr * drive.PowerScale : 0.0;
 
         double v = bodyVelocity.Length;
@@ -87,8 +131,7 @@ public static class PropModel
         double discArea = Math.PI * radius * radius;
         // Ideal (momentum-theory) static thrust × a static figure of merit: real fixed-pitch/CS props make
         // ~55-65 % of the ideal at zero airspeed (a 180 hp 172 ≈ 2.7 kN, not the 5 kN momentum theory gives).
-        const double staticFigureOfMerit = 0.6;
-        double staticThrust = staticFigureOfMerit * Math.Pow(powerW * powerW * 2.0 * airDensity * discArea, 1.0 / 3.0);
+        double staticThrust = StaticFigureOfMerit * Math.Pow(powerW * powerW * 2.0 * airDensity * discArea, 1.0 / 3.0);
         // Propeller efficiency falls off below the design speed (owner 2026-09-15: the sim climbed at 1.6× the book with a
         // flat 0.78). A fixed-pitch cruise prop makes ~85 % of its peak efficiency at Vy and ~60 % near the stall; a
         // constant-speed prop holds its efficiency down to about 60 kt.
@@ -159,11 +202,11 @@ public static class PropModel
     /// <summary>Gyroscopic: M = -omega x h, h = Ip*OmegaProp along +x*sign (part of Compute's moment; on its own for the
     /// widget, which shows the prop's share of a spin's nose-up moment — Ty 2026-10-13).</summary>
     public static Vec3 GyroMoment(PropulsionConfig prop, double throttle01, Vec3 bodyRates) =>
-        GyroMomentAt(prop, prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * Math.Clamp(throttle01, 0.0, 1.0), bodyRates);
+        GyroMomentAt(prop, RunningRpm(prop, throttle01), bodyRates);
 
     /// <summary>The same at the prop's real speed: a stopped prop has no angular momentum, a windmilling one some.</summary>
     public static Vec3 GyroMoment(PropulsionConfig prop, double throttle01, Vec3 bodyRates, PropDrive drive) =>
-        drive.EngineRunning ? GyroMoment(prop, throttle01, bodyRates) : GyroMomentAt(prop, drive.Rpm, bodyRates);
+        drive.EngineRunning ? GyroMomentAt(prop, RunningRpm(prop, throttle01, drive.PropLever), bodyRates) : GyroMomentAt(prop, drive.Rpm, bodyRates);
 
     private static Vec3 GyroMomentAt(PropulsionConfig prop, double rpm, Vec3 bodyRates)
     {
