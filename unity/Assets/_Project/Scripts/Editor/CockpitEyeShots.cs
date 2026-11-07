@@ -194,6 +194,8 @@ namespace FlyingGame.EditorTools
             camGo.transform.SetPositionAndRotation(eye, Quaternion.Euler(-pitch, yaw, 0f));
             string path = Path.Combine(outDir, name + ".png");
             Shoot(cam, path, w, h);
+            if (Environment.GetEnvironmentVariable("COCKPIT_TEMPORAL") == "1" && name.EndsWith("-phone", StringComparison.Ordinal))
+                Temporal(cam, root, builder, live, reading, outDir, name, w, h);
             Debug.Log($"[CockpitEye] {name}: {id} seat {seatId} eye {eye.x:F3},{eye.y:F3},{eye.z:F3} (Unity, CG frame) yaw {yaw} pitch {pitch} vfov {vfov} light {light}{(fist != null ? " hand" : "")} -> {path}");
             displays.Forget();
             card?.Forget();
@@ -202,6 +204,62 @@ namespace FlyingGame.EditorTools
             builder.Clear();
             Object.DestroyImmediate(root); Object.DestroyImmediate(camGo); Object.DestroyImmediate(gm);
             return true;
+        }
+
+        // Bench evidence only: edit-mode manual renders, fixed inputs and camera. This does not
+        // execute the live simulator or device render loop. Wall time and every local transform
+        // are recorded so a pixel change can be distinguished from a moving part.
+        private static void Temporal(Camera cam, GameObject root, AirframeBuilder builder,
+            CockpitLiveParts live, RigInputs reading, string outDir, string name, int w, int h)
+        {
+            string dir = Path.Combine(outDir, name + "-fixed-input");
+            Directory.CreateDirectory(dir);
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            string V(Vector3 v) => v.x.ToString("R", culture) + "," + v.y.ToString("R", culture) + "," + v.z.ToString("R", culture);
+            string Q(Quaternion q) => q.x.ToString("R", culture) + "," + q.y.ToString("R", culture) + "," + q.z.ToString("R", culture) + "," + q.w.ToString("R", culture);
+            string NodePath(Transform t)
+            {
+                string result = t.name;
+                while (t.parent != null) { t = t.parent; result = t.name + "/" + result; }
+                return result;
+            }
+            using (var inputs = new StreamWriter(Path.Combine(dir, "inputs.tsv")))
+                foreach (var field in typeof(RigInputs).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                    inputs.WriteLine(field.Name + "\t" + Convert.ToString(field.GetValue(reading), culture));
+            using (var materials = new StreamWriter(Path.Combine(dir, "renderers.tsv")))
+            {
+                materials.WriteLine("path\tenabled\tactive\tmaterial\tshader\tqueue\tzwrite\tcull");
+                foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+                    foreach (Material m in r.sharedMaterials)
+                        if (m != null) materials.WriteLine(NodePath(r.transform) + "\t" + r.enabled + "\t" + r.gameObject.activeInHierarchy + "\t" + m.name + "\t" + m.shader.name + "\t" + m.renderQueue + "\t" + (m.HasProperty("_ZWrite") ? m.GetFloat("_ZWrite").ToString(culture) : "shader") + "\t" + (m.HasProperty("_Cull") ? m.GetFloat("_Cull").ToString(culture) : "shader"));
+            }
+            Transform[] nodes = root.GetComponentsInChildren<Transform>(true);
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            using (var frames = new StreamWriter(Path.Combine(dir, "frames.tsv")))
+            using (var transforms = new StreamWriter(Path.Combine(dir, "transforms.tsv")))
+            {
+                frames.WriteLine("frame\twallSeconds\tcameraPosition\tcameraRotation\tnear\tfar\tfov\tworldToCamera\tprojection");
+                transforms.WriteLine("frame\tnodeIndex\tpath\tlocalPosition\tlocalRotation\tlocalScale");
+                for (int frame = 0; frame <= 100; frame++)
+                {
+                    int wait = (int)(frame * 100 - clock.Elapsed.TotalMilliseconds);
+                    if (wait > 0) System.Threading.Thread.Sleep(wait);
+                    builder.SetRig(reading, 0.1f);
+                    live.Update(reading);
+                    string Matrix(Matrix4x4 matrix)
+                    {
+                        string[] values = new string[16];
+                        for (int i = 0; i < 16; i++) values[i] = matrix[i].ToString("R", culture);
+                        return string.Join(",", values);
+                    }
+                    frames.WriteLine(frame + "\t" + clock.Elapsed.TotalSeconds.ToString("R", culture) + "\t" + V(cam.transform.position) + "\t" + Q(cam.transform.rotation) + "\t" + cam.nearClipPlane.ToString("R", culture) + "\t" + cam.farClipPlane.ToString("R", culture) + "\t" + cam.fieldOfView.ToString("R", culture) + "\t" + Matrix(cam.worldToCameraMatrix) + "\t" + Matrix(cam.projectionMatrix));
+                    for (int n = 0; n < nodes.Length; n++)
+                        transforms.WriteLine(frame + "\t" + n + "\t" + NodePath(nodes[n]) + "\t" + V(nodes[n].localPosition) + "\t" + Q(nodes[n].localRotation) + "\t" + V(nodes[n].localScale));
+                    Shoot(cam, Path.Combine(dir, frame.ToString("D4") + ".png"), w, h);
+                }
+            }
+            File.WriteAllText(Path.Combine(dir, "SCOPE.txt"), "101 manual edit-mode renders over at least 10 seconds wall time. Fixed RigInputs reapplied at dt=0.1; camera and aircraft at fixture origin. No live simulation, device input, world-coordinate flight, or device GPU evidence.\n");
+            Debug.Log($"[CockpitTemporal] {name}: 101 frames, {clock.Elapsed.TotalSeconds:F3}s wall time -> {dir}");
         }
 
         /// <summary>The gloved fist on the stick (see the class note). Null where the seat's grip node is missing.</summary>

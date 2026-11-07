@@ -664,3 +664,10 @@ has its top and its belly on the centreline and nothing between, so the longest 
 when the gap is walled (the body's own sides have points beside it at mid-gap height) and not otherwise — that keeps an
 upper wing over its cabane, or a tailwheel under its spring, out of the body (`AirframeFlow.MeasureFuselage`). Test a
 point-cloud measurement on a hollow synthetic model, not a solid one.
+
+### A source PNG may be lighter than the face actually embedded in the model
+The Great Lakes source faces had already received a second style pass when embedded in the GLB. Replacing a face
+from its source PNG while thinning a band removed that existing lettering stroke. Decode the ACTIVE embedded image
+and migrate its pixels directly for a texture-only change. Assert that every pixel outside the intended colour mask
+is identical, alongside the geometry checks; a correct source PNG alone cannot establish that the rendered typography
+was preserved. Extra dilation also closes counters on small faces: inspect a comparison before retaining it.

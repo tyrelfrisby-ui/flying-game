@@ -19,7 +19,7 @@ def label(d, th, r, s, sz=34, col=WH):
     f = font(sz); x, y = pol(th, r); bb = d.textbbox((0, 0), s, font=f)
     d.text((x - (bb[2] - bb[0]) / 2, y - (bb[3] - bb[1]) / 2 - bb[1]), s, fill=col, font=f)
 def arc(d, th0, th1, r, w, col):
-    a0, a1 = sorted((th0, th1)); d.arc((C - r, C - r, C + r, C + r), a0 - 90, a1 - 90, fill=col, width=w)
+    a0, a1 = sorted((th0, th1)); d.arc((C - r, C - r, C + r, C + r), a0 - 90, a1 - 90, fill=col, width=max(1, round(w / 2)))
 def save(im, n): finish(im).save(os.path.join(ART, n)); print('wrote', n)
 A = lambda k: (lambda v: ang(k, v))
 # The airspeed, altimeter, VSI, turn-coordinator and g-meter faces are the SHARED INSTRUMENT LIBRARY'S (tools/own_models/instruments,
