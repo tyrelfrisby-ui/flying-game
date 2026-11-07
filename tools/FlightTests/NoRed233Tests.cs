@@ -98,14 +98,16 @@ public sealed class NoRed233Tests
     }
 
     /// <summary>The 2-33's Resources folder holds our two yellow GLBs and nothing else: no Grob Astir, no DefaultWhite
-    /// textures, no downloaded model of any kind for the type, and no 2-33 or Grob file anywhere else in Resources.</summary>
+    /// textures, no downloaded model of any kind for the type, and no 2-33 or Grob Astir file anywhere else in Resources.
+    /// "astir", not "grob": the Grob G 103 Twin II Acro (glider-grob103-acro-like, 2026-11-01) is its own type and
+    /// legitimately lives in Resources; only the Astir was ever a 2-33 stand-in.</summary>
     [Fact]
     public void ResourcesHoldOnlyTheYellowGlbs()
     {
         var files = Directory.GetFiles(ModelDir).Select(Path.GetFileName).Where(f => !f!.EndsWith(".meta")).OrderBy(f => f).ToArray();
         Assert.Equal(new[] { G + "-own-tf.glb", G + "-own.glb" }, files);
         var stray = Directory.GetFiles(Path.Combine(Repo, "unity", "Assets", "_Project", "Resources"), "*", SearchOption.AllDirectories)
-            .Where(f => Regex.IsMatch(Path.GetFileName(f), @"grob|astir|glider-2-33-like(?!-own|\.meta$)", RegexOptions.IgnoreCase)).ToArray();
+            .Where(f => Regex.IsMatch(Path.GetFileName(f), @"astir|glider-2-33-like(?!-own|\.meta$)", RegexOptions.IgnoreCase)).ToArray();
         Assert.Empty(stray);
         Assert.DoesNotContain("grob-astir-like", File.ReadAllText(Path.Combine(Repo, "tools", "talkflying_livery.py")));
     }
