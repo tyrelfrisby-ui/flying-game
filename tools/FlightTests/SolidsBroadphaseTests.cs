@@ -7,8 +7,12 @@ namespace FlyingGame.FlightTests;
 /// <summary>The solids broadphase (WorldSolids.Nearby, iOS 2026-11-02): the island's ~1,500 solids were tested for every
 /// hard point at every RK4 stage. The broadphase must give exactly the answers of the full scan, and gather rarely.</summary>
 [Collection("WorldTerrainActive")]
-public sealed class SolidsBroadphaseTests
+public sealed class SolidsBroadphaseTests : IDisposable
 {
+    // Builds the island's solids and decks: put them back, or every class after this one flies among them (t971u).
+    private readonly IslandWorldScope _world = new();
+    public void Dispose() => _world.Dispose();
+
     [Fact]
     public void TheBroadphaseAnswersExactlyAsTheFullScanAcrossTheIsland()
     {
