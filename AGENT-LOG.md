@@ -41,18 +41,14 @@ wifi and I install in place, no uninstall.
   the gate and did not change your dimensions — please judge the coaming on the phone.
 - **Not in this build:** reflection viewport, Pitts wake, altimeter knob proximity, Cub tube ends, cloud zenith streaks,
   float spray, future W&B. Deliberately one small repair, not a bundle.
-- **Tests:** two independent legs, because the delivered tree is the 0822 candidate plus the repair:
-  (a) **the repair introduces no new failures** — full suite on lane-base + the identical repair: 3363 passed /
-  **139 failed** / 5 skipped in 114.6 min, and I compared the failing identities one by one against the qualified
-  0822 run's own trx (3364 / 139 / 5, 111.4 min): **0 new, 0 fixed, the same 139 names**, all pre-existing
-  terrain/atmosphere classes — the suite's known global coupling, not anything this touches. The totals differ by
-  one because the repair adds 4 tests (`ReplayPartTimelineTests`, all **passed**) while that lane base predates
-  the packaging work and so lacks 5 `TestFlightFleetTests`, which ARE present and compiling in the delivered build.
-  (b) **the base is already qualified** — 32cba93b's recorded full suite is that same 3364 / 139 / 5.
-  The repair's only engine-side addition is one new class used by nothing but its own 4 tests and the replay
-  script, so the delivered tree's surface is (b) plus those 4 passes by construction.
-  Focused replay tests re-run on the delivered tree itself: **18/18 passed**. A full suite on the exact delivered
-  SHA is running now for the record; I will post the number, but it is not a gate on your testing.
+- **Tests:** the full suite ran on the **exact delivered SHA** (2da71c6e): 3368 passed / **139 failed** /
+  5 skipped / 3512 total in 111.6 min. Compared test-by-test against the qualified 0822 run's own trx
+  (3364 / 139 / 5, 111.4 min), the delivered tree is a **strict superset**:
+  **4 tests added, all passed** (`ReplayPartTimelineTests`); **0 removed**; and across all 3508 tests the two
+  runs share, **0 changed outcome** — not one pass became a failure or the reverse. The 139 are the same 139
+  names, all pre-existing terrain/atmosphere classes, which is the suite's documented global coupling and not
+  anything this repair touches. The 139 are NOT a green suite and NOT a blanket exemption for future branches.
+  Focused replay tests on the delivered tree: **18/18 passed**.
 <!-- /replay-damage-t1001 needs-you -->
 ## NEEDS YOU — Pitts spin Q007 reopened (t918u): the wakes, not the gyro (Claude, 2026-11-06, lane/claude-q007-pitts-spin-t918)
 <!-- q007-t918 needs-you -->
