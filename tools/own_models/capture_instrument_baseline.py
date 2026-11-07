@@ -18,6 +18,17 @@ for asset in manifest['assets']:
     assert 'cub' not in asset['path']
     assert hashlib.sha256((root / asset['path']).read_bytes()).hexdigest() == asset['currentSha256']
     assert hashlib.sha256((evidence / 'baseline-assets' / asset['path']).read_bytes()).hexdigest() == asset['baselineSha256']
+# Engine-band migration followed the initial shared-only capture. Include its original
+# live PNGs and Great Lakes model in future matched baseline runs as well.
+engine_paths = ['unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb']
+engine_paths += ['unity/Assets/_Project/Resources/CockpitDials/ea-dial-' + key + '.png' for key in ('tach', 'mp', 'oil')]
+for path in engine_paths:
+    original = subprocess.check_output(['git', 'show', '31ca88b2:' + path], cwd=root)
+    saved = evidence / 'baseline-assets' / path
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    saved.write_bytes(original)
+    manifest['assets'].append(dict(path=path, baselineSha256=hashlib.sha256(original).hexdigest(),
+                                  currentSha256=hashlib.sha256((root / path).read_bytes()).hexdigest()))
 clone = Path(tempfile.mkdtemp(prefix='t932-baseline-', dir='/private/tmp'))
 for name in ('unity', 'src', 'configs'):
     subprocess.run(['cp', '-cR', str(root / name), str(clone / name)], check=True)
