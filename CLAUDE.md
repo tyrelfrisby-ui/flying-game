@@ -671,3 +671,15 @@ from its source PNG while thinning a band removed that existing lettering stroke
 and migrate its pixels directly for a texture-only change. Assert that every pixel outside the intended colour mask
 is identical, alongside the geometry checks; a correct source PNG alone cannot establish that the rendered typography
 was preserved. Extra dilation also closes counters on small faces: inspect a comparison before retaining it.
+
+### Find state leaks by scanning classes, not by reading one suite at a time
+The B1 qualification run failed 40 StructuralTests names (NaN) that passed on the branch point. Seven new tests had
+reshuffled xUnit's class order and put StructuralTests after IslandStartupCostTests, which left the island installed
+(ground at the origin 2,460 m). I fixed that class and paid two hours for the next suite run, which failed the same 40
+names because the new order now put StructuralTests after UrbanLowRiseTests, a different class with the same leak.
+Each fix moves the order, and another producer turns up. What ended it was a scan: run every class that touches a
+process-wide global on its own, snapshot the globals after it, reset them, and list every class that left something
+behind (152 classes, 90 minutes, two more leakers; `IslandWorldScope` is the restore). Prove each producer with a
+fixed-order replay (producer, then consumer, fail; producer, clear only that global, consumer, pass), and give the
+restore a regression row that fails on the old class. An isolated pass only proves the test is order-dependent;
+it says nothing about what it depends on.
