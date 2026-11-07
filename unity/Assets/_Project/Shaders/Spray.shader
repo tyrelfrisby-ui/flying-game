@@ -5,6 +5,7 @@ Shader "FlyingGame/Spray"
     {
         _Color ("Tint", Color) = (1, 1, 1, 1)
         _Mist ("Fine mist", Range(0,1)) = 0
+        _FineSpray ("Fine airborne spray", Range(0,1)) = 0
         _Foam ("Surface foam", Range(0,1)) = 0
     }
     SubShader
@@ -23,7 +24,7 @@ Shader "FlyingGame/Spray"
             struct v2f { float4 pos : SV_POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; float clipDistance : TEXCOORD1; float4 sp : TEXCOORD2; float eyeDepth : TEXCOORD3; };
             UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
             fixed4 _Color;
-            float _Mist, _Foam, _ReflectionRendering, _WaterSceneDepthOff, _WaterDepthErrK;
+            float _Mist, _Foam, _FineSpray, _ReflectionRendering, _WaterSceneDepthOff, _WaterDepthErrK;
             float4 _ReflectionClip;
             float hash(float2 p) { return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
             float noise(float2 p)
@@ -52,7 +53,14 @@ Shader "FlyingGame/Spray"
                 float soft = saturate(separation / .22);
                 if (_ReflectionRendering > .5 || _WaterSceneDepthOff > .5 || i.eyeDepth*i.eyeDepth*_WaterDepthErrK > .25) soft = 1;
                 alpha *= soft * smoothstep(0, .24, edge);
-                float light = .86 + .14 * cloud;
+                // Small high-coverage white flecks, not translucent blue-tinted cloud patches.
+                // This mode belongs only to airborne float spray; surface foam/mist keep their look.
+                if (_FineSpray > .5)
+                {
+                    float grain = noise(i.uv * float2(37, 163));
+                    alpha = smoothstep(.32, .52, grain) * smoothstep(0, .3, edge) * soft;
+                }
+                float light = _FineSpray > .5 ? 1 : .86 + .14 * cloud;
                 return fixed4(i.color.rgb * light, i.color.a * alpha);
             }
             ENDCG
