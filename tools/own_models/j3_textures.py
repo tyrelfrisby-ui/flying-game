@@ -1,7 +1,11 @@
 """J-3 own model v5 textures (Pillow + DejaVu fonts; generated, nothing traced or copied).
   python3 j3_textures.py OUTDIR    -> j3_panel_atlas.png (gauge faces + placard), j3_prop_wood.png (grain, red tips, sheath)
 Gauge layout / colours read by eye off Ty's cockpit photo (refs/j3-cub/ty-panel.png): cream faces, black markings, no
-maker names.  Prop: laminated-birch look, varnish tint, red tip band (Ty) on both faces, brass LE sheath + rivet line
+maker names.
+Ty t934u: Cub exception — remove ALL colored bands/arcs; red limit lines ONLY for max oil temp, min AND max oil
+pressure, max RPM, max airspeed. Ty chose KEEP 85-hp C-85 physics/config; match instrument redlines to C-85 (TCDS E-233),
+not A-65/E-205. Airframe ASI max from A-691 glide/dive 122 mph CAS (mph face). Never dial scale ends.
+t935: oil mid-line removed; otherwise J3 face styling approved (visual only).  Prop: laminated-birch look, varnish tint, red tip band (Ty) on both faces, brass LE sheath + rivet line
 (Ty's Sensenich-type photo refs/j3-cub/ty-prop.png; the maker's decal is a trademark and is NOT reproduced)."""
 import sys, os, math, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -36,15 +40,18 @@ def needle(cx, cy, a, L, col=RED, w=9, tail=40):
 cx, cy = face(0); a0, a1 = -135, 135
 ticks(cx, cy, 200, 238, a0, a1, 30, 4); ticks(cx, cy, 185, 238, a0, a1, 6, 11)
 for k, v in enumerate(range(5, 40, 5)): label(cx, cy, 138, a0 + 270 * k / 6, str(v), F(72))
-arc(cx, cy, 226, a0 + 270 * (22.8 - 5) / 30, a0 + 270 * (23.2 - 5) / 30, 26, RED)             # A-65 red line 2300
-arc(cx, cy, 226, a0 + 270 * (14 - 5) / 30, a0 + 270 * (22.8 - 5) / 30, 12, GRN)
+# Max RPM: Continental C-85 TCDS E-233 — max continuous 85 hp at 2575 rpm (matches config propulsion.maxRpm).
+# (Ty: keep 85-hp C-85; match instrument limits to it — not A-65 2350.)
+arc(cx, cy, 226, a0 + 270 * (25.75 - 5) / 30 - 1.5, a0 + 270 * (25.75 - 5) / 30 + 1.5, 26, RED)
 D.text((cx, cy - 30), 'R P M', font=F(52), fill=INK, anchor='mm'); D.text((cx, cy + 150), 'X 100', font=F(36), fill=INK, anchor='mm')
 needle(cx, cy, a0 + 270 * (18 - 5) / 30, 200, (200, 70, 30))
 # 1 airspeed (MPH): 40 at 1 o'clock clockwise to 140 at ~11 o'clock
 cx, cy = face(1)
 def asd(v): return 30 + (v - 40) * 300 / 100.0
 arc(cx, cy, 214, asd(38), asd(122) , 0, INK)
-arc(cx, cy, 226, asd(42), asd(100), 24, GRN)
+# t934u: no color band. Max airspeed red = FAA Spec A-691 Airspeed Limits (CAS) "Glide or dive 122 mph (106 knots)".
+# (Level flight or climb 90 mph is a separate limit — not painted as green here per t934.)
+# config limits.vneMs 54.5 = 122 mph matches A-691 glide/dive; build_j3.py had flagged secondary until TCDS check.
 D.line([polar(cx, cy, 196, asd(122)), polar(cx, cy, 250, asd(122))], fill=RED, width=12)
 ticks(cx, cy, 205, 238, asd(40), asd(140), 20, 4); ticks(cx, cy, 190, 238, asd(40), asd(140), 5, 11)
 for v in range(40, 160, 20): label(cx, cy, 128, asd(v), str(v), F(68))
@@ -97,11 +104,21 @@ for yo, lab, vals, red_at in ((-95, 'TEMPERATURE', ['100', '150', '200', '250'],
     for k, v in enumerate(vals):
         a = -60 + 120 * k / n; D.line([polar(cx, oc, 175, a), polar(cx, oc, 200, a)], fill=INK, width=9)
         label(cx, oc, 120, a, v, F(40))
-    arc(cx, oc, 205, -60 + 120 * (0.25 if red_at is None else 0.0), -60 + 120 * (0.75 if red_at is None else 0.85), 12, GRN)
-    D.line([polar(cx, oc, 170, 60 if red_at else -60 + 120 * 0.125), polar(cx, oc, 215, 60 if red_at else -60 + 120 * 0.125)], fill=RED, width=10)
+    # t934/t935: no color bands; no mid-line. Red lines = C-85 certified limits (TCDS E-233), NOT dial scale ends.
+    # Oil temp max 225 F: E-233 NOTE 1 C85 series max oil inlet temperature 225 F (dial to 250 ≠ limit).
+    # Oil press min 30 / max 40 psig: E-233 NOTE 1 "oil pressure limits 30 to 40 p.s.i." (not scale-end 80; not A-65 30-60).
+    if red_at is not None:
+        a_tmax = -60 + 120 * (225 - 100) / (250 - 100)
+        D.line([polar(cx, oc, 170, a_tmax), polar(cx, oc, 215, a_tmax)], fill=RED, width=10)
+    else:
+        a_pmin = -60 + 120 * (30 / 80.0)
+        a_pmax = -60 + 120 * (40 / 80.0)
+        D.line([polar(cx, oc, 170, a_pmin), polar(cx, oc, 215, a_pmin)], fill=RED, width=10)
+        D.line([polar(cx, oc, 170, a_pmax), polar(cx, oc, 215, a_pmax)], fill=RED, width=10)
     D.text((cx, oc - 25), lab, font=F(30), fill=INK, anchor='mm')
     if PAINT_NEEDLES: D.line([(cx, oc), polar(cx, oc, 190, -10 if red_at else 8)], fill=INK, width=8)
-D.line([(cx - 230, cy + 8), (cx + 230, cy + 8)], fill=(120, 112, 96), width=3)
+# t935u: Remove the mid line on the oil temp pressure otherwise approved for j3.
+# (horizontal divider across dual oil temp/pressure face ONLY — do not remove scales/ticks/fonts/redlines)
 # placard (aluminium, black letters)
 P0 = (0, S, 640, S + 128); D.rectangle(P0, fill=(178, 182, 186)); D.rectangle((8, S + 8, 632, S + 120), outline=INK, width=5)
 D.text((320, S + 42), 'REAR SEAT FOR', font=FC(46), fill=INK, anchor='mm'); D.text((320, S + 90), 'SOLO FLYING', font=FC(46), fill=INK, anchor='mm')
