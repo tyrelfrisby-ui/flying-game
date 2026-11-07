@@ -37,6 +37,7 @@ public static class TailWake
     {
         public int FixedIdx;                 // flat strip index of the fixed strip (its separation memory and airfoil)
         public bool FromWing;                // true: sheds on every tail strip; false (stabiliser): on vertical strips only
+        public int SysId;                    // its lifting system (AeroModel.SystemKey), numbered per config
         public double LeX, TeX, Z, Y, HalfSpan;
         public bool InnermostOfSide;         // its wake reaches in to the centre line (over the fuselage)
         public int[] HingedIdx = System.Array.Empty<int>();   // the aileron / elevator strips behind it (masked with it)
@@ -44,7 +45,7 @@ public static class TailWake
         public double Incidence, CosSweep;
     }
 
-    private sealed class Geometry { public Source[] Sources = System.Array.Empty<Source>(); }
+    private sealed class Geometry { public Source[] Sources = System.Array.Empty<Source>(); public bool TwoWings; public int[] SysOfSurface = System.Array.Empty<int>(); }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, Geometry> _geom = new();
 
@@ -54,12 +55,15 @@ public static class TailWake
     private static Geometry Build(AircraftConfig cfg)
     {
         var flat = new List<(StripConfig st, string sys, bool hinged, bool vertical, bool wing, string table)>();
+        var sysIds = new List<string>(); var sysOfSurface = new int[cfg.Surfaces.Count];
         for (int si = 0; si < cfg.Surfaces.Count; si++)
         {
             SurfaceConfig sf = cfg.Surfaces[si];
             string sys = AeroModel.SystemKey(sf.Id);
             bool hingedSurface = !string.Equals(sys, sf.Id, StringComparison.Ordinal);   // "X-aileron" → X, "elevator" → hStab
             string? section = AeroModel.SectionTableKey(cfg, si);                         // the table the strip actually flies
+            if (!sysIds.Contains(sys)) sysIds.Add(sys);
+            sysOfSurface[si] = sysIds.IndexOf(sys);
             foreach (StripConfig st in sf.Strips)
                 flat.Add((st, sys, hingedSurface, IsVerticalId(sf.Id) || sys == "vStab", sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase), section ?? st.Airfoil));
         }
@@ -74,7 +78,7 @@ public static class TailWake
             double width = st.Chord > 1e-9 ? st.Area / st.Chord : 0.0;
             var src = new Source
             {
-                FixedIdx = i, FromWing = wing,
+                FixedIdx = i, FromWing = wing, SysId = sysIds.IndexOf(sys),
                 LeX = p.X + 0.25 * st.Chord, TeX = p.X - 0.75 * st.Chord, Z = p.Z, Y = p.Y, HalfSpan = 0.5 * width,
                 Airfoil = tableKey, Incidence = st.IncidenceRad, CosSweep = st.SweepRad != 0.0 ? Math.Cos(st.SweepRad) : 1.0,
             };
@@ -103,7 +107,9 @@ public static class TailWake
                 if (!ReferenceEquals(o, s) && flat[o.FixedIdx].sys == sys && Math.Sign(o.Y) == Math.Sign(s.Y) && Math.Abs(o.Y) < Math.Abs(s.Y)) { inner = false; break; }
             s.InnermostOfSide = inner;
         }
-        return new Geometry { Sources = sources.ToArray() };
+        int firstWing = -1; bool two = false;
+        foreach (Source s in sources) if (s.FromWing) { if (firstWing < 0) firstWing = s.SysId; else if (s.SysId != firstWing) two = true; }
+        return new Geometry { Sources = sources.ToArray(), TwoWings = two, SysOfSurface = sysOfSurface };
     }
 
     /// <summary>The wake state of every section for one aerodynamic evaluation. Reused per thread, no allocation per call.</summary>
@@ -114,6 +120,8 @@ public static class TailWake
         internal double[] Cd = System.Array.Empty<double>(), Sep = System.Array.Empty<double>();
         internal int Count;
         internal double EpsRad;
+        internal bool TwoWings;
+        internal int[] SysOfSurface = System.Array.Empty<int>();
     }
 
     [ThreadStatic] private static Field? _scratch;
@@ -130,7 +138,7 @@ public static class TailWake
         Field f = _scratch ??= new Field();
         int n = g.Sources.Length;
         if (f.Live.Length < n) { f.Live = new bool[n]; f.Cd = new double[n]; f.Sep = new double[n]; }
-        f.Src = g.Sources; f.Count = n; f.EpsRad = epsRad;
+        f.Src = g.Sources; f.Count = n; f.EpsRad = epsRad; f.TwoWings = g.TwoWings; f.SysOfSurface = g.SysOfSurface;
         int[] surfaceOfStrip = SurfaceOfStrip(config);
         for (int k = 0; k < n; k++)
         {
@@ -177,12 +185,29 @@ public static class TailWake
     /// <paramref name="vLocal"/> (aircraft relative to the air, at the strip). 1 = clean air.
     /// </summary>
     internal static double QFactor(Field f, Vec3 p, Vec3 vLocal, bool receiverIsVertical)
+        => Q(f, p, vLocal, receiverIsVertical, -1, f.EpsRad);
+
+    /// <summary>
+    /// q_local / q_freestream for a WING strip of a biplane (Q007, Ty t918u, 2026-11-06): the other wing's wake, by the same
+    /// construction. In attached flow and through the ordinary stall each wing's wake runs aft, clear of the other (the
+    /// lower wing's leaves behind the upper; the upper's passes a gap above the lower), so nothing changes there. As |α|
+    /// nears 90° the air crosses the cellule from below (upright) or from above (inverted), and the windward wing sits in
+    /// front of the other one, a gap of 1.2 chords away: two plates in tandem, the rear one in the front one's dead air
+    /// (Hoerner, <i>Fluid-Dynamic Drag</i>, 1965, ch. 8: the downstream plate of a tandem pair keeps a small fraction of its
+    /// drag). Upright the lower wing, aft of the CG, shields the upper; inverted the upper, forward, shields the lower:
+    /// the only aerodynamic asymmetry of a flat spin that a staggered cellule has. Monoplanes: 1, always. The wing's own
+    /// system never shades itself, and no downwash is applied (the receiver is not behind the wing).
+    /// </summary>
+    internal static double WingQFactor(Field f, Vec3 p, Vec3 vLocal, int surfaceIndex)
+        => f.TwoWings && surfaceIndex < f.SysOfSurface.Length ? Q(f, p, vLocal, false, f.SysOfSurface[surfaceIndex], 0.0) : 1.0;
+
+    private static double Q(Field f, Vec3 p, Vec3 vLocal, bool receiverIsVertical, int receiverWingSys, double epsRad)
     {
         double speed = vLocal.Length;
         if (speed < 1e-6 || f.Count == 0) return 1.0;
         // The air moves opposite to the aircraft; the downwash turns it down (+z) by ε in the x–z plane.
         double m = Math.Sqrt(vLocal.X * vLocal.X + vLocal.Z * vLocal.Z);
-        double el = Math.Atan2(vLocal.Z, vLocal.X) - f.EpsRad;
+        double el = Math.Atan2(vLocal.Z, vLocal.X) - epsRad;
         Vec3 d = new Vec3(-m * Math.Cos(el), -vLocal.Y, -m * Math.Sin(el)) / speed;
         // The wake sheet of a section is extruded along the span (ŷ) and convected along d; its normal is n = d × ŷ.
         Vec3 nrm = new Vec3(-d.Z, 0.0, d.X);
@@ -195,7 +220,7 @@ public static class TailWake
         {
             if (!f.Live[k]) continue;
             Source s = f.Src[k];
-            if (!s.FromWing && !receiverIsVertical) continue;
+            if (receiverWingSys >= 0 ? !s.FromWing || s.SysId == receiverWingSys : !s.FromWing && !receiverIsVertical) continue;
             double cd = f.Cd[k];
             if (cd <= 0.0) continue;
             double sep = f.Sep[k], c = s.LeX - s.TeX;
@@ -248,6 +273,30 @@ public static class TailWake
                 if (wing) { q.Add(double.NaN); continue; }
                 Vec3 r = st.PosVec() - cg;
                 q.Add(QFactor(f, st.PosVec(), bodyVelocity + Vec3.Cross(bodyRates, r), vertical));
+            }
+        }
+        return q.ToArray();
+    }
+
+    /// <summary>
+    /// Diagnostic and test entry: q_local / q_freestream of every WING strip from the other wing's wake (<see cref="WingQFactor"/>;
+    /// NaN for every other strip), for one flight condition.
+    /// </summary>
+    public static double[] WingStripQFactors(AircraftConfig config, IReadOnlyDictionary<string, AirfoilTable> tables, Vec3 bodyVelocity,
+                                             Vec3 bodyRates, StripFlowState? flowState = null)
+    {
+        Vec3 cg = config.Mass.CgVec();
+        Field f = Prepare(config, tables, bodyVelocity, bodyRates, cg, flowState, null, null, 0.0);
+        var q = new List<double>();
+        for (int si = 0; si < config.Surfaces.Count; si++)
+        {
+            SurfaceConfig sf = config.Surfaces[si];
+            bool wing = sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase);
+            foreach (StripConfig st in sf.Strips)
+            {
+                if (!wing) { q.Add(double.NaN); continue; }
+                Vec3 r = st.PosVec() - cg;
+                q.Add(WingQFactor(f, st.PosVec(), bodyVelocity + Vec3.Cross(bodyRates, r), si));
             }
         }
         return q.ToArray();

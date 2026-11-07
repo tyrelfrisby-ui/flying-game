@@ -514,14 +514,15 @@ public class SpinBalanceProbe
             double rud = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_RUD") ?? "-1");
             double lev = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_LEVER") ?? "-1");
             bool inv = (Environment.GetEnvironmentVariable("SPINBAL_INVB") ?? "0") == "1";
-            double[] edges = { 0, 60, 80, 90, 95, 100, 110, 130, 181 };
+            double[] edges = { 0, 30, 45, 60, 80, 90, 95, 100, 110, 130, 181 };
+            double abinT0 = double.Parse(Environment.GetEnvironmentVariable("SPINBAL_ABIN_T0") ?? "25");   // 0: the entry too
             var sums = new Dictionary<string, Vec3>[edges.Length - 1]; var cnt = new int[edges.Length - 1];
             for (int i = 0; i < sums.Length; i++) sums[i] = new();
             var tr = new System.Text.StringBuilder();
             EnterSpin(cfg, rud, lev, 45, (t, a) =>
             {
                 a.CaptureForces = true;
-                if (t < 25 || a.LastForces is null) return;
+                if (t < abinT0 || a.LastForces is null) return;
                 double al = Math.Abs(Alpha(a.State)); int b = 0; while (b < cnt.Length - 1 && al >= edges[b + 1]) b++;
                 cnt[b]++;
                 foreach (var kv in Classify(cfg, a.LastForces, a.State.Rates)) sums[b][kv.Key] = (sums[b].TryGetValue(kv.Key, out var o) ? o : Vec3.Zero) + kv.Value;
@@ -531,7 +532,7 @@ public class SpinBalanceProbe
                     tr.Append($"[{t:F1} α{Alpha(a.State):F0} φ{e.Item1 * D:F0} θ{e.Item2 * D:F0} p{w.X * D:F0} q{w.Y * D:F0} r{w.Z * D:F0}] ");
                 }
             }, inv, ail);
-            _out.WriteLine($"ABIN inv {inv} rud {rud} lever {lev} ail {ail}: mean moments (N·m, body) per |α| bin over 25..45 s");
+            _out.WriteLine($"ABIN inv {inv} rud {rud} lever {lev} ail {ail}: mean moments (N·m, body) per |α| bin over {abinT0:F0}..45 s");
             _out.WriteLine("   " + tr.ToString());
             for (int b = 0; b < cnt.Length; b++)
             {

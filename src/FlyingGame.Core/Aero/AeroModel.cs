@@ -890,7 +890,10 @@ public static class AeroModel
                 // Report 648 width and depth from that section's drag). It replaces the single-wing wake band, its 0.45
                 // maximum loss, the fin's 0.5 of it, the stab wedge's extra half, and the flat η_t = 0.9 (DATCOM's typical
                 // value, which is this same wake averaged over a typical tail).
-                double qFactor = isWing ? 1.0 : TailWake.QFactor(wakes, stripAt, vAirStrip, isVertical);
+                // A biplane's wing strips fly in the OTHER wing's wake when it reaches them (TailWake.WingQFactor: only near
+                // |α| 90°, where the air crosses the cellule from one wing to the other).
+                double qFactor = isWing ? TailWake.WingQFactor(wakes, stripAt, vAirStrip, surfaceIndex)
+                                        : TailWake.QFactor(wakes, stripAt, vAirStrip, isVertical);
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
                 if (!isWing && !isVertical && strip.PosVec().X < -1.0 && ForceDebug.Samples is not null)
