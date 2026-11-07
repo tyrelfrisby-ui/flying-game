@@ -1,3 +1,59 @@
+## NEEDS YOU — replay damage timing (Ty pt1001) — Claude, 2026-11-07, lane/claude-replay-smoke, build 2026.1107.1346
+<!-- replay-damage-t1001 needs-you -->
+Your 0822 report: smoke 2-button manual / as-flown **PASS**, but "replay starts with the wings missing" from a crash that
+happens later in the clip. That is repaired. Nothing approved by me. Built, signed and verified; **install pending** — the phone was unreachable at 13:52 PST
+(`CoreDeviceError 4016`: core device services / power assertion unavailable, i.e. locked or off the network). Unlock it on
+wifi and I install in place, no uninstall.
+- **Mechanism (measured, not assumed):** a break does not hide a mesh, it *cuts the part out of the aeroplane's meshes*
+  onto a separate debris object posed where the aeroplane was at that instant. The replay re-posed only the aeroplane, so
+  every replayed frame drew the aeroplane already cut, with the wings lying where they finally fell. There was no "when"
+  anywhere in the system — the damage was a property of the meshes, not of the timeline.
+- **Fix:** each part that comes off is registered at the moment it detaches, *before it moves*, with its pose relative to
+  the aeroplane at that instant (`ReplayActors.RegisterAirframePart`). New engine-side `ReplayPartTimeline` carries a break
+  clock: before `BreakT` the part rides the replayed aeroplane at that relative pose, from `BreakT` on it plays its own
+  recorded poses. Children are posed after their parents (depth sort), so a bent panel on a detached wing follows it.
+  Leaving the replay restores the live wreck exactly as it was (`SaveLiveParts` / `RestoreLiveParts`).
+- **Exact build:** source **2da71c6e** = the qualified 0822 candidate **32cba93b** with this repair
+  cherry-picked on, nothing else; clean worktree, branch `lane/claude-replay-damage-t1001-candidate`.
+  Built **`FLYINGGAME_TF_SLIM=1`**, same packaging as the 0822 you are running, so the fleet and the smoke
+  behaviour are a like-for-like comparison. All 7 repair files are byte-identical to the tree the full suite ran on.
+  Version **2026.1107.1346** / build 202611071346, bundle `com.tyrelfrisby.aeroplayground`, **3.60 GB** (the non-slim build of the same source was 4.2 GB — over TestFlight's limit).
+  `** BUILD SUCCEEDED **`, 0 `error CS`, 0 Unity errors. `codesign --verify --deep --strict`: valid on disk,
+  satisfies its Designated Requirement; Authority *Apple Development: SAMUEL TYREL FRISBY (3X7KU2BKP5)*, team DH425V439F;
+  profile *iOS Team Provisioning Profile: \** expires 2027-04-28 and covers your iPhone (5 devices).
+  Executable sha256 `8abe70febd398a5a188a96b2271fe530a6462afa1dc4c04a13155ac1ea7a6058`, UnityFramework sha256 `12a5e045f4a48328b098a0355911befe6c92c87bc653400764cee068500085ac`.
+- **Please test (the replay, in this order):**
+  1. Fly the Pitts intact, **crash later in the clip**, then replay from the start: it must start **intact**, and the wings
+     must come off **only at the moment they came off when you flew it** — not before.
+  2. Seek forward past the break, back before it, forward again: the aeroplane must be whole before the break every time
+     (verified 0-pixel on the bench, but your hands are the test).
+  3. Restart the replay; save / export a clip and play it back; use the clip camera.
+  4. Start recording from an **already damaged** aeroplane: it must stay damaged for the whole replay.
+  5. Leave the replay: you must get the live wreck back, in the state you left it.
+  6. **Smoke 2-button manual / as-flown must still pass** — that was your 0822 PASS and it is the thing I could break.
+- **Residuals I measured rather than claim perfect** (both inspected, neither a fault):
+  - Return-to-live differs by 9 px of 1,024,000, max **2/255**, one pixel above 1/255 — MSAA dither. The authoritative
+    transform check reads 0.000 m / 0.00 deg off.
+  - Pre-break vs a truly intact reference: 352 px differ at all, 6 above 8/255, forming a **one-pixel band across 415
+    columns spanning both wings** — the cut seam in the mesh, not a misplaced part.
+- **Known unfixed, shipped as-is:** the Great Lakes front eye is at your approved 4 in aft / 2 in down, and the clearance
+  gate is still **RED** there (`GL3c_Coaming_Padding` 6.7 cm aft-below the eye, 7 % of rays inside 12 cm). I did not waive
+  the gate and did not change your dimensions — please judge the coaming on the phone.
+- **Not in this build:** reflection viewport, Pitts wake, altimeter knob proximity, Cub tube ends, cloud zenith streaks,
+  float spray, future W&B. Deliberately one small repair, not a bundle.
+- **Tests:** two independent legs, because the delivered tree is the 0822 candidate plus the repair:
+  (a) **the repair introduces no new failures** — full suite on lane-base + the identical repair: 3363 passed /
+  **139 failed** / 5 skipped in 114.6 min, and I compared the failing identities one by one against the qualified
+  0822 run's own trx (3364 / 139 / 5, 111.4 min): **0 new, 0 fixed, the same 139 names**, all pre-existing
+  terrain/atmosphere classes — the suite's known global coupling, not anything this touches. The totals differ by
+  one because the repair adds 4 tests (`ReplayPartTimelineTests`, all **passed**) while that lane base predates
+  the packaging work and so lacks 5 `TestFlightFleetTests`, which ARE present and compiling in the delivered build.
+  (b) **the base is already qualified** — 32cba93b's recorded full suite is that same 3364 / 139 / 5.
+  The repair's only engine-side addition is one new class used by nothing but its own 4 tests and the replay
+  script, so the delivered tree's surface is (b) plus those 4 passes by construction.
+  Focused replay tests re-run on the delivered tree itself: **18/18 passed**. A full suite on the exact delivered
+  SHA is running now for the record; I will post the number, but it is not a gate on your testing.
+<!-- /replay-damage-t1001 needs-you -->
 ## NEEDS YOU — Pitts spin Q007 reopened (t918u): the wakes, not the gyro (Claude, 2026-11-06, lane/claude-q007-pitts-spin-t918)
 <!-- q007-t918 needs-you -->
 Your t918u on 0703: "upright spin is still too flat and difficult recover … inverted (right right is too nose low and too easy
