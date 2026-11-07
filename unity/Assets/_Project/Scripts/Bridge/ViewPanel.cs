@@ -324,7 +324,7 @@ namespace FlyingGame.Bridge
             float s = Mathf.Min(Screen.width, Screen.height);
             bool portrait = ScreenLayout.Portrait;
             float gap = s * 0.015f;
-            int perRow = portrait ? 5 : 9;
+            int perRow = portrait ? 5 : 10;   // (10 slots: the manual SMOKE switch keeps its own, so nothing moves when it appears)
             int rows = portrait ? 2 : 1;
             float bh = s * (portrait ? 0.085f : 0.07f);
             float trackH = s * 0.05f, labelH = _fs * 1.6f;
@@ -359,20 +359,36 @@ namespace FlyingGame.Bridge
             y += trackH + gap;
 
             float bw = (w - (perRow - 1) * gap) / perRow;
+            // (UiLayout.Button: each label shrinks to fit its button — 10 slots a row made SMOKE / VIEW spill on an iPad,
+            // as SMOKE AS FLOWN and VIEW already did at 9)
             int i = 0;
             Rect Next() { int r = i / perRow, c = i % perRow; i++; return new Rect(x0 + c * (bw + gap), y + r * (bh + gap), bw, bh); }
-            if (GUI.Button(Next(), "-10 s", _btn)) Replay.Seek(Replay.Head - 10.0);
-            if (GUI.Button(Next(), Replay.Playing ? "PAUSE" : "PLAY", _btnOn)) Replay.TogglePlay();
-            if (GUI.Button(Next(), "+10 s", _btn)) Replay.Seek(Replay.Head + 10.0);
-            if (GUI.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
-            // Smoke in the replay (Ty t912u): as flown by default, or added / muted after the fact; the clip records the same.
-            if (GUI.Button(Next(), "SMOKE\n" + FlyingGame.Sim.Replay.ReplaySmokeView.Label(Replay.SmokeMode) + (Replay.SmokeUnrecorded && Replay.SmokeMode == FlyingGame.Sim.Replay.SmokeReplayMode.AsFlown ? " (none)" : ""),
-                    Replay.SmokeMode == FlyingGame.Sim.Replay.SmokeReplayMode.AsFlown ? _btn : _btnOn)) Replay.CycleSmokeMode();
-            if (GUI.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
-            if (GUI.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
+            if (UiLayout.Button(Next(), "-10 s", _btn)) Replay.Seek(Replay.Head - 10.0);
+            if (UiLayout.Button(Next(), Replay.Playing ? "PAUSE" : "PLAY", _btnOn)) Replay.TogglePlay();
+            if (UiLayout.Button(Next(), "+10 s", _btn)) Replay.Seek(Replay.Head + 10.0);
+            // (portrait has 5 a row: SPEED goes to the second row there, so the two smoke buttons stay side by side)
+            if (!portrait && UiLayout.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
+            // Smoke in the replay (Ty t912u, t982u): the mode — AS FLOWN, the recorded timeline, every replay opens on it;
+            // a press takes MANUAL control, keeping what is on screen, and a press on MANUAL returns to AS FLOWN at once —
+            // and beside it, in manual only, the SMOKE switch, on / off at each press from the play head on, drawn as the
+            // live one is (lit "SMOKE ON"). A clip made from the replay records the same smoke.
+            bool manual = Replay.SmokeControl.Manual;
+            if (UiLayout.Button(Next(), manual ? "SMOKE\nMANUAL" : "SMOKE\nAS FLOWN" + (Replay.SmokeUnrecorded ? " (none)" : ""), manual ? _btnOn : _btn))
+                Replay.ToggleSmokeManual();
+            Rect sw = Next();
+            if (manual)
+            {
+                bool on = Replay.SmokeSwitchOn;
+                GUI.color = on ? new Color(1f, 0.85f, 0.3f, 1f) : Color.white;
+                if (UiLayout.Button(sw, on ? "SMOKE ON" : "SMOKE", _btn)) Replay.ToggleSmokeSwitch();
+                GUI.color = Color.white;
+            }
+            if (portrait && UiLayout.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
+            if (UiLayout.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
+            if (UiLayout.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool recOn = ClipRecorder.Recording;
-            if (GUI.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
-            if (GUI.Button(Next(), "EXIT\nREPLAY", _btnOn)) Replay.Exit();
+            if (UiLayout.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
+            if (UiLayout.Button(Next(), "EXIT\nREPLAY", _btnOn)) Replay.Exit();
             if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, bar.y);
         }
     }

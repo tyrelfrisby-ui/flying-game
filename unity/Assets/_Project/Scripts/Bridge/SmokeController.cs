@@ -172,8 +172,8 @@ namespace FlyingGame.Bridge
         private readonly List<FlyingGame.Sim.Replay.ReplaySmokePoint> _replayPts = new();
         private readonly List<SmokeTrail.Sample> _replaySamples = new();
 
-        /// <summary>In a replay, the trail is rebuilt at the play head from the RECORDING (FlightReplay.Recorder), in the mode
-        /// the replay bar has chosen (as flown / on / off). The live ring (_hist) is left exactly as it was, so the flight's
+        /// <summary>In a replay, the trail is rebuilt at the play head from the RECORDING (FlightReplay.Recorder), by the
+        /// replay bar's smoke controls (as flown, or the manual switch from the play head on: ReplaySmokeControl). The live ring (_hist) is left exactly as it was, so the flight's
         /// own trail carries on when the replay ends. The clip recorders copy this same camera's view, so a clip made from
         /// the replay shows the same smoke.</summary>
         private void BuildReplay()
@@ -181,7 +181,7 @@ namespace FlyingGame.Bridge
             if (_replay == null) _replay = GetComponent<FlightReplay>();
             FlyingGame.Sim.Aircraft ac = Driver.Sim.Aircraft;
             if (_replay == null || !_replay.Active
-                || !FlyingGame.Sim.Replay.ReplaySmokeView.Window(_replay.Recorder, _replay.Head, _replay.SmokeMode, ac.Config.Propulsion == null, SmokeTrail.LifeMaxS, _replayPts))
+                || !FlyingGame.Sim.Replay.ReplaySmokeView.Window(_replay.Recorder, _replay.Head, _replay.SmokeControl, ac.Config.Propulsion == null, SmokeTrail.LifeMaxS, _replayPts))
             { _smoke.Hide(); return; }
             _replaySamples.Clear();
             foreach (var p in _replayPts)

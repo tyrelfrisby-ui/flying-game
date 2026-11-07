@@ -15,7 +15,9 @@ namespace FlyingGame.FlightTests;
 /// showed none"). The cause: the replay recorder kept no smoke at all, and SmokeController stopped drawing the moment a
 /// replay began ("FlightReplay redraws" — it never did). Now every replay frame carries the smoke switch and the flow the
 /// oil made or would have made (<see cref="ReplaySmoke"/>), and the trail is rebuilt at the play head from the recording
-/// (<see cref="ReplaySmokeView.Window"/>) in the mode the replay bar shows: AS FLOWN (the default), ON, OFF.
+/// (<see cref="ReplaySmokeView.Window"/>). Ty t982u (2026-11-07) rejected the single AS FLOWN / ON / OFF cycle: the replay
+/// bar now has the mode — AS FLOWN, the default, or MANUAL — and, in manual, a separate SMOKE switch beside it that
+/// toggles at each press like the live one (<see cref="ReplaySmokeControl"/>).
 /// </summary>
 [Collection("WorldTerrainActive")]
 public class ReplaySmokeTests : IDisposable
@@ -50,13 +52,30 @@ public class ReplaySmokeTests : IDisposable
     private static ReplaySmoke OnBetween(double t, double from, double to) =>
         new(t >= from - 1e-9 && t < to - 1e-9, 0.8f, 30, 1.1, 40 * t, 2400);
 
+    private static List<ReplaySmokePoint> Win(FlightRecorder rec, double head, ReplaySmokeControl ctl, bool glider = false)
+    {
+        var pts = new List<ReplaySmokePoint>();
+        ReplaySmokeView.Window(rec, head, ctl, glider, 90, pts);
+        return pts;
+    }
+
+    private static void SameTrail(List<ReplaySmokePoint> a, List<ReplaySmokePoint> b, string what)
+    {
+        Assert.True(a.Count == b.Count, $"{what}: {a.Count} vs {b.Count} samples");
+        for (int i = 0; i < a.Count; i++)
+        {
+            Assert.Equal(a[i].T, b[i].T); Assert.Equal(a[i].Pos, b[i].Pos);
+            Assert.True(a[i].Flow == b[i].Flow, $"{what}: t {a[i].T:0.000} flow {a[i].Flow} vs {b[i].Flow}");
+        }
+    }
+
     [Fact]
     public void AsFlownIsTheDefaultAndKeepsTheSwitchTiming()
     {
         var rec = Flight(t => OnBetween(t, 5, 15));
-        var pts = new List<ReplaySmokePoint>();
-        Assert.True(ReplaySmokeView.Window(rec, 20, default, false, 90, pts));
-        Assert.Equal(SmokeReplayMode.AsFlown, default(SmokeReplayMode));
+        var ctl = new ReplaySmokeControl();
+        Assert.False(ctl.Manual);
+        var pts = Win(rec, 20, ctl);
         Assert.Equal(20.0, pts[0].T, 9);   // the head itself first: the trail starts at the aircraft
         int smoking = 0;
         foreach (var p in pts)
@@ -67,38 +86,113 @@ public class ReplaySmokeTests : IDisposable
             Assert.True(p.T <= 20 + 1e-9 && 20 - p.T <= 90 + 1e-9);
         }
         Assert.Equal(300, smoking);   // 10 s at 30 Hz, the switch's own frames
-        // The jet, the crank and the rpm come through as recorded: the pulse tubes are timed by them.
         var on = pts.Find(p => Math.Abs(p.T - 10) < 1e-6);
         Assert.Equal(30.0, on.JetU0, 9); Assert.Equal(400.0, on.Crank, 6); Assert.Equal(2400f, on.Rpm);
     }
 
+    /// <summary>Ty t982u: "preserve the visible smoke state when entering manual". Taking manual control changes nothing on
+    /// screen — at a head where the smoke was flowing, where it was off, and where it was off with a trail still hanging —
+    /// and the manual switch starts as the flown one is there.</summary>
     [Fact]
-    public void OnAddsSmokeToAFlightFlownWithoutItAndOffMutesIt()
+    public void EnteringManualChangesNothingOnScreen()
     {
-        var never = Flight(t => new ReplaySmoke(false, 0.7f, 30, 1.1, 0, 2400));
-        var pts = new List<ReplaySmokePoint>();
-        Assert.False(ReplaySmokeView.Window(never, 20, SmokeReplayMode.AsFlown, false, 90, pts));
-        Assert.Empty(pts);
-        Assert.True(ReplaySmokeView.Window(never, 20, SmokeReplayMode.On, false, 90, pts));
-        Assert.All(pts, p => Assert.Equal(0.7f, p.Flow));
-        Assert.Equal(601, pts.Count);   // the head and 20 s of frames before it
-
-        var flown = Flight(t => OnBetween(t, 5, 15));
-        Assert.False(ReplaySmokeView.Window(flown, 12, SmokeReplayMode.Off, false, 90, pts));
-        Assert.Empty(pts);
+        var rec = Flight(t => OnBetween(t, 5, 15));
+        foreach (double head in new[] { 10.0, 3.0, 20.0, 15.0, 5.0 })
+        {
+            var asFlown = Win(rec, head, new ReplaySmokeControl());
+            var ctl = new ReplaySmokeControl();
+            ctl.EnterManual(rec, head);
+            Assert.True(ctl.Manual);
+            Assert.Equal(ReplaySmokeControl.FlownAt(rec, head), ctl.OnAt(rec, head));
+            SameTrail(asFlown, Win(rec, head, ctl), $"enter manual at {head}");
+        }
     }
 
-    /// <summary>"Viewing overrides must not alter stored flight telemetry": every frame, field by field, after every mode
-    /// has been drawn at many heads.</summary>
+    /// <summary>The adjacent SMOKE switch toggles at each press, like the live one: from the play head on. The trail already
+    /// laid stays exactly as flown; what follows the press is on or off by the switch, whatever the recording did.</summary>
     [Fact]
-    public void AModeNeverChangesTheRecording()
+    public void TheManualSwitchTogglesFromThePlayHeadOnLikeTheLiveOne()
+    {
+        var rec = Flight(t => OnBetween(t, 5, 15));
+        var ctl = new ReplaySmokeControl();
+        ctl.EnterManual(rec, 10);              // flowing there: manual starts ON
+        ctl.Toggle(rec, 10);                   // press: OFF at 0:10
+        Assert.False(ctl.OnAt(rec, 10));
+        var pts = Win(rec, 20, ctl);
+        foreach (var p in pts)
+        {
+            float expect = p.T >= 5 - 1e-9 && p.T < 10 - 1e-9 ? 0.8f : 0f;   // as flown before the press, off after
+            Assert.True(p.Flow == expect, $"t {p.T:0.000}: {p.Flow} not {expect}");
+        }
+        ctl.Toggle(rec, 18);                   // press again at 0:18: ON from there, past where the pilot switched off (0:15)
+        Assert.True(ctl.OnAt(rec, 18));
+        pts = Win(rec, 25, ctl);
+        Assert.All(pts, p => Assert.Equal(p.T >= 18 - 1e-9 ? 0.8f : p.T >= 5 - 1e-9 && p.T < 10 - 1e-9 ? 0.8f : 0f, p.Flow));
+        // Each press flips; it is a toggle, not a cycle through modes.
+        bool before = ctl.OnAt(rec, 25);
+        ctl.Toggle(rec, 25); Assert.Equal(!before, ctl.OnAt(rec, 25));
+        ctl.Toggle(rec, 25); Assert.Equal(before, ctl.OnAt(rec, 25));
+        Assert.True(ctl.Manual);
+    }
+
+    /// <summary>Turning smoke on after the fact for a flight flown without it, and muting one flown with it.</summary>
+    [Fact]
+    public void ManualAddsSmokeToAFlightFlownWithoutItAndMutesOneFlownWithIt()
+    {
+        var never = Flight(t => new ReplaySmoke(false, 0.7f, 30, 1.1, 0, 2400));
+        var ctl = new ReplaySmokeControl();
+        var pts = new List<ReplaySmokePoint>();
+        Assert.False(ReplaySmokeView.Window(never, 20, ctl, false, 90, pts));
+        ctl.EnterManual(never, 0);
+        Assert.False(ctl.OnAt(never, 0));
+        ctl.Toggle(never, 0);
+        Assert.True(ReplaySmokeView.Window(never, 20, ctl, false, 90, pts));
+        Assert.All(pts, p => Assert.Equal(0.7f, p.Flow));
+        Assert.Equal(601, pts.Count);
+
+        var flown = Flight(_ => new ReplaySmoke(true, 0.8f, 30, 1.1, 0, 2400));
+        var mute = new ReplaySmokeControl();
+        mute.Toggle(flown, 0);   // a press in AS FLOWN takes manual first, then flips: off from the start
+        Assert.True(mute.Manual);
+        Assert.False(ReplaySmokeView.Window(flown, 12, mute, false, 90, pts));
+    }
+
+    /// <summary>Back to AS FLOWN in one press, without passing through the manual switch: the recorded timeline at once,
+    /// exactly as if manual had never been touched — and the next manual entry starts from the flown state again.</summary>
+    [Fact]
+    public void ReturningToAsFlownRestoresTheRecordedTimelineInOnePress()
+    {
+        var rec = Flight(t => OnBetween(t, 5, 15));
+        var fresh = Win(rec, 20, new ReplaySmokeControl());
+        var ctl = new ReplaySmokeControl();
+        ctl.EnterManual(rec, 7); ctl.Toggle(rec, 7); ctl.Toggle(rec, 12); ctl.Toggle(rec, 16);
+        Assert.NotEqual(fresh.FindAll(p => p.Flow > 0).Count, Win(rec, 20, ctl).FindAll(p => p.Flow > 0).Count);
+        ctl.ReturnToAsFlown();
+        Assert.False(ctl.Manual);
+        Assert.Empty(ctl.Settings);
+        SameTrail(fresh, Win(rec, 20, ctl), "returned to as flown");
+        ctl.EnterManual(rec, 20);
+        Assert.Single(ctl.Settings);
+        Assert.False(ctl.OnAt(rec, 20));   // flown off at 0:20: starts off, not whatever the last manual setting was
+    }
+
+    /// <summary>"Viewing overrides must not alter stored flight telemetry": every frame, field by field, after every control
+    /// has been used at many heads.</summary>
+    [Fact]
+    public void TheControlsNeverChangeTheRecording()
     {
         var rec = Flight(t => OnBetween(t, 5, 15));
         var before = new ReplayFrame[rec.Count];
         for (int i = 0; i < rec.Count; i++) before[i] = rec.At(i);
+        var ctl = new ReplaySmokeControl();
         var pts = new List<ReplaySmokePoint>();
-        foreach (var m in new[] { SmokeReplayMode.On, SmokeReplayMode.Off, SmokeReplayMode.AsFlown, SmokeReplayMode.On })
-            for (double h = 0; h <= 30; h += 0.37) ReplaySmokeView.Window(rec, h, m, false, 90, pts);
+        for (double h = 0; h <= 30; h += 0.37)
+        {
+            ReplaySmokeView.Window(rec, h, ctl, false, 90, pts);
+            if ((int)(h * 10) % 3 == 0) ctl.Toggle(rec, h);
+            if ((int)(h * 10) % 7 == 0) ctl.ReturnToAsFlown();
+            if ((int)(h * 10) % 5 == 0) ctl.EnterManual(rec, h);
+        }
         Assert.Equal(before.Length, rec.Count);
         for (int i = 0; i < rec.Count; i++)
         {
@@ -109,33 +203,32 @@ public class ReplaySmokeTests : IDisposable
         }
     }
 
-    /// <summary>Seeking and rewinding: the trail at a head is the same whatever head was shown before (no particle carried
-    /// over), and nothing newer than the head is ever drawn.</summary>
+    /// <summary>Seeking and rewinding: the trail at a head is the same whatever head was shown before, in either mode. Behind
+    /// the first manual setting the recording shows as flown; a press after seeking back replaces what followed (a punch-in).
+    /// A clip of the replay records the screen, so it follows the same function.</summary>
     [Fact]
-    public void SeekingAndRewindingRedrawTheSameTrail()
+    public void SeekingAndRewindingHonourTheControls()
     {
         var rec = Flight(t => OnBetween(t, 5, 15));
-        var fresh = new List<ReplaySmokePoint>(); ReplaySmokeView.Window(rec, 13.3, SmokeReplayMode.AsFlown, false, 90, fresh);
-        var pts = new List<ReplaySmokePoint>();
-        foreach (double h in new[] { 29.0, 2.0, 14.9, 0.0, 30.0, 6.5 }) ReplaySmokeView.Window(rec, h, SmokeReplayMode.On, false, 90, pts);
-        ReplaySmokeView.Window(rec, 13.3, SmokeReplayMode.AsFlown, false, 90, pts);
-        Assert.Equal(fresh.Count, pts.Count);
-        for (int i = 0; i < pts.Count; i++)
-        {
-            Assert.Equal(fresh[i].T, pts[i].T); Assert.Equal(fresh[i].Pos, pts[i].Pos); Assert.Equal(fresh[i].Flow, pts[i].Flow);
-            Assert.True(pts[i].T <= 13.3 + 1e-9);
-            if (i > 0) Assert.True(pts[i].T < pts[i - 1].T, "newest first, no repeats");
-        }
-        // Rewound to before the smoke went on: nothing as flown.
-        Assert.False(ReplaySmokeView.Window(rec, 4.9, SmokeReplayMode.AsFlown, false, 90, pts));
-        // The interpolated head steps the switch: between the 15 s frame (off) and the one before it (on) the head is on.
-        ReplayFrame mid = rec.Sample(15 - 1 / 60.0);
-        Assert.True(mid.Smoke.On);
-        Assert.False(rec.Sample(15 + 1 / 60.0).Smoke.On);
+        var ctl = new ReplaySmokeControl();
+        ctl.EnterManual(rec, 12); ctl.Toggle(rec, 12);   // off from 0:12
+        var at20 = Win(rec, 20, ctl);
+        foreach (double h in new[] { 29.0, 2.0, 14.9, 0.0, 30.0, 6.5 }) Win(rec, h, ctl);
+        SameTrail(at20, Win(rec, 20, ctl), "seek away and back");
+        // Rewound behind the manual setting: as flown there.
+        SameTrail(Win(rec, 11, new ReplaySmokeControl()), Win(rec, 11, ctl), "behind the first manual setting");
+        Assert.All(at20, p => Assert.True(p.T <= 20 + 1e-9));
+        for (int i = 1; i < at20.Count; i++) Assert.True(at20[i].T < at20[i - 1].T, "newest first, no repeats");
+        // Punch-in: seek back to 0:8 and press — it was on there (flown), so off from 0:8, and the 0:12 setting is replaced.
+        ctl.Toggle(rec, 8);
+        Assert.Single(ctl.Settings);
+        Assert.Equal((8.0, false), ctl.Settings[0]);
+        Assert.All(Win(rec, 20, ctl), p => Assert.Equal(p.T >= 5 - 1e-9 && p.T < 8 - 1e-9 ? 0.8f : 0f, p.Flow));
     }
 
     /// <summary>An older recording (frames made before the channels existed): as flown shows none — that is all it knows —
-    /// ON estimates the flow from the throttle, as live does from power (a glider's canisters: full), and nothing throws.</summary>
+    /// manual ON estimates the flow from the throttle, as live does from power (a glider's canisters: full), and nothing
+    /// throws.</summary>
     [Fact]
     public void AnOlderRecordingWithoutSmokeChannelsDegradesGracefully()
     {
@@ -144,23 +237,51 @@ public class ReplaySmokeTests : IDisposable
         for (int i = 0; i <= 120; i++) rec.Record(ReplayFrame.Capture(i / 30.0, ac, Vec3.Zero));   // no channel
         Assert.False(ReplaySmokeView.AnyRecorded(rec));
         var pts = new List<ReplaySmokePoint>();
-        Assert.False(ReplaySmokeView.Window(rec, 3, SmokeReplayMode.AsFlown, false, 90, pts));
-        Assert.True(ReplaySmokeView.Window(rec, 3, SmokeReplayMode.On, false, 90, pts));
+        var ctl = new ReplaySmokeControl();
+        Assert.False(ReplaySmokeView.Window(rec, 3, ctl, false, 90, pts));
+        ctl.EnterManual(rec, 0);
+        Assert.False(ctl.OnAt(rec, 0));
+        ctl.Toggle(rec, 0);
+        Assert.True(ReplaySmokeView.Window(rec, 3, ctl, false, 90, pts));
         float expect = (float)(0.25 + 0.75 * Math.Clamp(ac.Throttle01, 0, 1));
         Assert.All(pts, p => { Assert.Equal(expect, p.Flow, 5); Assert.Equal(0.0, p.JetU0); Assert.Equal(0f, p.Rpm); });
-        Assert.True(ReplaySmokeView.Window(rec, 3, SmokeReplayMode.On, true, 90, pts));
+        Assert.True(ReplaySmokeView.Window(rec, 3, ctl, true, 90, pts));
         Assert.All(pts, p => Assert.Equal(1f, p.Flow));
         // An empty recorder, a head outside the recording, a zero window: no throw.
-        Assert.False(ReplaySmokeView.Window(new FlightRecorder(30, 60), 1, SmokeReplayMode.On, false, 90, pts));
-        Assert.True(ReplaySmokeView.Window(rec, 1e9, SmokeReplayMode.On, false, 0, pts));
+        var empty = new FlightRecorder(30, 60);
+        var c2 = new ReplaySmokeControl(); c2.Toggle(empty, 1); c2.EnterManual(empty, 1); c2.ReturnToAsFlown();
+        Assert.False(ReplaySmokeView.Window(empty, 1, c2, false, 90, pts));
+        Assert.True(ReplaySmokeView.Window(rec, 1e9, ctl, false, 0, pts));
         Assert.Single(pts);
-        // Mixed: older frames and then frames with the channel (the recorder outlived an update) keep each its own.
+        // Mixed: older frames and then frames with the channel keep each its own.
         var mixed = new FlightRecorder(30, 60);
         for (int i = 0; i <= 120; i++)
             mixed.Record(i < 60 ? ReplayFrame.Capture(i / 30.0, ac, Vec3.Zero) : ReplayFrame.Capture(i / 30.0, ac, Vec3.Zero, new ReplaySmoke(true, 0.5f, 20, 1.1, i, 2000)));
         Assert.True(ReplaySmokeView.AnyRecorded(mixed));
-        ReplaySmokeView.Window(mixed, 4, SmokeReplayMode.AsFlown, false, 90, pts);
+        ReplaySmokeView.Window(mixed, 4, new ReplaySmokeControl(), false, 90, pts);
         Assert.All(pts, p => Assert.Equal(p.T >= 2 - 1e-9 ? 0.5f : 0f, p.Flow));
+    }
+
+    /// <summary>Live flight is never touched by the replay's smoke controls: the control is the replay's own object, and
+    /// nothing on the replay's side (FlightReplay, the replay bar, the replay's trail) calls the live switch. A guard on the
+    /// code, as StreamingAssetsTests is: the live switch is SmokeController.SetOn / Toggle / On.</summary>
+    [Fact]
+    public void TheReplayControlsNeverReachTheLiveSmokeSwitch()
+    {
+        string bridge = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../..", "unity", "Assets", "_Project", "Scripts", "Bridge"));
+        foreach (string f in new[] { "FlightReplay.cs", "ViewPanel.cs" })
+        {
+            string src = File.ReadAllText(Path.Combine(bridge, f));
+            Assert.DoesNotMatch(@"SmokeController\b[^;]*\.(SetOn|Toggle)\(|_smoke\.(SetOn|Toggle)\(|\.On\s*=", src);
+        }
+        // SmokeController's replay path reads the replay's control and the recording; it never writes On.
+        string sc = File.ReadAllText(Path.Combine(bridge, "SmokeController.cs"));
+        int i = sc.IndexOf("private void BuildReplay()", StringComparison.Ordinal);
+        Assert.True(i > 0);
+        string body = sc.Substring(i, sc.IndexOf("\n        }\n", i, StringComparison.Ordinal) - i);
+        Assert.DoesNotContain("On =", body);
+        Assert.DoesNotContain("SetOn(", body);
+        Assert.DoesNotContain("Toggle(", body);
     }
 
     /// <summary>The recorder keeps the live trail's own law: on with the engine running, 0.25 + 0.75 × power; none with the

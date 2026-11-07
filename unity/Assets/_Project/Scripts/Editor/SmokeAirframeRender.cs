@@ -56,7 +56,7 @@ namespace FlyingGame.EditorTools
                 var rt = new RenderTexture(W, H, 24) { antiAliasing = 4 }; cam.targetTexture = rt;
                 bool savedBack = Physics.queriesHitBackfaces; Physics.queriesHitBackfaces = true;
 
-                foreach (string id in types) Airframe(id.Trim(), cam, rt, outDir, log);
+                foreach (string id in types) if (id.Trim().Length > 0 && id.Trim() != "none") Airframe(id.Trim(), cam, rt, outDir, log);
                 Replay(cam, rt, outDir, log);
                 Physics.queriesHitBackfaces = savedBack;
             }
@@ -238,9 +238,22 @@ namespace FlyingGame.EditorTools
             // (the old replay: SmokeController returned as soon as the replay began, so nothing was drawn)
             trail.Hide();
             Shoot(cam, rt, Path.Combine(outDir, "replay_before_oldcode.png"));
-            foreach (SmokeReplayMode mode in new[] { SmokeReplayMode.AsFlown, SmokeReplayMode.On, SmokeReplayMode.Off })
+            // Ty t982u: AS FLOWN, or MANUAL with its own SMOKE switch from the play head on. Each state is the control as a
+            // pilot would leave it after these presses (play-head times in seconds), shown at the 9 s head.
+            var states = new System.Collections.Generic.List<(string name, System.Action<ReplaySmokeControl> set)>
             {
-                bool any = ReplaySmokeView.Window(rec, Head, mode, false, SmokeTrail.LifeMaxS, pts);
+                ("as_flown", c => c.ReturnToAsFlown()),
+                ("manual_entered_at_9", c => { c.ReturnToAsFlown(); c.EnterManual(rec, 9); }),
+                ("manual_off_from_4", c => { c.ReturnToAsFlown(); c.EnterManual(rec, 4); c.Toggle(rec, 4); }),
+                ("manual_on_from_7", c => { c.ReturnToAsFlown(); c.EnterManual(rec, 7); c.Toggle(rec, 7); }),
+                ("returned_as_flown", c => { c.EnterManual(rec, 4); c.Toggle(rec, 4); c.ReturnToAsFlown(); }),
+            };
+            var ctl = new ReplaySmokeControl();
+            Color32[] asFlownPx = null;
+            foreach (var (name0, set) in states)
+            {
+                set(ctl);
+                bool any = ReplaySmokeView.Window(rec, Head, ctl, false, SmokeTrail.LifeMaxS, pts);
                 if (!any) trail.Hide();
                 else
                 {
@@ -248,13 +261,17 @@ namespace FlyingGame.EditorTools
                     foreach (var p in pts) samples.Add(new SmokeTrail.Sample { T = p.T, Pos = p.Pos, Att = p.Att, VelBody = p.VelBody, Rates = p.Rates, Flow = p.Flow, JetU0 = p.JetU0, AirDensity = p.AirDensity, Crank = p.Crank, Rpm = p.Rpm });
                     trail.Build(k => k < samples.Count ? samples[k] : (SmokeTrail.Sample?)null, pts[0].T, p => CoordinateMap.ToUnity(p), cam);
                 }
-                string name = "replay_" + ReplaySmokeView.Label(mode).Replace(' ', '_').ToLowerInvariant();
+                string name = "replay_" + name0;
                 Color32[] main = Shoot(cam, rt, Path.Combine(outDir, name + ".png"));
                 clip.CopyFrom(cam); clip.targetTexture = clipRt;   // as ClipRecorder: a copy of the main camera
                 Color32[] fromClip = Shoot(clip, clipRt, Path.Combine(outDir, name + "_clipcam.png"));
                 int diff = 0; for (int i = 0; i < main.Length; i++) if (main[i].r != fromClip[i].r || main[i].g != fromClip[i].g || main[i].b != fromClip[i].b) diff++;
-                int pieces = trail.Pieces.Count;
-                log.AppendLine($"replay {ReplaySmokeView.Label(mode),-8}: window {pts.Count} samples, drawing {(any ? pieces : 0)} pieces; clip camera differs in {diff} of {main.Length} pixels");
+                int vsAsFlown = -1;
+                if (name0 == "as_flown") asFlownPx = main;
+                else if (asFlownPx != null) { vsAsFlown = 0; for (int i = 0; i < main.Length; i++) if (main[i].r != asFlownPx[i].r || main[i].g != asFlownPx[i].g || main[i].b != asFlownPx[i].b) vsAsFlown++; }
+                int smoking = 0; foreach (var p in pts) if (p.Flow > 0.001f) smoking++;
+                log.AppendLine($"replay {name0,-20}: manual {ctl.Manual}, switch at head {(ctl.OnAt(rec, Head) ? "ON" : "off")}, window {pts.Count} samples ({smoking} smoking), drawing {(any ? trail.Pieces.Count : 0)} pieces; " +
+                               $"clip camera differs in {diff} of {main.Length} px{(vsAsFlown >= 0 ? $"; differs from AS FLOWN in {vsAsFlown} px" : "")}");
             }
             Object.DestroyImmediate(clipGo); Object.DestroyImmediate(smokeRoot); Object.DestroyImmediate(plane);
             cam.fieldOfView = 40f;

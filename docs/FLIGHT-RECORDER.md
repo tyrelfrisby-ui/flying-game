@@ -258,25 +258,35 @@ never did. The trail on screen in a replay was simply not built.
   air density, the crank and the rpm (the pulse tubes are timed by them). Between frames the switch steps, the rest is
   linear.
 - **Shown:** in a replay `SmokeController` rebuilds the trail at the play head from the recording
-  (`ReplaySmokeView.Window`: the head's own interpolated frame, then 90 s of frames before it, newest first) in the mode
-  the replay bar's **SMOKE** button shows: **AS FLOWN** (every replay opens on it: the switch's own timing), **ON** (add
-  smoke after the fact, with the flow the engine really had at each moment), **OFF**. The window is a pure function of
-  (recording, head, mode), so a seek, a rewind, a scrub or a mode change draws exactly that moment's trail: nothing is
-  carried over. (`SmokeTrail` caches each puff's path; a cached path that had been collapsed to its last step is
-  recomputed if the head goes back over it, so no puff is left stuck where its pass ended.) The live ring is not
-  touched, so the flight's own trail carries on when the replay ends.
-- **Never changes the recording:** the mode is a view setting on `FlightReplay`; frames are never rewritten
-  (`ReplaySmokeTests.AModeNeverChangesTheRecording`).
+  (`ReplaySmokeView.Window`: the head's own interpolated frame, then 90 s of frames before it, newest first), by the
+  replay bar's two smoke controls (Ty t982u, 2026-11-07; the first version's single AS FLOWN → ON → OFF cycle was
+  rejected because it forced a pass through AS FLOWN to toggle):
+  - **SMOKE AS FLOWN / SMOKE MANUAL** — the mode. Every replay opens AS FLOWN: the switch's own recorded timing. A press
+    takes MANUAL control at the play head *keeping what is on screen* (the manual switch starts as the flown one is
+    there); a press on MANUAL returns to AS FLOWN at once, without passing through the switch.
+  - **SMOKE / SMOKE ON** — beside it, in manual only (its slot is kept empty in AS FLOWN, so no button moves). On / off
+    at each press, drawn as the live button is (lit amber when on). Like the live switch it acts from the play head on:
+    the trail already laid stays. Smoke after the fact uses the flow the engine really had at each moment.
+  - Seeking: behind the first manual setting the recording shows as flown; a press after seeking back replaces the
+    settings after it (a punch-in). The window is a pure function of (recording, head, settings), so a seek, a rewind
+    or a scrub draws exactly that moment's trail: nothing is carried over. (`SmokeTrail` caches each puff's path; a
+    cached path collapsed to its last step is recomputed if the head goes back over it, so no puff sticks.) The live
+    ring is not touched, so the flight's own trail carries on when the replay ends, and nothing on the replay side
+    writes the live switch (`ReplaySmokeTests.TheReplayControlsNeverReachTheLiveSmokeSwitch`).
+- **Never changes the recording:** the controls are a view setting on `FlightReplay` (`ReplaySmokeControl`); frames are
+  never rewritten (`ReplaySmokeTests.TheControlsNeverChangeTheRecording`).
 - **Older recordings:** a frame without the channels (`ReplaySmoke.Recorded == false`: none exist on disk, because the
   REPLAY is memory only, but a recording that outlived the change in memory would have them) shows no smoke AS FLOWN —
-  that is all it knows — and the replay bar says `AS FLOWN (none)`; ON estimates the flow from the recorded throttle
+  that is all it knows — and the replay bar says `AS FLOWN (none)`; manual ON estimates the flow from the recorded throttle
   (gliders full), with no jet or pulse tubes. Nothing throws, mixed recordings keep each frame's own.
 - **Clips / export:** `ClipRecorder` renders a copy of the main camera (`CopyFrom`), and the Quest recorder renders
   the main camera's culling mask less the overlay layer; the smoke is one world-space mesh on the aircraft's layer, so
-  a clip made from the replay records the same trail, in the same mode, as the screen (`SmokeAirframeRender` compares a
+  a clip made from the replay records the same trail, under the same controls, as the screen (`SmokeAirframeRender` compares a
   CopyFrom camera with the main one pixel for pixel).
-- **Quest:** the same code. The Quest has no REPLAY page today, so it has no SMOKE button either.
-- Tests: `ReplaySmokeTests` (default, overrides, seek/rewind, telemetry untouched, old data, the flow law).
+- **Quest:** the same code. The Quest has no REPLAY page today, so it has no smoke buttons either.
+- Tests: `ReplaySmokeTests` (as-flown default, entering manual changes nothing on screen, the switch from the play head
+  on, smoke added / muted after the fact, one-press return, seek / rewind / punch-in, telemetry untouched, old data,
+  the flow law, live switch never reached).
 
 ## Smoke, lights, surfaces
 
