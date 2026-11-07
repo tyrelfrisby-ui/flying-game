@@ -68,7 +68,8 @@ public readonly struct ReplaySmoke
     }
 }
 
-/// <summary>How a replay shows the smoke (Ty t912u). A VIEW setting: it never changes the recording.</summary>
+/// <summary>A flow rule for one frame: as flown, or with the switch on / off whatever was flown. The replay bar's controls
+/// are <see cref="ReplaySmokeControl"/> (Ty t982u); this names the per-frame rules it applies. A VIEW rule only.</summary>
 public enum SmokeReplayMode { AsFlown, On, Off }
 
 /// <summary>One moment of a replayed trail: what <c>SmokeTrail.Sample</c> is built from (engine-agnostic, so the suite
@@ -81,10 +82,6 @@ public struct ReplaySmokePoint
 /// <summary>The replay's smoke: which flow a frame shows in each mode, and the trail's samples at a play head.</summary>
 public static class ReplaySmokeView
 {
-    /// <summary>Names for the replay bar.</summary>
-    public static string Label(SmokeReplayMode m) => m switch { SmokeReplayMode.On => "ON", SmokeReplayMode.Off => "OFF", _ => "AS FLOWN" };
-    public static SmokeReplayMode Next(SmokeReplayMode m) => m switch { SmokeReplayMode.AsFlown => SmokeReplayMode.On, SmokeReplayMode.On => SmokeReplayMode.Off, _ => SmokeReplayMode.AsFlown };
-
     /// <summary>The flow frame <paramref name="f"/> shows. As flown: exactly what was flown (an older frame without the
     /// channels shows none, which is what it recorded). On: what the oil would have made at that moment — for an older
     /// frame, estimated from the throttle as live does from power (a glider's canisters: full). Off: none.</summary>
@@ -109,17 +106,17 @@ public static class ReplaySmokeView
 
     /// <summary>The trail at play head <paramref name="head"/>, NEWEST FIRST (SmokeTrail.Build's contract): the frame at the
     /// head itself, then every recorded frame before it back to <paramref name="maxAgeS"/>. A pure function of the
-    /// recording, the head and the mode — so seeking, rewinding and scrubbing redraw exactly the trail that was there, with
+    /// recording, the head and the control's settings — so seeking, rewinding and scrubbing redraw exactly the trail that was there, with
     /// no particles carried over from where the head was before. Returns false (and leaves the list empty) when nothing in
     /// the window makes smoke.</summary>
-    public static bool Window(FlightRecorder rec, double head, SmokeReplayMode mode, bool glider, double maxAgeS, List<ReplaySmokePoint> into)
+    public static bool Window(FlightRecorder rec, double head, ReplaySmokeControl control, bool glider, double maxAgeS, List<ReplaySmokePoint> into)
     {
         into.Clear();
-        if (rec.Count == 0 || mode == SmokeReplayMode.Off) return false;
+        if (rec.Count == 0) return false;
         head = System.Math.Clamp(head, rec.StartTime, rec.EndTime);
         bool any = false;
         ReplayFrame h = rec.Sample(head);
-        Add(h, mode, glider, into, ref any);
+        Add(h, control, glider, into, ref any);
         // The last frame strictly before the head (the head's own frame is the interpolated one above).
         int lo = 0, hi = rec.Count - 1;
         if (rec.At(0).Time >= head) return any ? true : Clear(into);
@@ -129,16 +126,16 @@ public static class ReplaySmokeView
         {
             ReplayFrame f = rec.At(i);
             if (head - f.Time > maxAgeS) break;
-            Add(f, mode, glider, into, ref any);
+            Add(f, control, glider, into, ref any);
         }
         return any ? true : Clear(into);
     }
 
     private static bool Clear(List<ReplaySmokePoint> l) { l.Clear(); return false; }
 
-    private static void Add(in ReplayFrame f, SmokeReplayMode mode, bool glider, List<ReplaySmokePoint> into, ref bool any)
+    private static void Add(in ReplayFrame f, ReplaySmokeControl control, bool glider, List<ReplaySmokePoint> into, ref bool any)
     {
-        float flow = FlowFor(mode, f, glider);
+        float flow = control != null ? control.FlowFor(f, glider) : f.Smoke.AsFlown;
         if (flow > 0.001f) any = true;
         bool ch = f.Smoke.Recorded;
         into.Add(new ReplaySmokePoint
@@ -146,6 +143,70 @@ public static class ReplaySmokeView
             T = f.Time, Pos = f.State.Position, Att = f.State.Attitude, VelBody = f.State.Velocity, Rates = f.State.Rates, Flow = flow,
             JetU0 = ch ? f.Smoke.JetU0 : 0, AirDensity = ch ? f.Smoke.AirDensity : 0, Crank = ch ? f.Smoke.Crank : 0, Rpm = ch ? f.Smoke.Rpm : 0f,
         });
+    }
+}
+
+/// <summary>THE REPLAY'S SMOKE CONTROL (Ty t982u, 2026-11-07: the single AS FLOWN / ON / OFF cycle is rejected). Two
+/// controls on the replay bar: the mode — AS FLOWN, the recorded timeline, which every replay opens on — and, only in
+/// MANUAL, a SMOKE switch beside it that toggles on / off at each press, like the live one. A press acts like the live
+/// switch: from the play head on, the trail already in the air stays. Entering manual takes the switch as it was flown at
+/// the play head, so nothing on screen changes until the pilot presses SMOKE. Before the first manual setting the
+/// recording still shows as flown; a press after seeking back replaces the settings after it (a punch-in). Returning to
+/// AS FLOWN drops the manual settings: the recording itself is never touched. A VIEW control: nothing here reaches the
+/// live aircraft's smoke.</summary>
+public sealed class ReplaySmokeControl
+{
+    private readonly List<(double t, bool on)> _set = new();   // manual settings by play-head time, ascending
+
+    /// <summary>Manual control (false = AS FLOWN, the recorded timeline).</summary>
+    public bool Manual { get; private set; }
+
+    /// <summary>The manual settings (play-head time, on), oldest first — for tests and review.</summary>
+    public IReadOnlyList<(double t, bool on)> Settings => _set;
+
+    /// <summary>The smoke switch as flown at play head <paramref name="t"/> (an older frame without the channel: off).</summary>
+    public static bool FlownAt(FlightRecorder rec, double t) => rec.Count > 0 && rec.Sample(t).Smoke.On;
+
+    /// <summary>The switch the replay shows at play head <paramref name="t"/>: as flown, or the manual setting in force.</summary>
+    public bool OnAt(FlightRecorder rec, double t)
+    {
+        if (!Manual || _set.Count == 0 || t < _set[0].t) return FlownAt(rec, t);
+        bool on = _set[0].on;
+        for (int i = 1; i < _set.Count && _set[i].t <= t; i++) on = _set[i].on;
+        return on;
+    }
+
+    /// <summary>AS FLOWN → MANUAL at play head <paramref name="head"/>, keeping what is on screen: the manual switch starts as
+    /// the flown switch is there.</summary>
+    public void EnterManual(FlightRecorder rec, double head)
+    {
+        if (Manual) return;
+        Manual = true;
+        _set.Clear();
+        _set.Add((head, FlownAt(rec, head)));
+    }
+
+    /// <summary>The SMOKE press in manual: the switch flips at the play head, and any setting after the head is replaced.</summary>
+    public void Toggle(FlightRecorder rec, double head)
+    {
+        if (!Manual) EnterManual(rec, head);
+        bool now = OnAt(rec, head);
+        _set.RemoveAll(s => s.t >= head);
+        _set.Add((head, !now));
+    }
+
+    /// <summary>Back to AS FLOWN: the recorded timeline, at once, without passing through the manual switch.</summary>
+    public void ReturnToAsFlown() { Manual = false; _set.Clear(); }
+
+    /// <summary>The flow frame <paramref name="f"/> shows. AS FLOWN, and before the first manual setting: as recorded.
+    /// Manual on: what the oil would have made at that moment (<see cref="ReplaySmokeView.FlowFor"/> ON: an older frame's
+    /// estimated from its throttle). Manual off: none.</summary>
+    public float FlowFor(in ReplayFrame f, bool glider)
+    {
+        if (!Manual || _set.Count == 0 || f.Time < _set[0].t) return f.Smoke.AsFlown;
+        bool on = _set[0].on;
+        for (int i = 1; i < _set.Count && _set[i].t <= f.Time; i++) on = _set[i].on;
+        return on ? ReplaySmokeView.FlowFor(SmokeReplayMode.On, f, glider) : 0f;
     }
 }
 

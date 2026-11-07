@@ -72,12 +72,22 @@ namespace FlyingGame.Bridge
         /// <summary>The replayed pilot's speed (m/s): the wind in his ears.</summary>
         public static float ReplayPilotSpeedMs { get; private set; }
 
-        /// <summary>How the replay shows the smoke (Ty t912u): AS FLOWN (every replay opens on it), ON (add it after the fact,
-        /// with the flow the engine had at each moment), OFF. A view setting only: the recording is never changed, and
-        /// SmokeController rebuilds the trail from the recording at the play head, so a seek or a mode change redraws
-        /// exactly the trail for that moment. A clip made from the replay records this same view.</summary>
-        public FlyingGame.Sim.Replay.SmokeReplayMode SmokeMode = FlyingGame.Sim.Replay.SmokeReplayMode.AsFlown;
-        public void CycleSmokeMode() => SmokeMode = FlyingGame.Sim.Replay.ReplaySmokeView.Next(SmokeMode);
+        /// <summary>How the replay shows the smoke (Ty t912u, t982u). AS FLOWN — the recorded timeline, which every replay
+        /// opens on — or MANUAL, where a SMOKE switch beside it toggles at each press like the live one, from the play head
+        /// on (<see cref="ReplaySmokeControl"/>). A view control only: the recording is never changed and the live
+        /// aircraft's smoke is never touched; SmokeController rebuilds the trail from the recording at the play head, so a
+        /// seek redraws exactly that moment, and a clip made from the replay records this same view.</summary>
+        public readonly ReplaySmokeControl SmokeControl = new();
+        /// <summary>The mode button: AS FLOWN → MANUAL (keeping what is on screen), MANUAL → AS FLOWN in one press.</summary>
+        public void ToggleSmokeManual()
+        {
+            if (SmokeControl.Manual) SmokeControl.ReturnToAsFlown();
+            else SmokeControl.EnterManual(Recorder, Head);
+        }
+        /// <summary>The SMOKE switch beside it (shown in manual): on / off at the play head.</summary>
+        public void ToggleSmokeSwitch() => SmokeControl.Toggle(Recorder, Head);
+        /// <summary>The replay's smoke switch at the play head (manual: the pilot's; as flown: the recording's).</summary>
+        public bool SmokeSwitchOn => SmokeControl.OnAt(Recorder, Head);
         /// <summary>The recording has no smoke channels at all (made before they existed): AS FLOWN then shows none.</summary>
         public bool SmokeUnrecorded { get; private set; }
         private SmokeController _smoke;
@@ -251,10 +261,27 @@ namespace FlyingGame.Bridge
             Head = System.Math.Max(Recorder.StartTime, Recorder.EndTime - StartBackSec);
             Playing = true;
             Speed = 1f;
-            SmokeMode = FlyingGame.Sim.Replay.SmokeReplayMode.AsFlown;   // every replay opens on the flight as flown
+            SmokeControl.ReturnToAsFlown();   // every replay opens on the flight as flown
             SmokeUnrecorded = !FlyingGame.Sim.Replay.ReplaySmokeView.AnyRecorded(Recorder);
             Show();
         }
+
+        /// <summary>REVIEW TOOLS ONLY (ReplayBarShots): show the replay bar for this recorder at <paramref name="head"/>
+        /// without entering a replay — no Time.timeScale, no aircraft pose, no driver.</summary>
+        public void ReviewFixture(double head)
+        {
+            Active = true; Head = head; Playing = false;
+            SmokeUnrecorded = !FlyingGame.Sim.Replay.ReplaySmokeView.AnyRecorded(Recorder);
+        }
+        /// <summary>REVIEW TOOLS ONLY: the smoke states the replay bar can show, in the order a pilot reaches them.</summary>
+        public System.Collections.Generic.List<(string name, System.Action apply)> ReviewSmokeStates() => new()
+        {
+            ("as-flown", () => SmokeControl.ReturnToAsFlown()),
+            ("manual-entered", () => { SmokeControl.ReturnToAsFlown(); SmokeControl.EnterManual(Recorder, Head); }),
+            ("manual-smoke-pressed", () => { SmokeControl.ReturnToAsFlown(); SmokeControl.EnterManual(Recorder, Head); SmokeControl.Toggle(Recorder, Head); }),
+            ("manual-smoke-pressed-twice", () => { SmokeControl.ReturnToAsFlown(); SmokeControl.EnterManual(Recorder, Head); SmokeControl.Toggle(Recorder, Head); SmokeControl.Toggle(Recorder, Head); }),
+            ("returned-as-flown", () => SmokeControl.ReturnToAsFlown()),
+        };
 
         public void Exit()
         {
