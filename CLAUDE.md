@@ -88,10 +88,15 @@ a slightly different alignment shift in the log. Drop references equal to the de
 validate the node graph (every index in range, every node at most one parent, no orphans) before saving. See
 `tools/own_models/drop_card_slot.py:validate`.
 
-### One Unity build at a time, one test run at a time
-Running `dotnet test` while a Unity batch job is working produced 211 failures, including whole classes going
-`NaN`, that vanished on a clean re-run. Two deploys at once will also fight over the same archive. Serialise
-them, and distrust any suite result taken while something else was building.
+### One Unity build at a time, one deploy at a time — but the suite may run beside them
+Two deploys at once fight over the same archive, and two Unity batch jobs fight over the same Library cache:
+those stay serialised. `dotnet test` does not. It is a separate process, so a Unity build cannot reach its
+statics, and nothing in this suite asserts on wall-clock — every `Stopwatch` here only `WriteLine`s a cost it
+measured — so losing cores to a build can make a run slower but cannot make it fail.
+The 211-failure run this rule was first written from was misattributed to that concurrency. Whole classes going
+`NaN` is the global coupling in the next section, which a long run produces whatever else is building; the fix
+for it is to compare failing identities, never counts. So run the suite beside a build when it saves wall clock.
+One `dotnet test` per worktree, though: two in the same one fight over its `bin~`/`obj`.
 
 ### This suite is globally coupled — compare, never count
 `WorldTerrain.Active`, `Atmosphere.SteadyWind/ActiveTurbulence/Field` and `FloatHydro.FlatWaterOverride` are
