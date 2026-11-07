@@ -39,6 +39,8 @@ to recover … dramatically more nose low now?" Nothing approved by me. Queue **
 - **Build:** this lane at 5ae945a8 (cb879cb4 + island-nav 16665d15), `zsh tools/deploy/deploy.sh NOINSTALL` →
   ** BUILD SUCCEEDED **, 0 `error CS`, bundleVersion **2026.1106.1606**; not installed, not uploaded (NOUPLOAD); Quest not
   built. Merge status: see the merge line below.
+- **Merged** 2026-11-06 16:2x PT: island-nav **467e322b**, Quest **b3ff0551** (PARITY: OK; merge-worktree leftovers untouched).
+  The 2026.1106.1606 build is this lane at 5ae945a8 = island-nav 16665d15 + this fix (same tree as 467e322b's src/configs).
 <!-- /q007-t918 needs-you -->
 
 ## NEEDS YOU — pilot-view underwater cockpit (Ty t922u / pt922u) — Claude, 2026-11-06 09:30 PT, lane/claude-underwater-cockpit
