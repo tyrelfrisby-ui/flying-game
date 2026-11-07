@@ -1,3 +1,46 @@
+## NEEDS YOU — Pitts spin Q007 reopened (t918u): the wakes, not the gyro (Claude, 2026-11-06, lane/claude-q007-pitts-spin-t918)
+<!-- q007-t918 needs-you -->
+Your t918u on 0703: "upright spin is still too flat and difficult recover … inverted (right right is too nose low and too easy
+to recover … dramatically more nose low now?" Nothing approved by me. Queue **Q156**. Full write-up: docs/SPIN-ROTARY-DATA.md
+§ "2026-11-06".
+- **What changed 1816 → 0703:** 3782cadf cut the full-power gyro to 39 %. Measured on both trees (`PittsQ007Probe`): the
+  inverted R+R spin took ~15 s to get flat on 0703 (4 s on 1816), and the full-power inverted spin with ailerons neutral
+  went from flattening to a steep α −34 / nose −55 that stops in 0.3 turns: that is the "dramatically more nose low".
+  Upright full L went from gyrating at 126 deg/s to a steady flat at 299 deg/s, PARE 1.8 → 4.9 turns: harder to recover.
+- **Why not the gyro again:** it mirrors exactly (upright L ↔ inverted R), so it cannot flatten one and steepen the other.
+  The terms that did not mirror were two wakes, found by switching terms off one at a time:
+  1. **The prop wash reached the tail at every α.** Past the stall the crossflow carries it off sideways (Glauert's skewed
+     wake): no blown tail and no slipstream swirl on the fin in a spin. That swirl's yaw-left was pro-spin in an upright
+     LEFT spin and anti-spin in an inverted RIGHT one. Applied by the wing's separated share: normal flight, rigs, trim
+     unchanged to the bit.
+  2. **A biplane's two wings never shaded each other.** Near the flat they are two plates in tandem (NACA Report 648 wakes,
+     as the tail already uses; Hoerner ch. 8). Every Pitts wing strip is untouched from −30° to +60°.
+- **Evidence for the targets:** Christen Eagle II Flight Manual §5 (S-2 derivative): the upright flat needs full power AND
+  out-spin aileron; the inverted flat right rudder + full power + stick toward the axis; both "nearly horizontal or slightly
+  nose up"; full power can hold the upright flat. Plus your own: upright full ~85, out-spin ≤ 95 / 5, inverted R+R 90–95
+  a touch tail-low.
+- **Ty, please fly-check the Pitts (α / nose / PARE turns after 3 turns):**
+  (1) upright L, 40 %, ailerons neutral: now a normal spin, 34 / −55, recovers in 0.4 turn (was flat 89 / 0, 3.1 turns);
+  (2) upright L full, neutral: just shy of flat, 85 / −4, 3.5 turns (was 93 / +3, 4.9);
+  (3) upright L full + out-spin aileron: 90 / +1, 3.9 turns (was 95 / +5, 5.8);
+  (4) inverted R+R full: −93 / +2 (a touch tail-low), flat by ~10 s, 2.1 turns PARE; with power left on it does not recover.
+  Idle spins are unchanged.
+- **What you lose (please judge):** inverted R+R at **40 %** no longer goes flat (−85 → −57, nose −29, recovers in 0.8
+  turns): its entry passes α −50..−70, where the upper wing's wake falls on the lower wing. Full power still goes flat.
+  Also the 40 % upright out-spin flat wobbles 81..93°. Upright RIGHT full power still not near flat (unchanged, open).
+- **Not changed:** prop inertia stays 3.5 (EASA TCDS IM.P.130 prop ≤ 25.9 kg suggests 2.3–3.5; with the skewed wake alone
+  2.5 / 3.0 still left full-power upright neutral flat). No tuning constants added.
+- **Tests:** new `PittsSpinWakeTests` (10). Re-pinned on purpose, old literals kept in comments: `PittsFlatSpinAileronTests`
+  40 % neutral pins (88.9 → 34.3, 29.8 → 31.6) and its two inverted-flat tests moved 40 % → full power; `PittsSpinPastFlatTests`
+  40 % rows (out-spin swing bound 5 → 15°, inverted 40 % keeps only "never rolls upright"); `PittsPowerSpinTargetTests`
+  inverted and upright-LEFT un-skipped (pass). Full suite vs branch point 74dfb90f: 145 failed / 3,255 passed on each
+  tree; the 14 names failing only on the branch (NaN / identical α −1.756 across classes, the suite's global coupling) all
+  pass alone, 19/19. On the merged tree (island-nav 16665d15) the spin classes give 33 pass, 1 skip.
+- **Build:** this lane at 5ae945a8 (cb879cb4 + island-nav 16665d15), `zsh tools/deploy/deploy.sh NOINSTALL` →
+  ** BUILD SUCCEEDED **, 0 `error CS`, bundleVersion **2026.1106.1606**; not installed, not uploaded (NOUPLOAD); Quest not
+  built. Merge status: see the merge line below.
+<!-- /q007-t918 needs-you -->
+
 ## NEEDS YOU — pilot-view underwater cockpit (Ty t922u / pt922u) — Claude, 2026-11-06 09:30 PT, lane/claude-underwater-cockpit
 <!-- underwater-cockpit needs-you -->
 Ty t922u: the J-3 on floats upside down in the lake; the panel and the top of the cockpit looked dry. Reference
