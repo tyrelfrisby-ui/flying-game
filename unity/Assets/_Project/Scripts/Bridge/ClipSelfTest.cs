@@ -31,6 +31,7 @@ namespace FlyingGame.Bridge
             if (mode == "dust") { yield return DustTest(); yield break; }
             if (mode == "instr") { yield return InstrTest(); yield break; }
             if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
+            if (mode == "options") { yield return OptionsLayoutTest(); yield break; }
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
             if (mode == "starts") { yield return StartsTest(); yield break; }
@@ -493,6 +494,63 @@ namespace FlyingGame.Bridge
         /// (owner 2026-10-28) there is no top and bottom of one long page to shoot — every CHAPTER gets its own shot,
         /// on both pages, and so does every chapter of the in-flight OPTIONS panel. A chapter that needs a scrollbar at
         /// any of these four shapes is a chapter with too much on it.</summary>
+        /// <summary>
+        /// Every chapter of OPTIONS, at every shape, scrolled top and bottom. Ty 2026-11-08, after two rounds of
+        /// sending me photographs of his own phone: "Can you screenshot these yourself and look for problems so I
+        /// don't have to?" — so this exists to be looked at before he is asked to look at anything.
+        ///
+        /// It catches the kind of fault a photograph catches: a label cut off mid-sentence, two controls on top of
+        /// each other, a page that cannot be scrolled to its end. It cannot tell whether the result is pleasant to
+        /// use, which is still his to judge.
+        /// </summary>
+        private IEnumerator OptionsLayoutTest()
+        {
+            yield return new WaitForSecondsRealtime(2f);
+            string dir = System.Environment.GetEnvironmentVariable("AERO_SHOT_DIR") ?? ".";
+            System.IO.Directory.CreateDirectory(dir);
+            var options = Object.FindFirstObjectByType<OptionsPanel>();
+            if (options == null) { Debug.Log("[SelfTest] options: no OptionsPanel in the scene"); yield break; }
+            // THE WINDOW IS THE SHAPE. Screen.SetResolution was the obvious way and it is a trap: on a Mac the window
+            // took the width asked for and kept its own height, so "iphone-port" came out 603x542 — which the layout
+            // correctly read as LANDSCAPE and gave 186 px of safe area down each side, and the tabs stacked one per row
+            // in the narrow column that was left. Every "defect" in that run was the harness. So the shape comes from
+            // the player's own -screen-width / -screen-height, one run per shape, and this only reports what it got.
+            var menu = Object.FindFirstObjectByType<StartMenu>();
+            if (menu != null && menu.IsOpen) menu.Fly();   // OptionsPanel refuses to draw while the landing page is up
+            yield return new WaitForSecondsRealtime(1.5f);
+
+            bool portrait = Screen.height > Screen.width;
+            bool ipad = System.Environment.GetEnvironmentVariable("AERO_SHOT_IPAD") == "1";
+            string shape = (ipad ? "ipad" : "iphone") + (portrait ? "-port" : "-land");
+            bool oldTouch = UiLayout.ForceTouchLayoutForTest, oldSafe = UiLayout.IPhoneSafeAreaForTest;
+            try
+            {
+                UiLayout.ForceTouchLayoutForTest = UiLayout.IPhoneSafeAreaForTest = true;
+                UiLayout.IPadSafeAreaForTest = ipad;
+                UiLayout.ScaleForTest = ipad ? 1f : 1.73f;   // the scale that device would really get
+                yield return new WaitForSecondsRealtime(0.5f);
+                Debug.Log($"[SelfTest] options: {shape} at {Screen.width}x{Screen.height}, scale {UiLayout.Scale:0.00}");
+                foreach (string page in OptionsPanel.PageNamesForTest)
+                {
+                    options.ShowPageForTest(page);
+                    options.ScrollForTest(0f);
+                    yield return new WaitForSecondsRealtime(0.35f);
+                    ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, $"options-{shape}-{page.ToLowerInvariant()}-top.png"));
+                    yield return new WaitForSecondsRealtime(0.35f);
+                    options.ScrollForTest(100000f);   // clamped to the end: the bottom of the chapter
+                    yield return new WaitForSecondsRealtime(0.35f);
+                    ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, $"options-{shape}-{page.ToLowerInvariant()}-end.png"));
+                    yield return new WaitForSecondsRealtime(0.35f);
+                }
+                Debug.Log($"[SelfTest] options: shots written to {dir}");
+            }
+            finally
+            {
+                UiLayout.ForceTouchLayoutForTest = oldTouch; UiLayout.IPhoneSafeAreaForTest = oldSafe;
+                UiLayout.IPadSafeAreaForTest = false; UiLayout.ScaleForTest = -1f;
+            }
+        }
+
         private IEnumerator MenuLayoutTest()
         {
             var shapes = new (string name, int w, int h)[] { ("iphone-land", 1311, 603), ("iphone-port", 603, 1311), ("ipad-land", 1180, 820), ("ipad-port", 820, 1180) };
