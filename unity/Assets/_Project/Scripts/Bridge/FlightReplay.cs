@@ -390,6 +390,7 @@ namespace FlyingGame.Bridge
         {
             if (!Active) return;
             _live.ApplyTo(Driver.Sim.Aircraft);
+            Driver.Sim.Aircraft.ReplayEngineRpm = null;   // the engine is the live one's again
             Driver.ShowReplayPose(_live.WindWorld);
             foreach (Track tr in _ordered)
             {
@@ -441,6 +442,9 @@ namespace FlyingGame.Bridge
             if (Recorder.Count == 0) return;
             ReplayFrame f = Recorder.Sample(Head);
             f.ApplyTo(Driver.Sim.Aircraft);
+            // The replay poses the aeroplane; it does not run its engine. Without the recorded rpm the prop stands still
+            // for the whole flight, because EngineStopped latches on the nose this crash tore off (Ty 2026-11-07).
+            Driver.Sim.Aircraft.ReplayEngineRpm = f.EngineRpm;
             Driver.ShowReplayPose(f.WindWorld);
         }
     }

@@ -441,6 +441,12 @@ public sealed partial class Aircraft
     /// <summary>Replay (display only): put the aircraft in a recorded pose without stepping the physics — state, control
     /// surfaces, power, flaps, gear and g — so every visual, gauge and sound that reads the aircraft shows the recording.
     /// The per-strip stall memory, tailwheel and structure are untouched, so restoring the live pose resumes exactly.</summary>
+    /// <summary>While a replay is on screen, the rpm it was flown at (<see cref="Replay.ReplayFrame.EngineRpm"/>); null
+    /// when flying for real. The replay poses the aeroplane but does not run its engine, and <see cref="EngineStopped"/>
+    /// latches on a lost nose, so without this a replayed prop stands still for the whole flight — including the part
+    /// before the crash that stopped it (Ty 2026-11-07). FlightReplay sets it each frame and clears it on exit.</summary>
+    public double? ReplayEngineRpm { get; set; }
+
     public void SetReplayPose(RigidBodyState state, ControlDeflections d, double throttle01, double flapFraction, double gearExtension, double loadFactorZ)
     {
         State = state;
@@ -526,7 +532,8 @@ public sealed partial class Aircraft
     /// its fine-pitch stop and rpm follows power; above it the governor holds GovernedRpm, rising to MaxRpm only
     /// with the throttle firewalled (take-off). Fixed pitch: rpm follows throttle and picks up with airspeed
     /// (a fixed-pitch prop unloads as the aircraft accelerates: ~2300 static, red-line at cruise speed).</summary>
-    public double EngineRpm => _propStriking.Length > 0 && _propStriking[0] ? Math.Min(FreeEngineRpm, StrikeRotorRpm(0)) : FreeEngineRpm;
+    public double EngineRpm => ReplayEngineRpm
+        ?? (_propStriking.Length > 0 && _propStriking[0] ? Math.Min(FreeEngineRpm, StrikeRotorRpm(0)) : FreeEngineRpm);
 
     /// <summary>The rpm the engine runs at with nothing holding its propeller (<see cref="EngineRpm"/> is lower while a
     /// strike is braking the blades). A prop whose blades a strike has shortened absorbs less torque and runs faster
@@ -898,7 +905,7 @@ public sealed partial class Aircraft
     public (double DeltaU, double Radius, double Swirl) LastTailSlipstream { get; private set; }
     /// <summary>True once the propeller has hit the ground (or the nose is gone): engine stopped, no thrust. DAMAGE only:
     /// an engine stopped by its mixture is <see cref="EngineStarved"/>; <see cref="EngineRunning"/> covers both.</summary>
-    public bool EngineStopped => _noseLost;
+    public bool EngineStopped => ReplayEngineRpm.HasValue ? ReplayEngineRpm.Value <= 1.0 : _noseLost;
 
     // ---- the fuel shut-off valve (the Great Lakes' and the Extra's red lever, one in each cockpit, linked) ----------
 

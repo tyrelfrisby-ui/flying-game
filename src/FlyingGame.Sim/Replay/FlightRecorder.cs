@@ -217,20 +217,25 @@ public readonly struct ReplayFrame
     public readonly RigidBodyState State;
     public readonly ControlDeflections Deflections;
     public readonly double Throttle01, FlapFraction, GearExtension, LoadFactorZ;
+    /// <summary>Engine rpm as it was flown. Recorded because the replay cannot derive it: <see cref="Aircraft.EngineStopped"/>
+    /// latches on a lost nose, so a crashed aeroplane reports 0 rpm for ever and the replayed prop stood still through the
+    /// whole flight (Ty 2026-11-07: "the prop is not spinning").</summary>
+    public readonly double EngineRpm;
     /// <summary>Local wind (world NED) at the aircraft when recorded — the relative-wind camera and airspeed need it.</summary>
     public readonly Vec3 WindWorld;
     /// <summary>The smoke as flown (default = not recorded: an older frame).</summary>
     public readonly ReplaySmoke Smoke;
 
     public ReplayFrame(double time, RigidBodyState state, ControlDeflections deflections, double throttle01, double flapFraction,
-        double gearExtension, double loadFactorZ, Vec3 windWorld, ReplaySmoke smoke = default)
+        double gearExtension, double loadFactorZ, Vec3 windWorld, ReplaySmoke smoke = default, double engineRpm = 0)
     {
         Time = time; State = state; Deflections = deflections; Throttle01 = throttle01; FlapFraction = flapFraction;
-        GearExtension = gearExtension; LoadFactorZ = loadFactorZ; WindWorld = windWorld; Smoke = smoke;
+        GearExtension = gearExtension; LoadFactorZ = loadFactorZ; WindWorld = windWorld; Smoke = smoke; EngineRpm = engineRpm;
     }
 
     public static ReplayFrame Capture(double time, Aircraft a, Vec3 windWorld, ReplaySmoke smoke = default) =>
-        new(time, a.State, a.CurrentDeflections, a.Throttle01, a.FlapFraction, a.GearExtension, a.LoadFactorZ, windWorld, smoke);
+        new(time, a.State, a.CurrentDeflections, a.Throttle01, a.FlapFraction, a.GearExtension, a.LoadFactorZ, windWorld, smoke,
+            a.EngineRpm);
 
     public void ApplyTo(Aircraft a) => a.SetReplayPose(State, Deflections, Throttle01, FlapFraction, GearExtension, LoadFactorZ);
 }
@@ -310,6 +315,7 @@ public sealed class FlightRecorder
         var d = new ControlDeflections(L(da.AileronRad, db.AileronRad, u), L(da.ElevatorRad, db.ElevatorRad, u),
             L(da.RudderRad, db.RudderRad, u), L(da.SpoilerFraction, db.SpoilerFraction, u), L(da.FlapFraction, db.FlapFraction, u), L(da.SlatFraction, db.SlatFraction, u));
         return new ReplayFrame(L(a.Time, b.Time, u), s, d, L(a.Throttle01, b.Throttle01, u), L(a.FlapFraction, b.FlapFraction, u),
-            L(a.GearExtension, b.GearExtension, u), L(a.LoadFactorZ, b.LoadFactorZ, u), L(a.WindWorld, b.WindWorld, u), ReplaySmoke.Lerp(a.Smoke, b.Smoke, u));
+            L(a.GearExtension, b.GearExtension, u), L(a.LoadFactorZ, b.LoadFactorZ, u), L(a.WindWorld, b.WindWorld, u), ReplaySmoke.Lerp(a.Smoke, b.Smoke, u),
+            L(a.EngineRpm, b.EngineRpm, u));
     }
 }
