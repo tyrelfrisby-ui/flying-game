@@ -36,10 +36,22 @@ LIVE step's, and drawing it on a replayed pose hangs one instant's forces on ano
 confirms force vectors work in live flight — his "forces have disappeared" was the lift bubbles all along.
 
 **NEEDS YOU / open:**
-- **Reported 2026-11-08, not yet reproduced:** a bug "with reflections like water", and **wreckage going below the
-  earth's surface while crashing**. No clip yet. First suspicions, unverified: `WreckSim` clamps to
-  `WorldTerrain.GroundHeightAt` at the piece's CG **only** (one point, no runway slab or deck), and crash debris may
-  not carry `WaterReflection.AircraftLayer` the way the airframe and blades do.
+- **Under the world (Ty 2026-11-08, clip IMG_3260, a hillside).** The aeroplane ends up BENEATH the terrain and the
+  camera follows it: the olive above is the hillside's underside, the jagged shapes are trees from below, the blue
+  is water seen from beneath. What he called a reflection bug is this same view.
+  **It is NOT the wreck sim.** The HUD reads `SPIN 21.4 s/turn 1 ft/s down` at THR 100% — the LIVE aircraft, still
+  being flown, after `BRANCH DAMAGE` from trees. My first two guesses (WreckSim's one-point CG clamp; debris missing
+  `WaterReflection.AircraftLayer`) are both **wrong** and are struck.
+  Ruled out by reading: the "a wall was a floor" bug is already fixed — `AirframeContact` takes the normal from
+  `WorldTerrain.ContactNormalAt` and measures depth along it, so a steep face does push horizontally.
+  **The live question:** the sim thought it was airborne and descending at 1 ft/s while visibly inside a mountain.
+  That points at `WorldTerrain.GroundHeightAt` disagreeing with the DRAWN terrain in that part of the island, rather
+  than at a contact that failed to fire — a contact failure would still have shown the aeroplane fighting the
+  surface. The 60 m `ClearAboveM` cull samples only 5 points within the airframe's own reach, which is a separate
+  thing worth measuring but cannot by itself tunnel 0.25 m/step through 60 m of margin.
+  **Next:** a headless probe that walks the island comparing `GroundHeightAt` against the terrain the renderer
+  builds, and a test that flies into a hillside and asserts the aeroplane can never finish below the ground.
+  **Needed from Ty:** roughly where — which field he left and which way he went.
 - **Still unbuilt:** the damage meshes and the crash sound inside a replay — the engine-agnostic
   `ReplayDamageTimeline` is committed with 6 tests, the Unity wiring is not written.
 - Force vectors *true* in a replay need the aero model re-run at the replayed state.
