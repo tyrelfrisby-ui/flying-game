@@ -103,6 +103,13 @@ public class PittsQ007Probe
             ("inv R neutral", 1, true, 0), ("inv R R-ail", 1, true, 1),
         };
         string only = Environment.GetEnvironmentVariable("Q007_ONLY") ?? "";
+        // Q007_AIL=0.25,0.5,... sweeps the pro-spin aileron on the "-ail" cases instead of flying them at full travel.
+        // The flat inverted spin needs stick toward the spin axis (Christen Eagle II manual §5) and the neutral case is a
+        // normal inverted spin, so HOW MUCH is the practical question between the two.
+        var ailSweep = (Environment.GetEnvironmentVariable("Q007_AIL") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                                            .Select(double.Parse).ToList();
+        if (ailSweep.Count > 0)
+            cases = cases.Where(c => c.ail != 0).SelectMany(c => ailSweep.Select(a => (c.name + $" {a:0.00}", c.rud, c.inv, a))).ToList();
         foreach (var (lever, pw) in new[] { (1.0, "idle"), (0.2, "40%"), (-1.0, "full") })
         foreach (var (name, rud, inv, ail) in cases)
         {
