@@ -245,8 +245,13 @@ public class RegionalAtmosphereTests : IDisposable
         // StreamingAssetsTests holds that no generated copy is committed.
         var c = Cfg();
         Assert.Equal("defaultStartAirport", c.CalmZone.Anchor);   // tied to the default start, never to coordinates
-        Assert.Contains(c.Regions, r => r.Anchor == "airport:Bench" && r.Wind.Mode == "variable");
-        Assert.Contains(c.Regions, r => r.Anchor == "airport:Mesa" && r.Wind.Mode == "gusty");
+        // The airport circles name fields of the ISLAND world. They used to name "Bench" and "Mesa", which were the
+        // old four-airport world's, and this assertion still passed because it reads the config's text and never asks
+        // the world whether those fields exist. They did not: AtmosphereField threw on the first one, the caller
+        // swallowed it, and the game flew uniform air — no thermals anywhere — for about a week (Ty 2026-11-08).
+        // RegionalAtmosphereAnchorTests is the gate that catches that; this one only pins the intent.
+        Assert.Contains(c.Regions, r => r.Anchor == "airport:3U2" && r.Wind.Mode == "variable");
+        Assert.Contains(c.Regions, r => r.Anchor == "airport:KMYL" && r.Wind.Mode == "gusty");
     }
 
     [Fact]

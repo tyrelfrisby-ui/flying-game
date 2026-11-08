@@ -22,7 +22,7 @@ namespace FlyingGame.Bridge
         private GameObject _target;
         private Vector3 _prevVel, _accel;
         private bool _havePrev;
-        private const float MaxAccelMs2 = 98.1f;   // 10 g: beyond this it is an impact, not a flight path
+        private const float MaxAccelMs2 = 196.2f;   // 20 g (Ty 2026-11-08: 10 g was too low): beyond this it is an impact, not a flight path
 
         private void Start()
         {
