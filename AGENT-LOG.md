@@ -36,9 +36,12 @@ wifi and I install in place, no uninstall.
     transform check reads 0.000 m / 0.00 deg off.
   - Pre-break vs a truly intact reference: 352 px differ at all, 6 above 8/255, forming a **one-pixel band across 415
     columns spanning both wings** — the cut seam in the mesh, not a misplaced part.
-- **Known unfixed, shipped as-is:** the Great Lakes front eye is at your approved 4 in aft / 2 in down, and the clearance
-  gate is still **RED** there (`GL3c_Coaming_Padding` 6.7 cm aft-below the eye, 7 % of rays inside 12 cm). I did not waive
-  the gate and did not change your dimensions — please judge the coaming on the phone.
+- **Known unfixed:** the Great Lakes front-eye clearance gate is still **RED** (`GL3c_Coaming_Padding` 6.7 cm
+  aft-below the eye, 7 % of rays inside 12 cm) and remains unresolved. The approved 4 in aft / 2 in down move is
+  **held OUT of this build**, as the handoff requires: the front eye here is still the old
+  `[-1.193, 0.0, -0.293]`, and the moved value lives on lane/claude-shared-instruments-t985 (d6412b2d), which is
+  not an ancestor of this candidate. So there is nothing to judge on the phone for the Great Lakes cockpit in
+  2026.1107.1346 — that review needs a build that carries the cockpit lane.
 - **Not in this build:** reflection viewport, Pitts wake, altimeter knob proximity, Cub tube ends, cloud zenith streaks,
   float spray, future W&B. Deliberately one small repair, not a bundle.
 - **Tests:** the full suite ran on the **exact delivered SHA** (2da71c6e): 3368 passed / **139 failed** /
