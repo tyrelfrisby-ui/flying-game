@@ -139,7 +139,9 @@ public sealed class AtmosphereField
 
     public AtmosphereField(AtmosphereFieldConfig config)
     {
-        Config = config;
+                // One surface-layer depth for the whole world, whichever wind path is flying (Atmosphere.NoThroughFlow).
+        Atmosphere.SurfaceLayerM = config.SurfaceLayerM;
+Config = config;
         _ground = GroundAt;
         SynopticFromRad = config.Synoptic.WindFromDeg * System.Math.PI / 180;
         SynopticSpeedMs = config.Synoptic.WindSpeedKt * KtToMs;

@@ -25,7 +25,7 @@ namespace FlyingGame.Bridge
         public float RefreshS = 2f;
         public int SamplesPerFrame = 250;
 
-        private struct Col { public Vector2 xz; public float w; public float t; public uint h; }
+        private struct Col { public Vector2 xz; public float w; public float t; public uint h; public float ground; }
         private readonly Dictionary<Vector2Int, Col> _cols = new();
         private readonly List<Vector2Int> _keys = new();
         private int _cursor;
@@ -77,7 +77,7 @@ namespace FlyingGame.Bridge
                     {
                         uint h = Hash(k.x, k.y);
                         float jx = ((h & 1023u) / 1023f - 0.5f) * GridM, jz = (((h >> 10) & 1023u) / 1023f - 0.5f) * GridM;
-                        _cols[k] = new Col { xz = new Vector2(k.x * GridM + jx, k.y * GridM + jz), w = 0f, t = -999f, h = h };
+                        _cols[k] = new Col { xz = new Vector2(k.x * GridM + jx, k.y * GridM + jz), w = 0f, t = -999f, h = h, ground = float.NaN };
                     }
                 }
             if (_cols.Count > _keys.Count * 3) { var keep = new HashSet<Vector2Int>(_keys); foreach (var k in new List<Vector2Int>(_cols.Keys)) if (!keep.Contains(k)) _cols.Remove(k); }
@@ -92,6 +92,10 @@ namespace FlyingGame.Bridge
                 var sim = CoordinateMap.ToSim(new Vector3(c.xz.x, p.y, c.xz.y));
                 var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(sim) - FlyingGame.Core.Atmosphere.SteadyWindAt(sim);
                 c.w = -(float)local.Z; c.t = now;
+                // This column's own ground, on the same refresh as its lift: the band is drawn around the AEROPLANE's
+                // height, which over rising ground puts bubbles inside the hillside (Ty 2026-11-08: "the bubbles were
+                // still coming out of the ground").
+                c.ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(sim.X, sim.Y);
                 _cols[k] = c;
             }
 
@@ -104,13 +108,17 @@ namespace FlyingGame.Bridge
             {
                 Col c = _cols[k];
                 if (c.w < ThresholdMs) continue;
+                // Never below the surface layer, where NoThroughFlow has faded the lift to nothing anyway: a bubble
+                // down there would be drawing air that is not moving, inside a hill.
+                float floor = float.IsNaN(c.ground) ? bandBase : c.ground + (float)FlyingGame.Core.Atmosphere.SurfaceLayerM;
+                float colBase = Mathf.Max(bandBase, floor);
                 float rise = SpeedFactor * c.w;                                   // m/s on screen
                 float size = Mathf.Clamp(0.5f + 0.55f * c.w, 0.5f, 4f);         // bigger with stronger lift
                 for (int b = 0; b < PerColumn; b++)
                 {
                     float phase = ((c.h >> (b * 5)) & 1023u) / 1023f;
                     float u = Mathf.Repeat(now * rise / BandM + phase + b / (float)PerColumn, 1f);   // 0 bottom .. 1 top
-                    var pos = new Vector3(c.xz.x, bandBase + u * BandM, c.xz.y);
+                    var pos = new Vector3(c.xz.x, colBase + u * BandM, c.xz.y);
                     float alpha = Mathf.Clamp01(u / 0.12f) * Mathf.Clamp01((1f - u) / 0.12f);       // fade in/out at the band ends
                     float d = Vector3.Distance(pos, p);
                     alpha *= 1f - Mathf.Clamp01((d - RadiusM * 0.75f) / (RadiusM * 0.25f));

@@ -148,5 +148,52 @@ public class VerticalGroundBoundaryTests
         });
     }
 
+    // ---- the wind the game actually flies, not just the field's own --------------------------------
+
+    /// <summary>
+    /// The miss, written down. The first fix faded the FIELD's own slope and convective lift and nothing else — but
+    /// Atmosphere.WindFromSample adds the AUTHORED thermal columns straight on top of it (SoaringScenery: 10 to 14 m/s
+    /// cores, one set per plateau), and their profile is a fraction of ABSOLUTE altitude, so over a plateau nearly
+    /// 5000 ft up a column is already half developed at the wheels.
+    ///
+    /// Ty 2026-11-08, after flying the first fix: "I flew 3u2 again and the bubbles were still coming out of the
+    /// ground and rising straight up at the surface my cub was climbing at over 300 fpm at idle."
+    ///
+    /// So this one goes through Atmosphere, where every contribution is finally added up, which is where the condition
+    /// now lives. A test of the field alone could not have caught it, and did not.
+    /// </summary>
+    [Fact]
+    public void AnAuthoredThermalCannotBlowOutOfAPlateauAirfield()
+    {
+        var terrain = new WorldTerrain();
+        WorldTerrain.Active = terrain;
+        AtmosphereField? keepField = Atmosphere.Field;
+        try
+        {
+            Atmosphere.Field = new AtmosphereField(ShippedConfig());
+            Atmosphere.Thermals.Clear();
+            // The strong authored column, over the highest plateau airfield, exactly as SoaringScenery builds it.
+            WorldTerrain.Airport field = WorldTerrain.Airports[0];
+            foreach (WorldTerrain.Airport a in WorldTerrain.Airports) if (a.ElevationM > field.ElevationM) field = a;
+            double ground = WorldTerrain.GroundHeightAt(field.X, field.Y);
+            Atmosphere.Thermals.Add(new Thermal(new Vec3(field.X, field.Y, -ground), 300.0, 13.0, ground + 2000.0));
+
+            double atTheWheels = -Atmosphere.MeanWindAtPosition(new Vec3(field.X, field.Y, -(ground + 1.0))).Z;
+            double inTheFlare = -Atmosphere.MeanWindAtPosition(new Vec3(field.X, field.Y, -(ground + 3.0))).Z;
+            double soaring = -Atmosphere.MeanWindAtPosition(new Vec3(field.X, field.Y, -(ground + 600.0))).Z;
+
+            Assert.True(System.Math.Abs(atTheWheels) < 0.02, $"{atTheWheels:F2} m/s coming out of the runway at {field.Name}");
+            Assert.True(inTheFlare < LiftBubblesThresholdMs,
+                $"{inTheFlare:F2} m/s of lift 3 m over {field.Name} — a J-3 in the flare would be carried off");
+            Assert.True(soaring > 1.0, $"and the column must still be a thermal where a glider would use it: {soaring:F2} m/s");
+        }
+        finally
+        {
+            Atmosphere.Thermals.Clear();
+            Atmosphere.Field = keepField;
+            WorldTerrain.Active = null;
+        }
+    }
+
     private const double LiftBubblesThresholdMs = 0.25;   // LiftBubbles.ThresholdMs: below this nothing is drawn
 }
