@@ -58,14 +58,20 @@ public static class GroundMaterials
                 GainVsSpeed = new double[] { 0, 0, 2, 0.15, 15, 0.5, 30, 0.7 }, PitchVsSpeed = new double[] { 0, 0.8, 30, 1.3 }, CrossfadeS = 0.20 },
         new() { Key = GroundMaterial.Grass, Physics = WorldTerrain.Surface.Grass, Visual = "StripFinish Turf; FrankChurch Turf; island uv1.x → turf",
                 Chirp = 0.0, BearingWhir = true, BrakeScrape = true, BrakeSqueal = false, Voice = RollingVoice.GrassSwish,
-                // Ty 2026-11-08: "Grass tire sound is way too loud bring it down 7db and make it speed dependent it
-                // seems constant from touchdown to being stopped". It was never constant — it reached silence at a dead
-                // stop — but the old curve {0,0, 2,0.2, 15,0.55, 30,0.7} spent only about 7 dB between a touchdown and a
-                // taxi, which against a sound already too loud is the top of the range the whole way down the strip.
-                // Top end is exactly -7 dB (0.313 / 0.70 = 0.447), and the shape below it is steepened so touchdown to
-                // taxi now spans about 12 dB. If the taxi end comes out too quiet, the 8 m/s point is the one to raise:
-                // it moves the middle without touching the -7 dB at the top.
-                GainVsSpeed = new double[] { 0, 0, 2, 0.025, 8, 0.12, 15, 0.21, 30, 0.313 }, PitchVsSpeed = new double[] { 0, 0.8, 30, 1.2 }, CrossfadeS = 0.25 },
+                // Grass under the tyres, tuned by ear over three passes on 2026-11-08. It began at {0,0, 2,0.2, 15,0.55,
+                // 30,0.7}: "way too loud ... it seems constant from touchdown to being stopped". It was never truly
+                // constant — it reached silence at a stop — but it spent only ~7 dB between a touchdown and a taxi, so
+                // against a sound already too loud you heard the top of the range the whole way down the strip.
+                //
+                // -7 dB, then another -2: the top is 0.249 against the original 0.70, which is -9.0 dB.
+                //
+                // The shape is a POWER LAW, not a line (his last word on it: "change it so the curve is not linear and
+                // reduces faster from 40 to 30 than 10 to zero so it gets pretty low by 10 but not dead quiet").
+                // These points sample 0.249*(v/30)^1.5, which is convex: the amplitude falls 2.8x faster per knot
+                // between 40 and 30 kt than between 10 and 0, so it drops away sharply as you slow off a landing roll
+                // and then tails off gently - about -23 dB below the top at 10 kt, still there, silent only at a stop.
+                // A straight line could not do both: it was either audible at a walking pace or cut off dead at 10.
+                GainVsSpeed = new double[] { 0, 0.0, 1, 0.0015, 2.5, 0.006, 5, 0.0169, 7.5, 0.0311, 10, 0.0479, 15, 0.088, 20, 0.1355, 30, 0.249 }, PitchVsSpeed = new double[] { 0, 0.8, 30, 1.2 }, CrossfadeS = 0.25 },
         new() { Key = GroundMaterial.Gravel, Physics = WorldTerrain.Surface.Gravel, Visual = "StripFinish Gravel; FrankChurch Gravel; island uv1.x → gravel",
                 Chirp = 0.25, BearingWhir = true, BrakeScrape = true, BrakeSqueal = false, Voice = RollingVoice.GravelCrunch,
                 GainVsSpeed = new double[] { 0, 0, 0.4, 0.05, 14, 0.55, 30, 0.65 }, PitchVsSpeed = new double[] { 0, 0.9, 30, 1.25 }, CrossfadeS = 0.20 },
