@@ -588,7 +588,12 @@ namespace FlyingGame.Bridge
             float v = GUI.HorizontalSlider(new Rect(_x + _cw * 0.4f, y + _lh * 0.35f, _cw * 0.6f, _lh * 0.4f), sec, ClipRecorder.MinSeconds, ClipRecorder.MaxSeconds);
             if (Mathf.Abs(v - sec) >= ClipRecorder.StepSeconds * 0.5f) ClipRecorder.ClipSeconds = Mathf.RoundToInt(v);
             y += _lh + _gap * 0.4f;
-            if (Check("Include instruments in clips (dials or HUD) — applies from when you tick it", ClipRecorder.IncludeInstruments, ref y))
+            // Show my screen (Ty 2026-11-08, for his tutorial videos): all or none. On, the clip is the glass —
+            // touch pads, these menus, bubbles, vectors, HUD. Off, it is the aeroplane and the world, nothing else.
+            if (Check("Show my screen in clips — controls, menus, bubbles and vectors, exactly as you see it", ClipRecorder.ShowMyScreen, ref y))
+                ClipRecorder.ShowMyScreen = !ClipRecorder.ShowMyScreen;
+            if (!ClipRecorder.ShowMyScreen
+                && Check("Include instruments in clips (dials or HUD) — applies from when you tick it", ClipRecorder.IncludeInstruments, ref y))
                 ClipRecorder.IncludeInstruments = !ClipRecorder.IncludeInstruments;
         }
 
