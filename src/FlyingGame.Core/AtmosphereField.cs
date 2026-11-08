@@ -227,7 +227,7 @@ Config = config;
             if (w.Mode.Equals("variable", System.StringComparison.OrdinalIgnoreCase))
                 Variable = new VariableWind(w.SpeedKt * KtToMs, w.SpeedJitterKt * KtToMs, w.TurnRateSigmaDegS, w.TurnRateMaxDegS, w.CorrelationS, w.FromDeg, w.Seed);
             else if (w.Mode.Equals("gusty", System.StringComparison.OrdinalIgnoreCase))
-                Gusty = new GustyWind(w.SpeedKt * KtToMs, w.GustPeakKt * KtToMs, w.FromDeg, w.MeanGustIntervalS, w.MinGustDurationS, w.MaxGustDurationS, w.Seed);
+                Gusty = new GustyWind(w.SpeedKt * KtToMs, w.GustPeakKt * KtToMs, w.FromDeg, w.MeanGustIntervalS, w.MinGustDurationS, w.MaxGustDurationS, w.Seed, w.DirectionBandDeg);
         }
 
         /// <summary>Distance (m) outside the shape's core (≤ 0 inside).</summary>
@@ -640,13 +640,15 @@ Config = config;
         if (r.Variable is not null) wind = r.Variable.VectorAt(t);
         else if (r.Gusty is not null)
         {
-            Vec3 toward = r.Gusty.Toward;
+            Vec3 toward = r.Gusty.Toward;            // the MEAN direction: what carries the gust downwind
             // A gust is a lump of air carried by the wind: it reaches a point downwind later (Taylor), so it sweeps
             // over the airport — and a wing — rather than switching on everywhere at once.
             double along = (pos.X - r.CenterX) * toward.X + (pos.Y - r.CenterY) * toward.Y;
             double tc = t - along / System.Math.Max(2.0, r.Gusty.MeanSpeedMs);
+            // The running gust veers a little within its band, so the wind is not nailed to one bearing all day.
+            Vec3 towardNow = r.Gusty.TowardAt(tc);
             wind = toward * r.Gusty.LullSpeedMs;
-            gust = toward * r.Gusty.GustAt(tc);
+            gust = towardNow * r.Gusty.GustAt(tc);
         }
         else if (w.Mode.Equals("steady", System.StringComparison.OrdinalIgnoreCase))
             wind = FromVector(w.FromDeg * System.Math.PI / 180, w.SpeedKt * KtToMs);
