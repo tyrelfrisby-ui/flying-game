@@ -42,6 +42,9 @@ namespace FlyingGame.Bridge
     {
         public FlightSimDriver Driver;
         public readonly FlightRecorder Recorder = new FlightRecorder(30.0, 600.0);
+        /// <summary>WHEN the airframe took each shape, so a bend appears at the impact that made it instead of being
+        /// there from the first frame (Ty 2026-11-08: "The wing tip was still bent up on replay after a wing strike").</summary>
+        public readonly ReplayShapeTimeline Shapes = new ReplayShapeTimeline();
         public const double StartBackSec = 30.0;   // a replay opens this far before "now"
 
         public bool Active { get; private set; }
@@ -155,6 +158,7 @@ namespace FlyingGame.Bridge
             _haveLast = false;
             _roots.Clear(); _tracks.Clear(); _ordered.Clear(); ReplayActors.Pending.Clear();
             _parts.Clear(); ReplayActors.PendingParts.Clear();
+            Shapes.Clear();
             _pilotLeftT = double.NaN; _pilotRoot = null;
         }
 
@@ -170,6 +174,9 @@ namespace FlyingGame.Bridge
             if (_smoke == null) _smoke = GetComponent<SmokeController>();
             ReplaySmoke smoke = _smoke != null ? _smoke.ReplayChannel() : default;
             if (Recorder.Record(ReplayFrame.Capture(_clock, a, Atmosphere.WindAtPosition(a.State.Position), smoke))) RecordActors();
+            // The airframe's own shape, kept only when it CHANGES: an untouched flight is one entry.
+            Shapes.Record(_clock, a);
+            Shapes.TrimBefore(Recorder.StartTime);
         }
 
         private void RecordActors()
@@ -394,6 +401,7 @@ namespace FlyingGame.Bridge
             Driver.Sim.Aircraft.ReplayEngineRunning = null;
             Driver.ReplayAccelUnity = null;              // and the flight path vector measures for itself again
             Driver.ReplayForces = null;                  // and the overlay reads the live step's capture again
+            Driver.ReplayShape = null;                   // and the damage visuals read the live airframe again
             Driver.ShowReplayPose(_live.WindWorld);
             foreach (Track tr in _ordered)
             {
@@ -462,6 +470,8 @@ namespace FlyingGame.Bridge
             // "Force vectors do not show even though they were on for the live flying"). Only asked for when something
             // is going to draw them — it is a full pass of the aero model.
             Driver.ReplayForces = SessionSettings.ShowForceVectors ? Driver.Sim.Aircraft.ForcesAtCurrentState() : null;
+            // And the shape it was in, so StructuralDamage draws the aeroplane of this moment rather than the wreck.
+            Driver.ReplayShape = Shapes.TryShapeAt(Head, out AirframeShape shape) ? shape : (AirframeShape?)null;
         }
     }
 }

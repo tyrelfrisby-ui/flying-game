@@ -117,6 +117,11 @@ namespace FlyingGame.Bridge
         /// belongs to whichever instant the replay was entered on.</summary>
         public System.Collections.Generic.List<FlyingGame.Core.Aero.ForceSample> ReplayForces { get; set; }
 
+        /// <summary>Set by a replay: the shape the airframe was in at the frame being shown — panel sets, tail bend,
+        /// fuselage crush, engine droop (null while flying). Without it the damage visuals read the LIVE airframe,
+        /// which after a crash is bent for the whole playback.</summary>
+        public FlyingGame.Sim.Replay.AirframeShape? ReplayShape { get; set; }
+
         // Shared telemetry (audio / structure / HUD / net). Safe before Spawn: null Sim → neutral values.
         public double LoadFactorG => Sim?.Aircraft?.LoadFactorZ ?? 1.0;
         public double Throttle01 => Sim?.Aircraft?.Throttle01 ?? 0.0;

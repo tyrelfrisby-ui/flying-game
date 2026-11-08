@@ -478,15 +478,23 @@ namespace FlyingGame.Bridge
         /// nose follows the droop back up when an elastic flex comes off.</summary>
         public void ShowFuselageBend(FlyingGame.Core.FuselageCrush crush, AircraftConfig cfg, double noseRad)
         {
-            if (_builder == null || cfg == null || crush == null) return;
+            if (crush == null) return;
+            ShowFuselageBend(crush.TailBendPitchRad, crush.TailBendYawRad, cfg, noseRad);
+        }
+
+        /// <summary>The same from the two boom angles alone, so a replay can draw the shape the RECORDING holds rather
+        /// than the live airframe's (FlightReplay.Shapes). These two and noseRad are everything this draws from.</summary>
+        public void ShowFuselageBend(double tailBendPitchRad, double tailBendYawRad, AircraftConfig cfg, double noseRad)
+        {
+            if (_builder == null || cfg == null) return;
             (double noseCut, double tailCut) = FlyingGame.Core.AirframeContact.FuselageStations(cfg);
             const float Deg = (float)(180.0 / System.Math.PI);
-            if (System.Math.Abs(crush.TailBendPitchRad) + System.Math.Abs(crush.TailBendYawRad) > 0.003
+            if (System.Math.Abs(tailBendPitchRad) + System.Math.Abs(tailBendYawRad) > 0.003
                 && !(_driver?.Sim?.Aircraft?.LostComponents.Contains(FlyingGame.Core.AirframeComponent.TailBoom) ?? true))
             {
                 Transform t = BendPivot(FlyingGame.Core.AirframeComponent.TailBoom, tailCut, cfg);
                 // Root-local x = sim y, y = up, z = sim x: the tail (toward −z) goes up for + about +x, right for − about +y.
-                if (t != null) t.localRotation = Quaternion.AngleAxis(-(float)crush.TailBendYawRad * Deg, Vector3.up) * Quaternion.AngleAxis((float)crush.TailBendPitchRad * Deg, Vector3.right);
+                if (t != null) t.localRotation = Quaternion.AngleAxis(-(float)tailBendYawRad * Deg, Vector3.up) * Quaternion.AngleAxis((float)tailBendPitchRad * Deg, Vector3.right);
             }
             bool nosePivot = _bentPanels.TryGetValue(FlyingGame.Core.AirframeComponent.Nose, out Transform np) && np != null;
             if ((System.Math.Abs(noseRad) > 0.003 || nosePivot)
