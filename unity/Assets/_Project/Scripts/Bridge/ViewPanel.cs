@@ -134,12 +134,17 @@ namespace FlyingGame.Bridge
             if (UiLayout.Button(UiLayout.ToolbarSlot(6, n), "CHART", ChartPanel.IsOpen ? _btnOn : _btn))
             { ChartPanel.Toggle(); Options?.Close(); Widget.GameAeroPanel.Close(); }
             if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(7, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
-            // Radio push-to-talk (multiplayer): a text-stack block, so it never lands on a dial or a line.
+            // Radio push-to-talk (multiplayer), bottom left (Ty 2026-11-08: "The radio is annoying just move the PTT
+            // button to the bottom left of the screen and label it PTT"). It was a centred text-stack block, which put
+            // a two-line HOLD TO TALK sign straight across the aeroplane. It sits just ABOVE the control tray rather
+            // than in the corner proper: the corner is the rudder/throttle pad, and a transmit button over the rudder
+            // is worse than one that is slightly higher up.
             if (VoiceComms.RadioAvailable)
             {
-                Rect blk = UiLayout.NextBlock(UiLayout.ButtonH * 1.4f);
-                _talkRect = new Rect(blk.center.x - UiLayout.S * 0.14f, blk.y, UiLayout.S * 0.28f, blk.height);
-                GUI.Box(_talkRect, VoiceComms.PttHeld ? $"TRANSMITTING\n{VoiceComms.Frequency}" : $"HOLD TO TALK\n{VoiceComms.Frequency}", VoiceComms.PttHeld ? _btnRec : _btn);
+                float pw = UiLayout.S * 0.15f, ph = UiLayout.ButtonH * 1.2f;
+                float trayTop = Mathf.Min(UiLayout.BottomLimit, Screen.height - UiLayout.SafeBottom);
+                _talkRect = new Rect(UiLayout.SafeLeft + UiLayout.Margin, trayTop - ph - UiLayout.Gap, pw, ph);
+                GUI.Box(_talkRect, "PTT", VoiceComms.PttHeld ? _btnRec : _btn);
             }
             else _talkRect = default;
             string radio = VoiceComms.MicProblem ?? (VoiceComms.Receiving != null ? $"RADIO: {VoiceComms.Receiving}" : null);

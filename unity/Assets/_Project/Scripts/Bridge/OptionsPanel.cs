@@ -345,7 +345,7 @@ namespace FlyingGame.Bridge
             float uiV = GUI.HorizontalSlider(new Rect(_x + _cw * 0.42f, y + _lh * 0.35f, _cw * 0.58f, _lh * 0.4f), uiNow, 0.7f, 1.6f);
             if (Mathf.Abs(uiV - uiNow) > 0.024f) UiLayout.UserScale = Mathf.Round(uiV * 20f) / 20f;
             y += _lh + _gap * 0.4f;
-            Note($"Sized for a finger from this screen's own dots per inch — automatic part {UiLayout.AutoScale * 100f:F0}%", ref y);
+            Note($"100% is the size this has always been. A finger on this screen would want about {UiLayout.AutoScale * 100f:F0}% — raise it and check the in-flight toolbar.", ref y);
             var modes = new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud, SessionSettings.InstrumentMode.None };
             int im = PickRow("Instruments", new[] { "Dials", "HUD", "None" }, System.Array.IndexOf(modes, SessionSettings.Instruments), ref y);
             if (im >= 0) { SessionSettings.Instruments = modes[im]; SessionSettings.SavePrefs(); }

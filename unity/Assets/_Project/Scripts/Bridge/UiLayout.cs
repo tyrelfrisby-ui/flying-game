@@ -72,7 +72,18 @@ namespace FlyingGame.Bridge
             get { if (_userScale < 0f) _userScale = Mathf.Clamp(PlayerPrefs.GetFloat("ui.scale", 1f), 0.7f, 1.6f); return _userScale; }
             set { _userScale = Mathf.Clamp(value, 0.7f, 1.6f); PlayerPrefs.SetFloat("ui.scale", _userScale); PlayerPrefs.Save(); }
         }
-        public static float Scale => ScaleForTest > 0f ? ScaleForTest : AutoScale * UserScale;
+        /// <summary>
+        /// The scale actually used. AutoScale is deliberately NOT in it.
+        ///
+        /// Ty 2026-11-08: applying the DPI-derived 1.7x by default broke the in-flight screen outright — the toolbar's
+        /// fixed ends grew, which squeezed VIEW/REPLAY/CLIP/REC into a few pixels each so their labels came out one
+        /// letter per line, and the HUD and engine rows printed over each other because their layouts were measured for
+        /// the old font. The sizes were only ever half the problem: every screen's LAYOUT was calibrated at the old
+        /// ones, and a global multiplier cannot know that. So the default is 1 — exactly what shipped before — and the
+        /// size is raised deliberately, one screen at a time, once that screen can take it. AutoScale stays as the
+        /// honest recommendation and OPTIONS shows it.
+        /// </summary>
+        public static float Scale => ScaleForTest > 0f ? ScaleForTest : UserScale;
 
         /// <summary>The unit every SIZE comes from: the short side as it would be on a tablet of the same physical
         /// size. Panels that compute their own font size use this, not the raw pixel count.</summary>
@@ -224,12 +235,24 @@ namespace FlyingGame.Bridge
             GUI.Label(r, text, f);
         }
 
+        /// <summary>Absolute floor for a button label: below this nothing is readable anyway, and it exists so that a
+        /// label can always keep SHRINKING rather than be wrapped (Ty 2026-11-08: "VIEW" came out as a column of four
+        /// letters when the toolbar squeezed its slot). A single word has no break point, so wrapping it does not make
+        /// it fit — it stacks it one character per line, which is worse than small and worse than clipped.</summary>
+        public const int HardMinText = 13;
+
         public static GUIStyle ButtonFit(GUIStyle st, string text, float width)
         {
             var fit = new GUIStyle(st) { wordWrap = false, clipping = TextClipping.Clip };
             fit.fontSize = Mathf.Max(CaptionText, st.fontSize);
             while (fit.fontSize > CaptionText && fit.CalcSize(new GUIContent(text)).x > width) fit.fontSize--;
-            fit.wordWrap = fit.CalcSize(new GUIContent(text)).x > width;
+            if (fit.CalcSize(new GUIContent(text)).x > width)
+            {
+                // Still too wide at the reading floor. Wrapping only helps where there is somewhere to break.
+                bool canBreak = text != null && (text.Contains(" ") || text.Contains("\n"));
+                if (canBreak) fit.wordWrap = true;
+                else while (fit.fontSize > HardMinText && fit.CalcSize(new GUIContent(text)).x > width) fit.fontSize--;
+            }
             return fit;
         }
         public static void ButtonLabel(Rect r, string text, GUIStyle st)
