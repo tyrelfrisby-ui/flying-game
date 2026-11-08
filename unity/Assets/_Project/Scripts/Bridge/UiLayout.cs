@@ -83,11 +83,33 @@ namespace FlyingGame.Bridge
         /// size is raised deliberately, one screen at a time, once that screen can take it. AutoScale stays as the
         /// honest recommendation and OPTIONS shows it.
         /// </summary>
-        public static float Scale => ScaleForTest > 0f ? ScaleForTest : UserScale;
+        /// <summary>
+        /// The scale for MENUS AND PAGES — Options, Flight Setup, the chart, the credits, the joystick wizard.
+        /// Ty 2026-11-08, second pass: "For now just make the menus and options pages bigger for me to test then we
+        /// can try the ui on the live play again to see if we can make a slight improvement without breaking it."
+        /// A page can afford to grow: it owns the whole screen, its rows wrap, and what runs off the bottom scrolls
+        /// with MORE ABOVE / MORE BELOW to say so.
+        /// </summary>
+        public static float PanelScale => ScaleForTest > 0f ? ScaleForTest : AutoScale * UserScale;
 
-        /// <summary>The unit every SIZE comes from: the short side as it would be on a tablet of the same physical
-        /// size. Panels that compute their own font size use this, not the raw pixel count.</summary>
-        public static float Unit => Mathf.Min(Screen.width, Screen.height) * Scale;
+        /// <summary>The unit a MENU OR PAGE sizes its text and rows from.</summary>
+        public static float PanelUnit => Mathf.Min(Screen.width, Screen.height) * PanelScale;
+
+        /// <summary>
+        /// The scale for the FLYING SCREEN: the toolbar, the HUD, the engine row, the touch controls. One, and
+        /// deliberately not a setting yet.
+        ///
+        /// The first pass raised this with everything else and broke the game: the toolbar's ends grew, which left a
+        /// few pixels for VIEW, REPLAY, CLIP and REC, and the HUD rows printed over each other. Those layouts are
+        /// measured for this size and have to be taken one at a time before it can move — which is the next pass, and
+        /// the reason this is a separate number rather than the same one used twice.
+        /// </summary>
+        public const float LiveScale = 1f;
+
+        public static float Scale => PanelScale;   // what the Options slider is showing
+
+        /// <summary>The unit the FLYING SCREEN sizes from. <see cref="PanelUnit"/> is the one for menus and pages.</summary>
+        public static float Unit => Mathf.Min(Screen.width, Screen.height) * LiveScale;
 
         public static float Margin => Unit * 0.018f;
         public static float Gap => Unit * 0.012f;

@@ -38,6 +38,12 @@ namespace FlyingGame.Bridge
         private Vector2 _scroll;
         /// <summary>Where each page's last row ended, measured on the previous pass (0 = not drawn yet).</summary>
         private readonly float[] _measured = new float[8];
+        // Drag-to-scroll (Ty 2026-11-08: "I could not scroll in options control on the screen"). The panel had only
+        // GUI.BeginScrollView's scrollbar — a strip about one character wide down the right edge, which is not a thing
+        // a thumb can find on a phone, and nothing else moved the page at all. StartMenu has had its own ScrollInput
+        // since it was written, for the same reason; Options never got one.
+        private bool _dragPossible, _dragging;
+        private float _dragStartY, _dragStartScroll;
 
         /// <summary>Self-test: open the panel and show a given chapter by name ("display", "controls", …).</summary>
         public void ShowPageForTest(string name)
@@ -68,7 +74,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(UiLayout.Unit * 0.026f);
+            int fs = Mathf.RoundToInt(UiLayout.PanelUnit * 0.026f);
             if (_btn != null && fs == _fs) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.05f, 0.08f, 0.12f, 0.92f));
@@ -215,6 +221,39 @@ namespace FlyingGame.Bridge
             else if (act == 3 && !c.SetAltimeterToRead(0.0)) Note("this altimeter's window cannot zero here", ref y);
         }
 
+        /// <summary>
+        /// Drag the page to scroll it, and the wheel on a desktop. A drag only takes over once the finger has moved
+        /// further than a third of a row, so a tap still lands on the control under it and a slightly unsteady tap is
+        /// not read as a scroll.
+        /// </summary>
+        private void ScrollInput(Rect viewport, float hidden)
+        {
+            if (hidden <= 1f) { _dragPossible = _dragging = false; return; }
+            Event e = Event.current;
+            switch (e.type)
+            {
+                case EventType.ScrollWheel:
+                    if (viewport.Contains(e.mousePosition)) { _scroll.y = Mathf.Clamp(_scroll.y + e.delta.y * _lh * 0.6f, 0f, hidden); e.Use(); }
+                    break;
+                case EventType.MouseDown:
+                    if (viewport.Contains(e.mousePosition))
+                    { _dragPossible = true; _dragging = false; _dragStartY = e.mousePosition.y; _dragStartScroll = _scroll.y; }
+                    break;
+                case EventType.MouseDrag:
+                    if (_dragPossible)
+                    {
+                        float dy = e.mousePosition.y - _dragStartY;
+                        if (!_dragging && Mathf.Abs(dy) > _lh * 0.35f) _dragging = true;
+                        if (_dragging) { _scroll.y = Mathf.Clamp(_dragStartScroll - dy, 0f, hidden); e.Use(); }
+                    }
+                    break;
+                case EventType.MouseUp:
+                    if (_dragging) { e.Use(); GUIUtility.hotControl = 0; }
+                    _dragPossible = false; _dragging = false;
+                    break;
+            }
+        }
+
         /// <summary>The more-above / more-below banner: its own solid band so it reads over whatever it covers, and
         /// not a button — tapping it must not toggle the setting underneath.</summary>
         private void MoreBar(Rect r, string text)
@@ -230,8 +269,27 @@ namespace FlyingGame.Bridge
 
         private void Note(string text, ref float y)
         {
-            UiLayout.Label(new Rect(_x, y, _cw, _lh * 0.8f), text, _note);
-            y += _lh * 0.8f;
+            // A note is a SENTENCE and wraps. UiLayout.Label drops the tail instead, which on the bigger pages threw
+            // away the half that said what to do — "iOS only gives games ga…" (Ty 2026-11-08: "I can't read this").
+            float h = Mathf.Max(_lh * 0.8f, UiLayout.WrappedHeight(_note, text, _cw - _fs * 0.5f) + _fs * 0.25f);
+            UiLayout.LabelWrapped(new Rect(_x, y, _cw, h), text, _note);
+            y += h;
+        }
+
+        /// <summary>
+        /// A label with a slider beside it, where the LABEL WRAPS and the row takes the height it needs. The labels
+        /// here say what the number means — "1° of device = 2.5° of view" — so losing their tail to an ellipsis loses
+        /// the only part that was worth reading.
+        /// </summary>
+        private float SliderRow(string label, float value, float min, float max, ref float y, float labelFrac = 0.5f)
+        {
+            float lw = _cw * labelFrac;
+            float h = RowH(label, lw);
+            UiLayout.LabelWrapped(new Rect(_x, y, lw, h), label, _label);
+            float v = GUI.HorizontalSlider(new Rect(_x + lw + _gap * 0.5f, y + h * 0.5f - _lh * 0.2f,
+                                                    _cw - lw - _gap * 0.5f, _lh * 0.4f), value, min, max);
+            y += h + _gap * 0.4f;
+            return v;
         }
 
 
@@ -268,7 +326,16 @@ namespace FlyingGame.Bridge
             float top = UiLayout.ToolbarBottom + _gap;
 
             // The header: title, the paused note, Close. Drawn before anything can scroll.
-            int tabRows = wide ? 1 : 2;
+            // One row of tabs only if one row will really HOLD the names. Chosen by aspect alone it put eight across a
+            // 508 px panel — about 57 px each — and "Controls" came out clipped at both ends as ":ontrol:" (seen in the
+            // self-test shots, Ty 2026-11-08). The minimum is a share of the SCREEN, not of the scaled unit, so raising
+            // the page size cannot squeeze the tabs: it adds a row instead.
+            int tabRows;
+            {
+                float hwTabs = w - 2f * _gap, minTab = UiLayout.S * 0.14f;
+                int perFit = Mathf.Max(1, Mathf.FloorToInt((hwTabs + _gap * 0.3f) / (minTab + _gap * 0.3f)));
+                tabRows = perFit >= PageNames.Length ? 1 : 2;
+            }
             float headH = _lh + _gap * 0.5f + tabRows * (_lh + _gap * 0.35f);
             float bodyWant = _measured[(int)_page] > 0f ? _measured[(int)_page] : Screen.height;   // first pass: clamp to screen
             float h = Mathf.Min(headH + bodyWant + _gap, Screen.height - top - s * 0.03f);
@@ -280,12 +347,12 @@ namespace FlyingGame.Bridge
             if (SessionSettings.WorldFrozen)
                 UiLayout.Label(new Rect(hx + hw * 0.46f, panel.y + _gap * 0.3f, hw * 0.3f, _lh), "world paused", _note);
             else if (SessionSettings.MultiplayerLive)
-                UiLayout.Label(new Rect(hx + hw * 0.46f, panel.y + _gap * 0.3f, hw * 0.3f, _lh), "flying on — others are up", _note);
+                UiLayout.Label(new Rect(hx + hw * 0.4f, panel.y + _gap * 0.3f, hw * 0.38f, _lh), "flying on", _note);
             if (UiLayout.Button(new Rect(panel.xMax - _gap - hw * 0.22f, panel.y + _gap * 0.3f, hw * 0.22f, _lh), "Close", _btnOn)) { _open = false; Unpause(); return; }
 
             // The chapter tabs: one row across in landscape, two rows of four on a phone in portrait.
             {
-                int per = PageNames.Length / tabRows;
+                int per = Mathf.CeilToInt(PageNames.Length / (float)tabRows);
                 float ty = panel.y + _lh + _gap * 0.5f;
                 for (int r = 0; r < tabRows; r++)
                 {
@@ -304,6 +371,7 @@ namespace FlyingGame.Bridge
             var view = new Rect(panel.x, panel.y + headH, panel.width, panel.height - headH - _gap * 0.5f);
             float sbw = bodyWant > view.height ? _fs * 1.2f : 0f;
             var content = new Rect(panel.x, view.y, panel.width - sbw, Mathf.Max(bodyWant, view.height));
+            ScrollInput(view, content.height - view.height);
             _scroll = GUI.BeginScrollView(view, _scroll, content);
             _x = content.x + _gap; _cw = content.width - 2 * _gap;
             float y0 = view.y, y = y0;
@@ -341,11 +409,9 @@ namespace FlyingGame.Bridge
             // sizes a button for a finger from the screen's own DPI, which is what the phone was missing; this is his
             // multiplier on top of it, so it can be set by eye on the device instead of by another build.
             float uiNow = UiLayout.UserScale;
-            UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), $"UI size  {uiNow * 100f:F0}%", _label);
-            float uiV = GUI.HorizontalSlider(new Rect(_x + _cw * 0.42f, y + _lh * 0.35f, _cw * 0.58f, _lh * 0.4f), uiNow, 0.7f, 1.6f);
+            float uiV = SliderRow($"Menu & page size  {uiNow * 100f:F0}%", uiNow, 0.7f, 1.6f, ref y, 0.42f);
             if (Mathf.Abs(uiV - uiNow) > 0.024f) UiLayout.UserScale = Mathf.Round(uiV * 20f) / 20f;
-            y += _lh + _gap * 0.4f;
-            Note($"100% is the size this has always been. A finger on this screen would want about {UiLayout.AutoScale * 100f:F0}% — raise it and check the in-flight toolbar.", ref y);
+            Note($"Menus and pages only — the flying screen is unchanged for now. Sized for a finger from this screen: {UiLayout.AutoScale * 100f:F0}% before this slider.", ref y);
             var modes = new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud, SessionSettings.InstrumentMode.None };
             int im = PickRow("Instruments", new[] { "Dials", "HUD", "None" }, System.Array.IndexOf(modes, SessionSettings.Instruments), ref y);
             if (im >= 0) { SessionSettings.Instruments = modes[im]; SessionSettings.SavePrefs(); }
@@ -419,14 +485,12 @@ namespace FlyingGame.Bridge
                 var axis = Driver?.Sim?.Aircraft?.Config?.Controls == null ? null : new[] { Driver.Sim.Aircraft.Config.Controls.Aileron, Driver.Sim.Aircraft.Config.Controls.Elevator, Driver.Sim.Aircraft.Config.Controls.Rudder }[i];
                 float expoNow = SessionSettings.FeelExpo[i] >= 0f ? SessionSettings.FeelExpo[i] : (float)(axis?.Expo ?? 0.3);
                 float dzNow = SessionSettings.FeelDeadZone[i] >= 0f ? SessionSettings.FeelDeadZone[i] : (float)(axis?.DeadZone ?? 0.05);
-                UiLayout.Label(new Rect(_x, y, _cw * 0.48f, _lh), $"{SessionSettings.FeelAxisNames[i]} expo  {expoNow * 100f:F0} %{(SessionSettings.FeelExpo[i] < 0f ? " (aircraft)" : "")}", _label);
-                float e = GUI.HorizontalSlider(new Rect(_x + _cw * 0.5f, y + _lh * 0.35f, _cw * 0.5f, _lh * 0.4f), expoNow, 0f, 1f);
+                float e = SliderRow($"{SessionSettings.FeelAxisNames[i]} expo  {expoNow * 100f:F0} %{(SessionSettings.FeelExpo[i] < 0f ? " (aircraft)" : "")}",
+                                    expoNow, 0f, 1f, ref y, 0.5f);
                 if (Mathf.Abs(e - expoNow) > 0.004f) { SessionSettings.FeelExpo[i] = Mathf.Round(e * 20f) / 20f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
-                y += _lh * 0.95f;
-                UiLayout.Label(new Rect(_x, y, _cw * 0.48f, _lh), $"{SessionSettings.FeelAxisNames[i]} dead zone  {dzNow * 100f:F0} %{(SessionSettings.FeelDeadZone[i] < 0f ? " (aircraft)" : "")}", _label);
-                float d = GUI.HorizontalSlider(new Rect(_x + _cw * 0.5f, y + _lh * 0.35f, _cw * 0.5f, _lh * 0.4f), dzNow, 0f, 0.3f);
+                float d = SliderRow($"{SessionSettings.FeelAxisNames[i]} dead zone  {dzNow * 100f:F0} %{(SessionSettings.FeelDeadZone[i] < 0f ? " (aircraft)" : "")}",
+                                    dzNow, 0f, 0.3f, ref y, 0.5f);
                 if (Mathf.Abs(d - dzNow) > 0.002f) { SessionSettings.FeelDeadZone[i] = Mathf.Round(d * 100f) / 100f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
-                y += _lh * 0.95f;
             }
             // STICK-FREE WITH A GAMEPAD (Ty 2026-11-02): shown always, whether or not a pad is connected right now, so it
             // can be set before one is. Off by default; touch play is not affected by it.
@@ -466,11 +530,9 @@ namespace FlyingGame.Bridge
                     if (TiltSteering.Enabled)
                     {
                         float sv = TiltSteering.Sensitivity01;
-                        UiLayout.Label(new Rect(_x, y, _cw * 0.52f, _lh),
-                            $"Tilt sensitivity — {FlyingGame.Core.TiltControls.FullScaleForSensitivity(sv):F0}° for full control", _label);
-                        float ns = GUI.HorizontalSlider(new Rect(_x + _cw * 0.56f, y + _lh * 0.35f, _cw * 0.44f, _lh * 0.4f), sv, 0f, 1f);
+                        float ns = SliderRow($"Tilt sensitivity — {FlyingGame.Core.TiltControls.FullScaleForSensitivity(sv):F0}° for full control",
+                                             sv, 0f, 1f, ref y, 0.56f);
                         if (Mathf.Abs(ns - sv) > 0.01f) TiltSteering.Sensitivity01 = ns;
-                        y += _lh + _gap * 0.4f;
 
                         if (Check("Yaw turns the rudder (it drifts — use CENTRE TILT)", TiltSteering.RudderFromYaw, ref y))
                             TiltSteering.RudderFromYaw = !TiltSteering.RudderFromYaw;
@@ -505,13 +567,10 @@ namespace FlyingGame.Bridge
                         // default) up to 10x, continuous". The label says what the number MEANS, because "3.4x" on
                         // its own tells a pilot nothing about how far to turn the phone.
                         float g = CockpitView.DeviceLookGain;
-                        UiLayout.Label(new Rect(_x, y, _cw * 0.52f, _lh),
-                            $"   Look gain  {g:0.0}x  (1\u00b0 of device = {g:0.0}\u00b0 of view)", _label);
-                        float ng = GUI.HorizontalSlider(new Rect(_x + _cw * 0.54f, y + _lh * 0.35f, _cw * 0.46f, _lh * 0.4f),
-                                                        g, (float)FlyingGame.Core.CockpitLook.MinDeviceGain,
-                                                        (float)FlyingGame.Core.CockpitLook.MaxDeviceGain);
+                        float ng = SliderRow($"   Look gain  {g:0.0}x  (1\u00b0 of device = {g:0.0}\u00b0 of view)",
+                                             g, (float)FlyingGame.Core.CockpitLook.MinDeviceGain,
+                                             (float)FlyingGame.Core.CockpitLook.MaxDeviceGain, ref y, 0.54f);
                         if (Mathf.Abs(ng - g) > 0.02f) CockpitView.DeviceLookGain = ng;
-                        y += _lh + _gap * 0.4f;
                     }
                 }
                 else

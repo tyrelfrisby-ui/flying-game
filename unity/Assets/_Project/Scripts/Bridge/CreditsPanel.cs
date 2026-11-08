@@ -41,7 +41,7 @@ namespace FlyingGame.Bridge
         private void EnsureStyles()
         {
             float s = Mathf.Min(Screen.width, Screen.height);
-            float fs = Mathf.Round(UiLayout.Unit * 0.028f);   // SIZE from the finger's unit; s above stays the screen's, for width
+            float fs = Mathf.Round(UiLayout.PanelUnit * 0.028f);   // SIZE from the finger's unit; s above stays the screen's, for width
             if (_body != null && Mathf.Approximately(fs, _fs)) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.02f, 0.03f, 0.05f, 0.97f));
