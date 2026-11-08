@@ -1,3 +1,61 @@
+## Replay tells the truth, air cannot come out of the earth, and clips can film the screen — Claude, 2026-11-08, lane/claude-replay-smoke, build 2026.1108.0717
+<!-- replay-state-not-pose ground-boundary clip-screen-mic -->
+Morning session after the one below. Seven commits, all local, nothing pushed. Ty confirmed in the air: the flight
+path vector replays correctly, the lift bubbles are back, and the gusty/variable airports read as different places.
+
+**The one sentence that explains most of this file: a replay restores POSE, never STATE.** Everything visual or
+audible driven off live sim state is therefore wrong during playback, and each one has to be found separately. This
+session closed four more of them, after the propeller (`8d5c2f4b`) and the flight path vector (`d7333d79`):
+
+| what was wrong in a replay | why | fix |
+|---|---|---|
+| force vectors absent | `LastForces` is the last LIVE step's; I had hidden them rather than draw a lie | `Aircraft.ForcesAtCurrentState()` re-evaluates at the replayed pose (`478bc5f5`) |
+| no engine sound | `EngineRunning` never learned about replay, so a crashed aeroplane was silent for the whole playback | the frame records whether the engine was MAKING POWER (`478bc5f5`) |
+| bubbles frozen mid-air | they rise on `Time.time`, and the replay sets `timeScale` to 0 | `Time.unscaledTime` (`90bce023`) |
+| wing bent from frame 0 | the damage visuals read the live airframe | `ReplayShapeTimeline` records WHEN each shape was taken (`c7d47ab5`) |
+
+Only what is a **pure function of the state** is recomputed for the forces. Gear and ground contact are left out on
+purpose: their load is how far the integrator pressed the airframe into the ground, which is history, not pose. The
+same reasoning zeroes the elastic flex in the shape timeline. Inventing a plausible number for either is the failure
+this work exists to stop.
+
+**"Air cannot come out of the earth" (Ty, on final at 3U2 — a thermal lifted his J-3 several hundred feet from the
+flare).** He was right, and the field broke no-through-flow in three places: a background vertical wind with no height
+dependence at all; Lenschow's mixed-layer profile applied below its validity, where its cube root still carries half
+the peak updraught 10 m up; and the lee rotor, which the new gate caught doing **10.1 m/s straight up out of solid
+ground**. All vertical components now fade over `SurfaceLayerM` (50 m). The rotor keeps its horizontal sweep, because
+no-through-flow binds only the normal component (`93977b5d`).
+
+**Tuning the lift down ran into one of his own earlier requests, and stopped there.** Measure first: where the air is
+lifting at 600 m the mean components are slope 1.19 m/s, wave 0.19, conv 0.12 — the broad lift is UPSLOPE, and cutting
+the thermal knobs as asked moved the peak by 0.1 %. But a flat strength cut is impossible: `RealBluffHasLiftInFrontOfIt`
+and friends want 0.2 m/s 500 m in front of a bluff and HEAD only had 0.242, so 25 % breaches the gate that exists
+because of 2026-09-09 "I keep hitting the cliff getting into the lift". Halving the reaches took it to 0.01. So the cut
+came out of `DecayHeightM` alone (520 → 300 m), which separates the two complaints by HEIGHT: −13 % at 100 m where he
+needs the reach, −57 % at 600 m where he was complaining. Delivered about half his width ask. **Going further is his
+call, not a gate's to lose** — the shape that would do it is a two-part profile, held near the terrain and falling
+hard above it (`f3755b60`).
+
+**Clips: film the screen instead of re-rendering the world (`b3fa78d3`).** Ty's tutorial take had only the flight path
+vector in it. The clip camera is a second camera rendering the world to a texture: the FPV is real geometry, the force
+vectors are drawn on the MAIN camera, `LiftBubbles` passes `Camera.main` to `DrawMeshInstanced`, and the touch pads and
+options panel are IMGUI, which never reaches a render texture. `ShowMyScreen` grabs the composited frame at end of
+frame and cannot miss anything by construction — the clean path has to be TOLD about each overlay, which is how the
+bubbles went missing while the class comment still claimed them. The toggle alone was not enough: `LateUpdate` stops
+recording whenever a menu is open, which is exactly why his options screens never appeared.
+**UNVERIFIED on device: the vertical flip.** A screen grab is top-left origin, a render texture bottom-left, so the
+scaling blit flips it. Believed right for Metal. One 15 s CLIP settles it.
+
+**Narration without a native change (`447a6265`).** The mic gate is `ptt || (intercom && vox)` and the clip is already
+fed the gated signal, so narration only needed that gate opened from its own switch. A dedicated native mode would
+need a new export from `VoiceIO.mm`, and the Mac bundle built from it is a **tracked binary** — the committed one would
+lose the symbol and the Mac app would throw. Rebuild it in the same breath or do not add the export.
+
+**Still open.** `ReplayDamageTimeline` (lost components) has tests and no callers; parts already replay as tracked
+transforms, so it looks redundant rather than missing — left alone deliberately. The aeroplane going under the terrain
+on a hillside is still unreproduced and still needs a location from Ty; my first two guesses were both wrong (see
+below). 7 pre-existing failures in the lift/slope/atmosphere classes, verified against a clean worktree at HEAD — 0 new.
+
 ## Thermals were switched off worldwide, and the replay's flight path vector — Claude, 2026-11-08, lane/claude-replay-smoke, build 2026.1108.0016
 <!-- lift-dead-world fpv-replay -->
 Ty's night of testing, in the order he found them. Nothing approved by me; nothing pushed.
