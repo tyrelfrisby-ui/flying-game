@@ -19,7 +19,14 @@ namespace FlyingGame.Bridge
     /// </summary>
     internal static class TiltSteering
     {
-        public static bool Available => SystemInfo.supportsGyroscope;
+        /// <summary>
+        /// Only where the aeroplane is flown by tilting the thing you are holding. A gyroscope is not enough to say
+        /// that: a Quest reports one and is strapped to your head, where "tilt to roll" would mean looking down rolls
+        /// you inverted, and the headset already owns the pose. A Mac has none, so it excludes itself.
+        /// </summary>
+        public static bool Available => SystemInfo.supportsGyroscope
+                                        && SystemInfo.deviceType == DeviceType.Handheld
+                                        && !VrMode.HeadTracked;
 
         private const string KeyOn = "tilt.on", KeyRudder = "tilt.rudder", KeySens = "tilt.sens";
         private const string KeyInvA = "tilt.inv.a", KeyInvE = "tilt.inv.e", KeyInvR = "tilt.inv.r";
