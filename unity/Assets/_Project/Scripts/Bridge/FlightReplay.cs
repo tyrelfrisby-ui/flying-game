@@ -14,6 +14,19 @@ namespace FlyingGame.Bridge
         /// <summary>Record this object and everything under it from now on. hideBefore: invisible in the replay before it
         /// was registered (created during the flight); false = shown as it was at registration (an existing part).</summary>
         public static void Register(GameObject go, bool hideBefore = true) { if (go != null) Pending.Add((go, hideBefore)); }
+
+        internal static readonly List<(GameObject go, Transform host, Vector3 restPos, Quaternion restRot)> PendingParts = new();
+
+        /// <summary>A part of the airframe that has just come off, or been cut onto its own pivot (Ty pt1001: the replay
+        /// began with the wings already missing). Call it at the break, BEFORE the part moves: its pose relative to
+        /// <paramref name="host"/> (the aeroplane) is taken now, and before this moment the replay carries it there on the
+        /// replayed aeroplane — which puts a cut-out piece back exactly where it was cut from. From the break on, the
+        /// replay plays its recorded pose (ReplayPartTimeline).</summary>
+        public static void RegisterAirframePart(GameObject go, Transform host)
+        {
+            if (go == null || host == null) return;
+            PendingParts.Add((go, host, host.InverseTransformPoint(go.transform.position), Quaternion.Inverse(host.rotation) * go.transform.rotation));
+        }
     }
 
     /// <summary>
@@ -29,6 +42,9 @@ namespace FlyingGame.Bridge
     {
         public FlightSimDriver Driver;
         public readonly FlightRecorder Recorder = new FlightRecorder(30.0, 600.0);
+        /// <summary>WHEN the airframe took each shape, so a bend appears at the impact that made it instead of being
+        /// there from the first frame (Ty 2026-11-08: "The wing tip was still bent up on replay after a wing strike").</summary>
+        public readonly ReplayShapeTimeline Shapes = new ReplayShapeTimeline();
         public const double StartBackSec = 30.0;   // a replay opens this far before "now"
 
         public bool Active { get; private set; }
@@ -58,6 +74,18 @@ namespace FlyingGame.Bridge
             // live state saved on Enter
             public Vector3 LPos, LScale; public Quaternion LRot; public bool LActive, LRendered;
         }
+        // ---- airframe parts that came off (Ty pt1001) ----
+        private sealed class PartTrack
+        {
+            public Transform T, Host; public Vector3 RestPos; public Quaternion RestRot;
+            public ReplayPartTimeline Line;
+            public readonly List<Vector3> Pos = new(); public readonly List<Quaternion> Rot = new();
+            public Vector3 LPos; public Quaternion LRot; public bool LActive;   // live state saved on Enter
+        }
+        private readonly List<PartTrack> _parts = new();
+        /// <summary>Airframe parts the replay is following (review tools and the self-test).</summary>
+        public int PartCount => _parts.Count;
+
         private readonly List<(GameObject go, bool hideBefore)> _roots = new();
         private readonly Dictionary<Transform, Track> _tracks = new();
         private readonly List<Track> _ordered = new();
@@ -129,6 +157,8 @@ namespace FlyingGame.Bridge
             Recorder.Clear();
             _haveLast = false;
             _roots.Clear(); _tracks.Clear(); _ordered.Clear(); ReplayActors.Pending.Clear();
+            _parts.Clear(); ReplayActors.PendingParts.Clear();
+            Shapes.Clear();
             _pilotLeftT = double.NaN; _pilotRoot = null;
         }
 
@@ -144,6 +174,9 @@ namespace FlyingGame.Bridge
             if (_smoke == null) _smoke = GetComponent<SmokeController>();
             ReplaySmoke smoke = _smoke != null ? _smoke.ReplayChannel() : default;
             if (Recorder.Record(ReplayFrame.Capture(_clock, a, Atmosphere.WindAtPosition(a.State.Position), smoke))) RecordActors();
+            // The airframe's own shape, kept only when it CHANGES: an untouched flight is one entry.
+            Shapes.Record(_clock, a);
+            Shapes.TrimBefore(Recorder.StartTime);
         }
 
         private void RecordActors()
@@ -170,6 +203,7 @@ namespace FlyingGame.Bridge
                     tr.Flags.Add((byte)((t.gameObject.activeSelf ? 1 : 0) | (tr.R == null || tr.R.enabled ? 2 : 0)));
                 }
             }
+            RecordParts();
             // Drop samples older than the recording window (in chunks, now and then).
             double start = Recorder.StartTime;
             foreach (Track tr in _ordered)
@@ -182,6 +216,80 @@ namespace FlyingGame.Bridge
                 }
             }
         }
+
+        /// <summary>The airframe parts that came off: a sample of each at this recorded frame. A part registered this frame
+        /// broke at this clock (the first frame the recorder took after the break).</summary>
+        private void RecordParts()
+        {
+            foreach (var p in ReplayActors.PendingParts)
+                if (p.go != null && p.host != null)
+                    _parts.Add(new PartTrack { T = p.go.transform, Host = p.host, RestPos = p.restPos, RestRot = p.restRot, Line = new ReplayPartTimeline(_clock) });
+            ReplayActors.PendingParts.Clear();
+            double start = Recorder.StartTime;
+            for (int i = _parts.Count - 1; i >= 0; i--)
+            {
+                PartTrack pt = _parts[i];
+                if (pt.T == null) { _parts.RemoveAt(i); continue; }   // (a piece that fell off the world and was destroyed)
+                pt.Line.Add(_clock); pt.Pos.Add(pt.T.position); pt.Rot.Add(pt.T.rotation);
+                if (pt.Line.Count > 300 && pt.Line.TimeAt(300) < start)
+                {
+                    int n = pt.Line.TrimBefore(start);
+                    pt.Pos.RemoveRange(0, n); pt.Rot.RemoveRange(0, n);
+                }
+            }
+        }
+
+        /// <summary>Each part as it was at <paramref name="t"/>: on the replayed aeroplane before its break, its recorded pose
+        /// after it.</summary>
+        private readonly List<(int depth, PartTrack pt)> _partOrder = new();
+        private void ShowParts(double t)
+        {
+            // Parents before children: a part can sit inside another (a bent nose pivot that later goes off in its debris),
+            // and posing the outer one after the inner would drag the inner one with it.
+            _partOrder.Clear();
+            foreach (PartTrack p in _parts)
+            {
+                if (p.T == null) continue;
+                int d = 0; for (Transform q = p.T.parent; q != null; q = q.parent) d++;
+                _partOrder.Add((d, p));
+            }
+            _partOrder.Sort((a, b) => a.depth.CompareTo(b.depth));
+            foreach (var (_, pt) in _partOrder)
+            {
+                if (pt.T == null || pt.Host == null) continue;
+                pt.Line.At(t, out bool attached, out int i, out double u);
+                if (attached) pt.T.SetPositionAndRotation(pt.Host.TransformPoint(pt.RestPos), pt.Host.rotation * pt.RestRot);
+                else if (i + 1 < pt.Pos.Count && u > 0) pt.T.SetPositionAndRotation(Vector3.Lerp(pt.Pos[i], pt.Pos[i + 1], (float)u), Quaternion.Slerp(pt.Rot[i], pt.Rot[i + 1], (float)u));
+                else if (i < pt.Pos.Count) pt.T.SetPositionAndRotation(pt.Pos[i], pt.Rot[i]);
+                if (!pt.T.gameObject.activeSelf) pt.T.gameObject.SetActive(true);
+            }
+        }
+
+        private void SaveLiveParts()
+        {
+            foreach (PartTrack pt in _parts)
+            {
+                if (pt.T == null) continue;
+                pt.LPos = pt.T.position; pt.LRot = pt.T.rotation; pt.LActive = pt.T.gameObject.activeSelf;
+            }
+        }
+        private void RestoreLiveParts()
+        {
+            foreach (PartTrack pt in _parts)
+            {
+                if (pt.T == null) continue;
+                if (pt.T.gameObject.activeSelf != pt.LActive) pt.T.gameObject.SetActive(pt.LActive);
+                pt.T.SetPositionAndRotation(pt.LPos, pt.LRot);   // the live crash, exactly as it was
+            }
+        }
+
+        /// <summary>REVIEW TOOLS ONLY (SmokeAirframeRender's part section): the recorder's part sampling at a stated clock,
+        /// the replay's part posing at a head, and Enter / Exit's saving and restoring of the live parts — the same code the
+        /// game runs, driven without a FlightSimDriver.</summary>
+        public void ReviewRecordParts(double clock) { _clock = clock; RecordParts(); }
+        public void ReviewShowParts(double head) => ShowParts(head);
+        public void ReviewSaveLiveParts() => SaveLiveParts();
+        public void ReviewRestoreLiveParts() => RestoreLiveParts();
 
         private static void SetVisible(Track tr, bool active, bool rendered)
         {
@@ -209,6 +317,7 @@ namespace FlyingGame.Bridge
         private void ShowActors()
         {
             double t = Head;
+            ShowParts(t);
             foreach (Track tr in _ordered)
             {
                 if (tr.T == null || tr.Time.Count == 0) continue;
@@ -251,6 +360,7 @@ namespace FlyingGame.Bridge
                 tr.LPos = tr.T.position; tr.LRot = tr.T.rotation; tr.LScale = tr.T.localScale;
                 tr.LActive = tr.T.gameObject.activeSelf; tr.LRendered = tr.R == null || tr.R.enabled;
             }
+            SaveLiveParts();
             _cam = Camera.main != null ? Camera.main.GetComponent<ChaseCamera>() : null;
             if (_cam != null) { _camOvrTarget = _cam.OverrideTarget; _camOvrBackdrop = _cam.OverrideBackdrop; _camOvrVel = _cam.OverrideVelocity; }
             _savedTimeScale = Time.timeScale;
@@ -287,6 +397,11 @@ namespace FlyingGame.Bridge
         {
             if (!Active) return;
             _live.ApplyTo(Driver.Sim.Aircraft);
+            Driver.Sim.Aircraft.ReplayEngineRpm = null;   // the engine is the live one's again
+            Driver.Sim.Aircraft.ReplayEngineRunning = null;
+            Driver.ReplayAccelUnity = null;              // and the flight path vector measures for itself again
+            Driver.ReplayForces = null;                  // and the overlay reads the live step's capture again
+            Driver.ReplayShape = null;                   // and the damage visuals read the live airframe again
             Driver.ShowReplayPose(_live.WindWorld);
             foreach (Track tr in _ordered)
             {
@@ -295,6 +410,7 @@ namespace FlyingGame.Bridge
                 tr.T.SetPositionAndRotation(tr.LPos, tr.LRot);
                 tr.T.localScale = tr.LScale;
             }
+            RestoreLiveParts();
             if (_cam != null) { _cam.OverrideTarget = _camOvrTarget; _cam.OverrideBackdrop = _camOvrBackdrop; _cam.OverrideVelocity = _camOvrVel; }
             Active = false;
             ReplayPilotOut = false;
@@ -337,7 +453,25 @@ namespace FlyingGame.Bridge
             if (Recorder.Count == 0) return;
             ReplayFrame f = Recorder.Sample(Head);
             f.ApplyTo(Driver.Sim.Aircraft);
+            // The replay poses the aeroplane; it does not run its engine. Without the recorded rpm the prop stands still
+            // for the whole flight, because EngineStopped latches on the nose this crash tore off (Ty 2026-11-07).
+            Driver.Sim.Aircraft.ReplayEngineRpm = f.EngineRpm;
+            // Whether it was MAKING POWER as well as how fast it was turning: the rpm alone cannot tell an idle from a
+            // windmill, and the engine sound, the shaft power and the thrust vector all need the answer. Without it they
+            // asked the LIVE engine, which after a crash is stopped for the whole playback (Ty 2026-11-08: "No engine
+            // sound on replay").
+            Driver.Sim.Aircraft.ReplayEngineRunning = f.EngineRunning;
+            // Likewise the acceleration: the flight path vector predicts three seconds ahead by carrying the velocity
+            // forward under it, and it cannot measure one here — the world is frozen, so its own frame-to-frame
+            // difference is divided by a zero dt (Ty 2026-11-08: "going down and the flight path vector is going up").
+            Driver.ReplayAccelUnity = CoordinateMap.ToUnity(Recorder.AccelerationAt(Head));
             Driver.ShowReplayPose(f.WindWorld);
+            // And the forces, worked out again at THIS pose rather than kept from the last live step (Ty 2026-11-08:
+            // "Force vectors do not show even though they were on for the live flying"). Only asked for when something
+            // is going to draw them — it is a full pass of the aero model.
+            Driver.ReplayForces = SessionSettings.ShowForceVectors ? Driver.Sim.Aircraft.ForcesAtCurrentState() : null;
+            // And the shape it was in, so StructuralDamage draws the aeroplane of this moment rather than the wreck.
+            Driver.ReplayShape = Shapes.TryShapeAt(Head, out AirframeShape shape) ? shape : (AirframeShape?)null;
         }
     }
 }

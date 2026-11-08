@@ -1,3 +1,177 @@
+## Replay tells the truth, air cannot come out of the earth, and clips can film the screen — Claude, 2026-11-08, lane/claude-replay-smoke, build 2026.1108.0717
+<!-- replay-state-not-pose ground-boundary clip-screen-mic -->
+Morning session after the one below. Seven commits, all local, nothing pushed. Ty confirmed in the air: the flight
+path vector replays correctly, the lift bubbles are back, and the gusty/variable airports read as different places.
+
+**The one sentence that explains most of this file: a replay restores POSE, never STATE.** Everything visual or
+audible driven off live sim state is therefore wrong during playback, and each one has to be found separately. This
+session closed four more of them, after the propeller (`8d5c2f4b`) and the flight path vector (`d7333d79`):
+
+| what was wrong in a replay | why | fix |
+|---|---|---|
+| force vectors absent | `LastForces` is the last LIVE step's; I had hidden them rather than draw a lie | `Aircraft.ForcesAtCurrentState()` re-evaluates at the replayed pose (`478bc5f5`) |
+| no engine sound | `EngineRunning` never learned about replay, so a crashed aeroplane was silent for the whole playback | the frame records whether the engine was MAKING POWER (`478bc5f5`) |
+| bubbles frozen mid-air | they rise on `Time.time`, and the replay sets `timeScale` to 0 | `Time.unscaledTime` (`90bce023`) |
+| wing bent from frame 0 | the damage visuals read the live airframe | `ReplayShapeTimeline` records WHEN each shape was taken (`c7d47ab5`) |
+
+Only what is a **pure function of the state** is recomputed for the forces. Gear and ground contact are left out on
+purpose: their load is how far the integrator pressed the airframe into the ground, which is history, not pose. The
+same reasoning zeroes the elastic flex in the shape timeline. Inventing a plausible number for either is the failure
+this work exists to stop.
+
+**"Air cannot come out of the earth" (Ty, on final at 3U2 — a thermal lifted his J-3 several hundred feet from the
+flare).** He was right, and the field broke no-through-flow in three places: a background vertical wind with no height
+dependence at all; Lenschow's mixed-layer profile applied below its validity, where its cube root still carries half
+the peak updraught 10 m up; and the lee rotor, which the new gate caught doing **10.1 m/s straight up out of solid
+ground**. All vertical components now fade over `SurfaceLayerM` (50 m). The rotor keeps its horizontal sweep, because
+no-through-flow binds only the normal component (`93977b5d`).
+
+**Tuning the lift down ran into one of his own earlier requests, and stopped there.** Measure first: where the air is
+lifting at 600 m the mean components are slope 1.19 m/s, wave 0.19, conv 0.12 — the broad lift is UPSLOPE, and cutting
+the thermal knobs as asked moved the peak by 0.1 %. But a flat strength cut is impossible: `RealBluffHasLiftInFrontOfIt`
+and friends want 0.2 m/s 500 m in front of a bluff and HEAD only had 0.242, so 25 % breaches the gate that exists
+because of 2026-09-09 "I keep hitting the cliff getting into the lift". Halving the reaches took it to 0.01. So the cut
+came out of `DecayHeightM` alone (520 → 300 m), which separates the two complaints by HEIGHT: −13 % at 100 m where he
+needs the reach, −57 % at 600 m where he was complaining. Delivered about half his width ask. **Going further is his
+call, not a gate's to lose** — the shape that would do it is a two-part profile, held near the terrain and falling
+hard above it (`f3755b60`).
+
+**Clips: film the screen instead of re-rendering the world (`b3fa78d3`).** Ty's tutorial take had only the flight path
+vector in it. The clip camera is a second camera rendering the world to a texture: the FPV is real geometry, the force
+vectors are drawn on the MAIN camera, `LiftBubbles` passes `Camera.main` to `DrawMeshInstanced`, and the touch pads and
+options panel are IMGUI, which never reaches a render texture. `ShowMyScreen` grabs the composited frame at end of
+frame and cannot miss anything by construction — the clean path has to be TOLD about each overlay, which is how the
+bubbles went missing while the class comment still claimed them. The toggle alone was not enough: `LateUpdate` stops
+recording whenever a menu is open, which is exactly why his options screens never appeared.
+**UNVERIFIED on device: the vertical flip.** A screen grab is top-left origin, a render texture bottom-left, so the
+scaling blit flips it. Believed right for Metal. One 15 s CLIP settles it.
+
+**Narration without a native change (`447a6265`).** The mic gate is `ptt || (intercom && vox)` and the clip is already
+fed the gated signal, so narration only needed that gate opened from its own switch. A dedicated native mode would
+need a new export from `VoiceIO.mm`, and the Mac bundle built from it is a **tracked binary** — the committed one would
+lose the symbol and the Mac app would throw. Rebuild it in the same breath or do not add the export.
+
+**Still open.** `ReplayDamageTimeline` (lost components) has tests and no callers; parts already replay as tracked
+transforms, so it looks redundant rather than missing — left alone deliberately. The aeroplane going under the terrain
+on a hillside is still unreproduced and still needs a location from Ty; my first two guesses were both wrong (see
+below). 7 pre-existing failures in the lift/slope/atmosphere classes, verified against a clean worktree at HEAD — 0 new.
+
+## Thermals were switched off worldwide, and the replay's flight path vector — Claude, 2026-11-08, lane/claude-replay-smoke, build 2026.1108.0016
+<!-- lift-dead-world fpv-replay -->
+Ty's night of testing, in the order he found them. Nothing approved by me; nothing pushed.
+
+**1. "Show lift on and no lift is shown" — the whole regional atmosphere was dead, everywhere, for about a week.**
+`configs/atmosphere/regional-atmosphere.json` still anchored two airport circles to `airport:Bench` and `airport:Mesa`
+— fields of the OLD four-airport world. The island world has neither, so `AtmosphereField`'s constructor threw
+(`unknown airport anchor`), `SessionSettings.RegionalField` **caught it**, logged a `Debug.LogWarning` no one on a
+phone can read, and flew uniform air. One stale name in one region cost the world **every thermal, all slope lift,
+lee, wave and regional wind**. The lift bubbles draw rising air, so they had nothing to draw.
+- Re-anchored to the island's own fields: **3U2** (light and variable) and **KMYL** (gusty), matched on the notes'
+  elevations. **Ty's call to move them** — one line each.
+- **Why no test caught it:** `TheRegionalConfigSaysWhatTheWorldNeeds` asserted the config *contained the text*
+  `"airport:Bench"`, which it faithfully did. It read the file and never asked the world whether that field exists.
+- New gate `RegionalAtmosphereAnchorTests`: every anchor must resolve against the shipped world, **and** the air must
+  actually rise somewhere above the 0.25 m/s `LiftBubbles.ThresholdMs`. Verified both **fail on the old config and
+  pass on the new** — a gate that passes either way is worthless.
+- Regional-atmosphere + slope/thermal classes: **11 failing before, 7 after — 4 fixed, 0 new.** The remaining 7 were
+  already failing and are the same rot: assertions written against the old world's coordinates. **Worth a pass.**
+
+**2. "I am going down and the flight path vector is going up"** — the third component in the zero-dt family, after
+the prop. The vector predicts three seconds ahead under the current acceleration, which it measured by differencing
+velocity frame to frame. A replay freezes the world, so `Time.deltaTime` is 0 and the difference was never taken:
+`_accel` kept whatever was last measured in LIVE flight — the crash — and the 40-step integration curled the
+prediction under it, up out of a descent, or into a spray of rays across the sky. A display must not measure this
+here at all: scrubbing is not a clock. New `FlightRecorder.AccelerationAt` reads it from the recording over
+RECORDED time (6 tests); `FlightReplay` hands it to the driver each frame and takes it back on exit. Plus a cap, at
+**20 g** on Ty's call (10 g was my first number, "might be too low"), and one turn of curl over the horizon.
+
+**3. OPTIONS now opens inside a replay.** The replay bar *replaced* the live column, and OPTIONS lives in that
+column — so nothing drawn over a replay could be switched off without leaving it first. It has its own slot now;
+`ApplyTimeScale` already stands aside while a replay runs, so opening it disturbs nothing.
+
+**4. Force vectors hide during a replay** rather than lie: the physics does not run, so `LastForces` is the last
+LIVE step's, and drawing it on a replayed pose hangs one instant's forces on another instant's attitude. Ty
+confirms force vectors work in live flight — his "forces have disappeared" was the lift bubbles all along.
+
+**NEEDS YOU / open:**
+- **Under the world (Ty 2026-11-08, clip IMG_3260, a hillside).** The aeroplane ends up BENEATH the terrain and the
+  camera follows it: the olive above is the hillside's underside, the jagged shapes are trees from below, the blue
+  is water seen from beneath. What he called a reflection bug is this same view.
+  **It is NOT the wreck sim.** The HUD reads `SPIN 21.4 s/turn 1 ft/s down` at THR 100% — the LIVE aircraft, still
+  being flown, after `BRANCH DAMAGE` from trees. My first two guesses (WreckSim's one-point CG clamp; debris missing
+  `WaterReflection.AircraftLayer`) are both **wrong** and are struck.
+  Ruled out by reading: the "a wall was a floor" bug is already fixed — `AirframeContact` takes the normal from
+  `WorldTerrain.ContactNormalAt` and measures depth along it, so a steep face does push horizontally.
+  **The live question:** the sim thought it was airborne and descending at 1 ft/s while visibly inside a mountain.
+  That points at `WorldTerrain.GroundHeightAt` disagreeing with the DRAWN terrain in that part of the island, rather
+  than at a contact that failed to fire — a contact failure would still have shown the aeroplane fighting the
+  surface. The 60 m `ClearAboveM` cull samples only 5 points within the airframe's own reach, which is a separate
+  thing worth measuring but cannot by itself tunnel 0.25 m/step through 60 m of margin.
+  **Next:** a headless probe that walks the island comparing `GroundHeightAt` against the terrain the renderer
+  builds, and a test that flies into a hillside and asserts the aeroplane can never finish below the ground.
+  **Needed from Ty:** roughly where — which field he left and which way he went.
+- **Still unbuilt:** the damage meshes and the crash sound inside a replay — the engine-agnostic
+  `ReplayDamageTimeline` is committed with 6 tests, the Unity wiring is not written.
+- Force vectors *true* in a replay need the aero model re-run at the replayed state.
+- TestFlight: "Notify Testers" on 2026.1106.0703 still unclicked (the auto-mode classifier refused the click);
+  the public link is **full at 5 of 5** and people are bouncing off it.
+- Great Lakes front-eye clearance gate still **RED** and still held, untouched.
+
+## NEEDS YOU — replay damage timing (Ty pt1001) — Claude, 2026-11-07, lane/claude-replay-smoke, build 2026.1107.1346
+<!-- replay-damage-t1001 needs-you -->
+Your 0822 report: smoke 2-button manual / as-flown **PASS**, but "replay starts with the wings missing" from a crash that
+happens later in the clip. That is repaired. Nothing approved by me. Built, signed and verified; **install pending** — the phone was unreachable at 13:52 PST
+(`CoreDeviceError 4016`: core device services / power assertion unavailable, i.e. locked or off the network). Unlock it on
+wifi and I install in place, no uninstall.
+- **Mechanism (measured, not assumed):** a break does not hide a mesh, it *cuts the part out of the aeroplane's meshes*
+  onto a separate debris object posed where the aeroplane was at that instant. The replay re-posed only the aeroplane, so
+  every replayed frame drew the aeroplane already cut, with the wings lying where they finally fell. There was no "when"
+  anywhere in the system — the damage was a property of the meshes, not of the timeline.
+- **Fix:** each part that comes off is registered at the moment it detaches, *before it moves*, with its pose relative to
+  the aeroplane at that instant (`ReplayActors.RegisterAirframePart`). New engine-side `ReplayPartTimeline` carries a break
+  clock: before `BreakT` the part rides the replayed aeroplane at that relative pose, from `BreakT` on it plays its own
+  recorded poses. Children are posed after their parents (depth sort), so a bent panel on a detached wing follows it.
+  Leaving the replay restores the live wreck exactly as it was (`SaveLiveParts` / `RestoreLiveParts`).
+- **Exact build:** source **2da71c6e** = the qualified 0822 candidate **32cba93b** with this repair
+  cherry-picked on, nothing else; clean worktree, branch `lane/claude-replay-damage-t1001-candidate`.
+  Built **`FLYINGGAME_TF_SLIM=1`**, same packaging as the 0822 you are running, so the fleet and the smoke
+  behaviour are a like-for-like comparison. All 7 repair files are byte-identical to the tree the full suite ran on.
+  Version **2026.1107.1346** / build 202611071346, bundle `com.tyrelfrisby.aeroplayground`, **3.60 GB** (the non-slim build of the same source was 4.2 GB — over TestFlight's limit).
+  `** BUILD SUCCEEDED **`, 0 `error CS`, 0 Unity errors. `codesign --verify --deep --strict`: valid on disk,
+  satisfies its Designated Requirement; Authority *Apple Development: SAMUEL TYREL FRISBY (3X7KU2BKP5)*, team DH425V439F;
+  profile *iOS Team Provisioning Profile: \** expires 2027-04-28 and covers your iPhone (5 devices).
+  Executable sha256 `8abe70febd398a5a188a96b2271fe530a6462afa1dc4c04a13155ac1ea7a6058`, UnityFramework sha256 `12a5e045f4a48328b098a0355911befe6c92c87bc653400764cee068500085ac`.
+- **Please test (the replay, in this order):**
+  1. Fly the Pitts intact, **crash later in the clip**, then replay from the start: it must start **intact**, and the wings
+     must come off **only at the moment they came off when you flew it** — not before.
+  2. Seek forward past the break, back before it, forward again: the aeroplane must be whole before the break every time
+     (verified 0-pixel on the bench, but your hands are the test).
+  3. Restart the replay; save / export a clip and play it back; use the clip camera.
+  4. Start recording from an **already damaged** aeroplane: it must stay damaged for the whole replay.
+  5. Leave the replay: you must get the live wreck back, in the state you left it.
+  6. **Smoke 2-button manual / as-flown must still pass** — that was your 0822 PASS and it is the thing I could break.
+- **Residuals I measured rather than claim perfect** (both inspected, neither a fault):
+  - Return-to-live differs by 9 px of 1,024,000, max **2/255**, one pixel above 1/255 — MSAA dither. The authoritative
+    transform check reads 0.000 m / 0.00 deg off.
+  - Pre-break vs a truly intact reference: 352 px differ at all, 6 above 8/255, forming a **one-pixel band across 415
+    columns spanning both wings** — the cut seam in the mesh, not a misplaced part.
+- **Known unfixed:** the Great Lakes front-eye clearance gate is still **RED** (`GL3c_Coaming_Padding` 6.7 cm
+  aft-below the eye, 7 % of rays inside 12 cm) and remains unresolved. The approved 4 in aft / 2 in down move is
+  **held OUT of this build**, as the handoff requires: the front eye here is still the old
+  `[-1.193, 0.0, -0.293]`, and the moved value lives on lane/claude-shared-instruments-t985 (d6412b2d), which is
+  not an ancestor of this candidate. So there is nothing to judge on the phone for the Great Lakes cockpit in
+  2026.1107.1346 — that review needs a build that carries the cockpit lane.
+- **Not in this build:** reflection viewport, Pitts wake, altimeter knob proximity, Cub tube ends, cloud zenith streaks,
+  float spray, future W&B. Deliberately one small repair, not a bundle.
+- **Tests:** the full suite ran on the **exact delivered SHA** (2da71c6e): 3368 passed / **139 failed** /
+  5 skipped / 3512 total in 111.6 min. Compared test-by-test against the qualified 0822 run's own trx
+  (3364 / 139 / 5, 111.4 min), the delivered tree is a **strict superset**:
+  **4 tests added, all passed** (`ReplayPartTimelineTests`); **0 removed**; and across all 3508 tests the two
+  runs share, **0 changed outcome** — not one pass became a failure or the reverse. The 139 are the same 139
+  names, all pre-existing terrain/atmosphere classes, which is the suite's documented global coupling and not
+  anything this repair touches. The 139 are NOT a green suite and NOT a blanket exemption for future branches.
+  Focused replay tests on the delivered tree: **18/18 passed**.
+<!-- /replay-damage-t1001 needs-you -->
 ## NEEDS YOU — Pitts spin Q007 reopened (t918u): the wakes, not the gyro (Claude, 2026-11-06, lane/claude-q007-pitts-spin-t918)
 <!-- q007-t918 needs-you -->
 Your t918u on 0703: "upright spin is still too flat and difficult recover … inverted (right right is too nose low and too easy

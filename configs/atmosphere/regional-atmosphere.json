@@ -83,8 +83,8 @@
     },
     {
       "id": "airport2-variable",
-      "note": "Airport 2 (Bench, 3,000 ft): light and variable — about 5 kt, the direction wandering all the way round.",
-      "shape": "circle", "anchor": "airport:Bench", "radiusM": 1400, "blendM": 700, "ceilingM": 600, "ceilingBlendM": 300,
+      "note": "Johnson Creek (3U2, 4,950 ft): light and variable \u2014 about 5 kt, the direction wandering all the way round. Was the old world's Airport 2 (Bench); re-anchored to the island's backcountry strip 2026-11-08.",
+      "shape": "circle", "anchor": "airport:3U2", "radiusM": 1400, "blendM": 700, "ceilingM": 600, "ceilingBlendM": 300,
       "isaDeviationC": 2, "roughnessM": 0.03, "turbulenceScale": 0.5, "thermalScale": 1.0,
       "wind": {
         "mode": "variable", "speedKt": 5, "speedJitterKt": 0.8, "fromDeg": 90,
@@ -94,8 +94,8 @@
     },
     {
       "id": "airport3-gusty",
-      "note": "Airport 3 (Mesa, 5,000 ft): 060 at 5 kt gusting 15 — a steady direction, random 1-cosine gusts.",
-      "shape": "circle", "anchor": "airport:Mesa", "radiusM": 1400, "blendM": 700, "ceilingM": 600, "ceilingBlendM": 300,
+      "note": "McCall (KMYL, 5,020 ft): 060 at 5 kt gusting 15 \u2014 a steady direction, random 1-cosine gusts. Was the old world's Airport 3 (Mesa); re-anchored 2026-11-08.",
+      "shape": "circle", "anchor": "airport:KMYL", "radiusM": 1400, "blendM": 700, "ceilingM": 600, "ceilingBlendM": 300,
       "isaDeviationC": 4, "roughnessM": 0.05, "turbulenceScale": 1.0, "thermalScale": 1.0,
       "wind": {
         "mode": "gusty", "fromDeg": 60, "speedKt": 5, "gustPeakKt": 15,
@@ -176,8 +176,8 @@
     "blendWidthM": 600
   },
   "convection": {
-    "backgroundUpdraftMs": 1.0,
-    "cellSizeM": 700,
+    "backgroundUpdraftMs": 0.75,
+    "cellSizeM": 350,
     "gridM": 100
   }
 }

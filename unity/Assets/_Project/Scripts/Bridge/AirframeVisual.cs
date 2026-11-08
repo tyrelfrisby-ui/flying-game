@@ -116,12 +116,18 @@ namespace FlyingGame.Bridge
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
             var acp = _driver.Sim.Aircraft;
             float rpm = DebugRpm ?? (acp.EngineStopped ? 0f : (float)acp.EngineRpm);
+            // A replay holds the world still with Time.timeScale = 0, so Time.deltaTime is ZERO on every replayed
+            // frame and the blade angle could not advance whatever the rpm said — the prop stood still even once the
+            // recorded rpm was handed back (Ty 2026-11-07, twice). The propeller is drawn, not simulated, so it turns
+            // on unscaled time while a replay is on screen. Everything else here stays on scaled time deliberately:
+            // the deflections and the rig are SET from the replayed frame, not integrated, so they need no dt at all.
+            float propDt = SessionSettings.ReplayActive ? Time.unscaledDeltaTime : Time.deltaTime;
             _builder.SpinProps(i =>
             {
                 var eng = acp.Config.Engines;
                 if (eng == null || i >= eng.Count) return rpm;
                 return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
-            }, Time.deltaTime);
+            }, propDt);
             float propR0 = acp.Config.Propulsion != null ? (float)(0.5 * acp.Config.Propulsion.PropDiameterM) : 0f;
             if (_bladeLook == null || _bladeLook.Length != acp.PropBladeCount) _bladeLook = new AirframeBuilder.PropBladeLook[acp.PropBladeCount];
             _builder.DamageBlades(i =>
@@ -426,6 +432,15 @@ namespace FlyingGame.Bridge
         /// <returns>The debris object (a <see cref="WingDebris"/>), or null when nothing visible left.</returns>
         public GameObject DetachComponent(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
         {
+            // In the replay the piece rides on the aeroplane until this moment (Ty pt1001: the replay began with the parts
+            // already gone). Its origin is the aeroplane at the break, so it is registered where it is made, before it moves.
+            GameObject d = DetachComponentNow(comp, worldVelocityUnity);
+            ReplayActors.RegisterAirframePart(d, transform);
+            return d;
+        }
+
+        private GameObject DetachComponentNow(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
+        {
             _componentsDetached = true;
             if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return null; }
             // A wing panel that was bent first: its pieces are already on their own pivot — that pivot is the debris.
@@ -463,15 +478,23 @@ namespace FlyingGame.Bridge
         /// nose follows the droop back up when an elastic flex comes off.</summary>
         public void ShowFuselageBend(FlyingGame.Core.FuselageCrush crush, AircraftConfig cfg, double noseRad)
         {
-            if (_builder == null || cfg == null || crush == null) return;
+            if (crush == null) return;
+            ShowFuselageBend(crush.TailBendPitchRad, crush.TailBendYawRad, cfg, noseRad);
+        }
+
+        /// <summary>The same from the two boom angles alone, so a replay can draw the shape the RECORDING holds rather
+        /// than the live airframe's (FlightReplay.Shapes). These two and noseRad are everything this draws from.</summary>
+        public void ShowFuselageBend(double tailBendPitchRad, double tailBendYawRad, AircraftConfig cfg, double noseRad)
+        {
+            if (_builder == null || cfg == null) return;
             (double noseCut, double tailCut) = FlyingGame.Core.AirframeContact.FuselageStations(cfg);
             const float Deg = (float)(180.0 / System.Math.PI);
-            if (System.Math.Abs(crush.TailBendPitchRad) + System.Math.Abs(crush.TailBendYawRad) > 0.003
+            if (System.Math.Abs(tailBendPitchRad) + System.Math.Abs(tailBendYawRad) > 0.003
                 && !(_driver?.Sim?.Aircraft?.LostComponents.Contains(FlyingGame.Core.AirframeComponent.TailBoom) ?? true))
             {
                 Transform t = BendPivot(FlyingGame.Core.AirframeComponent.TailBoom, tailCut, cfg);
                 // Root-local x = sim y, y = up, z = sim x: the tail (toward −z) goes up for + about +x, right for − about +y.
-                if (t != null) t.localRotation = Quaternion.AngleAxis(-(float)crush.TailBendYawRad * Deg, Vector3.up) * Quaternion.AngleAxis((float)crush.TailBendPitchRad * Deg, Vector3.right);
+                if (t != null) t.localRotation = Quaternion.AngleAxis(-(float)tailBendYawRad * Deg, Vector3.up) * Quaternion.AngleAxis((float)tailBendPitchRad * Deg, Vector3.right);
             }
             bool nosePivot = _bentPanels.TryGetValue(FlyingGame.Core.AirframeComponent.Nose, out Transform np) && np != null;
             if ((System.Math.Abs(noseRad) > 0.003 || nosePivot)
@@ -498,6 +521,7 @@ namespace FlyingGame.Bridge
             cut.transform.SetParent(pivot, true);
             _bentPanels[comp] = pivot;
             _fuselageBent = true;
+            ReplayActors.RegisterAirframePart(pivot.gameObject, transform);   // straight in the replay until the bend (Ty pt1001)
             return pivot;
         }
 
@@ -1062,7 +1086,10 @@ namespace FlyingGame.Bridge
         {
             if (_wingsDetached) return (null, null);
             _wingsDetached = true;
-            return DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity);
+            var (l, r) = DetachWingsStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, worldVelocityUnity);
+            ReplayActors.RegisterAirframePart(l, transform);   // on the aeroplane in the replay until now (Ty pt1001)
+            ReplayActors.RegisterAirframePart(r, transform);
+            return (l, r);
         }
 
         /// <summary><see cref="DetachWings"/> for any AirframeBuilder-built airframe (the editor's DebrisPaintCheck too).

@@ -67,6 +67,13 @@ namespace FlyingGame.Bridge
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
             "dc3-like", "hughes-h4-like", "pa18-cub-like", "dhc2-beaver-like", "dhc2-beaver-floats-like", "decathlon-8kcab-like",
         };
+        // What the button and the number keys actually cycle: Fleet, except in the TestFlight slim package (FG_TF_SLIM,
+        // FlyingGame.Core.TestFlightFleet), which ships only its own six types.
+#if FG_TF_SLIM
+        private static readonly string[] Cycle = System.Linq.Enumerable.ToArray(FlyingGame.Core.TestFlightFleet.Listed);
+#else
+        private static readonly string[] Cycle = Fleet;
+#endif
 
         private FlightSimDriver _driver;
 
@@ -930,9 +937,9 @@ namespace FlyingGame.Bridge
             if (Input.GetKey(KeyCode.B)) _brakeHeld = true;
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
             if (Input.GetKeyDown(KeyCode.E) && MenuHandleAvailable) MenuPullHandle();   // the handle: bail out (eject / BRS where fitted) — one press (Ty 2026-11-05)
-            for (int i = 0; i < Fleet.Length && i < 10; i++)
+            for (int i = 0; i < Cycle.Length && i < 10; i++)
             {
-                if (Input.GetKeyDown(KeyCode.Alpha1 + i)) _driver.SwitchAircraft(Fleet[i]);
+                if (Input.GetKeyDown(KeyCode.Alpha1 + i)) _driver.SwitchAircraft(Cycle[i]);
             }
         }
 
@@ -992,8 +999,23 @@ namespace FlyingGame.Bridge
             // A hand in the headset on the cockpit's stick is never "let go"; feet on the rudder pedals hold the rudder,
             // and the pedals' rudder adds to the hand's (PedalBlend).
             double rudderIn = FlyingGame.Core.PedalBlend.Rudder(_rudder, pedals);
-            _driver.Inputs = PilotControls.Compose(_aileron, _elevator, rudderIn, _aileronTrim * TrimAuthority, trim, _rudderTrim * TrimAuthority,
-                lever, _rightFinger != int.MinValue || _vrStickHeld, _leftFinger != int.MinValue || pedals.Active,
+            // Tilt flies the three flight axes when it is on, and nothing else: the throttle, flaps, gear, spoiler and
+            // water rudder below are untouched (Ty 2026-11-08). The pads keep their AUTHORITY — a finger on a pad still
+            // adds to the tilt — so a pilot can hold the phone level and fly the rudder with his thumb.
+            double aileronIn = _aileron, elevatorIn = _elevator;
+            bool tilting = TiltSteering.TryAxes(out double tAil, out double tEle, out double tRud);
+            if (tilting)
+            {
+                aileronIn = System.Math.Clamp(aileronIn + tAil, -1.0, 1.0);
+                elevatorIn = System.Math.Clamp(elevatorIn + tEle, -1.0, 1.0);
+                if (TiltSteering.RudderFromYaw) rudderIn = System.Math.Clamp(rudderIn + tRud, -1.0, 1.0);
+            }
+            // Hands are ON while tilting, whatever the pads say. Otherwise a reversible aeroplane would let its
+            // surfaces trail (PilotControls' rightFree/leftFree) the moment the pilot lifted his thumbs — which with
+            // tilt is the normal way to fly it.
+            _driver.Inputs = PilotControls.Compose(aileronIn, elevatorIn, rudderIn, _aileronTrim * TrimAuthority, trim, _rudderTrim * TrimAuthority,
+                lever, tilting || _rightFinger != int.MinValue || _vrStickHeld,
+                tilting || _leftFinger != int.MinValue || pedals.Active,
                 GamepadInput.Now.Connected, SessionSettings.GamepadStickFree);
         }
 
@@ -1204,8 +1226,8 @@ namespace FlyingGame.Bridge
 
         private void CycleAircraft()
         {
-            int idx = System.Array.IndexOf(Fleet, _driver.AircraftId);
-            _driver.SwitchAircraft(Fleet[(idx + 1 + Fleet.Length) % Fleet.Length]);
+            int idx = System.Array.IndexOf(Cycle, _driver.AircraftId);
+            _driver.SwitchAircraft(Cycle[(idx + 1 + Cycle.Length) % Cycle.Length]);
         }
 
         // ---- rendering (display only) ----------------------------------------
@@ -1806,7 +1828,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * ScreenLayout.FontFrac);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * ScreenLayout.FontFrac);
             if (_solidTex != null && fs == _styleFs) return;
             _styleFs = fs;
 

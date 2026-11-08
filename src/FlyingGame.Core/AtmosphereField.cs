@@ -139,7 +139,9 @@ public sealed class AtmosphereField
 
     public AtmosphereField(AtmosphereFieldConfig config)
     {
-        Config = config;
+                // One surface-layer depth for the whole world, whichever wind path is flying (Atmosphere.NoThroughFlow).
+        Atmosphere.SurfaceLayerM = config.SurfaceLayerM;
+Config = config;
         _ground = GroundAt;
         SynopticFromRad = config.Synoptic.WindFromDeg * System.Math.PI / 180;
         SynopticSpeedMs = config.Synoptic.WindSpeedKt * KtToMs;
@@ -177,6 +179,20 @@ public sealed class AtmosphereField
     // =============================================================================================================
     // Shapes
     // =============================================================================================================
+
+    /// <summary>
+    /// How much of a vertical wind survives at <paramref name="agl"/> metres above the ground. Zero at the surface,
+    /// one above the surface layer.
+    ///
+    /// This is the no-through-flow condition at a solid boundary, and it is physics, not taste: air cannot come out of
+    /// the earth. A thermal or a ridge gets its vertical speed from air driven ALONG the surface and then turned
+    /// upward, so the vertical component has to grow with height rather than arrive full-strength at ground level
+    /// (Ty 2026-11-08, on final at 3U2 in a J-3: "they were so strong that my j3 rose several hundred feet from nearly
+    /// touching down"). Lenschow's mixed-layer profile, which the convective updraught uses, is not valid down here —
+    /// its cube root still has more than half the peak updraught only 10 m above the grass.
+    /// </summary>
+    public static double VerticalGroundTaper(double agl, double surfaceLayerM) =>
+        surfaceLayerM <= 1e-6 ? 1.0 : Smootherstep(agl / surfaceLayerM);
 
     /// <summary>C2 smootherstep on [0, 1], clamped: 0 → 0, 1 → 1, monotonic, zero slope and curvature at both ends.</summary>
     public static double Smootherstep(double t)
@@ -811,8 +827,17 @@ public sealed class AtmosphereField
         LakeSmoothingConfig lc = Config.LakeSmoothing;
         double roughness = mRough * (1.0 - lakeW * (1.0 - lc.Factor));
         Orography.Result oro = Orography.Evaluate(_ground, pos, windH, Config.Orography, air.OroScale, air.LapseKPerM, tK0, z => ProfileFactor(z, exp, gh), roughness);
-        Vec3 mean = windH * (1 + oro.SpeedUp) + oro.Rotor;
-        double w = oro.SlopeLiftMs + oro.LeeMs + oro.WaveMs + air.BackgroundW;
+        // Nothing vertical survives at the ground: see VerticalGroundTaper. Applied to the components rather than the
+        // sum so that what the sample REPORTS (and the lift markers draw) is the air the aeroplane actually flies in.
+        double taper = VerticalGroundTaper(agl, Config.SurfaceLayerM);
+        // The lee rotor keeps its HORIZONTAL sweep right down to the grass — air running back along the surface under
+        // the eddy is real, and is why a rotor's low-level wind can be reversed — but no-through-flow binds the normal
+        // component only, so just its vertical part goes. Found by the gate: an untapered rotor was driving 10 m/s
+        // straight up out of the ground at (7000, -4000).
+        Vec3 rotor = new(oro.Rotor.X, oro.Rotor.Y, oro.Rotor.Z * taper);
+        Vec3 mean = windH * (1 + oro.SpeedUp) + rotor;
+        double slopeW = oro.SlopeLiftMs * taper, leeW = oro.LeeMs * taper, waveW = oro.WaveMs * taper;
+        double w = slopeW + leeW + waveW + air.BackgroundW * taper;
 
         // Sun on the ground: background convection, cellular over hot ground, gentle sink over cold.
         double heat = HeatingAt(pos.X, pos.Y);
@@ -830,6 +855,7 @@ public sealed class AtmosphereField
             }
             else conv = 0.5 * Config.Convection.BackgroundUpdraftMs * air.ThermalScale * ConvectionScale * heat * prof;
         }
+        conv *= taper;   // the convective updraught too: the grass is a boundary, not a vent
         w += conv;
         mean += new Vec3(0, 0, -w);
 
@@ -866,8 +892,8 @@ public sealed class AtmosphereField
             Atmosphere.SeaLevelPressurePa + air.QnhOffPa * keep);
         return new AtmosphereSample(mean * keep, gust * keep, tK, pPa, rho, da, Atmosphere.SeaLevelPressurePa + air.QnhOffPa * keep, air.IsaDevK * keep,
             sigH * keep, sigV * keep, lh, lv, air.ThermalScale * keep, calm,
-            oro.SpeedUp * keep, oro.SlopeLiftMs * keep, oro.LeeMs * keep, oro.WaveMs * keep, conv * keep, heat, air.GustInc10.Length * profile * keep, air.Id,
-            sOro * keep, oro.RotorMs * keep, roughness, lakeW);
+            oro.SpeedUp * keep, slopeW * keep, leeW * keep, waveW * keep, conv * keep, heat, air.GustInc10.Length * profile * keep, air.Id,
+            sOro * keep, rotor.Length * keep, roughness, lakeW);
     }
 
     /// <summary>The wind the frozen turbulence drifts with: the synoptic wind near gradient height (one vector for the

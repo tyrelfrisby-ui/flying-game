@@ -99,7 +99,24 @@ namespace FlyingGame.EditorTools
                 options = BuildOptions.None,
             };
 
-            BuildReport report = BuildPipeline.BuildPlayer(options);
+            // THE TESTFLIGHT SLIM PACKAGE (Ty 2026-11-05), opt-in: FLYINGGAME_TF_SLIM=1. A normal build only makes sure
+            // no earlier slim build left models held out (RestoreHeldModels), and is otherwise untouched.
+            bool slim = System.Environment.GetEnvironmentVariable(FlyingGame.Core.TestFlightFleet.EnvVar) == "1";
+            RestoreHeldModels();
+            BuildReport report;
+            try
+            {
+                if (slim)
+                {
+                    options.extraScriptingDefines = new[] { FlyingGame.Core.TestFlightFleet.Define };
+                    HoldOutUnlistedModels();
+                }
+                report = BuildPipeline.BuildPlayer(options);
+            }
+            finally
+            {
+                if (slim) RestoreHeldModels();
+            }
             BuildSummary summary = report.summary;
             if (summary.result == BuildResult.Succeeded)
             {
@@ -114,6 +131,50 @@ namespace FlyingGame.EditorTools
                     EditorApplication.Exit(1);
                 }
             }
+        }
+
+        // ---- TestFlight slim package (FlyingGame.Core.TestFlightFleet) ------------------------------------------------
+        // Everything in a Resources folder ships, used or not, so leaving a type out of the package means taking its
+        // Resources/Models/<id> folder out of Resources for the length of the player build. AssetDatabase.MoveAsset keeps
+        // GUIDs, metas and imports, so nothing re-imports and the tree comes back byte-identical; the folders wait in
+        // SlimHoldDir, which is under no Resources folder and referenced by nothing, so the player build skips them.
+        // Nothing is deleted. If a build dies between the two moves, the next iOS build (slim or not) puts them back first.
+        private const string ModelsDir = "Assets/_Project/Resources/Models";
+        private const string SlimHoldDir = "Assets/_Project/TfSlimHold";
+
+        private static void HoldOutUnlistedModels()
+        {
+            if (!AssetDatabase.IsValidFolder(SlimHoldDir)) AssetDatabase.CreateFolder("Assets/_Project", "TfSlimHold");
+            var kept = new System.Collections.Generic.List<string>();
+            var held = new System.Collections.Generic.List<string>();
+            foreach (string dir in AssetDatabase.GetSubFolders(ModelsDir))
+            {
+                string name = Path.GetFileName(dir);
+                if (FlyingGame.Core.TestFlightFleet.KeepsModelFolder(name)) { kept.Add(name); continue; }
+                string err = AssetDatabase.MoveAsset(dir, SlimHoldDir + "/" + name);
+                if (!string.IsNullOrEmpty(err)) throw new BuildFailedException($"[TF slim] could not hold out {dir}: {err}");
+                held.Add(name);
+            }
+            foreach (string id in FlyingGame.Core.TestFlightFleet.Listed)
+                if (!kept.Contains(id)) throw new BuildFailedException($"[TF slim] listed type {id} has no {ModelsDir}/{id}");
+            Debug.Log($"[TF slim] define {FlyingGame.Core.TestFlightFleet.Define}; ships Models/ {string.Join(", ", kept)}");
+            Debug.Log($"[TF slim] held out of the build ({held.Count}): {string.Join(", ", held)}");
+        }
+
+        private static void RestoreHeldModels()
+        {
+            if (!AssetDatabase.IsValidFolder(SlimHoldDir)) return;
+            int back = 0;
+            foreach (string dir in AssetDatabase.GetSubFolders(SlimHoldDir))
+            {
+                string to = ModelsDir + "/" + Path.GetFileName(dir);
+                string err = AssetDatabase.MoveAsset(dir, to);
+                if (string.IsNullOrEmpty(err)) back++;
+                else Debug.LogError($"[TF slim] could not restore {dir} -> {to}: {err}");
+            }
+            if (AssetDatabase.GetSubFolders(SlimHoldDir).Length == 0) AssetDatabase.DeleteAsset(SlimHoldDir);
+            else Debug.LogError($"[TF slim] {SlimHoldDir} still holds folders; move them back to {ModelsDir} by hand");
+            Debug.Log($"[TF slim] restored {back} model folder(s) to {ModelsDir}");
         }
 
         /// <summary>

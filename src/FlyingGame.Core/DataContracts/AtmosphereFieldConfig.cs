@@ -11,6 +11,12 @@ namespace FlyingGame.Core.DataContracts;
 /// </summary>
 public sealed class AtmosphereFieldConfig
 {
+    /// <summary>Depth of the surface layer (m): the height over which a vertical wind builds from nothing at the
+    /// ground to its full value above. Air cannot come out of the earth — rising air gets its vertical speed by being
+    /// pushed ALONG the surface and then up — so every updraught and every downdraught is faded to zero at the ground
+    /// across this depth (Ty 2026-11-08, on final at 3U2). 50 m leaves a ridge soarable at soaring height while a
+    /// flare is unaffected: ~6 % of the lift survives 10 m up, ~68 % at 30 m.</summary>
+    public double SurfaceLayerM { get; set; } = 50.0;
     public int SchemaVersion { get; set; } = 1;
     public string Id { get; set; } = "regional-atmosphere";
     /// <summary>The air mass the whole map sits in. The session menu's wind and hot/cold day overwrite these.</summary>

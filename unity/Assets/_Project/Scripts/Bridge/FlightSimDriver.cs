@@ -104,6 +104,24 @@ namespace FlyingGame.Bridge
         /// camera follows THIS, so a steady crosswind crab does not read as a yaw — only real sideslip does.</summary>
         public Vector3 AirVelocityUnity { get; private set; }
 
+        /// <summary>
+        /// While a replay is on screen: the aeroplane's acceleration at the play head, read out of the RECORDING
+        /// (Unity axes, m/s^2). Null in live flight, where a display differences what it sees. A replay freezes the
+        /// world, so nothing that differences frame to frame can measure an acceleration at all — see
+        /// <see cref="FlyingGame.Sim.Replay.FlightRecorder.AccelerationAt"/> (Ty 2026-11-08).
+        /// </summary>
+        public Vector3? ReplayAccelUnity { get; set; }
+
+        /// <summary>Set by a replay: the forces recomputed at the frame being shown (null while flying, when the live
+        /// step's own capture is the right answer). The physics does not run during a replay, so Aircraft.LastForces
+        /// belongs to whichever instant the replay was entered on.</summary>
+        public System.Collections.Generic.List<FlyingGame.Core.Aero.ForceSample> ReplayForces { get; set; }
+
+        /// <summary>Set by a replay: the shape the airframe was in at the frame being shown — panel sets, tail bend,
+        /// fuselage crush, engine droop (null while flying). Without it the damage visuals read the LIVE airframe,
+        /// which after a crash is bent for the whole playback.</summary>
+        public FlyingGame.Sim.Replay.AirframeShape? ReplayShape { get; set; }
+
         // Shared telemetry (audio / structure / HUD / net). Safe before Spawn: null Sim → neutral values.
         public double LoadFactorG => Sim?.Aircraft?.LoadFactorZ ?? 1.0;
         public double Throttle01 => Sim?.Aircraft?.Throttle01 ?? 0.0;
@@ -497,6 +515,11 @@ namespace FlyingGame.Bridge
 
         public void SwitchAircraft(string id)
         {
+#if FG_TF_SLIM
+            // The TestFlight slim package ships only FlyingGame.Core.TestFlightFleet's types (KeyboardTestControls still
+            // names the others); an unlisted one is ignored rather than flown without its model.
+            if (!FlyingGame.Core.TestFlightFleet.IsListed(id)) { Debug.Log($"[TF slim] {id} is not in this package"); return; }
+#endif
             AircraftId = id;
             ResetFlight();
         }

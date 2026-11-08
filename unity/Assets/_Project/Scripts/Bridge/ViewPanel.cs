@@ -31,7 +31,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.026f);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * 0.026f);
             if (_btn != null && fs == _fs) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.05f, 0.08f, 0.12f, 0.92f));
@@ -134,12 +134,17 @@ namespace FlyingGame.Bridge
             if (UiLayout.Button(UiLayout.ToolbarSlot(6, n), "CHART", ChartPanel.IsOpen ? _btnOn : _btn))
             { ChartPanel.Toggle(); Options?.Close(); Widget.GameAeroPanel.Close(); }
             if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(7, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
-            // Radio push-to-talk (multiplayer): a text-stack block, so it never lands on a dial or a line.
+            // Radio push-to-talk (multiplayer), bottom left (Ty 2026-11-08: "The radio is annoying just move the PTT
+            // button to the bottom left of the screen and label it PTT"). It was a centred text-stack block, which put
+            // a two-line HOLD TO TALK sign straight across the aeroplane. It sits just ABOVE the control tray rather
+            // than in the corner proper: the corner is the rudder/throttle pad, and a transmit button over the rudder
+            // is worse than one that is slightly higher up.
             if (VoiceComms.RadioAvailable)
             {
-                Rect blk = UiLayout.NextBlock(UiLayout.ButtonH * 1.4f);
-                _talkRect = new Rect(blk.center.x - UiLayout.S * 0.14f, blk.y, UiLayout.S * 0.28f, blk.height);
-                GUI.Box(_talkRect, VoiceComms.PttHeld ? $"TRANSMITTING\n{VoiceComms.Frequency}" : $"HOLD TO TALK\n{VoiceComms.Frequency}", VoiceComms.PttHeld ? _btnRec : _btn);
+                float pw = UiLayout.S * 0.15f, ph = UiLayout.ButtonH * 1.2f;
+                float trayTop = Mathf.Min(UiLayout.BottomLimit, Screen.height - UiLayout.SafeBottom);
+                _talkRect = new Rect(UiLayout.SafeLeft + UiLayout.Margin, trayTop - ph - UiLayout.Gap, pw, ph);
+                GUI.Box(_talkRect, "PTT", VoiceComms.PttHeld ? _btnRec : _btn);
             }
             else _talkRect = default;
             string radio = VoiceComms.MicProblem ?? (VoiceComms.Receiving != null ? $"RADIO: {VoiceComms.Receiving}" : null);
@@ -254,6 +259,14 @@ namespace FlyingGame.Bridge
                 if (UiLayout.Button(new Rect(x0, row, cell * 3f, b), "RECENTRE", _btn)) _cockpit.Centre();
                 row += b + m * 0.3f;
             }
+            else if (TiltSteering.Enabled)
+            {
+                // Tilt has the phone, so the view is looked around with the pad above — which is always drawn — and
+                // this takes the place of the device RECENTRE: it re-zeroes the STICK against however the phone is
+                // being held now, which is what a pilot needs after shifting his grip (Ty 2026-11-08).
+                if (UiLayout.Button(new Rect(x0, row, cell * 3f, b), "CENTRE TILT", _btn)) TiltSteering.Centre();
+                row += b + m * 0.3f;
+            }
 
             // The seat, when the aeroplane has more than one authored.
             if (_cockpit.SeatCount > 1 &&
@@ -324,7 +337,7 @@ namespace FlyingGame.Bridge
             float s = Mathf.Min(Screen.width, Screen.height);
             bool portrait = ScreenLayout.Portrait;
             float gap = s * 0.015f;
-            int perRow = portrait ? 5 : 10;   // (10 slots: the manual SMOKE switch keeps its own, so nothing moves when it appears)
+            int perRow = portrait ? 6 : 11;   // (the manual SMOKE switch keeps its own slot, so nothing moves when it appears)
             int rows = portrait ? 2 : 1;
             float bh = s * (portrait ? 0.085f : 0.07f);
             float trackH = s * 0.05f, labelH = _fs * 1.6f;
@@ -385,6 +398,12 @@ namespace FlyingGame.Bridge
             }
             if (portrait && UiLayout.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
             if (UiLayout.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
+            // OPTIONS, from inside the replay (Ty 2026-11-08: "i don't see a way to deselect it either … we really need
+            // every option available and functioning correctly in replay so we can turn on/off anything"). The replay bar
+            // used to REPLACE the live column, which is where OPTIONS lives, so a flight path vector or a cloud of
+            // bubbles could not be turned off without leaving the replay first. Opening it does not disturb the replay:
+            // ApplyTimeScale leaves the clock alone while one is running, and the play head runs on unscaled time.
+            if (UiLayout.Button(Next(), "OPTIONS", Options != null && Options.IsOpen ? _btnOn : _btn)) Options?.Toggle();
             if (UiLayout.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool recOn = ClipRecorder.Recording;
             if (UiLayout.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();

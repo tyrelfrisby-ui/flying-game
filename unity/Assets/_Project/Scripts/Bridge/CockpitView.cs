@@ -126,8 +126,11 @@ namespace FlyingGame.Bridge
             }
         }
 
-        /// <summary>This instance's view of the setting, for the view panel.</summary>
-        public bool DeviceLook => DeviceLookEnabled;
+        /// <summary>This instance's view of the setting, for the view panel. FALSE while tilt is flying the
+        /// aeroplane: the two cannot both have the phone, or looking out of the left window would roll it left — the
+        /// failure the note below was written to prevent. The view is then looked around with the on-screen pad, the
+        /// same one that is there when move-to-look is simply switched off (Ty 2026-11-08).</summary>
+        public bool DeviceLook => DeviceLookEnabled && !TiltSteering.Enabled;
         public float DeviceGain => DeviceLookGain;
 
         /// <summary>Set by the view panel each frame while an on-screen look button is held: right and up positive.</summary>
@@ -317,7 +320,7 @@ namespace FlyingGame.Bridge
         {
             Look.DeviceGain = DeviceLookGain;
             Look.SpringCentre = SpringCentreEnabled;
-            bool want = DeviceLookEnabled;
+            bool want = DeviceLookEnabled || TiltSteering.Enabled;   // never switch it off under the other reader
             if (want == _deviceLookApplied) return;
             _deviceLookApplied = want;
             EnableDeviceAttitude(want);
@@ -349,11 +352,13 @@ namespace FlyingGame.Bridge
         /// not offer itself there.</summary>
         public static bool DeviceAttitudeAvailable => SystemInfo.supportsGyroscope;
 
-        // NOTHING ELSE IN THE GAME READS THE DEVICE'S MOTION (checked 2026-11-01: Input.gyro, Input.acceleration and
-        // the InputSystem sensors appear in this file and nowhere else), so tilting the phone moves the VIEW and
-        // only the view — there is no tilt steering for it to double-count against. If one is ever added, it must
-        // take its own reference and its own zero: feeding the same attitude to both would make looking out of the
-        // left window also roll the aeroplane left, which is the one way this feature can go badly wrong.
+        // ONE OTHER PLACE READS THE DEVICE'S MOTION: TiltSteering (Ty 2026-11-08), added under the rule this note
+        // left for it. It takes its OWN reference and its OWN zero, and the two never both apply: DeviceLook above is
+        // false while tilt is flying, so looking out of the left window cannot also roll the aeroplane left — the one
+        // way this feature can go badly wrong. Anything further that wants the device's motion joins the same terms.
+        //
+        // Each turns the sensor on for itself; Input.gyro.enabled is idempotent and neither may turn it OFF on the
+        // other's behalf, which is why the call below asks for tilt as well as for looking.
         //
         // The project is on the old input handler (ProjectSettings activeInputHandler: 0), so Input.gyro is the API.
         // Deliberately no InputSystem.AttitudeSensor branch: it would be dead code today and a compile error the day

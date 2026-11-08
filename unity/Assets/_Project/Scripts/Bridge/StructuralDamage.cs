@@ -246,6 +246,36 @@ namespace FlyingGame.Bridge
             Pops = st.Pops;
         }
 
+        /// <summary>
+        /// The airframe drawn in a shape the RECORDING holds. Each panel is shown at its recorded set by putting that
+        /// set on the panel, drawing, and putting back what was there: AirframeVisual deforms the mesh through
+        /// WingPanel.Deform, so the panel object itself has to carry the angles for one call. Nothing else reads them
+        /// in between — the sim does not step during a replay — and they are restored before anything could.
+        ///
+        /// The elastic flex is deliberately zeroed rather than recorded: it belongs to the load of the moment, is a few
+        /// milliradians, and nothing in a recorded pose can recover it.
+        /// </summary>
+        private void DrawRecordedShape(Aircraft ac, FlyingGame.Sim.Replay.AirframeShape shape)
+        {
+            var panels = ac.Panels;
+            for (int i = 0; i < panels.Count && i < shape.Panels.Length; i++)
+            {
+                FlyingGame.Core.WingPanel p = panels[i];
+                FlyingGame.Sim.Replay.PanelSet rec = shape.Panels[i];
+                if (p.Component != rec.Component) continue;   // a different airframe: say nothing rather than guess
+                double bend = p.BendRad, twist = p.TwistRad, elastic = p.ElasticRad, flex = p.FlightFlexRad;
+                FlyingGame.Core.PanelState state = p.State;
+                p.BendRad = rec.BendRad; p.TwistRad = rec.TwistRad; p.ElasticRad = 0.0; p.FlightFlexRad = 0.0;
+                p.State = rec.State;
+                // Straight panels still need the call once the meshes exist, or a bend from later in the flight stays
+                // on the model after the head is scrubbed back before it.
+                if (rec.State == FlyingGame.Core.PanelState.Bent || _visual.HasBentPanel(p.Component)) _visual.ShowPanelBend(p, ac.Config);
+                p.BendRad = bend; p.TwistRad = twist; p.ElasticRad = elastic; p.FlightFlexRad = flex; p.State = state;
+            }
+            _visual.ShowFuselageBend(shape.TailBendPitchRad, shape.TailBendYawRad, ac.Config, shape.EngineSagRad);
+            _visual.ShowTailBend(shape.TailBendRad);
+        }
+
         private void Update()
         {
             if (_driver == null || _driver.Sim == null) return;
@@ -255,11 +285,23 @@ namespace FlyingGame.Bridge
                 Repair();   // AdoptSim / spawn built a new Aircraft: intact again
             }
 
+            if (_visual == null) _visual = GetComponent<AirframeVisual>();
+            // A REPLAY draws the aeroplane of the moment being watched, not the one that limped home. Everything below
+            // reads live airframe state, which during a playback belongs to whenever the replay was entered — so after
+            // a crash the wing was bent from the first frame, before the strike that bent it (Ty 2026-11-08: "The wing
+            // tip was still bent up on replay after a wing strike so that is not fixed yet"). FlightReplay.Shapes knows
+            // when each shape was taken; draw that and leave, because the groan, the pops and the load factor below all
+            // describe a step the sim is not taking.
+            if (_driver.ReplayShape is FlyingGame.Sim.Replay.AirframeShape shape)
+            {
+                if (_visual != null) DrawRecordedShape(ac, shape);
+                return;
+            }
+
             // The wreck and the airframe's flooding, in step with the game clock.
             _relay?.Step(Time.deltaTime);
             ObserveTrees(ac);
             // Bent wing panels follow their shape: the plastic set and twist, and the elastic flex under a tip contact.
-            if (_visual == null) _visual = GetComponent<AirframeVisual>();
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)
                     if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003 || System.Math.Abs(p.FlightFlexRad) > 0.003
