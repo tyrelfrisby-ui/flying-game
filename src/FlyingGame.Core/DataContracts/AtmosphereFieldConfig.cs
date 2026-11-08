@@ -122,6 +122,9 @@ public sealed class RegionWindConfig
     public double MeanGustIntervalS { get; set; } = 18; // gusty: mean quiet time between gusts
     public double MinGustDurationS { get; set; } = 4;
     public double MaxGustDurationS { get; set; } = 10;
+    /// <summary>gusty: how wide a band the direction may wander in while gusting (deg, total). Ty 2026-11-08: "the
+    /// direction should remain within a 3 degree band". 0 pins it to FromDeg exactly, as it used to be.</summary>
+    public double DirectionBandDeg { get; set; } = 3.0;
     public double SpeedJitterKt { get; set; } = 0.8;   // variable: slow speed wander (1σ)
     public double TurnRateSigmaDegS { get; set; } = 2.5; // variable: 1σ of the direction's rate of change
     public double TurnRateMaxDegS { get; set; } = 6;   // variable: hard cap on the rate of change

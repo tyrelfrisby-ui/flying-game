@@ -87,8 +87,8 @@
       "shape": "circle", "anchor": "airport:3U2", "radiusM": 1400, "blendM": 700, "ceilingM": 600, "ceilingBlendM": 300,
       "isaDeviationC": 2, "roughnessM": 0.03, "turbulenceScale": 0.5, "thermalScale": 1.0,
       "wind": {
-        "mode": "variable", "speedKt": 5, "speedJitterKt": 0.8, "fromDeg": 90,
-        "turnRateSigmaDegS": 2.5, "turnRateMaxDegS": 6, "correlationS": 40, "seed": 2,
+        "mode": "variable", "speedKt": 5, "speedJitterKt": 0.6, "fromDeg": 90,
+        "turnRateSigmaDegS": 0.8, "turnRateMaxDegS": 2, "correlationS": 90, "seed": 2,
         "profileExponent": 0.14, "gradientHeightM": 300
       }
     },
