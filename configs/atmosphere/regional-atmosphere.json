@@ -176,8 +176,8 @@
     "blendWidthM": 600
   },
   "convection": {
-    "backgroundUpdraftMs": 1.0,
-    "cellSizeM": 700,
+    "backgroundUpdraftMs": 0.75,
+    "cellSizeM": 350,
     "gridM": 100
   }
 }
