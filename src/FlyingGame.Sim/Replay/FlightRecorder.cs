@@ -221,21 +221,28 @@ public readonly struct ReplayFrame
     /// latches on a lost nose, so a crashed aeroplane reports 0 rpm for ever and the replayed prop stood still through the
     /// whole flight (Ty 2026-11-07: "the prop is not spinning").</summary>
     public readonly double EngineRpm;
+    /// <summary>Whether the engine was MAKING POWER when recorded. The rpm alone cannot answer it — a windmilling dead
+    /// prop and a warm idle turn at much the same speed — and the replay needs the answer for the engine sound and for
+    /// the thrust vector. An older frame with no recorded value assumes it was running (<see cref="Capture"/> always
+    /// records it; only a hand-built frame can be without).</summary>
+    public readonly bool EngineRunning;
     /// <summary>Local wind (world NED) at the aircraft when recorded — the relative-wind camera and airspeed need it.</summary>
     public readonly Vec3 WindWorld;
     /// <summary>The smoke as flown (default = not recorded: an older frame).</summary>
     public readonly ReplaySmoke Smoke;
 
     public ReplayFrame(double time, RigidBodyState state, ControlDeflections deflections, double throttle01, double flapFraction,
-        double gearExtension, double loadFactorZ, Vec3 windWorld, ReplaySmoke smoke = default, double engineRpm = 0)
+        double gearExtension, double loadFactorZ, Vec3 windWorld, ReplaySmoke smoke = default, double engineRpm = 0,
+        bool engineRunning = true)
     {
         Time = time; State = state; Deflections = deflections; Throttle01 = throttle01; FlapFraction = flapFraction;
         GearExtension = gearExtension; LoadFactorZ = loadFactorZ; WindWorld = windWorld; Smoke = smoke; EngineRpm = engineRpm;
+        EngineRunning = engineRunning;
     }
 
     public static ReplayFrame Capture(double time, Aircraft a, Vec3 windWorld, ReplaySmoke smoke = default) =>
         new(time, a.State, a.CurrentDeflections, a.Throttle01, a.FlapFraction, a.GearExtension, a.LoadFactorZ, windWorld, smoke,
-            a.EngineRpm);
+            a.EngineRpm, a.EngineRunning);
 
     public void ApplyTo(Aircraft a) => a.SetReplayPose(State, Deflections, Throttle01, FlapFraction, GearExtension, LoadFactorZ);
 }

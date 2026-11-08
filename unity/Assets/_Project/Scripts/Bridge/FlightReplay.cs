@@ -391,7 +391,9 @@ namespace FlyingGame.Bridge
             if (!Active) return;
             _live.ApplyTo(Driver.Sim.Aircraft);
             Driver.Sim.Aircraft.ReplayEngineRpm = null;   // the engine is the live one's again
+            Driver.Sim.Aircraft.ReplayEngineRunning = null;
             Driver.ReplayAccelUnity = null;              // and the flight path vector measures for itself again
+            Driver.ReplayForces = null;                  // and the overlay reads the live step's capture again
             Driver.ShowReplayPose(_live.WindWorld);
             foreach (Track tr in _ordered)
             {
@@ -446,11 +448,20 @@ namespace FlyingGame.Bridge
             // The replay poses the aeroplane; it does not run its engine. Without the recorded rpm the prop stands still
             // for the whole flight, because EngineStopped latches on the nose this crash tore off (Ty 2026-11-07).
             Driver.Sim.Aircraft.ReplayEngineRpm = f.EngineRpm;
+            // Whether it was MAKING POWER as well as how fast it was turning: the rpm alone cannot tell an idle from a
+            // windmill, and the engine sound, the shaft power and the thrust vector all need the answer. Without it they
+            // asked the LIVE engine, which after a crash is stopped for the whole playback (Ty 2026-11-08: "No engine
+            // sound on replay").
+            Driver.Sim.Aircraft.ReplayEngineRunning = f.EngineRunning;
             // Likewise the acceleration: the flight path vector predicts three seconds ahead by carrying the velocity
             // forward under it, and it cannot measure one here — the world is frozen, so its own frame-to-frame
             // difference is divided by a zero dt (Ty 2026-11-08: "going down and the flight path vector is going up").
             Driver.ReplayAccelUnity = CoordinateMap.ToUnity(Recorder.AccelerationAt(Head));
             Driver.ShowReplayPose(f.WindWorld);
+            // And the forces, worked out again at THIS pose rather than kept from the last live step (Ty 2026-11-08:
+            // "Force vectors do not show even though they were on for the live flying"). Only asked for when something
+            // is going to draw them — it is a full pass of the aero model.
+            Driver.ReplayForces = SessionSettings.ShowForceVectors ? Driver.Sim.Aircraft.ForcesAtCurrentState() : null;
         }
     }
 }

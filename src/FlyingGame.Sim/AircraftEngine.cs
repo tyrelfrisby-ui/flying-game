@@ -51,8 +51,12 @@ public sealed partial class Aircraft
     private double _roughPhase;
 
     /// <summary>The engine is making power: it has a propeller, fuel, a mixture that fires and a spark (a magneto on).</summary>
-    public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0 && !_noseLost && !_mixtureDead && !_fuelStarved
-                                 && Magnetos.Fires(MagLeft, MagRight);
+    /// Whether it is making power comes from the RECORDING during a replay (<see cref="Aircraft.ReplayEngineRunning"/>):
+    /// the physics does not run, so the live magnetos and fuel state belong to some other moment — after a crash, to a
+    /// stopped engine, which silenced the whole playback. Having an engine at all is still the airframe's own question.
+    public bool EngineRunning => Config.Propulsion is not null && Config.Propulsion.MaxPowerW > 0
+                                 && (ReplayEngineRunning
+                                     ?? (!_noseLost && !_mixtureDead && !_fuelStarved && Magnetos.Fires(MagLeft, MagRight)));
 
     /// <summary>The engine has quit for want of fuel (idle cut-off, a mixture too lean to fire, or the fuel valve shut:
     /// <see cref="FuelStarved"/>). Not damage.</summary>

@@ -112,6 +112,11 @@ namespace FlyingGame.Bridge
         /// </summary>
         public Vector3? ReplayAccelUnity { get; set; }
 
+        /// <summary>Set by a replay: the forces recomputed at the frame being shown (null while flying, when the live
+        /// step's own capture is the right answer). The physics does not run during a replay, so Aircraft.LastForces
+        /// belongs to whichever instant the replay was entered on.</summary>
+        public System.Collections.Generic.List<FlyingGame.Core.Aero.ForceSample> ReplayForces { get; set; }
+
         // Shared telemetry (audio / structure / HUD / net). Safe before Spawn: null Sim → neutral values.
         public double LoadFactorG => Sim?.Aircraft?.LoadFactorZ ?? 1.0;
         public double Throttle01 => Sim?.Aircraft?.Throttle01 ?? 0.0;

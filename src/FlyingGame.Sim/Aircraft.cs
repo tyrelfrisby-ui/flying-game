@@ -357,6 +357,9 @@ public sealed partial class Aircraft
     private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
     /// <summary>The per-strip flow and damage state (tests and probes read the crash damage in it).</summary>
     public StripFlowState FlowStateForTests => _flowState;
+    /// <summary>Scratch flow state for <see cref="ForcesAtCurrentState"/>, never time-advanced: it keeps the
+    /// overlay's own aero evaluation out of the live stall memory and the unsteady lag.</summary>
+    private StripFlowState? _overlayFlow;
 
     /// <summary>External world-frame force (N) applied at ExternalForcePointBody — the aerotow rope
     /// tension, winch, etc. Set by the coupling each step; zero by default.</summary>
@@ -446,6 +449,11 @@ public sealed partial class Aircraft
     /// latches on a lost nose, so without this a replayed prop stands still for the whole flight — including the part
     /// before the crash that stopped it (Ty 2026-11-07). FlightReplay sets it each frame and clears it on exit.</summary>
     public double? ReplayEngineRpm { get; set; }
+    /// <summary>Set by a replay: whether the engine was MAKING POWER at the frame being shown, from the recording.
+    /// Null while flying. <see cref="AircraftEngine.EngineRunning"/> reads it, so the engine sound, the shaft power and
+    /// the replayed thrust all follow the flight as flown instead of the live engine's state (Ty 2026-11-08: "no engine
+    /// sound on replay" — the aeroplane had crashed, so the LIVE engine was stopped for the whole playback).</summary>
+    public bool? ReplayEngineRunning { get; set; }
 
     public void SetReplayPose(RigidBodyState state, ControlDeflections d, double throttle01, double flapFraction, double gearExtension, double loadFactorZ)
     {
@@ -1217,6 +1225,107 @@ public sealed partial class Aircraft
         Vec3 perX = Vec3.Zero;
         if (System.Math.Abs(_tailArmM) > 0.5) perX = (Wind(new Vec3(_tailArmM, 0, 0)) - windBody) / _tailArmM;
         gradient = perX.LengthSquared + perY.LengthSquared > 0 ? new WindGradient(perX, perY) : default;
+    }
+
+    /// <summary>
+    /// The forces on the aeroplane AT ITS CURRENT STATE, worked out fresh and returned, without stepping
+    /// anything. This is what a replay needs. The physics does not run while a recording is played back, so
+    /// <see cref="LastForces"/> still holds whatever the last LIVE step computed: drawing that would hang one
+    /// instant's forces on another instant's attitude, a picture that is right only on the frame the replay
+    /// was entered on.
+    ///
+    /// Only what is a PURE FUNCTION of the state is recomputed — aerodynamics, weight, thrust, the open
+    /// canopy's drag, the parachute, the tow rope. Ground contact, the landing gear and the hull in the water
+    /// are deliberately left out: their load is set by how far the integrator has pressed the airframe into
+    /// the ground or the water, which is history and not pose, so no recorded frame can recover it.
+    ///
+    /// Nothing the live sim relies on is touched. The aero model runs against a scratch flow state, sharing
+    /// the real separation memory and the real damage (it only reads those) but keeping its own coefficient
+    /// arrays, and left UNPRIMED so it returns the quasi-steady coefficients rather than the lagged ones
+    /// belonging to some other moment. Neither LastForces, LoadFactorZ nor SpecificForceBody is written.
+    /// </summary>
+    public List<ForceSample> ForcesAtCurrentState()
+    {
+        RigidBodyState s = State;
+        double airDensity;
+        Vec3 windBody, meanWindBody;
+        WindGradient windGradient = default;
+        if (Atmosphere.Field is null)
+        {
+            airDensity = Atmosphere.DensityAtAltitude(-s.Position.Z);
+            Vec3 windWorld = Atmosphere.WindAtPosition(s.Position);
+            windBody = windWorld.LengthSquared > 1e-9 ? s.Attitude.Conjugate().Rotate(windWorld) : Vec3.Zero;
+            Vec3 meanWindWorld = Atmosphere.MeanWindAtPosition(s.Position);
+            meanWindBody = meanWindWorld.LengthSquared > 1e-9 ? s.Attitude.Conjugate().Rotate(meanWindWorld) : Vec3.Zero;
+        }
+        else SampleRegionalAir(out airDensity, out windBody, out meanWindBody, out windGradient);
+
+        ControlDeflections controls = new(_aileronRad, _elevatorRad, _rudderRad, _spoilerFraction, FlapFraction, SlatFraction);
+
+        int stripCount = 0;
+        for (int i = 0; i < Config.Surfaces.Count; i++) stripCount += Config.Surfaces[i].Strips.Count;
+        _overlayFlow ??= new StripFlowState();
+        _overlayFlow.EnsureSize(stripCount);
+        // Shared because AeroModel only READS them, and the overlay should show the wing the aeroplane
+        // actually has: how far each strip has separated, and whatever the trees and the ground have torn off.
+        _overlayFlow.Separation = _flowState.Separation;
+        _overlayFlow.DeflectionOverride = _flowState.DeflectionOverride;
+        _overlayFlow.BendRad = _flowState.BendRad;
+        _overlayFlow.BendOffset = _flowState.BendOffset;
+        _overlayFlow.IncidenceDeltaRad = _flowState.IncidenceDeltaRad;
+        _overlayFlow.LiftFactor = _flowState.LiftFactor;
+        _overlayFlow.ExtraCd = _flowState.ExtraCd;
+        _overlayFlow.DownwashEpsLagged = _flowState.DownwashEpsLagged;
+        _overlayFlow.LagPrimed = false;   // quasi-steady: this state's coefficients, not the last live step's
+
+        double stalled = AeroModel.InstantStalledFraction(Config, s.Velocity, s.Rates, windBody, _surfaceMask, _stripMask, _airfoilTables);
+        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, s.Velocity, s.Rates, airDensity, Drive, _noseLost);
+        double overTail = SlipstreamOverTail(Config, s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position)), slipDu, slipR, stalled);
+        slipDu *= overTail; slipSwirl *= overTail;
+
+        double under = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
+        double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
+        if (water.HasValue && water.Value > under) under = water.Value;
+        double wingAgl = -s.Position.Z - under + AeroModel.WingHeightAboveCg(Config);
+
+        List<ForceSample> samples = new(160);
+        List<ForceSample>? outer = ForceDebug.Samples;
+        ForceDebug.Samples = samples;
+        double savedSlipOverTail = _slipOverTail;
+        PropModel.PropDrive savedDrive = _drive;
+        try
+        {
+            _slipOverTail = overTail;
+            _drive = Drive;   // MountedPropulsion reads the field; both are re-derived at the top of every live step
+            AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, stalled,
+                _overlayFlow, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl, windGradient);
+
+            Vec3 gravityBody = s.Attitude.Conjugate().Rotate(new Vec3(0, 0, MassProperties.MassKg * Atmosphere.GravityMs2));
+            ForceDebug.Add(Config.Mass.CgVec(), gravityBody, Vec3.Zero, "weight");
+
+            if (ExtraDragAreaM2 > 0 || _cowlFlap01 > 0)
+            {
+                Vec3 vAir = s.Velocity - windBody;
+                double vA = vAir.Length;
+                if (vA > 1.0)
+                    ForceDebug.Add(ExtraDragPointBody, vAir * (-0.5 * airDensity * vA * (ExtraDragAreaM2 + _cowlFlap01 * CowlFlapDragAreaM2)), Vec3.Zero, "extra-drag");
+            }
+            if (Brs.Out && Config.Brs is not null)
+            {
+                (Vec3 bF, Vec3 _) = Brs.Forces(Config, s, windBody, airDensity);
+                ForceDebug.Add(Config.Brs.BridleVec(), bF, Vec3.Zero, "brs");
+            }
+            if (Config.Propulsion is not null) MountedPropulsion(s.Velocity, s.Rates, airDensity);
+            if (ExternalForceWorld.LengthSquared > 1e-9)
+                ForceDebug.Add(ExternalForcePointBody, s.Attitude.Conjugate().Rotate(ExternalForceWorld), Vec3.Zero, "rope");
+        }
+        finally
+        {
+            _slipOverTail = savedSlipOverTail;
+            _drive = savedDrive;
+            ForceDebug.Samples = outer;
+        }
+        return samples;
     }
 
     /// <summary>
