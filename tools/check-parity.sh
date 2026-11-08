@@ -30,7 +30,17 @@ for a in "$@"; do
     *) ARGS+=("$a") ;;
   esac
 done
-IOS=${ARGS[0]:-${PARITY_IOS_BRANCH:-lane/claude-island-nav}}
+# The iOS lane defaults to THE BRANCH THIS WORKTREE IS ON, not to a lane named here. Ty 2026-11-08: the default
+# was lane/claude-island-nav, which had stopped being the iOS lane weeks earlier, so every deploy printed
+# "PARITY: OK" while comparing two branches nobody was building — a day's work drifted out of the Quest lane
+# with the gate green the whole time. A name in a script goes stale; the branch you are building cannot.
+# (A Quest lane building itself still compares against the named iOS lane: there is nothing else to mean.)
+HEAD_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+case "$HEAD_BRANCH" in
+  ""|HEAD|*quest*) IOS_DEFAULT=${PARITY_IOS_BRANCH:-lane/claude-island-nav} ;;
+  *)               IOS_DEFAULT=${PARITY_IOS_BRANCH:-$HEAD_BRANCH} ;;
+esac
+IOS=${ARGS[0]:-$IOS_DEFAULT}
 QUEST=${ARGS[1]:-${PARITY_QUEST_BRANCH:-lane/claude-quest-islandnav}}
 ART_RE=${PARITY_ART_RE:-'cockpit|instrument|pitts|greatlakes|great-lakes|grob|extra|j3|233|swift|beaver|172|eyepoint|floor-windows|front-sight|livery|model'}
 MODELS=unity/Assets/_Project/Resources/Models
