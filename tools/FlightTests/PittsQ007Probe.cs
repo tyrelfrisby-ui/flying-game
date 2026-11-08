@@ -31,6 +31,19 @@ public class PittsQ007Probe
         return c;
     }
 
+    /// <summary>
+    /// WING TILT FROM HORIZONTAL (2026-11-08). Ty's spec for the inverted flat is written in BANK — "Inverted flat S2B
+    /// not more than 30 degrees bank probably more like 10" — and nothing here measured it. Euler roll is useless for
+    /// the comparison, because wings-level inverted is +/-180 deg of it; this is the angle of the span axis above the
+    /// horizon, so 0 means wings level whichever way up the aeroplane is, and the same number reads the same way for
+    /// the upright and the inverted spin.
+    /// </summary>
+    private static double WingTilt(RigidBodyState s)
+    {
+        Vec3 right = s.Attitude.Rotate(new Vec3(0, 1, 0));     // NED: +Z down, so this is the right wing's depression
+        return Math.Asin(Math.Clamp(right.Z, -1, 1)) * D;
+    }
+
     private static double Alpha(RigidBodyState s)
     {
         Vec3 air = s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position));
@@ -96,6 +109,7 @@ public class PittsQ007Probe
             if (only != "" && !only.Split(',').Any(o => (pw + " " + name).Contains(o))) continue;
             var trace = new System.Text.StringBuilder();
             double sa = 0, sp = 0, sw = 0, amin = 999, amax = -999, h = SimLoop.DefaultFixedDtSec; int n = 0;
+            double sb = 0, bmax = 0;
             var ac = Spin(rud, lever, inv, ail, 1e9, 45, (t, a) =>
             {
                 var s = a.State;
@@ -105,6 +119,7 @@ public class PittsQ007Probe
                 {
                     double al = Alpha(s); sa += al; amin = Math.Min(amin, al); amax = Math.Max(amax, al);
                     sp += FormationPilot.Euler(s.Attitude).Item2 * D; sw += Math.Abs(OmegaVert(s)) * D; n++;
+                    double bk = Math.Abs(WingTilt(s)); sb += bk; bmax = Math.Max(bmax, bk);
                 }
             });
             var devPare = Recover(ac, rud, inv, 1.0);
@@ -114,7 +129,7 @@ public class PittsQ007Probe
             double a3a = Alpha(a3.State), a3p = FormationPilot.Euler(a3.State.Attitude).Item2 * D;
             var p3 = Recover(a3, rud, inv, 1.0);
             var h3 = Recover(Spin(rud, lever, inv, ail, 3, 45), rud, inv, lever);
-            _out.WriteLine($"{pw,-4} {name,-14} steady α {sa / n,6:F1} ({amin:F0}..{amax:F0}) θ {sp / n,6:F1} Ω {sw / n,4:F0} | trace α/θ{trace}");
+            _out.WriteLine($"{pw,-4} {name,-14} steady α {sa / n,6:F1} ({amin:F0}..{amax:F0}) θ {sp / n,6:F1} Ω {sw / n,4:F0} bank {sb / n,4:F0} (max {bmax,3:F0}) | trace α/θ{trace}");
             _out.WriteLine($"     at 3 turns ({t3:F1}s) α {a3a:F0} θ {a3p:F0}: PARE {p3.turns:F2}t {p3.sec:F1}s, power held {h3.turns:F2}t | developed: PARE {devPare.turns:F2}t {devPare.sec:F1}s, power held {devHeld.turns:F2}t {devHeld.sec:F1}s");
         }
     }
