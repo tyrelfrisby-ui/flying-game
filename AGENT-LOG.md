@@ -1,3 +1,52 @@
+## Thermals were switched off worldwide, and the replay's flight path vector — Claude, 2026-11-08, lane/claude-replay-smoke, build 2026.1108.0016
+<!-- lift-dead-world fpv-replay -->
+Ty's night of testing, in the order he found them. Nothing approved by me; nothing pushed.
+
+**1. "Show lift on and no lift is shown" — the whole regional atmosphere was dead, everywhere, for about a week.**
+`configs/atmosphere/regional-atmosphere.json` still anchored two airport circles to `airport:Bench` and `airport:Mesa`
+— fields of the OLD four-airport world. The island world has neither, so `AtmosphereField`'s constructor threw
+(`unknown airport anchor`), `SessionSettings.RegionalField` **caught it**, logged a `Debug.LogWarning` no one on a
+phone can read, and flew uniform air. One stale name in one region cost the world **every thermal, all slope lift,
+lee, wave and regional wind**. The lift bubbles draw rising air, so they had nothing to draw.
+- Re-anchored to the island's own fields: **3U2** (light and variable) and **KMYL** (gusty), matched on the notes'
+  elevations. **Ty's call to move them** — one line each.
+- **Why no test caught it:** `TheRegionalConfigSaysWhatTheWorldNeeds` asserted the config *contained the text*
+  `"airport:Bench"`, which it faithfully did. It read the file and never asked the world whether that field exists.
+- New gate `RegionalAtmosphereAnchorTests`: every anchor must resolve against the shipped world, **and** the air must
+  actually rise somewhere above the 0.25 m/s `LiftBubbles.ThresholdMs`. Verified both **fail on the old config and
+  pass on the new** — a gate that passes either way is worthless.
+- Regional-atmosphere + slope/thermal classes: **11 failing before, 7 after — 4 fixed, 0 new.** The remaining 7 were
+  already failing and are the same rot: assertions written against the old world's coordinates. **Worth a pass.**
+
+**2. "I am going down and the flight path vector is going up"** — the third component in the zero-dt family, after
+the prop. The vector predicts three seconds ahead under the current acceleration, which it measured by differencing
+velocity frame to frame. A replay freezes the world, so `Time.deltaTime` is 0 and the difference was never taken:
+`_accel` kept whatever was last measured in LIVE flight — the crash — and the 40-step integration curled the
+prediction under it, up out of a descent, or into a spray of rays across the sky. A display must not measure this
+here at all: scrubbing is not a clock. New `FlightRecorder.AccelerationAt` reads it from the recording over
+RECORDED time (6 tests); `FlightReplay` hands it to the driver each frame and takes it back on exit. Plus a cap, at
+**20 g** on Ty's call (10 g was my first number, "might be too low"), and one turn of curl over the horizon.
+
+**3. OPTIONS now opens inside a replay.** The replay bar *replaced* the live column, and OPTIONS lives in that
+column — so nothing drawn over a replay could be switched off without leaving it first. It has its own slot now;
+`ApplyTimeScale` already stands aside while a replay runs, so opening it disturbs nothing.
+
+**4. Force vectors hide during a replay** rather than lie: the physics does not run, so `LastForces` is the last
+LIVE step's, and drawing it on a replayed pose hangs one instant's forces on another instant's attitude. Ty
+confirms force vectors work in live flight — his "forces have disappeared" was the lift bubbles all along.
+
+**NEEDS YOU / open:**
+- **Reported 2026-11-08, not yet reproduced:** a bug "with reflections like water", and **wreckage going below the
+  earth's surface while crashing**. No clip yet. First suspicions, unverified: `WreckSim` clamps to
+  `WorldTerrain.GroundHeightAt` at the piece's CG **only** (one point, no runway slab or deck), and crash debris may
+  not carry `WaterReflection.AircraftLayer` the way the airframe and blades do.
+- **Still unbuilt:** the damage meshes and the crash sound inside a replay — the engine-agnostic
+  `ReplayDamageTimeline` is committed with 6 tests, the Unity wiring is not written.
+- Force vectors *true* in a replay need the aero model re-run at the replayed state.
+- TestFlight: "Notify Testers" on 2026.1106.0703 still unclicked (the auto-mode classifier refused the click);
+  the public link is **full at 5 of 5** and people are bouncing off it.
+- Great Lakes front-eye clearance gate still **RED** and still held, untouched.
+
 ## NEEDS YOU — replay damage timing (Ty pt1001) — Claude, 2026-11-07, lane/claude-replay-smoke, build 2026.1107.1346
 <!-- replay-damage-t1001 needs-you -->
 Your 0822 report: smoke 2-button manual / as-flown **PASS**, but "replay starts with the wings missing" from a crash that
