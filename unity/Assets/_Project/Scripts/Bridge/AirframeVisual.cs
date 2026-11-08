@@ -116,12 +116,18 @@ namespace FlyingGame.Bridge
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
             var acp = _driver.Sim.Aircraft;
             float rpm = DebugRpm ?? (acp.EngineStopped ? 0f : (float)acp.EngineRpm);
+            // A replay holds the world still with Time.timeScale = 0, so Time.deltaTime is ZERO on every replayed
+            // frame and the blade angle could not advance whatever the rpm said — the prop stood still even once the
+            // recorded rpm was handed back (Ty 2026-11-07, twice). The propeller is drawn, not simulated, so it turns
+            // on unscaled time while a replay is on screen. Everything else here stays on scaled time deliberately:
+            // the deflections and the rig are SET from the replayed frame, not integrated, so they need no dt at all.
+            float propDt = SessionSettings.ReplayActive ? Time.unscaledDeltaTime : Time.deltaTime;
             _builder.SpinProps(i =>
             {
                 var eng = acp.Config.Engines;
                 if (eng == null || i >= eng.Count) return rpm;
                 return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
-            }, Time.deltaTime);
+            }, propDt);
             float propR0 = acp.Config.Propulsion != null ? (float)(0.5 * acp.Config.Propulsion.PropDiameterM) : 0f;
             if (_bladeLook == null || _bladeLook.Length != acp.PropBladeCount) _bladeLook = new AirframeBuilder.PropBladeLook[acp.PropBladeCount];
             _builder.DamageBlades(i =>
