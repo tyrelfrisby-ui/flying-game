@@ -592,6 +592,15 @@ namespace FlyingGame.Bridge
             // touch pads, these menus, bubbles, vectors, HUD. Off, it is the aeroplane and the world, nothing else.
             if (Check("Show my screen in clips — controls, menus, bubbles and vectors, exactly as you see it", ClipRecorder.ShowMyScreen, ref y))
                 ClipRecorder.ShowMyScreen = !ClipRecorder.ShowMyScreen;
+            // Narration (Ty 2026-11-08, for talking over a tutorial). Voice-activated, and the microphone stays open
+            // while this is ticked — the clip buffer is always rolling, so a voice switched on at REC would be late.
+            if (Check("Record my voice in clips — voice-activated; the microphone stays on while this is ticked", VoiceComms.NarrateClips, ref y))
+                VoiceComms.NarrateClips = !VoiceComms.NarrateClips;
+            if (VoiceComms.NarrateClips && VoiceComms.MicProblem != null)
+            {
+                UiLayout.Label(new Rect(_x, y, _cw, _lh), VoiceComms.MicProblem, _label);
+                y += _lh + _gap * 0.4f;
+            }
             if (!ClipRecorder.ShowMyScreen
                 && Check("Include instruments in clips (dials or HUD) — applies from when you tick it", ClipRecorder.IncludeInstruments, ref y))
                 ClipRecorder.IncludeInstruments = !ClipRecorder.IncludeInstruments;

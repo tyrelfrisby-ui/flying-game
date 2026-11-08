@@ -26,6 +26,30 @@ namespace FlyingGame.Bridge
             get { if (_intercom < 0) _intercom = PlayerPrefs.GetInt("voice.intercom", 0); return _intercom == 1; }
             set { _intercom = value ? 1 : 0; PlayerPrefs.SetInt("voice.intercom", _intercom); PlayerPrefs.Save(); }
         }
+        private static int _narrate = -1;
+        /// <summary>
+        /// Put the pilot's own voice into clips so a tutorial can be talked over (Ty 2026-11-08: "next request for
+        /// record is audio input (mic) for my tutorial recordings which gamers might like too").
+        ///
+        /// This rides the INTERCOM's voice-activated path rather than adding a native mode of its own, and that is a
+        /// deliberate trade. VoiceIO.mm gates the mic with `ptt || (intercom &amp;&amp; vox)`, and the clip is fed the gated
+        /// signal, so narration only needs that gate opened — which the intercom already does, with its compression and
+        /// its headphones-only sidetone for monitoring. A new native entry point would mean a new export from
+        /// VoiceIO.mm, and the Mac bundle built from it is a TRACKED binary: the committed one would no longer have the
+        /// symbol and the Mac app would throw on the first call. Not worth it for a gate that exists.
+        ///
+        /// What that inherits: it is voice-activated, so it opens when he talks and closes between sentences, which for
+        /// narration is if anything what you want. Unlike the intercom it is NOT cut while a menu is open, because
+        /// talking through the options screen is the point (see ClipRecorder.ShowMyScreen).
+        ///
+        /// The mic is open the whole time this is ticked, because the clip buffer is always rolling — CLIP saves the
+        /// last minutes, so a voice that only arrived after REC would be too late.
+        /// </summary>
+        public static bool NarrateClips
+        {
+            get { if (_narrate < 0) _narrate = PlayerPrefs.GetInt("voice.narrate", 0); return _narrate == 1; }
+            set { _narrate = value ? 1 : 0; PlayerPrefs.SetInt("voice.narrate", _narrate); PlayerPrefs.Save(); }
+        }
         private static string _freq;
         public static string Frequency
         {
@@ -110,14 +134,15 @@ namespace FlyingGame.Bridge
         {
             bool menu = SessionSettings.MenuOpen;
             bool ptt = PttHeld && !menu;
-            if (!_micAsked && (IntercomOn || ptt)) _micAsked = true;
+            if (!_micAsked && (IntercomOn || ptt || NarrateClips)) _micAsked = true;
             if (_micAsked)
             {
                 int st = VO_EnsureMic();
                 MicProblem = st == -1 ? "Microphone is off - allow it in Settings > Aero Playground"
                            : st == -2 && Native ? "Microphone unavailable" : null;
             }
-            VO_SetIntercom(IntercomOn && !menu ? 1 : 0);
+            // Narration keeps the gate open through a menu: the options screen is a thing he is filming and talking over.
+            VO_SetIntercom((IntercomOn && !menu) || NarrateClips ? 1 : 0);
             VO_SetPtt(ptt ? 1 : 0);
             VO_SetRxVolume(FlightAudio.MasterVolume);
 
