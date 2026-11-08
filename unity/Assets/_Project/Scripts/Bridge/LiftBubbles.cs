@@ -57,7 +57,11 @@ namespace FlyingGame.Bridge
             _driver ??= Follow.GetComponent<FlightSimDriver>();
             if (!SessionSettings.LiftMarkersVisible(_driver != null ? _driver.AircraftId : SessionSettings.AircraftId)) return;
             Vector3 p = Follow.position;
-            float now = Time.time;
+            // UNSCALED: a replay sets timeScale to 0, which stops Time.time dead — the bubbles hung motionless in the
+            // air while the recording played (Ty 2026-11-08: "the bubbles are there but not rising"). The rising is a
+            // picture of the air's own speed, not of the aeroplane's progress, so it belongs on the wall clock, and the
+            // column refresh with it: the columns under a scrubbed aeroplane are then resampled where it now is.
+            float now = Time.unscaledTime;
 
             // Column set around the aircraft (world grid, so columns stay put as it flies).
             int r = Mathf.CeilToInt(RadiusM / GridM);
