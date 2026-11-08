@@ -283,7 +283,19 @@ namespace FlyingGame.Bridge
             Vector3 p = t.position;
             Vector3 v = Driver != null ? Driver.WorldVelocityUnity : Vector3.zero;
             float speed = v.magnitude;
-            Vector3 vhat = speed >= MinTrackSpeed ? v / speed : t.forward;
+            // A moving aeroplane is flown by along its track. A STATIONARY one has no track, and its own nose may be
+            // pointing anywhere at all once it has crashed — straight up, or over on its back. Using it put the camera
+            // the full stand-off distance along that nose, i.e. 75 m into the sky off to one side, staring back down at
+            // the wreck (Ty 2026-11-07: "it chooses to look at some random place in the sky after a wreck"). Flatten it,
+            // so a wreck is flown by from somewhere a camera operator could stand.
+            Vector3 vhat;
+            if (speed >= MinTrackSpeed) vhat = v / speed;
+            else
+            {
+                Vector3 flat = Vector3.ProjectOnPlane(t.forward, Vector3.up);
+                if (flat.sqrMagnitude < 1e-4f) flat = Vector3.ProjectOnPlane(t.up, Vector3.up);   // nose straight up or down
+                vhat = flat.sqrMagnitude > 1e-4f ? flat.normalized : Vector3.forward;
+            }
             if (_flyValid)
             {
                 Vector3 rel = p - _flyPos;
