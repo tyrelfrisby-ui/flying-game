@@ -324,7 +324,7 @@ namespace FlyingGame.Bridge
             float s = Mathf.Min(Screen.width, Screen.height);
             bool portrait = ScreenLayout.Portrait;
             float gap = s * 0.015f;
-            int perRow = portrait ? 5 : 10;   // (10 slots: the manual SMOKE switch keeps its own, so nothing moves when it appears)
+            int perRow = portrait ? 6 : 11;   // (the manual SMOKE switch keeps its own slot, so nothing moves when it appears)
             int rows = portrait ? 2 : 1;
             float bh = s * (portrait ? 0.085f : 0.07f);
             float trackH = s * 0.05f, labelH = _fs * 1.6f;
@@ -385,6 +385,12 @@ namespace FlyingGame.Bridge
             }
             if (portrait && UiLayout.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
             if (UiLayout.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
+            // OPTIONS, from inside the replay (Ty 2026-11-08: "i don't see a way to deselect it either … we really need
+            // every option available and functioning correctly in replay so we can turn on/off anything"). The replay bar
+            // used to REPLACE the live column, which is where OPTIONS lives, so a flight path vector or a cloud of
+            // bubbles could not be turned off without leaving the replay first. Opening it does not disturb the replay:
+            // ApplyTimeScale leaves the clock alone while one is running, and the play head runs on unscaled time.
+            if (UiLayout.Button(Next(), "OPTIONS", Options != null && Options.IsOpen ? _btnOn : _btn)) Options?.Toggle();
             if (UiLayout.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool recOn = ClipRecorder.Recording;
             if (UiLayout.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();

@@ -22,6 +22,7 @@ namespace FlyingGame.Bridge
         private GameObject _target;
         private Vector3 _prevVel, _accel;
         private bool _havePrev;
+        private const float MaxAccelMs2 = 98.1f;   // 10 g: beyond this it is an impact, not a flight path
 
         private void Start()
         {
@@ -121,13 +122,29 @@ namespace FlyingGame.Bridge
             // point-of-impact target shows only then — so the change is unmistakable.
             Color col = ground ? GroundColour : Colour;
             if (_line.startColor != col) { _line.startColor = _line.endColor = col; _line.sharedMaterial.color = col; _targetMat.color = col; }
+            // The acceleration that bends the prediction into an arc. Flying, it is measured frame to frame. In a
+            // REPLAY it cannot be: the world is frozen, so dt is 0 and the difference below is never taken at all, and
+            // the play head jumps about, so a wall-clock difference would be nonsense even if it were. The vector then
+            // kept curving under whatever was last measured in live flight — usually the crash — and pointed up out of
+            // a descent (Ty 2026-11-08). The recording knows, so it is asked; see FlightRecorder.AccelerationAt.
             float dt = Time.deltaTime;
-            if (_havePrev && dt > 1e-4f)
+            if (Driver.ReplayAccelUnity is Vector3 recorded)
             {
-                Vector3 a = (vel - _prevVel) / dt;
-                _accel = Vector3.Lerp(_accel, a, 1f - Mathf.Exp(-dt / 0.12f));   // light smoothing: frame jitter, not lag
+                _accel = recorded;
+                _havePrev = false;   // the first LIVE frame after this must not difference against a replayed velocity
             }
-            _prevVel = vel; _havePrev = true;
+            else
+            {
+                if (_havePrev && dt > 1e-4f)
+                {
+                    Vector3 a = (vel - _prevVel) / dt;
+                    _accel = Vector3.Lerp(_accel, a, 1f - Mathf.Exp(-dt / 0.12f));   // light smoothing: frame jitter, not lag
+                }
+                _prevVel = vel; _havePrev = true;
+            }
+            // Wherever it came from, a prediction is only a prediction: an impact's acceleration carried three seconds
+            // forward draws a spray of rays across the sky, not a flight path. Hold it to what an aeroplane can pull.
+            if (_accel.magnitude > MaxAccelMs2) _accel = _accel.normalized * MaxAccelMs2;
 
             float speed = vel.magnitude;
             if (speed < 1f) { _line.enabled = false; _cone.SetActive(false); return; }
@@ -136,6 +153,10 @@ namespace FlyingGame.Bridge
             float aAlong = Vector3.Dot(_accel, dir);
             Vector3 aNormal = _accel - dir * aAlong;
             Vector3 omega = Vector3.Cross(dir, aNormal) / Mathf.Max(speed, 1f);   // rad/s, axis of the velocity's rotation
+            // Near a standstill that ratio runs away (a wreck barely moving, hit hard): cap the curl at one turn
+            // over the horizon, which is already more than any prediction worth drawing.
+            float maxOmega = 2f * Mathf.PI / Mathf.Max(0.2f, HorizonSec);
+            if (omega.magnitude > maxOmega) omega = omega.normalized * maxOmega;
 
             int n = Mathf.Max(4, Segments);
             float h = HorizonSec / n;

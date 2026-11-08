@@ -294,6 +294,31 @@ public sealed class FlightRecorder
         return Lerp(a, b, u);
     }
 
+    /// <summary>Ground velocity in world axes at <paramref name="t"/>: the recorded body velocity turned by the recorded attitude.</summary>
+    public Vec3 WorldVelocityAt(double t)
+    {
+        ReplayFrame f = Sample(t);
+        return f.State.Attitude.Rotate(f.State.Velocity);
+    }
+
+    /// <summary>
+    /// The aeroplane's acceleration at <paramref name="t"/> (world axes, m/s^2), differentiated from the RECORDING's
+    /// own velocities over RECORDED time. A display cannot work this out for itself while a replay is on screen: the
+    /// world is frozen, so the frame-to-frame difference is divided by a zero dt and never taken at all, and a scrub
+    /// jumps about in time, so a wall-clock difference would be nonsense even if it were taken. Centred on t where
+    /// the window fits, one-sided at the ends, zero when the recording is too short to tell (Ty 2026-11-08).
+    /// </summary>
+    public Vec3 AccelerationAt(double t, double h = 0.1)
+    {
+        if (_count < 2) return default;
+        if (h < 1e-6) h = 1e-6;
+        t = System.Math.Clamp(t, StartTime, EndTime);   // as Sample does: outside the recording is its nearest end
+        double lo = System.Math.Max(StartTime, t - h);
+        double hi = System.Math.Min(EndTime, t + h);
+        if (hi - lo < 1e-9) return default;
+        return (WorldVelocityAt(hi) - WorldVelocityAt(lo)) / (hi - lo);
+    }
+
     private static double L(double a, double b, double u) => a + (b - a) * u;
     private static Vec3 L(Vec3 a, Vec3 b, double u) => new(L(a.X, b.X, u), L(a.Y, b.Y, u), L(a.Z, b.Z, u));
 

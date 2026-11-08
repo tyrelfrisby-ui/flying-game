@@ -391,6 +391,7 @@ namespace FlyingGame.Bridge
             if (!Active) return;
             _live.ApplyTo(Driver.Sim.Aircraft);
             Driver.Sim.Aircraft.ReplayEngineRpm = null;   // the engine is the live one's again
+            Driver.ReplayAccelUnity = null;              // and the flight path vector measures for itself again
             Driver.ShowReplayPose(_live.WindWorld);
             foreach (Track tr in _ordered)
             {
@@ -445,6 +446,10 @@ namespace FlyingGame.Bridge
             // The replay poses the aeroplane; it does not run its engine. Without the recorded rpm the prop stands still
             // for the whole flight, because EngineStopped latches on the nose this crash tore off (Ty 2026-11-07).
             Driver.Sim.Aircraft.ReplayEngineRpm = f.EngineRpm;
+            // Likewise the acceleration: the flight path vector predicts three seconds ahead by carrying the velocity
+            // forward under it, and it cannot measure one here — the world is frozen, so its own frame-to-frame
+            // difference is divided by a zero dt (Ty 2026-11-08: "going down and the flight path vector is going up").
+            Driver.ReplayAccelUnity = CoordinateMap.ToUnity(Recorder.AccelerationAt(Head));
             Driver.ShowReplayPose(f.WindWorld);
         }
     }

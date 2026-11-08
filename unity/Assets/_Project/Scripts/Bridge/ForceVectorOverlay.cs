@@ -33,6 +33,11 @@ namespace FlyingGame.Bridge
         private void OnPostRender()
         {
             if (!SessionSettings.ShowForceVectors || Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen) return;
+            // A replay poses the aeroplane; it does not run the physics. LastForces is whatever the last LIVE step
+            // worked out, so drawing it here would hang the forces of one instant on the attitude of another — a
+            // picture that is wrong everywhere except the frame the replay was entered on. Nothing is better than
+            // that until the aero model is re-run at the replayed state (Ty 2026-11-08).
+            if (SessionSettings.ReplayActive) return;
             var ac = Driver.Sim.Aircraft;
             var samples = ac.LastForces;
             if (samples == null || samples.Count == 0) return;

@@ -104,6 +104,14 @@ namespace FlyingGame.Bridge
         /// camera follows THIS, so a steady crosswind crab does not read as a yaw — only real sideslip does.</summary>
         public Vector3 AirVelocityUnity { get; private set; }
 
+        /// <summary>
+        /// While a replay is on screen: the aeroplane's acceleration at the play head, read out of the RECORDING
+        /// (Unity axes, m/s^2). Null in live flight, where a display differences what it sees. A replay freezes the
+        /// world, so nothing that differences frame to frame can measure an acceleration at all — see
+        /// <see cref="FlyingGame.Sim.Replay.FlightRecorder.AccelerationAt"/> (Ty 2026-11-08).
+        /// </summary>
+        public Vector3? ReplayAccelUnity { get; set; }
+
         // Shared telemetry (audio / structure / HUD / net). Safe before Spawn: null Sim → neutral values.
         public double LoadFactorG => Sim?.Aircraft?.LoadFactorZ ?? 1.0;
         public double Throttle01 => Sim?.Aircraft?.Throttle01 ?? 0.0;
