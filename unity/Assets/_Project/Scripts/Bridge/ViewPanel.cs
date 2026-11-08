@@ -259,6 +259,14 @@ namespace FlyingGame.Bridge
                 if (UiLayout.Button(new Rect(x0, row, cell * 3f, b), "RECENTRE", _btn)) _cockpit.Centre();
                 row += b + m * 0.3f;
             }
+            else if (TiltSteering.Enabled)
+            {
+                // Tilt has the phone, so the view is looked around with the pad above — which is always drawn — and
+                // this takes the place of the device RECENTRE: it re-zeroes the STICK against however the phone is
+                // being held now, which is what a pilot needs after shifting his grip (Ty 2026-11-08).
+                if (UiLayout.Button(new Rect(x0, row, cell * 3f, b), "CENTRE TILT", _btn)) TiltSteering.Centre();
+                row += b + m * 0.3f;
+            }
 
             // The seat, when the aeroplane has more than one authored.
             if (_cockpit.SeatCount > 1 &&

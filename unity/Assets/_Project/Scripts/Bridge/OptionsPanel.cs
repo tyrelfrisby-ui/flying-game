@@ -457,11 +457,49 @@ namespace FlyingGame.Bridge
             // or in an outside view the options simply were not there.
             y += _gap * 0.5f;
             {
+                if (TiltSteering.Available)
+                {
+                    // Fly by tilting the phone (Ty 2026-11-08, for a beta tester). Roll, pitch and yaw to aileron,
+                    // elevator and rudder; everything else stays on the glass.
+                    if (Check("Fly by tilting the phone — aileron, elevator and rudder only", TiltSteering.Enabled, ref y))
+                        TiltSteering.Enabled = !TiltSteering.Enabled;
+                    if (TiltSteering.Enabled)
+                    {
+                        float sv = TiltSteering.Sensitivity01;
+                        UiLayout.Label(new Rect(_x, y, _cw * 0.52f, _lh),
+                            $"Tilt sensitivity — {FlyingGame.Core.TiltControls.FullScaleForSensitivity(sv):F0}° for full control", _label);
+                        float ns = GUI.HorizontalSlider(new Rect(_x + _cw * 0.56f, y + _lh * 0.35f, _cw * 0.44f, _lh * 0.4f), sv, 0f, 1f);
+                        if (Mathf.Abs(ns - sv) > 0.01f) TiltSteering.Sensitivity01 = ns;
+                        y += _lh + _gap * 0.4f;
+
+                        if (Check("Yaw turns the rudder (it drifts — use CENTRE TILT)", TiltSteering.RudderFromYaw, ref y))
+                            TiltSteering.RudderFromYaw = !TiltSteering.RudderFromYaw;
+
+                        // A mirrored control is unflyable and the phone's axes cannot be known from here, so each one
+                        // can be turned round without another build.
+                        if (Check("Reverse roll", TiltSteering.InvertAileron, ref y)) TiltSteering.InvertAileron = !TiltSteering.InvertAileron;
+                        if (Check("Reverse pitch", TiltSteering.InvertElevator, ref y)) TiltSteering.InvertElevator = !TiltSteering.InvertElevator;
+                        if (TiltSteering.RudderFromYaw && Check("Reverse yaw", TiltSteering.InvertRudder, ref y))
+                            TiltSteering.InvertRudder = !TiltSteering.InvertRudder;
+
+                        // What the phone is actually reporting, so a reversed axis can be SEEN rather than guessed at.
+                        Vector3 a = TiltSteering.LastAnglesDeg;
+                        Note(float.IsNaN(a.x) ? "Tilt: no reading yet — hold the phone and leave this page"
+                                              : $"Tilt now: roll {a.x:+0;-0}°  pitch {a.y:+0;-0}°  yaw {a.z:+0;-0}°", ref y);
+                        if (UiLayout.Button(new Rect(_x, y, _cw * 0.5f, _lh), "CENTRE TILT HERE", _btn)) TiltSteering.Centre();
+                        y += _lh + _gap * 0.4f;
+                        Note("Hold the phone how you mean to fly, then centre. Also on the look pad in the cockpit.", ref y);
+                    }
+                    y += _gap * 0.3f;
+                }
                 if (CockpitView.DeviceAttitudeAvailable)
                 {
-                    if (Check("Move the device to look around (cockpit view)", CockpitView.DeviceLookEnabled, ref y))
+                    // Not offered while tilt is flying: the phone cannot do both, and tilt has it.
+                    if (!TiltSteering.Enabled && Check("Move the device to look around (cockpit view)", CockpitView.DeviceLookEnabled, ref y))
                         CockpitView.DeviceLookEnabled = !CockpitView.DeviceLookEnabled;
-                    if (CockpitView.DeviceLookEnabled)
+                    if (TiltSteering.Enabled)
+                        Note("Move-to-look is off while tilt is flying — look around with the pad in the cockpit view.", ref y);
+                    if (CockpitView.DeviceLookEnabled && !TiltSteering.Enabled)
                     {
                         // Owner Ty, 2026-11-01: "an adjustable gain from 1x (1 deg of device = 1 deg of view, the
                         // default) up to 10x, continuous". The label says what the number MEANS, because "3.4x" on
