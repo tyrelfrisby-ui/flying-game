@@ -572,7 +572,7 @@ namespace FlyingGame.Bridge
             if (_race == null || SessionSettings.MenuOpen || UiLayout.Modal) return;
             bool running = _race.StartS >= 0, recent = Time.time < _eventUntil;
             if (!running && !recent) return;
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.026f);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * 0.026f);
             if (_style == null || fs != _fs) { _fs = fs; _style = new GUIStyle { font = UiFont.Get(), fontSize = fs, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.85f, 0.2f) } }; }
             string txt = running ? $"ROOFTOP RACE   ring {_race.Next + 1}/5   {WorldClock.TimeS - _race.StartS:F1} s" + (recent ? $"   ·   {_race.LastEvent}" : "") : _race.LastEvent;
             UiLayout.Label(UiLayout.NextLine(fs * 1.5f), txt, _style);

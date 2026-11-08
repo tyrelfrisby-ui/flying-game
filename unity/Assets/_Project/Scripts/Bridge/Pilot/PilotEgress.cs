@@ -669,7 +669,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyle()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * ScreenLayout.FontFrac * 1.1f);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * ScreenLayout.FontFrac * 1.1f);
             if (_style != null && fs == _fs) return;
             _fs = fs;
             if (_bg == null)

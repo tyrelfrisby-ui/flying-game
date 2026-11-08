@@ -22,12 +22,65 @@ namespace FlyingGame.Bridge
         public static bool IPhoneSafeAreaForTest;
         /// <summary>With <see cref="IPhoneSafeAreaForTest"/>: an iPad mini instead (no notch; 20 pt home indicator at 2x).</summary>
         public static bool IPadSafeAreaForTest;
-        public static int MinText => Mathf.Max(22, Mathf.RoundToInt(S * 33f / 1206f));
-        public static int CaptionText => Mathf.Max(20, Mathf.RoundToInt(S * 30f / 1206f));
+        public static int MinText => Mathf.Max(22, Mathf.RoundToInt(Unit * 33f / 1206f));
+        public static int CaptionText => Mathf.Max(20, Mathf.RoundToInt(Unit * 30f / 1206f));
+
+        // ---- SIZE: the screen's pixels, and the size a finger needs -------------------------------------------
+        //
+        // Ty 2026-11-08: "The size of the menus and buttons on iPhone is too small." The cause is that every size in
+        // the game was a fraction of the PIXEL count on the short side, which says nothing about how big that is in
+        // the hand. An iPhone and an iPad have a similar number of pixels across the short side — about 1200 and
+        // about 1500 — on 2.8 inches and 5.5 inches of glass. So the same code drew a control half the physical size
+        // on the phone, and a 4.4 mm button is below anything Apple would ship (their floor is 44 pt, about 7 mm).
+        //
+        // So there are two metrics now, and the difference matters:
+        //   S     — the screen, in pixels. GEOMETRY: where things are, how wide a panel may be, where the dials end.
+        //   Unit  — what a finger needs. SIZE: button heights, margins, gaps, font floors.
+        // Widths deliberately stay on S. Growing them is what would push two things into each other, and the owner's
+        // 2026-10-03 rule is that no text or UI may ever overlap; growing HEIGHTS cannot collide, because a panel that
+        // runs off the bottom scrolls (OptionsPanel) and the toolbar is one row with its own clamps.
         public static float S => Mathf.Min(Screen.width, Screen.height);
-        public static float Margin => S * 0.018f;
-        public static float Gap => S * 0.012f;
-        public static float ButtonH => S * 0.062f;
+
+        /// <summary>Physical pixels per inch, with a fallback where the platform will not say (the editor, some Macs).</summary>
+        public static float Dpi => Screen.dpi > 1f ? Screen.dpi : 160f;
+        /// <summary>A button ought to be about this tall in the hand (in): Apple's floor is 44 pt = 0.27".</summary>
+        public const float TargetButtonIn = 0.30f;
+        /// <summary>Scale forced by the hudshots self-test so its images do not move with the test machine's DPI.</summary>
+        public static float ScaleForTest = -1f;
+
+        /// <summary>
+        /// How much bigger than a plain fraction of the screen the controls have to be drawn to reach
+        /// <see cref="TargetButtonIn"/>. 1 on a tablet, which is where the original fractions were chosen and where
+        /// they are right; about 1.7 on a phone. Never below 1 — nothing should SHRINK from this — and capped, so a
+        /// bad DPI reading cannot produce a button the size of the screen.
+        /// </summary>
+        public static float AutoScale
+        {
+            get
+            {
+                float shortIn = Mathf.Min(Screen.width, Screen.height) / Dpi;
+                if (shortIn < 0.5f || shortIn > 40f) return 1f;   // a reading that cannot be a screen: leave it alone
+                return Mathf.Clamp(TargetButtonIn / (0.062f * shortIn), 1f, 2.2f);
+            }
+        }
+
+        private static float _userScale = -1f;
+        /// <summary>The owner's own multiplier on top of <see cref="AutoScale"/> (OPTIONS → Display), so this is
+        /// tunable by eye on the device instead of by another build.</summary>
+        public static float UserScale
+        {
+            get { if (_userScale < 0f) _userScale = Mathf.Clamp(PlayerPrefs.GetFloat("ui.scale", 1f), 0.7f, 1.6f); return _userScale; }
+            set { _userScale = Mathf.Clamp(value, 0.7f, 1.6f); PlayerPrefs.SetFloat("ui.scale", _userScale); PlayerPrefs.Save(); }
+        }
+        public static float Scale => ScaleForTest > 0f ? ScaleForTest : AutoScale * UserScale;
+
+        /// <summary>The unit every SIZE comes from: the short side as it would be on a tablet of the same physical
+        /// size. Panels that compute their own font size use this, not the raw pixel count.</summary>
+        public static float Unit => Mathf.Min(Screen.width, Screen.height) * Scale;
+
+        public static float Margin => Unit * 0.018f;
+        public static float Gap => Unit * 0.012f;
+        public static float ButtonH => Unit * 0.062f;
 
         // ---- THE SAFE AREA (owner 2026-10-31: "the landing page has ui behind the black camera pill on the iPhone
         // screen move it down") ----
@@ -49,15 +102,21 @@ namespace FlyingGame.Bridge
         /// Dynamic Island — and everything that hangs off ToolbarBottom follows this down.</summary>
         private static float ToolbarTop => SafeTop + Margin;
 
-        public static Rect MenuRect => new Rect(SafeLeft + Margin, ToolbarTop, S * 0.13f, ButtonH);
-        public static Rect OptionsRect => new Rect(Screen.width - SafeRight - Margin - S * 0.17f, ToolbarTop, S * 0.17f, ButtonH);
+        /// <summary>Width the toolbar actually has to spend, between the safe insets.</summary>
+        private static float ToolbarW => Mathf.Max(1f, Screen.width - SafeLeft - SafeRight - 2f * Margin);
+        // The two fixed ends grow with the finger like everything else, but never past their share of the row: the
+        // toolbar is ONE row (MENU · slots · OPTIONS) and it has to stay one row on a phone in portrait.
+        private static float MenuW => Mathf.Min(Unit * 0.13f, ToolbarW * 0.22f);
+        private static float OptionsW => Mathf.Min(Unit * 0.17f, ToolbarW * 0.28f);
+        public static Rect MenuRect => new Rect(SafeLeft + Margin, ToolbarTop, MenuW, ButtonH);
+        public static Rect OptionsRect => new Rect(Screen.width - SafeRight - Margin - OptionsW, ToolbarTop, OptionsW, ButtonH);
         public static float ToolbarBottom => ToolbarTop + ButtonH;
 
         /// <summary>Toolbar slot <paramref name="i"/> of <paramref name="n"/>, filled right-to-left from just left of OPTIONS.</summary>
         public static Rect ToolbarSlot(int i, int n)
         {
             float left = MenuRect.xMax + Gap, right = OptionsRect.x - Gap;
-            float w = Mathf.Min(S * 0.17f, (right - left - Gap * (n - 1)) / Mathf.Max(1, n));
+            float w = Mathf.Min(Unit * 0.17f, (right - left - Gap * (n - 1)) / Mathf.Max(1, n));
             float x0 = right - n * w - (n - 1) * Gap;
             return new Rect(x0 + i * (w + Gap), ToolbarTop, w, ButtonH);
         }
@@ -144,6 +203,27 @@ namespace FlyingGame.Bridge
                 text = text.Substring(0, text.Length - 2).TrimEnd() + "…";
             GUI.Label(r, text, fit);
         }
+        /// <summary>
+        /// How tall <paramref name="text"/> is once WRAPPED into <paramref name="w"/>. A row asks this and takes the
+        /// height it gets, so that a bigger font cannot drop a second line onto the row below (Ty 2026-11-08, asking
+        /// for bigger menus): <see cref="Label"/> protects a single line by dropping its tail, which is right for a
+        /// status line and wrong for a settings label, where the words are the whole point.
+        /// </summary>
+        public static float WrappedHeight(GUIStyle st, string text, float w)
+        {
+            if (st == null || string.IsNullOrEmpty(text) || w <= 1f) return 0f;
+            var f = new GUIStyle(st) { wordWrap = true, clipping = TextClipping.Clip, fontSize = Mathf.Max(MinText, st.fontSize) };
+            return f.CalcHeight(new GUIContent(text), w);
+        }
+
+        /// <summary>A label that wraps rather than losing its tail.</summary>
+        public static void LabelWrapped(Rect r, string text, GUIStyle st)
+        {
+            if (st == null) return;
+            var f = new GUIStyle(st) { wordWrap = true, clipping = TextClipping.Clip, fontSize = Mathf.Max(MinText, st.fontSize) };
+            GUI.Label(r, text, f);
+        }
+
         public static GUIStyle ButtonFit(GUIStyle st, string text, float width)
         {
             var fit = new GUIStyle(st) { wordWrap = false, clipping = TextClipping.Clip };

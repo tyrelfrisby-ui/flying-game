@@ -68,7 +68,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.026f);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * 0.026f);
             if (_btn != null && fs == _fs) return;
             _fs = fs;
             _bg ??= Solid(new Color(0.05f, 0.08f, 0.12f, 0.92f));
@@ -94,12 +94,13 @@ namespace FlyingGame.Bridge
 
         private bool BoolRow(string name, ref bool v, ref float y)
         {
-            UiLayout.Label(new Rect(_x, y, _cw * 0.56f, _lh), name, _label);
+            float h = RowH(name, _cw * 0.56f);
+            UiLayout.LabelWrapped(new Rect(_x, y, _cw * 0.56f, h), name, _label);
             float bw = (_cw * 0.4f - _gap * 0.4f) / 2f, bx = _x + _cw * 0.58f;
             bool hit = false;
             if (UiLayout.Button(new Rect(bx, y, bw, _lh), "On", v ? _btnOn : _btn)) { hit = !v; v = true; }
             if (UiLayout.Button(new Rect(bx + bw + _gap * 0.4f, y, bw, _lh), "Off", !v ? _btnOn : _btn)) { hit = v; v = false; }
-            y += _lh + _gap * 0.4f;
+            y += h + _gap * 0.4f;
             return hit;
         }
 
@@ -214,6 +215,19 @@ namespace FlyingGame.Bridge
             else if (act == 3 && !c.SetAltimeterToRead(0.0)) Note("this altimeter's window cannot zero here", ref y);
         }
 
+        /// <summary>The more-above / more-below banner: its own solid band so it reads over whatever it covers, and
+        /// not a button — tapping it must not toggle the setting underneath.</summary>
+        private void MoreBar(Rect r, string text)
+        {
+            if (_moreBg == null) _moreBg = Solid(new Color(0.10f, 0.42f, 0.62f, 0.95f));
+            if (_more == null)
+                _more = new GUIStyle { font = UiFont.Get(), fontSize = Mathf.RoundToInt(_fs * 0.85f), fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white, background = _moreBg } };
+            GUI.Label(r, text, _more);
+        }
+        private Texture2D _moreBg;
+        private GUIStyle _more;
+
         private void Note(string text, ref float y)
         {
             UiLayout.Label(new Rect(_x, y, _cw, _lh * 0.8f), text, _note);
@@ -221,12 +235,17 @@ namespace FlyingGame.Bridge
         }
 
 
+        /// <summary>A row tall enough for its own label once that label has wrapped — never shorter than one line.</summary>
+        private float RowH(string text, float w) => Mathf.Max(_lh, UiLayout.WrappedHeight(_label, text, w - _fs * 0.5f) + _fs * 0.5f);
+
         private bool Check(string name, bool v, ref float y)
         {
             bool hit = false;
+            float lw = _cw - _lh - _gap;
+            float h = RowH(name, lw);
             if (UiLayout.Button(new Rect(_x, y, _lh, _lh), v ? "X" : "", v ? _btnOn : _btn)) hit = true;
-            if (UiLayout.Button(new Rect(_x + _lh + _gap, y, _cw - _lh - _gap, _lh), name, _label)) hit = true;
-            y += _lh + _gap * 0.4f;
+            if (UiLayout.Button(new Rect(_x + _lh + _gap, y, lw, h), name, _label)) hit = true;
+            y += h + _gap * 0.4f;
             return hit;
         }
 
@@ -301,11 +320,32 @@ namespace FlyingGame.Bridge
             }
             GUI.EndScrollView();
             _measured[(int)_page] = y - y0 + _gap;
+
+            // MORE ABOVE / MORE BELOW (Ty 2026-11-08: "an obvious 'more below/above' when not at the top/bottom of a
+            // scrollable menu"). A thin scrollbar on a phone is not an answer — it is three pixels of grey at the edge
+            // of a moving list — so the panel says it in words, across the edge the content runs off, and only when
+            // there is something that way.
+            float hidden = content.height - view.height;
+            if (hidden > 1f)
+            {
+                if (_scroll.y > 1f) MoreBar(new Rect(view.x, view.y, view.width - sbw, _lh * 0.72f), "▲  MORE ABOVE");
+                if (_scroll.y < hidden - 1f) MoreBar(new Rect(view.x, view.yMax - _lh * 0.72f, view.width - sbw, _lh * 0.72f), "▼  MORE BELOW");
+            }
         }
 
         private void DisplayPage(ref float y)
         {
             Note($"Build {Application.version}", ref y);
+
+            // UI size (Ty 2026-11-08: "The size of the menus and buttons on iPhone is too small"). The automatic part
+            // sizes a button for a finger from the screen's own DPI, which is what the phone was missing; this is his
+            // multiplier on top of it, so it can be set by eye on the device instead of by another build.
+            float uiNow = UiLayout.UserScale;
+            UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), $"UI size  {uiNow * 100f:F0}%", _label);
+            float uiV = GUI.HorizontalSlider(new Rect(_x + _cw * 0.42f, y + _lh * 0.35f, _cw * 0.58f, _lh * 0.4f), uiNow, 0.7f, 1.6f);
+            if (Mathf.Abs(uiV - uiNow) > 0.024f) UiLayout.UserScale = Mathf.Round(uiV * 20f) / 20f;
+            y += _lh + _gap * 0.4f;
+            Note($"Sized for a finger from this screen's own dots per inch — automatic part {UiLayout.AutoScale * 100f:F0}%", ref y);
             var modes = new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud, SessionSettings.InstrumentMode.None };
             int im = PickRow("Instruments", new[] { "Dials", "HUD", "None" }, System.Array.IndexOf(modes, SessionSettings.Instruments), ref y);
             if (im >= 0) { SessionSettings.Instruments = modes[im]; SessionSettings.SavePrefs(); }

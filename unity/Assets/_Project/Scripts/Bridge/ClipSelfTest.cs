@@ -1225,6 +1225,9 @@ namespace FlyingGame.Bridge
                     // AERO_HUDSHOTS_DEVICE=ipad: iPad mini (2266x1488 at 2x, no notch, 20 pt home indicator) instead of the iPhone.
                     bool ipad = System.Environment.GetEnvironmentVariable("AERO_HUDSHOTS_DEVICE") == "ipad";
                     UiLayout.IPadSafeAreaForTest = ipad;
+                    // Pin the UI scale to what the device being SIMULATED would get, so these images do not change
+                    // size with the dots per inch of whatever machine runs the self-test (UiLayout.AutoScale).
+                    UiLayout.ScaleForTest = ipad ? 1f : 1.73f;
                     int lo = ipad ? 1488 : 1206, hi = ipad ? 2266 : 2622;
                     int w = portrait ? lo : hi, h = portrait ? hi : lo;
                     if (ipad) orient += "-ipad";
@@ -1262,6 +1265,7 @@ namespace FlyingGame.Bridge
                     aero.Insets.Clear(); foreach (var key in aeroInsets) aero.Insets.Add(key);
                 }
                 UiLayout.ForceTouchLayoutForTest = oldTouch; GamepadInput.SimulateConnectedForTest = oldGamepad; UiLayout.IPhoneSafeAreaForTest = oldSafe; UiLayout.IPadSafeAreaForTest = false;
+                UiLayout.ScaleForTest = -1f;
                 if (challengeHud != null) challengeHud.enabled = oldChallenge;
                 Screen.SetResolution(oldW, oldH, oldMode); Application.runInBackground = oldBackground;
                 SessionSettings.ApplyTimeScale();

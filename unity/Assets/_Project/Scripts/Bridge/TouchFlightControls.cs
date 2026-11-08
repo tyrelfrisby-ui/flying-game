@@ -1806,7 +1806,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * ScreenLayout.FontFrac);
+            int fs = Mathf.RoundToInt(UiLayout.Unit * ScreenLayout.FontFrac);
             if (_solidTex != null && fs == _styleFs) return;
             _styleFs = fs;
 
