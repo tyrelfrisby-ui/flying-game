@@ -14,7 +14,6 @@ public static class AeroModel
 {
     private const double MinSpeedMs = 1e-4;
     private const double MinInducedAspectRatio = 0.5;
-    public const double ElevatorSaturationRad = 18.0 * Math.PI / 180.0; // below this, treat as a low-AR body: table drag only
 
     /// <summary>
     /// Geometric aspect ratio b²/S from the strip layout: span from strip-center extent plus half a
@@ -701,15 +700,14 @@ public static class AeroModel
                 // loses ~half its power (the deflected-down surface works in the stab's separated
                 // wake). Gated by wake stalled fraction: zero effect in normal flight.
                 double deflEff = controlDeflRad;
-                // Plain-flap SATURATION (owner 2026-10-03, stall: "full back elevator … 100 % greaser"): a hinged elevator is a
-                // flap on the stab — past ~15–20° of deflection the flow separates off its upper surface and each extra degree
-                // buys little. Modelled as δs·tanh(δ/δs), δs = Controls.Elevator.SaturationDeg (default 18°: 30° of travel acts like ~18°). Without it a 172 balanced at
-                // ~22° wing AoA with full aft stick (deep stall, spin entry) instead of just past the stall (the nose bobs).
-                if (strip.Control is not null && strip.Control.Surface == "elevator")
-                {
-                    double sat = Math.Max(1.0, config.Controls.Elevator.SaturationDeg) * Math.PI / 180.0;
-                    deflEff = sat * Math.Tanh(deflEff / sat);
-                }
+                // THE ELEVATOR'S SATURATION IS GONE (Ty 2026-11-09: "remove all of the saturation on all of the
+                // airplanes"). It was a fitted tanh haircut - deflEff = ds*tanh(d/ds) with ds = Controls.Elevator.
+                // SaturationDeg - put in so a 172 would not balance at 22 deg of wing AoA on full aft stick. That is
+                // a WING-stall problem being paid for at the elevator, and the fleet's values had drifted from 3 deg
+                // to 120 with no derivation: at 3 deg an elevator is very nearly dead. On the Pitts it was 20.3 deg
+                // against 27 of travel, so full stick bought 17.6 - a 35 % cut before any aerodynamics, on top of an
+                // elevator that already loses 84 % of its power between alpha 10 and 30. He flies both the Pitts and
+                // the Extra and reports the elevator and rudder "significantly weaker than the real thing".
                 // Anti-spin = deflection toward the prevailing flow direction, valid BOTH attitudes:
                 // upright spin (flow alpha +) anti-spin is DOWN(+); inverted (alpha -) anti-spin is UP(-).
                 // Anti-spin elevator stall (owner): deflection TOWARD the flow direction loses half

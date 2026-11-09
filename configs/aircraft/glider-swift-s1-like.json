@@ -1841,8 +1841,7 @@
       "hingeChDelta": -0.45,
       "centeringSpringKt": 25,
       "trimType": "spring",
-      "freeTauS": 0.12,
-      "saturationDeg": 16.8
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.5,

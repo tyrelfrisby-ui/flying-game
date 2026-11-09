@@ -378,7 +378,6 @@ public sealed class ControlAxisConfig
     /// <summary>Plain-flap saturation of this control's deflection (deg): effective = s·tanh(δ/s). Hinged elevators separate
     /// past ~15–20° (default 18); aerobatic types with big balanced elevators keep authority (larger); an all-moving
     /// stabilator is tuned so full aft holds the wing just past its stall.</summary>
-    public double SaturationDeg { get; set; } = 120.0;   // ≈ none unless the stall calibration sets it (StallAuthorityTests)
 
     public double MaxDeflRad { get; set; }
 
