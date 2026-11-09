@@ -820,6 +820,18 @@ public sealed class PropulsionConfig
     /// </summary>
     public double JetSpreadK { get; set; } = 0.25;
 
+    /// <summary>
+    /// THE PROPELLER DISC'S STATION, body x, when it has been measured. 0 derives it from the fuselage construction
+    /// as before: the furthest-aft trailing edge on the aeroplane, less 0.2, plus the crossflow length, plus 0.1.
+    /// That construction anchors a length measured SPINNER TO TAIL POST at the RUDDER'S TRAILING EDGE, which is
+    /// behind the tail post, so it lands the nose short by the rudder's overhang. On the S-2B that is 0.317 m - the
+    /// derived hub sits at +1.283 where the type's own inertia build-up measures the disc at +1.600 (an earlier
+    /// placement from the TCDS arms used +1.68). A fifth of the arm, on the station that sets the in-plane force's
+    /// moment, P-factor's moment, where a thrown propeller's mass leaves from, and where the slipstream starts.
+    /// Ty 2026-11-09: "Check prop location on the pitts. Make sure it has the correct arm."
+    /// </summary>
+    public double HubXM { get; set; }
+
     /// <summary>The ceiling on <see cref="JetSpreadK"/>, the still-air rate; the rate in flight is this times lambda.</summary>
     public const double JetSpreadKMax = 0.25;
     /// <summary>Brake specific fuel consumption, kg of fuel per watt-second of SHAFT power. The default is a normally
