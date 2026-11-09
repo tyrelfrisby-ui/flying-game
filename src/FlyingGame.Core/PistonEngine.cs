@@ -83,6 +83,36 @@ public static class PistonEngine
         return 0.5 * (lo + hi);
     }
 
+    /// <summary>
+    /// FIT A FIXED-PITCH BLADE TO ITS AEROPLANE, from the one number every pilot reads on every run-up: the rpm at
+    /// full throttle standing still. Ty 2026-11-09: "Use full power static rpm (zero airspeed) as the anchor for
+    /// fixed pitch."
+    ///
+    /// It is the right anchor because it is sharply sensitive to pitch — on a J-3 two degrees of blade is 200 rpm —
+    /// it needs no assumption about drag or cruise, and it is a number he has seen rather than one from a book. A
+    /// finer blade lets the engine run up; a coarser one holds it down, so static rpm falls monotonically with pitch
+    /// over the range any real propeller occupies, and a bisection finds it.
+    ///
+    /// Past about 18 deg on a light aeroplane that monotonicity fails, because the blade is then stalled standing
+    /// still and a stalled blade absorbs LESS torque — the same inboard stall that puts the dip in the rpm-against-
+    /// speed curve. The search is therefore bounded to the unstalled range rather than allowed to wander into it.
+    /// </summary>
+    public static double FitPitchForStaticRpm(int blades, double radiusM, double activityFactor, double hubFraction,
+                                              double targetStaticRpm, double ratedPowerW, double ratedRpm, double idleRpm,
+                                              double rhoKgM3 = 1.225, double loDeg = 8.0, double hiDeg = 18.0)
+    {
+        double Static(double pitch) => BalancedRpm(new BladeElement.Geometry(blades, radiusM, pitch, activityFactor, hubFraction),
+                                                   ratedPowerW, ratedRpm, idleRpm, 1.0, 1.0, 0.0, rhoKgM3);
+        if (Static(loDeg) < targetStaticRpm) return loDeg;      // even the finest blade will not turn that fast
+        if (Static(hiDeg) > targetStaticRpm) return hiDeg;      // even the coarsest will not hold it down
+        for (int i = 0; i < 30; i++)
+        {
+            double mid = 0.5 * (loDeg + hiDeg);
+            if (Static(mid) > targetStaticRpm) loDeg = mid; else hiDeg = mid;
+        }
+        return 0.5 * (loDeg + hiDeg);
+    }
+
     /// <summary>What a governed propeller is doing right now.</summary>
     public readonly struct Governed
     {
