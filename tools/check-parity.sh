@@ -16,8 +16,9 @@
 #   tools/check-parity.sh --hook   the parity LOCK, run by tools/githooks/pre-commit and pre-merge-commit on the commit
 #                                  being made (see the --hook block below and docs/PARITY.md, "The lock").
 #
-# Branches: arguments, else $PARITY_IOS_BRANCH / $PARITY_QUEST_BRANCH, else lane/claude-island-nav and
-# lane/claude-quest-islandnav. Art lanes: local lane/* branches matching $PARITY_ART_RE.
+# Branches: arguments, else $PARITY_IOS_BRANCH / $PARITY_QUEST_BRANCH, else this worktree's own branch for the iOS
+# lane (from a Quest worktree, the lane most recently merged into it) and lane/claude-quest-islandnav for the Quest
+# lane. Art lanes: local lane/* branches matching $PARITY_ART_RE.
 # Exit: 0 in sync (warnings allowed), 1 out of sync, 2 a branch does not exist.
 set -u
 STRICT=0; BRIEF=0; HOOK=0; ARGS=()
@@ -35,13 +36,43 @@ done
 # "PARITY: OK" while comparing two branches nobody was building — a day's work drifted out of the Quest lane
 # with the gate green the whole time. A name in a script goes stale; the branch you are building cannot.
 # (A Quest lane building itself still compares against the named iOS lane: there is nothing else to mean.)
+#
+# A QUEST WORKTREE CANNOT NAME ITSELF, so it used to fall back to the literal lane/claude-island-nav -- the very name
+# the paragraph above says goes stale, and it does: on 2026-11-09 a merge FROM the Quest side was blocked against that
+# dead branch, and the only way through was to name the real lane by hand. So the Quest side now READS the answer out
+# of its own history: the iOS lane is the local lane/* branch that was most recently merged into the Quest lane, which
+# is by definition the lane it is being kept in sync with. If that cannot be determined, this exits 2 and says so
+# rather than comparing two branches nobody is building: a gate that cannot tell what it is guarding must not go green.
 HEAD_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+QUEST=${ARGS[1]:-${PARITY_QUEST_BRANCH:-lane/claude-quest-islandnav}}
+
+# The lane most recently merged into $1: walk its merge commits newest first and take the first second parent that a
+# local non-Quest lane/* branch contains.
+parity_lane_merged_into() {
+  local q=$1 m sp b
+  for m in $(git rev-list --merges --max-count=60 "$q" 2>/dev/null); do
+    sp=$(git rev-parse -q --verify "$m^2" 2>/dev/null) || continue
+    for b in $(git for-each-ref --format='%(refname:short)' 'refs/heads/lane/*' 2>/dev/null); do
+      case "$b" in *quest*) continue ;; esac
+      if git merge-base --is-ancestor "$sp" "$b" 2>/dev/null; then echo "$b"; return 0; fi
+    done
+  done
+  return 1
+}
+
 case "$HEAD_BRANCH" in
-  ""|HEAD|*quest*) IOS_DEFAULT=${PARITY_IOS_BRANCH:-lane/claude-island-nav} ;;
-  *)               IOS_DEFAULT=${PARITY_IOS_BRANCH:-$HEAD_BRANCH} ;;
+  ""|HEAD|*quest*)
+    IOS_DEFAULT=${PARITY_IOS_BRANCH:-}
+    if [ -z "$IOS_DEFAULT" ]; then IOS_DEFAULT=$(parity_lane_merged_into "$QUEST" || true); fi
+    if [ -z "$IOS_DEFAULT" ] && [ ${#ARGS[@]} -eq 0 ]; then
+      echo "parity: cannot tell which lane is the iOS lane from here ($HEAD_BRANCH): no lane/* branch has been merged" >&2
+      echo "parity: into $QUEST. Name it: PARITY_IOS_BRANCH=lane/<name> $0 ... (docs/PARITY.md)" >&2
+      exit 2
+    fi
+    ;;
+  *)  IOS_DEFAULT=${PARITY_IOS_BRANCH:-$HEAD_BRANCH} ;;
 esac
 IOS=${ARGS[0]:-$IOS_DEFAULT}
-QUEST=${ARGS[1]:-${PARITY_QUEST_BRANCH:-lane/claude-quest-islandnav}}
 ART_RE=${PARITY_ART_RE:-'cockpit|instrument|pitts|greatlakes|great-lakes|grob|extra|j3|233|swift|beaver|172|eyepoint|floor-windows|front-sight|livery|model'}
 MODELS=unity/Assets/_Project/Resources/Models
 
@@ -58,6 +89,13 @@ SHARED_RE='^(configs/|src/|unity/Assets/StreamingAssets/aircraft/|unity/Assets/_
 #          first. Never bypass with --no-verify (docs/PARITY.md).
 if [ "$HOOK" = 1 ]; then
   branch=$(git symbolic-ref -q --short HEAD) || exit 0
+  # THE LOCK IS ABOUT THE TWO SHIPPING LANES, and the iOS lane defaults to whatever branch this worktree is on -- so
+  # without this, every scratch branch becomes "the iOS lane" and the hook tells you to merge your WIP into the Quest
+  # lane and then refuses your next shared commit. A lane is a lane/* branch, or one named outright.
+  case "$branch" in
+    lane/*) ;;
+    *) if [ -z "${PARITY_IOS_BRANCH:-}" ] || [ "$branch" != "$PARITY_IOS_BRANCH" ]; then exit 0; fi ;;
+  esac
   if [ "$branch" = "$IOS" ]; then other=$QUEST; elif [ "$branch" = "$QUEST" ]; then other=$IOS; else exit 0; fi
   if ! git rev-parse -q --verify "$other^{commit}" >/dev/null; then echo "parity hook: $other does not exist; not checked" >&2; exit 0; fi
   git rev-parse -q --verify HEAD >/dev/null || exit 0
