@@ -609,6 +609,14 @@ public sealed class CelluleConfig
 public sealed class SpinAeroConfig
 {
     /// <summary>
+    /// How far BELOW its stall angle a leading edge has to come before the flow reattaches, degrees. The hysteresis
+    /// band of leading-edge stall, which is what makes the state bistable over a range of alpha — and what makes a
+    /// free elevator lurch forward when a spin slows instead of drifting forward as the angle falls. 0 disables the
+    /// hysteresis (reattachment at the stall angle itself); see StripFlowState.LeStalled.
+    /// </summary>
+    public double LeStallHysteresisDeg { get; set; } = 6.0;
+
+    /// <summary>
     /// ROLLING MOMENT DUE TO SIDESLIP ABOVE THE STALL (NACA TR-379, Knight &amp; Wenzinger 1932, Figs. 27–30): past maximum
     /// lift the yawed wing's LEADING half carries more load (most at its tip) and the trailing half less — the sweep-forward /
     /// sweep-back effect of yaw on the separated flow — "of the same order of magnitude as those due to rolling", and it is

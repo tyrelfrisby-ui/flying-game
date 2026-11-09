@@ -831,6 +831,21 @@ public static class AeroModel
                 {
                     flowState.LocalAlphaRad[idx] = alpha;
                     flowState.StallPosRad[idx] = table.AlphaClMaxRad;
+                    // THE LEADING EDGE'S OWN STATE, with its hysteresis. It separates past the section's stall angle
+                    // and does not come back until the angle has fallen a band BELOW it, so between the two the state
+                    // is whichever it already was. See StripFlowState.LeStalled: this band is what makes a free
+                    // elevator lurch rather than drift when a spin slows.
+                    if (idx < flowState.LeStalled.Length)
+                    {
+                        double onset = alpha >= 0.0 ? table.AlphaClMaxRad : Math.Abs(flowState.StallNegRad[idx]);
+                        if (onset > 1e-6)
+                        {
+                            double band = Math.Max(0.0, config.SpinAero?.LeStallHysteresisDeg ?? 6.0) * Math.PI / 180.0;
+                            double mag = Math.Abs(alpha);
+                            if (mag >= onset) flowState.LeStalled[idx] = true;
+                            else if (mag <= onset - band) flowState.LeStalled[idx] = false;
+                        }
+                    }
                     flowState.StallNegRad[idx] = table.AlphaClMinRad;
                     double sep = flowState.Separation[idx];
                     // SLAT: a deployed leading-edge slat delays separation — the stall angle this strip

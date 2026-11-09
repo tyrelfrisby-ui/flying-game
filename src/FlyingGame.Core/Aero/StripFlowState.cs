@@ -30,6 +30,21 @@ public sealed class StripFlowState
     /// those are not mirror images.</summary>
     public double[] StallPosRad = System.Array.Empty<double>();
     public double[] StallNegRad = System.Array.Empty<double>();
+
+    /// <summary>
+    /// IS THIS STRIP'S LEADING EDGE STALLED? Not a fraction and not a blend: leading-edge stall is abrupt, and it is
+    /// HYSTERETIC — the flow reattaches at a LOWER angle than it separated at, so over a band of alpha the state
+    /// depends on which way the aeroplane arrived. That band is the whole point. Ty, 2026-11-09, on his own Pitts:
+    /// let go of the stick in an upright spin and it stays fully aft, because a leading-edge-stalled stabiliser has
+    /// "no attached chord wise flow over the upper surface to provide a counter to the airflow from the lower
+    /// surface"; then idle and full opposite rudder, "the turn rate slows and the nose drops correspondingly and then
+    /// the leading edge flow reattaches on the stab and the stick lurches forward briskly due to the new attached flow
+    /// over the top breaking the stall with no pilot input completely hands off".
+    ///
+    /// A smooth blend on local flow angle cannot produce that: it drifts the elevator forward as alpha falls. The
+    /// LURCH is the hysteresis letting go.
+    /// </summary>
+    public bool[] LeStalled = System.Array.Empty<bool>();
     public bool LagPrimed;
 
     // Reversible controls (owner 2026-10-02): what a FREE hinged surface feels — the flow angle over it (before its own
@@ -72,6 +87,7 @@ public sealed class StripFlowState
             ChordM = new double[stripCount];
             StallPosRad = new double[stripCount];
             StallNegRad = new double[stripCount];
+            LeStalled = new bool[stripCount];
             HingeAlphaRad = new double[stripCount];
             HingeQ = new double[stripCount];
             HingeFlowDir = new double[stripCount];
