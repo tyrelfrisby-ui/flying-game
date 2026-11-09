@@ -1427,7 +1427,8 @@
     }
   },
   "fuselage": {
-    "cd0Area": 1.25,
+    "cd0Area": 0.771,
+    "cd0AreaSource": "Tuned 2026-11-09 from 1.25 to the owner's own cruise: he sets 2200 rpm on floats and sees about 75 mph indicated. The blade is already fitted (2150 static -> 15.33 deg), so the thrust at 2200 rpm and 75 mph is decided at 848 N; this is the drag that equals it. Cruise is then 49.4 hp, 68 percent of what the C-85 can make at 2200 rpm, against 93 percent before. NOTE: this is LESS than the wheeled Cub's 0.92, and floats cannot be cleaner than a Cub's gear \u2014 so the wheeled aeroplane is too draggy too and wants the same treatment, which needs its own datum and a re-rig.",
     "sideForceArea": 6.0,
     "damping": {
       "p": 0,
@@ -1452,6 +1453,8 @@
   "propulsion": {
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
+    "bladePitch75Deg": 15.33,
+    "bladePitchSource": "Fitted 2026-11-09 to the owner's OWN aeroplane: 2150 rpm static at full power, sea level, on his metal propeller (he says 76AK; propMaterialSource here says 76AM-2 \u2014 worth reconciling). He does not have the wooden blade, so this figure belongs to the FLOAT Cub and not to the wheeled one. Fit: PistonEngine.FitPitchForStaticRpm, blade-element against the engine's torque. Static rpm for any certified fixed-pitch type is published in its TCDS; take the middle of the range at sea level.",
     "propMaterial": "metal",
     "propMaterialSource": "Sensenich 76AM-2 forged aluminium: a seaplane flies metal, spray erodes wood",
     "propBladeCount": 2,
