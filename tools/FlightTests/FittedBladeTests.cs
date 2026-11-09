@@ -14,6 +14,12 @@ namespace FlyingGame.FlightTests;
 ///
 /// Speeds are in each aeroplane's OWN units, because a number he cannot check is no anchor: mph on the J-3, the
 /// 2-33, the Great Lakes and the Pitts, knots on the Extra.
+///
+/// THE 2150 IS HIS OWN AEROPLANE'S FIGURE, from the metal propeller ("my 76ak metal prop is 2150 static i don't
+/// have the wood prop"), and it is used for BOTH Cubs at his direction: "don't over think this just use 2150 static
+/// on both the wood and metal". The two do carry different blades — a wooden Sensenich W72 on wheels, a metal one on
+/// floats — and they could be fitted separately from their own TCDS figures later; one anchor for both is the
+/// deliberate simplification, not an oversight.
 /// </summary>
 public class FittedBladeTests
 {
@@ -33,13 +39,16 @@ public class FittedBladeTests
 
     /// <summary>The J-3's blade holds the anchor it was fitted to: 2150 rpm at full throttle, standing still.</summary>
     [Fact]
-    public void TheCubsBladeStandsAt2150()
+    public void BothCubsBladesStandAt2150()
     {
-        var p = Load("j3-cub-like").Propulsion!;
-        Assert.True(p.BladePitch75Deg > 0, "the Cub's blade has not been fitted");
-        double stat = PistonEngine.BalancedRpm(BladeOf(p), p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, 0.0, 1.225);
-        _out.WriteLine($"blade {p.BladePitch75Deg:F2} deg at 0.75 R -> {stat:F0} rpm static");
-        Assert.InRange(stat, 2130, 2170);
+        foreach (string id in new[] { "j3-cub-like", "j3-cub-floats-like" })
+        {
+            var p = Load(id).Propulsion!;
+            Assert.True(p.BladePitch75Deg > 0, $"{id}'s blade has not been fitted");
+            double stat = PistonEngine.BalancedRpm(BladeOf(p), p.MaxPowerW, p.MaxRpm, p.IdleRpm, 1.0, 1.0, 0.0, 1.225);
+            _out.WriteLine($"{id,-22} blade {p.BladePitch75Deg:F2} deg at 0.75 R -> {stat:F0} rpm static");
+            Assert.InRange(stat, 2130, 2170);
+        }
     }
 
     /// <summary>
@@ -50,7 +59,7 @@ public class FittedBladeTests
     [Fact]
     public void AndReachesRedlineAt84Mph()
     {
-        var p = Load("j3-cub-like").Propulsion!;
+        var p = Load("j3-cub-floats-like").Propulsion!;
         var g = BladeOf(p);
         double redline = double.NaN;
         for (double mph = 0; mph <= 160; mph += 0.5)
@@ -65,7 +74,7 @@ public class FittedBladeTests
     [Fact]
     public void ThrustFallsAndEfficiencyRisesAcrossTheRange()
     {
-        var p = Load("j3-cub-like").Propulsion!;
+        var p = Load("j3-cub-floats-like").Propulsion!;
         var g = BladeOf(p);
         double prevThrust = double.MaxValue, prevEta = -1;
         foreach (double mph in new[] { 0.0, 20.0, 40.0, 60.0, 80.0, 100.0 })
