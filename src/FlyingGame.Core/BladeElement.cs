@@ -77,13 +77,71 @@ public static class BladeElement
         }
     }
 
+    /// <summary>
+    /// THE SWIRL'S RADIAL SHAPE, carried from the blade to the jet. Preallocated and refilled in place: the sim solves
+    /// this every frame and must not allocate to do it.
+    ///
+    /// It exists because the shape was being ASSUMED and the fin stands where the candidate shapes disagree most.
+    /// Solid-body rotation says 0.60 m/s where the J-3's blade says 10.60 at the same station - wrong by 17x at the
+    /// hub, and wrong the other way at the tip. A free vortex matches the inner half and then overshoots, having no
+    /// tip loss. Measured, the swirl falls monotonically outward in cruise and goes nearly flat inside 0.45 R when
+    /// standing still, where the root loss cuts the hub peak down; no one law fits both, and the blade fits both
+    /// because it is where both come from.
+    /// </summary>
+    public sealed class SwirlProfile
+    {
+        public readonly double[] WakeRadiusM = new double[ProfileCount];
+        public readonly double[] SwirlMs = new double[ProfileCount];
+        public int Count;
+        public bool Any;
+
+        /// <summary>The tangential speed at <paramref name="r"/>, with the tube's own radius mapped onto the profile's.
+        /// Past the disc nothing torques the air, so r*v_t is conserved: a streamtube displaced outward - by the jet's
+        /// spreading, or by a fuselage in its core - slows by exactly the ratio its radius grew.</summary>
+        public double At(double r, double tubeRadiusM)
+        {
+            if (!Any || Count < 2 || tubeRadiusM <= 1e-6 || r < 0.0) return 0.0;
+            double rs = WakeRadiusM[Count - 1];
+            if (rs <= 1e-6) return 0.0;
+            double scale = rs / tubeRadiusM;                 // the profile's own radius per metre of this tube
+            double rp = r * scale;                           // where on the profile this station sits
+            double v;
+            if (rp <= WakeRadiusM[0]) v = SwirlMs[0] * (rp / Math.Max(1e-6, WakeRadiusM[0]));   // solid-body inside the first annulus
+            else if (rp >= rs) return 0.0;                   // outside the wash
+            else
+            {
+                v = 0.0;
+                for (int i = 0; i + 1 < Count; i++)
+                {
+                    double a = WakeRadiusM[i], b = WakeRadiusM[i + 1];
+                    if (rp < a || rp > b) continue;
+                    double f = b - a < 1e-9 ? 0.0 : (rp - a) / (b - a);
+                    v = SwirlMs[i] + f * (SwirlMs[i + 1] - SwirlMs[i]);
+                    break;
+                }
+            }
+            return v * scale;                                // r * v_t conserved through the mapping
+        }
+    }
+
     /// <summary>What the disc did to the air, and what the air did back.</summary>
     public readonly struct Result
     {
         public readonly double ThrustN, TorqueNm, PowerW, Efficiency, SwirlC, NormalN, SideN;
-        public Result(double t, double q, double p, double eta, double swirlC, double normal, double side)
-        { ThrustN = t; TorqueNm = q; PowerW = p; Efficiency = eta; SwirlC = swirlC; NormalN = normal; SideN = side; }
+        /// <summary>
+        /// THE FIRST MOMENT OF THRUST across the disc, N.m: sum of dT * r * cos(psi). Divided by the thrust it is the
+        /// distance the thrust centre has moved toward the down-going blade — P-factor's moment, measured instead of
+        /// assumed. It used to be stood in for by (in-plane force) x (propeller radius), which is a plausible scale
+        /// and nothing more; this is the same azimuthal integral that already produces the thrust, merely weighted by
+        /// where on the disc each element made it.
+        /// </summary>
+        public readonly double ThrustMomentNm;
+        public Result(double t, double q, double p, double eta, double swirlC, double normal, double side, double thrustMoment = 0.0)
+        { ThrustN = t; TorqueNm = q; PowerW = p; Efficiency = eta; SwirlC = swirlC; NormalN = normal; SideN = side; ThrustMomentNm = thrustMoment; }
     }
+
+    /// <summary>How many annuli a profile request comes back with (one per blade element).</summary>
+    public const int ProfileCount = 24;
 
     private const int Elements = 24;
     private const int Azimuths = 16;
@@ -94,10 +152,28 @@ public static class BladeElement
     /// zero by symmetry.
     /// </summary>
     public static Result Solve(in Geometry g, double vAxialMs, double vCrossMs, double rpm, double rhoKgM3)
+        => Solve(g, vAxialMs, vCrossMs, rpm, rhoKgM3, null, null);
+
+    /// <summary>
+    /// The same solve, also reporting WHERE THE SWIRL IS. <paramref name="wakeRadii"/> and <paramref name="wakeSwirl"/>,
+    /// if given, must hold at least <see cref="ProfileCount"/> entries and come back as the far-wake radius of each
+    /// annulus and the tangential speed the air there carries.
+    ///
+    /// This exists because the swirl's radial SHAPE was being assumed rather than read, and the fin stands exactly
+    /// where the candidate shapes disagree. Solid-body rotation (zero on the axis, most at the edge) and a free vortex
+    /// (most at the hub, falling as 1/r) are opposite trends, they cross at about 0.7 of the tube radius, and a fin
+    /// sits inboard of that crossing — so the choice between them moved the J-3's rigged fin by 50 %. There is no need
+    /// to choose: the annulus momentum balance below already solves for wi at every radius, with Prandtl's tip and
+    /// root loss on it, so the true distribution is in hand and was simply being discarded. The far-wake tangential
+    /// speed is 2 wi, which falls out of the balance itself: multiplying 0.5 W^2 sigma Ct = 2 F (V + vi) wi through by
+    /// rho 2 pi r dr r turns the left side into the blade's own torque and the right into mdot (2 wi) r.
+    /// </summary>
+    public static Result Solve(in Geometry g, double vAxialMs, double vCrossMs, double rpm, double rhoKgM3,
+                               double[]? wakeRadii, double[]? wakeSwirl)
     {
         double omega = rpm * 2.0 * Math.PI / 60.0;
         if (omega <= 1e-3 || g.RadiusM <= 0.0) return new Result(0, 0, 0, 0, 0, 0, 0);
-        double thrust = 0, torque = 0, normal = 0, angMom = 0;
+        double thrust = 0, torque = 0, normal = 0, angMom = 0, thrustMom = 0;
         double dx = (1.0 - g.HubFraction) / Elements;
         bool axial = Math.Abs(vCrossMs) < 1e-6;
         int nAz = axial ? 1 : Azimuths;
@@ -107,6 +183,7 @@ public static class BladeElement
             double x = g.HubFraction + (i + 0.5) * dx;
             double r = x * g.RadiusM, chord = g.ChordM(x), theta = g.BladeAngleRad(x);
             double sigma = g.Blades * chord / (2.0 * Math.PI * r);
+            double wiSum = 0.0, viSum = 0.0;
             for (int k = 0; k < nAz; k++)
             {
                 // Azimuth 0 is the blade going DOWN on the right of a right-hand prop, which is where a positive
@@ -156,7 +233,26 @@ public static class BladeElement
                 double dT = q * cn, dQ = q * ct * r;
                 thrust += dT; torque += dQ;
                 angMom += dQ;
-                if (!axial) normal += ct * q * Math.Cos(psi);   // the in-plane force, from the same elements
+                wiSum += wi; viSum += vi;
+                if (!axial)
+                {
+                    normal += ct * q * Math.Cos(psi);          // the in-plane force, from the same elements
+                    thrustMom += dT * r * Math.Cos(psi);       // and WHERE the thrust was made: P-factor's own moment
+                }
+            }
+            if (wakeRadii is not null && wakeSwirl is not null && i < wakeRadii.Length && i < wakeSwirl.Length)
+            {
+                // Where this annulus ENDS UP. Mass through it is conserved as the tube contracts, so the annulus at
+                // disc radius r arrives in the far wake at r*sqrt((V + vi)/(V + 2 vi)) — the whole contraction, taken
+                // annulus by annulus instead of as one number for the disc.
+                double viBar = viSum / nAz, wiBar = wiSum / nAz;
+                double ratio = Math.Clamp(Math.Sqrt((vAxialMs + viBar) / Math.Max(1e-6, vAxialMs + 2.0 * viBar)), 0.5, 1.5);
+                wakeRadii[i] = r * ratio;
+                // AND THE SWIRL FOLLOWS IT INWARD. Past the disc nothing applies a torque to the air, so r * v_t is
+                // conserved along the streamtube: as the tube contracts the swirl SPEEDS UP, by exactly the ratio the
+                // radius shrank. Reporting 2 wi at the contracted radius instead understates it by 6 % in cruise and
+                // 41 % standing still, where the contraction is the full 1/sqrt(2).
+                wakeSwirl[i] = 2.0 * wiBar / Math.Max(1e-6, ratio);
             }
         }
         double power = torque * omega;
@@ -165,7 +261,7 @@ public static class BladeElement
         double disc = Math.PI * g.RadiusM * g.RadiusM;
         double vDisc = Math.Max(1.0, vAxialMs + 0.5 * Math.Max(0.0, Math.Sqrt(Math.Max(0.0, vAxialMs * vAxialMs + 2.0 * thrust / Math.Max(1e-6, rhoKgM3 * disc))) - vAxialMs));
         double swirlC = angMom / Math.Max(1e-6, rhoKgM3 * disc * vDisc);
-        return new Result(thrust, torque, power, eta, swirlC, normal, 0.0);
+        return new Result(thrust, torque, power, eta, swirlC, normal, 0.0, thrustMom);
     }
 
     /// <summary>

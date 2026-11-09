@@ -779,10 +779,42 @@ public sealed class PropulsionConfig
     /// tube goes, how it bends, which surfaces it covers — and this is the one scale factor on it.</summary>
     public double JetK { get; set; } = 1.0;
 
-    /// <summary>How fast the jet's tube spreads, metres of radius per metre of path (0.045 ≈ a 2.6 deg half-angle,
-    /// the spreading rate of a round jet's shear layer into still air at these velocity ratios: Schlichting,
-    /// <i>Boundary-Layer Theory</i> ch. 24). The tube starts at the contracted slipstream radius.</summary>
-    public double JetSpreadPerM { get; set; } = 0.045;
+    /// <summary>
+    /// HOW FAST THE JET'S TUBE SPREADS, as a fraction of its own radius per PROPELLER DIAMETER of path aft
+    /// (Ty 2026-11-09: "build the spread as something tunable with a k factor from none to 25% per diameter of prop in
+    /// distance aft ie if the fuselage is 4 prop diameters the spread would be doubled by the back of the tail. that
+    /// seems extreme so we have head room"). So R(s) = R0 * (1 + k * s / D), and k = 0.25 four diameters aft doubles
+    /// the radius. Clamped to <see cref="JetSpreadKMax"/>.
+    ///
+    /// It replaces a flat 0.045 metres of radius per metre of path. Two reasons. The rate belongs to the JET's own
+    /// size, not to the airframe's: a shear layer spreads in proportion to the width of the jet feeding it, so a
+    /// per-metre number silently means different things on a 1.8 m propeller and a 2.6 m one. And the tube's starting
+    /// radius is no longer a constant 0.7 R — it is the real contraction, which is 0.71 R standing still and 0.98 R in
+    /// cruise, so an ADDITIVE growth added the same absolute width to a narrow static tube as to a wide cruising one.
+    /// Proportional growth is the one that means the same thing in both.
+    ///
+    /// THIS NUMBER IS THE STILL-AIR LIMIT, not the rate in flight. Ty 2026-11-09: "that makes sense to the k factor has
+    /// to vary with airspeed." A shear layer grows in proportion to the velocity DIFFERENCE across it, measured against
+    /// the mean — the mixing-layer shear parameter
+    ///     lambda = (U_jet - U_outside) / (U_jet + U_outside) = du / (2 V + du)
+    /// which is 1 standing still, where the slipstream really is a jet into still air, and collapses toward 0 in
+    /// cruise, where the wash is only a quarter faster than the air it is moving through. No shear, no mixing, no
+    /// spread: the effective rate is <c>JetSpreadK * lambda</c>. That is why a propeller aeroplane's whole tail is in
+    /// the blast at full power standing still and its slipstream is barely wider than the disc in cruise, and it is
+    /// the same statement as the measurements — a tractor single's slipstream at the tail is about one propeller
+    /// diameter across.
+    ///
+    /// 0.25 is the owner's stated extreme ("25% per diameter of prop in distance aft ... that seems extreme so we have
+    /// head room") and it turns out to BE the still-air rate rather than a ceiling over it: with the static
+    /// contraction at 0.707 R, k = 0.25 per diameter is dR/ds = 0.0885, a 5.1 deg half-angle, which is the measured
+    /// spreading rate of a round jet into still air (Schlichting, <i>Boundary-Layer Theory</i> ch. 24). The flat
+    /// 0.045 m/m it replaces was that same still-air rate applied at EVERY airspeed, which is why it read as 0.10
+    /// across the fleet — a cruise compromise standing in for both ends.
+    /// </summary>
+    public double JetSpreadK { get; set; } = 0.25;
+
+    /// <summary>The ceiling on <see cref="JetSpreadK"/>, the still-air rate; the rate in flight is this times lambda.</summary>
+    public const double JetSpreadKMax = 0.25;
     /// <summary>Brake specific fuel consumption, kg of fuel per watt-second of SHAFT power. The default is a normally
     /// aspirated piston's 0.45 lb/hp/hr: a 160 hp four at 75 % cruise burns about 34 litres an hour on it, which is
     /// what the book says. Turbines want their own number.</summary>
@@ -838,6 +870,19 @@ public sealed class CrossflowConfig
     /// <summary>Proposal 2: fuselage length for DISTRIBUTED crossflow (5 stations -> real Cm_q/N_r
     /// damping at spin attitudes). 0 = legacy single-point.</summary>
     public double LengthM { get; set; }
+
+    /// <summary>
+    /// THE BODY'S MEASURED SHAPE, station by station: <see cref="StationX"/> the body-axis x of each station, with the
+    /// midline height (<see cref="StationMidZ"/>, NED so negative is up) and the section's half-width and half-height
+    /// there. All four must be the same length, and two stations are the minimum; given none, the body is the constant
+    /// ellipse the areas above imply with a straight midline, exactly as before. Measured off the type's three-view
+    /// mesh, never a scaled drawing. It exists because an ATTACHED propeller wash needs something with a shape to
+    /// follow (see <c>FuselageShape</c>): a Cub's tailcone rises most of a foot on the way to the fin.
+    /// </summary>
+    public double[] StationX { get; set; } = System.Array.Empty<double>();
+    public double[] StationMidZ { get; set; } = System.Array.Empty<double>();
+    public double[] StationHalfY { get; set; } = System.Array.Empty<double>();
+    public double[] StationHalfZ { get; set; } = System.Array.Empty<double>();
 
     /// <summary>
     /// Fuselage radius at the wing station (m) for the wing-body crossflow dihedral effect (2D cylinder

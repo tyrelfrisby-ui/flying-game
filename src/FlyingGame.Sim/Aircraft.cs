@@ -291,6 +291,9 @@ public sealed partial class Aircraft
     public double SpoilerCommand { get; set; }
     /// <summary>Slipstream swirl at the tail as a fraction of the axial speed-up (0.2; 0 = no swirl — diagnostics).</summary>
     public static double SwirlFactor = 0.2;
+
+    /// <summary>This aeroplane's slipstream swirl distribution, refilled in place every step (no per-frame allocation).</summary>
+    private readonly BladeElement.SwirlProfile _swirl = new();
     public void SetGear(bool down, bool immediate = false)
     {
         if (!Config.RetractableGear) { GearDown = true; GearExtension = 1.0; return; }
@@ -1305,7 +1308,7 @@ public sealed partial class Aircraft
         _overlayFlow.LagPrimed = false;   // quasi-steady: this state's coefficients, not the last live step's
 
         double stalled = AeroModel.InstantStalledFraction(Config, s.Velocity, s.Rates, windBody, _surfaceMask, _stripMask, _airfoilTables);
-        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, s.Velocity, s.Rates, airDensity, Drive, _noseLost);
+        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, s.Velocity, s.Rates, airDensity, Drive, _noseLost, _swirl);
         // The strips take the jet from PropJet's traced tube inside AeroModel; this scalar is only the bulk spiral-slipstream
         // yaw's share, measured from the same trace.
         double overTail = PropJet.TailShare(Config, s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position)),
@@ -1326,7 +1329,8 @@ public sealed partial class Aircraft
             _slipOverTail = overTail;
             _drive = Drive;   // MountedPropulsion reads the field; both are re-derived at the top of every live step
             AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, stalled,
-                _overlayFlow, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl, windGradient);
+                _overlayFlow, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl, windGradient,
+                Config.Propulsion is not null && PropModel.IsSolved(Config.Propulsion, _drive), _swirl);
 
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(new Vec3(0, 0, MassProperties.MassKg * Atmosphere.GravityMs2));
             ForceDebug.Add(Config.Mass.CgVec(), gravityBody, Vec3.Zero, "weight");
@@ -1407,7 +1411,7 @@ public sealed partial class Aircraft
         _drive = Drive;
         // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R. From what the prop
         // is really doing, not the throttle: a stopped or missing prop blows nothing (Ty 2026-11-04, the Extra's strike).
-        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, State.Velocity, State.Rates, airDensity, _drive, _noseLost);
+        (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, State.Velocity, State.Rates, airDensity, _drive, _noseLost, _swirl);
         // WHERE that wash goes is PropJet's traced tube, per strip, inside AeroModel: so the blowing follows alpha, beta and
         // the body rates out of the geometry, with no stall gate on it. What is left here is the bulk spiral-slipstream yaw
         // on the fin (PropModel.Parts.SlipYaw), which is a moment and not a strip load, so it takes the tube's share of the
@@ -1443,7 +1447,8 @@ public sealed partial class Aircraft
             double wingAgl = -s.Position.Z - under + AeroModel.WingHeightAboveCg(Config);
             SimProfile.End(SimProfile.Scope.GroundEffect, tGe);
             long tAero = SimProfile.Begin();
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl, windGradient);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl, windGradient,
+                Config.Propulsion is not null && PropModel.IsSolved(Config.Propulsion, _drive), _swirl);
             SimProfile.End(SimProfile.Scope.Aero, tAero);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
@@ -1729,7 +1734,13 @@ public sealed partial class Aircraft
     /// wake (V_slip² = V² + 2T/(ρA) with the windmill's negative T) swirling the other way — small, and never a blast.</summary>
     public static (double DeltaU, double Radius, double Swirl) TailSlipstream(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
         PropModel.PropDrive drive, bool propGone)
+        => TailSlipstream(config, throttle01, velocity, rates, airDensity, drive, propGone, null);
+
+    /// <summary>The same, also filling the slipstream's radial swirl distribution for the jet to interpolate.</summary>
+    public static (double DeltaU, double Radius, double Swirl) TailSlipstream(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
+        PropModel.PropDrive drive, bool propGone, BladeElement.SwirlProfile? profile)
     {
+        if (profile is not null) profile.Any = false;
         if (config.Propulsion is null || config.Propulsion.PropDiameterM <= 0.0 || propGone) return (0.0, 0.0, 0.0);
         double vNow = velocity.Length;
         double thr = throttle01;
@@ -1739,7 +1750,7 @@ public sealed partial class Aircraft
             foreach (EngineMount m in config.Engines) { if (!m.Feathered) scale += m.ThrottleScale; n++; }
             thr *= n > 0 ? scale / n : 1.0;
         }
-        (Vec3 tF, _) = PropModel.Compute(config.Propulsion, thr, velocity, rates, airDensity, drive);
+        (Vec3 tF, _) = PropModel.Compute(config.Propulsion, thr, velocity, rates, airDensity, drive, out PropModel.Parts parts, profile);
         double radius = config.Propulsion.PropDiameterM * 0.5;
         double disc = System.Math.PI * radius * radius;
         if (!drive.EngineRunning)
@@ -1753,6 +1764,34 @@ public sealed partial class Aircraft
         double thrust = System.Math.Max(0.0, tF.X);
         double vSlip = System.Math.Sqrt(vNow * vNow + 2.0 * thrust / (airDensity * disc));
         double du = 0.9 * System.Math.Max(0.0, vSlip - vNow);
+        // A SOLVED PROPELLER MEASURES ITS OWN TUBE, in width and in rotation, instead of taking the two constants
+        // below. Both of those constants are the STATIC limit of the real thing wearing a fixed number, which is why
+        // they looked harmless: at V = 0 they are very nearly right.
+        //
+        // THE WIDTH. 0.7 R is momentum theory's contraction with the aeroplane standing still, where the air arrives
+        // at the disc at v_i and leaves at 2 v_i, so the area must halve. In flight it arrives at V + v_i and leaves
+        // at V + 2 v_i, so it halves only in the limit V -> 0 and the real ratio is
+        //     R_s / R = sqrt((V + v_i) / (V + 2 v_i)),
+        // which at the Pitts' own rig condition is 0.98, not 0.7. Fixed at 0.7 the tube carried 150 kg/s where the
+        // disc had passed 295 — half the air simply missing — and every surface near the wash's edge sat wrongly
+        // outside it.
+        //
+        // THE ROTATION. SwirlFactor = 0.2 says the tangential speed is a fifth of the axial increase, one number for
+        // every propeller ever flown here. It need not be guessed: the torque the blades make IS the angular momentum
+        // they put into the air, and PropJet turns the tube as a solid body, so the two are the same statement —
+        //     Q = rho * V_t * 2 pi * Omega * integral(r^3 dr, 0..R_s) = rho * V_t * pi * Omega * R_s^4 / 2
+        // and the edge speed PropJet wants is Omega * R_s = 2 Q / (rho * pi * R_s^3 * V_t). What the blades took out
+        // of the crankshaft is then exactly what the fin feels, with nothing in between to tune.
+        if (parts.SwirlC != 0.0 && thrust > 0.0)
+        {
+            double vi = 0.5 * (vSlip - vNow);                       // momentum theory at the disc; far wake is 2 v_i
+            double contraction = System.Math.Sqrt((vNow + vi) / System.Math.Max(1e-6, vNow + 2.0 * vi));
+            double rs = radius * System.Math.Clamp(contraction, 0.70, 1.0);
+            double vTube = vNow + du;
+            double q = System.Math.Abs(parts.TorqueRoll);
+            double edge = 2.0 * q / System.Math.Max(1e-6, airDensity * System.Math.PI * rs * rs * rs * vTube);
+            return (du, rs, edge * config.Propulsion.RotationSign);
+        }
         return (du, 0.7 * radius, SwirlFactor * du * config.Propulsion.RotationSign);
     }
 
@@ -1810,6 +1849,10 @@ public sealed partial class Aircraft
                 pF += nF;
                 pM += Vec3.Cross(propArm, nF);
             }
+            // AND THE SOLVED DISC'S IN-PLANE FORCE on the same arm. PropModel puts it in the force but leaves its
+            // moment here, because only this side knows where the hub is; taken inside on a propeller-radius arm it
+            // was about half the moment it should have been.
+            if (parts.InPlane.Y != 0.0 || parts.InPlane.Z != 0.0) pM += Vec3.Cross(propArm, parts.InPlane);
             // Blade tips curled by a prop strike (Aircraft.PropStrike): a smaller disc at the same power.
             if (thrustScale is { Length: > 0 } && thrustScale[0] != 1.0) { pF *= thrustScale[0]; pM *= thrustScale[0]; }
             ForceDebug.Add(noseBody, pF, pM, "thrust");

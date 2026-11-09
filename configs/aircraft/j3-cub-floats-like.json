@@ -1371,14 +1371,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.006581,
-    "finOffsetRad": 0.007261,
+    "aileronRad": 0.001754,
+    "finOffsetRad": 0.031751,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 28.542,
-    "alphaRad": 0.07691,
-    "elevatorTrimRad": -0.033382,
-    "bankRad": 0.005406
+    "tasMs": 32.739,
+    "alphaRad": 0.036259,
+    "elevatorTrimRad": -0.014933,
+    "bankRad": -0.00061
   },
   "controls": {
     "aileron": {
@@ -1436,6 +1436,11 @@
       "r": 0
     },
     "crossflow": {
+      "stationX": [-0.3, -0.8, -1.4, -2.0, -2.6, -3.1, -3.7, -4.3, -4.9, -5.5, -6.1],
+      "stationMidZ": [0.1134, 0.1827, 0.1898, 0.1604, 0.0481, -0.0427, -0.0751, -0.104, -0.1544, -0.2078, -0.2405],
+      "stationHalfY": [0.225, 0.2763, 0.315, 0.315, 0.315, 0.285, 0.2542, 0.2018, 0.1365, 0.0783, 0.033],
+      "stationHalfZ": [0.2866, 0.3835, 0.4379, 0.4604, 0.4895, 0.4933, 0.4314, 0.3719, 0.3261, 0.2832, 0.2195],
+      "stationSource": "Measured 2026-11-09 off the type's own three-view lines in tools/own_models/build_j3_cub.py (F_TOP, F_BOT, F_HW), the same tables the visual model is built from. The midline RISES 0.169 m by the fin station, which the constant-section crossflow body could not say at all (CentreZ was zero everywhere) - and an attached propeller wash needs a shape to follow. Owner 2026-11-09: the vortex has a tendency to follow the fuselage, not a rule, so PropJet traces attached and free and blends them.",
       "bodyRadiusM": 0.5,
       "planArea": 4.0,
       "planCenterX": -0.5,
@@ -1454,7 +1459,7 @@
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
     "bladePitch75Deg": 15.33,
-    "bladePitchSource": "Fitted 2026-11-09 to the owner's OWN aeroplane: 2150 rpm static at full power, sea level, on his metal propeller (he says 76AK; propMaterialSource here says 76AM-2 \u2014 worth reconciling). He does not have the wooden blade, so this figure belongs to the FLOAT Cub and not to the wheeled one. Fit: PistonEngine.FitPitchForStaticRpm, blade-element against the engine's torque. Static rpm for any certified fixed-pitch type is published in its TCDS; take the middle of the range at sea level.",
+    "bladePitchSource": "Fitted 2026-11-09 to the owner's OWN aeroplane: 2150 rpm static at full power, sea level, on his metal propeller (he says 76AK; propMaterialSource here says 76AM-2 \u2014 worth reconciling). He does not have the wooden blade, so this figure belongs to the FLOAT Cub and not to the wheeled one. Fit: PistonEngine.FitPitchForStaticRpm, blade-element against the engine's torque. Static rpm for any fixed-pitch type with a TCDS is published there; take the middle of the range at sea level.",
     "propMaterial": "metal",
     "propMaterialSource": "Sensenich 76AM-2 forged aluminium: a seaplane flies metal, spray erodes wood",
     "propBladeCount": 2,
