@@ -1590,6 +1590,8 @@
     "beamM": 0.5358,
     "depthM": 0.4993,
     "deadriseDeg": 18.8,
+      "incidenceDeg": 6.0,
+      "incidenceDegSource": "Rigged angle, degrees, leading edge up. 6 deg chosen 2026-11-09 to satisfy BOTH of Ty's figures at once: the floats carry their own weight plus some AT STALL (115 percent at 6 deg) and the stall speed is 2-5 percent lower with floats than without (3.5 percent at 6 deg) - his own correction, the lift shows at the stall and not in cruise. Two independent claims, one model, one angle. He will test floats against wheels on the next build and this can be refined then. His friend is Wipaire's chief engineer and test pilot, so the behaviour is measured, not folklore.",
     "stepFraction": 0.5562,
     "spreadM": 1.887,
     "bowX": 1.9945,

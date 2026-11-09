@@ -69,6 +69,10 @@ public static class TailWake
     internal sealed class BodyStation
     {
         public double X, HalfLenX, HalfY, HalfZ;
+        /// <summary>Where this station's section is CENTRED, body frame. Zero for the fuselage, which lies on the
+        /// axis; a float sits out to the side and well below, so it needs its own centre (Ty 2026-11-09: "make sure
+        /// the float bodies are included on the shadow work though just like a fuselage would be").</summary>
+        public double CentreY, CentreZ;
     }
 
     /// <summary>
@@ -168,18 +172,42 @@ public static class TailWake
         const int n = 5;
         double halfY = 0.5 * cf.PlanArea / cf.LengthM, halfZ = 0.5 * cf.SideArea / cf.LengthM;
         double centre = 0.5 * (cf.PlanCenterX + cf.SideCenterX);
-        var body = new BodyStation[n];
+        var body = new System.Collections.Generic.List<BodyStation>(n + 2 * n);
         for (int i = 0; i < n; i++)
         {
             double frac = (i - (n - 1) * 0.5) / (n - 1);     // -0.5 .. +0.5, the crossflow model's own stations
-            body[i] = new BodyStation
+            body.Add(new BodyStation
             {
                 X = centre + frac * cf.LengthM,
                 HalfLenX = 0.5 * cf.LengthM / n,
                 HalfY = halfY, HalfZ = halfZ,
-            };
+            });
         }
-        return body;
+
+        // AND THE FLOATS, which are bluff bodies in their own right (Ty 2026-11-09: "make sure the float bodies are
+        // included on the shadow work though just like a fuselage would be"). A pair of Cub floats is 4.4 m long and
+        // sits 1.4 m below the aeroplane and 0.94 m out to each side — in a slip, a spin or a steep approach they lie
+        // across the flow exactly as the fuselage does, and what is downstream of them is in their wake. They are
+        // the same construction as the fuselage's stations, simply not on the axis.
+        FloatsConfig? fl = cfg.Floats;
+        if (fl is not null && fl.LengthM > 0.1 && fl.BeamM > 0.01)
+        {
+            double fHalfY = 0.5 * fl.BeamM, fHalfZ = 0.5 * fl.DepthM;
+            double cx = fl.BowX - 0.5 * fl.LengthM, cz = fl.KeelZ - fHalfZ;
+            foreach (double side in new[] { -1.0, 1.0 })
+                for (int i = 0; i < n; i++)
+                {
+                    double frac = (i - (n - 1) * 0.5) / (n - 1);
+                    body.Add(new BodyStation
+                    {
+                        X = cx + frac * fl.LengthM,
+                        HalfLenX = 0.5 * fl.LengthM / n,
+                        HalfY = fHalfY, HalfZ = fHalfZ,
+                        CentreY = side * 0.5 * fl.SpreadM, CentreZ = cz,
+                    });
+                }
+        }
+        return body.ToArray();
     }
 
     /// <summary>The wake state of every section for one aerodynamic evaluation. Reused per thread, no allocation per call.</summary>
@@ -525,14 +553,14 @@ public static class TailWake
         for (int i = 0; i < n; i++)
         {
             BodyStation b = f.Body[i];
-            Vec3 v = f.Freestream + Vec3.Cross(f.Rates, new Vec3(b.X, 0.0, 0.0) - f.Cg);
+            Vec3 v = f.Freestream + Vec3.Cross(f.Rates, new Vec3(b.X, b.CentreY, b.CentreZ) - f.Cg);
             double sp = v.Length;
             double sep = sp > 1e-6 ? Math.Clamp(Math.Sqrt(v.Y * v.Y + v.Z * v.Z) / sp, 0.0, 1.0) : 0.0;
             f.BodySep[i] = sep;
             if (sep <= 1e-6) continue;
             f.BodyAny = true;
             xmin = Math.Min(xmin, b.X - b.HalfLenX); xmax = Math.Max(xmax, b.X + b.HalfLenX);
-            ry = Math.Max(ry, b.HalfY); rz = Math.Max(rz, b.HalfZ);
+            ry = Math.Max(ry, Math.Abs(b.CentreY) + b.HalfY); rz = Math.Max(rz, Math.Abs(b.CentreZ) + b.HalfZ);
         }
         f.BodyXMin = xmin; f.BodyXMax = xmax; f.BodyReachY = ry; f.BodyReachZ = rz;
     }
@@ -556,7 +584,7 @@ public static class TailWake
             BodyStation b = f.Body[i];
             if (b.HalfY <= 1e-9 || b.HalfZ <= 1e-9) continue;
             if (Math.Abs(p.X - b.X) > b.HalfLenX) continue;
-            double sy = p.Y / b.HalfY, sz = p.Z / b.HalfZ;
+            double sy = (p.Y - b.CentreY) / b.HalfY, sz = (p.Z - b.CentreZ) / b.HalfZ;
             if (sy * sy + sz * sz < 1.0) return true;
         }
         return false;
@@ -591,7 +619,7 @@ public static class TailWake
             }
             else if (Math.Abs(r0.X - b.X) > ax) continue;
             // Closest approach to the axis in the scaled section, over that part.
-            double py0 = r0.Y / ay, pz0 = r0.Z / az, dy = d.Y / ay, dz = d.Z / az;
+            double py0 = (r0.Y - b.CentreY) / ay, pz0 = (r0.Z - b.CentreZ) / az, dy = d.Y / ay, dz = d.Z / az;
             double den = dy * dy + dz * dz;
             double t = den > 1e-18 ? Math.Clamp(-(py0 * dy + pz0 * dz) / den, t0, t1) : t0;
             double qy = py0 + dy * t, qz = pz0 + dz * t;

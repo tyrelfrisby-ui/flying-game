@@ -881,6 +881,15 @@ public sealed class FloatsConfig
     public double BeamM { get; set; } = 0.66;
     public double DepthM { get; set; } = 0.55;           // keel to deck at the step
     public double DeadriseDeg { get; set; } = 20;
+
+    /// <summary>
+    /// The angle the floats are RIGGED to the airframe, degrees, positive leading edge up. It is what decides how
+    /// much of their own weight they carry in the air (see <see cref="FlyingGame.Core.Aero.FloatAero"/>): a float
+    /// installation sets this by the length of its struts, and it is a choice the installer made, not something the
+    /// float's own dimensions imply. Ty 2026-11-09: "they carry their own weight plus some so they don't cause any
+    /// trim drag." The only tunable in the float's aerodynamics — everything else is measured geometry.
+    /// </summary>
+    public double IncidenceDeg { get; set; }
     public double StepFraction { get; set; } = 0.55;     // step position from the bow, fraction of length
     public double SpreadM { get; set; } = 2.6;           // centre-to-centre
     public double BowX { get; set; } = 2.6;              // bow tip x vs CG
