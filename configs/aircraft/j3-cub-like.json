@@ -1452,6 +1452,8 @@
   "propulsion": {
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
+    "bladePitch75Deg": 15.33,
+    "bladePitchSource": "Fitted 2026-11-09 to the owner's own figure: 2150 rpm static at full power, sea level, on the C-85. That pitch then reaches the 2575 rpm redline at 84 mph at full throttle, which he confirmed as a good rpm/airspeed correlation. Static thrust 475 lb absorbing 71 hp; cruise about 2480 rpm at 75 mph. Fit: PistonEngine.FitPitchForStaticRpm, blade-element + engine torque balance.",
     "propMaterial": "wood",
     "propMaterialSource": "Sensenich W72 laminated birch, the J-3 original",
     "propBladeCount": 2,

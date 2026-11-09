@@ -718,6 +718,25 @@ public sealed class PropulsionConfig
     /// </summary>
     public double PropMassKg { get; set; }
 
+    /// <summary>
+    /// THE BLADE ANGLE AT THREE-QUARTER RADIUS, degrees, which with a constant geometric pitch sets the twist all
+    /// along the blade (<see cref="FlyingGame.Core.BladeElement.Geometry"/>). 0 means this type has not been fitted
+    /// yet.
+    ///
+    /// For a FIXED-PITCH type it is fitted to the one number a pilot reads on every run-up: the rpm at full throttle
+    /// standing still (Ty 2026-11-09, "Use full power static rpm (zero airspeed) as the anchor for fixed pitch").
+    /// Static rpm is sharply sensitive to pitch — two degrees is 200 rpm on a J-3 — needs no assumption about drag or
+    /// cruise, and is a figure he has seen rather than one from a book. See
+    /// <see cref="FlyingGame.Core.PistonEngine.FitPitchForStaticRpm"/>.
+    ///
+    /// For a CONSTANT-SPEED type this is not used in flight: the governor sets the blade, and what matters is the
+    /// pair of stops, which are derived from his other two rules (<see cref="FlyingGame.Core.BladeElement.GovernorStops"/>).
+    /// </summary>
+    public double BladePitch75Deg { get; set; }
+
+    /// <summary>Where <see cref="BladePitch75Deg"/> came from — the anchor it was fitted to and what followed.</summary>
+    public string BladePitchSource { get; set; } = "";
+
     /// <summary>Activity factor: the published measure of how much blade there is, which with
     /// <see cref="PropBladeCount"/> sets the chord distribution a blade-element solution needs (see
     /// <see cref="FlyingGame.Core.BladeElement"/>). 100 is a conventional light-aeroplane blade.
