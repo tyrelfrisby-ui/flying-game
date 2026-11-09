@@ -90,10 +90,88 @@ public sealed partial class Aircraft
         }
     }
 
-    /// <summary>What the propeller model is given this step.</summary>
-    public PropModel.PropDrive Drive =>
-        EngineRunning ? (PowerScale == 1.0 && _propLever == 1.0 ? PropModel.PropDrive.Running : PropModel.PropDrive.RunningAt(PowerScale, _propLever))
-                      : PropModel.PropDrive.Dead(_noseLost ? 0.0 : WindmillRpm);
+    /// <summary>What the propeller model is given this step, carrying the shaft rpm when it is being integrated.</summary>
+    public PropModel.PropDrive Drive
+    {
+        get
+        {
+            PropModel.PropDrive d = EngineRunning
+                ? (PowerScale == 1.0 && _propLever == 1.0 ? PropModel.PropDrive.Running : PropModel.PropDrive.RunningAt(PowerScale, _propLever))
+                : PropModel.PropDrive.Dead(_noseLost ? 0.0 : WindmillRpm);
+            return _shaftRpm > 0.0 ? d.WithShaft(_shaftRpm, _bladePitchDeg) : d;
+        }
+    }
+
+    // ---- the shaft, as a state ------------------------------------------------------------------------------------
+    //
+    // A PROPELLER'S RPM IS NOT A FUNCTION OF THE THROTTLE (Phase 1, Ty 2026-11-09). It is where the engine's torque
+    // and the blade's balance, and it accelerates against the propeller's own inertia:
+    //
+    //     I * dw/dt = Q_engine(rpm, throttle, density) - Q_prop(blade, V, rpm, density)
+    //
+    // That one line is why a fixed-pitch aeroplane turns 2150 standing still and red-lines in a dive on the same
+    // throttle, why the rpm sags when you raise the nose, and why it takes a moment to come back. Before this the sim
+    // had TWO disagreeing throttle laws — PropModel.RunningRpm for the forces and the gyro, BaseEngineRpm for the
+    // tachometer and the audio — so the number on the gauge was never the number the aeroplane flew on.
+    //
+    // Only types whose blade has been fitted (propulsion.bladePitch75Deg, from their static rpm) are integrated; the
+    // rest keep the old law untouched, so the fleet stays flyable while the blades are fitted one at a time.
+    private double _shaftRpm, _bladePitchDeg;
+
+    /// <summary>The shaft rpm being integrated, or 0 when this type is still on the old throttle law.</summary>
+    public double ShaftRpm => _shaftRpm;
+
+    /// <summary>True when this aeroplane's propeller is solved rather than estimated.</summary>
+    public bool HasFittedBlade => Config.Propulsion is { PropDiameterM: > 0, BladePitch75Deg: > 0 };
+
+    /// <summary>Advance the shaft one step against the torque the engine makes and the torque the blade takes.</summary>
+    private void StepShaft(double dt, double airDensity)
+    {
+        PropulsionConfig? p = Config.Propulsion;
+        if (p is null || !HasFittedBlade || dt <= 0.0) { _shaftRpm = 0.0; return; }
+        if (_noseLost) { _shaftRpm = 0.0; return; }               // the propeller has gone: nothing to turn
+
+        double radius = 0.5 * p.PropDiameterM;
+        double pressureRatio = Atmosphere.PressureAtAltitude(-State.Position.Z) / Atmosphere.SeaLevelPressurePa;
+        if (_shaftRpm <= 0.0) _shaftRpm = EngineRunning ? System.Math.Max(p.IdleRpm, 500.0) : System.Math.Max(1.0, WindmillRpm);
+
+        // A GOVERNED PROPELLER SENSES RPM, NOT TORQUE. A real governor is a flyweight head against a spring: rpm
+        // above the setting opens a valve that drives the blade coarser, below it drives it finer, and it runs out
+        // at the stops. So this is a rate controller on the rpm ERROR, clamped to the stops — which is both what the
+        // hardware does and far cheaper than solving for the angle that balances the torque, which would cost forty
+        // blade-element solutions every step.
+        double pitch = p.BladePitch75Deg > 0 ? p.BladePitch75Deg : 15.0;
+        if (p.ConstantSpeed)
+        {
+            double fine = p.FineStopDeg > 0 ? p.FineStopDeg : 10.0;
+            double coarse = p.CoarseStopDeg > fine ? p.CoarseStopDeg : fine + 15.0;
+            if (_bladePitchDeg <= 0.0) _bladePitchDeg = System.Math.Clamp(0.5 * (fine + coarse), fine, coarse);
+            if (EngineRunning)
+            {
+                double commanded = GovernedRpmAt(_propLever);
+                double error = (_shaftRpm - commanded) / System.Math.Max(1.0, commanded);
+                _bladePitchDeg += System.Math.Clamp(error * GovernorGainDegPerSec, -GovernorRateDegPerSec, GovernorRateDegPerSec) * dt;
+            }
+            else _bladePitchDeg += (fine - _bladePitchDeg) * (1.0 - System.Math.Exp(-dt / 2.0));   // no oil pressure: it drifts fine
+            _bladePitchDeg = System.Math.Clamp(_bladePitchDeg, fine, coarse);
+            pitch = _bladePitchDeg;
+        }
+
+        var g = new BladeElement.Geometry(p.PropBladeCount, radius, pitch, p.ActivityFactor);
+        double qProp = BladeElement.Solve(g, State.Velocity.X, 0.0, _shaftRpm, airDensity).TorqueNm;
+        double qEngine = EngineRunning
+            ? PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm, _throttle01 * PowerScale, pressureRatio)
+            : 0.0;
+        double inertia = System.Math.Max(0.05, p.PropInertia);
+        double omega = _shaftRpm * 2.0 * System.Math.PI / 60.0;
+        omega += (qEngine - qProp) / inertia * dt;
+        _shaftRpm = System.Math.Clamp(omega * 60.0 / (2.0 * System.Math.PI), 0.0, p.MaxRpm * 1.6);
+    }
+
+    /// <summary>Governor response: degrees of blade per second per unit of fractional rpm error, and the rate the
+    /// head can actually drive the blade at. A real governor catches a throttle movement in a second or two, and the
+    /// lag is what lets the rpm overshoot briefly instead of being pinned to the setting.</summary>
+    private const double GovernorGainDegPerSec = 220.0, GovernorRateDegPerSec = 12.0;
 
     /// <summary>How fast the air turns a dead engine's prop (0 when it is too slow to, or there is no prop).</summary>
     public double WindmillRpm => Config.Propulsion is { PropDiameterM: > 0 } p && !_noseLost
@@ -114,6 +192,7 @@ public sealed partial class Aircraft
     private void UpdateEngine(double dt, double airDensity)
     {
         _sigma = airDensity / Atmosphere.SeaLevelDensityKgM3;
+        StepShaft(dt, airDensity);          // the propeller's rpm is a state, not a throttle position
         if (!HasMixture || _noseLost) return;
         _roughPhase += dt * 2.0 * System.Math.PI * 3.1;   // a lean misfire's beat, a few times a second
         if (_roughPhase > 1e4) _roughPhase -= 2.0 * System.Math.PI * 1000.0;

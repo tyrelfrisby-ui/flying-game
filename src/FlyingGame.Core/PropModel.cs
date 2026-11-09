@@ -21,7 +21,7 @@ public static class PropModel
     /// rotation show the vectors of the propeller's forces and label them"): the thrust and where it acts (the P-factor's
     /// offset of its centre from the hub, m), the torque reaction (roll, N·m), the spiral slipstream's yaw on the fin (N·m)
     /// and the gyroscopic moment. <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double)"/> is their sum.</summary>
-    public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw; public Vec3 Gyro, Normal; }
+    public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw, SwirlC; public Vec3 Gyro, Normal; }
 
     /// <summary>
     /// THE PROPELLER'S IN-PLANE (NORMAL) FORCE (2026-11-08). Every propeller effect in this model was until now either
@@ -103,11 +103,28 @@ public static class PropModel
         public readonly double Rpm;
         /// <summary>Running, constant-speed: the governor (prop) lever, 0..1 (1 = fine, full rpm). Ignored otherwise.</summary>
         public readonly double PropLever;
-        private PropDrive(bool running, double scale, double rpm, double propLever = 1.0) { EngineRunning = running; PowerScale = scale; Rpm = rpm; PropLever = propLever; }
+        /// <summary>
+        /// THE RPM THE SHAFT IS ACTUALLY TURNING, when the caller is integrating it as a state (Aircraft does). 0
+        /// means "nobody is tracking it", and the model falls back to the old throttle law — which is how a type
+        /// whose blade has not been fitted yet keeps flying exactly as it did.
+        ///
+        /// It has to come from outside because it is not a function of the throttle: a propeller's rpm is where the
+        /// engine's torque and the blade's balance, and it ACCELERATES against the propeller's inertia. That is what
+        /// makes a fixed-pitch aeroplane turn 2150 standing still and red-line in a dive on the same throttle.
+        /// </summary>
+        public readonly double ShaftRpm;
+        /// <summary>A governed propeller's blade angle at 0.75 R this instant, degrees; 0 = use the config's fitted
+        /// pitch (a fixed-pitch blade, or before the governor has been solved).</summary>
+        public readonly double BladePitchDeg;
+        private PropDrive(bool running, double scale, double rpm, double propLever = 1.0, double shaftRpm = 0.0, double bladePitchDeg = 0.0)
+        { EngineRunning = running; PowerScale = scale; Rpm = rpm; PropLever = propLever; ShaftRpm = shaftRpm; BladePitchDeg = bladePitchDeg; }
         public static readonly PropDrive Running = new(true, 1.0, 0.0);
         public static PropDrive RunningAt(double powerScale) => new(true, Math.Max(0.0, powerScale), 0.0);
         public static PropDrive RunningAt(double powerScale, double propLever) => new(true, Math.Max(0.0, powerScale), 0.0, Math.Clamp(propLever, 0.0, 1.0));
         public static PropDrive Dead(double windmillRpm) => new(false, 0.0, Math.Max(0.0, windmillRpm));
+        /// <summary>The same drive, told what the shaft is doing and (for a governor) what the blade is set to.</summary>
+        public PropDrive WithShaft(double shaftRpm, double bladePitchDeg = 0.0)
+            => new(EngineRunning, PowerScale, Rpm, PropLever, Math.Max(0.0, shaftRpm), Math.Max(0.0, bladePitchDeg));
     }
 
     /// <summary>Lowest governed rpm, as a fraction of <c>MaxRpm</c> (a 2,700 rpm Lycoming's governor bottoms near 1,900).</summary>
@@ -156,6 +173,19 @@ public static class PropModel
             parts.Thrust = jetThrust;
             return (new Vec3(jetThrust, 0, jetThrust * prop.ThrustLineZ * 0), new Vec3(0, jetThrust * prop.ThrustLineZ, 0));
         }
+
+        // THE BLADE-ELEMENT PATH (Phase 1, Ty 2026-11-09). When a type's blade has been fitted
+        // (propulsion.bladePitch75Deg, from its static rpm) and the caller supplies the rpm the shaft is ACTUALLY
+        // turning, the propeller is solved instead of estimated: thrust and torque from the blade, P-factor and the
+        // in-plane force from the azimuthal integral, and the swirl from the torque. That retires eta*P/V, the static
+        // figure of merit, PFactorK, NormalForceK and SlipstreamK in one path.
+        //
+        // The rpm has to come from OUTSIDE because it is a STATE: a propeller's rpm is where the engine's torque and
+        // the blade's balance, and it accelerates against the propeller's inertia rather than jumping. Aircraft
+        // integrates it. When nothing supplies one, or the type has no fitted blade, everything below is unchanged —
+        // which is how the fleet stays flyable while the blades are fitted one at a time.
+        if (drive.EngineRunning && drive.ShaftRpm > 0.0 && prop.BladePitch75Deg > 0.0 && prop.PropDiameterM > 0.0)
+            return BladeElementForces(prop, bodyVelocity, bodyRates, airDensity, drive, ref parts);
 
         double rpm = drive.EngineRunning ? RunningRpm(prop, thr, drive.PropLever) : drive.Rpm;   // the gyro's
         // The torque reaction keeps the throttle law: every type's stored rig (RigTests) was solved against it, so moving it
@@ -246,6 +276,47 @@ public static class PropModel
     /// <summary>The same at the prop's real speed: a stopped prop has no angular momentum, a windmilling one some.</summary>
     public static Vec3 GyroMoment(PropulsionConfig prop, double throttle01, Vec3 bodyRates, PropDrive drive) =>
         drive.EngineRunning ? GyroMomentAt(prop, RunningRpm(prop, throttle01, drive.PropLever), bodyRates) : GyroMomentAt(prop, drive.Rpm, bodyRates);
+
+    /// <summary>
+    /// The propeller as a propeller: every force and moment from one blade-element solution at the rpm the shaft is
+    /// really turning. See <see cref="FlyingGame.Core.BladeElement"/> for the model and the bench it was checked on.
+    /// </summary>
+    private static (Vec3 Force, Vec3 Moment) BladeElementForces(PropulsionConfig prop, Vec3 bodyVelocity, Vec3 bodyRates,
+                                                                double airDensity, PropDrive drive, ref Parts parts)
+    {
+        double rpm = drive.ShaftRpm;
+        double radius = 0.5 * prop.PropDiameterM;
+        double vAxial = bodyVelocity.X;
+        double vCross = Math.Sqrt(bodyVelocity.Y * bodyVelocity.Y + bodyVelocity.Z * bodyVelocity.Z);
+        double pitch = drive.BladePitchDeg > 0.0 ? drive.BladePitchDeg : prop.BladePitch75Deg;
+        var g = new BladeElement.Geometry(prop.PropBladeCount, radius, pitch, prop.ActivityFactor);
+        var r = BladeElement.Solve(g, vAxial, vCross, rpm, airDensity);
+
+        Vec3 force = new(r.ThrustN, 0, 0);
+        Vec3 moment = new(0, r.ThrustN * prop.ThrustLineZ, 0);
+
+        // Torque reaction: a right-hand prop rolls the aeroplane left, and the torque is now the blade's own.
+        moment += new Vec3(-prop.RotationSign * r.TorqueNm, 0, 0);
+        parts.Thrust = r.ThrustN; parts.TorqueRoll = -prop.RotationSign * r.TorqueNm;
+
+        // THE IN-PLANE FORCE AND P-FACTOR, which are the same azimuthal integral and no longer two coefficients. The
+        // disc's thrust centre moves toward the down-going blade, and the disc makes a force in its own plane; both
+        // act on the cross-stream direction the aeroplane is actually meeting the air from.
+        if (vCross > 1e-6 && r.NormalN != 0.0)
+        {
+            double uy = bodyVelocity.Y / vCross, uz = bodyVelocity.Z / vCross;
+            Vec3 inPlane = new(0, prop.RotationSign * r.NormalN * uz, -prop.RotationSign * r.NormalN * uy);
+            force += inPlane;
+            moment += Vec3.Cross(new Vec3(radius, 0, 0), inPlane);
+            parts.PFactorY = r.ThrustN > 1e-6 ? prop.RotationSign * radius * r.NormalN / r.ThrustN * uz : 0.0;
+            parts.PFactorZ = r.ThrustN > 1e-6 ? -prop.RotationSign * radius * r.NormalN / r.ThrustN * uy : 0.0;
+        }
+
+        parts.Gyro = GyroMomentAt(prop, rpm, bodyRates);
+        moment += parts.Gyro;
+        parts.SwirlC = r.SwirlC;
+        return (force, moment);
+    }
 
     private static Vec3 GyroMomentAt(PropulsionConfig prop, double rpm, Vec3 bodyRates)
     {

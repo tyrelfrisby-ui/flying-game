@@ -737,6 +737,18 @@ public sealed class PropulsionConfig
     /// <summary>Where <see cref="BladePitch75Deg"/> came from — the anchor it was fitted to and what followed.</summary>
     public string BladePitchSource { get; set; } = "";
 
+    /// <summary>
+    /// A CONSTANT-SPEED PROPELLER'S PITCH STOPS, degrees at 0.75 R. Derived, not chosen — Ty 2026-11-09: "the low
+    /// pitch stop allows full rpm at 26 inches of manifold pressure at sea level for naturally aspirated engines and
+    /// the high pitch stop prevents an overspeed until vd at full power with Vd being 110% of the vne". See
+    /// <see cref="FlyingGame.Core.BladeElement.GovernorStops"/>, which computes them from the blade and the type's
+    /// own Vne; these fields are that computation CACHED, because deriving them costs two bisections of
+    /// blade-element solutions and the governor needs them every step. 0 = not yet derived.
+    /// </summary>
+    public double FineStopDeg { get; set; }
+    public double CoarseStopDeg { get; set; }
+    public string PitchStopSource { get; set; } = "";
+
     /// <summary>Activity factor: the published measure of how much blade there is, which with
     /// <see cref="PropBladeCount"/> sets the chord distribution a blade-element solution needs (see
     /// <see cref="FlyingGame.Core.BladeElement"/>). 100 is a conventional light-aeroplane blade.
