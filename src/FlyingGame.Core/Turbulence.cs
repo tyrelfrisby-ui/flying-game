@@ -184,6 +184,78 @@ public sealed class Turbulence
         return new Vec3(gx * sx, gy * sy, gz * sz);
     }
 
+    /// <summary>
+    /// THE AEROPLANE IS BIGGER THAN THE SMALL EDDIES, AND AVERAGES THEM AWAY (Ty 2026-11-09, flying at KSNA: "The
+    /// jitter is on all airplanes no matter the speed or power including the glider so it is either poorly modeled
+    /// turbulence or some kind of bug"). He was right, and it is the turbulence.
+    ///
+    /// The field is sampled at ONE point and applied as a uniform gust to the whole airframe. But a wing INTEGRATES a
+    /// gust across its span, so a gust smaller than the aeroplane largely cancels: for a sinusoidal gust of wavenumber
+    /// k across a span b, the span average is sinc(kb/2), which is 4 % for a 2 m eddy on a 15 m wing and exactly ZERO
+    /// for a gust one span wide (one wing up, the other down). Measured at 50 ft AGL, where the length scale collapses
+    /// to about 15 m, 30 % of the field's variance sits in eddies smaller than a 15 m span and half of it below 30 m
+    /// (GustScaleProbe) -- so a third of the gust energy down low was shaking the aeroplane ten to twenty times harder
+    /// than the air can.
+    ///
+    /// AND THE ROLL IS THE SIGNAL, NOT THE NOISE (Ty, the same morning): "we need this for the soaring to work ... a
+    /// pilot finds a thermal because the airplane rolls to one side, they then know the lift is on the rising wing side
+    /// and they turn in that direction". That cue is the gust's FIRST MOMENT across the span, and it was being
+    /// estimated by differencing samples at +/- half span -- which, on a field containing 2 m eddies, is aliasing. So
+    /// it is computed here in closed form instead, per mode:
+    ///
+    ///   heave:  sinc(x),                             x = k_y b / 2
+    ///   roll :  (12/b^3) * 2*[ sin(x)/k_y^2 - (b/2) cos(x)/k_y ],  which tends to k_y as k_y -> 0
+    ///
+    /// the second being (12/b^3) * integral of y*sin(k_y y) over the span, normalised so a gust that varies linearly
+    /// across the wing reproduces its true gradient exactly. It peaks near one span per wavelength -- the thermal edge
+    /// that lifts a wing -- and dies for eddies much smaller than the aeroplane, which is the same statement as the
+    /// heave filter and the reason the two belong in one place.
+    /// </summary>
+    /// <param name="spanM">The wing span doing the averaging.</param>
+    /// <param name="spanAxis">The wing's span direction in WORLD axes (unit).</param>
+    /// <param name="rollPerMetre">Out: d(gust)/dy across the span, world axes, per metre.</param>
+    public Vec3 UnitGustAt(Vec3 pos, double timeSec, double lengthHorizM, double lengthVertM, Vec3 advect,
+                           double spanM, Vec3 spanAxis, out Vec3 rollPerMetre)
+    {
+        rollPerMetre = Vec3.Zero;
+        if (_ampRow is null || _ladderLogL is null || _axisScale is null || _omega is null) return Vec3.Zero;
+        if (!(spanM > 0.1)) return UnitGustAt(pos, timeSec, lengthHorizM, lengthVertM, advect);
+        (int rh, double fh) = Row(lengthHorizM);
+        (int rv, double fv) = Row(lengthVertM);
+        double px = pos.X - advect.X * timeSec, py = pos.Y - advect.Y * timeSec, pz = pos.Z - advect.Z * timeSec;
+        double gx = 0, gy = 0, gz = 0, dx = 0, dy = 0, dz = 0;
+        double half = 0.5 * spanM, b3 = 12.0 / (spanM * spanM * spanM);
+        int n = _k.Length;
+        for (int i = 0; i < n; i++)
+        {
+            double arg = _k[i].X * px + _k[i].Y * py + _k[i].Z * pz + _phase[i] + _omega[i] * timeSec;
+            double sn = System.Math.Sin(arg), cs = System.Math.Cos(arg);
+            double ky = _k[i].X * spanAxis.X + _k[i].Y * spanAxis.Y + _k[i].Z * spanAxis.Z;
+            double x = ky * half;
+            // Span average and span first moment. Both are expanded near x = 0, where the closed forms cancel.
+            double avg, grad;
+            if (System.Math.Abs(x) < 1e-3)
+            {
+                avg = 1.0 - x * x / 6.0;
+                grad = ky * (1.0 - x * x * 0.1);
+            }
+            else
+            {
+                avg = System.Math.Sin(x) / x;
+                grad = b3 * 2.0 * (System.Math.Sin(x) / (ky * ky) - half * System.Math.Cos(x) / ky);
+            }
+            double ah = (_ampRow[rh, i] * (1 - fh) + _ampRow[rh + 1, i] * fh);
+            double av = (_ampRow[rv, i] * (1 - fv) + _ampRow[rv + 1, i] * fv);
+            gx += ah * sn * avg * _amp[i].X; gy += ah * sn * avg * _amp[i].Y; gz += av * sn * avg * _amp[i].Z;
+            dx += ah * cs * grad * _amp[i].X; dy += ah * cs * grad * _amp[i].Y; dz += av * cs * grad * _amp[i].Z;
+        }
+        double sx = _axisScale[rh, 0] * (1 - fh) + _axisScale[rh + 1, 0] * fh;
+        double sy = _axisScale[rh, 1] * (1 - fh) + _axisScale[rh + 1, 1] * fh;
+        double sz = _axisScale[rv, 2] * (1 - fv) + _axisScale[rv + 1, 2] * fv;
+        rollPerMetre = new Vec3(dx * sx, dy * sy, dz * sz);
+        return new Vec3(gx * sx, gy * sy, gz * sz);
+    }
+
     private (int row, double frac) Row(double lengthM)
     {
         double[] l = _ladderLogL!;

@@ -1211,19 +1211,32 @@ public sealed partial class Aircraft
         Vec3 cgPos = State.Position;
         AtmosphereSample cg = Atmosphere.SampleAt(cgPos)!.Value;
         density = cg.DensityKgM3;
-        Vec3 wCg = Atmosphere.WindFromSample(cgPos, cg, true);
+        // THE GUST THIS SPAN ACTUALLY FEELS (Atmosphere.WindForSpan). A wing averages away every eddy smaller than
+        // itself, and at 50 ft AGL a third of the field's variance is smaller than a 15 m span — sampling it at one
+        // point and applying it to the whole airframe was Ty's jitter, on every type at every speed (2026-11-09).
+        Vec3 spanAxisWorld = q.Rotate(new Vec3(0, 1, 0));
+        Vec3 wCg = Atmosphere.WindForSpan(cgPos, cg, 2 * _halfSpanM, spanAxisWorld, out Vec3 gustGradWorld);
         windBody = qc.Rotate(wCg);
         meanWindBody = qc.Rotate(Atmosphere.WindFromSample(cgPos, cg, false));
 
-        Vec3 Wind(Vec3 bodyOffset)
+        // THE SPANWISE GRADIENT, which is how a pilot finds lift: the wing in the stronger air rises and you turn
+        // toward it. The gust's share of it is the closed-form first moment across the span, from the same modes; the
+        // rest — mean-wind shear, the thermal columns, the river — is large-scale and still differenced, which is the
+        // right answer for structure far bigger than the aeroplane. Differencing the GUST at +/- half span, as this
+        // did, was aliasing a field with metre-scale structure in it, so the roll cue was partly noise.
+        Vec3 WindNoGust(Vec3 bodyOffset)
         {
             Vec3 p = cgPos + q.Rotate(bodyOffset);
-            return qc.Rotate(Atmosphere.WindFromSample(p, Atmosphere.SampleAt(p)!.Value, true));
+            return qc.Rotate(Atmosphere.WindFromSample(p, Atmosphere.SampleAt(p)!.Value, false));
         }
-        Vec3 left = Wind(new Vec3(0, -_halfSpanM, 0)), right = Wind(new Vec3(0, _halfSpanM, 0));
-        Vec3 perY = (right - left) / (2 * _halfSpanM);
+        Vec3 left = WindNoGust(new Vec3(0, -_halfSpanM, 0)), right = WindNoGust(new Vec3(0, _halfSpanM, 0));
+        Vec3 perY = (right - left) / (2 * _halfSpanM) + qc.Rotate(gustGradWorld);
+        // Along the fuselage only the large-scale wind is differenced. The gust's own longitudinal gradient over a
+        // 4 m tail arm was aliased noise and is left out rather than left wrong; it is second order beside the
+        // uniform gust, and giving it the same closed-form treatment as the span is a job of its own.
         Vec3 perX = Vec3.Zero;
-        if (System.Math.Abs(_tailArmM) > 0.5) perX = (Wind(new Vec3(_tailArmM, 0, 0)) - windBody) / _tailArmM;
+        if (System.Math.Abs(_tailArmM) > 0.5)
+            perX = (WindNoGust(new Vec3(_tailArmM, 0, 0)) - qc.Rotate(Atmosphere.WindFromSample(cgPos, cg, false))) / _tailArmM;
         gradient = perX.LengthSquared + perY.LengthSquared > 0 ? new WindGradient(perX, perY) : default;
     }
 
