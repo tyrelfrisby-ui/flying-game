@@ -264,7 +264,8 @@ public sealed partial class Aircraft
                 {
                     int r = l.SlavedRows[j];
                     StripConfig st = _stripAt[r]!;
-                    HingeStrip(r, st.Area * st.Chord, Math.Sign(st.Control!.Gain), ax, ref a, ref b);
+                    double vN = 0.0, vD = 0.0;   // hinge terms only here, not the vane angle
+                    HingeStrip(r, st.Area * st.Chord, Math.Sign(st.Control!.Gain), ax, ref a, ref b, ref vN, ref vD);
                 }
                 double cur = _linkLocal[i] * l.SlavedSign, target;
                 if (b > 0) target = Math.Sign(cur != 0 ? cur : a) * ax.LimitFor(Math.Sign(cur != 0 ? cur : a));   // reversed flow: to the stop
