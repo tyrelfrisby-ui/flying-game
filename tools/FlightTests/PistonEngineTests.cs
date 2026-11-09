@@ -1,0 +1,104 @@
+using FlyingGame.Core;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace FlyingGame.FlightTests;
+
+/// <summary>
+/// THE RPM IS SOLVED, NOT ASSUMED (Phase 1b). A propeller demands the torque its geometry demands; the engine makes
+/// the torque its manifold pressure and rpm allow; the rpm settles where they are equal. These are the behaviours
+/// that follow, and every one of them is a thing a pilot can check against the aeroplane.
+/// </summary>
+public class PistonEngineTests
+{
+    private readonly ITestOutputHelper _out;
+    public PistonEngineTests(ITestOutputHelper o) { _out = o; }
+
+    // A J-3-ish fixed-pitch installation: 65 hp, 2300 rpm, 1.78 m two-blade.
+    private static BladeElement.Geometry CubProp => new(2, 0.89, 16.0, 95.0);
+    private const double CubPowerW = 48470, CubRatedRpm = 2300, CubIdle = 700;
+
+    /// <summary>
+    /// A FIXED-PITCH AEROPLANE CANNOT MAKE RATED RPM STANDING STILL. With no forward speed the blade's angle of
+    /// attack is high, it absorbs more torque than the engine can give at that rpm, and the engine is dragged down:
+    /// real static rpm sits a couple of hundred below redline and climbs as the aeroplane accelerates. That is why a
+    /// static run-up is a check rather than a formality, and the old thrust = eta*P/V model could not express it at all.
+    /// </summary>
+    /// Measured: 2131 rpm standing still against 2300 rated — 93 %, where a J-3's static run-up really sits — rising
+    /// to the rated figure as it accelerates. There is a small DIP between 0 and 10 m/s, and it is not a glitch: with
+    /// a constant geometric pitch the blade angle at a fifth of the radius is about 47 deg while the inflow angle
+    /// there is 23, so the inboard blade is stalled at 24 deg of incidence when the aeroplane is standing still. A
+    /// stalled root absorbs LESS torque, so the engine turns slightly faster at rest than at ten knots. Published
+    /// torque-coefficient curves show the same kink at very low advance ratio, so the test asserts the real property
+    /// — below rated at rest, climbing over the working range — and not the idealised one it first assumed.
+    [Fact]
+    public void StaticRpmIsBelowRedlineAndClimbsWithSpeed()
+    {
+        double at0 = 0, prev = 0;
+        foreach (double v in new[] { 0.0, 10.0, 20.0, 30.0, 40.0 })
+        {
+            double rpm = PistonEngine.BalancedRpm(CubProp, CubPowerW, CubRatedRpm, CubIdle, 1.0, 1.0, v, 1.225);
+            var r = BladeElement.Solve(new BladeElement.Geometry(2, 0.89, 16.0, 95.0), v, 0.0, rpm, 1.225);
+            _out.WriteLine($"full throttle at {v,4:F0} m/s: {rpm,6:F0} rpm, {r.ThrustN,6:F0} N, {r.PowerW / 745.7,5:F0} hp absorbed");
+            if (v == 0) at0 = rpm;
+            else Assert.True(rpm > prev - 1, $"rpm must rise with airspeed once the root is flying: {prev:F0} -> {rpm:F0} at {v:F0} m/s");
+            if (v > 0) prev = rpm;
+        }
+        Assert.InRange(at0, 0.80 * CubRatedRpm, 0.99 * CubRatedRpm);
+        double at40 = PistonEngine.BalancedRpm(CubProp, CubPowerW, CubRatedRpm, CubIdle, 1.0, 1.0, 40.0, 1.225);
+        Assert.True(at40 > at0, $"rpm must be higher in the cruise than standing still: {at0:F0} -> {at40:F0}");
+    }
+
+    /// <summary>Closing the throttle drops the rpm; opening it raises it. The engine's torque falls with manifold
+    /// pressure, so the balance moves down the propeller's demand curve.</summary>
+    [Fact]
+    public void ThrottleMovesTheBalance()
+    {
+        double prev = 0;
+        foreach (double t in new[] { 0.2, 0.4, 0.6, 0.8, 1.0 })
+        {
+            double rpm = PistonEngine.BalancedRpm(CubProp, CubPowerW, CubRatedRpm, CubIdle, t, 1.0, 20.0, 1.225);
+            _out.WriteLine($"throttle {t:F1}: {rpm:F0} rpm");
+            Assert.True(rpm > prev, "more throttle must mean more rpm");
+            prev = rpm;
+        }
+    }
+
+    /// <summary>Altitude costs power through the air the engine can draw, with no separate lapse constant: manifold
+    /// pressure is ambient pressure throttled, so a naturally aspirated engine simply gets less of it up high.</summary>
+    [Fact]
+    public void ItLosesPowerWithAltitudeBecauseItSwallowsLessAir()
+    {
+        double sea = PistonEngine.PowerW(CubPowerW, CubRatedRpm, CubRatedRpm, 1.0, 1.0);
+        double tenK = PistonEngine.PowerW(CubPowerW, CubRatedRpm, CubRatedRpm, 1.0, 0.688);   // 10 000 ft pressure ratio
+        _out.WriteLine($"sea level {sea / 745.7:F0} hp, 10 000 ft {tenK / 745.7:F0} hp ({100 * tenK / sea:F0} %)");
+        Assert.InRange(tenK / sea, 0.50, 0.70);     // the classic "about 60 % at ten thousand feet"
+    }
+
+    /// <summary>
+    /// A CONSTANT-SPEED PROPELLER HOLDS ITS RPM — until it runs out of blade. Between the stops the governor finds a
+    /// pitch and the rpm is exactly what was asked for; on a stop it cannot, and the rpm goes where the torque
+    /// balance puts it. That is what the stops are for, and it is why they are derived from the owner's two rules
+    /// (BladeElement.GovernorStops) rather than picked.
+    /// </summary>
+    [Fact]
+    public void TheGovernorHoldsRpmUntilItRunsOutOfBlade()
+    {
+        // The Pitts' Hartzell: 260 hp, 2700 rpm, 82 in two-blade, Vne 94.8 m/s.
+        const int blades = 2; const double r = 1.0414, af = 110.0, hub = 0.15;
+        const double powerW = 194000, rated = 2700, idle = 700, vne = 94.8;
+        var stops = BladeElement.GovernorStops(blades, r, af, hub, powerW, rated, vne);
+        _out.WriteLine($"stops: fine {stops.FineDeg:F1} deg, coarse {stops.CoarseDeg:F1} deg");
+        bool heldSomewhere = false, hitAStop = false;
+        foreach (double v in new[] { 0.0, 20.0, 40.0, 60.0, 80.0, 104.0, 130.0 })
+        {
+            var g = PistonEngine.Govern(blades, r, af, hub, stops, rated, powerW, rated, idle, 1.0, 1.0, v, 1.225);
+            string where = g.OnFineStop ? "FINE stop" : g.OnCoarseStop ? "COARSE stop" : $"governing at {g.PitchDeg:F1} deg";
+            _out.WriteLine($"  {v,5:F0} m/s full power: {g.Rpm,6:F0} rpm   {where}");
+            if (!g.OnFineStop && !g.OnCoarseStop) { heldSomewhere = true; Assert.Equal(rated, g.Rpm, 3); }
+            else hitAStop = true;
+        }
+        Assert.True(heldSomewhere, "the governor must hold the commanded rpm somewhere in the range");
+        Assert.True(hitAStop, "and must run out of blade somewhere in the range");
+    }
+}
