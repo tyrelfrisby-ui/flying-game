@@ -224,7 +224,14 @@ public static class BladeElement
                         viNew = 0.5 * (-vAxialMs + Math.Sign(vAxialMs) * Math.Sqrt(Math.Max(0.0, vAxialMs * vAxialMs + load)));
                     viNew = Math.Clamp(viNew, -0.9 * Math.Abs(vAxialMs) - 30.0, 60.0);
                     wiNew = w2 * sigma * ct / Math.Max(1e-6, 4.0 * F * Math.Max(1e-3, vAxialMs + viNew));
-                    wiNew = Math.Clamp(wiNew, -0.5 * vTanLocal, 0.5 * vTanLocal);
+                    // CLAMP BY MAGNITUDE, because vTanLocal CAN GO NEGATIVE. It is omega*r + vCross*cos(psi): at
+                    // idle the rpm is low and in a spin the crossflow is large, so on the retreating side of the disc
+                    // the blade's own tangential speed reverses. Written as (-0.5*vTan, +0.5*vTan) the bounds then
+                    // swap and Math.Clamp THROWS - "'3.88' cannot be greater than '-3.88'". That is exactly the case
+                    // Ty asked about on 2026-11-09: pull the power in a flat spin, and the blade-element solve throws
+                    // rather than returning a weaker propeller.
+                    double wiLim = 0.5 * Math.Abs(vTanLocal);
+                    wiNew = Math.Clamp(wiNew, -wiLim, wiLim);
                     double nvi = vi + 0.4 * (viNew - vi), nwi = wi + 0.4 * (wiNew - wi);
                     if (Math.Abs(nvi - vi) < 1e-6 && Math.Abs(nwi - wi) < 1e-6) { vi = nvi; wi = nwi; break; }
                     vi = nvi; wi = nwi;
