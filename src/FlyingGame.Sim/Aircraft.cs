@@ -22,8 +22,11 @@ public enum StructuralBreak { None = 0, Wings = 1, HorizontalTail = 2, EngineMou
 /// it flexes visibly from the limit, 10° at 1.5 × limit and 20° at 2.0 × limit, keeps half of any bending past 1.5 ×
 /// limit as a permanent set, is weakened 2 % per 0.1 of overage for the next time, and snaps and departs past
 /// 2.0 × limit of what is left of it. Three members, each on its own load:
-///  • the WINGS and the HORIZONTAL TAIL on the load factor the air makes, weight-adjusted (n / n_limit × W / W_gross:
-///    a light aeroplane has more g before the same bending; an over-gross one less);
+///  • the WINGS on the load factor the air makes, weight-adjusted (n / n_limit × W / W_gross: a light aeroplane has more
+///    g before the same bending; an over-gross one less);
+///  • the HORIZONTAL TAIL on the same load divided by <see cref="TailDesignMargin"/>, because what it carries in a
+///    symmetric pull is the balancing download and not the wings' lift (Ty 2026-11-09): a pull that bends or breaks the
+///    wings does not reach the tail's own limit;
 ///  • the ENGINE MOUNT on the same load factor with NO weight adjustment — the engine's mass is fixed, so its mount
 ///    feels n × its own weight whatever the rest weighs.
 /// Past 1.5 × limit it also creaks and pops (<see cref="OverLimitSeverity"/> 0..1, <see cref="Pops"/>), from the
@@ -71,20 +74,42 @@ public sealed class StructuralState
 
     private double _popAccum;
 
+    /// <summary>
+    /// How much more the horizontal tail can carry than the balancing download a pull at the wings' LIMIT puts on it
+    /// (Ty 2026-11-09, on the overstressed Extra 300: "the tail should not bend and if it did it would be the other way
+    /// due to the direction of the load").
+    ///
+    /// The tail used to be stepped at the WINGS' load ratio — the two lines were identical — so it passed 1.5 × and 2.0 ×
+    /// on the same step they did and kept the same 10° set whenever they did (measured, Extra 300 held at 1.8 × its 10 g
+    /// limit: wings 16.00°, tail 16.00°). That is not a load the tail carries. In a symmetric pull the tail's load is the
+    /// BALANCING download that trims the wing's nose-down pitching moment — a few per cent of the wing's lift — while the
+    /// structure under it is sized by a different and much larger case: 14 CFR 23.423's abrupt elevator manoeuvre and
+    /// 23.425's gust, not 23.421's balancing load. So the balancing download at the wings' limit is a fraction of what
+    /// the tail can carry, and a manoeuvre that bends the WINGS does not reach the tail's limit.
+    ///
+    /// 2.5 is that fraction's reciprocal, set against Ty's rule rather than measured per type: the pull that takes the
+    /// wings off (2.0 × their limit) leaves the tail at 0.80 × its own — inside its limit, so it does not flex at all,
+    /// which is Ty's position. Nothing in the sim yet puts the tail's OWN load on it (there is no per-surface normal
+    /// force, and the abrupt-elevator case is not modelled), so this is the only thing that loads it; when a real tail
+    /// load arrives, it replaces this ratio rather than scaling it.
+    /// </summary>
+    public const double TailDesignMargin = 2.5;
+
     /// <summary>Advance at load factor <paramref name="n"/> for everything, at the spawn mass (tests, scenarios). True on
     /// the step the wings break.</summary>
     public bool Step(double n, double dt) => (Step(n, n, _spawnWeightRatio, dt) & StructuralBreak.Wings) != 0;
 
-    /// <summary>Advance the structure one step: the wings and the tail on the air's load factor
-    /// <paramref name="nAero"/> times <paramref name="wingWeightRatio"/> (<see cref="LimitsConfig.WingWeightRatio"/>), the
-    /// engine mount on the whole aeroplane's <paramref name="nTotal"/>. Returns what broke on this step; the caller does
-    /// the separating, because dropping surfaces and re-deriving the inertia is the Aircraft's business.</summary>
+    /// <summary>Advance the structure one step: the wings on the air's load factor <paramref name="nAero"/> times
+    /// <paramref name="wingWeightRatio"/> (<see cref="LimitsConfig.WingWeightRatio"/>), the tail on the same load through
+    /// its own margin (<see cref="TailDesignMargin"/>: it carries the balancing download, not the wings' lift), the engine
+    /// mount on the whole aeroplane's <paramref name="nTotal"/>. Returns what broke on this step; the caller does the
+    /// separating, because dropping surfaces and re-deriving the inertia is the Aircraft's business.</summary>
     public StructuralBreak Step(double nAero, double nTotal, double wingWeightRatio, double dt)
     {
         var broke = StructuralBreak.None;
         double rw = Ratio(nAero) * wingWeightRatio, re = Ratio(nTotal);
         if (!WingsFailed && Wings.Step(rw, dt)) broke |= StructuralBreak.Wings;
-        if (HorizontalTail is { Broken: false } t && t.Step(rw, dt)) broke |= StructuralBreak.HorizontalTail;
+        if (HorizontalTail is { Broken: false } t && t.Step(rw / TailDesignMargin, dt)) broke |= StructuralBreak.HorizontalTail;
         if (EngineMount is { Broken: false } e && e.Step(re, dt)) broke |= StructuralBreak.EngineMount;
         double sev = 0.0;
         if (!WingsFailed && (broke & StructuralBreak.Wings) == 0) sev = Math.Max(sev, Severity(Wings));

@@ -11,7 +11,9 @@ namespace FlyingGame.Sim;
 ///    set plus their flex under load — dihedral, load points and hard points move with it (the same geometry a ground
 ///    strike bends, <see cref="WingPanel.Deform"/>), and the panels' own hinges lose the strength the overstress took.
 ///  • HORIZONTAL TAIL: each half of the stabiliser and elevator turns about the centreline, tips DOWN under positive g
-///    (a pull is a download on the tail and the tail's own mass hangs the same way).
+///    (a pull is a download on the tail and the tail's own mass hangs the same way). It is loaded by the balancing
+///    download, not by the wings' lift (<see cref="StructuralState.TailDesignMargin"/>, Ty 2026-11-09), so a manoeuvre
+///    that bends the wings leaves it straight.
 ///  • ENGINE MOUNT: the engine and propeller droop about the firewall, nose DOWN under positive g: the thrust line, the
 ///    disc's angle to the air and the hub's place all follow (<see cref="EngineSagRad"/>).
 /// Whatever passes its break departs through the same path as any other lost part (FailWings, LoseComponent).
@@ -49,7 +51,19 @@ public sealed partial class Aircraft
     /// crushed into it (<see cref="FuselageCrush.NoseBendRad"/>).</summary>
     public double EngineSagRad => (Structure.EngineMount?.DeflectionRad ?? 0.0) + (_crush?.NoseBendRad ?? 0.0);
 
-    /// <summary>The horizontal tail's bend at its tips, rad, + = tips UP (the overstress member's sign is the other way).</summary>
+    /// <summary>
+    /// The horizontal tail's bend at its tips, rad, + = tips UP.
+    ///
+    /// The member's own sign is the other way round, because <see cref="OverstressMember"/>'s + is "the way positive g
+    /// bends it" and for a tail that is tips DOWN: a pull is a DOWNLOAD on the tail (it balances the wing's nose-down
+    /// pitching moment) and the tail's own mass hangs the same way. So this negates it, and a positive-g overstress comes
+    /// out NEGATIVE here — tips down. Checked end to end against Ty's 2026-11-09 report that the stabiliser was drawn
+    /// bent the wrong way (OverstressPatternTests: the Extra 300 held at 1.8 × its limit gives tail
+    /// DeflectionRad +16.00° and TailBendRad −16.00°, and both <see cref="ApplyTailBend"/> and the drawn mesh take + as
+    /// tips up): the sign is right in the sim, the whole way through. What was drawn wrong was the ELEVATOR, which the
+    /// bend pinned at the deflection it had when the bend started — stick back, trailing edge up — see
+    /// AirframeVisual.ShowTailBend.
+    /// </summary>
     public double TailBendRad => -(Structure.HorizontalTail?.DeflectionRad ?? 0.0);
 
     /// <summary>Per-step structural bookkeeping from the load factor of the step just integrated.</summary>

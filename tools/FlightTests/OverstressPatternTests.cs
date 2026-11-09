@@ -146,9 +146,17 @@ public class OverstressPatternTests : IDisposable
         Assert.False(ac.EngineStopped);
         Assert.Equal(10.0 * Deg, st.Wings.SetRad, 4);
         Assert.Equal(10.0 * Deg, st.EngineMount.SetRad, 4);
-        Assert.Equal(10.0 * Deg, st.HorizontalTail.SetRad, 4);
         Assert.Equal(0.90, st.Wings.Strength, 4);
-        // The shapes the aeroplane flies and is drawn at: every wing panel tip-up 10°, the engine nose-down 10°, the tail tips down.
+        // THE TAIL DOES NOT BEND (Ty 2026-11-09, on the overstressed Extra: "the tail should not bend"). It used to keep
+        // the same 10° set as the wings, because it was stepped at the wings' load ratio; it carries the balancing
+        // download instead (StructuralState.TailDesignMargin), so this pull leaves it at 2.0 / 2.5 = 0.80 × its own
+        // limit — inside it, nothing flexed, nothing booked.
+        Assert.Equal(0.0, st.HorizontalTail.SetRad, 9);
+        Assert.Equal(0.0, st.HorizontalTail.DeflectionRad, 9);
+        Assert.Equal(0, st.HorizontalTail.Overstresses);
+        Assert.Equal(0.80, st.HorizontalTail.PeakEffectiveRatio, 3);
+        Assert.Equal(1.0, st.HorizontalTail.Strength, 9);
+        // The shapes the aeroplane flies and is drawn at: every wing panel tip-up 10°, the engine nose-down 10°, the tail straight.
         Assert.NotEmpty(ac.Panels);
         foreach (WingPanel p in ac.Panels)
         {
@@ -157,7 +165,31 @@ public class OverstressPatternTests : IDisposable
             Assert.Equal(0.0, p.FlightFlexRad, 6);
         }
         Assert.Equal(10.0 * Deg, ac.EngineSagRad, 4);
-        Assert.Equal(-10.0 * Deg, ac.TailBendRad, 4);
+        Assert.Equal(0.0, ac.TailBendRad, 9);
+    }
+
+    /// <summary>
+    /// WHICH WAY A BENT TAIL GOES, if one is ever loaded to its own limit (Ty 2026-11-09: "the tail should not bend and if
+    /// it did it would be the other way due to the direction of the load"). A pull is a DOWNLOAD on the tail — it balances
+    /// the wing's nose-down pitching moment, and the tail's own mass hangs the same way — so the tips go DOWN under
+    /// positive g and UP under negative g. The member's own sign is the opposite (OverstressMember: + is "the way positive
+    /// g bends it"), which is why Aircraft.TailBendRad (+ = tips up) negates it. This locks the whole chain: anyone who
+    /// "fixes" one of those two negations breaks this.
+    /// </summary>
+    [Fact]
+    public void TheTailsTipsBendDOWNUnderPositiveGAndUpUnderNegative()
+    {
+        Aircraft ac = J3At(1.0);
+        OverstressMember tail = ac.Structure.HorizontalTail!;
+        // Straight to the member, because nothing in the sim loads the tail to its own limit any more. TailBendRad reads
+        // the member, so no step of the aeroplane is needed (and one would unload it).
+        for (int i = 0; i < 400; i++) tail.Step(1.5, Dt);
+        _o.WriteLine($"positive g: tail DeflectionRad {tail.DeflectionRad / Deg:F2}°, TailBendRad {ac.TailBendRad / Deg:F2}° (+ = tips up)");
+        Assert.Equal(10.0 * Deg, tail.DeflectionRad, 4);
+        Assert.Equal(-10.0 * Deg, ac.TailBendRad, 4);   // tips DOWN in a pull
+        for (int i = 0; i < 800; i++) tail.Step(-1.5, Dt);
+        _o.WriteLine($"negative g: tail DeflectionRad {tail.DeflectionRad / Deg:F2}°, TailBendRad {ac.TailBendRad / Deg:F2}°");
+        Assert.True(ac.TailBendRad > 0.0, $"a push must bend the tips UP, and TailBendRad is {ac.TailBendRad / Deg:F2}°");
     }
 
     [Fact]
