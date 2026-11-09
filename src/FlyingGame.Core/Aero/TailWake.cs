@@ -43,6 +43,10 @@ public static class TailWake
         public int[] HingedIdx = System.Array.Empty<int>();   // the aileron / elevator strips behind it (masked with it)
         public string Airfoil = "";
         public double Incidence, CosSweep;
+        /// <summary>The hinge station and the chord behind it, and which control moves it. The wake leaves the
+        /// DEFLECTED trailing edge, and the panels are cached, so that geometry has to be re-made per evaluation.</summary>
+        public double HingeX, HingedChord;
+        public string? ControlSurface;
     }
 
     private sealed class Geometry
@@ -86,6 +90,8 @@ public static class TailWake
     {
         public int SysId;
         public double LeX, TeX, Z, Y, HalfSpan;
+        public double HingeX, HingedChord;
+        public string? ControlSurface;
         public bool InnermostOfSide;
         public int[] Members = System.Array.Empty<int>();
         public double Chord => LeX - TeX;
@@ -142,6 +148,13 @@ public static class TailWake
                 hingedHere.Add(j);
             }
             src.HingedIdx = hingedHere.ToArray();
+            if (hingedHere.Count > 0)
+            {
+                // The hinge line is the FIXED strip's own trailing edge, before the control extended TeX past it.
+                src.HingeX = p.X - 0.75 * st.Chord;
+                src.HingedChord = Math.Max(0.0, src.HingeX - src.TeX);
+                src.ControlSurface = flat[hingedHere[0]].st.Control?.Surface;
+            }
             sources.Add(src);
         }
         // The innermost strip of each side and system: its wake covers the fuselage too, out to the centre line.
@@ -238,9 +251,13 @@ public static class TailWake
         // what keeps this off the cost of ordinary flight entirely.
         internal Panel[] Panels = System.Array.Empty<Panel>();
         internal double[] PanelSep = System.Array.Empty<double>();     // this evaluation's mean separation per panel
+        internal double[] PanelDz = System.Array.Empty<double>();      // ... and where the DEFLECTED trailing edge put the sheet
+        internal double[] PanelTeX = System.Array.Empty<double>();
+        internal double[] PanelDefl = System.Array.Empty<double>();    // ... and the angle it is deflected to, rad
+        internal ControlDeflections Controls;
         internal int[] ShadFirst = System.Array.Empty<int>(), ShadCount = System.Array.Empty<int>();
         internal int[] ShadIdx = System.Array.Empty<int>();            // panel indices, grouped by system
-        internal double[] ShadZMin = System.Array.Empty<double>(), ShadZMax = System.Array.Empty<double>(), ShadHalfMax = System.Array.Empty<double>();
+        internal double[] ShadZMin = System.Array.Empty<double>(), ShadZMax = System.Array.Empty<double>(), ShadHalfMax = System.Array.Empty<double>(), ShadFlapMax = System.Array.Empty<double>();
         internal bool ShadAny;
         // The fuselage as a shedder: its stations, each one's crossflow ratio this evaluation (which IS its separated
         // share: a body sheds in proportion to how much of the flow is across it), and the band they occupy.
@@ -259,6 +276,11 @@ public static class TailWake
     /// </summary>
     internal static Field Prepare(AircraftConfig config, IReadOnlyDictionary<string, AirfoilTable> tables, Vec3 freestream,
                                   Vec3 bodyRates, Vec3 cg, StripFlowState? flowState, bool[]? surfaceMask, bool[]? stripMask, double epsRad)
+        => Prepare(config, tables, freestream, bodyRates, cg, flowState, surfaceMask, stripMask, epsRad, default);
+
+    internal static Field Prepare(AircraftConfig config, IReadOnlyDictionary<string, AirfoilTable> tables, Vec3 freestream,
+                                  Vec3 bodyRates, Vec3 cg, StripFlowState? flowState, bool[]? surfaceMask, bool[]? stripMask, double epsRad,
+                                  ControlDeflections controls)
     {
         Geometry g = _geom.GetValue(config, Build);
         Field f = _scratch ??= new Field();
@@ -268,7 +290,7 @@ public static class TailWake
         f.WingWakeK = config.SpinAero?.CelluleWakeK ?? 1.0;
         f.ShadowK = config.SpinAero?.ShadowK ?? 0.0;
         f.ShadowDecayChords = config.SpinAero?.ShadowDecayChords ?? 4.0;
-        f.Freestream = freestream; f.Rates = bodyRates; f.Cg = cg;
+        f.Freestream = freestream; f.Rates = bodyRates; f.Cg = cg; f.Controls = controls;
         int[] surfaceOfStrip = SurfaceOfStrip(config);
         for (int k = 0; k < n; k++)
         {
@@ -415,9 +437,14 @@ public static class TailWake
     /// </summary>
     public static double[] StripQFactors(AircraftConfig config, IReadOnlyDictionary<string, AirfoilTable> tables, Vec3 bodyVelocity,
                                          Vec3 bodyRates, StripFlowState? flowState = null, double epsRad = 0.0)
+        => StripQFactors(config, tables, bodyVelocity, bodyRates, default, flowState, epsRad);
+
+    /// <summary>The same, with the stick where it actually is: the shed sheet leaves the DEFLECTED trailing edge.</summary>
+    public static double[] StripQFactors(AircraftConfig config, IReadOnlyDictionary<string, AirfoilTable> tables, Vec3 bodyVelocity,
+                                         Vec3 bodyRates, ControlDeflections controls, StripFlowState? flowState = null, double epsRad = 0.0)
     {
         Vec3 cg = config.Mass.CgVec();
-        Field f = Prepare(config, tables, bodyVelocity, bodyRates, cg, flowState, null, null, epsRad);
+        Field f = Prepare(config, tables, bodyVelocity, bodyRates, cg, flowState, null, null, epsRad, controls);
         var q = new List<double>();
         for (int si = 0; si < config.Surfaces.Count; si++)
         {
@@ -517,7 +544,8 @@ public static class TailWake
     {
         int pn = f.Panels.Length, sysN = f.SysCount;
         if (f.PanelSep.Length < pn) f.PanelSep = new double[pn];
-        if (f.ShadFirst.Length < sysN) { f.ShadFirst = new int[sysN]; f.ShadCount = new int[sysN]; f.ShadZMin = new double[sysN]; f.ShadZMax = new double[sysN]; f.ShadHalfMax = new double[sysN]; }
+        if (f.PanelDz.Length < pn) { f.PanelDz = new double[pn]; f.PanelTeX = new double[pn]; f.PanelDefl = new double[pn]; }
+        if (f.ShadFirst.Length < sysN) { f.ShadFirst = new int[sysN]; f.ShadCount = new int[sysN]; f.ShadZMin = new double[sysN]; f.ShadZMax = new double[sysN]; f.ShadHalfMax = new double[sysN]; f.ShadFlapMax = new double[sysN]; }
         if (f.ShadIdx.Length < pn) f.ShadIdx = new int[pn];
         f.ShadAny = false;
         for (int i = 0; i < pn; i++)
@@ -525,12 +553,43 @@ public static class TailWake
             double sum = 0.0; int cnt = 0;
             foreach (int k in f.Panels[i].Members) if (k >= 0 && k < f.Count && f.Live[k]) { sum += f.Sep[k]; cnt++; }
             f.PanelSep[i] = cnt > 0 ? sum / cnt : 0.0;
+
+            // WHERE THE SHEET LEAVES FROM, this evaluation. The panels are cached from the UNDEFLECTED airframe, so
+            // until now the wake always left the undeflected chord line and only its THICKNESS answered to the stick,
+            // and that only indirectly through the separation. A deflected control moves its trailing edge bodily:
+            // rotate the hinged chord about the hinge and the sheet's origin goes with it.
+            //
+            // THE SIGN IS THE WHOLE POINT (Ty, 2026-11-09, correcting me): a positive elevator deflection is trailing
+            // edge DOWN — it is what adds incidence to the control strip, and it is why every type's rigged
+            // elevatorTrimRad is negative, a touch of UP elevator in cruise. In an upright spin the air comes from
+            // BELOW, so elevator UP turns the trailing edge away from it and sheds less, while elevator FORWARD turns
+            // it INTO the flow and sheds more. Forward elevator blankets MORE rudder, not less, which is why spin
+            // recovery spends the rudder first and the elevator second.
+            Panel pan = f.Panels[i];
+            double dz = 0.0, teX = pan.TeX, defl = 0.0;
+            if (pan.HingedChord > 1e-6 && pan.ControlSurface is not null)
+            {
+                defl = f.Controls.GetDeflection(pan.ControlSurface);
+                if (Math.Abs(defl) > 1e-9)
+                {
+                    teX = pan.HingeX - pan.HingedChord * Math.Cos(defl);
+                    // The sheet's origin follows the trailing edge, but only while the flow is still ON the surface.
+                    // A SEPARATED surface does not shed from its trailing edge at all - it sheds from the separation
+                    // line, which has moved up near the leading edge - so where the trailing edge has got to stops
+                    // mattering as the separation grows. Left unscaled this term fought the flap's projection and won
+                    // on the Pitts, whose rudder straddles the stabiliser: it said elevator UP blankets more rudder,
+                    // which is backwards. Faded out by the separation, the projection decides it in a spin, which is
+                    // the case the question is actually about.
+                    dz = 0.5 * pan.HingedChord * Math.Sin(defl) * (1.0 - Math.Clamp(f.PanelSep[i], 0.0, 1.0));
+                }
+            }
+            f.PanelDz[i] = dz; f.PanelTeX[i] = teX; f.PanelDefl[i] = defl;
         }
         int w = 0;
         for (int sys = 0; sys < sysN; sys++)
         {
             f.ShadFirst[sys] = w;
-            double zmin = double.MaxValue, zmax = double.MinValue, halfMax = 0.0;
+            double zmin = double.MaxValue, zmax = double.MinValue, halfMax = 0.0, flapMax = 0.0;
             for (int i = 0; i < pn; i++)
             {
                 Panel pa = f.Panels[i];
@@ -538,11 +597,13 @@ public static class TailWake
                 f.ShadIdx[w++] = i;
                 if (pa.Z < zmin) zmin = pa.Z;
                 if (pa.Z > zmax) zmax = pa.Z;
-                double h = pa.Chord * (ShadowThinSheet + 0.5 * f.PanelSep[i]);
+                double h = pa.Chord * (ShadowThinSheet + 0.5 * f.PanelSep[i]) + 0.5 * f.PanelSep[i] * pa.HingedChord;
                 if (h > halfMax) halfMax = h;
+                double fz = Math.Abs(f.PanelDz[i]);
+                if (fz > flapMax) flapMax = fz;
             }
             f.ShadCount[sys] = w - f.ShadFirst[sys];
-            f.ShadZMin[sys] = zmin; f.ShadZMax[sys] = zmax; f.ShadHalfMax[sys] = halfMax;
+            f.ShadZMin[sys] = zmin; f.ShadZMax[sys] = zmax; f.ShadHalfMax[sys] = halfMax; f.ShadFlapMax[sys] = flapMax;
             if (f.ShadCount[sys] > 0) f.ShadAny = true;
         }
     }
@@ -666,12 +727,16 @@ public static class TailWake
             Vec3 dHat = vm / vmLen;
             double dxz = Math.Sqrt(dHat.X * dHat.X + dHat.Z * dHat.Z);
             double project = dxz > 1e-6 ? Math.Abs(dHat.Z) / dxz : 1.0;   // chord's projection normal to the flow
+            // WHICH SIDE THE DEAD AIR IS ON. The march runs UPSTREAM along +v, so the air reaches the aeroplane from
+            // the +v side: at positive alpha v.Z > 0, the air arrives from BELOW and the separated side is ABOVE.
+            int lee = Math.Abs(vm.Z) > 1e-6 ? -Math.Sign(vm.Z) : 0;
+            double sTheta = dxz > 1e-6 ? dHat.Z / dxz : 0.0, cTheta = dxz > 1e-6 ? dHat.X / dxz : 1.0;
             double segLoZ = Math.Min(r.Z, next.Z), segHiZ = Math.Max(r.Z, next.Z);
             for (int sys = 0; sys < f.SysCount; sys++)
             {
                 int cnt = f.ShadCount[sys];
                 if (cnt == 0 || sys == receiverSys) continue;
-                double reach = f.ShadHalfMax[sys] + ShadowSpread * path;
+                double reach = f.ShadHalfMax[sys] + ShadowSpread * path + f.ShadFlapMax[sys];
                 if (segLoZ - reach > f.ShadZMax[sys] || segHiZ + reach < f.ShadZMin[sys]) continue;   // whole system out of range
                 int first = f.ShadFirst[sys];
                 for (int j = 0; j < cnt; j++)
@@ -679,10 +744,26 @@ public static class TailWake
                     int i = f.ShadIdx[first + j];
                     Panel pa = f.Panels[i];
                     double sep = f.PanelSep[i], sc = pa.Chord;
-                    double half = sc * (ShadowThinSheet + 0.5 * sep * project) + ShadowSpread * path;
-                    if (half <= 1e-9) continue;
-                    double d = SegmentToPatch(r, next, pa, half, receiverHalfChord);
-                    if (double.IsNaN(d) || d >= half) continue;
+                    // The deflected flap's own projected depth joins the separated sheet's: a control standing across
+                    // the flow sheds in proportion to how far across it stands.
+                    // THE FLAP'S DEPTH IS TAKEN AGAINST THE FLOW, not against its own chord. Written as |sin(defl)|
+                    // it is symmetric, which cannot be right: a deflection only sheds more if it turns INTO the air.
+                    // With the flow at angle theta to the chord, the deflected flap stands sin(theta + defl) across
+                    // it, so in an upright spin (air from below, theta positive) elevator UP shrinks it and elevator
+                    // FORWARD grows it. At alpha 45 that is 0.342 for 25 deg up, 0.707 neutral, 0.940 for 25 forward.
+                    double dd = f.PanelDefl[i];
+                    double flapDepth = pa.HingedChord * (dd != 0.0
+                        ? Math.Abs(sTheta * Math.Cos(dd) + cTheta * Math.Sin(dd))
+                        : project);
+                    double halfLee = sc * (ShadowThinSheet + 0.5 * sep * project) + 0.5 * sep * flapDepth + ShadowSpread * path;
+                    // The windward face keeps only the thin attached sheet: the air there is still on the surface.
+                    double halfWind = sc * ShadowThinSheet + ShadowSpread * path;
+                    if (halfLee <= 1e-9) continue;
+                    double zPlane = pa.Z + f.PanelDz[i];
+                    double d = SegmentToPatch(r, next, pa, halfLee, halfWind, lee, zPlane, f.PanelTeX[i], receiverHalfChord);
+                    if (double.IsNaN(d)) continue;
+                    double half = lee == 0 || (0.5 * (r.Z + next.Z) - zPlane) * lee >= 0.0 ? halfLee : halfWind;
+                    if (d >= half) continue;
                     double profile = Math.Cos(0.5 * Math.PI * d / half);
                     double decay = f.ShadowDecayChords > 0.0
                         ? Math.Clamp(1.0 - path / (f.ShadowDecayChords * sc), 0.0, 1.0) : 1.0;
@@ -703,22 +784,35 @@ public static class TailWake
     /// station's own leading and trailing edge (so a swept wing is tested where it actually is) and its span window,
     /// the innermost station reaching in over the fuselage. NaN = the segment is not over the patch at all.
     /// </summary>
-    private static double SegmentToPatch(Vec3 r0, Vec3 r1, Panel s, double half, double receiverHalfChord)
+    /// <summary>
+    /// Distance from the march segment to a shed patch, with the patch where THIS evaluation put it: the plane shifted
+    /// to <paramref name="zPlane"/> and the trailing edge to <paramref name="teX"/> by the control's deflection.
+    ///
+    /// The sheet is no longer symmetric about that plane. A stalled surface's dead air is on its LEE side only, and a
+    /// symmetric sheet put wake where the air had never touched the surface. That is what failed
+    /// PittsRudderBelowTheStabIsUnshieldedUpright: a stalled stab at alpha 45 shed 0.22 m each way and a rudder strip
+    /// 0.16 m BELOW it fell inside, in air that came from below and never went near the stab. <paramref name="lee"/>
+    /// is +1 or -1 for which side that is, 0 to keep the old symmetric sheet.
+    /// </summary>
+    private static double SegmentToPatch(Vec3 r0, Vec3 r1, Panel s, double halfLee, double halfWind, int lee,
+                                         double zPlane, double teX, double receiverHalfChord)
     {
-        double z0 = r0.Z - s.Z, z1 = r1.Z - s.Z;
+        double z0 = r0.Z - zPlane, z1 = r1.Z - zPlane;
         double t = z0 == z1 ? 0.0 : Math.Clamp(-z0 / (z1 - z0), 0.0, 1.0);   // closest approach in height
         if (z0 * z1 <= 0.0 && z0 != z1) t = -z0 / (z1 - z0);                 // it crosses: distance 0 there
         Vec3 at = r0 + (r1 - r0) * t;
-        double dz = Math.Abs(at.Z - s.Z);
+        double signed = at.Z - zPlane;
+        double half = lee == 0 ? halfLee : (signed * lee >= 0.0 ? halfLee : halfWind);
+        double dz = Math.Abs(signed);
         if (dz >= half) return double.NaN;
         double sc = s.Chord, soft = 0.15 * sc + receiverHalfChord;
-        if (at.X > s.LeX + soft || at.X < s.TeX - soft) return double.NaN;
+        if (at.X > s.LeX + soft || at.X < teX - soft) return double.NaN;
         double sgn = s.Y >= 0.0 ? 1.0 : -1.0, span = (at.Y - s.Y) * sgn;
         double lo = s.InnermostOfSide ? -Math.Abs(s.Y) : -s.HalfSpan;
         double softY = 0.3 * Math.Max(s.HalfSpan, 1e-3);
         if (span > s.HalfSpan + softY || span < lo - softY) return double.NaN;
         // Edge softening counts as extra distance rather than a hard cut, so a strip half out of the shadow loses half.
-        double outX = at.X > s.LeX ? at.X - s.LeX : at.X < s.TeX ? s.TeX - at.X : 0.0;
+        double outX = at.X > s.LeX ? at.X - s.LeX : at.X < teX ? teX - at.X : 0.0;
         double outY = span > s.HalfSpan ? span - s.HalfSpan : span < lo ? lo - span : 0.0;
         double edge = (outX / Math.Max(soft, 1e-9) + outY / Math.Max(softY, 1e-9)) * half;
         return dz + edge;
@@ -747,6 +841,8 @@ public static class TailWake
                         SysId = sys,
                         LeX = band.Max(x => x.LeX), TeX = band.Min(x => x.TeX),
                         Z = band.Average(x => x.Z),
+                        HingeX = band.Average(x => x.HingeX), HingedChord = band.Average(x => x.HingedChord),
+                        ControlSurface = band.Select(x => x.ControlSurface).FirstOrDefault(cs => cs is not null),
                         Y = 0.5 * (yMin + yMax), HalfSpan = 0.5 * (yMax - yMin),
                         InnermostOfSide = band.Any(x => x.InnermostOfSide),
                         Members = band.Select(x => sources.IndexOf(x)).ToArray(),
