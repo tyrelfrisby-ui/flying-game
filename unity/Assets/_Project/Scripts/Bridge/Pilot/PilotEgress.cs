@@ -498,6 +498,10 @@ namespace FlyingGame.Bridge
                 cam.OverrideTarget = PilotTransform;
                 cam.OverrideVelocity = _pilot.Velocity;
                 cam.OverrideBackdrop = _driver.transform;   // keep the abandoned aircraft in frame behind the pilot
+                // Land on the pilot's framing at once instead of easing into it from whatever offset the view he bailed
+                // out of left behind — the fly-by maintains no offset at all (it places the camera in the world), so
+                // coming out of one the pilot was framed from wherever the offset last happened to be.
+                cam.SnapBehind();
             }
             Log("pilot out — camera on the pilot, aircraft in the background");
             PilotLeft?.Invoke();

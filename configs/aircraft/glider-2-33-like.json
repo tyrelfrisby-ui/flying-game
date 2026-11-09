@@ -1516,7 +1516,7 @@
     "altitudeM": 1219.2,
     "tasMs": 21.572,
     "alphaRad": 0.067024,
-    "elevatorTrimRad": 0.013494,
+    "elevatorTrimRad": 0.013488,
     "bankRad": 0
   },
   "controls": {
@@ -1587,6 +1587,10 @@
       "cd": 1.2,
       "lengthM": 5.5
     }
+  },
+  "spinAero": {
+    "shadowK": 0.5,
+    "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type, and brings in the fuselage's own shadow on the tail and the wings (TailWake.BodyStation). Ty 2026-11-08: \"expand the shadow work to all 6 shipping aircraft include the shadow effects of the fuselage on the tail and wing's too\". 0.5 is the depth fitted on the Pitts against the owner's spin attitudes on 2026-11-08, and it is a PHYSICAL statement - half the q is gone where a wake fully covers a section - rather than a per-type fudge, so the six carry the same number until a type's own evidence moves it. What differs between types is the geometry, which is the point: the Pitts' cellule shadows itself, the Extra's stabiliser spans well outside its fuselage and is barely shadowed at all (measured in a tumble: tail q 1.00 -> 0.96), and the fuselage's own shadow is what takes the fin in an upright flat spin while leaving it in clear air inverted."
   },
   "propulsion": null,
   "gear": [

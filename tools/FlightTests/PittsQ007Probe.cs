@@ -40,6 +40,8 @@ public class PittsQ007Probe
         if (!string.IsNullOrEmpty(tz)) c.Propulsion!.ThrustLineZ = double.Parse(tz);
         var sk = Environment.GetEnvironmentVariable("Q007_SK");          // geometric helical shadow depth (all surfaces)
         if (!string.IsNullOrEmpty(sk)) { c.SpinAero ??= new SpinAeroConfig(); c.SpinAero.ShadowK = double.Parse(sk); }
+        var jk = Environment.GetEnvironmentVariable("Q007_JK");          // traced thrust jet depth (PropJet.JetK)
+        if (!string.IsNullOrEmpty(jk)) c.Propulsion!.JetK = double.Parse(jk);
         var wk = Environment.GetEnvironmentVariable("Q007_W");           // biplane wing-on-wing wake depth
         if (!string.IsNullOrEmpty(wk)) { c.SpinAero ??= new SpinAeroConfig(); c.SpinAero.CelluleWakeK = double.Parse(wk); }
         return c;

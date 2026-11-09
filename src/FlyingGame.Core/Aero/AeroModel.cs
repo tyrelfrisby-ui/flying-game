@@ -459,6 +459,10 @@ public static class AeroModel
         epsTail = (epsTail + 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction)) * gePhi;
         // Every wing and stabiliser section's own wake (TailWake): where it goes, how wide and how deep.
         TailWake.Field wakes = TailWake.Prepare(config, airfoilTables, bodyVelocity - windBody, bodyRates, cg, flowState, surfaceMask, stripMask, epsTail);
+        // THE THRUST JET (PropJet, owner 2026-11-08): the propeller's tube of faster air, traced from the disc through
+        // the air's own motion, so it tilts with alpha and beta and bends under pitch and yaw rate. One trace serves
+        // every strip below. Off (and free) whenever the prop is doing nothing to the air.
+        PropJet.Jet jet = PropJet.Prepare(config, bodyVelocity - windBody, bodyRates, cg, slipstreamDeltaU, slipstreamRadius, slipstreamSwirlMs);
 
         // THE WING'S OWN STALLED FRACTION, area-weighted, accumulated as the strips are flown. It gates the
         // separated-wing rolling moment at the bottom of this method; see ApplyWingSideslipRoll.
@@ -527,21 +531,25 @@ public static class AeroModel
                 if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
                 Vec3 vAirStrip = vLocal;   // the relative wind here before the slipstream: what carries the wakes over this strip
 
-                // Propeller slipstream: tail surfaces inside the (contracted) prop wash see the accelerated
-                // flow — this is why a prop aircraft has elevator and rudder authority at low speed (taxi,
-                // takeoff roll, floats on the hump, STOL). Wing strips are left alone (small span fraction).
-                if (slipstreamDeltaU != 0.0 && !isWing && System.Math.Abs(strip.PosVec().Y) < slipstreamRadius)   // < 0: a windmilling prop's slower wake
+                // Propeller slipstream: a surface inside the (contracted) prop wash sees the accelerated flow — this is
+                // why a prop aircraft has elevator and rudder authority at low speed (taxi, takeoff roll, floats on the
+                // hump, STOL). WHERE that wash is comes from PropJet's traced tube, so a surface outside it sees nothing
+                // however the airframe is pointing, and the increment is a VECTOR: it carries the jet's own direction, so
+                // this strip's dynamic pressure and its incidence both follow from it.
+                //
+                // THE SWIRL goes where it always went: the stabiliser, which feels it as incidence. Not the fin, whose
+                // share of the swirl is the propeller model's bulk yaw term (PropModel.Parts.SlipYaw) and would be
+                // counted twice. And not the WING, though the tube now reaches its root: a root is not in free air but
+                // against the fuselage, which blocks and turns the swirl, and the two roots' lift changes largely cancel
+                // while the small net roll that is left is already inside each type's torque, P-factor and aileron rig.
+                // Put there as bare solid-body rotation it swung the roll moment with alpha hard enough to flip its
+                // SIGN (the Pitts: +3.6 N.m/deg to -2.4), which no static rig can hold - every powered type then wandered
+                // 25 deg of heading in a minute hands off (RigTests.HandsOffLevelAtRigPower). The root still takes the
+                // jet's AXIAL increment, which is unambiguous: more q, more lift.
+                if (jet.Any)
                 {
-                    vLocal = new Vec3(vLocal.X + slipstreamDeltaU, vLocal.Y, vLocal.Z);
-                    // Swirl (owner 2026-10-09): the slipstream rotates with the prop, so the two stab halves see the
-                    // flow angle change in opposite senses — a RH prop (clockwise from behind) carries the air UP past the
-                    // left half and DOWN past the right. Solid-body rotation across the tube.
-                    if (!isVertical && slipstreamSwirlMs != 0.0 && slipstreamRadius > 0.0)
-                    {
-                        double yy = strip.PosVec().Y;
-                        double airDown = slipstreamSwirlMs * (yy / slipstreamRadius);   // + = air moving down (z) at this strip
-                        vLocal = new Vec3(vLocal.X, vLocal.Y, vLocal.Z - airDown);
-                    }
+                    Vec3 jetAdd = PropJet.RelWind(jet, stripAt, !isVertical && !isWing);
+                    if (jetAdd.LengthSquared > 0.0) vLocal += jetAdd;
                 }
 
                 if (wingBody)

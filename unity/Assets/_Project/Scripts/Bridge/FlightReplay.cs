@@ -27,6 +27,15 @@ namespace FlyingGame.Bridge
             if (go == null || host == null) return;
             PendingParts.Add((go, host, host.InverseTransformPoint(go.transform.position), Quaternion.Inverse(host.rotation) * go.transform.rotation));
         }
+
+        /// <summary>The airframe-part registrations no replay has taken up yet, for the editor checks (a replay drains
+        /// them as it adopts them, so this is what has been registered since the last one looked).</summary>
+        public static List<(GameObject go, Transform host)> AirframePartsPendingForTesting()
+        {
+            var list = new List<(GameObject, Transform)>(PendingParts.Count);
+            foreach (var p in PendingParts) list.Add((p.go, p.host));
+            return list;
+        }
     }
 
     /// <summary>

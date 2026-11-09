@@ -723,6 +723,16 @@ public sealed class PropulsionConfig
     /// until that type's own number is entered, because the term is real in attached flight and every stored rig and trim
     /// was solved without it. Per-type and opt-in for the same reason spinAero.rollDueToSideslip is.</summary>
     public double NormalForceK { get; set; } = 0.0;
+
+    /// <summary>Depth of the traced thrust jet (<see cref="FlyingGame.Core.Aero.PropJet"/>): 1 = the full momentum-theory
+    /// increment the slipstream carries, 0 = no jet at all (diagnostics). The SHAPE of the jet is geometry — where the
+    /// tube goes, how it bends, which surfaces it covers — and this is the one scale factor on it.</summary>
+    public double JetK { get; set; } = 1.0;
+
+    /// <summary>How fast the jet's tube spreads, metres of radius per metre of path (0.045 ≈ a 2.6 deg half-angle,
+    /// the spreading rate of a round jet's shear layer into still air at these velocity ratios: Schlichting,
+    /// <i>Boundary-Layer Theory</i> ch. 24). The tube starts at the contracted slipstream radius.</summary>
+    public double JetSpreadPerM { get; set; } = 0.045;
     /// <summary>Brake specific fuel consumption, kg of fuel per watt-second of SHAFT power. The default is a normally
     /// aspirated piston's 0.45 lb/hp/hr: a 160 hp four at 75 % cruise burns about 34 litres an hour on it, which is
     /// what the book says. Turbines want their own number.</summary>

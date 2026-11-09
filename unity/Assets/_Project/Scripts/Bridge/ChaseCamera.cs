@@ -468,8 +468,15 @@ namespace FlyingGame.Bridge
             bool cockpit = !ovr && !SideView && CurrentView == View.Cockpit;
             SetInCockpit(cockpit);
             SetCockpitExtras(cockpit);
-            if (_cam != null && CurrentView != View.Flyby && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
-            if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }
+            // Only restore the FOV when the fly-by is not the view being DRAWN. Fly-by zooms to as little as 6 deg to
+            // frame an aeroplane 450 m away, and the restore used to be gated on the view alone: bail out of a fly-by and
+            // the pilot-follow camera inherited that telephoto, so 8 m from the pilot it framed 0.8 m of sky 3 m over his
+            // head (Ty 2026-11-08: "bailing out in fly by mode doesn't show parachutes before or after a crash it looks up
+            // into the sky"). The override and the side view take the placement away from FlybyView, so they take the FOV
+            // back too.
+            bool flybyDrawn = !ovr && !SideView && CurrentView == View.Flyby;
+            if (_cam != null && !flybyDrawn && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
+            if (flybyDrawn) { FlybyView(tgt); return; }
             if (!ovr && !SideView && CurrentView == View.Locked) { LockedView(tgt); return; }   // side-view lessons keep their camera
             if (!ovr && !SideView && CurrentView != View.RelativeWind && CurrentView != View.RelativeWindAhead) { FixedView(tgt); return; }
             if (SideView && !ovr)
@@ -507,7 +514,17 @@ namespace FlyingGame.Bridge
             transform.position = tgt.position + _offset;
             // With a backdrop the look-at sits between the pilot and the aircraft's direction, nudged the same way, so the
             // pilot hangs left of centre with the canopy above him and the aircraft shows clear to the right.
-            Vector3 lookAt = tgt.position + (ahead ? -_dir : _dir) * (backdrop ? 12f : 4f) + (ovr ? Vector3.up * OverrideLookUp * (backdrop ? 0.5f : 1f) : Vector3.zero) + side * 0.35f;
+            // How far past the target the camera aims. With a backdrop that lead is what turns the camera from the pilot
+            // toward the abandoned aeroplane, so it also decides how far DOWN the frame the pilot sits: a fixed 12 m
+            // against a 16 m stand-off put him 26 deg below centre, on the bottom edge of the frame, and further out
+            // whenever the aeroplane climbed away (Ty 2026-11-08, on the fly-by bail-out). Holding it to a fraction of
+            // the stand-off keeps the pilot in the lower third whatever the aeroplane does.
+            float lead = backdrop ? Mathf.Min(12f, 0.35f * dist) : 4f;
+            // The pilot hangs below the aim point with his canopy above it, so the aim point is what decides whether BOTH
+            // are in the frame. It used to be halved when a backdrop was in play, back when the lead toward the abandoned
+            // aeroplane was a fixed 12 m and did the lifting; with the lead capped, halving it just pushed the pilot onto
+            // the bottom edge (measured: viewport y 0.07 of a 60 deg frame). Full height either way now.
+            Vector3 lookAt = tgt.position + (ahead ? -_dir : _dir) * lead + (ovr ? Vector3.up * OverrideLookUp : Vector3.zero) + side * 0.35f;
             transform.rotation = Quaternion.LookRotation(lookAt - transform.position, up);
         }
 

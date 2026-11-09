@@ -180,7 +180,15 @@ public static class RigSolver
         (Vec3 f, Vec3 m) = AeroModel.Compute(c, tables, vBody, Vec3.Zero, Vec3.Zero, rho, ctl, -1.0, null, du, r,
             null, null, null, double.PositiveInfinity, swirl);
         if (c.WeightShift is not null) m += c.WeightShift.SwingMoment(ctl.ElevatorRad, ctl.AileronRad, f, c.Mass.MassKg);
-        (Vec3 pf, Vec3 pm) = Aircraft.PropulsionForces(c, throttle, vBody, Vec3.Zero, rho);
+        // The spiral slipstream's yaw on the fin takes the share of the wash that reaches the tail, and so must the
+        // SOLVE: the sim applies PropJet.TailShare here, and a rig solved against the full-strength yaw instead leaves
+        // whatever the difference is uncancelled in flight. In cruise that difference is about 8 % (the tube is swept a
+        // little off the tail by the trim alpha itself), which is a tenth of a degree of fin offset and showed up as
+        // every powered type wandering ~25 deg of heading in a minute hands off. The old scalar hid this by returning
+        // exactly 1 whenever the wing was attached, so solve and sim agreed by accident.
+        double share = PropJet.TailShare(c, vBody, Vec3.Zero, c.Mass.CgVec(), du, r, swirl);
+        (Vec3 pf, Vec3 pm) = Aircraft.PropulsionForces(c, throttle, vBody, Vec3.Zero, rho, false, default, null,
+            PropModel.PropDrive.Running, share);
         return (f + pf, m + pm);
     }
 

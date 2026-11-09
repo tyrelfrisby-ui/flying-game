@@ -1280,8 +1280,10 @@ public sealed partial class Aircraft
 
         double stalled = AeroModel.InstantStalledFraction(Config, s.Velocity, s.Rates, windBody, _surfaceMask, _stripMask, _airfoilTables);
         (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, s.Velocity, s.Rates, airDensity, Drive, _noseLost);
-        double overTail = SlipstreamOverTail(Config, s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position)), slipDu, slipR, stalled);
-        slipDu *= overTail; slipSwirl *= overTail;
+        // The strips take the jet from PropJet's traced tube inside AeroModel; this scalar is only the bulk spiral-slipstream
+        // yaw's share, measured from the same trace.
+        double overTail = PropJet.TailShare(Config, s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position)),
+                                            s.Rates, Config.Mass.CgVec(), slipDu, slipR, slipSwirl);
 
         double under = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
         double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
@@ -1380,10 +1382,12 @@ public sealed partial class Aircraft
         // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R. From what the prop
         // is really doing, not the throttle: a stopped or missing prop blows nothing (Ty 2026-11-04, the Extra's strike).
         (double slipDu, double slipR, double slipSwirl) = TailSlipstream(Config, _throttle01, State.Velocity, State.Rates, airDensity, _drive, _noseLost);
-        // Past the stall the crossflow carries that wash off the tail (Glauert's skewed wake, SlipstreamOverTail): the tail's
-        // blowing and the swirl's yaw on the fin both scale by the share of the tube that still reaches it.
-        _slipOverTail = SlipstreamOverTail(Config, State.Velocity - State.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(State.Position)), slipDu, slipR, _wakeStalledFrac);
-        slipDu *= _slipOverTail; slipSwirl *= _slipOverTail;
+        // WHERE that wash goes is PropJet's traced tube, per strip, inside AeroModel: so the blowing follows alpha, beta and
+        // the body rates out of the geometry, with no stall gate on it. What is left here is the bulk spiral-slipstream yaw
+        // on the fin (PropModel.Parts.SlipYaw), which is a moment and not a strip load, so it takes the tube's share of the
+        // tail from the same trace (PropJet.TailShare).
+        _slipOverTail = PropJet.TailShare(Config, State.Velocity - State.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(State.Position)),
+                                          State.Rates, Config.Mass.CgVec(), slipDu, slipR, slipSwirl);
         LastTailSlipstream = (slipDu, slipR, slipSwirl);
 
         // Ground contact, once a step instead of at each of RK4's four stages (Quest 3S, 2026-11-02: below 60 m the
@@ -1726,56 +1730,22 @@ public sealed partial class Aircraft
         return (du, 0.7 * radius, SwirlFactor * du * config.Propulsion.RotationSign);
     }
 
-    /// <summary>
-    /// The share of the propeller's wash that still passes over the tail, 0..1 (Q007, Ty t918u, 2026-11-06). Momentum theory
-    /// for a disc meeting the air at an angle (Glauert, ARC R&amp;M 1111, 1926; Leishman, <i>Principles of Helicopter
-    /// Aerodynamics</i>, 2nd ed., §2.14) carries the wake along a SKEWED cylinder: every particle leaves the disc with the
-    /// free stream's crossflow and is carried aft by the axial flow plus the induced velocity, so by the tail, an arm L
-    /// behind the disc, the tube's centre has moved Δ = L·V_cross / (V_axial + ū), ū ≈ 0.75 ΔU the mean induced velocity
-    /// between the disc (≈ ΔU/1.8) and the tail (ΔU, <see cref="TailSlipstream"/>). The share left over the tail is the
-    /// overlap of the moved tube with where it was, two circles of radius r at Δ: (2/π)(acos d − d√(1−d²)), d = Δ/2r.
-    /// In a flat spin (α ≈ 90°, V_axial ≈ 0) the wash goes out sideways and none reaches the tail: the spiral slipstream
-    /// cannot strike a fin it never reaches, which is why, before this, the swirl's yaw-left stayed pro-spin in an upright
-    /// LEFT flat spin and anti-spin in an inverted RIGHT one at full strength — the only power term that did not mirror.
-    ///
-    /// Applied in proportion to the wing's separated share, <paramref name="wingSeparated"/>: in attached flow the wing's
-    /// downwash turns the flow (and the wash) back toward the tail, and every type's rig, trim and elevator calibration
-    /// were fitted with the straight wash there; past the stall this model's downwash is already gone (AeroModel:
-    /// ε·(1 − stalled fraction)), and the free-stream crossflow is what carries the wake. So normal flight is unchanged
-    /// to the bit, and so is RigSolver, which never passes a separation.
-    /// </summary>
-    public static double SlipstreamOverTail(AircraftConfig config, Vec3 airVelocityBody, double deltaU, double tubeRadius, double wingSeparated)
-    {
-        if (deltaU <= 0.0 || tubeRadius <= 0.0 || wingSeparated <= 0.0) return 1.0;
-        double arm = DiscToTailArm(config);
-        if (arm <= 0.0) return 1.0;
-        double cross = System.Math.Sqrt(airVelocityBody.Y * airVelocityBody.Y + airVelocityBody.Z * airVelocityBody.Z);
-        double axial = System.Math.Max(0.0, airVelocityBody.X) + 0.75 * deltaU;
-        double shift = arm * cross / System.Math.Max(axial, 1e-6);
-        double d = shift / (2.0 * tubeRadius);
-        double overlap = d >= 1.0 ? 0.0 : 2.0 / System.Math.PI * (System.Math.Acos(d) - d * System.Math.Sqrt(1.0 - d * d));
-        return 1.0 - System.Math.Clamp(wingSeparated, 0.0, 1.0) * (1.0 - overlap);
-    }
-
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, object> TailArms = new();
-
+    // <summary>
+    // SUPERSEDED, 2026-11-08. The share of the propeller's wash that still passes over the tail used to be this one
+    // scalar — Glauert's skewed wake (ARC R&amp;M 1111, 1926; Leishman §2.14) as the overlap of two circles, applied to
+    // the whole tail at once and in proportion to the WING's separated share, which is a stall gate and not physics
+    // (owner 2026-11-08: the body-locked jet "would provide artificial stability"). It is now
+    // <see cref="PropJet"/>: the tube is traced from the disc through the air's own motion, each surface takes what the
+    // geometry gives it, and the bulk spiral-slipstream yaw takes <see cref="PropJet.TailShare"/> — the same
+    // two-circle overlap, but against the traced path and with no gate.
+    // </summary>
     /// <summary>From the propeller disc (AirframeContact's hub: 0.1 m ahead of the nose) to the tail's area-weighted
-    /// station (every non-wing strip), m. 0 for a type with no single nose propeller or no tail.</summary>
-    public static double DiscToTailArm(AircraftConfig config) => (double)TailArms.GetValue(config, c =>
-    {
-        if (c.Propulsion is null || c.Propulsion.PropDiameterM <= 0.0 || c.Engines.Count > 0) return 0.0;
-        double len = c.Fuselage.Crossflow?.LengthM > 0 ? c.Fuselage.Crossflow.LengthM : 7.0;
-        double minTe = double.MaxValue, ax = 0.0, a = 0.0;
-        foreach (SurfaceConfig sf in c.Surfaces)
-            foreach (StripConfig st in sf.Strips)
-            {
-                minTe = System.Math.Min(minTe, st.Pos[0] - 0.75 * st.Chord);
-                if (!sf.Id.Contains("wing", System.StringComparison.OrdinalIgnoreCase)) { ax += st.Area * st.Pos[0]; a += st.Area; }
-            }
-        if (a <= 0.0) return 0.0;
-        double hubX = minTe - 0.2 + len + 0.1;
-        return System.Math.Max(0.0, hubX - ax / a);
-    });
+    /// station (every non-wing strip), m — the reference length the traced jet is measured along
+    /// (<see cref="PropJet.TailArm"/>, one copy of the construction). 0 for a type with no single nose propeller.</summary>
+    public static double DiscToTailArm(AircraftConfig config)
+        => config.Propulsion is null || config.Propulsion.PropDiameterM <= 0.0 || config.Engines.Count > 0
+            ? 0.0
+            : PropJet.TailArm(config);
 
     /// <summary>
     /// Every engine's force and moment about the CG. Single engine: Propulsion as-is at the nose. Multi-engine: each
