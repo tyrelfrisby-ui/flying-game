@@ -537,6 +537,31 @@ public static class TailWake
         f.BodyXMin = xmin; f.BodyXMax = xmax; f.BodyReachY = ry; f.BodyReachZ = rz;
     }
 
+    /// <summary>
+    /// IS THIS POINT ON THE BODY? A surface mounted on the fuselage is not in the fuselage's wake — it is part of
+    /// the same body, and whatever the junction does to it is interference, not blanketing. Without this test the
+    /// inboard strip of a stabiliser sits INSIDE the shed volume at zero path length and takes the body's full depth
+    /// the instant any crossflow exists, whichever way the air is actually going. It cost three locks: the Pitts tail
+    /// lost 1 % of its dynamic pressure at alpha 5 and 10, in attached flow where every rig and trim on this fleet was
+    /// solved (GeometricShadowTests.AttachedFlowIsUnchanged), and the stabiliser read 0.92 in a true flat spin against
+    /// the 1.0 Ty measured and the Report 648 path agrees with (TheStabiliserIsNotBlanketedInATrueFlatSpin). What the
+    /// spin tunnel measures is the fin and rudder STANDING ABOVE the body, which are outside it and genuinely
+    /// downstream; those are untouched by this test, and TheBodyBlanketsTheFinAboveItAndNotItsOwnRoots pins both
+    /// halves so the fix cannot quietly turn the feature off.
+    /// </summary>
+    private static bool OnBody(Field f, Vec3 p)
+    {
+        for (int i = 0; i < f.Body.Length; i++)
+        {
+            BodyStation b = f.Body[i];
+            if (b.HalfY <= 1e-9 || b.HalfZ <= 1e-9) continue;
+            if (Math.Abs(p.X - b.X) > b.HalfLenX) continue;
+            double sy = p.Y / b.HalfY, sz = p.Z / b.HalfZ;
+            if (sy * sy + sz * sz < 1.0) return true;
+        }
+        return false;
+    }
+
     /// <summary>The deepest shadow this segment takes from the fuselage: did the air path pass through the body's own
     /// volume? The offset is measured in the section's ellipse, grown with the path like every other wake here.</summary>
     private static double BodyShadow(Field f, Vec3 r0, Vec3 r1, double path, double worst)
@@ -586,6 +611,7 @@ public static class TailWake
     private static double TraceShadow(Field f, Vec3 start, int receiverSys, double receiverHalfChord = 0.0)
     {
         if (!f.ShadAny && !f.BodyAny) return 0.0;
+        bool body = f.BodyAny && !OnBody(f, start);     // see OnBody: the body does not blanket what is mounted in it
         Vec3 r = start;
         double path = 0.0, worst = 0.0;
         double om = f.Rates.Length;
@@ -628,7 +654,7 @@ public static class TailWake
                     if (depth > worst) worst = depth;
                 }
             }
-            if (f.BodyAny) worst = BodyShadow(f, r, next, path, worst);
+            if (body) worst = BodyShadow(f, r, next, path, worst);
             path += (next - r).Length;
             r = next;
             if (worst >= f.ShadowK - 1e-6) break;        // already as deep as it can get

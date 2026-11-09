@@ -50,18 +50,61 @@ public class GeometricShadowTests
         return sum / n;
     }
 
+    /// <summary>
+    /// WIDENED DELIBERATELY 2026-11-08, on the owner's instruction: "expand the shadow work to all 6 shipping aircraft
+    /// include the shadow effects of the fuselage on the tail and wing's too". The six that ship are opted in at
+    /// shadowK 0.5 and were re-rigged on it; the other twenty-two types are untouched and still take the old path, so
+    /// this test is still the guard it was — it is the LIST that moved, not the default, which is still 0.
+    /// </summary>
     [Fact]
     public void OffByDefaultEveryTypeKeepsTheOldPath()
     {
         Assert.Equal(0.0, new SpinAeroConfig().ShadowK);
+        string[] shipping = { "glider-2-33-like", "j3-cub-like", "j3-cub-floats-like", "great-lakes-like", "pitts-s2b-like", "extra-300-like" };
         var d = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
         while (!System.IO.Directory.Exists(System.IO.Path.Combine(d!.FullName, "configs", "aircraft"))) d = d.Parent;
+        var on = new System.Collections.Generic.List<string>();
         foreach (var f in System.IO.Directory.GetFiles(System.IO.Path.Combine(d.FullName, "configs", "aircraft"), "*.json"))
         {
             var c = AircraftConfigLoader.LoadFromFile(f);
             if ((c.SpinAero?.ShadowK ?? 0.0) > 0.0)
-                Assert.Equal("pitts-s2b-like", c.Id);   // the only type opted in; widen this deliberately, never by accident
+                Assert.Contains(c.Id, shipping);        // widen this deliberately, never by accident
+            else on.Add(c.Id);
         }
+        foreach (string id in shipping) Assert.DoesNotContain(id, on);   // and none of the six may fall back off it
+    }
+
+    /// <summary>
+    /// THE BODY DOES NOT BLANKET WHAT IS MOUNTED IN IT (TailWake.OnBody), AND STILL BLANKETS WHAT STANDS CLEAR OF IT.
+    /// Measured in pure sideslip, 90 deg, where the body is fully broadside and no wing is upstream of the tail at all
+    /// (the march runs along the span, and the wings are three metres forward of it): the stabiliser strip INSIDE the
+    /// body's own section must be in clean air, and the strip out at the tip, which is squarely downstream of the body,
+    /// must be blanketed. Without the first half the root took the body's full depth at zero path length whichever way
+    /// the air was going, and it cost the fleet 1 % of tail q in cruise.
+    /// </summary>
+    [Fact]
+    public void TheBodyBlanketsWhatStandsClearOfItAndNotItsOwnRoots()
+    {
+        var c = Pitts(0.9);
+        var tables = Aircraft.BuildAirfoilTables(c);
+        double[] q = TailWake.StripQFactors(c, tables, new Vec3(0, 30, 0), Vec3.Zero);   // broadside: beta 90
+        double halfY = 0.5 * c.Fuselage.Crossflow.PlanArea / c.Fuselage.Crossflow.LengthM;
+        double root = double.NaN, tip = double.NaN;
+        int i = 0;
+        foreach (SurfaceConfig sf in c.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+            {
+                if (sf.Id == "hStab" && st.Pos[1] < 0)                      // the lee side in this flow
+                {
+                    if (Math.Abs(st.Pos[1]) < halfY) root = Math.Min(double.IsNaN(root) ? 1.0 : root, q[i]);
+                    else tip = Math.Min(double.IsNaN(tip) ? 1.0 : tip, q[i]);
+                }
+                i++;
+            }
+        Assert.False(double.IsNaN(root), "no stabiliser strip inside the body's section");
+        Assert.False(double.IsNaN(tip), "no stabiliser strip outside the body's section");
+        Assert.True(root > 0.97, $"a root strip inside the body was blanketed by it: {root:0.00}");
+        Assert.True(tip < 0.8, $"the body must still blanket the span downstream of it: {tip:0.00}");
     }
 
     /// <summary>INVERTED FLAT: the upper wing is upstream and clean, the lower wing (the aft one) is shadowed.</summary>
