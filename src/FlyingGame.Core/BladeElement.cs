@@ -169,6 +169,66 @@ public static class BladeElement
     }
 
     /// <summary>
+    /// THE BLADE ANGLE THAT ABSORBS A GIVEN TORQUE, at this rpm and airspeed. A constant-speed propeller's governor
+    /// does exactly this: it coarsens the blade until the propeller's torque matches what the engine is making, and
+    /// the rpm then stays where it was put. Monotone in pitch over the working range (coarser absorbs more), so a
+    /// bisection is enough and cannot pick the wrong root.
+    /// </summary>
+    public static double PitchForTorqueDeg(int blades, double radiusM, double activityFactor, double hubFraction,
+                                           double targetTorqueNm, double rpm, double vAxialMs, double rhoKgM3,
+                                           double loDeg = 5.0, double hiDeg = 65.0)
+    {
+        double Q(double pitch) => Solve(new Geometry(blades, radiusM, pitch, activityFactor, hubFraction), vAxialMs, 0.0, rpm, rhoKgM3).TorqueNm;
+        double qLo = Q(loDeg), qHi = Q(hiDeg);
+        if (targetTorqueNm <= qLo) return loDeg;
+        if (targetTorqueNm >= qHi) return hiDeg;
+        for (int i = 0; i < 40; i++)
+        {
+            double mid = 0.5 * (loDeg + hiDeg);
+            if (Q(mid) < targetTorqueNm) loDeg = mid; else hiDeg = mid;
+        }
+        return 0.5 * (loDeg + hiDeg);
+    }
+
+    /// <summary>
+    /// THE GOVERNOR'S PITCH STOPS, DERIVED (Ty 2026-11-09): "The prop pitch limits should be set so that the low pitch
+    /// stop allows full rpm at 26 inches of manifold pressure at sea level for naturally aspirated engines and the
+    /// high pitch stop prevents an overspeed until vd at full power with Vd being 110% of the vne."
+    ///
+    /// Both stops are therefore MEASUREMENTS of the blade, not numbers to pick:
+    ///
+    ///   FINE  the blade angle that lets the engine reach rated rpm standing still on 26 inHg. That is the run-up
+    ///         check a pilot actually does, and it is what makes the fine stop fine enough to give full rpm for
+    ///         take-off without being so fine the propeller runs away.
+    ///   COARSE the blade angle needed to hold rated rpm at Vd at full power. Any coarser is unnecessary; any finer
+    ///         and the governor runs out of blade before Vd and the engine overspeeds in the dive.
+    ///
+    /// Power at 26 inHg comes from the naturally aspirated engine's near-linear fall with manifold pressure, taken
+    /// through the friction intercept near 10 inHg: (26 - 10)/(29.92 - 10) = 0.80 of rated. No tuning constant: full
+    /// throttle at sea level IS 29.92 inHg, and the intercept is a property of a piston engine.
+    /// </summary>
+    public readonly struct Stops
+    {
+        public readonly double FineDeg, CoarseDeg;
+        public Stops(double fine, double coarse) { FineDeg = fine; CoarseDeg = coarse; }
+    }
+
+    public const double RunUpManifoldInHg = 26.0, SeaLevelManifoldInHg = 29.92, FrictionManifoldInHg = 10.0;
+    public static double PowerFractionAtManifold(double inHg)
+        => Math.Clamp((inHg - FrictionManifoldInHg) / (SeaLevelManifoldInHg - FrictionManifoldInHg), 0.0, 1.0);
+
+    public static Stops GovernorStops(int blades, double radiusM, double activityFactor, double hubFraction,
+                                      double ratedPowerW, double ratedRpm, double vneMs, double rhoKgM3 = 1.225)
+    {
+        double omega = ratedRpm * 2.0 * Math.PI / 60.0;
+        double qRated = ratedPowerW / Math.Max(1e-6, omega);
+        double qRunUp = qRated * PowerFractionAtManifold(RunUpManifoldInHg);
+        double fine = PitchForTorqueDeg(blades, radiusM, activityFactor, hubFraction, qRunUp, ratedRpm, 0.0, rhoKgM3);
+        double coarse = PitchForTorqueDeg(blades, radiusM, activityFactor, hubFraction, qRated, ratedRpm, 1.1 * vneMs, rhoKgM3);
+        return new Stops(fine, Math.Max(coarse, fine + 1.0));
+    }
+
+    /// <summary>
     /// A propeller blade section: Clark-Y-like, which is what most of this fleet's blades are. Linear to the stall,
     /// then a flat-plate post-stall so a stalled root (which every propeller has at low speed) behaves instead of
     /// running away. Not a table because a propeller blade spends its life between 0 and 10 degrees.
