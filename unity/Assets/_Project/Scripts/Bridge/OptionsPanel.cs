@@ -338,7 +338,16 @@ namespace FlyingGame.Bridge
             }
             float headH = _lh + _gap * 0.5f + tabRows * (_lh + _gap * 0.35f);
             float bodyWant = _measured[(int)_page] > 0f ? _measured[(int)_page] : Screen.height;   // first pass: clamp to screen
-            float h = Mathf.Min(headH + bodyWant + _gap, Screen.height - top - s * 0.03f);
+            // ... AND IT STOPS ABOVE THE TOUCHPAD. Ty 2026-11-09: "I'm trying to get the ui to allow me to turn on
+            // bubbles. When the touchpad is present I think the options are hidden behind it." It was clamped to the
+            // SCREEN, so in portrait the page ran on down behind the control tray: the last rows of the longest page
+            // were drawn underneath the sticks, and a drag there moved the stick instead of scrolling, so they could
+            // not be reached at all. Air bubbles is the second-to-last row of the Display page, which is how he found
+            // it. The tray's own height is ScreenLayout.TrayHeightPx (0 in landscape, 0 when a gamepad hides the
+            // sticks), so the panel ends where the controls begin and everything above is scrollable.
+            float trayH = TouchFlightControls.TouchSticksHidden ? 0f : ScreenLayout.TrayHeightPx;
+            float avail = Screen.height - top - s * 0.03f - trayH;
+            float h = Mathf.Min(headH + bodyWant + _gap, Mathf.Max(avail, s * 0.30f));
             var panel = new Rect((Screen.width - w) * 0.5f, top, w, h);
             GUI.DrawTexture(panel, _bg);
 
