@@ -368,7 +368,20 @@ public static class PropModel
             // Cross(propArm, ...) only for the legacy coefficient force, which is off everywhere. So the force is
             // handed out in parts.InPlane and Aircraft.PropulsionForces places it on the real arm, exactly as it
             // already does for PropModel.NormalForce.
-            Vec3 inPlane = new(0, prop.RotationSign * r.NormalN * uz, -prop.RotationSign * r.NormalN * uy);
+            // THE DISC'S NORMAL FORCE ACTS ALONG THE CROSS-FLOW, not across it. Written as (uz, -uy) it was rotated a
+            // quarter turn, so a pure SIDESLIP produced a vertical force and a pure angle of attack produced a lateral
+            // one: at 40 deg of sideslip the Extra's disc pushed 496 N straight DOWN and nothing sideways.
+            //
+            // The blade integral says the same thing. With azimuth 0 at the right-hand blade going down, an element's
+            // tangential reaction is (0, sin psi, -cos psi) * ct * q, and summing that over the azimuth leaves only
+            // (0, 0, -sum(ct cos psi)) for a cross-flow in +z - along the cross-flow axis, which is where NormalN's
+            // own integral already points. It also has to agree with the coefficient model this path replaced
+            // (PropModel.NormalForce returns -k * (0, v.Y, v.Z)): at positive alpha the disc's force is UP, and a disc
+            // 1.7 m ahead of the CG makes that destabilising. That is the term the gyro derivation says is ten times
+            // the gyroscopic couple (docs/aircraft/prop-gyro-DERIVATION.md section 5) - and on the solved types it was
+            // pointing the wrong way entirely, which is what Ty felt as the Extra "coming up way short on side slip
+            // angle (beta) when yawed left and pushed forward... like the gyroscopics are too light".
+            Vec3 inPlane = new(0, -r.NormalN * uy, -r.NormalN * uz);
             force += inPlane;
             parts.InPlane = inPlane;
 
