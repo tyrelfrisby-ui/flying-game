@@ -1450,6 +1450,7 @@
     "idleRpm": 700,
     "maxRpm": 2700,
     "propInertia": 5.0,
+    "propInertiaSource": "Propeller + spinner + the crank's rotating parts, kg.m2. FLAGGED, NOT DERIVED: docs/aircraft/prop-gyro-DERIVATION.md section 4 puts a ~50 lb two-blade on the AEIO-360 (four cylinders, ~0.09 for the crank) in a band of 2.5-3.8, and this 5.0 sits above it. The propeller's mass is the unknown, not the crank, so it is left alone until someone weighs one - changing it on the strength of an assumed mass would be inventing a coefficient.",
     "rotationSign": 1,
     "efficiency": 0.8,
     "thrustLineZ": 0.0,
