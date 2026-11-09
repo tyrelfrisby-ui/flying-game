@@ -28,6 +28,20 @@ public class PittsQ007Probe
         var c = AircraftConfigLoader.LoadFromFile(Path.Combine(d.FullName, "configs", "aircraft", "pitts-s2b-like.json"));
         var ip = Environment.GetEnvironmentVariable("Q007_IP");
         if (!string.IsNullOrEmpty(ip)) c.Propulsion!.PropInertia = double.Parse(ip);
+        var nk = Environment.GetEnvironmentVariable("Q007_K");           // propeller in-plane (normal) force coefficient
+        if (!string.IsNullOrEmpty(nk)) c.Propulsion!.NormalForceK = double.Parse(nk);
+        // THRUST-LINE OFFSET (Q007_TLZ). The Pitts and the Great Lakes are the only types in the fleet with a CG below
+        // the body origin (0.20 and 0.25) AND thrustLineZ left at 0; the Extra, whose CG z IS 0, is consistent. The
+        // origin is the thrust line, so their real offset is about -0.20 / -0.25 and it was never entered. Unlike the
+        // gyro, it does NOT mirror: a thrust line above the CG is nose-down with power upright, which inverted is
+        // nose-UP with respect to the earth -- exactly "upright spins are more nose low and inverted flat spins are
+        // more nose high" (Ty, 2026-11-08).
+        var tz = Environment.GetEnvironmentVariable("Q007_TLZ");
+        if (!string.IsNullOrEmpty(tz)) c.Propulsion!.ThrustLineZ = double.Parse(tz);
+        var sk = Environment.GetEnvironmentVariable("Q007_SK");          // geometric helical shadow depth (all surfaces)
+        if (!string.IsNullOrEmpty(sk)) { c.SpinAero ??= new SpinAeroConfig(); c.SpinAero.ShadowK = double.Parse(sk); }
+        var wk = Environment.GetEnvironmentVariable("Q007_W");           // biplane wing-on-wing wake depth
+        if (!string.IsNullOrEmpty(wk)) { c.SpinAero ??= new SpinAeroConfig(); c.SpinAero.CelluleWakeK = double.Parse(wk); }
         return c;
     }
 
@@ -147,10 +161,26 @@ public class PittsQ007Probe
         if (Environment.GetEnvironmentVariable("Q007_WQ") == null) return;
         var cfg = Load();
         var tables = Aircraft.BuildAirfoilTables(cfg);
-        foreach (double a in new[] { 0.0, 10, 16, 30, 45, 60, 75, 90, 105, -10, -20, -30, -35, -40, -45, -50, -60, -75, -90 })
+        // Ty's logic check (2026-11-08): from a three-view, in a truly flat spin the EXPOSED wing takes full free-stream
+        // dynamic pressure across its whole area and shadows the one behind it. Inverted the exposed wing is the upper and
+        // the shadowed one is the more AFT wing — losing an aft surface is destabilising, so the nose rises. Upright the
+        // exposed wing is the lower and the shadowed one is the more FORWARD wing — losing a forward surface is
+        // stabilising, so the nose sits lower. A fine grid either side of +-90 is what shows whether the model does BOTH
+        // halves of that or only one.
+        Environment.SetEnvironmentVariable("_", null);
+        var grid = new System.Collections.Generic.List<double>();
+        if (Environment.GetEnvironmentVariable("Q007_WQ_A") is string al && al.Length > 0)
+            foreach (var t in al.Split(',')) grid.Add(double.Parse(t));
+        else { for (double a = 60; a <= 120; a += 5) grid.Add(a); for (double a = -60; a >= -120; a -= 5) grid.Add(a); }
+        foreach (double a in grid)
         {
             double r = a * Math.PI / 180;
-            var q = FlyingGame.Core.Aero.TailWake.WingStripQFactors(cfg, tables, new Vec3(30 * Math.Cos(r), 0, 30 * Math.Sin(r)), Vec3.Zero);
+            Vec3 vb = new Vec3(30 * Math.Cos(r), 0, 30 * Math.Sin(r));
+            Vec3 rates = Environment.GetEnvironmentVariable("Q007_WQ_SPIN") is string sp && sp.Length > 0
+                ? new Vec3(0, 0, double.Parse(sp) * Math.PI / 180.0) : Vec3.Zero;
+            var q = FlyingGame.Core.Aero.TailWake.WingStripQFactors(cfg, tables, vb, rates);
+            var qa = FlyingGame.Core.Aero.TailWake.StripQFactors(cfg, tables, vb, rates);
+            for (int i = 0; i < q.Length; i++) if (double.IsNaN(q[i])) q[i] = qa[i];
             int k = 0; var line = new System.Text.StringBuilder($"α {a,5:F0}:");
             foreach (var sf in cfg.Surfaces) { double mn = 1, sum = 0; int n = 0; foreach (var _ in sf.Strips) { double v = q[k++]; if (!double.IsNaN(v)) { mn = Math.Min(mn, v); sum += v; n++; } } if (n > 0) line.Append($" {sf.Id} mean {sum / n:F2} min {mn:F2}"); }
             _out.WriteLine(line.ToString());

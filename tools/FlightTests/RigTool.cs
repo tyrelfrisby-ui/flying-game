@@ -34,6 +34,11 @@ public class RigTool
         bool write = Environment.GetEnvironmentVariable("RIG_WRITE") == "1";
         if (!write && Environment.GetEnvironmentVariable("RIG_PROBE") == null) return;
         string dir = Path.Combine(Repo, "configs", "aircraft");
+        // RIG_ONLY=<id>[,<id>...] scopes the WRITE to those types. Without it a write rewrites every config in the
+        // directory, which on 2026-10-19 is how a calibration run quietly re-rigged two unrelated J-3s; and today only
+        // one type's physics moved, so only that type should move. The probe listing is unscoped either way.
+        var only = (Environment.GetEnvironmentVariable("RIG_ONLY") ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
         const double D = 180.0 / Math.PI;
         _out.WriteLine("id | thr | alt ft | KTAS | KIAS | alpha | theta | elev | ail rig | fin (LE left +) | bank | gamma | lat | resid | iters");
         foreach (string path in Directory.GetFiles(dir, "*.json").OrderBy(p => p))
@@ -48,9 +53,10 @@ public class RigTool
                 c.Id, r.Throttle, r.AltitudeM / 0.3048, r.TasMs / 0.514444, kias, r.AlphaRad * D, r.ThetaRad * D, r.ElevatorRad * D,
                 r.AileronRigRad * D, r.FinOffsetRad * D, r.BankRad * D, r.GammaRad * D, r.LateralSolved ? "solved" : "none", r.ResidualNorm, r.Iterations,
                 r.Converged ? "" : "  ** NOT CONVERGED **"));
-            if (!write) continue;
+            if (!write || (only.Length > 0 && !only.Contains(c.Id))) continue;
             Assert.True(r.Converged, $"{c.Id}: rig did not converge (residual {r.ResidualNorm:E2})");
             File.WriteAllText(path, WithRig(File.ReadAllText(path), r));
+            _out.WriteLine($"   WROTE {c.Id}");
         }
     }
 

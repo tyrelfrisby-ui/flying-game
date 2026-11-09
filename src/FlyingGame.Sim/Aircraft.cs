@@ -1790,7 +1790,8 @@ public sealed partial class Aircraft
     /// <summary>The same with the engine's real state: a dead engine makes no power whatever the throttle says (torque,
     /// P-factor, spiral slipstream and the gyro at the windmill's rpm, not the lever's).</summary>
     public static (Vec3 Force, Vec3 Moment) PropulsionForces(AircraftConfig config, double throttle01, Vec3 velocity, Vec3 rates, double airDensity,
-        bool noseLost, Vec3 noseBody, double[]? thrustScale, PropModel.PropDrive drive, double slipOverTail = 1.0)
+        bool noseLost, Vec3 noseBody, double[]? thrustScale, PropModel.PropDrive drive, double slipOverTail = 1.0,
+        double wingSeparated = 0.0)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         if (config.Propulsion is null) return (totalF, totalM);
@@ -1799,9 +1800,24 @@ public sealed partial class Aircraft
             (Vec3 pF, Vec3 pM) = PropModel.Compute(config.Propulsion, throttle01, velocity, rates, airDensity, drive, out PropModel.Parts parts);
             // The spiral slipstream's yaw is the swirl striking the fin: only the share of the wash that still reaches it.
             if (slipOverTail < 1.0) pM -= new Vec3(0, 0, (1.0 - slipOverTail) * parts.SlipYaw);
+            // The disc's IN-PLANE force (PropModel.NormalForce). Gated on the wing's separated share, like the skewed
+            // wash above it: the term is real in attached flight too, but every stored rig, trim and elevator
+            // calibration was solved without it, so turning it on there is a fleet re-rig and not this change. The
+            // gate is a SCOPE limit, not physics. It acts at the disc, which is a long arm ahead of the CG.
+            // The inflow AT THE DISC, not at the CG: in a spin at 300 deg/s the prop sits ~1.5 m ahead of the centre of
+            // rotation, so omega x r adds several m/s of crossflow that the CG's velocity does not carry. The term is
+            // linear in the crossflow, so using the wrong station is a real error and not a scale factor.
+            Vec3 propArm = noseBody - config.Mass.CgVec();
+            Vec3 nF = PropModel.NormalForce(config.Propulsion, parts.Thrust, velocity + Vec3.Cross(rates, propArm), airDensity, wingSeparated);
+            if (nF.X != 0.0 || nF.Y != 0.0 || nF.Z != 0.0)
+            {
+                pF += nF;
+                pM += Vec3.Cross(propArm, nF);
+            }
             // Blade tips curled by a prop strike (Aircraft.PropStrike): a smaller disc at the same power.
             if (thrustScale is { Length: > 0 } && thrustScale[0] != 1.0) { pF *= thrustScale[0]; pM *= thrustScale[0]; }
             ForceDebug.Add(noseBody, pF, pM, "thrust");
+            if (ForceDebug.Samples != null) ForceDebug.Add(noseBody, nF, Vec3.Zero, "propn");   // (already in "thrust": a breakdown only)
             if (ForceDebug.Samples != null) ForceDebug.Add(noseBody, Vec3.Zero, PropModel.GyroMoment(config.Propulsion, throttle01, rates, drive), "gyro");   // (already in "thrust"'s moment: a breakdown only)
             return (pF, pM);
         }
