@@ -1122,20 +1122,40 @@ public sealed partial class Aircraft
     /// stick-fixed. K = the centering spring (CenteringSpringKt: the airspeed where it equals the air's own restoring
     /// stiffness); its neutral is 0, or the trim for a "spring" (bungee / cartridge) trim. No air and no spring: it stays.
     /// </summary>
+    /// <summary>The hinge-moment terms for a free axis, for probes: a (flow), b (deflection), k (spring), and the
+    /// per-side flow contributions before the interconnect cancels them. Ty 2026-11-09: "the ailerons are connected
+    /// to one another as one trys to weathervane the other is also trying to weather vane and cancels it out".</summary>
+    public (double A, double B, double K, double Den, double Left, double Right) HingeDebug(string surface, ControlAxisConfig axis)
+    {
+        (double a, double b, double k, double _) = HingeTerms(surface, axis);
+        double left = 0.0, right = 0.0;
+        int idx = 0;
+        foreach (SurfaceConfig sf in Config.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+            {
+                int i = idx++;
+                if (st.Control is null || st.Control.Surface != surface || Math.Abs(st.Control.Gain) < 0.9) continue;
+                double la = 0.0, lb = 0.0;
+                double vn = 0.0, vd = 0.0;
+                HingeStrip(i, st.Area * st.Chord, Math.Sign(st.Control.Gain), axis, ref la, ref lb, ref vn, ref vd);
+                if (st.Pos[1] < 0) left += la; else right += la;
+            }
+        return (a, b, k, k - b, left, right);
+    }
+
     public double FreeFloat(string surface, ControlAxisConfig axis, double trimRad, double currentRad)
     {
-        (double a, double b, double k) = HingeTerms(surface, axis);
+        (double a, double b, double k, double vane) = HingeTerms(surface, axis);
         double den = k - b;
         if (den <= 0.0 && b > 0.0)
         {
-            // Net DESTABILIZING (reversed flow beats the spring): no balance point holds — the surface runs away from
-            // the unstable one and slams against the stop on whichever side it is already displaced (control slam).
-            double unstable = Math.Abs(den) > 1e-9 ? -a / -den : 0.0;
-            double side = currentRad - unstable;
-            if (Math.Abs(side) < 1e-6) side = a != 0.0 ? a : 1.0;
-            return Math.Sign(side) * axis.LimitFor(Math.Sign(side));
+            // Net DESTABILIZING (reversed flow beats the spring): the LINEAR balance point is unstable, so the surface
+            // runs away from it — but it stops where it has turned far enough INTO the flow to be a vane, aligned with
+            // the air over it. That still reaches the stop when the flow genuinely asks (a tailslide), and does not
+            // when it does not.
+            return axis.ClampDefl(vane);
         }
-        if (den < 1e-6) return currentRad;
+        if (den < 1e-6) return axis.ClampDefl(vane);
         double d;
         if (axis.TrimType == "spring" && k > 1e-9)
         {
@@ -1154,9 +1174,10 @@ public sealed partial class Aircraft
     }
 
     /// <summary>The hinge-moment terms of <see cref="FreeFloat"/>: a (flow), b (deflection, negative), k (spring).</summary>
-    private (double a, double b, double k) HingeTerms(string surface, ControlAxisConfig axis)
+    private (double a, double b, double k, double vane) HingeTerms(string surface, ControlAxisConfig axis)
     {
         double a = 0.0, b = 0.0, scRef = 0.0;
+        double vaneNum = 0.0, vaneDen = 0.0;
         int idx = 0;
         foreach (SurfaceConfig sf in Config.Surfaces)
         {
@@ -1169,16 +1190,18 @@ public sealed partial class Aircraft
                 if (_hingeExcluded is not null && i < _hingeExcluded.Length && _hingeExcluded[i]) continue;   // no longer on this circuit (a disconnected aileron)
                 double sc = st.Area * st.Chord, g = Math.Sign(st.Control.Gain);
                 scRef += sc;
-                HingeStrip(i, sc, g, axis, ref a, ref b);
+                HingeStrip(i, sc, g, axis, ref a, ref b, ref vaneNum, ref vaneDen);
             }
         }
         double vSpring = axis.CenteringSpringKt * 0.514444;
-        return (a, b, 0.5 * 1.225 * vSpring * vSpring * scRef * Math.Abs(axis.HingeChDelta));
+        return (a, b, 0.5 * 1.225 * vSpring * vSpring * scRef * Math.Abs(axis.HingeChDelta),
+                vaneDen > 1e-9 ? vaneNum / vaneDen : 0.0);
     }
 
     /// <summary>One hinged strip's share of the hinge-moment terms (see <see cref="HingeTerms"/>): flow term into
     /// <paramref name="a"/>, deflection stiffness into <paramref name="b"/>. <paramref name="g"/> = the sign of its gain.</summary>
-    private void HingeStrip(int i, double sc, double g, ControlAxisConfig axis, ref double a, ref double b)
+    private void HingeStrip(int i, double sc, double g, ControlAxisConfig axis, ref double a, ref double b,
+                            ref double vaneNum, ref double vaneDen)
     {
         if (i >= _flowState.HingeQ.Length) return;
         double qsc = _flowState.HingeQ[i] * sc;
@@ -1186,7 +1209,17 @@ public sealed partial class Aircraft
         // below holds the free elevator nearly full aft and the rudder pro-spin): a surface hinged at its leading edge in
         // separated crossflow trails WITH the local flow, like a vane — its flow term grows to Chδ·α, so the float
         // goes to −α (against no spring: the stop). Blended from 20° to 40° of local flow.
-        double al = _flowState.HingeAlphaRad[i], att = Math.Clamp(al, -0.35, 0.35);
+        // WHICH WAY THE SURFACE WANTS TO TRAIL is set by the flow NORMAL to it, and that normal is the same sign on
+        // both wings. HingeAlphaRad is reversed in tail-first flow (see StripFlowState), which is right for the
+        // ANGLE but wrong for the float's direction: in a flat spin the retreating wing's CHORDWISE component
+        // reverses (+/-11 m/s from the rotation) while the 25 m/s coming from below does not, so both ailerons still
+        // want to trail the same way in absolute terms. Left reversed, one side's float flipped sign, the two stopped
+        // cancelling through the interconnect and ADDED instead - measured L +14, R +21 on the stick where they
+        // should have met near zero. Ty 2026-11-09: "the ailerons are connected to one another as one trys to
+        // weathervane the other is also trying to weather vane and cancels it out".
+        double dirNow = i < _flowState.HingeFlowDir.Length ? _flowState.HingeFlowDir[i] : 1.0;
+        double al = _flowState.HingeAlphaRad[i] * (dirNow >= 0.0 ? 1.0 : -1.0);
+        double att = Math.Clamp(al, -0.35, 0.35);
         double sep = Math.Clamp((Math.Abs(al) - 0.35) / 0.35, 0.0, 1.0); sep = sep * sep * (3 - 2 * sep);
         // AND THE LEADING EDGE DECIDES IT, once it has an opinion. The blend above is a smooth function of the local
         // flow angle, so as a spin slows it walks the elevator forward in step with alpha — a drift. The real thing is
@@ -1200,8 +1233,11 @@ public sealed partial class Aircraft
         // Deflection stiffness follows the flow direction: centering in normal flow, gone in crossflow, and
         // REVERSED and ~2x stronger when the air comes from the trailing edge (tailslide: the hinge is now
         // downstream and the load acts near the leading free edge) — the free surface is pushed to its stop.
-        double dir = i < _flowState.HingeFlowDir.Length ? _flowState.HingeFlowDir[i] : 1.0;
+        double dir = dirNow;
         b += qsc * axis.HingeChDelta * (dir >= 0 ? dir : 2.0 * dir);
+        // Where a vane would sit on this strip: aligned with its own flow, weighted by what it feels. Summed with the
+        // gain, so an interconnected pair's symmetric share cancels here exactly as it does in the flow term above.
+        vaneNum += g * qsc * -al; vaneDen += qsc;
     }
 
     // Trim-tab calibration: δ_tab − trim, per axis, so the free surface floats exactly at the spawn's trimmed deflection.
@@ -1216,7 +1252,7 @@ public sealed partial class Aircraft
         ControlDeflections trims = _spawnTrim;
         double Offset(string surface, ControlAxisConfig axis, double current, double trim)
         {
-            (double a, double b, double k) = HingeTerms(surface, axis);
+            (double a, double b, double k, double _) = HingeTerms(surface, axis);
             if (axis.TrimType == "spring" && k > 1e-9)
             {
                 // a + b·δ − k·(δ − neutral) = 0 at δ = current  →  neutral
