@@ -38,13 +38,16 @@ public static class AeroModel
     }
     private static double[] WingGeom(AircraftConfig c) => _span.GetValue(c, cfg =>
     {
-        double maxY = 0, zSum = 0, aSum = 0;
+        double maxY = 0, zSum = 0, aSum = 0, ySum = 0;
         foreach (SurfaceConfig sf in cfg.Surfaces)
         {
             if (!sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) continue;
-            foreach (StripConfig st in sf.Strips) { Vec3 p = st.PosVec(); maxY = Math.Max(maxY, Math.Abs(p.Y) + 0.5 * st.Area / Math.Max(0.1, st.Chord)); zSum += p.Z * st.Area; aSum += st.Area; }
+            foreach (StripConfig st in sf.Strips) { Vec3 p = st.PosVec(); maxY = Math.Max(maxY, Math.Abs(p.Y) + 0.5 * st.Area / Math.Max(0.1, st.Chord)); zSum += p.Z * st.Area; aSum += st.Area; ySum += Math.Abs(p.Y) * st.Area; }
         }
-        return new[] { 2 * maxY, aSum > 0 ? zSum / aSum : double.NaN };
+        // [2] is the area-weighted mean span station and [3] the wing area: together they calibrate the per-strip
+        // sideslip-roll distribution (see SLIP ROLL, PER STRIP in the strip loop) so that a uniformly separated wing
+        // reproduces the TR-379 coefficient exactly.
+        return new[] { 2 * maxY, aSum > 0 ? zSum / aSum : double.NaN, aSum > 0 ? ySum / aSum : 0.0, aSum };
     });
 
     /// <summary>
@@ -464,8 +467,37 @@ public static class AeroModel
         // every strip below. Off (and free) whenever the prop is doing nothing to the air.
         PropJet.Jet jet = PropJet.Prepare(config, bodyVelocity - windBody, bodyRates, cg, slipstreamDeltaU, slipstreamRadius, slipstreamSwirlMs);
 
-        // THE WING'S OWN STALLED FRACTION, area-weighted, accumulated as the strips are flown. It gates the
-        // separated-wing rolling moment at the bottom of this method; see ApplyWingSideslipRoll.
+        // THE SEPARATED WING'S ROLLING MOMENT DUE TO SIDESLIP, accumulated STRIP BY STRIP as they are flown (owner
+        // 2026-11-09: "make each of these real science not lump sums"). It used to be one bulk C_l*q*S*b at the bottom
+        // of this method, scaled by the wing's average separated fraction to keep it from double-counting the roll the
+        // strips already make in attached flow. The measured magnitude is TR-379 and stays -- the strips produce only
+        // 10-30 % of it above the stall and reverse sign at the stall (SlipRollGeometryProbe), so it carries a
+        // three-dimensional spanwise separation effect a strip model cannot derive. What was a lump sum is the
+        // APPLICATION, and that is now per strip: each strip's own separation, its own local sideslip, its own dynamic
+        // pressure and its own span station. Three things follow that a wing-average cannot do -- an attached strip
+        // contributes nothing, so the double count goes structurally instead of by a gate; one wing stalled and the
+        // other flying makes an asymmetric moment, which is the spin; and in a spin the advancing wing's higher q
+        // counts for more, because the q is the strip's own.
+        //
+        // CALIBRATED, not retuned: for a uniformly separated wing the strip sum must come to C_l*q*S*b, which fixes
+        // the constant at b / (area-weighted mean span station). It lands at 78-88 % of the old bulk value, and the
+        // shortfall is physics the bulk version omitted -- it used the BODY's alpha and the FREE-STREAM q for a wing
+        // whose strips are at neither, so decalage and a biplane's wings shading each other now count
+        // (SlipRollPerStripTests).
+        //
+        // WHY THE OLD GATE EXISTED, kept here because it is the thing not to regress: TR-379 measured a SEPARATED wing,
+        // and in attached flow the strip wing already makes its own roll from sideslip out of dihedral and wing-body
+        // position, so the bulk term counted it twice and an aeroplane with real dihedral got roughly double. Hands on
+        // the trim through 40 s of moderate turbulence, the Super Cub's peak bank went 7 deg to 52 and the 2-33 wound up
+        // from a 22 m/s trim to 43. Scaling by the wing's average separated fraction confined it; applying it per strip
+        // removes the need for any gate, because an attached strip contributes nothing by construction.
+        // docs/SPIN-ROTARY-DATA.md calls the gate "the faithful fix"; it was rejected once on a measurement the same
+        // document later shows was wrong (the Pitts' entry gated at 17 deg on a 12 deg wing).
+        string slipRollKind = config.SpinAero?.RollDueToSideslip ?? "";
+        double[] wingGeom = WingGeom(config);
+        double slipRollK = slipRollKind.Length > 0 && wingGeom[2] > 1e-6 ? wingGeom[0] / wingGeom[2] : 0.0;
+        const double SlipRollBeta20 = 20.0 * Math.PI / 180.0;
+        double slipRollMx = 0.0;
         double gateWingArea = 0.0, gateWingSeparated = 0.0;
 
         for (int surfaceIndex = 0; surfaceIndex < config.Surfaces.Count; surfaceIndex++)
@@ -931,6 +963,24 @@ public static class AeroModel
                 // slat lift likewise. (flapClMax only extends the attached-branch cap above.)
                 double attached = flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0;
                 if (isWing) { gateWingArea += strip.Area; gateWingSeparated += strip.Area * (1.0 - attached); }
+
+                // SLIP ROLL, PER STRIP (see the accumulator's note above). This strip's share of TR-379.
+                if (isWing && slipRollK > 0.0 && attached < 1.0)
+                {
+                    double vSlipLen = vLocal.Length;
+                    if (vSlipLen > MinSpeedMs)
+                    {
+                        double betaLocal = Math.Asin(Math.Clamp(vLocal.Y / vSlipLen, -1.0, 1.0));
+                        double cl20 = SlipRollCl20(slipRollKind, alpha * 180.0 / Math.PI);
+                        if (cl20 > 0.0)
+                        {
+                            double bc = Math.Clamp(betaLocal, -SlipRollBeta20, SlipRollBeta20);
+                            double sense = alpha >= 0 ? 1.0 : -1.0;     // inverted: negative lift, the moment reverses
+                            slipRollMx += -sense * slipRollK * cl20 * (bc / SlipRollBeta20)
+                                          * (1.0 - attached) * q * strip.Area * Math.Abs(strip.PosVec().Y);
+                        }
+                    }
+                }
                 double highLiftCl = (flapCl + slatCl) * attached;
                 double clTotal = coeffs.Cl + highLiftCl;
 
@@ -984,8 +1034,11 @@ public static class AeroModel
         Vec3 airVelocity = bodyVelocity - (meanWindBody ?? windBody);
         ApplySpoilerDrag(config, airVelocity, airDensity, controls, ref totalForce, surfaceMask);
         ApplyFuselage(config, airVelocity, bodyRates, airDensity, ref totalForce, ref totalMoment);
-        ApplyWingSideslipRoll(config, airVelocity, airDensity, surfaceMask,
-                              gateWingArea > 0.0 ? gateWingSeparated / gateWingArea : 0.0, ref totalMoment);
+        if (slipRollMx != 0.0)
+        {
+            totalMoment += new Vec3(slipRollMx, 0, 0);
+            ForceDebug.Add(cg, Vec3.Zero, new Vec3(slipRollMx, 0, 0), "moment");
+        }
 
         return (totalForce, totalMoment);
     }
@@ -1182,45 +1235,20 @@ public static class AeroModel
     /// (the wing the relative wind meets first) loaded up, the trailing half unloaded. Upright (alpha &gt; 0) a wind from the
     /// right (beta &gt; 0) loads the right wing: a roll LEFT; inverted the loads are negative lift and it reverses. Beta is held
     /// at the tests' +/-20 deg beyond (no data past it).</summary>
-    private static void ApplyWingSideslipRoll(AircraftConfig config, Vec3 v, double rho, bool[]? surfaceMask,
-                                              double wingStalled, ref Vec3 totalMoment)
+    /// <summary>TR-379's measured C_l at 20 deg of yaw, interpolated at this angle of attack. Measured data, which is
+    /// why it stays: the strip wing produces only 10-30 % of it above the stall and REVERSES SIGN at the stall itself
+    /// (SlipRollGeometryProbe), so the three-dimensional spanwise separation effect it carries is not something a strip
+    /// model can derive. What changed on 2026-11-09 is WHERE it is applied: per strip, not as one bulk moment.</summary>
+    public static double SlipRollCl20(string kind, double alphaDeg)
     {
-        string kind = config.SpinAero?.RollDueToSideslip ?? "";
-        if (kind.Length == 0) return;
-        if (surfaceMask != null)
-        {
-            bool anyWing = false;
-            for (int i = 0; i < config.Surfaces.Count && i < surfaceMask.Length; i++)
-                if (surfaceMask[i] && config.Surfaces[i].Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) anyWing = true;
-            if (!anyWing) return;
-        }
-        double V = v.Length; if (V < MinSpeedMs) return;
-        double alpha = Math.Atan2(v.Z, v.X) * 180.0 / Math.PI;           // body alpha, -180..180
-        double a = Math.Abs(alpha); if (a > 90) a = 180 - a;            // (reversed flow: the same broadside geometry)
-        double beta = Math.Asin(Math.Clamp(v.Y / V, -1, 1));
-        double b20 = 20.0 * Math.PI / 180.0, bc = Math.Clamp(beta, -b20, b20);
+        if (kind.Length == 0) return 0.0;
+        double a = Math.Abs(alphaDeg); if (a > 90) a = 180 - a;
         double[] tab = kind == "biplane" ? SlipRollBi : SlipRollMono;
         int i0 = 0; while (i0 < SlipRollAlpha.Length - 2 && a > SlipRollAlpha[i0 + 1]) i0++;
         double t = (a - SlipRollAlpha[i0]) / (SlipRollAlpha[i0 + 1] - SlipRollAlpha[i0]);
-        double cl20 = tab[i0] + Math.Clamp(t, 0, 1) * (tab[i0 + 1] - tab[i0]);     // C_l at 20 deg yaw
-        // THE STALL GATE. TR-379 measured a SEPARATED wing. In attached flow the strip wing already makes
-        // its own rolling moment due to sideslip out of dihedral, wing-body position and geometry, so the
-        // table counts it a second time and an aeroplane with real dihedral gets roughly double: hands on
-        // the trim through 40 s of moderate turbulence, the Super Cub's peak bank went 7 deg -> 52 and the
-        // 2-33 wound up from a 22 m/s trim to 43. Scaling by the wing's own separated fraction confines
-        // the term to the flow the paper measured, and takes it to zero in attached flow by itself.
-        // docs/SPIN-ROTARY-DATA.md calls this "the faithful fix"; it was rejected once on a measurement
-        // the same document later shows was wrong (the Pitts' entry gated at 17 deg on a 12 deg wing).
-        cl20 *= Math.Clamp(wingStalled, 0.0, 1.0);
-        if (cl20 <= 0.0) return;
-        double S = 0; foreach (var sf in config.Surfaces) if (sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) foreach (var st in sf.Strips) S += st.Area;
-        double span = WingSpan(config);
-        double q = 0.5 * rho * V * V;
-        double sense = alpha >= 0 ? 1.0 : -1.0;                         // inverted: negative lift, the moment reverses
-        double L = -sense * cl20 * (bc / b20) * q * S * span;           // wind from the right (beta > 0) loads the right wing: roll left
-        totalMoment += new Vec3(L, 0, 0);
-        ForceDebug.Add(config.Mass.CgVec(), Vec3.Zero, new Vec3(L, 0, 0), "moment");
+        return tab[i0] + Math.Clamp(t, 0, 1) * (tab[i0 + 1] - tab[i0]);
     }
+
 
     private static void ApplyFuselage(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, ref Vec3 totalForce, ref Vec3 totalMoment)
     {
