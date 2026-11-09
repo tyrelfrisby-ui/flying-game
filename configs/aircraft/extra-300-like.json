@@ -14,12 +14,8 @@
       0,
       0
     ],
-    "inertia": {
-      "ixx": 800,
-      "iyy": 1100,
-      "izz": 1800,
-      "ixz": 30
-    }
+    "inertia": { "ixx": 701, "iyy": 2038, "izz": 2575, "ixz": 80 },
+    "inertiaSource": "Ixx/Iyy/Izz/Ixz kg.m2 about the CG. DERIVED 2026-11-02, docs/aircraft/extra-300-inertia-DERIVATION.md: a part-by-part build-up (engine from FAA TCDS 1E4 Note 5, propeller, occupants, fuel, structure) solved against the certificated CG, replacing 800/1100/1800/30 which had no derivation behind them. The PITCH inertia nearly doubles (1100 -> 2038, ky 1.16 -> 1.58 m): the old number was a light-aircraft rule of thumb for an aeroplane whose payload sits near the CG, which an Extra's does not. Izz - Ixx, which is what the inertial couple (Izz-Ixx).p.r uses to hold a spin flat, goes from 1000 to 1874 - Ty 2026-11-09, flying it: the Extra \"is too stable... it doesn't spin flat enough and can't tumble\"."
   },
   "surfaces": [
     {

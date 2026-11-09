@@ -27,12 +27,8 @@
       0,
       0.2
     ],
-    "inertia": {
-      "ixx": 660,
-      "iyy": 1121,
-      "izz": 1341,
-      "ixz": 50
-    }
+    "inertia": { "ixx": 401, "iyy": 1048, "izz": 1272, "ixz": 12 },
+    "inertiaSource": "Ixx/Iyy/Izz/Ixz kg.m2 about the CG. DERIVED 2026-11-02, docs/aircraft/pitts-s2b-inertia-DERIVATION.md: the same part-by-part build-up, replacing 660/1121/1341/50 which had no derivation. The ROLL inertia was the one that was wrong (660 -> 401, -39 %); pitch and yaw move only 5-7 %. The build-up also confirms the authored CG: +0.0450 is 90.04 in on A8SO's arm, MID-RANGE of the acrobatic band (+0.0566 fwd ... +0.0333 aft), so the CG is not aft - checked because Ty asked whether the Pitts' poor flat-spin recovery was \"not enough aerodynamic stability or the cg is too far aft\"."
   },
   "surfaces": [
     {
