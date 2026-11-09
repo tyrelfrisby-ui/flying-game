@@ -1796,8 +1796,7 @@
       "rateRadPerSec": 3.0,
       "expo": 0.1,
       "deadZone": 0.03,
-      "reversible": false,
-      "saturationDeg": 3
+      "reversible": false
     },
     "rudder": {
       "maxDeflRad": 0.3,

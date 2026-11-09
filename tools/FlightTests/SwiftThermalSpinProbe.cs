@@ -119,17 +119,11 @@ public class SwiftThermalSpinProbe
         AircraftConfig cfg = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
         double stallDeg = StallAuthorityTests.StallDeg(cfg);
         if (rotary) cfg.SpinAero = new FlyingGame.Core.DataContracts.SpinAeroConfig { RollDueToSideslip = "monoplane" };
-        if (aerobaticElevator)
-        {
-            // the calibration's own bisection, to the aerobatic target (stall + 6 deg)
-            double target = stallDeg + 6.0, lo = 3, hi = 120;
-            cfg.Controls.Elevator.SaturationDeg = hi;
-            if (StallAuthorityTests.FullAftBalanceDeg(cfg) >= target)
-                for (int i = 0; i < 30; i++) { double mid = 0.5 * (lo + hi); cfg.Controls.Elevator.SaturationDeg = mid; if (StallAuthorityTests.FullAftBalanceDeg(cfg) >= target) hi = mid; else lo = mid; }
-            cfg.Controls.Elevator.SaturationDeg = Math.Round(hi, 1);
-        }
+        // The elevator's saturation is gone fleet-wide (Ty 2026-11-09), so there is no knob to bisect here any more:
+        // what the stick asks for is what the elevator gives, and an elevator that cannot reach the target is too
+        // SMALL, which is StallAuthorityTests' geometry path.
         _out.WriteLine($"== rotary {(rotary ? "ON " : "off")}  aerobatic elevator {(aerobaticElevator ? "ON " : "off")}  " +
-                       $"(saturation {cfg.Controls.Elevator.SaturationDeg:F1} deg, full-aft balance {StallAuthorityTests.FullAftBalanceDeg(cfg):F1} vs stall {stallDeg:F1})");
+                       $"(full-aft balance {StallAuthorityTests.FullAftBalanceDeg(cfg):F1} vs stall {stallDeg:F1})");
         double v = ThermalSpawn.MinSinkSpeed(cfg, 1500);
         TrimSolver.Result t0 = TrimSolver.SolveGliderTrim(cfg, v, 1500, idleProp: true);
         var att = new Quat(0, Math.Sin(t0.ThetaRad / 2), 0, Math.Cos(t0.ThetaRad / 2));

@@ -1374,7 +1374,6 @@
       "freeTauS": 0.12
     },
     "elevator": {
-      "saturationDeg": 31.4,
       "maxDeflRad": 0.4363,
       "rateRadPerSec": 3.0,
       "expo": 0.1,
