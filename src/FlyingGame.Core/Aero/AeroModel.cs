@@ -428,7 +428,9 @@ public static class AeroModel
         Vec3? meanWindBody = null,
         double wingHeightAglM = double.PositiveInfinity,
         double slipstreamSwirlMs = 0.0,
-        WindGradient windGradient = default)
+        WindGradient windGradient = default,
+        bool propellerIsSolved = false,
+        BladeElement.SwirlProfile? swirlProfile = null)
     {
         int stripIndex = 0;
         // GROUND EFFECT (owner 2026-10-03: "is it even modeled?" — it was not). Within about a span of the surface the
@@ -465,7 +467,7 @@ public static class AeroModel
         // THE THRUST JET (PropJet, owner 2026-11-08): the propeller's tube of faster air, traced from the disc through
         // the air's own motion, so it tilts with alpha and beta and bends under pitch and yaw rate. One trace serves
         // every strip below. Off (and free) whenever the prop is doing nothing to the air.
-        PropJet.Jet jet = PropJet.Prepare(config, bodyVelocity - windBody, bodyRates, cg, slipstreamDeltaU, slipstreamRadius, slipstreamSwirlMs);
+        PropJet.Jet jet = PropJet.Prepare(config, bodyVelocity - windBody, bodyRates, cg, slipstreamDeltaU, slipstreamRadius, slipstreamSwirlMs, swirlProfile);
 
         // THE SEPARATED WING'S ROLLING MOMENT DUE TO SIDESLIP, accumulated STRIP BY STRIP as they are flown (owner
         // 2026-11-09: "make each of these real science not lump sums"). It used to be one bulk C_l*q*S*b at the bottom
@@ -580,7 +582,14 @@ public static class AeroModel
                 // jet's AXIAL increment, which is unambiguous: more q, more lift.
                 if (jet.Any)
                 {
-                    Vec3 jetAdd = PropJet.RelWind(jet, stripAt, !isVertical && !isWing);
+                    // The fin's exclusion was bookkeeping against PropModel's bulk SlipYaw, and it EXPIRES with it: a
+                    // blade-element propeller never reaches that line, so with the fin still out nothing yawed the
+                    // aeroplane from the spiral slipstream at all. The rig found it the moment the six fitted types were
+                    // re-solved - the J-3's rigged fin offset collapsed from +0.364 deg to -0.004, because a rigged fin
+                    // exists only to cancel a yaw that had stopped existing. Solved propeller: the swirl reaches the fin
+                    // and the yaw comes out of geometry, with the tube's own taper and displacement. Unsolved: SlipYaw
+                    // still does it and the fin stays out.
+                    Vec3 jetAdd = PropJet.RelWind(jet, stripAt, (!isVertical || propellerIsSolved) && !isWing);
                     if (jetAdd.LengthSquared > 0.0) vLocal += jetAdd;
                 }
 

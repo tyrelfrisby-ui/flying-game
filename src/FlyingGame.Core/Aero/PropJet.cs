@@ -50,25 +50,43 @@ public static class PropJet
     private const double CoreFraction = 0.5;   // the tube's uniform core, as a share of its radius
     private const double MinSpeedMs = 0.5;     // below this the tube is not going anywhere this step
 
+    /// <summary>
+    /// HOW MUCH OF THE WASH FOLLOWS THE BODY. Ty 2026-11-09: "i think there is a 'tendency' for the vortex to follow
+    /// the fuselage not a 'rule' that it must. for example in a spin the relative wind is from below and the tail
+    /// makes an arcing helix... the likely hood that the entire vortex remains attached to the fuselage all the way to
+    /// the tail is low. I'd say we should model fully attached to the fuselage ... and then model no attachment at all
+    /// just the column of thrust affected by the relative wind and angular movement and then average the two together
+    /// starting at 50/50 bias and then tweaking it as necessary to match emperical real world experience."
+    ///
+    /// So both limits are traced and blended. It is an EMPIRICAL bias and it is meant to be tuned; it is not derived.
+    /// The blend is also why the model degrades the right way: in a spin the free column swings off the tail while the
+    /// attached one stays on the body, so the fin keeps some of the wash instead of all of it or none.
+    /// </summary>
+    public static double AttachedBias = 0.5;
+
     internal sealed class Tube
     {
         internal int Count;
         internal readonly Vec3[] P = new Vec3[MaxNodes];   // centre line nodes, body axes
         internal readonly Vec3[] D = new Vec3[MaxNodes];   // the increment's direction there (unit, body axes)
         internal readonly double[] R = new double[MaxNodes];
+        internal readonly double[] Inner = new double[MaxNodes];   // the body's equivalent radius there: the wash's hole
         internal readonly double[] U = new double[MaxNodes];
         internal readonly double[] S = new double[MaxNodes];   // path length from the disc
         internal Vec3 Hub, Axis;
-        internal double Swirl;        // m/s at the tube edge, signed by the prop's rotation
+        internal double Swirl;        // m/s at the tube edge, signed by the prop's rotation (the fallback shape)
+        internal BladeElement.SwirlProfile? Profile;   // the blade's own radial distribution, when it was solved
         internal bool Any;
     }
 
     internal sealed class Jet
     {
-        internal Tube[] Tubes = Array.Empty<Tube>();
+        internal Tube[] Tubes = Array.Empty<Tube>();        // the FREE column: advected by the air alone
+        internal Tube[] Attached = Array.Empty<Tube>();     // the same wash held onto the body's own midline
         internal int Count;
         internal bool Any;
         internal double K = 1.0;
+        internal bool HasAttached;
     }
 
     [ThreadStatic] private static Jet? _scratch;
@@ -141,9 +159,13 @@ public static class PropJet
     /// the share that reaches a surface is now the geometry's answer, not a factor applied before the trace.</summary>
     internal static Jet Prepare(AircraftConfig config, Vec3 freestream, Vec3 rates, Vec3 cg,
                                double deltaU, double radius, double swirl)
+        => Prepare(config, freestream, rates, cg, deltaU, radius, swirl, null);
+
+    internal static Jet Prepare(AircraftConfig config, Vec3 freestream, Vec3 rates, Vec3 cg,
+                               double deltaU, double radius, double swirl, BladeElement.SwirlProfile? profile)
     {
         Jet j = _scratch ??= new Jet();
-        j.Count = 0; j.Any = false;
+        j.Count = 0; j.Any = false; j.HasAttached = false;   // a [ThreadStatic] scratch: every flag resets per evaluation
         j.K = config.Propulsion?.JetK ?? 1.0;
         if (deltaU == 0.0 || radius <= 0.0 || j.K <= 0.0) return j;
         Geom g = _geom.GetValue(config, Build);
@@ -154,18 +176,55 @@ public static class PropJet
             for (int i = 0; i < grown.Length; i++) grown[i] = i < j.Tubes.Length ? j.Tubes[i] : new Tube();
             j.Tubes = grown;
         }
-        double spread = config.Propulsion?.JetSpreadPerM ?? 0.045;
+        if (j.Attached.Length < g.Hubs.Length)
+        {
+            var grown = new Tube[g.Hubs.Length];
+            for (int i = 0; i < grown.Length; i++) grown[i] = i < j.Attached.Length ? j.Attached[i] : new Tube();
+            j.Attached = grown;
+        }
+        double spread = ShearSpread(config, freestream, deltaU);
+        // ONLY A SINGLE NOSE PROPELLER CAN BE ATTACHED TO THE FUSELAGE. A nacelle-mounted one washes its own nacelle,
+        // which is a different body and not described here; it keeps the free column alone.
+        bool bodyAttach = g.Hubs.Length == 1 && config.Engines.Count == 0 && config.Fuselage?.Crossflow is { LengthM: > 0.1 };
         for (int i = 0; i < g.Hubs.Length; i++)
         {
-            Trace(j.Tubes[i], g.Hubs[i], new Vec3(1, 0, 0), freestream, rates, cg, deltaU, radius, swirl, g.DiameterM, spread);
+            Trace(j.Tubes[i], g.Hubs[i], new Vec3(1, 0, 0), freestream, rates, cg, deltaU, radius, swirl, g.DiameterM, spread, config.Fuselage?.Crossflow);
+            j.Tubes[i].Profile = profile is { Any: true } ? profile : null;
             if (j.Tubes[i].Any) j.Any = true;
+            if (bodyAttach)
+            {
+                TraceAttached(j.Attached[i], g.Hubs[i], config.Fuselage!.Crossflow, deltaU, radius, swirl, g.DiameterM, spread);
+                j.Attached[i].Profile = profile is { Any: true } ? profile : null;
+                if (j.Attached[i].Any) j.HasAttached = true;
+            }
+            else j.Attached[i].Any = false;
         }
         j.Count = g.Hubs.Length;
         return j;
     }
 
+    /// <summary>
+    /// THE SPREADING RATE AT THIS AIRSPEED: the still-air rate times the mixing layer's shear parameter,
+    /// lambda = du / (2 V + du). One standing still, near zero in cruise. See <see cref="PropulsionConfig.JetSpreadK"/>.
+    /// </summary>
+    /// <summary>A test seam: >= 0 forces the spreading rate, so a probe can hold the OLD flat law beside the new one
+    /// and compare them at the same condition. Negative (the default) leaves the physics alone.</summary>
+    public static double SpreadOverride = -1.0;
+
+    private static double ShearSpread(AircraftConfig config, Vec3 freestream, double deltaU)
+    {
+        if (SpreadOverride >= 0.0) return SpreadOverride;
+        double still = Math.Clamp(config.Propulsion?.JetSpreadK ?? PropulsionConfig.JetSpreadKMax,
+                                  0.0, PropulsionConfig.JetSpreadKMax);
+        double du = Math.Abs(deltaU);
+        if (du <= 1e-9) return 0.0;
+        double lambda = du / (2.0 * freestream.Length + du);
+        return still * Math.Clamp(lambda, 0.0, 1.0);
+    }
+
     private static void Trace(Tube t, Vec3 hub, Vec3 axis, Vec3 freestream, Vec3 rates, Vec3 cg,
-                              double deltaU, double radius, double swirl, double diameter, double spread)
+                              double deltaU, double radius, double swirl, double diameter, double spread,
+                              CrossflowConfig? body = null)
     {
         t.Count = 0; t.Any = false; t.Hub = hub; t.Axis = axis; t.Swirl = swirl;
         Vec3 p = hub, d = axis;
@@ -174,7 +233,9 @@ public static class PropJet
         {
             // Momentum theory's growth: about half the increment at the disc, all of it a diameter behind.
             double u = deltaU * (diameter > 0.0 ? 0.55 + 0.45 * Math.Min(1.0, s / diameter) : 1.0);
-            t.P[i] = p; t.D[i] = d; t.R[i] = radius + spread * s; t.U[i] = u; t.S[i] = s;
+            t.P[i] = p; t.D[i] = d; t.U[i] = u; t.S[i] = s;
+            t.R[i] = radius * (1.0 + spread * (diameter > 0.0 ? s / diameter : 0.0));
+            t.Inner[i] = body is null ? 0.0 : FuselageShape.At(body, p.X).EquivalentRadiusM;
             t.Count = i + 1;
             if (s >= MaxPathM) break;
             Vec3 vAir = -(freestream + Vec3.Cross(rates, p - cg)) - u * d;
@@ -190,17 +251,70 @@ public static class PropJet
         t.Any = t.Count > 1;
     }
 
+    /// <summary>
+    /// THE ATTACHED LIMIT: the same wash, held onto the fuselage all the way aft. Its centre line is the body's own
+    /// midline rather than a free trajectory, so where the tailcone rises the wash rises with it, and its direction is
+    /// the midline's tangent. Nothing here depends on the relative wind or the rotation — that is the whole point of
+    /// the pair, and it is why this limit keeps the wash on the tail in a spin where the free column has left.
+    ///
+    /// Its radius carries the SAME mass through an annulus that must now fit outside the body: pi*R_free^2 of air
+    /// through pi*(R^2 - a^2) gives R = sqrt(R_free^2 + a^2) with a the section's equivalent radius. The wash is
+    /// pushed outward by exactly the body it is wrapping, which is the mechanism that puts more of a fin in it than a
+    /// straight column ever does.
+    /// </summary>
+    private static void TraceAttached(Tube t, Vec3 hub, CrossflowConfig cf,
+                                      double deltaU, double radius, double swirl, double diameter, double spread)
+    {
+        t.Count = 0; t.Any = false; t.Hub = hub; t.Axis = new Vec3(1, 0, 0); t.Swirl = swirl;
+        double s = 0.0;
+        for (int i = 0; i < MaxNodes; i++)
+        {
+            double x = hub.X - s;                                  // straight aft along the body, station by station
+            FuselageShape.Envelope e = FuselageShape.At(cf, x);
+            double slope = FuselageShape.MidlineSlope(cf, x);
+            double u = deltaU * (diameter > 0.0 ? 0.55 + 0.45 * Math.Min(1.0, s / diameter) : 1.0);
+            double rFree = radius * (1.0 + spread * (diameter > 0.0 ? s / diameter : 0.0));
+            double a = e.EquivalentRadiusM;
+            t.P[i] = new Vec3(x, hub.Y, e.MidZ);
+            // Aft is -x, so the increment's direction is -(-1, 0, slope) normalised: a midline that RISES going aft
+            // (dz/dx > 0 in NED means falling, so a rising tailcone has dz/dx < 0) turns the wash upward with it.
+            Vec3 d = new Vec3(1.0, 0.0, -slope);
+            double dl = d.Length;
+            t.D[i] = dl > 1e-9 ? d / dl : new Vec3(1, 0, 0);
+            t.R[i] = Math.Sqrt(rFree * rFree + a * a);
+            t.Inner[i] = a;
+            t.U[i] = u; t.S[i] = s;
+            t.Count = i + 1;
+            if (s >= MaxPathM) break;
+            s += StepM;
+        }
+        t.Any = t.Count > 1;
+    }
+
     /// <summary>The increment this station's relative wind takes from the jet, body axes: the axial part always, the
     /// swirl only for a surface that feels it as a change of incidence (the fin's share of the swirl is the propeller
     /// model's own yaw term, <c>Parts.SlipYaw</c>, which would otherwise be counted twice).</summary>
     internal static Vec3 RelWind(Jet j, Vec3 at, bool withSwirl)
     {
         if (!j.Any) return Vec3.Zero;
+        Vec3 best = Strongest(j.Tubes, j.Count, at, withSwirl, j.K);
+        if (!j.HasAttached) return best;
+        // THE AVERAGE OF THE TWO LIMITS, at the strip rather than at the path. Where both reach a station the result
+        // is the blend; where only one does, the station takes that one's share of the bias, which is what makes the
+        // wash's edge soft in the right way instead of a surface being wholly in or wholly out of it.
+        Vec3 attached = Strongest(j.Attached, j.Count, at, withSwirl, j.K);
+        double b = Math.Clamp(AttachedBias, 0.0, 1.0);
+        return best * (1.0 - b) + attached * b;
+    }
+
+    private static Vec3 Strongest(Tube[] tubes, int count, Vec3 at, bool withSwirl, double k)
+    {
         Vec3 best = Vec3.Zero;
         double bestMag = 0.0;
-        for (int i = 0; i < j.Count; i++)
+        for (int i = 0; i < count && i < tubes.Length; i++)
         {
-            Vec3 v = FromTube(j.Tubes[i], at, withSwirl, j.K);
+            if (!tubes[i].Any) continue;
+            Vec3 v = FromTube(tubes[i], at, withSwirl, k);
             double m = v.LengthSquared;
             if (m > bestMag) { bestMag = m; best = v; }
         }
@@ -213,7 +327,7 @@ public static class PropJet
         // Nothing ahead of the disc is in the wash.
         if ((at - t.Hub).Dot(t.Axis) > 0.0) return Vec3.Zero;
         double bestDist = double.MaxValue;
-        double u = 0.0, rr = 0.0;
+        double u = 0.0, rr = 0.0, inner = 0.0;
         Vec3 d = Vec3.Zero, off = Vec3.Zero;
         for (int i = 0; i + 1 < t.Count; i++)
         {
@@ -227,6 +341,7 @@ public static class PropJet
             double r = t.R[i] + (t.R[i + 1] - t.R[i]) * f;
             if (dist >= r || dist >= bestDist) continue;
             bestDist = dist; rr = r; off = o;
+            inner = t.Inner[i] + (t.Inner[i + 1] - t.Inner[i]) * f;
             u = t.U[i] + (t.U[i + 1] - t.U[i]) * f;
             d = t.D[i] + (t.D[i + 1] - t.D[i]) * f;
         }
@@ -250,11 +365,30 @@ public static class PropJet
         Vec3 inc = d * (k * cover * u);
         if (withSwirl && t.Swirl != 0.0 && rr > 0.0)
         {
-            // Solid-body rotation about the tube's own axis. The air's tangential motion is (swirl/r)·(d × ρ); the
-            // relative wind takes the opposite. A right-hand prop (clockwise from behind) carries the air UP past the
-            // left half of the tail and DOWN past the right, which is what the signed swirl says.
+            // The air's tangential motion is around the tube's own axis; the relative wind takes the opposite. A
+            // right-hand prop (clockwise from behind) carries the air UP past the left half of the tail and DOWN past
+            // the right, which is what the signed swirl says.
             Vec3 perp = off - d * off.Dot(d);
-            inc -= Vec3.Cross(d, perp) * (k * cover * t.Swirl / rr);
+            double pl = perp.Length;
+            if (pl > 1e-9)
+            {
+                // MEASURED where the blade solved it, assumed only where it did not. The profile already conserves
+                // r*v_t through the mapping onto this tube's radius, so the spreading and the body displacement slow
+                // the swirl by the ratio they widened it. The fallback is solid-body rotation, which is what every
+                // unsolved type still gets, and which is wrong at the hub by 17x on a J-3.
+                // THE BODY IS IN THE CORE, and the swirl there never reaches a fin. Measured, the slipstream's
+                // angular momentum is concentrated at small radius - 10.6 m/s at r 0.145 on a J-3 - and that is
+                // precisely where the FUSELAGE is. Air cannot occupy it, so each streamtube is displaced outward
+                // around the body, from r0 to sqrt(r0^2 + a^2), and past the disc nothing torques it, so r*v_t is
+                // conserved and the displaced tube SLOWS by r0/r. Left out, the model hands the fin root a core it
+                // could never feel: the J-3's rigged fin came out at 6.63 deg against the 1.76 the aeroplane shows.
+                double r0 = inner > 0.0 ? Math.Sqrt(Math.Max(0.0, pl * pl - inner * inner)) : pl;
+                double rFree = inner > 0.0 ? Math.Sqrt(Math.Max(1e-12, rr * rr - inner * inner)) : rr;
+                double vt = t.Profile is not null
+                    ? Math.Sign(t.Swirl) * t.Profile.At(r0, rFree) * (r0 / Math.Max(1e-6, pl))
+                    : t.Swirl * (r0 / rr);
+                inc -= Vec3.Cross(d, perp) * (k * cover * vt / pl);
+            }
         }
         return inc;
     }
@@ -275,7 +409,7 @@ public static class PropJet
         if (deltaU == 0.0 || radius <= 0.0) return 1.0;
         Geom g = _geom.GetValue(config, Build);
         if (g.Hubs.Length == 0 || g.TailArmM <= 0.0) return 1.0;
-        double spread = config.Propulsion?.JetSpreadPerM ?? 0.045;
+        double spread = ShearSpread(config, freestream, deltaU);
         Jet j = Prepare(config, freestream, rates, cg, deltaU, radius, swirl);
         if (!j.Any) return 1.0;
         Tube r0 = _refTube ??= new Tube();
@@ -284,7 +418,7 @@ public static class PropJet
         if (!r0.Any) return 1.0;
         Vec3 pReal = AtPathLength(j.Tubes[0], g.TailArmM);
         Vec3 pRef = AtPathLength(r0, g.TailArmM);
-        double rAt = radius + spread * g.TailArmM;
+        double rAt = radius * (1.0 + spread * (g.DiameterM > 0.0 ? g.TailArmM / g.DiameterM : 0.0));
         double dd = (pReal - pRef).Length / (2.0 * rAt);
         if (dd >= 1.0) return 0.0;
         return Math.Clamp(2.0 / Math.PI * (Math.Acos(dd) - dd * Math.Sqrt(1.0 - dd * dd)), 0.0, 1.0);
@@ -317,11 +451,12 @@ public static class PropJet
         Jet j = Prepare(config, freestream, rates, cg, deltaU, radius, swirl);
         if (!j.Any) return (Vec3.Zero, 0.0, Vec3.Zero, 0.0);
         Tube t = j.Tubes[0];
-        double spread = config.Propulsion?.JetSpreadPerM ?? 0.045;
+        double spread = ShearSpread(config, freestream, deltaU);
         Vec3 at = AtPathLength(t, pathM);
         int n = t.Count - 1;
         for (int i = 0; i + 1 < t.Count; i++) if (pathM <= t.S[i + 1]) { n = i; break; }
-        return (at, radius + spread * pathM, t.D[n], t.U[n]);
+        double dia = config.Propulsion?.PropDiameterM ?? 0.0;
+        return (at, radius * (1.0 + spread * (dia > 0.0 ? pathM / dia : 0.0)), t.D[n], t.U[n]);
     }
 
     /// <summary>The increment at a station, for the tests and the force overlay.</summary>

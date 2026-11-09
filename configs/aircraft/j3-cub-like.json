@@ -1371,14 +1371,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.004868,
-    "finOffsetRad": 0.006358,
+    "aileronRad": 0.001707,
+    "finOffsetRad": 0.036141,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 33.709,
-    "alphaRad": 0.02122,
-    "elevatorTrimRad": -0.001365,
-    "bankRad": 0.005843
+    "tasMs": 30.945,
+    "alphaRad": 0.042443,
+    "elevatorTrimRad": -0.019145,
+    "bankRad": -0.000741
   },
   "controls": {
     "aileron": {
@@ -1435,6 +1435,11 @@
       "r": 0
     },
     "crossflow": {
+      "stationX": [-0.3, -0.8, -1.4, -2.0, -2.6, -3.1, -3.7, -4.3, -4.9, -5.5, -6.1],
+      "stationMidZ": [0.1134, 0.1827, 0.1898, 0.1604, 0.0481, -0.0427, -0.0751, -0.104, -0.1544, -0.2078, -0.2405],
+      "stationHalfY": [0.225, 0.2763, 0.315, 0.315, 0.315, 0.285, 0.2542, 0.2018, 0.1365, 0.0783, 0.033],
+      "stationHalfZ": [0.2866, 0.3835, 0.4379, 0.4604, 0.4895, 0.4933, 0.4314, 0.3719, 0.3261, 0.2832, 0.2195],
+      "stationSource": "Measured 2026-11-09 off the type's own three-view lines in tools/own_models/build_j3_cub.py (F_TOP, F_BOT, F_HW), the same tables the visual model is built from. The midline RISES 0.169 m by the fin station, which the constant-section crossflow body could not say at all (CentreZ was zero everywhere) - and an attached propeller wash needs a shape to follow. Owner 2026-11-09: the vortex has a tendency to follow the fuselage, not a rule, so PropJet traces attached and free and blends them.",
       "bodyRadiusM": 0.5,
       "planArea": 4.0,
       "planCenterX": -0.5,
@@ -1453,7 +1458,7 @@
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
     "bladePitch75Deg": 15.33,
-    "bladePitchSource": "Fitted 2026-11-09 to 2150 rpm static at full power, sea level \u2014 the owner's figure for his metal propeller, applied to both the wooden and the metal blade at his direction (\"don't over think this just use 2150 static on both the wood and metal\"). That pitch reaches the 2575 rpm redline at 84 mph at full throttle, which he confirmed. Static rpm for any certified fixed-pitch type is published in its TCDS; take the middle of the range at sea level. Fit: PistonEngine.FitPitchForStaticRpm.",
+    "bladePitchSource": "Fitted 2026-11-09 to 2150 rpm static at full power, sea level \u2014 the owner's figure for his metal propeller, applied to both the wooden and the metal blade at his direction (\"don't over think this just use 2150 static on both the wood and metal\"). That pitch reaches the 2575 rpm redline at 84 mph at full throttle, which he confirmed. Static rpm for any fixed-pitch type with a TCDS is published there; take the middle of the range at sea level. Fit: PistonEngine.FitPitchForStaticRpm.",
     "propMaterial": "wood",
     "propMaterialSource": "Sensenich W72 laminated birch, the J-3 original",
     "propBladeCount": 2,

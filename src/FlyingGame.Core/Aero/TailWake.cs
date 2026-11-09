@@ -176,11 +176,19 @@ public static class TailWake
         for (int i = 0; i < n; i++)
         {
             double frac = (i - (n - 1) * 0.5) / (n - 1);     // -0.5 .. +0.5, the crossflow model's own stations
+            double sx = centre + frac * cf.LengthM;
+            // AND WHERE THE BODY ACTUALLY IS, when its shape has been measured: the station sits on the real midline
+            // with the real section there, instead of a constant ellipse on the axis. Unmeasured, this is identical to
+            // the constant section it replaces, so no type moves until its stations are filled in.
+            FuselageShape.Envelope e = FuselageShape.At(cf, sx);
+            bool measured = FuselageShape.HasStations(cf);
             body.Add(new BodyStation
             {
-                X = centre + frac * cf.LengthM,
+                X = sx,
                 HalfLenX = 0.5 * cf.LengthM / n,
-                HalfY = halfY, HalfZ = halfZ,
+                HalfY = measured ? e.HalfY : halfY,
+                HalfZ = measured ? e.HalfZ : halfZ,
+                CentreZ = measured ? e.MidZ : 0.0,
             });
         }
 

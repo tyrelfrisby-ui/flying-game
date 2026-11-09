@@ -21,7 +21,7 @@ public static class PropModel
     /// rotation show the vectors of the propeller's forces and label them"): the thrust and where it acts (the P-factor's
     /// offset of its centre from the hub, m), the torque reaction (roll, N·m), the spiral slipstream's yaw on the fin (N·m)
     /// and the gyroscopic moment. <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double)"/> is their sum.</summary>
-    public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw, SwirlC; public Vec3 Gyro, Normal; }
+    public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw, SwirlC; public Vec3 Gyro, Normal, InPlane; }
 
     /// <summary>
     /// THE PROPELLER'S IN-PLANE (NORMAL) FORCE (2026-11-08). Every propeller effect in this model was until now either
@@ -160,7 +160,14 @@ public static class PropModel
 
     public static (Vec3 Force, Vec3 Moment) Compute(
         PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, PropDrive drive, out Parts parts)
+        => Compute(prop, throttle01, bodyVelocity, bodyRates, airDensity, drive, out parts, null);
+
+    /// <summary>The same, also reporting the slipstream's radial swirl distribution into a caller-owned buffer.</summary>
+    public static (Vec3 Force, Vec3 Moment) Compute(
+        PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, PropDrive drive,
+        out Parts parts, BladeElement.SwirlProfile? profile)
     {
+        if (profile is not null) profile.Any = false;
         parts = default;
         // A dead engine: no power whatever the lever says. The windmill drag below then sees a closed throttle.
         double thr = drive.EngineRunning ? Math.Clamp(throttle01, 0.0, 1.0) : 0.0;
@@ -184,8 +191,8 @@ public static class PropModel
         // the blade's balance, and it accelerates against the propeller's inertia rather than jumping. Aircraft
         // integrates it. When nothing supplies one, or the type has no fitted blade, everything below is unchanged —
         // which is how the fleet stays flyable while the blades are fitted one at a time.
-        if (drive.EngineRunning && drive.ShaftRpm > 0.0 && prop.BladePitch75Deg > 0.0 && prop.PropDiameterM > 0.0)
-            return BladeElementForces(prop, bodyVelocity, bodyRates, airDensity, drive, ref parts);
+        if (IsSolved(prop, drive))
+            return BladeElementForces(prop, bodyVelocity, bodyRates, airDensity, drive, ref parts, profile);
 
         double rpm = drive.EngineRunning ? RunningRpm(prop, thr, drive.PropLever) : drive.Rpm;   // the gyro's
         // The torque reaction keeps the throttle law: every type's stored rig (RigTests) was solved against it, so moving it
@@ -281,8 +288,51 @@ public static class PropModel
     /// The propeller as a propeller: every force and moment from one blade-element solution at the rpm the shaft is
     /// really turning. See <see cref="FlyingGame.Core.BladeElement"/> for the model and the bench it was checked on.
     /// </summary>
+    /// <summary>
+    /// THE DRIVE AT A STEADY CONDITION: the rpm and blade angle the engine and the propeller agree on at this speed,
+    /// throttle and density, with no transient. In flight the rpm is a state that Aircraft integrates against the
+    /// propeller's inertia; a rig, a trim or a probe asks instead for where that state would settle, and every one of
+    /// them was deriving it again from the same five lines. Derived twice it drifts, and that drift is invisible: the
+    /// rig quietly solves one aeroplane and the sim flies another.
+    /// </summary>
+    public static PropDrive SteadyDrive(PropulsionConfig? prop, double throttle01, double vAxialMs, double rho)
+    {
+        PropDrive drive = PropDrive.Running;
+        if (prop is not { PropDiameterM: > 0 }) return drive;
+        double pressureRatio = rho / Atmosphere.SeaLevelDensityKgM3;
+        if (prop.ConstantSpeed && prop.FineStopDeg > 0.0)
+        {
+            var stops = new BladeElement.Stops(prop.FineStopDeg, prop.CoarseStopDeg);
+            var gov = PistonEngine.Govern(prop.PropBladeCount, 0.5 * prop.PropDiameterM, prop.ActivityFactor, 0.15, stops,
+                RunningRpm(prop, throttle01, 1.0), prop.MaxPowerW, prop.MaxRpm, prop.IdleRpm, throttle01, pressureRatio,
+                vAxialMs, rho);
+            return drive.WithShaft(gov.Rpm, gov.PitchDeg);
+        }
+        if (prop.BladePitch75Deg > 0.0)
+        {
+            var g = new BladeElement.Geometry(prop.PropBladeCount, 0.5 * prop.PropDiameterM, prop.BladePitch75Deg, prop.ActivityFactor);
+            return drive.WithShaft(PistonEngine.BalancedRpm(g, prop.MaxPowerW, prop.MaxRpm, prop.IdleRpm, throttle01,
+                                                            pressureRatio, vAxialMs, rho, pressureRatio));
+        }
+        return drive;
+    }
+
+    /// <summary>
+    /// IS THE PROPELLER SOLVED, blade by blade, rather than estimated from coefficients? One predicate, because more
+    /// than one place has to agree with it and they disagreed once already: AeroModel decides on it whether the FIN
+    /// stands in the slipstream's swirl (a solved propeller makes the spiral yaw out of geometry) or stays out of it
+    /// (an estimated one makes the same yaw as a bulk moment, <see cref="Parts.SlipYaw"/>, so the fin in the swirl
+    /// would count it twice). Asked of the CONFIG alone it gave the wrong answer for all three constant-speed types,
+    /// whose blade angle is not in the config at all — it is a STATE between the stops, governed, and it arrives here
+    /// on the drive. Asking it of both is what makes the two places agree.
+    /// </summary>
+    public static bool IsSolved(PropulsionConfig prop, PropDrive drive)
+        => prop.PropDiameterM > 0.0 && drive.EngineRunning && drive.ShaftRpm > 0.0
+           && (prop.BladePitch75Deg > 0.0 || drive.BladePitchDeg > 0.0);
+
     private static (Vec3 Force, Vec3 Moment) BladeElementForces(PropulsionConfig prop, Vec3 bodyVelocity, Vec3 bodyRates,
-                                                                double airDensity, PropDrive drive, ref Parts parts)
+                                                                double airDensity, PropDrive drive, ref Parts parts,
+                                                                BladeElement.SwirlProfile? profile = null)
     {
         double rpm = drive.ShaftRpm;
         double radius = 0.5 * prop.PropDiameterM;
@@ -290,7 +340,12 @@ public static class PropModel
         double vCross = Math.Sqrt(bodyVelocity.Y * bodyVelocity.Y + bodyVelocity.Z * bodyVelocity.Z);
         double pitch = drive.BladePitchDeg > 0.0 ? drive.BladePitchDeg : prop.BladePitch75Deg;
         var g = new BladeElement.Geometry(prop.PropBladeCount, radius, pitch, prop.ActivityFactor);
-        var r = BladeElement.Solve(g, vAxial, vCross, rpm, airDensity);
+        var r = BladeElement.Solve(g, vAxial, vCross, rpm, airDensity, profile?.WakeRadiusM, profile?.SwirlMs);
+        if (profile is not null)
+        {
+            profile.Count = BladeElement.ProfileCount;
+            profile.Any = r.ThrustN > 0.0;
+        }
 
         Vec3 force = new(r.ThrustN, 0, 0);
         Vec3 moment = new(0, r.ThrustN * prop.ThrustLineZ, 0);
@@ -302,14 +357,29 @@ public static class PropModel
         // THE IN-PLANE FORCE AND P-FACTOR, which are the same azimuthal integral and no longer two coefficients. The
         // disc's thrust centre moves toward the down-going blade, and the disc makes a force in its own plane; both
         // act on the cross-stream direction the aeroplane is actually meeting the air from.
-        if (vCross > 1e-6 && r.NormalN != 0.0)
+        if (vCross > 1e-6 && (r.NormalN != 0.0 || r.ThrustMomentNm != 0.0))
         {
             double uy = bodyVelocity.Y / vCross, uz = bodyVelocity.Z / vCross;
+
+            // THE IN-PLANE FORCE acts at the DISC, and the disc is a long way in front of the aeroplane. Its moment
+            // was taken here as (force) x (one propeller RADIUS), which is not an arm that exists: the real arm is the
+            // hub's distance from the CG, about 1.7 m on a J-3 against a 0.915 m radius, so the moment it makes was
+            // little more than half of it. Worse, nothing downstream made up the difference — the caller adds
+            // Cross(propArm, ...) only for the legacy coefficient force, which is off everywhere. So the force is
+            // handed out in parts.InPlane and Aircraft.PropulsionForces places it on the real arm, exactly as it
+            // already does for PropModel.NormalForce.
             Vec3 inPlane = new(0, prop.RotationSign * r.NormalN * uz, -prop.RotationSign * r.NormalN * uy);
             force += inPlane;
-            moment += Vec3.Cross(new Vec3(radius, 0, 0), inPlane);
-            parts.PFactorY = r.ThrustN > 1e-6 ? prop.RotationSign * radius * r.NormalN / r.ThrustN * uz : 0.0;
-            parts.PFactorZ = r.ThrustN > 1e-6 ? -prop.RotationSign * radius * r.NormalN / r.ThrustN * uy : 0.0;
+            parts.InPlane = inPlane;
+
+            // P-FACTOR'S MOMENT, now measured. The thrust centre's offset toward the down-going blade is the disc's
+            // first moment of thrust over its thrust, out of the same azimuthal integral — not (in-plane force x
+            // radius), which was a stand-in with no derivation behind it.
+            double offset = r.ThrustN > 1e-6 ? r.ThrustMomentNm / r.ThrustN : 0.0;
+            double yOffset = prop.RotationSign * offset * uz;     // + = right
+            double zOffset = -prop.RotationSign * offset * uy;
+            moment += new Vec3(0, r.ThrustN * zOffset, -r.ThrustN * yOffset);
+            parts.PFactorY = yOffset; parts.PFactorZ = zOffset;
         }
 
         parts.Gyro = GyroMomentAt(prop, rpm, bodyRates);
