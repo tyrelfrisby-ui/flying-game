@@ -1441,6 +1441,9 @@
   "propulsion": {
     "maxPowerW": 134226,
     "propDiameterM": 1.8796,
+    "fineStopDeg": 12.50,
+    "coarseStopDeg": 26.80,
+    "pitchStopSource": "PUBLISHED, not derived: FAA TCDS A18EA Rev 11 gives the Hartzell HC-C2YK-4F/FC7666A-2 as low 12.5 deg and high 26.8 deg at the 30 in station. Ty's two rules derive 14.20/23.86 \u2014 again narrower at both ends; see the note on pitts-s2b-like. The same sheet also settles the diameter: EXACTLY 74.0 in, 'no reduction allowed', which is what propDiameterM already holds (1.8796 m). The 76 in figure belongs to the 140 hp FIXED-PITCH variant of this type.",
     "propMaterial": "metal",
     "propMaterialSource": "Hartzell two-blade aluminium constant-speed",
     "propBladeCount": 2,

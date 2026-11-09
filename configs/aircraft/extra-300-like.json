@@ -1764,6 +1764,9 @@
   "propulsion": {
     "maxPowerW": 224000,
     "propDiameterM": 2.0,
+    "fineStopDeg": 12.72,
+    "coarseStopDeg": 31.12,
+    "pitchStopSource": "Derived 2026-11-09 from Ty\u0027s two rules, not chosen: the FINE stop is the blade angle that lets the engine make rated rpm standing still on 26 inHg (the run-up check), and the COARSE stop is the angle needed to hold rated rpm at Vd = 1.1 x Vne (242 kt) at full power, so the governor cannot run out of blade before Vd. Power at 26 inHg is the naturally aspirated line through its friction intercept, (26-10)/(29.92-10) = 0.80 of rated. Computed by BladeElement.GovernorStops and cached here because the governor reads them every step.",
     "propMaterial": "composite",
     "propMaterialSource": "MT-Propeller MTV-9 three-blade natural-composite (wood core, glass/carbon skin)",
     "propBladeCount": 3,

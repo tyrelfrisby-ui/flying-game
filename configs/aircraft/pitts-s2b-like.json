@@ -2161,6 +2161,9 @@
   "propulsion": {
     "maxPowerW": 194000,
     "propDiameterM": 1.98,
+    "fineStopDeg": 11.00,
+    "coarseStopDeg": 33.00,
+    "pitchStopSource": "PUBLISHED, not derived: FAA TCDS A8SO Rev 21 gives the Hartzell HC-C2YR-4CF/FC8477A-4 as low 11.0 deg +/-0.1 and high 32-34 deg at the 30 in station, which on a 78-80 in prop is within a whisker of 0.75 R. Taking 33 for the high stop. Ty's two rules (the 26 inHg run-up and no overspeed until Vd) derive 15.36/28.68 for this blade \u2014 narrower at BOTH ends, which activity factor alone cannot explain since more blade moves both stops finer. The likely cause is the blade twist law: BladeElement uses constant geometric pitch and a real blade is twisted less than that toward the tip, so its reference-station angle maps differently onto torque. Measured hardware beats a derivation, so the published numbers are used and the rules stay as the method for types with no published data.",
     "propMaterial": "metal",
     "propMaterialSource": "Hartzell HC-C2YR two-blade aluminium constant-speed",
     "propBladeCount": 2,

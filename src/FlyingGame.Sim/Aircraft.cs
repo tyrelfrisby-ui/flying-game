@@ -555,6 +555,10 @@ public sealed partial class Aircraft
         {
             PropulsionConfig p = Config.Propulsion!;
             if (p is null || _noseLost) return 0.0;   // engine stopped (prop strike)
+            // THE GAUGE READS THE SHAFT. When this type's blade is fitted the rpm is integrated against the torque
+            // balance (AircraftEngine.StepShaft), so the tachometer, the audio and the forces are finally the same
+            // number — they were two different throttle laws before, and neither was what the propeller was doing.
+            if (ShaftRpm > 0.0) return ShaftRpm;
             // Not running (cut-off, too lean): the air turns the prop, or nothing does. The throttle has no say.
             if (!EngineRunning) return WindmillRpm;
             double idle = p.IdleRpm, max = p.MaxRpm, thr = _throttle01;

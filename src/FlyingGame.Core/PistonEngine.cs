@@ -42,21 +42,56 @@ public static class PistonEngine
         return SeaLevelManifoldInHg * Math.Clamp(pressureRatio, 0.05, 1.3) * open;
     }
 
-    /// <summary>Shaft power, W.</summary>
-    public static double PowerW(double ratedPowerW, double ratedRpm, double rpm, double throttle01, double pressureRatio)
+    /// <summary>
+    /// ALTITUDE LAPSE, GAGG-FERRAR. Ty 2026-11-09: "high altitude actually has the opposite effect. while it is true
+    /// that the engine makes less power the air is thinner and creates less drag for the propeller blade too. the two
+    /// roughly cancel eachother out but the pilot infers higher rpm per airspeed at higher altitude because the prop
+    /// cares about true airspeed not indicated airspeed."
+    ///
+    /// He is right and the first version of this was wrong. Running the throttle's manifold-pressure line straight
+    /// through its friction intercept AND using it for altitude made height far too expensive — 53 % of rated at
+    /// 10 000 ft, where the standard figure is near 70. Propeller torque falls as DENSITY (sigma = 0.738 there), so
+    /// an engine losing 47 % against a blade losing 26 % drags the rpm down 10 % at constant true airspeed, when the
+    /// two should very nearly cancel.
+    ///
+    /// The classical relation for a naturally aspirated engine is Gagg and Ferrar's, and it is in density ratio:
+    ///
+    ///     P / P_rated = (sigma - 0.117) / 0.883
+    ///
+    /// which gives 0.703 at 10 000 ft against the blade's 0.738 — the propeller unloads slightly MORE than the engine
+    /// loses, so rpm at a given TRUE airspeed is near enough unchanged, and at a given INDICATED airspeed (where the
+    /// true airspeed is higher) it RISES. That is the effect a pilot actually sees.
+    ///
+    /// Throttling is a separate thing and keeps the manifold-pressure line: at a given altitude the power is
+    /// proportional to what the engine can draw, from the friction intercept up to whatever full throttle gives
+    /// THERE. So the 26 inHg run-up rule (BladeElement.GovernorStops) is untouched — it is a sea-level, part-throttle
+    /// condition — while the altitude behaviour is now the measured one.
+    /// </summary>
+    public static double AltitudePowerFraction(double densityRatio)
+        => Math.Clamp((Math.Clamp(densityRatio, 0.05, 1.3) - 0.117) / 0.883, 0.0, 1.2);
+
+    /// <summary>Shaft power, W. <paramref name="densityRatio"/> defaults to the pressure ratio when not supplied,
+    /// which is close enough in ISA and keeps older callers working.</summary>
+    public static double PowerW(double ratedPowerW, double ratedRpm, double rpm, double throttle01, double pressureRatio,
+                                double densityRatio = 0.0)
     {
         if (ratedRpm <= 0 || rpm <= 0) return 0.0;
+        double sigma = densityRatio > 0 ? densityRatio : pressureRatio;
+        double mpFull = ManifoldInHg(1.0, pressureRatio);
         double mp = ManifoldInHg(throttle01, pressureRatio);
-        double load = (mp - FrictionManifoldInHg) / (SeaLevelManifoldInHg - FrictionManifoldInHg);
-        return ratedPowerW * load * (rpm / ratedRpm);
+        // How far the throttle is open, from the friction intercept to what full throttle gives at THIS altitude.
+        double span = Math.Max(1e-6, mpFull - FrictionManifoldInHg);
+        double openFraction = Math.Clamp((mp - FrictionManifoldInHg) / span, 0.0, 1.0);
+        return ratedPowerW * AltitudePowerFraction(sigma) * openFraction * (rpm / ratedRpm);
     }
 
     /// <summary>Shaft torque, N·m. Negative when the engine is being driven: below its friction manifold pressure it
     /// absorbs power rather than making it, which is what lets a windmilling propeller drag.</summary>
-    public static double TorqueNm(double ratedPowerW, double ratedRpm, double rpm, double throttle01, double pressureRatio)
+    public static double TorqueNm(double ratedPowerW, double ratedRpm, double rpm, double throttle01, double pressureRatio,
+                                  double densityRatio = 0.0)
     {
         if (rpm <= 1.0) return 0.0;
-        return PowerW(ratedPowerW, ratedRpm, rpm, throttle01, pressureRatio) / (rpm * 2.0 * Math.PI / 60.0);
+        return PowerW(ratedPowerW, ratedRpm, rpm, throttle01, pressureRatio, densityRatio) / (rpm * 2.0 * Math.PI / 60.0);
     }
 
     /// <summary>
@@ -65,11 +100,12 @@ public static class PistonEngine
     /// so the crossing is single and a bisection finds it.
     /// </summary>
     public static double BalancedRpm(BladeElement.Geometry g, double ratedPowerW, double ratedRpm, double idleRpm,
-                                     double throttle01, double pressureRatio, double vAxialMs, double rhoKgM3)
+                                     double throttle01, double pressureRatio, double vAxialMs, double rhoKgM3,
+                                     double densityRatio = 0.0)
     {
         BladeElement.Geometry blade = g;   // a lambda cannot close over an 'in' parameter
         double Excess(double rpm) =>
-            TorqueNm(ratedPowerW, ratedRpm, rpm, throttle01, pressureRatio)
+            TorqueNm(ratedPowerW, ratedRpm, rpm, throttle01, pressureRatio, densityRatio)
             - BladeElement.Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).TorqueNm;
 
         double lo = Math.Max(200.0, idleRpm * 0.5), hi = ratedRpm * 1.35;
