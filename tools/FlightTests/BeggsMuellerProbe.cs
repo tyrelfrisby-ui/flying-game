@@ -41,9 +41,12 @@ public class BeggsMuellerProbe
             var s = ac.State;
             double alpha = Math.Atan2(s.Velocity.Z, s.Velocity.X) * D;
             var cd = ac.CurrentDeflections;
+            double rpm = ac.FreeEngineRpm;
+            double hmom = cfg.Propulsion!.PropInertia * (rpm * 2 * Math.PI / 60) * cfg.Propulsion.RotationSign;
+            double gyroMy = -s.Rates.Z * hmom;          // My = -r*h : the term that holds a left spin flat
             var h = ac.HingeDebug("aileron", cfg.Controls.Aileron);
             _o.WriteLine($" {t,5:F1} | {phase,-20} | a {alpha,6:F1} | r {s.Rates.Z,6:F2} | ele {cd.ElevatorRad / eMax * 100,5:F0}% | ail {cd.AileronRad / aMax * 100,5:F0}% | TAS {s.Velocity.Length,5:F1}"
-                + $"  [a {h.A,8:F0} b {h.B,8:F0} k {h.K,6:F0} den {h.Den,8:F0} | L {h.Left,8:F0} R {h.Right,8:F0}]");
+                + $"  [rpm {rpm,5:F0}  h {hmom,6:F0}  gyro My {gyroMy,8:F0} N.m]");
         }
                 // NOTE THE THROTTLE SIGN: ControlInputs.ThrottleLever is INVERTED, -1 = full power, +1 = idle
         // (Aircraft: _throttle01 = (1 - lever) * 0.5).

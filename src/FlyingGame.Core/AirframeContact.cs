@@ -535,9 +535,13 @@ public static class AirframeContact
             double minTe = double.MaxValue;
             foreach (SurfaceConfig sf in c.Surfaces)
                 foreach (StripConfig st in sf.Strips) minTe = System.Math.Min(minTe, st.Pos[0] - 0.75 * st.Chord);
-            double len = c.Fuselage?.Crossflow?.LengthM > 0 ? c.Fuselage.Crossflow.LengthM : 7.0;
-            double noseX = minTe == double.MaxValue ? 0.0 : minTe - 0.2 + len;
-            hubs.Add(new Vec3(noseX + 0.1, 0, axisZ));
+            if (c.Propulsion.HubXM != 0.0) { hubs.Add(new Vec3(c.Propulsion.HubXM, 0, axisZ)); }   // measured, see HubXM
+            else
+            {
+                double len = c.Fuselage?.Crossflow?.LengthM > 0 ? c.Fuselage.Crossflow.LengthM : 7.0;
+                double noseX = minTe == double.MaxValue ? 0.0 : minTe - 0.2 + len;
+                hubs.Add(new Vec3(noseX + 0.1, 0, axisZ));
+            }
         }
         else foreach (EngineMount e in c.Engines) hubs.Add(new Vec3(e.Pos[0] + 1.0, e.Pos[1], e.Pos[2]));
         return hubs;
