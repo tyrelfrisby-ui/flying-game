@@ -117,7 +117,10 @@ namespace FlyingGame.Bridge
             // GROUND is what counts. No automatic switch below 500 ft any more: the marker follows the button.
             var camMode = FlyingGame.Core.CameraReference.Effective(SessionSettings.CameraReferenceMode, Driver.GroundReferenceForced);
             bool ground = FlyingGame.Core.CameraReference.MarkerUsesGroundTrack(camMode);
-            Vector3 vel = ground ? Driver.WorldVelocityUnity : Driver.AirVelocityUnity;
+            // Air-relative is referenced to the AIR MASS, not to this instant's gust: the relative wind swirls, and an
+            // undamped reference swings the marker and orbits the chase camera with it (RelativeWindReference).
+            Vector3 vel = ground ? Driver.WorldVelocityUnity
+                                 : RelativeWindReference.AirVelocity(Driver.WorldVelocityUnity, Driver.AirVelocityUnity);
             // Owner 2026-10-05: green through the air; MAGENTA on the ground track (CAM: TRACK since Ty 2026-11-03; was automatic below 500 ft AGL) — the
             // point-of-impact target shows only then — so the change is unmistakable.
             Color col = ground ? GroundColour : Colour;
