@@ -152,6 +152,42 @@ public static class Atmosphere
         return s.MeanWind + NoThroughFlow(worldPosition, extra);
     }
 
+    /// <summary>
+    /// THE WIND AN AEROPLANE OF THIS SPAN ACTUALLY FEELS. <see cref="WindFromSample"/> hands every airframe the gust at
+    /// a single point, but a wing integrates a gust across its span and averages away everything smaller than itself
+    /// (<see cref="Turbulence.UnitGustAt(Vec3,double,double,double,Vec3,double,Vec3,out Vec3)"/>). This rebuilds the
+    /// spectral part of the gust with that averaging, from the sample's own sigma and length scales, and also returns
+    /// the gust's FIRST MOMENT across the span — the rolling cue a soaring pilot reads, in closed form instead of by
+    /// differencing two point samples of a field with metre-scale structure in it.
+    ///
+    /// Everything else in the wind is left alone: the mean wind, the discrete gust increment, the thermal columns and
+    /// the braided-river flow are all far larger than a wingspan, so a point sample of them is the right answer.
+    /// </summary>
+    public static MathTypes.Vec3 WindForSpan(MathTypes.Vec3 worldPosition, in AtmosphereSample s,
+                                             double spanM, MathTypes.Vec3 spanAxisWorld, out MathTypes.Vec3 gustGradPerMetre)
+    {
+        gustGradPerMetre = MathTypes.Vec3.Zero;
+        var field = Field;
+        if (field is null || !(spanM > 0.1) || (s.SigmaHorizMs <= 0 && s.SigmaVertMs <= 0))
+            return WindFromSample(worldPosition, s, true);
+
+        MathTypes.Vec3 unit = field.SpectralTurbulence.UnitGustAt(worldPosition, SimTimeSec, s.LengthHorizM, s.LengthVertM,
+                                                                  field.AdvectionWind, spanM, spanAxisWorld, out MathTypes.Vec3 unitGrad);
+        // The discrete gust increment is whatever the sample's spectral part was not: keep it as sampled.
+        MathTypes.Vec3 spectral = new(unit.X * s.SigmaHorizMs, unit.Y * s.SigmaHorizMs, unit.Z * s.SigmaVertMs);
+        MathTypes.Vec3 unfiltered = field.SpectralTurbulence.UnitGustAt(worldPosition, SimTimeSec, s.LengthHorizM, s.LengthVertM, field.AdvectionWind);
+        MathTypes.Vec3 spectralRaw = new(unfiltered.X * s.SigmaHorizMs, unfiltered.Y * s.SigmaHorizMs, unfiltered.Z * s.SigmaVertMs);
+
+        MathTypes.Vec3 extra = s.Gust - spectralRaw + spectral;
+        double thermal = s.ThermalFactor * ThermalStrengthScale;
+        if (thermal > 0)
+            for (int i = 0; i < Thermals.Count; i++) extra += Thermals[i].WindAt(worldPosition) * thermal;
+        double keep = 1.0 - s.CalmWeight;
+        if (keep > 0) extra += BraidedRiver.WindAt(worldPosition.X, worldPosition.Y, -worldPosition.Z) * keep;
+        gustGradPerMetre = new MathTypes.Vec3(unitGrad.X * s.SigmaHorizMs, unitGrad.Y * s.SigmaHorizMs, unitGrad.Z * s.SigmaVertMs);
+        return s.MeanWind + NoThroughFlow(worldPosition, extra);
+    }
+
     /// <summary>Active turbulence field (null = calm). Set by the host (challenge/scene/weather).</summary>
     public static Turbulence? ActiveTurbulence { get; set; }
 
