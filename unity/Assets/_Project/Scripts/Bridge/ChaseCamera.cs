@@ -346,7 +346,11 @@ namespace FlyingGame.Bridge
                 // 500 ft the old automatic switch put the chase view off at 7:30 on a crosswind final. A runway lesson
                 // can still force Track (CameraReference.Effective).
                 FlyingGame.Core.CameraReference.Mode mode = FlyingGame.Core.CameraReference.Effective(SessionSettings.CameraReferenceMode, Driver.GroundReferenceForced);
-                Vector3 a = Driver.AirVelocityUnity, g = Driver.WorldVelocityUnity;
+                // The same damped air mass the marker uses, so the view and the vector agree and neither rides the
+                // swirl (RelativeWindReference; Ty 2026-11-09, "damp it for the flight path vector and for the
+                // viewpoints"). ExactFlightPath still holds: exactly the path through the air MASS.
+                Vector3 g = Driver.WorldVelocityUnity;
+                Vector3 a = RelativeWindReference.AirVelocity(g, Driver.AirVelocityUnity);
                 FlyingGame.Core.MathTypes.Vec3? d = FlyingGame.Core.CameraReference.Direction(mode,
                     new FlyingGame.Core.MathTypes.Vec3(a.x, a.y, a.z), new FlyingGame.Core.MathTypes.Vec3(g.x, g.y, g.z), MinTrackSpeed);
                 if (d.HasValue) return new Vector3((float)d.Value.X, (float)d.Value.Y, (float)d.Value.Z);
