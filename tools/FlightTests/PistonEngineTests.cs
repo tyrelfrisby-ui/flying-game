@@ -14,9 +14,23 @@ public class PistonEngineTests
     private readonly ITestOutputHelper _out;
     public PistonEngineTests(ITestOutputHelper o) { _out = o; }
 
-    // A J-3-ish fixed-pitch installation: 65 hp, 2300 rpm, 1.78 m two-blade.
-    private static BladeElement.Geometry CubProp => new(2, 0.89, 16.0, 95.0);
-    private const double CubPowerW = 48470, CubRatedRpm = 2300, CubIdle = 700;
+    // THE REAL J-3, read from its own config rather than invented. It is the 85 hp C-85 variant (Ty 2026-11-09:
+    // "Our j3 is 85hp"), 2575 rpm, 1.83 m, on a Sensenich W72 laminated birch two-blade — all of which the config
+    // already carried while an earlier version of this test guessed 65 hp, 2300 rpm and 1.78 m. Read the aeroplane.
+    private static FlyingGame.Core.DataContracts.AircraftConfig Cub
+    {
+        get
+        {
+            var d = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
+            while (!System.IO.Directory.Exists(System.IO.Path.Combine(d!.FullName, "configs", "aircraft"))) d = d.Parent;
+            return FlyingGame.Core.DataContracts.AircraftConfigLoader.LoadFromFile(
+                System.IO.Path.Combine(d.FullName, "configs", "aircraft", "j3-cub-like.json"));
+        }
+    }
+    private static BladeElement.Geometry CubProp => new(Cub.Propulsion!.PropBladeCount, 0.5 * Cub.Propulsion.PropDiameterM, 16.0, Cub.Propulsion.ActivityFactor);
+    private static double CubPowerW => Cub.Propulsion!.MaxPowerW;
+    private static double CubRatedRpm => Cub.Propulsion!.MaxRpm;
+    private static double CubIdle => Cub.Propulsion!.IdleRpm;
 
     /// <summary>
     /// A FIXED-PITCH AEROPLANE CANNOT MAKE RATED RPM STANDING STILL. With no forward speed the blade's angle of
@@ -38,7 +52,7 @@ public class PistonEngineTests
         foreach (double v in new[] { 0.0, 10.0, 20.0, 30.0, 40.0 })
         {
             double rpm = PistonEngine.BalancedRpm(CubProp, CubPowerW, CubRatedRpm, CubIdle, 1.0, 1.0, v, 1.225);
-            var r = BladeElement.Solve(new BladeElement.Geometry(2, 0.89, 16.0, 95.0), v, 0.0, rpm, 1.225);
+            var r = BladeElement.Solve(CubProp, v, 0.0, rpm, 1.225);
             _out.WriteLine($"full throttle at {v,4:F0} m/s: {rpm,6:F0} rpm, {r.ThrustN,6:F0} N, {r.PowerW / 745.7,5:F0} hp absorbed");
             if (v == 0) at0 = rpm;
             else Assert.True(rpm > prev - 1, $"rpm must rise with airspeed once the root is flying: {prev:F0} -> {rpm:F0} at {v:F0} m/s");
