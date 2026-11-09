@@ -1351,14 +1351,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.007692,
-    "finOffsetRad": 0.006372,
+    "aileronRad": 0.007705,
+    "finOffsetRad": 0.006356,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 55.804,
-    "alphaRad": -0.042543,
-    "elevatorTrimRad": 0.017263,
-    "bankRad": 0.006979
+    "tasMs": 55.843,
+    "alphaRad": -0.04267,
+    "elevatorTrimRad": 0.017124,
+    "bankRad": 0.006096
   },
   "controls": {
     "aileron": {
@@ -1406,7 +1406,9 @@
     }
   },
   "spinAero": {
-    "rollDueToSideslip": "biplane"
+    "rollDueToSideslip": "biplane",
+    "shadowK": 0.5,
+    "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type, and brings in the fuselage's own shadow on the tail and the wings (TailWake.BodyStation). Ty 2026-11-08: \"expand the shadow work to all 6 shipping aircraft include the shadow effects of the fuselage on the tail and wing's too\". 0.5 is the depth fitted on the Pitts against the owner's spin attitudes on 2026-11-08, and it is a PHYSICAL statement - half the q is gone where a wake fully covers a section - rather than a per-type fudge, so the six carry the same number until a type's own evidence moves it. What differs between types is the geometry, which is the point: the Pitts' cellule shadows itself, the Extra's stabiliser spans well outside its fuselage and is barely shadowed at all (measured in a tumble: tail q 1.00 -> 0.96), and the fuselage's own shadow is what takes the fin in an upright flat spin while leaving it in clear air inverted."
   },
   "construction": {
     "_comment": "Crash-in-water damage (Core/Wreck, lane/claude-crash-water 2026-11-02). Welded steel-tube fuselage and wooden wings, doped fabric covering. Two tandem OPEN cockpits, measured from the own model (tools/own_models/build_great_lakes.py CKP, v6 off the N3765F three-view; docs/models/great-lakes-own-PROVENANCE.md): elliptical openings, front x -0.97..-1.33 half-width 0.19 m, rear x -1.64..-2.08 half-width 0.215 m; area pi*a*b.",

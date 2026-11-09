@@ -13,10 +13,10 @@ namespace FlyingGame.FlightTests;
 /// Q007 reopened (owner, Ty t918u on 2026.1106.0703): "The pitts upright spin is still too flat and difficult recover from the
 /// inverted spin (right right is too nose low and too easy to recover". Two wakes the model had in the wrong place, both
 /// found by switching terms off one at a time (AGENT-LOG 2026-11-06):
-///  1. The propeller's wash reached the tail at every α (Aircraft.SlipstreamOverTail). Past the stall the crossflow carries
-///     it off sideways (Glauert's skewed wake), so in a spin it neither blows the tail nor swirls onto the fin. The swirl's
-///     yaw-left was the one power term that did not mirror: pro-spin in an upright LEFT spin, anti-spin in an inverted
-///     RIGHT one.
+///  1. The propeller's wash reached the tail at every α (then Aircraft.SlipstreamOverTail; since 2026-11-08 the traced
+///     tube, PropJet). Past the stall the crossflow carries it off sideways, so in a spin it neither blows the tail nor
+///     swirls onto the fin. The swirl's yaw-left was the one power term that did not mirror: pro-spin in an upright LEFT
+///     spin, anti-spin in an inverted RIGHT one.
 ///  2. A biplane's two wings never sat in each other's wake (TailWake.WingQFactor). Near |α| 90° they are two plates in
 ///     tandem: upright the lower wing shades the upper's aileron, inverted the upper wing shades almost all of the lower.
 /// Evidence for the targets: Christen Eagle II Flight Manual §5 (a Pitts S-2 derivative; IAC In the Loop, Apr 2023): the
@@ -41,40 +41,44 @@ public class PittsSpinWakeTests
 
     // ---- the mechanisms ------------------------------------------------------------------------------------------------
 
-    /// <summary>Attached flow is untouched: with no separation the share is exactly 1 at any α (rigs, trim and take-off unchanged).</summary>
+    /// <summary>The reference state is untouched: straight ahead with no rotation the traced tube is where the tube
+    /// always was, so the share is exactly 1 and every stored rig, trim and take-off stands (PropJet.TailShare measures
+    /// the traced path AGAINST that reference, which is what makes this exact rather than close).</summary>
     [Fact]
-    public void SlipstreamReachesTheTailWhileTheWingIsAttached()
+    public void TheWashReachesTheTailInTheReferenceState()
     {
         var cfg = Load();
-        foreach (double a in new[] { 0.0, 10, 45, 90 })
-        {
-            double r = a / D;
-            Assert.Equal(1.0, Aircraft.SlipstreamOverTail(cfg, new Vec3(30 * Math.Cos(r), 0, 30 * Math.Sin(r)), 15.0, 0.69, 0.0));
-        }
+        Vec3 cg = cfg.Mass.CgVec();
+        foreach (double v in new[] { 15.0, 30.0, 60.0 })
+            Assert.Equal(1.0, PropJet.TailShare(cfg, new Vec3(v, 0, 0), Vec3.Zero, cg, 15.0, 0.69, 3.0));
     }
 
     /// <summary>
-    /// Separated, the skewed wake by hand. Pitts disc-to-tail arm: hub 0.1 m ahead of the nose (rearmost trailing edge
-    /// −3.8064 − 0.2 + fuselage 5.189 + 0.1 = 1.2826 m) to the tail strips' area centroid (−3.0995 m) = 4.382 m. At α 10°,
-    /// V 30 m/s, ΔU 15 m/s, tube radius 0.69 m: crossflow 5.2094, axial 29.5442 + 11.25 = 40.7942, shift 0.5596 m,
-    /// d = 0.4055, share (2/π)(acos d − d·√(1 − d²)) = 0.498. At α 90° the wash goes out sideways: 0.
+    /// Off the reference state the crossflow carries the wash off the tail, and NOTHING gates it on the wing being
+    /// stalled (owner 2026-11-08: a jet locked to the body "would provide artificial stability"). Pitts disc-to-tail
+    /// arm 4.382 m. At α 10°, 30 m/s the tube is carried below the tail's station and the share drops; at α 90° — the
+    /// flat spin — the wash goes out sideways and the fin sees none of it, at any separation, because the separation is
+    /// not an input any more.
     /// </summary>
     [Fact]
-    public void SeparatedTheCrossflowCarriesTheWashOffTheTail()
+    public void OffTheReferenceStateTheCrossflowCarriesTheWashOffTheTail()
     {
         var cfg = Load();
-        double arm = Aircraft.DiscToTailArm(cfg);
-        _out.WriteLine($"arm {arm:F3} m");
-        Assert.Equal(4.382, arm, 3);
+        Vec3 cg = cfg.Mass.CgVec();
+        Assert.Equal(4.382, PropJet.TailArm(cfg), 3);
         double r = 10 / D;
-        double f10 = Aircraft.SlipstreamOverTail(cfg, new Vec3(30 * Math.Cos(r), 0, 30 * Math.Sin(r)), 15.0, 0.69, 1.0);
+        double f10 = PropJet.TailShare(cfg, new Vec3(30 * Math.Cos(r), 0, 30 * Math.Sin(r)), Vec3.Zero, cg, 15.0, 0.69, 3.0);
         _out.WriteLine($"α 10 share {f10:F3}");
-        Assert.Equal(0.498, f10, 3);
-        Assert.Equal(0.0, Aircraft.SlipstreamOverTail(cfg, new Vec3(0, 0, 30), 15.0, 0.69, 1.0), 9);
-        // Half separated: half the loss.
-        Assert.Equal(1.0 - 0.5 * (1.0 - f10), Aircraft.SlipstreamOverTail(cfg, new Vec3(30 * Math.Cos(r), 0, 30 * Math.Sin(r)), 15.0, 0.69, 0.5), 9);
-        // A windmilling prop's deficit (ΔU < 0) and a twin (no single nose prop) are left alone.
-        Assert.Equal(1.0, Aircraft.SlipstreamOverTail(cfg, new Vec3(0, 0, 30), -3.0, 0.69, 1.0));
+        Assert.InRange(f10, 0.01, 0.95);
+        Assert.Equal(0.0, PropJet.TailShare(cfg, new Vec3(0, 0, 30), Vec3.Zero, cg, 15.0, 0.69, 3.0), 9);
+        // Sideslip takes it off the tail the same way, and symmetrically.
+        double bL = PropJet.TailShare(cfg, new Vec3(30 * Math.Cos(r), 30 * Math.Sin(r), 0), Vec3.Zero, cg, 15.0, 0.69, 3.0);
+        double bR = PropJet.TailShare(cfg, new Vec3(30 * Math.Cos(r), -30 * Math.Sin(r), 0), Vec3.Zero, cg, 15.0, 0.69, 3.0);
+        Assert.Equal(bL, bR, 9);
+        Assert.InRange(bL, 0.01, 0.95);
+        // A windmilling prop's deficit (ΔU < 0) is traced too — it is a slower tube, not a blast, and it still goes
+        // where the air goes: straight back in the reference state.
+        Assert.Equal(1.0, PropJet.TailShare(cfg, new Vec3(30, 0, 0), Vec3.Zero, cg, -3.0, 0.69, -0.6));
     }
 
     private static (double upper, double upperAil, double lower, double lowerAil) WingQ(AircraftConfig cfg, double alphaDeg)

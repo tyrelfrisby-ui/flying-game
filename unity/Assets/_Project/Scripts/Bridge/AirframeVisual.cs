@@ -315,6 +315,14 @@ namespace FlyingGame.Bridge
             foreach (Transform part in parts)
             {
                 rig?.Release(part);
+                // TWO registrations, and both are needed. Register follows its visibility and scale from here on; it does
+                // NOT pose it before its first sample, so on its own the replay left the jettisoned canopy wherever the
+                // live one had drifted to - which is why a replay of a flight that ended in a bail-out showed the aeroplane
+                // with no canopy at all from the first frame (Ty 2026-11-08: "The pitts canopy was missing on replay. I had
+                // already bailed out after crashing"). RegisterAirframePart is the one that carries a part on the replayed
+                // aeroplane at its own rest pose until the moment it came off, which is exactly what this is. Called while
+                // it is still on the aeroplane, before the re-parent, so the rest pose is the real one.
+                ReplayActors.RegisterAirframePart(part.gameObject, transform);
                 ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
                 part.SetParent(go.transform, true);
             }

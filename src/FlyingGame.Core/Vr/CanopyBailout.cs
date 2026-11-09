@@ -41,8 +41,19 @@ namespace FlyingGame.Core.Vr
             if (dt <= 0.0 || Canopy.Departed) return CanopyEvents.None;
             TimeSec += dt;
             Vec3 hinge = Hinge();
-            if (!Canopy.Held && q < CanopyDynamics.DepartMinQ)
+            if (!Canopy.Held)
             {
+                // HIS HAND IS ALWAYS ON IT. This used to be gated on q < DepartMinQ — below the dynamic pressure of 20 kt,
+                // on the assumption that anything faster has air enough to take the canopy itself. Not for a canopy that
+                // has to run aft on a track before it can swing: between 20 and about 45 kt the Pitts' slide-then-hinge
+                // canopy slid its full 152 mm and then sat there, and the pilot - whose hand the gate had switched off -
+                // could not get out at all (Ty 2026-11-08: "Bailing out while in an upright flat spin in the pitts doesn't
+                // work. I press the button nothing happens"; the device log showed the canopy leaving 12.63 s later at
+                // 7 KIAS, which is to say after the aeroplane had hit the ground, and him jumping at 6 m AGL as a ghost).
+                // A flat spin sits squarely in that band. Nothing is weakened by always having a hand there: what his hand
+                // can do is already capped at CanopyHinge.HandForceN, and when the airflow beats him the canopy is torn out
+                // of it (CanopyEvents.TornFromHand) exactly as before - at 100 kt it still goes on the first step.
+                //
                 // His hand on the free edge, where it is now (again, if the canopy got away from it).
                 _grabbed = true; _grabT = TimeSec;
                 Vec3 edge = Edge(Canopy.AngleDeg, Canopy.SlideM);

@@ -51,6 +51,24 @@ public static class TailWake
         public bool TwoWings;
         public int[] SysOfSurface = System.Array.Empty<int>();
         public Panel[] Panels = System.Array.Empty<Panel>();
+        public BodyStation[] Body = System.Array.Empty<BodyStation>();
+    }
+
+    /// <summary>
+    /// A FUSELAGE STATION as a shedder (owner 2026-11-08: "include the shadow effects of the fuselage on the tail and
+    /// wing's too"). The body is the biggest bluff shape on the aeroplane and in a spin it is the one lying across the
+    /// flow: in an upright flat spin the air comes from below, so the fin — which stands above the body — is directly
+    /// downstream of the fuselage and blanketed, while inverted the same fin is the first thing the air meets and the
+    /// rudder works. That is the NACA spin-tunnel shielding of the rudder (TR 1329 / NASA TP 1009) arriving out of the
+    /// geometry instead of out of a wedge diagram, and it is an asymmetry no symmetric coefficient can produce.
+    ///
+    /// The section is the ellipse the crossflow model already implies: half-width PlanArea/(2·LengthM) and half-height
+    /// SideArea/(2·LengthM), on the body axis (z = 0, where the crossflow stations act), in the same five stations the
+    /// crossflow force uses. The march simply asks whether the air path passed THROUGH that volume on its way here.
+    /// </summary>
+    internal sealed class BodyStation
+    {
+        public double X, HalfLenX, HalfY, HalfZ;
     }
 
     /// <summary>
@@ -137,7 +155,31 @@ public static class TailWake
         {
             Sources = sources.ToArray(), TwoWings = two, SysOfSurface = sysOfSurface,
             Panels = BuildPanels(sources),
+            Body = BuildBody(cfg),
         };
+    }
+
+    /// <summary>The fuselage's five crossflow stations as shed volumes (see <see cref="BodyStation"/>). Empty for a type
+    /// with no distributed crossflow, which leaves the body out of the shadow entirely.</summary>
+    private static BodyStation[] BuildBody(AircraftConfig cfg)
+    {
+        CrossflowConfig? cf = cfg.Fuselage?.Crossflow;
+        if (cf is null || cf.LengthM <= 0.1 || cf.PlanArea <= 0.0 || cf.SideArea <= 0.0) return System.Array.Empty<BodyStation>();
+        const int n = 5;
+        double halfY = 0.5 * cf.PlanArea / cf.LengthM, halfZ = 0.5 * cf.SideArea / cf.LengthM;
+        double centre = 0.5 * (cf.PlanCenterX + cf.SideCenterX);
+        var body = new BodyStation[n];
+        for (int i = 0; i < n; i++)
+        {
+            double frac = (i - (n - 1) * 0.5) / (n - 1);     // -0.5 .. +0.5, the crossflow model's own stations
+            body[i] = new BodyStation
+            {
+                X = centre + frac * cf.LengthM,
+                HalfLenX = 0.5 * cf.LengthM / n,
+                HalfY = halfY, HalfZ = halfZ,
+            };
+        }
+        return body;
     }
 
     /// <summary>The wake state of every section for one aerodynamic evaluation. Reused per thread, no allocation per call.</summary>
@@ -164,6 +206,12 @@ public static class TailWake
         internal int[] ShadIdx = System.Array.Empty<int>();            // panel indices, grouped by system
         internal double[] ShadZMin = System.Array.Empty<double>(), ShadZMax = System.Array.Empty<double>(), ShadHalfMax = System.Array.Empty<double>();
         internal bool ShadAny;
+        // The fuselage as a shedder: its stations, each one's crossflow ratio this evaluation (which IS its separated
+        // share: a body sheds in proportion to how much of the flow is across it), and the band they occupy.
+        internal BodyStation[] Body = System.Array.Empty<BodyStation>();
+        internal double[] BodySep = System.Array.Empty<double>();
+        internal bool BodyAny;
+        internal double BodyXMin, BodyXMax, BodyReachY, BodyReachZ;
     }
 
     [ThreadStatic] private static Field? _scratch;
@@ -221,7 +269,8 @@ public static class TailWake
             f.SysMeanZ[sys] = cnt > 0 ? sum / cnt : double.NaN;
         }
         f.Panels = g.Panels;
-        if (f.ShadowK > 0.0) PrepareShadowGroups(f);
+        f.Body = g.Body;
+        if (f.ShadowK > 0.0) { PrepareShadowGroups(f); PrepareBody(f); }
         return f;
     }
 
@@ -462,10 +511,81 @@ public static class TailWake
         }
     }
 
+    /// <summary>Each fuselage station's shed strength for this evaluation: the share of the flow that is ACROSS the body
+    /// there, |v_cross| / |v| at that station with the rotation included. 0 in cruise, which is what keeps a type's
+    /// cruise, rig and trim where they were; 1 broadside, which is the flat spin. A body in crossflow separates at once
+    /// (Hoerner, Fluid-Dynamic Drag ch. 3), so there is no stall angle in this: the wake grows with the crossflow.</summary>
+    private static void PrepareBody(Field f)
+    {
+        int n = f.Body.Length;
+        f.BodyAny = false;
+        if (n == 0) return;
+        if (f.BodySep.Length < n) f.BodySep = new double[n];
+        double xmin = double.MaxValue, xmax = double.MinValue, ry = 0.0, rz = 0.0;
+        for (int i = 0; i < n; i++)
+        {
+            BodyStation b = f.Body[i];
+            Vec3 v = f.Freestream + Vec3.Cross(f.Rates, new Vec3(b.X, 0.0, 0.0) - f.Cg);
+            double sp = v.Length;
+            double sep = sp > 1e-6 ? Math.Clamp(Math.Sqrt(v.Y * v.Y + v.Z * v.Z) / sp, 0.0, 1.0) : 0.0;
+            f.BodySep[i] = sep;
+            if (sep <= 1e-6) continue;
+            f.BodyAny = true;
+            xmin = Math.Min(xmin, b.X - b.HalfLenX); xmax = Math.Max(xmax, b.X + b.HalfLenX);
+            ry = Math.Max(ry, b.HalfY); rz = Math.Max(rz, b.HalfZ);
+        }
+        f.BodyXMin = xmin; f.BodyXMax = xmax; f.BodyReachY = ry; f.BodyReachZ = rz;
+    }
+
+    /// <summary>The deepest shadow this segment takes from the fuselage: did the air path pass through the body's own
+    /// volume? The offset is measured in the section's ellipse, grown with the path like every other wake here.</summary>
+    private static double BodyShadow(Field f, Vec3 r0, Vec3 r1, double path, double worst)
+    {
+        double grow = ShadowSpread * path;
+        if (Math.Min(r0.X, r1.X) > f.BodyXMax + grow || Math.Max(r0.X, r1.X) < f.BodyXMin - grow) return worst;
+        // A conservative lower bound on how close the segment gets to the axis: zero if it crosses the plane, so a
+        // genuine hit is never skipped.
+        double nearY = r0.Y * r1.Y <= 0.0 ? 0.0 : Math.Min(Math.Abs(r0.Y), Math.Abs(r1.Y));
+        double nearZ = r0.Z * r1.Z <= 0.0 ? 0.0 : Math.Min(Math.Abs(r0.Z), Math.Abs(r1.Z));
+        if (nearY > f.BodyReachY + grow || nearZ > f.BodyReachZ + grow) return worst;
+        Vec3 d = r1 - r0;
+        for (int i = 0; i < f.Body.Length; i++)
+        {
+            double sep = f.BodySep[i];
+            if (sep <= 1e-6) continue;
+            BodyStation b = f.Body[i];
+            double ax = b.HalfLenX + grow, ay = b.HalfY + grow, az = b.HalfZ + grow;
+            if (ay <= 1e-9 || az <= 1e-9) continue;
+            // The part of the segment alongside this station.
+            double t0 = 0.0, t1 = 1.0;
+            if (Math.Abs(d.X) > 1e-12)
+            {
+                double ta = (b.X - ax - r0.X) / d.X, tb = (b.X + ax - r0.X) / d.X;
+                t0 = Math.Max(0.0, Math.Min(ta, tb)); t1 = Math.Min(1.0, Math.Max(ta, tb));
+                if (t1 < t0) continue;
+            }
+            else if (Math.Abs(r0.X - b.X) > ax) continue;
+            // Closest approach to the axis in the scaled section, over that part.
+            double py0 = r0.Y / ay, pz0 = r0.Z / az, dy = d.Y / ay, dz = d.Z / az;
+            double den = dy * dy + dz * dz;
+            double t = den > 1e-18 ? Math.Clamp(-(py0 * dy + pz0 * dz) / den, t0, t1) : t0;
+            double qy = py0 + dy * t, qz = pz0 + dz * t;
+            double dist = Math.Sqrt(qy * qy + qz * qz);
+            if (dist >= 1.0) continue;
+            double profile = Math.Cos(0.5 * Math.PI * dist);
+            double scale = 2.0 * Math.Max(b.HalfY, b.HalfZ);
+            double decay = f.ShadowDecayChords > 0.0 && scale > 1e-6
+                ? Math.Clamp(1.0 - path / (f.ShadowDecayChords * scale), 0.0, 1.0) : 1.0;
+            double depth = f.ShadowK * sep * profile * profile * decay;
+            if (depth > worst) worst = depth;
+        }
+        return worst;
+    }
+
     /// <summary>Marches one air path upstream and returns the deepest shadow it came through (0 = clean).</summary>
     private static double TraceShadow(Field f, Vec3 start, int receiverSys, double receiverHalfChord = 0.0)
     {
-        if (!f.ShadAny) return 0.0;
+        if (!f.ShadAny && !f.BodyAny) return 0.0;
         Vec3 r = start;
         double path = 0.0, worst = 0.0;
         double om = f.Rates.Length;
@@ -508,6 +628,7 @@ public static class TailWake
                     if (depth > worst) worst = depth;
                 }
             }
+            if (f.BodyAny) worst = BodyShadow(f, r, next, path, worst);
             path += (next - r).Length;
             r = next;
             if (worst >= f.ShadowK - 1e-6) break;        // already as deep as it can get
