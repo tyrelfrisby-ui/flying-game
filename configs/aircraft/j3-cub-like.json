@@ -1372,11 +1372,11 @@
   },
   "rig": {
     "aileronRad": 0.004868,
-    "finOffsetRad": 0.00636,
+    "finOffsetRad": 0.006358,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
     "tasMs": 33.709,
-    "alphaRad": 0.021219,
+    "alphaRad": 0.02122,
     "elevatorTrimRad": -0.001365,
     "bankRad": 0.005843
   },

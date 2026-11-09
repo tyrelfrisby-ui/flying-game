@@ -162,10 +162,18 @@ public class PropJetTests
         Assert.Equal(0.0, inc.Y, 9);
         Vec3 outside = new Vec3(centre.X, 0, axisZ - (rad + 0.5));
         Assert.Equal(0.0, PropJet.RelWindAt(c, v, Vec3.Zero, cg, Du, R0, Swirl, outside, false).Length, 9);
+        // The shear layer is the Report 648 shape the tube carries: a uniform core to half the radius, then cos-squared
+        // to zero at the edge. So it is HALF the increment at three quarters of the radius (cos 45 squared) and only a
+        // few per cent at 0.95 R. Pinned at two radii, because it is the shape that keeps a strip crossing the boundary
+        // from slamming the solver, not any one value. (This band was written for the 25 % linear ramp the cos-squared
+        // profile replaced, and asked for 0.05 Du at 0.95 R where the real profile gives 0.025.)
+        double mid = PropJet.RelWindAt(c, v, Vec3.Zero, cg, Du, R0, Swirl, new Vec3(centre.X, 0.75 * rad, axisZ), false).X;
         Vec3 inEdge = new Vec3(centre.X, 0.95 * rad, axisZ);
         double edge = PropJet.RelWindAt(c, v, Vec3.Zero, cg, Du, R0, Swirl, inEdge, false).X;
-        _out.WriteLine($"at 0.95 R: {edge:F2} of {Du:F2}");
-        Assert.InRange(edge, 0.05 * Du, 0.5 * Du);
+        _out.WriteLine($"at 0.75 R: {mid:F2}, at 0.95 R: {edge:F2}, of {Du:F2}");
+        Assert.InRange(mid, 0.40 * Du, 0.60 * Du);
+        Assert.InRange(edge, 0.01 * Du, 0.06 * Du);
+        Assert.True(edge < mid, "the shear layer must fall outward");
         // Ahead of the disc there is no wash at all.
         Assert.Equal(0.0, PropJet.RelWindAt(c, v, Vec3.Zero, cg, Du, R0, Swirl, new Vec3(centre.X + 12.0, 0, axisZ), false).Length, 9);
     }
