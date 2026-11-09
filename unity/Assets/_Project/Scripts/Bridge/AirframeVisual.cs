@@ -458,6 +458,9 @@ namespace FlyingGame.Bridge
                 GameObject rest = DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
                 if (rest != null) for (int i = rest.transform.childCount - 1; i >= 0; i--) rest.transform.GetChild(i).SetParent(bent, true);
                 if (rest != null) Object.Destroy(rest);
+                // The cut above took the aileron's outboard share while it was still drawn bent (so the piece and the stub
+                // meet); what is left of it belongs to the straight wing inboard of the station, so its carrier goes home.
+                DropCarried(comp);
                 // The debris object's origin is the aeroplane's CG at the break (WingDebris carries it rigidly with its sim
                 // piece), so the pivot goes under a parent posed there, keeping its offset and its bend.
                 var wrap = new GameObject("Debris-" + comp);
@@ -539,6 +542,16 @@ namespace FlyingGame.Bridge
         private static float TipSide(FlyingGame.Core.AirframeComponent c) =>
             c is FlyingGame.Core.AirframeComponent.WingTipLeft or FlyingGame.Core.AirframeComponent.WingTipLowerLeft ? -1f : 1f;
 
+        /// <summary>On a biplane, the root-local height (y = −sim z) midway between the two wings at the station: which of
+        /// the two wings a piece of geometry belongs to. null where the aeroplane has one wing.</summary>
+        private static float? PanelMidUp(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        {
+            if (cfg == null) return null;
+            foreach (FlyingGame.Core.WingPanel q in FlyingGame.Core.WingStructure.Build(cfg))
+                if (q.Side == p.Side && q.SurfaceId != p.SurfaceId) return (float)(-(p.BreakZ + q.BreakZ) * 0.5);
+            return null;
+        }
+
         /// <summary>
         /// Which side of a tip panel's cut a triangle is on: outboard of its station on its side and, on a biplane, on its
         /// own wing's side of the height midway between the two wings at the station (root-local y = −sim z).
@@ -546,10 +559,7 @@ namespace FlyingGame.Bridge
         private static System.Func<Vector3, bool> TipPanelTest(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
         {
             float side = p.Side, cut = (float)p.BreakY;
-            float? midUp = null;
-            if (cfg != null)
-                foreach (FlyingGame.Core.WingPanel q in FlyingGame.Core.WingStructure.Build(cfg))
-                    if (q.Side == p.Side && q.SurfaceId != p.SurfaceId) midUp = (float)(-(p.BreakZ + q.BreakZ) * 0.5);
+            float? midUp = PanelMidUp(p, cfg);
             bool lower = p.Lower;
             return c => c.x * side > cut && (midUp == null || (lower ? c.y < midUp.Value : c.y > midUp.Value));
         }
@@ -579,12 +589,154 @@ namespace FlyingGame.Bridge
         /// <summary>The panel has been drawn bent or flexed this flight (so it is redrawn when the flex comes off).</summary>
         public bool HasBentPanel(FlyingGame.Core.AirframeComponent c) => _bentPieces.ContainsKey(c);
 
+        // ---- the moving surfaces a bent structure CARRIES (Ty 2026-11-09) ------------------------------------------
+
+        /// <summary>A moving surface that a bent panel (or a bent stabiliser) carries: the surface itself, the empty cut
+        /// into the chain between it and its own parent, that parent, and the station the bend is measured at.</summary>
+        private sealed class CarriedSurface
+        {
+            public Transform Surface;    // the aileron / elevator: its own hinge still writes its LOCAL pose, untouched
+            public Transform Carrier;    // the empty above it: its local pose IS the bent structure's motion
+            public Transform Parent;     // what the carrier hangs on — the surface's own parent, before we cut in
+            public float Station;        // the panel: |sim y| of the surface's spanwise middle. The tail: its mean height
+            public float Side;           // which side of the centreline it is on (the tail only)
+        }
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, List<CarriedSurface>> _carried = new();
+
+        /// <summary>
+        /// Hang a bent structure's moving SURFACES on carriers, so the bend can move them without touching their hinges.
+        /// Ty 2026-11-09, on the overstressed Extra 300: "The ailerons need to move with the wing they wouldn't just be
+        /// hanging out in space". An aileron cannot be cut onto the bend pivot with the wing's fixed skin: it is posed
+        /// EVERY FRAME about its own hinge, from its rest pose, by the model's rig or by the carved surface's hinge
+        /// (<see cref="AirframeRig.Apply"/> / <see cref="AirframeBuilder.SetDeflections"/>, both of which write its LOCAL
+        /// rotation) — vertices deformed here would be fought by the hinge, and parenting it under the pivot would move it
+        /// twice over, because the pivot's children are already-bent vertices. So an empty goes into the chain between the
+        /// surface and its own parent: the surface keeps its local pose and its hinge keeps writing it, while the empty
+        /// carries the structure's rigid motion at the surface's own station. The WHOLE aileron moves, inboard end
+        /// included, which is how the sim has it (WingPanel.AileronHinged: "a hinge line cannot cross a missing panel, so
+        /// the whole aileron leaves with the panel even where it runs inboard of the station").
+        /// Only what the eye sees is carried (<see cref="AirframeBuilder.IsDebrisSource"/>: never the hidden procedural
+        /// shell under a placed model), and only a surface with meshes of its own — a one-mesh model whose surfaces are
+        /// skinned regions has no bend to follow either, since the bend only moves MeshFilter geometry.
+        ///
+        /// <paramref name="surface"/> is the kind to look for ("aileron", "elevator"); <paramref name="test"/> says
+        /// whether this structure carries one, from its root-space box (lo, hi); <paramref name="at"/> gives the station
+        /// and side its motion is measured at; <paramref name="label"/> only names the empties in the hierarchy.
+        /// </summary>
+        private List<CarriedSurface> Carry(string surface, string label, System.Func<Vector3, Vector3, bool> test,
+                                           System.Func<Vector3, Vector3, (float Station, float Side)> at)
+        {
+            var list = new List<CarriedSurface>();
+            if (_builder == null) return list;
+            foreach (Transform t in _builder.HingedSurfaces(surface))
+            {
+                if (t == null || t.parent == null || !DrawnBounds(t, out Vector3 lo, out Vector3 hi)) continue;
+                if (!test(lo, hi)) continue;
+                Transform parent = t.parent;
+                var go = new GameObject("Carried-" + label + "-" + t.name);
+                Transform carrier = go.transform;
+                carrier.SetParent(parent, false);
+                carrier.localPosition = Vector3.zero;
+                carrier.localRotation = Quaternion.identity;
+                carrier.localScale = Vector3.one;
+                t.SetParent(carrier, false);   // the carrier is identity, so nothing has moved yet
+                (float station, float side) = at(lo, hi);
+                list.Add(new CarriedSurface { Surface = t, Carrier = carrier, Parent = parent, Station = station, Side = side });
+            }
+            return list;
+        }
+
+        /// <summary>Root-space box of everything DRAWN at or under a transform (each mesh's own corners, through local
+        /// matrices: the aeroplane is routinely kilometres from the origin). false where none of it is on screen.</summary>
+        private bool DrawnBounds(Transform t, out Vector3 lo, out Vector3 hi)
+        {
+            bool any = false; lo = Vector3.zero; hi = Vector3.zero;
+            foreach (MeshFilter mf in t.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf == null || mf.sharedMesh == null || !_builder.IsDebrisSource(mf)) continue;
+                Matrix4x4 toRoot = transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                Bounds mb = mf.sharedMesh.bounds;
+                for (int c = 0; c < 8; c++)
+                {
+                    Vector3 q = toRoot.MultiplyPoint3x4(mb.center + Vector3.Scale(mb.extents,
+                        new Vector3((c & 1) == 0 ? -1f : 1f, (c & 2) == 0 ? -1f : 1f, (c & 4) == 0 ? -1f : 1f)));
+                    if (!any) { lo = hi = q; any = true; } else { lo = Vector3.Min(lo, q); hi = Vector3.Max(hi, q); }
+                }
+            }
+            return any;
+        }
+
+        /// <summary>Is this transform a carried surface, or hanging under one (the Extra's aileron spades)? Nothing under
+        /// a carrier is cut onto the bend pivot — the carrier moves all of it, once.</summary>
+        private static bool OnCarrier(Transform t, List<CarriedSurface> list)
+        {
+            if (list == null || list.Count == 0) return false;
+            for (Transform x = t; x != null; x = x.parent)
+                foreach (CarriedSurface c in list)
+                    if (c.Surface == x) return true;
+            return false;
+        }
+
+        /// <summary>Put one carrier at the structure's motion, expressed in its surface's own parent frame: F = M⁻¹ D M
+        /// with M the root-from-parent matrix, so the hinge's local pose rides on top of it unchanged. A MIRRORED chain
+        /// (glTFast mirrors glTF x) needs no special case — conjugating a rotation by the mirror is still a rotation.</summary>
+        private void PoseCarrier(CarriedSurface c, Matrix4x4 motionRoot)
+        {
+            if (c == null || c.Carrier == null || c.Parent == null) return;
+            Matrix4x4 m = transform.worldToLocalMatrix * c.Parent.localToWorldMatrix;
+            Matrix4x4 f = m.inverse * motionRoot * m;
+            Vector4 col = f.GetColumn(3);
+            c.Carrier.localPosition = new Vector3(col.x, col.y, col.z);
+            c.Carrier.localRotation = f.rotation;
+        }
+
+        /// <summary>A turn of <paramref name="q"/> about a point, as a matrix.</summary>
+        private static Matrix4x4 About(Quaternion q, Vector3 pivot) => Matrix4x4.TRS(pivot - q * pivot, q, Vector3.one);
+
+        /// <summary>
+        /// The panel's RIGID motion at one spanwise station, root frame: the twist of that station about the flexural axis
+        /// there, then the whole panel's turn about its station line — the two rotations <see cref="FlyingGame.Core.WingPanel.Deform"/>
+        /// puts on every vertex, in that order, taken at one |y| instead of per point (an aileron is slender and has to stay
+        /// rigid to deflect). Root-local x = sim y, y = up (−sim z), z = sim x, so the bend is a turn about +z through the
+        /// station — negated on the left wing, which is how both tips go up for one + — and the twist a turn about −x
+        /// through the flexural axis (+ = nose up).
+        /// </summary>
+        private static Matrix4x4 PanelMotion(FlyingGame.Core.WingPanel p, float stationY, double bendRad)
+        {
+            const float Deg = (float)(180.0 / System.Math.PI);
+            float twist = (float)(p.TwistRad * p.SpanFraction(stationY));
+            Matrix4x4 t = About(Quaternion.AngleAxis(-twist * Deg, Vector3.right),
+                                new Vector3(0f, (float)-p.ChordLineZ(stationY), (float)p.FlexuralX(stationY)));
+            Matrix4x4 b = About(Quaternion.AngleAxis(p.Side * (float)bendRad * Deg, Vector3.forward),
+                                new Vector3(p.Side * (float)p.BreakY, (float)-p.BreakZ, 0f));
+            return b * t;
+        }
+
+        /// <summary>Move a bent panel's carried surfaces to the shape it is drawn at.</summary>
+        private void PoseCarriedPanel(FlyingGame.Core.WingPanel p, double flexRad)
+        {
+            if (!_carried.TryGetValue(p.Component, out List<CarriedSurface> list)) return;
+            foreach (CarriedSurface c in list) PoseCarrier(c, PanelMotion(p, c.Station, p.BendRad + flexRad));
+        }
+
+        /// <summary>The structure has gone: its carriers go back to identity, because what is left of the surface belongs
+        /// to the straight structure inboard of the station (its outboard share left with the debris).</summary>
+        private void DropCarried(FlyingGame.Core.AirframeComponent comp)
+        {
+            if (!_carried.TryGetValue(comp, out List<CarriedSurface> list)) return;
+            foreach (CarriedSurface c in list)
+                if (c.Carrier != null) { c.Carrier.localPosition = Vector3.zero; c.Carrier.localRotation = Quaternion.identity; }
+            _carried.Remove(comp);
+        }
+
         /// <summary>
         /// A wing panel bent by a strike, or flexing under a tip contact (contact damage): on first call its triangles move
         /// onto a pivot on the station line; each time its shape changes every vertex is put where the physics puts that
         /// point of the wing (<see cref="FlyingGame.Core.WingPanel.Deform"/>: twisted about the flexural axis, then turned
         /// about the station by the set plus the elastic flex), so the drawn panel is bent and twisted exactly as the one
-        /// that flies. PLACEHOLDER — static meshes only, the aileron meshes stay where they are (AGENT-LOG NEEDS-Codex).
+        /// that flies. Its AILERONS are not cut onto the pivot: they are moving parts, and they ride on carriers instead
+        /// (<see cref="Carry"/>, Ty 2026-11-09) so that they follow the bend AND keep deflecting on their hinges.
+        /// PLACEHOLDER — MeshFilter geometry only: a one-mesh model whose wing is a skinned region does not bend.
         /// </summary>
         public void ShowPanelBend(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
         {
@@ -597,12 +749,24 @@ namespace FlyingGame.Bridge
                 pivot.localPosition = new Vector3(p.Side * (float)p.BreakY, (float)-p.BreakZ, 0f);
                 pivot.localRotation = Quaternion.identity;
                 System.Func<Vector3, bool> test = TipPanelTest(p, cfg);
+                // This panel's ailerons go on their carriers FIRST: wholly on its side, on its own wing of a biplane, and
+                // reaching outboard of its station. One that spans the centreline is not carried — a rigid motion cannot
+                // bend two wings opposite ways — and nor is one that is not driven at all; both keep the old placeholder
+                // (they stay where they are, and the name test below leaves them out of the cut).
+                float? midUp = PanelMidUp(p, cfg);
+                List<CarriedSurface> carried = Carry("aileron", p.Component.ToString(),
+                    (lo, hi) => Mathf.Min(lo.x * p.Side, hi.x * p.Side) > -0.05f
+                             && Mathf.Max(lo.x * p.Side, hi.x * p.Side) > (float)p.BreakY
+                             && (midUp == null || (p.Lower ? 0.5f * (lo.y + hi.y) < midUp.Value : 0.5f * (lo.y + hi.y) > midUp.Value)),
+                    (lo, hi) => (Mathf.Clamp(Mathf.Abs(0.5f * (lo.x + hi.x)), (float)p.BreakY, Mathf.Max((float)p.BreakY, (float)p.TipY)), p.Side));
+                _carried[p.Component] = carried;
                 foreach (GameObject part in new List<GameObject>(_builder.WingParts))
                 {
                     if (part == null) continue;
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
-                        if (mf == null || mf.sharedMesh == null || mf.name.ToLowerInvariant().Contains("aileron")) continue;
+                        if (mf == null || mf.sharedMesh == null) continue;
+                        if (OnCarrier(mf.transform, carried) || mf.name.ToLowerInvariant().Contains("aileron")) continue;
                         // Only what is on screen moves onto the pivot (the hidden procedural shell would appear in its own paint).
                         if (!_builder.IsDebrisSource(mf)) continue;
                         SplitBy(mf.sharedMesh, mf.transform, transform, test, out Mesh lost, out Mesh kept);
@@ -624,11 +788,15 @@ namespace FlyingGame.Bridge
                 }
                 _bentPieces[p.Component] = pieces;
                 _bentShown.Remove(p.Component);
+                // Nothing of the wing itself bends (a one-mesh model whose wing is a skinned region): then nothing may
+                // move, or the aileron would be the only thing bent — the very thing Ty saw the other way round.
+                if (pieces.Count == 0) DropCarried(p.Component);
             }
             double flex = p.ElasticRad + p.FlightFlexRad;   // a tip contact's flex and the wings' flex under g (Ty 2026-11-05)
             var shape = new Vector3((float)(p.BendRad + flex), (float)p.TwistRad, 0f);
             if (_bentShown.TryGetValue(p.Component, out Vector3 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f && Mathf.Abs(shape.y - shown.y) < 1e-3f) return;
             _bentShown[p.Component] = shape;
+            PoseCarriedPanel(p, flex);   // the ailerons move with the wing, on their hinges (Ty 2026-11-09)
             if (!_bentPieces.TryGetValue(p.Component, out List<BentPiece> list)) return;
             foreach (BentPiece bp in list)
             {
@@ -659,11 +827,19 @@ namespace FlyingGame.Bridge
 
         /// <summary>
         /// The horizontal tail bent by an overstress (Ty 2026-11-05; Aircraft.TailBendRad, + = tips up): every vertex of the
-        /// stabiliser and elevator meshes outboard of the centreline turns about the fore-and-aft line through the root,
-        /// by the same rotation the sim gives the tail's rows. The meshes are deformed in place (copies of their own, made
-        /// once), so the elevator keeps following the stick; a vertex is placed from the straight tail each time, through
-        /// the mesh's current pose, so the bend does not accumulate. PLACEHOLDER: a model whose tail is not a mesh of its own
-        /// (one-mesh downloads) does not bend.
+        /// stabiliser mesh outboard of the centreline turns about the fore-and-aft line through the root, by the same
+        /// rotation the sim gives the tail's rows. The meshes are deformed in place (copies of their own, made once); a
+        /// vertex is placed from the straight tail each time, so the bend does not accumulate.
+        ///
+        /// THE ELEVATOR IS NOT DRAWN THAT WAY (Ty 2026-11-09: "the tail should not bend and if it did it would be the other
+        /// way due to the direction of the load"). A vertex was placed from the straight tail and then back through the
+        /// mesh's CURRENT pose, which for a mesh on a hinge cancels the hinge exactly: the elevator froze in root space at
+        /// whatever deflection it had on the frame the bend first showed — and in the manoeuvre that loads a tail the stick
+        /// is BACK, so it froze trailing-edge UP and stayed there, which is what reads as a tail bent the wrong way. (The
+        /// stabiliser's own tips were, and are, drawn correctly: measured, a positive-g pull gives TailBendRad &lt; 0 and
+        /// those tips go DOWN.) Each elevator half rides a carrier instead, as a bent wing panel's ailerons do
+        /// (<see cref="Carry"/>), so it follows the bend and still deflects.
+        /// PLACEHOLDER: a model whose tail is not a mesh of its own (one-mesh downloads) does not bend.
         /// </summary>
         public void ShowTailBend(double rad)
         {
@@ -672,12 +848,19 @@ namespace FlyingGame.Bridge
             {
                 if (System.Math.Abs(rad) < 0.003) return;
                 _tailPieces = new List<TailPiece>();
+                // Each elevator half (wholly on one side: a one-piece elevator cannot be carried rigidly, because its two
+                // halves go opposite ways, and is deformed with the stabiliser instead) on a carrier, before the cut below.
+                _carried[FlyingGame.Core.AirframeComponent.TailHorizontal] = Carry("elevator", "TailHorizontal",
+                    (lo, hi) => Mathf.Min(Mathf.Abs(lo.x), Mathf.Abs(hi.x)) > 0.05f && lo.x * hi.x > 0f,
+                    (lo, hi) => (0.5f * (lo.y + hi.y), Mathf.Sign(lo.x + hi.x)));
+                List<CarriedSurface> onCarriers = _carried[FlyingGame.Core.AirframeComponent.TailHorizontal];
                 foreach (GameObject part in new List<GameObject>(_builder.Parts))
                 {
                     if (part == null) continue;
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
                         if (mf == null || mf.sharedMesh == null || !mf.sharedMesh.isReadable || !_builder.IsDebrisSource(mf)) continue;
+                        if (OnCarrier(mf.transform, onCarriers)) continue;
                         string l = BaseName(mf.name), pl = mf.transform.parent != null ? BaseName(mf.transform.parent.name) : "";
                         bool tail = l.StartsWith("stab") || l.StartsWith("hstab") || l.StartsWith("elevator")
                                     || pl.StartsWith("stab") || pl.StartsWith("hstab") || pl.StartsWith("elevator");
@@ -693,11 +876,19 @@ namespace FlyingGame.Bridge
             }
             if (Mathf.Abs((float)rad - _tailShown) < 1e-3f) return;
             _tailShown = (float)rad;
+            // The carried elevator halves: each turns about the fore-and-aft line through the centreline at its own height
+            // (the thin-surface turn the vertices below take), the left half the other way, so both tips go up for one +.
+            if (_carried.TryGetValue(FlyingGame.Core.AirframeComponent.TailHorizontal, out List<CarriedSurface> carried))
+                foreach (CarriedSurface cs in carried)
+                    PoseCarrier(cs, About(Quaternion.AngleAxis(cs.Side * (float)rad * (float)(180.0 / System.Math.PI), Vector3.forward),
+                                          new Vector3(0f, cs.Station, 0f)));
             float c = Mathf.Cos((float)rad), sn = Mathf.Sin((float)rad);
             foreach (TailPiece tp in _tailPieces)
             {
                 if (tp.Filter == null || tp.Filter.sharedMesh == null) continue;
-                // Root-local x = sim y (right), y = up: a tip goes UP for + on both sides.
+                // Root-local x = sim y (right), y = up: a tip goes UP for + on both sides. The pose is read fresh each
+                // time, which is right for the stabiliser (it never moves) and is why anything still on a HINGE in here —
+                // a one-piece elevator, which no rigid carrier can bend two ways — is pinned where it was: see above.
                 Matrix4x4 rootToLocal = (transform.worldToLocalMatrix * tp.Filter.transform.localToWorldMatrix).inverse;
                 var v = new Vector3[tp.StraightRoot.Length];
                 for (int i = 0; i < v.Length; i++)
@@ -1061,6 +1252,7 @@ namespace FlyingGame.Bridge
             _bentPanels.Clear();
             _bentPieces.Clear();
             _bentShown.Clear();
+            _carried.Clear();   // the carriers went with the old airframe (Build destroys it)
             _tailPieces = null; _tailShown = 0f;
             _rigPartGone = false;
             Cockpit.Reset();
@@ -1456,6 +1648,26 @@ namespace FlyingGame.Bridge
             // an aeroplane (a remote player's, the widget's replay, a render) gets them, not only the live one.
             _rig?.SetControls(FlyingGame.Core.RigInputs.FromDeflections(aileronRad, elevatorRad, rudderRad, spoilerFrac,
                                                                         _ailMaxRad, _eleMaxRad, _rudMaxRad, _eleUpMaxRad, noseSteerMaxRad: _noseSteerMaxRad));
+        }
+
+        /// <summary>
+        /// Every transform a hinged surface of one kind turns on: the procedural and carved surfaces' own objects
+        /// (<see cref="ControlPart"/>) and, where the placed model brought its own rig, that rig's nodes for the surface.
+        /// What a bent wing panel or a bent stabiliser has to CARRY, because these are posed every frame from their rest
+        /// pose and so cannot be cut into a bend pivot (AirframeVisual.Carry, Ty 2026-11-09). The rig is matched on the
+        /// node's NAME as well as its parameter: the stick and the aileron torque tube are driven by "aileron" too, and
+        /// they are not surfaces.
+        /// </summary>
+        public List<Transform> HingedSurfaces(string surface)
+        {
+            var found = new List<Transform>();
+            foreach (ControlPart c in _controls)
+                if (c.T != null && c.Surface == surface && !found.Contains(c.T)) found.Add(c.T);
+            if (_rig != null)
+                foreach (AirframeRig.Bound b in _rig.Nodes)
+                    if (b.T != null && !b.Node.Move && b.Node.Param == surface
+                        && b.Node.Node.ToLowerInvariant().Contains(surface) && !found.Contains(b.T)) found.Add(b.T);
+            return found;
         }
 
         // ---- spinning propellers (owner 2026-10-04) ----------------------------------------------------------------

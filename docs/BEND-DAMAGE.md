@@ -76,11 +76,20 @@ Pitts lower panel, 35° bank at 20 m/s: sink 0.8 → set < 0.4°; sink 3 → fol
 | 1.5 – 2.0 | 10° → 20° | keeps 50 % of the peak bend; next time 2 % weaker per 0.1 of overage |
 | > 2.0 | — | snaps and departs |
 
-- **Load.** Wings and horizontal tail: `r = n / n_limit × W / W_gross` (`LimitsConfig.WingWeightRatio`; a sailplane that
-  states its non-lifting mass uses `(m − wings) / max non-lifting`; W_gross is the placard's maximum take-off mass, else
+- **Load.** Wings: `r = n / n_limit × W / W_gross` (`LimitsConfig.WingWeightRatio`; a sailplane that states its
+  non-lifting mass uses `(m − wings) / max non-lifting`; W_gross is the placard's maximum take-off mass, else
   the config's authored mass). Engine mount: `r = n / n_limit`, no weight allowance. Positive and negative sides each on
   their own limit (Pitts −5 g, Ty 06:29). `n` is the load factor the AIR makes (`AeroLoadFactorZ`): a ground, water or
   solid push is the contact model's (plastic hinges, FuselageCrush), not a load factor on the mount.
+- **The horizontal tail's load** is the wings' divided by `StructuralState.TailDesignMargin` = 2.5 (Ty 2026-11-09, on the
+  overstressed Extra 300: "the tail should not bend and if it did it would be the other way due to the direction of the
+  load"). It was stepped at the WINGS' ratio — the same line — so it reached 1.5 × and 2.0 × on the same step they did and
+  kept their 10° set (measured, Extra held at 1.8 × its 10 g limit: wings 16.00°, tail 16.00°; now 16.00° and 0.00°). What
+  a tail carries in a symmetric pull is the BALANCING DOWNLOAD that trims the wing's nose-down moment, a few per cent of
+  the wing's lift, while the structure under it is sized by 14 CFR 23.423's abrupt elevator manoeuvre and 23.425's gust,
+  not by 23.421's balancing load. 2.5 is set against Ty's rule, not measured per type: the pull that takes the WINGS off
+  (2.0 ×) leaves the tail at 0.80 × its own limit, so a manoeuvre that overstresses the wings does not flex it at all.
+  Nothing else loads the tail yet (there is no per-surface normal force, and the abrupt-elevator case is not modelled).
 - **Response.** The member follows the load through a 50 ms first-order lag (a light wing's first bending mode, 3–8 Hz;
   the same 50 ms the old wing failure waited out): one RK4 spike bends and breaks nothing.
 - **Set.** An occurrence starts past 1.5 and is booked when the load is back inside the limit: set = half the bend at its
@@ -89,9 +98,14 @@ Pitts lower panel, 35° bank at 20 m/s: sink 0.8 → set < 0.4°; sink 3 → fol
 - **Weakening.** Each occurrence multiplies the whole curve (limit, 1.5, 2.0) by `1 − 0.02 × (peak − 1.5)/0.1`. The
   wings' weakening is also taken off every wing panel's hinges, so a weakened wing is weaker in a ground strike too.
 - **Geometry.** Wings: every panel outboard of its station turns tip-up by set + flex (`WingPanel.OverstressSetRad`,
-  `FlightFlexRad`): dihedral, load points, hard points, the drawn mesh. Tail: each half turns about the centreline, tips
-  DOWN under positive g (a pull is a download on the tail, and its own mass hangs that way): the rows' dihedral and load
-  points, and the stab/elevator meshes (`AirframeVisual.ShowTailBend`). Engine: droops nose-DOWN under positive g about
+  `FlightFlexRad`): dihedral, load points, hard points, the drawn mesh — and its AILERONS, which ride carriers cut into
+  the chain above them so they follow the bend and still deflect on their hinges (`AirframeVisual.Carry`, Ty 2026-11-09:
+  "The ailerons need to move with the wing they wouldn't just be hanging out in space"). Tail: each half turns about the
+  centreline, tips DOWN under positive g (a pull is a download on the tail, and its own mass hangs that way): the rows'
+  dihedral and load points, and the stab mesh, with each elevator half on a carrier of its own
+  (`AirframeVisual.ShowTailBend`; drawing it with the stabiliser's vertices pinned it at the deflection it had when the
+  bend started — stick back, trailing edge up — which is what read as a tail bent the wrong way).
+  Engine: droops nose-DOWN under positive g about
   the firewall (`Aircraft.EngineSagRad`, which also carries a crash's `NoseBendRad`): the prop runs in the drooped frame
   (thrust line, disc angle to the air, hub position) and the nose section is drawn on its pivot once the mount is past
   1.5 × or has a set (the cut freezes the model's rig, as the crash bend does; below that the droop is in the physics only).
@@ -104,8 +118,8 @@ Measured (`OverstressPatternTests`, J-3 limit +3.8 g):
 |---|---|
 | hold 0.99 × limit | nothing flexes, no pops |
 | 1.6 × limit and back | 12° at the peak, 6° set, 2 % weaker |
-| 2.0 × limit at gross | wings, engine and tail 10° set, strength 0.90, nothing departs |
-| 2.0 × limit at 110 % gross | wings (and tail, weight-adjusted) depart, engine stays with 10° droop |
+| 2.0 × limit at gross | wings and engine 10° set, strength 0.90, the TAIL straight (0.80 × its own limit), nothing departs |
+| 2.0 × limit at 110 % gross | wings depart, engine stays with 10° droop, tail straight |
 | 2.01 × limit at 80 % gross | wings 6° set (the engine's mass leaves halfway through), engine departs |
 | repeated 1.6 pulls | strength 0.98, 0.954, 0.920, 0.876, 0.819, 0.745: breaks at 1.49 × the original limit |
 | Pitts −10 g at gross | wings −10° (tips down), stays; −10.25 g: wings go |
@@ -116,7 +130,9 @@ Measured (`OverstressPatternTests`, J-3 limit +3.8 g):
 
 - A bent gear leg absorbs and stays, but its geometry does not change (the aeroplane does not sit lower on it).
 - No fatigue below the backbone: a cracked member under loads it can carry does not get weaker.
-- Ailerons on a bent panel are not redrawn bent (placeholder, as before).
+- A bent panel carries its ailerons now, but only ones it can carry: an aileron that is not driven at all, or whose mesh
+  spans the centreline (a rigid carrier cannot bend two wings opposite ways), still stays where it is. Nor is the aileron
+  itself bent along its own span — it moves rigidly, at its mid-span station.
 - Overstress: a type with no wing panels (no hinged ailerons) flies its wings' set and flex nowhere (the member still
   breaks it); twin engines' nacelles are not drawn drooped and their thrust arms are turned about the CG (approximate);
   a one-mesh downloaded model's tail does not bend on screen. A hard gear-first landing loads no member (the contact
