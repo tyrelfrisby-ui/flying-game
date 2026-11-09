@@ -739,6 +739,15 @@ public sealed partial class Aircraft
             _noseLost = true;   // prop strike / nose gone: the engine stops
             for (int i = 0; i < Config.Engines.Count; i++) SetEngineThrottleScale(i, 0.0);
             if (comp == AirframeComponent.Nose) LoseComponent(AirframeComponent.GearNose);   // the nose leg hangs off the firewall
+            // AND THE PROPELLER'S WEIGHT GOES WITH IT, from where it was (Ty 2026-11-09: a lost prop must "eliminate
+            // the weight of the prop at the proper location/arm"). The thrust and the windmilling drag were already
+            // gone with _noseLost; what was missing is that this is the furthest-forward mass on the aeroplane, so
+            // losing it throws the CG BACKWARDS — which is most of why a thrown propeller is frightening rather than
+            // merely quiet. ShedMass drops the mass, takes the parallel-axis share out of the inertia and moves the
+            // CG, exactly as it does for a canopy or a wing panel.
+            double propKg = AirframeContact.PropMassKg(Config);
+            if (propKg > 0)
+                foreach (Vec3 hub in AirframeContact.PropHubsBody(Config)) ShedMass(propKg, hub);
         }
         if (comp == AirframeComponent.NacelleLeft || comp == AirframeComponent.NacelleRight)
         {

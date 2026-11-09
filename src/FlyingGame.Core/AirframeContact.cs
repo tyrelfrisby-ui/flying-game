@@ -521,6 +521,44 @@ public static class AirframeContact
     }
 
     /// <summary>Blade-tip stations on each propeller disc.</summary>
+    /// <summary>
+    /// The propeller hub(s), body frame — the same construction the prop-disc contact points use, so a propeller that
+    /// departs leaves from exactly where it was being struck.
+    /// </summary>
+    public static System.Collections.Generic.List<Vec3> PropHubsBody(AircraftConfig c)
+    {
+        var hubs = new System.Collections.Generic.List<Vec3>();
+        if (c.Propulsion is null || c.Propulsion.PropDiameterM <= 0) return hubs;
+        double axisZ = c.Propulsion.ThrustLineZ;
+        if (c.Engines.Count == 0)
+        {
+            double minTe = double.MaxValue;
+            foreach (SurfaceConfig sf in c.Surfaces)
+                foreach (StripConfig st in sf.Strips) minTe = System.Math.Min(minTe, st.Pos[0] - 0.75 * st.Chord);
+            double len = c.Fuselage?.Crossflow?.LengthM > 0 ? c.Fuselage.Crossflow.LengthM : 7.0;
+            double noseX = minTe == double.MaxValue ? 0.0 : minTe - 0.2 + len;
+            hubs.Add(new Vec3(noseX + 0.1, 0, axisZ));
+        }
+        else foreach (EngineMount e in c.Engines) hubs.Add(new Vec3(e.Pos[0] + 1.0, e.Pos[1], e.Pos[2]));
+        return hubs;
+    }
+
+    /// <summary>
+    /// What one propeller weighs, kg: the config's figure when it has one, else an estimate from the disc and what
+    /// the blades are made of. A propeller's weight scales with its swept area for a given construction, and the
+    /// anchor is the Hartzell HC-C2YR on the Pitts — 82 in of aluminium, about 25 kg complete — which gives
+    /// 5.8 kg per square metre of diameter squared. Wood and composite blades run near half that.
+    /// </summary>
+    public static double PropMassKg(AircraftConfig c)
+    {
+        PropulsionConfig? p = c.Propulsion;
+        if (p is null || p.PropDiameterM <= 0) return 0.0;
+        if (p.PropMassKg > 0) return p.PropMassKg;
+        double perD2 = string.Equals(p.PropMaterial, "metal", System.StringComparison.OrdinalIgnoreCase) ? 5.8 : 3.0;
+        double blades = System.Math.Clamp(p.PropBladeCount, 2, 6);
+        return perD2 * p.PropDiameterM * p.PropDiameterM * (0.75 + 0.125 * blades);
+    }
+
     public const int PropDiscStations = 12;
 
     /// <summary>

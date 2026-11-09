@@ -709,6 +709,25 @@ public sealed class PropulsionConfig
 {
     public double MaxPowerW { get; set; }
     public double PropDiameterM { get; set; }
+
+    /// <summary>
+    /// WHAT THE PROPELLER WEIGHS, kg. It matters because the propeller can LEAVE — a crankshaft failure takes it with
+    /// it (Ty 2026-11-09) — and it is the furthest-forward mass on the aeroplane, so losing it throws the CG backwards
+    /// hard. 0 means "estimate it", see <see cref="PropMassKg"/>'s estimator, and a published figure should replace
+    /// the estimate wherever one is known.
+    /// </summary>
+    public double PropMassKg { get; set; }
+
+    /// <summary>Activity factor: the published measure of how much blade there is, which with
+    /// <see cref="PropBladeCount"/> sets the chord distribution a blade-element solution needs (see
+    /// <see cref="FlyingGame.Core.BladeElement"/>). 100 is a conventional light-aeroplane blade.
+    ///
+    /// The blade COUNT is not here: it is <see cref="PropBladeCount"/>, which every type already carries alongside
+    /// propMaterialSource naming the real propeller. That count is not bookkeeping — it decides whether the
+    /// propeller's gyroscopic reaction is steady or PULSATES, because three or more blades are polar symmetric while
+    /// two swing between end-on and across twice a revolution, which is what fatigues a crankshaft (see
+    /// <see cref="FlyingGame.Core.Engine.CrankshaftFatigue"/>).</summary>
+    public double ActivityFactor { get; set; } = 100.0;
     public double IdleRpm { get; set; } = 700;
     public double MaxRpm { get; set; } = 2700;
     public double PropInertia { get; set; } = 1.7;      // prop + crank about x, kg m^2

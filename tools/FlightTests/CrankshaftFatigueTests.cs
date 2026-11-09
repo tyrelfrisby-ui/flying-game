@@ -83,4 +83,34 @@ public class CrankshaftFatigueTests
         Assert.True(CrankshaftFatigue.StepProbability(1.0, 0.02) > 0);
         Assert.Equal(0.0, CrankshaftFatigue.StepProbability(0.0, 0.02), 12);
     }
+
+    /// <summary>
+    /// SIX OF THE FLEET'S CONSTANT-SPEED TYPES HAVE A TWO-BLADE METAL PROPELLER, not only the Pitts: both Beavers,
+    /// the Glasair, the Great Lakes, the Seminole. The owner asked for this failure "for the pitts", and the right
+    /// implementation is nevertheless universal — because what spends a crank is the RATE the pilot pulls, and a
+    /// Beaver never pulls one. The physics gates it, so no type needs a flag saying it is allowed to break.
+    ///
+    /// This checks that claim rather than assuming it, which matters because a Beaver's propeller is far heavier than
+    /// a Pitts' and inertia is the first term in the pulsation.
+    /// </summary>
+    [Fact]
+    public void TheWayItIsFlownDecidesIt_NotTheTypeItIsBoltedTo()
+    {
+        var d = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
+        while (!System.IO.Directory.Exists(System.IO.Path.Combine(d!.FullName, "configs", "aircraft"))) d = d.Parent;
+        _out.WriteLine("type                    I kg.m2  rpm  | transport 15 deg/s | aerobatic 150 deg/s");
+        foreach (var f in System.IO.Directory.GetFiles(System.IO.Path.Combine(d.FullName, "configs", "aircraft"), "*.json"))
+        {
+            var c = FlyingGame.Core.DataContracts.AircraftConfigLoader.LoadFromFile(f);
+            var p = c.Propulsion;
+            if (p is null || !p.ConstantSpeed || p.PropBladeCount != 2) continue;
+            double I = p.PropInertia, rpm = p.MaxRpm * 0.85;
+            double gentle = FlyingGame.Core.Engine.CrankshaftFatigue.PulseAmplitudeNm(2, I, rpm, 15.0 * System.Math.PI / 180.0);
+            double hard = FlyingGame.Core.Engine.CrankshaftFatigue.PulseAmplitudeNm(2, I, p.MaxRpm, 150.0 * System.Math.PI / 180.0);
+            double dg = FlyingGame.Core.Engine.CrankshaftFatigue.DamagePerSecond(gentle, rpm);
+            double dh = FlyingGame.Core.Engine.CrankshaftFatigue.DamagePerSecond(hard, p.MaxRpm);
+            _out.WriteLine($"{c.Id,-22}{I,8:F1} {p.MaxRpm,5:F0} | {gentle,8:F0} N.m {(dg > 0 ? "SPENDS" : "free"),7} | {hard,8:F0} N.m {(dh > 0 ? $"{1 / (dh * 3600):F0} h" : "free"),8}");
+            Assert.Equal(0.0, dg, 12);   // nobody's transport flying touches it
+        }
+    }
 }
