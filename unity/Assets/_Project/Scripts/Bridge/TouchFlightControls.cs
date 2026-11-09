@@ -46,6 +46,18 @@ namespace FlyingGame.Bridge
         public float BrakeStartFraction = 0.20f;// braking begins below this (20–25 % is the dead band)
         public float BrakeRudderBias = 0.8f;    // full rudder shifts this much braking to one side
         public float GrabSlop = 0.35f;          // a touch may begin this far outside a pad (x half-size) and still grab it
+
+        /// <summary>
+        /// OUTBOARD clearance of the pads from the screen edge, in INCHES (owner 2026-11-08: "increase the margin
+        /// between screen edge and control/trim touch box edge slightly to make full deflection easier to attain").
+        /// <see cref="ClampToPad"/> means full travel needs the THUMB at the pad's own edge, and at the shared 0.035
+        /// margin that edge sat ~14 pt in on a phone — inside iOS's edge-gesture strip, so full aileron and full rudder
+        /// were a fight. The strip is a fixed PHYSICAL width, not a proportion, so this is a floor in inches rather than
+        /// a bigger fraction: a phone gains ~8 pt and an iPad, already clear at ~29 pt, is left exactly as it was (a
+        /// fraction big enough to fix the phone shrank the iPad's pads 9 % to buy clearance it did not need). It is the
+        /// pads' own number, so the button cluster, the trim bars and the portrait height reservation are untouched.
+        /// </summary>
+        public float PadEdgeInches = 0.14f;
         public float EjectHoldSec = 0.4f;       // EJECT must be HELD this long (a thumb slip can't eject)
 
         /// <summary>Raw aileron stick (-1..1) regardless of egress — after bail out / eject it steers the canopy.</summary>
@@ -269,10 +281,11 @@ namespace FlyingGame.Bridge
             // No-overlap rule: on squarer screens (iPad, 4:3) full-size pads would squeeze the centre band until the dials
             // pile on each other — the pads shrink so the band keeps at least MinBandFrac of the short edge.
             const float MinBandFrac = 0.85f;
-            _half = Mathf.Min(s * PadHalfFraction, (w - 2f * margin - 3f * gap - MinBandFrac * s) / 2.22f);
+            float padMargin = Mathf.Max(margin, UiLayout.Dpi * PadEdgeInches);
+            _half = Mathf.Min(s * PadHalfFraction, (w - 2f * padMargin - 3f * gap - MinBandFrac * s) / 2.22f);
             // Pads sit at MID-HEIGHT (owner request), not along the bottom.
-            _leftCenter = new Vector2(margin + _half, h * 0.5f);
-            _rightCenter = new Vector2(w - margin - _half, h * 0.5f);
+            _leftCenter = new Vector2(padMargin + _half, h * 0.5f);
+            _rightCenter = new Vector2(w - padMargin - _half, h * 0.5f);
 
             // Pitch-trim slider: full pad height, just inboard of the right (elevator) pad.
             float trimW = _half * 0.22f;
@@ -512,8 +525,9 @@ namespace FlyingGame.Bridge
             float gap = w * ScreenLayout.Gap;
 
             // Pads in the bottom corners.
-            _leftCenter = new Vector2(margin + _half, UiLayout.SafeBottom + margin + _half);
-            _rightCenter = new Vector2(w - margin - _half, UiLayout.SafeBottom + margin + _half);
+            float padMargin = Mathf.Max(margin, UiLayout.Dpi * PadEdgeInches);
+            _leftCenter = new Vector2(padMargin + _half, UiLayout.SafeBottom + margin + _half);
+            _rightCenter = new Vector2(w - padMargin - _half, UiLayout.SafeBottom + margin + _half);
 
             // Trim slider centred between the pads, full pad height.
             float trimW = _half * 0.22f;

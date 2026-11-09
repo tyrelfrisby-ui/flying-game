@@ -21,7 +21,46 @@ public static class PropModel
     /// rotation show the vectors of the propeller's forces and label them"): the thrust and where it acts (the P-factor's
     /// offset of its centre from the hub, m), the torque reaction (roll, N·m), the spiral slipstream's yaw on the fin (N·m)
     /// and the gyroscopic moment. <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double)"/> is their sum.</summary>
-    public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw; public Vec3 Gyro; }
+    public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw; public Vec3 Gyro, Normal; }
+
+    /// <summary>
+    /// THE PROPELLER'S IN-PLANE (NORMAL) FORCE (2026-11-08). Every propeller effect in this model was until now either
+    /// axial force or a pure moment: thrust along +x, the thrust-line and P-factor moments, the spiral slipstream's yaw
+    /// and the gyro. A disc meeting the air at an angle also makes a force IN its own plane, and nothing produced one.
+    /// SPIN-ROTARY-DATA named it as the next piece of work: "the prop's in-plane (H) force is not modelled".
+    ///
+    /// Momentum form. The disc ingests mass flow mdot = rho*A*w, where w is the through-disc velocity: the axial
+    /// component of the relative wind plus the induced velocity v_i = sqrt(T / (2*rho*A)). It turns what it ingests
+    /// toward its own axis, destroying a share k of that flow's CROSS-stream momentum, so the reaction on the airframe
+    /// is k*mdot*(the air's in-plane velocity). The air approaches at -bodyVelocity, so the force opposes the in-plane
+    /// components of the aircraft's own velocity. (Glauert, ARC R&amp;M 1111; Ribner, NACA TR 820, "Formulas for
+    /// propellers in yaw", 1945; Perkins &amp; Hage ch. 5 / USAF DATCOM 4.6.1 for the normal-force derivative.)
+    ///
+    /// Sign check: at positive alpha (w &gt; 0) the air comes up at the disc from below, the disc pushes it down and the
+    /// reaction is UP (body -z) at a station AHEAD of the CG — the classic nose-up, statically destabilising propeller
+    /// normal force of a tractor layout. It flattens BOTH spins: at alpha +85 the body nose-up raises alpha further,
+    /// and inverted at alpha -90 the body nose-DOWN is nose-up with respect to the earth. That is the symmetric
+    /// power-flattening term the gyro cannot be, because the gyro mirrors exactly between upright L and inverted R.
+    ///
+    /// LIMITATION, stated plainly: the cross-momentum form is a small-angle result being used at the 50-90 deg inflow
+    /// angles of a spin, where it grows linearly in the crossflow with nothing to saturate it. mdot is honest at any
+    /// angle (edge-on, the through-flow is the induced velocity alone, which this gives), but k is one number standing
+    /// in for Ribner's blade-geometry integral, and <see cref="NormalForceK"/> is NOT measured. The term's SHAPE is
+    /// published physics; its magnitude is a coefficient inside a plausible band, like the prop inertia beside it.
+    /// It is per-type and OFF by default (<see cref="PropulsionConfig.NormalForceK"/>): the term acts in attached flight
+    /// too, where every stored rig and trim was solved without it, so switching it on fleet-wide is a re-rig.
+    /// </summary>
+    public static Vec3 NormalForce(PropulsionConfig prop, double thrustN, Vec3 bodyVelocity, double airDensity, double fraction)
+    {
+        double radius = 0.5 * prop.PropDiameterM;
+        if (radius <= 0.0 || fraction <= 0.0 || airDensity <= 0.0) return Vec3.Zero;
+        double area = Math.PI * radius * radius;
+        double vInduced = Math.Sqrt(Math.Max(0.0, thrustN) / (2.0 * airDensity * area));
+        double through = Math.Max(0.0, bodyVelocity.X) + vInduced;
+        double mdot = airDensity * area * through;
+        double k = prop.NormalForceK * Math.Clamp(fraction, 0.0, 1.0) * mdot;
+        return new Vec3(0.0, -k * bodyVelocity.Y, -k * bodyVelocity.Z);
+    }
 
     /// <summary>The static thrust <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double, PropDrive, out Parts)"/>
     /// caps the thrust at (momentum theory × the static figure of merit, sea level), N.</summary>

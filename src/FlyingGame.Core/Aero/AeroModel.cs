@@ -892,8 +892,11 @@ public static class AeroModel
                 // value, which is this same wake averaged over a typical tail).
                 // A biplane's wing strips fly in the OTHER wing's wake when it reaches them (TailWake.WingQFactor: only near
                 // |α| 90°, where the air crosses the cellule from one wing to the other).
-                double qFactor = isWing ? TailWake.WingQFactor(wakes, stripAt, vAirStrip, surfaceIndex)
-                                        : TailWake.QFactor(wakes, stripAt, vAirStrip, isVertical);
+                // The receiving strip's own chord goes in: the geometric shadow marches from its load point and uses the
+                // half-chord as the tolerance that expresses "half of this section is in shadow", so the wrong chord is
+                // the wrong answer, not a scale factor.
+                double qFactor = isWing ? TailWake.WingQFactor(wakes, stripAt, vAirStrip, surfaceIndex, strip.Chord)
+                                        : TailWake.QFactor(wakes, stripAt, vAirStrip, isVertical, surfaceIndex, strip.Chord);
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
                 if (!isWing && !isVertical && strip.PosVec().X < -1.0 && ForceDebug.Samples is not null)

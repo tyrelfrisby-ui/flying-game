@@ -2047,14 +2047,14 @@
     }
   },
   "rig": {
-    "aileronRad": 0.006414,
-    "finOffsetRad": 0.009078,
+    "aileronRad": 0.006424,
+    "finOffsetRad": 0.009086,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
-    "tasMs": 71.622,
-    "alphaRad": 0.034688,
-    "elevatorTrimRad": -0.021675,
-    "bankRad": 0.01037
+    "tasMs": 71.565,
+    "alphaRad": 0.035261,
+    "elevatorTrimRad": -0.032442,
+    "bankRad": 0.010388
   },
   "controls": {
     "aileron": {
@@ -2141,7 +2141,9 @@
     }
   },
   "spinAero": {
-    "rollDueToSideslip": "biplane"
+    "rollDueToSideslip": "biplane",
+    "shadowK": 0.5,
+    "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type. Swept 2026-11-08 against the spin set with the receiver's own chord wired through: 0.3 leaves the full-power upright neutral spin at 88.3 deg, 0.5 puts it at 85.3 which is Ty's 2026-11-03 number (~85, 'just shy of flat'), and 0.7 over-rotates it to 82.0 with the bank growing. At 0.5 every one of the owner's stated figures is met: upright out-spin flat 92.0 / +2.7 against his 95/+5 limit, inverted flat -92.3 / +2.6 inside his 90-95, bank 2-15 against 'not more than 30, probably more like 10', and the polarity he described - upright nose LOW (-3.5) and inverted nose HIGH (+1.6) - falls out of the geometry with no coefficient arranging it. The SHAPE of the model is geometry; this one number is the tunable."
   },
   "smoke": {
     "cylinders": 6,
@@ -2168,11 +2170,14 @@
     "propInertiaSource": "Q007 2026-11-05: prop + engine rotating parts about the shaft, kg m2. Estimate: ~16 kg of 80 in aluminium blades scaled from JSBSim c172 (2.26 kg m2, 75 in) plus hub and crank ~0.4; plausible 3-6 by blade mass taper. Was 9.0 (2026-09 round 32, fitted against a gyro that ran at the throttle law, 1,500 rpm at 40 %). 2026-11-05 chose the low end to meet the owner's 95 deg / 5 deg. 2026-11-06 (t918u): EASA TCDS IM.P.130 caps the complete HC-C2YR / C8477 prop at 25.9 kg, which puts it nearer 2.3-3.5; kept at 3.5 (not re-fitted). The cap is now met by the wakes (Aircraft.SlipstreamOverTail, TailWake.WingQFactor), and with the skewed wake alone 2.5 and 3.0 still left the full-power upright neutral spin flat at 91-92 deg (measured, AGENT-LOG), so inertia was not the lever. No published Hartzell inertia found.",
     "rotationSign": 1,
     "efficiency": 0.8,
-    "thrustLineZ": 0.0,
+    "thrustLineZ": -0.2,
     "pFactorK": 0.35,
     "slipstreamK": 0.12,
     "constantSpeed": true,
-    "governedRpm": 2500
+    "governedRpm": 2500,
+    "normalForceK": 0.0,
+    "normalForceKSource": "Propeller in-plane (normal/H) force, PropModel.NormalForce. OFF for this type. The term is real and was absent from the model entirely (every other propeller effect was axial force or a pure moment), and at 0.10 it was worth a slight improvement while the biplane shadow was still wrong. With the geometric helical shadow in (spinAero.shadowK) it over-corrects: 0.10 rolls the full-power inverted spin out into an upright one (alpha +95). Kept at 0 until there is a reason to re-fit it, with the code and its tests in place.",
+    "thrustLineZSource": "Prop axis 0.20 m ABOVE the CG, so thrust is nose-down with power. Was 0, which asserted no offset at all. The body origin IS the thrust line on this fleet - the Extra has cg.z 0 and thrustLineZ 0, consistently - and this type deliberately puts its CG at z +0.20, i.e. below the origin; the Great Lakes has the identical hole at 0.25 and is NOT changed here. Unlike the gyro this does not mirror: nose-down with power upright is nose-UP with respect to the earth inverted, which is Ty's 2026-11-08 observation that 'upright spins are more nose low and inverted flat spins are more nose high'. Inferred from the fleet convention and the gear height, not measured off a drawing."
   },
   "stallDynamics": {
     "stripSepTau": 0.15,

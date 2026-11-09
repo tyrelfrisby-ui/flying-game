@@ -45,7 +45,31 @@ public static class TailWake
         public double Incidence, CosSweep;
     }
 
-    private sealed class Geometry { public Source[] Sources = System.Array.Empty<Source>(); public bool TwoWings; public int[] SysOfSurface = System.Array.Empty<int>(); }
+    private sealed class Geometry
+    {
+        public Source[] Sources = System.Array.Empty<Source>();
+        public bool TwoWings;
+        public int[] SysOfSurface = System.Array.Empty<int>();
+        public Panel[] Panels = System.Array.Empty<Panel>();
+    }
+
+    /// <summary>
+    /// A SHADOW PANEL: one spanwise band of a lifting system, built once per configuration. The march tests panels, not
+    /// strips — a Pitts has 24 wing sources and the shadow is a coarse geometric effect, so testing every one of them
+    /// per step cost 8x the whole sim's budget. Each band keeps the extreme leading and trailing edge of its own
+    /// members, so SWEEP survives at band resolution (the Pitts' upper wing moves 0.38 m in x across its span, which is
+    /// four bands' worth), and carries its members so the shedder's live separation is averaged at runtime.
+    /// </summary>
+    internal sealed class Panel
+    {
+        public int SysId;
+        public double LeX, TeX, Z, Y, HalfSpan;
+        public bool InnermostOfSide;
+        public int[] Members = System.Array.Empty<int>();
+        public double Chord => LeX - TeX;
+    }
+
+    private const int ShadowBandsPerSide = 3;
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, Geometry> _geom = new();
 
@@ -109,7 +133,11 @@ public static class TailWake
         }
         int firstWing = -1; bool two = false;
         foreach (Source s in sources) if (s.FromWing) { if (firstWing < 0) firstWing = s.SysId; else if (s.SysId != firstWing) two = true; }
-        return new Geometry { Sources = sources.ToArray(), TwoWings = two, SysOfSurface = sysOfSurface };
+        return new Geometry
+        {
+            Sources = sources.ToArray(), TwoWings = two, SysOfSurface = sysOfSurface,
+            Panels = BuildPanels(sources),
+        };
     }
 
     /// <summary>The wake state of every section for one aerodynamic evaluation. Reused per thread, no allocation per call.</summary>
@@ -122,6 +150,20 @@ public static class TailWake
         internal double EpsRad;
         internal bool TwoWings;
         internal int[] SysOfSurface = System.Array.Empty<int>();
+        internal double WingWakeK = 1.0;      // SpinAeroConfig.CelluleWakeK: depth of the wing-on-wing shading
+        internal double ShadowK, ShadowDecayChords;        // SpinAeroConfig.CelluleShadowK / ...DecayChords
+        internal Vec3 Freestream, Rates, Cg;               // the velocity field the helix is traced through
+        internal double[] SysMeanZ = System.Array.Empty<double>();
+        internal int SysCount;
+        // Shedding sources grouped by lifting system, with that system's height band, so one bound test per system per
+        // step replaces a loop over every source. In attached flow no source sheds at all and ShadAny is false, which is
+        // what keeps this off the cost of ordinary flight entirely.
+        internal Panel[] Panels = System.Array.Empty<Panel>();
+        internal double[] PanelSep = System.Array.Empty<double>();     // this evaluation's mean separation per panel
+        internal int[] ShadFirst = System.Array.Empty<int>(), ShadCount = System.Array.Empty<int>();
+        internal int[] ShadIdx = System.Array.Empty<int>();            // panel indices, grouped by system
+        internal double[] ShadZMin = System.Array.Empty<double>(), ShadZMax = System.Array.Empty<double>(), ShadHalfMax = System.Array.Empty<double>();
+        internal bool ShadAny;
     }
 
     [ThreadStatic] private static Field? _scratch;
@@ -139,6 +181,10 @@ public static class TailWake
         int n = g.Sources.Length;
         if (f.Live.Length < n) { f.Live = new bool[n]; f.Cd = new double[n]; f.Sep = new double[n]; }
         f.Src = g.Sources; f.Count = n; f.EpsRad = epsRad; f.TwoWings = g.TwoWings; f.SysOfSurface = g.SysOfSurface;
+        f.WingWakeK = config.SpinAero?.CelluleWakeK ?? 1.0;
+        f.ShadowK = config.SpinAero?.ShadowK ?? 0.0;
+        f.ShadowDecayChords = config.SpinAero?.ShadowDecayChords ?? 4.0;
+        f.Freestream = freestream; f.Rates = bodyRates; f.Cg = cg;
         int[] surfaceOfStrip = SurfaceOfStrip(config);
         for (int k = 0; k < n; k++)
         {
@@ -162,6 +208,20 @@ public static class TailWake
             f.Cd[k] = Math.Max(0.0, cd);
             f.Sep[k] = Math.Clamp(sep, 0.0, 1.0);
         }
+        // Each lifting system's mean height, which is the plane the helix is traced to. A wing's own dihedral and sweep
+        // move its stations a few cm in Z (the Pitts' upper wing spans -0.62..-0.60), far less than the gap, so one plane
+        // per system is enough; the station's own LeX/TeX - which is where the SWEEP lives - is honoured at the hit.
+        f.SysCount = 0;
+        for (int i = 0; i < g.SysOfSurface.Length; i++) if (g.SysOfSurface[i] + 1 > f.SysCount) f.SysCount = g.SysOfSurface[i] + 1;
+        if (f.SysMeanZ.Length < f.SysCount) f.SysMeanZ = new double[f.SysCount];
+        for (int sys = 0; sys < f.SysCount; sys++)
+        {
+            double sum = 0.0; int cnt = 0;
+            for (int k = 0; k < n; k++) if (f.Live[k] && g.Sources[k].FromWing && g.Sources[k].SysId == sys) { sum += g.Sources[k].Z; cnt++; }
+            f.SysMeanZ[sys] = cnt > 0 ? sum / cnt : double.NaN;
+        }
+        f.Panels = g.Panels;
+        if (f.ShadowK > 0.0) PrepareShadowGroups(f);
         return f;
     }
 
@@ -184,8 +244,10 @@ public static class TailWake
     /// q_local / q_freestream for a tail strip at <paramref name="p"/> (body axes) flying in relative wind
     /// <paramref name="vLocal"/> (aircraft relative to the air, at the strip). 1 = clean air.
     /// </summary>
-    internal static double QFactor(Field f, Vec3 p, Vec3 vLocal, bool receiverIsVertical)
-        => Q(f, p, vLocal, receiverIsVertical, -1, f.EpsRad);
+    internal static double QFactor(Field f, Vec3 p, Vec3 vLocal, bool receiverIsVertical, int surfaceIndex = -1, double chord = 0.0)
+        => f.ShadowK > 0.0
+            ? GeometricShadow(f, p, chord, surfaceIndex >= 0 && surfaceIndex < f.SysOfSurface.Length ? f.SysOfSurface[surfaceIndex] : -1)
+            : Q(f, p, vLocal, receiverIsVertical, -1, f.EpsRad);
 
     /// <summary>
     /// q_local / q_freestream for a WING strip of a biplane (Q007, Ty t918u, 2026-11-06): the other wing's wake, by the same
@@ -198,8 +260,16 @@ public static class TailWake
     /// the only aerodynamic asymmetry of a flat spin that a staggered cellule has. Monoplanes: 1, always. The wing's own
     /// system never shades itself, and no downwash is applied (the receiver is not behind the wing).
     /// </summary>
-    internal static double WingQFactor(Field f, Vec3 p, Vec3 vLocal, int surfaceIndex)
-        => f.TwoWings && surfaceIndex < f.SysOfSurface.Length ? Q(f, p, vLocal, false, f.SysOfSurface[surfaceIndex], 0.0) : 1.0;
+    internal static double WingQFactor(Field f, Vec3 p, Vec3 vLocal, int surfaceIndex, double chord = 0.0)
+    {
+        if (surfaceIndex >= f.SysOfSurface.Length) return 1.0;
+        if (f.ShadowK > 0.0) return GeometricShadow(f, p, chord, f.SysOfSurface[surfaceIndex]);
+        if (!f.TwoWings) return 1.0;
+        double q = Q(f, p, vLocal, false, f.SysOfSurface[surfaceIndex], 0.0);
+        // SpinAeroConfig.CelluleWakeK scales the LOSS, not the retained share, so 1 is exactly the computed wake and 0
+        // is no shading at all. Only the wing-on-wing path: the tail's wake (QFactor) is untouched.
+        return f.WingWakeK == 1.0 ? q : 1.0 - (1.0 - q) * System.Math.Clamp(f.WingWakeK, 0.0, 1.0);
+    }
 
     private static double Q(Field f, Vec3 p, Vec3 vLocal, bool receiverIsVertical, int receiverWingSys, double epsRad)
     {
@@ -264,15 +334,16 @@ public static class TailWake
         Vec3 cg = config.Mass.CgVec();
         Field f = Prepare(config, tables, bodyVelocity, bodyRates, cg, flowState, null, null, epsRad);
         var q = new List<double>();
-        foreach (SurfaceConfig sf in config.Surfaces)
+        for (int si = 0; si < config.Surfaces.Count; si++)
         {
+            SurfaceConfig sf = config.Surfaces[si];
             bool wing = sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase);
             bool vertical = IsVerticalId(sf.Id);
             foreach (StripConfig st in sf.Strips)
             {
                 if (wing) { q.Add(double.NaN); continue; }
                 Vec3 r = st.PosVec() - cg;
-                q.Add(QFactor(f, st.PosVec(), bodyVelocity + Vec3.Cross(bodyRates, r), vertical));
+                q.Add(QFactor(f, st.PosVec(), bodyVelocity + Vec3.Cross(bodyRates, r), vertical, si, st.Chord));
             }
         }
         return q.ToArray();
@@ -296,9 +367,209 @@ public static class TailWake
             {
                 if (!wing) { q.Add(double.NaN); continue; }
                 Vec3 r = st.PosVec() - cg;
-                q.Add(WingQFactor(f, st.PosVec(), bodyVelocity + Vec3.Cross(bodyRates, r), si));
+                q.Add(WingQFactor(f, st.PosVec(), bodyVelocity + Vec3.Cross(bodyRates, r), si, st.Chord));
             }
         }
         return q.ToArray();
+    }
+
+    // ======================================================================================================
+    // GEOMETRIC HELICAL SHADOW (Ty, 2026-11-08). "Model the shadowing from our own geometry on each wing section
+    // rather than the naca data so we can model the helical flow exactly and use reduced Q from a k factor in the
+    // shadow that we can tweak for fine tuning... it will break us out of this naca shadow trap and put the controls
+    // back in our hands based on solid physics." Then: "Use the same dynamic pressure shadow based on actual geometry
+    // for all surfaces not just the wing. This needs to include the tails too."
+    //
+    // WHAT IT DOES. For each receiving section, three points along its chord, it marches the AIR'S OWN PATH upstream
+    // and asks what that air came through. In the body frame an air particle drifts at -(V_cg + omega x r), so going
+    // upstream is integrating r' = +(V_cg + omega x r) - a helix whenever the aircraft is rotating, which in a spin it
+    // is. That is the "helical inflow" exactly, not a straight-line approximation of it: at 300 deg/s the flow turns
+    // about 8 deg crossing a Pitts cellule, and it is that drift which decides whether a 0.48 m stagger offset puts the
+    // downstream wing in shadow or clear of it. The old path could not answer that: its half-width (~0.45 m) sat within
+    // 3 cm of the offset, so the answer came from how the chord extents happened to be built.
+    //
+    // HOW DEEP. The wake's half-thickness is the shedder's OWN PROJECTED GEOMETRY normal to the local flow - a plate of
+    // chord c at flow angle theta blocks c*|sin theta|, which for a chordwise section is c*|d_z|/|d_xz| - scaled by how
+    // bluff that section actually is (its separation), with a thin attached sheet underneath it and spreading with the
+    // distance travelled. No empirical wake correlation anywhere in it. ShadowK is then the one tunable: the share of
+    // dynamic pressure a fully shadowed strip loses.
+    //
+    // SWEEP is honoured because the shed patch tested is the station's OWN LeX/TeX at the span station the helix
+    // actually lands on (Ty: "Make sure the actual sweep of the top wing is accounted for too" - the Pitts' upper wing
+    // moves 0.38 m in x across its span). Dihedral is not: one mean height per lifting system, which on this fleet is a
+    // couple of centimetres against gaps of a metre.
+    //
+    // A section never shadows its own lifting system (a wing does not shade itself, nor the stabiliser the elevator
+    // behind it - they are one section). Everything else falls out of the geometry: wings shade tails, the stabiliser
+    // shades the fin, the windward wing of a cellule shades the leeward one, and nothing aft ever shades anything
+    // forward, because the trace only ever runs upstream.
+    // ======================================================================================================
+
+    // A wake three chords downstream of the section that shed it has largely refilled, and on this fleet three metres
+    // is three to four chords, so the march stops there: it is the single biggest term in the cost of this model.
+    private const double ShadowMaxPathM = 3.0;
+    private const int ShadowMaxSteps = 8;
+    private const double ShadowStepM = 0.45;         // march step, metres of path
+    private const double ShadowThinSheet = 0.02;     // attached wake half-thickness, fraction of the shedder's chord
+    private const double ShadowSpread = 0.08;        // half-thickness added per chord of path travelled
+
+    /// <summary>q_local / q_freestream for any strip, from the geometric helical shadow. 1 = clean air.</summary>
+    private static double GeometricShadow(Field f, Vec3 p, double chord, int receiverSys)
+    {
+        if (f.ShadowK <= 0.0) return 1.0;
+        double c = chord > 1e-6 ? chord : 0.5;
+        double le = p.X + 0.25 * c;
+        // ONE march, from the receiver's own load point, with its half-chord handed to the patch test as extra
+        // tolerance. Marching each end of the chord separately cost twice as much and said almost the same thing,
+        // because the two paths start half a chord apart and run side by side: the edge softening already expresses
+        // "half of this section is in shadow", which is what the loss has to carry.
+        return 1.0 - Math.Clamp(TraceShadow(f, p, receiverSys, 0.5 * c), 0.0, 1.0);
+    }
+
+    /// <summary>Averages each panel's live separation and groups the shedding panels by system, with the system's
+    /// height band, so one bound test per system per step replaces a loop over every panel.</summary>
+    private static void PrepareShadowGroups(Field f)
+    {
+        int pn = f.Panels.Length, sysN = f.SysCount;
+        if (f.PanelSep.Length < pn) f.PanelSep = new double[pn];
+        if (f.ShadFirst.Length < sysN) { f.ShadFirst = new int[sysN]; f.ShadCount = new int[sysN]; f.ShadZMin = new double[sysN]; f.ShadZMax = new double[sysN]; f.ShadHalfMax = new double[sysN]; }
+        if (f.ShadIdx.Length < pn) f.ShadIdx = new int[pn];
+        f.ShadAny = false;
+        for (int i = 0; i < pn; i++)
+        {
+            double sum = 0.0; int cnt = 0;
+            foreach (int k in f.Panels[i].Members) if (k >= 0 && k < f.Count && f.Live[k]) { sum += f.Sep[k]; cnt++; }
+            f.PanelSep[i] = cnt > 0 ? sum / cnt : 0.0;
+        }
+        int w = 0;
+        for (int sys = 0; sys < sysN; sys++)
+        {
+            f.ShadFirst[sys] = w;
+            double zmin = double.MaxValue, zmax = double.MinValue, halfMax = 0.0;
+            for (int i = 0; i < pn; i++)
+            {
+                Panel pa = f.Panels[i];
+                if (pa.SysId != sys || f.PanelSep[i] <= 0.0 || pa.Chord <= 1e-6) continue;
+                f.ShadIdx[w++] = i;
+                if (pa.Z < zmin) zmin = pa.Z;
+                if (pa.Z > zmax) zmax = pa.Z;
+                double h = pa.Chord * (ShadowThinSheet + 0.5 * f.PanelSep[i]);
+                if (h > halfMax) halfMax = h;
+            }
+            f.ShadCount[sys] = w - f.ShadFirst[sys];
+            f.ShadZMin[sys] = zmin; f.ShadZMax[sys] = zmax; f.ShadHalfMax[sys] = halfMax;
+            if (f.ShadCount[sys] > 0) f.ShadAny = true;
+        }
+    }
+
+    /// <summary>Marches one air path upstream and returns the deepest shadow it came through (0 = clean).</summary>
+    private static double TraceShadow(Field f, Vec3 start, int receiverSys, double receiverHalfChord = 0.0)
+    {
+        if (!f.ShadAny) return 0.0;
+        Vec3 r = start;
+        double path = 0.0, worst = 0.0;
+        double om = f.Rates.Length;
+        for (int step = 0; step < ShadowMaxSteps && path < ShadowMaxPathM; step++)
+        {
+            Vec3 v = f.Freestream + Vec3.Cross(f.Rates, r - f.Cg);
+            double speed = v.Length;
+            if (speed < 1e-6) break;
+            // Short enough that the helix barely turns, and that a surface cannot be stepped over.
+            double dt = Math.Min(ShadowStepM / speed, om > 1e-6 ? 0.06 / om : double.MaxValue);
+            Vec3 mid = r + v * (0.5 * dt);
+            Vec3 vm = f.Freestream + Vec3.Cross(f.Rates, mid - f.Cg);
+            double vmLen = vm.Length;
+            if (vmLen < 1e-9) break;
+            Vec3 next = r + vm * dt;
+            Vec3 dHat = vm / vmLen;
+            double dxz = Math.Sqrt(dHat.X * dHat.X + dHat.Z * dHat.Z);
+            double project = dxz > 1e-6 ? Math.Abs(dHat.Z) / dxz : 1.0;   // chord's projection normal to the flow
+            double segLoZ = Math.Min(r.Z, next.Z), segHiZ = Math.Max(r.Z, next.Z);
+            for (int sys = 0; sys < f.SysCount; sys++)
+            {
+                int cnt = f.ShadCount[sys];
+                if (cnt == 0 || sys == receiverSys) continue;
+                double reach = f.ShadHalfMax[sys] + ShadowSpread * path;
+                if (segLoZ - reach > f.ShadZMax[sys] || segHiZ + reach < f.ShadZMin[sys]) continue;   // whole system out of range
+                int first = f.ShadFirst[sys];
+                for (int j = 0; j < cnt; j++)
+                {
+                    int i = f.ShadIdx[first + j];
+                    Panel pa = f.Panels[i];
+                    double sep = f.PanelSep[i], sc = pa.Chord;
+                    double half = sc * (ShadowThinSheet + 0.5 * sep * project) + ShadowSpread * path;
+                    if (half <= 1e-9) continue;
+                    double d = SegmentToPatch(r, next, pa, half, receiverHalfChord);
+                    if (double.IsNaN(d) || d >= half) continue;
+                    double profile = Math.Cos(0.5 * Math.PI * d / half);
+                    double decay = f.ShadowDecayChords > 0.0
+                        ? Math.Clamp(1.0 - path / (f.ShadowDecayChords * sc), 0.0, 1.0) : 1.0;
+                    double depth = f.ShadowK * sep * profile * profile * decay;
+                    if (depth > worst) worst = depth;
+                }
+            }
+            path += (next - r).Length;
+            r = next;
+            if (worst >= f.ShadowK - 1e-6) break;        // already as deep as it can get
+        }
+        return worst;
+    }
+
+    /// <summary>
+    /// Distance from the segment r0..r1 to a shed patch: the plane of the shedding system at z = s.Z, bounded by this
+    /// station's own leading and trailing edge (so a swept wing is tested where it actually is) and its span window,
+    /// the innermost station reaching in over the fuselage. NaN = the segment is not over the patch at all.
+    /// </summary>
+    private static double SegmentToPatch(Vec3 r0, Vec3 r1, Panel s, double half, double receiverHalfChord)
+    {
+        double z0 = r0.Z - s.Z, z1 = r1.Z - s.Z;
+        double t = z0 == z1 ? 0.0 : Math.Clamp(-z0 / (z1 - z0), 0.0, 1.0);   // closest approach in height
+        if (z0 * z1 <= 0.0 && z0 != z1) t = -z0 / (z1 - z0);                 // it crosses: distance 0 there
+        Vec3 at = r0 + (r1 - r0) * t;
+        double dz = Math.Abs(at.Z - s.Z);
+        if (dz >= half) return double.NaN;
+        double sc = s.Chord, soft = 0.15 * sc + receiverHalfChord;
+        if (at.X > s.LeX + soft || at.X < s.TeX - soft) return double.NaN;
+        double sgn = s.Y >= 0.0 ? 1.0 : -1.0, span = (at.Y - s.Y) * sgn;
+        double lo = s.InnermostOfSide ? -Math.Abs(s.Y) : -s.HalfSpan;
+        double softY = 0.3 * Math.Max(s.HalfSpan, 1e-3);
+        if (span > s.HalfSpan + softY || span < lo - softY) return double.NaN;
+        // Edge softening counts as extra distance rather than a hard cut, so a strip half out of the shadow loses half.
+        double outX = at.X > s.LeX ? at.X - s.LeX : at.X < s.TeX ? s.TeX - at.X : 0.0;
+        double outY = span > s.HalfSpan ? span - s.HalfSpan : span < lo ? lo - span : 0.0;
+        double edge = (outX / Math.Max(soft, 1e-9) + outY / Math.Max(softY, 1e-9)) * half;
+        return dz + edge;
+    }
+
+    /// <summary>Groups the shed sources into a few spanwise bands per system and side (see <see cref="Panel"/>).</summary>
+    private static Panel[] BuildPanels(List<Source> sources)
+    {
+        var panels = new List<Panel>();
+        var systems = new List<int>();
+        foreach (Source s in sources) if (!systems.Contains(s.SysId)) systems.Add(s.SysId);
+        foreach (int sys in systems)
+            foreach (int side in new[] { -1, 1 })
+            {
+                var mine = sources.Where(s => s.SysId == sys && (s.Y >= 0 ? 1 : -1) == side).OrderBy(s => Math.Abs(s.Y)).ToList();
+                if (mine.Count == 0) continue;
+                int bands = Math.Min(ShadowBandsPerSide, mine.Count);
+                for (int b = 0; b < bands; b++)
+                {
+                    int lo = b * mine.Count / bands, hi = (b + 1) * mine.Count / bands;
+                    if (hi <= lo) continue;
+                    var band = mine.GetRange(lo, hi - lo);
+                    double yMin = band.Min(x => x.Y - x.HalfSpan), yMax = band.Max(x => x.Y + x.HalfSpan);
+                    panels.Add(new Panel
+                    {
+                        SysId = sys,
+                        LeX = band.Max(x => x.LeX), TeX = band.Min(x => x.TeX),
+                        Z = band.Average(x => x.Z),
+                        Y = 0.5 * (yMin + yMax), HalfSpan = 0.5 * (yMax - yMin),
+                        InnermostOfSide = band.Any(x => x.InnermostOfSide),
+                        Members = band.Select(x => sources.IndexOf(x)).ToArray(),
+                    });
+                }
+            }
+        return panels.ToArray();
     }
 }

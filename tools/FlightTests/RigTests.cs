@@ -319,7 +319,10 @@ public static class RigTable
         new("pa25-pawnee-like", true, 1, 0.2216, 0.2116, 1.2851, 110.14),
         new("pa28-archer-like", true, 1, 0.2663, 0.1884, 0.6448, 108.59),
         new("paraglider-en-b-like", false, 0, 0.0000, 0.0000, 9.5338, 19.74),
-        new("pitts-s2b-like", true, 1, 0.3675, 0.5201, -1.2419, 139.22),
+        // Re-rigged 2026-11-08 for propulsion.thrustLineZ -0.20 (the prop axis is 0.20 m above this type's CG, which
+        // was asserted as zero): thrust is nose-down with power, so the rig wants 0.62 deg more up elevator trim.
+        // RigTool with RIG_ONLY=pitts-s2b-like, converged, residual 3.8E-15.
+        new("pitts-s2b-like", true, 1, 0.3681, 0.5206, -1.8588, 139.11),
         new("seminole-like", true, 0, -0.0035, -0.0001, 1.7302, 142.89),
         new("stearman-pt17-like", true, 1, 0.4699, 0.2775, -0.1975, 107.74),
         new("target-drone-like", true, 1, 0.3205, 0.1153, 0.4541, 159.07),

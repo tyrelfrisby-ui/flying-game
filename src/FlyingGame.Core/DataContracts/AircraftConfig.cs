@@ -617,6 +617,48 @@ public sealed class SpinAeroConfig
     /// "biplane" (Clark Y unstaggered biplane, Fig. 27); empty = off.
     /// </summary>
     public string RollDueToSideslip { get; set; } = "";
+
+    /// <summary>
+    /// DEPTH OF THE WING-ON-WING WAKE in a biplane cellule (<see cref="FlyingGame.Core.Aero.TailWake.WingQFactor"/>),
+    /// as a multiplier on the dynamic-pressure LOSS. 1.0 = the Report 648 result as computed (today's behaviour), 0 = the
+    /// two wings never shade each other.
+    ///
+    /// Why it is a knob (Ty, 2026-11-08): the shading is geometrically right — positive stagger puts the upper wing
+    /// upstream of the lower at alpha about -66 deg, so INVERTED the lower wing is the one that dies — but its
+    /// consequence is backwards from the real aeroplane. The lower wing sits BELOW the CG and the upper 0.81 m ABOVE it,
+    /// so killing the lower one leaves the upper wing's drag on the long lever, which is a body nose-up moment and
+    /// therefore nose-DOWN when inverted. Upright the wings are barely shaded at all. The model then makes inverted
+    /// spins nose-low and upright spins level, and a Pitts does the opposite: "upright spins are more nose low and
+    /// inverted flat spins are more nose high".
+    ///
+    /// The magnitude is the part with no measurement behind it: Report 648's centre-line deficit is a fit taken on
+    /// attached and flapped sections (c_d &lt;= 0.1) and at c_d about 1 it returns more than 1 for every x/c &lt; 2.1, so it
+    /// is CLAMPED, and the clamp is what asserts near-dead air (q 0.04) a gap away. This scales that assertion.
+    /// </summary>
+    public double CelluleWakeK { get; set; } = 1.0;
+
+    /// <summary>
+    /// GEOMETRIC HELICAL SHADOW DEPTH, 0 = use the Report 648 wake path instead (the default, so no type changes until
+    /// it is entered). Above 0, EVERY surface's dynamic-pressure loss - wings, stabiliser, fin, all of them - is computed
+    /// from THIS AIRFRAME'S OWN GEOMETRY by marching the real helical air path upstream from each section and seeing what
+    /// it came through. This is the share of dynamic pressure a fully shadowed strip loses.
+    ///
+    /// Ty, 2026-11-08: "Model the shadowing from our own geometry on each wing section rather than the naca data so we
+    /// can model the helical flow exactly and use reduced Q from a k factor in the shadow that we can tweak for fine
+    /// tuning... it will break us out of this naca shadow trap and put the controls back in our hands based on solid
+    /// physics." The Report 648 path could not answer the question it was being asked: its half-width (~0.45 m) sat
+    /// within 3 cm of this cellule's stagger offset (~0.48 m), so whether a wing was shadowed at the flat attitude came
+    /// down to incidental differences in how the two sections' chord extents were built. It shadowed 84-96 % of the
+    /// downstream wing inverted and ~1 % upright, when the geometry says both should happen. Ty extended it to every
+    /// surface the same day: "Use the same dynamic pressure shadow based on actual geometry for all surfaces not just the
+    /// wing. This needs to include the tails too. This might be the key to unlocking the Endo in the extra."
+    /// </summary>
+    public double ShadowK { get; set; } = 0.0;
+
+    /// <summary>Chords of helical path over which a shadow washes out as the wake refills. 0 or less = no washout.
+    /// The march itself stops at three metres, which on this fleet is three to four chords, so values far above that
+    /// cannot express anything.</summary>
+    public double ShadowDecayChords { get; set; } = 3.0;
 }
 
 public sealed class SmokeConfig
@@ -675,6 +717,12 @@ public sealed class PropulsionConfig
     public double ThrustLineZ { get; set; } = 0.0;      // + below CG (z down)
     public double PFactorK { get; set; } = 0.35;        // lateral thrust offset fraction of radius per sin(alpha)
     public double SlipstreamK { get; set; } = 0.12;     // spiral-slipstream yaw moment coefficient
+
+    /// <summary>Share of the ingested flow's CROSS-stream momentum the disc destroys, which is the propeller's in-plane
+    /// (normal/H) force — see <see cref="FlyingGame.Core.PropModel.NormalForce"/>. 0 = off, and it is off for every type
+    /// until that type's own number is entered, because the term is real in attached flight and every stored rig and trim
+    /// was solved without it. Per-type and opt-in for the same reason spinAero.rollDueToSideslip is.</summary>
+    public double NormalForceK { get; set; } = 0.0;
     /// <summary>Brake specific fuel consumption, kg of fuel per watt-second of SHAFT power. The default is a normally
     /// aspirated piston's 0.45 lb/hp/hr: a 160 hp four at 75 % cruise burns about 34 litres an hour on it, which is
     /// what the book says. Turbines want their own number.</summary>
