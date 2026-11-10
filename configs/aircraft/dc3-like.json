@@ -1813,6 +1813,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20000,
+      "toeOutDeg": 2.0,
+      "toeOutDegSource": "Standard 2 degrees of toe-out on every taildragger's mains (Ty 2026-11-10: \"Use 2 degrees toe out on all taildraggers standard unless I adjust based on feel\"). A standing slip angle outboard on each wheel: level the pair cancel, and when one is loaded more its outboard side force is the larger, pushing the aeroplane back toward the light side - \"The loaded tire tries to unload back to the other\". The sign comes from each wheel's own y, so one value means outboard on both (LandingGear.ToeRad). Live-tunable in OPTIONS while flying.",
       "tire": "legacy-dc3-main", "tirePressurePsi": 255.5
     },
     {

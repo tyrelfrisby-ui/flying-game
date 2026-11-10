@@ -48,7 +48,30 @@ namespace FlyingGame.Bridge
             SetCockpitExtras(false);
         }
 
+        /// <summary>The cockpit's field of view, degrees, before the owner's zoom. 72 is the authored default.</summary>
         public float CockpitFov = 72f;
+
+        /// <summary>
+        /// THE COCKPIT ZOOM (Ty 2026-11-10: "Cockpit view needs a zoom slider"), and he named what it is in the
+        /// same breath: "Since viewpoint is fixed this is a fishey effect". The eye cannot move — it is the seat —
+        /// so the only thing a zoom can change is the FIELD OF VIEW, and widening it from a fixed eye is exactly
+        /// what makes a fisheye: more of the world squeezed into the same glass, straight edges bowing at the rim.
+        /// That is the trade, and it is his to make: wide to see out of a small cockpit, narrow to judge a landing.
+        ///
+        /// 1.0 is the authored 72 degrees. Below 1 is narrower (more magnified, less fisheye), above 1 is wider.
+        /// Clamped so the view can never become unusable or degenerate.
+        /// </summary>
+        public static float CockpitZoom
+        {
+            get { if (_zoom < 0f) _zoom = Mathf.Clamp(PlayerPrefs.GetFloat("view.cockpitZoom", 1f), MinZoom, MaxZoom); return _zoom; }
+            set { _zoom = Mathf.Clamp(value, MinZoom, MaxZoom); PlayerPrefs.SetFloat("view.cockpitZoom", _zoom); PlayerPrefs.Save(); }
+        }
+        private static float _zoom = -1f;
+        public const float MinZoom = 0.6f, MaxZoom = 1.6f;
+
+        /// <summary>The cockpit field of view actually used: the authored one times the owner's zoom, kept inside
+        /// what a camera can draw.</summary>
+        public float CockpitFovNow => Mathf.Clamp(CockpitFov * CockpitZoom, 30f, 120f);
         public float CockpitLookDownDeg = 4f;
         private Renderer _hidCanopy;
         private float _baseNear = -1f;
@@ -185,7 +208,7 @@ namespace FlyingGame.Bridge
             if (_cam == null) return;
             if (_baseNear < 0f) _baseNear = _cam.nearClipPlane;
             _cam.nearClipPlane = on ? 0.05f : _baseNear;
-            if (on) _cam.fieldOfView = CockpitFov;
+            if (on) _cam.fieldOfView = CockpitFovNow;
             Transform canopy = Target != null ? Target.Find("Canopy") : null;
             Renderer r = canopy != null ? canopy.GetComponent<Renderer>() : null;
             if (on && r != null && r.enabled) { r.enabled = false; _hidCanopy = r; }
@@ -480,6 +503,9 @@ namespace FlyingGame.Bridge
             // back too.
             bool flybyDrawn = !ovr && !SideView && CurrentView == View.Flyby;
             if (_cam != null && !flybyDrawn && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
+            // The cockpit zoom is a SLIDER, so it has to take effect while you are sitting there, not only on the
+            // frame you sat down (SetCockpitExtras sets it once). Cheap: an equality test on a float per frame.
+            if (_cam != null && cockpit && !flybyDrawn && _cam.fieldOfView != CockpitFovNow) _cam.fieldOfView = CockpitFovNow;
             if (flybyDrawn) { FlybyView(tgt); return; }
             if (!ovr && !SideView && CurrentView == View.Locked) { LockedView(tgt); return; }   // side-view lessons keep their camera
             if (!ovr && !SideView && CurrentView != View.RelativeWind && CurrentView != View.RelativeWindAhead) { FixedView(tgt); return; }

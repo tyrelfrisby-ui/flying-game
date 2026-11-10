@@ -432,6 +432,18 @@ namespace FlyingGame.Bridge
             float uiV = SliderRow($"Menu & page size  {uiNow * 100f:F0}%", uiNow, 0.7f, 1.6f, ref y, 0.42f);
             if (Mathf.Abs(uiV - uiNow) > 0.024f) UiLayout.UserScale = Mathf.Round(uiV * 20f) / 20f;
             Note($"Menus and pages only — the flying screen is unchanged for now. Sized for a finger from this screen: {UiLayout.AutoScale * 100f:F0}% before this slider.", ref y);
+            // COCKPIT ZOOM (Ty 2026-11-10: "Cockpit view needs a zoom slider"). He named the trade himself —
+            // "Since viewpoint is fixed this is a fishey effect" — so the label says what it costs rather than
+            // pretending a fixed eye can be moved closer to the panel.
+            {
+                float z = ChaseCamera.CockpitZoom;
+                float nz = SliderRow(z > 1.02f ? $"Cockpit zoom {z * 100f:F0}% — wider, and fisheyed at the edges"
+                                   : z < 0.98f ? $"Cockpit zoom {z * 100f:F0}% — narrower, flatter, less of the world"
+                                               : "Cockpit zoom 100% — as drawn",
+                                     z, ChaseCamera.MinZoom, ChaseCamera.MaxZoom, ref y, 0.52f);
+                if (Mathf.Abs(nz - z) > 0.01f) ChaseCamera.CockpitZoom = nz;
+                Note("The eye is the seat and cannot move, so zoom is field of view: wider shows more and bows the edges.", ref y);
+            }
             var modes = new[] { SessionSettings.InstrumentMode.Analog, SessionSettings.InstrumentMode.Hud, SessionSettings.InstrumentMode.None };
             int im = PickRow("Instruments", new[] { "Dials", "HUD", "None" }, System.Array.IndexOf(modes, SessionSettings.Instruments), ref y);
             if (im >= 0) { SessionSettings.Instruments = modes[im]; SessionSettings.SavePrefs(); }
@@ -576,6 +588,24 @@ namespace FlyingGame.Bridge
                 // independent settings in three places, which is three decisions to get right before the phone
                 // behaves like a controller. The rows below still carry the detail (sensitivity, reversals, the
                 // tilt centring); this says which of his two layouts you are flying, and sets them to match.
+                // MAIN WHEEL TOE, live (Ty 2026-11-10: "make the main wheel toe in/out an easy knob to turn for
+                // all planes"). Every taildragger authors 2 degrees out; this overrides all of them at once so a
+                // number can be found by taxiing rather than by rebuilding. "Authored" hands each type its own back.
+                {
+                    double cur = FlyingGame.Core.LandingGear.ToeOutOverrideDeg;
+                    bool authored = double.IsNaN(cur);
+                    UiLayout.Label(new Rect(_x, y, _cw, _lh), "MAIN WHEEL TOE", _head); y += _lh;
+                    float t = (float)(authored ? 2.0 : cur);
+                    float nt = SliderRow(authored ? "Toe: as each aeroplane is rigged (2.0° out on taildraggers)"
+                                                  : $"Toe: {(t >= 0 ? "out" : "in")} {Mathf.Abs(t):F1}° on every aeroplane",
+                                         t, -3f, 6f, ref y, 0.56f);
+                    if (Mathf.Abs(nt - t) > 0.05f) FlyingGame.Core.LandingGear.ToeOutOverrideDeg = nt;
+                    if (!authored && UiLayout.Button(new Rect(_x, y, _cw * 0.5f, _lh), "BACK TO AS RIGGED", _btn))
+                        FlyingGame.Core.LandingGear.ToeOutOverrideDeg = double.NaN;
+                    if (!authored) y += _lh + _gap * 0.4f;
+                    Note("Out steadies it: the loaded wheel's side force pushes back toward the light one. In digs a swerve deeper.", ref y);
+                    y += _gap * 0.5f;
+                }
                 if (TvOutput.Supported && TiltSteering.Available)
                 {
                     UiLayout.Label(new Rect(_x, y, _cw, _lh), "TV CONTROLLER", _head); y += _lh;
