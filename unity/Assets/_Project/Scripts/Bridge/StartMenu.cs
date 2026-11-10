@@ -12,6 +12,8 @@ namespace FlyingGame.Bridge
     public sealed class StartMenu : MonoBehaviour
     {
         public FlightSimDriver Driver;
+        /// <summary>The settings panel, when it has been opened over this page (Ty 2026-11-10).</summary>
+        private OptionsPanel _options;
         public WeatherController Weather;
         public ChallengeController Challenges;
         public TowController Tow;
@@ -264,6 +266,10 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            // OPTIONS was opened over this page: it draws instead of the landing page, not on top of it. Two
+            // full-screen IMGUI panels in one frame would overlap and both take the same taps — and the owner's
+            // 2026-10-03 rule is that no text or UI may ever overlap.
+            if (_options != null && _options.IsOpen) return;
             EnsureStyles();
             _ddBg ??= Solid(new Color(0.02f, 0.03f, 0.05f, 0.97f));
             float s = Mathf.Min(Screen.width, Screen.height);
@@ -366,15 +372,28 @@ namespace FlyingGame.Bridge
             // lose its tail to an ellipsis ("diagnosti"); a two-line height lets the longer label wrap instead.
             float hh = stackBottom ? utilH : fh * 0.62f;
             float utilY = stackBottom ? bottom - m - fh - gap * 0.5f - hh : bottom - m - hh;
-            float uw = stackBottom ? (w - 3 * gap * 0.5f) / 4f : s * 0.17f;
+            // FIVE buttons since 2026-11-10 (OPTIONS joined them), laid out in ONE pass over the width the row
+            // actually has — the whole width when FLY is on its own line, otherwise what is left beside FLY. The
+            // offsets used to be written out by hand, which is how CREDITS ended up under FLY once; a fifth placed
+            // the same way would walk straight back into it.
+            const int nUtil = 5;
+            float utilRowW = stackBottom ? w : w - flyW - gap;
+            float uw = (utilRowW - (nUtil - 1) * gap * 0.5f) / nUtil;
             float ux = sideM, ustep = uw + gap * 0.5f;
             if (UiLayout.Button(new Rect(ux, utilY, uw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
-            if (UiLayout.Button(new Rect(ux + ustep, utilY, stackBottom ? uw : uw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
+            if (UiLayout.Button(new Rect(ux + ustep, utilY, uw, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
             // CHART (owner 2026-10-18): readable on the ground as well as in the air — the point of a chart
             // is that you look at it before you go.
-            if (UiLayout.Button(new Rect(ux + (stackBottom ? 2 * ustep : uw * 2.25f + gap), utilY, uw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
+            if (UiLayout.Button(new Rect(ux + 2 * ustep, utilY, uw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
             // CREDITS: required attribution for the 3-D models, not a courtesy. See CreditsPanel.
-            if (UiLayout.Button(new Rect(ux + (stackBottom ? 3 * ustep : uw * 3.25f + gap * 1.5f), utilY, uw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
+            if (UiLayout.Button(new Rect(ux + 3 * ustep, utilY, uw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
+            // OPTIONS (Ty 2026-11-10: "We need access to options on the landing page"). The settings used to be
+            // behind taking off first, and the one he wanted was TV SCREEN — which is exactly what you set BEFORE
+            // you fly, with the TV already plugged in.
+            if (UiLayout.Button(new Rect(ux + 4 * ustep, utilY, uw, hh), "OPTIONS", _btn))
+            {
+                if (_options != null || (_options = Object.FindFirstObjectByType<OptionsPanel>()) != null) _options.OpenOverLandingPage();
+            }
             if (SupportDesk.Note.Length > 0)
                 UiLayout.Label(new Rect(sideM, utilY - _fs * 1.1f, Screen.width - 2 * sideM - (stackBottom ? 0f : fw + gap), _fs * 1.05f), SupportDesk.Note, _small);
 

@@ -454,6 +454,14 @@ namespace FlyingGame.EditorTools
             // app's UIScene lifecycle never makes a scene on the TV and Display.Activate() shows nothing. Until a window is
             // shown there iOS keeps mirroring. Both role names: NonInteractive is iOS 16+, the target is iOS 15.
             var sceneManifest = plist.root["UIApplicationSceneManifest"] as PlistElementDict ?? plist.root.CreateDict("UIApplicationSceneManifest");
+            // AND THE APP HAS TO ADMIT IT CAN HAVE TWO SCENES AT ONCE, or the roles below are dead letters. Unity writes
+            // UIApplicationSupportsMultipleScenes = false, and iOS then creates exactly one scene — the application's —
+            // and never connects the external-display one however it is declared. Ty 2026-11-10, with the HDMI adapter
+            // plugged into the TV and TV SCREEN set to "Game on TV": "It was set to game on tv but it still just
+            // mirrored", and the row's own note still read the NOT-CONNECTED branch, so the app was never given the
+            // second display at all. The scene configurations were right since 2026-11-04; this one boolean is why
+            // nothing ever used them.
+            sceneManifest.SetBoolean("UIApplicationSupportsMultipleScenes", true);
             var sceneConfigs = sceneManifest["UISceneConfigurations"] as PlistElementDict ?? sceneManifest.CreateDict("UISceneConfigurations");
             foreach (string role in new[] { "UIWindowSceneSessionRoleExternalDisplayNonInteractive", "UIWindowSceneSessionRoleExternalDisplay" })
             {
