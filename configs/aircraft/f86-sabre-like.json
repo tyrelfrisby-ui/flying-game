@@ -1920,5 +1920,12 @@
   },
   "ejectionSeat": true,
   "retractableGear": true,
-  "gearDragAreaM2": 0.45
+  "gearDragAreaM2": 0.45,
+  "instruments": {
+    "airspeed": {
+      "units": "kt",
+      "_unitsSource": "Turbine.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
+  }
 }

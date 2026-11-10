@@ -477,5 +477,12 @@
     "hangHeightM": 1.091,
     "maxLateralM": 0.45,
     "maxLongitudinalM": 0.4
+  },
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "_unitsSource": "JUDGEMENT: a sailcloth wing on aluminium tubes, certified by nobody -- the most 'experimental, fabric' thing in the fleet, which the rule puts in mph. US hang gliding talks in mph (European instruments read km/h, which the game has not got).",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
   }
 }

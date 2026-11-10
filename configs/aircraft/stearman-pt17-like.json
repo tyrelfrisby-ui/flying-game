@@ -1608,5 +1608,12 @@
     "vneMs": 84,
     "gMax": 5.5,
     "gMin": -2.5
+  },
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "_unitsSource": "Era and category: 1934 fabric biplane trainer; TCDS A-743 and the AN 01-70AA manuals are in mph.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
   }
 }

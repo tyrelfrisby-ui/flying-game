@@ -1,3 +1,55 @@
+## Airspeed indicators read the unit their aeroplane reads — Claude, 2026-11-10, lane/claude-fleet-shape
+
+<!-- asi-units era-and-category mph-knots c172-arcs-were-two-aeroplanes glide-table-units -->
+
+Ty had settled five types by hand — *"mph on the J-3, the 2-33, the Great Lakes and the Pitts; knots on the Extra"* —
+and, asked today what rule the other 27 follow, chose **"by era and category"**:
+
+> *"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots."*
+
+**The unit is now data, in one key, read in one place.** Every config in `configs/aircraft/` carries
+`instruments.airspeed.units` with a `_unitsSource` saying why that type reads what it reads;
+`FlyingGame.Core.Instruments.AsiUnits` / `AsiDial` is the only thing that converts, and the flat dials
+(`AnalogGauges`), the HUD box (`HudOverlay`), the headset's world HUD (`VrWorldHud`) and the split-screen HUD
+(`LocalPlayerHud`) all ask it. They each carried their own `* 1.9438` and their own hard-coded `"KT"` before, on all
+35 types — including the Pitts, whose MODELLED panel ASI has read mph (TCDS A8SO, 212 mph CAS) since 2026-11-02 while
+the same aeroplane's exterior dial read knots in the same session.
+
+**17 mph / 18 knots.** mph: J-3 (+floats), PA-18 (cub/bush/floats), Stearman, Jenny, Gee Bee, Pawnee, Great Lakes,
+2-33, Pitts, Cassutt, Decathlon, AirCam (+amphib), hang glider, paraglider, P-51D, DC-3, H-4. Knots: 172, Archer,
+SR22, Extra 300, Glasair III, Beaver (+floats), Seminole, 737, F-86, EB29R, Swift S-1, Grob 103, target drone.
+
+**Two are his word against the rule and his word wins** — the Great Lakes stays mph (TCDS A18EA is in mph CAS anyway)
+and the Extra stays knots (its POH section 2 is in KIAS, so here the RULE is what was wrong, not him). **Three depart
+from the shape he was shown**, by applying the rule he actually chose: the P-51D, DC-3 and H-4 are vintage pistons,
+not turbine and not certified-modern, and their real indicators are marked in mph. One line flips any of them.
+
+**The 172's face was two aeroplanes in two units.** It declared `units: mph` with white [49,100] and a green floor of
+57 — a 172M's mph markings — under a green top of 128, a yellow arc and a red line of 164, which are a 172S's KNOTS
+(VNO 129, VNE 163). Its own `_source` said the numbers were "copied unchanged" from the old `c172_cockpit.py` face, so
+nobody had ever checked them: the red line sat 25 % fast on a face labelled MPH. It is now one aeroplane in one unit,
+the 172S POH's own KIAS markings, which also agree with `limits.vneMs` 84 m/s = 163.3 kt. The PNG face is redrawn.
+
+**The flat dial got the arcs and the red line it never had.** Its scale used to be guessed (2.2 × the spawn speed) with
+one invented red low-speed arc and NO red line at all. It now takes the published face verbatim where the config has
+one (the four modelled cockpits), so the exterior dial and the panel dial mark the same speeds; where it derives a
+scale it still forces it to reach Vne, because the red line has to go somewhere. The low-speed arc stays — it is a game
+affordance, not a marking — but ends at the published stall where there is one.
+
+**`docs/GLIDE-TABLE.md` quotes 1.3 Vso in the dial's own unit** (new ASI column). The machine-readable
+`configs/glide-table.json` stays in knots: that is a code contract. Regenerating it also picked up physics drift that
+was ALREADY making `GlideTableTests` red on this lane's base (the 737 at 197.1 → 187.0 kt) — a pre-existing failure,
+not this change.
+
+**Left in knots on purpose**: the flight-test data block (KIAS/KTAS/KEAS/MACH), the companion widget's NTSB panel and
+its wire protocol (`kias`), and the ACS tolerances in `Syllabus/Standards`. Those are instrumentation, a contract and
+a published standard — not the dial in front of the pilot.
+
+**NEEDS YOU — the 2-33's Vne disagrees with its own placard.** `limits.vneMs` is 60 m/s = 134 mph, straight from the
+2026-09 scaffolding commit and never revisited; the 2-33's modelled panel and its FLIGHT LIMITS placards say NEVER
+EXCEED 98 MPH (FAA AFM at 1040 lb, `make_sgs_dials.py`). One of them is wrong. Changing Vne is a physics change, not a
+units change, so it is not in this commit.
+
 ## The gear hinges on the fuselage and the track widens; and toe was on one wheel — Claude, 2026-11-10, lane/claude-gear-flex
 
 <!-- gear-leg-pivot splay bungee-travel toe-both-mains tipping-threshold -->
