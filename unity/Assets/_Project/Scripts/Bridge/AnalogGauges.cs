@@ -4,8 +4,9 @@ using FacePaint = FlyingGame.Core.InstrumentFaces;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// Round, semi-transparent analog instruments floating around the aircraft: airspeed indicator (kt) left,
-    /// altimeter (ft, 1 000 ft per revolution + thousands hand) right, both a little above the aircraft, and
+    /// Round, semi-transparent analog instruments floating around the aircraft: airspeed indicator (mph or kt, per
+    /// the type — Core AsiDial) left, altimeter (ft, 1 000 ft per revolution + thousands hand) right, both a little
+    /// above the aircraft, and
     /// an accelerometer (g meter, limit and ultimate loads marked, max/min tell-tales) above them. No attitude
     /// symbology — the aircraft is the attitude reference. Drawn entirely in IMGUI (dial faces are generated
     /// textures, needles are rotated textures, numerals are labels) so every element shares one coordinate
@@ -26,7 +27,10 @@ namespace FlyingGame.Bridge
         private GUIStyle _dialCap;
         private GUIStyle _big, _num, _label;
         private int _fs, _faceSize;
-        private float _asiMaxKt = 160f, _gLo, _gHi, _stallKt;
+        private float _gLo, _gHi;
+        /// <summary>This aeroplane's airspeed face — the unit it reads in, its scale, its arcs and its red line
+        /// (Core AsiDial, from configs/aircraft/&lt;id&gt;.json instruments.airspeed). Rebuilt with the faces.</summary>
+        private FlyingGame.Core.Instruments.AsiDial _asi;
         private object _facesFor;               // the sim Aircraft the faces were generated for
         private float _gMaxSeen = 1f, _gMinSeen = 1f;
 
@@ -35,6 +39,10 @@ namespace FlyingGame.Bridge
         private Color Face => Paint(_creamFace ? FacePaint.CreamPaint : FacePaint.BlackPaint);
         private Color Ring => Paint(_creamFace ? FacePaint.InkPaint : FacePaint.WhitePaint);
         private static readonly Color Warn = new(1f, 0.3f, 0.2f), Limit = new(1f, 0.85f, 0.2f);
+        // The certificated ASI range arcs, in the colours they are painted in: white = flap operating range,
+        // green = normal operating range, yellow = caution, and the red line at Vne.
+        private static readonly Color ArcWhite = new(0.95f, 0.95f, 0.95f), ArcGreen = new(0.25f, 0.85f, 0.35f),
+            ArcYellow = new(1f, 0.82f, 0.15f), ArcRed = new(0.95f, 0.15f, 0.12f);
 
         private void Awake() { _cam = GetComponent<Camera>(); }
 
@@ -119,19 +127,37 @@ namespace FlyingGame.Bridge
             float lineW = Mathf.Max(1.5f, size * 0.008f);
             Color ring = Ring; ring.a = Alpha + 0.35f;
 
-            // Airspeed: 300° dial, scale rounded to the type (2.2× spawn speed to the nearest 20 kt), red stall arc.
-            float spawnKt = (float)Driver.SpawnIasMs * 1.9438f;
-            _asiMaxKt = Mathf.Max(120f, Mathf.Ceil(spawnKt * 2.2f / 20f) * 20f);
-            _stallKt = spawnKt * 0.62f;
+            // AIRSPEED: a 300° dial IN THE UNIT THIS TYPE READS. Ty 2026-11-10, asked what rule the fleet follows
+            // after settling five types by hand, chose "by era and category": "Vintage, fabric and experimental types
+            // read mph; anything certified modern or turbine reads knots." The unit, the scale, the certificated arcs
+            // and the red line all come out of Core AsiDial, which reads the type's own config
+            // (instruments.airspeed) — so this exterior dial marks the same speeds as the modelled panel's own face,
+            // which is drawn from the same block. This face used to be knots for all 35 types, with its scale guessed
+            // off the spawn speed and NO red line at all; a dial that reads mph with knots arcs on it is worse than
+            // either, which is the whole reason the unit is data and not code.
+            _asi = FlyingGame.Core.Instruments.AsiDial.For(aircraft.Config, Driver.SpawnIasMs);
             _asiFace = NewFace(size);
-            int ktStep = _asiMaxKt <= 200 ? 10 : _asiMaxKt <= 400 ? 20 : 50;
-            for (int v = 0; v <= _asiMaxKt; v += ktStep)
+            float AsiFrac(double v) => Mathf.Clamp01((float)(v / _asi.Top));
+            for (int i = 0; i * _asi.TickStep <= _asi.Top + 1e-6; i++)
             {
-                bool major = v % (ktStep * 2) == 0;
-                Tick(_asiFace, DialDeg(v / _asiMaxKt, false), major ? 0.80f : 0.87f, 0.95f, major ? lineW * 1.5f : lineW, ring);
+                bool major = i % 2 == 0;
+                Tick(_asiFace, DialDeg(AsiFrac(i * _asi.TickStep), false), major ? 0.80f : 0.87f, 0.95f, major ? lineW * 1.5f : lineW, ring);
             }
             Color warn = Warn; warn.a = Alpha + 0.3f;
-            Arc(_asiFace, DialDeg(0f, false), DialDeg(Mathf.Min(1f, _stallKt / _asiMaxKt), false), 0.985f, lineW * 2.5f, warn);
+            // The low-speed red arc is NOT a certificated marking — it is a game affordance these dials have always
+            // had. It stays, but where the config publishes a green arc it now ends at the green floor (the published
+            // stall) instead of at 0.62 × the spawn speed.
+            Arc(_asiFace, DialDeg(0f, false), DialDeg(AsiFrac(_asi.StallTop), false), 0.985f, lineW * 2.5f, warn);
+            // The real markings, where the type has had them authored off a TCDS or a POH (the four with modelled
+            // cockpits). Three concentric radii so a white arc under a green one is still readable.
+            Color aw = ArcWhite, ag = ArcGreen, ay = ArcYellow, ar = ArcRed;
+            aw.a = ag.a = ay.a = Alpha + 0.3f; ar.a = 1f;
+            if (_asi.HasWhite) Arc(_asiFace, DialDeg(AsiFrac(_asi.WhiteLo), false), DialDeg(AsiFrac(_asi.WhiteHi), false), 0.895f, lineW * 1.8f, aw);
+            if (_asi.HasGreen) Arc(_asiFace, DialDeg(AsiFrac(_asi.GreenLo), false), DialDeg(AsiFrac(_asi.GreenHi), false), 0.955f, lineW * 1.8f, ag);
+            if (_asi.HasYellow) Arc(_asiFace, DialDeg(AsiFrac(_asi.YellowLo), false), DialDeg(AsiFrac(_asi.YellowHi), false), 0.955f, lineW * 1.8f, ay);
+            // The red line at Vne: the one marking on an ASI that is about the airframe and not about the wing, and
+            // the one this dial never had. From the config's painted redline where it has one, else limits.vneMs.
+            if (_asi.Redline > 0) Tick(_asiFace, DialDeg(AsiFrac(_asi.Redline), false), 0.78f, 0.99f, lineW * 2.5f, ar);
             _asiFace.Apply();
 
             // Altimeter: 50 ticks, every 5th major.
@@ -351,7 +377,7 @@ namespace FlyingGame.Bridge
             bool showAsi = true, showAlt = true, showG = true, showV = true;
 
 
-            float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
+            float ias = (float)_asi.Read(Driver.IasMs), ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
             if (live) { _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g); }
             float nAlpha = Mathf.Min(1f, Alpha + 0.4f);
             // Captions and scale numbers keep their reading floor independently of the face.
@@ -368,11 +394,16 @@ namespace FlyingGame.Bridge
             GUI.color = Color.white;
             if (showAsi) {
             GUI.DrawTexture(new Rect(asi.x - r, asi.y - r, 2f * r, 2f * r), _asiFace);
-            int ktStep = _asiMaxKt <= 200 ? 20 : _asiMaxKt <= 400 ? 40 : 100;
-            for (int v = 0; v <= _asiMaxKt; v += ktStep * 2) Label(OnDial(asi, DialDeg(v / _asiMaxKt, false), r * 0.55f), v.ToString(), _num, fs * 3f, _num.fontSize * 1.2f);
-            Label(asi + new Vector2(0, r + readH * 0.5f), $"{kt:F0} KT", _big, columnWidth, readH);   // under the dial, clear of the scale
+            for (int i = 0; i * _asi.LabelStep <= _asi.Top + 1e-6; i++)
+            {
+                double v = i * _asi.LabelStep;
+                Label(OnDial(asi, DialDeg(Mathf.Clamp01((float)(v / _asi.Top)), false), r * 0.55f), v.ToString("0"), _num, fs * 3f, _num.fontSize * 1.2f);
+            }
+            // The readout's caption is the dial's own unit — "MPH" on the Cub, "KT" on the 172. The two can never
+            // disagree because both come from _asi.
+            Label(asi + new Vector2(0, r + readH * 0.5f), $"{ias:F0} {_asi.Caption}", _big, columnWidth, readH);   // under the dial, clear of the scale
             Label(asi + new Vector2(0, r * .80f), "ASI", _dialCap, r, r * .25f);
-            DrawNeedle(asi, DialDeg(Mathf.Clamp01(kt / _asiMaxKt), false), r * 0.82f, r * 0.11f, nAlpha);
+            DrawNeedle(asi, DialDeg(Mathf.Clamp01((float)(ias / _asi.Top)), false), r * 0.82f, r * 0.11f, nAlpha);
             }
 
             // ---- altimeter
