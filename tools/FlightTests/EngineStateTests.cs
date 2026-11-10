@@ -132,8 +132,11 @@ public class EngineStateTests : IDisposable
         Assert.Equal(0.0, parts.TorqueRoll);
         Assert.Equal(0.0, parts.SlipYaw);
         Assert.Equal(0.0, parts.PFactorY);
-        // Gyro: h = Ip·ω = 2.5 kg m² × 1500 rpm × 2π/60; a 0.5 rad/s pitch rate gives N = q·h.
-        Assert.Equal(0.5 * 2.5 * 1500 * 2 * Math.PI / 60, parts.Gyro.Z, 6);
+        // Gyro: h = Ip·ω = 2.1 kg m² × 1500 rpm × 2π/60; a 0.5 rad/s pitch rate gives N = q·h.
+        // 2.1 is extra-300-like's own propInertia, hand-copied as the tripwire this is meant to be. It was 2.5
+        // until the Extra went onto its derived figure (2026-11-09) and this literal was not followed through,
+        // so the test had been failing on a stale number rather than on anything the model does.
+        Assert.Equal(0.5 * 2.1 * 1500 * 2 * Math.PI / 60, parts.Gyro.Z, 6);
     }
 
     [Fact]
