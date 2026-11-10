@@ -535,7 +535,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.5236,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -552,7 +552,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.5236,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -569,13 +569,14 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.5236,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
           }
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1219,7 +1220,8 @@
       "corneringStiffnessN": 6000,
       "toeOutDeg": 2.0,
       "toeOutDegSource": "Standard 2 degrees of toe-out on every taildragger's mains (Ty 2026-11-10: \"Use 2 degrees toe out on all taildraggers standard unless I adjust based on feel\"). A standing slip angle outboard on each wheel: level the pair cancel, and when one is loaded more its outboard side force is the larger, pushing the aeroplane back toward the light side - \"The loaded tire tries to unload back to the other\". The sign comes from each wheel's own y, so one value means outboard on both (LandingGear.ToeRad). Live-tunable in OPTIONS while flying.",
-      "tire": "legacy-geebee-main", "tirePressurePsi": 28.7
+      "tire": "legacy-geebee-main",
+      "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1235,7 +1237,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tire": "legacy-geebee-main", "tirePressurePsi": 28.7
+      "tire": "legacy-geebee-main",
+      "tirePressurePsi": 28.7
     },
     {
       "pos": [
@@ -1251,7 +1254,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.8,
       "corneringStiffnessN": 2000,
-      "tire": "legacy-geebee-tail", "tirePressurePsi": 22.9,
+      "tire": "legacy-geebee-tail",
+      "tirePressurePsi": 22.9,
       "steerSpringNmPerRad": 120
     }
   ],
