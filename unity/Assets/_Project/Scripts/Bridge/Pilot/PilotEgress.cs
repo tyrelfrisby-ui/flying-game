@@ -90,8 +90,13 @@ namespace FlyingGame.Bridge
         public event Action ChuteInflated;     // full canopy
         public event Action Ejected;
 
-        // Sequence timings (s).
-        public const float BailCanopySec = 3f, BailJumpSec = 5f, BailChuteSec = 3f;
+        // Sequence timings (s). The first two are Core BailoutSequence's now (Ty 2026-11-10: canopy off at 1 s,
+        // harness at 1.5 s), and BailJumpSec is only the 1 g case — the g decides the rest, and negative g through a
+        // top opening throws him out in a fraction of it, so nothing should TIME the exit off this. It is kept as a
+        // const because BailoutHeavenCheck uses it as a budget to tick within.
+        public const float BailCanopySec = (float)FlyingGame.Core.BailoutSequence.CanopyOffSec;
+        public const float BailJumpSec = (float)(FlyingGame.Core.BailoutSequence.HarnessOffSec + FlyingGame.Core.BailoutSequence.ExitBaseSec);
+        public const float BailChuteSec = 3f;
         public const float EjectPilotLeftSec = 0.1f, EjectSeatSepSec = 1.0f, EjectChuteSec = 1.5f;
         public const float EjectBaroAltM = 5000f;   // no main canopy above this: wait for it (barostat)
 
@@ -104,6 +109,24 @@ namespace FlyingGame.Bridge
         private float _t;                 // seconds since BailOut()/Eject()
         private float _pilotLeftT;
         private bool _eject, _canopyDone, _pilotDone, _pilotLeftFired, _seatDone, _chuteDone;
+        /// <summary>The bail-out's own sequence and its g-dependent exit (Core <see cref="FlyingGame.Core.Bailout"/>).</summary>
+        private FlyingGame.Core.Bailout _seq;
+
+        /// <summary>
+        /// WHERE HE GETS OUT, which decides what negative g does to him — and it comes from the aeroplane's own canopy
+        /// part, with nothing added to any config. The one geometric question is
+        /// <see cref="FlyingGame.Core.Vr.CanopySpec.IsDoor"/>'s, which the canopy code already asks: a part thinner
+        /// across the aeroplane than half its height is a door, anything else is a bubble, and a model with no canopy
+        /// part at all is an open cockpit. Bounds are the model's, in the aeroplane's axes as
+        /// <see cref="AirframeVisual.EgressCanopy"/> reads them (x across, y up, z nose).
+        /// </summary>
+        private FlyingGame.Core.EgressOpening Opening()
+        {
+            AirframeVisual visual = GetComponent<AirframeVisual>();
+            FlyingGame.Core.Vr.CanopyDynamics c = visual != null ? visual.EgressCanopy() : null;
+            if (c == null) return FlyingGame.Core.EgressOpening.OpenTop;
+            return FlyingGame.Core.BailoutSequence.OpeningFor(true, c.Spec.SpanM, c.Spec.HeightM);
+        }
         private string _status = "";
         // Landing outcome (owner 2026-09-09): grunts/winces on every ground strike, a one-liner once he's at rest.
         public LandingOutcome Outcome { get; private set; }
@@ -187,6 +210,7 @@ namespace FlyingGame.Bridge
             _eject = _canopyDone = _pilotDone = _pilotLeftFired = _seatDone = _chuteDone = false;
             HandsOn = false;
             _canopy = null;
+            _seq = null;
             IsGhost = false;
             CrashOutcome = LandingOutcome.Unhurt;
             _status = ""; LastLine = ""; _restT = _voiceT = -1f; _spoken = false;
@@ -247,9 +271,17 @@ namespace FlyingGame.Bridge
 
             if (!_eject)
             {
-                if (!_canopyDone && _t >= BailCanopySec) JettisonCanopy();
+                // GETTING OUT IS PHYSICS (Core BailoutSequence, Ty 2026-11-10): canopy at 1 s, harness at 1.5 s, then
+                // a climb out that takes 2 s between 0 and +1 g and a second per g outside that band EITHER way — and
+                // under negative g, if the way out is UP, no climb at all: the apparent gravity in the cockpit throws
+                // him, and when he is clear and how fast he leaves both come out of the g. The load factor is read
+                // every step, so pulling out of the dive while he is half out slows him and pushing over throws him.
+                _seq ??= new FlyingGame.Core.Bailout();
+                FlyingGame.Sim.Aircraft acSeq = _driver.Sim?.Aircraft;
+                _seq.Step(dt, acSeq != null ? acSeq.LoadFactorZ : 1.0, Opening());
+                if (!_canopyDone && _seq.CanopyGone) JettisonCanopy();
                 StepCanopy(dt);
-                if (!_pilotDone && _t >= BailJumpSec && CanopyClear) JumpOverTheSide();   // not through a canopy still on
+                if (!_pilotDone && _seq.Out && CanopyClear) JumpOverTheSide();   // not through a canopy still on
                 // A ghost's opens by itself, soon, even after a hands-on exit: nobody pulls a ripcord on the way up.
                 // A one-press VR bail-out (_autoChute) is hands-on but still opens on its own if he does not pull it.
                 float chuteSec = IsGhost ? (float)FlyingGame.Core.PilotOutRules.GhostChuteSec : BailChuteSec;
@@ -409,10 +441,21 @@ namespace FlyingGame.Bridge
             _pilotDone = true;
             _pilotLeftT = _t;
             Transform ac = _driver.transform;
-            Vector3 pos = ac.TransformPoint(CockpitLocal(_driver)) + ac.right * 0.6f;
-            Vector3 vel = _driver.WorldVelocityUnity + ac.right * 3f + ac.up * 1.5f;
-            _pilot = new PilotBody(pos, vel, new Vector3(1.5f, 2.5f, 1.0f), ac.eulerAngles.y,
-                withSeat: false, seatUp: Vector3.up, initialRotation: ac.rotation * Quaternion.Euler(0f, 0f, -60f));
+            // THE SPEED HE LEAVES WITH IS THE SEQUENCE'S, not a literal. Climbing out it is his own muscles, over the
+            // right side as before; THROWN out by negative g it is what the g gave him (√(2·a·sill)), straight up out
+            // of the cockpit, which is where the apparent gravity was pushing him. From here he is the air's
+            // (PilotBody → Core JumperTumble), so the attitude he leaves in is what the tumble then flies.
+            bool flung = _seq != null && _seq.WasFlung;
+            float exit = (float)(_seq != null ? _seq.ExitSpeedMs : FlyingGame.Core.BailoutSequence.MuscleMs);
+            Vector3 pos = ac.TransformPoint(CockpitLocal(_driver)) + (flung ? ac.up * 0.6f : ac.right * 0.6f);
+            Vector3 vel = _driver.WorldVelocityUnity + (flung ? ac.up * exit : ac.right * (exit * 0.9f) + ac.up * (exit * 0.45f));
+            // No rate handed over: he leaves with none and the air turns him (JumperTumble). Being thrown out of the
+            // top on his back is a different attitude from climbing over the side, and the tumble starts from it.
+            _pilot = new PilotBody(pos, vel, Vector3.zero, ac.eulerAngles.y,
+                withSeat: false, seatUp: Vector3.up,
+                initialRotation: ac.rotation * Quaternion.Euler(0f, 0f, flung ? 0f : -60f));
+            Log($"out {(flung ? "FLUNG by" : "climbed at")} {exit:F1} m/s after {_seq?.OutAtSec ?? 0:F2} s, "
+                + $"{Opening()}, nz {(_driver.Sim?.Aircraft?.LoadFactorZ ?? 1.0):F2}");
             // In a headset the view goes with him (the one-press bail-out, Ty 2026-11-05: "Bailout is just a button press and
             // it happens"): first person, as if he had climbed out himself, and the ripcord is in reach — but the chute still
             // opens on its own BailChuteSec later if he does not pull it (_autoChute), the same as on the glass.

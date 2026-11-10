@@ -317,6 +317,47 @@ namespace FlyingGame.Bridge
             Spray(hitWorld, vWorld, Mathf.Clamp(8 + removed / 60, 10, 36));
         }
 
+        /// <summary>
+        /// BREAK THE GLASS OF SOMETHING THAT HAS ALREADY LEFT THE AEROPLANE — the departed canopy running into the tail
+        /// (Ty 2026-11-10: "if it hits the tail or other structure use a mechanical sound for impact and shatter the
+        /// glass both audibly and visually"). <see cref="CanopyFlight"/> calls it on the first strike the Core free body
+        /// reports; the mechanical sound is <see cref="FlightAudio.CanopyImpact"/>.
+        ///
+        /// NOT routed through <see cref="OnContact"/>, and that is the point. A contact event is something that happened
+        /// to the AEROPLANE: it carries the aeroplane's own state and places the blow in the aeroplane's body frame. This
+        /// glass is on a loose object several metres behind it, turning on its own. So the hit arrives in world axes and
+        /// is taken into <paramref name="root"/>'s frame, and the panes are found by whether their renderers are now
+        /// under <paramref name="root"/> rather than by name — the pane ids were measured while the canopy was still on
+        /// the aeroplane and nothing renames them when it leaves.
+        ///
+        /// Everything else is the on-aeroplane path unchanged: the same jagged remnant on the pane's own transform, the
+        /// same pale fracture edges, the same shard spray, and the same <see cref="Restore"/> puts it all back on the
+        /// next flight. Returns how many panes broke (0 if the canopy had no drawn glass, which is not an error — some
+        /// models' canopies are one opaque part).
+        /// </summary>
+        public int ShatterDeparted(Transform root, Vector3 hitWorld, Vector3 velocityWorld, float strikeSpeedMs)
+        {
+            if (root == null) return 0;
+            Vector3 hitLocal = root.InverseTransformPoint(hitWorld);
+            int panes = 0, removed = 0;
+            foreach (Pane p in _panes.Values)
+            {
+                if (p.Broken) continue;
+                bool mine = false;
+                foreach ((Renderer r, _) in p.Parts) if (r != null && r.transform.IsChildOf(root)) { mine = true; break; }
+                if (!mine) continue;
+                p.Broken = true;
+                panes++;
+                int seed = p.Id.GetHashCode() ^ (int)(Time.frameCount * 2654435761u);
+                foreach ((Renderer r, int[] subs) in p.Parts)
+                    if (r != null && r.transform.IsChildOf(root)) removed += BreakRenderer(r, subs, hitLocal, seed++, root);
+            }
+            if (panes == 0) { _lastShardMat = null; Debug.Log($"[Glass] departed canopy struck at {strikeSpeedMs:0.0} m/s; nothing drawn to break"); }
+            else Debug.Log($"[Glass] departed canopy: {panes} pane(s) shattered at {strikeSpeedMs:0.0} m/s; {removed} fragments gone");
+            Spray(hitWorld, velocityWorld, Mathf.Clamp(8 + removed / 60, 10, 36));
+            return panes;
+        }
+
         private Pane Nearest(Vector3 local)
         {
             Pane best = null; float bd = float.MaxValue;
@@ -336,13 +377,17 @@ namespace FlyingGame.Bridge
 
         /// <summary>Draw one renderer's glass submeshes broken: hide them and hang the jagged remnant and its fracture edges on
         /// the renderer's transform. Returns how many subdivided fragments went.</summary>
-        private int BreakRenderer(Renderer r, int[] subs, Vector3 hitDriverLocal, int seed)
+        private int BreakRenderer(Renderer r, int[] subs, Vector3 hitFrameLocal, int seed, Transform frame = null)
         {
             Mesh src = MeshOf(r);
             if (src == null || !src.isReadable) return 0;
             var undo = new Undo { R = r, Enabled = r.enabled };
-            Matrix4x4 toDriver = ToAncestor(r.transform, transform);
-            Vector3 hit = toDriver.inverse.MultiplyPoint3x4(hitDriverLocal);   // the blow in the renderer's own frame
+            // THE FRAME THE HIT IS GIVEN IN. Normally the driver, whose descendants these renderers are. A canopy that
+            // has been jettisoned is no longer under the driver at all (AirframeVisual.DetachCanopy re-parents its parts
+            // to a "JettisonedCanopy" of its own), so ToAncestor would walk past the driver to the scene root and place
+            // the blow somewhere it never happened. ShatterDeparted passes that object instead.
+            Matrix4x4 toDriver = ToAncestor(r.transform, frame != null ? frame : transform);
+            Vector3 hit = toDriver.inverse.MultiplyPoint3x4(hitFrameLocal);   // the blow in the renderer's own frame
             Material glassMat = null;
             var shown = new List<int>();
             for (int i = 0; i < src.subMeshCount; i++) if (System.Array.IndexOf(subs, i) < 0) shown.Add(i);
