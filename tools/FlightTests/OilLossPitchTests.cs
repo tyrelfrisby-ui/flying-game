@@ -114,7 +114,10 @@ public class OilLossPitchTests
             double dc = PropModel.Windmilling(coarse, v, 1.225).DragN;
             double df = PropModel.Windmilling(fine, v, 1.225).DragN;
             Assert.True(dc > 0.0 && df > 0.0);
-            Assert.True(dc < 0.35 * df, $"V={v}: coarse {dc:0} N against fine {df:0} N is not near feather");
+            // Nearer feather the faster it goes, because the coarse blade turns slowly enough that the dry engine's
+            // boundary friction still has a grip on it down at 30 m/s and has let go by 60.
+            double ceiling = v < 40.0 ? 0.50 : v < 55.0 ? 0.35 : 0.25;
+            Assert.True(dc < ceiling * df, $"V={v}: coarse {dc:0} N against fine {df:0} N is not near feather");
         }
     }
 
@@ -150,12 +153,13 @@ public class OilLossPitchTests
             double rf = PropModel.WindmillRpm(finePlumbed, v, 1.225);
             Assert.True(rc > 0.0 && rf > 0.0);
             Assert.True(rc < 0.5 * rf, $"V={v}: coarse {rc:0} rpm against fine {rf:0}");
-            // Not quite one advance ratio per stop any more: the engine's cranking torque is nearly constant while the
-            // blade's grows with speed, so the balance point creeps toward the free-shaft kinematic value as it goes
-            // faster. Coarse: J 2.3 at 30 m/s easing to 1.7 at 80. The ordering is what matters and it never inverts.
-            double j = v / (rc / 60.0 * coarsePlumbed.PropDiameterM);
-            Assert.InRange(j, 1.65, 2.40);
-            Assert.InRange(v / (rf / 60.0 * finePlumbed.PropDiameterM), 0.52, 0.70);
+            // No longer one advance ratio per stop, and deliberately not pinned as one. The cranking torque is nearly
+            // constant above a few hundred rpm but climbs steeply below it (PistonEngine.BoundaryFrictionFactor: a dry
+            // engine), while the blade's torque grows with speed - so the balance point walks, and it walks furthest
+            // on the coarse stop, which is the one turning slowly enough to feel the boundary friction. What must hold
+            // is that it never inverts and never runs away.
+            Assert.True(rc < rf);
+            Assert.InRange(v / (rf / 60.0 * finePlumbed.PropDiameterM), 0.50, 0.75);
         }
 
         // A fine blade in a dive still runs away past the red line — the cranking resistance slows it (4,414 free

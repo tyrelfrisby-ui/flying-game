@@ -120,8 +120,31 @@ public static class PistonEngine
         double openFraction = (mp - FrictionManifoldInHg) / span;      // the SAME expression, lower clamp lifted
         if (openFraction >= 0.0) return 0.0;                           // open enough to make power: not this function's business
         double powerW = ratedPowerW * AltitudePowerFraction(sigma) * openFraction * (rpm / ratedRpm);
-        return powerW / (rpm * 2.0 * Math.PI / 60.0);
+        return powerW / (rpm * 2.0 * Math.PI / 60.0) * BoundaryFrictionFactor(rpm);
     }
+
+    /// <summary>
+    /// BOUNDARY FRICTION, which is why a dead propeller stops so much earlier than the running friction alone says.
+    /// The friction intercept in the power curve is the friction of an engine that is RUNNING — oil pump turning, a
+    /// hydrodynamic film in every bearing, friction roughly proportional to speed so the torque is near constant. An
+    /// engine with no oil pressure has no film: the bearings and the rings are in boundary contact, and boundary
+    /// friction is several times hydrodynamic and HIGHEST at the lowest speed. That is a coincidence worth noticing —
+    /// the one case this whole mechanism is about, oil pressure lost, is exactly the case where it bites hardest.
+    ///
+    /// <see cref="DryBoundaryExcess"/> = 2.3 makes it 3.3x the running friction at rest, decaying with
+    /// <see cref="BoundaryRpmScale"/> = 300 rpm. Both are chosen against Ty's own anchor, 2026-11-10: "Cranking
+    /// resistance should be calibrated such that at fine pitch the prop stops right at level flight stall speed". The
+    /// air's torque on a slow blade goes as v^2, so the measured stopping speeds (25-32 mph before this) and the five
+    /// types' stall speeds (38-58 mph) asked for 2.3x to 4.3x — which is the boundary-friction range, so the number
+    /// the flying wanted and the number the tribology allows are the same number. CompressionStopProbe measures it.
+    ///
+    /// It decays over a few hundred rpm, so it is gone by the 1,300-4,300 rpm where the windmilling drag was matched
+    /// against the published glide ratios: that calibration is untouched by this one.
+    /// </summary>
+    public const double DryBoundaryExcess = 2.3, BoundaryRpmScale = 300.0;
+
+    public static double BoundaryFrictionFactor(double rpm)
+        => 1.0 + DryBoundaryExcess * Math.Exp(-Math.Max(0.0, rpm) / BoundaryRpmScale);
 
     /// <summary>Shaft torque, N·m. Negative when the engine is being driven: below its friction manifold pressure it
     /// absorbs power rather than making it, which is what lets a windmilling propeller drag.</summary>
