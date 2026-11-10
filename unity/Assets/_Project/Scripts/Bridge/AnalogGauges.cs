@@ -38,6 +38,23 @@ namespace FlyingGame.Bridge
 
         private void Awake() { _cam = GetComponent<Camera>(); }
 
+        // The aeroplane's own visual, which knows whether the model on screen draws instruments
+        // (AirframeVisual.CockpitInstrumentsDrawn). It lives on the Driver's GameObject -- AirframeVisual is
+        // [RequireComponent(typeof(FlightSimDriver))] -- and is cached against the Driver rather than looked up each
+        // time: OnGUI runs more than once a frame (Layout and Repaint) and in split screen this component is rebound
+        // to the other player's aeroplane, so the key has to be the Driver and not a one-shot Awake lookup.
+        private FlightSimDriver _visualFor;
+        private AirframeVisual _visual;
+        private bool CockpitDrawsItsOwnInstruments
+        {
+            get
+            {
+                if (Driver == null) return false;   // no aeroplane: nothing claims to have a panel
+                if (!ReferenceEquals(_visualFor, Driver)) { _visualFor = Driver; _visual = Driver.GetComponent<AirframeVisual>(); }
+                return _visual != null && _visual.CockpitInstrumentsDrawn;
+            }
+        }
+
         /// <summary>Dial angle (degrees, clockwise from 12 o'clock) for a fraction 0..1 of the sweep: 300° sweep
         /// starting at 7 o'clock for the airspeed / g dials, a full 360° from 12 for the altimeter.</summary>
         private static float DialDeg(float frac, bool fullCircle) => fullCircle ? frac * 360f : -150f + frac * 300f;
@@ -299,6 +316,26 @@ namespace FlyingGame.Bridge
             }
             else
             {
+                // COCKPIT VIEW. Ty 2026-11-10, with a screenshot of the Pitts: "The instrument row above the touch pads
+                // in cockpit view never got fixed. Cockpits have instruments to look at and it takes up valuable space
+                // get rid of it."
+                //
+                // So the four-dial band below is drawn ONLY where the aeroplane on screen has no panel of its own.
+                // The Pitts, Extra, Great Lakes, 172, J-3 and 2-33 all do, and the band was painting over the bottom
+                // third of their cockpits to repeat an ASI and an altimeter already on the glareshield. The procedural
+                // shell and any downloaded model without a panel keep it — cockpit view is not gated on a model, and a
+                // pilot sitting in one of those would otherwise have nothing at all to read. The decision itself is in
+                // Core so the headless suite locks it (HudInstrumentLayoutTests): this is a repeat report, and a branch
+                // that lives only in a MonoBehaviour is a branch no test can defend.
+                //
+                // Returning here rather than setting showAsi/showAlt/showG/showV false: the geometry below (the dark
+                // band, the glareshield edge, the four dial centres) exists only to serve this row, so leaving it to
+                // paint a band with nothing on it would be worse than not drawing it. The space is given back for
+                // free — the band was inside the camera's own rect, so the 3-D cockpit renders into those pixels with
+                // no layout change anywhere. UiLayout.EngineRowShown is deliberately left as it was: its one consumer
+                // (UiLayout.Sync) already ignores it in the cockpit, so touching it would change nothing but the diff.
+                if (!FlyingGame.Core.HudInstrumentLayout.ShowFlightDials(true, CockpitDrawsItsOwnInstruments)) return;
+
                 // Cockpit view: the dials become an instrument panel along the bottom of the view.
                 float panelH = Mathf.Min(view.height * 0.30f, s * 0.36f), pTop = bottom - panelH;
                 r = Mathf.Min(r, panelH * 0.42f); gr = r * 0.85f;
