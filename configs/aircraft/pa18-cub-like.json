@@ -1528,7 +1528,11 @@
       "toeOutDeg": 2.0,
       "toeOutDegSource": "Standard 2 degrees of toe-out on every taildragger's mains (Ty 2026-11-10: \"Use 2 degrees toe out on all taildraggers standard unless I adjust based on feel\"). A standing slip angle outboard on each wheel: level the pair cancel, and when one is loaded more its outboard side force is the larger, pushing the aeroplane back toward the light side - \"The loaded tire tries to unload back to the other\". The sign comes from each wheel's own y, so one value means outboard on both (LandingGear.ToeRad). Live-tunable in OPTIONS while flying.",
       "tire": "8.00-6",
-      "tirePressurePsi": 18
+      "tirePressurePsi": 18,
+      "gearType": "bungee",
+      "gearTypeSource": "Rubber shock cord in the leather boots on the legs -- Ty 2026-11-10: \"The cub bungees are in the black leather bags on the gear legs\" (the model draws them: Shock_Boot_L/R). A bungee stores and gives back: \"no rebound but plenty of travel\", which is what the gear does -- its damper only ever sees the closing rate -- and why a Cub bounces.",
+      "legPivot": [0.132, -0.32, 0.491],
+      "legPivotSource": "Measured off the type's own model, which carries the real linkage rigged for animation (j3-cub-like-own.glb: Gear_Pivot_L at span 0.320, up -0.490, with Gear_HingeAxis_L 0.58 m aft on the same y -- the two lower-longeron pins the V legs hinge on, the Univair J-3 parts-list layout the model was built from). The drawn wheel touches at span 0.920, up -1.199, so the leg runs 0.600 m out and 0.709 m down from the pin: 1.18 m of track per side per metre of compression (LandingGear.SplayPerM). Ty 2026-11-10: \"The cub has bungee too. Pivot at the fuselage attachment and so does the pitts.\""
     },
     {
       "pos": [
@@ -1545,7 +1549,13 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
       "tire": "8.00-6",
-      "tirePressurePsi": 18
+      "tirePressurePsi": 18,
+      "gearType": "bungee",
+      "gearTypeSource": "Rubber shock cord in the leather boots on the legs -- Ty 2026-11-10: \"The cub bungees are in the black leather bags on the gear legs\" (the model draws them: Shock_Boot_L/R). A bungee stores and gives back: \"no rebound but plenty of travel\", which is what the gear does -- its damper only ever sees the closing rate -- and why a Cub bounces.",
+      "legPivot": [0.132, 0.32, 0.491],
+      "legPivotSource": "Measured off the type's own model, which carries the real linkage rigged for animation (j3-cub-like-own.glb: Gear_Pivot_L at span 0.320, up -0.490, with Gear_HingeAxis_L 0.58 m aft on the same y -- the two lower-longeron pins the V legs hinge on, the Univair J-3 parts-list layout the model was built from). The drawn wheel touches at span 0.920, up -1.199, so the leg runs 0.600 m out and 0.709 m down from the pin: 1.18 m of track per side per metre of compression (LandingGear.SplayPerM). Ty 2026-11-10: \"The cub has bungee too. Pivot at the fuselage attachment and so does the pitts.\"",
+      "toeOutDeg": 2.0,
+      "toeOutDegSource": "The matching value for THIS wheel. Toe is per leg (LandingGear.ToeRad reads g.ToeOutDeg and takes the sign from the wheel's own y), so a value on one main and nothing on the other is not 2 degrees out on both -- it is 2 out on one wheel and dead straight on the other, a standing uncancelled side force of about 0.42 of that wheel's load (12 per rad x 2 deg) with nothing opposing it. The 2026-11-10 toe-out commit says \"Sixteen types, both mains each\" and wrote the field to the FIRST main only on fourteen of them; this is the other main on each, with the same number. Ty's knob (LandingGear.ToeOutOverrideDeg) always covered both, which is why the two types he was flying when he chose the number -- the Pitts and the Extra, the two the commit did write both -- felt right."
     },
     {
       "pos": [

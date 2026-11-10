@@ -1972,7 +1972,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 40000,
       "tire": "legacy-737-nose",
-      "tirePressurePsi": 190
+      "tirePressurePsi": 190,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts, as every transport has. Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1989,7 +1991,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 80000,
       "tire": "legacy-737-main",
-      "tirePressurePsi": 205
+      "tirePressurePsi": 205,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts, as every transport has. Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -2006,7 +2010,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 80000,
       "tire": "legacy-737-main",
-      "tirePressurePsi": 205
+      "tirePressurePsi": 205,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts, as every transport has. Telescopic, so no legPivot."
     }
   ],
   "limits": {

@@ -1507,7 +1507,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
       "tire": "5.00-5",
-      "tirePressurePsi": 30.4
+      "tirePressurePsi": 30.4,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-44 service manual). Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1524,7 +1526,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 14000,
       "tire": "6.00-6",
-      "tirePressurePsi": 42
+      "tirePressurePsi": 42,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-44 service manual). Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1541,7 +1545,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 14000,
       "tire": "6.00-6",
-      "tirePressurePsi": 42
+      "tirePressurePsi": 42,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-44 service manual). Telescopic, so no legPivot."
     }
   ],
   "limits": {
