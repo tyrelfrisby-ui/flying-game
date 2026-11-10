@@ -1,3 +1,196 @@
+## Airspeed indicators read the unit their aeroplane reads — Claude, 2026-11-10, lane/claude-fleet-shape
+
+<!-- asi-units era-and-category mph-knots c172-arcs-were-two-aeroplanes glide-table-units -->
+
+Ty had settled five types by hand — *"mph on the J-3, the 2-33, the Great Lakes and the Pitts; knots on the Extra"* —
+and, asked today what rule the other 27 follow, chose **"by era and category"**:
+
+> *"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots."*
+
+**The unit is now data, in one key, read in one place.** Every config in `configs/aircraft/` carries
+`instruments.airspeed.units` with a `_unitsSource` saying why that type reads what it reads;
+`FlyingGame.Core.Instruments.AsiUnits` / `AsiDial` is the only thing that converts, and the flat dials
+(`AnalogGauges`), the HUD box (`HudOverlay`), the headset's world HUD (`VrWorldHud`) and the split-screen HUD
+(`LocalPlayerHud`) all ask it. They each carried their own `* 1.9438` and their own hard-coded `"KT"` before, on all
+35 types — including the Pitts, whose MODELLED panel ASI has read mph (TCDS A8SO, 212 mph CAS) since 2026-11-02 while
+the same aeroplane's exterior dial read knots in the same session.
+
+**17 mph / 18 knots.** mph: J-3 (+floats), PA-18 (cub/bush/floats), Stearman, Jenny, Gee Bee, Pawnee, Great Lakes,
+2-33, Pitts, Cassutt, Decathlon, AirCam (+amphib), hang glider, paraglider, P-51D, DC-3, H-4. Knots: 172, Archer,
+SR22, Extra 300, Glasair III, Beaver (+floats), Seminole, 737, F-86, EB29R, Swift S-1, Grob 103, target drone.
+
+**Two are his word against the rule and his word wins** — the Great Lakes stays mph (TCDS A18EA is in mph CAS anyway)
+and the Extra stays knots (its POH section 2 is in KIAS, so here the RULE is what was wrong, not him). **Three depart
+from the shape he was shown**, by applying the rule he actually chose: the P-51D, DC-3 and H-4 are vintage pistons,
+not turbine and not certified-modern, and their real indicators are marked in mph. One line flips any of them.
+
+**The 172's face was two aeroplanes in two units.** It declared `units: mph` with white [49,100] and a green floor of
+57 — a 172M's mph markings — under a green top of 128, a yellow arc and a red line of 164, which are a 172S's KNOTS
+(VNO 129, VNE 163). Its own `_source` said the numbers were "copied unchanged" from the old `c172_cockpit.py` face, so
+nobody had ever checked them: the red line sat 25 % fast on a face labelled MPH. It is now one aeroplane in one unit,
+the 172S POH's own KIAS markings, which also agree with `limits.vneMs` 84 m/s = 163.3 kt. The PNG face is redrawn.
+
+**The flat dial got the arcs and the red line it never had.** Its scale used to be guessed (2.2 × the spawn speed) with
+one invented red low-speed arc and NO red line at all. It now takes the published face verbatim where the config has
+one (the four modelled cockpits), so the exterior dial and the panel dial mark the same speeds; where it derives a
+scale it still forces it to reach Vne, because the red line has to go somewhere. The low-speed arc stays — it is a game
+affordance, not a marking — but ends at the published stall where there is one.
+
+**`docs/GLIDE-TABLE.md` quotes 1.3 Vso in the dial's own unit** (new ASI column). The machine-readable
+`configs/glide-table.json` stays in knots: that is a code contract. Regenerating it also picked up physics drift that
+was ALREADY making `GlideTableTests` red on this lane's base (the 737 at 197.1 → 187.0 kt) — a pre-existing failure,
+not this change.
+
+**Left in knots on purpose**: the flight-test data block (KIAS/KTAS/KEAS/MACH), the companion widget's NTSB panel and
+its wire protocol (`kias`), and the ACS tolerances in `Syllabus/Standards`. Those are instrumentation, a contract and
+a published standard — not the dial in front of the pilot.
+
+**NEEDS YOU — the 2-33's Vne disagrees with its own placard.** `limits.vneMs` is 60 m/s = 134 mph, straight from the
+2026-09 scaffolding commit and never revisited; the 2-33's modelled panel and its FLIGHT LIMITS placards say NEVER
+EXCEED 98 MPH (FAA AFM at 1040 lb, `make_sgs_dials.py`). One of them is wrong. Changing Vne is a physics change, not a
+units change, so it is not in this commit.
+## One livery per type on the phone: 2.13 GB of 4.03 GB was alternate paint — Claude, 2026-11-10, lane/claude-fleet-shape
+
+<!-- phone-liveries 4gb-limit glb-textures-uncompressed testflight-size build-time-subset -->
+
+Ty, offered four ways to get the iOS build under App Store Connect's 4 GB limit, chose: *"Ship a single default
+livery for each aeroplane; the alternates stay in desktop and Quest builds."*
+
+**MEASURED FIRST, and the story's mechanism was wrong while its remedy was right.** The whole `unity/Assets` tree is
+265 MB on disk and the build was 4.29 GB, so on-disk size tells you nothing. Every texture embedded in a GLB is
+imported by glTFast's ScriptedImporter — Unity's platform texture pipeline never sees it, there is no compression
+field in a `.glb.meta` at all, and the pixels ship uncompressed at 4 bytes each with a full mip chain. The 39 GLBs
+hold **754.92 Mpix**; 754.92e6 x 4 x 4/3 = **4,026,240,000 B** against the recorded `resources.assets.resS` of
+**4,024,558,864 B** — **0.04 % out**. resS was 93.8 % of that build, so it is to within rounding NOTHING BUT GLB
+TEXTURES. Not audio (1.1 MB in the whole tree), not video (none), not fonts, not the configs (StreamingAssets is
+1.4 MB), not meshes (166 MB). And Ty was right about the remedy for the right reason: an alternate livery is the same
+aeroplane with the paint baked in again, so it carries a **full duplicate texture set**.
+
+| held out of a phone build | in-build |
+|---|---|
+| extra-300-like `-own` (Talk Flying), `-own-n300uy` | 958 MB |
+| pitts-s2b-like `-own` (N31DG), `-own-n1191`, `-own-factory-unmarked` | 741 MB |
+| great-lakes-like `-own-red-sunburst`, `-own-white-stripes` | 343 MB |
+| glider-2-33-like `-own` (plain factory yellow) | 86 MB |
+| grob103 `-own-tf` | 6 MB |
+| **total** | **2,133 MB** |
+
+**4,026 MB of GLB textures becomes 1,894 MB**, and with the ~267 MB of everything else in the recorded build that is
+an estimated **2.16 GB against 4 GB — about 1.84 GB of margin, with the FULL fleet and no type restriction.** That is
+a better outcome than the slim package ever got (3.60-3.74 GB for six types): `FLYINGGAME_TF_SLIM` is no longer needed
+for size.
+
+**NOT VERIFIED BY A BUILD.** The build and deploy slot was held, so this is arithmetic that reproduced two recorded
+builds, not a measurement of a new one. `tools/deploy/deploy.sh` now prints the built `.app`'s size and its resS
+against the limit every build — there was no size check anywhere in the pipeline before, which is why 4.2 GB was a
+surprise and why every number in the record was measured by hand.
+
+**The defaults are not a new opinion: they are the ones already in `LiveryChoice`** — Extra unmarked, Pitts checkered
+unmarked (Ty 2026-10-28, "unmarked liveries become the game defaults"), the yellow Talk Flying 2-33 (Ty 2026-11-02,
+the only 2-33), the Great Lakes' and the Grob's single own model. The packager asks `LiveryChoice.Resolve` with no
+override and no saved choice, so the file it keeps IS the file the game loads, and a livery added to the picker
+cannot be forgotten.
+
+**Three GLBs are unreachable TODAY, before any policy**: `great-lakes-like-own-red-sunburst`, `-white-stripes` (343 MB
+in-build; `LiveryChoice` has no Great Lakes entry, so `OwnSuffix` always returns `-own`) and
+`glider-grob103-acro-like-own-tf` (6 MB; referenced nowhere at all). The livery policy holds them out anyway. Also
+`extra-300-like.glb`, the downloaded model, 22 MB in-build and never drawn because the Extra is in `OwnAlways` — left
+alone, since that is an own-models question, not a livery one.
+
+**PARITY: this stays inside the rule, and `docs/PARITY.md` now says why.** It is a build-time flag (rule 2), nothing
+is authored twice or deleted (rule 4), the subset is DERIVED from the shared `LiveryChoice` rather than listed per
+platform, the player's define stops the picker offering a file that did not ship, Mac and Quest call
+`BuildScript.RestoreAnyHeldAssets()` first so a dead iOS build cannot leak into them, and `PhoneLiveryTests` holds all
+of it. A platform-only GLB or a different default aeroplane on one platform WOULD be a fork; none of that is here.
+
+**NEEDS YOU — the bigger lever, which nobody has authorised.** Compressing the GLB textures saves more than the whole
+livery policy and costs no content: ASTC 4x4 keeps every type AND every livery at ~1.0 GB, 6x6 at ~0.45 GB. It needs a
+glTFast-level change or a post-import pass and a look at what it does to the baked paint, and the 2026-11-05 size
+audit listed texture-format changes as not blanket-authorised. Composable with this: one livery per type and ASTC 6x6
+together would be ~0.25 GB.
+## The debrief: what failed, when, what you did, and how long you took to notice — Claude, 2026-11-10, lane/claude-debrief
+
+<!-- debrief instructor-latency reaction-time overstress-straightening no-ground-track -->
+
+Ty, asked how far the failure-switchboard idea goes, chose three things: **an instructor in the back seat, scripted
+lessons with failures built in, and a debrief after the flight.** Asked where to start, he chose the debrief, against
+this reasoning, which he accepted: *"The replay already exists and is good. Turning it into a debrief — what failed,
+when, what you did, how long you took to notice — is the smallest step that is useful alone, and it is useful even
+solo."* Built: it works with no instructor, no second pilot and no network.
+
+**The recording already held almost all of it, and that is why this was the small step.** `FlightRecorder` keeps 30 Hz
+of pose, deflections, throttle, flap, gear, g, rpm and engine-running for ten minutes; `ReplayShapeTimeline` keeps every
+bend, set and blade; `ReplayDamageFxTimeline` keeps the fire. **Ty's own worked example needs nothing but the pose
+stream** — *"The engine quit at 4:12; the throttle came back at 4:19; best-glide speed was reached at 4:31. Seven
+seconds to notice"*: the engine's state, the throttle's position and the airspeed are all three in a `ReplayFrame`
+already. What had to be added is WHAT HAPPENED AND WHEN, which the recording never kept: `FlightEventLog`, polled once
+a display frame from the same place the pose is recorded, which sees the engine stop, every overstress the structure
+books, every panel that bends or folds, every part that goes, the stall, the spin, Vne, the propeller past its red
+line, the fire, the leak and the touchdowns — and takes a `Note()` for the three things the sim cannot see (the pilot
+leaving, the crash the relay names, and a failure an instructor or a lesson injects).
+
+**"Noticed" is defined, and where the definition cannot answer it says so.** `FlightResponse.TryReaction` returns the
+first DELIBERATE control movement after an event: a control more than a dead band from where it was held (15 % of
+throttle travel, 3° of surface) and STAYING there for 0.3 s, dated at the moment it moved, not when the dwell
+confirmed it. The dead band keeps a finger resting on a touch pad from timing as a decision; the dwell keeps one noisy
+frame from doing the same. And `PilotReaction.Clean` is false when the pilot was ALREADY working that control in the
+second before the event, because a hand already moving cannot be timed — a naive measurement on a flight where he
+happened to be rolling when the engine quit reads 0.2 s, which is the flattering, useless number this exists to
+refuse. The debrief prints the number either way and says plainly which kind it is.
+
+**A stall is measured in height, not in reaction time**, for exactly that reason: a pilot at the stall is already
+holding the stick back, that is how he got there. So the stall's line is what the recovery cost, graded against
+`LessonJudge.Std.StallLoss` — the ACS's 100 ft, which this repo already had, rather than a second copy of it. The
+touchdown is graded against `Std.TdSink` the same way.
+
+**A spin is named for what the rudder did, not just for what happened.** The entry is dated at the start of the
+rotation (not two seconds later when the dwell makes it certain), and the recording can see WHICH WAY the rudder went
+relative to the yaw without guessing anything, so pro-spin rudder is called pro-spin rudder.
+
+**The over-g line is the one that quotes him.** `OverstressMember` books the peak, the set and the weakening; the log
+follows the excursion frame by frame so the number reported is THIS pull's peak and not the flight's, and tells a bend
+from a straightening. A straightening gets its own paragraph, because it is his own rule and it costs four times:
+*"you can straighten your wings out once but it will cost you significantly for the next stress."* Measured on a
+right wing taken to 1.8 × limit and then pushed back: 2.6 % of its strength out the first way, **8.8 % putting it
+back** — more than four times, because the same ratio is a bigger demand on a wing that has already lost strength.
+
+**WHERE IT CANNOT SAY WHY, IT DOES NOT GUESS.** The engine's cause comes only from the five conditions
+`Aircraft.EngineRunning` itself tests (a lost nose, a lost propeller, a shut valve, starvation, both magnetos off);
+anything else prints *"Nothing in the recording says why."* `DebriefLimits` is handed in and any field left at zero
+deletes its line rather than filling it with an estimate — the best-glide speed is only paid for (one cached
+`ApproachSpawn.FindBestGlide` sweep) on a flight that actually lost its engine.
+
+**NO GROUND TRACK, EVER.** The obvious thing to draw on a debrief is where you flew, and that is the one thing this
+game does not do (his rule, 2026-10-18: no own-ship position, anywhere). `FlightDebriefTests.NoPositionInDebrief`
+records the same flight twice, once at the origin and once eleven kilometres away, and fails unless the two debriefs
+are identical text — a structural guarantee, in the spirit of `ChartRasterTests`, that the debrief cannot depend on
+position. Heights, speeds, angles, rates and times only.
+
+**Where it lives, and how many taps.** On the REPLAY BAR, not the live toolbar: that row is already seven buttons
+wide, and his standing complaint is menus — *"we need a shortcut button so I don't have to several menus deep."* So
+REPLAY (1 tap) → DEBRIEF (1 tap) to read it, and a tap on any line puts the play head four seconds before the moment
+it is about and plays. A line the ten-minute ring has dropped is still TOLD, and is not offered as a button: offering
+to show something and then doing nothing is worse than not offering. Portrait's second button row had one slot spare,
+so nothing in the flight-tested layout moved; landscape went from 11 slots to 12.
+
+**And it is the thing the other two build on.** `FlightEventKind.InjectedFailure` is in the enum with nothing yet
+raising it: an instructor at a switchboard, or a scripted lesson, logs one `Note()` and every measurement above works
+on it unchanged, because none of them ever asked where the failure came from. Both magnetos are already settable on
+the aeroplane (`Aircraft.MagLeft` / `MagRight`) and the log already names that cause.
+
+**Deliberately left out:** any score, any total, any star (the debrief has no numbers that add up — `LessonJudge`
+scores a lesson, where the pilot asked to be graded; a flight is not a lesson); the ground track; a landing's
+centreline offset (it needs a runway, and the crab angle the recording does hold is the number an instructor asks
+for); screenshots (the lesson debrief grabs those and they cost 6 MB); and spoken commentary (`LessonDebrief` already
+does that for lessons, and a flight debrief is something you read).
+
+**Uncompiled.** `DebriefPanel.cs` is new and `FlightReplay.cs`, `ViewPanel.cs` and `SceneBootstrap.cs` are changed;
+none of the four has seen a compiler, because no Unity build was run. Every symbol was hand-checked against its
+existing call sites. The shared half (`src/FlyingGame.Sim/Replay/FlightEventLog.cs`, `FlightReading.cs`,
+`FlightResponse.cs`, `FlightDebrief.cs`) compiles and is covered by 23 tests in `FlightDebriefTests` that run in
+0.3 s. The Unity half and the shared half are in ONE commit on purpose: the parity lock allows a lane only one
+leading shared commit, and `unity/Assets/_Project/Scripts/` is a shared path.
+
 ## The gear hinges on the fuselage and the track widens; and toe was on one wheel — Claude, 2026-11-10, lane/claude-gear-flex
 
 <!-- gear-leg-pivot splay bungee-travel toe-both-mains tipping-threshold -->

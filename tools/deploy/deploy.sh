@@ -95,6 +95,24 @@ xcodebuild -project Unity-iPhone.xcodeproj -scheme Unity-iPhone -configuration R
 # lines above the summary, and `tail -5` showed only "(2 failures)". pipefail still carries xcodebuild's
 # own exit status past the grep, so a failed build still stops the script.)
 APP="$(ls -d /private/tmp/flyinggame-dd/Build/Products/Release-iphoneos/*.app | head -1)"
+
+# == APP SIZE AGAINST APP STORE CONNECT'S 4 GB ==
+# There was no size check anywhere in this pipeline, which is why 4.2 GB was a surprise: build 2026.1105.1550 went
+# over ITMS-90558's limit and nobody knew until the upload bounced, and every number in the record after that was
+# measured by hand. Apple's limit is on the UNCOMPRESSED payload, so that is what this measures -- the .app as built,
+# and the one file that is almost all of it (Data/resources.assets.resS: 93.8 % of that build, and to within 0.04 %
+# nothing but GLB textures at 4 bytes a pixel with their mips). It only ever PRINTS: a deploy that refuses because an
+# estimate crossed a line would cost more than it saves, and the pilot wants his build.
+APP_BYTES=$(du -sk "$APP" 2>/dev/null | awk '{print $1*1024}')
+RESS="$APP/Data/resources.assets.resS"
+RESS_BYTES=$([ -f "$RESS" ] && stat -f %z "$RESS" || echo 0)
+printf '== app size: %.2f GB uncompressed (resources.assets.resS %.2f GB, %d%%) against a 4 GB limit\n' \
+  "$(echo "$APP_BYTES/1000000000" | bc -l)" "$(echo "$RESS_BYTES/1000000000" | bc -l)" \
+  "$([ "$APP_BYTES" -gt 0 ] && echo $((RESS_BYTES * 100 / APP_BYTES)) || echo 0)"
+if [ "$APP_BYTES" -gt 4000000000 ]; then
+  echo "== SIZE: OVER 4 GB. App Store Connect will reject the upload (ITMS-90558). One livery per type should be on"
+  echo "==       by default (FLYINGGAME_PHONE_ALL_LIVERIES unset); FLYINGGAME_TF_SLIM=1 also drops the fleet to six."
+fi
 # Explicit build-only mode: never enter device discovery/install/launch for NOINSTALL.
 if (( ${#DEVICES} == 1 )) && [[ "$DEVICES[1]" == NOINSTALL ]]; then
   echo "== NOINSTALL — build only: $APP"

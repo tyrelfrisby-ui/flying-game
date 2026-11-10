@@ -52,14 +52,20 @@ namespace FlyingGame.Bridge
                 p = new Vector2(sp.x - r.x, Screen.height - sp.y - r.y);
                 visible = sp.z > 0;
             }
+            // The split-screen HUD reads the unit this aeroplane's own ASI reads (Core AsiUnits; Ty 2026-11-10,
+            // "by era and category"). Two players on one screen can be in two different aeroplanes, so each half
+            // asks its own driver.
+            var asiUnit = FlyingGame.Core.Instruments.AsiUnits.For(d.Sim.Aircraft.Config);
             Draw(r, View.PlayerIndex, GamepadInput.NameFor(View.PlayerIndex) != null,
-                d.IasMs * 1.943844, d.AltitudeM * 3.28084, d.HeadingRad * Mathf.Rad2Deg,
-                d.LoadFactorG, p, armed, visible);
+                FlyingGame.Core.Instruments.AsiUnits.FromMs(asiUnit, d.IasMs), d.AltitudeM * 3.28084, d.HeadingRad * Mathf.Rad2Deg,
+                d.LoadFactorG, p, armed, visible, FlyingGame.Core.Instruments.AsiUnits.Caption(asiUnit));
         }
 
-        /// <summary>Shared live/review drawing entry; pipper is local to the safe viewport.</summary>
-        public void Draw(Rect r, int player, bool connected, double knots, double feet, double degrees,
-            double g, Vector2 p, bool armed, bool visible)
+        /// <summary>Shared live/review drawing entry; pipper is local to the safe viewport.
+        /// <paramref name="speed"/> is already in <paramref name="speedCaption"/>'s unit — the caller's aeroplane
+        /// decides (Core AsiUnits). The default keeps the editor's review fixture (Editor/LocalHudShots) honest.</summary>
+        public void Draw(Rect r, int player, bool connected, double speed, double feet, double degrees,
+            double g, Vector2 p, bool armed, bool visible, string speedCaption = "KT")
         {
             // 430 x 390 points is the small landscape half. Scale from this view, never the full screen.
             float scale = Mathf.Min(r.width / 430f, r.height / 390f);
@@ -82,7 +88,7 @@ namespace FlyingGame.Bridge
             float y = r.height - margin - row;
             Box(new Rect(margin, y, w, row), .72f);
             float cell = w / 3f;
-            GUI.Label(new Rect(margin + fs * .5f, y, cell, row), $"{knots:F0} KT", _text);
+            GUI.Label(new Rect(margin + fs * .5f, y, cell, row), $"{speed:F0} {speedCaption}", _text);
             _text.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(margin + cell, y, cell, row), $"{feet:F0} FT", _text);
             _text.alignment = TextAnchor.MiddleRight;

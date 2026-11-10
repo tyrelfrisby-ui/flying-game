@@ -43,9 +43,32 @@ public static class LiveryChoice
         ["glider-2-33-like"] = ("talk-flying", new[] { "factory" }),
     };
 
-    /// <summary>The schemes a player can choose between for <paramref name="aircraftId"/>; empty if it has no choice.</summary>
-    public static IReadOnlyList<(string Id, string Name)> For(string? aircraftId) =>
-        aircraftId != null && Options.TryGetValue(aircraftId, out var o) ? o : Array.Empty<(string, string)>();
+    /// <summary>Every type the picker has more than one scheme for (the packager's list; see PhoneLiveries).</summary>
+    public static IReadOnlyList<string> TypesWithOptions
+    {
+        get
+        {
+            var list = new List<string>();
+            foreach (var kv in Options) if (kv.Value.Length > 1) list.Add(kv.Key);
+            list.Sort(StringComparer.Ordinal);
+            return list;
+        }
+    }
+
+    /// <summary>The schemes a player can choose between for <paramref name="aircraftId"/>; empty if it has no choice.
+    ///
+    /// ON THE PHONE THERE IS ONE (Ty 2026-11-10: "ship a single default livery for each aeroplane; the alternates stay
+    /// in desktop and Quest builds"). An iOS player is compiled with PhoneLiveries.Define and its build does not
+    /// CONTAIN the alternates' GLBs, so offering them would be offering a missing file: the list is cut to the default
+    /// (the first), which makes HasChoice false, hides the picker and sends Resolve to <see cref="FleetDefault"/> —
+    /// and every type's <see cref="OwnSuffix"/> maps its first option and "type" to the same GLB, so the aeroplane is
+    /// unchanged. Mac and Quest builds see the whole list.</summary>
+    public static IReadOnlyList<(string Id, string Name)> For(string? aircraftId)
+    {
+        if (aircraftId == null || !Options.TryGetValue(aircraftId, out var o)) return Array.Empty<(string, string)>();
+        if (PhoneLiveries.OneLiveryPerType && o.Length > 1) return new[] { o[0] };
+        return o;
+    }
 
     /// <summary>Does this type get a picker?</summary>
     public static bool HasChoice(string? aircraftId) => For(aircraftId).Count > 1;
@@ -68,6 +91,10 @@ public static class LiveryChoice
     /// one of its options, else the type's default; "type" for a type with no choice.</summary>
     public static string Resolve(string? aircraftId, string? envOverride, string? saved)
     {
+        // AERO_LIVERY asks for a GLB by name, and on the phone the alternates are not in the build at all
+        // (PhoneLiveries). Drop the override there rather than place a model that is not there: a capture build that
+        // really needs them is made with FLYINGGAME_PHONE_ALL_LIVERIES=1, which leaves the define off.
+        if (PhoneLiveries.OneLiveryPerType) envOverride = null;
         if (aircraftId != null && Only.TryGetValue(aircraftId, out var only))
             return !string.IsNullOrEmpty(envOverride) && System.Array.IndexOf(only.OverrideAlso, envOverride) >= 0 ? envOverride! : only.Id;
         if (!string.IsNullOrEmpty(envOverride)) return envOverride!;
