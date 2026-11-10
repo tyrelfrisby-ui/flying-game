@@ -15,6 +15,9 @@ namespace FlyingGame.Bridge
         public ChaseCamera Chase;
         public FlightReplay Replay;
         public OptionsPanel Options;
+        /// <summary>The debrief, opened by the DEBRIEF button on the replay bar (Ty 2026-11-10). Null = no debrief
+        /// button, which is what a build without the panel gets.</summary>
+        public DebriefPanel Debrief;
         private FlyingGame.Bridge.Practice.PracticeController _practice;
         private FlyingGame.Bridge.Net.NetSession _net;
         private StartMenu _menu;
@@ -84,7 +87,11 @@ namespace FlyingGame.Bridge
             if (OpenViewMenuRequest) { _viewMenu = true; OpenViewMenuRequest = false; }
             EnsureStyles();
             _talkRect = default;
-            if (Replay != null && Replay.Active) DrawReplayBar();
+            // The debrief takes the whole screen, and the replay bar steps aside while it is up — the same rule the
+            // live column already follows for OPTIONS and the Aero panel. Two IMGUI layers both answer the same tap,
+            // so leaving the bar drawn under the debrief would let one press work a button on each. CLOSE on the
+            // debrief brings the bar back.
+            if (Replay != null && Replay.Active) { if (!DebriefPanel.IsOpen) DrawReplayBar(); }
             else if ((Options == null || !Options.IsOpen) && !Widget.GameAeroPanel.IsOpen) DrawLiveColumn();
             DrawToast();
         }
@@ -337,7 +344,9 @@ namespace FlyingGame.Bridge
             float s = Mathf.Min(Screen.width, Screen.height);
             bool portrait = ScreenLayout.Portrait;
             float gap = s * 0.015f;
-            int perRow = portrait ? 6 : 11;   // (the manual SMOKE switch keeps its own slot, so nothing moves when it appears)
+            // 12 slots: portrait keeps its two rows of six, and landscape went from 11 to 12 when DEBRIEF arrived
+            // (Ty 2026-11-10). Portrait's second row had one slot spare, so nothing in the flight-tested layout moved.
+            int perRow = portrait ? 6 : 12;   // (the manual SMOKE switch keeps its own slot, so nothing moves when it appears)
             int rows = portrait ? 2 : 1;
             float bh = s * (portrait ? 0.085f : 0.07f);
             float trackH = s * 0.05f, labelH = _fs * 1.6f;
@@ -408,6 +417,13 @@ namespace FlyingGame.Bridge
             bool recOn = ClipRecorder.Recording;
             if (UiLayout.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
             if (UiLayout.Button(Next(), "EXIT\nREPLAY", _btnOn)) Replay.Exit();
+            // THE DEBRIEF (Ty 2026-11-10): what failed, when, what you did, how long you took to notice. It lives
+            // here and not on the live toolbar because that row is already seven buttons wide and his standing
+            // complaint is menus — "we need a shortcut button so I don't have to several menus deep". From flying:
+            // REPLAY, DEBRIEF, and a tap on a line puts the play head four seconds before the moment it is about.
+            Debrief ??= GetComponent<DebriefPanel>();
+            if (Debrief != null && UiLayout.Button(Next(), "DEBRIEF", DebriefPanel.IsOpen ? _btnOn : _btn))
+                Debrief.Toggle();
             if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, bar.y);
         }
     }
