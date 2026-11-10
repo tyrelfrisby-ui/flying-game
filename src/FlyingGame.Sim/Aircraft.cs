@@ -1218,7 +1218,21 @@ public sealed partial class Aircraft
         // should have met near zero. Ty 2026-11-09: "the ailerons are connected to one another as one trys to
         // weathervane the other is also trying to weather vane and cancels it out".
         double dirNow = i < _flowState.HingeFlowDir.Length ? _flowState.HingeFlowDir[i] : 1.0;
-        double al = _flowState.HingeAlphaRad[i] * (dirNow >= 0.0 ? 1.0 : -1.0);
+        // CONTINUOUSLY, not by its SIGN. HingeFlowDir runs +1 (normal flow) through 0 (pure crossflow) to -1 (flow
+        // from the trailing edge), and taking sign(dir) puts a step right at zero: wherever the chordwise flow hovers
+        // near crossflow the float target snaps between extremes every frame. Ty 2026-11-09: "there's a high
+        // frequency twitch especially in aileron post crash that has crept in today... it could be from that aileron
+        // centering work" - and he was right, it was this. Post-crash, tumbling and sliding, dir crosses zero
+        // constantly.
+        //
+        // Using dir ITSELF is also the better statement: at pure crossflow a surface has no preferred direction to
+        // trail, so its flow term should FADE OUT there rather than flip, and it still un-reverses properly at -1.
+        // dir ITSELF is continuous but scales the term down everywhere (|dir| < 1 through a spin), which threw away
+        // the interconnect cancellation and put the ailerons back on their stops. So: full magnitude wherever the
+        // flow has a definite direction, fading to zero only in a narrow band either side of pure crossflow, where a
+        // surface genuinely has no preferred way to trail.
+        const double dirBand = 0.15;
+        double al = _flowState.HingeAlphaRad[i] * Math.Clamp(dirNow / dirBand, -1.0, 1.0);
         double att = Math.Clamp(al, -0.35, 0.35);
         double sep = Math.Clamp((Math.Abs(al) - 0.35) / 0.35, 0.0, 1.0); sep = sep * sep * (3 - 2 * sep);
         // AND THE LEADING EDGE DECIDES IT, once it has an opinion. The blend above is a smooth function of the local
