@@ -25,7 +25,16 @@ namespace FlyingGame.Bridge
         public FlightSimDriver Driver;
         private bool _open;
         public bool IsOpen => _open;
-        public void Close() { _open = false; Unpause(); }
+        public void Close() { _open = false; _overLanding = false; Unpause(); }
+
+        /// <summary>
+        /// OPEN OVER THE LANDING PAGE (Ty 2026-11-10: "We need access to options on the landing page"). The panel
+        /// used to refuse while the landing page was up, which put every setting behind taking off first — and the
+        /// one he wanted is TV SCREEN, which is exactly the thing you set BEFORE you fly, with the TV already
+        /// plugged in. StartMenu hides itself while this is up, so the two never draw over each other.
+        /// </summary>
+        public void OpenOverLandingPage() { Open(); _overLanding = true; }
+        private bool _overLanding;
         /// <summary>A gamepad's Menu button: open the panel, or close it if it is open (never over the landing page).</summary>
         public void Toggle() { if (_open) Close(); else if (!SessionSettings.MenuOpen) Open(); }
         private GUIStyle _btn, _btnOn, _tab, _tabOn, _head, _label, _note;
@@ -309,7 +318,9 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
-            if (SessionSettings.MenuOpen) { if (_open) { _open = false; Unpause(); } return; }
+            // The landing page is up: normally this panel stays out of the way, but not when it was deliberately
+            // opened from there (OpenOverLandingPage).
+            if (SessionSettings.MenuOpen && !_overLanding) { if (_open) { _open = false; Unpause(); } return; }
             EnsureStyles();
             if (!_open)
             {
