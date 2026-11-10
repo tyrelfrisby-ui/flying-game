@@ -8,6 +8,14 @@
 //          FlightAudio's audio thread (VO_RenderRx): jitter buffer, 300-3000 Hz radio band, a little drive and static,
 //          a squelch "kssh" when the other pilot unkeys. Being in the game mix, clips record it too.
 // Lock-free single-producer/single-consumer rings between the threads.
+//
+// WITH A TV CONNECTED (Ty 2026-11-04, Q7: "radio/intercom audio stays on the phone or headset, not the TV"). iOS gives
+// the app one route, so VoiceComms.cs decides (Core TvAudioPolicy) and VO_SetRoute carries it out:
+//   keepOffTv  : the play-and-record session WITHOUT AllowAirPlay, so iOS never routes it to an AirPlay receiver;
+//   speaker    : overrideOutputAudioPort Speaker, because an HDMI adapter IS an eligible play-and-record output.
+// And as a latch that needs no round trip through C#: while the current route has a TV port in it (HDMI, AirPlay,
+// DisplayPort), VO_RenderRx adds nothing to the game mix, so a radio call is held silent rather than played on a TV
+// (TvAudioPolicy.RadioAudible is the same rule). Off the TV, everything here is exactly as before.
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 #include <TargetConditionals.h>
@@ -88,6 +96,8 @@ Resampler gToUnity, gTo8k;
 FRing gSideRing, gClipOwn;
 BRing gTx;
 std::atomic<float> gMicLevel{0};
+std::atomic<bool> gKeepOffTv{false}, gForceSpeaker{false}, gRxOnTv{false};
+NSString *gRouteOutputs = @"";   // comma-separated port types, for C# (guarded by @synchronized)
 
 void ProcessMic(const float *x, uint32_t n) {
     bool ptt = gPtt.load(), ic = gIntercom.load(), hp = gHeadphones.load();
@@ -115,12 +125,18 @@ void ProcessMic(const float *x, uint32_t n) {
 void UpdateRoute() {
     bool hp = false;
 #if TARGET_OS_IPHONE
+    NSMutableArray<NSString *> *types = [NSMutableArray array];
+    bool tv = false;
     for (AVAudioSessionPortDescription *p in AVAudioSession.sharedInstance.currentRoute.outputs) {
         NSString *t = p.portType;
+        [types addObject:t];
+        if ([t isEqualToString:AVAudioSessionPortHDMI] || [t isEqualToString:AVAudioSessionPortAirPlay] || [t isEqualToString:@"DisplayPort"]) tv = true;
         if ([t isEqualToString:AVAudioSessionPortHeadphones] || [t isEqualToString:AVAudioSessionPortBluetoothA2DP] ||
             [t isEqualToString:AVAudioSessionPortBluetoothLE] || [t isEqualToString:AVAudioSessionPortBluetoothHFP] ||
             [t isEqualToString:AVAudioSessionPortUSBAudio]) hp = true;
     }
+    gRxOnTv.store(tv);   // the latch: never mix the radio into a route that is on its way to a TV
+    @synchronized ([NSNull null]) { gRouteOutputs = [types componentsJoinedByString:@","]; }
 #else
     // Mac: the default output device — anything but the built-in speakers (headphone jack, USB, Bluetooth) counts as
     // headphones, so the sidetone only plays where it can't feed back into the mic.
@@ -170,24 +186,48 @@ static void PreferHeadsetMic() {
     }
     if (best) [s setPreferredInput:best error:nil];
 }
+
+extern "C" void FlyingGame_SetPlaybackAudioSession(void);   // AudioSessionPlayback.mm
+
+/// The session the voice needs right now (main thread). With the mic running, or with voice in use and a TV connected,
+/// it is play-and-record; AirPlay is allowed only when the TV is not to be kept off. Otherwise the plain playback
+/// session the game starts with (AudioSessionPlayback.mm), so a TV gets the game's sound when no one is talking.
+void ApplySession() {
+    AVAudioSession *s = AVAudioSession.sharedInstance;
+    bool keepOff = gKeepOffTv.load(), engine = gEngine != nil;
+    NSError *err = nil;
+    if (engine || keepOff) {
+        AVAudioSessionCategoryOptions o = AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetooth |
+                                          AVAudioSessionCategoryOptionAllowBluetoothA2DP | AVAudioSessionCategoryOptionMixWithOthers;
+        if (!keepOff) o |= AVAudioSessionCategoryOptionAllowAirPlay;
+        if (![s.category isEqualToString:AVAudioSessionCategoryPlayAndRecord] || s.categoryOptions != o)
+            [s setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:o error:&err];
+        [s overrideOutputAudioPort:gForceSpeaker.load() ? AVAudioSessionPortOverrideSpeaker : AVAudioSessionPortOverrideNone error:nil];
+        if (engine) PreferHeadsetMic();   // the headset's own microphone, not the one under his fingers
+    } else if (![s.category isEqualToString:AVAudioSessionCategoryPlayback]) {
+        FlyingGame_SetPlaybackAudioSession();
+    }
+    [s setActive:YES error:nil];
+    if (err) NSLog(@"[VoiceIO] session: %@", err);
+    UpdateRoute();
+    NSLog(@"[VoiceIO] route: keepOffTv %d speaker %d -> %@ (%@)", (int)keepOff, (int)gForceSpeaker.load(), s.category, gRouteOutputs);
+}
 #endif
 
 void StartEngine() {
     NSError *err = nil;
 #if TARGET_OS_IPHONE
     AVAudioSession *s = AVAudioSession.sharedInstance;
-    [s setCategory:AVAudioSessionCategoryPlayAndRecord
-       withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetooth
-                   | AVAudioSessionCategoryOptionAllowBluetoothA2DP | AVAudioSessionCategoryOptionMixWithOthers
-             error:&err];
+    gEngine = [AVAudioEngine new];   // (set first: ApplySession keys play-and-record off it)
+    ApplySession();
     [s setPreferredIOBufferDuration:0.005 error:nil];
     [s setActive:YES error:nil];
     PreferHeadsetMic();
 #endif
-    gEngine = [AVAudioEngine new];
+    if (gEngine == nil) gEngine = [AVAudioEngine new];
     AVAudioInputNode *in = gEngine.inputNode;
     AVAudioFormat *inF = [in inputFormatForBus:0];
-    if (inF.sampleRate <= 0 || inF.channelCount == 0) { gState = -2; NSLog(@"[VoiceIO] no input format"); return; }
+    if (inF.sampleRate <= 0 || inF.channelCount == 0) { gState = -2; gEngine = nil; NSLog(@"[VoiceIO] no input format"); return; }
     gR = (float)inF.sampleRate;
     gHp.set(1, gR, 180.f, 0.707f); gLp.set(0, gR, 5000.f, 0.707f);
     gRadHp.set(1, gR, 350.f, 0.9f); gRadLp.set(0, gR, 2800.f, 0.9f);
@@ -212,6 +252,7 @@ void StartEngine() {
     [gEngine attachNode:gSide];
     [gEngine connect:gSide to:gEngine.mainMixerNode format:mono];
     [gEngine prepare];
+    if (![gEngine startAndReturnError:&err]) { gState = -2; gEngine = nil; NSLog(@"[VoiceIO] engine start failed: %@", err); return; }
     if (![gEngine startAndReturnError:&err]) { gState = -2; NSLog(@"[VoiceIO] engine start failed: %@", err); return; }
 #if TARGET_OS_IPHONE
     // A headset connected or dropped mid-flight: take its microphone, or hand the input back to the phone.
@@ -260,6 +301,36 @@ void VO_Init(int unityRate)
     gSideRing.init(1 << 14); gClipOwn.init(1 << 16); gTx.init(1 << 15);
     for (int i = 0; i < Slots; i++) gRx[i].bytes.init(1 << 15);
     InitRx(gU);
+#if TARGET_OS_IPHONE
+    // From the start, not only once the mic runs: the radio can be received without ever talking, and the TV latch
+    // (gRxOnTv) has to know where the route is for that too.
+    [[NSNotificationCenter defaultCenter] addObserverForName:AVAudioSessionRouteChangeNotification object:nil queue:nil
+                                                  usingBlock:^(NSNotification *n) { UpdateRoute(); }];
+    UpdateRoute();
+#endif
+}
+
+/// Q7: carry out Core TvAudioPolicy's decision (VoiceComms.cs calls this when it changes). Main thread.
+void VO_SetRoute(int keepOffTv, int forceSpeaker)
+{
+    gKeepOffTv = keepOffTv != 0;
+    gForceSpeaker = forceSpeaker != 0;
+#if TARGET_OS_IPHONE
+    ApplySession();
+#endif
+}
+
+/// The current outputs as comma-separated AVAudioSessionPort types ("HDMI", "Speaker", ...). Empty on the Mac.
+int VO_RouteOutputs(char *dst, int max)
+{
+    if (max <= 0) return 0;
+    NSString *r;
+    @synchronized ([NSNull null]) { r = gRouteOutputs; }
+    const char *u = r.UTF8String ?: "";
+    int n = (int)strnlen(u, (size_t)max - 1);
+    memcpy(dst, u, (size_t)n);
+    dst[n] = 0;
+    return n;
 }
 
 /// Ask for the microphone (first time only) and start the mic engine. Returns the state (see gState).
@@ -313,7 +384,7 @@ void VO_RenderRx(float *data, int frames, int channels)
 {
     if (gRxRate <= 0) return;
     double step = 8000.0 / gRxRate;
-    float vol = gRxVolume.load(), tailLen = 0.14f * gRxRate;
+    float vol = gRxOnTv.load() ? 0.f : gRxVolume.load(), tailLen = 0.14f * gRxRate;   // Q7: never into a TV
     int mask = 0;
     for (int s = 0; s < Slots; s++) {
         RxSlot &x = gRx[s];

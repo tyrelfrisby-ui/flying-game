@@ -478,6 +478,95 @@ Nothing approved by me. Not for TestFlight.
   No xcodebuild or device install for this HUD-only lane. Nothing approved by this lane.
 
 ## NEEDS YOU
+- **TV ANSWERS Q2/Q7–Q11 BUILT — iOS `** BUILD SUCCEEDED **` 2026.1104.1841, NOT INSTALLED, NOT MERGED (Claude, 2026-11-05
+  04:20 PT, lane/claude-tv-companion `48db5ae3`).** Isolated build (/private/tmp/tvc-ios, /private/tmp/tvc-dd), 0 `error CS`,
+  installed on **no** device; regenerated StreamingAssets/ProjectSettings restored. Nothing approved. Questions are
+  queued as **Q055** in ~/Developer/agent-lanes/QUESTIONS-FOR-TY.md (monitor default, install, Android result, merge).
+  - **Q2 iPad:** GAME ON TV is the same code on iPad and iPhone; the Core mode table now names the device
+    (`TvModeLogic.Decide(TvDevice …)`), and the TV button grid is tested at iPad mini and iPad Pro 13" sizes.
+  - **Q7 radio off the TV:** with voice in use (intercom on, or in a radio room) and a TV connected, VoiceIO holds the
+    session on play-and-record without AirPlay and forces the phone speaker unless a headset is in; a received call is
+    never mixed into a route that has HDMI/AirPlay in it (held silent instead). iOS has ONE route per app, so while voice
+    is in use the engine sound comes to the phone/headset too. Rule: `Core/TvAudio.cs`, tested as a table.
+  - **Q8 Mac second monitor:** Options › Display › SECOND MONITOR = Off (default) | Instruments. The dials fill the
+    monitor (scaled uniformly, crisp), the window keeps the flight. **Ty: default Off is my call** — Unity cannot give a
+    monitor back once it has it, so turning it off leaves it black until quit; say if you want it On by default.
+  - **Q9/Q10 companion pairing, TLS-PSK:** Mac Options › Controls › Companion › Pair a device shows a QR code and a PIN
+    (2 min, 5 tries, single use). The iPad's Camera opens the `aeroplay://pair` link in the app (QR, recommended), or
+    the iPad picks the Mac and types the PIN. Every connection is TLS 1.2 PSK (`TLS_PSK_WITH_AES_128_GCM_SHA256`);
+    inside it the device proves which key it holds. `tools/native-mac/aerolink-selftest.sh` runs the real listener and
+    client on loopback: right keys open and negotiate 0x00A8, wrong keys are refused in the handshake (PASSED).
+    **Not built yet:** controls/commands over the link and the companion controller UI (phase 4b).
+  - **Q11 Android compile — FAILED, and not because of this lane's code.** One run of
+    `Editor/PlayerScriptsCheck` (player scripts for Android + StandaloneOSX, no target switch): Android stops at 3
+    `error CS1069` in the third-party package `jp.keijiro.klak.ndi` (`Runtime/Internal/AndroidHelper.cs`:
+    `AndroidJavaObject` is in `com.unity.modules.androidjni`). The Quest lane gets that module through its XR packages;
+    the iOS lanes (island-nav and this one) do not have it, so no Android compile from an iOS lane gets past that package
+    to the game's own assemblies. Not re-run (you allowed one) and Packages not touched (Quest-only path). The
+    **StandaloneOSX** compile in the same run **COMPILED** (15 assemblies), covering the new Mac-only code. The real
+    Android proof is the Quest lane building after it merges this lane.
+  - **Tests:** FlightTests TvAnswersTests + TvLayoutTests 118/118; full suite 2106 pass / 128 fail /
+    6 skip (1 h 58 m). **None introduced here:** the failing classes run alone fail the same 108 test names on this lane
+    and on the branch point 14bab8e7 (built in a throwaway worktree, since removed): identical sets. The other 5 fail only
+    in the full run (coupling: GroundTow, ReversibleControl ×2, Soaring, TipWheel). No failing test, and nothing else in
+    `src/`, touches any type this lane added. Two of the 108 are repo state worth knowing: StreamingAssetsTests says the
+    StreamingAssets JSONs are committed and `aircraft/probe.json` is generated but not ignored. Unity EditMode 11/11,
+    PlayMode 6: 5 pass + 1 ignored (the old IMGUI-Repaint one; batchmode has no Game view), 0 `error CS`. Mac
+    AeroNative.bundle rebuilt with the Swift link (dlopen + every new symbol checked).
+  - **Unity hangs, not code:** three batch runs in this lane stalled at 0 % CPU in `PreloadManager::Stop` /
+    `WaitForAllAsyncOperationsToComplete` (one blocked in `getattrlistbulk` on Library/ShaderCache) while the machine ran
+    load ~40 with other lanes' builds; EditMode had already written 11/11. Killed only my own processes; moved this
+    lane's ShaderCache aside, after which the iOS export, the compile and PlayMode all ran clean. Other lanes' Unity runs
+    showed the same 0 % stall tonight (kill-red-23, hinge-slavestruts); not touched.
+  - **The "is Unity running" check has a false positive:** `ps … | grep -E '^ *[0-9]+ (/.*/)?(xcodebuild|Unity)( |$)'`
+    matches a `claude -p` watchdog whose prompt text contains "…Unity/xcodebuild is busy", so a lane that trusts it waits
+    forever (this one waited 19:03–22:58). My scripts now also require the matching process's executable to be Unity or
+    xcodebuild.
+  - **Parity** (`check-parity.sh` from lane/claude-parity, 04:20): island-nav 6f659d0d vs quest-islandnav 9f20d9f6
+    **OK** (every commit in, GLBs 31/31 identical; at 17:40 it was FAIL by one CLAUDE.md commit). This lane vs Quest:
+    **FAIL**, as for any unmerged lane (157 Quest-lane shared-path commits are not here, 15 GLBs differ). Fix is the
+    merge order in docs/PARITY.md: this lane into island-nav, then island-nav into the Quest lane the same day.
+  - **To try on a device** (plan §7.3 items 6–9): radio with HDMI and AirPlay; iPad AirPlay with Stage Manager on/off;
+    Mac second monitor; pair the iPad by QR then by PIN, send the `[Voice]`, `[TV]` and `[Companion]` lines.
+  - Export compliance: I left `ITSAppUsesNonExemptEncryption` false. The link uses only Apple's own TLS
+    (Network.framework), which as I read Apple's rules keeps it exempt. That is your call for App Store Connect.
+
+- **TV MODE: INSTALLED ON TY'S IPHONE + TY ANSWERED Q2/Q7-Q11 (Grok Bot, 2026-11-04 17:20 PT).** Ty approved the
+  device install 17:12 PT. Built from e165af8e (isolated /private/tmp/tvc-ios, /private/tmp/tvc-dd), `** BUILD SUCCEEDED **`,
+  installed on iPhone 00008150-001629A83662401C as 2026.1104.1713; regenerated mirrors/ProjectSettings restored. Answers
+  (17:14-17:15 PT): Q2 iPad too; Q7 radio/intercom on phone/headset, not TV; Q8 Mac in scope (instruments on second
+  monitor); Q9 QR + PIN, QR recommended; Q10 TLS-PSK in v1; Q11 yes, one Quest batch compile from this lane. Recorded in
+  plan §9. Not merged; no gate approved.
+- **TV MODE: ENGINE DIALS NOW BELOW THE AIRPLANE ON THE TV (Ty 07:33) — BUILT, NOT INSTALLED, NOT MERGED (Claude,
+  2026-11-04, lane/claude-tv-companion).** With analog instruments in TV mode the flight row (ASI, ALT, G, VSI) keeps the
+  top of the TV and the engine row (TACH, THR, FLOW, FUEL) is centred along the TV's bottom edge inside the title-safe
+  margin, below the aircraft. The cockpit view and the phone are unchanged. `deploy.sh` `** BUILD SUCCEEDED **` (stamp
+  `2026.1104.0737`), 0 `error CS`; placeholder UDID, so installed on **no** device. Before and after renders:
+  `renders/tv/v1/tv-tv-touch-analog-landscape.png` → `renders/tv/v2/tv-tv-touch-analog-landscape.png`.
+  **Parity:** `tools/check-parity.sh` is not on this branch; run from `lane/claude-parity` against
+  `lane/claude-quest-islandnav` it reports **FAIL**: 45 commits not on the Quest lane, 42 of them island-nav's own backlog
+  (same as this morning's audit). Nothing to fix in this lane; the Quest lane needs the island-nav merge, and later
+  this lane's.
+
+- **TV MODE (AirPlay / HDMI): GAME ON THE TV, PHONE AS THE CONTROLLER; TV + PAD BUTTON GRID — BUILT, NOT INSTALLED,
+  NOT MERGED (Claude, 2026-11-04, lane/claude-tv-companion `e5051bdc`, plan `docs/TV-COMPANION-PLAN.md` `63c858c4`).**
+  `deploy.sh` `** BUILD SUCCEEDED **` (stamp `2026.1104.0658`), 0 `error CS`; run with a placeholder UDID so it installed
+  on **no** device. Nothing approved. ProjectSettings bump and the Editor's StreamingAssets re-sync left uncommitted.
+  Renders of both screens: `renders/tv/v1/`.
+  1. **Please answer the plan's open questions** (§9). These have working defaults: **Q1** default for a new TV = Game on
+     TV (the alternative is Mirror). **Q3** TV shows instruments only, and the event/lesson lines stay on the phone.
+     **Q4** portrait is not locked. **Q5** title-safe margin 2.5 %. **Q6** the grid's button list (views, switches,
+     actions). These are open: **Q2** iPad too? **Q7** radio/intercom output on a TV. **Q8** Mac second monitor?
+     **Q9/Q10** companion pairing (QR, PIN or both) and TLS-PSK. **Q11** OK to run one Android (Quest) batch compile
+     from this lane?
+  2. **Only a device can prove the TV path** (plan §7.3). Install this lane, then try: AirPlay to an Apple TV and HDMI,
+     each with Options › Display › TV screen = Mirror and = Game on TV; connect and disconnect mid-flight; switch the
+     setting while connected; the 8BitDo connected (the grid appears). Send the `[TV]` log lines. Two behaviours are
+     unverified because only iOS has them: that iOS keeps mirroring until we show a window (R1), and that hiding the
+     window gives the TV back to mirroring (R2).
+  3. **Feature 4 (companion over the LAN) is plan only** (§5: `_aeroplayground._tcp`, Swift Network.framework, PIN/QR
+     plus HMAC, NDJSON, Mac authoritative). The Bonjour type is already declared in both apps so the first local-network
+     grant includes it.
 - **ANSWERED by Ty ~10:57–10:59 PST (Aero steer):** Quest is **NOT** same-device split / half virtual screen / Mac-TV mirror for 2P.
   - Quest 2P = **two Quest users**, each in **their own headset**, **full stereo view**, same Wi‑Fi / local network.
   - Also: **mixed-device LAN** — phone + iPad + Quest + Mac, **full screen on each device**, one shared LAN session.
@@ -5394,6 +5483,51 @@ final 21 failed / 824 passed; **failing names identical** (diffed). Rig classes 
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-04 07:45 — Claude · lane/claude-tv-companion · TV mode: analog engine row below the airplane (Ty 07:33)
+- **Ask:** "in TV mode with analog instruments, the engine instruments must go BELOW the airplane/main view, not above
+  (too crowded above)."
+- **Done:** Core `TvEngineRow.Below` places the TV's engine row centred on its bottom edge inside the title-safe margin,
+  at the full-width (pad) sizes, and never above the flight row. `AnalogGauges` uses it in the TV pass through its
+  existing "engine row below the airplane" path; the phone and the cockpit view are untouched.
+- **Tests:** FlightTests `TvLayoutTests` 42/42 (+3: 1080p literals worked by hand, i.e. the row is 734.33 × 151.925 at
+  y 881.635; bottom part of the picture for 16:9, 16:10, 4:3 and 21:9; never overlaps the flight row on a short picture).
+  Unity EditMode 7/7. Two of my first literals were wrong (rounding, and a "short" picture that was not short enough);
+  the code was right, and I corrected the test arithmetic.
+- **Build:** `deploy.sh` `** BUILD SUCCEEDED **` `2026.1104.0737`, 0 `error CS`, installed on no device.
+  ProjectSettings/GraphicsSettings and the StreamingAssets re-sync were restored and not committed.
+- **Renders** (`AERO_SELFTEST=tvshots`, temporary Mono capture player, not committed): `renders/tv/v2/`. I looked at the TV
+  analog, gamepad-analog and cockpit frames: the engine row is under the aircraft and the top holds only the flight row.
+### 2026-11-04 — Claude · lane/claude-tv-companion (off island-nav aeb9695a) · TV mode: game on the TV, phone as the controller
+- **Ask** (Ty): AirPlay/HDMI mirroring clean; game full size on a second screen with the phone as a full-screen touch
+  controller; the same with a Bluetooth pad (phone becomes a button pad); a Mac companion over the LAN following Glass's
+  pattern. Plan first, then 1–2 with tests, 3 if time allows, 4 at plan stage.
+- **Plan** `docs/TV-COMPANION-PLAN.md` + `docs/glass-companion-notes.md` (`63c858c4`). A key finding, from reading the
+  exported trampoline: the app runs the UIScene lifecycle with only the Application role, so `Display.Activate()` would
+  put Unity's TV window in no scene and show nothing. The external-display role and an inert scene delegate are required,
+  and Unity's own `UnityScene` cannot be that delegate (it forwards every scene's lifecycle to the app).
+- **Built** (`e5051bdc`): `TvOutput` (mode logic, TV-sized ping-pong textures, presenter on display 1, phone backdrop),
+  `UiSurface` (the HUD lays out for the TV only inside the TV pass; outside it is `Screen`, so handheld is unchanged),
+  `TvButtonPad` (feature 3 grid; every button presses an existing button), `Plugins/iOS/AeroTv.mm`, Info.plist roles,
+  Options › Display › TV screen. The phone keeps `TouchFlightControls` and the toolbar exactly as handheld. One-token
+  `Screen` → `UiSurface` edits in UiLayout, AnalogGauges, HudOverlay, ScreenLayout, ClipRecorder.
+- **Tests:** FlightTests `TvLayoutTests` 39/39 (literals worked by hand). Unity EditMode `TvSurfaceTests` 7/7. PlayMode
+  `TvOutputPlayTests` 3 passed, 1 **ignored**: the world reaches the simulated TV at its shape and full viewport, Mirror
+  leaves the camera alone, the setting switches mid-flight, and 5 connect/disconnect cycles leak no RenderTexture.
+  Ignored: "IMGUI lands in the TV picture", because a `-batchmode` Editor runs no Repaint pass. The `tvshots` render
+  covers it instead (below). These are the first Unity test assemblies in the repo (Test Framework 1.6.0 was already a
+  dependency; no manifest change).
+- **Quest:** the Android player compiles the same `#else` stubs the Editor compiled (0 errors), the plugin lives under
+  `Plugins/iOS/`, the tests drop out under `UNITY_INCLUDE_TESTS`, and nothing touches `Packages/` or XR. Not
+  compiled for Android here (Q11). Every file is "shared" under the parity rule, so it merges to the Quest lane with
+  island-nav.
+- **Render check** (`AERO_SELFTEST=tvshots`, a temporary uncommitted Mono Mac capture player under its own product name,
+  so Ty's Mac prefs were untouched; iPhone-shaped 2622 × 1206 phone with simulated safe areas, simulated 1920 × 1080 TV):
+  `renders/tv/v1/` — `tv-tv-*` the TV picture, `tv-phone-*` the phone. Looked at all of them: on the TV, dials and engine
+  row laid out for 16:9 and clear of the aircraft; the HUD with its engine readouts in the TV's bottom band and the
+  ladder stopping above it; the cockpit panel along the TV's bottom. On the phone, the unchanged controller on a dark
+  backdrop with "Showing on the TV · 1920 × 1080"; with a pad, the button grid (current view lit, no GEAR on the
+  fixed-gear 172, flaps showing 0 %). This is a desktop preview, not a device capture. It is also the evidence for the
+  PlayMode case that was ignored: the IMGUI pass does land in the TV picture.
 ### 2026-11-05 08:05 PST — Claude · merge-tundra-recorder (Ty approved 05:36) · tundra tyres + flight recorder into both lanes
 - Merged in throwaway worktrees so the merge worktrees' uncommitted ConfigSync/ProjectSettings leftovers were never
   touched (byte-checked against a tarball in agent-lanes/backups/merge-tundra-recorder before and after).

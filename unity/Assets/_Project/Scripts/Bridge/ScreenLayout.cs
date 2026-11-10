@@ -25,7 +25,7 @@ namespace FlyingGame.Bridge
         public const float TrimBarHeight = 0.045f;                    // aileron / rudder trim bars (RC-transmitter style)
         public const float FontFrac = 0.028f;         // TouchFlightControls' label font, min(w,h) fraction
 
-        public static bool Portrait => Screen.height > Screen.width;
+        public static bool Portrait => UiSurface.Height > UiSurface.Width;
 
         /// <summary>Pad label block above each pad: three label lines (name + value + the trim bar's label).</summary>
         public static float LabelBlockPx => Mathf.RoundToInt(UiLayout.Unit * FontFrac) * 1.5f * 3f;
@@ -61,8 +61,16 @@ namespace FlyingGame.Bridge
 
         /// <summary>RULE (owner 2026-09-10): no instrument or button may cover the aircraft. This is the aircraft's
         /// on-screen rectangle (screen px, bottom-left origin, padded), refreshed every frame by AirframeVisual;
-        /// layouts push their elements out of it.</summary>
-        public static Rect AircraftKeepOut { get; private set; } = new Rect(-1f, -1f, 0f, 0f);
+        /// layouts push their elements out of it.
+        /// TV MODE: the keep-out belongs to the screen that shows the aircraft. With the world on the TV it is in the TV's
+        /// pixels, which only the TV pass (UiSurface.IsTv) may use; the phone sees none, so its pads stop dodging an
+        /// aircraft that is not on it.</summary>
+        public static Rect AircraftKeepOut
+        {
+            get => TvOutput.Active && !UiSurface.IsTv ? new Rect(-1f, -1f, 0f, 0f) : _keepOut;
+            private set => _keepOut = value;
+        }
+        private static Rect _keepOut = new Rect(-1f, -1f, 0f, 0f);
         public static bool HasAircraftKeepOut => AircraftKeepOut.width > 0f;
 
         public static void UpdateAircraftKeepOut(Camera cam, Transform aircraft)
@@ -94,7 +102,7 @@ namespace FlyingGame.Bridge
                 }
             }
             if (!any) { AircraftKeepOut = new Rect(-1f, -1f, 0f, 0f); _smoothValid = false; return; }
-            float pad = Mathf.Min(Screen.width, Screen.height) * 0.04f;
+            float pad = (TvOutput.Active ? Mathf.Min(cam.pixelWidth, cam.pixelHeight) : Mathf.Min(Screen.width, Screen.height)) * 0.04f;
             // STABLE, not live (owner: buttons and dials must not jitter): the raw rect breathes with every bank and
             // camera sway, so smooth it (0.6 s), let it only GROW quickly and shrink slowly, and quantize the edges to
             // 24 px steps so layouts built from it change rarely.
@@ -116,6 +124,7 @@ namespace FlyingGame.Bridge
         {
             get
             {
+                if (TvOutput.Active) return new Rect(0f, 0f, 1f, 1f);   // TV mode: the camera draws the whole TV picture
                 var (x, y, w, h) = FlyingGame.Core.ChaseFraming.CameraViewport(TrayHeightPx, Screen.height, FullScreenView);
                 return new Rect((float)x, (float)y, (float)w, (float)h);
             }

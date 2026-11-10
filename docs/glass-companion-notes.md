@@ -1,0 +1,9 @@
+# Glass iOS companion pattern (from Glass bot, read-only, ~/Developer/glass-overlay/1.1)
+- Discovery: Bonjour via Network.framework only (NWListener.service Mac / NWBrowser iOS). Type _overlaystudio-control._tcp, instance "OverlayStudio-Control <Mac>", TXT {role, mac}. Auto-connect last/first Mac; skip refusing Mac 300 s.
+- Transport: plain TCP NWConnection, port 0, keepalive idle5/int5/count2, includePeerToPeer=true both sides. Separate listener for bulk. Binary frames w/ noDelay + credit pacing (wait .contentProcessed).
+- Auth (shared/Edit/ControlLinkAuth.swift): shared account key in Keychain, mutual HMAC challenge-response, 10 s timeout, one link per deviceID, constant-time compare. Wire unencrypted (TLS recommended). Without accounts: one-time PIN or QR shared key + TLS-PSK.
+- Messages: newline JSON {kind,payload}; command enum, normalized 0-1 coords; Mac authoritative, full state snapshot on connect/change.
+- Reconnect: TCP keepalive ~15 s; retry 2 s (20 s after auth refusal); guard conn === self.connection, nil stateUpdateHandler before cancel.
+- Files: mac-compositor/Sources/ControlServer.swift, ios-overlay/Sources/ControlClient.swift, shared/Edit/ControlLinkAuth.swift, project.yml (NSBonjourServices), docs SECURITY-P2P-TRANSPORT.md, TRANSPORT-ARCHITECTURE-PLAN.md, COMPANION-MODE-PLAN.md.
+- Gotchas: NSBonjourServices + NSLocalNetworkUsageDescription in both apps; macOS caches allowed Bonjour types at first grant (later types fail -65555) so declare all in v1 or one type + TXT role; sandboxed Mac needs network.server/client entitlements; no multicast entitlement needed; share wire types in one module.
+- Unity: .NET sockets can't do Bonjour/P2P -> native Swift Network.framework plugin. Don't use _aerowidget._tcp (Glass uses it); pick own, e.g. _aeroplayground._tcp.

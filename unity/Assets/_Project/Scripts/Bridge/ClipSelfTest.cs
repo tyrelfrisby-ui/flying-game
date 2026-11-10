@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge
         private IEnumerator Start()
         {
             string mode = System.Environment.GetEnvironmentVariable("AERO_SELFTEST");
-            if (mode == "hudshots") { yield return HudShotsTest(); yield break; }
+            if (mode == "hudshots" || mode == "tvshots") { yield return HudShotsTest(); yield break; }   // tvshots: TV mode, both screens
             if (mode == "combat") { yield return CombatTest(); yield break; }
             if (mode == "thermal") { yield return ThermalTest(); yield break; }
             if (mode == "dogfight") { yield return DogfightTest(); yield break; }
@@ -1231,6 +1231,8 @@ namespace FlyingGame.Bridge
             KeepPref("net.mode", "Int");
             KeepPref("net.lanHint", "String");
             KeepPref("net.lanNoRouter", "Int");
+            KeepPref("tv.setting", "Int");
+            bool tvShots = System.Environment.GetEnvironmentVariable("AERO_SELFTEST") == "tvshots";
             _hudShotsNavShown = NavRadios.Shown;
             int oldW = Screen.width, oldH = Screen.height; FullScreenMode oldMode = Screen.fullScreenMode;
             bool oldBackground = Application.runInBackground;
@@ -1295,6 +1297,7 @@ namespace FlyingGame.Bridge
                                    : $"[SelfTest] hudshots requested {w}x{h}, actual {Screen.width}x{Screen.height}; safe L/R {(portrait ? 0 : 186)} top {(portrait ? 186 : 0)} bottom 63 px (62pt/21pt at 3x)");
                     if (Screen.width != w || Screen.height != h)
                         throw new System.InvalidOperationException($"HUD capture needs {w}x{h}; window was clamped to {Screen.width}x{Screen.height}");
+                    if (tvShots) { yield return TvShots(orient, dir); continue; }
                     foreach (bool gamepad in new[] { false, true })
                     {
                         string layout = gamepad ? "gamepad" : "touch";
@@ -1314,6 +1317,7 @@ namespace FlyingGame.Bridge
             }
             finally
             {
+                if (tvShots) TvOutput.ShutdownForTest();
                 foreach (var kv in values) kv.Key.SetValue(null, kv.Value);
                 foreach (var restore in restorePrefs) restore(); PlayerPrefs.Save();
                 NavRadios.Shown = _hudShotsNavShown;
@@ -1330,6 +1334,42 @@ namespace FlyingGame.Bridge
             }
             Debug.Log("[SelfTest] DONE hudshots");
             if (System.Environment.GetEnvironmentVariable("AERO_SELFTEST_QUIT") == "1") Application.Quit();
+        }
+
+        /// <summary>
+        /// TV MODE (AERO_SELFTEST=tvshots): a simulated 1920 × 1080 TV, and for each case both screens — the phone as the
+        /// controller (tv-phone-*.png) and the TV's picture (tv-tv-*.png, read back from what the presenter drew). Touch
+        /// with dials, touch with the HUD, the cockpit view, and a game controller (the phone becomes the button grid).
+        /// </summary>
+        private IEnumerator TvShots(string orient, string dir)
+        {
+            TvOutput.Setting = FlyingGame.Core.TvSetting.GameOnTv;
+            TvOutput.SimulateForTest = true;
+            TvOutput.EnsureRunnerForTest();
+            var cases = new (bool pad, SessionSettings.InstrumentMode mode, ChaseCamera.View view, string name)[]
+            {
+                (false, SessionSettings.InstrumentMode.Analog, ChaseCamera.View.RelativeWind, "touch-analog"),
+                (false, SessionSettings.InstrumentMode.Hud, ChaseCamera.View.RelativeWind, "touch-hud"),
+                (false, SessionSettings.InstrumentMode.Analog, ChaseCamera.View.Cockpit, "touch-analog-cockpit"),
+                (true, SessionSettings.InstrumentMode.Analog, ChaseCamera.View.RelativeWind, "gamepad-analog"),
+            };
+            foreach (var c in cases)
+            {
+                yield return HudShot("c172-like", c.mode, c.pad, c.view, $"tv-phone-{c.name}-{orient}.png", dir);
+                Debug.Log($"[SelfTest] tvshots {c.name}: mode {TvOutput.Mode} active {TvOutput.Active} {TvOutput.Width}x{TvOutput.Height} grid {TvButtonPad.Showing}");
+                RenderTexture tv = TvOutput.SimDisplay;
+                if (tv == null) throw new System.InvalidOperationException("tvshots: no TV picture (TV mode did not start)");
+                var prev = RenderTexture.active;
+                RenderTexture.active = tv;
+                var tex = new Texture2D(tv.width, tv.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, tv.width, tv.height), 0, 0);
+                tex.Apply();
+                RenderTexture.active = prev;
+                string path = System.IO.Path.Combine(dir, $"tv-tv-{c.name}-{orient}.png");
+                System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+                Object.Destroy(tex);
+                Debug.Log($"[SelfTest] tvshots wrote {path}");
+            }
         }
 
         private bool _hudShotsNavShown;

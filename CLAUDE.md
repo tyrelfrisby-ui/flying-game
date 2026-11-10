@@ -487,6 +487,12 @@ weight, not the result. When a terrain change makes far-off ground go strange, s
 change. And expect a regenerated relief to re-pick every generator-chosen site (snow patches, ledges, boulders): that
 search is a global ranking, so its literal tests must be re-copied from the new report, not "fixed".
 
+### A "nothing is building" check must look at the process, not its command line
+The wait-for-free check `ps -axo pid,command | grep -E '^ *[0-9]+ (/.*/)?(xcodebuild|Unity)( |$)'` reads whole command
+lines, and a `claude -p` agent's command line is its prompt. One prompt said "…while Unity/xcodebuild is busy", which the
+regex matches, so the TV lane waited from 19:03 to 22:58 for a build that did not exist. Keep the regex if a brief asks
+for it, but count a match only when that pid's executable (`ps -o comm= -p PID`) is Unity or xcodebuild.
+
 ### A test filter that matches nothing is not a passing run, and a poll that waits for a pass never ends
 Re-running the merge's failures, the names were cut out of the log with `sed 's/^\s*Failed //'`. BSD sed has no `\s`,
 so every name kept its `  Failed ` prefix and ` [6 s]` suffix, the `--filter` matched no test, `dotnet test` never

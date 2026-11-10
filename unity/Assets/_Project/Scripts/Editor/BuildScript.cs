@@ -438,13 +438,36 @@ namespace FlyingGame.EditorTools
             plist.root.SetString("NSMicrophoneUsageDescription", "Aero Playground uses the microphone for the intercom and the radio, and to put your voice in your clips.");
             plist.root.SetString("NSPhotoLibraryAddUsageDescription", "Aero Playground saves the flight clips you capture to your photo library.");
             // JOYSTICK LINK (owner 2026-10-12): the Mac's RC radio / joystick over the local network (Plugins/iOS/JoyLink.mm).
-            plist.root.SetString("NSLocalNetworkUsageDescription", "Aero Playground looks for your Mac on your local network so you can fly with the joystick or RC radio connected to it.");
+            plist.root.SetString("NSLocalNetworkUsageDescription", "Aero Playground looks for your Mac on your local network so you can fly with the joystick or RC radio connected to it, or use this device as its controls.");
             var bonjour = plist.root.CreateArray("NSBonjourServices"); bonjour.AddString("_aerojoy._udp");
             // FIELD GROUPS (owner 2026-10-17): MultipeerConnectivity browses Bonjour for its own service type,
             // and since iOS 14 every type it may browse has to be declared here or discovery silently finds
             // nobody. Both transports, because it uses TCP and UDP (Plugins/iOS/AeroPeer.mm, "aeroplay").
             bonjour.AddString("_aeroplay._tcp");
             bonjour.AddString("_aeroplay._udp");
+            // COMPANION (docs/TV-COMPANION-PLAN.md §5): one Bonjour type for every role, told apart by TXT records. Declared
+            // ahead of the feature because macOS caches the types allowed at the first local-network grant and a type
+            // added later fails with -65555 (docs/glass-companion-notes.md).
+            bonjour.AddString("_aeroplayground._tcp");
+            // TV MODE (Ty 2026-11-04): an external display (AirPlay / HDMI) gets a UIWindowScene of its own for Unity's
+            // DisplayManager to put the TV's window in, with an inert delegate (Plugins/iOS/AeroTv.mm). Without this the
+            // app's UIScene lifecycle never makes a scene on the TV and Display.Activate() shows nothing. Until a window is
+            // shown there iOS keeps mirroring. Both role names: NonInteractive is iOS 16+, the target is iOS 15.
+            var sceneManifest = plist.root["UIApplicationSceneManifest"] as PlistElementDict ?? plist.root.CreateDict("UIApplicationSceneManifest");
+            var sceneConfigs = sceneManifest["UISceneConfigurations"] as PlistElementDict ?? sceneManifest.CreateDict("UISceneConfigurations");
+            foreach (string role in new[] { "UIWindowSceneSessionRoleExternalDisplayNonInteractive", "UIWindowSceneSessionRoleExternalDisplay" })
+            {
+                var tv = sceneConfigs.CreateArray(role).AddDict();
+                tv.SetString("UISceneConfigurationName", "External Display");
+                tv.SetString("UISceneClassName", "UIWindowScene");
+                tv.SetString("UISceneDelegateClassName", "AeroExternalDisplayScene");
+            }
+            // COMPANION PAIRING BY QR (Ty 2026-11-04, Q9: "QR recommended"): the Mac's code is an aeroplay://pair link, so the
+            // iPad's or iPhone's own Camera reads it and opens this app with it (Bridge/Companion/CompanionLink.cs).
+            var urlTypes = plist.root["CFBundleURLTypes"] as PlistElementArray ?? plist.root.CreateArray("CFBundleURLTypes");
+            var pairUrl = urlTypes.AddDict();
+            pairUrl.SetString("CFBundleURLName", "com.tyrelfrisby.aeroplayground.pair");
+            pairUrl.CreateArray("CFBundleURLSchemes").AddString(FlyingGame.Core.CompanionPairing.Scheme);
             // GAMEPADS (Ty 2026-11-02, an 8BitDo Pro 2): the game reads MFi / Xbox / PlayStation pads through the
             // Input System (Bridge/GamepadInput.cs). iOS delivers a pad's input without these keys; they declare
             // that the app is driven by one — the App Store's "Game Controllers" badge, and the system leaves the
@@ -465,7 +488,8 @@ namespace FlyingGame.EditorTools
             // referenced from:" with nothing to say which plugin wanted it (2026-10-30).
             foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework", "Network.framework",
                                          "MultipeerConnectivity.framework", "PDFKit.framework", "UniformTypeIdentifiers.framework",
-                                         "GameController.framework" })   // (gamepads: Unity usually links it already; this makes sure)
+                                         "GameController.framework",     // (gamepads: Unity usually links it already; this makes sure)
+                                         "CoreImage.framework", "Security.framework" })   // companion: the QR code, TLS-PSK and the Keychain (AeroLink.swift)
                 proj.AddFrameworkToProject(fw, f, false);
             // The encoder guards its AVAssetWriter appends with @try (an append exception would otherwise abort the app);
             // Unity builds plugins with Objective-C exceptions off, so turn them on for that file.

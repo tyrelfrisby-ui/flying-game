@@ -425,6 +425,30 @@ namespace FlyingGame.Bridge
             int im = PickRow("Instruments", new[] { "Dials", "HUD", "None" }, System.Array.IndexOf(modes, SessionSettings.Instruments), ref y);
             if (im >= 0) { SessionSettings.Instruments = modes[im]; SessionSettings.SavePrefs(); }
 
+            // TV MODE (Ty 2026-11-04): what a connected TV (AirPlay or HDMI) shows, on the iPhone and the iPad alike (Q2).
+            // Always listed on iOS, so it can be set before the TV is plugged in; TvOutput applies it whenever one is there.
+            if (TvOutput.Supported || (TvOutput.SimulateForTest && TvOutput.SimDevice != FlyingGame.Core.TvDevice.Mac))
+            {
+                var tvs = new[] { FlyingGame.Core.TvSetting.GameOnTv, FlyingGame.Core.TvSetting.Mirror };
+                int tv = PickRow("TV screen", new[] { "Game on TV", "Mirror" }, System.Array.IndexOf(tvs, TvOutput.Setting), ref y);
+                if (tv >= 0) TvOutput.Setting = tvs[tv];
+                string self = TvOutput.Device == FlyingGame.Core.TvDevice.IPad ? "iPad" : "phone";
+                Note(TvOutput.TvConnected ? TvOutput.StatusText
+                     : $"Game on TV: the TV shows the flight, this {self} becomes the controls", ref y);
+            }
+            // SECOND MONITOR (Mac, Ty 2026-11-04, Q8): the dials on a second monitor, the flight in this window. Off until
+            // asked for, because once a monitor is taken it stays taken until the app quits (Unity cannot let it go).
+            if (TvOutput.MonitorSupported || (TvOutput.SimulateForTest && TvOutput.SimDevice == FlyingGame.Core.TvDevice.Mac))
+            {
+                var mons = new[] { FlyingGame.Core.MonitorSetting.Off, FlyingGame.Core.MonitorSetting.Instruments };
+                int mon = PickRow("Second monitor", new[] { "Off", "Instruments" }, System.Array.IndexOf(mons, TvOutput.Monitor), ref y);
+                if (mon >= 0) TvOutput.Monitor = mons[mon];
+                Note(TvOutput.MonitorActive ? TvOutput.StatusText
+                     : TvOutput.MonitorHeld ? "The second monitor is released when you quit"
+                     : TvOutput.ExternalDisplay ? "Instruments: the dials fill the second monitor, the flight stays here"
+                     : "Instruments: plug in a second monitor and the dials fill it", ref y);
+            }
+
             // The radio stack and the dead-reckoning instruments (owner 2026-10-18). On by default: the
             // chart shows no position, so these are the only way to find out where you are.
             bool nav = NavRadios.Shown;
@@ -621,6 +645,7 @@ namespace FlyingGame.Bridge
                 string st = JoyLink.StatusText;
                 if (Check(st.Length > 0 ? $"{what}: {st}" : $"{what} (same Wi-Fi)", on, ref y)) JoyLink.On = !on;
             }
+            CompanionRows(ref y);
             y += _gap * 0.5f;
             RudderPedalsSection(ref y);
         }
@@ -708,6 +733,76 @@ namespace FlyingGame.Bridge
             Note("Right pedal forward should read +, each toe brake 0 % released and 100 % on the floor.", ref y);
         }
 
+        // COMPANION PAIRING (Ty 2026-11-04: Q9 "both QR and PIN, QR recommended"; Q10 "TLS-PSK in v1"). The Mac opens a
+        // pairing window showing a QR code and a PIN; the iPad or iPhone scans the code with its Camera (which opens the
+        // app), or picks the Mac here and types the PIN. Under Controls because a companion is a controller.
+        private string _pinTyped = "", _pinMac;
+
+        private void CompanionRows(ref float y)
+        {
+            if (Companion.CompanionLink.IsHost)
+            {
+                y += _gap * 0.5f;
+                var w = Companion.CompanionLink.Host.Window;
+                int act = PickRow("Companion", new[] { w == null ? "Pair a device" : "Cancel", "Forget devices" }, -1, ref y);
+                if (act == 0) { if (w == null) Companion.CompanionLink.Host.OpenPairing(); else Companion.CompanionLink.Host.ClosePairing(); }
+                else if (act == 1) Companion.CompanionLink.Host.ForgetAll();
+                w = Companion.CompanionLink.Host.Window;
+                if (w != null)
+                {
+                    Texture2D qr = Companion.CompanionLink.Host.QrTexture;
+                    float side = Mathf.Min(_cw * 0.42f, _lh * 7f);
+                    if (qr != null) GUI.DrawTexture(new Rect(_x, y, side, side), qr, ScaleMode.ScaleToFit);
+                    _pinStyle ??= new GUIStyle(_head);
+                    _pinStyle.fontSize = Mathf.RoundToInt(_lh * 1.1f);
+                    _pinStyle.alignment = TextAnchor.MiddleLeft;
+                    float tx = _x + side + _gap * 2f;
+                    UiLayout.Label(new Rect(tx, y, _cw - side - _gap * 2f, _lh), "PIN", _label);
+                    UiLayout.Label(new Rect(tx, y + _lh, _cw - side - _gap * 2f, _lh * 1.6f), w.Pin.Substring(0, 3) + " " + w.Pin.Substring(3), _pinStyle);
+                    double now = Time.realtimeSinceStartupAsDouble;
+                    UiLayout.Label(new Rect(tx, y + _lh * 2.8f, _cw - side - _gap * 2f, _lh), $"{w.SecondsLeft(now):F0} s · {w.TriesLeft} tries left", _note);
+                    y += side + _gap * 0.6f;
+                    Note("Recommended: point the iPad's or iPhone's Camera at the code", ref y);
+                    Note("Or on the device: Options › Controls › Companion, pick this Mac, type the PIN", ref y);
+                }
+                string status = Companion.CompanionLink.Host.LastResult.Length > 0 ? Companion.CompanionLink.Host.LastResult : Companion.CompanionLink.Host.Status;
+                Note(status.Length > 0 ? status : "Pair an iPad or iPhone to use it as this Mac's controls (encrypted, same Wi-Fi)", ref y);
+            }
+            else if (Companion.CompanionLink.IsClient)
+            {
+                y += _gap * 0.5f;
+                Companion.CompanionLink.Client.KeepListing();
+                int act = PickRow("Companion", new[] { "Forget Macs" }, -1, ref y);
+                if (act == 0) Companion.CompanionLink.Client.ForgetAll();
+                string st = Companion.CompanionLink.Client.Status;
+                Note(st.Length > 0 ? st : "Pair with a Mac: on the Mac, Options › Controls › Pair a device, then scan its code with the Camera", ref y);
+                // The PIN route: the Macs on this network, then a keypad (no system keyboard needed).
+                foreach (var f in Companion.CompanionLink.Client.Found)
+                {
+                    if (f.role != "game") continue;
+                    bool chosen = _pinMac == f.id;
+                    if (UiLayout.Button(new Rect(_x, y, _cw, _lh), (chosen ? "PIN for " : "Pair by PIN: ") + f.name, chosen ? _btnOn : _btn)) { _pinMac = chosen ? null : f.id; _pinTyped = ""; }
+                    y += _lh + _gap * 0.4f;
+                }
+                if (_pinMac != null)
+                {
+                    string shown = _pinTyped.PadRight(6, '_');
+                    Note($"PIN  {shown.Substring(0, 3)} {shown.Substring(3)}", ref y);
+                    string[] keys = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "DEL" };
+                    int k = -1;
+                    float kw = (_cw - (keys.Length - 1) * _gap * 0.4f) / keys.Length;   // the whole width: thumb-sized keys
+                    for (int i = 0; i < keys.Length; i++)
+                        if (UiLayout.Button(new Rect(_x + i * (kw + _gap * 0.4f), y, kw, _lh * 1.2f), keys[i], _btn)) k = i;
+                    y += _lh * 1.2f + _gap * 0.4f;
+                    if (k >= 0 && k < 10 && _pinTyped.Length < 6) _pinTyped += keys[k];
+                    else if (k == 10 && _pinTyped.Length > 0) _pinTyped = _pinTyped.Substring(0, _pinTyped.Length - 1);
+                    if (_pinTyped.Length == 6) { Companion.CompanionLink.Client.PairWithPin(_pinMac, _pinTyped); _pinMac = null; _pinTyped = ""; }
+                }
+            }
+        }
+
+        private GUIStyle _pinStyle;
+
         private void AudioPage(ref float y)
         {
             UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), "Sound volume", _label);
@@ -715,6 +810,8 @@ namespace FlyingGame.Bridge
             y += _lh + _gap * 0.4f;
             // Intercom + radio (owner 2026-10-01): intercom = voice-activated, heard in headphones; radio = hold TALK.
             if (Check("Intercom: talk and hear yourself (headphones)", VoiceComms.IntercomOn, ref y)) VoiceComms.IntercomOn = !VoiceComms.IntercomOn;
+            // Q7 (Ty 2026-11-04): with a TV connected the radio and intercom stay here or in the headset.
+            if (VoiceComms.RouteNote.Length > 0) Note(VoiceComms.RouteNote, ref y);
             UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), "Radio frequency", _label);
             int nf = VoiceComms.Frequencies.Length;
             float bw = (_cw * 0.6f - (nf - 1) * _gap * 0.4f) / nf, bx = _x + _cw * 0.4f;

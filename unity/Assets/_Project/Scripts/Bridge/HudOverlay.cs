@@ -122,6 +122,13 @@ namespace FlyingGame.Bridge
             Rect engineBand = UiLayout.EngineRowRect;
             _lineFloor = _cam.targetTexture == null && engineBand.width > 0f && !InCockpitHere && !SecondaryView
                 ? Mathf.Max(0f, Screen.height - engineBand.y - _cam.pixelRect.y) : 0f;
+            // TV mode: the same floor over the TV's engine band (DrawForTv), measured in the TV's pixels.
+            if (TvOutput.Active && _cam == Camera.main && !ChaseCamera.InCockpit && Driver.Sim.Aircraft?.Config?.Propulsion != null)
+            {
+                UiSurface.Begin(TvOutput.Width, TvOutput.Height);
+                _lineFloor = UiLayout.SafeBottom + UiLayout.Margin + 2f * UiLayout.MinText * 1.4f;
+                UiSurface.End();
+            }
             float u = s * 0.01f; // 1 % of the short edge — symbol unit
 
             Vector3 vel = Driver.WorldVelocityUnity;
@@ -251,17 +258,27 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            if (TvOutput.Active) return;   // TV mode: the HUD is on the TV (DrawForTv)
             if (LocalPlayerHud.CompactActive) return;
             // In a headset a screen-space overlay smears across both eyes at the wrong depth.
             if (VrMode.SuppressFlatOverlays) return;
             DrawLabels(_labels, _cam.pixelRect, Screen.height);
-            DrawEngineReadouts();
+            DrawEngineReadouts(UiLayout.EngineRowRect);
         }
 
-        private void DrawEngineReadouts()
+        /// <summary>TV MODE (TvOutput): the labels and the engine readouts into the TV's picture, in its pixels
+        /// (UiSurface is the TV's). The phone's engine band sits between its pads; the TV has none, so the readouts take
+        /// the middle half of the TV's bottom edge, inside the title-safe margin.</summary>
+        public void DrawForTv(int w, int h)
+        {
+            DrawLabels(_labels, new Rect(0, 0, w, h), h);
+            float line = UiLayout.MinText * 1.4f;
+            DrawEngineReadouts(new Rect(w * 0.25f, h - UiLayout.SafeBottom - UiLayout.Margin - 2f * line, w * 0.5f, 2f * line));
+        }
+
+        private void DrawEngineReadouts(Rect band)
         {
             var ac = Driver?.Sim?.Aircraft;
-            Rect band = UiLayout.EngineRowRect;
             if (ac?.Config?.Propulsion == null || band.width <= 0f || InCockpitHere || SecondaryView ||
                 SessionSettings.MenuOpen || SessionSettings.ReplayActive || UiLayout.Modal ||
                 SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud || !PilotEgress.HudAllowed(Driver)) return;
@@ -307,7 +324,7 @@ namespace FlyingGame.Bridge
                 float px = l.Pos.x + vp.x, py = l.Pos.y + vp.y;
                 float x = l.Anchor is TextAnchor.MiddleRight ? px - w : l.Anchor is TextAnchor.MiddleCenter ? px - w * 0.5f : px;
                 var rect = new Rect(x, screenH - py - h * 0.5f, w, h);
-                if (ReferenceEquals(labels, _labels) && UiLayout.EngineRowRect.width > 0f && !InCockpitHere && !SecondaryView &&
+                if (ReferenceEquals(labels, _labels) && !UiSurface.IsTv && UiLayout.EngineRowRect.width > 0f && !InCockpitHere && !SecondaryView &&
                     rect.yMax > UiLayout.EngineRowRect.y) continue;
                 GUI.Label(rect, l.Text, st);
             }

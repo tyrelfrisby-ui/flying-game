@@ -21,6 +21,9 @@ PL="$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Aero Playground saves your clips and recordings to Photos.'" "$PL" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string 'Aero Playground shares your joystick or RC radio with Aero Playground on your iPad or iPhone over your local network.'" "$PL" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :NSBonjourServices array" -c "Add :NSBonjourServices:0 string _aerojoy._udp" "$PL" 2>/dev/null || true
+# COMPANION (docs/TV-COMPANION-PLAN.md §5): declared now, ahead of the feature -- macOS caches the Bonjour types allowed at
+# the first local-network grant, and a type added later fails with -65555 (docs/glass-companion-notes.md).
+/usr/libexec/PlistBuddy -c "Add :NSBonjourServices:1 string _aeroplayground._tcp" "$PL" 2>/dev/null || true
 xattr -rc "$APP"; codesign --force --deep -s - "$APP"
 pkill -f "Aero Playground.app/Contents/MacOS" || true
 rm -rf "/Applications/Aero Playground.app"; cp -R "$APP" /Applications/

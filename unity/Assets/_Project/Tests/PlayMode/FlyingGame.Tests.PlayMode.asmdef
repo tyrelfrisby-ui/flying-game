@@ -1,0 +1,22 @@
+{
+    "name": "FlyingGame.Tests.PlayMode",
+    "rootNamespace": "FlyingGame.Tests",
+    "references": [
+        "FlyingGame.Core",
+        "FlyingGame.Bridge",
+        "UnityEngine.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
