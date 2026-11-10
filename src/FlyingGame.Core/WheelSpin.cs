@@ -276,6 +276,23 @@ public sealed class WheelState
     /// <summary>The tyre's deflection at the start of this step, and the end-of-step value the step's stages work out
     /// (the next step starts from it).</summary>
     public double TireDeflM, TireDeflNextM;
+    /// <summary>
+    /// How far the LEG itself has compressed this step (m, 0 = free hanging): the total contact compression less what
+    /// the tyre took, which is exactly the stroke <see cref="LandingGear.ContactPointM"/> swings the contact point
+    /// along its arc by. 0 for a leg in the air, and 0 for every leg of a type whose gear does not hinge
+    /// (<see cref="LandingGear.SplayPerM"/> = 0) — it is still filled in there, it simply moves nothing.
+    ///
+    /// Written by <see cref="LandingGear.Compute"/> on a step's FIRST stage only (as the tyre's own deflection and the
+    /// load are), so it is the state at the top of the step rather than a mid-RK4 probe, and cleared by
+    /// <see cref="ClearContact"/> with the rest of the contact state. Nothing in the physics reads it: it exists so the
+    /// DRAWN wheel can be put where the aeroplane is actually standing (Ty 2026-11-10, shown that the suspension
+    /// flexes and the models do not move: "Wire it — two types are already rigged").
+    ///
+    /// REJECTED: inverting <see cref="LandingGear.LegForceN"/> out of <see cref="LoadN"/>, which needs no new state.
+    /// The load carries the damper's share too (<c>g.DampNs · closing rate</c>), so it reads a stroke that is wrong by
+    /// the damper's whole contribution exactly while the leg is MOVING — which is the only time the eye is on it.
+    /// </summary>
+    public double LegStrokeM;
     /// <summary>The contact patch as the step's first stage found it, the ground pressure under it, and the slip ratio
     /// scale it gave the tyre (TireModel.SlipRatioScale).</summary>
     public double FootprintLengthM, FootprintWidthM, GroundPressurePa, SlipScale = WheelSpin.SlipRatioScale;
@@ -408,6 +425,8 @@ public sealed class WheelState
         InContact = false; OnSki = false; OverWater = false; Locked = false;
         LoadN = 0; SlipPowerW = 0; SlipRatio = 0; Brake01 = 0; BrakeTorqueNm = 0; ForcePerLoad = 0; FallFactor = 1;
         FootprintLengthM = 0; FootprintWidthM = 0; GroundPressurePa = 0;
+        // A leg off the ground hangs on its own: the drawn wheel goes back to where the model draws it.
+        LegStrokeM = 0;
     }
 
     /// <summary>Not advanced against the ground this step (in the air, on a ski, in the water): the wheel turns down in
