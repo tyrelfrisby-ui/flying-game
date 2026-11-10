@@ -49,6 +49,65 @@ a published standard — not the dial in front of the pilot.
 2026-09 scaffolding commit and never revisited; the 2-33's modelled panel and its FLIGHT LIMITS placards say NEVER
 EXCEED 98 MPH (FAA AFM at 1040 lb, `make_sgs_dials.py`). One of them is wrong. Changing Vne is a physics change, not a
 units change, so it is not in this commit.
+## One livery per type on the phone: 2.13 GB of 4.03 GB was alternate paint — Claude, 2026-11-10, lane/claude-fleet-shape
+
+<!-- phone-liveries 4gb-limit glb-textures-uncompressed testflight-size build-time-subset -->
+
+Ty, offered four ways to get the iOS build under App Store Connect's 4 GB limit, chose: *"Ship a single default
+livery for each aeroplane; the alternates stay in desktop and Quest builds."*
+
+**MEASURED FIRST, and the story's mechanism was wrong while its remedy was right.** The whole `unity/Assets` tree is
+265 MB on disk and the build was 4.29 GB, so on-disk size tells you nothing. Every texture embedded in a GLB is
+imported by glTFast's ScriptedImporter — Unity's platform texture pipeline never sees it, there is no compression
+field in a `.glb.meta` at all, and the pixels ship uncompressed at 4 bytes each with a full mip chain. The 39 GLBs
+hold **754.92 Mpix**; 754.92e6 x 4 x 4/3 = **4,026,240,000 B** against the recorded `resources.assets.resS` of
+**4,024,558,864 B** — **0.04 % out**. resS was 93.8 % of that build, so it is to within rounding NOTHING BUT GLB
+TEXTURES. Not audio (1.1 MB in the whole tree), not video (none), not fonts, not the configs (StreamingAssets is
+1.4 MB), not meshes (166 MB). And Ty was right about the remedy for the right reason: an alternate livery is the same
+aeroplane with the paint baked in again, so it carries a **full duplicate texture set**.
+
+| held out of a phone build | in-build |
+|---|---|
+| extra-300-like `-own` (Talk Flying), `-own-n300uy` | 958 MB |
+| pitts-s2b-like `-own` (N31DG), `-own-n1191`, `-own-factory-unmarked` | 741 MB |
+| great-lakes-like `-own-red-sunburst`, `-own-white-stripes` | 343 MB |
+| glider-2-33-like `-own` (plain factory yellow) | 86 MB |
+| grob103 `-own-tf` | 6 MB |
+| **total** | **2,133 MB** |
+
+**4,026 MB of GLB textures becomes 1,894 MB**, and with the ~267 MB of everything else in the recorded build that is
+an estimated **2.16 GB against 4 GB — about 1.84 GB of margin, with the FULL fleet and no type restriction.** That is
+a better outcome than the slim package ever got (3.60-3.74 GB for six types): `FLYINGGAME_TF_SLIM` is no longer needed
+for size.
+
+**NOT VERIFIED BY A BUILD.** The build and deploy slot was held, so this is arithmetic that reproduced two recorded
+builds, not a measurement of a new one. `tools/deploy/deploy.sh` now prints the built `.app`'s size and its resS
+against the limit every build — there was no size check anywhere in the pipeline before, which is why 4.2 GB was a
+surprise and why every number in the record was measured by hand.
+
+**The defaults are not a new opinion: they are the ones already in `LiveryChoice`** — Extra unmarked, Pitts checkered
+unmarked (Ty 2026-10-28, "unmarked liveries become the game defaults"), the yellow Talk Flying 2-33 (Ty 2026-11-02,
+the only 2-33), the Great Lakes' and the Grob's single own model. The packager asks `LiveryChoice.Resolve` with no
+override and no saved choice, so the file it keeps IS the file the game loads, and a livery added to the picker
+cannot be forgotten.
+
+**Three GLBs are unreachable TODAY, before any policy**: `great-lakes-like-own-red-sunburst`, `-white-stripes` (343 MB
+in-build; `LiveryChoice` has no Great Lakes entry, so `OwnSuffix` always returns `-own`) and
+`glider-grob103-acro-like-own-tf` (6 MB; referenced nowhere at all). The livery policy holds them out anyway. Also
+`extra-300-like.glb`, the downloaded model, 22 MB in-build and never drawn because the Extra is in `OwnAlways` — left
+alone, since that is an own-models question, not a livery one.
+
+**PARITY: this stays inside the rule, and `docs/PARITY.md` now says why.** It is a build-time flag (rule 2), nothing
+is authored twice or deleted (rule 4), the subset is DERIVED from the shared `LiveryChoice` rather than listed per
+platform, the player's define stops the picker offering a file that did not ship, Mac and Quest call
+`BuildScript.RestoreAnyHeldAssets()` first so a dead iOS build cannot leak into them, and `PhoneLiveryTests` holds all
+of it. A platform-only GLB or a different default aeroplane on one platform WOULD be a fork; none of that is here.
+
+**NEEDS YOU — the bigger lever, which nobody has authorised.** Compressing the GLB textures saves more than the whole
+livery policy and costs no content: ASTC 4x4 keeps every type AND every livery at ~1.0 GB, 6x6 at ~0.45 GB. It needs a
+glTFast-level change or a post-import pass and a look at what it does to the baked paint, and the 2026-11-05 size
+audit listed texture-format changes as not blanket-authorised. Composable with this: one livery per type and ASTC 6x6
+together would be ~0.25 GB.
 
 ## The gear hinges on the fuselage and the track widens; and toe was on one wheel — Claude, 2026-11-10, lane/claude-gear-flex
 
