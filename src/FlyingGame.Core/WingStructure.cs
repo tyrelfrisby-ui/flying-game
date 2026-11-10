@@ -22,9 +22,17 @@ public sealed class WingPanel
     public double BreakY;         // |y| of the station, m
     public double BreakZ;         // chord-line z at the station: the bend axis runs along x through (BreakY, BreakZ)
     public double TipY;           // |y| of the outer edge
+    /// <summary>|y| of the wing's ROOT on this side — where it leaves the fuselage or the centre section. The station a
+    /// g-load bends the wing about: an aerodynamic bend is a curve from here (<see cref="WingBendCurve"/>), and a
+    /// cantilever wing folds here. <see cref="BreakY"/> is the strike/outboard station, much further out.</summary>
+    public double RootY;
     public string StationSource = "";
     /// <summary>Strip indices (AeroModel order) outboard of the station: the wing's rows and its control rows.</summary>
     public int[] Strips = System.Array.Empty<int>();
+    /// <summary>EVERY strip of this wing and side, inboard of the station as well as out: what an aerodynamic bend
+    /// moves, because that bend is a curve from the root and not a kink at the station (Ty 2026-11-10). In order of
+    /// increasing |y|, so a shape can be marched out along the span.</summary>
+    public int[] SideStrips = System.Array.Empty<int>();
     /// <summary>The hinged aileron rows of this wing and side. A hinge line cannot cross a missing panel, so the
     /// whole aileron leaves with the panel even where it runs inboard of the station.</summary>
     public int[] AileronHinged = System.Array.Empty<int>();
@@ -43,6 +51,20 @@ public sealed class WingPanel
     public bool Braced;
     /// <summary>The moment per g the station's spar section was sized for, N·m.</summary>
     public double DesignNm1;
+    /// <summary>
+    /// A BRACED wing's INNER BAY: the largest moment per g in the bay between the root fitting and the lift strut,
+    /// N·m — a beam on two supports under its share of the lift, q·L²/8. It is what is left to carry the load once the
+    /// outboard section has departed (Ty 2026-11-10's staggered failure).
+    ///
+    /// MEASURED ACROSS THE FLEET, it is NOT reliably smaller than <see cref="M1Nm"/>, the outer panel's cantilever
+    /// moment about the strut attach, because the authored stations differ a great deal in how far out they are: the
+    /// Beaver's bay carries 0.17 of its outer panel's moment per g and the 2-33's 0.24, but the J-3's carries 1.33 of
+    /// it and the Pitts' 3.76 (their stations are 63 % and 75 % of the way to the tip, leaving a short outer panel and
+    /// a long bay). So the structure does not agree with itself about which station is critical on a braced wing, and
+    /// the staggered failure does NOT use this to relieve what is left — see WingFailureLaw. Kept because it is the
+    /// measurement that says so, and because <see cref="DesignNm1"/> already sizes the spar by the larger of the two.
+    /// </summary>
+    public double BayM1Nm;
     /// <summary>The panel's own bending stiffness at its tip, N/m (3EI/L³), in series with the contact spring.</summary>
     public double TipStiffnessNPerM;
     public bool StrengthKnown;
@@ -62,6 +84,10 @@ public sealed class WingPanel
     /// <summary>The wings' flex under the load factor right now on top of their set, rad (+ = tip up): what the panel flies
     /// and is drawn at beyond <see cref="BendRad"/>. It comes off with the load.</summary>
     public double FlightFlexRad;
+    /// <summary>This side has FOLDED UP about its root, rad (+ = up; 0 unless it has): a cantilever wing one g short of
+    /// departing (<see cref="WingFailureLaw.FoldRad"/>). Plastic, so it never comes back, and it is a KINK at
+    /// <see cref="RootY"/> rather than part of the aerodynamic curve — the structure there has gone over.</summary>
+    public double FoldRad;
     /// <summary>Largest contact bending moment the station has carried, N·m (tests / probe).</summary>
     public double PeakContactNm;
 
@@ -261,7 +287,8 @@ public static class WingStructure
             foreach (int side in new[] { -1, 1 })
             {
                 var strips = new List<int>(); var hinged = new List<int>(); var fixedAil = new List<int>();
-                double area = 0, tip = 0;
+                var sideStrips = new List<(double y, int i)>();
+                double area = 0, tip = 0, root = double.MaxValue;
                 foreach (SurfaceConfig sf in c.Surfaces)
                 {
                     if (!BelongsTo(sf.Id, b.Id, c)) continue;
@@ -274,9 +301,13 @@ public static class WingStructure
                         else if (st.Control is { Surface: "aileron" }) fixedAil.Add(gi);
                         if (System.Math.Abs(st.Pos[1]) > ys) { strips.Add(gi); area += st.Area; }
                         tip = System.Math.Max(tip, System.Math.Abs(st.Pos[1]) + 0.5 * Width(st));
+                        sideStrips.Add((System.Math.Abs(st.Pos[1]), gi));
+                        // The root is the inboard edge of the WING's own rows (a control row may start further out).
+                        if (sf.Id == b.Id) root = System.Math.Min(root, System.Math.Max(0.0, System.Math.Abs(st.Pos[1]) - 0.5 * Width(st)));
                     }
                 }
                 if (strips.Count == 0) continue;
+                sideStrips.Sort((p, q) => p.y.CompareTo(q.y));
                 // The chord line's height at the station, from the base strip nearest it and that strip's dihedral.
                 StripConfig near = b.Strips[0];
                 foreach (StripConfig st in b.Strips)
@@ -291,6 +322,8 @@ public static class WingStructure
                     Component = lower ? (side < 0 ? AirframeComponent.WingTipLowerLeft : AirframeComponent.WingTipLowerRight)
                                       : (side < 0 ? AirframeComponent.WingTipLeft : AirframeComponent.WingTipRight),
                     SurfaceId = b.Id, Side = side, Lower = lower, BreakY = ys, BreakZ = zs, TipY = tip, StationSource = why,
+                    RootY = root < double.MaxValue ? root : 0.0,
+                    SideStrips = sideStrips.Select(q => q.i).ToArray(),
                     StationLeX = near.Pos[0] + 0.25 * near.Chord, StationChord = FullChord(c, b.Id, side, near, ys),
                     TipLeX = outer.Pos[0] + 0.25 * outer.Chord, TipChord = FullChord(c, b.Id, side, outer, System.Math.Abs(outer.Pos[1])), TipZ = ChordZ(b, outer, tip),
                     Braced = biplane || why.StartsWith("measured") || !string.IsNullOrEmpty(c.WingBracing),
@@ -373,7 +406,8 @@ public static class WingStructure
                 if (bay > 0 && sideArea > 0)
                 {
                     double lift = g * 0.5 * w * share * bayArea / sideArea;
-                    design = System.Math.Max(m1, lift * bay / 8.0);
+                    p.BayM1Nm = lift * bay / 8.0;
+                    design = System.Math.Max(m1, p.BayM1Nm);
                 }
             }
             p.M1Nm = m1;
@@ -394,6 +428,35 @@ public static class WingStructure
             p.Twisting = new PlasticHinge(tu * yieldNm / p.UltimateNm, tu, law);
             p.StrengthKnown = true;
         }
+    }
+
+    /// <summary>
+    /// The spanwise lift centroid of ONE side's wings, m: how far out the half of the aeroplane's lift that this side
+    /// carries acts. The Schrenk mean of the planform centroid and the elliptic one, the same mean
+    /// <see cref="EnsureStrength"/> takes for a panel's station — here about the CENTRELINE instead, because what it is
+    /// for is the ROOT moment: lift × this arm.
+    ///
+    /// It turns an aero ROLLING moment into the two wings' load factors (Aircraft.WingSideLoadFactor). A roll moment IS
+    /// the difference between the two wings' lift about the centreline, L = y_c·(F_left − F_right), so with the
+    /// symmetric part F_left + F_right = n·W the two wings carry n ± L/(y_c·W) — one more and one less, which is the
+    /// whole of Ty's "account for aileron load so one tip could break off but not the other".
+    /// </summary>
+    public static double SideLiftArmM(AircraftConfig c)
+    {
+        double area = 0, planArm = 0, semi = 0;
+        foreach (SurfaceConfig sf in c.Surfaces)
+        {
+            if (!IsWingBase(sf.Id) && !c.Surfaces.Any(b => IsWingBase(b.Id) && BelongsTo(sf.Id, b.Id, c))) continue;
+            foreach (StripConfig st in sf.Strips)
+            {
+                double ay = System.Math.Abs(st.Pos[1]);
+                semi = System.Math.Max(semi, ay + 0.5 * Width(st));
+                if (st.Pos[1] <= 0) continue;                      // one side is enough: the planform is symmetric
+                area += st.Area; planArm += st.Area * ay;
+            }
+        }
+        if (area <= 0 || semi <= 0) return 0.0;
+        return 0.5 * (planArm / area + Wreck.AirframeHydroModel.EllipticArm(0.0, semi));
     }
 
     /// <summary>Ultimate strength over Young's modulus of a wing spar: about 7·10⁻³ for Sitka spruce (MOR 9,400 psi,
