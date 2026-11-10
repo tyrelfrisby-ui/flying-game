@@ -307,19 +307,28 @@ public static class BladeElement
     /// it would stop the prop, which <see cref="Windmilling.Turning"/> already reports for a blade too coarse to be
     /// driven at all.
     /// </summary>
-    public static Windmilling Windmill(in Geometry g, double vAxialMs, double rhoKgM3, double maxRpm)
+    public static Windmilling Windmill(in Geometry g, double vAxialMs, double rhoKgM3, double maxRpm,
+                                       Func<double, double>? engineTorqueAt = null)
     {
         if (g.RadiusM <= 0.0 || vAxialMs <= 1.0 || maxRpm <= 1.0) return default;
         Geometry blade = g;                                  // a lambda cannot close over an 'in' parameter
-        double Q(double rpm) => Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).TorqueNm;
+        // THE BALANCE IS AGAINST THE ENGINE, NOT AGAINST NOTHING. Ty 2026-11-10: "You are not accounting for the
+        // cranking resistance of the engine". Steady state is I·dw/dt = Q_engine − Q_prop = 0, so the air must drive
+        // the blade hard enough to turn the engine over: Q_prop = Q_engine, a NEGATIVE number
+        // (PistonEngine.MotoringTorqueNm). Blade torque rises monotonically with rpm — the air drives it at low rpm
+        // and it absorbs at high rpm — so the crossing is single, and it sits BELOW the zero-torque rpm by however
+        // much the engine resists. Pass no delegate and the engine is treated as free, which is only right for a
+        // propeller with nothing behind it.
+        double Excess(double rpm) => Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).TorqueNm - (engineTorqueAt?.Invoke(rpm) ?? 0.0);
 
         double lo = 1.0, hi = maxRpm;
-        if (Q(lo) >= 0.0) return default;                    // too coarse for the air to drive: the propeller stands still
-        if (Q(hi) <= 0.0) return At(hi);                     // it would run away past the engine's own limit
+        if (Excess(lo) >= 0.0) return default;               // it cannot even turn the engine over: the propeller stands still
+        while (Excess(hi) < 0.0 && hi < 8.0 * maxRpm) hi *= 2.0;   // no engine limit on a dead one: find the real crossing
+        if (Excess(hi) < 0.0) return At(hi);
         for (int i = 0; i < 24; i++)
         {
             double mid = 0.5 * (lo + hi);
-            if (Q(mid) < 0.0) lo = mid; else hi = mid;
+            if (Excess(mid) < 0.0) lo = mid; else hi = mid;
         }
         return At(0.5 * (lo + hi));
 

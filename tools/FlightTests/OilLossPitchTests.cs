@@ -65,33 +65,61 @@ public class OilLossPitchTests
     }
 
     [Fact]
-    public void TheIdlingPropIsUNCHANGED_itsGovernorSitsOnTheFineStopWhereThatCoefficientWasCalibrated()
+    public void ADeadEngineIsNotAFreeShaft_itTakesRealTorqueToTurnOver()
     {
-        PropulsionConfig pitts = Prop("pitts-s2b-like");
-        Assert.Equal(1.0, PropModel.DeadPropPitchScale(pitts, pitts.FineStopDeg), 9);
-        Assert.Equal(1.0, PropModel.DeadPropPitchScale(Prop("j3-cub-like"), 0.0), 9);
+        // Ty 2026-11-10: "You are not accounting for the cranking resistance of the engine". The number is the power
+        // curve's own friction intercept, not a new constant: a closed throttle draws 0.28 of ambient = 8.4 inHg, below
+        // the 10 inHg intercept, so the engine absorbs about 8 % of rated at rated rpm.
+        PropulsionConfig p = Prop("pitts-s2b-like");
+        double q = PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, p.MaxRpm, 0.0, 1.0, 1.0);
+        Assert.True(q < 0.0, "it must OPPOSE whatever turns it");
+        Assert.InRange(-q, 40.0, 75.0);                         // ~56 N·m for a 540 cubic inch engine at 2,700
+        // Open the throttle and it is making power, which is not this function's business.
+        Assert.Equal(0.0, PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, p.MaxRpm, 1.0, 1.0, 1.0));
+        // It is NOT folded into the power path, where IdleDragCd already carries the same drag against measured glide
+        // ratios. Letting it in there would count it twice.
+        Assert.True(PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, p.MaxRpm, 0.0, 1.0) >= 0.0);
     }
 
     [Fact]
-    public void ACoarseBladeDragsLessThanAFineOneAndAFeatheredOneNotAtAll()
+    public void TheCrankingResistanceIsWhatPutsTheWindmillingDragWhereTheCalibrationSaysItIs()
     {
-        PropulsionConfig pitts = Prop("pitts-s2b-like");
-        double coarse = PropModel.DeadPropPitchScale(pitts, pitts.CoarseStopDeg);
-        Assert.InRange(coarse, 0.70, 0.76);                                        // 0.73 measured: cos²33 / cos²11
-        Assert.True(coarse < PropModel.DeadPropPitchScale(pitts, pitts.FineStopDeg));
-        Assert.Equal(0.0, PropModel.DeadPropPitchScale(pitts, 90.0), 6);            // feathered: edge on, nothing left
-        // Monotone the whole way, so there is no angle where coarsening the blade costs MORE drag.
-        double prev = double.MaxValue;
-        for (double d = pitts.FineStopDeg; d <= 90.0; d += 2.5)
+        // The authored coefficient's own note: a fine-pitch prop driven by the air is "C_D ~ 0.15-0.25 on disc area".
+        // Solved against a FREE shaft the blade element said 0.02-0.07 and I would not have used it. Against the
+        // engine's cranking resistance it says 0.19 at approach speed, which is the band. Two independent routes to
+        // the same number is the only evidence worth having.
+        PropulsionConfig p = Prop("pitts-s2b-like");
+        double disc = Math.PI * 0.25 * p.PropDiameterM * p.PropDiameterM;
+        var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, p.FineStopDeg, p.ActivityFactor);
+        double EngineQ(double r) => PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, r, 0.0, 1.0, 1.0);
+
+        BladeElement.Windmilling free = BladeElement.Windmill(g, 30.0, 1.225, p.MaxRpm);
+        BladeElement.Windmilling cranked = BladeElement.Windmill(g, 30.0, 1.225, p.MaxRpm, EngineQ);
+        Assert.InRange(cranked.DragN / (0.5 * 1.225 * 30.0 * 30.0 * disc), 0.15, 0.25);
+        Assert.True(free.DragN / (0.5 * 1.225 * 30.0 * 30.0 * disc) < 0.12, "the free shaft is well below the band");
+        Assert.True(cranked.Rpm < free.Rpm, "cranking the engine holds the rpm DOWN");
+    }
+
+    [Fact]
+    public void ACoarseDeadPropIsNearlyFeathered_whichIsWhatTyAskedFor()
+    {
+        // Told the two stops differed by only a quarter he said: "Much more - nearer feather". The solve with cranking
+        // resistance gives it without being asked: the coarse blade can barely turn the engine over, so it turns slowly
+        // and takes almost nothing out of the air.
+        PropulsionConfig coarse = Prop("pitts-s2b-like");
+        PropulsionConfig fine = Prop("pitts-s2b-like");
+        fine.CoarseOnOilLoss = false;
+        foreach (double v in new[] { 30.0, 45.0, 60.0, 80.0 })
         {
-            double k = PropModel.DeadPropPitchScale(pitts, d);
-            Assert.True(k <= prev + 1e-12, $"{d:0.0} deg scaled UP to {k:0.000}");
-            prev = k;
+            double dc = PropModel.Windmilling(coarse, v, 1.225).DragN;
+            double df = PropModel.Windmilling(fine, v, 1.225).DragN;
+            Assert.True(dc > 0.0 && df > 0.0);
+            Assert.True(dc < 0.35 * df, $"V={v}: coarse {dc:0} N against fine {df:0} N is not near feather");
         }
     }
 
     [Fact]
-    public void ADeadCoarsePropMakesLessDragThroughComputeThanTheSameDeadPropLeftFine()
+    public void ADeadCoarsePropMakesFarLessDragThroughComputeThanTheSameDeadPropLeftFine()
     {
         PropulsionConfig coarsePlumbed = Prop("pitts-s2b-like");
         PropulsionConfig finePlumbed = Prop("pitts-s2b-like");
@@ -103,9 +131,8 @@ public class OilLossPitchTests
         double tFine = PropModel.Compute(finePlumbed, 0.0, v, Vec3.Zero, 1.225, dead, out _).Force.X;
 
         Assert.True(tCoarse < 0.0 && tFine < 0.0, "a dead propeller drags");
-        Assert.True(tCoarse > tFine, $"coarse should drag LESS: coarse {tCoarse:0.0} N, fine {tFine:0.0} N");
-        Assert.Equal(0.73, tCoarse / tFine, 2);
-        // A running engine is untouched by any of this.
+        Assert.True(tCoarse > 0.4 * tFine, $"coarse should drag FAR less: coarse {tCoarse:0.0} N, fine {tFine:0.0} N");
+        // A running engine is untouched by any of this - the governor sits on the fine stop, where IdleDragCd was fitted.
         double running = PropModel.Compute(coarsePlumbed, 0.0, v, Vec3.Zero, 1.225, PropModel.PropDrive.Running, out _).Force.X;
         Assert.Equal(PropModel.Compute(finePlumbed, 0.0, v, Vec3.Zero, 1.225, PropModel.PropDrive.Running, out _).Force.X, running, 9);
     }
@@ -123,12 +150,16 @@ public class OilLossPitchTests
             double rf = PropModel.WindmillRpm(finePlumbed, v, 1.225);
             Assert.True(rc > 0.0 && rf > 0.0);
             Assert.True(rc < 0.5 * rf, $"V={v}: coarse {rc:0} rpm against fine {rf:0}");
-            // Zero torque is a KINEMATIC condition, so each is linear in airspeed: one advance ratio per stop.
-            Assert.InRange(v / (rc / 60.0 * coarsePlumbed.PropDiameterM), 1.60, 1.72);
-            Assert.InRange(v / (rf / 60.0 * finePlumbed.PropDiameterM), 0.52, 0.58);
+            // Not quite one advance ratio per stop any more: the engine's cranking torque is nearly constant while the
+            // blade's grows with speed, so the balance point creeps toward the free-shaft kinematic value as it goes
+            // faster. Coarse: J 2.3 at 30 m/s easing to 1.7 at 80. The ordering is what matters and it never inverts.
+            double j = v / (rc / 60.0 * coarsePlumbed.PropDiameterM);
+            Assert.InRange(j, 1.65, 2.40);
+            Assert.InRange(v / (rf / 60.0 * finePlumbed.PropDiameterM), 0.52, 0.70);
         }
 
-        // A fine blade in a dive runs away past the red line, with no engine to stop it — the other half of why the
+        // A fine blade in a dive still runs away past the red line — the cranking resistance slows it (4,414 free
+        // against 4,294 cranked at 80 m/s) but nowhere near enough to save it, which is the other half of why the
         // aerobatic installation is plumbed coarse.
         Assert.True(PropModel.WindmillRpm(finePlumbed, 80.0, 1.225) > finePlumbed.MaxRpm);
         Assert.True(PropModel.WindmillRpm(coarsePlumbed, 80.0, 1.225) < coarsePlumbed.MaxRpm);
