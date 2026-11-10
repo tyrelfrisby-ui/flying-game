@@ -409,10 +409,13 @@ namespace FlyingGame.Bridge
             r.OilTempF = _oilTempF;
             r.ChtF = _chtF;
 
-            // Oil pressure follows rpm and thins as the oil warms: idle about 35 psi, cruise about 80.
-            double maxRpm = ac.Config?.Propulsion != null && ac.Config.Propulsion.MaxRpm > 100.0 ? ac.Config.Propulsion.MaxRpm : 2700.0;
-            r.OilPressPsi = running
-                ? System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * maxRpm)) - 0.08 * (_oilTempF - 180.0), 0.0, 115.0)
+            // OIL PRESSURE COMES FROM THE SIM NOW (Aircraft.OilPressPsi), not from a second copy of the curve here. The
+            // governor reads that number — with no oil the blades go to the installation's default stop and stay — so
+            // the gauge and the aeroplane have to be reading the same thing, or they will disagree at exactly the moment
+            // the pilot is looking at the gauge to find out why the rpm will not move. The thinning with oil
+            // temperature stays here, because the oil temperature is this bridge's own state.
+            r.OilPressPsi = ac.OilPressPsi > 0.0
+                ? System.Math.Clamp(ac.OilPressPsi - 0.08 * (_oilTempF - 180.0), 0.0, 115.0)
                 : 0.0;
 
             // Fuel: the loading's own tanks where it has fuel in them (the loading page), by tank id. The reference

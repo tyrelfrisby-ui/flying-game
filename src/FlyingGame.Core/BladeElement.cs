@@ -294,6 +294,57 @@ public static class BladeElement
     }
 
     /// <summary>
+    /// WHERE A DEAD ENGINE'S PROPELLER TURNS, AND WHAT IT COSTS. With no engine torque the propeller settles at the rpm
+    /// where its OWN torque is zero: below it the air is driving the blade round, above it the blade is absorbing, and
+    /// the crossing is single because torque climbs monotonically with rpm at a fixed blade angle. The thrust at that
+    /// rpm is negative, and that is the windmilling drag — which is the whole reason the blade angle on oil loss
+    /// matters. A fine blade meets the flow at a large angle, is driven hard, spins fast and drags like a disc; a
+    /// coarse one sits closer to the flow, turns slowly and drags far less. That spread is the glide, and it is not
+    /// something a single authored Cd can carry.
+    ///
+    /// The engine is treated as turning FREELY: <see cref="PistonEngine.PowerW"/> clamps its open fraction at zero, so
+    /// there is no motoring friction in the model to subtract. A seized engine is the other extreme and is not this —
+    /// it would stop the prop, which <see cref="Windmilling.Turning"/> already reports for a blade too coarse to be
+    /// driven at all.
+    /// </summary>
+    public static Windmilling Windmill(in Geometry g, double vAxialMs, double rhoKgM3, double maxRpm,
+                                       Func<double, double>? engineTorqueAt = null)
+    {
+        if (g.RadiusM <= 0.0 || vAxialMs <= 1.0 || maxRpm <= 1.0) return default;
+        Geometry blade = g;                                  // a lambda cannot close over an 'in' parameter
+        // THE BALANCE IS AGAINST THE ENGINE, NOT AGAINST NOTHING. Ty 2026-11-10: "You are not accounting for the
+        // cranking resistance of the engine". Steady state is I·dw/dt = Q_engine − Q_prop = 0, so the air must drive
+        // the blade hard enough to turn the engine over: Q_prop = Q_engine, a NEGATIVE number
+        // (PistonEngine.MotoringTorqueNm). Blade torque rises monotonically with rpm — the air drives it at low rpm
+        // and it absorbs at high rpm — so the crossing is single, and it sits BELOW the zero-torque rpm by however
+        // much the engine resists. Pass no delegate and the engine is treated as free, which is only right for a
+        // propeller with nothing behind it.
+        double Excess(double rpm) => Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).TorqueNm - (engineTorqueAt?.Invoke(rpm) ?? 0.0);
+
+        double lo = 1.0, hi = maxRpm;
+        if (Excess(lo) >= 0.0) return default;               // it cannot even turn the engine over: the propeller stands still
+        while (Excess(hi) < 0.0 && hi < 8.0 * maxRpm) hi *= 2.0;   // no engine limit on a dead one: find the real crossing
+        if (Excess(hi) < 0.0) return At(hi);
+        for (int i = 0; i < 24; i++)
+        {
+            double mid = 0.5 * (lo + hi);
+            if (Excess(mid) < 0.0) lo = mid; else hi = mid;
+        }
+        return At(0.5 * (lo + hi));
+
+        Windmilling At(double rpm) => new(rpm, -Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).ThrustN);
+    }
+
+    /// <summary>A freely windmilling propeller: the rpm the air turns it at and the drag (N, positive) it makes there.</summary>
+    public readonly struct Windmilling
+    {
+        public readonly double Rpm, DragN;
+        public Windmilling(double rpm, double dragN) { Rpm = rpm; DragN = dragN; }
+        /// <summary>False when the blade is too coarse for the air to drive it — the propeller is stopped.</summary>
+        public bool Turning => Rpm > 0.0;
+    }
+
+    /// <summary>
     /// THE GOVERNOR'S PITCH STOPS, DERIVED (Ty 2026-11-09): "The prop pitch limits should be set so that the low pitch
     /// stop allows full rpm at 26 inches of manifold pressure at sea level for naturally aspirated engines and the
     /// high pitch stop prevents an overspeed until vd at full power with Vd being 110% of the vne."

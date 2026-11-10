@@ -3,13 +3,16 @@ using System.Threading;
 
 namespace FlyingGame.Bridge
 {
-    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, TireChirp, BulletHit, Explosion, StructurePop, Count }
+    // CanopyImpact is appended rather than filed next to CanopyJettison on purpose: FxKind's values are indices into
+    // OneShotSynth's pending arrays and are persisted nowhere, but inserting one would silently renumber every kind
+    // after it, and this enum is read by the Editor FX checks by value.
+    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, TireChirp, BulletHit, Explosion, StructurePop, CanopyImpact, Count }
 
     internal static class FxSource
     {
         /// <summary>Sounds made AT THE AIRCRAFT (attenuated and delayed by distance once the pilot has left it); the
         /// rest happen at the listener (the pilot / seat / canopy).</summary>
-        public static bool AtAircraft(FxKind k) => k is FxKind.WingFailure or FxKind.PylonBurst or FxKind.Crash or FxKind.TireChirp or FxKind.StructurePop;   // BulletHit/Explosion: at the target, mixed at listener level
+        public static bool AtAircraft(FxKind k) => k is FxKind.WingFailure or FxKind.PylonBurst or FxKind.Crash or FxKind.TireChirp or FxKind.StructurePop or FxKind.CanopyImpact;   // BulletHit/Explosion: at the target, mixed at listener level
     }
 
     /// <summary>
@@ -91,11 +94,28 @@ namespace FlyingGame.Bridge
                     _gateCount = (int)(_fs * 0.006f); _gateLevel = 0f; _splinters = 3;
                     break;
                 case FxKind.CanopyJettison:
-                    _len = 1.3f;
-                    _bpA.BandPass(_fs, 2200f, 8f);         // latch ring
-                    _bpB.BandPass(_fs, 3400f, 10f);
-                    _lp.SetCutoff(2500f, _fs);             // wind rush
-                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.003f, _fs);
+                    // AIR ONLY. Ty 2026-11-10: "ditch the mechanical sound and just use an air sound as it flys off".
+                    // The latch ring at 2,200 and 3,400 Hz and the three clank partials under it are gone: what the
+                    // pilot hears is the hole the canopy left, a broad rush that opens as the shell goes and fades as
+                    // it falls behind. The mechanical sound is now FxKind.CanopyImpact and only plays if it hits
+                    // something.
+                    _len = 1.6f;
+                    _hp.HighPass(_fs, 220f, 0.7f);         // the rush, kept off the bottom end
+                    _bpA.BandPass(_fs, 700f, 0.9f);        // the cockpit's own cavity, broad
+                    _lp.SetCutoff(1800f, _fs);             // slipstream over the sill
+                    break;
+                case FxKind.CanopyImpact:
+                    // IT HIT THE TAIL. Ty 2026-11-10: "if it hits the tail or other structure use a mechanical sound
+                    // for impact and shatter the glass both audibly and visually". So: one struck-metal bang off the
+                    // aeroplane's own structure, and the glass going with it — a bright crackle, then shards falling
+                    // away for the best part of a second. The level carries how hard it hit (FlightAudio.CanopyImpact).
+                    _len = 1.1f;
+                    _bpA.BandPass(_fs, 420f, 3.5f);        // the struck panel: a dull aluminium bang
+                    _bpB.BandPass(_fs, 2600f, 1.6f);       // the glass letting go, broad and bright
+                    _hp.HighPass(_fs, 4500f, 0.7f);        // shards
+                    _lp.SetCutoff(190f, _fs);              // the thump through the airframe
+                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.0025f, _fs);
+                    _gateCount = (int)(_fs * 0.004f); _gateLevel = 0f; _splinters = 4;   // the first few shards, as the snap's splinters
                     break;
                 case FxKind.EjectionSeat:
                     _len = 0.55f;
@@ -192,9 +212,17 @@ namespace FlyingGame.Bridge
                     _gAT = _gBT = _gCT = 1f;   // the burst / splinter envelopes shape the snap
                     break;
                 case FxKind.CanopyJettison:
-                    _gAT = 3f * Env(t, 0.001f, 0f, 0.03f);
-                    _gBT = 0.3f * Env(t - 0.05f, 0.002f, 0f, 0.12f);
-                    _gCT = 0.6f * Env(t - 0.05f, 0.2f, 0.05f, 0.45f) * (0.4f + Dsp.Clamp01(_ias / 80f));
+                    // It OPENS rather than cracks: 60 ms of swell as the shell lifts, then the rush settling back. All
+                    // three parts scale with airspeed, because at a taxi there is barely any noise to make.
+                    float air = 0.35f + 1.1f * Dsp.Clamp01(_ias / 80f);
+                    _gAT = 0.9f * air * Env(t, 0.06f, 0.08f, 0.45f);
+                    _gBT = 0.7f * air * Env(t, 0.09f, 0.05f, 0.5f);
+                    _gCT = 1.1f * air * Env(t - 0.02f, 0.12f, 0.1f, 0.55f);
+                    break;
+                case FxKind.CanopyImpact:
+                    _gAT = 2.2f * Env(t, 0.001f, 0f, 0.05f);                 // the bang
+                    _gBT = 1.6f * Env(t, 0.002f, 0.01f, 0.18f);              // the glass going
+                    _gCT = 0.8f * Env(t, 0.004f, 0.03f, 0.40f);              // shards away
                     break;
                 case FxKind.EjectionSeat:
                     _gAT = 3f * Env(t, 0.001f, 0f, 0.08f);
@@ -293,12 +321,28 @@ namespace FlyingGame.Bridge
                 }
                 case FxKind.CanopyJettison:
                 {
+                    // Noise through three shapes and nothing tonal: no burst, no resonator ring, no partials.
+                    float rush = _hp.Process(n) * _gA;
+                    float cavity = _bpA.Process(n) * 2.2f * _gB;
+                    float over = _lp.Process(n) * 2.4f * _gC;
+                    outp = Dsp.SoftClip(rush + cavity + over);
+                    break;
+                }
+                case FxKind.CanopyImpact:
+                {
                     _burst *= _burstDec;
-                    float ex = n * _burst;
-                    float latch = (_bpA.Process(ex) + 0.7f * _bpB.Process(ex)) * _gA;
-                    _phA += 1310f / _fs; _phB += 2090f / _fs; _phC += 3380f / _fs;
-                    float clank = (Dsp.Sin01(_phA) + 0.6f * Dsp.Sin01(_phB) + 0.4f * Dsp.Sin01(_phC)) * _gB;
-                    outp = latch + clank + _lp.Process(n) * _gC;
+                    if (_gateCount > 0 && --_gateCount == 0 && _splinters > 0)
+                    {
+                        _splinters--; _gateLevel = 0.7f;
+                        _gateCount = (int)(_fs * (0.004f + 0.006f * Dsp.Clamp01(_n.Next() * 0.5f + 0.5f)));
+                    }
+                    _gateLevel *= 1f - 1f / (0.003f * _fs);
+                    float ex = n * (_burst + _gateLevel);
+                    float bang = _bpA.Process(ex) * 5f * _gA;
+                    float breaking = _bpB.Process(ex) * 3f * _gB;
+                    float shards = _hp.Process(n * (_burst + _gateLevel)) * 2.4f * _gC;
+                    float thump = _lp.Process(n * _burst) * 4f * _gA;
+                    outp = Dsp.SoftClip(bang + breaking + shards + thump);
                     break;
                 }
                 case FxKind.EjectionSeat:

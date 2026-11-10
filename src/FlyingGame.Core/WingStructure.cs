@@ -138,9 +138,163 @@ public sealed class WingPanel
         return new Vec3(xa + dx * c + dz * s, p.Y, za - dx * s + dz * c);
     }
 
-    /// <summary>The panel's permanent shape applied to a straight-wing body point: twisted, then bent (plus any extra
-    /// <paramref name="extraBendRad"/>, the elastic flex).</summary>
-    public Vec3 Deform(Vec3 p, double extraBendRad = 0.0) => Bend(Twist(p, TwistRad), BendRad + extraBendRad);
+    /// <summary>The STRIKE's kink, rad: the bending hinge's permanent set. A ground strike bends a wing sharply at its
+    /// station and that is right (Ty 2026-11-10: "Wing strike bends are still sharp mid span"), so this goes through
+    /// <see cref="Bend"/> and moves nothing inboard of the station. The AERODYNAMIC bend is a curve instead — see
+    /// <see cref="Curve"/>.</summary>
+    public double StrikeBendRad => Bending?.SetRad ?? 0.0;
+
+    /// <summary>
+    /// The panel's shape about its STATION applied to a straight-wing body point: twisted, then kinked by the strike's
+    /// bend (plus <paramref name="extraBendRad"/>, the elastic rotation a contact force is putting in right now).
+    ///
+    /// THIS IS NO LONGER THE WHOLE SHAPE. Until 2026-11-10 it also carried the wings' aerodynamic set, because that was
+    /// a kink at the station too; it is a curve from the root now (<see cref="Shape"/>, <see cref="Curve"/>). Use
+    /// <see cref="Shape"/> for what the wing is actually flying; this is the strike's share of it, kept apart because
+    /// the two shapes are different shapes and one of them is a kink.
+    /// </summary>
+    public Vec3 Deform(Vec3 p, double extraBendRad = 0.0) => Bend(Twist(p, TwistRad), StrikeBendRad + extraBendRad);
+
+    // ---- the AERODYNAMIC bend: a curve from the root (Ty 2026-11-10) -----------------------------------------------
+
+    /// <summary>
+    /// THE SLOPE A LOADED WING HAS AT SPAN FRACTION <paramref name="eta"/>, as a share of the slope at its tip:
+    /// s(η) = 1 − (1 − η)³.
+    ///
+    /// Ty 2026-11-10: "Make bent wings from symmetrical aerodynamic load curve from the root instead of pivot at a
+    /// strut or root." A spar carrying a spanwise-distributed lift has a bending moment that falls roughly as the
+    /// square of the distance left to the tip, and its slope is that moment integrated from the root:
+    ///
+    ///     M(u) ∝ (L − u)²   ⇒   θ(y) ∝ ∫₀^y (L − u)² du = L³ − (L − y)³,
+    ///
+    /// which normalised to 1 at the tip is exactly the cubic above — the classic uniformly-loaded cantilever. It has
+    /// the character he described: zero slope at the root (the wing leaves the fuselage level), the most CURVATURE
+    /// inboard (dθ/dη = 3(1 − η)² is largest at the root), and the tip displaced most. A Schrenk loading, which is
+    /// what the strips actually fly, is a little more inboard-heavy than uniform and would raise that exponent
+    /// slightly; the cubic is the standard beam result and nothing in the fleet measures the difference.
+    /// </summary>
+    public static double CurveSlopeShare(double eta)
+    {
+        double k = 1.0 - System.Math.Clamp(eta, 0.0, 1.0);
+        return 1.0 - k * k * k;
+    }
+
+    /// <summary>How many spans the curve's spine is integrated over. 32 puts the node spacing an order of magnitude
+    /// below the strip spacing of every type in the fleet, and the spine is smooth, so the lerp between nodes is far
+    /// below anything the eye or the aero can tell.</summary>
+    public const int CurveNodes = 32;
+
+    private double _curveFor = double.NaN;
+    private double[]? _curveYc, _curveZc;
+
+    /// <summary>
+    /// The curve's spine, integrated once per angle: where the chord line has moved to at each of
+    /// <see cref="CurveNodes"/> stations from the root to the outer edge. ARC LENGTH IS PRESERVED — the spine is walked
+    /// as a chain of segments each turned by its own local slope — because bending a spar does not stretch it, which is
+    /// also what makes the kink the exact limiting case of this curve rather than something that disagrees with it.
+    /// </summary>
+    private void EnsureCurve(double tipRad)
+    {
+        if (_curveFor == tipRad && _curveYc is not null) return;
+        _curveYc ??= new double[CurveNodes + 1];
+        _curveZc ??= new double[CurveNodes + 1];
+        double len = System.Math.Max(0.0, TipY - RootY), step = len / CurveNodes;
+        double y = RootY, z = BreakZ;
+        _curveYc[0] = y; _curveZc[0] = z;
+        for (int i = 1; i <= CurveNodes; i++)
+        {
+            // The segment's own slope, at its middle: a midpoint rule on the slope, which integrates the cubic exactly
+            // enough that the tip lands within a millimetre on every span in the fleet.
+            double th = tipRad * CurveSlopeShare((i - 0.5) / CurveNodes);
+            y += step * System.Math.Cos(th);
+            z -= step * System.Math.Sin(th);
+            _curveYc[i] = y; _curveZc[i] = z;
+        }
+        _curveFor = tipRad;
+    }
+
+    /// <summary>
+    /// The curve's RIGID MOTION of the section at |y| = <paramref name="absY"/>: the slope it has turned through and
+    /// where its chord-line point has moved to. A cross-section of a bending beam stays rigid, which is what lets an
+    /// aileron ride one carrier (AirframeVisual.PanelMotion) and what makes this exact rather than a stand-in.
+    /// Past the outer edge the spine runs on straight at the tip's slope.
+    /// </summary>
+    public (double SlopeRad, double Yc, double Zc) CurveSection(double absY, double tipRad)
+    {
+        double len = TipY - RootY;
+        if (tipRad == 0.0 || len <= 1e-6 || absY < RootY) return (0.0, System.Math.Max(absY, RootY), BreakZ);
+        EnsureCurve(tipRad);
+        double eta = (absY - RootY) / len;
+        double slope = tipRad * CurveSlopeShare(eta);
+        if (eta >= 1.0)
+        {
+            double over = (eta - 1.0) * len;
+            return (slope, _curveYc![CurveNodes] + over * System.Math.Cos(slope), _curveZc![CurveNodes] - over * System.Math.Sin(slope));
+        }
+        double t = eta * CurveNodes;
+        int i = (int)t;
+        if (i >= CurveNodes) i = CurveNodes - 1;
+        double f = t - i;
+        return (slope, _curveYc![i] + (_curveYc[i + 1] - _curveYc[i]) * f, _curveZc![i] + (_curveZc[i + 1] - _curveZc[i]) * f);
+    }
+
+    /// <summary>
+    /// The AERODYNAMIC bend applied to a body point: the curve from the root at tip slope <paramref name="tipRad"/>.
+    /// The point's section is taken at its own STRAIGHT-wing span station (the material coordinate, as a beam is
+    /// described), moved to where the curve puts that station's chord line, and turned by the slope there.
+    /// </summary>
+    public Vec3 Curve(Vec3 p, double tipRad)
+    {
+        if (tipRad == 0 || System.Math.Sign(p.Y) != Side || System.Math.Abs(p.Y) < RootY) return p;
+        double ay = System.Math.Abs(p.Y);
+        (double th, double yc, double zc) = CurveSection(ay, tipRad);
+        double dz = p.Z - BreakZ, c = System.Math.Cos(th), s = System.Math.Sin(th);
+        return new Vec3(p.X, Side * yc + Side * dz * s, zc + dz * c);
+    }
+
+    /// <summary>
+    /// Rotate a body point of this wing about its ROOT line by <paramref name="rad"/> (+ = up) — the FOLD's kink: the
+    /// same rigid turn <see cref="Bend"/> makes about the station, through <see cref="RootY"/> instead, so the WHOLE
+    /// wing goes over and not only the panel outboard of the station. Nothing inboard of the root moves.
+    /// </summary>
+    public Vec3 FoldAt(Vec3 p, double rad)
+    {
+        if (rad == 0 || System.Math.Sign(p.Y) != Side || System.Math.Abs(p.Y) < RootY) return p;
+        double dy = p.Y - Side * RootY, dz = p.Z - BreakZ, c = System.Math.Cos(rad), s = System.Math.Sin(rad);
+        return new Vec3(p.X, Side * RootY + dy * c + Side * dz * s, BreakZ + dz * c - Side * dy * s);
+    }
+
+    /// <summary>The AERODYNAMIC bend's tip slope, rad (+ = tip up): the wings' permanent overstress set plus the flex
+    /// they are carrying this instant. What <see cref="Curve"/> is drawn at — and his "10 degrees at 1.5 and 20 degrees
+    /// at 2.0" is this, the angle at the TIP, with the rest of the span taking its share of it.</summary>
+    public double AeroBendRad => OverstressSetRad + FlightFlexRad;
+
+    /// <summary>
+    /// THE WHOLE SHAPE THIS WING IS FLYING, applied to a straight-wing body point. THREE DIFFERENT SHAPES, by cause,
+    /// composed in the order the structure makes them (Ty 2026-11-10):
+    ///
+    ///  1. TWIST about the flexural axis, outboard of the station (a strike's torsion).
+    ///  2. The STRIKE's BEND — a sharp KINK at the station, "still sharp mid span", nothing inboard of it moving,
+    ///     plus <paramref name="extraStationRad"/> for the elastic rotation a contact force is putting in now.
+    ///  3. The AERODYNAMIC bend — a smooth CURVE from the ROOT, "instead of pivot at a strut or root", at a tip slope
+    ///     of <see cref="AeroBendRad"/> plus <paramref name="extraAeroRad"/>. It carries the kinked tip with it,
+    ///     because the g load bends the whole spar including the part a strike already bent.
+    ///  4. The FOLD, a kink at the root, outermost: by then the structure there has gone over.
+    ///
+    /// ONE FUNCTION FOR THE SIM AND FOR THE RENDERER, deliberately. The strips fly this (Sim's ShapeWingSide and
+    /// WriteStripShape) and the drawn mesh is placed vertex by vertex through this same call
+    /// (AirframeVisual.PosePanelPieces), so the aeroplane cannot be drawn in a shape it is not flying. That is the
+    /// standard Ty set when bent wingtips were still drawn on an aeroplane that had no wings, and again when he chose
+    /// "draw it folded" over shipping the fold's physics on its own.
+    /// </summary>
+    public Vec3 Shape(Vec3 p, double extraStationRad = 0.0, double extraAeroRad = 0.0) =>
+        FoldAt(Curve(Bend(Twist(p, TwistRad), StrikeBendRad + extraStationRad), AeroBendRad + extraAeroRad), FoldRad);
+
+    /// <summary>The rotation the section at |y| is flying at, rad (+ = up): the fold, the curve's local slope, and the
+    /// strike's kink where it applies. What the aero flies each row's section at.</summary>
+    public double LocalShapeRad(double absY, double extraStationRad = 0.0, double extraAeroRad = 0.0) =>
+        FoldRad + CurveSection(absY, AeroBendRad + extraAeroRad).SlopeRad
+        + (absY > BreakY ? StrikeBendRad + extraStationRad : 0.0);
 
     /// <summary>The bending moment a body force at a body point puts on the station, N·m (+ = tip up).</summary>
     public double MomentUp(Vec3 at, Vec3 force)

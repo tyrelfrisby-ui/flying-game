@@ -127,8 +127,101 @@ public static class PropModel
             => new(EngineRunning, PowerScale, Rpm, PropLever, Math.Max(0.0, shaftRpm), Math.Max(0.0, bladePitchDeg));
     }
 
-    /// <summary>Lowest governed rpm, as a fraction of <c>MaxRpm</c> (a 2,700 rpm Lycoming's governor bottoms near 1,900).</summary>
-    public const double LowGovernorFraction = 0.7;
+    /// <summary>
+    /// WHERE A CONSTANT-SPEED GOVERNOR BOTTOMS with the blue lever full back, rpm. 1,200 across the fleet, from Ty
+    /// on 2026-11-10: "Governor low stops 1600 across the board", then "Actually 1200 rpm across the board".
+    ///
+    /// It replaces a FRACTION of max rpm (0.7, so 1,890 on a 2,700 Lycoming), which was wrong in a way worth
+    /// recording: a governor's low stop is set by the unit and its spring, not by how fast the engine it happens to
+    /// be bolted to can turn. Scaling it with MaxRpm made a big engine's governor bottom higher than a small one's
+    /// for no reason anybody could point at.
+    /// </summary>
+    public const double FleetLowGovernedRpm = 1200.0;
+
+    /// <summary>Where this type's governor bottoms: its own authored stop if it has one, else the fleet's 1,200 —
+    /// never below idle, and never above what the governor can hold.</summary>
+    public static double LowGovernedRpm(PropulsionConfig prop) =>
+        System.Math.Clamp(prop.GovernorLowRpm > 0.0 ? prop.GovernorLowRpm : FleetLowGovernedRpm,
+                          prop.IdleRpm, System.Math.Clamp(prop.GovernedRpm, prop.IdleRpm, prop.MaxRpm));
+
+    /// <summary>
+    /// WHERE THE BLADES GO WHEN THE OIL PRESSURE GOES, degrees at 0.75R, or 0 for a type this cannot happen to (fixed
+    /// pitch, or a constant-speed type whose stops are not fitted yet). Ty 2026-11-10: "aerobatic aircraft with a
+    /// constant speed propeller default to high pitch with loss of oil pressure like twins do (Seminole beech 18 etc)
+    /// and standard single engines default to low pitch with no oil pressure".
+    ///
+    /// The governor's oil works against a spring, and WHICH WAY it is plumbed is the whole difference. A standard
+    /// single lets the oil hold the blades coarse, so losing it springs them FINE: you keep the power you need at the
+    /// low end. An aerobatic single and every twin are plumbed the other way — the oil holds them fine, so losing it
+    /// drives them COARSE, toward feather on a twin and away from an overspeed on an aerobatic single pointed down.
+    /// </summary>
+    public static double OilLossPitchDeg(PropulsionConfig prop)
+    {
+        if (!prop.ConstantSpeed || prop.FineStopDeg <= 0.0) return 0.0;
+        double fine = prop.FineStopDeg;
+        double coarse = prop.CoarseStopDeg > fine ? prop.CoarseStopDeg : fine;
+        return prop.CoarseOnOilLoss ? coarse : fine;
+    }
+
+    /// <summary>
+    /// A DEAD ENGINE'S PROPELLER, SOLVED: the rpm the air turns it at against the engine's cranking resistance, and the
+    /// drag (N, positive aft) it makes doing it. NaN for a type this does not apply to — fixed pitch, or a
+    /// constant-speed type whose stops are not fitted yet — which keeps the authored
+    /// <see cref="PropulsionConfig.IdleDragCd"/> and <see cref="FlyingGame.Core.Engine.MixtureModel.WindmillRpm"/>
+    /// exactly as they were.
+    ///
+    /// THIS IS THE PHYSICS, AND IT ONLY BECAME TRUSTWORTHY WHEN TY CORRECTED IT. Solved against a free-turning engine
+    /// it gave the Pitts 18 N coarse at 60 m/s against an authored 509 — a factor of 28 — and I would not put that
+    /// against a coefficient fitted to published glide ratios. Shown the dead propeller running away to 4,414 rpm he
+    /// said: "You are not accounting for the cranking resistance of the engine". With
+    /// <see cref="PistonEngine.MotoringTorqueNm"/> in the balance the same solve lands where the calibration lives:
+    ///
+    ///     Pitts, FINE stop (11 deg)          Pitts, COARSE stop (33 deg)
+    ///       30 m/s  1,322 rpm  Cd 0.192        30 m/s    426 rpm  Cd 0.056
+    ///       45      2,267      Cd 0.111        45        743      Cd 0.029
+    ///       60      3,150      Cd 0.079        60      1,037      Cd 0.018
+    ///       80      4,294      Cd 0.060        80      1,418      Cd 0.011
+    ///
+    /// The fine stop at approach speed is Cd 0.19 on disc area, and the authored coefficient's own note says a
+    /// fine-pitch prop driven by the air is "C_D ~ 0.15-0.25 on disc area". The model and the calibration agree, from
+    /// opposite directions, which is the only evidence worth having. And the coarse stop is a fifth of it — which is
+    /// what Ty asked for when told the two stops differed by only a quarter: "Much more - nearer feather".
+    ///
+    /// The drag falls with speed as a coefficient because the engine's cranking torque is nearly constant, so the power
+    /// the propeller must extract is nearly constant and the FORCE therefore grows much more slowly than q. That is the
+    /// right shape for a windmilling propeller and no authored coefficient on q could have it.
+    ///
+    /// Cached: the solve is up to thirty disc solutions and a glide asks every step. The buckets (0.25 deg, 1 m/s, 2 %
+    /// of density) are finer than anything downstream resolves.
+    /// </summary>
+    public static (double Rpm, double DragN) Windmilling(PropulsionConfig prop, double vAxialMs, double rhoKgM3)
+    {
+        double pitch = OilLossPitchDeg(prop);
+        if (pitch <= 0.0 || prop.PropDiameterM <= 0.0 || vAxialMs <= 1.0) return (double.NaN, double.NaN);
+
+        var key = ((long)Math.Round(pitch * 4.0), (long)Math.Round(vAxialMs), (long)Math.Round(rhoKgM3 * 50.0),
+                   prop.PropBladeCount, (long)Math.Round(prop.PropDiameterM * 100.0), (long)Math.Round(prop.ActivityFactor));
+        lock (_windmillCache)
+        {
+            if (_windmillCache.TryGetValue(key, out (double Rpm, double DragN) cached)) return cached;
+            var g = new BladeElement.Geometry(prop.PropBladeCount, 0.5 * prop.PropDiameterM, pitch, prop.ActivityFactor);
+            double sigma = rhoKgM3 / Atmosphere.SeaLevelDensityKgM3;
+            double EngineQ(double r) => PistonEngine.MotoringTorqueNm(prop.MaxPowerW, prop.MaxRpm, r, 0.0, sigma, sigma);
+            BladeElement.Windmilling w = BladeElement.Windmill(g, vAxialMs, rhoKgM3, prop.MaxRpm, EngineQ);
+            // A blade too coarse to turn the engine over at all is STOPPED, and a stopped disc is not a blade-element
+            // problem: NaN hands it back to the authored coefficient, halved, which is what the sim has always done.
+            (double, double) r = w.Turning ? (w.Rpm, Math.Max(0.0, w.DragN)) : (double.NaN, double.NaN);
+            if (_windmillCache.Count < 4096) _windmillCache[key] = r;
+            return r;
+        }
+    }
+
+    /// <summary>The rpm the air turns a dead propeller at; NaN when that is not this type's story. See
+    /// <see cref="Windmilling"/>, which this reads.</summary>
+    public static double WindmillRpm(PropulsionConfig prop, double vAxialMs, double rhoKgM3)
+        => Windmilling(prop, vAxialMs, rhoKgM3).Rpm;
+
+    private static readonly Dictionary<(long, long, long, int, long, long), (double Rpm, double DragN)> _windmillCache = new();
 
     /// <summary>
     /// The rpm a RUNNING engine's propeller turns at, for its gyroscopic couple. Fixed pitch: the throttle law
@@ -144,7 +237,7 @@ public static class PropModel
         double idle = prop.IdleRpm, max = prop.MaxRpm, thr = Math.Clamp(throttle01, 0.0, 1.0);
         if (!prop.ConstantSpeed) return idle + (max - idle) * thr;
         double lever = Math.Clamp(propLever, 0.0, 1.0);
-        double low = Math.Max(idle, LowGovernorFraction * max);
+        double low = LowGovernedRpm(prop);
         double govTop = Math.Clamp(prop.GovernedRpm, idle, max);
         double gov = low + (govTop - low) * lever;
         double takeoff = low + (max - low) * lever;   // full forward and firewalled: up to the red line
@@ -234,8 +327,17 @@ public static class PropModel
         // The idling prop windmills: drag on the disc, fading out by 20 % throttle (above that it is pulling).
         if (thr < 0.2 && v > 5.0 && prop.IdleDragCd > 0)
         {
-            double cd = prop.IdleDragCd * (1 - thr / 0.2) * (drive.EngineRunning || drive.Rpm > 0.0 ? 1.0 : StoppedDragFraction);
-            thrust -= cd * 0.5 * airDensity * Math.Max(0, bodyVelocity.X) * Math.Max(0, bodyVelocity.X) * discArea;
+            // A DEAD CONSTANT-SPEED PROP IS SOLVED, not estimated: its blades are on the stop the oil loss left them
+            // on and the blade element knows what turning the engine with them costs. Only this case — a running
+            // engine, a fixed-pitch propeller and a type whose stops are not fitted all keep the authored coefficient
+            // untouched, including the idling prop the coefficient was calibrated on.
+            double solved = drive.EngineRunning ? double.NaN : Windmilling(prop, bodyVelocity.X, airDensity).DragN;
+            if (!double.IsNaN(solved)) thrust -= solved;
+            else
+            {
+                double cd = prop.IdleDragCd * (1 - thr / 0.2) * (drive.EngineRunning || drive.Rpm > 0.0 ? 1.0 : StoppedDragFraction);
+                thrust -= cd * 0.5 * airDensity * Math.Max(0, bodyVelocity.X) * Math.Max(0, bodyVelocity.X) * discArea;
+            }
         }
 
         Vec3 force = new(thrust, 0, 0);

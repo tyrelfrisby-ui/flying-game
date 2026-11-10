@@ -479,7 +479,203 @@ public sealed class StaggeredWingFailureTests : IDisposable
         Assert.Equal(ac.Structure.LeftWing.Member.Strength, ac.Structure.RightWing.Member.Strength, 12);
     }
 
+    // ---- the AERODYNAMIC bend is a CURVE from the root; a STRIKE bend is still a kink (Ty 2026-11-10) -------------
+
+    /// <summary>
+    /// "Make bent wings from symmetrical aerodynamic load curve from the root instead of pivot at a strut or root."
+    /// The g-load bend has the shape of a loaded spar: level where it leaves the fuselage, most curvature inboard, the
+    /// tip displaced most — and it moves the wing INBOARD of the station, which a pivot at the station cannot.
+    /// </summary>
+    [Fact]
+    public void AnAerodynamicBendIsASmoothCurveFromTheRootAndNotAPivotAtTheStation()
+    {
+        Aircraft ac = At("j3-cub-like");
+        WingPanel p = ac.Panels.First(q => q.Side < 0);
+        Ramp(ac, 1.7 * ac.Config.Limits.PublishedLimits().Pos, sec: 2.0);
+        Ramp(ac, 1.0, sec: 0.5, holdSec: 0.5);                 // booked: a 7° permanent set at the TIP
+        Assert.Equal(7.0 * Deg, p.AeroBendRad, 4);
+        Assert.Equal(0.0, p.StrikeBendRad, 9);                 // nothing struck it
+
+        // The slope along the span: zero at the root, the whole of it at the tip, and rising all the way.
+        double last = -1;
+        _o.WriteLine($"J-3 left wing, {p.AeroBendRad / Deg:F2}° at the tip (root {p.RootY:F2} m, station {p.BreakY:F2} m, tip {p.TipY:F2} m):");
+        foreach (double f in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 })
+        {
+            double ay = p.RootY + f * (p.TipY - p.RootY);
+            double slope = p.CurveSection(ay, p.AeroBendRad).SlopeRad;
+            Vec3 at = p.Shape(new Vec3(0, p.Side * ay, p.BreakZ));
+            _o.WriteLine($"   eta {f:F2} (|y| {ay:F2} m): slope {slope / Deg:F2}°, risen {(p.BreakZ - at.Z) * 100:F1} cm");
+            Assert.True(slope > last, "the slope must rise all the way out");
+            last = slope;
+        }
+        Assert.Equal(0.0, p.CurveSection(p.RootY, p.AeroBendRad).SlopeRad, 9);        // level at the root
+        Assert.Equal(p.AeroBendRad, p.CurveSection(p.TipY, p.AeroBendRad).SlopeRad, 9);   // the whole angle at the tip
+
+        // MOST CURVATURE INBOARD: the first quarter of the span turns through more than the last quarter.
+        double Slope(double f) => p.CurveSection(p.RootY + f * (p.TipY - p.RootY), p.AeroBendRad).SlopeRad;
+        Assert.True(Slope(0.25) - Slope(0.0) > Slope(1.0) - Slope(0.75),
+            $"inboard quarter {(Slope(0.25) - Slope(0.0)) / Deg:F2}° vs outboard {(Slope(1.0) - Slope(0.75)) / Deg:F2}°");
+
+        // And the wing INBOARD of the station has moved, which is the whole difference from a pivot there.
+        Vec3 mid = new(0, p.Side * 0.5 * (p.RootY + p.BreakY), p.BreakZ);
+        _o.WriteLine($"half way to the station: risen {(p.BreakZ - p.Shape(mid).Z) * 100:F1} cm (a pivot at the station gives 0)");
+        Assert.True(p.BreakZ - p.Shape(mid).Z > 0.01, "an aerodynamic bend must lift the wing inboard of the station");
+        Assert.Equal(p.Side * 0.5 * (p.RootY + p.BreakY), p.Deform(mid).Y, 9);   // the STATION kink alone would not
+    }
+
+    /// <summary>
+    /// A WING STRIKE'S BEND IS STILL A SHARP KINK MID SPAN ("Wing strike bends are still sharp mid span"), and the
+    /// aileron split at the station rests on exactly that: nothing inboard of the station moves, everything outboard
+    /// moves rigidly. The curve is a second shape alongside it, not a replacement.
+    /// </summary>
+    [Fact]
+    public void AStrikeBendIsStillASharpKinkAtTheStation()
+    {
+        Aircraft ac = At("j3-cub-like");
+        Assert.True(ac.BendPanel(AirframeComponent.WingTipLeft, 8 * Deg));
+        WingPanel p = ac.Panels.First(q => q.Side < 0);
+        Assert.Equal(8 * Deg, p.StrikeBendRad, 6);
+        Assert.Equal(0.0, p.AeroBendRad, 9);                   // no g load: the curve is flat
+
+        // Inboard of the station: untouched, to the last bit.
+        foreach (double f in new[] { 0.1, 0.5, 0.9 })
+        {
+            Vec3 v = new(0.1, p.Side * f * p.BreakY, p.BreakZ + 0.05);
+            Vec3 d = p.Shape(v);
+            Assert.Equal(v.Y, d.Y, 12);
+            Assert.Equal(v.Z, d.Z, 12);
+        }
+        // Outboard: rigid about the station — the distance from the station axis is preserved.
+        foreach (double ay in new[] { 3.6, 4.4, 5.2 })
+        {
+            Vec3 v = new(0.1, p.Side * ay, p.BreakZ + 0.05);
+            Vec3 d = p.Shape(v);
+            double r0 = Math.Sqrt(Math.Pow(v.Y - p.Side * p.BreakY, 2) + Math.Pow(v.Z - p.BreakZ, 2));
+            double r1 = Math.Sqrt(Math.Pow(d.Y - p.Side * p.BreakY, 2) + Math.Pow(d.Z - p.BreakZ, 2));
+            Assert.Equal(r0, r1, 9);
+        }
+        _o.WriteLine("a strike's 8° bend: a kink at the station, nothing inboard moved, rigid outboard");
+    }
+
+    /// <summary>
+    /// THE AILERON LIMIT READS THE SAME NUMBER IT ALWAYS DID. The curve changes the SHAPE a bend angle is realised as,
+    /// not the angle: a panel still reports its hinge's set plus its wing's overstress set as <see cref="WingPanel.BendRad"/>,
+    /// which is what BentAileronTravel measures the lost travel against (and the worst side of the pair still binds).
+    /// This is the test that would catch the curve quietly moving that number.
+    /// </summary>
+    [Fact]
+    public void TheCurveDoesNotChangeTheBendAngleAPanelReports()
+    {
+        Aircraft ac = At("j3-cub-like");
+        Ramp(ac, 1.7 * ac.Config.Limits.PublishedLimits().Pos, sec: 2.0);
+        Ramp(ac, 1.0, sec: 0.5, holdSec: 0.5);
+        foreach (WingPanel p in ac.Panels)
+        {
+            Assert.Equal(7.0 * Deg, p.OverstressSetRad, 4);                      // the member's set, per side
+            Assert.Equal(p.StrikeBendRad + p.OverstressSetRad, p.BendRad, 9);     // the reported angle, unchanged
+        }
+        // And with a strike on top, the two still add into the one reported number.
+        Assert.True(ac.BendPanel(AirframeComponent.WingTipLeft, 4 * Deg));
+        WingPanel l = ac.Panels.First(q => q.Side < 0);
+        _o.WriteLine($"left wing: strike {l.StrikeBendRad / Deg:F2}° + aero {l.OverstressSetRad / Deg:F2}° = reported {l.BendRad / Deg:F2}°");
+        Assert.Equal(11.0 * Deg, l.BendRad, 4);
+    }
+
+    /// <summary>The curve does not stretch the spar: the deformed span is the span it started with, to a millimetre,
+    /// which is what makes a sharp kink the exact limiting case of it rather than something that disagrees.</summary>
+    [Fact]
+    public void TheCurveBendsTheSparWithoutStretchingIt()
+    {
+        Aircraft ac = At("j3-cub-like");
+        WingPanel p = ac.Panels.First(q => q.Side < 0);
+        foreach (double tipDeg in new[] { 5.0, 10.0, 20.0 })
+        {
+            double tip = tipDeg * Deg;
+            double len = 0; double y0 = p.RootY, z0 = p.BreakZ;
+            for (int i = 1; i <= 2000; i++)
+            {
+                double ay = p.RootY + (p.TipY - p.RootY) * i / 2000.0;
+                (_, double yc, double zc) = p.CurveSection(ay, tip);
+                len += Math.Sqrt((yc - y0) * (yc - y0) + (zc - z0) * (zc - z0));
+                y0 = yc; z0 = zc;
+            }
+            _o.WriteLine($"tip {tipDeg:F0}°: spine {len:F4} m against a straight {p.TipY - p.RootY:F4} m");
+            Assert.Equal(p.TipY - p.RootY, len, 3);
+        }
+    }
+
     // ---- the law itself, as arithmetic -------------------------------------------------------------------------------
+
+    // ---- what the RENDERER is promised (Ty 2026-11-10: "draw it folded and limit the aileron") -----------------------
+
+    /// <summary>
+    /// THE DRAWN SHAPE IS THE FLOWN SHAPE, pinned where it can be: every row of a folded wing flies the offset that
+    /// <see cref="WingPanel.Shape"/> gives its load point, and the renderer places every drawn VERTEX through that same
+    /// call (AirframeVisual.PosePanelPieces). So the two cannot disagree about the shape the aeroplane is in — which is
+    /// the standard Ty set when a bent wingtip was still drawn on an aeroplane that had no wings.
+    ///
+    /// This is the half of it that a .NET test can reach. What it does NOT prove is that the Unity side compiles or that
+    /// the meshes end up where the maths says: no Unity build has seen any of this.
+    /// </summary>
+    [Fact]
+    public void EveryRowOfAFoldedWingFliesExactlyWhatWingPanelShapeGivesIt()
+    {
+        Aircraft ac = At("extra-300-like");
+        Ramp(ac, WingFailureLaw.FoldRatio(OneG(ac)) * ac.Config.Limits.PublishedLimits().Pos * 1.005, sec: 3.0);
+        Assert.Equal(WingSideStage.Folded, ac.Structure.LeftWing.Stage);
+        StripFlowState fs = ac.FlowStateForTests;
+        var all = ac.Config.Surfaces.SelectMany(sf => sf.Strips).ToList();
+        int checked_ = 0, inboard = 0;
+        foreach (WingPanel p in ac.Panels)
+        {
+            Assert.NotEqual(0.0, p.FoldRad);
+            foreach (int i in p.SideStrips)
+            {
+                Vec3 pos = all[i].PosVec();
+                Vec3 want = p.Shape(pos) - pos;   // the aero flex is inside AeroBendRad; nothing extra to pass
+                Assert.Equal(want.X, fs.BendOffset![i].X, 9);
+                Assert.Equal(want.Y, fs.BendOffset[i].Y, 9);
+                Assert.Equal(want.Z, fs.BendOffset[i].Z, 9);
+                checked_++;
+                if (Math.Abs(pos.Y) < p.BreakY) { inboard++; Assert.True(fs.BendOffset[i].LengthSquared > 1e-6); }
+            }
+        }
+        _o.WriteLine($"{checked_} rows match WingPanel.Shape to 9 decimals, {inboard} of them INBOARD of the station " +
+                     $"(a fold at the root moves those; a bend at the station cannot)");
+        Assert.True(checked_ > 0 && inboard > 0);
+    }
+
+    /// <summary>
+    /// A FOLD IS A KINK AT THE ROOT, and the renderer's cut depends on exactly that: nothing inboard of
+    /// <see cref="WingPanel.RootY"/> moves, and everything outboard turns RIGIDLY, so the drawn wing can be one cut
+    /// piece on one pivot rather than a deformed mesh. (A BEND stays a kink at the STATION — the other agent's aileron
+    /// split at the station rests on that and is untouched here.)
+    /// </summary>
+    [Fact]
+    public void AFoldTurnsTheWholeWingRigidlyAboutItsRootAndMovesNothingInboardOfIt()
+    {
+        Aircraft ac = At("extra-300-like");
+        WingPanel p = ac.Panels.First(q => q.Side < 0);
+        p.FoldRad = 60 * Deg;
+        // Inboard of the root: untouched.
+        Vec3 inboard = new(0.1, p.Side * 0.5 * p.RootY, 0.2);
+        Assert.Equal(inboard.Y, p.FoldAt(inboard, p.FoldRad).Y, 12);
+        Assert.Equal(inboard.Z, p.FoldAt(inboard, p.FoldRad).Z, 12);
+        // Outboard of it: rigid — the distance from the root axis is preserved for every point, and the angle turned
+        // is the fold, which is what lets one rigid transform carry an aileron (AirframeVisual.PanelMotion).
+        foreach (double ay in new[] { 1.0, 2.0, 3.0, 4.0 })
+        {
+            Vec3 v = new(0.3, p.Side * ay, 0.1);
+            Vec3 f = p.FoldAt(v, p.FoldRad);
+            double r0 = Math.Sqrt(Math.Pow(v.Y - p.Side * p.RootY, 2) + Math.Pow(v.Z - p.BreakZ, 2));
+            double r1 = Math.Sqrt(Math.Pow(f.Y - p.Side * p.RootY, 2) + Math.Pow(f.Z - p.BreakZ, 2));
+            Assert.Equal(r0, r1, 9);                       // rigid
+            Assert.Equal(v.X, f.X, 12);                    // about a fore-and-aft axis
+            Assert.True(f.Z < v.Z, "a positive fold must take the wing UP (body z is DOWN)");
+        }
+        _o.WriteLine($"fold {p.FoldRad / Deg:F0}° about RootY {p.RootY:F2} m: rigid outboard, nothing inboard moved");
+        p.FoldRad = 0.0;
+    }
 
     /// <summary>
     /// The fold angle against the hand-worked numbers for the three constructions, at the breaking point: a composite

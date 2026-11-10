@@ -229,7 +229,7 @@ public sealed partial class Aircraft
     {
         // NOT an early return when there are no links and nothing dead: a wing with a plain aileron and no slave
         // strut still has to be limited once it is bent (LimitBentAilerons below).
-        if (_links.Count == 0 && _deadAileronRows.Count == 0 && !AnyPanelBent()) return;
+        if (_links.Count == 0 && _deadAileronRows.Count == 0 && !AnyPanelBent() && !AnyPanelFolded()) return;
         double[] ovr = _flowState.DeflectionOverride is { } o && o.Length == _stripTotal ? o : (_flowState.DeflectionOverride = new double[_stripTotal]);
         Array.Fill(ovr, double.NaN);
         foreach (int r in _deadAileronRows) ovr[r] = 0.0;
@@ -299,7 +299,8 @@ public sealed partial class Aircraft
         for (int i = 0; i < _panels.Count; i++)
         {
             WingPanel w = _panels[i];
-            if (w.AileronHinged.Length == 0 || w.Bending is null) continue;
+            if (w.AileronHinged.Length == 0) continue;
+            if (w.Bending is null && WorstFoldOfPair(w) <= 1e-6) continue;   // a fold still limits a panel with no hinge
             // THE WHOLE BEND, from either cause. Ty 2026-11-10: "Ground strikes leading to a bend should be
             // treated the same limiting aileron following the same rule". A panel's permanent bend is its contact
             // hinge's set PLUS the flight overstress's (WingStructure: BendRad is the sum), and reading only the
@@ -312,7 +313,12 @@ public sealed partial class Aircraft
             // not describe anything the stick can ask for. Each wing is drawn at its own bend; the limit is the
             // worst of them, which is the one that binds.
             double bend = WorstBendOfPair(w);
-            if (bend <= 1e-6)
+            // AND THE FOLD, which is a bend at the root. Ty, asked what a folded wing should do: "Draw it folded,
+            // limit the aileron". It is measured on its own 90-degree scale (BentAileronTravel.HalfRangeFromFoldRad)
+            // rather than the station hinge's rupture angle, which it would overshoot many times over. Worst side
+            // again, for the same reason: the pair is one control.
+            double fold = WorstFoldOfPair(w);
+            if (bend <= 1e-6 && fold <= 1e-6)
             {
                 // Straight (or straightened past measuring): no limit — and the centre STAYS captured, because the
                 // wing has been bent once and the next bend must not move it.
@@ -324,7 +330,11 @@ public sealed partial class Aircraft
             if (double.IsNaN(commanded)) commanded = _aileronRad + Config.Rig.AileronRad;
             // FIRST bend on this panel: this deflection is the centre, for good.
             if (double.IsNaN(w.AileronCentreRad)) w.AileronCentreRad = commanded;
-            double half = BentAileronTravel.HalfRangeRad(bend, w.Bending.Law.RuptureRad, ax.MaxDeflRad);
+            double half = w.Bending is { } hinge
+                ? BentAileronTravel.HalfRangeRad(bend, hinge.Law.RuptureRad, ax.MaxDeflRad)
+                : ax.MaxDeflRad;
+            // The narrower of the two binds: a wing both bent and folded keeps only what both allow.
+            if (fold > 1e-6) half = System.Math.Min(half, BentAileronTravel.HalfRangeFromFoldRad(fold, ax.MaxDeflRad));
             double held = BentAileronTravel.Clamp(commanded, w.AileronCentreRad, half, ax.MaxDeflRad);
             for (int j = 0; j < w.AileronHinged.Length; j++) ovr[w.AileronHinged[j]] = held;
             for (int j = 0; j < w.AileronFixed.Length; j++)
@@ -346,6 +356,27 @@ public sealed partial class Aircraft
         return worst;
     }
 
+    /// <summary>The larger FOLD of this panel and its opposite number, rad. A cantilever wing folds at its root
+    /// (<see cref="WingPanel.FoldRad"/>); one wing can fold while the other does not, and the folded one binds.</summary>
+    private double WorstFoldOfPair(WingPanel w)
+    {
+        double worst = System.Math.Abs(w.FoldRad);
+        for (int i = 0; i < _panels.Count; i++)
+        {
+            WingPanel o = _panels[i];
+            if (ReferenceEquals(o, w) || o.Lower != w.Lower || o.SurfaceId != w.SurfaceId || o.Side == w.Side) continue;
+            worst = System.Math.Max(worst, System.Math.Abs(o.FoldRad));
+        }
+        return worst;
+    }
+
+    private bool AnyPanelFolded()
+    {
+        for (int i = 0; i < _panels.Count; i++)
+            if (System.Math.Abs(_panels[i].FoldRad) > 1e-6 && _panels[i].AileronHinged.Length > 0) return true;
+        return false;
+    }
+
     private bool AnyPanelBent()
     {
         for (int i = 0; i < _panels.Count; i++)
@@ -360,7 +391,10 @@ public sealed partial class Aircraft
         return true;
     }
 
-    private static Func<Vec3, Vec3> BendOf(WingPanel p) => v => p.Deform(v);
+    /// <summary>The shape under a bent wing's ailerons, for the slave strut's geometry: the WHOLE shape the wing is
+    /// flying (WingPanel.Shape — the strike's kink, the aerodynamic curve from the root, and any fold), because the
+    /// strut's two pins sit on whatever the wing is actually doing.</summary>
+    private static Func<Vec3, Vec3> BendOf(WingPanel p) => v => p.Shape(v);
 
     // ---- wing panels -------------------------------------------------------------------------------------------------
 
@@ -535,7 +569,7 @@ public sealed partial class Aircraft
         if (w.FoldRad != 0.0) ShapeWingSide(w);
         else
         {
-            foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Deform(b0);
+            foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Shape(b0);
             foreach (int i in w.Strips) WriteStripShape(w, i);
         }
         foreach (int i in w.Strips)

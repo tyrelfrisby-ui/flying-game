@@ -923,6 +923,25 @@ public sealed class PropulsionConfig
     /// rpm follows throttle and airspeed.</summary>
     public bool ConstantSpeed { get; set; }
     public double GovernedRpm { get; set; } = 2400;
+
+    /// <summary>Where this type's constant-speed governor BOTTOMS with the blue lever full back, rpm. 0 = use the
+    /// fleet's 1,200 rpm (PropModel.FleetLowGovernedRpm). Authored only where a type's own stop is known.</summary>
+    public double GovernorLowRpm { get; set; }
+
+    /// <summary>
+    /// WHERE THE BLADES GO WHEN THE OIL PRESSURE FAILS. Ty 2026-11-10: "aerobatic aircraft with a constant speed
+    /// propeller default to high pitch with loss of oil pressure like twins do (Seminole beech 18 etc) and standard
+    /// single engines default to low pitch with no oil pressure".
+    ///
+    /// A single's governor normally uses oil pressure to hold the blades COARSE against a spring (and the blades'
+    /// own counterweights), so losing the oil lets them spring FINE: the engine can still make power, which is what
+    /// you want when the oil has gone but the engine has not. An aerobatic installation and a twin are plumbed the
+    /// other way — oil holds them FINE, so losing it drives them COARSE, which for a twin is toward feather and for
+    /// an aerobatic single means the prop will not overspeed when the aeroplane is pointed down.
+    ///
+    /// true = coarse (aerobatic, twin), false = fine (the standard single).
+    /// </summary>
+    public bool CoarseOnOilLoss { get; set; }
     /// <summary>Drag of the idling / windmilling propeller as a coefficient on its DISC area (owner 2026-10-03: the 172
     /// glided 14:1 at idle — the POH says 9:1 — and floated forever). A fine-pitch prop at idle is driven by the air and
     /// is a big drag: C_D ≈ 0.15–0.25 on disc area. Fades out as the throttle comes up (gone by 20 %).

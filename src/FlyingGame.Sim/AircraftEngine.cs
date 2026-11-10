@@ -35,13 +35,59 @@ public sealed partial class Aircraft
     public bool MagLeft { get; set; } = true;
     public bool MagRight { get; set; } = true;
 
+    /// <summary>
+    /// THE OIL SYSTEM HAS FAILED, and the governor with it. Ty 2026-11-10, after the oil-loss pitch rule went in:
+    /// "Is the question a prop governor failure but working/running engine?" — which it was not, and that is the case
+    /// that matters. An engine that has quit has no oil pressure for the obvious reason; a governor that loses its oil
+    /// with the engine still making power is a FAILURE, and the two defaults (coarse for an aerobatic installation and
+    /// every twin, fine for a standard single) exist precisely to decide what you are left flying when it happens:
+    ///
+    ///   aerobatic / twin, COARSE: the rpm sags, you cannot make rated power at low speed, the climb is poor — and the
+    ///                             propeller can never overspeed, however far down you point it;
+    ///   standard single, FINE:    full power is there at low speed, and the propeller overspeeds the moment you are
+    ///                             fast or diving, with the engine itself driving it.
+    ///
+    /// Set it and the blades drift to <see cref="PropModel.OilLossPitchDeg"/> and STAY there: a fixed-pitch propeller
+    /// at that angle, with the rpm solved from the torque balance like any other fixed blade. Nothing sets it on its own
+    /// yet — Ty's answer on the cause was "Nothing — only my switch", with random failures queued separately — so this
+    /// is the switch, and the CFI failure switchboard is what will pull it.
+    /// </summary>
+    public bool OilSystemFailed { get; set; }
+
+    /// <summary>
+    /// Oil pressure, psi: zero with the engine stopped or <see cref="OilSystemFailed"/>, else rising with rpm (about 35
+    /// at idle, 80 in the cruise). It lives HERE rather than in the cockpit bridge, which used to compute it for the
+    /// gauge alone, because the governor now reads it: a number drawn on an instrument and a number the aeroplane flies
+    /// on must be one number or they will disagree exactly when it matters.
+    /// </summary>
+    public double OilPressPsi
+    {
+        get
+        {
+            if (OilSystemFailed || !EngineRunning) return 0.0;
+            PropulsionConfig p = Config.Propulsion!;
+            double max = p.MaxRpm > 100.0 ? p.MaxRpm : 2700.0;
+            double rpm = _shaftRpm > 0.0 ? _shaftRpm : PropModel.RunningRpm(p, _throttle01, _propLever);
+            return System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * max)), 0.0, 115.0);
+        }
+    }
+
+    /// <summary>The governor can only move the blades while it has oil to move them with. Below this the blades go to
+    /// the installation's default stop (<see cref="OilSystemFailed"/>); a real governor has lost control well before
+    /// the gauge reads zero.</summary>
+    public const double GovernorMinOilPsi = 12.0;
+
+    /// <summary>True while the governor is in control of the blade angle.</summary>
+    public bool GovernorHasOil => EngineRunning && !OilSystemFailed && OilPressPsi >= GovernorMinOilPsi;
+
     /// <summary>True when this type has a governor for <see cref="PropLever"/> to set.</summary>
     public bool HasPropLever => Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0 };
     /// <summary>True when this type has a mixture for <see cref="MixtureLever"/> to meter (a piston; not a jet).</summary>
     public bool HasMixture => Config.Propulsion is { PropDiameterM: > 0, MaxPowerW: > 0 };
 
-    /// <summary>Lowest governed rpm, as a fraction of <c>MaxRpm</c> (a 2,700 rpm Lycoming's governor bottoms near 1,900).</summary>
-    public const double LowGovernorFraction = PropModel.LowGovernorFraction;
+    /// <summary>Lowest governed rpm, rpm, with the blue lever full back: the fleet's 1,200 (Ty 2026-11-10). Was a
+    /// fraction of MaxRpm until then; a governor's low stop belongs to the governor, not to the engine's red line.</summary>
+    public const double FleetLowGovernedRpm = PropModel.FleetLowGovernedRpm;
     /// <summary>How long a re-fuelled engine takes to catch.</summary>
     public const double RelightSec = 1.0;
 
@@ -124,11 +170,22 @@ public sealed partial class Aircraft
     /// <summary>True when this aeroplane's propeller is solved rather than estimated.</summary>
     public bool HasFittedBlade => Config.Propulsion is { PropDiameterM: > 0, BladePitch75Deg: > 0 };
 
+    /// <summary>
+    /// SOLVE THE SHAFT, rather than read the rpm off the throttle law. A type with a fitted blade always does. A
+    /// CONSTANT-SPEED type does too the moment its governor stops governing — with no oil the blade angle is fixed on
+    /// a stop, which makes it a fixed-pitch propeller, and a fixed-pitch propeller's rpm is a torque balance and
+    /// nothing else. While the governor has oil these types keep the law they have always flown, so a normal flight is
+    /// untouched to the last digit and only the failure is solved.
+    /// </summary>
+    private bool SolvesShaft =>
+        HasFittedBlade
+        || (Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0, FineStopDeg: > 0 } && !GovernorHasOil);
+
     /// <summary>Advance the shaft one step against the torque the engine makes and the torque the blade takes.</summary>
     private void StepShaft(double dt, double airDensity)
     {
         PropulsionConfig? p = Config.Propulsion;
-        if (p is null || !HasFittedBlade || dt <= 0.0) { _shaftRpm = 0.0; return; }
+        if (p is null || !SolvesShaft || dt <= 0.0) { _shaftRpm = 0.0; return; }
         if (_noseLost) { _shaftRpm = 0.0; return; }               // the propeller has gone: nothing to turn
 
         double radius = 0.5 * p.PropDiameterM;
@@ -140,28 +197,41 @@ public sealed partial class Aircraft
         // at the stops. So this is a rate controller on the rpm ERROR, clamped to the stops — which is both what the
         // hardware does and far cheaper than solving for the angle that balances the torque, which would cost forty
         // blade-element solutions every step.
-        double pitch = p.BladePitch75Deg > 0 ? p.BladePitch75Deg : 15.0;
+        double pitch = p.BladePitch75Deg > 0 ? p.BladePitch75Deg
+                     : p.ConstantSpeed ? System.Math.Max(1.0, PropModel.OilLossPitchDeg(p))
+                     : 15.0;
         if (p.ConstantSpeed)
         {
             double fine = p.FineStopDeg > 0 ? p.FineStopDeg : 10.0;
             double coarse = p.CoarseStopDeg > fine ? p.CoarseStopDeg : fine + 15.0;
             if (_bladePitchDeg <= 0.0) _bladePitchDeg = System.Math.Clamp(0.5 * (fine + coarse), fine, coarse);
-            if (EngineRunning)
+            if (GovernorHasOil)
             {
                 double commanded = GovernedRpmAt(_propLever);
                 double error = (_shaftRpm - commanded) / System.Math.Max(1.0, commanded);
                 _bladePitchDeg += System.Math.Clamp(error * GovernorGainDegPerSec, -GovernorRateDegPerSec, GovernorRateDegPerSec) * dt;
             }
-            else _bladePitchDeg += (fine - _bladePitchDeg) * (1.0 - System.Math.Exp(-dt / 2.0));   // no oil pressure: it drifts fine
+            else
+            {
+                // NO OIL PRESSURE: the blades go to whichever stop this installation's spring takes them to, in about
+                // two seconds. Ty 2026-11-10 — an aerobatic single and every twin go COARSE, a standard single FINE;
+                // see PropModel.OilLossPitchDeg for which way each type is plumbed and why.
+                double stop = PropModel.OilLossPitchDeg(p);
+                if (stop <= 0.0) stop = fine;
+                _bladePitchDeg += (stop - _bladePitchDeg) * (1.0 - System.Math.Exp(-dt / 2.0));
+            }
             _bladePitchDeg = System.Math.Clamp(_bladePitchDeg, fine, coarse);
             pitch = _bladePitchDeg;
         }
 
         var g = new BladeElement.Geometry(p.PropBladeCount, radius, pitch, p.ActivityFactor);
         double qProp = BladeElement.Solve(g, State.Velocity.X, 0.0, _shaftRpm, airDensity).TorqueNm;
+        // A DEAD ENGINE IS NOT A FREE SHAFT. Ty 2026-11-10: "You are not accounting for the cranking resistance of the
+        // engine". It takes real torque to turn a piston engine over, the power curve's own friction intercept already
+        // says how much, and without it a windmilling propeller accelerated until only the blade's own drag stopped it.
         double qEngine = EngineRunning
             ? PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm, _throttle01 * PowerScale, pressureRatio)
-            : 0.0;
+            : PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm, _throttle01, pressureRatio);
         double inertia = System.Math.Max(0.05, p.PropInertia);
         double omega = _shaftRpm * 2.0 * System.Math.PI / 60.0;
         omega += (qEngine - qProp) / inertia * dt;
@@ -173,9 +243,26 @@ public sealed partial class Aircraft
     /// lag is what lets the rpm overshoot briefly instead of being pinned to the setting.</summary>
     private const double GovernorGainDegPerSec = 220.0, GovernorRateDegPerSec = 12.0;
 
-    /// <summary>How fast the air turns a dead engine's prop (0 when it is too slow to, or there is no prop).</summary>
-    public double WindmillRpm => Config.Propulsion is { PropDiameterM: > 0 } p && !_noseLost
-        ? MixtureModel.WindmillRpm(State.Velocity.Length, p.PropDiameterM, p.MaxRpm) : 0.0;
+    /// <summary>
+    /// How fast the air turns a dead engine's prop (0 when it is too slow to, or there is no prop).
+    ///
+    /// A constant-speed propeller whose stops are fitted is SOLVED instead of assumed: its blades are on the stop the
+    /// oil loss left them on, and the rpm is where that blade's own torque comes to zero. The flat J = 1 assumption
+    /// behind MixtureModel.WindmillRpm cannot tell a fine stop from a coarse one, and that difference is the whole
+    /// point of the oil-loss rule — a fine blade is driven hard and spins up, a coarse one barely turns. Everything
+    /// else keeps the old assumption, which is all it has.
+    /// </summary>
+    public double WindmillRpm
+    {
+        get
+        {
+            if (Config.Propulsion is not { PropDiameterM: > 0 } p || _noseLost) return 0.0;
+            double v = State.Velocity.Length;
+            double rho = Atmosphere.DensityAtAltitude(-State.Position.Z);
+            double solved = PropModel.WindmillRpm(p, v, rho);
+            return double.IsNaN(solved) ? MixtureModel.WindmillRpm(v, p.PropDiameterM, p.MaxRpm) : solved;
+        }
+    }
 
     /// <summary>Constant-speed rpm for a governor lever position at the current throttle (the old law at lever 1).</summary>
     private double GovernedRpmAt(double lever) => PropModel.RunningRpm(Config.Propulsion!, _throttle01, lever);   // one law: the gyro uses it too

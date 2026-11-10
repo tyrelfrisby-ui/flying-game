@@ -133,6 +133,33 @@ namespace FlyingGame.Bridge
         private Vector3 _hang = Vector3.up, _hangVel;   // pendulum: direction harness → canopy, and its rate
         private Vector3 _lastAero;                 // non-gravity acceleration last step (drives the pendulum)
 
+        /// <summary>
+        /// HIS ATTITUDE IS THE AIR'S (Core <see cref="FlyingGame.Core.JumperTumble"/>, Ty 2026-11-10: "same for the
+        /// pilot when bailing out real forces leading to tumbles and flutter etc"). It used to be
+        /// <c>_rot *= Quaternion.Euler(AngularVelocityRad * dt)</c> — the rate he was constructed with, held for
+        /// ever, so a bail-out at 150 kt and one at 40 kt tumbled identically and neither ever stopped. Now seven
+        /// boxes with his own CG and inertia meet the air, and the canopy's tension on a 0.37 m lever is what stops
+        /// the tumble. <see cref="AngularVelocityRad"/> stays as the public contract, mirrored FROM it.
+        ///
+        /// WHAT IT OWNS: free fall and the inflation. Once the canopy is FULL the harness owns his orientation and
+        /// the existing hang slerp keeps it, because at full canopy he is hanging in a harness whose yaw the canopy
+        /// sets, and the toggle anchors read that. The handover is at the same place and for the same reason
+        /// JumperTumble's own test puts it — the risers' tension beats anything the air can do to him.
+        ///
+        /// HANDEDNESS, the same decision as Core Vr.CanopyFreeBody's and deliberately matching it rather than
+        /// inventing a second convention: these egress bodies work in UNITY world axes, which are left-handed, while
+        /// Core's Vec3/Quat maths is right-handed. The triad stays internally consistent, so the dynamics are right;
+        /// the only consequence is that the visible SENSE of the tumble is mirrored. A tumble reflected is still a
+        /// tumble, a human body is near enough symmetric left to right, and converting frames every step would buy
+        /// nothing anyone can see.
+        /// </summary>
+        private readonly FlyingGame.Core.JumperTumble _tumble;
+
+        private static FlyingGame.Core.MathTypes.Vec3 V(Vector3 v) => new(v.x, v.y, v.z);
+        private static Vector3 U(FlyingGame.Core.MathTypes.Vec3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
+        private static Quaternion UQ(FlyingGame.Core.MathTypes.Quat q) => new((float)q.X, (float)q.Y, (float)q.Z, (float)q.W);
+        private static FlyingGame.Core.MathTypes.Quat VQ(Quaternion q) => new(q.x, q.y, q.z, q.w);
+
         public PilotBody(Vector3 position, Vector3 velocity, Vector3 angularVelocityRad, float headingDeg,
             bool withSeat, Vector3 seatUp, Quaternion initialRotation)
         {
@@ -142,6 +169,8 @@ namespace FlyingGame.Bridge
             HeadingDeg = headingDeg;
             HasSeat = withSeat;
             _rot = initialRotation;
+            // The rate he leaves with is an initial condition; from here the air has it.
+            _tumble = new FlyingGame.Core.JumperTumble(VQ(initialRotation), V(angularVelocityRad));
 
             _root = new GameObject("Pilot");
             _figure = new PilotFigure(_root.transform, withSeat ? PilotFigure.Stance.Seated : PilotFigure.Stance.FreeFall);
@@ -302,25 +331,44 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            // Orientation: seat on its rail during the burn; tumble in free fall; hang under the canopy.
+            // Orientation: seat on its rail during the burn; otherwise the AIR's, through Core JumperTumble, until
+            // the canopy is full and the harness has him (see the _tumble field for which owns what, and why).
             if (_rocketT < RocketBurn2Sec)
             {
                 Vector3 fwd = Vector3.ProjectOnPlane(_rot * Vector3.forward, _seatUp);
                 if (fwd.sqrMagnitude > 1e-4f) _rot = Quaternion.LookRotation(fwd.normalized, _seatUp);
-            }
-            else if (Chute == null)
-            {
-                _rot *= Quaternion.Euler(AngularVelocityRad * (Mathf.Rad2Deg * dt));
+                // Strapped to a burning seat he is not a free body: keep the tumble in step with the rail so it does
+                // not resume from a stale attitude at separation.
+                _tumble.Attitude = VQ(_rot);
+                _tumble.RatesBody = FlyingGame.Core.MathTypes.Vec3.Zero;
+                AngularVelocityRad = Vector3.zero;
             }
             else
             {
-                Vector3 fwd = Vector3.ProjectOnPlane(HeadingDir, _hang);
-                if (fwd.sqrMagnitude < 1e-4f) fwd = Vector3.ProjectOnPlane(Vector3.forward, _hang);
-                Quaternion hangRot = Quaternion.LookRotation(fwd.normalized, _hang);
-                float rate = 0.3f + 3f * fill;
-                _rot *= Quaternion.Euler(AngularVelocityRad * (Mathf.Rad2Deg * dt));
-                _rot = Quaternion.Slerp(_rot, hangRot, 1f - Mathf.Exp(-rate * dt));
-                AngularVelocityRad *= Mathf.Exp(-(1f + 2f * fill) * dt);
+                // THE RISERS' TENSION IS THE CANOPY'S DRAG, which is what the lines actually carry: ½ρ·CdS·v². That
+                // one number is the whole of the stabilising, on the harness lever Core knows about.
+                float tension = 0f;
+                if (Chute != null)
+                {
+                    Vector3 rel = Velocity - wind - HeadingDir * (Parachute.DriveMs * fill);
+                    tension = 0.5f * rho * Chute.CdS * rel.sqrMagnitude;
+                }
+                _tumble.Step(dt, V(Velocity), V(wind), rho, tension, V(_hang), _bodyPos);
+                AngularVelocityRad = U(_tumble.RatesBody);
+                if (fill < 0.999f)
+                {
+                    _rot = UQ(_tumble.Attitude);
+                }
+                else
+                {
+                    // Full canopy: the harness owns his orientation, as it always did — his yaw is the canopy's and
+                    // the toggle anchors read it. The tumble goes on being stepped so its state stays live.
+                    Vector3 fwd = Vector3.ProjectOnPlane(HeadingDir, _hang);
+                    if (fwd.sqrMagnitude < 1e-4f) fwd = Vector3.ProjectOnPlane(Vector3.forward, _hang);
+                    Quaternion hangRot = Quaternion.LookRotation(fwd.normalized, _hang);
+                    _rot = Quaternion.Slerp(_rot, hangRot, 1f - Mathf.Exp(-(0.3f + 3f * fill) * dt));
+                    _tumble.Attitude = VQ(_rot);
+                }
             }
 
             _root.transform.SetPositionAndRotation(Position, _rot);

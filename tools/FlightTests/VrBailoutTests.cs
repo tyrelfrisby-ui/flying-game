@@ -273,15 +273,27 @@ public sealed class VrBailoutTests
     public void LosingTheCanopyTakesItsMassAndMovesTheCg()
     {
         // Pitts 737 kg, CG (0.045, 0, 0.2). A 9 kg canopy at (−0.5, 0, −0.4): r − cg = (−0.545, 0, −0.6).
-        //   mass 728; CG shift = −9·r/728 = (+0.006738, 0, +0.007418); Iyy − 9·(0.545² + 0.6²) = 1121 − 5.9132 = 1115.0868.
+        //   mass 728; CG shift = −9·r/728 = (+0.006738, 0, +0.007418); Iyy loses its parallel-axis share,
+        //   9·(0.545² + 0.6²) = 5.913225 kg·m².
+        //
+        // THE PITCH INERTIA IS READ FROM THE AEROPLANE, NOT WRITTEN DOWN HERE. This used to assert 1115.0868, which is
+        // 1121 − 5.9132 — and 1121 was the Pitts' Iyy when this test was written on 2026-11-02. The owner had it
+        // retuned on 2026-11-09 ("reduce the inertia of the pitts a bit it might be overstated": the part-by-part
+        // build-up's 1048, trimmed to 1000 against Roskam's band — see the config's inertiaSource), and from that day
+        // the test was asserting a number about the Pitts rather than about ShedMass, and failing for it. What it is
+        // for is the SHARE that leaves, so that is what it measures, and the next retune cannot rot it.
         Aircraft a = new(Pitts(), new RigidBodyState(new Vec3(0, 0, -1000), Quat.Identity, new Vec3(40, 0, 0), Vec3.Zero),
                          new ControlDeflections(0, 0, 0, 0));
         Assert.Equal(737.0, a.MassProperties.MassKg, 6);
+        double iyy0 = a.MassProperties.Iyy, ixx0 = a.MassProperties.Ixx;
         a.ShedMass(9.0, new Vec3(-0.5, 0, -0.4));
         Assert.Equal(728.0, a.MassProperties.MassKg, 6);
         Assert.Equal(0.006738, a.CgShiftBody.X, 6);
         Assert.Equal(0.007418, a.CgShiftBody.Z, 6);
-        Assert.Equal(1115.0868, a.MassProperties.Iyy, 3);
+        Assert.Equal(iyy0 - 9.0 * (0.545 * 0.545 + 0.6 * 0.6), a.MassProperties.Iyy, 6);
+        // And ROLL loses only the part of the arm that is off the roll axis: the canopy is on the centreline, so it is
+        // the 0.6 m of height alone (9 × 0.36 = 3.24), which is a different number from pitch's and pins the axes apart.
+        Assert.Equal(ixx0 - 9.0 * 0.6 * 0.6, a.MassProperties.Ixx, 6);
         // A re-load (fuel burn, the loading page) keeps it gone.
         a.ApplyLoad();
         Assert.Equal(728.0, a.MassProperties.MassKg, 6);
