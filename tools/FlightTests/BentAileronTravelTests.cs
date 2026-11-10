@@ -1,3 +1,4 @@
+using System;
 using FlyingGame.Core;
 using Xunit;
 
@@ -151,5 +152,58 @@ public class BentStabTravelTests
         // Inside what is left, the clamp does nothing.
         double left = BentStabTravel.AvailableRad(-1, +1, Rupture * 0.5, Rupture, Max);
         Assert.Equal(-left * 0.5, BentStabTravel.Clamp(-left * 0.5, +1, Rupture * 0.5, Rupture, Max), 9);
+    }
+}
+/// <summary>
+/// A FOLDED WING'S AILERON. Ty, asked what a folded wing should do: "Draw it folded, limit the aileron". The fold is a
+/// bend at the ROOT and is measured on its own scale — 90 degrees, where WingFailureLaw.FoldRad's own arithmetic runs
+/// out — not on the station hinge's rupture angle, which it would overshoot many times over.
+/// </summary>
+public class FoldedAileronTravelTests
+{
+    private const double Max = 0.35;   // 20 deg of aileron, near enough to the fleet
+
+    [Fact]
+    public void AnUnfoldedWingKeepsEveryDegreeOfIt()
+        => Assert.Equal(Max, BentAileronTravel.HalfRangeFromFoldRad(0.0, Max), 12);
+
+    [Fact]
+    public void AWingStandingVerticalHasNothingLeft()
+        => Assert.Equal(0.0, BentAileronTravel.HalfRangeFromFoldRad(Math.PI * 0.5, Max), 12);
+
+    [Fact]
+    public void PastVerticalItStaysAtNothingRatherThanGoingNegative()
+        => Assert.Equal(0.0, BentAileronTravel.HalfRangeFromFoldRad(Math.PI * 0.9, Max), 12);
+
+    [Fact]
+    public void TheFoldAWoodAndFabricWingReachesAtTheBreakingPointLeavesAboutASixth()
+    {
+        // WingFailureLaw.FoldRad at the breaking point: 75 deg for wood and fabric.
+        double fold = WingFailureLaw.FoldRad(2.0, 1.5, 0.5 * (2.0 / 1.5) * Math.Cos(75.0 * Math.PI / 180.0) / 0.5);
+        double half = BentAileronTravel.HalfRangeFromFoldRad(75.0 * Math.PI / 180.0, Max);
+        Assert.InRange(half / Max, 0.12, 0.22);
+        Assert.True(fold >= 0.0);                            // the law is being asked, not asserted
+    }
+
+    [Fact]
+    public void ItFallsOffTheSameWayAFoldDeepens()
+    {
+        double prev = double.MaxValue;
+        for (double d = 0.0; d <= 90.0; d += 5.0)
+        {
+            double h = BentAileronTravel.HalfRangeFromFoldRad(d * Math.PI / 180.0, Max);
+            Assert.True(h <= prev + 1e-12, $"{d:0} deg of fold gave MORE travel: {h:0.0000}");
+            prev = h;
+        }
+    }
+
+    [Fact]
+    public void AFoldIsFarHarsherThanTheSameAngleOfStationBendWouldBeHarmless()
+    {
+        // The point of the separate scale: 40 deg read against a 20 deg rupture angle would be zero travel, and the
+        // hinge on a folded wing is undamaged. On the fold's own scale it keeps over half.
+        double rupture = 20.0 * Math.PI / 180.0, fold = 40.0 * Math.PI / 180.0;
+        Assert.Equal(0.0, BentAileronTravel.HalfRangeRad(fold, rupture, Max), 12);
+        Assert.InRange(BentAileronTravel.HalfRangeFromFoldRad(fold, Max) / Max, 0.5, 0.6);
     }
 }

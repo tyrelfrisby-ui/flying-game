@@ -39,6 +39,26 @@ public static class BentAileronTravel
     }
 
     /// <summary>
+    /// THE SAME BAND FOR A WING THAT HAS FOLDED, which is a bend too — at the ROOT, and far past anything a station
+    /// bend reaches. Ty, asked what a folded wing should do: "Draw it folded, limit the aileron".
+    ///
+    /// The scale is 90 degrees, and it is not a chosen constant: it is where <see cref="WingFailureLaw.FoldRad"/>'s own
+    /// arithmetic runs out, because a wing folded right over makes no fold-up moment at all and the law caps there.
+    /// So full travel on a wing that has not folded, nothing on one standing vertical, linear between — a 75 degree
+    /// fold (what a wood-and-fabric wing reaches at the breaking point) leaves about a sixth of the aileron.
+    ///
+    /// Deliberately NOT measured against the station hinge's rupture angle, which a fold would overshoot many times
+    /// over and so would freeze the aileron solid. The hinge and the horns on a folded wing are undamaged; it is the
+    /// wing they are bolted to that has gone over.
+    /// </summary>
+    public static double HalfRangeFromFoldRad(double foldRad, double maxDeflRad)
+    {
+        if (maxDeflRad <= 0.0) return 0.0;
+        double f = 1.0 - System.Math.Abs(foldRad) / (System.Math.PI * 0.5);
+        return maxDeflRad * System.Math.Clamp(f, 0.0, 1.0);
+    }
+
+    /// <summary>
     /// Where the aileron may actually go: <paramref name="commandedRad"/> held to the band of half-width
     /// <paramref name="halfRangeRad"/> about <paramref name="centreRad"/>, and the band itself held inside the
     /// surface's own travel — a centre near one stop cannot be given range it never had on that side.
