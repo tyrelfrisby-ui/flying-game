@@ -54,6 +54,13 @@ namespace FlyingGame.Bridge
         public static bool LiftMarkersVisible(string aircraftId) => LiftMarkers == Tri.On || (LiftMarkers == Tri.Auto && aircraftId != null && aircraftId.StartsWith("glider"));
         public static InstrumentMode Instruments = InstrumentMode.Hud;      // round dials / green HUD / nothing; owner 2026-10-28: the HUD is the default display
         public static Start StartMode = Start.InTheAir;
+        /// <summary>How high an "in the air" start begins above the ground beneath it, in feet. Selectable since
+        /// 2026-11-10: the owner was testing spins from a fixed ~2,000 ft ("In the air puts me at 2,000 making
+        /// testing difficult"), then "Make the altitude selectable not fixed". Only the "in the air" start uses it;
+        /// every other start has its own meaning (on the runway, 300 ft on final, the box, the combat zone).</summary>
+        public static int StartAltitudeFt = 10000;
+        /// <summary>The offered heights, feet above the ground. 2,000 is what it always was.</summary>
+        public static readonly int[] StartAltitudesFt = { 2000, 5000, 10000, 15000 };
         /// <summary>Dense bubble field drawn with GPU instancing (thousands of bubbles). Off = the old per-bubble draws
         /// with a sparser field — the escape hatch if instancing fails to place instances on a device.</summary>
         public static bool BubbleInstancing = true;
@@ -550,6 +557,7 @@ namespace FlyingGame.Bridge
             AircraftId         = PlayerPrefs.GetString("set.aircraft", AircraftId);
             TugId              = PlayerPrefs.GetString("set.tug", TugId);
             StartMode          = (Start)PlayerPrefs.GetInt("set.startMode", (int)StartMode);
+            StartAltitudeFt    = PlayerPrefs.GetInt("set.startAltFt", StartAltitudeFt);
             AirportIndex       = PlayerPrefs.GetInt("set.airport", AirportIndex);
             Runway             = (RunwayPick)PlayerPrefs.GetInt("set.runway", (int)Runway);
             WindFromDeg        = PlayerPrefs.GetFloat("set.windFrom", WindFromDeg);
@@ -588,6 +596,7 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetString("set.aircraft", AircraftId ?? "");
             PlayerPrefs.SetString("set.tug", TugId ?? "");
             PlayerPrefs.SetInt("set.startMode", (int)StartMode);
+            PlayerPrefs.SetInt("set.startAltFt", StartAltitudeFt);
             PlayerPrefs.SetInt("set.airport", AirportIndex);
             PlayerPrefs.SetInt("set.runway", (int)Runway);
             PlayerPrefs.SetFloat("set.windFrom", WindFromDeg);
