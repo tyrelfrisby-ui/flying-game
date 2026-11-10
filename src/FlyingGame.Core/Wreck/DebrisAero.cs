@@ -112,7 +112,7 @@ public static class DebrisAero
                 air = 1.0 - HydroElement.SubmergedFraction(depth, e.VerticalHalf(s.Attitude));
             }
             if (air <= 1e-6) continue;
-            Box(e.Centre - cgBody, e.Half, air, s, rho, windBody, 1.0, ref f, ref m);
+            Box(e.Centre - cgBody, e.Half, air, s, rho, windBody, 1.0, NoOverride, ref f, ref m);
         }
         return (f, m);
     }
@@ -128,7 +128,26 @@ public static class DebrisAero
         double rho, Vec3 windBody, double cdScale = 1.0)
     {
         Vec3 f = Vec3.Zero, m = Vec3.Zero;
-        if (airShare > 1e-6) Box(centreFromCg, half, airShare, s, rho, windBody, cdScale, ref f, ref m);
+        if (airShare > 1e-6) Box(centreFromCg, half, airShare, s, rho, windBody, cdScale, NoOverride, ref f, ref m);
+        return (f, m);
+    }
+
+    /// <summary>No per-axis drag area given: each face uses the box's own Cd × its own area.</summary>
+    public static readonly Vec3 NoOverride = new(-1, -1, -1);
+
+    /// <summary>
+    /// One box whose DRAG AREAS ARE MEASURED rather than derived from the box — a canopy shell, whose broadside and
+    /// edge-on Cd·A are its own written-down numbers (<see cref="Vr.CanopyFreeBody.DragAreaM2"/>) and whose box is
+    /// only a stand-in for WHERE that force acts. The half-extents still set the geometry: the strips, the chord the
+    /// centre of pressure walks along, and the fineness that decides how plate-like each face is.
+    /// </summary>
+    /// <param name="cdAreaM2">Cd·A for motion along body x, y, z, m². A non-positive component falls back to the
+    /// box's own Cd × face area.</param>
+    public static (Vec3 Force, Vec3 Moment) Forces(Vec3 centreFromCg, Vec3 half, Vec3 cdAreaM2, double airShare,
+        RigidBodyState s, double rho, Vec3 windBody)
+    {
+        Vec3 f = Vec3.Zero, m = Vec3.Zero;
+        if (airShare > 1e-6) Box(centreFromCg, half, airShare, s, rho, windBody, 1.0, cdAreaM2, ref f, ref m);
         return (f, m);
     }
 
@@ -140,7 +159,7 @@ public static class DebrisAero
         for (int i = 0; i < segments.Count; i++)
         {
             Segment g = segments[i];
-            Box(g.Centre, g.Half, 1.0, s, rho, windBody, cdScale, ref f, ref m);
+            Box(g.Centre, g.Half, 1.0, s, rho, windBody, cdScale, NoOverride, ref f, ref m);
         }
         return (f, m);
     }
@@ -161,7 +180,7 @@ public static class DebrisAero
     /// One box: four Gauss strips × three faces. Everything in the class summary happens here, and nothing else does.
     /// </summary>
     private static void Box(Vec3 rc, Vec3 half, double airShare, RigidBodyState s, double rho, Vec3 windBody,
-        double cdScale, ref Vec3 force, ref Vec3 moment)
+        double cdScale, Vec3 cdAreaM2, ref Vec3 force, ref Vec3 moment)
     {
         System.Span<double> h = stackalloc double[3] { half.X, half.Y, half.Z };
         System.Span<double> area = stackalloc double[3];
@@ -173,7 +192,10 @@ public static class DebrisAero
             area[k] = 4.0 * h[i] * h[j];
             if (area[k] <= 0.0) continue;
             double f = 2.0 * h[k] / System.Math.Sqrt(area[k]);
-            cd[k] = WaterPhysics.CdForFineness(f) * cdScale;
+            // Cd·A: the box's own, unless the caller measured it (a canopy shell). The fineness below is the box's
+            // either way — it is geometry, and it decides the CP walk and the strip layout, not the size of the force.
+            double given = Comp(cdAreaM2, k);
+            cd[k] = given > 0.0 ? given / area[k] : WaterPhysics.CdForFineness(f) * cdScale;
             plate[k] = System.Math.Clamp((BluffFineness - f) / (BluffFineness - PlateFineness), 0.0, 1.0);
         }
         // The plate is the face across the SHORTEST axis; the strips are laid out in that face's own flow frame.
