@@ -231,10 +231,15 @@ namespace FlyingGame.Bridge
                 Rect asr = new(centre.x - bx - bw, centre.y - bh * 0.5f, bw, bh);
                 Rect alr = new(centre.x + bx, centre.y - bh * 0.5f, bw, bh);
                 Frame(asr); Frame(alr);
-                double kt = Driver.IasMs * 1.9438;
+                // AIRSPEED IN THE UNIT THIS TYPE READS (Ty 2026-11-10, "by era and category": vintage, fabric and
+                // experimental read mph; certified modern or turbine reads knots). The HUD box has to agree with the
+                // dial and with the modelled panel, so it asks the same Core helper rather than carrying its own
+                // 1.9438 and its own hard-coded "KT" — which is what it did until now, on all 35 types.
+                var asiUnit = FlyingGame.Core.Instruments.AsiUnits.For(Driver.Sim.Aircraft.Config);
+                double ias = FlyingGame.Core.Instruments.AsiUnits.FromMs(asiUnit, Driver.IasMs);
                 double ft = Driver.AltitudeM * 3.28084;
-                _labels.Add(new Sym { Pos = new Vector2(asr.xMax - u, asr.center.y), Text = $"{kt:F0}", Anchor = TextAnchor.MiddleRight });
-                _labels.Add(new Sym { Pos = new Vector2(asr.x, asr.yMax + u * 1.6f), Text = "KT", Anchor = TextAnchor.MiddleLeft, Small = true });
+                _labels.Add(new Sym { Pos = new Vector2(asr.xMax - u, asr.center.y), Text = $"{ias:F0}", Anchor = TextAnchor.MiddleRight });
+                _labels.Add(new Sym { Pos = new Vector2(asr.x, asr.yMax + u * 1.6f), Text = FlyingGame.Core.Instruments.AsiUnits.Caption(asiUnit), Anchor = TextAnchor.MiddleLeft, Small = true });
                 _labels.Add(new Sym { Pos = new Vector2(alr.xMax - u, alr.center.y), Text = $"{ft:N0}", Anchor = TextAnchor.MiddleRight });
                 _labels.Add(new Sym { Pos = new Vector2(alr.x, alr.yMax + u * 1.6f), Text = "FT", Anchor = TextAnchor.MiddleLeft, Small = true });
                 // AoA / sideslip under the airspeed box; heading above the ladder.

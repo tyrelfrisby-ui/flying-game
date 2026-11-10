@@ -1588,5 +1588,12 @@
   },
   "retractableGear": true,
   "impactStrength": 1.6,
-  "gearDragAreaM2": 0.3
+  "gearDragAreaM2": 0.3,
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "_unitsSource": "DEPARTS FROM THE SHAPE Ty was shown (which had it in knots) by applying the rule he chose: 1944, piston, neither certified-modern nor turbine -- and a P-51D's own airspeed indicator is marked in mph. One line flips it back to kt.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
+  }
 }
