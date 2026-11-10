@@ -9,20 +9,25 @@ public readonly struct PanelSet
 {
     public readonly AirframeComponent Component;
     public readonly double BendRad, TwistRad;
+    /// <summary>How far this wing had FOLDED UP about its root (WingPanel.FoldRad, Ty 2026-11-10's staggered failure).
+    /// Recorded with the set because it is permanent too, and because a replay that left it out would show a folded
+    /// wing flying straight — the same lie as a bent tip on an aeroplane with no wings.</summary>
+    public readonly double FoldRad;
     public readonly PanelState State;
 
     /// <summary>Half the angle the renderer can see (WingStructure.VisibleSetRad is 0.5°): below this a change is not
     /// worth a new entry in the timeline.</summary>
     public const double TolRad = 0.25 * System.Math.PI / 180.0;
 
-    public PanelSet(AirframeComponent component, double bendRad, double twistRad, PanelState state)
+    public PanelSet(AirframeComponent component, double bendRad, double twistRad, PanelState state, double foldRad = 0.0)
     {
-        Component = component; BendRad = bendRad; TwistRad = twistRad; State = state;
+        Component = component; BendRad = bendRad; TwistRad = twistRad; State = state; FoldRad = foldRad;
     }
 
     public bool SameAs(in PanelSet o) =>
         Component == o.Component && State == o.State
-        && System.Math.Abs(BendRad - o.BendRad) < TolRad && System.Math.Abs(TwistRad - o.TwistRad) < TolRad;
+        && System.Math.Abs(BendRad - o.BendRad) < TolRad && System.Math.Abs(TwistRad - o.TwistRad) < TolRad
+        && System.Math.Abs(FoldRad - o.FoldRad) < TolRad;
 }
 
 /// <summary>
@@ -114,7 +119,7 @@ public readonly struct AirframeShape
         for (int i = 0; i < panels.Count; i++)
         {
             WingPanel p = panels[i];
-            sets[i] = new PanelSet(p.Component, p.BendRad, p.TwistRad, p.State);
+            sets[i] = new PanelSet(p.Component, p.BendRad, p.TwistRad, p.State, p.FoldRad);
         }
         OverstressMember em = a.Structure.EngineMount;
         bool drawn = em != null && (em.Overstressed || System.Math.Abs(em.SetRad) >= WingStructure.VisibleSetRad);
