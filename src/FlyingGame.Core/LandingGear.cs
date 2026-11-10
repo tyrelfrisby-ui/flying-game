@@ -92,8 +92,28 @@ public static class LandingGear
     /// gear for 10 ft/s (3 m/s); ~4 m/s is past its ultimate. A tailwheel takes the tail dropping through onto it at
     /// the end of every wheel landing (5–6 m/s at the wheel from the pitch rate), so it is only lost to a real slam.</summary>
     public const double DefaultBreakSinkMs = 4.0, DefaultTailwheelBreakSinkMs = 8.0;
-    /// <summary>Tyre cornering stiffness per newton of wheel load (N per rad per N): ~12 for an aircraft tyre.</summary>
-    public const double CorneringPerLoad = 12.0;
+    /// <summary>
+    /// TYRE CORNERING STIFFNESS per newton of wheel load (N per rad per N). 7.2, which is 0.125 of the wheel's load
+    /// per DEGREE of slip — the middle of the 0.10–0.15 per degree that published cornering power for aircraft tyres
+    /// sits in.
+    ///
+    /// It was 12.0, described only as "~12 for an aircraft tyre" with nothing behind it. 12 per rad is 0.21 per
+    /// degree, which is the AUTOMOTIVE end: a car tyre on a road, not a high-pressure aircraft tyre with a small stiff
+    /// contact patch. Ty, 2026-11-10, shown this beside two other candidates for why a Pitts ground-loops 180 degrees
+    /// off every landing, picked this one — and his own words from the day before name the symptom exactly: "all
+    /// airplanes are overly difficult to steer on asphalt so I think the friction is too high". The friction CAP (mu
+    /// 0.8) was never the problem; this is. A tyre 40-70 % too stiff in slip turns a small yaw angle into a large side
+    /// force, and that is a swerve that feeds itself.
+    ///
+    /// It is also most of why 2 degrees of toe-out cost so much: at 12 per rad a toed wheel spends about 0.42 of its
+    /// own load on a side force that has to be cancelled by the other wheel, and at 7.2 it is 0.25.
+    ///
+    /// NOT APPLIED TO THE TAILWHEEL, deliberately. <see cref="TailwheelCorneringPerLoad"/> is 4.0 and the comment
+    /// below calls it "a third of a main's", which this breaks — but Ty tuned that number by feel over three passes
+    /// and the relationship was a description, not the reason. Changing both at once would make a flight report
+    /// unattributable. Flagged, not silently followed.
+    /// </summary>
+    public const double CorneringPerLoad = 7.2;
     /// <summary>A tailwheel's small contact patch: about half the cornering per newton, and a lower friction cap.</summary>
     // Owner 2026-09-12 (second pass): the tailwheel must SKID in a swerve rather than hold the tail — a small hard tyre:
     // a third of a main's cornering per newton and 0.6 of its friction; and weaker steering springs still.
