@@ -9,6 +9,21 @@ namespace FlyingGame.Core.DataContracts;
 /// </summary>
 public sealed class AircraftConfig
 {
+
+    /// <summary>
+    /// THE ENGINE'S CYLINDER COUNT AND COMPRESSION RATIO, from whichever place authored them. They describe the engine,
+    /// not the exhaust, but the exhaust asked first (<see cref="SmokeConfig.Cylinders"/> drives the pipe's pulse rate),
+    /// so rather than author the same two numbers twice and let them drift, propulsion's own values win when given and
+    /// the smoke pipe's are the fallback. One place decides, so the pulse you HEAR and the compression you FEEL are the
+    /// same engine. Four and 8.7 when nothing says otherwise — a small four-cylinder Lycoming or Continental, which is
+    /// most of this fleet.
+    /// </summary>
+    public int EngineCylinders =>
+        Propulsion is { Cylinders: > 0 } p ? p.Cylinders : Smoke is { Cylinders: > 0 } sm ? sm.Cylinders : 4;
+
+    public double EngineCompressionRatio =>
+        Propulsion is { CompressionRatio: > 1.0 } p ? p.CompressionRatio
+        : Smoke is { CompressionRatio: > 1.0 } sm ? sm.CompressionRatio : 8.7;
     /// <summary>
     /// BUSHWHEELS (owner 2026-10-16): any aeroplane can be put on big soft tyres, which is what lets it skim water
     /// and land on a gravel bar. Set from the session when the option is chosen; not part of the type's own data.
@@ -942,6 +957,16 @@ public sealed class PropulsionConfig
     /// true = coarse (aerobatic, twin), false = fine (the standard single).
     /// </summary>
     public bool CoarseOnOilLoss { get; set; }
+
+    /// <summary>
+    /// Cylinders and compression ratio, for the COMPRESSION STROKES of a dead engine
+    /// (<see cref="FlyingGame.Core.PistonCompression"/>): what makes a propeller lump to a stop rather than coast to
+    /// one, and what it has to be shoved over to windmill again. 0 here means "ask the exhaust", because the same two
+    /// numbers were already authored on <see cref="SmokeConfig"/> for the pipe's pulse rate and it is the same engine —
+    /// see <see cref="AircraftConfig.EngineCylinders"/>, which is the one place that decides.
+    /// </summary>
+    public int Cylinders { get; set; }
+    public double CompressionRatio { get; set; }
     /// <summary>Drag of the idling / windmilling propeller as a coefficient on its DISC area (owner 2026-10-03: the 172
     /// glided 14:1 at idle — the POH says 9:1 — and floated forever). A fine-pitch prop at idle is driven by the air and
     /// is a big drag: C_D ≈ 0.15–0.25 on disc area. Fades out as the throttle comes up (gone by 20 %).
