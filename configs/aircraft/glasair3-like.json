@@ -601,7 +601,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.6109,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -618,7 +618,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.6109,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -635,13 +635,14 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.6109,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
           }
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1413,7 +1414,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tire": "5.00-5", "tirePressurePsi": 19.2
+      "tire": "5.00-5",
+      "tirePressurePsi": 19.2
     },
     {
       "pos": [
@@ -1429,7 +1431,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tire": "5.00-5", "tirePressurePsi": 44.7
+      "tire": "5.00-5",
+      "tirePressurePsi": 44.7
     },
     {
       "pos": [
@@ -1445,7 +1448,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 6000,
-      "tire": "5.00-5", "tirePressurePsi": 44.7
+      "tire": "5.00-5",
+      "tirePressurePsi": 44.7
     }
   ],
   "limits": {

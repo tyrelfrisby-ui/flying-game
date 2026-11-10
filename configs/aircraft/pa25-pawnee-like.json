@@ -7,7 +7,9 @@
   "wingSpar": "aluminumFabric",
   "wingSparSource": "Piper PA-25 Pawnee: aluminium spars and ribs, fabric covered (FAA TCDS 2A8; Piper PA-25 service manual).",
   "wingBracing": "strut",
-  "wingBreakStationY": { "wing": 3.531 },
+  "wingBreakStationY": {
+    "wing": 3.531
+  },
   "wingBreakStationSource": "Strut attach |y| 139 in = 3.531 m from the centreline (front and rear strut alike): SSA/AIRW-D0026 'PA-25 Pawnee Front Spar Stress Analysis' Rev 1, p.39 Figs 15-1/15-2, where the spar shear steps (read off the chart, +/-1 in; that report's wing stations run from the centreline, root pin WS 19, tip ~217). Fuselage end (same report 6.69, author's estimate): both struts meet one point on the upper fuselage ~6 in ahead of the front spar; struts ~15 deg to the wing plane.",
   "spawnIasMs": 45,
   "mass": {
@@ -800,7 +802,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.4363,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -817,7 +819,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.4363,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -834,7 +836,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.4363,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -851,13 +853,14 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.4363,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
           }
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1518,7 +1521,8 @@
       "corneringStiffnessN": 9000,
       "toeOutDeg": 2.0,
       "toeOutDegSource": "Standard 2 degrees of toe-out on every taildragger's mains (Ty 2026-11-10: \"Use 2 degrees toe out on all taildraggers standard unless I adjust based on feel\"). A standing slip angle outboard on each wheel: level the pair cancel, and when one is loaded more its outboard side force is the larger, pushing the aeroplane back toward the light side - \"The loaded tire tries to unload back to the other\". The sign comes from each wheel's own y, so one value means outboard on both (LandingGear.ToeRad). Live-tunable in OPTIONS while flying.",
-      "tire": "8.00-6", "tirePressurePsi": 20,
+      "tire": "8.00-6",
+      "tirePressurePsi": 20,
       "gearType": "spring-steel"
     },
     {
@@ -1535,7 +1539,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 9000,
-      "tire": "8.00-6", "tirePressurePsi": 20,
+      "tire": "8.00-6",
+      "tirePressurePsi": 20,
       "gearType": "spring-steel"
     },
     {
@@ -1552,7 +1557,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "tire": "scott-8in", "tirePressurePsi": 31.8,
+      "tire": "scott-8in",
+      "tirePressurePsi": 31.8,
       "steerSpringNmPerRad": 20
     }
   ],

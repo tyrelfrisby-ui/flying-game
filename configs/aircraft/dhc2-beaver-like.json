@@ -5,7 +5,9 @@
   "structureType": "aluminumMonocoque",
   "structureTypeSource": "DHC-2 Beaver: all-metal aluminium semi-monocoque fuselage (DHC-2 maintenance manual).",
   "wingBracing": "strut",
-  "wingBreakStationY": { "wing": 3.1 },
+  "wingBreakStationY": {
+    "wing": 3.1
+  },
   "wingBreakStationSource": "Lift-strut wing attach |y| ~122 in = 3.10 m from the centreline, scaled (+/-5 in) off the L-20A/DHC-2 three-view on Wikimedia Commons against its 48 ft 0 in span dimension (strut tops 209 / 213 px at 1.72 px/in). No published station found (DHC-2 PSM 1-2-2/1-2-4 not reachable). FAA AD 2018-19-11 rear-spar pieces WS 89.16-170.16 are root-rib stations (root rib ~BL 26 in) and put a spar splice at ~115 in from the centreline, near but not at the strut; the three-view figure is used.",
   "spawnIasMs": 50,
   "mass": {
@@ -790,7 +792,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.43633,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -807,7 +809,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.43633,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -824,7 +826,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.43633,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -841,13 +843,14 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.43633,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
           }
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1508,7 +1511,9 @@
       "corneringStiffnessN": 20554,
       "toeOutDeg": 2.0,
       "toeOutDegSource": "Standard 2 degrees of toe-out on every taildragger's mains (Ty 2026-11-10: \"Use 2 degrees toe out on all taildraggers standard unless I adjust based on feel\"). A standing slip angle outboard on each wheel: level the pair cancel, and when one is loaded more its outboard side force is the larger, pushing the aeroplane back toward the light side - \"The loaded tire tries to unload back to the other\". The sign comes from each wheel's own y, so one value means outboard on both (LandingGear.ToeRad). Live-tunable in OPTIONS while flying.",
-      "tire": "8.50-10", "tirePressurePsi": 30, "tundraTire": "351510.R"
+      "tire": "8.50-10",
+      "tirePressurePsi": 30,
+      "tundraTire": "351510.R"
     },
     {
       "pos": [
@@ -1524,7 +1529,9 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 20554,
-      "tire": "8.50-10", "tirePressurePsi": 30, "tundraTire": "351510.R"
+      "tire": "8.50-10",
+      "tirePressurePsi": 30,
+      "tundraTire": "351510.R"
     },
     {
       "pos": [
@@ -1540,7 +1547,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 5652,
-      "tire": "legacy-beaver-tail", "tirePressurePsi": 38,
+      "tire": "legacy-beaver-tail",
+      "tirePressurePsi": 38,
       "steerSpringNmPerRad": 18.0
     }
   ],
