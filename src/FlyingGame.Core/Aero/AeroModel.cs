@@ -383,6 +383,25 @@ public static class AeroModel
         static double Cn(double a, double l, double d) => l * Math.Cos(a) + d * Math.Sin(a);
     }
 
+    /// <summary>
+    /// OFF since 2026-11-09, measured by `PlateClampProbe` (PLATE_CLAMP=1). `MonotonicPastStall` holds the derived
+    /// table's normal force to its RUNNING MAXIMUM past the stall, so on any section with a real stall drop it pins
+    /// Cn dead flat from the stall until the genuine curve climbs back above the pre-stall peak. On the Pitts' tail
+    /// that is CN 1.03 flat from 35° to 60°, and a flat Cn is zero control effectiveness: the elevator's authority
+    /// at α 45 was 15.7 % of its α 0 value with the clamp and 22.7 % without, and at α 60, 6.8 % against 9.5 %.
+    /// That is the owner's own report — "the elevator and rudder authority in the spin are both significantly
+    /// weaker than the real thing" — and a third of it was this patch.
+    ///
+    /// It was added (689790f5) because the tail's pitch damping dM/dq was +129 N·m per rad/s at α 30, the wrong
+    /// SIGN. That no longer reproduces: with the clamp off the same measurement is −149, damping, and it is damping
+    /// at every α from 10 to 60. The anti-damping was fixed by the tail work of the same day, not by this.
+    ///
+    /// Kept as a seam rather than deleted because it is the instrument that measured its own cost, and because a
+    /// genuinely monotonic Cn is still the right thing for a SEPARATED surface — it just has to come from the
+    /// section, not from a clamp. See tools/aircraft_builder/flat_plate.py.
+    /// </summary>
+    public static bool ClampNormalForcePastStall = Environment.GetEnvironmentVariable("CN_CLAMP") != null;
+
     public static AirfoilTableData FiniteSpanSection(AirfoilTableData data, double a0, double a)
     {
         double k = 1.0 / a - 1.0 / a0;
@@ -403,7 +422,7 @@ public static class AeroModel
         var outCl = neg.Select(i => data.Cl[i]).ToArray();
         var outCd = neg.Select(i => data.Cd[i]).ToArray();
         var outCm = neg.Select(i => data.Cm[i]).ToArray();
-        MonotonicPastStall(outAlpha, outCl, outCd);
+        if (ClampNormalForcePastStall) MonotonicPastStall(outAlpha, outCl, outCd);
         return new AirfoilTableData { AlphaRad = outAlpha, Cl = outCl, Cd = outCd, Cm = outCm };
     }
 

@@ -19,8 +19,7 @@ magnitudes. So:
     `lowar_plate.py`, so broadside drag does not move: what this table changes is the attached and near-stall
     shape, which is the band the notch was in.
 
-STALL. A thin plate departs the 2*pi line before it stalls and tops out near Cl 0.80 around 9 deg (Flachsbart's
-plate measurements; Hoerner ch. 4). Past that, Viterna & Corrigan's flat-plate extrapolation, matched at the
+STALL. A thin plate departs the 2*pi line before it stalls. Past that, Viterna & Corrigan's flat-plate extrapolation, matched at the
 stall point:
     Cl = A1*sin(2a) + A2*cos^2(a)/sin(a)      A1 = Cd_max/2
     Cd = B1*sin^2(a) + B2*cos(a)              B1 = Cd_max
@@ -29,15 +28,45 @@ stall point:
 and NO splice threshold: `lowar_plate.py` rescaled Cd only for |alpha| >= 12 deg and left everything below it
 alone, which is the step the notch sat on. This table is generated whole from 0 to 180 deg.
 
+THE FIT (stall 12 deg, Cl_max 1.05), owner 2026-11-09: "fit the flat plate table against those three tests".
+Bounded from both sides, which is why it is not a tuned number:
+  * PHYSICS. A razor-thin plate stalls near Cl 0.72 at 8 deg (Flachsbart; Hoerner ch. 4), but a Pitts stabiliser
+    is fabric over ribs on a tube spar - a thin SYMMETRIC section with a real nose radius, 6-8 % thick. Thin
+    symmetric sections at tail Reynolds numbers: 0006 ~0.92 at 9 deg, 0009 ~1.1 at 11, 0012 ~1.3 at 14. 1.05 at
+    12 sits between 0006 and 0009. 0.80 would be a bare plate, which this is not.
+  * FLIGHT. Below ~1.05 the aeroplane will not ENTER its flat spin: `BeggsMuellerProbe` (BEGGS=1) holds the
+    developed spin at alpha 92, r -4.5 at 1.05/12, and at 0.95/11 the entry collapses to alpha 11 and 73 kt -
+    full aft stick no longer holds it stalled. The real aeroplane enters that spin, so the entry working is an
+    acceptance test, not a preference.
+
+WHAT IT DOES NOT CHANGE, and the hypothesis behind it. The reason for this work was that the 0012's cambered
+stall collapse looked like the cause of the Pitts' too-flat left spin and its weak elevator and rudder at high
+alpha. Measured, it is not: with the plate the flat spin sits at alpha 92-94 against 91 before (very slightly
+FLATTER, the wrong way), and Beggs-Mueller still fails exactly as the owner found in flight - 15 s of idle plus
+full opposite rudder decays the yaw rate only 4.5 -> 4.0 with the stick pinned aft. The section was wrong and is
+now right; it was not the mechanism.
+
 FIN. The horizontal tail goes through `FiniteSpanSection` (`AeroModel.TailSections` derives a table for
 `key == "hStab"`, which `SystemKey` maps the elevator onto too), so it gets this 2-D plate and is rescaled per
 type from the surface's own aspect ratio. The FIN AND RUDDER DO NOT - that is staged, pending their own
 validation - so their table is used raw, and `fin-lowAR` was accordingly already three-dimensional: slope
-3.724/rad, against naca0012-like's 6.302. Handing a raw 2-D plate to a fin would therefore raise its lift slope
-69 % and move its stall from 25 deg to 9, which is not a section change but a silent authority change. So two
-tables are emitted: `flat-plate` (2-D, hStab + elevator) and `flat-plate-fin`, the same plate run through the
-same lifting-line mapping at a = 3.724 so the fin's slope lands exactly where it is today. What moves on the
-fin is only the stall shape and what happens past it.
+3.724/rad against naca0012-like's 6.302, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg. THAT IS
+ALREADY A LOW-ASPECT-RATIO PLATE and it should be left alone: the owner's note was about the stabiliser ("not
+0012"), and 0012 is only on the hStab. The fin keeps it, so FLAT_PLATE_ONLY defaults to `hstab`.
+
+Converting the fin as well was tried and is wrong, decisively: with the fin on a plate the Pitts WILL NOT SPIN
+AT ALL - alpha 11 at 72 kt where the developed flat spin is alpha 92 at 24 kt - while the stab alone spins
+normally. A low-AR surface keeps lifting far past where a 2-D section stalls (vortex lift; Hoerner's low-AR
+plates reach Cl 1.0-1.2 at 30-40 deg), and that side force at 25-50 deg is what sustains autorotation. The
+alpha-axis mapping cannot manufacture it: it moves points along alpha and leaves Cl alone, so a plate pushed
+through it still peaks at the plate's own Cl_max and gives only ~66 % of `fin-lowAR` at 40 deg. `flat-plate-fin`
+and FLAT_PLATE_ONLY=fin stay in the tool as the instrument that measured this, not as a thing to ship.
+
+SEPARATELY, AND NOT FIXED HERE: on eleven of the fourteen types `naca0012-like` is on the vStab as well - a 2-D
+table on a surface that never goes through `FiniteSpanSection`, so those fins fly a 6.30/rad slope where ~3.7 is
+right. Their directional stiffness at small sideslip is therefore roughly 70 % too high. Moving them to
+`fin-lowAR` is the fix and it moves every one of those types' handling, so it wants its own change and its own
+flight test.
 
 WHY VITERNA AND NOT `poststall_plate.py`'s RELATION. That tool gives the fleet's WINGS the fully-separated plate,
 CN = CD90*sin(a), i.e. CL = CD90*sin(a)*cos(a) - the owner/CFI validated its shape against the extra-sym chart
@@ -65,19 +94,24 @@ zero Cm for the same reason).
   python3 flat_plate.py --print                      # the table, and its Cn monotonicity
   python3 flat_plate.py configs/aircraft/*.json      # add `flat-plate` and point the fabric tails at it
 """
-import io, json, math, sys
+import io, json, math, os, sys
 
 CD0 = 0.020        # fabric over ribs, a tube spar and a stitched trailing edge (the old tables: 0.008-0.020)
 CD_MAX = 1.19      # Viterna & Corrigan 1.11 + 0.018*AR at tail aspect ratios; Hoerner's AR 1-5 plates: 1.18-1.20
-A_STALL = 9.0      # deg
-CL_STALL = 0.80    # Cl_max of a thin plate with a rounded nose (the 2*pi line would give 0.99 here: it does not
-                   # reach it). Flachsbart's razor-thin plates stall at ~0.72/8 deg; a fabric tail over a tube
-                   # spar has a nose radius and holds a little more (Hoerner ch. 4). `scan()` is the sensitivity.
+# FLAT_PLATE_ASTALL / FLAT_PLATE_CLMAX override these for the fit against the spin tests (see THE FIT below).
+A_STALL = 12.0     # deg   } see THE FIT
+CL_STALL = 1.05    #       }
 
 # The alpha stations: dense through the attached range and the stall, coarser broadside - and MIRRORED about
 # 90 deg, because the reversed-flow side has the same sharp stall and needs the same resolution to resolve it.
-_FWD = [0, 2, 4, 6, 8, 9, 10, 11, 12, 14, 16, 18, 21, 25, 30, 35, 40, 50, 60, 70, 80, 90]
+_FWD = [0, 2, 4, 6, 8, 9, 10, 11, 12, 14, 16, 18, 21, 25, 28, 30, 33, 35, 38, 40, 45, 50, 60, 70, 80, 90]
 _DEG = _FWD + [180 - d for d in reversed(_FWD[:-1])]
+
+
+A_STALL = float(os.environ.get('FLAT_PLATE_ASTALL', A_STALL))
+CL_STALL = float(os.environ.get('FLAT_PLATE_CLMAX', CL_STALL))
+BLEND_DEG = float(os.environ.get('FLAT_PLATE_BLEND', 10.0))
+POSTSTALL = os.environ.get('FLAT_PLATE_POSTSTALL', 'plate')   # plate | viterna — see WHY THE PLATE RELATION
 
 
 def _viterna(a_s=None, cl_s=None):
@@ -103,9 +137,24 @@ def coeffs(deg, a_stall=None, cl_stall=None):
         return -cl, cd
     A_S = A_STALL if a_stall is None else a_stall
     CL_S = CL_STALL if cl_stall is None else cl_stall
-    a1, a2, b1, b2 = _viterna(A_S, CL_S)
     a = math.radians(deg)
     if deg >= A_S:
+        if POSTSTALL == 'plate':
+            # The fully separated plate: the force is normal to the chord and CN = CD_max*sin(a), so
+            #   CL = CD_max*sin(a)*cos(a),  CD = CD0 + CD_max*sin^2(a)
+            # blended in linearly over BLEND_DEG from the stall point, which is `poststall_plate.py`'s relation
+            # for the fleet's wings (Hoerner, Fluid-Dynamic Lift ch. 4 and Drag ch. 3; Ostowari & Naik
+            # SERI/STR-217-2559; Critzos & Heyson NACA TN 3361), validated there against the owner's chart.
+            cl = CD_MAX * math.sin(a) * math.cos(a)
+            # CD0*cos^2 + CD_max*sin^2, not CD0 + CD_max*sin^2, so broadside reads exactly CD_max (1.190) and
+            # not 1.210: the 90 deg value is the measured reference the whole table is pinned to.
+            cd = CD0 * math.cos(a) ** 2 + CD_MAX * math.sin(a) ** 2
+            if deg < A_S + BLEND_DEG:
+                t = (deg - A_S) / BLEND_DEG
+                cl_s, cd_s = CL_S, CD0 + CL_S * CL_S / (math.pi * 4.0)
+                cl, cd = cl_s + (cl - cl_s) * t, cd_s + (cd - cd_s) * t
+            return cl, max(CD0, cd)
+        a1, a2, b1, b2 = _viterna(A_S, CL_S)
         cl = a1 * math.sin(2 * a) + (a2 * math.cos(a) ** 2 / math.sin(a) if math.sin(a) > 1e-9 else 0.0)
         cd = b1 * math.sin(a) ** 2 + b2 * math.cos(a)
         return cl, max(CD0, cd)
@@ -163,6 +212,13 @@ FIN = ('vStab', 'rudder')              # used raw: give it the pre-rescaled plat
 TAILS = HSTAB + FIN
 
 
+def _fmt(t):
+    """One line per array, as the hand-authored arrays in these configs are: 85 alpha stations one-per-line
+    would be 680 lines of diff per config for a table nobody reads a number at a time."""
+    return '{\n' + ',\n'.join('      "%s": [%s]' % (k, ', '.join(repr(round(x, 5)) for x in t[k]))
+                               for k in ('alphaRad', 'cl', 'cd', 'cm')) + '\n    }'
+
+
 def _entries(text, a, b):
     """The `"name": value` entries of the object whose braces span text[a:b], as (name, verbatim text)."""
     out, k = [], a + 1
@@ -207,8 +263,9 @@ def apply_text(text):
     want = {}
     for sf in cfg.get('surfaces', []):
         sid = str(sf.get('id', ''))
-        tgt = ('flat-plate' if any(sid == t or sid.startswith(t) for t in HSTAB)
-               else 'flat-plate-fin' if any(sid == t or sid.startswith(t) for t in FIN) else None)
+        only = os.environ.get('FLAT_PLATE_ONLY', 'hstab')    # hstab (ships) | fin | both — see FIN above
+        tgt = ('flat-plate' if any(sid == t or sid.startswith(t) for t in HSTAB) and only != 'fin'
+               else 'flat-plate-fin' if any(sid == t or sid.startswith(t) for t in FIN) and only != 'hstab' else None)
         if tgt is None: continue
         for st in sf.get('strips', []):
             if st.get('airfoil') in dead: want.setdefault((sf['id'], st.get('airfoil')), tgt)
@@ -230,13 +287,14 @@ def apply_text(text):
             if d == 0: break
         b += 1
     b += 1
-    body = '\n'.join(('      ' + ln if k else ln) for k, ln in enumerate(json.dumps(table(), indent=2).split('\n')))
+    body = _fmt(table())
     keep = [('flat-plate', '"flat-plate": ' + body)]
     if '"flat-plate-fin"' in text:
-        fb = '\n'.join(('      ' + ln if k else ln) for k, ln in enumerate(json.dumps(finite_span(table()), indent=2).split('\n')))
+        fb = _fmt(finite_span(table()))
         keep.append(('flat-plate-fin', '"flat-plate-fin": ' + fb))
     if '"airfoil": "flat-plate"' not in text: keep.pop(0)
-    keep += [(n, t) for n, t in _entries(text, a, b) if n not in dead]
+    live = {st.get('airfoil') for sf in json.loads(text).get('surfaces', []) for st in sf.get('strips', [])}
+    keep += [(n, t) for n, t in _entries(text, a, b) if n not in dead or n in live]
     inner = ',\n'.join('    ' + t for _, t in keep)
     return text[:a] + '{\n' + inner + '\n  }' + text[b:], dead
 
