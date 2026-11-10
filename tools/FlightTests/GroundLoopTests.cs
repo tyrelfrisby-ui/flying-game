@@ -309,6 +309,11 @@ public class GroundStabilityProbe
         foreach (GearConfig g in c.Gear) if (!g.IsTailwheel && g.PosVec().X < 2.0 && g.PosVec().X > -1.0) { Vec3 w = rest.Attitude.Rotate(g.PosVec() - cg); lead += -w.X; h = w.Z; n++; }
         lead = n > 0 ? -lead / n : 0;
         double h0 = Heading(ac), rate = r0DegS; double rEnd = 0;
+        // The heading change is ACCUMULATED step by step, not wrapped at the end: a loop that passes 180° came back as a
+        // NEGATIVE number and read as "it swung back against the swerve", which is the opposite of what happened. It
+        // could not show until the gear stopped ending the loop on a wingtip (2026-11-10, the legs' own linkage): the
+        // Pitts at 14 m/s now reaches past 180° in 3 s where it used to strike a tip at 45°.
+        double hPrev = h0, hSum = 0;
         // What this measures is the GEAR's yaw divergence. Since 2026-11-03 the airframe's own tips meet the ground (they
         // used to sit inside the wing), and a fast swerve that has grown into a ground loop ends in a wingtip strike that
         // yaws it back — the loop is over, and so is the measurement: it stops at the first airframe contact.
@@ -317,11 +322,12 @@ public class GroundStabilityProbe
         for (double t = 0; t < seconds && !airframeDown; t += 0.02)
         {
             sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));
+            double hNow = Heading(ac); hSum += Wrap(hNow - hPrev); hPrev = hNow;
             if (airframeDown) { log?.Append($"  t={t:F2} the airframe touched (a wingtip, the tail): the loop is over\n"); break; }
             rEnd = ac.State.Rates.Z * 180 / Math.PI;
-            if (log != null && Math.Abs(t / 0.5 - Math.Round(t / 0.5)) < 1e-6) log.Append($"  t={t:F1} r={rEnd:F2}°/s hdg={Wrap(Heading(ac) - h0) * 57.3:F1}°\n");
+            if (log != null && Math.Abs(t / 0.5 - Math.Round(t / 0.5)) < 1e-6) log.Append($"  t={t:F1} r={rEnd:F2}°/s hdg={hSum * 57.3:F1}°\n");
         }
-        return (rEnd / r0DegS, Wrap(Heading(ac) - h0) * 180 / Math.PI, lead, h, c.Mass.Inertia.Izz, c.Mass.MassKg);
+        return (rEnd / r0DegS, hSum * 180 / Math.PI, lead, h, c.Mass.Inertia.Izz, c.Mass.MassKg);
     }
     private static double Heading(Aircraft ac) { var q = ac.State.Attitude; return Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z)); }
     private static double Wrap(double a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }

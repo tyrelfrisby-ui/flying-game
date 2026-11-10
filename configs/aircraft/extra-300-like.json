@@ -1813,7 +1813,11 @@
       "toeOutDegSource": "A standing slip angle on each main, outboard, so the pair cancel when the load is even and restore when it is not: the heavier wheel's outboard side force is the larger one, which pushes the aeroplane back toward the light side and shares the load out again. Ty 2026-11-10, flying both types: \"How are the main gear tires aligned? It acts like it has toe in\" - they were dead straight, which is the one thing a sprung taildragger's gear never is - then \"Try 1 degree toe out both sides\", and the mechanism in his own words: \"The loaded tire tries to unload back to the other\". 1.0 deg is his number, not a fitted one. The sign comes from the wheel's own y, so one value on both mains means outboard on both (LandingGear.ToeRad).",
       "corneringStiffnessN": 8000,
       "tire": "legacy-extra-main",
-      "tirePressurePsi": 18.1
+      "tirePressurePsi": 18.1,
+      "gearType": "spring-composite",
+      "gearTypeSource": "Springy fibreglass bow -- Ty 2026-11-10: \"The extra has springy fiberglass that flexes nicely.\" It bends rather than hinges, which is a different spring from a bungee and the same kinematics at the contact.",
+      "legPivot": [0.347, -0.414, 0.555],
+      "legPivotSource": "Measured off the type's own gear table and model: tools/own_models/ea300_ref_tables.json carries the composite bow as 24 measured horizontal sections, whose neutral axis runs from (span 0.418, up -0.558) where it leaves the fuselage to (span 0.790, up -1.249) at its lower end, with the axle on a bracket at span 0.890 and the tyre touching at up -1.418 (extra-300-like-own.glb, Wheels). Scaled to the config span that is a leg 0.468 m out and 0.852 m down from the root: splay 1.82. A bow has no pin -- its tip moves perpendicular to the beam as it bends, which is what a hinge at the root gives to first order -- and the root-to-contact CHORD is the conservative reading of it: Castigliano on the measured section path (integral of the moment arms about the contact, constant EI) gives 2.02 rather than 1.82, because the bow is a C whose lower half is nearly vertical."
     },
     {
       "pos": [
@@ -1832,7 +1836,11 @@
       "toeOutDegSource": "A standing slip angle on each main, outboard, so the pair cancel when the load is even and restore when it is not: the heavier wheel's outboard side force is the larger one, which pushes the aeroplane back toward the light side and shares the load out again. Ty 2026-11-10, flying both types: \"How are the main gear tires aligned? It acts like it has toe in\" - they were dead straight, which is the one thing a sprung taildragger's gear never is - then \"Try 1 degree toe out both sides\", and the mechanism in his own words: \"The loaded tire tries to unload back to the other\". 1.0 deg is his number, not a fitted one. The sign comes from the wheel's own y, so one value on both mains means outboard on both (LandingGear.ToeRad).",
       "corneringStiffnessN": 8000,
       "tire": "legacy-extra-main",
-      "tirePressurePsi": 18.1
+      "tirePressurePsi": 18.1,
+      "gearType": "spring-composite",
+      "gearTypeSource": "Springy fibreglass bow -- Ty 2026-11-10: \"The extra has springy fiberglass that flexes nicely.\" It bends rather than hinges, which is a different spring from a bungee and the same kinematics at the contact.",
+      "legPivot": [0.347, 0.414, 0.555],
+      "legPivotSource": "Measured off the type's own gear table and model: tools/own_models/ea300_ref_tables.json carries the composite bow as 24 measured horizontal sections, whose neutral axis runs from (span 0.418, up -0.558) where it leaves the fuselage to (span 0.790, up -1.249) at its lower end, with the axle on a bracket at span 0.890 and the tyre touching at up -1.418 (extra-300-like-own.glb, Wheels). Scaled to the config span that is a leg 0.468 m out and 0.852 m down from the root: splay 1.82. A bow has no pin -- its tip moves perpendicular to the beam as it bends, which is what a hinge at the root gives to first order -- and the root-to-contact CHORD is the conservative reading of it: Castigliano on the measured section path (integral of the moment arms about the contact, constant EI) gives 2.02 rather than 1.82, because the bow is a C whose lower half is nearly vertical."
     },
     {
       "pos": [
