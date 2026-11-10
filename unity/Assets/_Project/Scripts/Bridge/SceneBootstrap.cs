@@ -197,6 +197,12 @@ namespace FlyingGame.Bridge
             var options = cam.gameObject.AddComponent<OptionsPanel>();          // in-flight OPTIONS: markers, bubbles, instruments, volume
             var views = cam.gameObject.AddComponent<ViewPanel>();               // VIEW / REPLAY / CLIP / REC + the replay bar
             views.Chase = chase; views.Replay = aircraft.GetComponent<FlightReplay>(); views.Options = options;
+            // THE DEBRIEF (Ty 2026-11-10): what failed, when, what you did, how long you took to notice. On the
+            // replay bar, one tap from the replay, because the live toolbar is already seven buttons wide and his
+            // standing complaint is menus. All of its words come from FlyingGame.Sim.Replay.FlightDebrief.
+            var debrief = cam.gameObject.AddComponent<DebriefPanel>();
+            debrief.Replay = views.Replay; debrief.Driver = aircraft.GetComponent<FlightSimDriver>();
+            views.Debrief = debrief;
             options.Driver = aircraft.GetComponent<FlightSimDriver>();
             // THE FIRE POTS (owner 2026-10-18): the lighted mail route up the staircase, Valley to Summit.
             new GameObject("FirePots").AddComponent<FirePotLights>();
