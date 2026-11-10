@@ -1047,6 +1047,26 @@ public sealed partial class Aircraft
         Hydro.Detach(AirframeComponent.WingLeft);
         Hydro.Detach(AirframeComponent.WingRight);
         Structure.WingsFailed = true;
+        // AND THE WING PANELS GO WITH THE WINGS (Ty 2026-11-10: "I bent the wings then over stressed it to the point of
+        // failure in flight and the bent wingtips were still there so that is not fixed"). This masked the wing surfaces
+        // and dropped the mass but never told the PANELS, so every tip stayed Bent on an aeroplane that had no wings.
+        // The drawn tip is downstream of that, and so is the replay's recorded shape (AirframeShape.Capture), so no
+        // amount of repairing the renderer could make the tip go away while the sim still insisted it was there.
+        //
+        // OnComponentLostStructure's side branch is the EXISTING rule for a whole wing going — the panels on that side
+        // Broken, their contact points gone, that side's slave struts disconnected — and its own summary already claims
+        // "the tip panels that a combat or g-limit wing loss takes with it". It was simply never reached from here,
+        // because a g-limit failure does not LoseComponent the wings: the wreck pieces come from
+        // CrashRelay.OnWingsFailed instead. Called directly, so nothing sheds the wings' mass a second time on top of
+        // the factor above, and no ComponentLost fires to detach geometry the break-up has already thrown.
+        OnComponentLostStructure(AirframeComponent.WingLeft);
+        OnComponentLostStructure(AirframeComponent.WingRight);
+        // A wing that is not there carries no load: the elastic flex and the flex under g come off, and the PLASTIC set
+        // stays, because that is the shape the piece fell in. Left on, the flex kept the drawn tip moving after it had
+        // gone — StructuralDamage redraws a panel whose FlightFlexRad is non-zero whatever its state — and
+        // ApplyOverstressShape stops updating it the moment WingsFailed is set, so it would have been frozen at its last
+        // value for the rest of the flight.
+        foreach (WingPanel w in _panels) { w.FlightFlexRad = 0.0; w.ElasticRad = 0.0; }
         Structure.OverLimitSeverity = 0.0;
         Structure.FailureTimeSec = Atmosphere.SimTimeSec;
         Structure.RaiseFailed();

@@ -275,4 +275,66 @@ public class OverstressPatternTests : IDisposable
         _o.WriteLine($"pitch rate after 50 ms at full power: straight {qStraight:F4}, engine drooped 10° {qSagged:F4} rad/s");
         Assert.True(qSagged < qStraight - 1e-3, "a drooped engine at full power must pitch the nose down");
     }
+
+    // ---- the wings go and the bent tips go with them (Ty 2026-11-10) -----------------------------------------------
+
+    /// <summary>
+    /// Ty, flying 2026.1110.0834: "I bent the wings then over stressed it to the point of failure in flight and the bent
+    /// wingtips were still there so that is not fixed." His manoeuvre exactly — bend the tips with a pull, then pull the
+    /// wings off — and then the state that everything which DRAWS a tip reads.
+    ///
+    /// FailWings masked the wing surfaces, dropped the mass and detached the hydro, but never told the PANELS, so every
+    /// tip stayed Bent on an aeroplane with no wings. The renderer could not win from there: StructuralDamage redraws a
+    /// panel that is Bent or still carrying flex, whatever else is true of it.
+    /// </summary>
+    [Fact]
+    public void WhenTheWingsDepartTheBentTipsGoWithThem()
+    {
+        Aircraft ac = J3At(1.1);
+        Pull(ac, 1.6 * 3.8);                                   // "I bent the wings": a set, no failure
+        Assert.False(ac.Structure.WingsFailed);
+        _o.WriteLine("after the 1.6 pull: " + string.Join(", ",
+            ac.Panels.Select(p => $"{p.Component} {p.State} bend {p.BendRad / Deg:F2}° flex {p.FlightFlexRad / Deg:F2}°")));
+        Assert.Contains(ac.Panels, p => p.State == PanelState.Bent);   // there is a bent tip to lose
+        double[] setAtFailure = ac.Panels.Select(p => p.BendRad).ToArray();
+
+        Pull(ac, 2.0 * 3.8);                                   // "then over stressed it to the point of failure"
+        Assert.True(ac.Structure.WingsFailed);
+        _o.WriteLine("after the failure: " + string.Join(", ",
+            ac.Panels.Select(p => $"{p.Component} {p.State} bend {p.BendRad / Deg:F2}° flex {p.FlightFlexRad / Deg:F2}° elastic {p.ElasticRad / Deg:F2}°")));
+
+        // No wing panel is on the aeroplane any more — the defect itself.
+        Assert.All(ac.Panels, p => Assert.Equal(PanelState.Broken, p.State));
+        // And nothing asks for one to be drawn. This is StructuralDamage's own redraw test, read in the sim: a panel
+        // that satisfies it gets ShowPanelBend called on it every frame, which is what kept the tip on screen.
+        Assert.All(ac.Panels, p => Assert.False(
+            p.State == PanelState.Bent || Math.Abs(p.ElasticRad) > 0.003 || Math.Abs(p.FlightFlexRad) > 0.003,
+            $"{p.Component} still asks to be drawn bent: state {p.State}, elastic {p.ElasticRad:F4}, flex {p.FlightFlexRad:F4}"));
+        // The PLASTIC set stays: the piece fell in the shape it was bent into, so the thrown wing is a BENT wing. Only
+        // the load-dependent flex comes off, because a wing that is not there carries no load.
+        for (int i = 0; i < ac.Panels.Count; i++)
+            Assert.Equal(setAtFailure[i], ac.Panels[i].BendRad, 9);
+        Assert.Contains(ac.Panels, p => Math.Abs(p.BendRad) > WingStructure.VisibleSetRad);
+    }
+
+    /// <summary>The same moment as the RECORDING holds it, so a replay of the overstress draws the tip on the wing that
+    /// left rather than on the aeroplane: the shape timeline reads these very fields (Ty 2026-11-10, both halves of the
+    /// report).</summary>
+    [Fact]
+    public void TheRecordedShapeAfterAWingFailureHasTheTipsBrokenAndStillBent()
+    {
+        Aircraft ac = J3At(1.1);
+        Pull(ac, 1.6 * 3.8);
+        FlyingGame.Sim.Replay.AirframeShape bent = FlyingGame.Sim.Replay.AirframeShape.Capture(10.0, ac);
+        Assert.Contains(bent.Panels, p => p.State == PanelState.Bent);
+
+        Pull(ac, 2.0 * 3.8);
+        Assert.True(ac.Structure.WingsFailed);
+        FlyingGame.Sim.Replay.AirframeShape gone = FlyingGame.Sim.Replay.AirframeShape.Capture(20.0, ac);
+        Assert.All(gone.Panels, p => Assert.Equal(PanelState.Broken, p.State));
+        Assert.Contains(gone.Panels, p => Math.Abs(p.BendRad) > WingStructure.VisibleSetRad);
+        // Two different shapes, so the timeline keeps both: the replay can show the tip on the aeroplane before the
+        // failure and on the debris after it.
+        Assert.False(bent.SameShapeAs(gone));
+    }
 }
