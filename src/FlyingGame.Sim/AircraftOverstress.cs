@@ -21,7 +21,6 @@ namespace FlyingGame.Sim;
 public sealed partial class Aircraft
 {
     private double _structGrossKg = -1;
-    private double _wingStrengthApplied = 1.0;
     private double _tailShownRad;
 
     /// <summary>The gross mass the wings' limit load factors were rated at: the placard's maximum take-off mass, else the
@@ -101,17 +100,26 @@ public sealed partial class Aircraft
     /// few per cent of thrust); on the ground, in the water or against a solid the push of the contact is not a load
     /// factor on any of them — a strike on a wingtip, the nose or the tail is the contact model's (the panels' plastic
     /// hinges, FuselageCrush), and a contact spring's step-long spike must not read as a 20 g pull on the engine mount.</remarks>
-    private void UpdateStructure(double dt) => StepStructure(AeroLoadFactorZ, AeroLoadFactorZ, dt);
+    /// <remarks>The two wings go in on their OWN load factors (<see cref="WingSideLoadFactor"/>): the air's rolling
+    /// moment tells them apart, so a rolling pull loads the down-aileron wing harder and the stagger can be
+    /// asymmetric (Ty 2026-11-10).</remarks>
+    private void UpdateStructure(double dt) =>
+        StepStructure(WingSideLoadFactor(-1), WingSideLoadFactor(1), AeroLoadFactorZ, dt);
 
     /// <summary>Put the structure through one step at held load factors (scenarios, lessons, tests): exactly what a step
     /// that flew them does to it — the overstress pattern, any part that departs, and the shapes the aero and the visual
     /// then take. <paramref name="nAero"/> loads the wings and tail (weight-adjusted), <paramref name="nTotal"/> the engine.</summary>
-    public void HoldLoadFactor(double nAero, double nTotal, double dt) => StepStructure(nAero, nTotal, dt);
+    public void HoldLoadFactor(double nAero, double nTotal, double dt) => StepStructure(nAero, nAero, nTotal, dt);
 
-    private void StepStructure(double nAero, double nTotal, double dt)
+    /// <summary>The same with the two wings held at DIFFERENT load factors (tests, probes): a rolling pull without
+    /// having to fly one, so one wing can be taken past its break while the other is not.</summary>
+    public void HoldWingLoadFactors(double nLeft, double nRight, double nTotal, double dt) =>
+        StepStructure(nLeft, nRight, nTotal, dt);
+
+    private void StepStructure(double nLeft, double nRight, double nTotal, double dt)
     {
-        StructuralBreak broke = Structure.Step(nAero, nTotal, WingWeightRatio, dt);
-        if ((broke & StructuralBreak.Wings) != 0) FailWings();
+        StructuralBreak broke = Structure.Step(nLeft, nRight, nTotal, WingWeightRatio, dt);
+        ApplyWingBreaks(broke);
         if ((broke & StructuralBreak.HorizontalTail) != 0 && !IsLost(AirframeComponent.TailHorizontal) && !IsLost(AirframeComponent.TailBoom))
             LoseComponent(AirframeComponent.TailHorizontal);
         if ((broke & StructuralBreak.EngineMount) != 0) LoseEngineMount();
@@ -133,20 +141,29 @@ public sealed partial class Aircraft
         if (centre) LoseComponent(AirframeComponent.Nose);
     }
 
+    /// <remarks>PER SIDE since 2026-11-10 (<see cref="WingFailureLaw"/>): each panel takes the shape, the set and the
+    /// weakening of ITS OWN wing's member, so a rolling pull leaves one wing bent more than the other — "asymmetric
+    /// aerodynamic bending is shown as bent more on one side than the other" (Ty, same day). Before this every panel
+    /// read one member, so the two wings could only ever be bent the same.</remarks>
     private void ApplyOverstressShape()
     {
-        OverstressMember wings = Structure.Wings;
         if (_panels.Count > 0 && !Structure.WingsFailed)
         {
-            double weaken = wings.Strength / _wingStrengthApplied;
-            bool weakened = Math.Abs(weaken - 1.0) > 1e-12;
-            if (weakened) _wingStrengthApplied = wings.Strength;
-            double set = wings.SetRad, flex = wings.FlexRad;
+            // What each side's overstresses have taken off it since the last step, booked BEFORE the panels are walked:
+            // a biplane has two panels on a side and they must both lose it, so the running total cannot be advanced
+            // panel by panel.
+            double weakenL = Structure.LeftWing.Member.Strength / _wingStrengthPerSide[0];
+            double weakenR = Structure.RightWing.Member.Strength / _wingStrengthPerSide[1];
+            _wingStrengthPerSide[0] = Structure.LeftWing.Member.Strength;
+            _wingStrengthPerSide[1] = Structure.RightWing.Member.Strength;
             for (int k = 0; k < _panels.Count; k++)
             {
                 WingPanel w = _panels[k];
                 if (w.State == PanelState.Broken) continue;
-                if (weakened) Weaken(w, weaken);
+                OverstressMember m = Structure.Wing(w.Side).Member;
+                double weaken = w.Side < 0 ? weakenL : weakenR;
+                if (Math.Abs(weaken - 1.0) > 1e-12) Weaken(w, weaken);
+                double set = m.SetRad, flex = m.FlexRad;
                 bool setChanged = w.OverstressSetRad != set;
                 bool flexChanged = Math.Abs(w.FlightFlexRad - flex) > 5e-4 || (flex == 0.0 && w.FlightFlexRad != 0.0);
                 if (!setChanged && !flexChanged) continue;
@@ -159,6 +176,9 @@ public sealed partial class Aircraft
                 }
                 else ApplyPanelFlex(k);
             }
+            // A fold deepens with the load after the step it first appeared on, so it is refreshed here rather than on
+            // the one step the structure reported it (ApplyWingFold leaves a panel alone when nothing has moved).
+            ApplyWingFold();
         }
         if (Structure.HorizontalTail is { } tail && !IsLost(AirframeComponent.TailHorizontal) && !IsLost(AirframeComponent.TailBoom))
         {
@@ -177,18 +197,15 @@ public sealed partial class Aircraft
         SetCaps(w, 0.0);
     }
 
-    /// <summary>The panel's rows fly at its shape under load: its set (in <see cref="WingPanel.BendRad"/>) plus the flex.</summary>
+    /// <summary>The panel's rows fly at its shape under load: its set (in <see cref="WingPanel.BendRad"/>) plus the flex,
+    /// and the whole wing's fold on top if it has folded (<see cref="ShapeWingSide"/> then has the inboard rows too).</summary>
     private void ApplyPanelFlex(int k)
     {
         WingPanel w = _panels[k];
+        if (w.FoldRad != 0.0) { ShapeWingSide(w); return; }
         _flowState.BendRad ??= new double[_stripTotal];
         _flowState.BendOffset ??= new Vec3[_stripTotal];
-        foreach (int i in w.Strips)
-        {
-            Vec3 pos = _stripAt[i]!.PosVec();
-            _flowState.BendRad[i] = w.BendRad + w.FlightFlexRad;
-            _flowState.BendOffset[i] = w.Deform(pos, w.FlightFlexRad) - pos;
-        }
+        foreach (int i in w.Strips) WriteStripShape(w, i);
     }
 
     /// <summary>Each half of the horizontal tail turned about the centreline by <paramref name="rad"/> (+ = tips up): its

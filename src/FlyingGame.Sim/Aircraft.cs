@@ -11,9 +11,24 @@ namespace FlyingGame.Sim;
 /// positions slew toward their commanded target at the configured rate, so a step input doesn't teleport
 /// a surface). This is the one place airframe + surfaces + gravity come together each step.
 /// </summary>
-/// <summary>What broke on a structural step (<see cref="StructuralState.Step(double, double, double, double)"/>).</summary>
+/// <summary>
+/// What broke on a structural step (<see cref="StructuralState.Step(double, double, double, double)"/>).
+///
+/// The wings have been STAGGERED since 2026-11-10 (<see cref="WingFailureLaw"/>), so what used to be one bit is a bit
+/// per side and per stage. <see cref="Wings"/> still means "the wings are gone", which now happens when the SECOND side
+/// departs — both on the same step for any symmetric pull, which is how it always read.
+/// </summary>
 [Flags]
-public enum StructuralBreak { None = 0, Wings = 1, HorizontalTail = 2, EngineMount = 4 }
+public enum StructuralBreak
+{
+    None = 0, Wings = 1, HorizontalTail = 2, EngineMount = 4,
+    /// <summary>This side's whole wing has left the aeroplane.</summary>
+    WingLeftGone = 8, WingRightGone = 16,
+    /// <summary>Strut-braced: the sections outboard of this side's station have gone; the braced inner bay flies on.</summary>
+    OutboardLeftGone = 32, OutboardRightGone = 64,
+    /// <summary>Cantilever: this side has folded up and is still attached, still making force.</summary>
+    FoldedLeft = 128, FoldedRight = 256,
+}
 
 /// <summary>
 /// Airframe structural state — REAL g limits (owner request 2026-09-08). Limit loads come from
@@ -34,7 +49,7 @@ public enum StructuralBreak { None = 0, Wings = 1, HorizontalTail = 2, EngineMou
 /// (Limits.GroanFactor, Limits.UltimateFactor) at the spawn mass, for display and grading.
 /// Per-instance state only: a fresh Aircraft (ResetFlight) is intact.
 /// </summary>
-public sealed class StructuralState
+public sealed partial class StructuralState
 {
     /// <summary>The rated LIMIT load factors: what the structure carries without permanent deformation. Exceeding
     /// these is an exceedance for scoring (Standards.GLimit) even though nothing is heard yet.</summary>
@@ -51,9 +66,28 @@ public sealed class StructuralState
 
     /// <summary>The overstress members (Ty 2026-11-05). <see cref="HorizontalTail"/> is null without a horizontal tail,
     /// <see cref="EngineMount"/> without a propeller engine on a mount.</summary>
-    public OverstressMember Wings { get; } = new("wings");
     public OverstressMember? HorizontalTail { get; }
     public OverstressMember? EngineMount { get; }
+
+    /// <summary>Each wing as its own failing structure, on its own load (Ty 2026-11-10,
+    /// <see cref="WingFailureLaw"/>): in a rolling pull the two do not carry the same thing, so one can come apart
+    /// while the other does not.</summary>
+    public WingSideStructure LeftWing { get; } = new(-1);
+    public WingSideStructure RightWing { get; } = new(1);
+    /// <summary>The wing on side <paramref name="side"/> (−1 left, +1 right).</summary>
+    public WingSideStructure Wing(int side) => side < 0 ? LeftWing : RightWing;
+
+    /// <summary>
+    /// THE MORE LOADED WING's overstress member — what "the wings" means now that each one is its own
+    /// (<see cref="LeftWing"/>, <see cref="RightWing"/>). Under a symmetric pull the two are identical, so every reading
+    /// that predates the staggered failure is unchanged; in a rolling pull this is the wing that is closer to coming
+    /// apart, which is what a single number about "the wings" is for (the groan, the HUD, the grading).
+    ///
+    /// Not a member of its own: there is nothing left for a third one to be loaded by, and a shadow member that nothing
+    /// drove would quietly disagree with the two that do.
+    /// </summary>
+    public OverstressMember Wings =>
+        RightWing.Member.EffectiveRatio > LeftWing.Member.EffectiveRatio ? RightWing.Member : LeftWing.Member;
 
     /// <summary>0 at the GROAN threshold, ramping to 1 at ultimate (by sign of n). Drives the groan's loudness and
     /// the pop rate. Zero everywhere below the groan threshold, including between limit and groan.</summary>
@@ -96,7 +130,7 @@ public sealed class StructuralState
     public const double TailDesignMargin = 2.5;
 
     /// <summary>Advance at load factor <paramref name="n"/> for everything, at the spawn mass (tests, scenarios). True on
-    /// the step the wings break.</summary>
+    /// the step the wings break (both sides gone).</summary>
     public bool Step(double n, double dt) => (Step(n, n, _spawnWeightRatio, dt) & StructuralBreak.Wings) != 0;
 
     /// <summary>Advance the structure one step: the wings on the air's load factor <paramref name="nAero"/> times
@@ -104,15 +138,26 @@ public sealed class StructuralState
     /// its own margin (<see cref="TailDesignMargin"/>: it carries the balancing download, not the wings' lift), the engine
     /// mount on the whole aeroplane's <paramref name="nTotal"/>. Returns what broke on this step; the caller does the
     /// separating, because dropping surfaces and re-deriving the inertia is the Aircraft's business.</summary>
-    public StructuralBreak Step(double nAero, double nTotal, double wingWeightRatio, double dt)
+    public StructuralBreak Step(double nAero, double nTotal, double wingWeightRatio, double dt) =>
+        Step(nAero, nAero, nTotal, wingWeightRatio, dt);
+
+    /// <summary>
+    /// The same, with the two wings on their OWN load factors (Ty 2026-11-10: "account for aileron load so one tip could
+    /// break off but not the other"). <paramref name="nLeft"/> and <paramref name="nRight"/> are what each wing is
+    /// carrying (Aircraft.WingSideLoadFactor: the symmetric part ± half the rolling moment over the side's lift arm);
+    /// they are equal for every symmetric pull, which is every caller that predates the stagger. The TAIL is stepped on
+    /// the symmetric part alone — a rolling pull does not load one side of the stabiliser more in anything this sim
+    /// models, and its own load is a different case entirely (<see cref="TailDesignMargin"/>).
+    /// </summary>
+    public StructuralBreak Step(double nLeft, double nRight, double nTotal, double wingWeightRatio, double dt)
     {
-        var broke = StructuralBreak.None;
-        double rw = Ratio(nAero) * wingWeightRatio, re = Ratio(nTotal);
-        if (!WingsFailed && Wings.Step(rw, dt)) broke |= StructuralBreak.Wings;
+        StructuralBreak broke = StepWings(nLeft, nRight, wingWeightRatio, dt);
+        double rw = Ratio(0.5 * (nLeft + nRight)) * wingWeightRatio, re = Ratio(nTotal);
         if (HorizontalTail is { Broken: false } t && t.Step(rw / TailDesignMargin, dt)) broke |= StructuralBreak.HorizontalTail;
         if (EngineMount is { Broken: false } e && e.Step(re, dt)) broke |= StructuralBreak.EngineMount;
         double sev = 0.0;
-        if (!WingsFailed && (broke & StructuralBreak.Wings) == 0) sev = Math.Max(sev, Severity(Wings));
+        foreach (WingSideStructure w in Wings2)
+            if (!w.Gone && w.Member is { Broken: false }) sev = Math.Max(sev, Severity(w.Member));
         if (HorizontalTail is { Broken: false } t2) sev = Math.Max(sev, Severity(t2));
         if (EngineMount is { Broken: false } e2) sev = Math.Max(sev, Severity(e2));
         OverLimitSeverity = sev;
@@ -451,6 +496,9 @@ public sealed partial class Aircraft
         Guns = FlyingGame.Core.Combat.Armament.For(config);
         foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
         Structure = new StructuralState(config.Limits, config.Mass.MassKg, StructuralGrossKg(config), HasHorizontalTail(config), HasEngineMount(config));
+        // Which failure ladder each wing is on, and what would hold a folded one up (WingFailureLaw). InitContactDamage
+        // has already built the panels, so their authored Braced flag and construction are to hand.
+        InitWingFailure();
         if (config.Floats is not null) FloatFlood = new FloatFlooding(config);
         InitFloatWaterLoads();
         // The water the floats already carry at the start (an aeroplane spawned afloat): without this the first step
@@ -553,6 +601,16 @@ public sealed partial class Aircraft
     /// panel in bending as lift does. A fuselage thumping onto the ground decelerates the aeroplane at several g without the
     /// wing lifting at all; that load reaches a panel only through its own contact points (AircraftContactDamage).</summary>
     public double AeroLoadFactorZ { get; private set; } = 1.0;
+
+    /// <summary>
+    /// The ROLLING moment the air is making, N·m about body x (+ = right wing down), at the last force evaluation of the
+    /// step. It is the whole of what tells the two wings apart: an aero roll moment IS the difference between what the
+    /// two of them are lifting, so with the symmetric part known it gives each wing its own load
+    /// (<see cref="WingSideLoadFactor"/>, Ty 2026-11-10's "account for aileron load"). Everything the air does shows up
+    /// in it — the ailerons, roll damping, the dihedral effect in a slip, and a wing that has shed its tips or folded —
+    /// so none of those has to be modelled a second time to load a wing asymmetrically.
+    /// </summary>
+    public double AeroRollMomentNm { get; private set; }
 
     /// <summary>
     /// Specific force, body axes, m/s²: every non-gravitational force on the airframe over its mass, at the last
@@ -1705,6 +1763,7 @@ public sealed partial class Aircraft
             Vec3 nonGrav = totalF - gravityBody - waterF;
             LoadFactorZ = weightN > 1e-9 ? -nonGrav.Z / weightN : 1.0;
             AeroLoadFactorZ = weightN > 1e-9 ? -aeroForce.Z / weightN : 1.0;
+            AeroRollMomentNm = aeroMoment.X;
             if (MassProperties.MassKg > 1e-9) SpecificForceBody = (totalF - gravityBody) / MassProperties.MassKg;
             return (totalF, totalM);
         }

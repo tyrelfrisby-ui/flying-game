@@ -520,22 +520,27 @@ public sealed partial class Aircraft
     private void SetBend(int k)
     {
         WingPanel w = _panels[k];
-        // The set is the hinges' (a strike) plus the wings' overstress set (StructuralState.Wings, AircraftOverstress).
+        // The set is the hinges' (a strike) plus this wing's own overstress set (StructuralState.Wing(side),
+        // AircraftOverstress — per side since 2026-11-10, so the two wings can be bent differently).
         w.BendRad = (w.Bending?.SetRad ?? 0.0) + w.OverstressSetRad;
         w.TwistRad = w.Twisting?.SetRad ?? w.TwistRad;
-        foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Deform(b0);
         _flowState.BendRad ??= new double[_stripTotal];
         _flowState.BendOffset ??= new Vec3[_stripTotal];
         double[] inc = _flowState.IncidenceDeltaRad is { } a && a.Length == _stripTotal ? a : (_flowState.IncidenceDeltaRad = new double[_stripTotal]);
         double skin = 0;
         foreach (PlasticHinge? h in new[] { w.Bending, w.Twisting })
             if (h is not null && h.PathRad > h.Law.PeakRad) skin = Math.Max(skin, Math.Min(1.0, (h.PathRad - h.Law.PeakRad) / (h.Law.RuptureRad - h.Law.PeakRad)));
+        // Where each row and hard point has moved to, and the rotation it flies at (WriteStripShape / ShapeWingSide,
+        // which also carry the whole wing's fold about its root once it has folded — that moves the INBOARD rows too).
+        if (w.FoldRad != 0.0) ShapeWingSide(w);
+        else
+        {
+            foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Deform(b0);
+            foreach (int i in w.Strips) WriteStripShape(w, i);
+        }
         foreach (int i in w.Strips)
         {
-            StripConfig st = _stripAt[i]!;
-            Vec3 pos = st.PosVec();
-            _flowState.BendRad[i] = w.BendRad + w.FlightFlexRad;
-            _flowState.BendOffset[i] = w.Deform(pos, w.FlightFlexRad) - pos;
+            Vec3 pos = _stripAt[i]!.PosVec();
             inc[i] = w.TwistRad * w.SpanFraction(Math.Abs(pos.Y));
             SetSkinDamage(i, skin);
         }

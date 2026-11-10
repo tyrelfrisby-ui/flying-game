@@ -326,9 +326,13 @@ public class OverstressPatternTests : IDisposable
     public void WhenTheWingsDepartTheBentTipsGoWithThem()
     {
         Aircraft ac = J3At(1.1);
-        Pull(ac, 1.6 * 3.8);                                   // "I bent the wings": a set, no failure
+        // 1.5 × the limit, not 1.6: at 110 % of gross that is 1.65 × on the wings, which is inside the rung where the
+        // outboard sections now leave (1.71 ×, one g below the break — Ty 2026-11-10's staggered failure,
+        // WingFailureLaw.StageRatio). A 1.6 pull sheds the tips instead of bending them, and this test is about a BENT
+        // tip going with the wing that carried it.
+        Pull(ac, 1.5 * 3.8);                                   // "I bent the wings": a set, no failure
         Assert.False(ac.Structure.WingsFailed);
-        _o.WriteLine("after the 1.6 pull: " + string.Join(", ",
+        _o.WriteLine("after the 1.5 pull: " + string.Join(", ",
             ac.Panels.Select(p => $"{p.Component} {p.State} bend {p.BendRad / Deg:F2}° flex {p.FlightFlexRad / Deg:F2}°")));
         Assert.Contains(ac.Panels, p => p.State == PanelState.Bent);   // there is a bent tip to lose
         double[] setAtFailure = ac.Panels.Select(p => p.BendRad).ToArray();
@@ -359,7 +363,7 @@ public class OverstressPatternTests : IDisposable
     public void TheRecordedShapeAfterAWingFailureHasTheTipsBrokenAndStillBent()
     {
         Aircraft ac = J3At(1.1);
-        Pull(ac, 1.6 * 3.8);
+        Pull(ac, 1.5 * 3.8);                                   // see WhenTheWingsDepartTheBentTipsGoWithThem
         FlyingGame.Sim.Replay.AirframeShape bent = FlyingGame.Sim.Replay.AirframeShape.Capture(10.0, ac);
         Assert.Contains(bent.Panels, p => p.State == PanelState.Bent);
 

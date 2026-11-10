@@ -87,7 +87,12 @@ public sealed class StructuralBandTests
     [Theory]
     [InlineData(5.0, false, false)]    // past the 4 g limit, below the 6 g groan: quiet and intact
     [InlineData(7.0, true, false)]     // groaning and popping, still intact
-    [InlineData(9.0, true, true)]      // past 8 g ultimate: wings
+    // 9 g is 2.25 × the 4 g limit, snatched from level flight. The airframe is through the whole complaining band
+    // (1.5 × to 2.0 ×) in 55 ms, which at 1.5–12 pops per second does not earn a whole pop, and then the wings are gone
+    // and a wing that is not there does not groan. It used to count pops here only because a BROKEN member went on
+    // reporting full severity for the rest of the second — the aeroplane itself never did, because FailWings zeroes
+    // OverLimitSeverity, and since the staggered failure (2026-11-10) each wing's severity stops with that wing.
+    [InlineData(9.0, false, true)]     // past 8 g ultimate: wings, too fast to have popped on the way
     public void HeldAtALoadFactorTheAirframeDoesTheRightThing(double n, bool expectPops, bool expectFailure)
     {
         AircraftConfig c = Bare(4.0, -2.0);

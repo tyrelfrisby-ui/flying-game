@@ -61,6 +61,16 @@ public sealed class OverstressMember
     public double LoadRatio { get; private set; }
     /// <summary>The same against what is left of it: |LoadRatio| / Strength.</summary>
     public double EffectiveRatio => System.Math.Abs(LoadRatio) / Strength;
+    /// <summary>
+    /// The load the air is making this instant, multiples of the limit (signed), BEFORE the response lag: what was last
+    /// handed to <see cref="Step"/>. The structure only ever feels <see cref="LoadRatio"/>, which chases this with time
+    /// constant <see cref="ResponseTauSec"/>, so the GAP between the two is the onset rate — on a steady ramp of R
+    /// ratios per second the lag settles exactly R·τ behind. That is how a RAPID ONSET is measured here without
+    /// differentiating anything (Ty 2026-11-10's staggered failure; WingFailureLaw.Severe).
+    /// </summary>
+    public double CommandedRatio { get; private set; }
+    /// <summary>The commanded load against what is left of the member: |CommandedRatio| / Strength.</summary>
+    public double CommandedEffectiveRatio => System.Math.Abs(CommandedRatio) / Strength;
     /// <summary>Overstresses booked (excursions past 1.5 that came back).</summary>
     public int Overstresses { get; private set; }
     /// <summary>Largest effective ratio this member has felt (either sense).</summary>
@@ -89,7 +99,7 @@ public sealed class OverstressMember
     {
         if (Broken) return false;
         double a = dt > 0 ? 1.0 - System.Math.Exp(-dt / ResponseTauSec) : 1.0;
-        if (double.IsFinite(ratio)) LoadRatio += (ratio - LoadRatio) * a;
+        if (double.IsFinite(ratio)) { CommandedRatio = ratio; LoadRatio += (ratio - LoadRatio) * a; }
         double x = EffectiveRatio;
         int sign = LoadRatio >= 0 ? 1 : -1;
         PeakEffectiveRatio = System.Math.Max(PeakEffectiveRatio, x);
