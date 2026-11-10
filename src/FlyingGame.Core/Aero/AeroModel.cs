@@ -1186,7 +1186,15 @@ public static class AeroModel
                 //
                 // Ramped in over 30-50 deg of the strip's OWN flow angle, so attached flight, the spin entry and every
                 // normal control input are untouched; it exists only where the section law has gone flat.
-                if (controlSpoilerK > 0.0 && !isWing && !isVertical && strip.Control is not null
+                //
+                // BOTH TAILS since 2026-11-10. It shipped on the horizontal tail alone for one build, only so that the
+                // fin's sidewash and this would not move at once; once the owner had flown that ("That is it! Now it
+                // behaves like a Pitts really does") the restriction had no reason left. The rudder needs it for the
+                // same reason the elevator did - `fin-lowAR` holds Cl flat from 25 deg out, which is the documented
+                // arithmetic wall that defeated three attempts at reshaping that curve - and the Extra needs it most:
+                // its fin stands too far off the body for FinSidewashK to reach, so its rudder gained only 1.0 -> 1.4
+                // deg/s2 at alpha 80 from the crossflow that transformed the Pitts'.
+                if (controlSpoilerK > 0.0 && !isWing && strip.Control is not null
                     && Math.Abs(strip.Control.Gain) >= 0.9 && Math.Abs(deflEff) > 1e-9)
                 {
                     double aChord = alphaBase + stripIncidence;

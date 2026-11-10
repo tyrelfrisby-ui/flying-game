@@ -37,6 +37,12 @@ public class ExtraEndoProbe
         if (Environment.GetEnvironmentVariable("ENDO_SK") is string sk && sk.Length > 0)
         { c.SpinAero ??= new SpinAeroConfig(); c.SpinAero.ShadowK = double.Parse(sk); }
         if (Environment.GetEnvironmentVariable("ENDO_JETK") is string jk && jk.Length > 0) c.Propulsion!.JetK = double.Parse(jk);
+        // The two 2026-11-10 high-alpha authority knobs, so the endo can be measured against them (Ty: "I wonder if
+        // it might help the extra do the Endo now", "The extra was lacking both rudder and elevator power at high alpha").
+        if (Environment.GetEnvironmentVariable("ENDO_SPOIL") is string spk && spk.Length > 0)
+        { c.SpinAero ??= new SpinAeroConfig(); c.SpinAero.ControlSpoilerK = double.Parse(spk); }
+        if (Environment.GetEnvironmentVariable("ENDO_FINK") is string fnk && fnk.Length > 0)
+        { c.SpinAero ??= new SpinAeroConfig(); c.SpinAero.FinSidewashK = double.Parse(fnk); }
         if (Environment.GetEnvironmentVariable("ENDO_TLZ") is string tz && tz.Length > 0) c.Propulsion!.ThrustLineZ = double.Parse(tz);
         return c;
     }
@@ -101,7 +107,7 @@ public class ExtraEndoProbe
         if (Environment.GetEnvironmentVariable("ENDO") == null) return;
         string id = Environment.GetEnvironmentVariable("ENDO_ID") ?? "extra-300-like";
         AircraftConfig c = Load(id);
-        _out.WriteLine($"=== {id}  shadowK {c.SpinAero?.ShadowK ?? 0.0}  jetK {c.Propulsion!.JetK}  thrustLineZ {c.Propulsion.ThrustLineZ:F2}");
+        _out.WriteLine($"=== {id}  shadowK {c.SpinAero?.ShadowK ?? 0.0}  spoilerK {c.SpinAero?.ControlSpoilerK ?? 0.0}  finK {c.SpinAero?.FinSidewashK ?? 0.0}  jetK {c.Propulsion!.JetK}  thrustLineZ {c.Propulsion.ThrustLineZ:F2}");
         _out.WriteLine("  entry                                   turns  peak q  final q   alpha range     min TAS  tail q  jet share");
         foreach ((string label, double th, double v, ControlInputs inp) in new (string, double, double, ControlInputs)[]
         {

@@ -32,6 +32,12 @@ public class SpinAuthorityProbe
         while (!Directory.Exists(Path.Combine(d!.FullName, "configs", "aircraft"))) d = d.Parent;
         string id = Environment.GetEnvironmentVariable("SPIN_AUTH_ID") ?? "pitts-s2b-like";
         var cfg = AircraftConfigLoader.LoadFromFile(Path.Combine(d.FullName, "configs", "aircraft", id + ".json"));
+        // Knob overrides so the two high-alpha authority fixes can be swept on a type that does not carry them yet
+        // (Ty 2026-11-10: "The extra was lacking both rudder and elevator power at high alpha").
+        if (Environment.GetEnvironmentVariable("SPIN_AUTH_FINK") is { } fk)
+        { cfg.SpinAero ??= new SpinAeroConfig(); cfg.SpinAero.FinSidewashK = double.Parse(fk, System.Globalization.CultureInfo.InvariantCulture); }
+        if (Environment.GetEnvironmentVariable("SPIN_AUTH_SPOIL") is { } sk)
+        { cfg.SpinAero ??= new SpinAeroConfig(); cfg.SpinAero.ControlSpoilerK = double.Parse(sk, System.Globalization.CultureInfo.InvariantCulture); }
         var ac = new Aircraft(cfg, new RigidBodyState(new Vec3(0, 0, -2500), new Quat(0, 0, 0, 1), new Vec3(60, 0, 0), Vec3.Zero), new ControlDeflections(0, 0, 0, 0, 0));
         var sim = new SimLoop(ac);
         for (int i = 0; i < 100 && ac.State.Velocity.Length > 33; i++) sim.RunFor(0.1, new ControlInputs(0, -System.Math.Min(1, 0.2 + 0.02 * i), 0, 1.0));
