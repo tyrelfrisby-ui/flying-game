@@ -66,6 +66,36 @@ public sealed partial class Aircraft
     /// </summary>
     public double TailBendRad => -(Structure.HorizontalTail?.DeflectionRad ?? 0.0);
 
+    /// <summary>Which way the elevator was deflected when the tail FIRST took a permanent set: +1, -1, or 0 while
+    /// the tail is straight. The structure remembers the load that bent it, not where the stick is now — the same
+    /// device as the bent wing's aileron centre (BentAileronTravel), kept once and never moved.</summary>
+    private double _stabBentToward;
+
+    /// <summary>
+    /// A BENT STABILISER LEAVES THE ELEVATOR LESS, AND NOT EVENLY (Ty 2026-11-10): "apply the same limited travel
+    /// rule as the ailerons but be more generous on available travel so the always have some of the other direction
+    /// like if they push to max bending before failure the elevator will move to full down still but only 10
+    /// percent up and vise versa". The rules are in <see cref="BentStabTravel"/>; this captures the sense and
+    /// applies it to the step's target, before the actuator slews toward it.
+    /// </summary>
+    private FlyingGame.Core.Aero.ControlDeflections LimitBentStab(FlyingGame.Core.Aero.ControlDeflections t)
+    {
+        if (Structure.HorizontalTail is not { } tail) return t;
+        double bend = Math.Abs(tail.SetRad);
+        if (bend <= 1e-6) return t;
+        if (_stabBentToward == 0.0)
+        {
+            // The first set: the elevator's own deflection is the sense that bent it. A tail bent with the stick
+            // central (a gust, a strike) leaves no preferred way, so the band is symmetric from here.
+            _stabBentToward = Math.Sign(t.ElevatorRad);
+            if (_stabBentToward == 0.0) _stabBentToward = Math.Sign(_elevatorRad);
+            if (_stabBentToward == 0.0) return t;
+        }
+        double rupture = OverstressMember.BreakRatio * OverstressMember.FlexPerLimitRad;
+        double held = BentStabTravel.Clamp(t.ElevatorRad, _stabBentToward, bend, rupture, Config.Controls.Elevator.MaxDeflRad);
+        return held == t.ElevatorRad ? t : new FlyingGame.Core.Aero.ControlDeflections(t.AileronRad, held, t.RudderRad, t.SpoilerFraction);
+    }
+
     /// <summary>Per-step structural bookkeeping from the load factor of the step just integrated.</summary>
     /// <remarks>All three members are loaded by the load factor the AIR makes. In flight that is the whole aeroplane's (less a
     /// few per cent of thrust); on the ground, in the water or against a solid the push of the contact is not a load
