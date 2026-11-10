@@ -54,6 +54,9 @@ namespace FlyingGame.Bridge
         /// <summary>WHEN the airframe took each shape, so a bend appears at the impact that made it instead of being
         /// there from the first frame (Ty 2026-11-08: "The wing tip was still bent up on replay after a wing strike").</summary>
         public readonly ReplayShapeTimeline Shapes = new ReplayShapeTimeline();
+        /// <summary>WHEN the aeroplane was alight and WHEN it was streaming fuel, so the fire starts at the round that lit
+        /// it instead of burning from the first frame (Ty 2026-11-10: "Add the smoke fire fuel leak fixes").</summary>
+        public readonly ReplayDamageFxTimeline DamageEffects = new ReplayDamageFxTimeline();
         public const double StartBackSec = 30.0;   // a replay opens this far before "now"
 
         public bool Active { get; private set; }
@@ -168,6 +171,7 @@ namespace FlyingGame.Bridge
             _roots.Clear(); _tracks.Clear(); _ordered.Clear(); ReplayActors.Pending.Clear();
             _parts.Clear(); ReplayActors.PendingParts.Clear();
             Shapes.Clear();
+            DamageEffects.Clear();
             _pilotLeftT = double.NaN; _pilotRoot = null;
         }
 
@@ -186,6 +190,9 @@ namespace FlyingGame.Bridge
             // The airframe's own shape, kept only when it CHANGES: an untouched flight is one entry.
             Shapes.Record(_clock, a);
             Shapes.TrimBefore(Recorder.StartTime);
+            // And what was alight: the same once-per-change rule, so a flight that is never hit is one entry.
+            DamageEffects.Record(_clock, a);
+            DamageEffects.TrimBefore(Recorder.StartTime);
         }
 
         private void RecordActors()
@@ -411,6 +418,7 @@ namespace FlyingGame.Bridge
             Driver.ReplayAccelUnity = null;              // and the flight path vector measures for itself again
             Driver.ReplayForces = null;                  // and the overlay reads the live step's capture again
             Driver.ReplayShape = null;                   // and the damage visuals read the live airframe again
+            Driver.ReplayDamageFx = null;                // and the fire and the fuel stream are the live ones again
             Driver.ShowReplayPose(_live.WindWorld);
             foreach (Track tr in _ordered)
             {
@@ -481,6 +489,8 @@ namespace FlyingGame.Bridge
             Driver.ReplayForces = SessionSettings.ShowForceVectors ? Driver.Sim.Aircraft.ForcesAtCurrentState() : null;
             // And the shape it was in, so StructuralDamage draws the aeroplane of this moment rather than the wreck.
             Driver.ReplayShape = Shapes.TryShapeAt(Head, out AirframeShape shape) ? shape : (AirframeShape?)null;
+            // And what was alight, so DamageFx draws the fire of this moment rather than the one it ended on.
+            Driver.ReplayDamageFx = DamageEffects.TryStateAt(Head, out DamageFxState fx) ? fx : (DamageFxState?)null;
         }
     }
 }
