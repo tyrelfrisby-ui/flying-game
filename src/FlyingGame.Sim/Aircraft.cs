@@ -1117,6 +1117,7 @@ public sealed partial class Aircraft
             targets = new ControlDeflections(a, e, r, spoilerTarget);
         }
 
+        targets = LimitBentStab(targets);
         StepWithDeflectionTargets(targets, dt);
         if (!_tabCalibrated)
         {

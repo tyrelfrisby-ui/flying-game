@@ -95,3 +95,61 @@ public class BentAileronTravelTests
     }
 
 }
+
+/// <summary>
+/// WHAT A BENT STABILISER LEAVES THE ELEVATOR (Ty 2026-11-10). Deliberately NOT the aileron's rule: "be more
+/// generous on available travel so the always have some of the other direction like if they push to max bending
+/// before failure the elevator will move to full down still but only 10 percent up and vise versa".
+/// </summary>
+public class BentStabTravelTests
+{
+    private const double Max = 0.4363;   // 25 deg
+    private const double Rupture = 0.35;
+
+    [Fact]
+    public void TheWayItWasBentKeepsAllOfItsTravelHoweverFarItIsBent()
+    {
+        // Pushed to bend it: a push still gives everything, at any bend including the one that fails the tail.
+        foreach (double bend in new[] { 0.0, 0.1, Rupture * 0.9, Rupture, Rupture * 2 })
+            Assert.Equal(Max, BentStabTravel.AvailableRad(+1, +1, bend, Rupture, Max), 9);
+        // And the mirror: bent the other way, the other way keeps everything.
+        Assert.Equal(Max, BentStabTravel.AvailableRad(-1, -1, Rupture, Rupture, Max), 9);
+    }
+
+    [Fact]
+    public void TheOtherWayFadesToATenthAndNeverToNothing()
+    {
+        Assert.Equal(Max, BentStabTravel.AvailableRad(-1, +1, 0.0, Rupture, Max), 9);                 // straight: all of it
+        Assert.Equal(Max * BentStabTravel.MinOppositeFraction,
+                     BentStabTravel.AvailableRad(-1, +1, Rupture, Rupture, Max), 9);                  // at failure: a tenth
+        Assert.Equal(0.10, BentStabTravel.MinOppositeFraction, 12);
+        // Half way there, half way between a tenth and the lot.
+        double half = BentStabTravel.AvailableRad(-1, +1, Rupture * 0.5, Rupture, Max);
+        Assert.Equal(Max * (0.10 + 0.9 * 0.5), half, 9);
+        // Never zero, however far past failure it is asked.
+        Assert.True(BentStabTravel.AvailableRad(-1, +1, Rupture * 5, Rupture, Max) > 0.0);
+    }
+
+    [Fact]
+    public void HisExample_PushedToMaxBendingKeepsFullDownAndATenthUp()
+    {
+        // "if they push to max bending before failure the elevator will move to full down still but only 10
+        // percent up". Elevator positive is DOWN in this model, so the push that bent it is +1.
+        const double toward = +1;
+        Assert.Equal(+Max, BentStabTravel.Clamp(+Max, toward, Rupture, Rupture, Max), 9);
+        Assert.Equal(-Max * 0.10, BentStabTravel.Clamp(-Max, toward, Rupture, Rupture, Max), 9);
+        // Vice versa, pulled: full up, a tenth of down.
+        Assert.Equal(-Max, BentStabTravel.Clamp(-Max, -1, Rupture, Rupture, Max), 9);
+        Assert.Equal(+Max * 0.10, BentStabTravel.Clamp(+Max, -1, Rupture, Rupture, Max), 9);
+    }
+
+    [Fact]
+    public void AStraightTailLimitsNothingAndASmallerDemandIsUntouched()
+    {
+        Assert.Equal(0.2, BentStabTravel.Clamp(0.2, 0.0, 0.0, Rupture, Max), 9);   // never bent: no sense, no limit
+        Assert.Equal(0.2, BentStabTravel.Clamp(0.2, +1, 0.0, Rupture, Max), 9);    // straight
+        // Inside what is left, the clamp does nothing.
+        double left = BentStabTravel.AvailableRad(-1, +1, Rupture * 0.5, Rupture, Max);
+        Assert.Equal(-left * 0.5, BentStabTravel.Clamp(-left * 0.5, +1, Rupture * 0.5, Rupture, Max), 9);
+    }
+}
