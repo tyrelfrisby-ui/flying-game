@@ -444,8 +444,11 @@ namespace FlyingGame.Bridge
                 int tv = PickRow("TV screen", new[] { "Game on TV", "Mirror" }, System.Array.IndexOf(tvs, TvOutput.Setting), ref y);
                 if (tv >= 0) TvOutput.Setting = tvs[tv];
                 string self = TvOutput.Device == FlyingGame.Core.TvDevice.IPad ? "iPad" : "phone";
+                // The diagnostic rides along when no TV has arrived: "still mirrored" is the same screen whether iOS
+                // never made the scene, Unity cannot see the screen, or the mode simply has not started, and those
+                // want different fixes (Ty 2026-11-10).
                 Note(TvOutput.TvConnected ? TvOutput.StatusText
-                     : $"Game on TV: the TV shows the flight, this {self} becomes the controls", ref y);
+                     : $"Game on TV: the TV shows the flight, this {self} becomes the controls  ·  {TvOutput.Diagnostic}", ref y);
             }
             // SECOND MONITOR (Mac, Ty 2026-11-04, Q8): the dials on a second monitor, the flight in this window. Off until
             // asked for, because once a monitor is taken it stays taken until the app quits (Unity cannot let it go).

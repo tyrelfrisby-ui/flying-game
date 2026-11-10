@@ -121,6 +121,15 @@ namespace FlyingGame.Bridge
         /// </summary>
         public static bool TouchSticksHidden => UiSurface.IsTv || (!DeskMode && !FlyingGame.Core.GamepadShaping.TouchSticksShown(DeskMode, GamepadInput.Now.Connected));
 
+        /// <summary>
+        /// THIS PHONE IS A CONTROLLER FOR A TV: the game is on the TV and there is no game controller, so the touch
+        /// pads are the only way to fly and they get the whole screen (Ty 2026-11-10). The complement of
+        /// <see cref="TvButtonPad.Showing"/>, which takes the other case — TV plus a game controller, where the phone
+        /// becomes a grid of buttons instead because the flying is done on the pad.
+        /// Never true on the TV's own pass (<see cref="UiSurface.IsTv"/>): the TV draws no touch controls at all.
+        /// </summary>
+        public static bool TvControllerLayout => TvOutput.Active && !UiSurface.IsTv && !GamepadInput.Now.Connected;
+
         /// <summary>LOCAL 2-PLAYER: the tray is drawn AND hit-tested, or neither (<see cref="FlyingGame.Core.LocalMp.SplitControls"/>).
         /// Off while the compact split HUD is up and P1 has a pad: the single-player tray spans both halves, and an
         /// invisible RESET / BAIL / FIRE on P2's half would be P1's buttons under P2's thumb. P1 then flies the pad (A fires,
@@ -282,11 +291,29 @@ namespace FlyingGame.Bridge
             }
             float margin = s * 0.035f;
             float gap = s * 0.02f;
-            // No-overlap rule: on squarer screens (iPad, 4:3) full-size pads would squeeze the centre band until the dials
-            // pile on each other — the pads shrink so the band keeps at least MinBandFrac of the short edge.
-            const float MinBandFrac = 0.85f;
             float padMargin = Mathf.Max(margin, UiLayout.Dpi * PadEdgeInches);
-            _half = Mathf.Min(s * PadHalfFraction, (w - 2f * padMargin - 3f * gap - MinBandFrac * s) / 2.22f);
+            if (TvControllerLayout)
+            {
+                // THE PHONE IS THE CONTROLLER AND NOTHING ELSE (Ty 2026-11-10: "I need the phone to turn into a
+                // controller unless an external controller is connected", "two giant touch pads and the control
+                // buttons between"). The dials and the aeroplane are on the TV, so the centre band is protecting
+                // nothing here and the pads stop being a fraction of the screen and start being the screen.
+                //
+                // They are square and centred at mid-height, so two of them on a landscape phone eat the width fast:
+                // at full height they would leave about 250 px between on a 2622 x 1206 screen, which is not a middle
+                // anyone can put buttons in. So the pads grow until EITHER the height runs out OR the middle is down
+                // to what the button cluster and the trim slider need — about 0.45 of the short edge, which leaves
+                // them 81 % of the screen height rather than 100 % of it and keeps the layout he asked for.
+                float middle = s * 0.45f;
+                _half = Mathf.Min((h - 2f * margin) * 0.5f, (w - 2f * padMargin - middle) * 0.25f);
+            }
+            else
+            {
+                // No-overlap rule: on squarer screens (iPad, 4:3) full-size pads would squeeze the centre band until the dials
+                // pile on each other — the pads shrink so the band keeps at least MinBandFrac of the short edge.
+                const float MinBandFrac = 0.85f;
+                _half = Mathf.Min(s * PadHalfFraction, (w - 2f * padMargin - 3f * gap - MinBandFrac * s) / 2.22f);
+            }
             // Pads sit at MID-HEIGHT (owner request), not along the bottom.
             _leftCenter = new Vector2(padMargin + _half, h * 0.5f);
             _rightCenter = new Vector2(w - padMargin - _half, h * 0.5f);

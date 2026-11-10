@@ -34,10 +34,16 @@ namespace FlyingGame.Bridge
 #if UNITY_IOS && !UNITY_EDITOR
         [System.Runtime.InteropServices.DllImport("__Internal")] private static extern void AeroTv_SetExternalShown(int shown);
         [System.Runtime.InteropServices.DllImport("__Internal")] private static extern int AeroTv_ExternalSceneCount();
+        [System.Runtime.InteropServices.DllImport("__Internal")] private static extern int AeroTv_AnnounceExternalScenes();
+        [System.Runtime.InteropServices.DllImport("__Internal")] private static extern int AeroTv_UIScreenCount();
+        [System.Runtime.InteropServices.DllImport("__Internal")] private static extern int AeroTv_RegisterExternalAccessory();
         public static readonly bool Supported = true;
 #else
         private static void AeroTv_SetExternalShown(int shown) { }
         private static int AeroTv_ExternalSceneCount() => 0;
+        private static int AeroTv_AnnounceExternalScenes() => 0;
+        private static int AeroTv_UIScreenCount() => 1;
+        private static int AeroTv_RegisterExternalAccessory() => -1;
         public static readonly bool Supported = false;
 #endif
         /// <summary>The Mac app: SECOND MONITOR is offered and the runner starts.</summary>
@@ -94,9 +100,16 @@ namespace FlyingGame.Bridge
         public static int Height { get; private set; }
 
         /// <summary>For the phone's status line and Options.</summary>
+        /// <summary>What the three layers each see, for the OPTIONS line. A TV that never arrives and a TV Unity
+        /// cannot see look identical on the screen and want completely different fixes, so say which it is: iOS
+        /// scenes (did the external-display scene connect at all), UIScreens (the deprecated list Unity counts) and
+        /// Unity's own display count. Ty 2026-11-10, after two builds that both "just mirrored".</summary>
+        public static string Diagnostic => $"accessory {_accessory} · iOS scenes {AeroTv_ExternalSceneCount()} · screens {AeroTv_UIScreenCount()} · Unity displays {Display.displays.Length}";
+        private static int _accessory = -2;   // -2 not asked yet
+
         public static string StatusText => Mode switch
         {
-            TvMode.GameOnTv => Active ? $"Showing on the TV · {Width} × {Height}" : "Starting the TV…",
+            TvMode.GameOnTv => Active ? $"Showing on the TV · {Width} × {Height}" : $"Starting the TV… ({Diagnostic})",
             TvMode.Mirror => "Mirroring to the TV",
             TvMode.InstrumentsOnMonitor => MonitorActive ? $"Instruments on the second monitor · {Width} × {Height}" : "Starting the second monitor…",
             _ => "",
@@ -140,6 +153,13 @@ namespace FlyingGame.Bridge
             Debug.Log($"[TV] {Device} ({SystemInfo.deviceModel}) · TV screen {Setting} · second monitor {Monitor}");
             foreach (var d in Display.displays) Debug.Log($"[TV] display {d.systemWidth}×{d.systemHeight} active {d.active}");
             Display.onDisplaysUpdated += () => Debug.Log($"[TV] displays updated: {Display.displays.Length} · scenes {AeroTv_ExternalSceneCount()}");
+            // iOS 27 hands an app an external-display scene only if it REGISTERS one (a scene accessory on a view
+            // controller); the Info.plist role alone is the iOS 16-26 path. Ask once, here, with Unity's view
+            // controller in existence — the system connects the scene if and when a display appears.
+            if (Supported) { _accessory = AeroTv_RegisterExternalAccessory(); Debug.Log($"[TV] scene accessory: {_accessory} (1 registered · 0 failed · -1 not needed below iOS 27)"); }
+            // A TV plugged in BEFORE launch connects its scene before Unity's DisplayManager has registered the
+            // notification it listens for, so nothing would ever announce it. Say it again now that Unity is up.
+            if (Supported) Debug.Log($"[TV] announced {AeroTv_AnnounceExternalScenes()} already-connected external scene(s)");
         }
 
         private static void CreateRunner()
