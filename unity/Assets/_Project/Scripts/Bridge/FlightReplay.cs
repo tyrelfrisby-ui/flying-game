@@ -57,6 +57,15 @@ namespace FlyingGame.Bridge
         /// <summary>WHEN the aeroplane was alight and WHEN it was streaming fuel, so the fire starts at the round that lit
         /// it instead of burning from the first frame (Ty 2026-11-10: "Add the smoke fire fuel leak fixes").</summary>
         public readonly ReplayDamageFxTimeline DamageEffects = new ReplayDamageFxTimeline();
+        /// <summary>
+        /// WHAT HAPPENED and WHEN, for the debrief (Ty 2026-11-10, choosing the debrief as the first step of the
+        /// instructor work: "what failed, when, what you did, how long you took to notice"). It rides along with the
+        /// recording because it is timed on the recorder's own clock, which is what lets a debrief line cue the play
+        /// head straight to the moment it is about. Nothing here is drawn, so a replay that ignores it looks exactly
+        /// as it did before. The analysis is in <see cref="FlightDebrief"/>, in the shared assembly, so the Quest and
+        /// the Mac get it for nothing and the suite tests the words that ship.
+        /// </summary>
+        public readonly FlightEventLog Events = new FlightEventLog();
         public const double StartBackSec = 30.0;   // a replay opens this far before "now"
 
         public bool Active { get; private set; }
@@ -156,6 +165,9 @@ namespace FlyingGame.Bridge
         {
             _pilotLeftT = _clock;
             _pilotRoot = _egress.PilotTransform;
+            // The sim cannot see this one — the egress is the bridge's — so the debrief is told about it here
+            // (FlightEventLog.Note: "what polling cannot see is noted instead").
+            Events.Note(new FlightEvent(_clock, FlightEventKind.PilotOut));
         }
 
         private void OnAircraftChanged()
@@ -172,6 +184,7 @@ namespace FlyingGame.Bridge
             _parts.Clear(); ReplayActors.PendingParts.Clear();
             Shapes.Clear();
             DamageEffects.Clear();
+            Events.Clear();
             _pilotLeftT = double.NaN; _pilotRoot = null;
         }
 
@@ -193,6 +206,9 @@ namespace FlyingGame.Bridge
             // And what was alight: the same once-per-change rule, so a flight that is never hit is one entry.
             DamageEffects.Record(_clock, a);
             DamageEffects.TrimBefore(Recorder.StartTime);
+            // And WHAT HAPPENED, for the debrief. Not trimmed with the ring, deliberately: an event the pilot can no
+            // longer watch is still one he should be told about (FlightEventLog).
+            Events.Record(_clock, a);
         }
 
         private void RecordActors()
