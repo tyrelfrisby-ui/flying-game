@@ -1,3 +1,129 @@
+## Multiplayer starts: a queue with waits, and a random air start that guarantees separation — Claude, 2026-11-10, lane/claude-spawns
+
+<!-- multiplayer-starts start-queue random-air-start separation-distances relay-reachable-from-anywhere -->
+
+**NEEDS YOU — three things, and the first is not about spawns at all.**
+
+### 1. YES, YOUR WIFE CAN FLY WITH YOU FROM HER OWN NETWORK OR ON CELLULAR. The relay is up right now.
+
+Verified today, not assumed: `https://mp.aeroplayground.app/rooms/ffa` answers `200` in 0.31 s
+(`{"code":"ffa","pilots":0,"cap":100}`), and two independent WebSocket clients joined one room code against the
+LIVE relay and each saw the other's name and ~53 state updates in 6 s at 10 Hz. The pass gate is **off**
+(`commerce.json` `gateMultiplayer: false`), so online flying costs nothing today and needs no subscription. There
+is no account, no sign-in and no matchmaking: the relay is `no auth, no persistence`.
+
+**What she needs, and the one real blocker:**
+
+- **A TestFlight invite — NOT the OTA link.** `tools/deploy/publish-ota.sh` serves over **Tailscale Serve, tailnet
+  only**, and the script refuses to publish if `tailscale serve status` stops saying "tailnet only" (Funnel would
+  put a signed build of your unreleased app on the public internet). A person outside your tailnet cannot resolve
+  `mac-studio.tail9aad2a.ts.net` at all, and the dev profile would refuse the install even if she could. Add her
+  Apple ID as an App Store Connect user and put her in the internal group "Aero Playground Beta"
+  (`105fa7b0-…`), which auto-distributes every upload — no Beta App Review, builds arrive in minutes.
+- **Then: OPTIONS → MULTIPLAYER → "Room by code"**, you tap Create and read her the 6 characters. Use the code
+  room, not the free-for-all — see the trap below.
+- Mixed build versions are fine: the relay serves protocol 1 and 2 side by side.
+
+**THE TRAP, and the reason to use a code: the free-for-all is SHARDED.** `ffa`, `ffa2` … `ffa10`, 100 pilots
+each, and `server/relay/src/index.ts` says in its own comment **"pilots in different shards don't see each
+other"**. `/rooms/ffa/assign` hands out the first shard with room, so with the world empty you would both land in
+`ffa` and it would work — but it is assignment by packing, not matchmaking, and there is nothing that puts two
+particular people together. A room code is one Durable Object keyed by the code, so it is deterministic. **That
+is what I verified above, and it is the path to give her.**
+
+Two more things worth knowing before she is on the phone to you about it: a **challenge, race or lesson always
+forces solo** (`EffectiveRoom` returns null), which is the most common "we joined the same room but can't see
+each other" report; and a corporate, school or hotel network that blocks WebSockets will fail — a phone hotspot
+or cellular is the answer there.
+
+### 2. THE SEPARATION DISTANCES — built to your "Tighter - the world is small", and here is what they cost
+
+Start volume **1.5 NM or 1,000 ft**; first-minute floor **0.5 NM or 500 ft** over 60 s; powered starts
+**2,000–5,000 ft AGL**. They are one named constant block in `RandomAirStart` with a comment saying they are
+YOURS and not an aviation standard, so nobody goes hunting for the regulation later.
+
+You asked for tighter without naming figures, so the figures were picked and then **measured**, because "tighter"
+needs a number to stop at. This is the fraction of the candidate ring and band still available for a start as the
+sky fills (`MultiplayerStartTests.SeparationStandardsAreMeasured` prints it every run):
+
+| pilots round one field | 3 NM (first proposal) | **1.5 NM (yours)** | 0.75 NM (Terps scale) |
+|---|---|---|---|
+| 4 | 54.1 % | **79.7 %** | 94.6 % |
+| 8 | 32.7 % | **71.3 %** | 91.1 % |
+| 16 | 10.4 % | **49.8 %** | 82.1 % |
+| 32 | 2.5 % | **27.5 %** | 67.8 % |
+
+So your instinct was right and the first proposal was the problem: at 3 NM the guarantee starts failing by
+**exhaustion** — "no start found" while the sky looks empty — because 3 NM is a third of this world's narrow
+dimension. 1.5 NM leaves half the ring at sixteen pilots round ONE field, and the whole free-for-all shard holds
+100 spread over four fields. **Nothing here needs changing unless you want it to.** Terrain clearance is NOT one
+of your numbers: it is 91.177's 1,000 ft unscaled with its 4 NM radius divided by this repo's own
+`Terps.LateralScale`, the same trick `docs/NAVIGATION.md` already uses for airways.
+
+**One thing I decided and you may want the other way.** A random air start IGNORES the altitude picker and uses
+the band for the type. You asked for "a randomizer for start location *and altitude*", and pinning every pilot to
+the one height they set for spin practice would remove both the randomness and the vertical room the separation
+rules use to fit several starts round one field. It is one line to reverse (`pickerAglFt:
+SessionSettings.StartAltitudeFt` in `FlightSimDriver.PickRandomStart`) and the comment there says so.
+
+### 3. NOT BUILT, NOT COMPILED, AND BLOCKED ON ONE COMMAND
+
+- **The Core is committed and tested: `69f660c4`, MultiplayerStartTests 68/68.** All 34 types through
+  `AirStart.ComputeRandom`, first try every time, each returned start re-measured by brute force.
+- **The Unity glue is written but UNCOMMITTED**, as a patch at
+  `/private/tmp/claude-502/-Users-tyfrisby-Documents-flying-game/7be7860f-b18b-4893-9f51-5ecae3f36fa8/scratchpad/handover/unity-glue.patch`
+  (523 lines: the "Random, clear air" choice beside the altitude picker, a wait on every fixed start, `StartSlots`,
+  `StartHold`, the hold flags through `NetProtocol`/`NetSession`/`RemoteAircraft`, the driver's pick). **The parity
+  hook blocks it**: this lane now leads `lane/claude-quest-islandnav` by the Core commit and takes no further
+  shared change until that lane merges it. I did not run that merge myself — that worktree has uncommitted
+  modifications and may be mid-build, and merging one lane into another is not mine to do unasked. **The one
+  command that unblocks everything:** `git -C /Users/tyfrisby/Developer/flying-game-worktrees/claude-quest-islandnav
+  merge --no-ff lane/claude-spawns`. Then apply both patches and commit.
+- **`lane/claude-start-altitude`'s own altitude picker was NOT brought across, and that call was confirmed by
+  measurement.** The plan was to take it. That lane built `StartAltitude.cs` (Default / 3,000 / 6,000 / 10,000 /
+  custom); while this was being written, **`b8ce9ea7` "the air start is a choice" shipped one on the main lane**
+  from your later request ("In the air puts me at 2,000 making testing difficult", then "Make the altitude
+  selectable not fixed"), as `SessionSettings.StartAltitudeFt`. Taking the orphan across would have put TWO
+  altitude pickers on one start page. It was briefly committed and then removed, because when its 111 tests were
+  run against today's base **its trim test failed for twenty-plus type/height combinations** — all of them in the
+  one parameterised test that actually flies the start (`AirStartAtHeightIsWhereItSaysAndTrimmed`), against a
+  flight model that has moved a long way since 2026-11-03 (the flat-plate hStab, the Cn clamp and boundary
+  friction all landed today). Being precise about that measurement, because the rest of that suite is arithmetic
+  and saved-int round-trips that would have passed: the run was cut off by the harness before it printed totals,
+  so twenty-plus is a FLOOR, not a count, and the failures are concentrated rather than spread. It does not change
+  the decision — the mechanism is a duplicate of a shipped feature either way — but "111 tests fail" would have
+  been wrong. The shipped picker wins and the orphan is gone, tests and all.
+- **No Unity build, no deploy, nothing flown.** The glue compiles nowhere yet; whoever builds should expect to fix
+  real compile errors in it.
+
+### 4. FLY THIS when it is on a device (two phones in one room code)
+
+Both pick **"On the runway"** at the same field: the second should show the wait box and go when the first is
+clear of the threshold. Then both pick **"Random, clear air"** within a second of each other — they should start
+miles apart, and the console should show `[Start] random start re-pick:` on the one that yielded, which is the
+mechanism below doing its job. Solo, "Random, clear air" should drop you somewhere different every time.
+
+### What was taken from `lane/claude-start-altitude`, and what was not
+
+Taken: the SHAPE. `StartQueue`/`StartPoint`/`Traffic`, the zones and service times, the rejection-sampling picker,
+the ternary-search closest approach, `StartSlots` and `StartHold`'s phase structure. That lane's work was good and
+rewriting it from scratch would have been worse.
+
+Rewritten: every separation number (above), the band and the ring (now measured per type from the aeroplane's own
+trimmed cruise rather than tabulated, so a re-rig cannot leave a stale table behind), and the Unity glue, which
+conflicted with today's base in six files.
+
+Rejected: its `StartAltitude.cs` and its 111 tests, superseded by `b8ce9ea7` as described above.
+
+**Closed: the hole that lane flagged and could not fix.** Two pilots who press FLY within a few seconds both hold;
+neither is airborne; so "ignore pilots who are not flying" let their picks be made independently — exactly the
+collision the feature exists to prevent, and its own log said "not guaranteed out". A random start is now
+PUBLISHED as a claim (`StartQueue.RandomClaim`) in the state packet the client already sends, `StartHold` waits
+`ClaimSettleS` (0.6 s) for it to propagate and then re-checks against every claim that came FIRST, and the later
+chooser re-picks. Both clients agree who yields from the same FIFO-then-lower-id rule the queue uses, so no
+referee and **no relay change** — this works against the relay that is already running. The residual window is one
+relay round trip, and the class comment says so rather than claiming the guarantee is absolute.
+
 ## Airspeed indicators read the unit their aeroplane reads — Claude, 2026-11-10, lane/claude-fleet-shape
 
 <!-- asi-units era-and-category mph-knots c172-arcs-were-two-aeroplanes glide-table-units -->

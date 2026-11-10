@@ -75,6 +75,63 @@ public static class AirStart
         return plan;
     }
 
+    /// <summary>
+    /// The RANDOM AIR START: <c>FlyingGame.Core.Multiplayer.RandomAirStart</c> picks the point, the height and the
+    /// heading, and this trims it there through <see cref="Compute"/> — THE SAME PATH the altitude picker uses,
+    /// which the owner asked for explicitly ("trimmed using the same air-start trim path as the altitude picker").
+    /// Nothing about the trim is special-cased for a random start; only the place it happens is new.
+    ///
+    /// The one subtlety is that the separation rules fly the first thirty seconds of the start at the aeroplane's
+    /// TRIMMED speed, and the trimmed speed is not known until the height is picked — a chicken and an egg. It is
+    /// resolved by measuring, not by assuming: trim once at the middle of the band to get a speed, pick with that,
+    /// then RE-TRIM at the height actually picked and RE-CHECK the pick at the speed the aeroplane will really
+    /// start at. The speed moves a few per cent across a band, which is small but can be the difference on a
+    /// marginal converging pair, and a start checked at the wrong speed is not a guarantee. Four rounds, then it
+    /// gives up and returns null rather than hand back a start it has not verified.
+    ///
+    /// Null if no start keeps every rule. On return <c>request.OwnSpeedMs</c> is the speed the aeroplane starts at,
+    /// which is the speed the returned pick was checked at.
+    /// </summary>
+    public static Plan? ComputeRandom(AircraftConfig config, FlyingGame.Core.Multiplayer.RandomAirStart.Request request, Random rng,
+        double fallbackTasMs, out FlyingGame.Core.Multiplayer.RandomAirStart.Pick? pick)
+    {
+        pick = null;
+        double mid = request.GroundAt(request.CentreX, request.CentreY) + 0.5 * (request.MinAglM + request.MaxAglM);
+        Plan probe = Compute(config, request.CentreX, request.CentreY, mid, 0.0, fallbackTasMs);
+        request.OwnSpeedMs = probe.State.Velocity.Length;
+        for (int round = 0; round < 4; round++)
+        {
+            pick = FlyingGame.Core.Multiplayer.RandomAirStart.Choose(request, rng);
+            if (pick == null) return null;
+            Plan plan = Compute(config, pick.Value.X, pick.Value.Y, pick.Value.AltitudeM, pick.Value.HeadingRad, fallbackTasMs);
+            request.OwnSpeedMs = plan.State.Velocity.Length;
+            if (FlyingGame.Core.Multiplayer.RandomAirStart.Why(pick.Value, request) == null) return plan;
+        }
+        pick = null;
+        return null;
+    }
+
+    /// <summary>
+    /// The band and the ring for a type, MEASURED rather than tabulated: the type is trimmed once at a nominal
+    /// height to find out how fast it actually cruises, and that speed chooses its height band (whether it is in
+    /// the fast group) and how far out the ring may reach. `pickerAglFt` is the altitude picker's choice in feet
+    /// AGL, or 0 for "let the type decide".
+    ///
+    /// Measured and not tabulated on purpose: a table of per-type speeds is a second copy of the flight model that
+    /// goes stale the first time anybody re-rigs an aeroplane, and this fleet gets re-rigged constantly.
+    /// </summary>
+    public static (double MinAglM, double MaxAglM, double MinRingM, double MaxRingM, double TrimmedSpeedMs) RandomBounds(
+        AircraftConfig config, int pickerAglFt, double groundM, double fallbackTasMs)
+    {
+        // 4,000 ft above the ground under the field is a height every type in this fleet can hold, and the rig
+        // itself is solved at 4,000 ft, so this probe is the cheapest honest reading of "how fast does it cruise".
+        Plan probe = Compute(config, 0, 0, groundM + 4000 * FlyingGame.Core.Nav.Terps.MPerFt, 0.0, fallbackTasMs);
+        double speed = probe.State.Velocity.Length;
+        (double minM, double maxM) = FlyingGame.Core.Multiplayer.RandomAirStart.Band(config, pickerAglFt, speed);
+        double minRing = FlyingGame.Core.Multiplayer.RandomAirStart.MinRingM;
+        return (minM, maxM, minRing, FlyingGame.Core.Multiplayer.RandomAirStart.OuterRingFor(speed, minRing), speed);
+    }
+
     /// <summary>The aeroplane the start builds: the config at the plan's state and deflections, wheels up.</summary>
     public static Aircraft Build(AircraftConfig config, Plan plan)
     {
