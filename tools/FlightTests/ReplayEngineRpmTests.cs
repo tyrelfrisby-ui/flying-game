@@ -72,4 +72,28 @@ public class ReplayEngineRpmTests
         Assert.True(a.EngineStopped);
         Assert.Equal(0.0, a.EngineRpm, 6);
     }
+
+    /// <summary>WHETHER IT WAS MAKING POWER SURVIVES SAMPLING. EngineRunning was left out of FlightRecorder.Lerp
+    /// altogether, so it took the constructor's default — true — and Sample() returns an interpolated frame for every
+    /// head strictly inside the recording. A replay of a flight that ended with the engine stopped therefore reported
+    /// a RUNNING engine for all of it but its two end frames, which is the engine sound and the thrust vector the
+    /// 11-08 repair set out to fix. It steps, like the smoke switch: a frame's state holds until the next.</summary>
+    [Fact]
+    public void WhetherTheEngineWasRunningSurvivesInterpolation()
+    {
+        var rec = new FlightRecorder(30.0, 600.0);
+        Aircraft a = Cub();
+        rec.Record(new ReplayFrame(0.0, a.State, a.CurrentDeflections, 0, 0, 0, 1, Vec3.Zero, default, 0.0, false));
+        rec.Record(new ReplayFrame(1.0, a.State, a.CurrentDeflections, 0, 0, 0, 1, Vec3.Zero, default, 0.0, false));
+
+        Assert.False(rec.Sample(0.0).EngineRunning);   // the frame itself: always was right
+        Assert.False(rec.Sample(1.0).EngineRunning);
+        Assert.False(rec.Sample(0.5).EngineRunning);   // the defect: this said TRUE, for every head between frames
+
+        // And a frame where it WAS running still says so, at the frame and between frames.
+        var run = new FlightRecorder(30.0, 600.0);
+        run.Record(new ReplayFrame(0.0, a.State, a.CurrentDeflections, 0, 0, 0, 1, Vec3.Zero, default, 2200.0, true));
+        run.Record(new ReplayFrame(1.0, a.State, a.CurrentDeflections, 0, 0, 0, 1, Vec3.Zero, default, 2200.0, true));
+        Assert.True(run.Sample(0.5).EngineRunning);
+    }
 }

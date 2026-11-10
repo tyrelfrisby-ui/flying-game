@@ -101,7 +101,11 @@ namespace FlyingGame.Bridge
             if (acFx != null)
             {
                 _damageFx ??= new DamageFx(transform, acFx.Config);
-                _damageFx.Update(acFx.Damage, _driver.WorldVelocityUnity);
+                // The fire, the black smoke and the fuel stream of the moment being watched — the last of the three
+                // damage visuals that read the LIVE airframe through a replay (Ty 2026-11-10: "Add the smoke fire fuel
+                // leak fixes"). Null out of a replay, which is the live state, so a return to live needs nothing else.
+                _damageFx.Update(_driver.ReplayDamageFx ?? FlyingGame.Sim.Replay.DamageFxState.Capture(acFx.Damage),
+                                 _driver.WorldVelocityUnity);
             }
             if (_driver.Sim == null) return;
             // Belt and braces for AirframeReplaced: damage drawn for any other aeroplane than the one flying goes. While the
@@ -130,14 +134,39 @@ namespace FlyingGame.Bridge
             }, propDt);
             float propR0 = acp.Config.Propulsion != null ? (float)(0.5 * acp.Config.Propulsion.PropDiameterM) : 0f;
             if (_bladeLook == null || _bladeLook.Length != acp.PropBladeCount) _bladeLook = new AirframeBuilder.PropBladeLook[acp.PropBladeCount];
+            // A REPLAY draws the propeller of the moment being watched. These four readings a blade are LIVE state, which
+            // during a playback is whatever the aeroplane ended up as — so a flight that ended in a prop strike was drawn
+            // with its curled or shattered blades from the first frame, minutes before the strike (Ty 2026-11-10: "Replay
+            // shows damaged propeller that is not turning and bent wings prior to the crash"). The recording knows when
+            // each blade took its damage (FlightReplay.Shapes), and the whole-propeller fold goes with it.
+            FlyingGame.Sim.Replay.AirframeShape? recorded = _driver.ReplayShape;
+            // A recording made before the blades were in it has BladesPerProp 0: then the live read is still the best
+            // answer there is, and nothing changes for it.
+            bool recordedBlades = recorded.HasValue && recorded.Value.BladesPerProp == _bladeLook.Length;
+            // Asked every frame, from the recording in a replay and from the live airframe out of one, so leaving a replay
+            // puts the wreck's propeller straight back (and an aeroplane that never struck anything builds nothing).
+            ShowPropBend(recorded.HasValue ? recorded.Value.PropellerLost
+                                           : acp.IsLost(FlyingGame.Core.AirframeComponent.Propeller));
             _builder.DamageBlades(i =>
             {
+                bool rec = recordedBlades && i >= 0 && i < recorded.Value.PropCount;
                 for (int k = 0; k < _bladeLook.Length; k++)
+                {
+                    if (rec)
+                    {
+                        FlyingGame.Sim.Replay.PropBladeShape b = recorded.Value.Blade(i, k);
+                        _bladeLook[k] = new AirframeBuilder.PropBladeLook
+                        {
+                            Aero = (float)b.AeroRadiusM, Affected = (float)b.AffectedM, Curl = b.Curl, Broken = b.Broken,
+                        };
+                        continue;
+                    }
                     _bladeLook[k] = new AirframeBuilder.PropBladeLook
                     {
                         Aero = (float)acp.PropBladeRadiusM(i, k), Affected = (float)acp.PropBladeAffectedM(i, k),
                         Curl = acp.PropBladeCurl(i, k), Broken = acp.PropBladeBroken(i, k),
                     };
+                }
                 return (propR0, acp.PropBladeMaterial, _bladeLook);
             });
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
@@ -450,7 +479,7 @@ namespace FlyingGame.Bridge
         private GameObject DetachComponentNow(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
         {
             _componentsDetached = true;
-            if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return null; }
+            if (comp == FlyingGame.Core.AirframeComponent.Propeller) { ShowPropBend(true); return null; }
             // A wing panel that was bent first: its pieces are already on their own pivot — that pivot is the debris.
             if (_bentPanels.TryGetValue(comp, out Transform bent) && bent != null)
             {
@@ -500,7 +529,12 @@ namespace FlyingGame.Bridge
             if (_builder == null || cfg == null) return;
             (double noseCut, double tailCut) = FlyingGame.Core.AirframeContact.FuselageStations(cfg);
             const float Deg = (float)(180.0 / System.Math.PI);
-            if (System.Math.Abs(tailBendPitchRad) + System.Math.Abs(tailBendYawRad) > 0.003
+            // Once the boom is on its pivot it is turned on EVERY call, zero included, as the nose below it is: the pivot
+            // kept whatever angle it was last given, so scrubbing a replay back before the impact left the boom bent
+            // (Ty 2026-11-10, with the wing: "bent wings prior to the crash"). An un-cut boom and a zero bend still cut
+            // nothing — one attempt per flight, through BendPivot.
+            bool boomPivot = _bentPanels.TryGetValue(FlyingGame.Core.AirframeComponent.TailBoom, out Transform bp) && bp != null;
+            if ((System.Math.Abs(tailBendPitchRad) + System.Math.Abs(tailBendYawRad) > 0.003 || boomPivot)
                 && !(_driver?.Sim?.Aircraft?.LostComponents.Contains(FlyingGame.Core.AirframeComponent.TailBoom) ?? true))
             {
                 Transform t = BendPivot(FlyingGame.Core.AirframeComponent.TailBoom, tailCut, cfg);
@@ -741,6 +775,16 @@ namespace FlyingGame.Bridge
         public void ShowPanelBend(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
         {
             if (_builder == null) return;
+            // Pieces this panel already has are the pieces to move, WHEREVER THEY NOW LIVE. A panel that was bent and
+            // then broke off has its pivot taken out of _bentPanels and handed to the debris (DetachComponentNow) — so
+            // this used to cut all over again, find nothing left of the panel in the wing parts, and overwrite
+            // _bentPieces with an empty list: the bent geometry rode away on the debris and nothing could ever reshape
+            // it. In a replay the part timeline carries that debris back onto the aeroplane for every frame before the
+            // break, which drew a wing bent minutes before the impact that bent it (Ty 2026-11-10: "bent wings prior to
+            // the crash"; the bend-then-break case the 11-08 repair did not reach). The pieces' StraightRoot and
+            // RootToLocal are in the airframe root's frame at the cut, and the debris wrap is posed at the aeroplane, so
+            // they keep meaning what they meant.
+            if (_bentPieces.ContainsKey(p.Component)) { PosePanelPieces(p); return; }
             if (!_bentPanels.TryGetValue(p.Component, out Transform pivot) || pivot == null)
             {
                 var go = new GameObject("Bent-" + p.Component);
@@ -792,6 +836,13 @@ namespace FlyingGame.Bridge
                 // move, or the aileron would be the only thing bent — the very thing Ty saw the other way round.
                 if (pieces.Count == 0) DropCarried(p.Component);
             }
+            PosePanelPieces(p);
+        }
+
+        /// <summary>Put this panel's pieces at the shape it is in now — every vertex from the straight wing, so the shape
+        /// is drawn rather than accumulated. Skipped when the shape has not moved since it was last drawn.</summary>
+        private void PosePanelPieces(FlyingGame.Core.WingPanel p)
+        {
             double flex = p.ElasticRad + p.FlightFlexRad;   // a tip contact's flex and the wings' flex under g (Ty 2026-11-05)
             var shape = new Vector3((float)(p.BendRad + flex), (float)p.TwistRad, 0f);
             if (_bentShown.TryGetValue(p.Component, out Vector3 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f && Mathf.Abs(shape.y - shown.y) < 1e-3f) return;
@@ -1206,36 +1257,73 @@ namespace FlyingGame.Bridge
             }, out lost, out kept);
         }
 
-        /// <summary>Prop strike: each blade is shortened and its outer half folded back ~50°, the disc goes away.</summary>
-        private void BendPropeller()
+        /// <summary>A blade shortened by <see cref="ShowPropBend"/>: the part, the scale it has when straight, and the
+        /// folded tips cut onto it — built once, then shown or hidden.</summary>
+        private sealed class BentBlade { public Transform T; public Vector3 Straight; public readonly List<GameObject> Tips = new(); }
+        private readonly List<BentBlade> _bentBlades = new();
+        private readonly List<GameObject> _propDiscs = new();
+        private bool _propBentShown, _propBendBuilt;
+
+        /// <summary>
+        /// Prop strike: each blade is shortened and its outer half folded back ~50°, the disc goes away.
+        ///
+        /// SHOWN OR HIDDEN, never done once and for all (Ty 2026-11-10: "Replay shows damaged propeller that is not
+        /// turning ... prior to the crash"). This used to be a one-way change made at the strike, so a replay opened on
+        /// the folded prop with nothing that could put it back. The pieces are built on the first call and the STATE is
+        /// applied, so the replay can ask for the propeller of the moment it is watching
+        /// (FlightReplay.Shapes → <see cref="FlyingGame.Sim.Replay.AirframeShape.PropellerLost"/>).
+        ///
+        /// And it no longer FREEZES THE RIG. A prop strike cuts no model mesh, so there was nothing for the rigid copies
+        /// to be cut from; what the freeze actually did was destroy the skins that drive every control surface AND the
+        /// propeller hub — which stopped the ailerons for the rest of the flight, and left a carved model's propeller
+        /// nailed still through the whole replay even once the recorded rpm had been handed back. The propeller stops
+        /// because the ENGINE stopped: rpm 0 through <see cref="SpinProps"/>, which a replay can undo, because the
+        /// recording holds the rpm it was flown at.
+        /// </summary>
+        private void ShowPropBend(bool bent)
         {
-            _builder.FreezeRig();
-            foreach (GameObject part in new List<GameObject>(_builder.Parts))
+            if (!_propBendBuilt)
             {
-                if (part == null) continue;
-                if (part.name == "PropDisc") { part.SetActive(false); continue; }
-                if (part.name != "Blade") continue;
-                // Not the hidden procedural blades under a model: their bent tips would be new, visible cubes in the shell's
-                // paint. The model's own propeller stays as it is (FreezeRig has stopped it).
-                if (!_builder.IsDebrisSource(part.GetComponent<MeshFilter>())) continue;
-                Vector3 sc = part.transform.localScale;
-                // Keep the inner 55 %, add a bent outer tip folded aft (local -z is aft for a blade in the yz plane).
-                part.transform.localScale = new Vector3(sc.x * 0.55f, sc.y, sc.z);
-                foreach (float sign in new[] { -1f, 1f })
+                if (!bent) return;   // nothing built and nothing asked for: a propeller that has never been struck
+                _propBendBuilt = true;
+                foreach (GameObject part in new List<GameObject>(_builder.Parts))
                 {
-                    var tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Object.Destroy(tip.GetComponent<Collider>());
-                    tip.name = "BentBladeTip";
-                    tip.transform.SetParent(part.transform, false);
-                    // In the blade's own (scaled) space: x is span. Place the tip piece at the end and fold it back.
-                    float halfSpan = 0.5f;
-                    tip.transform.localPosition = new Vector3(sign * halfSpan, 0f, 0f);
-                    tip.transform.localRotation = Quaternion.Euler(0f, sign * -50f, 0f);
-                    tip.transform.localScale = new Vector3(0.45f / 0.55f, 1f, 1f);
-                    tip.transform.localPosition += tip.transform.localRotation * new Vector3(sign * 0.4f, 0f, 0f);
-                    var mr = tip.GetComponent<MeshRenderer>(); mr.sharedMaterial = part.GetComponent<MeshRenderer>().sharedMaterial;
+                    if (part == null) continue;
+                    if (part.name == "PropDisc") { _propDiscs.Add(part); continue; }
+                    if (part.name != "Blade") continue;
+                    // Not the hidden procedural blades under a model: their bent tips would be new, visible cubes in the
+                    // shell's paint. A model's own blades are reshaped blade by blade by DamageBlades instead.
+                    if (!_builder.IsDebrisSource(part.GetComponent<MeshFilter>())) continue;
+                    var b = new BentBlade { T = part.transform, Straight = part.transform.localScale };
+                    foreach (float sign in new[] { -1f, 1f })
+                    {
+                        var tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                        Object.Destroy(tip.GetComponent<Collider>());
+                        tip.name = "BentBladeTip";
+                        tip.transform.SetParent(part.transform, false);
+                        // In the blade's own (scaled) space: x is span. Place the tip piece at the end and fold it back.
+                        float halfSpan = 0.5f;
+                        tip.transform.localPosition = new Vector3(sign * halfSpan, 0f, 0f);
+                        tip.transform.localRotation = Quaternion.Euler(0f, sign * -50f, 0f);
+                        tip.transform.localScale = new Vector3(0.45f / 0.55f, 1f, 1f);
+                        tip.transform.localPosition += tip.transform.localRotation * new Vector3(sign * 0.4f, 0f, 0f);
+                        var mr = tip.GetComponent<MeshRenderer>(); mr.sharedMaterial = part.GetComponent<MeshRenderer>().sharedMaterial;
+                        b.Tips.Add(tip);
+                    }
+                    _bentBlades.Add(b);
                 }
+                _propBentShown = false;
             }
+            if (bent == _propBentShown) return;
+            _propBentShown = bent;
+            foreach (BentBlade b in _bentBlades)
+            {
+                if (b.T == null) continue;
+                // Keep the inner 55 % while bent, the whole span when straight.
+                b.T.localScale = bent ? new Vector3(b.Straight.x * 0.55f, b.Straight.y, b.Straight.z) : b.Straight;
+                foreach (GameObject tip in b.Tips) if (tip != null && tip.activeSelf != bent) tip.SetActive(bent);
+            }
+            foreach (GameObject d in _propDiscs) if (d != null && d.activeSelf == bent) d.SetActive(!bent);
         }
 
         private void Rebuild()
@@ -1254,6 +1342,7 @@ namespace FlyingGame.Bridge
             _bentShown.Clear();
             _carried.Clear();   // the carriers went with the old airframe (Build destroys it)
             _tailPieces = null; _tailShown = 0f;
+            _bentBlades.Clear(); _propDiscs.Clear(); _propBentShown = false; _propBendBuilt = false;   // the bent blades went with the old propeller
             _rigPartGone = false;
             Cockpit.Reset();
             _displays.Forget();

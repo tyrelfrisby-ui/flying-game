@@ -54,12 +54,27 @@ namespace FlyingGame.Bridge
             return ps;
         }
 
-        public void Update(DamageState d, Vector3 worldVel)
+        /// <summary>The LIVE aeroplane's fire and leak (the drones, the opponent, and the player out of a replay).</summary>
+        public void Update(DamageState d, Vector3 worldVel) =>
+            Update(FlyingGame.Sim.Replay.DamageFxState.Capture(d), worldVel);
+
+        /// <summary>
+        /// Draw the fire, the smoke and the fuel stream of ONE STATED MOMENT. This used to take the live
+        /// <see cref="DamageState"/>, which through a playback is whatever the aeroplane ended up as — so a flight that
+        /// ended alight burned from the first frame, before the round that lit it (Ty 2026-11-10: "Add the smoke fire
+        /// fuel leak fixes"). A replay hands it the state its recording holds at the play head instead
+        /// (FlightReplay.DamageEffects); live flight hands it the live one through the overload above.
+        ///
+        /// WHICH of the three is on is the sim's rule now, not this one's: a holed tank streams until it catches, and
+        /// after that the same hole feeds the flame (DamageFxState.LeakDrawnLeft / LeakDrawnRight), so the suite can
+        /// test what gets drawn. The rates and the rise stay here, where the particles are.
+        /// </summary>
+        public void Update(in FlyingGame.Sim.Replay.DamageFxState d, Vector3 worldVel)
         {
             for (int i = 0; i < 2; i++)
             {
-                bool leak = i == 0 ? d.FuelLeakLeft : d.FuelLeakRight, fire = i == 0 ? d.FireLeft : d.FireRight;
-                Set(_leak[i], leak && !fire ? 260f : 0f, worldVel, 0.25f, -0.4f);
+                bool leak = i == 0 ? d.LeakDrawnLeft : d.LeakDrawnRight, fire = i == 0 ? d.FireLeft : d.FireRight;
+                Set(_leak[i], leak ? 260f : 0f, worldVel, 0.25f, -0.4f);
                 Set(_fire[i], fire ? 220f : 0f, worldVel, 0.15f, 1.5f);
                 Set(_smoke[i], fire ? 90f : 0f, worldVel, 0.3f, 2.5f);
             }
