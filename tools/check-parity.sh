@@ -11,7 +11,11 @@
 #      QUEST-ONLY paths (XR packages and settings, Android plugins, Scripts/Quest, the Quest*/Vr*/Xr* scripts, the
 #      Quest deploy scripts) are allowed to live on the Quest lane alone.
 #   3. Every GLB under unity/Assets/_Project/Resources/Models, blob against blob.  WARN; FAIL with --strict.
-#   4. Cockpit/art lanes with commits in NEITHER lane (info: art waiting to be merged into both).
+#   4. The Aero Widget's surface (Scripts/Bridge/Widget, _Project/Widget, tools/deploy/widget.sh, tools/native-mac,
+#      docs/WIDGET.md), blob against blob. WARN; FAIL with --strict. The widget is the same project, scene and src/
+#      as the app, so it cannot be a third branch target: see the long note at check 4 for what that does and does not
+#      catch, and docs/PARITY.md "The widget".
+#   5. Cockpit/art lanes with commits in NEITHER lane (info: art waiting to be merged into both).
 #
 #   tools/check-parity.sh --hook   the parity LOCK, run by tools/githooks/pre-commit and pre-merge-commit on the commit
 #                                  being made (see the --hook block below and docs/PARITY.md, "The lock").
@@ -186,7 +190,58 @@ else
   echo "OK    GLBs: all $GLB_SAME identical"
 fi
 
-# ---- 4. art lanes in neither -------------------------------------------------------------------------------------
+# ---- 4. the Aero Widget's surface, blob against blob -------------------------------------------------------------
+# Ty 2026-11-10: "Keep the aero widget in parity with the app" ... "Enforce it like the others."
+#
+# WHY THIS IS A BLOB CHECK AND NOT A THIRD REGEX. The widget is not a third target. It is the SAME Unity project, the
+# SAME scene (Assets/Scenes/Main.unity) and the SAME src/, built by BuildScript.BuildWidget with PlayerSettings flipped,
+# and chosen at runtime by bundle id (SceneBootstrap -> AeroWidget.IsWidget, ".aerowidget"). So there is no widget-side
+# copy of anything for a shared change to SKIP, and the thing the Quest half of this script measures -- commit
+# reachability between two branches -- has no widget analogue, because the widget has no branch. A third SHARED_RE arm
+# would be a check that could not fire. What CAN drift is the widget's own files between the two lanes, exactly as a GLB
+# can; and three of the paths it is built from are NEUTRAL to the lock above (matched by neither regex, so the hook
+# never sees them): unity/Assets/_Project/Widget/, tools/deploy/widget.sh and tools/native-mac/ -- the last being the
+# SOURCE of unity/Assets/Plugins/macOS/AeroNative.bundle, whose committed product IS shared. Source neutral, product
+# locked. The gap is not hypothetical: on 2026-11-10 lane/claude-island-nav and the Quest lane differed by 98 lines of
+# tools/native-mac/ and one line of GameAeroPanel.cs with the lock green throughout. So measure the surface instead.
+#
+# Deliberately a WARN (FAIL only under --strict, which is what deploy-quest.sh and the lanes run), and deliberately NOT
+# added to SHARED_RE: the --hook block treats EVERY lane/* branch as the iOS lane, so widening the regex would make
+# every lane in the repo stop and sync with the Quest lane before it could touch a Mac-only build script. That is far
+# more than this rule needs. Mac is one of the three platforms, so Mac-only code belongs in the parity REPORT; only
+# code that ships to iOS and Quest belongs in the commit LOCK.
+#
+# STILL NOT COVERED, and no path rule can cover it: Ty's earlier rule (2026-10-09, quoted in AeroHost.cs and
+# GameAeroPanel.cs) that "the GAME and the WIDGET stay in PARITY -- one implementation, two hosts", i.e. a feature added
+# to AeroWidget/WidgetServer and never surfaced in GameAeroHost/GameAeroPanel. Those files sit side by side in ONE
+# directory on ONE branch, so no path set can tell "added to the widget host" from "added to both". That needs a
+# set-equality check over the capability surface both hosts publish -- WidgetServer's hello reply (features, show keys,
+# inset ids, autopilotModes, lessons) against GameAeroPanel's switch ids -- with WidgetServer.Protocol bumped when the
+# set changes. docs/PARITY.md, "The widget", records that as the open piece and why it is not this script's job.
+WIDGET_PATHS="unity/Assets/_Project/Scripts/Bridge/Widget unity/Assets/_Project/Widget tools/deploy/widget.sh tools/native-mac docs/WIDGET.md"
+surface() { git ls-tree -r "$1" -- $WIDGET_PATHS | awk '{ print $4 "\t" $3 }' | sort; }
+W_IOS=$(mktemp); W_Q=$(mktemp); trap 'rm -f "$G_IOS" "$G_Q" "$W_IOS" "$W_Q"' EXIT
+surface "$IOS" > "$W_IOS"; surface "$QUEST" > "$W_Q"
+WIDGET_SAME=0; WIDGET_DIFF=0; WIDGET_ONLY=0; WIDGET_LIST=""
+while IFS=$'\t' read -r path blob; do
+  other=$(awk -F'\t' -v p="$path" '$1 == p { print $2 }' "$W_Q")
+  if [ -z "$other" ]; then WIDGET_ONLY=$((WIDGET_ONLY + 1)); WIDGET_LIST+="        only on iOS    $path"$'\n'
+  elif [ "$other" = "$blob" ]; then WIDGET_SAME=$((WIDGET_SAME + 1))
+  else WIDGET_DIFF=$((WIDGET_DIFF + 1)); WIDGET_LIST+="        DIFFERENT      $path  iOS ${blob:0:8}  Quest ${other:0:8}"$'\n'; fi
+done < "$W_IOS"
+while IFS=$'\t' read -r path blob; do
+  grep -q "^$path	" "$W_IOS" || { WIDGET_ONLY=$((WIDGET_ONLY + 1)); WIDGET_LIST+="        only on Quest  $path"$'\n'; }
+done < "$W_Q"
+if [ $((WIDGET_DIFF + WIDGET_ONLY)) -gt 0 ]; then
+  [ "$STRICT" = 1 ] && tag=FAIL || tag=WARN
+  echo "$tag  widget: $WIDGET_SAME identical, $WIDGET_DIFF different, $WIDGET_ONLY on one lane only"
+  if [ "$BRIEF" = 0 ]; then printf '%s' "$WIDGET_LIST"; fi
+  echo "      the widget is built from the same scene and src/ as the app, so the lanes must agree on it. docs/PARITY.md"
+else
+  echo "OK    widget: all $WIDGET_SAME files identical"
+fi
+
+# ---- 5. art lanes in neither -------------------------------------------------------------------------------------
 if [ "$BRIEF" = 0 ]; then
   echo "INFO  cockpit/art lanes with commits in neither lane (\$PARITY_ART_RE):"
   ANY=0
@@ -200,12 +255,13 @@ if [ "$BRIEF" = 0 ]; then
 fi
 
 # ---- verdict -----------------------------------------------------------------------------------------------------
-if [ "$MISSING_ALL" -gt 0 ] || { [ "$STRICT" = 1 ] && [ $((SHARED_N + GLB_DIFF + GLB_ONLY)) -gt 0 ]; }; then
+WIDGET_OFF=$((WIDGET_DIFF + WIDGET_ONLY))
+if [ "$MISSING_ALL" -gt 0 ] || { [ "$STRICT" = 1 ] && [ $((SHARED_N + GLB_DIFF + GLB_ONLY + WIDGET_OFF)) -gt 0 ]; }; then
   echo "PARITY: FAIL — merge $IOS into $QUEST (and port the shared Quest-only work to $IOS) before a Quest build. docs/PARITY.md"
   exit 1
 fi
-if [ $((SHARED_N + GLB_DIFF + GLB_ONLY)) -gt 0 ]; then
-  echo "PARITY: OK with warnings — $SHARED_N shared commit(s) and $((GLB_DIFF + GLB_ONLY)) GLB(s) differ. docs/PARITY.md"
+if [ $((SHARED_N + GLB_DIFF + GLB_ONLY + WIDGET_OFF)) -gt 0 ]; then
+  echo "PARITY: OK with warnings — $SHARED_N shared commit(s), $((GLB_DIFF + GLB_ONLY)) GLB(s) and $WIDGET_OFF widget file(s) differ. docs/PARITY.md"
 else
   echo "PARITY: OK"
 fi
