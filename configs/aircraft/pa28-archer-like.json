@@ -1541,7 +1541,9 @@
       "maxSteerRad": 0.5,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "tire": "5.00-5", "tirePressurePsi": 18
+      "tire": "5.00-5", "tirePressurePsi": 18,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-28 service manual). Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1557,7 +1559,9 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "tire": "6.00-6", "tirePressurePsi": 24
+      "tire": "6.00-6", "tirePressurePsi": 24,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-28 service manual). Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1573,7 +1577,9 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 12000,
-      "tire": "6.00-6", "tirePressurePsi": 24
+      "tire": "6.00-6", "tirePressurePsi": 24,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-28 service manual). Telescopic, so no legPivot."
     }
   ],
   "limits": {

@@ -1,3 +1,140 @@
+## The gear hinges on the fuselage and the track widens; and toe was on one wheel — Claude, 2026-11-10, lane/claude-gear-flex
+
+<!-- gear-leg-pivot splay bungee-travel toe-both-mains tipping-threshold -->
+
+Ty, flying his own aeroplanes in the game: *"all airplanes are overly difficult to steer on asphalt so I think the
+friction is too high or there isn't enough flex in the gear or something"* — then the mechanism, in his words:
+*"They go up on one wheel and strike wingtips rather than using their suspension. The pitts has bungee like the cub no
+rebound but plenty of travel. The extra has springy fiberglass that flexes nicely"*, *"The cub has bungee too. Pivot at
+the fuselage attachment and so does the pitts"*, *"The cub bungees are in the black leather bags on the gear legs the
+pitts bungees are in the belly and the cabana struts attach to them so cabana pulls on bungee inside"*.
+
+**His "they go up on one wheel" is exactly what the sim was doing, and it is the whole ground loop.** Instrumenting the
+Pitts' three-point rollout (`GearGeometryTests.RolloutWheelLoads`, GEARPROBE=1) shows the inner main's load reach ZERO
+at 2.5° of roll, nine seconds after touchdown, and the swing run away from there: 26°/s of yaw at the moment the wheel
+lifts, 48°/s a second later, full rudder unable to hold it, 180° and 40 m off the centreline. Up on one wheel it has
+one contact patch instead of two, well off the centreline, and nothing can stop it. The Extra, flown by the same
+scripted pilot, never lifts a wheel and never swings.
+
+**The arithmetic of lifting a wheel, and what the real geometry does to it.** The aeroplane rolls until the inner leg
+is fully extended (roll × half-track = the static squash, 2.5–3.9° on these types); the outer wheel then carries all of
+it, and the weight holds it down with the arm that contact HAS while the side force prises it up about the CG's height
+above it. With the contact point nailed to one spot — the fleet's model until today — that is 0.52–0.80 g. Ty's legs
+hinge on the fuselage, so compressing them swings the wheels out along an arc and the track WIDENS with the load:
+
+| type | leg (run × drop) | splay | tips at, fixed contact | on its linkage | its tyres can make |
+|---|---|---|---|---|---|
+| J-3 Cub | 0.600 × 0.709 m | 1.18 | 0.694 g | **0.824 g** | 0.779 g |
+| PA-18 Cub | same legs | 1.18 | 0.664 g | **0.845 g** | 0.779 g |
+| PA-18 Bush (35×15) | 0.660 × 0.959 m | 1.45 | 0.524 g | **0.790 g** | 0.874 g |
+| Pitts S-2B | 0.590 × 0.759 m | 1.29 | 0.645 g | **0.778 g** | 0.749 g |
+| Extra 300 | 0.468 × 0.852 m | 1.82 | 0.555 g | **0.696 g** | 0.766 g |
+| Great Lakes | 1.029 × 0.652 m | 0.63 | 0.802 g | **0.912 g** | 0.768 g |
+
+The Cub, the Pitts and the Great Lakes cross over: they can now scrub their tyres at full grip without lifting a wheel,
+where before the grip available was more than the grip that tipped them. The Extra and the bush Cub still tip first.
+
+**Every pivot is measured off the type's own model, and the models already had them.** The J-3's and the Great Lakes'
+GLBs carry the hinge rigged for animation — `Gear_Pivot_L/R` with `Gear_HingeAxis` — built from the Univair J-3 parts
+list and the 2T-1A-2 layout; the Pitts' A-frame pick-ups and the Extra's bow root are measured off their leg meshes
+(and the Extra's bow has 24 measured sections in `ea300_ref_tables.json`). `GearGeometryTests.ThePivotIsTheOneInTheModel`
+holds each config to its model within 2.5 cm: the J-3 agrees to the millimetre, the Pitts to 8 mm, the Great Lakes to
+7 mm.
+
+**A bending bow is authored as a hinge at its root, and that is the conservative reading.** Castigliano on the Extra's
+measured section path (the moment arms about the contact, constant EI) gives 2.02 m outboard per metre of compression
+against the root-to-contact chord's 1.82, because the bow is a C whose lower half is nearly vertical.
+
+**gearType is no longer a label.** It says what springs the leg — `bungee`, `spring-steel`, `spring-aluminum`,
+`spring-composite`, `oleo` — and sets how far the leg travels before its stop (bungee 0.18 m, a composite bow 0.14, a
+leaf 0.12, an oleo none, because nobody has measured the fleet's oleo strokes and a guessed stop could fire on a hard
+arrival). The LINKAGE is a separate field, `legPivot`, because the two are independent: the Great Lakes has an oleo on
+a swinging half-axle, and a telescopic strut has no pivot at all. Authored: bungee on the J-3, both Super Cubs and the
+Pitts (Ty), spring-composite on the Extra (Ty), oleo on the Great Lakes, Stearman, DC-3, P-51, 737, F-86, Archer and
+Seminole. **The rebound is undamped on every leg and always was** — the damper only ever sees the closing rate — so
+Ty's "no rebound" needed nothing; it is now written down so nobody "fixes" it.
+
+**THE OTHER HALF OF THE SAME GEOMETRY IS NOT MODELLED, and it points the other way.** A swing arm turns a SIDE force
+at the contact into leg EXTENSION: N = k·stroke − Y_outboard·(drop/run), so a skid's inboard force jacks the body up —
+the reason swing-axle cars tuck under. It is the same drop/run that gives the splay, and these legs' is 0.63 to 1.82,
+which puts their roll centres at 55 % to 114 % of the CG height. So μ·(drop/run) reaches 1 at the tyre's own grip on
+the Cub, the Pitts and the Extra, and a rigid-link treatment is singular there — the load runs away inside a step. The
+splay above is the kinematics only, so **this model is optimistic about tipping by about as much as leaving the jacking
+out is pessimistic**. Settling it means modelling what actually reacts the side load: the shock strut's own geometry,
+the leg's lateral bending, the tyre's lateral give. Ty's call.
+
+**AND: fourteen types were rigged with toe-out on ONE main.** Toe is per leg (`LandingGear.ToeRad` reads
+`g.ToeOutDeg` and takes the sign from the wheel's own y). The toe-out commit of this morning says "Sixteen types, both
+mains each" and wrote the field to the FIRST main only on fourteen of them — so those aeroplanes were 2° out on one
+wheel and dead straight on the other: a standing uncancelled side force of about 0.42 of that wheel's load (12 per rad
+× 2°), half the tyre's friction budget spent before the pilot touches anything, which is "overly difficult to steer on
+asphalt" in one line of data. The Pitts and the Extra — the two he was flying when he chose the number — are the two
+the commit did write both, which is why they felt right. Fixed on all fourteen, and
+`GearGeometryTests.BothMainsAreToedOutTheSameAndItTaxisStraight` measures it: hands-off taxi on pavement, rigged
+against lopsided.
+
+**What the filtered runs say, before against after on the same filter** (`AerobatGroundHandlingTests`,
+`TaildraggerNoTipStrikeTests`, `GroundLoopTests`, `GearGeometryTests`; base `e2949511`, which this lane merged first).
+Before: 124 tests, 8 failures. After: the same 8, minus none, plus one — and the eight are identity-matched, not
+counted:
+
+- **THE WINGTIP STRIKE IS GONE.** `GroundStabilityProbe` seeds 5°/s hands-off and stops at the first airframe contact.
+  The Pitts used to drag a tip at **t = 2.94 s at 8 m/s and t = 2.68 s at 14 m/s**; it now runs the full three seconds
+  at both speeds and never touches. That is his "strike wingtips", measured and gone.
+- **The ground loop itself is not.** The three-point rollout still swings 180° (179.9° → 179.6°, 40.8 → 46.0 m off the
+  centreline) and `ThreePointAndWheelLandingsAreWorkable` still fails for the Pitts, both landings — as it did before
+  any of this. The swing is a YAW divergence and the gear's geometry does not touch it: by the time it is turning at
+  48°/s at 17 m/s the lateral acceleration is 1.4 g, far past any tipping threshold. What is left is below.
+- **Full brakes at 12 kt no longer pitch the Pitts at its prop**: min pitch −19.0° → +0.4° (`Taxi`).
+- The Extra's relaxed-feet rollout swings 8.4° → 3.1°. Taxi turn times, the full-rudder turn rate, the stop distances,
+  the takeoff rolls, and every landing in `TaildraggerNoTipStrikeTests` (all three landing methods, all fifteen types)
+  are unchanged to the centimetre — except that each rollout ends NEARER the centreline (the PA-18's 0.9 → 0.1 m, the
+  bush Cub's 1.0 → 0.4, the Great Lakes' 0.9 → 0.5). Its `TaxiTurns` method is verified on five of the fifteen types
+  (the J-3 among them, every turn completed, geometry identical); I stopped the run there — see the 60x note below —
+  so the other ten taxi cases are UNVERIFIED on this lane.
+- **The toe-out pair, measured** (`BothMainsAreToedOutTheSameAndItTaxisStraight`): hands-off at 5 kt on pavement for
+  8 s, with the toe off, on both mains, and on one. On the Great Lakes, the Pitts and the Decathlon a symmetric pair
+  cancels EXACTLY (0.00 m from the toe-off run) and one main alone pulls 0.27–0.40 m off it. The J-3 idles off to the
+  left on its own slipstream — 0.18 m with the toe off — and the symmetric pair pulls it BACK to 0.13 m, which is Ty's
+  "the loaded tire tries to unload back to the other" doing its job; one main alone takes it 0.20 m the OTHER way.
+- **ONE NEW RED, and it is the toe fix, not the geometry.** `CrosswindLandingFromTheLeft` for the **P-51** at 18.7 kt
+  (0.2 Vso of a 93 kt Vso — the 14 CFR 23.233(a) rule on a Mustang, no published figure) was already a hair from
+  failing: it finished that rollout with **0.30 m of wingtip clearance at 17.9° of bank, 12.7 m off the centreline**.
+  With both mains toed out it goes 18.9 m off, grazes the tip (0.02 m) and loses the propeller. Attributed by
+  measurement: put the P-51's toe back on one main and the case passes unchanged. The data is right by Ty's standing
+  rule ("2 degrees on all taildraggers standard unless I adjust based on feel") and 2° on a 4,600 kg aeroplane with a
+  3.8 m track is a lot of standing scrub — **Ty's number to adjust, or the crosswind figure to argue with.**
+- A measurement trap worth writing down: in the full runs the J-3's `TaxiTurns` case took 6 s before and 6 MINUTES
+  after. It is not the change — run alone it takes 5 m 46 s on the base and 5 m 59 s here. Adding a test class to a
+  filter reorders this globally coupled suite and one case's runtime moved by 60x. Compare identities, and time a case
+  in isolation before believing a regression.
+
+**WHAT IS LEFT OF HIS REPORT, named so the next pass does not have to find it again.** The gear geometry raised the
+tipping threshold past the tyres' grip on three of the six types and took the wingtip out of the uncontrolled loop, but
+the Pitts still ground-loops on landing, and these are the levers, measured:
+
+1. **It is a YAW divergence, not a roll one.** `GroundStabilityProbe` grows the Pitts' yaw rate x22.8 in 3 s at 8 m/s
+   hands-off (the Extra x0.63 — it DAMPS). Its mains are 0.42 m ahead of the CG on an Izz of 1,185 kg·m² — half the Extra's 2,575 —
+   so the same side load at the CG makes twice the yaw acceleration. Nothing in the gear's flex touches that.
+2. **The scripted pilot flies with no aileron.** `AerobatGroundHandlingTests.Land` uses rudder and brake only; a real
+   taildragger pilot holds the wing down with aileron, and `TaildraggerNoTipStrikeTests`' pilot — which does — never
+   drags anything on any type. The test the Pitts fails may be asking for a recovery nobody flies that way.
+3. **Cornering stiffness, which is what "the friction is too high" actually feels like.**
+   `LandingGear.CorneringPerLoad` is 12 per radian = 0.21 of the wheel's load per DEGREE of slip, the automotive end of
+   the scale; published cornering power for aircraft tyres is usually quoted nearer 0.1–0.15 per degree. It is not the
+   μ (0.8 is defensible) — it is the force per degree, and with 2° of toe-out each main spends 0.42 of its own load, and
+   so half its friction budget, before the pilot touches anything. NOT CHANGED here: no primary source could be checked
+   offline, and it is a separate decision from the geometry.
+4. **CG HEIGHT, which is the denominator of every tipping number above.** The configs put the CG 1.13 m (Pitts), 1.20
+   (J-3) and 1.41 (Extra) above the tyre contact. A J-3's is nearer 1.0 m by any weight breakdown (engine ~0.9, wings
+   1.85, fuselage and occupants ~0.8). If the fleet's datum runs 10–20 % high, every taildragger in the game is that
+   much tippier than the real one — a bigger lever than the gear. Untouched because the gear z, the wing z and the GLB
+   match tests are all tied to that datum.
+5. **The contact patch is a point.** A main's footprint is 0.14–0.20 m wide (`TireModel.FootprintWidthM`, already
+   computed per wheel): as the aeroplane rolls onto one wheel the load centre moves to the outboard edge, 4–6 % of the
+   half-track, the same order as the splay and free to add.
+
+
 ## Replay tells the truth, air cannot come out of the earth, and clips can film the screen — Claude, 2026-11-08, lane/claude-replay-smoke, build 2026.1108.0717
 <!-- replay-state-not-pose ground-boundary clip-screen-mic -->
 Morning session after the one below. Seven commits, all local, nothing pushed. Ty confirmed in the air: the flight

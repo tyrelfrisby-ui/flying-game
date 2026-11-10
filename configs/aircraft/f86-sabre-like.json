@@ -1870,7 +1870,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 15000,
       "tire": "legacy-f86-nose",
-      "tirePressurePsi": 121.7
+      "tirePressurePsi": 121.7,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts. Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1887,7 +1889,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 25000,
       "tire": "legacy-f86-main",
-      "tirePressurePsi": 152.1
+      "tirePressurePsi": 152.1,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts. Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1904,7 +1908,9 @@
       "tireMu": 0.8,
       "corneringStiffnessN": 25000,
       "tire": "legacy-f86-main",
-      "tirePressurePsi": 152.1
+      "tirePressurePsi": 152.1,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts. Telescopic, so no legPivot."
     }
   ],
   "limits": {

@@ -110,6 +110,137 @@ public static class LandingGear
     public const double SteerDeadZoneRad = 0.0;          // owner 2026-09-13: no slack (the ±1° dead zone made it too hard)
     public const double RelockToleranceRad = 0.035;      // rudder within 2° of the wheel re-engages the steering
 
+    // ---- THE LEG: WHAT KIND OF SPRING IT IS, AND WHERE IT HINGES (Ty 2026-11-10) -----------------------------------
+    // "They go up on one wheel and strike wingtips rather than using their suspension. The pitts has bungee like the
+    //  cub no rebound but plenty of travel. The extra has springy fiberglass that flexes nicely."
+    // "The cub has bungee too. Pivot at the fuselage attachment and so does the pitts."
+    // "The cub bungees are in the black leather bags on the gear legs the pitts bungees are in the belly and the
+    //  cabana struts attach to them so cabana pulls on bungee inside."
+    //
+    // Two separate things come out of that, and they are kept separate here:
+    //  - WHAT SPRINGS IT (GearConfig.GearType): a rubber shock cord, a leaf or bow that bends, or air over oil. It
+    //    sets how far the leg travels before it is on its stop, and what it does past it. The rebound is UNDAMPED on
+    //    every leg here and always was (the damper only ever sees max(0, closing rate)) — which is exactly a bungee,
+    //    and is why these aeroplanes bounce. Nothing was needed for "no rebound"; it is stated so nobody "fixes" it.
+    //  - WHAT CARRIES IT (GearConfig.LegPivot): the linkage. A Cub's and a Pitts' legs are rigid and hinge on the
+    //    fuselage, so the wheel runs on an ARC — up AND outboard — and the track widens as the gear compresses. A
+    //    composite bow bends rather than hinges and its tip moves the same way to first order. A telescopic strut
+    //    does not: no pivot authored, no splay, exactly as before.
+    //
+    // WHAT IS NOT MODELLED, and it matters (GearGeometryTests.TheJackingThatComesWithTheSameLinkageIsNotModelled): a swing arm also
+    // turns a SIDE force at the contact into leg EXTENSION — jacking. The leg's own balance is
+    //     N = k·stroke − Y_outboard·(drop/run),
+    // so a skid's inboard force pushes the body UP. These legs' drop/run is 0.63 (the Great Lakes' half-axle, hinged
+    // on the centreline) to 1.82 (the Extra's bow), which puts their roll centres at 55 % to 114 % of the CG height —
+    // so at the tyre's μ = 0.8 the factor μ·(drop/run) reaches 1 on the Cub, the Pitts and the Extra, and a rigid-link
+    // treatment is singular there: the load would run away inside a step. A faithful load path
+    // needs what actually reacts it — the shock strut's own geometry, the leg's lateral bending and the tyre's
+    // lateral give — which is a bigger piece of work and Ty's call. The splay below is the kinematics only, so this
+    // model is optimistic about tipping by roughly as much as it is pessimistic about jacking.
+    public enum LegKind { Rigid, Bungee, SpringSteel, SpringAluminum, SpringComposite, Oleo }
+
+    /// <summary>What kind of spring this leg is. Anything that is not a sprung wheel (a keel, a skid, feet) or is
+    /// unauthored is <see cref="LegKind.Rigid"/>: a plain linear spring with no stop, which is the whole fleet's
+    /// behaviour before 2026-11-10.</summary>
+    public static LegKind KindOf(GearConfig g) => g.GearType switch
+    {
+        "bungee" => LegKind.Bungee,
+        "spring-steel" => LegKind.SpringSteel,
+        "spring-aluminum" or "spring-aluminium" => LegKind.SpringAluminum,
+        "spring-composite" or "spring-fibreglass" => LegKind.SpringComposite,
+        "oleo" => LegKind.Oleo,
+        _ => LegKind.Rigid,
+    };
+
+    /// <summary>
+    /// How far the leg compresses at the wheel before it is on its stop (m). A leg may state its own
+    /// (GearConfig.LegTravelM); otherwise it is the kind's:
+    ///  - BUNGEE 0.18 m. A J-3's shock-cord gear is the long-travel one — Ty: "plenty of travel" — and 7 in at the
+    ///    wheel is what the Univair gear geometry gives between the leg's droop and its stop (ESTIMATE from the
+    ///    linkage; nobody has measured his aeroplane). It is ~4 times the static squash, which is what a gear
+    ///    designed for FAR 23's 10 ft/s arrival needs.
+    ///  - a BENDING LEG less: a steel or aluminium leaf 0.12 m, a composite bow 0.14 m (it is the springier one —
+    ///    Ty: "springy fiberglass that flexes nicely").
+    ///  - an OLEO: none. A real oleo's stroke is published per type and nobody has measured the fleet's, so its legs
+    ///    keep the old no-stop spring rather than inherit a guess that could fire on a hard arrival.
+    /// </summary>
+    public const double BungeeTravelM = 0.18, SpringLeafTravelM = 0.12, SpringCompositeTravelM = 0.14;
+    public static double LegTravelM(GearConfig g)
+    {
+        if (g.LegTravelM > 0) return g.LegTravelM;
+        return KindOf(g) switch
+        {
+            LegKind.Bungee => BungeeTravelM,
+            LegKind.SpringSteel or LegKind.SpringAluminum => SpringLeafTravelM,
+            LegKind.SpringComposite => SpringCompositeTravelM,
+            _ => double.PositiveInfinity,
+        };
+    }
+
+    /// <summary>How much stiffer the leg is once it is on its stop (ESTIMATE: rubber blocks and metal-to-metal).</summary>
+    public const double LegStopStiffnessFactor = 8.0;
+
+    /// <summary>
+    /// The leg's own spring force at a compression (N, no damping): the authored rate, plus the stop once the travel
+    /// is used up. Linear in the working range on every kind — a shock cord's stretch and a leaf's bending both are,
+    /// to the accuracy anything here is authored to — so the static stance, and every number tuned against it, is
+    /// unchanged by this function existing.
+    /// </summary>
+    public static double LegForceN(GearConfig g, double stroke)
+    {
+        if (stroke <= 0) return 0;
+        double f = g.SpringN * stroke;
+        double travel = LegTravelM(g);
+        if (stroke > travel) f += (LegStopStiffnessFactor - 1.0) * g.SpringN * (stroke - travel);
+        return f;
+    }
+
+    /// <summary>The leg's secant rate at a compression (N/m): what a linear spring in series with the tyre
+    /// (TireModel.Junction) has to be given so the junction sees the same force at this stroke.</summary>
+    public static double LegSecantNPerM(GearConfig g, double stroke)
+        => stroke > 1e-6 ? LegForceN(g, stroke) / stroke : g.SpringN;
+
+    /// <summary>
+    /// How far outboard the contact point travels per metre the leg compresses: drop/run of the line from the
+    /// fuselage pivot to the contact point. 0 with no pivot authored (a telescopic strut, or a leg nobody has
+    /// measured) — the contact then stays where it is, as it did before.
+    ///
+    /// It is the pivot-to-CONTACT drop, not the pivot-to-axle drop: the wheel cambers with the leg, so the lowest
+    /// point of the tyre moves outboard by the tyre's radius times the leg's rotation on top of the axle's own
+    /// travel. Taking the axle alone halves the answer.
+    /// </summary>
+    public static double SplayPerM(GearConfig g)
+    {
+        if (g.LegPivot == null || g.LegPivot.Length < 3 || g.Pos.Length < 3) return 0.0;
+        double run = System.Math.Abs(g.Pos[1] - g.LegPivot[1]), drop = g.Pos[2] - g.LegPivot[2];
+        if (run < 0.05 || drop <= 0.0) return 0.0;      // a pivot on top of the wheel, or above it: no arc to speak of
+        return drop / run;
+    }
+
+    /// <summary>
+    /// WHERE THE WHEEL ACTUALLY TOUCHES once the leg has compressed <paramref name="stroke"/> metres: on the arc
+    /// about the fuselage pivot, so it is that much higher and further OUTBOARD than the authored point. The
+    /// authored point is the leg at rest on its own (<see cref="GearConfig.Pos"/>, measured off the model), so the
+    /// aeroplane's own weight already widens the track by the static squash times <see cref="SplayPerM"/> — which is
+    /// why a Cub's wheels stand further apart with weight on them than on jacks.
+    ///
+    /// Exact for a hinged leg. A bending bow follows the same tangent and differs only in the second order (its
+    /// chord shortens as it curves: under 3 mm at 100 mm of stroke on the Extra's), which is left out.
+    /// </summary>
+    public static MathTypes.Vec3 ContactPointM(GearConfig g, double stroke)
+    {
+        MathTypes.Vec3 p = g.PosVec();
+        if (stroke <= 0 || SplayPerM(g) <= 0) return p;
+        double qy = g.LegPivot![1], qz = g.LegPivot[2];
+        double run = System.Math.Abs(g.Pos[1] - qy), drop = g.Pos[2] - qz;
+        double len = System.Math.Sqrt(run * run + drop * drop);
+        double dz = drop - stroke;                                    // the contact rises by exactly the stroke
+        if (!(dz > -len)) return p;                                   // swung past the horizontal: not a real stroke
+        double runNew = System.Math.Sqrt(System.Math.Max(0.0, len * len - dz * dz));
+        double side = g.Pos[1] >= qy ? 1.0 : -1.0;
+        return new MathTypes.Vec3(p.X, qy + side * runNew, qz + dz);
+    }
+
     /// <summary>Tyre grip by surface, relative to the config's TireMu (dry pavement): gravel and grass hold less, the
     /// rough infield less again — a swerve there slides.</summary>
     public static double SurfaceGrip(WorldTerrain.Surface s) => s switch
@@ -310,8 +441,8 @@ public static class LandingGear
             if (WorldDecks.All.Count > 0) vel -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
             TireSpec? twTire = TireCatalog.Physical(g);
             loadN = twTire != null
-                  ? TireModel.QuasiStatic(twTire, TirePressure.Psi(config, g), penetration, vel.Z, g.SpringN, g.DampNs, out _)
-                  : System.Math.Max(0, g.SpringN * penetration + g.DampNs * System.Math.Max(0, vel.Z));
+                  ? TireModel.QuasiStatic(twTire, TirePressure.Psi(config, g), penetration, vel.Z, LegSecantNPerM(g, penetration), g.DampNs, out _)
+                  : System.Math.Max(0, LegForceN(g, penetration) + g.DampNs * System.Math.Max(0, vel.Z));
             Vec3 fwdWorld = s.Attitude.Rotate(new Vec3(1, 0, 0));
             Vec3 fwdGround = new Vec3(fwdWorld.X, fwdWorld.Y, 0);
             if (fwdGround.Length > 1e-6 && loadN > 0)
@@ -558,22 +689,34 @@ public static class LandingGear
             // footprint and the slip stiffness. Skids, keels, feet and code-built legs with no tyre are the leg alone.
             TireSpec? tire = g.GearType == "float-keel" ? null : ws != null ? ws.Tire : WheelSpin.IsWheel(g) ? TireCatalog.Physical(g) : null;
             double tyrePsi = tire == null ? 0 : ws != null ? ws.PressurePsi : TirePressure.Psi(config, g);
+            // The LEG's own rate at the compression it is actually at: linear at the authored rate until its travel is
+            // used up, then its stop (LegForceN). The junction below wants a linear spring, so it is given the secant
+            // rate at this stroke; the leg's share of the total compression is what the tyre has not taken, which the
+            // step starts from (the tyre's deflection a step ago — one step of lag on a few-hertz spring).
+            double legStroke = System.Math.Max(0.0, penetration - (ws?.TireDeflM ?? 0.0));
+            double kLeg = LegSecantNPerM(g, legStroke);
             double tyreDefl = 0, normalN;
             if (tire == null)
-                normalN = System.Math.Max(0.0, g.SpringN * penetration + g.DampNs * System.Math.Max(0, compressionRate));
+                normalN = System.Math.Max(0.0, LegForceN(g, penetration) + g.DampNs * System.Math.Max(0, compressionRate));
             else if (ws != null && stage >= 0 && dt > 0)
             {
                 // The step starts from where the last one ended; stages 1–2 look half a step on, stage 3 a whole one.
                 if (firstStage) ws.TireDeflM = ws.TireDeflNextM;
                 double tau = stage == 0 ? 0 : stage == 3 ? dt : 0.5 * dt;
-                tyreDefl = TireModel.Junction(tire, tyrePsi, ws.TireDeflM, penetration, compressionRate, tau, g.SpringN, g.DampNs, ws.TireDampingNsPerM, out normalN);
+                tyreDefl = TireModel.Junction(tire, tyrePsi, ws.TireDeflM, penetration, compressionRate, tau, kLeg, g.DampNs, ws.TireDampingNsPerM, out normalN);
                 if (firstStage)
                     ws.TireDeflNextM = TireModel.Junction(tire, tyrePsi, ws.TireDeflM, penetration + compressionRate * dt, compressionRate, dt,
-                                                          g.SpringN, g.DampNs, ws.TireDampingNsPerM, out _);
+                                                          kLeg, g.DampNs, ws.TireDampingNsPerM, out _);
                 else if (stage == 3) ws.TireDeflNextM = tyreDefl;
             }
-            else normalN = TireModel.QuasiStatic(tire, tyrePsi, penetration, compressionRate, g.SpringN, g.DampNs, out tyreDefl);
+            else normalN = TireModel.QuasiStatic(tire, tyrePsi, penetration, compressionRate, LegSecantNPerM(g, penetration), g.DampNs, out tyreDefl);
             Vec3 normalForce = groundUp * normalN;
+            // WHERE THE WHEEL IS NOW. A hinged or bending leg swings its contact point outboard as it compresses
+            // (ContactPointM), so the force goes on at the WIDENED track and the arm that holds the aeroplane down on
+            // its wheels grows with the load on them. With no pivot authored this is the authored point, as before.
+            // (The contact's VELOCITY is still taken at the authored point: the splay changes it by the splay times the
+            // body rates, millimetres per second, and taking it here would need the stroke before the ground query.)
+            Vec3 rContact = SplayPerM(g) > 0 ? ContactPointM(g, System.Math.Max(0.0, penetration - tyreDefl)) - cg : rBody;
             if (ws != null && firstStage)
             {
                 // A wheel standing in shallow water on the bed is still in the water to the ear.
@@ -603,7 +746,7 @@ public static class LandingGear
                 Vec3 slideF = vMag > 1e-6 ? vG * (-WorldTerrain.KeelSlidingCoefficient(surface) * normalN / (vMag + 0.1)) : Vec3.Zero;
                 Vec3 keelForce = normalForce + slideF;
                 totalForce += keelForce;
-                totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody), keelForce);
+                totalMoment += Vec3.Cross(s.Attitude.Rotate(rContact), keelForce);
                 continue;
             }
 
@@ -614,7 +757,7 @@ public static class LandingGear
             if (fwdLen < 1e-6)
             {
                 totalForce += normalForce;
-                totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody), normalForce);
+                totalMoment += Vec3.Cross(s.Attitude.Rotate(rContact), normalForce);
                 continue;
             }
 
@@ -751,10 +894,10 @@ public static class LandingGear
                 }
             }
             Vec3 wheelForce = normalForce + tireForce;
-            Aero.ForceDebug.Add(g.PosVec(), s.Attitude.Conjugate().Rotate(wheelForce), Vec3.Zero, "gear");
+            Aero.ForceDebug.Add(rContact + cg, s.Attitude.Conjugate().Rotate(wheelForce), Vec3.Zero, "gear");
 
             totalForce += wheelForce;
-            totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody), wheelForce);
+            totalMoment += Vec3.Cross(s.Attitude.Rotate(rContact), wheelForce);
         }
 
         return (totalForce, totalMoment);

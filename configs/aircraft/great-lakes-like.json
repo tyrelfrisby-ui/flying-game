@@ -1483,7 +1483,11 @@
       "corneringStiffnessN": 8000,
       "toeOutDeg": 2.0,
       "toeOutDegSource": "Standard 2 degrees of toe-out on every taildragger's mains (Ty 2026-11-10: \"Use 2 degrees toe out on all taildraggers standard unless I adjust based on feel\"). A standing slip angle outboard on each wheel: level the pair cancel, and when one is loaded more its outboard side force is the larger, pushing the aeroplane back toward the light side - \"The loaded tire tries to unload back to the other\". The sign comes from each wheel's own y, so one value means outboard on both (LandingGear.ToeRad). Live-tunable in OPTIONS while flying.",
-      "tire": "6.00-6", "tirePressurePsi": 21
+      "tire": "6.00-6", "tirePressurePsi": 21,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock strut (build_great_lakes.py, from the 2T-1A-2 layout: \"oleo shock strut\"; the model has Gear_OleoTop_L/R). The spring is an oleo and the LINKAGE still swings, which is why the two are authored apart: a telescopic strut would have no legPivot.",
+      "legPivot": [-0.479, -0.05, 0.83],
+      "legPivotSource": "Measured off great-lakes-like-own.glb, which has the linkage rigged: Gear_Pivot_L at span 0.050, up -0.830 -- the half-axle's U-joint on the fuselage centreline (build_great_lakes.py: \"axle U-joint hinge at the fuselage centreline (Gear_Pivot_L/R), compression strut aft to the lower longeron fitting\") -- and the wheel touching at span 1.079, up -1.482. 1.03 m out, 0.652 m down: splay 0.63, half a Cub's, because a half-axle from the centreline is a long arm."
     },
     {
       "pos": [
@@ -1499,7 +1503,13 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tire": "6.00-6", "tirePressurePsi": 21
+      "tire": "6.00-6", "tirePressurePsi": 21,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock strut (build_great_lakes.py, from the 2T-1A-2 layout: \"oleo shock strut\"; the model has Gear_OleoTop_L/R). The spring is an oleo and the LINKAGE still swings, which is why the two are authored apart: a telescopic strut would have no legPivot.",
+      "legPivot": [-0.479, 0.05, 0.83],
+      "legPivotSource": "Measured off great-lakes-like-own.glb, which has the linkage rigged: Gear_Pivot_L at span 0.050, up -0.830 -- the half-axle's U-joint on the fuselage centreline (build_great_lakes.py: \"axle U-joint hinge at the fuselage centreline (Gear_Pivot_L/R), compression strut aft to the lower longeron fitting\") -- and the wheel touching at span 1.079, up -1.482. 1.03 m out, 0.652 m down: splay 0.63, half a Cub's, because a half-axle from the centreline is a long arm.",
+      "toeOutDeg": 2.0,
+      "toeOutDegSource": "The matching value for THIS wheel. Toe is per leg (LandingGear.ToeRad reads g.ToeOutDeg and takes the sign from the wheel's own y), so a value on one main and nothing on the other is not 2 degrees out on both -- it is 2 out on one wheel and dead straight on the other, a standing uncancelled side force of about 0.42 of that wheel's load (12 per rad x 2 deg) with nothing opposing it. The 2026-11-10 toe-out commit says \"Sixteen types, both mains each\" and wrote the field to the FIRST main only on fourteen of them; this is the other main on each, with the same number. Ty's knob (LandingGear.ToeOutOverrideDeg) always covered both, which is why the two types he was flying when he chose the number -- the Pitts and the Extra, the two the commit did write both -- felt right."
     },
     {
       "pos": [

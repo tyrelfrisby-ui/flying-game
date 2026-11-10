@@ -1184,7 +1184,45 @@ public sealed class GearConfig
     /// (right) points right, a wheel at -y points left.
     /// </summary>
     public double ToeOutDeg { get; set; }
-    public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
+
+    /// <summary>
+    /// WHAT KIND OF SPRING this leg is: "bungee" (rubber shock cord), "spring-steel" / "spring-aluminum" /
+    /// "spring-composite" (a leaf or a bow that bends), "oleo" (air over oil). Also, historically, what kind of
+    /// CONTACT it is where it is not a sprung wheel at all: "float-keel", "nose-skid", "tail-skid", "tip-skid",
+    /// "feet" — those are read all over the sim and must keep their meaning.
+    ///
+    /// Since 2026-11-10 the spring kinds are not labels: they set the leg's TRAVEL to its stop and the shape of its
+    /// force past it (LandingGear.LegTravelM, LandingGear.LegForceN). They do not decide
+    /// whether the wheel swings outboard as it compresses — that is the LINKAGE, which is <see cref="LegPivot"/>: a
+    /// bungee on a pivoting half-axle (the Great Lakes' oleo too) swings, a telescopic strut does not.
+    /// </summary>
+    public string GearType { get; set; } = "";
+    public string GearTypeSource { get; set; } = "";
+
+    /// <summary>
+    /// THE FUSELAGE ATTACHMENT this leg swings about: (x, y, z) in the same body frame as <see cref="Pos"/> (vs the
+    /// config datum, +z DOWN). null/empty = no linkage modelled, and the contact point stays put as the leg
+    /// compresses, which is what the whole fleet did before 2026-11-10.
+    ///
+    /// Ty 2026-11-10, on his own J-3 and Pitts: "Pivot at the fuselage attachment and so does the pitts" — "The cub
+    /// bungees are in the black leather bags on the gear legs, the pitts bungees are in the belly and the cabana
+    /// struts attach to them". The legs are rigid and hinge on the fuselage, so compressing them swings the wheels
+    /// along an arc: OUT as well as up, and the track WIDENS. A composite bow (the Extra) bends instead of hinging,
+    /// and to first order its tip moves the same way — perpendicular to the leg — so it is authored the same way,
+    /// with the pivot at the root.
+    ///
+    /// Only the y and z matter to the motion (the hinge axis is fore-and-aft); x is authored where the pin is.
+    /// Measured off the models, which carry the real linkage: the J-3's and the Great Lakes' GLBs have the hinge
+    /// rigged (Gear_Pivot_L/R + Gear_HingeAxis), and the Pitts' and the Extra's leg meshes are measured at the
+    /// fuselage. LandingGear.SplayPerM is the rate that falls out, and GearGeometryTests holds each
+    /// type to its model.
+    /// </summary>
+    public double[]? LegPivot { get; set; }
+    public string LegPivotSource { get; set; } = "";
+    /// <summary>How far this leg can compress before it is on its stop (m at the wheel). 0 = the kind's own
+    /// (LandingGear.LegTravelM).</summary>
+    public double LegTravelM { get; set; }
+    public string LegTravelSource { get; set; } = "";
     // THE TYRE (Ty 2026-11-04, "proper tundra tires"): which tyre is on this leg, by TireCatalog id. Its size, width,
     // masses, inertia, carcass and pressures all come from the catalog — one source of truth — and a config never
     // states a tyre's radius or mass by hand any more (TireCatalogTests holds every config to it).
