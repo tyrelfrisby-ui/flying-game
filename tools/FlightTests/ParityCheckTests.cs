@@ -121,6 +121,40 @@ public class ParityCheckTests : IDisposable
         Assert.Equal(1, Check("--strict").code);
     }
 
+    /// <summary>
+    /// Ty 2026-11-10: "Keep the aero widget in parity with the app" — "Enforce it like the others." The widget is the
+    /// same project, the same scene and the same src/ as the game, so it cannot be a third branch target
+    /// (docs/PARITY.md, "The widget"). What CAN drift is the widget's own files between the two lanes, and three of
+    /// the paths it is built from are NEUTRAL to the commit lock. tools/native-mac/ is the one that bit: it is the
+    /// SOURCE of the AeroNative bundle whose committed product is already shared, so on 2026-11-10 the two lanes
+    /// differed by 98 lines of it with the parity gate green throughout. This is the GLB check's own mechanism —
+    /// blob against blob — pointed at that surface.
+    /// </summary>
+    [Fact]
+    public void ADriftedWidgetFileIsReportedAndFailsWhenStrict()
+    {
+        On("ios", "tools/native-mac/build.sh", "mac v1", "widget native side");
+        Git("checkout -q quest"); Git("merge -q --no-ff ios -m merge");
+        Assert.Contains("widget: all 1 files identical", Check().output);
+
+        // The neutral path drifts on the Quest lane alone: the commit lock cannot see it, this check must.
+        On("quest", "tools/native-mac/build.sh", "mac v2", "quest-only change to the widget's native source");
+        var (code, o) = Check();
+        Assert.Equal(0, code);
+        Assert.Contains("DIFFERENT      tools/native-mac/build.sh", o);
+        Assert.Contains("the widget is built from the same scene and src/ as the app", o);
+        Assert.Equal(1, Check("--strict").code);
+    }
+
+    /// <summary>A widget file on one lane only is drift too: the widget would build differently from each lane.</summary>
+    [Fact]
+    public void AWidgetFileOnOneLaneOnlyIsReported()
+    {
+        On("ios", "unity/Assets/_Project/Widget/Resources/WidgetCopy.shader", "alpha blend", "widget copy shader");
+        var (_, o) = Check();
+        Assert.Contains("only on iOS    unity/Assets/_Project/Widget/Resources/WidgetCopy.shader", o);
+    }
+
     [Fact]
     public void AnArtLaneInNeitherIsListed()
     {
