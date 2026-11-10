@@ -391,7 +391,10 @@ public sealed partial class Aircraft
         return true;
     }
 
-    private static Func<Vec3, Vec3> BendOf(WingPanel p) => v => p.Deform(v);
+    /// <summary>The shape under a bent wing's ailerons, for the slave strut's geometry: the WHOLE shape the wing is
+    /// flying (WingPanel.Shape — the strike's kink, the aerodynamic curve from the root, and any fold), because the
+    /// strut's two pins sit on whatever the wing is actually doing.</summary>
+    private static Func<Vec3, Vec3> BendOf(WingPanel p) => v => p.Shape(v);
 
     // ---- wing panels -------------------------------------------------------------------------------------------------
 
@@ -566,7 +569,7 @@ public sealed partial class Aircraft
         if (w.FoldRad != 0.0) ShapeWingSide(w);
         else
         {
-            foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Deform(b0);
+            foreach (ContactPoint p in _contacts) if (p.Panel == k && _straightBody.TryGetValue(p, out Vec3 b0)) p.Body = w.Shape(b0);
             foreach (int i in w.Strips) WriteStripShape(w, i);
         }
         foreach (int i in w.Strips)

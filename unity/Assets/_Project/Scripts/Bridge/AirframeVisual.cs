@@ -708,7 +708,7 @@ namespace FlyingGame.Bridge
             public Matrix4x4 RootToLocal;
         }
         private readonly Dictionary<FlyingGame.Core.AirframeComponent, List<BentPiece>> _bentPieces = new();
-        private readonly Dictionary<FlyingGame.Core.AirframeComponent, Vector3> _bentShown = new();
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, Vector4> _bentShown = new();
         /// <summary>The panel has been drawn bent or flexed this flight (so it is redrawn when the flex comes off).</summary>
         public bool HasBentPanel(FlyingGame.Core.AirframeComponent c) => _bentPieces.ContainsKey(c);
 
@@ -914,10 +914,22 @@ namespace FlyingGame.Bridge
                                 new Vector3(0f, (float)-p.ChordLineZ(stationY), (float)p.FlexuralX(stationY)));
             Matrix4x4 b = About(Quaternion.AngleAxis(p.Side * (float)bendRad * Deg, Vector3.forward),
                                 new Vector3(p.Side * (float)p.BreakY, (float)-p.BreakZ, 0f));
-            if (foldRad == 0.0) return b * t;
+            // THE AERODYNAMIC CURVE at this surface's own station (Ty 2026-11-10). A bending beam's cross-section stays
+            // rigid, so the curve's effect on a slender surface IS a rigid motion: turn by the local slope there, and
+            // move the station's chord line to where the curve has put it. Exact, not a stand-in — and the same
+            // WingPanel.CurveSection the strips and the drawn vertices use, so the aileron lands on its own skin.
+            Matrix4x4 c = Matrix4x4.identity;
+            if (p.AeroBendRad != 0.0)
+            {
+                (double slope, double yc, double zc) = p.CurveSection(stationY, p.AeroBendRad);
+                Matrix4x4 turn = About(Quaternion.AngleAxis(p.Side * (float)slope * Deg, Vector3.forward),
+                                       new Vector3(p.Side * stationY, (float)-p.BreakZ, 0f));
+                c = Matrix4x4.Translate(new Vector3(p.Side * (float)(yc - stationY), (float)(p.BreakZ - zc), 0f)) * turn;
+            }
+            if (foldRad == 0.0) return c * b * t;
             Matrix4x4 f = About(Quaternion.AngleAxis(p.Side * (float)foldRad * Deg, Vector3.forward),
                                 new Vector3(p.Side * (float)p.RootY, (float)-p.BreakZ, 0f));
-            return f * b * t;
+            return f * c * b * t;
         }
 
         /// <summary>Move a bent panel's carried surfaces to the shape it is drawn at.</summary>
@@ -929,7 +941,7 @@ namespace FlyingGame.Bridge
         {
             if (!_carried.TryGetValue(p.Component, out List<CarriedSurface> list)) return;
             foreach (CarriedSurface c in list)
-                PoseCarrier(c, PanelMotion(p, c.Station, p.BendRad + flexRad, c.UnderSurface ? 0.0 : p.FoldRad));
+                PoseCarrier(c, PanelMotion(p, c.Station, p.StrikeBendRad + flexRad, c.UnderSurface ? 0.0 : p.FoldRad));
         }
 
         /// <summary>The structure has gone: its carriers go back to identity, because what is left of the surface belongs
@@ -1198,7 +1210,10 @@ namespace FlyingGame.Bridge
         /// is drawn rather than accumulated. Skipped when the shape has not moved since it was last drawn.</summary>
         private void PosePanelPieces(FlyingGame.Core.WingPanel p)
         {
-            double flex = p.ElasticRad + p.FlightFlexRad;   // a tip contact's flex and the wings' flex under g (Ty 2026-11-05)
+            // The two flexes are DIFFERENT SHAPES and no longer add up (Ty 2026-11-10). A tip contact's elastic
+            // rotation is part of the station's KINK; the wings' flex under g is part of the aerodynamic CURVE from the
+            // root, and the panel already carries it in WingPanel.AeroBendRad.
+            double flex = p.ElasticRad;
             // The ailerons move with the wing, on their hinges (Ty 2026-11-09). BEFORE the shape short-circuit below: a
             // carrier that hangs UNDER its aileron is expressed in a frame the hinge moves, so it has to be
             // re-conjugated every frame even when the bend has not changed — otherwise the outboard share swims as the
@@ -1206,9 +1221,13 @@ namespace FlyingGame.Bridge
             PoseCarriedPanel(p, flex);
             // The FOLD is part of the shape (Ty 2026-11-10), so a wing that folds further has to be redrawn: without it
             // in the key the panel would be frozen at whatever fold it had when the bend last moved.
-            var shape = new Vector3((float)(p.BendRad + flex), (float)p.TwistRad, (float)p.FoldRad);
-            if (_bentShown.TryGetValue(p.Component, out Vector3 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f
-                && Mathf.Abs(shape.y - shown.y) < 1e-3f && Mathf.Abs(shape.z - shown.z) < 1e-3f) return;
+            // FOUR numbers, not a sum of them: the strike's kink, the twist, the aerodynamic curve and the fold are
+            // four different shapes, and adding any two would let one grow while another shrank without the drawn wing
+            // ever being told to move.
+            var shape = new Vector4((float)(p.StrikeBendRad + flex), (float)p.TwistRad, (float)p.FoldRad, (float)p.AeroBendRad);
+            if (_bentShown.TryGetValue(p.Component, out Vector4 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f
+                && Mathf.Abs(shape.y - shown.y) < 1e-3f && Mathf.Abs(shape.z - shown.z) < 1e-3f
+                && Mathf.Abs(shape.w - shown.w) < 1e-3f) return;
             _bentShown[p.Component] = shape;
             // BOTH pivots' pieces: the panel outboard of the station, and the inboard bay of a wing that has FOLDED
             // (ShowWingFold). Every vertex goes through the same WingPanel.Shape, so the two meet at the station.
@@ -1221,9 +1240,9 @@ namespace FlyingGame.Bridge
                 var v = new Vector3[bp.StraightRoot.Length];
                 for (int i = 0; i < v.Length; i++)
                 {
-                    // Root-local x = sim y, y = up (−sim z), z = sim x. Shape, not Deform: the same call the STRIPS fly
-                    // (WingPanel.Shape = twist, the station's kink, then the root FOLD), so the drawn wing cannot be in
-                    // a shape the aeroplane is not flying.
+                    // Root-local x = sim y, y = up (−sim z), z = sim x. Shape, not Deform: the same call the STRIPS
+                    // fly — twist, the strike's KINK at the station, the aerodynamic CURVE from the root, then the
+                    // root FOLD — so the drawn wing cannot be in a shape the aeroplane is not flying.
                     Vector3 r = bp.StraightRoot[i];
                     FlyingGame.Core.MathTypes.Vec3 d = p.Shape(new FlyingGame.Core.MathTypes.Vec3(r.z, r.x, -r.y), flex);
                     v[i] = bp.RootToLocal.MultiplyPoint3x4(new Vector3((float)d.Y, (float)-d.Z, (float)d.X));
