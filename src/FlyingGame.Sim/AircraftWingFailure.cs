@@ -148,7 +148,7 @@ public sealed partial class Aircraft
         _flowState.BendOffset ??= new Vec3[_stripTotal];
         foreach (int i in p.SideStrips) WriteStripShape(p, i);
         foreach (ContactPoint cp in _contacts)
-            if (cp.Panel == k && _straightBody.TryGetValue(cp, out Vec3 b0)) cp.Body = ShapeOf(p, b0, 0.0);
+            if (cp.Panel == k && _straightBody.TryGetValue(cp, out Vec3 b0)) cp.Body = p.Shape(b0);
     }
 
     /// <summary>One row's shape under its panel: into <see cref="StripFlowState.BendRad"/> (the local rotation the aero
@@ -158,29 +158,11 @@ public sealed partial class Aircraft
         if (_stripAt[i] is not { } st) return;
         Vec3 pos = st.PosVec();
         _flowState.BendRad![i] = LocalBendRad(p, Math.Abs(pos.Y));
-        _flowState.BendOffset![i] = ShapeOf(p, pos, p.FlightFlexRad) - pos;
-    }
-
-    /// <summary>The panel's whole shape applied to a straight-wing body point: its own station deformation (twist, then
-    /// the kink of a strike's bend plus the overstress set plus <paramref name="extraFlexRad"/>), and then the root fold
-    /// on top of all of it.</summary>
-    private static Vec3 ShapeOf(WingPanel p, Vec3 v, double extraFlexRad)
-    {
-        Vec3 shaped = p.Deform(v, extraFlexRad);
-        return p.FoldRad != 0.0 ? FoldAboutRoot(p, shaped, p.FoldRad) : shaped;
+        _flowState.BendOffset![i] = p.Shape(pos, p.FlightFlexRad) - pos;
     }
 
     /// <summary>The rotation the section at |y| is flying at: the fold everywhere on the wing, plus the panel's kink
     /// outboard of its station.</summary>
     private static double LocalBendRad(WingPanel p, double absY) =>
         p.FoldRad + (absY > p.BreakY ? p.BendRad + p.FlightFlexRad : 0.0);
-
-    /// <summary>A body point of this wing turned about its ROOT by <paramref name="rad"/> (+ = up), the way
-    /// <see cref="WingPanel.Bend"/> turns one about the station.</summary>
-    private static Vec3 FoldAboutRoot(WingPanel p, Vec3 v, double rad)
-    {
-        if (rad == 0 || Math.Sign(v.Y) != p.Side || Math.Abs(v.Y) < p.RootY) return v;
-        double dy = v.Y - p.Side * p.RootY, dz = v.Z - p.BreakZ, c = Math.Cos(rad), s = Math.Sin(rad);
-        return new Vec3(v.X, p.Side * p.RootY + dy * c + p.Side * dz * s, p.BreakZ + dz * c - p.Side * dy * s);
-    }
 }
