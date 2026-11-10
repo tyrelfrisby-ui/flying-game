@@ -670,6 +670,36 @@ public sealed class SpinAeroConfig
     public double StabHighAlphaK { get; set; } = 1.0;
 
     /// <summary>
+    /// FIN AND RUDDER IN THE FUSELAGE'S ACCELERATED CROSSFLOW. 0 = off (today's behaviour, so no type changes until
+    /// it is entered), 1 = full cylinder theory. Scales each VERTICAL strip's LATERAL flow component by
+    ///     amp = 1 + k * (R/r)^2,   r = the strip's distance from the fuselage axis, clamped to R
+    /// with R the local body radius. Potential flow past a circular cylinder has surface speed 2*V*sin(theta),
+    /// peaking at the two points 90 degrees from the stagnation line - and for a crossflow coming at the side of a
+    /// fuselage, those two points are the TOP and the BOTTOM. A fin standing up off the fuselage therefore sits
+    /// exactly in the accelerated flow, with up to twice the lateral velocity at the root and so four times the
+    /// lateral dynamic pressure, decaying as 1 + (R/r)^2 to free stream a body-diameter out. This is the mechanism
+    /// behind DATCOM's fin sidewash factor and it is NOT in a strip model, which hands each strip the free-stream
+    /// lateral component however close to the body it sits.
+    ///
+    /// Ty, 2026-11-09: "The rudder is much more effective in real life during spin recovery", then "Build it so I
+    /// can test the rudder crossflow fix".
+    ///
+    /// WHY THIS AND NOT THE SECTION. Three attempts at reshaping the fin's own curve all failed on an arithmetic
+    /// wall (tools/aircraft_builder/fin_section.py): authority at a local angle A is CN(A+30) - CN(A-30), CN cannot
+    /// exceed the broadside plate at ~1.19, and `fin-lowAR` is at 97 % of that ceiling by 30 degrees, so authority
+    /// there REQUIRES a low CN at A-30 - which is simultaneously the autorotation drive and the rudder power that
+    /// enters the spin. This term escapes the wall entirely because it multiplies q, not CN: the rudder's moment
+    /// is dCN * q * S, so it scales with the dynamic pressure the surface is actually working in. And it is ZERO
+    /// without crossflow, so ordinary flight, the spin entry and the attached rudder are all untouched.
+    ///
+    /// THE GEOMETRY IS THE WEAK PART, and the knob carries it. With measured fuselage stations R is the local
+    /// half-depth; without them it falls back to the MEAN half-depth from the crossflow block's side area and
+    /// length, which over-states R at the tail where the fuselage has tapered. So the shape of the law is derived
+    /// and its scale is not: 1.0 is cylinder theory on a mean radius, not a measurement.
+    /// </summary>
+    public double FinSidewashK { get; set; } = 0.0;
+
+    /// <summary>
     /// GEOMETRIC HELICAL SHADOW DEPTH, 0 = use the Report 648 wake path instead (the default, so no type changes until
     /// it is entered). Above 0, EVERY surface's dynamic-pressure loss - wings, stabiliser, fin, all of them - is computed
     /// from THIS AIRFRAME'S OWN GEOMETRY by marching the real helical air path upstream from each section and seeing what
