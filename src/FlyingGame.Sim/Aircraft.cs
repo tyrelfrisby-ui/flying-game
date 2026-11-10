@@ -1830,9 +1830,16 @@ public sealed partial class Aircraft
             if (deficit == 0.0) return (0.0, 0.0, 0.0);
             return (deficit, 0.7 * radius, SwirlFactor * deficit * config.Propulsion.RotationSign);
         }
-        double thrust = System.Math.Max(0.0, tF.X);
-        double vSlip = System.Math.Sqrt(vNow * vNow + 2.0 * thrust / (airDensity * disc));
-        double du = 0.9 * System.Math.Max(0.0, vSlip - vNow);
+        // THE THRUST IS SIGNED, and at idle it goes NEGATIVE. Floored at zero the disc could only ever make a jet,
+        // never a wake: at idle the tail got air at freestream speed when it should be getting air the propeller has
+        // SLOWED. Ty 2026-11-09: "at idle not only will the prop not produce a jet tube but it will in fact slow the
+        // air down." Momentum theory says the same thing with the sign kept - v_slip^2 = V^2 + 2T/(rho A) is below V
+        // when T < 0 - and it is the same equation the windmilling branch above already uses; the only reason a
+        // RUNNING engine never reached it was the Max(0).
+        double thrust = tF.X;
+        double vSlip2 = vNow * vNow + 2.0 * thrust / (airDensity * disc);
+        double vSlip = System.Math.Sqrt(System.Math.Max(0.0, vSlip2));
+        double du = 0.9 * (vSlip - vNow);                       // < 0 when the disc is braking the air
         // A SOLVED PROPELLER MEASURES ITS OWN TUBE, in width and in rotation, instead of taking the two constants
         // below. Both of those constants are the STATIC limit of the real thing wearing a fixed number, which is why
         // they looked harmless: at V = 0 they are very nearly right.
@@ -1851,11 +1858,15 @@ public sealed partial class Aircraft
         //     Q = rho * V_t * 2 pi * Omega * integral(r^3 dr, 0..R_s) = rho * V_t * pi * Omega * R_s^4 / 2
         // and the edge speed PropJet wants is Omega * R_s = 2 Q / (rho * pi * R_s^3 * V_t). What the blades took out
         // of the crankshaft is then exactly what the fin feels, with nothing in between to tune.
-        if (parts.SwirlC != 0.0 && thrust > 0.0)
+        if (parts.SwirlC != 0.0 && System.Math.Abs(du) > 1e-6)
         {
             double vi = 0.5 * (vSlip - vNow);                       // momentum theory at the disc; far wake is 2 v_i
+            // AND A BRAKING DISC EXPANDS ITS WAKE. The ratio is the same sqrt((V+vi)/(V+2vi)), but with vi NEGATIVE
+            // the denominator is the smaller of the two and it comes out ABOVE one. Clamped to 1.0 it could only ever
+            // contract, which is the thrusting case wearing the general formula's clothes. The upper bound is kept
+            // loose rather than absent: the far wake of a disc near zero through-flow is not a tube at all.
             double contraction = System.Math.Sqrt((vNow + vi) / System.Math.Max(1e-6, vNow + 2.0 * vi));
-            double rs = radius * System.Math.Clamp(contraction, 0.70, 1.0);
+            double rs = radius * System.Math.Clamp(contraction, 0.70, 1.6);
             double vTube = vNow + du;
             double q = System.Math.Abs(parts.TorqueRoll);
             double edge = 2.0 * q / System.Math.Max(1e-6, airDensity * System.Math.PI * rs * rs * rs * vTube);

@@ -53,7 +53,10 @@ public class TailWashSpinProbe
                     if (n++ < 8) sb.Append($" {w.Length,5:F2}");
                 }
             }
+            double arm = AirframeContact.PropHubsBody(c)[0].X - c.Mass.CgVec().X;
+            double myInPlane = -arm * parts.InPlane.Z;    // My from the disc force on its arm: + = nose UP
             _o.WriteLine($"  {name,-8} | {parts.Thrust,8:F0} | {du,6:F2} | {r,6:F3} | {swirl,9:F2} | {sb}");
+            _o.WriteLine($"           inPlane ({parts.InPlane.Y,7:F0},{parts.InPlane.Z,7:F0}) N   pitching My {myInPlane,8:F0} N.m  ({(myInPlane > 0 ? "NOSE UP - flattens" : "nose down - steepens")})");
         }
     }
 }
