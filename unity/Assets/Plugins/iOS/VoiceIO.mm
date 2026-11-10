@@ -97,6 +97,9 @@ FRing gSideRing, gClipOwn;
 BRing gTx;
 std::atomic<float> gMicLevel{0};
 std::atomic<bool> gKeepOffTv{false}, gForceSpeaker{false}, gRxOnTv{false};
+/// A TV is connected and NOBODY IS TALKING, so the TV should have the game's sound. See ApplySession: this is the
+/// one condition under which the microphone has to be let go of entirely.
+std::atomic<bool> gTvWantsAudio{false};
 NSString *gRouteOutputs = @"";   // comma-separated port types, for C# (guarded by @synchronized)
 
 void ProcessMic(const float *x, uint32_t n) {
@@ -196,10 +199,32 @@ void ApplySession() {
     AVAudioSession *s = AVAudioSession.sharedInstance;
     bool keepOff = gKeepOffTv.load(), engine = gEngine != nil;
     NSError *err = nil;
+    // PLAY-AND-RECORD CANNOT OUTPUT TO A TV. iOS offers that category the speaker, the receiver, headphones and
+    // Bluetooth — not HDMI. So while the voice engine exists the TV is silent whatever options are set, which is
+    // what Ty kept reporting with the game already on the screen: "The phone has audio but not the tv". Removing
+    // DefaultToSpeaker was not enough and could not have been.
+    //
+    // So when a TV is connected and no one is talking, the microphone is let go: the engine stops, the session
+    // goes back to plain Playback, and the TV gets the sound. VO_EnsureMic starts it again the moment the mic is
+    // actually wanted, which is what the PTT already calls. Nothing is lost but the idle mic.
+    if (gTvWantsAudio.load() && !keepOff && gEngine != nil) {
+        [gEngine stop];
+        gEngine = nil;
+        gState = 0;          // VO_EnsureMic will build it again on the next PTT
+        engine = false;
+        NSLog(@"[VoiceIO] TV connected and nobody talking: released the mic so the TV can have the audio");
+    }
     if (engine || keepOff) {
-        AVAudioSessionCategoryOptions o = AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetooth |
+        // DefaultToSpeaker ONLY WHEN WE ARE KEEPING THE SOUND OFF THE TV. Ty 2026-11-10, with the game finally on
+        // the TV: "Still no sound on the tv that has not been fixed". The policy was right — TvAudioPolicy only
+        // holds audio back while VOICE is in use — but this did not implement it: the moment the voice engine
+        // existed at all, play-and-record was set with DefaultToSpeaker, and that option pins the route to the
+        // phone's own speaker whatever is plugged in. So an idle PTT was enough to keep HDMI silent for ever.
+        // Now the speaker is forced only when keepOff says to; otherwise iOS picks the route, which is the TV.
+        AVAudioSessionCategoryOptions o = AVAudioSessionCategoryOptionAllowBluetooth |
                                           AVAudioSessionCategoryOptionAllowBluetoothA2DP | AVAudioSessionCategoryOptionMixWithOthers;
-        if (!keepOff) o |= AVAudioSessionCategoryOptionAllowAirPlay;
+        if (keepOff) o |= AVAudioSessionCategoryOptionDefaultToSpeaker;
+        else o |= AVAudioSessionCategoryOptionAllowAirPlay;
         if (![s.category isEqualToString:AVAudioSessionCategoryPlayAndRecord] || s.categoryOptions != o)
             [s setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:o error:&err];
         [s overrideOutputAudioPort:gForceSpeaker.load() ? AVAudioSessionPortOverrideSpeaker : AVAudioSessionPortOverrideNone error:nil];
@@ -311,6 +336,15 @@ void VO_Init(int unityRate)
 }
 
 /// Q7: carry out Core TvAudioPolicy's decision (VoiceComms.cs calls this when it changes). Main thread.
+/// A TV is connected and voice is idle (VoiceComms, from TvAudioPolicy's own inputs).
+extern "C" void VO_SetTvWantsAudio(int wants)
+{
+    bool w = wants != 0;
+    if (gTvWantsAudio.load() == w) return;
+    gTvWantsAudio = w;
+    dispatch_async(dispatch_get_main_queue(), ^{ ApplySession(); });
+}
+
 void VO_SetRoute(int keepOffTv, int forceSpeaker)
 {
     gKeepOffTv = keepOffTv != 0;

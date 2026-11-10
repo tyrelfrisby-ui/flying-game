@@ -79,9 +79,17 @@ public sealed class CockpitLook
     private double _deviceYaw, _devicePitch;
 
     /// <summary>Right is positive, matching a positive yaw to the right in the body frame.</summary>
-    public double YawDeg => System.Math.Clamp(_manualYaw + _deviceYaw, -MaxYawDeg, MaxYawDeg);
+    /// <summary>How far round the view may go. <see cref="MaxYawDeg"/> for a hat; a look PAD raises it to its own
+    /// sweep, up to straight behind, because the pad's rim has to mean something (Ty 2026-11-10).</summary>
+    public double YawLimitDeg = MaxYawDeg;
+
+    /// <summary>How far up and down the view may go. The seated limits for a hat; a look PAD raises them to its own
+    /// half-sweep, because its rim has to mean "straight up" and "straight down" (Ty 2026-11-10).</summary>
+    public double PitchLimitUpDeg = MaxPitchUpDeg, PitchLimitDownDeg = MaxPitchDownDeg;
+
+    public double YawDeg => System.Math.Clamp(_manualYaw + _deviceYaw, -YawLimitDeg, YawLimitDeg);
     /// <summary>Up is positive.</summary>
-    public double PitchDeg => System.Math.Clamp(_manualPitch + _devicePitch, -MaxPitchDownDeg, MaxPitchUpDeg);
+    public double PitchDeg => System.Math.Clamp(_manualPitch + _devicePitch, -PitchLimitDownDeg, PitchLimitUpDeg);
 
     /// <summary>What the hat and the snaps have asked for, before the device is added. For the view panel, which
     /// has to know whether letting go would leave the pilot looking anywhere.</summary>
@@ -107,10 +115,64 @@ public sealed class CockpitLook
 
     /// <summary>Pan while held. <paramref name="x"/> and <paramref name="y"/> are -1, 0 or +1: right and up positive.
     /// Called every frame with 0,0 when nothing is held, which is what lets <see cref="SpringCentre"/> work.</summary>
-    public void Hat(int x, int y, double dt)
+    public void Hat(int x, int y, double dt) => Pan(System.Math.Sign(x), System.Math.Sign(y), dt);
+
+    /// <summary>
+    /// Pan while held, PROPORTIONALLY: <paramref name="x"/> and <paramref name="y"/> run -1..+1, right and up
+    /// positive, and a half-deflected thumb pans at half rate. A hat has three positions per axis and calls
+    /// <see cref="Hat"/>; a touch pad has as many as the thumb does, and the owner's TV controller puts the whole
+    /// look on one pad (Ty 2026-11-10: "one with gyro control with a touchpad for look around"), where panning at
+    /// full rate for the smallest touch would be unusable.
+    ///
+    /// Called every frame with 0,0 when nothing is held, which is what lets <see cref="SpringCentre"/> work.
+    /// </summary>
+    /// <summary>
+    /// THE PAD IS THE VIEW, not a control that moves it. Ty 2026-11-10: "make panning position based not rate based
+    /// i think it will be more natural so the touchpad represents 360 degrees of view l/r u/d" — so the thumb's
+    /// position on the pad IS where the head is pointing, and letting go leaves it there. Nothing integrates, so
+    /// the view cannot drift and there is nothing to centre.
+    ///
+    /// <paramref name="x"/> and <paramref name="y"/> are the pad's own deflection, -1..+1, right and up positive.
+    ///
+    /// EXPO, because a linear pad is unusable where it matters most: "put some expo on it so looking around near
+    /// straight forward is less sensitive/twitchy". Most flying is done looking ahead and glancing a little off
+    /// axis, so the middle of the pad has to be fine and the edges coarse. x·|x|^(e) with e = <paramref name="expo"/>
+    /// (0 linear, 1 square-law), odd in x so it is symmetric and still reaches full travel at the rim.
+    ///
+    /// <paramref name="sweepDeg"/> is how much of the world the pad's width covers, 360 (the rim is straight behind,
+    /// over either shoulder) down to 180 (the rim is abeam, and you cannot look behind at all): "make the field of
+    /// view adjustable from 360 to 180 ie head directly left right up down but not behind". Pitch takes the same
+    /// fraction of its own up and down limits, which are not symmetric — your lap stops you looking down.
+    /// </summary>
+    public void SetFromPad(double x, double y, double expo, double sweepDeg)
+    {
+        double halfYaw = System.Math.Clamp(sweepDeg, 180.0, 360.0) * 0.5;
+        YawLimitDeg = System.Math.Max(MaxYawDeg, halfYaw);
+        // PITCH GETS ITS OWN HALF OF THE SWEEP, capped at straight up and straight down. Ty 2026-11-10: "It looks
+        // up to 90 right/left but only from straight ahead to 90 up and nothing down" — the pad was mapping pitch
+        // onto the SEATED limits (75 up, 60 down) while yaw ran to the sweep, so the two axes did not match and the
+        // bottom half of the pad did almost nothing. His own words for what the rim should mean are "head directly
+        // left right up down", so the pad reaches 90 either way and the seat's limits do not apply to it.
+        double halfPitch = System.Math.Min(90.0, halfYaw);
+        PitchLimitUpDeg = System.Math.Max(MaxPitchUpDeg, halfPitch);
+        PitchLimitDownDeg = System.Math.Max(MaxPitchDownDeg, halfPitch);
+        double fx = Expo(System.Math.Clamp(x, -1.0, 1.0), expo);
+        // AND UP IS UP. "up/down are reversed" — the pad's y is positive upward, and this fed it straight into a
+        // pitch whose positive sense the camera then negates, so the two cancelled the wrong way round.
+        double fy = Expo(System.Math.Clamp(-y, -1.0, 1.0), expo);
+        _manualYaw = fx * halfYaw;
+        _manualPitch = fy * halfPitch;
+    }
+
+    /// <summary>Odd-symmetric expo: 0 is linear, 1 is a square law. Full deflection still reaches full travel.</summary>
+    public static double Expo(double v, double expo) =>
+        expo <= 0.0 ? v : v * System.Math.Pow(System.Math.Abs(v), System.Math.Clamp(expo, 0.0, 2.0));
+
+    public void Pan(double x, double y, double dt)
     {
         if (dt <= 0.0) return;
-        if (x == 0 && y == 0)
+        double mag = System.Math.Sqrt(x * x + y * y);
+        if (mag <= 1e-6)
         {
             if (!SpringCentre) return;
             double back = CentreRateDegPerSec * dt;
@@ -119,10 +181,11 @@ public sealed class CockpitLook
             return;
         }
 
-        double step = RateDegPerSec * dt;
-        // A diagonal must not pan faster than a straight one.
-        if (x != 0 && y != 0) step *= 0.70710678;
-        Set(_manualYaw + System.Math.Sign(x) * step, _manualPitch + System.Math.Sign(y) * step);
+        // A diagonal must not pan faster than a straight one: the RATE is the vector's length, capped at full
+        // deflection, and the direction is the vector's own. (The hat's 0.707 on a diagonal is this same rule —
+        // sqrt(1+1) capped at 1 — which is why Hat can now be one line.)
+        double scale = (mag > 1.0 ? 1.0 / mag : 1.0) * RateDegPerSec * dt;
+        Set(_manualYaw + x * scale, _manualPitch + y * scale);
     }
 
     private static double Decay(double v, double by) =>

@@ -227,7 +227,9 @@ public sealed partial class Aircraft
     /// </summary>
     private void UpdateAileronLinkage(double dt)
     {
-        if (_links.Count == 0 && _deadAileronRows.Count == 0) return;
+        // NOT an early return when there are no links and nothing dead: a wing with a plain aileron and no slave
+        // strut still has to be limited once it is bent (LimitBentAilerons below).
+        if (_links.Count == 0 && _deadAileronRows.Count == 0 && !AnyPanelBent()) return;
         double[] ovr = _flowState.DeflectionOverride is { } o && o.Length == _stripTotal ? o : (_flowState.DeflectionOverride = new double[_stripTotal]);
         Array.Fill(ovr, double.NaN);
         foreach (int r in _deadAileronRows) ovr[r] = 0.0;
@@ -279,6 +281,51 @@ public sealed partial class Aircraft
             if (sp is not null)
                 for (int j = 0; j < sp.AileronFixed.Length; j++) if (!_deadAileronRows.Contains(sp.AileronFixed[j])) ovr[sp.AileronFixed[j]] = axisVal;
         }
+        LimitBentAilerons(ovr, ax);
+    }
+
+    /// <summary>
+    /// A BENT WING'S AILERON HAS LESS TRAVEL, AND IT IS NOT CENTRED WHERE THE STICK IS (Ty 2026-11-10; the rules
+    /// and his words are in <see cref="BentAileronTravel"/>). The band narrows linearly with the bend, from full at
+    /// straight to nothing at the bend that fails the wing, and it is centred on the deflection the aileron was
+    /// holding when that wing FIRST bent — so a wing bent with roll held leaves an aileron that still works one way
+    /// and not the other. The centre is captured once; further bending only narrows the band about it.
+    ///
+    /// Run after the linkage above, so a slaved aileron is limited by its own panel's bend and not by its driver's.
+    /// Per PANEL, which is per side and per wing: a biplane's upper and lower wings bend separately.
+    /// </summary>
+    private void LimitBentAilerons(double[] ovr, ControlAxisConfig ax)
+    {
+        for (int i = 0; i < _panels.Count; i++)
+        {
+            WingPanel w = _panels[i];
+            if (w.AileronHinged.Length == 0 || w.Bending is null) continue;
+            double bend = System.Math.Abs(w.Bending.SetRad);
+            if (bend <= 1e-6)
+            {
+                // Straight (or straightened past measuring): no limit — and the centre STAYS captured, because the
+                // wing has been bent once and the next bend must not move it.
+                continue;
+            }
+            // The deflection this side is actually flying, which is the override where the linkage set one and the
+            // stick's own otherwise — the same value the band has to be measured against.
+            double commanded = ovr[w.AileronHinged[0]];
+            if (double.IsNaN(commanded)) commanded = _aileronRad + Config.Rig.AileronRad;
+            // FIRST bend on this panel: this deflection is the centre, for good.
+            if (double.IsNaN(w.AileronCentreRad)) w.AileronCentreRad = commanded;
+            double half = BentAileronTravel.HalfRangeRad(bend, w.Bending.Law.RuptureRad, ax.MaxDeflRad);
+            double held = BentAileronTravel.Clamp(commanded, w.AileronCentreRad, half, ax.MaxDeflRad);
+            for (int j = 0; j < w.AileronHinged.Length; j++) ovr[w.AileronHinged[j]] = held;
+            for (int j = 0; j < w.AileronFixed.Length; j++)
+                if (!_deadAileronRows.Contains(w.AileronFixed[j])) ovr[w.AileronFixed[j]] = held;
+        }
+    }
+
+    private bool AnyPanelBent()
+    {
+        for (int i = 0; i < _panels.Count; i++)
+            if (_panels[i].Bending is { } b && System.Math.Abs(b.SetRad) > 1e-6 && _panels[i].AileronHinged.Length > 0) return true;
+        return false;
     }
 
     private bool AllGone(int[] rows)

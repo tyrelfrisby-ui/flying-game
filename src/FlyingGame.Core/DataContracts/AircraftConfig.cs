@@ -1120,6 +1120,26 @@ public sealed class GearConfig
     public double MaxSteerRad { get; set; } = 0.5;    // steering authority when steerable
     public double TireMu { get; set; } = 0.8;         // dry tarmac friction (limits tire force)
     public double CorneringStiffnessN { get; set; } = 6000; // side force per rad slip (before mu limit)
+
+    /// <summary>
+    /// TOE-OUT, degrees, per wheel: how far this wheel points AWAY from the centreline (negative is toe-in). 0 on
+    /// every type until one is flown with it.
+    ///
+    /// Ty 2026-11-10, flying the Pitts and the Extra: "How are the main gear tires aligned? It acts like it has toe
+    /// in" — and they were aligned perfectly straight, which is the one thing a sprung taildragger's gear never is.
+    /// Then: "Try 1 degree toe out both sides", and the reason, which is the whole point of the number: "The loaded
+    /// tire tries to unload back to the other".
+    ///
+    /// WHY IT RESTORES: a toed-out wheel rolls at a standing slip angle, so it makes a side force outboard all the
+    /// time, in proportion to the load ON THAT WHEEL. Sitting level the two cancel exactly and nothing happens. Lift
+    /// one — a swerve, a gust, a wing down — and the heavier wheel's outboard force is the bigger one, so the pair
+    /// push the aeroplane back toward the light side and the load shares out again. A toed-IN pair does the reverse
+    /// and digs the swerve in deeper, which is what he was feeling.
+    ///
+    /// The sign is taken from the wheel's own y, so one number on both mains means out on both: a wheel at +y
+    /// (right) points right, a wheel at -y points left.
+    /// </summary>
+    public double ToeOutDeg { get; set; }
     public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
     // THE TYRE (Ty 2026-11-04, "proper tundra tires"): which tyre is on this leg, by TireCatalog id. Its size, width,
     // masses, inertia, carcass and pressures all come from the catalog — one source of truth — and a config never

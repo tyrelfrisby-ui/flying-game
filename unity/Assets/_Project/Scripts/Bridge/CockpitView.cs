@@ -136,6 +136,38 @@ namespace FlyingGame.Bridge
         /// <summary>Set by the view panel each frame while an on-screen look button is held: right and up positive.</summary>
         public Vector2Int OnScreenHat;
 
+        /// <summary>
+        /// A LOOK PAD, as against the hat: -1..+1 on each axis, right and up positive, and the rate follows the
+        /// thumb rather than being all or nothing. Set by TouchFlightControls when the phone is the TV's controller
+        /// and the gyro is flying the aeroplane, which is the layout that leaves a whole pad free for the view
+        /// (Ty 2026-11-10: "one with gyro control with a touchpad for look around"). Zero when nothing is held.
+        /// It takes priority over the hat, and it is NOT subject to the hat's tap window — a pad has no taps to
+        /// tell apart, so panning starts the moment the thumb moves.
+        /// </summary>
+        public Vector2 OnScreenPan;
+
+        /// <summary>Is a thumb on the look pad? The pad is a POSITION, so 0,0 means "pointing straight ahead", not
+        /// "nothing is asking" — the two have to be told apart or letting go would snap the view forward.</summary>
+        public bool PanHeld;
+
+        /// <summary>Expo on the look pad: 0 linear, 1 square law. The middle of the pad is where most looking is
+        /// done, so it is the part that has to be fine (Ty 2026-11-10: "less sensitive/twitchy").</summary>
+        public static float LookPadExpo
+        {
+            get { if (_padExpo < 0f) _padExpo = Mathf.Clamp(PlayerPrefs.GetFloat("look.padExpo", 0.3f), 0f, 2f); return _padExpo; }
+            set { _padExpo = Mathf.Clamp(value, 0f, 2f); PlayerPrefs.SetFloat("look.padExpo", _padExpo); PlayerPrefs.Save(); }
+        }
+        private static float _padExpo = -1f;
+
+        /// <summary>How much of the world the pad's width covers: 360 reaches straight behind over either shoulder,
+        /// 180 reaches abeam and no further (Ty 2026-11-10).</summary>
+        public static float LookPadSweepDeg
+        {
+            get { if (_padSweep < 0f) _padSweep = Mathf.Clamp(PlayerPrefs.GetFloat("look.padSweep", 360f), 180f, 360f); return _padSweep; }
+            set { _padSweep = Mathf.Clamp(value, 180f, 360f); PlayerPrefs.SetFloat("look.padSweep", _padSweep); PlayerPrefs.Save(); }
+        }
+        private static float _padSweep = -1f;
+
         /// <summary>A hat push shorter than this is a tap — snap to that direction — rather than a pan.</summary>
         public const float TapSeconds = 0.22f;
 
@@ -261,6 +293,16 @@ namespace FlyingGame.Bridge
             if (gp.RecentrePressed) Centre();
             if (x == 0 && y == 0 && gp.LookHeld) { x = gp.LookX; y = gp.LookY; }
             if (primary && x == 0 && y == 0) { x = OnScreenHat.x; y = OnScreenHat.y; }
+
+            // The look PAD first, and it is a POSITION: the thumb's place on the pad IS where the head points
+            // (Ty 2026-11-10). Held or not, so letting go leaves the view where it was put; PanHeld says whether
+            // the pad owns the view at all, because an untouched pad reading 0,0 must not drag the view forward.
+            if (primary && PanHeld)
+            {
+                Look.SetFromPad(OnScreenPan.x, OnScreenPan.y, LookPadExpo, LookPadSweepDeg);
+                _hadHat = false; _hatHeld = 0f;
+                return;
+            }
 
             bool hat = x != 0 || y != 0;
             if (hat)

@@ -37,6 +37,7 @@ namespace FlyingGame.Bridge
         [System.Runtime.InteropServices.DllImport("__Internal")] private static extern int AeroTv_AnnounceExternalScenes();
         [System.Runtime.InteropServices.DllImport("__Internal")] private static extern int AeroTv_UIScreenCount();
         [System.Runtime.InteropServices.DllImport("__Internal")] private static extern int AeroTv_RegisterExternalAccessory();
+        [System.Runtime.InteropServices.DllImport("__Internal")] private static extern int AeroTv_FixExternalWindow();
         public static readonly bool Supported = true;
 #else
         private static void AeroTv_SetExternalShown(int shown) { }
@@ -44,6 +45,7 @@ namespace FlyingGame.Bridge
         private static int AeroTv_AnnounceExternalScenes() => 0;
         private static int AeroTv_UIScreenCount() => 1;
         private static int AeroTv_RegisterExternalAccessory() => -1;
+        private static int AeroTv_FixExternalWindow() => 0;
         public static readonly bool Supported = false;
 #endif
         /// <summary>The Mac app: SECOND MONITOR is offered and the runner starts.</summary>
@@ -104,7 +106,15 @@ namespace FlyingGame.Bridge
         /// cannot see look identical on the screen and want completely different fixes, so say which it is: iOS
         /// scenes (did the external-display scene connect at all), UIScreens (the deprecated list Unity counts) and
         /// Unity's own display count. Ty 2026-11-10, after two builds that both "just mirrored".</summary>
-        public static string Diagnostic => $"accessory {_accessory} · iOS scenes {AeroTv_ExternalSceneCount()} · screens {AeroTv_UIScreenCount()} · Unity displays {Display.displays.Length}";
+        public static string Diagnostic
+        {
+            get
+            {
+                int r = Runner.WindowReport;
+                return $"accessory {_accessory} · iOS scenes {AeroTv_ExternalSceneCount()} · screens {AeroTv_UIScreenCount()}"
+                     + $" · Unity displays {Display.displays.Length} · win {r % 10} vis {r / 10 % 10} rehomed {r / 100 % 10}";
+            }
+        }
         private static int _accessory = -2;   // -2 not asked yet
 
         public static string StatusText => Mode switch
@@ -184,6 +194,9 @@ namespace FlyingGame.Bridge
             private bool _retargeted;    // the main camera draws into our texture (GAME ON TV)
             private Camera _blank;       // Mac: a monitor Unity activated keeps its window until the app quits; keep it black
             private bool _monitorActivated;
+            private int _showFrames;   // keep asking for the external window after Activate(): see the note above
+            private static int _windowReport;   // windows + visible*10 + rehomed*100 + displays*1000
+            public static int WindowReport => _windowReport;
 
             public bool Ready => _back != null && _presenter != null;
 
@@ -211,6 +224,14 @@ namespace FlyingGame.Bridge
                         Mode = want == TvMode.GameOnTv ? TvMode.Mirror : TvMode.Handheld;
                         _retryAt = Time.unscaledTime + 2f;
                     }
+                }
+                if (Mode == TvMode.GameOnTv && _showFrames > 0)
+                {
+                    _showFrames--;
+                    AeroTv_SetExternalShown(1);
+                    // …and the window Unity made may belong to no scene at all, in which case nothing above can
+                    // reach it. This looks at Unity's own bookkeeping and re-homes it onto the TV's scene.
+                    _windowReport = AeroTv_FixExternalWindow();
                 }
                 if (Mode == TvMode.GameOnTv || Mode == TvMode.InstrumentsOnMonitor) Frame();
                 BlankUnusedMonitor(displays);
@@ -278,6 +299,15 @@ namespace FlyingGame.Bridge
                     if (!d.active) d.Activate();
                     else if (_shownHidden) AeroTv_SetExternalShown(1);
                     _shownHidden = false;
+                    // ACTIVATING A DISPLAY IS NOT PRESENTING IT. Ty 2026-11-10, with the status line finally reading
+                    // "Showing on the TV · 1920 × 1080": "The screen is still just mirroring I see the giant
+                    // touchpads full screen" — Unity had the display and was rendering a 1080p TV surface, and the TV
+                    // was still showing the system mirror of the phone. iOS mirrors until a window on the external
+                    // scene is SHOWN (the rule AeroTv.mm is built around), and this branch only ever asked for that
+                    // when coming back from Mirror — never on the first entry, which is every entry that matters.
+                    // Asked for repeatedly rather than once because Activate() need not have made the window yet.
+                    AeroTv_SetExternalShown(1);
+                    _showFrames = 120;
                     (w, h) = TvResolution.Choose(d.systemWidth, d.systemHeight);
                     if (w <= 0) return false;
                     d.SetRenderingResolution(w, h);

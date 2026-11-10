@@ -16,6 +16,14 @@
 
 extern "C" UIViewController *UnityGetGLViewController();
 
+// Unity's own display bookkeeping, so the TV's window can be INSPECTED rather than reasoned about. The trampoline's
+// headers are on the compiler's search path for a plugin in Assets/Plugins/iOS, the same way UnityAppController.h is.
+#import "DisplayManager.h"
+
+/// Defined below, beside AeroTv_SetExternalShown; declared here because the window repair above it asks the same
+/// question — is this scene the TV's?
+static BOOL IsExternal(UIScene *scene);
+
 @interface AeroExternalDisplayScene : UIResponder <UIWindowSceneDelegate>
 @property (strong, nonatomic) UIWindow *window;
 @end
@@ -121,6 +129,52 @@ extern "C" int AeroTv_RegisterExternalAccessory()
     }
 #endif
     return -1;
+}
+
+/// THE TV'S WINDOW, AS UNITY ACTUALLY LEFT IT — and repaired if it is the case we suspect.
+///
+/// Ty 2026-11-10, four builds in: "it is still just mirroring", with the status line reading "Showing on the TV ·
+/// 1920 × 1080". Unity creates the TV's UIWindow, attaches a rendering view and unhides it (DisplayManager
+/// createView:showRightAway:YES), and it decides which SCENE that window belongs to by searching the connected
+/// scenes for one whose screen matches (sceneForScreen:). If that search runs before iOS has connected the
+/// accessory scene, the window is left with windowScene == nil — belonging to no scene, never composited, and
+/// invisible to AeroTv_SetExternalShown, which can only walk windows that are already ON a scene. iOS goes on
+/// mirroring, exactly as reported.
+///
+/// So: find the external scene, find Unity's non-main display, and if its window is adrift, re-home it. Returns a
+/// packed report for the OPTIONS line — windows*1 + visible*10 + rehomed*100 + displayCount*1000 — because the
+/// previous four builds each ended in "still mirroring", which looks the same whatever the cause.
+extern "C" int AeroTv_FixExternalWindow()
+{
+    __block int report = 0;
+    void (^fix)(void) = ^{
+        UIWindowScene *external = nil;
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes)
+            if (IsExternal(scene) && [scene isKindOfClass:[UIWindowScene class]]) { external = (UIWindowScene *)scene; break; }
+
+        __block int windows = 0, visible = 0, rehomed = 0;
+        DisplayManager *dm = [DisplayManager Instance];
+        if (dm != nil)
+        {
+            [dm enumerateNonMainDisplaysWithBlock:^(DisplayConnection *conn) {
+                UIWindow *w = conn.window;
+                if (w == nil) return;
+                windows++;
+                if (external != nil && w.windowScene != external)
+                {
+                    w.windowScene = external;   // adrift (or on the wrong scene): give it the TV's
+                    rehomed++;
+                }
+                if (w.hidden) w.hidden = NO;
+                if (!w.hidden) visible++;
+                NSLog(@"[TV] unity window %@ scene %@ hidden %d view %@", w, w.windowScene, (int)w.hidden, conn.view);
+            }];
+            report += (int)dm.displayCount * 1000;
+        }
+        report += windows + visible * 10 + rehomed * 100;
+    };
+    if ([NSThread isMainThread]) fix(); else dispatch_sync(dispatch_get_main_queue(), fix);
+    return report;
 }
 
 /// How many screens iOS itself has, the deprecated way Unity counts them — for the diagnostic line in OPTIONS, so a

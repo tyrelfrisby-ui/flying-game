@@ -73,6 +73,7 @@ namespace FlyingGame.Bridge
 #endif
 #if (UNITY_IOS || UNITY_STANDALONE_OSX) && !UNITY_EDITOR
         [DllImport(NativeLib)] private static extern void VO_Init(int unityRate);
+        [DllImport(NativeLib)] private static extern void VO_SetTvWantsAudio(int wants);
         [DllImport(NativeLib)] private static extern int VO_EnsureMic();
         [DllImport(NativeLib)] private static extern void VO_SetIntercom(int on);
         [DllImport(NativeLib)] private static extern void VO_SetPtt(int on);
@@ -87,6 +88,7 @@ namespace FlyingGame.Bridge
         private const bool Native = true;
 #else
         private static void VO_Init(int unityRate) { }
+        private static void VO_SetTvWantsAudio(int wants) { }
         private static int VO_EnsureMic() => -2;
         private static void VO_SetIntercom(int on) { }
         private static void VO_SetPtt(int on) { }
@@ -136,6 +138,7 @@ namespace FlyingGame.Bridge
         private readonly byte[] _routeBuf = new byte[256];
         private float _nextRouteCheck;
         private bool _routeSent;
+        private bool _tvWantsAudioSent;
         private FlyingGame.Core.VoiceRoute _route;
 
         private void Awake()
@@ -157,6 +160,14 @@ namespace FlyingGame.Bridge
             string outputs = n > 0 ? System.Text.Encoding.UTF8.GetString(_routeBuf, 0, n) : "";
             bool voice = IntercomOn || RadioAvailable;
             var route = FlyingGame.Core.TvAudioPolicy.Decide(voice, TvOutput.ExternalDisplay, FlyingGame.Core.TvAudioPolicy.FromPortTypes(outputs));
+            // A TV with nobody talking has to have the mic RELEASED, not just the route changed: play-and-record
+            // has no HDMI output to offer (VoiceIO.mm ApplySession).
+            bool tvWantsAudio = TvOutput.ExternalDisplay && !voice;
+            if (!_routeSent || tvWantsAudio != _tvWantsAudioSent)
+            {
+                VO_SetTvWantsAudio(tvWantsAudio ? 1 : 0);
+                _tvWantsAudioSent = tvWantsAudio;
+            }
             if (!_routeSent || route.KeepOffTv != _route.KeepOffTv || route.ForceSpeaker != _route.ForceSpeaker)
             {
                 // The first call too: VoiceIO starts with both off, and saying so costs nothing.

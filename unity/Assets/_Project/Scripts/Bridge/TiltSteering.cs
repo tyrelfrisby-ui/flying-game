@@ -102,7 +102,11 @@ namespace FlyingGame.Bridge
 
             double full = FullScaleDeg;
             aileron = FlyingGame.Core.TiltControls.Axis(rollDeg, full);
-            elevator = FlyingGame.Core.TiltControls.Axis(pitchDeg, full);
+            // PITCH IS NEGATED AT SOURCE. Ty 2026-11-10, flying the gyro layout: "Gyro pitch is backwards reverse
+            // it." Tipping the phone's top away from you — nose down in the hand — has to be nose down in the
+            // aeroplane, and this read the other way round. Done here rather than by flipping InvertElevator's
+            // default, so the toggle keeps meaning what it says: OFF is the sense he asked for, ON reverses it.
+            elevator = -FlyingGame.Core.TiltControls.Axis(pitchDeg, full);
             rudder = RudderFromYaw
                 ? FlyingGame.Core.TiltControls.Axis(yawDeg, full, FlyingGame.Core.TiltControls.DefaultYawDeadzoneDeg)
                 : 0.0;
