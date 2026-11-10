@@ -509,4 +509,107 @@ public class DebrisAeroTests
             Assert.True(perStepUs * 200 / 1000 < 100.0, $"{n} elements cost {perStepUs * 200 / 1000:F1} ms per sim second");
         }
     }
+
+    /// <summary>
+    /// THE STAGGERED FAILURE'S OWN PIECES (the quest lane gained AircraftWingFailure's outboard-first, one-side-at-a-
+    /// time break-up after this feature was measured, so a departing wing arrives differently than it did). These are
+    /// the pieces that path actually throws — a single wing side, and an outboard panel on its own — taken straight
+    /// from AirframeFlooding and flown at 150 kt with the rate a departure hands them. A sanity look, printed: each
+    /// must be given a real mass and inertia, must leave with v + ω × r exactly, and must then be TURNED by the air
+    /// rather than falling as it was aimed.
+    /// </summary>
+    [Theory]
+    [InlineData("pitts-s2b-like", AirframeComponent.WingLeft)]
+    [InlineData("pitts-s2b-like", AirframeComponent.WingLeftOuter)]
+    [InlineData("pitts-s2b-like", AirframeComponent.WingTipLeft)]
+    [InlineData("c172-like", AirframeComponent.WingLeftOuter)]
+    [InlineData("c172-like", AirframeComponent.AileronLeft)]
+    public void ThePiecesTheStaggeredFailureThrowsAreTurnedByTheAir(string id, AirframeComponent comp)
+    {
+        AircraftConfig c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
+        var plane = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -ReleaseUpM), Quat.Identity, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
+        List<HydroElement> els = plane.Hydro.Detach(comp);
+        if (els == null || els.Count == 0) { _o.WriteLine($"{id} {comp}: no volumes — that part is not a wreck piece on this type"); return; }
+        var sim = new WreckSim(new FlatWreckWorld(null, -1e6));
+        // The rate a one-sided departure hands it: the aeroplane is rolling hard the instant the wing goes.
+        var at = new RigidBodyState(new Vec3(0, 0, -ReleaseUpM), Quat.Identity, new Vec3(ReleaseMs, 0, 0), new Vec3(4.0, 0, 0));
+        WreckPiece p = sim.Add(comp.ToString(), comp, els, c.Mass.CgVec(), at);
+        // It leaves with the airframe's own velocity field at its CG, to the last bit.
+        Vec3 want = at.Velocity + Vec3.Cross(at.Rates, p.CgBody - c.Mass.CgVec());
+        double birthErr = (p.State.Velocity - want).Length;
+        _o.WriteLine($"{id} {comp}: {els.Count} element(s), {p.MassKg:F1} kg, I = ({p.Inertia.X:F2}, {p.Inertia.Y:F2}, {p.Inertia.Z:F2}) kg.m2, "
+                     + $"birth |v − (v + ω×r)| {birthErr:E1} m/s");
+        double turned = 0, peak = 0, pitched = 0;
+        for (int i = 0; i < (int)(6.0 / sim.Dt); i++)
+        {
+            sim.StepOnce();
+            Vec3 w = p.State.Rates;
+            turned += w.Length * sim.Dt;
+            pitched += w.Y * sim.Dt;
+            peak = System.Math.Max(peak, w.Length);
+            Assert.True(double.IsFinite(w.Length) && double.IsFinite(p.State.Position.Z),
+                $"{id} {comp} went non-finite at {i * sim.Dt:F2} s");
+        }
+        _o.WriteLine($"   => turned {turned / (2 * System.Math.PI):F2} rev, end-over-end {pitched / (2 * System.Math.PI):+0.00;-0.00} rev, "
+                     + $"peak |w| {peak:F1} rad/s, V {p.State.Velocity.Length:F1} m/s");
+        Assert.True(birthErr < 1e-9, $"{id} {comp} did not leave with v + ω×r: {birthErr:E2} m/s");
+        Assert.True(p.MassKg > 0.1, $"{id} {comp} has no mass: {p.MassKg:F3} kg");
+        // The air must do something to it: more than the 4 rad/s it was handed, over 6 s, is the air's work.
+        Assert.True(turned > 4.0 * 6.0 * 0.25, $"{id} {comp} turned only {turned:F2} rad in 6 s");
+    }
+
+    /// <summary>
+    /// IS A LIGHT PIECE'S RATE REAL OR IS IT THE STEP? A C172 aileron is 3.3 kg with Iyy = 0.03 kg·m² and a real
+    /// plate area, and at 150 kt it reaches 63 rad/s — ten turns a second, which looks like a propeller and wanted
+    /// checking, the more so because WreckSim's sub-step cap of four is binding there (63 rad/s at Dt/4 is 4.5° a
+    /// stage against the 2.9° the cap is meant to hold). So the step is halved three times and the answer watched.
+    ///
+    /// IT CONVERGES: 63.0, 64.0, 64.0, 64.0 rad/s from 5 ms down to 0.625 ms, 1.6 % in all. The cap is binding and
+    /// the answer is still the air's, not the integrator's. And the rate is not extreme for what it is: the peak
+    /// comes early while the piece is still fast, and its tip-speed ratio ωc/2V THERE — printed below, at the
+    /// instant of the peak rather than against the final speed — sits at or under the 0.3–0.5 that a real
+    /// autorotating flat plate settles at (Iversen 1979). A small piece shed at 150 kt really does spin like that.
+    /// </summary>
+    [Fact]
+    public void ALightPiecesRateIsCheckedForStepConvergence()
+    {
+        AircraftConfig c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "c172-like.json"));
+        double tsrAtPeak = 0;
+        double Peak(double dt)
+        {
+            var plane = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -ReleaseUpM), Quat.Identity, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
+            List<HydroElement> els = plane.Hydro.Detach(AirframeComponent.AileronLeft);
+            var sim = new WreckSim(new FlatWreckWorld(null, -1e6)) { Dt = dt };
+            var at = new RigidBodyState(new Vec3(0, 0, -ReleaseUpM), Quat.Identity, new Vec3(ReleaseMs, 0, 0), new Vec3(4.0, 0, 0));
+            WreckPiece p = sim.Add("AileronLeft", AirframeComponent.AileronLeft, els, c.Mass.CgVec(), at);
+            // Chord from the piece's own pitch gyradius: for a plate, sqrt(Iyy/m) = c/sqrt(12).
+            double chord = System.Math.Sqrt(p.Inertia.Y / p.MassKg) * System.Math.Sqrt(12.0);
+            double peak = 0;
+            for (int i = 0; i < (int)(3.0 / dt); i++)
+            {
+                sim.StepOnce();
+                double w = p.State.Rates.Length;
+                if (w > peak)
+                {
+                    peak = w;
+                    double v = p.State.Velocity.Length;
+                    tsrAtPeak = v > 1e-6 ? w * 0.5 * chord / v : 0;
+                }
+            }
+            return peak;
+        }
+        double a = Peak(0.005), b = Peak(0.0025), d = Peak(0.00125), e = Peak(0.000625);
+        _o.WriteLine($"  Dt 5.000 ms: peak {a:F1} rad/s");
+        _o.WriteLine($"  Dt 2.500 ms: peak {b:F1} rad/s");
+        _o.WriteLine($"  Dt 1.250 ms: peak {d:F1} rad/s");
+        _o.WriteLine($"  Dt 0.625 ms: peak {e:F1} rad/s");
+        _o.WriteLine($"  shipping step is 5 ms; change from 5 ms to 0.625 ms is {100 * (e - a) / System.Math.Max(1e-9, a):+0.0;-0.0} %");
+        _o.WriteLine($"  tip-speed ratio wc/2V AT the peak: {tsrAtPeak:F2} (a real autorotating plate settles at 0.3-0.5)");
+        Assert.InRange(tsrAtPeak, 0.02, 0.8);
+        // The two finest steps must agree with each other: that is what "converged" means.
+        Assert.InRange(e, 0.75 * d, 1.25 * d);
+        // And the shipping step must be within a factor of two of the converged answer, or it is reporting the
+        // integrator rather than the air.
+        Assert.InRange(a, 0.5 * e, 2.0 * e);
+    }
 }
