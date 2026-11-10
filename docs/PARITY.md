@@ -64,28 +64,169 @@ Anything else (AGENT-LOG.md, other docs, renders) is neutral.
 
 ## The lock (Ty 2026-11-04 07:29: "lock them in parity from then on")
 
-Every commit to either lane must keep the two lanes in sync. A git hook enforces it:
+Every commit to a lane must keep the two shipping lanes in sync. A git hook enforces it.
 
-- `tools/githooks/pre-commit` and `tools/githooks/pre-merge-commit` (tracked) run `tools/check-parity.sh --hook` on the
-  commit being made. `tools/githooks/install.sh` puts a small dispatcher for each in the repository's COMMON hooks
-  directory (`$(git rev-parse --git-common-dir)/hooks`), which every worktree shares. The dispatcher runs the
-  worktree's own `tools/githooks/<hook>` if the checkout has one and does nothing otherwise. `core.hooksPath` is not
-  used. `install.sh --check` says whether it is installed.
-- It does nothing on any branch but `lane/claude-island-nav` and `lane/claude-quest-islandnav`. On lane X (other lane Y),
-  "shared" means the paths in the table above, plus `unity/Assets/StreamingAssets/aircraft/`, minus the Quest-only ones.
-  - **allowed:** a commit that changes no shared path (logs, docs, renders, Quest-only files);
-  - **allowed:** a commit that merges Y's tip in (`MERGE_HEAD` = Y). That is how the lanes are synced, so the lock can
-    never deadlock;
-  - **allowed:** a commit whose shared paths come out identical to Y's;
-  - **allowed, with a message:** a commit while X and Y are identical in shared paths. X now leads, and Y must merge X
-    next;
-  - **BLOCKED:** a shared change while X already differs from Y. Merge the lanes first; the message says how.
-- So the lanes are never more than one shared change apart. The normal flow is: land the change on one lane (directly
-  or by merging a feature lane into it), then `git merge --no-ff <that lane>` in the other lane's worktree, the same
-  day. Once both lanes hold the same tree, fast-forwarding one to the other is also fine.
+**How it is wired.** `tools/githooks/pre-commit` and `tools/githooks/pre-merge-commit` (tracked) run
+`tools/check-parity.sh --hook` on the commit being made, against the index. `tools/githooks/install.sh` puts a small
+dispatcher for each in the repository's COMMON hooks directory (`$(git rev-parse --git-common-dir)/hooks`), which every
+worktree shares. The dispatcher runs the worktree's own `tools/githooks/<hook>` if the checkout has one and **does
+nothing otherwise** — so the apparatus has to exist on the branch that is checked out for the lock to fire at all.
+That is how `main` and `split-surfaces` went unenforced: see *Trunk branches* below, which is also how to install it.
+`core.hooksPath` is not used.
+`install.sh --check` says whether the dispatcher is installed.
+
+### Which branches it fires on
+
+**It fires on every `lane/*` branch — all ~224 of them, not just the two shipping lanes.** This document said for six
+days that it "does nothing on any branch but `lane/claude-island-nav` and `lane/claude-quest-islandnav`". That stopped
+being true on **2026-11-08**, when the iOS lane started defaulting to *the branch the worktree is on* rather than a name
+written in the script (a name goes stale; the branch you are building cannot). The `--hook` block's branch filter
+accepts any `lane/*` branch, so on `lane/anything` the lock reads "I am the iOS lane" and holds that lane against
+`lane/claude-quest-islandnav`.
+
+Asked on 2026-11-10 whether to narrow the hook to the two lanes or fix the document, **Ty chose to fix the document**:
+*the lock being live on every lane is arguably right — it is what stopped several agents shipping unsynced work that
+day.* So the scope below is the rule, not a bug to be worked around.
+
+| branch | what the lock does |
+|---|---|
+| `lane/*` (~224) | the two-lane rule below, with this lane as "the iOS lane" |
+| a branch named in `$PARITY_IOS_BRANCH` | the same, as the named iOS lane |
+| `main`, `master`, `split-surfaces` (`$PARITY_TRUNK_RE`) | the trunk rule: no shared change may ORIGINATE there — see *Trunk branches* |
+| `codex-*`, `wip/*`, `spin-*`, a detached HEAD | **nothing.** No-op, silently |
+
+`wip/*` is exempt and `lane/*` is not. That asymmetry is real and it surprises people: the same shared change that is
+refused on `lane/my-thing` goes through on `wip/my-thing` without a word. The reason is that a feature branch's shared
+work meets the lock when it is merged into a lane, and nobody builds from a `wip/` branch — but the practical effect is
+that `wip/` is the unlocked naming convention, and it should be used for scratch work rather than used to dodge the lock.
+
+### The two-lane rule
+
+On lane X with the other lane Y, "shared" means the paths in the table above plus
+`unity/Assets/StreamingAssets/aircraft/`, minus the Quest-only ones.
+
+- **allowed:** a commit that changes no shared path (logs, docs, renders, `tools/deploy/`, `tools/FlightTests/`,
+  Quest-only files);
+- **allowed:** a commit that merges Y's tip in (`MERGE_HEAD` = Y). That is how the lanes are synced, so the lock can
+  never deadlock;
+- **allowed:** a commit whose shared paths come out identical to Y's;
+- **allowed, with a message:** a commit while X and Y are identical in shared paths. X now leads, and Y must merge X
+  next. **Only ONE such leading commit at a time** — the allowance is "X and Y were identical *before* this commit", so
+  the moment it lands X differs and the next shared commit is blocked until Y catches up. Plan a run of shared work as
+  *one* commit, or sync in between;
+- **BLOCKED:** a shared change while X already differs from Y. Merge the lanes first; the message says how.
+
+So the lanes are never more than one shared change apart. The normal flow: land the change on one lane (directly or by
+merging a feature lane into it), then `git merge --no-ff <that lane>` in the other lane's worktree, the same day. Once
+both lanes hold the same tree, fast-forwarding one to the other is also fine.
+
+### The consequence that catches people: being BEHIND is enough
+
+**A `lane/*` feature branch that has changed nothing shared at all is blocked as soon as the Quest lane moves.** The
+rule is symmetric in a way the wording hides: "X already differs from Y in shared code" does not ask *who* moved. Branch
+a fresh lane, let the Quest lane take a shared commit from somewhere else, and your first shared commit is refused with
+a list of files you never touched. This bit several agents on 2026-11-10.
+
+The remedy is a merge, in your own worktree, and it is cheap:
+
+```
+git merge --no-ff lane/claude-quest-islandnav
+```
+
+(git will not merge over a staged change, so `git restore --staged -- <files>` first if the blocked commit is already
+staged; the files stay in the working tree.) Then stage and commit as normal. You are not merging *into* a shipping
+lane — that is Ty's — you are catching your own lane up, which is what the lock is asking for.
+
+### Naming the partner: `PARITY_IOS_BRANCH`
+
+The iOS lane is auto-detected, and the detection can pick the wrong lane. From a Quest worktree (or a trunk) it cannot
+use "the branch I am on", so it reads the answer out of the Quest lane's history: **the first local non-Quest `lane/*`
+branch that is an ancestor of the Quest lane's most recent merges** — i.e. a guess at which lane the Quest lane is being
+kept in sync with. With 224 lane branches that guess can land on a lane that merely happens to be contained in the
+Quest lane.
+
+`PARITY_IOS_BRANCH=lane/<name>` names the partner outright, and **naming the real partner is legitimate** — on
+2026-11-09 a merge from the Quest side was blocked against a dead branch and naming the lane by hand was the only way
+through.
+
+**Using it to make the hook exit 0 is not.** Setting `PARITY_IOS_BRANCH` to some unrelated branch so that
+`$branch != $IOS` and `$branch != $QUEST` and the hook returns 0 is `--no-verify` with extra steps: the commit lands,
+the lanes drift, and nothing says so. If the lock blocks, sync; if it is comparing against the wrong lane, name the
+**right** one.
+
+### Trunk branches: `main`, `split-surfaces` (Ty 2026-11-10: "Install enforcement on main too")
+
+The 2026-11-10 triage found that **none of this apparatus existed on `main` or `split-surfaces`** — no
+`docs/PARITY.md`, no `tools/check-parity.sh`, no `tools/githooks/` — so in those checkouts the installed dispatcher
+found nothing to run and exited 0, and anything committed there bypassed parity entirely. That is not a theoretical
+hole: **the main checkout is where the iOS build and the OTA publish are run from**, and it sits on `split-surfaces`.
+Shared code committed there can be built, installed and flown without ever having been in either lane — which is
+exactly the failure Ty wrote the rule for (*"it seems like all of the pitts panel and canopy work did not make it to
+the quest build"*). Asked what to do, Ty said **"Install enforcement on main too."**
+
+**What enforcement means on a trunk is not what it means on a lane, and the difference is the whole design.** The lane
+rule's only remedy is "sync with the other lane". A trunk cannot take that advice: it is not one of the pair, it is
+hundreds of commits behind both, and merging a trunk into a shipping lane is not something anyone wants. What a trunk
+*can* be held to is rule 3 of *The rule* above, which already says it in prose — every change lands on a lane and is
+merged into both the same day. So:
+
+**No shared change may ORIGINATE on a trunk.**
+
+| | |
+|---|---|
+| **allowed** | a commit that changes no shared path. This is the common case in the main checkout and it is what makes the rule affordable there: `AGENT-LOG.md`, `docs/`, renders, `tools/deploy/` and `tools/FlightTests/` are all outside `SHARED_RE`, so the daily log entry and the deploy and OTA scripts that checkout exists to run are untouched |
+| **allowed** | a merge (`MERGE_HEAD` set, whatever the other side is). The shared content is arriving from a branch that met the lock on its own way in, and this is the only way a lane would ever reach `main`. A hook that can block a merge can deadlock a repository |
+| **allowed** | `PARITY_OVERRIDE=1`, which is the same escape hatch `deploy-quest.sh` already uses for this rule, and which like that one is supposed to come with an AGENT-LOG line saying why. The hook prints a reminder |
+| **BLOCKED** | anything else. The message says to do it on a lane, lists the shared files, and reminds you what still commits freely |
+
+There is deliberately **no "identical to the other lane" allowance** here, although the lane rule has one: a trunk is
+never identical to a shipping lane in shared paths, so that branch could never be taken. It would be a check that
+reads green forever, which is worse than no check — the same argument the widget note at check 4 makes about widening
+`SHARED_RE`.
+
+**A feature branch is not a trunk.** The 15 `codex-*` branches, `wip/*` and the `spin-*` experiments commit shared code
+all day and keep being able to. Their shared work meets the lock when it is merged into a lane, and nobody builds from
+one; a trunk has neither protection. So the trunks are **named** (`$PARITY_TRUNK_RE`, default
+`^(main|master|split-surfaces)$`) rather than guessed by shape, because any guess wide enough to catch `split-surfaces`
+catches all 15 `codex-*` branches with it. A name goes stale, which is the complaint `check-parity.sh` makes about
+itself elsewhere; the trade here is accepted, and `PARITY_TRUNK_RE` widens the list without editing the script.
+
+**The report changes too, and this is the part a build will notice.** `deploy.sh` prints `check-parity.sh --brief` on
+every iOS build. From `split-surfaces` the iOS lane used to default to the branch the worktree is on, so that report
+read "iOS `split-surfaces` vs Quest `lane/claude-quest-islandnav`", listed every lane commit `split-surfaces` is
+behind, and advised merging `split-surfaces` into the Quest lane. A trunk now reads the lane pair out of the Quest
+lane's history instead (as a Quest worktree does) and prints, above everything else and in `--brief` too:
+
+```
+WARN  this checkout is on split-surfaces, a TRUNK and not a lane: whatever is built here is in NEITHER lane.
+      The pair below is the lane pair, not what you are building.
+```
+
+which is the line that actually matters for a build out of the main checkout. It does not change the exit code; an iOS
+build still never blocks on parity.
+
+**Installing it** — four commands, and they are **not** run by whoever wrote this. The apparatus has to be *on* the
+branch for the dispatcher to find it, so it is a commit on the trunk, and the main checkout's working tree is not a
+safe place to do that (it carries uncommitted work and it is mid-OTA-serve). Use a throwaway worktree:
+
+```
+git worktree add /private/tmp/parity-install split-surfaces
+git -C /private/tmp/parity-install checkout lane/claude-parity-fix -- \
+    docs/PARITY.md tools/check-parity.sh tools/githooks
+git -C /private/tmp/parity-install commit -m "Install the parity apparatus on split-surfaces"
+git worktree remove /private/tmp/parity-install
+```
+
+Repeat with `main` in place of `split-surfaces`. The dispatcher itself is already installed
+(`tools/githooks/install.sh --check`), and it is shared by every worktree, so nothing else is needed: the next commit
+in the main checkout runs the trunk rule. `git worktree remove` fails if the worktree is dirty, which is the intended
+safety.
+
+### Not covered
+
+- Fast-forward merges and `git reset` / `update-ref` run no commit hook. Do not move a lane's ref by hand.
 - **Never bypass it with `--no-verify`.** If the hook blocks, sync the lanes. If a Quest-only experiment really cannot
   wait, put it in a Quest-only path or behind `#if UNITY_ANDROID`, and log it.
-- Not covered: fast-forward merges and `git reset`/`update-ref` run no commit hook. Do not move a lane's ref by hand.
 
 ## The widget (Ty 2026-11-10: "Keep the aero widget in parity with the app" — "Enforce it like the others")
 
@@ -149,12 +290,13 @@ lives in another repository. The widget↔Glass contract is `WidgetServer.Protoc
 and nothing here can verify the other side of it. `lane/claude-widget-idle` exists because Glass had been sending
 `{"cmd":"fps","value":30}` on every connection and the widget silently dropped it.
 
-**Two inaccuracies in this document, found while doing the above, left for the lane owner to fix rather than fixed
-here:** "It does nothing on any branch but `lane/claude-island-nav` and `lane/claude-quest-islandnav`" (above, under
-*The lock*) is no longer true — since the 2026-11-08 change that made the iOS lane default to the branch the worktree
-is on, the `--hook` block's branch filter accepts **any** `lane/*` branch, so the lock is live on all ~218 of them.
-And none of the parity apparatus (`docs/PARITY.md`, `tools/check-parity.sh`, `tools/githooks/`) exists on `main` or on
-`split-surfaces`, so in those checkouts the installed dispatcher exits 0 and there is no enforcement at all.
+**Two inaccuracies in this document were found while doing the above. The first is now fixed:** "It does nothing on
+any branch but `lane/claude-island-nav` and `lane/claude-quest-islandnav`" was false — the lock is live on every
+`lane/*` branch — and *The lock* above now says what the hook actually does, Ty having chosen on 2026-11-10 to fix the
+document rather than narrow the hook. **The second is now answered too:** none of the parity apparatus
+(`docs/PARITY.md`, `tools/check-parity.sh`, `tools/githooks/`) existed on `main` or on `split-surfaces`, so in those
+checkouts the installed dispatcher exited 0 and there was no enforcement at all. Ty 2026-11-10: *"Install enforcement
+on main too."* The rule, why it is not the lane rule, and the four commands that install it are in *Trunk branches*.
 
 ## How to check
 
@@ -163,6 +305,7 @@ tools/check-parity.sh            # full report; exit 1 if the Quest lane lacks a
 tools/check-parity.sh --brief    # what deploy.sh prints
 tools/check-parity.sh --strict   # also fail on shared Quest-only commits, any GLB that differs, any widget file that differs
 tools/check-parity.sh lane/a lane/b     # other branches (or PARITY_IOS_BRANCH / PARITY_QUEST_BRANCH)
+tools/check-parity.sh --hook            # the commit lock; PARITY_TRUNK_RE names the trunk branches
 ```
 
 It reads branch refs only (no fetch, merge or checkout), so it runs from any worktree. `ParityCheckTests` (FlightTests)
