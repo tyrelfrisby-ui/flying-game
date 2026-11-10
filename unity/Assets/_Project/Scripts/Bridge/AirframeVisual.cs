@@ -357,7 +357,15 @@ namespace FlyingGame.Bridge
             }
             static FlyingGame.Core.MathTypes.Vec3 C(Vector3 v) => new(v.x, v.y, v.z);
             var body = new FlyingGame.Core.Vr.CanopyFreeBody(canopy, C(b.center), C(velocityWorld), C(upWorld), C(transform.forward), C(spinWorld));
-            go.AddComponent<CanopyFlight>().Init(body, b.center, Mathf.Max(0.1f, b.extents.y * 0.5f));
+            // WHAT IT CAN RUN INTO on the way past, and who to tell when it does (Ty 2026-11-10: "if it hits the tail
+            // or other structure use a mechanical sound for impact and shatter the glass both audibly and visually").
+            // The clearance boxes are this aeroplane's own surfaces in its body frame, and the transform is read every
+            // step, so whether the shell clears the tail depends on what the aeroplane does in that second. A config
+            // with no boxes simply gives no strike, exactly as before.
+            FlyingGame.Core.DataContracts.AircraftConfig cfg = _driver?.Sim?.Aircraft?.Config;
+            FlyingGame.Core.Vr.EgressClearance clear = cfg != null ? FlyingGame.Core.Vr.EgressClearance.From(cfg) : null;
+            go.AddComponent<CanopyFlight>().Init(body, b.center, Mathf.Max(0.1f, b.extents.y * 0.5f),
+                                                 clear, transform, GetComponent<FlightAudio>(), GetComponent<GlassShatter>());
             return b.center;
         }
 
