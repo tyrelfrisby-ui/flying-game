@@ -85,6 +85,44 @@ public static class PistonEngine
         return ratedPowerW * AltitudePowerFraction(sigma) * openFraction * (rpm / ratedRpm);
     }
 
+    /// <summary>
+    /// CRANKING RESISTANCE: the torque it takes to TURN a piston engine that is not running, N·m, returned negative
+    /// because it opposes whatever is turning it. Ty 2026-11-10, shown a dead propeller windmilling to 4,414 rpm on a
+    /// 2,700 rpm engine: "You are not accounting for the cranking resistance of the engine". He is right, and the model
+    /// already knew the number — it was being thrown away.
+    ///
+    /// <see cref="PowerW"/> clamps its open fraction to [0, 1]. But the fraction is
+    /// (MP − MP_friction) / (MP_sea − MP_friction), and a closed throttle draws 0.28 of ambient, which at sea level is
+    /// 8.4 inHg — BELOW the 10 inHg friction intercept. So the engine's own law says it absorbs about 8 % of rated
+    /// power at rated rpm with the throttle shut, and the lower clamp was discarding exactly that. This is the same
+    /// expression with the clamp lifted below zero, so there is no new constant and nothing to tune: the pumping and
+    /// friction come from the friction intercept that is already in the power curve and in BladeElement.GovernorStops'
+    /// 26 inHg rule.
+    ///
+    /// For the Pitts' 260 hp at 2,700 rpm that is about −56 N·m, which is the order a 540 cubic inch engine really
+    /// takes to turn over, and it is what keeps a dead propeller's rpm down to something an aeroplane survives.
+    ///
+    /// DELIBERATELY NOT FOLDED INTO <see cref="TorqueNm"/> or <see cref="PowerW"/>, though the comment on TorqueNm has
+    /// always promised it. Those two also feed the THRUST path, and the drag of an idling or windmilling propeller is
+    /// already carried there by PropulsionConfig.IdleDragCd — a coefficient calibrated against published glide ratios
+    /// (172 8.9:1 on a book 9:1, Cub 8:1, SR22 10:1 on 8.8:1). Letting the power go negative there would count the same
+    /// drag twice and break a calibration that is right. So this belongs only where the RPM is solved from a torque
+    /// balance: <see cref="BladeElement.Windmill"/> and the dead-engine branch of the shaft integration.
+    /// </summary>
+    public static double MotoringTorqueNm(double ratedPowerW, double ratedRpm, double rpm, double throttle01,
+                                          double pressureRatio, double densityRatio = 0.0)
+    {
+        if (ratedRpm <= 0.0 || rpm <= 1.0) return 0.0;
+        double sigma = densityRatio > 0 ? densityRatio : pressureRatio;
+        double mpFull = ManifoldInHg(1.0, pressureRatio);
+        double mp = ManifoldInHg(throttle01, pressureRatio);
+        double span = Math.Max(1e-6, mpFull - FrictionManifoldInHg);
+        double openFraction = (mp - FrictionManifoldInHg) / span;      // the SAME expression, lower clamp lifted
+        if (openFraction >= 0.0) return 0.0;                           // open enough to make power: not this function's business
+        double powerW = ratedPowerW * AltitudePowerFraction(sigma) * openFraction * (rpm / ratedRpm);
+        return powerW / (rpm * 2.0 * Math.PI / 60.0);
+    }
+
     /// <summary>Shaft torque, N·m. Negative when the engine is being driven: below its friction manifold pressure it
     /// absorbs power rather than making it, which is what lets a windmilling propeller drag.</summary>
     public static double TorqueNm(double ratedPowerW, double ratedRpm, double rpm, double throttle01, double pressureRatio,

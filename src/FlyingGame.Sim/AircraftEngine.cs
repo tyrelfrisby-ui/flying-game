@@ -35,6 +35,51 @@ public sealed partial class Aircraft
     public bool MagLeft { get; set; } = true;
     public bool MagRight { get; set; } = true;
 
+    /// <summary>
+    /// THE OIL SYSTEM HAS FAILED, and the governor with it. Ty 2026-11-10, after the oil-loss pitch rule went in:
+    /// "Is the question a prop governor failure but working/running engine?" — which it was not, and that is the case
+    /// that matters. An engine that has quit has no oil pressure for the obvious reason; a governor that loses its oil
+    /// with the engine still making power is a FAILURE, and the two defaults (coarse for an aerobatic installation and
+    /// every twin, fine for a standard single) exist precisely to decide what you are left flying when it happens:
+    ///
+    ///   aerobatic / twin, COARSE: the rpm sags, you cannot make rated power at low speed, the climb is poor — and the
+    ///                             propeller can never overspeed, however far down you point it;
+    ///   standard single, FINE:    full power is there at low speed, and the propeller overspeeds the moment you are
+    ///                             fast or diving, with the engine itself driving it.
+    ///
+    /// Set it and the blades drift to <see cref="PropModel.OilLossPitchDeg"/> and STAY there: a fixed-pitch propeller
+    /// at that angle, with the rpm solved from the torque balance like any other fixed blade. Nothing sets it on its own
+    /// yet — Ty's answer on the cause was "Nothing — only my switch", with random failures queued separately — so this
+    /// is the switch, and the CFI failure switchboard is what will pull it.
+    /// </summary>
+    public bool OilSystemFailed { get; set; }
+
+    /// <summary>
+    /// Oil pressure, psi: zero with the engine stopped or <see cref="OilSystemFailed"/>, else rising with rpm (about 35
+    /// at idle, 80 in the cruise). It lives HERE rather than in the cockpit bridge, which used to compute it for the
+    /// gauge alone, because the governor now reads it: a number drawn on an instrument and a number the aeroplane flies
+    /// on must be one number or they will disagree exactly when it matters.
+    /// </summary>
+    public double OilPressPsi
+    {
+        get
+        {
+            if (OilSystemFailed || !EngineRunning) return 0.0;
+            PropulsionConfig p = Config.Propulsion!;
+            double max = p.MaxRpm > 100.0 ? p.MaxRpm : 2700.0;
+            double rpm = _shaftRpm > 0.0 ? _shaftRpm : PropModel.RunningRpm(p, _throttle01, _propLever);
+            return System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * max)), 0.0, 115.0);
+        }
+    }
+
+    /// <summary>The governor can only move the blades while it has oil to move them with. Below this the blades go to
+    /// the installation's default stop (<see cref="OilSystemFailed"/>); a real governor has lost control well before
+    /// the gauge reads zero.</summary>
+    public const double GovernorMinOilPsi = 12.0;
+
+    /// <summary>True while the governor is in control of the blade angle.</summary>
+    public bool GovernorHasOil => EngineRunning && !OilSystemFailed && OilPressPsi >= GovernorMinOilPsi;
+
     /// <summary>True when this type has a governor for <see cref="PropLever"/> to set.</summary>
     public bool HasPropLever => Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0 };
     /// <summary>True when this type has a mixture for <see cref="MixtureLever"/> to meter (a piston; not a jet).</summary>
@@ -125,11 +170,22 @@ public sealed partial class Aircraft
     /// <summary>True when this aeroplane's propeller is solved rather than estimated.</summary>
     public bool HasFittedBlade => Config.Propulsion is { PropDiameterM: > 0, BladePitch75Deg: > 0 };
 
+    /// <summary>
+    /// SOLVE THE SHAFT, rather than read the rpm off the throttle law. A type with a fitted blade always does. A
+    /// CONSTANT-SPEED type does too the moment its governor stops governing — with no oil the blade angle is fixed on
+    /// a stop, which makes it a fixed-pitch propeller, and a fixed-pitch propeller's rpm is a torque balance and
+    /// nothing else. While the governor has oil these types keep the law they have always flown, so a normal flight is
+    /// untouched to the last digit and only the failure is solved.
+    /// </summary>
+    private bool SolvesShaft =>
+        HasFittedBlade
+        || (Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0, FineStopDeg: > 0 } && !GovernorHasOil);
+
     /// <summary>Advance the shaft one step against the torque the engine makes and the torque the blade takes.</summary>
     private void StepShaft(double dt, double airDensity)
     {
         PropulsionConfig? p = Config.Propulsion;
-        if (p is null || !HasFittedBlade || dt <= 0.0) { _shaftRpm = 0.0; return; }
+        if (p is null || !SolvesShaft || dt <= 0.0) { _shaftRpm = 0.0; return; }
         if (_noseLost) { _shaftRpm = 0.0; return; }               // the propeller has gone: nothing to turn
 
         double radius = 0.5 * p.PropDiameterM;
@@ -141,13 +197,15 @@ public sealed partial class Aircraft
         // at the stops. So this is a rate controller on the rpm ERROR, clamped to the stops — which is both what the
         // hardware does and far cheaper than solving for the angle that balances the torque, which would cost forty
         // blade-element solutions every step.
-        double pitch = p.BladePitch75Deg > 0 ? p.BladePitch75Deg : 15.0;
+        double pitch = p.BladePitch75Deg > 0 ? p.BladePitch75Deg
+                     : p.ConstantSpeed ? System.Math.Max(1.0, PropModel.OilLossPitchDeg(p))
+                     : 15.0;
         if (p.ConstantSpeed)
         {
             double fine = p.FineStopDeg > 0 ? p.FineStopDeg : 10.0;
             double coarse = p.CoarseStopDeg > fine ? p.CoarseStopDeg : fine + 15.0;
             if (_bladePitchDeg <= 0.0) _bladePitchDeg = System.Math.Clamp(0.5 * (fine + coarse), fine, coarse);
-            if (EngineRunning)
+            if (GovernorHasOil)
             {
                 double commanded = GovernedRpmAt(_propLever);
                 double error = (_shaftRpm - commanded) / System.Math.Max(1.0, commanded);
@@ -168,9 +226,12 @@ public sealed partial class Aircraft
 
         var g = new BladeElement.Geometry(p.PropBladeCount, radius, pitch, p.ActivityFactor);
         double qProp = BladeElement.Solve(g, State.Velocity.X, 0.0, _shaftRpm, airDensity).TorqueNm;
+        // A DEAD ENGINE IS NOT A FREE SHAFT. Ty 2026-11-10: "You are not accounting for the cranking resistance of the
+        // engine". It takes real torque to turn a piston engine over, the power curve's own friction intercept already
+        // says how much, and without it a windmilling propeller accelerated until only the blade's own drag stopped it.
         double qEngine = EngineRunning
             ? PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm, _throttle01 * PowerScale, pressureRatio)
-            : 0.0;
+            : PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm, _throttle01, pressureRatio);
         double inertia = System.Math.Max(0.05, p.PropInertia);
         double omega = _shaftRpm * 2.0 * System.Math.PI / 60.0;
         omega += (qEngine - qProp) / inertia * dt;
