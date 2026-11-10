@@ -87,7 +87,23 @@ namespace FlyingGame.Bridge
 
         /// <summary>The wings let go: the hum stops dead and one snap.</summary>
         public void WingFailure() { _groanSeverity = 0f; _groanHold = 0f; AtAircraft(FxKind.WingFailure, 1f); }
+        /// <summary>The canopy leaves: AIR, not machinery. Ty 2026-11-10: "ditch the mechanical sound and just use an
+        /// air sound as it flys off". The rush is shaped by the airspeed inside the voice itself, so there is nothing to
+        /// pass here — at a taxi it is almost silent, which is correct.</summary>
         public void CanopyJettison() { _fx?.Trigger(FxKind.CanopyJettison); }
+
+        /// <summary>
+        /// The departed canopy ran into the aeroplane. Ty 2026-11-10: "if it hits the tail or other structure use a
+        /// mechanical sound for impact and shatter the glass both audibly and visually" — this is the audible half, and
+        /// <see cref="GlassShatter.ShatterDeparted"/> is the visible one.
+        ///
+        /// AT THE AIRCRAFT, so it is attenuated and delayed by distance like the wing snap: the strike happens out at
+        /// the tail, and if the pilot has already left he hears it late and faint, which is the only honest thing for a
+        /// sound made several hundred feet away. <paramref name="strikeSpeedMs"/> is the shell's speed through the air
+        /// at the strike (CanopyFreeBody.StrikeSpeedMs); 60 m/s and up is a full-weight hit.
+        /// </summary>
+        public void CanopyImpact(float strikeSpeedMs)
+            => AtAircraft(FxKind.CanopyImpact, Mathf.Clamp(0.3f + strikeSpeedMs / 60f, 0.3f, 1f));
         public void EjectionSeat() { _fx?.Trigger(FxKind.EjectionSeat); }
         public void ChuteDeploy() { _fx?.Trigger(FxKind.ChuteDeploy); }
         public void ChuteInflate() { _fx?.Trigger(FxKind.ChuteInflate); }
