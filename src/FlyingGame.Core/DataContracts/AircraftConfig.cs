@@ -718,8 +718,9 @@ public sealed class SpinAeroConfig
     /// turning the flow, and the base-pressure difference that leaves acts on the whole tail. One angle per strip
     /// cannot express that, so it is added rather than derived.
     ///
-    /// HORIZONTAL TAIL ONLY, deliberately: the same argument applies to a rudder, but the fin's authority has just
-    /// been rebuilt through <see cref="FinSidewashK"/> and the two would then be moving at once.
+    /// BOTH TAILS. It shipped on the horizontal tail alone for one build so that this and <see cref="FinSidewashK"/>
+    /// would not move at once; the rudder needs it for the same reason, and on a type whose fin stands well off the
+    /// body — the Extra — the crossflow knob cannot reach the fin at all and this is the only thing that does.
     /// </summary>
     public double ControlSpoilerK { get; set; } = 0.0;
 
