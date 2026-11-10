@@ -489,6 +489,10 @@ namespace FlyingGame.Bridge
                 if (rest != null) Object.Destroy(rest);
                 // The cut above took the aileron's outboard share while it was still drawn bent (so the piece and the stub
                 // meet); what is left of it belongs to the straight wing inboard of the station, so its carrier goes home.
+                // An aileron that SPANNED the station had its outboard share cut onto a carrier of its own when the wing
+                // bent, so DetachStatic finds nothing left outboard to cut: that share is handed to the debris here, or
+                // it would stay on an aeroplane whose wing tip has left (Ty 2026-11-10).
+                GiveCarriedOutboardTo(comp, bent);
                 DropCarried(comp);
                 // The debris object's origin is the aeroplane's CG at the break (WingDebris carries it rigidly with its sim
                 // piece), so the pivot goes under a parent posed there, keeping its offset and its bend.
@@ -546,7 +550,10 @@ namespace FlyingGame.Bridge
             }
             // Out of the dictionary AFTER the walk, never during it. The PIECES stay in _bentPieces on purpose: they are
             // still the handle on that geometry, and a replay reshapes them where they now ride (ShowPanelBend).
-            foreach (FlyingGame.Core.AirframeComponent c in _tipsTaken) { _bentPanels.Remove(c); DropCarried(c); }
+            // The aileron's outboard share goes back onto its aileron first: the break-up that is about to run finds
+            // the wing parts and splits them itself, and it must find each aileron whole rather than a carrier it does
+            // not know about (and DropCarried would otherwise destroy that share outright).
+            foreach (FlyingGame.Core.AirframeComponent c in _tipsTaken) { _bentPanels.Remove(c); ReturnCarriedOutboard(c); DropCarried(c); }
         }
 
         /// <summary>A tip that found nothing to ride — a model with no wing parts to cut, so no debris object was made at
@@ -688,6 +695,10 @@ namespace FlyingGame.Bridge
             public Transform Parent;     // what the carrier hangs on — the surface's own parent, before we cut in
             public float Station;        // the panel: |sim y| of the surface's spanwise middle. The tail: its mean height
             public float Side;           // which side of the centreline it is on (the tail only)
+            /// <summary>The carrier is UNDER its surface, carrying the surface's OUTBOARD SHARE only (an aileron that
+            /// crosses the bend station: see <see cref="CarryStraddlingAilerons"/>). Its frame is the surface's own, so
+            /// the hinge moves it and the motion has to be re-conjugated every frame, not only when the bend changes.</summary>
+            public bool UnderSurface;
         }
         private readonly Dictionary<FlyingGame.Core.AirframeComponent, List<CarriedSurface>> _carried = new();
 
@@ -700,9 +711,17 @@ namespace FlyingGame.Bridge
         /// rotation) — vertices deformed here would be fought by the hinge, and parenting it under the pivot would move it
         /// twice over, because the pivot's children are already-bent vertices. So an empty goes into the chain between the
         /// surface and its own parent: the surface keeps its local pose and its hinge keeps writing it, while the empty
-        /// carries the structure's rigid motion at the surface's own station. The WHOLE aileron moves, inboard end
-        /// included, which is how the sim has it (WingPanel.AileronHinged: "a hinge line cannot cross a missing panel, so
-        /// the whole aileron leaves with the panel even where it runs inboard of the station").
+        /// carries the structure's rigid motion at the surface's own station.
+        ///
+        /// ONE RIGID MOTION IS ONLY RIGHT WHERE THE SURFACE LIES WHOLLY OUTBOARD OF THE STATION. This used to move the
+        /// whole aileron, inboard end included, on the grounds that the sim takes the whole aileron when the panel is
+        /// LOST (WingPanel.AileronHinged: "a hinge line cannot cross a missing panel, so the whole aileron leaves with
+        /// the panel even where it runs inboard of the station"). But that is a rule about what LEAVES with a panel that
+        /// breaks OFF, not about where the skin is when the panel merely BENDS — and a bend is a KINK: WingPanel.Bend
+        /// and .Twist move nothing at all inboard of BreakY. So the inboard hinge was being lifted off a wing that had
+        /// not moved (Ty 2026-11-10: "fixed the outboard hinge but not the inboard hinge keep both hinges 'attached'").
+        /// An aileron that crosses the station is cut there instead, and only its outboard share is carried
+        /// (<see cref="CarryStraddlingAilerons"/>); this method sees only the ones that do not cross it.
         /// Only what the eye sees is carried (<see cref="AirframeBuilder.IsDebrisSource"/>: never the hidden procedural
         /// shell under a placed model), and only a surface with meshes of its own — a one-mesh model whose surfaces are
         /// skinned regions has no bend to follow either, since the bend only moves MeshFilter geometry.
@@ -730,6 +749,68 @@ namespace FlyingGame.Bridge
                 t.SetParent(carrier, false);   // the carrier is identity, so nothing has moved yet
                 (float station, float side) = at(lo, hi);
                 list.Add(new CarriedSurface { Surface = t, Carrier = carrier, Parent = parent, Station = station, Side = side });
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// An aileron that CROSSES the bend station, cut there, with only its outboard share carried.
+        ///
+        /// Ty 2026-11-10: "The aileron fix on the bent wing fixed the outboard hinge but not the inboard hinge keep both
+        /// hinges 'attached'". The 11-09 repair hung the WHOLE aileron on one carrier and moved it rigidly. That is
+        /// exact for an aileron wholly outboard of the station — and wrong for one that spans it, because a bend is a
+        /// KINK, not a curve: WingPanel.Bend and WingPanel.Twist both return a point unchanged inboard of BreakY and
+        /// move it rigidly outboard (BendDamageTests pins it). So the skin under the aileron's inboard end never moved,
+        /// the carrier moved that end anyway, and the inboard hinge lifted off the wing. One rigid motion cannot hold
+        /// both ends of a line with a kink in it.
+        ///
+        /// So the aileron is cut at the station, by the same test and the same splitter the wing itself is cut with. The
+        /// INBOARD share stays on the aileron's own meshes and is never moved — which is right, the wing there is
+        /// straight. The OUTBOARD share goes on a carrier UNDER the aileron, so the hinge still drives it (it is below
+        /// the transform the rig writes) and the bend rides on top of the deflection. Both ends sit on the skin they
+        /// belong to, and the whole aileron still deflects.
+        ///
+        /// The cost of hanging below the hinge is that the carrier's frame MOVES with the deflection, so its motion has
+        /// to be re-conjugated every frame (<see cref="CarriedSurface.UnderSurface"/>) rather than only when the bend
+        /// changes. An aileron that does not cross the station still goes through <see cref="Carry"/> untouched.
+        /// </summary>
+        private List<CarriedSurface> CarryStraddlingAilerons(FlyingGame.Core.WingPanel p, AircraftConfig cfg,
+                                                             System.Func<Vector3, Vector3, bool> test)
+        {
+            var list = new List<CarriedSurface>();
+            if (_builder == null) return list;
+            System.Func<Vector3, bool> outboard = TipPanelTest(p, cfg);
+            float tipY = Mathf.Max((float)p.BreakY, (float)p.TipY);
+            foreach (Transform t in _builder.HingedSurfaces("aileron"))
+            {
+                if (t == null || t.parent == null || !DrawnBounds(t, out Vector3 lo, out Vector3 hi)) continue;
+                if (!test(lo, hi)) continue;
+                var go = new GameObject("Carried-" + p.Component + "-" + t.name + "-outboard");
+                Transform carrier = go.transform;
+                carrier.SetParent(t, false);
+                carrier.localPosition = Vector3.zero;
+                carrier.localRotation = Quaternion.identity;
+                carrier.localScale = Vector3.one;
+                bool any = false;
+                foreach (MeshFilter mf in t.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (mf == null || mf.sharedMesh == null || !_builder.IsDebrisSource(mf)) continue;
+                    if (mf.transform.IsChildOf(carrier)) continue;   // a share already cut onto this carrier
+                    SplitBy(mf.sharedMesh, mf.transform, transform, outboard, out Mesh lost, out Mesh kept);
+                    if (lost == null) continue;                      // nothing of this mesh is outboard
+                    AddPiece(carrier, mf.name + "-outboard", lost, mf.GetComponent<Renderer>()?.sharedMaterials,
+                        carrier.InverseTransformPoint(mf.transform.position),
+                        Quaternion.Inverse(carrier.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                    if (kept == null && !IsModelMesh(mf)) mf.gameObject.SetActive(false); else mf.sharedMesh = kept;
+                    any = true;
+                }
+                // Nothing of it could be cut (a skinned region, an unreadable mesh): leave it whole and unmoved rather
+                // than carry it wrongly — the old placeholder, which is what an uncarried aileron has always done.
+                if (!any) { Gone(go); continue; }   // Gone, not Destroy: the editor checks run this in edit mode
+                // The outboard share's own middle: between the station and the tip end, never inboard of the station.
+                float outerEnd = Mathf.Max(lo.x * p.Side, hi.x * p.Side);
+                float station = Mathf.Clamp(0.5f * ((float)p.BreakY + outerEnd), (float)p.BreakY, tipY);
+                list.Add(new CarriedSurface { Surface = t, Carrier = carrier, Parent = t, Station = station, Side = p.Side, UnderSurface = true });
             }
             return list;
         }
@@ -813,8 +894,44 @@ namespace FlyingGame.Bridge
         {
             if (!_carried.TryGetValue(comp, out List<CarriedSurface> list)) return;
             foreach (CarriedSurface c in list)
-                if (c.Carrier != null) { c.Carrier.localPosition = Vector3.zero; c.Carrier.localRotation = Quaternion.identity; }
+            {
+                if (c.Carrier == null) continue;
+                // An UNDER-SURFACE carrier holds the aileron's own OUTBOARD SHARE, cut out of its meshes. That share
+                // belongs to the panel that has just gone, so the carrier goes with it — emptied first by
+                // GiveCarriedOutboardTo where there is a debris object to ride, and otherwise simply gone. Putting it
+                // back at identity, as an above-surface carrier is, would leave the outboard half of the aileron
+                // hanging on an aeroplane whose wing tip has left.
+                if (c.UnderSurface) { Gone(c.Carrier.gameObject); continue; }
+                c.Carrier.localPosition = Vector3.zero; c.Carrier.localRotation = Quaternion.identity;
+            }
             _carried.Remove(comp);
+        }
+
+        /// <summary>Hand the outboard shares of this panel's ailerons to <paramref name="host"/> (the debris the panel
+        /// has become), keeping their world pose, so a bent wing throws its aileron's outboard half with it instead of
+        /// leaving it on the aeroplane. Called before <see cref="DropCarried"/>, which disposes of what is left.</summary>
+        private void GiveCarriedOutboardTo(FlyingGame.Core.AirframeComponent comp, Transform host)
+        {
+            if (host == null || !_carried.TryGetValue(comp, out List<CarriedSurface> list)) return;
+            foreach (CarriedSurface c in list)
+            {
+                if (!c.UnderSurface || c.Carrier == null) continue;
+                for (int i = c.Carrier.childCount - 1; i >= 0; i--) c.Carrier.GetChild(i).SetParent(host, true);
+            }
+        }
+
+        /// <summary>Put the outboard shares back on their own ailerons, world pose kept, making each aileron one object
+        /// again. For every case where the carriers go but the GEOMETRY must not: the wing turns out not to bend at all,
+        /// or the whole wing is about to be broken up and wants to find the aileron whole so it can split it itself.
+        /// <see cref="DropCarried"/> then destroys carriers that are empty.</summary>
+        private void ReturnCarriedOutboard(FlyingGame.Core.AirframeComponent comp)
+        {
+            if (!_carried.TryGetValue(comp, out List<CarriedSurface> list)) return;
+            foreach (CarriedSurface c in list)
+            {
+                if (!c.UnderSurface || c.Carrier == null || c.Surface == null) continue;
+                for (int i = c.Carrier.childCount - 1; i >= 0; i--) c.Carrier.GetChild(i).SetParent(c.Surface, true);
+            }
         }
 
         /// <summary>
@@ -852,11 +969,19 @@ namespace FlyingGame.Bridge
                 // bend two wings opposite ways — and nor is one that is not driven at all; both keep the old placeholder
                 // (they stay where they are, and the name test below leaves them out of the cut).
                 float? midUp = PanelMidUp(p, cfg);
+                bool Mine(Vector3 lo, Vector3 hi) =>
+                    Mathf.Min(lo.x * p.Side, hi.x * p.Side) > -0.05f
+                    && Mathf.Max(lo.x * p.Side, hi.x * p.Side) > (float)p.BreakY
+                    && (midUp == null || (p.Lower ? 0.5f * (lo.y + hi.y) < midUp.Value : 0.5f * (lo.y + hi.y) > midUp.Value));
+                // AND WHETHER IT CROSSES THE STATION (Ty 2026-11-10: "fixed the outboard hinge but not the inboard
+                // hinge keep both hinges 'attached'"). One that does not is carried WHOLE, exactly as it has been since
+                // 2026-11-09, because one rigid motion is exact outboard of the station. One that does is cut at the
+                // station and only its outboard share is carried — see CarryStraddlingAilerons.
+                bool Straddles(Vector3 lo, Vector3 hi) => Mathf.Min(lo.x * p.Side, hi.x * p.Side) < (float)p.BreakY;
                 List<CarriedSurface> carried = Carry("aileron", p.Component.ToString(),
-                    (lo, hi) => Mathf.Min(lo.x * p.Side, hi.x * p.Side) > -0.05f
-                             && Mathf.Max(lo.x * p.Side, hi.x * p.Side) > (float)p.BreakY
-                             && (midUp == null || (p.Lower ? 0.5f * (lo.y + hi.y) < midUp.Value : 0.5f * (lo.y + hi.y) > midUp.Value)),
+                    (lo, hi) => Mine(lo, hi) && !Straddles(lo, hi),
                     (lo, hi) => (Mathf.Clamp(Mathf.Abs(0.5f * (lo.x + hi.x)), (float)p.BreakY, Mathf.Max((float)p.BreakY, (float)p.TipY)), p.Side));
+                carried.AddRange(CarryStraddlingAilerons(p, cfg, (lo, hi) => Mine(lo, hi) && Straddles(lo, hi)));
                 _carried[p.Component] = carried;
                 foreach (GameObject part in new List<GameObject>(_builder.WingParts))
                 {
@@ -888,7 +1013,9 @@ namespace FlyingGame.Bridge
                 _bentShown.Remove(p.Component);
                 // Nothing of the wing itself bends (a one-mesh model whose wing is a skinned region): then nothing may
                 // move, or the aileron would be the only thing bent — the very thing Ty saw the other way round.
-                if (pieces.Count == 0) DropCarried(p.Component);
+                // Nothing of the wing itself bends: the aileron's outboard share goes back onto it, whole and unmoved,
+                // because there is no bend for it to follow and nothing else would ever put it back.
+                if (pieces.Count == 0) { ReturnCarriedOutboard(p.Component); DropCarried(p.Component); }
             }
             PosePanelPieces(p);
         }
@@ -898,10 +1025,14 @@ namespace FlyingGame.Bridge
         private void PosePanelPieces(FlyingGame.Core.WingPanel p)
         {
             double flex = p.ElasticRad + p.FlightFlexRad;   // a tip contact's flex and the wings' flex under g (Ty 2026-11-05)
+            // The ailerons move with the wing, on their hinges (Ty 2026-11-09). BEFORE the shape short-circuit below: a
+            // carrier that hangs UNDER its aileron is expressed in a frame the hinge moves, so it has to be
+            // re-conjugated every frame even when the bend has not changed — otherwise the outboard share swims as the
+            // stick moves (Ty 2026-11-10). The ones above their surface do not need it and do not mind it.
+            PoseCarriedPanel(p, flex);
             var shape = new Vector3((float)(p.BendRad + flex), (float)p.TwistRad, 0f);
             if (_bentShown.TryGetValue(p.Component, out Vector3 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f && Mathf.Abs(shape.y - shown.y) < 1e-3f) return;
             _bentShown[p.Component] = shape;
-            PoseCarriedPanel(p, flex);   // the ailerons move with the wing, on their hinges (Ty 2026-11-09)
             if (!_bentPieces.TryGetValue(p.Component, out List<BentPiece> list)) return;
             foreach (BentPiece bp in list)
             {
