@@ -1079,7 +1079,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -1096,7 +1096,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -1113,7 +1113,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -1130,7 +1130,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -1147,7 +1147,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -1164,13 +1164,14 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
           }
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1970,7 +1971,10 @@
       "maxSteerRad": 1.2,
       "tireMu": 0.8,
       "corneringStiffnessN": 40000,
-      "tire": "legacy-737-nose", "tirePressurePsi": 190
+      "tire": "legacy-737-nose",
+      "tirePressurePsi": 190,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts, as every transport has. Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1986,7 +1990,10 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 80000,
-      "tire": "legacy-737-main", "tirePressurePsi": 205
+      "tire": "legacy-737-main",
+      "tirePressurePsi": 205,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts, as every transport has. Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -2002,7 +2009,10 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 80000,
-      "tire": "legacy-737-main", "tirePressurePsi": 205
+      "tire": "legacy-737-main",
+      "tirePressurePsi": 205,
+      "gearType": "oleo",
+      "gearTypeSource": "Air-over-oil shock struts, as every transport has. Telescopic, so no legPivot."
     }
   ],
   "limits": {
@@ -2031,5 +2041,12 @@
     }
   ],
   "retractableGear": true,
-  "gearDragAreaM2": 2.5
+  "gearDragAreaM2": 2.5,
+  "instruments": {
+    "airspeed": {
+      "units": "kt",
+      "_unitsSource": "Turbine.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
+  }
 }

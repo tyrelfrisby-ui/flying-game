@@ -9,6 +9,21 @@ namespace FlyingGame.Core.DataContracts;
 /// </summary>
 public sealed class AircraftConfig
 {
+
+    /// <summary>
+    /// THE ENGINE'S CYLINDER COUNT AND COMPRESSION RATIO, from whichever place authored them. They describe the engine,
+    /// not the exhaust, but the exhaust asked first (<see cref="SmokeConfig.Cylinders"/> drives the pipe's pulse rate),
+    /// so rather than author the same two numbers twice and let them drift, propulsion's own values win when given and
+    /// the smoke pipe's are the fallback. One place decides, so the pulse you HEAR and the compression you FEEL are the
+    /// same engine. Four and 8.7 when nothing says otherwise — a small four-cylinder Lycoming or Continental, which is
+    /// most of this fleet.
+    /// </summary>
+    public int EngineCylinders =>
+        Propulsion is { Cylinders: > 0 } p ? p.Cylinders : Smoke is { Cylinders: > 0 } sm ? sm.Cylinders : 4;
+
+    public double EngineCompressionRatio =>
+        Propulsion is { CompressionRatio: > 1.0 } p ? p.CompressionRatio
+        : Smoke is { CompressionRatio: > 1.0 } sm ? sm.CompressionRatio : 8.7;
     /// <summary>
     /// BUSHWHEELS (owner 2026-10-16): any aeroplane can be put on big soft tyres, which is what lets it skim water
     /// and land on a gravel bar. Set from the session when the option is chosen; not part of the type's own data.
@@ -118,6 +133,13 @@ public sealed class AircraftConfig
 
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
+
+    /// <summary>What this aeroplane's own instruments read (see <see cref="InstrumentsConfig"/>). Until 2026-11-10 the
+    /// block existed in the JSON but nothing in C# read it: the modelled cockpit faces are drawn from it by
+    /// tools/own_models/instruments/build.py and its numbers were copied by hand into
+    /// <c>FlyingGame.Core.Instruments.InstrumentLibrary</c>. The fleet-wide ASI UNIT rule (Ty 2026-11-10, "by era and
+    /// category") needs it at run time on every type, so it is a loaded contract now.</summary>
+    public InstrumentsConfig? Instruments { get; set; }
 
     /// <summary>Set on a wing flown by weight shift instead of control surfaces (<see cref="WeightShiftConfig"/>);
     /// null on everything with a stick connected to something.</summary>
@@ -942,6 +964,16 @@ public sealed class PropulsionConfig
     /// true = coarse (aerobatic, twin), false = fine (the standard single).
     /// </summary>
     public bool CoarseOnOilLoss { get; set; }
+
+    /// <summary>
+    /// Cylinders and compression ratio, for the COMPRESSION STROKES of a dead engine
+    /// (<see cref="FlyingGame.Core.PistonCompression"/>): what makes a propeller lump to a stop rather than coast to
+    /// one, and what it has to be shoved over to windmill again. 0 here means "ask the exhaust", because the same two
+    /// numbers were already authored on <see cref="SmokeConfig"/> for the pipe's pulse rate and it is the same engine —
+    /// see <see cref="AircraftConfig.EngineCylinders"/>, which is the one place that decides.
+    /// </summary>
+    public int Cylinders { get; set; }
+    public double CompressionRatio { get; set; }
     /// <summary>Drag of the idling / windmilling propeller as a coefficient on its DISC area (owner 2026-10-03: the 172
     /// glided 14:1 at idle — the POH says 9:1 — and floated forever). A fine-pitch prop at idle is driven by the air and
     /// is a big drag: C_D ≈ 0.15–0.25 on disc area. Fades out as the throttle comes up (gone by 20 %).
@@ -1159,7 +1191,45 @@ public sealed class GearConfig
     /// (right) points right, a wheel at -y points left.
     /// </summary>
     public double ToeOutDeg { get; set; }
-    public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
+
+    /// <summary>
+    /// WHAT KIND OF SPRING this leg is: "bungee" (rubber shock cord), "spring-steel" / "spring-aluminum" /
+    /// "spring-composite" (a leaf or a bow that bends), "oleo" (air over oil). Also, historically, what kind of
+    /// CONTACT it is where it is not a sprung wheel at all: "float-keel", "nose-skid", "tail-skid", "tip-skid",
+    /// "feet" — those are read all over the sim and must keep their meaning.
+    ///
+    /// Since 2026-11-10 the spring kinds are not labels: they set the leg's TRAVEL to its stop and the shape of its
+    /// force past it (LandingGear.LegTravelM, LandingGear.LegForceN). They do not decide
+    /// whether the wheel swings outboard as it compresses — that is the LINKAGE, which is <see cref="LegPivot"/>: a
+    /// bungee on a pivoting half-axle (the Great Lakes' oleo too) swings, a telescopic strut does not.
+    /// </summary>
+    public string GearType { get; set; } = "";
+    public string GearTypeSource { get; set; } = "";
+
+    /// <summary>
+    /// THE FUSELAGE ATTACHMENT this leg swings about: (x, y, z) in the same body frame as <see cref="Pos"/> (vs the
+    /// config datum, +z DOWN). null/empty = no linkage modelled, and the contact point stays put as the leg
+    /// compresses, which is what the whole fleet did before 2026-11-10.
+    ///
+    /// Ty 2026-11-10, on his own J-3 and Pitts: "Pivot at the fuselage attachment and so does the pitts" — "The cub
+    /// bungees are in the black leather bags on the gear legs, the pitts bungees are in the belly and the cabana
+    /// struts attach to them". The legs are rigid and hinge on the fuselage, so compressing them swings the wheels
+    /// along an arc: OUT as well as up, and the track WIDENS. A composite bow (the Extra) bends instead of hinging,
+    /// and to first order its tip moves the same way — perpendicular to the leg — so it is authored the same way,
+    /// with the pivot at the root.
+    ///
+    /// Only the y and z matter to the motion (the hinge axis is fore-and-aft); x is authored where the pin is.
+    /// Measured off the models, which carry the real linkage: the J-3's and the Great Lakes' GLBs have the hinge
+    /// rigged (Gear_Pivot_L/R + Gear_HingeAxis), and the Pitts' and the Extra's leg meshes are measured at the
+    /// fuselage. LandingGear.SplayPerM is the rate that falls out, and GearGeometryTests holds each
+    /// type to its model.
+    /// </summary>
+    public double[]? LegPivot { get; set; }
+    public string LegPivotSource { get; set; } = "";
+    /// <summary>How far this leg can compress before it is on its stop (m at the wheel). 0 = the kind's own
+    /// (LandingGear.LegTravelM).</summary>
+    public double LegTravelM { get; set; }
+    public string LegTravelSource { get; set; } = "";
     // THE TYRE (Ty 2026-11-04, "proper tundra tires"): which tyre is on this leg, by TireCatalog id. Its size, width,
     // masses, inertia, carcass and pressures all come from the catalog — one source of truth — and a config never
     // states a tyre's radius or mass by hand any more (TireCatalogTests holds every config to it).
@@ -1226,6 +1296,55 @@ public sealed class WeightShiftConfig
         MathTypes.Vec3 pilotForce = -(PilotMassKg / Math.Max(1e-6, totalMassKg)) * aeroForceBody;
         return MathTypes.Vec3.Cross(shift, pilotForce);
     }
+}
+
+/// <summary>
+/// WHAT THIS AEROPLANE'S OWN INSTRUMENTS READ. Only the airspeed indicator and the g-meter are in the contract so far;
+/// the rest of a modelled panel is still its builder's business (tools/own_models). The faces of the four types with
+/// modelled cockpits are drawn from this block by tools/own_models/instruments/build.py, and
+/// <c>InstrumentLibraryTests</c> holds the hand-copied numbers in InstrumentLibrary against it, so there is one place.
+/// </summary>
+public sealed class InstrumentsConfig
+{
+    /// <summary>The airspeed indicator. Every type in the fleet declares at least its <see
+    /// cref="AirspeedInstrumentConfig.Units"/>; only a type with a modelled cockpit declares the whole face.</summary>
+    public AirspeedInstrumentConfig? Airspeed { get; set; }
+}
+
+/// <summary>
+/// THE AIRSPEED INDICATOR'S FACE. <c>units</c> is the fleet-wide decision (Ty 2026-11-10: "vintage, fabric and
+/// experimental types read mph; anything certified modern or turbine reads knots") and every type has it. The rest —
+/// the scale and the certificated arcs — is published data off a TCDS or a POH, and only the types whose cockpit is
+/// modelled have had it authored; <c>FlyingGame.Core.Instruments.AsiDial</c> derives a scale from the spawn speed and
+/// <c>limits.vneMs</c> for the others. EVERY NUMBER HERE IS IN <c>units</c>: a face mixing mph arcs with a knots red
+/// line is worse than either, which is how the 172's face got to be wrong (its white arc and green floor were a 172M's
+/// mph figures, its green top, yellow arc and red line a 172S's knots).
+/// </summary>
+public sealed class AirspeedInstrumentConfig
+{
+    /// <summary>"mph" or "kt". Anything else (or absent) reads as knots — see <c>AsiUnits.Parse</c>.</summary>
+    public string Units { get; set; } = "kt";
+
+    /// <summary>Bottom and top of the printed scale, in <see cref="Units"/>. 0 = not authored, derive it.</summary>
+    public double ScaleMin { get; set; }
+    public double ScaleMax { get; set; }
+
+    /// <summary>The certificated range arcs, in <see cref="Units"/>. Null = not authored.</summary>
+    public AsiArcsConfig? Arcs { get; set; }
+
+    /// <summary>Vne as it is painted on the glass, in <see cref="Units"/>. 0 = not authored, use
+    /// <see cref="LimitsConfig.VneMs"/>. It wins over the converted Vne where both exist, because a TCDS publishes one
+    /// number in CAS and that number is what the pilot reads.</summary>
+    public double Redline { get; set; }
+}
+
+/// <summary>The three range arcs, each <c>[low, high]</c> in the ASI's own units: white = flap operating range,
+/// green = normal operating range, yellow = caution range. A missing or short array means that arc is not drawn.</summary>
+public sealed class AsiArcsConfig
+{
+    public double[]? White { get; set; }
+    public double[]? Green { get; set; }
+    public double[]? Yellow { get; set; }
 }
 
 public sealed class LimitsConfig

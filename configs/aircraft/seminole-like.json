@@ -787,7 +787,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -804,7 +804,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -821,7 +821,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -838,13 +838,14 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.61087,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
           }
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1394,14 +1395,14 @@
     }
   },
   "rig": {
-    "aileronRad": -0.000061,
-    "finOffsetRad": -0.000001,
+    "aileronRad": -6.1e-05,
+    "finOffsetRad": -1e-06,
     "throttleFraction": 0.75,
     "altitudeM": 1219.2,
     "tasMs": 73.511,
     "alphaRad": -0.000234,
     "elevatorTrimRad": 0.030197,
-    "bankRad": -0.000003
+    "bankRad": -3e-06
   },
   "controls": {
     "aileron": {
@@ -1480,8 +1481,8 @@
     "pFactorK": 0.35,
     "slipstreamK": 0.12,
     "coarseOnOilLoss": true,
-      "coarseOnOilLossSource": "Ty 2026-11-10: \"aerobatic aircraft with a constant speed propeller default to high pitch with loss of oil pressure like twins do (Seminole beech 18 etc) and standard single engines default to low pitch with no oil pressure\". Oil holds these blades FINE, so losing it drives them COARSE - a twin's path to feather, and on an aerobatic single what stops the prop overspeeding pointed down.",
-      "constantSpeed": true,
+    "coarseOnOilLossSource": "Ty 2026-11-10: \"aerobatic aircraft with a constant speed propeller default to high pitch with loss of oil pressure like twins do (Seminole beech 18 etc) and standard single engines default to low pitch with no oil pressure\". Oil holds these blades FINE, so losing it drives them COARSE - a twin's path to feather, and on an aerobatic single what stops the prop overspeeding pointed down.",
+    "constantSpeed": true,
     "governedRpm": 2400
   },
   "stallDynamics": {
@@ -1505,7 +1506,10 @@
       "maxSteerRad": 0.5,
       "tireMu": 0.8,
       "corneringStiffnessN": 5000,
-      "tire": "5.00-5", "tirePressurePsi": 30.4
+      "tire": "5.00-5",
+      "tirePressurePsi": 30.4,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-44 service manual). Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1521,7 +1525,10 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 14000,
-      "tire": "6.00-6", "tirePressurePsi": 42
+      "tire": "6.00-6",
+      "tirePressurePsi": 42,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-44 service manual). Telescopic, so no legPivot."
     },
     {
       "pos": [
@@ -1537,7 +1544,10 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 14000,
-      "tire": "6.00-6", "tirePressurePsi": 42
+      "tire": "6.00-6",
+      "tirePressurePsi": 42,
+      "gearType": "oleo",
+      "gearTypeSource": "Oleo-pneumatic struts all round (Piper PA-44 service manual). Telescopic, so no legPivot."
     }
   ],
   "limits": {
@@ -1566,5 +1576,12 @@
     }
   ],
   "retractableGear": true,
-  "gearDragAreaM2": 0.14
+  "gearDragAreaM2": 0.14,
+  "instruments": {
+    "airspeed": {
+      "units": "kt",
+      "_unitsSource": "Certified modern twin: the PA-44 POH is in KIAS.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
+  }
 }

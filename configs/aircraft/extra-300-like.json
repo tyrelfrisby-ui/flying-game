@@ -14,7 +14,12 @@
       0,
       0
     ],
-    "inertia": { "ixx": 701, "iyy": 2038, "izz": 2575, "ixz": 80 },
+    "inertia": {
+      "ixx": 701,
+      "iyy": 2038,
+      "izz": 2575,
+      "ixz": 80
+    },
     "inertiaSource": "Ixx/Iyy/Izz/Ixz kg.m2 about the CG. DERIVED 2026-11-02, docs/aircraft/extra-300-inertia-DERIVATION.md: a part-by-part build-up (engine from FAA TCDS 1E4 Note 5, propeller, occupants, fuel, structure) solved against the certificated CG, replacing 800/1100/1800/30 which had no derivation behind them. The PITCH inertia nearly doubles (1100 -> 2038, ky 1.16 -> 1.58 m): the old number was a light-aircraft rule of thumb for an aeroplane whose payload sits near the CG, which an Extra's does not. Izz - Ixx, which is what the inertial couple (Izz-Ixx).p.r uses to hold a spin flat, goes from 1000 to 1874 - Ty 2026-11-09, flying it: the Extra \"is too stable... it doesn't spin flat enough and can't tumble\"."
   },
   "surfaces": [
@@ -834,7 +839,7 @@
           "area": 0.1064,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.3938
@@ -851,7 +856,7 @@
           "area": 0.1389,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.3938
@@ -868,7 +873,7 @@
           "area": 0.1132,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.3938
@@ -885,14 +890,15 @@
           "area": 0.0915,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.3938
           },
           "sweepRad": 0.433
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1744,8 +1750,8 @@
     }
   },
   "spinAero": {
-      "controlSpoilerK": 0.6,
-      "controlSpoilerKSource": "A deflected control on a BROADSIDE surface acts as a spoiler on the separated wake, not as a flap: k*sin(delta)*|sin(alpha_chord)|*q*S normal to the FIXED surface, on hinged tail strips, ramped in over 30-50 deg of the strip's own flow angle. SAME VALUE AND SAME MECHANISM AS THE PITTS, which Ty flew and confirmed on 2026-11-10 (\"That is it! Now it behaves like a Pitts really does\"), applied here on his \"The extra was lacking both rudder and elevator power at high alpha\". MEASURED: the Extra was worse off than the Pitts had been - elevator 1.9/1.7/0.1 deg/s2 at alpha 90/80/70 and rudder 0.0/1.0/1.4, at the spin's own rates (SpinAuthorityProbe, SPIN_AUTH=1 SPIN_AUTH_ID=extra-300-like). At 0.6: elevator 15.0/14.5/12.1 and rudder 5.7/6.7/4.8, with the spin itself unchanged (226 deg/s at 50 kt against 220 at 50). FINSIDEWASHK IS DELIBERATELY NOT SET HERE, and it was measured first: the Extra's fin stands too far off a body with no measured stations for the crossflow amplification to reach, so 0.5 bought its rudder only 1.0 -> 1.4 deg/s2 at alpha 80 while slowing the spin 220 -> 196 deg/s, and 0.7 stopped it spinning at all (102 kt). The Pitts needed both because its fin sits low against a deep fuselage; this one needs only the spoiler. DOES NOT CHANGE THE ENDO: measured across ExtraEndoProbe's six entries at k 0, 0.6 and 1.0, every one is identical to the turn - the endo runs at alpha -8..41, below where this ramps in, and it was already turning 1.9-2.0 pitch turns at a sustained 113 deg/s.",
+    "controlSpoilerK": 0.6,
+    "controlSpoilerKSource": "A deflected control on a BROADSIDE surface acts as a spoiler on the separated wake, not as a flap: k*sin(delta)*|sin(alpha_chord)|*q*S normal to the FIXED surface, on hinged tail strips, ramped in over 30-50 deg of the strip's own flow angle. SAME VALUE AND SAME MECHANISM AS THE PITTS, which Ty flew and confirmed on 2026-11-10 (\"That is it! Now it behaves like a Pitts really does\"), applied here on his \"The extra was lacking both rudder and elevator power at high alpha\". MEASURED: the Extra was worse off than the Pitts had been - elevator 1.9/1.7/0.1 deg/s2 at alpha 90/80/70 and rudder 0.0/1.0/1.4, at the spin's own rates (SpinAuthorityProbe, SPIN_AUTH=1 SPIN_AUTH_ID=extra-300-like). At 0.6: elevator 15.0/14.5/12.1 and rudder 5.7/6.7/4.8, with the spin itself unchanged (226 deg/s at 50 kt against 220 at 50). FINSIDEWASHK IS DELIBERATELY NOT SET HERE, and it was measured first: the Extra's fin stands too far off a body with no measured stations for the crossflow amplification to reach, so 0.5 bought its rudder only 1.0 -> 1.4 deg/s2 at alpha 80 while slowing the spin 220 -> 196 deg/s, and 0.7 stopped it spinning at all (102 kt). The Pitts needed both because its fin sits low against a deep fuselage; this one needs only the spoiler. DOES NOT CHANGE THE ENDO: measured across ExtraEndoProbe's six entries at k 0, 0.6 and 1.0, every one is identical to the turn - the endo runs at alpha -8..41, below where this ramps in, and it was already turning 1.9-2.0 pitch turns at a sustained 113 deg/s.",
     "rollDueToSideslip": "monoplane",
     "shadowK": 0.5,
     "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type, and brings in the fuselage's own shadow on the tail and the wings (TailWake.BodyStation). Ty 2026-11-08: \"expand the shadow work to all 6 shipping aircraft include the shadow effects of the fuselage on the tail and wing's too\". 0.5 is the depth fitted on the Pitts against the owner's spin attitudes on 2026-11-08, and it is a PHYSICAL statement - half the q is gone where a wake fully covers a section - rather than a per-type fudge, so the six carry the same number until a type's own evidence moves it. What differs between types is the geometry, which is the point: the Pitts' cellule shadows itself, the Extra's stabiliser spans well outside its fuselage and is barely shadowed at all (measured in a tumble: tail q 1.00 -> 0.96), and the fuselage's own shadow is what takes the fin in an upright flat spin while leaving it in clear air inverted."
@@ -1765,7 +1771,7 @@
     "hubXMSource": "Propeller disc station, body x, m. MEASURED: docs/aircraft/extra-300-inertia-DERIVATION.md's build-up puts the MT MTV-9-B-C at +1.921 (engine +1.372, starter/alternator +1.697). The derived fallback gave +1.708 - 0.213 m too far aft, from anchoring a spinner-to-tail-post length at the rudder's trailing edge. See HubXM.",
     "fineStopDeg": 12.72,
     "coarseStopDeg": 31.12,
-    "pitchStopSource": "Derived 2026-11-09 from Ty\u0027s two rules, not chosen: the FINE stop is the blade angle that lets the engine make rated rpm standing still on 26 inHg (the run-up check), and the COARSE stop is the angle needed to hold rated rpm at Vd = 1.1 x Vne (242 kt) at full power, so the governor cannot run out of blade before Vd. Power at 26 inHg is the naturally aspirated line through its friction intercept, (26-10)/(29.92-10) = 0.80 of rated. Computed by BladeElement.GovernorStops and cached here because the governor reads them every step.",
+    "pitchStopSource": "Derived 2026-11-09 from Ty's two rules, not chosen: the FINE stop is the blade angle that lets the engine make rated rpm standing still on 26 inHg (the run-up check), and the COARSE stop is the angle needed to hold rated rpm at Vd = 1.1 x Vne (242 kt) at full power, so the governor cannot run out of blade before Vd. Power at 26 inHg is the naturally aspirated line through its friction intercept, (26-10)/(29.92-10) = 0.80 of rated. Computed by BladeElement.GovernorStops and cached here because the governor reads them every step.",
     "propMaterial": "composite",
     "propMaterialSource": "MT-Propeller MTV-9 three-blade natural-composite (wood core, glass/carbon skin)",
     "propBladeCount": 3,
@@ -1779,8 +1785,8 @@
     "pFactorK": 0.35,
     "slipstreamK": 0.12,
     "coarseOnOilLoss": true,
-      "coarseOnOilLossSource": "Ty 2026-11-10: \"aerobatic aircraft with a constant speed propeller default to high pitch with loss of oil pressure like twins do (Seminole beech 18 etc) and standard single engines default to low pitch with no oil pressure\". Oil holds these blades FINE, so losing it drives them COARSE - a twin's path to feather, and on an aerobatic single what stops the prop overspeeding pointed down.",
-      "constantSpeed": true,
+    "coarseOnOilLossSource": "Ty 2026-11-10: \"aerobatic aircraft with a constant speed propeller default to high pitch with loss of oil pressure like twins do (Seminole beech 18 etc) and standard single engines default to low pitch with no oil pressure\". Oil holds these blades FINE, so losing it drives them COARSE - a twin's path to feather, and on an aerobatic single what stops the prop overspeeding pointed down.",
+    "constantSpeed": true,
     "governedRpm": 2500
   },
   "stallDynamics": {
@@ -1806,7 +1812,12 @@
       "toeOutDeg": 2.0,
       "toeOutDegSource": "A standing slip angle on each main, outboard, so the pair cancel when the load is even and restore when it is not: the heavier wheel's outboard side force is the larger one, which pushes the aeroplane back toward the light side and shares the load out again. Ty 2026-11-10, flying both types: \"How are the main gear tires aligned? It acts like it has toe in\" - they were dead straight, which is the one thing a sprung taildragger's gear never is - then \"Try 1 degree toe out both sides\", and the mechanism in his own words: \"The loaded tire tries to unload back to the other\". 1.0 deg is his number, not a fitted one. The sign comes from the wheel's own y, so one value on both mains means outboard on both (LandingGear.ToeRad).",
       "corneringStiffnessN": 8000,
-      "tire": "legacy-extra-main", "tirePressurePsi": 18.1
+      "tire": "legacy-extra-main",
+      "tirePressurePsi": 18.1,
+      "gearType": "spring-composite",
+      "gearTypeSource": "Springy fibreglass bow -- Ty 2026-11-10: \"The extra has springy fiberglass that flexes nicely.\" It bends rather than hinges, which is a different spring from a bungee and the same kinematics at the contact.",
+      "legPivot": [0.347, -0.414, 0.555],
+      "legPivotSource": "Measured off the type's own gear table and model: tools/own_models/ea300_ref_tables.json carries the composite bow as 24 measured horizontal sections, whose neutral axis runs from (span 0.418, up -0.558) where it leaves the fuselage to (span 0.790, up -1.249) at its lower end, with the axle on a bracket at span 0.890 and the tyre touching at up -1.418 (extra-300-like-own.glb, Wheels). Scaled to the config span that is a leg 0.468 m out and 0.852 m down from the root: splay 1.82. A bow has no pin -- its tip moves perpendicular to the beam as it bends, which is what a hinge at the root gives to first order -- and the root-to-contact CHORD is the conservative reading of it: Castigliano on the measured section path (integral of the moment arms about the contact, constant EI) gives 2.02 rather than 1.82, because the bow is a C whose lower half is nearly vertical."
     },
     {
       "pos": [
@@ -1824,7 +1835,12 @@
       "toeOutDeg": 2.0,
       "toeOutDegSource": "A standing slip angle on each main, outboard, so the pair cancel when the load is even and restore when it is not: the heavier wheel's outboard side force is the larger one, which pushes the aeroplane back toward the light side and shares the load out again. Ty 2026-11-10, flying both types: \"How are the main gear tires aligned? It acts like it has toe in\" - they were dead straight, which is the one thing a sprung taildragger's gear never is - then \"Try 1 degree toe out both sides\", and the mechanism in his own words: \"The loaded tire tries to unload back to the other\". 1.0 deg is his number, not a fitted one. The sign comes from the wheel's own y, so one value on both mains means outboard on both (LandingGear.ToeRad).",
       "corneringStiffnessN": 8000,
-      "tire": "legacy-extra-main", "tirePressurePsi": 18.1
+      "tire": "legacy-extra-main",
+      "tirePressurePsi": 18.1,
+      "gearType": "spring-composite",
+      "gearTypeSource": "Springy fibreglass bow -- Ty 2026-11-10: \"The extra has springy fiberglass that flexes nicely.\" It bends rather than hinges, which is a different spring from a bungee and the same kinematics at the contact.",
+      "legPivot": [0.347, 0.414, 0.555],
+      "legPivotSource": "Measured off the type's own gear table and model: tools/own_models/ea300_ref_tables.json carries the composite bow as 24 measured horizontal sections, whose neutral axis runs from (span 0.418, up -0.558) where it leaves the fuselage to (span 0.790, up -1.249) at its lower end, with the axle on a bracket at span 0.890 and the tyre touching at up -1.418 (extra-300-like-own.glb, Wheels). Scaled to the config span that is a leg 0.468 m out and 0.852 m down from the root: splay 1.82. A bow has no pin -- its tip moves perpendicular to the beam as it bends, which is what a hinge at the root gives to first order -- and the root-to-contact CHORD is the conservative reading of it: Castigliano on the measured section path (integral of the moment arms about the contact, constant EI) gives 2.02 rather than 1.82, because the bow is a C whose lower half is nearly vertical."
     },
     {
       "pos": [
@@ -1841,7 +1857,8 @@
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
       "steerSpringNmPerRad": 60,
-      "tire": "legacy-extra-tail", "tirePressurePsi": 14.5
+      "tire": "legacy-extra-tail",
+      "tirePressurePsi": 14.5
     }
   ],
   "limits": {
@@ -1932,6 +1949,7 @@
     },
     "airspeed": {
       "units": "kt",
+      "_unitsSource": "TY'S EXPLICIT CALL -- and here it is the rule that is wrong and he is right: the Extra 300 POH section 2 is published in KIAS (VS0 60, VNO 158, VNE 220). Not to be 'corrected' to mph.",
       "scaleMin": 40,
       "scaleMax": 260,
       "arcs": {

@@ -2211,7 +2211,11 @@
       "toeOutDegSource": "A standing slip angle on each main, outboard, so the pair cancel when the load is even and restore when it is not: the heavier wheel's outboard side force is the larger one, which pushes the aeroplane back toward the light side and shares the load out again. Ty 2026-11-10, flying both types: \"How are the main gear tires aligned? It acts like it has toe in\" - they were dead straight, which is the one thing a sprung taildragger's gear never is - then \"Try 1 degree toe out both sides\", and the mechanism in his own words: \"The loaded tire tries to unload back to the other\". 1.0 deg is his number, not a fitted one. The sign comes from the wheel's own y, so one value on both mains means outboard on both (LandingGear.ToeRad).",
       "corneringStiffnessN": 8000,
       "tire": "legacy-pitts-main",
-      "tirePressurePsi": 16.2
+      "tirePressurePsi": 16.2,
+      "gearType": "bungee",
+      "gearTypeSource": "Rubber shock cord, in the belly, loaded through the legs -- Ty 2026-11-10: \"the pitts bungees are in the belly and the cabana struts attach to them so cabana pulls on bungee inside\" (the model draws the spool and the cord wraps: Gear_Bungee, Gear_Bungee_Housing). The same KIND of spring as the Cub's in a different place, so it is the same word here, with its own geometry.",
+      "legPivot": [0.463, -0.22, 0.569],
+      "legPivotSource": "Measured off pitts-s2b-like-own.glb (Gear_Main): the A-frame pick-ups leave the lower longerons at span 0.22, up -0.570 (the leg mesh's highest point at that span; build_pitts_s2b.py puts them there from the Aviat three-view and the VH-ZZZ head-on photo), and the tyre touches at span 0.81, up -1.329. 0.59 m out, 0.759 m down: splay 1.29. The front and rear pick-ups are at the same y, so the hinge they make is fore-and-aft and the wheel swings in the frame's plane."
     },
     {
       "pos": [
@@ -2230,7 +2234,11 @@
       "toeOutDegSource": "A standing slip angle on each main, outboard, so the pair cancel when the load is even and restore when it is not: the heavier wheel's outboard side force is the larger one, which pushes the aeroplane back toward the light side and shares the load out again. Ty 2026-11-10, flying both types: \"How are the main gear tires aligned? It acts like it has toe in\" - they were dead straight, which is the one thing a sprung taildragger's gear never is - then \"Try 1 degree toe out both sides\", and the mechanism in his own words: \"The loaded tire tries to unload back to the other\". 1.0 deg is his number, not a fitted one. The sign comes from the wheel's own y, so one value on both mains means outboard on both (LandingGear.ToeRad).",
       "corneringStiffnessN": 8000,
       "tire": "legacy-pitts-main",
-      "tirePressurePsi": 16.2
+      "tirePressurePsi": 16.2,
+      "gearType": "bungee",
+      "gearTypeSource": "Rubber shock cord, in the belly, loaded through the legs -- Ty 2026-11-10: \"the pitts bungees are in the belly and the cabana struts attach to them so cabana pulls on bungee inside\" (the model draws the spool and the cord wraps: Gear_Bungee, Gear_Bungee_Housing). The same KIND of spring as the Cub's in a different place, so it is the same word here, with its own geometry.",
+      "legPivot": [0.463, 0.22, 0.569],
+      "legPivotSource": "Measured off pitts-s2b-like-own.glb (Gear_Main): the A-frame pick-ups leave the lower longerons at span 0.22, up -0.570 (the leg mesh's highest point at that span; build_pitts_s2b.py puts them there from the Aviat three-view and the VH-ZZZ head-on photo), and the tyre touches at span 0.81, up -1.329. 0.59 m out, 0.759 m down: splay 1.29. The front and rear pick-ups are at the same y, so the hinge they make is fore-and-aft and the wheel swings in the frame's plane."
     },
     {
       "pos": [
@@ -2374,6 +2382,7 @@
     },
     "airspeed": {
       "units": "mph",
+      "_unitsSource": "Ty t897u, and TCDS A8SO rev 28 publishes the S-2B's Vne 212 and Vno/Va 154 in mph CAS (Q099).",
       "scaleMin": 40,
       "scaleMax": 240,
       "arcs": {

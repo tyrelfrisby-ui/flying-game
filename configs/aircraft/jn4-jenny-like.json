@@ -4,7 +4,10 @@
   "displayName": "JN-4D-like Trainer Biplane",
   "structureType": "wood",
   "structureTypeSource": "Curtiss JN-4D: wire-braced spruce and ash wooden-truss fuselage, fabric covered.",
-  "wingBreakStationY": { "wing-upper": 4.521, "wing-lower": 4.521 },
+  "wingBreakStationY": {
+    "wing-upper": 4.521,
+    "wing-lower": 4.521
+  },
   "wingBreakStationSource": "OUTER interplane strut station 178 in = 4.521 m from the centreline, both wings (struts vertical in front view; the inner bay's strut is at ~96 in): scaled (+/-4 in) off the Curtiss JN-4 line three-view on Wikimedia Commons ('Curtiss_JN-4B_Jenny_3-view_line_drawing.svg', drawn as a JN-4D2), front view fitted to the 261.7 in upper half-span; the plan view's strut marks fall on the same station. Secondary source (not a factory drawing).",
   "mass": {
     "massKg": 870.9,
@@ -1028,7 +1031,7 @@
           "area": 0.1177,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -1045,7 +1048,7 @@
           "area": 0.1177,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -1062,14 +1065,15 @@
           "area": 0.1177,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
           },
           "sweepRad": 0.0
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1727,7 +1731,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 7000,
-      "tire": "legacy-jn4-main", "tirePressurePsi": 19.2
+      "tire": "legacy-jn4-main",
+      "tirePressurePsi": 19.2
     },
     {
       "pos": [
@@ -1743,7 +1748,8 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 7000,
-      "tire": "legacy-jn4-main", "tirePressurePsi": 19.2
+      "tire": "legacy-jn4-main",
+      "tirePressurePsi": 19.2
     },
     {
       "pos": [
@@ -1768,5 +1774,12 @@
     "gMax": 3.5,
     "gMin": -1.5
   },
-  "spawnIasMs": 26.8
+  "spawnIasMs": 26.8,
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "_unitsSource": "Era and category: 1917 fabric. mph is the only unit the aeroplane ever had.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
+  }
 }

@@ -1701,25 +1701,28 @@
   },
   "instruments": {
     "airspeed": {
-      "units": "mph",
+      "units": "kt",
+      "_unitsSource": "Ty's rule: certified modern. This block used to say mph while only its white arc and green floor were a 172M's mph figures -- the green top (128), the yellow arc and the red line (164) were a 172S's KNOTS. The whole face is now one aeroplane in one unit: the 172S POH section 2, which also matches limits.vneMs 84 m/s = 163 kt.",
       "scaleMin": 40,
       "scaleMax": 200,
       "arcs": {
         "white": [
-          49,
-          100
+          40,
+          85
         ],
         "green": [
-          57,
-          128
+          48,
+          129
         ],
         "yellow": [
-          128,
-          164
+          129,
+          163
         ]
       },
-      "redline": 164
+      "redline": 163,
+      "_arcsSource": "Cessna 172S POH section 2 (Airspeed Limitations; Airspeed Indicator Markings), all KIAS: VS0 40, VFE 85 (10-30 deg of flap), VS1 48, VNO 129, VNE 163. White 40-85, green 48-129, yellow 129-163, red line 163. This agrees with limits.vneMs 84 m/s = 163.3 kt, which is where the old 164 came from.",
+      "_arcsWasWrong": "Until 2026-11-10 this read units mph with white [49,100], green [57,128], yellow [128,164], redline 164. Those are TWO AEROPLANES IN TWO UNITS: 49-100 and the green floor 57 are a 172M's mph markings (VS0 49 mph, VFE 100 mph, green floor 57 mph), while 128, 164 and the red line are a 172S's KNOTS (VNO 129, VNE 163). The block's own _source said the numbers were copied unchanged from the old c172_cockpit.py face, so nobody had ever checked them. A dial that reads mph with knots arcs on it is worse than either."
     },
-    "_source": "shared instrument library (tools/own_models/instruments): the arcs the old c172_cockpit.py face drew, copied unchanged"
+    "_source": "shared instrument library (tools/own_models/instruments). The face was the arcs the old c172_cockpit.py face drew, copied unchanged; on 2026-11-10 they were found to be a 172M's mph and a 172S's knots mixed together and were replaced by the 172S POH's own KIAS markings (see airspeed._arcsWasWrong)."
   }
 }

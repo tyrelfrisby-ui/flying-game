@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using FlyingGame.Core;
+using FlyingGame.Core.Engine;
 using FlyingGame.Core.DataContracts;
 using Xunit;
 using Xunit.Abstractions;
@@ -44,11 +45,11 @@ public class OilLossPitchProbe
                 {
                     if (pitch <= 0.0) { line += $"   {tag}: n/a"; continue; }
                     var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, pitch, p.ActivityFactor);
-                    var w = BladeElement.Windmill(g, v, rho, 3.0 * p.MaxRpm);
-                    double scale = PropModel.DeadPropPitchScale(p, pitch);
-                    line += w.Turning
-                        ? $"   {tag} {pitch,5:0.0} deg: {w.Rpm,6:0} rpm  blade-elt {w.DragN,7:0.0} N  scaled {authored * scale,7:0.0} N (x{scale:0.00})"
-                        : $"   {tag} {pitch,5:0.0} deg: STOPPED";
+                    double EngineQ(double r) => PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, r, 0.0, 1.0, 1.0);
+                    var free = BladeElement.Windmill(g, v, rho, p.MaxRpm);
+                    var cranked = BladeElement.Windmill(g, v, rho, p.MaxRpm, EngineQ);
+                    line += $"   {tag} {pitch,5:0.0}: free {(free.Turning ? $"{free.Rpm,6:0} rpm {free.DragN,7:0.0} N" : "   STOPPED      ")}" +
+                            $" | cranked {(cranked.Turning ? $"{cranked.Rpm,6:0} rpm {cranked.DragN,7:0.0} N  Cd {cranked.DragN / (0.5 * rho * v * v * disc),5:0.000}" : "STOPPED")}";
                 }
                 _o.WriteLine(line);
             }

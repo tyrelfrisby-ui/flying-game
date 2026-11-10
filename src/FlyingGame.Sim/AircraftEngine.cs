@@ -35,6 +35,51 @@ public sealed partial class Aircraft
     public bool MagLeft { get; set; } = true;
     public bool MagRight { get; set; } = true;
 
+    /// <summary>
+    /// THE OIL SYSTEM HAS FAILED, and the governor with it. Ty 2026-11-10, after the oil-loss pitch rule went in:
+    /// "Is the question a prop governor failure but working/running engine?" — which it was not, and that is the case
+    /// that matters. An engine that has quit has no oil pressure for the obvious reason; a governor that loses its oil
+    /// with the engine still making power is a FAILURE, and the two defaults (coarse for an aerobatic installation and
+    /// every twin, fine for a standard single) exist precisely to decide what you are left flying when it happens:
+    ///
+    ///   aerobatic / twin, COARSE: the rpm sags, you cannot make rated power at low speed, the climb is poor — and the
+    ///                             propeller can never overspeed, however far down you point it;
+    ///   standard single, FINE:    full power is there at low speed, and the propeller overspeeds the moment you are
+    ///                             fast or diving, with the engine itself driving it.
+    ///
+    /// Set it and the blades drift to <see cref="PropModel.OilLossPitchDeg"/> and STAY there: a fixed-pitch propeller
+    /// at that angle, with the rpm solved from the torque balance like any other fixed blade. Nothing sets it on its own
+    /// yet — Ty's answer on the cause was "Nothing — only my switch", with random failures queued separately — so this
+    /// is the switch, and the CFI failure switchboard is what will pull it.
+    /// </summary>
+    public bool OilSystemFailed { get; set; }
+
+    /// <summary>
+    /// Oil pressure, psi: zero with the engine stopped or <see cref="OilSystemFailed"/>, else rising with rpm (about 35
+    /// at idle, 80 in the cruise). It lives HERE rather than in the cockpit bridge, which used to compute it for the
+    /// gauge alone, because the governor now reads it: a number drawn on an instrument and a number the aeroplane flies
+    /// on must be one number or they will disagree exactly when it matters.
+    /// </summary>
+    public double OilPressPsi
+    {
+        get
+        {
+            if (OilSystemFailed || !EngineRunning) return 0.0;
+            PropulsionConfig p = Config.Propulsion!;
+            double max = p.MaxRpm > 100.0 ? p.MaxRpm : 2700.0;
+            double rpm = _shaftRpm > 0.0 ? _shaftRpm : PropModel.RunningRpm(p, _throttle01, _propLever);
+            return System.Math.Clamp(20.0 + 65.0 * System.Math.Min(1.0, rpm / (0.85 * max)), 0.0, 115.0);
+        }
+    }
+
+    /// <summary>The governor can only move the blades while it has oil to move them with. Below this the blades go to
+    /// the installation's default stop (<see cref="OilSystemFailed"/>); a real governor has lost control well before
+    /// the gauge reads zero.</summary>
+    public const double GovernorMinOilPsi = 12.0;
+
+    /// <summary>True while the governor is in control of the blade angle.</summary>
+    public bool GovernorHasOil => EngineRunning && !OilSystemFailed && OilPressPsi >= GovernorMinOilPsi;
+
     /// <summary>True when this type has a governor for <see cref="PropLever"/> to set.</summary>
     public bool HasPropLever => Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0 };
     /// <summary>True when this type has a mixture for <see cref="MixtureLever"/> to meter (a piston; not a jet).</summary>
@@ -119,35 +164,155 @@ public sealed partial class Aircraft
     // rest keep the old law untouched, so the fleet stays flyable while the blades are fitted one at a time.
     private double _shaftRpm, _bladePitchDeg;
 
+    // ---- the compression strokes of a dead engine (Ty 2026-11-10) -------------------------------------------------
+    //
+    // "Use real compression strokes for the number of cyl of the engine so the prop lumps to a stop instead of
+    //  stopping smoothly. To get prop windmilling again should take 10% under vne but occasional flips through a
+    //  compression stroke can occur at speeds below (simulate slow leak down on each cyl ...)"
+    //
+    // The MEAN of turning the engine is PistonEngine.MotoringTorqueNm. These three hold the RIPPLE: where the crank
+    // is, how well each cylinder is still holding its charge, and how hard a cylinder squarely on compression pushes
+    // back. The crank angle has to be a state — a lump you cannot see coming is a lump that cannot stop anything.
+    private double _crankRad;
+    private double[]? _leak;              // 1 sealed .. 0 bled down, per cylinder
+    private double[]? _leakTau;           // each cylinder's own bleed time, deliberately all different
+    private double _compPeakNm = double.NaN;
+    private bool _wasRunning;
+
+    /// <summary>Where the crank is, rad, through the four-stroke's 720 degrees. A state because the lumps are.</summary>
+    public double CrankAngleRad => _crankRad;
+
+    /// <summary>Each cylinder's remaining seal, 1 .. 0 (empty before the first dead-engine step).</summary>
+    public System.Collections.Generic.IReadOnlyList<double> CylinderSeal => _leak ?? System.Array.Empty<double>();
+
+    /// <summary>
+    /// HOW HARD A CYLINDER ON COMPRESSION PUSHES BACK, N·m, calibrated to Ty's own anchor: "To get prop windmilling
+    /// again should take 10% under vne". A STOPPED propeller has no stored energy to carry it through a compression —
+    /// it has to beat the worst of it from rest — so that condition fixes this one number:
+    ///
+    ///     Q_air(0.9 · Vne, fine stop, at rest)  =  |Q_mean|  +  peak · worstRipple(cylinders, CR)
+    ///
+    /// One equation, one unknown, and no freedom left over. Which means the OTHER anchor he gave — that the propeller
+    /// stops at level-flight stall speed — is a PREDICTION of this model and not a second knob: a turning propeller
+    /// carries through on the kinetic energy it stored over the easy part of the cycle, so it keeps going far below
+    /// the speed that could restart it, and where exactly it gives up falls out of the blade, the cylinder count and
+    /// the propeller's own inertia. CompressionStopProbe measures it.
+    /// </summary>
+    public double CompressionPeakNm
+    {
+        get
+        {
+            if (!double.IsNaN(_compPeakNm)) return _compPeakNm;
+            PropulsionConfig? p = Config.Propulsion;
+            if (p is null || p.PropDiameterM <= 0.0 || p.MaxPowerW <= 0.0) return _compPeakNm = 0.0;
+            double restartMs = 0.9 * (Config.Limits?.VneMs ?? 0.0);
+            double fine = p.ConstantSpeed && p.FineStopDeg > 0.0 ? p.FineStopDeg
+                        : p.BladePitch75Deg > 0.0 ? p.BladePitch75Deg : 15.0;
+            if (restartMs <= 1.0) return _compPeakNm = 0.0;
+
+            var g = new BladeElement.Geometry(p.PropBladeCount, 0.5 * p.PropDiameterM, fine, p.ActivityFactor);
+            // "At rest" is the point: the air's torque on a barely-turning blade, which is the most it can offer a
+            // propeller that is stopped. 5 rpm rather than 0 because the solve needs an omega to divide by.
+            double qAir = -BladeElement.Solve(g, restartMs, 0.0, 5.0, Atmosphere.SeaLevelDensityKgM3).TorqueNm;
+            double qMean = -PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, p.MaxRpm, 0.0, 1.0, 1.0);
+            double worst = PistonCompression.WorstRipple(Config.EngineCylinders, Config.EngineCompressionRatio);
+            return _compPeakNm = System.Math.Max(0.0, (qAir - qMean) / System.Math.Max(1e-6, worst));
+        }
+    }
+
+    /// <summary>The engine's resisting torque at the crank angle it is actually at, N·m (negative): the mean it takes
+    /// to turn it over plus the compression ripple. This is what makes it lump.</summary>
+    private double CrankingTorqueNm(double rpm, double pressureRatio)
+    {
+        PropulsionConfig p = Config.Propulsion!;
+        double mean = PistonEngine.MotoringTorqueNm(p.MaxPowerW, p.MaxRpm, rpm, _throttle01, pressureRatio);
+        double ripple = PistonCompression.RippleFactor(_crankRad, Config.EngineCylinders, Config.EngineCompressionRatio, _leak);
+        return mean + CompressionPeakNm * ripple;
+    }
+
+    /// <summary>A cylinder stopped on compression bleeds past its rings, each at its own rate, which is what lets a
+    /// stopped propeller tick over one compression at a time instead of sitting still for ever. A cylinder away from
+    /// its compression stroke re-seals, because it has drawn a fresh charge.</summary>
+    private void BleedCylinders(double dt, double crankAdvanceRad)
+    {
+        int n = System.Math.Max(1, Config.EngineCylinders);
+        if (_leak is null || _leak.Length != n)
+        {
+            _leakTau = PistonCompression.LeakTauSec(n, Config.Id?.GetHashCode() ?? 1);
+            _leak = new double[n];
+            // EMPTY, not sealed. A cylinder's charge is something it DREW, and an engine that has been standing has
+            // bled down everywhere - which is also the only initial condition that does not invent energy. Started
+            // sealed, whichever cylinder happened to be mid-EXPANSION was holding a charge it had never compressed,
+            // and its gas spring drove the propeller round from a standstill with no air on it at all. That is how
+            // this was caught: an Extra parked on the ground with the mixture cut read 1.26 rpm.
+        }
+        for (int i = 0; i < n; i++)
+        {
+            double cycle = (_crankRad + 4.0 * System.Math.PI * i / n) % (4.0 * System.Math.PI);
+            if (cycle < 0.0) cycle += 4.0 * System.Math.PI;
+            bool onCompression = cycle >= 2.0 * System.Math.PI && cycle < 3.0 * System.Math.PI;
+            if (onCompression)
+                _leak[i] *= System.Math.Exp(-dt / System.Math.Max(0.05, _leakTau![i]));   // bleeding past the rings
+            else
+                // CHARGED BY TURNING, not by waiting: a cylinder fills on its induction stroke, so the charge comes in
+                // proportion to how far the crank actually moved. A stopped engine never gains any, which is what
+                // keeps the gas spring from being a source of energy and what makes a stopped propeller stay stopped.
+                _leak[i] = System.Math.Min(1.0, _leak[i] + crankAdvanceRad / (2.0 * System.Math.PI));
+        }
+    }
+
     /// <summary>The shaft rpm being integrated, or 0 when this type is still on the old throttle law.</summary>
     public double ShaftRpm => _shaftRpm;
 
     /// <summary>True when this aeroplane's propeller is solved rather than estimated.</summary>
     public bool HasFittedBlade => Config.Propulsion is { PropDiameterM: > 0, BladePitch75Deg: > 0 };
 
+    /// <summary>
+    /// SOLVE THE SHAFT, rather than read the rpm off the throttle law. A type with a fitted blade always does. A
+    /// CONSTANT-SPEED type does too the moment its governor stops governing — with no oil the blade angle is fixed on
+    /// a stop, which makes it a fixed-pitch propeller, and a fixed-pitch propeller's rpm is a torque balance and
+    /// nothing else. While the governor has oil these types keep the law they have always flown, so a normal flight is
+    /// untouched to the last digit and only the failure is solved.
+    /// </summary>
+    private bool SolvesShaft =>
+        HasFittedBlade
+        || (Config.Propulsion is { ConstantSpeed: true, PropDiameterM: > 0, FineStopDeg: > 0 } && !GovernorHasOil);
+
     /// <summary>Advance the shaft one step against the torque the engine makes and the torque the blade takes.</summary>
     private void StepShaft(double dt, double airDensity)
     {
         PropulsionConfig? p = Config.Propulsion;
-        if (p is null || !HasFittedBlade || dt <= 0.0) { _shaftRpm = 0.0; return; }
+        if (p is null || !SolvesShaft || dt <= 0.0) { _shaftRpm = 0.0; return; }
         if (_noseLost) { _shaftRpm = 0.0; return; }               // the propeller has gone: nothing to turn
 
         double radius = 0.5 * p.PropDiameterM;
         double pressureRatio = Atmosphere.PressureAtAltitude(-State.Position.Z) / Atmosphere.SeaLevelPressurePa;
-        if (_shaftRpm <= 0.0) _shaftRpm = EngineRunning ? System.Math.Max(p.IdleRpm, 500.0) : System.Math.Max(1.0, WindmillRpm);
+        // A RUNNING engine is always turning. A DEAD one may be stopped, and must be allowed to STAY stopped: seeding
+        // it at 1 rpm every step was what made a stopped propeller read 1 rpm for ever instead of nothing.
+        if (_shaftRpm <= 0.0 && EngineRunning) _shaftRpm = System.Math.Max(p.IdleRpm, 500.0);
+        // THE MOMENT IT QUITS, the propeller is still turning at whatever the engine was holding it at, and it spins
+        // DOWN from there. Without this the integration began at zero the first step after the engine died and could
+        // not break away past the compression peak, so cutting the mixture in the cruise stopped the propeller dead
+        // instead of leaving it windmilling - and it only showed up on a constant-speed type, because a fixed-pitch
+        // one was already integrating before the engine quit.
+        else if (_shaftRpm <= 0.0 && !EngineRunning && _wasRunning)
+            _shaftRpm = PropModel.RunningRpm(p, _throttle01, _propLever);
+        _wasRunning = EngineRunning;
 
         // A GOVERNED PROPELLER SENSES RPM, NOT TORQUE. A real governor is a flyweight head against a spring: rpm
         // above the setting opens a valve that drives the blade coarser, below it drives it finer, and it runs out
         // at the stops. So this is a rate controller on the rpm ERROR, clamped to the stops — which is both what the
         // hardware does and far cheaper than solving for the angle that balances the torque, which would cost forty
         // blade-element solutions every step.
-        double pitch = p.BladePitch75Deg > 0 ? p.BladePitch75Deg : 15.0;
+        double pitch = p.BladePitch75Deg > 0 ? p.BladePitch75Deg
+                     : p.ConstantSpeed ? System.Math.Max(1.0, PropModel.OilLossPitchDeg(p))
+                     : 15.0;
         if (p.ConstantSpeed)
         {
             double fine = p.FineStopDeg > 0 ? p.FineStopDeg : 10.0;
             double coarse = p.CoarseStopDeg > fine ? p.CoarseStopDeg : fine + 15.0;
             if (_bladePitchDeg <= 0.0) _bladePitchDeg = System.Math.Clamp(0.5 * (fine + coarse), fine, coarse);
-            if (EngineRunning)
+            if (GovernorHasOil)
             {
                 double commanded = GovernedRpmAt(_propLever);
                 double error = (_shaftRpm - commanded) / System.Math.Max(1.0, commanded);
@@ -168,13 +333,28 @@ public sealed partial class Aircraft
 
         var g = new BladeElement.Geometry(p.PropBladeCount, radius, pitch, p.ActivityFactor);
         double qProp = BladeElement.Solve(g, State.Velocity.X, 0.0, _shaftRpm, airDensity).TorqueNm;
-        double qEngine = EngineRunning
-            ? PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm, _throttle01 * PowerScale, pressureRatio)
-            : 0.0;
+        // A DEAD ENGINE IS NOT A FREE SHAFT. Ty 2026-11-10: "You are not accounting for the cranking resistance of the
+        // engine". It takes real torque to turn a piston engine over, the power curve's own friction intercept already
+        // says how much, and without it a windmilling propeller accelerated until only the blade's own drag stopped it.
+        double qEngine;
+        if (EngineRunning) qEngine = PistonEngine.TorqueNm(p.MaxPowerW, p.MaxRpm, _shaftRpm, _throttle01 * PowerScale, pressureRatio);
+        else
+        {
+            // A DEAD ENGINE IS NOT A FREE SHAFT, and it is not a smooth one either. Ty 2026-11-10: "You are not
+            // accounting for the cranking resistance of the engine", then "Use real compression strokes for the number
+            // of cyl of the engine so the prop lumps to a stop instead of stopping smoothly".
+            BleedCylinders(dt, _shaftRpm * 2.0 * System.Math.PI / 60.0 * dt);
+            qEngine = CrankingTorqueNm(_shaftRpm, pressureRatio);
+        }
         double inertia = System.Math.Max(0.05, p.PropInertia);
         double omega = _shaftRpm * 2.0 * System.Math.PI / 60.0;
         omega += (qEngine - qProp) / inertia * dt;
-        _shaftRpm = System.Math.Clamp(omega * 60.0 / (2.0 * System.Math.PI), 0.0, p.MaxRpm * 1.6);
+        // IT CAN STOP, and when it is stopped the air cannot pull it BACKWARDS through the engine: clamped at zero, so
+        // a propeller held against a compression simply sits there until that cylinder bleeds down enough to let it by.
+        omega = System.Math.Max(0.0, omega);
+        _shaftRpm = System.Math.Min(omega * 60.0 / (2.0 * System.Math.PI), p.MaxRpm * 1.6);
+        // The crank only moves if the shaft does, and it is what the next step's lump is measured from.
+        _crankRad = (_crankRad + omega * dt) % (4.0 * System.Math.PI);
     }
 
     /// <summary>Governor response: degrees of blade per second per unit of fractional rpm error, and the rate the

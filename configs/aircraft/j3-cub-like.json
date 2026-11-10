@@ -7,9 +7,15 @@
   "wingSpar": "wood",
   "wingSparSource": "Piper J-3 Cub: two solid spruce spars, aluminium ribs, fabric covered (FAA TCDS A-691; Piper J-3 parts catalogue).",
   "wingBracing": "strut",
-  "wingBreakStationY": { "wing": 3.4 },
+  "wingBreakStationY": {
+    "wing": 3.4
+  },
   "wingBreakStationSource": "Lift-strut wing attach |y| 3.40 m (133.9 in) from the centreline: our own J-3 model (tools/own_models/build_j3_cub.py Y_ST, traced from the J-3 three-view). Checks: Piper spar drawing 14383 (J-3 to PA-18) puts the strut fitting 121.25 in from the root bolt hole, measured 123.5 front / 122.25 rear in from the spar root end on a PA-18 spar (supercub.org 'Spar Drilling', quoting drawings 14388/14453), plus ~13 in root-end offset (scaled) = 135-136.5 in; the PA-18 Information Manual three-view (p.4) scales to 129-131 in. 3.40 m sits inside that 130-136 in spread.",
-  "liftStrutFuselageAttach": [-0.24, 0.325, 0.41],
+  "liftStrutFuselageAttach": [
+    -0.24,
+    0.325,
+    0.41
+  ],
   "liftStrutFuselageAttachSource": "Own J-3 model (build_j3_cub.py F_ST): one fitting for both V-struts on the lower longeron, 0.645 m (25.4 in) aft of the wing LE (the TCDS A-691 datum), BL 0.325 m (12.8 in), 1.16 m (45.7 in) below the wing chord line; put in this config's frame from its root wing LE (x 0.407) and chord line (z -0.75).",
   "spawnIasMs": 28,
   "mass": {
@@ -764,7 +770,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.43633,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -781,7 +787,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.43633,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -798,7 +804,7 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.43633,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -815,13 +821,14 @@
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "sweepRad": 0.43633,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
           }
         }
-      ]
+      ],
+      "_airfoilNote": "Ty 2026-11-10, told 26 of the 32 types fly their fin on a 2-D section: \"All 26, own build\". naca0012-like is 6.30/rad and NOTHING on this path applies a finite-span correction - a vStab never goes through FiniteSpanSection - so these fins carried about 69 % too much directional stiffness at small sideslip. fin-lowAR is 3.724/rad, no camber, zero Cm, Cl_max 1.16 held flat from 25 to 30 deg: a low-aspect-ratio plate, which is what a fin is, and what the rudder on this same tail already used. The hStab is deliberately NOT touched - that is the flat-plate fabric-tail question and it is separate."
     },
     {
       "id": "rudder-vstab",
@@ -1434,10 +1441,58 @@
       "r": 0
     },
     "crossflow": {
-      "stationX": [-0.3, -0.8, -1.4, -2.0, -2.6, -3.1, -3.7, -4.3, -4.9, -5.5, -6.1],
-      "stationMidZ": [0.1134, 0.1827, 0.1898, 0.1604, 0.0481, -0.0427, -0.0751, -0.104, -0.1544, -0.2078, -0.2405],
-      "stationHalfY": [0.225, 0.2763, 0.315, 0.315, 0.315, 0.285, 0.2542, 0.2018, 0.1365, 0.0783, 0.033],
-      "stationHalfZ": [0.2866, 0.3835, 0.4379, 0.4604, 0.4895, 0.4933, 0.4314, 0.3719, 0.3261, 0.2832, 0.2195],
+      "stationX": [
+        -0.3,
+        -0.8,
+        -1.4,
+        -2.0,
+        -2.6,
+        -3.1,
+        -3.7,
+        -4.3,
+        -4.9,
+        -5.5,
+        -6.1
+      ],
+      "stationMidZ": [
+        0.1134,
+        0.1827,
+        0.1898,
+        0.1604,
+        0.0481,
+        -0.0427,
+        -0.0751,
+        -0.104,
+        -0.1544,
+        -0.2078,
+        -0.2405
+      ],
+      "stationHalfY": [
+        0.225,
+        0.2763,
+        0.315,
+        0.315,
+        0.315,
+        0.285,
+        0.2542,
+        0.2018,
+        0.1365,
+        0.0783,
+        0.033
+      ],
+      "stationHalfZ": [
+        0.2866,
+        0.3835,
+        0.4379,
+        0.4604,
+        0.4895,
+        0.4933,
+        0.4314,
+        0.3719,
+        0.3261,
+        0.2832,
+        0.2195
+      ],
       "stationSource": "Measured 2026-11-09 off the type's own three-view lines in tools/own_models/build_j3_cub.py (F_TOP, F_BOT, F_HW), the same tables the visual model is built from. The midline RISES 0.169 m by the fin station, which the constant-section crossflow body could not say at all (CentreZ was zero everywhere) - and an attached propeller wash needs a shape to follow. Owner 2026-11-09: the vortex has a tendency to follow the fuselage, not a rule, so PropJet traces attached and free and blends them.",
       "bodyRadiusM": 0.5,
       "planArea": 4.0,
@@ -1452,7 +1507,20 @@
     "shadowK": 0.5,
     "shadowKSource": "Geometric helical shadow depth (TailWake.GeometricShadow): the share of dynamic pressure a fully shadowed strip loses. Replaces the Report 648 wake correlation for EVERY surface of this type, and brings in the fuselage's own shadow on the tail and the wings (TailWake.BodyStation). Ty 2026-11-08: \"expand the shadow work to all 6 shipping aircraft include the shadow effects of the fuselage on the tail and wing's too\". 0.5 is the depth fitted on the Pitts against the owner's spin attitudes on 2026-11-08, and it is a PHYSICAL statement - half the q is gone where a wake fully covers a section - rather than a per-type fudge, so the six carry the same number until a type's own evidence moves it. What differs between types is the geometry, which is the point: the Pitts' cellule shadows itself, the Extra's stabiliser spans well outside its fuselage and is barely shadowed at all (measured in a tumble: tail q 1.00 -> 0.96), and the fuselage's own shadow is what takes the fin in an upright flat spin while leaving it in clear air inverted."
   },
-  "smoke": {"cylinders": 4, "compressionRatio": 6.3, "aftOfNoseM": 0.75, "downDeg": 39, "displacementCuIn": 188, "pipeDiameterIn": 4, "exhaustTempK": 900, "outletBodyM": [0.947, 0.178, 0.468]},
+  "smoke": {
+    "cylinders": 4,
+    "compressionRatio": 6.3,
+    "aftOfNoseM": 0.75,
+    "downDeg": 39,
+    "displacementCuIn": 188,
+    "pipeDiameterIn": 4,
+    "exhaustTempK": 900,
+    "outletBodyM": [
+      0.947,
+      0.178,
+      0.468
+    ]
+  },
   "propulsion": {
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
@@ -1494,7 +1562,12 @@
       "corneringStiffnessN": 8000,
       "toeOutDeg": 2.0,
       "toeOutDegSource": "Standard 2 degrees of toe-out on every taildragger's mains (Ty 2026-11-10: \"Use 2 degrees toe out on all taildraggers standard unless I adjust based on feel\"). A standing slip angle outboard on each wheel: level the pair cancel, and when one is loaded more its outboard side force is the larger, pushing the aeroplane back toward the light side - \"The loaded tire tries to unload back to the other\". The sign comes from each wheel's own y, so one value means outboard on both (LandingGear.ToeRad). Live-tunable in OPTIONS while flying.",
-      "tire": "8.00-4", "tirePressurePsi": 12.2
+      "tire": "8.00-4",
+      "tirePressurePsi": 12.2,
+      "gearType": "bungee",
+      "gearTypeSource": "Rubber shock cord in the leather boots on the legs -- Ty 2026-11-10: \"The cub bungees are in the black leather bags on the gear legs\" (the model draws them: Shock_Boot_L/R). A bungee stores and gives back: \"no rebound but plenty of travel\", which is what the gear does -- its damper only ever sees the closing rate -- and why a Cub bounces.",
+      "legPivot": [0.132, -0.32, 0.491],
+      "legPivotSource": "Measured off the type's own model, which carries the real linkage rigged for animation (j3-cub-like-own.glb: Gear_Pivot_L at span 0.320, up -0.490, with Gear_HingeAxis_L 0.58 m aft on the same y -- the two lower-longeron pins the V legs hinge on, the Univair J-3 parts-list layout the model was built from). The drawn wheel touches at span 0.920, up -1.199, so the leg runs 0.600 m out and 0.709 m down from the pin: 1.18 m of track per side per metre of compression (LandingGear.SplayPerM). Ty 2026-11-10: \"The cub has bungee too. Pivot at the fuselage attachment and so does the pitts.\""
     },
     {
       "pos": [
@@ -1510,7 +1583,14 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "tire": "8.00-4", "tirePressurePsi": 12.2
+      "tire": "8.00-4",
+      "tirePressurePsi": 12.2,
+      "gearType": "bungee",
+      "gearTypeSource": "Rubber shock cord in the leather boots on the legs -- Ty 2026-11-10: \"The cub bungees are in the black leather bags on the gear legs\" (the model draws them: Shock_Boot_L/R). A bungee stores and gives back: \"no rebound but plenty of travel\", which is what the gear does -- its damper only ever sees the closing rate -- and why a Cub bounces.",
+      "legPivot": [0.132, 0.32, 0.491],
+      "legPivotSource": "Measured off the type's own model, which carries the real linkage rigged for animation (j3-cub-like-own.glb: Gear_Pivot_L at span 0.320, up -0.490, with Gear_HingeAxis_L 0.58 m aft on the same y -- the two lower-longeron pins the V legs hinge on, the Univair J-3 parts-list layout the model was built from). The drawn wheel touches at span 0.920, up -1.199, so the leg runs 0.600 m out and 0.709 m down from the pin: 1.18 m of track per side per metre of compression (LandingGear.SplayPerM). Ty 2026-11-10: \"The cub has bungee too. Pivot at the fuselage attachment and so does the pitts.\"",
+      "toeOutDeg": 2.0,
+      "toeOutDegSource": "The matching value for THIS wheel. Toe is per leg (LandingGear.ToeRad reads g.ToeOutDeg and takes the sign from the wheel's own y), so a value on one main and nothing on the other is not 2 degrees out on both -- it is 2 out on one wheel and dead straight on the other, a standing uncancelled side force of about 0.42 of that wheel's load (12 per rad x 2 deg) with nothing opposing it. The 2026-11-10 toe-out commit says \"Sixteen types, both mains each\" and wrote the field to the FIRST main only on fourteen of them; this is the other main on each, with the same number. Ty's knob (LandingGear.ToeOutOverrideDeg) always covered both, which is why the two types he was flying when he chose the number -- the Pitts and the Extra, the two the commit did write both -- felt right."
     },
     {
       "pos": [
@@ -1526,7 +1606,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "tire": "legacy-j3-tail", "tirePressurePsi": 9.8,
+      "tire": "legacy-j3-tail",
+      "tirePressurePsi": 9.8,
       "steerSpringNmPerRad": 7
     }
   ],
@@ -1690,5 +1771,12 @@
       }
     ],
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "_unitsSource": "Ty 2026-11-10 (era and category) and his earlier explicit call: 1938 fabric, and the J-3's own PERIOD panel has read mph since it was built (tools/own_models/build_j3_cub.py; InstrumentLibrary.PeriodVariants).",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
   }
 }

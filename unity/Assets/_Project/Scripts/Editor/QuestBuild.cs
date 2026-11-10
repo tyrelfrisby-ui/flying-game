@@ -150,6 +150,10 @@ namespace FlyingGame.EditorTools
         public static void BuildQuest()
         {
             ConfigSync.SyncAndRequireComplete();
+            // The headset ships the whole fleet and every livery (Ty 2026-11-10: "the alternates stay in desktop and
+            // Quest builds"). This only undoes an iOS build that died between its two moves — the phone's packager
+            // takes files out of Resources and puts them back, and a Quest build must never inherit the gap.
+            BuildScript.RestoreAnyHeldAssets();
             ConfigureXr();
             ConfigureAndroid();
 
