@@ -157,12 +157,10 @@ public sealed partial class Aircraft
     {
         if (_stripAt[i] is not { } st) return;
         Vec3 pos = st.PosVec();
-        _flowState.BendRad![i] = LocalBendRad(p, Math.Abs(pos.Y));
-        _flowState.BendOffset![i] = p.Shape(pos, p.FlightFlexRad) - pos;
+        // The AERO flex is the curve's, not the station's (WingPanel.Shape): it is already inside AeroBendRad, so
+        // nothing extra is passed here — the panel carries it.
+        _flowState.BendRad![i] = p.LocalShapeRad(Math.Abs(pos.Y));
+        _flowState.BendOffset![i] = p.Shape(pos) - pos;
     }
 
-    /// <summary>The rotation the section at |y| is flying at: the fold everywhere on the wing, plus the panel's kink
-    /// outboard of its station.</summary>
-    private static double LocalBendRad(WingPanel p, double absY) =>
-        p.FoldRad + (absY > p.BreakY ? p.BendRad + p.FlightFlexRad : 0.0);
 }

@@ -264,23 +264,32 @@ public class BendDamageTests : IDisposable
     /// is why ONE rigid aileron carrier cannot hold both ends of an aileron that spans the station: the motion is rigid
     /// and the line it must follow is not. Anything drawing a surface across the station has to split it there — pinned
     /// here so a later repair cannot "fix" it by smearing the bend along the span instead, which would un-fix the wing.
+    ///
+    /// STILL TRUE OF A STRIKE, AND ONLY OF A STRIKE (Ty 2026-11-10, later the same day: "Make bent wings from
+    /// symmetrical aerodynamic load curve from the root instead of pivot at a strut or root. Wing strike bends are
+    /// still sharp mid span."). The two shapes now live apart: <see cref="WingPanel.Deform"/> is the strike's kink and
+    /// is what this pins, and the AERODYNAMIC bend is a curve from the root that deliberately DOES move the wing
+    /// inboard of the station (<see cref="WingPanel.Curve"/>; StaggeredWingFailureTests pins that half). The driver
+    /// here is the kink angle passed to Deform rather than WingPanel.BendRad, because BendRad is now the angle a panel
+    /// REPORTS — the hinge's set plus its wing's aerodynamic set, which the aileron limit reads — and not the input to
+    /// any one shape.
     /// </summary>
     [Fact]
     public void ABendMovesNothingInboardOfTheStationAndMovesEverythingOutboardRigidly()
     {
         AircraftConfig j3 = Load("j3-cub-like");
         WingPanel p = WingStructure.Build(j3).First(q => q.Component == AirframeComponent.WingTipRight);
-        p.BendRad = 10.0 * Math.PI / 180.0;
+        double kink = 10.0 * Math.PI / 180.0;
         p.TwistRad = 0.0;                                  // the bend alone
         double y = p.BreakY;
-        _o.WriteLine($"station {y:F3} m, bend {p.BendRad * 180 / Math.PI:F1}°");
+        _o.WriteLine($"station {y:F3} m, strike bend {kink * 180 / Math.PI:F1}°");
 
         // Inboard of the station: identity, to the last bit. This is the wing the INBOARD hinge is attached to, and it
         // does not move — so a carrier that moves the whole aileron lifts that hinge off it.
         foreach (double ay in new[] { 0.0, 0.25 * y, 0.9 * y, y })
         {
             var q = new Vec3(0.3, ay, -0.2);
-            Vec3 d = p.Deform(q);
+            Vec3 d = p.Deform(q, kink);
             Assert.Equal(q.X, d.X, 12);
             Assert.Equal(q.Y, d.Y, 12);
             Assert.Equal(q.Z, d.Z, 12);
@@ -290,13 +299,13 @@ public class BendDamageTests : IDisposable
         // there and the OUTBOARD hinge really is attachable by one.
         var a = new Vec3(0.3, y + 0.10, -0.2);
         var b = new Vec3(0.5, y + 0.90, -0.1);
-        Vec3 da = p.Deform(a), db = p.Deform(b);
+        Vec3 da = p.Deform(a, kink), db = p.Deform(b, kink);
         Assert.True((da - a).Length > 1e-4, "a point just outboard of the station must move");
         Assert.Equal((b - a).Length, (db - da).Length, 9);
 
         // And the kink is real: a millimetre inboard of the station stays put, a millimetre outboard does not.
-        Vec3 just = p.Deform(new Vec3(0.3, y - 0.001, -0.2));
-        Vec3 past = p.Deform(new Vec3(0.3, y + 0.001, -0.2));
+        Vec3 just = p.Deform(new Vec3(0.3, y - 0.001, -0.2), kink);
+        Vec3 past = p.Deform(new Vec3(0.3, y + 0.001, -0.2), kink);
         Assert.Equal(-0.2, just.Z, 12);
         Assert.True(Math.Abs(past.Z - (-0.2)) > 1e-5, $"just outboard should have lifted, z {past.Z:F6}");
     }
