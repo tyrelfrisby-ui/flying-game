@@ -118,13 +118,26 @@ public class EngineStateTests : IDisposable
         ac.MixtureLever = 0.0;
         new SimLoop(ac).RunFor(0.05, new ControlInputs(0, 0, 0, FullThrottle));
         double v = ac.State.Velocity.Length;
-        // J = V/(nD) = 1 with D = 2.0 m: n = V/2 rev/s.
-        Assert.Equal(60.0 * v / 2.0, ac.EngineRpm, 6);
-        Assert.InRange(ac.EngineRpm, 1450.0, 1510.0);
+        // IT IS NO LONGER A FLAT J = 1 GUESS. Until 2026-11-10 a dead propeller was assumed to turn at one advance
+        // ratio whatever its blades were doing, which could not tell a fine stop from a coarse one - and the oil-loss
+        // rule is entirely about which stop it is on. Now the rpm is where the blade's own torque balances the
+        // engine's cranking resistance (PropModel.Windmilling), which for the Extra's COARSE oil-loss stop at 50 m/s
+        // is around 870 rather than 1,500. Checked against the model's own solve so the two cannot drift, and bounded
+        // so a change of mechanism still has to come past this test.
+        double solved = PropModel.WindmillRpm(c.Propulsion!, v, Atmosphere.DensityAtAltitude(-ac.State.Position.Z));
+        Assert.Equal(solved, ac.EngineRpm, 6);
+        Assert.InRange(ac.EngineRpm, 600.0, 1200.0);
         (double du, _, double swirl) = ac.LastTailSlipstream;
         _out.WriteLine($"windmilling at {v:F1} m/s: {ac.EngineRpm:F0} rpm, tail du {du:F3} m/s swirl {swirl:F3}");
-        // Momentum theory with the windmill's drag (C_D 0.15 on the disc): V_slip = V·√(1 − 0.15), 90 % developed.
-        Assert.Equal(0.9 * (Math.Sqrt(1 - 0.15) - 1) * ac.State.Velocity.X, du, 1);
+        // Momentum theory with the windmill's OWN drag: V_slip = V·√(1 − C_D), 90 % developed. The coefficient is no
+        // longer the authored 0.15 — a dead constant-speed propeller's drag is solved at the stop its oil loss left it
+        // on (PropModel.Windmilling), and the Extra's coarse stop at 50 m/s is a third of that. Derived from the same
+        // solve rather than written down, so the two cannot drift apart.
+        double discM2 = Math.PI * 0.25 * c.Propulsion!.PropDiameterM * c.Propulsion.PropDiameterM;
+        double rhoHere = Atmosphere.DensityAtAltitude(-ac.State.Position.Z);
+        double cdDisc = PropModel.Windmilling(c.Propulsion, ac.State.Velocity.X, rhoHere).DragN
+                        / (0.5 * rhoHere * ac.State.Velocity.X * ac.State.Velocity.X * discM2);
+        Assert.Equal(0.9 * (Math.Sqrt(1 - cdDisc) - 1) * ac.State.Velocity.X, du, 1);
         Assert.True(du < 0.0 && du > -0.08 * v, $"a small deficit, not a blast ({du:F3})");
         Assert.True(swirl < 0.0, "a windmill swirls the other way");
         (Vec3 f, Vec3 m) = PropModel.Compute(c.Propulsion!, 1.0, new Vec3(50, 0, 0), new Vec3(0, 0.5, 0), Rho0, PropModel.PropDrive.Dead(1500), out PropModel.Parts parts);
@@ -265,11 +278,13 @@ public class EngineStateTests : IDisposable
         Assert.Equal(1.0, ac.PowerScale, 12);
         ac.PropLever = 0.0;
         sim.RunFor(0.01, cruise);
-        Assert.Equal(0.7 * 2700.0, ac.EngineRpm, 6);      // the governor's low stop, 1,890
-        Assert.Equal(0.7, ac.PowerScale, 9);              // same manifold pressure, 70 % of the rpm
+        Assert.Equal(PropModel.FleetLowGovernedRpm, ac.EngineRpm, 6);   // the governor's low stop: 1,200 fleet-wide
+        Assert.Equal(1200.0 / 2700.0, ac.PowerScale, 9);  // same manifold pressure, so power goes with the rpm
         ac.PropLever = 0.5;
         sim.RunFor(0.01, cruise);
-        Assert.Equal(2295.0, ac.EngineRpm, 6);
+        // Half lever is half way from the low stop to governedRpm: (1,200 + 2,700) / 2. It was 2,295 when the low stop
+        // was 0.7 x MaxRpm.
+        Assert.Equal(0.5 * (PropModel.FleetLowGovernedRpm + 2700.0), ac.EngineRpm, 6);
     }
 
     [Fact]
@@ -282,7 +297,10 @@ public class EngineStateTests : IDisposable
         Assert.Equal(2500.0, ac.EngineRpm, 6);
         ac.PropLever = 0.0;
         sim.RunFor(0.01, cruise);
-        Assert.Equal(1890.0, ac.EngineRpm, 6);
+        // 1,200, fleet-wide: Ty 2026-11-10, "Governor low stops 1600 across the board", then "Actually 1200 rpm
+        // across the board". It was 0.7 x MaxRpm = 1,890, which made a big engine's governor bottom higher than a
+        // small one's for no reason anybody could point at - a governor's low stop is set by the unit and its spring.
+        Assert.Equal(PropModel.FleetLowGovernedRpm, ac.EngineRpm, 6);
     }
 
     [Fact]

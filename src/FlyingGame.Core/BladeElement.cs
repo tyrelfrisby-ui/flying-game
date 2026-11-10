@@ -321,10 +321,27 @@ public static class BladeElement
         // propeller with nothing behind it.
         double Excess(double rpm) => Solve(blade, vAxialMs, 0.0, rpm, rhoKgM3).TorqueNm - (engineTorqueAt?.Invoke(rpm) ?? 0.0);
 
-        double lo = 1.0, hi = maxRpm;
-        if (Excess(lo) >= 0.0) return default;               // it cannot even turn the engine over: the propeller stands still
-        while (Excess(hi) < 0.0 && hi < 8.0 * maxRpm) hi *= 2.0;   // no engine limit on a dead one: find the real crossing
-        if (Excess(hi) < 0.0) return At(hi);
+        // THE HIGHEST CROSSING, NOT THE FIRST — and that distinction only appeared once the engine stopped being a
+        // constant. With PistonEngine's boundary friction the resistance FALLS steeply with rpm while the blade's
+        // torque RISES, so Excess can cross zero twice: the lower crossing is the STALL point, an unstable balance the
+        // propeller falls away from in either direction, and the upper one is where a windmilling propeller actually
+        // runs. A plain bisection from the bottom finds the unstable one and reports a propeller turning 31 rpm at
+        // 112 mph, which is how this was caught.
+        double top = maxRpm;
+        while (Excess(top) < 0.0 && top < 8.0 * maxRpm) top *= 2.0;   // a dead engine imposes no red line
+        if (Excess(top) < 0.0) return At(top);
+
+        // Walk down from the top for the last speed the air is still driving it, which brackets the stable crossing.
+        const int steps = 48;
+        double lo = double.NaN;
+        for (int i = steps - 1; i >= 1; i--)
+        {
+            double r = top * i / steps;
+            if (Excess(r) < 0.0) { lo = r; break; }
+        }
+        if (double.IsNaN(lo)) return default;                // resisting at every speed: the propeller stands still
+
+        double hi = top;
         for (int i = 0; i < 24; i++)
         {
             double mid = 0.5 * (lo + hi);
