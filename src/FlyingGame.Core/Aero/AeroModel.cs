@@ -568,6 +568,8 @@ public static class AeroModel
         string slipRollKind = config.SpinAero?.RollDueToSideslip ?? "";
         double stabHighAlphaK = config.SpinAero?.StabHighAlphaK ?? 1.0;
         double finSidewashK = config.SpinAero?.FinSidewashK ?? 0.0;
+        double stabSidewashK = config.SpinAero?.StabSidewashK ?? 0.0;
+        double controlSpoilerK = config.SpinAero?.ControlSpoilerK ?? 0.0;
         double[] wingGeom = WingGeom(config);
         double slipRollK = slipRollKind.Length > 0 && wingGeom[2] > 1e-6 ? wingGeom[0] / wingGeom[2] : 0.0;
         const double SlipRollBeta20 = 20.0 * Math.PI / 180.0;
@@ -726,6 +728,38 @@ public static class AeroModel
                     // so sideslip shifts the strip's local AoA — upwind panel gains α, downwind loses
                     // it (Δα ≈ β·Γ). This is THE roll-from-sideslip mechanism (banks a spin into the
                     // rotation); it emerges per strip and keeps working post-stall via the tables.
+                    // THE STABILISER SITS IN THE SAME ACCELERATED FLOW, TURNED THROUGH 90 DEGREES
+                    // (SpinAeroConfig.StabSidewashK). Ty 2026-11-10, after watching a clip of his own flat spin:
+                    // "The elevator gets the same dynamic pressure power you just gave the rudder". It is the same
+                    // potential flow and the same 2V·sin θ: in a flat spin the crossflow arrives at the fuselage
+                    // from BELOW, so the two points of peak surface speed are the left and right flanks — which is
+                    // where the horizontal tail stands, just as the fin stands at the top for a crossflow from the
+                    // side. So the NORMAL component is amplified by 1 + k·(R/r)², with R the body's local half-WIDTH
+                    // and r the strip's distance off the centreline.
+                    //
+                    // RAMPED IN ON THE STRIP'S OWN FLOW ANGLE, 20°→40°, and this is the difference from the fin. A
+                    // fin's amplified component is the lateral one, which is zero in symmetric flight, so the fin's
+                    // knob cannot touch ordinary flying. The stabiliser's is the NORMAL one, which is never zero:
+                    // applied flat it would multiply every type's tail incidence and move the whole fleet's trim.
+                    // Below 20° the fuselage is a streamlined body lying along its own flow and the existing
+                    // downwash and trim stand; past 40° it is a bluff cylinder in crossflow and the cylinder
+                    // solution is the right one.
+                    if (stabSidewashK > 0.0 && !isWing && config.Fuselage.Crossflow is { } scf)
+                    {
+                        double rBody = FuselageShape.HasStations(scf)
+                            ? FuselageShape.At(scf, stripAt.X).HalfY
+                            : (scf.LengthM > 1e-6 ? 0.5 * scf.SideArea / scf.LengthM : scf.BodyRadiusM);
+                        double flowAng = Math.Abs(Math.Atan2(vLocal.Z, vLocal.X)) * 57.2957795;
+                        if (flowAng > 90.0) flowAng = 180.0 - flowAng;
+                        double ramp = Math.Clamp((flowAng - 20.0) / 20.0, 0.0, 1.0);
+                        if (rBody > 1e-6 && ramp > 0.0)
+                        {
+                            double rStrip = Math.Max(Math.Abs(stripAt.Y), rBody);
+                            double amp = 1.0 + ramp * stabSidewashK * (rBody * rBody) / (rStrip * rStrip);
+                            vLocal = new Vec3(vLocal.X, vLocal.Y, vLocal.Z * amp);
+                        }
+                    }
+
                     double dihedral = strip.DihedralRad + bendRad;
                     double sideSign = Math.Sign(strip.PosVec().Y);
                     double uu = vLocal.X;
@@ -924,21 +958,6 @@ public static class AeroModel
                 {
                     flowState.LocalAlphaRad[idx] = alpha;
                     flowState.StallPosRad[idx] = table.AlphaClMaxRad;
-                    // THE LEADING EDGE'S OWN STATE, with its hysteresis. It separates past the section's stall angle
-                    // and does not come back until the angle has fallen a band BELOW it, so between the two the state
-                    // is whichever it already was. See StripFlowState.LeStalled: this band is what makes a free
-                    // elevator lurch rather than drift when a spin slows.
-                    if (idx < flowState.LeStalled.Length)
-                    {
-                        double onset = alpha >= 0.0 ? table.AlphaClMaxRad : Math.Abs(flowState.StallNegRad[idx]);
-                        if (onset > 1e-6)
-                        {
-                            double band = Math.Max(0.0, config.SpinAero?.LeStallHysteresisDeg ?? 6.0) * Math.PI / 180.0;
-                            double mag = Math.Abs(alpha);
-                            if (mag >= onset) flowState.LeStalled[idx] = true;
-                            else if (mag <= onset - band) flowState.LeStalled[idx] = false;
-                        }
-                    }
                     flowState.StallNegRad[idx] = table.AlphaClMinRad;
                     double sep = flowState.Separation[idx];
                     // SLAT: a deployed leading-edge slat delays separation — the stall angle this strip
@@ -1140,6 +1159,53 @@ public static class AeroModel
                 double momentC4 = q * strip.Area * strip.Chord * (coeffs.Cm + flapCm);
 
                 Vec3 force = liftDir * lift - dragDir * drag;
+
+                // A DEFLECTED CONTROL ON A BROADSIDE SURFACE IS A SPOILER, NOT A FLAP (SpinAeroConfig.ControlSpoilerK).
+                // Ty 2026-11-10, from a clip of his own Pitts flat spin: "the elevator literally does nothing in the
+                // spin", and "pushing the stick forward during a spin accelerates the spin ... I don't think our sim
+                // gives the elevator enough authority to do that".
+                //
+                // MEASURED FIRST, because the obvious causes are all innocent (ElevatorBreakdownProbe, ELE_BRK=1). In
+                // the developed spin the horizontal tail's own strips fly at 68-89 deg of LOCAL flow with eta_t
+                // 1.16-1.22 - MORE dynamic pressure than the free stream, because the tail is swung 3.2 m out on a
+                // 4.7 rad/s rotation. Area 1.88 m2 and a 3.2 m arm are both right. The only factor missing is the
+                // coefficient: the elevator's whole travel changes Cn by 0.387 at alpha 30 but only 0.062 at alpha 80.
+                //
+                // That collapse is the flat-plate law being honest. The model moves a control by shifting its section's
+                // incidence, and post-stall the section is CN = Cd_max*sin(theta), which is FLAT at theta ~ 90: bending
+                // the back of the plate 27 deg either way changes which way the force points and not how big it is.
+                // The probe shows exactly that - at alpha 80 the elevator moves 296 N of CHORDWISE force and 48 N of
+                // normal force, and the chordwise force acts on a 0.07 m arm.
+                //
+                // What a real flapped plate does there is not a flap at all. The deflected surface sits in the
+                // separated wake and displaces it to one side, so the BASE PRESSURE over the two faces of the fixed
+                // surface stops matching: the whole tail feels a force normal to ITS OWN plane, proportional to how
+                // far the control is bent into the wake (sin delta) and to how fully the surface is broadside
+                // (sin alpha_chord). Hoerner treats spoilers and deflected plates in separated flow this way; strip
+                // theory with a plain section table cannot produce it, because the table only knows one angle.
+                //
+                // Ramped in over 30-50 deg of the strip's OWN flow angle, so attached flight, the spin entry and every
+                // normal control input are untouched; it exists only where the section law has gone flat.
+                if (controlSpoilerK > 0.0 && !isWing && !isVertical && strip.Control is not null
+                    && Math.Abs(strip.Control.Gain) >= 0.9 && Math.Abs(deflEff) > 1e-9)
+                {
+                    double aChord = alphaBase + stripIncidence;
+                    double ad = Math.Abs(aChord) * 57.2957795;
+                    ad %= 360.0; if (ad > 180.0) ad = 360.0 - ad; if (ad > 90.0) ad = 180.0 - ad;
+                    double ramp = Math.Clamp((ad - 30.0) / 20.0, 0.0, 1.0);
+                    if (ramp > 0.0)
+                    {
+                        double n = controlSpoilerK * Math.Sin(strip.Control.Gain * deflEff) * Math.Abs(Math.Sin(aChord))
+                                   * ramp * q * strip.Area;
+                        Vec3 spoil = (liftDir * Math.Cos(aChord) - dragDir * Math.Sin(aChord)) * n;
+                        force += spoil;
+                        // Its own sample, or it is invisible to every probe: the overlay builds the "lift"/"drag"
+                        // records from the scalars above, not from `force`, so a term added to the vector afterwards
+                        // is felt by the aeroplane and seen by nobody. (That is how the first measurement of this
+                        // term read as doing nothing at all.)
+                        if (ForceDebug.Samples is not null) ForceDebug.Add(stripAt, spoil, Vec3.Zero, "lift");
+                    }
+                }
                 // FLAP NORMAL (run #4, owner 2026-11-03: "full opposite aileron actually reduces the spin rate and lowers the
                 // nose"). In separated flow the pressure on a plate acts NORMAL to the plate (Hoerner, Fluid-Dynamic Drag ch. 3),
                 // and a deflected aileron is a plate turned δ about its hinge: its share of the section's normal force tilts
