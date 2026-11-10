@@ -1,3 +1,114 @@
+## Airspeed indicators read the unit their aeroplane reads — Claude, 2026-11-10, lane/claude-fleet-shape
+
+<!-- asi-units era-and-category mph-knots c172-arcs-were-two-aeroplanes glide-table-units -->
+
+Ty had settled five types by hand — *"mph on the J-3, the 2-33, the Great Lakes and the Pitts; knots on the Extra"* —
+and, asked today what rule the other 27 follow, chose **"by era and category"**:
+
+> *"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots."*
+
+**The unit is now data, in one key, read in one place.** Every config in `configs/aircraft/` carries
+`instruments.airspeed.units` with a `_unitsSource` saying why that type reads what it reads;
+`FlyingGame.Core.Instruments.AsiUnits` / `AsiDial` is the only thing that converts, and the flat dials
+(`AnalogGauges`), the HUD box (`HudOverlay`), the headset's world HUD (`VrWorldHud`) and the split-screen HUD
+(`LocalPlayerHud`) all ask it. They each carried their own `* 1.9438` and their own hard-coded `"KT"` before, on all
+35 types — including the Pitts, whose MODELLED panel ASI has read mph (TCDS A8SO, 212 mph CAS) since 2026-11-02 while
+the same aeroplane's exterior dial read knots in the same session.
+
+**17 mph / 18 knots.** mph: J-3 (+floats), PA-18 (cub/bush/floats), Stearman, Jenny, Gee Bee, Pawnee, Great Lakes,
+2-33, Pitts, Cassutt, Decathlon, AirCam (+amphib), hang glider, paraglider, P-51D, DC-3, H-4. Knots: 172, Archer,
+SR22, Extra 300, Glasair III, Beaver (+floats), Seminole, 737, F-86, EB29R, Swift S-1, Grob 103, target drone.
+
+**Two are his word against the rule and his word wins** — the Great Lakes stays mph (TCDS A18EA is in mph CAS anyway)
+and the Extra stays knots (its POH section 2 is in KIAS, so here the RULE is what was wrong, not him). **Three depart
+from the shape he was shown**, by applying the rule he actually chose: the P-51D, DC-3 and H-4 are vintage pistons,
+not turbine and not certified-modern, and their real indicators are marked in mph. One line flips any of them.
+
+**The 172's face was two aeroplanes in two units.** It declared `units: mph` with white [49,100] and a green floor of
+57 — a 172M's mph markings — under a green top of 128, a yellow arc and a red line of 164, which are a 172S's KNOTS
+(VNO 129, VNE 163). Its own `_source` said the numbers were "copied unchanged" from the old `c172_cockpit.py` face, so
+nobody had ever checked them: the red line sat 25 % fast on a face labelled MPH. It is now one aeroplane in one unit,
+the 172S POH's own KIAS markings, which also agree with `limits.vneMs` 84 m/s = 163.3 kt. The PNG face is redrawn.
+
+**The flat dial got the arcs and the red line it never had.** Its scale used to be guessed (2.2 × the spawn speed) with
+one invented red low-speed arc and NO red line at all. It now takes the published face verbatim where the config has
+one (the four modelled cockpits), so the exterior dial and the panel dial mark the same speeds; where it derives a
+scale it still forces it to reach Vne, because the red line has to go somewhere. The low-speed arc stays — it is a game
+affordance, not a marking — but ends at the published stall where there is one.
+
+**`docs/GLIDE-TABLE.md` quotes 1.3 Vso in the dial's own unit** (new ASI column). The machine-readable
+`configs/glide-table.json` stays in knots: that is a code contract. Regenerating it also picked up physics drift that
+was ALREADY making `GlideTableTests` red on this lane's base (the 737 at 197.1 → 187.0 kt) — a pre-existing failure,
+not this change.
+
+**Left in knots on purpose**: the flight-test data block (KIAS/KTAS/KEAS/MACH), the companion widget's NTSB panel and
+its wire protocol (`kias`), and the ACS tolerances in `Syllabus/Standards`. Those are instrumentation, a contract and
+a published standard — not the dial in front of the pilot.
+
+**NEEDS YOU — the 2-33's Vne disagrees with its own placard.** `limits.vneMs` is 60 m/s = 134 mph, straight from the
+2026-09 scaffolding commit and never revisited; the 2-33's modelled panel and its FLIGHT LIMITS placards say NEVER
+EXCEED 98 MPH (FAA AFM at 1040 lb, `make_sgs_dials.py`). One of them is wrong. Changing Vne is a physics change, not a
+units change, so it is not in this commit.
+## One livery per type on the phone: 2.13 GB of 4.03 GB was alternate paint — Claude, 2026-11-10, lane/claude-fleet-shape
+
+<!-- phone-liveries 4gb-limit glb-textures-uncompressed testflight-size build-time-subset -->
+
+Ty, offered four ways to get the iOS build under App Store Connect's 4 GB limit, chose: *"Ship a single default
+livery for each aeroplane; the alternates stay in desktop and Quest builds."*
+
+**MEASURED FIRST, and the story's mechanism was wrong while its remedy was right.** The whole `unity/Assets` tree is
+265 MB on disk and the build was 4.29 GB, so on-disk size tells you nothing. Every texture embedded in a GLB is
+imported by glTFast's ScriptedImporter — Unity's platform texture pipeline never sees it, there is no compression
+field in a `.glb.meta` at all, and the pixels ship uncompressed at 4 bytes each with a full mip chain. The 39 GLBs
+hold **754.92 Mpix**; 754.92e6 x 4 x 4/3 = **4,026,240,000 B** against the recorded `resources.assets.resS` of
+**4,024,558,864 B** — **0.04 % out**. resS was 93.8 % of that build, so it is to within rounding NOTHING BUT GLB
+TEXTURES. Not audio (1.1 MB in the whole tree), not video (none), not fonts, not the configs (StreamingAssets is
+1.4 MB), not meshes (166 MB). And Ty was right about the remedy for the right reason: an alternate livery is the same
+aeroplane with the paint baked in again, so it carries a **full duplicate texture set**.
+
+| held out of a phone build | in-build |
+|---|---|
+| extra-300-like `-own` (Talk Flying), `-own-n300uy` | 958 MB |
+| pitts-s2b-like `-own` (N31DG), `-own-n1191`, `-own-factory-unmarked` | 741 MB |
+| great-lakes-like `-own-red-sunburst`, `-own-white-stripes` | 343 MB |
+| glider-2-33-like `-own` (plain factory yellow) | 86 MB |
+| grob103 `-own-tf` | 6 MB |
+| **total** | **2,133 MB** |
+
+**4,026 MB of GLB textures becomes 1,894 MB**, and with the ~267 MB of everything else in the recorded build that is
+an estimated **2.16 GB against 4 GB — about 1.84 GB of margin, with the FULL fleet and no type restriction.** That is
+a better outcome than the slim package ever got (3.60-3.74 GB for six types): `FLYINGGAME_TF_SLIM` is no longer needed
+for size.
+
+**NOT VERIFIED BY A BUILD.** The build and deploy slot was held, so this is arithmetic that reproduced two recorded
+builds, not a measurement of a new one. `tools/deploy/deploy.sh` now prints the built `.app`'s size and its resS
+against the limit every build — there was no size check anywhere in the pipeline before, which is why 4.2 GB was a
+surprise and why every number in the record was measured by hand.
+
+**The defaults are not a new opinion: they are the ones already in `LiveryChoice`** — Extra unmarked, Pitts checkered
+unmarked (Ty 2026-10-28, "unmarked liveries become the game defaults"), the yellow Talk Flying 2-33 (Ty 2026-11-02,
+the only 2-33), the Great Lakes' and the Grob's single own model. The packager asks `LiveryChoice.Resolve` with no
+override and no saved choice, so the file it keeps IS the file the game loads, and a livery added to the picker
+cannot be forgotten.
+
+**Three GLBs are unreachable TODAY, before any policy**: `great-lakes-like-own-red-sunburst`, `-white-stripes` (343 MB
+in-build; `LiveryChoice` has no Great Lakes entry, so `OwnSuffix` always returns `-own`) and
+`glider-grob103-acro-like-own-tf` (6 MB; referenced nowhere at all). The livery policy holds them out anyway. Also
+`extra-300-like.glb`, the downloaded model, 22 MB in-build and never drawn because the Extra is in `OwnAlways` — left
+alone, since that is an own-models question, not a livery one.
+
+**PARITY: this stays inside the rule, and `docs/PARITY.md` now says why.** It is a build-time flag (rule 2), nothing
+is authored twice or deleted (rule 4), the subset is DERIVED from the shared `LiveryChoice` rather than listed per
+platform, the player's define stops the picker offering a file that did not ship, Mac and Quest call
+`BuildScript.RestoreAnyHeldAssets()` first so a dead iOS build cannot leak into them, and `PhoneLiveryTests` holds all
+of it. A platform-only GLB or a different default aeroplane on one platform WOULD be a fork; none of that is here.
+
+**NEEDS YOU — the bigger lever, which nobody has authorised.** Compressing the GLB textures saves more than the whole
+livery policy and costs no content: ASTC 4x4 keeps every type AND every livery at ~1.0 GB, 6x6 at ~0.45 GB. It needs a
+glTFast-level change or a post-import pass and a look at what it does to the baked paint, and the 2026-11-05 size
+audit listed texture-format changes as not blanket-authorised. Composable with this: one livery per type and ASTC 6x6
+together would be ~0.25 GB.
+
 ## The gear hinges on the fuselage and the track widens; and toe was on one wheel — Claude, 2026-11-10, lane/claude-gear-flex
 
 <!-- gear-leg-pivot splay bungee-travel toe-both-mains tipping-threshold -->

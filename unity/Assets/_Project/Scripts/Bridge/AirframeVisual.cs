@@ -248,6 +248,49 @@ namespace FlyingGame.Bridge
         /// <summary>True when the placed model brought its own rig (its stick, pedals and needles move by it).</summary>
         public bool HasOwnRig => _builder.HasOwnRig;
 
+        /// <summary>
+        /// THE AEROPLANE ON SCREEN DRAWS ITS OWN INSTRUMENTS — there is a panel to look at from the seat.
+        ///
+        /// Exactly the pair <see cref="LateUpdate"/> already uses to decide whether to drive a cockpit at all
+        /// (<c>_builder.HasOwnRig || _live.Active</c>): the placed model brought a rig whose needle nodes the sim
+        /// drives, or CockpitLiveParts found dials / live parts / shared-library instruments in it. False for the
+        /// procedural shell (<see cref="AirframeBuilder.ModelRoot"/> is null, so <c>_live</c> never binds) and for a
+        /// downloaded model with no panel — those aeroplanes keep the four-dial flight row in cockpit view, because
+        /// taking it away would leave the pilot with nothing to read (<see cref="FlyingGame.Core.HudInstrumentLayout.ShowFlightDials"/>,
+        /// Ty 2026-11-10: "Cockpits have instruments to look at and it takes up valuable space get rid of it").
+        ///
+        /// Valid from the first frame a model is placed: Rebuild() runs in Start, the bind is in LateUpdate, and
+        /// OnGUI is after LateUpdate — so no frame draws the row over a panel that is about to appear.
+        /// </summary>
+        public bool CockpitInstrumentsDrawn => _builder.HasOwnRig || _live.Active;
+
+        // ---- MODEL IDENTITY (Ty 2026-11-09) -------------------------------------------------------------------
+        //
+        // Ty, after switching from the Cub to the Pitts: "there is a ton of roll with yaw (dihedral effect) on the
+        // pitts … it was flying way different from what it should have almost like it was the extra flying but the
+        // pitts livery … so maybe the flight model was stuck on cub and the pitts livery was present". Offered the
+        // choice between hunting it and shipping a diagnostic he chose the diagnostic: "make the build log or display
+        // which config the flight model is actually using, so the next time it happens we know for certain rather
+        // than inferring".
+        //
+        // These three are what the PICTURE knows about itself, recorded at Rebuild() and never afterwards, so they
+        // can be compared against the aeroplane the physics is stepping. See FlightModelIdentity.
+
+        /// <summary>The AircraftConfig OBJECT the airframe on screen was lofted from, as of the last Rebuild. Compared
+        /// by reference with the config the sim is stepping: two aeroplanes of the same type have the same Id and
+        /// different objects, so this catches a stale picture that a string comparison would call healthy.</summary>
+        public AircraftConfig DrawnFromConfig => _builtConfig;
+        private AircraftConfig _builtConfig;
+
+        /// <summary>The type id the airframe was built for (the driver's AircraftId at that moment) and the livery it
+        /// was painted in — what OnAircraftChanged compares against to decide whether to rebuild at all.</summary>
+        public string DrawnTypeId => _builtId;
+        public string DrawnLivery => _builtLivery;
+
+        /// <summary>The GLB actually instantiated (Models/&lt;id&gt;/&lt;file&gt;), or null where the aeroplane on screen is
+        /// the procedural shell. This is the livery's own file, so it names the aeroplane a pilot is LOOKING at.</summary>
+        public string DrawnModelPath => _builder.PlacedModelPath;
+
         private bool _rigPartGone;
 
         /// <summary>Where the cockpit camera's eye belongs, when the model was drawn with eye points
@@ -1732,6 +1775,13 @@ namespace FlyingGame.Bridge
             QuestRig.Note($"airframe rebuild {_driver.AircraftId}");
             _builtId = _driver.AircraftId;
             _builtFor = _driver.Sim?.Aircraft;
+            // THE CONFIG THE SHAPE ON SCREEN WAS LOFTED FROM (model-identity diagnostic, Ty 2026-11-09). Build() is
+            // handed Sim.Aircraft.Config at the bottom of this method, and the model is placed from THAT object's Id;
+            // but a Rebuild only happens when _builtId changes, so what is drawn can outlive the aeroplane it was
+            // drawn for. Recorded here, at the one moment the two are known to agree, so the diagnostic can compare
+            // the object the picture came from against the object the physics is stepping instead of comparing two
+            // strings that may both say "pitts-s2b-like".
+            _builtConfig = _driver.Sim?.Aircraft?.Config;
             _builtModels = SessionSettings.UseAirframeModels;
             _builtOwn = SessionSettings.UseOwnModels;
             _builtLivery = SessionSettings.LiveryFor(_builtId);

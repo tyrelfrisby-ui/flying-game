@@ -1619,5 +1619,12 @@
       "rotationSign": 1,
       "throttleScale": 1.0
     }
-  ]
+  ],
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "_unitsSource": "Era and category: experimental amateur-built, open cockpit; Lockwood publishes the AirCam's speeds in mph. (A 1995 design, so not vintage -- but it is experimental, which the rule puts in mph.)",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
+  }
 }

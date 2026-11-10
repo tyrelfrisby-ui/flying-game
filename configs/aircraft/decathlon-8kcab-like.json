@@ -1740,5 +1740,12 @@
     "vneMs": 78,
     "gMax": 6.0,
     "gMin": -5.0
+  },
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "_unitsSource": "Era and category: fabric aerobat; the American Champion 8KCAB POH is in mph.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
   }
 }

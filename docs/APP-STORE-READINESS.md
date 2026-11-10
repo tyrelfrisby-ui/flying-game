@@ -22,6 +22,33 @@ numbers stay out of this repository because it is public.
 | Online hours counted where they are actually spent | `Bridge/Net/NetSession.cs` — `BeginCounting` on the relay's `hello`, wall-clock seconds while connected, ended on any disconnect |
 | The join question asked in the one place that can reach the relay | `NetSession.Join` → `EntitlementRuntime.CanJoinMultiplayer` |
 
+## App size against App Store Connect's 4 GB (2026-11-10)
+
+Build 2026.1105.1550 measured **4,291,667,298 B uncompressed** and was over the limit (ITMS-90558). The breakdown,
+recorded at the time: `Data/resources.assets.resS` **4,024,558,864 B (93.8 %)**, `resources.assets` 166,329,244 B
+(meshes), everything else ~101 MB.
+
+**What resS actually is.** Every texture embedded in a GLB is imported by glTFast's `ScriptedImporter`, so Unity's
+platform texture pipeline never sees it: there is no compression field in a `.glb.meta` at all, no per-platform
+override is possible, and the pixels ship uncompressed at 4 bytes each with a full mip chain. The 39 GLBs under
+`Resources/Models` hold **754.92 Mpix**; 754.92e6 × 4 × 4/3 = **4,026,240,000 B**, which is the measured resS to
+**0.04 %**. So resS is, to within rounding, nothing but GLB textures. It is not audio (1.1 MB in the whole tree), not
+video (none), not fonts, not the configs (`StreamingAssets` is 1.4 MB), and the whole `unity/Assets` tree is 265 MB on
+disk — **on-disk size is a ~20× misleading proxy for in-build size and must not be budgeted from.**
+
+**What is on.** Ty 2026-11-10 chose *"ship a single default livery for each aeroplane; the alternates stay in desktop
+and Quest builds"*. An iOS build now holds out every `<id>-own*.glb` but the default livery's
+(`Core/PhoneLiveries`): **2,133 MB of the 4,026 MB texture payload**, leaving 1,894 MB of GLB textures and an
+estimated **≈2.16 GB build** — about **1.84 GB under 4 GB**, with the FULL fleet and no type restriction.
+`FLYINGGAME_TF_SLIM=1` (six types only, 3.60–3.74 GB measured) is therefore no longer needed for size.
+`tools/deploy/deploy.sh` now prints the built `.app` size and its resS against the limit every build; there was no
+size check anywhere before, which is why 4.2 GB was a surprise.
+
+**The bigger lever nobody has authorised.** Compressing the GLB textures (ASTC 4×4 keeps every type AND every livery
+at ~1.0 GB; 6×6 at ~0.45 GB) saves more than the entire livery policy and costs no content, but it needs a
+glTFast-level change or a post-import pass and a look at what it does to the baked paint. The 2026-11-05 size audit
+listed texture-format changes as **not blanket-authorised**, and that still stands: it is Ty's call.
+
 ## Required reason APIs
 
 The three declared in the manifest are the three this app actually uses: `NSUserDefaults` (CA92.1) for

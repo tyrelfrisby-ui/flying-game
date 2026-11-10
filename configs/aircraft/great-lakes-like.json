@@ -1664,6 +1664,7 @@
     },
     "airspeed": {
       "units": "mph",
+      "_unitsSource": "TY'S EXPLICIT CALL, and the rule agrees with him: TCDS A18EA rev 11 publishes the 2T-1A-2's Vne 153 and Vno 120 in mph CAS. Not to be 'corrected' to knots.",
       "scaleMin": 40,
       "scaleMax": 200,
       "arcs": {
