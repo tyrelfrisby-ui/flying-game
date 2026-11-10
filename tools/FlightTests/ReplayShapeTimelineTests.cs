@@ -112,6 +112,36 @@ public class ReplayShapeTimelineTests
         Assert.Equal(0.40, later.Panels[0].BendRad, 1e-9);
     }
 
+    /// <summary>A panel that BENT and then BROKE OFF (what a wing strike actually does, and the case the 11-08 repair did
+    /// not reach — Ty 2026-11-10: "bent wings prior to the crash bug is back"). Its bent geometry rides away on the
+    /// debris, which the replay carries back onto the aeroplane for every frame before the break, so the recording has to
+    /// hold both the STRAIGHT shape from before the bend and the bend the panel had AT the break — the one the piece is
+    /// drawn at from then on.</summary>
+    [Fact]
+    public void APanelThatBentAndThenBrokeIsRecordedStraightBentAndBroken()
+    {
+        Aircraft a = Build();
+        var line = new ReplayShapeTimeline();
+        line.Record(0.0, a);                                   // straight
+        a.Panels[0].BendRad = 0.18; a.Panels[0].State = PanelState.Bent;
+        line.Record(10.0, a);                                  // the strike
+        a.Panels[0].State = PanelState.Broken;
+        Assert.True(line.Record(10.5, a));                     // it lets go, keeping the set it had
+        Assert.Equal(3, line.Count);
+
+        Assert.True(line.TryShapeAt(5.0, out AirframeShape before));
+        Assert.Equal(PanelState.Intact, before.Panels[0].State);
+        Assert.Equal(0.0, before.Panels[0].BendRad, 1e-9);     // nothing to draw bent: the piece goes back straight
+
+        Assert.True(line.TryShapeAt(10.2, out AirframeShape bent));
+        Assert.Equal(PanelState.Bent, bent.Panels[0].State);
+        Assert.Equal(0.18, bent.Panels[0].BendRad, 1e-9);
+
+        Assert.True(line.TryShapeAt(60.0, out AirframeShape gone));
+        Assert.Equal(PanelState.Broken, gone.Panels[0].State);
+        Assert.Equal(0.18, gone.Panels[0].BendRad, 1e-9);      // the shape the piece fell in
+    }
+
     [Fact]
     public void ATinyChangeIsNotWorthAnEntry()
     {
