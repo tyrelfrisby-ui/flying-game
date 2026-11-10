@@ -1,3 +1,86 @@
+## The debrief: what failed, when, what you did, and how long you took to notice — Claude, 2026-11-10, lane/claude-debrief
+
+<!-- debrief instructor-latency reaction-time overstress-straightening no-ground-track -->
+
+Ty, asked how far the failure-switchboard idea goes, chose three things: **an instructor in the back seat, scripted
+lessons with failures built in, and a debrief after the flight.** Asked where to start, he chose the debrief, against
+this reasoning, which he accepted: *"The replay already exists and is good. Turning it into a debrief — what failed,
+when, what you did, how long you took to notice — is the smallest step that is useful alone, and it is useful even
+solo."* Built: it works with no instructor, no second pilot and no network.
+
+**The recording already held almost all of it, and that is why this was the small step.** `FlightRecorder` keeps 30 Hz
+of pose, deflections, throttle, flap, gear, g, rpm and engine-running for ten minutes; `ReplayShapeTimeline` keeps every
+bend, set and blade; `ReplayDamageFxTimeline` keeps the fire. **Ty's own worked example needs nothing but the pose
+stream** — *"The engine quit at 4:12; the throttle came back at 4:19; best-glide speed was reached at 4:31. Seven
+seconds to notice"*: the engine's state, the throttle's position and the airspeed are all three in a `ReplayFrame`
+already. What had to be added is WHAT HAPPENED AND WHEN, which the recording never kept: `FlightEventLog`, polled once
+a display frame from the same place the pose is recorded, which sees the engine stop, every overstress the structure
+books, every panel that bends or folds, every part that goes, the stall, the spin, Vne, the propeller past its red
+line, the fire, the leak and the touchdowns — and takes a `Note()` for the three things the sim cannot see (the pilot
+leaving, the crash the relay names, and a failure an instructor or a lesson injects).
+
+**"Noticed" is defined, and where the definition cannot answer it says so.** `FlightResponse.TryReaction` returns the
+first DELIBERATE control movement after an event: a control more than a dead band from where it was held (15 % of
+throttle travel, 3° of surface) and STAYING there for 0.3 s, dated at the moment it moved, not when the dwell
+confirmed it. The dead band keeps a finger resting on a touch pad from timing as a decision; the dwell keeps one noisy
+frame from doing the same. And `PilotReaction.Clean` is false when the pilot was ALREADY working that control in the
+second before the event, because a hand already moving cannot be timed — a naive measurement on a flight where he
+happened to be rolling when the engine quit reads 0.2 s, which is the flattering, useless number this exists to
+refuse. The debrief prints the number either way and says plainly which kind it is.
+
+**A stall is measured in height, not in reaction time**, for exactly that reason: a pilot at the stall is already
+holding the stick back, that is how he got there. So the stall's line is what the recovery cost, graded against
+`LessonJudge.Std.StallLoss` — the ACS's 100 ft, which this repo already had, rather than a second copy of it. The
+touchdown is graded against `Std.TdSink` the same way.
+
+**A spin is named for what the rudder did, not just for what happened.** The entry is dated at the start of the
+rotation (not two seconds later when the dwell makes it certain), and the recording can see WHICH WAY the rudder went
+relative to the yaw without guessing anything, so pro-spin rudder is called pro-spin rudder.
+
+**The over-g line is the one that quotes him.** `OverstressMember` books the peak, the set and the weakening; the log
+follows the excursion frame by frame so the number reported is THIS pull's peak and not the flight's, and tells a bend
+from a straightening. A straightening gets its own paragraph, because it is his own rule and it costs four times:
+*"you can straighten your wings out once but it will cost you significantly for the next stress."* Measured on a
+right wing taken to 1.8 × limit and then pushed back: 2.6 % of its strength out the first way, **8.8 % putting it
+back** — more than four times, because the same ratio is a bigger demand on a wing that has already lost strength.
+
+**WHERE IT CANNOT SAY WHY, IT DOES NOT GUESS.** The engine's cause comes only from the five conditions
+`Aircraft.EngineRunning` itself tests (a lost nose, a lost propeller, a shut valve, starvation, both magnetos off);
+anything else prints *"Nothing in the recording says why."* `DebriefLimits` is handed in and any field left at zero
+deletes its line rather than filling it with an estimate — the best-glide speed is only paid for (one cached
+`ApproachSpawn.FindBestGlide` sweep) on a flight that actually lost its engine.
+
+**NO GROUND TRACK, EVER.** The obvious thing to draw on a debrief is where you flew, and that is the one thing this
+game does not do (his rule, 2026-10-18: no own-ship position, anywhere). `FlightDebriefTests.NoPositionInDebrief`
+records the same flight twice, once at the origin and once eleven kilometres away, and fails unless the two debriefs
+are identical text — a structural guarantee, in the spirit of `ChartRasterTests`, that the debrief cannot depend on
+position. Heights, speeds, angles, rates and times only.
+
+**Where it lives, and how many taps.** On the REPLAY BAR, not the live toolbar: that row is already seven buttons
+wide, and his standing complaint is menus — *"we need a shortcut button so I don't have to several menus deep."* So
+REPLAY (1 tap) → DEBRIEF (1 tap) to read it, and a tap on any line puts the play head four seconds before the moment
+it is about and plays. A line the ten-minute ring has dropped is still TOLD, and is not offered as a button: offering
+to show something and then doing nothing is worse than not offering. Portrait's second button row had one slot spare,
+so nothing in the flight-tested layout moved; landscape went from 11 slots to 12.
+
+**And it is the thing the other two build on.** `FlightEventKind.InjectedFailure` is in the enum with nothing yet
+raising it: an instructor at a switchboard, or a scripted lesson, logs one `Note()` and every measurement above works
+on it unchanged, because none of them ever asked where the failure came from. Both magnetos are already settable on
+the aeroplane (`Aircraft.MagLeft` / `MagRight`) and the log already names that cause.
+
+**Deliberately left out:** any score, any total, any star (the debrief has no numbers that add up — `LessonJudge`
+scores a lesson, where the pilot asked to be graded; a flight is not a lesson); the ground track; a landing's
+centreline offset (it needs a runway, and the crab angle the recording does hold is the number an instructor asks
+for); screenshots (the lesson debrief grabs those and they cost 6 MB); and spoken commentary (`LessonDebrief` already
+does that for lessons, and a flight debrief is something you read).
+
+**Uncompiled.** `DebriefPanel.cs` is new and `FlightReplay.cs`, `ViewPanel.cs` and `SceneBootstrap.cs` are changed;
+none of the four has seen a compiler, because no Unity build was run. Every symbol was hand-checked against its
+existing call sites. The shared half (`src/FlyingGame.Sim/Replay/FlightEventLog.cs`, `FlightReading.cs`,
+`FlightResponse.cs`, `FlightDebrief.cs`) compiles and is covered by 23 tests in `FlightDebriefTests` that run in
+0.3 s. The Unity half and the shared half are in ONE commit on purpose: the parity lock allows a lane only one
+leading shared commit, and `unity/Assets/_Project/Scripts/` is a shared path.
+
 ## The gear hinges on the fuselage and the track widens; and toe was on one wheel — Claude, 2026-11-10, lane/claude-gear-flex
 
 <!-- gear-leg-pivot splay bungee-travel toe-both-mains tipping-threshold -->
