@@ -102,19 +102,36 @@ namespace FlyingGame.EditorTools
             // THE TESTFLIGHT SLIM PACKAGE (Ty 2026-11-05), opt-in: FLYINGGAME_TF_SLIM=1. A normal build only makes sure
             // no earlier slim build left models held out (RestoreHeldModels), and is otherwise untouched.
             bool slim = System.Environment.GetEnvironmentVariable(FlyingGame.Core.TestFlightFleet.EnvVar) == "1";
+            // ONE LIVERY PER TYPE ON THE PHONE (Ty 2026-11-10: "ship a single default livery for each aeroplane; the
+            // alternates stay in desktop and Quest builds"). ON BY DEFAULT for iOS, because that is the decision; the
+            // opt-OUT is for a capture build that needs AERO_LIVERY to reach the alternates, and it puts the build back
+            // over 4 GB. BuildMac and the Quest build do none of this. See FlyingGame.Core.PhoneLiveries for the
+            // measurement this rests on: 2.13 GB of a 4.03 GB texture payload is alternate liveries.
+            bool oneLivery = System.Environment.GetEnvironmentVariable(FlyingGame.Core.PhoneLiveries.EnvVar) != "1";
             RestoreHeldModels();
+            RestoreHeldLiveries();
             BuildReport report;
+            var defines = new System.Collections.Generic.List<string>();
             try
             {
                 if (slim)
                 {
-                    options.extraScriptingDefines = new[] { FlyingGame.Core.TestFlightFleet.Define };
+                    defines.Add(FlyingGame.Core.TestFlightFleet.Define);
                     HoldOutUnlistedModels();
                 }
+                if (oneLivery)
+                {
+                    defines.Add(FlyingGame.Core.PhoneLiveries.Define);
+                    HoldOutAlternateLiveries();
+                }
+                else Debug.LogWarning($"[phone liveries] {FlyingGame.Core.PhoneLiveries.EnvVar}=1: EVERY livery ships. " +
+                                      "This build will be about 2.1 GB bigger and over App Store Connect's 4 GB limit.");
+                if (defines.Count > 0) options.extraScriptingDefines = defines.ToArray();
                 report = BuildPipeline.BuildPlayer(options);
             }
             finally
             {
+                if (oneLivery) RestoreHeldLiveries();
                 if (slim) RestoreHeldModels();
             }
             BuildSummary summary = report.summary;
@@ -161,6 +178,78 @@ namespace FlyingGame.EditorTools
             Debug.Log($"[TF slim] held out of the build ({held.Count}): {string.Join(", ", held)}");
         }
 
+        // ---- one livery per type on the phone (FlyingGame.Core.PhoneLiveries) ----------------------------------------
+        // The same hold-out as the slim package, a FILE at a time instead of a folder: every <id>-own*.glb whose suffix
+        // is not the one the game loads by default leaves Resources for the length of the player build. The hold mirrors
+        // the folder structure (LiveryHoldDir/<id>/<file>.glb) so putting it back needs no bookkeeping, and
+        // AssetDatabase.MoveAsset carries the .meta, so GUIDs and imports survive and the tree comes back unchanged.
+        // What is NEVER held out: the downloaded <id>.glb (most types draw it), the .obj meshes, and the loose textures
+        // the 172's own GLB reads. Nothing is deleted, and nothing is authored twice (docs/PARITY.md: a build-time
+        // subset of shared art is not a fork).
+        private const string LiveryHoldDir = "Assets/_Project/PhoneLiveryHold";
+
+        private static void HoldOutAlternateLiveries()
+        {
+            var held = new System.Collections.Generic.List<string>();
+            var kept = new System.Collections.Generic.Dictionary<string, string>();
+            foreach (string dir in AssetDatabase.GetSubFolders(ModelsDir))
+            {
+                string folder = Path.GetFileName(dir);
+                foreach (string path in Directory.GetFiles(dir, "*.glb"))
+                {
+                    string file = Path.GetFileName(path);
+                    if (FlyingGame.Core.PhoneLiveries.KeepsModelFile(folder, file))
+                    {
+                        if (file.StartsWith(folder + "-own", System.StringComparison.Ordinal)) kept[folder] = file;
+                        continue;
+                    }
+                    if (!AssetDatabase.IsValidFolder(LiveryHoldDir)) AssetDatabase.CreateFolder("Assets/_Project", "PhoneLiveryHold");
+                    if (!AssetDatabase.IsValidFolder(LiveryHoldDir + "/" + folder)) AssetDatabase.CreateFolder(LiveryHoldDir, folder);
+                    string err = AssetDatabase.MoveAsset(dir + "/" + file, LiveryHoldDir + "/" + folder + "/" + file);
+                    if (!string.IsNullOrEmpty(err)) throw new BuildFailedException($"[phone liveries] could not hold out {dir}/{file}: {err}");
+                    held.Add(folder + "/" + file);
+                }
+            }
+            // A type whose picker offers alternates MUST still have the GLB the phone keeps, or the build ships an
+            // aeroplane with no model and nobody finds out until it is on a device.
+            foreach (string id in FlyingGame.Core.PhoneLiveries.TypesWithAlternates())
+            {
+                string want = id + FlyingGame.Core.PhoneLiveries.KeptSuffix(id) + ".glb";
+                if (!File.Exists(Path.Combine(ModelsDir, id, want)))
+                    throw new BuildFailedException($"[phone liveries] {id}: the kept livery {want} is not in {ModelsDir}/{id}");
+            }
+            Debug.Log($"[phone liveries] define {FlyingGame.Core.PhoneLiveries.Define}; keeps " +
+                      string.Join(", ", System.Linq.Enumerable.Select(kept, kv => kv.Value)));
+            Debug.Log($"[phone liveries] held out of the build ({held.Count}): {string.Join(", ", held)}");
+        }
+
+        /// <summary>Put back anything an iOS build that died between its two moves left out of Resources — the slim
+        /// package's model folders and the phone's alternate liveries. Every other platform's build calls this first:
+        /// Mac and Quest ship the whole fleet and every livery, and a packaging step that only runs for the phone must
+        /// never be able to leak into them.</summary>
+        public static void RestoreAnyHeldAssets() { RestoreHeldModels(); RestoreHeldLiveries(); }
+
+        private static void RestoreHeldLiveries()
+        {
+            if (!AssetDatabase.IsValidFolder(LiveryHoldDir)) return;
+            int back = 0;
+            foreach (string dir in AssetDatabase.GetSubFolders(LiveryHoldDir))
+            {
+                string folder = Path.GetFileName(dir);
+                foreach (string path in Directory.GetFiles(dir, "*.glb"))
+                {
+                    string file = Path.GetFileName(path);
+                    string err = AssetDatabase.MoveAsset(dir + "/" + file, ModelsDir + "/" + folder + "/" + file);
+                    if (string.IsNullOrEmpty(err)) back++;
+                    else Debug.LogError($"[phone liveries] could not restore {dir}/{file}: {err}");
+                }
+                if (Directory.GetFiles(dir, "*.glb").Length == 0) AssetDatabase.DeleteAsset(dir);
+            }
+            if (AssetDatabase.GetSubFolders(LiveryHoldDir).Length == 0) AssetDatabase.DeleteAsset(LiveryHoldDir);
+            else Debug.LogError($"[phone liveries] {LiveryHoldDir} still holds files; move them back to {ModelsDir} by hand");
+            Debug.Log($"[phone liveries] restored {back} livery GLB(s) to {ModelsDir}");
+        }
+
         private static void RestoreHeldModels()
         {
             if (!AssetDatabase.IsValidFolder(SlimHoldDir)) return;
@@ -187,6 +276,11 @@ namespace FlyingGame.EditorTools
         public static void BuildMac()
         {
             ConfigSync.SyncAndRequireComplete();
+            // The Mac keeps every aeroplane and every livery (Ty 2026-11-10: the alternates stay in desktop and Quest
+            // builds). These two only undo an iOS build that died between its two moves — without them the Mac would
+            // quietly ship whatever the phone's packager had taken out.
+            RestoreHeldModels();
+            RestoreHeldLiveries();
             PlayerSettings.companyName = "FlyingGame";
             PlayerSettings.productName = ProductName;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, BundleId + ".mac");
