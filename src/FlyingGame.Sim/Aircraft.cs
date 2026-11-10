@@ -1170,6 +1170,24 @@ public sealed partial class Aircraft
             double tab = trimRad + TabOffset(surface);
             d = (a - b * tab) / den;
         }
+        // THE LINEAR BALANCE IS A SMALL-DEFLECTION EXPANSION. a and b are hinge-moment slopes about the trail
+        // position, so a/(k−b) is only the answer while the surface is somewhere near there. In the Pitts' flat
+        // spin the aileron's own terms measure a +11.7…+18.6 against b −8.5…−22.9 with NO centering spring at all
+        // (k = 0), and the root comes out at 50–79° on a surface that has 25°: it sits on the stop every step.
+        // That is the owner's report, twice — "the problem is the ailerons sticking at full opposite", and after
+        // three more builds, "The ailerons still peg and stick at full opposite too which is not 'real' behavior".
+        //
+        // When the root lies outside the travel the expansion has been extrapolated past any validity, so take the
+        // VANE instead: the angle at which the surface is aligned with the air over it, which this already computes
+        // for the destabilising case and which measures −3° to −10° here.
+        //
+        // PARTIAL, and the rest is measured rather than guessed. It stops the hard peg — the aileron floats 17-24°
+        // instead of sitting at exactly 25.0 every step — but that is still most of the travel, because `a` itself
+        // is large: the hinge-moment slope is evaluated on a wing at α 70-85, far outside where a slope about the
+        // trail position means anything. Gating on the strips' own separation was tried and does nothing, because
+        // `StripFlowState.Separation` reads ~0 for these aileron strips even at α 78 — worth knowing before the
+        // next attempt. AileronPegProbe (AIL_PEG=1) prints the whole balance each second.
+        if (Math.Abs(d) > axis.MaxDeflRad) return axis.ClampDefl(vane);
         return axis.ClampDefl(d);
     }
 
