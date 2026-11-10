@@ -645,6 +645,31 @@ public sealed class SpinAeroConfig
     public double CelluleWakeK { get; set; } = 1.0;
 
     /// <summary>
+    /// HORIZONTAL-TAIL EFFECTIVENESS AT 60-90 DEGREES OF LOCAL ANGLE, as a multiplier on the whole force of each
+    /// stabiliser and elevator strip. 1.0 = untouched, so no type changes until it is entered. The band is folded
+    /// about 90 deg (so 90-120 is treated as 60-90 reversed) and mirrored for negative alpha, and it ramps in over
+    /// 50-60 deg so nothing steps. Below 50 deg of local angle it does nothing at all, which is why it cannot touch
+    /// any ordinary flight condition: 60-90 deg at the tail happens in a spin or a tumble and nowhere else.
+    ///
+    /// Ty, 2026-11-09, after flying 2026.1109.1912: "I tested the pitts same flat spin problems make the stab more
+    /// effective 60-90 aoa" - and, asked to confirm the direction, "More effective".
+    ///
+    /// WHY IT IS A KNOB AND NOT A DERIVATION, stated plainly. Flat-plate theory says the stabiliser is ALREADY at its
+    /// limit here: the derived section's Cn is 1.18 at 60 deg and 1.19 at 90, against Cd_max 1.19 from Hoerner's AR 1-5
+    /// plates and Viterna &amp; Corrigan's 1.11 + 0.018*AR, and the horizontal tail's own aspect ratio of 2.6 puts it
+    /// squarely in that band. The slipstream is already carried separately (eta_t at the stab measures 1.29-1.53 in
+    /// the spin, so it is working on MORE than free-stream dynamic pressure, not less). So there is no term left in
+    /// plate theory to find, and this multiplier deliberately exceeds it on the owner's flight evidence rather than
+    /// on a reference. He flies flat spins in the aeroplane; the model does not.
+    ///
+    /// What it is NOT: it is not the dead rudder. That has a measured cause - `fin-lowAR` holds its normal force flat
+    /// from 25 to 90 deg, so a +-30 deg rudder commands 0.03-0.15 of Cn where it commands 2.17 at small angles - and a
+    /// flat Cn is a dead control whatever its magnitude. This knob scales the horizontal tail's force, which also
+    /// scales what its elevator can command, but it leaves the fin alone.
+    /// </summary>
+    public double StabHighAlphaK { get; set; } = 1.0;
+
+    /// <summary>
     /// GEOMETRIC HELICAL SHADOW DEPTH, 0 = use the Report 648 wake path instead (the default, so no type changes until
     /// it is entered). Above 0, EVERY surface's dynamic-pressure loss - wings, stabiliser, fin, all of them - is computed
     /// from THIS AIRFRAME'S OWN GEOMETRY by marching the real helical air path upstream from each section and seeing what

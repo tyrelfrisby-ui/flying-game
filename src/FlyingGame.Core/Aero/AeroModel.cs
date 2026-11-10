@@ -566,6 +566,7 @@ public static class AeroModel
         // docs/SPIN-ROTARY-DATA.md calls the gate "the faithful fix"; it was rejected once on a measurement the same
         // document later shows was wrong (the Pitts' entry gated at 17 deg on a 12 deg wing).
         string slipRollKind = config.SpinAero?.RollDueToSideslip ?? "";
+        double stabHighAlphaK = config.SpinAero?.StabHighAlphaK ?? 1.0;
         double[] wingGeom = WingGeom(config);
         double slipRollK = slipRollKind.Length > 0 && wingGeom[2] > 1e-6 ? wingGeom[0] / wingGeom[2] : 0.0;
         const double SlipRollBeta20 = 20.0 * Math.PI / 180.0;
@@ -1093,6 +1094,20 @@ public static class AeroModel
 
                 double lift = q * strip.Area * clTotal;
                 double drag = q * strip.Area * (coeffs.Cd + cdInduced + flapCd + cdBrake);
+                // STAB EFFECTIVENESS AT 60-90 DEGREES (SpinAeroConfig.StabHighAlphaK, owner 2026-11-09 after flying
+                // 1912: "same flat spin problems make the stab more effective 60-90 aoa"). Scales the whole force of
+                // a HORIZONTAL TAIL strip - so the stabiliser's own pitching moment and what its elevator can command
+                // move together - over the band the owner named, folded about 90 deg and ramped in over 50-60 so
+                // nothing steps. Nothing below 50 deg of LOCAL angle is touched, so no ordinary flight condition can
+                // see it. See the config doc for why this is a knob and not a derivation.
+                if (!isWing && !isVertical && stabHighAlphaK != 1.0)
+                {
+                    double ad = Math.Abs(alphaBase) * 57.2957795;
+                    ad %= 360.0; if (ad > 180.0) ad = 360.0 - ad; if (ad > 90.0) ad = 180.0 - ad;
+                    double ramp = Math.Clamp((ad - 50.0) / 10.0, 0.0, 1.0);
+                    double f = 1.0 + (stabHighAlphaK - 1.0) * ramp;
+                    lift *= f; drag *= f;
+                }
                 if (flowState?.LiftFactor is { } lf && idx < lf.Length)
                 {
                     // Branch damage (dented leading edge, torn fabric): less lift and more drag from this strip.
