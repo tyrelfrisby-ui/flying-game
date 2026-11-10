@@ -330,6 +330,59 @@ public static class AeroModel
     /// section states at one geometric angle, which is the finite wing's stall jump. The table keeps the attached branch to
     /// the furthest angle it reaches and the separated branch from there on.
     /// </summary>
+    /// <summary>
+    /// A SEPARATED SURFACE DOES NOT GIVE LESS THE HARDER IT IS PUSHED. Past the stall this makes the section's NORMAL
+    /// force Cn = Cl*cos(a) + Cd*sin(a) non-decreasing in |alpha|, by lifting Cd where the table would have it fall.
+    ///
+    /// A two-dimensional NACA 0012 drops Cn from 1.211 at 14 deg to 0.955 at 25 - the lift collapsing at the stall -
+    /// and for a 2D section that is right. For a finite-span TAIL it is not: past the stall the flow is fully
+    /// separated and the surface behaves as a flat plate, whose normal force climbs monotonically to about 1.2 at 90
+    /// deg. More than wrong, a stretch of dCn/dalpha &lt; 0 is NEGATIVE PITCH DAMPING by definition - a tail that
+    /// gives less force the further it is pushed DRIVES the motion instead of resisting it. Measured on the Pitts
+    /// (StabHighAlphaProbe, STAB_HI=1) the tail's dM/dq came out at +129 N.m per rad/s at alpha 30, the wrong sign
+    /// outright, with the resisting force falling at 12-14, 25-30 and 60-70 deg.
+    ///
+    /// Ty 2026-11-09, having isolated it by flying both directions: "spins to the right are about right it is just
+    /// the left spin that has too much flattening especially at idle it must be the stabilizer at high angle of
+    /// attack... look for a cliff in stabilizer damping or resisting force with aoa." Both spins meet the same tail;
+    /// only the LEFT one needs it to win against a nose-up gyroscopic couple, so only the left one shows it.
+    ///
+    /// Cd is the term raised rather than Cl because past the stall the normal force IS pressure drag - the lift is
+    /// gone - so this adds nothing to the section's circulation, and it only ever acts where the table was falling.
+    /// </summary>
+    private static void MonotonicPastStall(double[] alpha, double[] cl, double[] cd)
+    {
+        if (alpha.Length < 3) return;
+        for (int sign = 1; sign >= -1; sign -= 2)
+        {
+            // Walk outward from ZERO, not from the stall peak, and never let Cn fall back. Starting at the peak left
+            // the notch BELOW it untouched - on the Pitts the tail still gave less at 14 deg than at 12, which is the
+            // same negative-damping defect in miniature. A tail of aspect ratio 2.8 separates gradually and has no
+            // sharp two-dimensional stall break to preserve, so the rule holds all the way out to 90 deg.
+            int peak = -1; double best = double.NegativeInfinity;
+            for (int i = 0; i < alpha.Length; i++)
+            {
+                double ad = alpha[i] * sign;
+                if (ad < 0.0 || ad > 0.02) continue;                    // the point nearest zero on this side
+                if (best == double.NegativeInfinity || ad < best) { best = ad; peak = i; }
+            }
+            if (peak < 0) continue;
+            double hold = Cn(alpha[peak], cl[peak], cd[peak]) * sign;
+            for (int i = peak + sign; i >= 0 && i < alpha.Length; i += sign)
+            {
+                if (alpha[i] * sign <= 0.0 || alpha[i] * sign > 0.5 * Math.PI) break;   // same side, out to 90 deg
+                double cn = Cn(alpha[i], cl[i], cd[i]) * sign;
+                if (cn < hold)
+                {
+                    double sa = Math.Abs(Math.Sin(alpha[i]));
+                    if (sa > 1e-3) cd[i] += (hold - cn) / sa;           // make up the shortfall as pressure drag
+                }
+                else hold = cn;
+            }
+        }
+        static double Cn(double a, double l, double d) => l * Math.Cos(a) + d * Math.Sin(a);
+    }
+
     public static AirfoilTableData FiniteSpanSection(AirfoilTableData data, double a0, double a)
     {
         double k = 1.0 / a - 1.0 / a0;
@@ -346,13 +399,12 @@ public static class AeroModel
         for (int i = z - 1; i >= 0; i--) if (geo[i] < last) { neg.Add(i); last = geo[i]; }
         neg.Reverse();
         neg.AddRange(keep);
-        return new AirfoilTableData
-        {
-            AlphaRad = neg.Select(i => geo[i]).ToArray(),
-            Cl = neg.Select(i => data.Cl[i]).ToArray(),
-            Cd = neg.Select(i => data.Cd[i]).ToArray(),
-            Cm = neg.Select(i => data.Cm[i]).ToArray(),
-        };
+        var outAlpha = neg.Select(i => geo[i]).ToArray();
+        var outCl = neg.Select(i => data.Cl[i]).ToArray();
+        var outCd = neg.Select(i => data.Cd[i]).ToArray();
+        var outCm = neg.Select(i => data.Cm[i]).ToArray();
+        MonotonicPastStall(outAlpha, outCl, outCd);
+        return new AirfoilTableData { AlphaRad = outAlpha, Cl = outCl, Cd = outCd, Cm = outCm };
     }
 
     /// <summary>Lift slope of a table about zero alpha (per rad).</summary>
