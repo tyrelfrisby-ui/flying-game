@@ -1253,14 +1253,14 @@ public sealed partial class Aircraft
         double al = _flowState.HingeAlphaRad[i] * Math.Clamp(dirNow / dirBand, -1.0, 1.0);
         double att = Math.Clamp(al, -0.35, 0.35);
         double sep = Math.Clamp((Math.Abs(al) - 0.35) / 0.35, 0.0, 1.0); sep = sep * sep * (3 - 2 * sep);
-        // AND THE LEADING EDGE DECIDES IT, once it has an opinion. The blend above is a smooth function of the local
-        // flow angle, so as a spin slows it walks the elevator forward in step with alpha — a drift. The real thing is
-        // bistable: while the leading edge is stalled there is no attached flow over the top to counter the air from
-        // below, so the surface trails fully with the flow whatever the angle has come down to, and when the edge
-        // finally reattaches the counter arrives ALL AT ONCE. Hysteresis is what holds the stalled state below the
-        // angle it began at, and letting go of it is the lurch (StripFlowState.LeStalled).
-        if (i < _flowState.LeStalled.Length && _flowState.LeStalled[i]) sep = 1.0;
-        else if (i < _flowState.LeStalled.Length) sep = Math.Min(sep, 0.0);
+        // THE LEADING-EDGE STALL LATCH IS GONE (Ty 2026-11-10: "Delete the leading edge stall latch"). It pinned
+        // sep = 1 — full vane behaviour — from the strip's own stall angle until the angle had fallen a band below
+        // it, and the RELEASE was the defect: measured through a Beggs-Mueller recovery, elevator strips sat latched
+        // at 7-11 degrees of their own local flow one second after the throttle closed, and did not let go for 12 s.
+        // While latched the vane angle is -alpha_local, which at 30-50 deg of local flow is outside the elevator's
+        // +/-27 deg of travel, so the surface sat on its aft stop for the whole recovery: 7.07 turns to stop
+        // rotating against a turn or two in the real aeroplane, and the nose would not drop when the power came off.
+        // The separation blend above (20-40 deg of local flow) now decides it on its own.
         a += g * qsc * ((1 - sep) * axis.HingeChAlpha * att + sep * axis.HingeChDelta * al);
         // Deflection stiffness follows the flow direction: centering in normal flow, gone in crossflow, and
         // REVERSED and ~2x stronger when the air comes from the trailing edge (tailslide: the hinge is now

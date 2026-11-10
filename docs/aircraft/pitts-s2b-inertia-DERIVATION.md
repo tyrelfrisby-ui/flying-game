@@ -78,7 +78,7 @@ rings x +1.50 to −3.29.
 | battery | 10.9 | +0.474 | 0 | +0.170 | ASSUMED 25 Ah sealed, aft face of the firewall |
 | wings (both, with 4 ailerons) | 80.5 | −0.150 | 1.46 | −0.094 | Raymer 2.5 lb/ft² × 11.60 m² = 141.6 × k = 98.5 kg, less 18.0 of bracing; spread over the 40 strips ∝ area. Upper 52 %, lower 48 % |
 | cabane struts | 5.0 | +0.273 | 0 | −0.299 | ASSUMED, at the GLB `Strut_Cabane` box |
-| interplane I-struts | 7.0 | −0.167 | 2.30 | −0.081 | ASSUMED 3.5 kg each, at the `Strut_Interplane` box ends |
+| interplane I-struts | 3.5 | −0.167 | 2.30 | −0.081 | ASSUMED 1.75 kg each (3.9 lb), at the `Strut_Interplane` box ends. Halved 2026-11-10 at the owner's direction, from 7.0; the station was checked against the mesh and kept (|y| 2.299 = 75 % of the 3.047 m upper semi-span) |
 | flying + landing wires | 6.0 | −0.167 | 1.15 | −0.077 | ASSUMED; centroid half-way out to the struts, mid-gap |
 | horizontal tail (stab + elevator) | 12.8 | −3.147 | 0.52 | −0.071 | Raymer 2.0 lb/ft² × 1.88 m² × k, over the 16 tail strips |
 | vertical tail (fin + rudder) | 5.9 | −3.243 | 0 | −0.397 | Raymer 2.0 lb/ft² × 0.87 m² × k, over the 8 strips |

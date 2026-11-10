@@ -40,12 +40,13 @@ public class FloatingElevatorProbe
         for (int i = 0; i < 100 && ac.State.Velocity.Length > 33; i++) sim.RunFor(0.1, new ControlInputs(0, -Math.Min(1, 0.2 + 0.02 * i), 0, 1.0));
         for (int i = 0; i < 60; i++) sim.RunFor(0.1, new ControlInputs(0, -1, -1, 0.6));
 
-        _o.WriteLine("  t   | phase                  |  alpha | yaw rate | LE stalled | ELEVATOR (free)");
+        _o.WriteLine("  t   | phase                  |  alpha | yaw rate | separated  | ELEVATOR (free)");
         void Row(double t, string phase)
         {
             var s = ac.State;
             double alpha = Math.Atan2(s.Velocity.Z, s.Velocity.X) * D;
-            int st = 0; foreach (bool b in ac.FlowStateForTests.LeStalled) if (b) st++;
+            // The LE-stall latch is gone (2026-11-10); count the strips the separation blend calls separated instead.
+            int st = 0; foreach (double sepv in ac.FlowStateForTests.Separation) if (sepv > 0.5) st++;
             _o.WriteLine($" {t,5:F1} | {phase,-22} | {alpha,6:F1} | {s.Rates.Z,8:F2} | {st,3}        | {ac.CurrentDeflections.ElevatorRad * D,7:F2} deg  ({ac.CurrentDeflections.ElevatorRad / eMax * 100,5:F0}% of aft stop)");
         }
 

@@ -29,7 +29,6 @@ public class StabHighAlphaProbe
         var d = new DirectoryInfo(AppContext.BaseDirectory);
         while (!Directory.Exists(Path.Combine(d!.FullName, "configs", "aircraft"))) d = d.Parent;
         var c = AircraftConfigLoader.LoadFromFile(Path.Combine(d.FullName, "configs", "aircraft", "pitts-s2b-like.json"));
-        if (Environment.GetEnvironmentVariable("NO_LESTALL") != null) { c.SpinAero ??= new SpinAeroConfig(); c.SpinAero.LeStallHysteresisDeg = 0; }
         var tables = Aircraft.BuildAirfoilTables(c);
 
         double sTail = 0, armSum = 0, n = 0;

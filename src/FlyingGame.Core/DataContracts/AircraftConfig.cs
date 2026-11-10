@@ -608,14 +608,6 @@ public sealed class CelluleConfig
 public sealed class SpinAeroConfig
 {
     /// <summary>
-    /// How far BELOW its stall angle a leading edge has to come before the flow reattaches, degrees. The hysteresis
-    /// band of leading-edge stall, which is what makes the state bistable over a range of alpha — and what makes a
-    /// free elevator lurch forward when a spin slows instead of drifting forward as the angle falls. 0 disables the
-    /// hysteresis (reattachment at the stall angle itself); see StripFlowState.LeStalled.
-    /// </summary>
-    public double LeStallHysteresisDeg { get; set; } = 6.0;
-
-    /// <summary>
     /// ROLLING MOMENT DUE TO SIDESLIP ABOVE THE STALL (NACA TR-379, Knight &amp; Wenzinger 1932, Figs. 27–30): past maximum
     /// lift the yawed wing's LEADING half carries more load (most at its tip) and the trailing half less — the sweep-forward /
     /// sweep-back effect of yaw on the separated flow — "of the same order of magnitude as those due to rolling", and it is
@@ -698,6 +690,38 @@ public sealed class SpinAeroConfig
     /// and its scale is not: 1.0 is cylinder theory on a mean radius, not a measurement.
     /// </summary>
     public double FinSidewashK { get; set; } = 0.0;
+
+    /// <summary>
+    /// THE SAME FUSELAGE CROSSFLOW ACCELERATION, AT THE HORIZONTAL TAIL. amp = 1 + k·(R/r)² on each horizontal
+    /// tail strip's NORMAL flow, R the body's local half-width and r the strip's distance off the centreline,
+    /// ramped in over 20°–40° of the strip's own flow angle so that ordinary flight keeps the trim it has.
+    /// Owner-directed, 2026-11-10: "The elevator gets the same dynamic pressure power you just gave the rudder",
+    /// after a clip of his own flat spin in which "the elevator literally does nothing in the spin".
+    ///
+    /// SEPARATE FROM <see cref="FinSidewashK"/> on purpose, although it is one effect and they will usually carry
+    /// the same number: the fin's amplified component is the lateral one, which is zero in symmetric flight, so
+    /// that knob cannot reach ordinary flying and needs no ramp. This one's is the normal component, which is
+    /// never zero, and it is coupled to the spin ATTITUDE through the stabiliser — so the two want to be swept
+    /// against each other rather than locked together.
+    /// </summary>
+    public double StabSidewashK { get; set; } = 0.0;
+
+    /// <summary>
+    /// A DEFLECTED CONTROL ON A BROADSIDE SURFACE ACTS AS A SPOILER. Adds a force normal to the FIXED surface's own
+    /// plane, k·sin(δ)·|sin α_chord|·q·S per hinged horizontal-tail strip, ramped in over 30°–50° of the strip's own
+    /// flow angle. 0 = off, which is every type until one is flown with it.
+    ///
+    /// WHY IT EXISTS: post-stall the section law is CN = Cd_max·sin θ, which is flat at θ ≈ 90°, so a strip model
+    /// gives a control on a broadside surface no normal force to command — measured on the Pitts, the elevator's
+    /// whole travel moves Cn by 0.387 at α 30 and 0.062 at α 80, while the tail has 116–122 % of free-stream q and
+    /// the right area and arm (ElevatorBreakdownProbe). The real surface displaces the separated wake instead of
+    /// turning the flow, and the base-pressure difference that leaves acts on the whole tail. One angle per strip
+    /// cannot express that, so it is added rather than derived.
+    ///
+    /// HORIZONTAL TAIL ONLY, deliberately: the same argument applies to a rudder, but the fin's authority has just
+    /// been rebuilt through <see cref="FinSidewashK"/> and the two would then be moving at once.
+    /// </summary>
+    public double ControlSpoilerK { get; set; } = 0.0;
 
     /// <summary>
     /// GEOMETRIC HELICAL SHADOW DEPTH, 0 = use the Report 648 wake path instead (the default, so no type changes until
