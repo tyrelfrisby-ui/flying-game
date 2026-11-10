@@ -577,6 +577,16 @@ namespace FlyingGame.Bridge
             foreach (var st in starts) if (st.Item1 == SessionSettings.StartMode) startName = st.Item2;
             Dropdown("start", new Rect(x, y, colW, bh), startName, System.Linq.Enumerable.Select(starts, st => (st.Item2, st.Item1 == SessionSettings.StartMode, (System.Action)(() => SessionSettings.StartMode = st.Item1))));
             y += row;
+            if (SessionSettings.StartMode == SessionSettings.Start.InTheAir)
+            {
+                // How high the airborne start begins, above the ground beneath it (owner 2026-11-10).
+                string AltName(int ft) => $"{ft:N0} ft";
+                Dropdown("startAlt", new Rect(x, y, colW, bh), AltName(SessionSettings.StartAltitudeFt),
+                         System.Linq.Enumerable.Select(SessionSettings.StartAltitudesFt,
+                             ft => (AltName(ft), ft == SessionSettings.StartAltitudeFt,
+                                    (System.Action)(() => { SessionSettings.StartAltitudeFt = ft; SessionSettings.SavePrefs(); }))));
+                y += row;
+            }
             if (SessionSettings.StartMode == SessionSettings.Start.OnTheRunway || SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // Runway choice (owner 2026-09-10): into the wind on the 09/27, or the crosswind main.
@@ -605,7 +615,7 @@ namespace FlyingGame.Bridge
                 y += row;
             }
             UiLayout.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
-                ? "Airborne 2,000 ft over the field, trimmed."
+                ? $"Airborne {SessionSettings.StartAltitudeFt:N0} ft over the ground, trimmed."
                 : SessionSettings.StartMode == SessionSettings.Start.InAeroBox ? "Running in to the aerobatic box, 2,300 ft above the ground."
                 : SessionSettings.StartMode == SessionSettings.Start.InCombatZone ? "Entering the combat zone, guns hot."
                 : SessionSettings.StartMode == SessionSettings.Start.InThermal ? "Circling right in a thermal at min-sink speed, trimmed. Hold the bank and climb."

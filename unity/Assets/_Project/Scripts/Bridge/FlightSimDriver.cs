@@ -15,7 +15,11 @@ namespace FlyingGame.Bridge
     {
         public string AircraftId { get; private set; } = "glider-2-33-like";
         public string AircraftName { get; private set; } = "";
-        public const double SpawnAltitudeM = 600.0;
+        /// <summary>How high an "in the air" start begins ABOVE THE GROUND BENEATH IT. The owner picks it in the start
+        /// menu (SessionSettings.StartAltitudeFt, default 10,000 ft): 2026-11-10, "Can I start at 10,000 ft? In the air
+        /// puts me at 2,000 making testing difficult", then "Make the altitude selectable not fixed". A spin test needs
+        /// room to lose several thousand feet and still be flying.</summary>
+        public static double SpawnAltitudeM => SessionSettings.StartAltitudeFt * 0.3048;
         public double SpawnIasMs { get; private set; } = 22.0;   // per type, from AircraftConfig.SpawnIasMs
 
         /// <summary>Raw elevator stick fraction (-1..1) that reproduces the spawn trim through the config's
@@ -358,8 +362,14 @@ namespace FlyingGame.Bridge
             // own start, because the event defines where it begins.
             if (!dogfight && authored.HasValue && string.IsNullOrEmpty(SessionSettings.ChallengeId))
             {
-                spawnX = authored.Value.X; spawnY = authored.Value.Y; spawnAlt = authored.Value.AltitudeM;
+                spawnX = authored.Value.X; spawnY = authored.Value.Y;
                 spawnHdg = authored.Value.HeadingTrueDeg * System.Math.PI / 180;
+                // The authored altitude is the world's own ~2,000 ft AGL figure, and it exists because the ground
+                // under a derived start may be nothing like the field's elevation. Take the HIGHER of it and
+                // SpawnAltitudeM over the ground actually beneath the spawn: going up never costs clearance, so the
+                // reason the authored value exists is preserved while the owner gets the height he asked for.
+                spawnAlt = System.Math.Max(authored.Value.AltitudeM,
+                                           FlyingGame.Core.WorldTerrain.GroundHeightAt(spawnX, spawnY) + SpawnAltitudeM);
             }
             // Start HANDS OFF at the type's rig condition (owner 2026-11-02): level at 75 % power on the rig, trimmed, or a glider
             // at best glide. FlyingGame.Sim.AirStart is the whole computation, engine-free, so LaunchReplicationTests fly
