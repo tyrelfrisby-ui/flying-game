@@ -568,6 +568,65 @@ namespace FlyingGame.Bridge
             // or in an outside view the options simply were not there.
             y += _gap * 0.5f;
             {
+                // THE TV CONTROLLER, AS ONE DECISION (Ty 2026-11-10: "the controller will be two layouts one for
+                // touchpad control with a toggle for gyro look around on/off and one with gyro control with a
+                // touchpad for look around both have the necessary buttons").
+                //
+                // Every part of this already existed — tilt flying, rudder from yaw, move-to-look — as three
+                // independent settings in three places, which is three decisions to get right before the phone
+                // behaves like a controller. The rows below still carry the detail (sensitivity, reversals, the
+                // tilt centring); this says which of his two layouts you are flying, and sets them to match.
+                if (TvOutput.Supported && TiltSteering.Available)
+                {
+                    UiLayout.Label(new Rect(_x, y, _cw, _lh), "TV CONTROLLER", _head); y += _lh;
+                    // The LAYOUT is its own setting (TouchFlightControls.TvGyroLayout) and picking it is what turns
+                    // tilt flying on, not the other way round: inferring the layout from TiltSteering.Enabled took
+                    // the right pad away from an owner who had enabled tilt months earlier and never asked for this.
+                    int lay = PickRow("Controller", new[] { "Touch", "Gyro" }, TouchFlightControls.TvGyroLayout ? 1 : 0, ref y);
+                    if (lay >= 0)
+                    {
+                        TouchFlightControls.TvGyroLayout = lay == 1;
+                        TiltSteering.Enabled = lay == 1;   // the gyro has to be flying for the layout to mean anything
+                    }
+                    if (!TouchFlightControls.TvGyroLayout)
+                    {
+                        Note("Both pads fly: left throttle and rudder, right roll and pitch. Buttons between them.", ref y);
+                        if (CockpitView.DeviceAttitudeAvailable
+                            && Check("Gyro look around — move the phone to turn your head", CockpitView.DeviceLookEnabled, ref y))
+                            CockpitView.DeviceLookEnabled = !CockpitView.DeviceLookEnabled;
+                    }
+                    else
+                    {
+                        Note("The phone flies roll and pitch. The left pad keeps the throttle; the right pad looks around.", ref y);
+                        // His own words for why this is a choice and not a consequence: "so a user can keep throttle
+                        // rudder touch and roll pitch movement based if they prefer that over the movement yaw".
+                        int rud = PickRow("Rudder", new[] { "Touchpad", "Gyro yaw" }, TiltSteering.RudderFromYaw ? 1 : 0, ref y);
+                        if (rud >= 0) TiltSteering.RudderFromYaw = rud == 1;
+                        Note(TiltSteering.RudderFromYaw
+                                 ? "Yaw the phone for rudder. It drifts — centre the tilt when it does."
+                                 : "Rudder stays on the left pad, sideways, beside the throttle.", ref y);
+                        if (UiLayout.Button(new Rect(_x, y, _cw * 0.5f, _lh), "CENTRE TILT HERE", _btn)) TiltSteering.Centre();
+                        y += _lh + _gap * 0.4f;
+
+                        // The look pad is a POSITION, so these two are what make it flyable: how much world its
+                        // width covers, and how fine the middle of it is (Ty 2026-11-10).
+                        float sweep = CockpitView.LookPadSweepDeg;
+                        float ns2 = SliderRow(sweep >= 359f ? "Look pad covers 360° — the rim is straight behind"
+                                                            : $"Look pad covers {sweep:F0}° — the rim is {sweep * 0.5f:F0}° round",
+                                              (sweep - 180f) / 180f, 0f, 1f, ref y, 0.56f);
+                        float wantSweep = 180f + ns2 * 180f;
+                        if (Mathf.Abs(wantSweep - sweep) > 2f) CockpitView.LookPadSweepDeg = wantSweep;
+                        Note("180° reaches abeam and no further; 360° lets you look over your shoulder.", ref y);
+
+                        float ex = CockpitView.LookPadExpo;
+                        float nex = SliderRow(ex <= 0.01f ? "Look pad expo: none — the pad is linear"
+                                                          : $"Look pad expo: {ex:F2} — fine near straight ahead",
+                                              ex, 0f, 1.2f, ref y, 0.56f);
+                        if (Mathf.Abs(nex - ex) > 0.02f) CockpitView.LookPadExpo = nex;
+                    }
+                    Note(TvOutput.TvConnected ? TvOutput.StatusText : "With the game on a TV the pads fill this screen.", ref y);
+                    y += _gap * 0.5f;
+                }
                 if (TiltSteering.Available)
                 {
                     // Fly by tilting the phone (Ty 2026-11-08, for a beta tester). Roll, pitch and yaw to aileron,

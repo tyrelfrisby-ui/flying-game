@@ -95,6 +95,7 @@ namespace FlyingGame.Bridge
 
         // Pad geometry recomputed each frame from screen size (screen px, origin bottom-left).
         private Vector2 _leftCenter, _rightCenter;
+        private Vector2 _lookPad;   // the right pad's deflection when it is the view's pad (TvLookPad), -1..+1
         private float _half;                    // pad half-size (square)
         private Rect _trimRect;                 // vertical trim slider track
 
@@ -130,6 +131,32 @@ namespace FlyingGame.Bridge
         /// </summary>
         public static bool TvControllerLayout => TvOutput.Active && !UiSurface.IsTv && !GamepadInput.Now.Connected;
 
+        /// <summary>
+        /// THE RIGHT PAD IS THE VIEW, not the stick. The owner's second controller layout (Ty 2026-11-10): "one with
+        /// gyro control with a touchpad for look around" — the gyro flies roll and pitch, so the pad that used to be
+        /// aileron and elevator is free, and the look goes on it. The LEFT pad is untouched in both layouts, because
+        /// tilt gives three axes and throttle is not one of them and it still has to live somewhere ("Yes left pad
+        /// stays throttle").
+        ///
+        /// Rudder is the owner's own choice and already has a setting: TiltSteering.RudderFromYaw off keeps it on the
+        /// left pad sideways, so "throttle rudder touch and roll pitch movement based" is that switch, not new code.
+        /// </summary>
+        public static bool TvLookPad => TvControllerLayout && TvGyroLayout;
+
+        /// <summary>
+        /// HAS THE OWNER CHOSEN THE GYRO LAYOUT? Its own setting, and OFF until picked — NOT inferred from
+        /// TiltSteering.Enabled, which is what the first cut did and which cost him a flight: tilt flying had been
+        /// switched on at some earlier point, so the moment the TV layout appeared the right pad stopped flying and
+        /// started looking around, with no way to tell from the screen. Ty 2026-11-10: "i can no longer hear it when
+        /// i'm moving the controls". A layout that takes the stick away has to be asked for.
+        /// </summary>
+        public static bool TvGyroLayout
+        {
+            get { if (_tvGyro < 0) _tvGyro = PlayerPrefs.GetInt("tv.gyroLayout", 0); return _tvGyro == 1; }
+            set { _tvGyro = value ? 1 : 0; PlayerPrefs.SetInt("tv.gyroLayout", _tvGyro); PlayerPrefs.Save(); }
+        }
+        private static int _tvGyro = -1;
+
         /// <summary>LOCAL 2-PLAYER: the tray is drawn AND hit-tested, or neither (<see cref="FlyingGame.Core.LocalMp.SplitControls"/>).
         /// Off while the compact split HUD is up and P1 has a pad: the single-player tray spans both halves, and an
         /// invisible RESET / BAIL / FIRE on P2's half would be P1's buttons under P2's thumb. P1 then flies the pad (A fires,
@@ -150,10 +177,11 @@ namespace FlyingGame.Bridge
         public float TrimAileron => _aileronTrim * TrimAuthority;
         public float TrimRudder => _rudderTrim * TrimAuthority;
         // Buttons fire on the finger that touches them (not IMGUI), so they work while the pads are held (owner).
-        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail, Smoke, LookCentre, CamRef }
+        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail, Smoke, LookCentre, CamRef, CtlMode }
         private readonly HashSet<Btn> _tapped = new();
         private Rect _gearRect;                             // GEAR UP / DOWN (retractable types)
         private Rect _smokeRect;                            // SMOKE ON / OFF (owner 2026-10-31: a full-time button, not a menu)
+        private Rect _ctlModeRect;                          // TOUCH / GYRO, only while the phone is the TV's controller
         private Rect _camRefRect;                           // CAM: FLT PATH / TRACK (Ty 2026-11-03: full-time, beside SMOKE)
         private CockpitView _cockpitCache;
         private CockpitView _cockpit => _cockpitCache ??= GetComponent<CockpitView>();
@@ -235,6 +263,14 @@ namespace FlyingGame.Bridge
 
         private void Update()
         {
+            // The look pad's deflection goes to the view every frame, zero included — zero is what lets the view's
+            // own spring-centre work, exactly as the hat's 0,0 does. Only while this pad IS the view's: otherwise
+            // it would fight the hat buttons for the same head.
+            if (_cockpit != null)
+            {
+                _cockpit.OnScreenPan = TvLookPad ? _lookPad : Vector2.zero;
+                _cockpit.PanHeld = TvLookPad && _rightFinger != int.MinValue;
+            }
             // Re-lay out only when something the layout depends on changes (screen, aircraft type, keep-out step) —
             // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
             _egress ??= GetComponent<PilotEgress>();
@@ -365,6 +401,11 @@ namespace FlyingGame.Bridge
             }
             _smokeRect = SmokeAvailable ? new Rect(x0, r3, bw, bh) : new Rect(0, 0, 0, 0);
             _camRefRect = SmokeAvailable ? new Rect(x0 + bw + gap, r3, bw, bh) : new Rect(x0, r3, 2f * bw + gap, bh);
+            // TOUCH / GYRO, a fifth row, and ONLY when the phone is the TV's controller (Ty 2026-11-10: "we need a
+            // shortcut button for touch vs gyro on the controller so I don't have to several menus deep to switch").
+            // It exists nowhere else, so no ordinary layout grows a row: in TV mode the cluster has the height, the
+            // pads having taken the width.
+            _ctlModeRect = TvControllerLayout ? new Rect(x0, r3 + bh + rowGap, 2f * bw + gap, bh) : Rect.zero;
             _engineRowRect = Rect.zero;
             if (EngineBelowWanted && !TouchSticksHidden) LayOutEngineBelowCluster(s, h, margin, gap, rowGap, clusterLeft, clusterRight);
             // Trim bars: rudder under the left pad, aileron under the right pad (RC transmitter style).
@@ -737,6 +778,7 @@ namespace FlyingGame.Bridge
                     if (_gearRect.Contains(p.pos)) { _tapped.Add(Btn.Gear); continue; }
                     if (SmokeAvailable && _smokeRect.Contains(p.pos)) { _tapped.Add(Btn.Smoke); continue; }
                     if (_camRefRect.Contains(p.pos)) { _tapped.Add(Btn.CamRef); continue; }
+                    if (_ctlModeRect.width > 0f && _ctlModeRect.Contains(p.pos)) { _tapped.Add(Btn.CtlMode); continue; }
                     if (LookAvailable && _lookCentreRect.Contains(p.pos)) { _tapped.Add(Btn.LookCentre); continue; }
                     if (LookAvailable && _lookLeftRect.Contains(p.pos) && _lookFinger == int.MinValue)
                     { _lookFinger = p.id; _lookDir = -1; continue; }
@@ -850,6 +892,13 @@ namespace FlyingGame.Bridge
                         // A lesson that forces Track still shows it; the tap sets the choice it goes back to afterwards.
                         SessionSettings.CameraReferenceMode = FlyingGame.Core.CameraReference.Toggle(SessionSettings.CameraReferenceMode);
                         break;
+                    case Btn.CtlMode:
+                        // TOUCH <-> GYRO without going into the menus (Ty 2026-11-10). Picking the layout is what
+                        // turns the gyro on, exactly as the OPTIONS row does — the two must not disagree.
+                        TvGyroLayout = !TvGyroLayout;
+                        TiltSteering.Enabled = TvGyroLayout;
+                        if (TvGyroLayout) TiltSteering.Centre();   // zero it where the phone is being held right now
+                        break;
                     case Btn.LookCentre:
                         if (LookAvailable) _cockpit.Centre();
                         break;
@@ -904,6 +953,16 @@ namespace FlyingGame.Bridge
             }
             _rightKnob = ClampToPad(pos, _rightCenter);
             Vector2 n = (_rightKnob - _rightCenter) / _half;
+            if (TvLookPad)
+            {
+                // The gyro is flying: this pad turns the head. Raw deflection, not Shape() — the stick's expo is
+                // there to make small control inputs fine, and a view wants the opposite, an even sweep.
+                _lookPad = n;
+                _aileron = 0f;
+                _elevator = 0f;
+                return;
+            }
+            _lookPad = Vector2.zero;
             _aileron = Shape(n.x); // pad/stick RIGHT (n.x>0) = positive aileron = roll RIGHT (sim convention)
             _elevator = Shape(InvertElevator ? -n.y : n.y);
         }
@@ -948,6 +1007,7 @@ namespace FlyingGame.Bridge
         {
             _rightFinger = int.MinValue;
             _stripY = 0f;
+            _lookPad = Vector2.zero;   // the view stops where it was: SpringCentre decides whether it walks back
             _aileron = 0f;
             _elevator = 0f;
             _rightKnob = _rightCenter;   // both spring back
@@ -1428,6 +1488,9 @@ namespace FlyingGame.Bridge
                 var mode = FlyingGame.Core.CameraReference.Effective(SessionSettings.CameraReferenceMode, forced);
                 Button(_camRefRect, FlyingGame.Core.CameraReference.Label(mode, forced));
             }
+            // TOUCH / GYRO: the shortcut, lit while the gyro is flying. Only drawn where it is laid out, which is
+            // only while the phone is the TV's controller.
+            if (_ctlModeRect.width > 0f) Button(_ctlModeRect, TvGyroLayout ? "GYRO FLIES" : "TOUCH FLIES");
             // LOOK ◀ / centre / ▶ (owner 2026-10-31): the aerobatic sights sit on the eye's own lateral line, about
             // 90 degrees off the nose, so without a way to turn your head they can never be seen. Shown only in the
             // cockpit, lit while the head is off centre.

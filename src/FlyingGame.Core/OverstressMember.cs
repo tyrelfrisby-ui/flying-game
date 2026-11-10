@@ -32,6 +32,14 @@ public sealed class OverstressMember
     public const double PermanentShare = 0.5;
     /// <summary>Strength lost per 0.1 of peak overage past 1.5 (Ty: 2 % per 0.1).</summary>
     public const double WeakeningPerTenth = 0.02;
+    /// <summary>What an overstress that UNDOES the member's set costs in strength, as a multiple of what the same
+    /// overstress would cost bending it further the same way. 4 is the owner's number (2026-11-10).</summary>
+    public const double ReversalFatigueFactor = 4.0;
+
+    /// <summary>Is an overstress of this sign taking an existing set OUT? A member with no set cannot be
+    /// straightened, so its first bend costs what it costs.</summary>
+    public static bool Straightening(double setBefore, int sign) =>
+        setBefore != 0.0 && sign != 0 && System.Math.Sign(setBefore) != sign;
     /// <summary>
     /// The structure's response time to load, s: it follows the load factor through a first-order lag of this time
     /// constant. A light aeroplane's wing bends in its first mode at roughly 3–8 Hz (τ = 1/2πf ≈ 0.02–0.05 s); the slow
@@ -121,7 +129,22 @@ public sealed class OverstressMember
     private void EndEvent()
     {
         SetRad = SetAfter(_setBefore, _eventPeak, _eventSign);
-        Strength *= 1.0 - WeakeningFor(_eventPeak);
+        // STRAIGHTENING YOUR WINGS COSTS FOUR TIMES THE LIFE (Ty 2026-11-10, with the bent-wing aileron limit):
+        // "a bend that reduces bend angle like a hard push after bending wings up releases the travel limit but is
+        // accounted for in fatigue and has a quadruple reduction in fatigue life so you can straighten your wings
+        // out once but it will cost you significantly for the next stress".
+        //
+        // An overstress the other way takes the bend out (SetAfter, just above, already bends it back) and with it
+        // the aileron's travel limit, which follows the ANGLE. The structure does not get that back: pulling a
+        // bent spar straight works it far harder than bending it further the same way, so the strength this event
+        // costs is multiplied.
+        //
+        // HERE, not in PlasticHinge: that hinge is also the one a ground strike turns, and a strike reverses many
+        // times as it loads and recoils. Charging those four times each turned a tip strike that used to BEND a
+        // J-3's wing into one that broke it (BendDamageTests.ABentWingRollsAndDragsInFlight) — and bend-before-
+        // break is the behaviour he flew and confirmed on 2026-11-05. His sentence is about a flight overstress
+        // undoing a flight overstress, which is exactly what this class is.
+        Strength *= 1.0 - WeakeningFor(_eventPeak) * (Straightening(_setBefore, _eventSign) ? ReversalFatigueFactor : 1.0);
         Overstresses++;
         _inEvent = false;
         DeflectionRad = SetRad;

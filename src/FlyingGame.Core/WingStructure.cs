@@ -65,6 +65,12 @@ public sealed class WingPanel
     /// <summary>Largest contact bending moment the station has carried, N·m (tests / probe).</summary>
     public double PeakContactNm;
 
+    // THE BENT WING'S AILERON (Ty 2026-11-10; BentAileronTravel has the rules and his words).
+    /// <summary>The aileron deflection this side was holding when the panel FIRST took a permanent bend, rad: the
+    /// centre of what travel the aileron has left. NaN until the wing has bent — a straight wing has no centre
+    /// because it has no limit. Captured once and never moved again, however much further the wing bends.</summary>
+    public double AileronCentreRad = double.NaN;
+
     // The panel as a structure (Ty 2026-11-05: bends before it breaks; WingStructure.EnsureStrength builds them).
     public WingConstruction Construction;
     /// <summary>Bending about the station (tip up/down) and twist about the flexural axis (nose up/down).</summary>

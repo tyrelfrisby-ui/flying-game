@@ -627,7 +627,9 @@ public static class LandingGear
             // Steer frame: + points the tyre LEFT. A trailing TAILWHEEL steered by right rudder points left (pushes the
             // tail left, nose right); a NOSEWHEEL steered by right rudder must point RIGHT — it was applied mirrored
             // (right rudder turned the 172 and Seminole left on the ground).
-            double steer = castoring ? tailwheel!.AngleRad : SteerRad(g, rudderCmd);
+            // TOE (GearConfig.ToeOutDeg) rides on top of whatever steering this wheel has: a standing slip angle the
+            // wheel keeps for ever, outboard on both sides, so the pair cancel level and restore when one is loaded.
+            double steer = (castoring ? tailwheel!.AngleRad : SteerRad(g, rudderCmd)) + ToeRad(g);
             Vec3 tireFwd = fwdGround * System.Math.Cos(steer) + rightGround * System.Math.Sin(steer);
             Vec3 tireRight = Vec3.Cross(groundUp, tireFwd);
 
@@ -761,6 +763,16 @@ public static class LandingGear
     /// <summary>A rudder-linked (not castoring) wheel's yaw in Compute's steer frame, + = tyre pointed LEFT: a nosewheel
     /// turns with the pedal (right rudder, wheel right), a trailing tailwheel against it. 0 for a wheel that does not
     /// steer. The linkage turns the wheel whether or not it is on the ground; it only makes a force while loaded.</summary>
+    /// <summary>This wheel's standing toe angle in the steer sense (positive turns the wheel to the aeroplane's
+    /// right): <see cref="GearConfig.ToeOutDeg"/> taken outboard, from the sign of the wheel's own y. A wheel on the
+    /// centreline has none, whatever is authored, because out has no meaning there.</summary>
+    public static double ToeRad(GearConfig g)
+    {
+        if (g.ToeOutDeg == 0.0 || g.Pos.Length < 2) return 0.0;
+        double side = g.Pos[1] > 1e-6 ? 1.0 : g.Pos[1] < -1e-6 ? -1.0 : 0.0;
+        return side * g.ToeOutDeg * System.Math.PI / 180.0;
+    }
+
     public static double SteerRad(GearConfig g, double rudderCmd) =>
         g.IsSteerable ? (g.IsTailwheel ? 1.0 : -1.0) * rudderCmd * g.MaxSteerRad : 0.0;
 
