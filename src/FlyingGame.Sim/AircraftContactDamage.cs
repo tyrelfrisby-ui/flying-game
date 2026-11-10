@@ -300,7 +300,13 @@ public sealed partial class Aircraft
         {
             WingPanel w = _panels[i];
             if (w.AileronHinged.Length == 0 || w.Bending is null) continue;
-            double bend = System.Math.Abs(w.Bending.SetRad);
+            // THE WHOLE BEND, from either cause. Ty 2026-11-10: "Ground strikes leading to a bend should be
+            // treated the same limiting aileron following the same rule". A panel's permanent bend is its contact
+            // hinge's set PLUS the flight overstress's (WingStructure: BendRad is the sum), and reading only the
+            // hinge covered the ground strike and silently missed the g-pull — the opposite way round from the
+            // feature as it was first described. Summed here rather than read from BendRad so it cannot depend on
+            // whether the panel's shape has been refreshed yet this step.
+            double bend = System.Math.Abs(w.Bending.SetRad + w.OverstressSetRad);
             if (bend <= 1e-6)
             {
                 // Straight (or straightened past measuring): no limit — and the centre STAYS captured, because the
@@ -324,7 +330,8 @@ public sealed partial class Aircraft
     private bool AnyPanelBent()
     {
         for (int i = 0; i < _panels.Count; i++)
-            if (_panels[i].Bending is { } b && System.Math.Abs(b.SetRad) > 1e-6 && _panels[i].AileronHinged.Length > 0) return true;
+            if (_panels[i].Bending is { } b && System.Math.Abs(b.SetRad + _panels[i].OverstressSetRad) > 1e-6
+                && _panels[i].AileronHinged.Length > 0) return true;
         return false;
     }
 
