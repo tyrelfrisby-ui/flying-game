@@ -481,6 +481,77 @@ public sealed class StaggeredWingFailureTests : IDisposable
 
     // ---- the law itself, as arithmetic -------------------------------------------------------------------------------
 
+    // ---- what the RENDERER is promised (Ty 2026-11-10: "draw it folded and limit the aileron") -----------------------
+
+    /// <summary>
+    /// THE DRAWN SHAPE IS THE FLOWN SHAPE, pinned where it can be: every row of a folded wing flies the offset that
+    /// <see cref="WingPanel.Shape"/> gives its load point, and the renderer places every drawn VERTEX through that same
+    /// call (AirframeVisual.PosePanelPieces). So the two cannot disagree about the shape the aeroplane is in — which is
+    /// the standard Ty set when a bent wingtip was still drawn on an aeroplane that had no wings.
+    ///
+    /// This is the half of it that a .NET test can reach. What it does NOT prove is that the Unity side compiles or that
+    /// the meshes end up where the maths says: no Unity build has seen any of this.
+    /// </summary>
+    [Fact]
+    public void EveryRowOfAFoldedWingFliesExactlyWhatWingPanelShapeGivesIt()
+    {
+        Aircraft ac = At("extra-300-like");
+        Ramp(ac, WingFailureLaw.FoldRatio(OneG(ac)) * ac.Config.Limits.PublishedLimits().Pos * 1.005, sec: 3.0);
+        Assert.Equal(WingSideStage.Folded, ac.Structure.LeftWing.Stage);
+        StripFlowState fs = ac.FlowStateForTests;
+        var all = ac.Config.Surfaces.SelectMany(sf => sf.Strips).ToList();
+        int checked_ = 0, inboard = 0;
+        foreach (WingPanel p in ac.Panels)
+        {
+            Assert.NotEqual(0.0, p.FoldRad);
+            foreach (int i in p.SideStrips)
+            {
+                Vec3 pos = all[i].PosVec();
+                Vec3 want = p.Shape(pos, p.FlightFlexRad) - pos;
+                Assert.Equal(want.X, fs.BendOffset![i].X, 9);
+                Assert.Equal(want.Y, fs.BendOffset[i].Y, 9);
+                Assert.Equal(want.Z, fs.BendOffset[i].Z, 9);
+                checked_++;
+                if (Math.Abs(pos.Y) < p.BreakY) { inboard++; Assert.True(fs.BendOffset[i].LengthSquared > 1e-6); }
+            }
+        }
+        _o.WriteLine($"{checked_} rows match WingPanel.Shape to 9 decimals, {inboard} of them INBOARD of the station " +
+                     $"(a fold at the root moves those; a bend at the station cannot)");
+        Assert.True(checked_ > 0 && inboard > 0);
+    }
+
+    /// <summary>
+    /// A FOLD IS A KINK AT THE ROOT, and the renderer's cut depends on exactly that: nothing inboard of
+    /// <see cref="WingPanel.RootY"/> moves, and everything outboard turns RIGIDLY, so the drawn wing can be one cut
+    /// piece on one pivot rather than a deformed mesh. (A BEND stays a kink at the STATION — the other agent's aileron
+    /// split at the station rests on that and is untouched here.)
+    /// </summary>
+    [Fact]
+    public void AFoldTurnsTheWholeWingRigidlyAboutItsRootAndMovesNothingInboardOfIt()
+    {
+        Aircraft ac = At("extra-300-like");
+        WingPanel p = ac.Panels.First(q => q.Side < 0);
+        p.FoldRad = 60 * Deg;
+        // Inboard of the root: untouched.
+        Vec3 inboard = new(0.1, p.Side * 0.5 * p.RootY, 0.2);
+        Assert.Equal(inboard.Y, p.FoldAt(inboard, p.FoldRad).Y, 12);
+        Assert.Equal(inboard.Z, p.FoldAt(inboard, p.FoldRad).Z, 12);
+        // Outboard of it: rigid — the distance from the root axis is preserved for every point, and the angle turned
+        // is the fold, which is what lets one rigid transform carry an aileron (AirframeVisual.PanelMotion).
+        foreach (double ay in new[] { 1.0, 2.0, 3.0, 4.0 })
+        {
+            Vec3 v = new(0.3, p.Side * ay, 0.1);
+            Vec3 f = p.FoldAt(v, p.FoldRad);
+            double r0 = Math.Sqrt(Math.Pow(v.Y - p.Side * p.RootY, 2) + Math.Pow(v.Z - p.BreakZ, 2));
+            double r1 = Math.Sqrt(Math.Pow(f.Y - p.Side * p.RootY, 2) + Math.Pow(f.Z - p.BreakZ, 2));
+            Assert.Equal(r0, r1, 9);                       // rigid
+            Assert.Equal(v.X, f.X, 12);                    // about a fore-and-aft axis
+            Assert.True(f.Z < v.Z, "a positive fold must take the wing UP (body z is DOWN)");
+        }
+        _o.WriteLine($"fold {p.FoldRad / Deg:F0}° about RootY {p.RootY:F2} m: rigid outboard, nothing inboard moved");
+        p.FoldRad = 0.0;
+    }
+
     /// <summary>
     /// The fold angle against the hand-worked numbers for the three constructions, at the breaking point: a composite
     /// wing goes right over, an aluminium one folds least far, and the order is the order of the residual strengths.

@@ -86,7 +86,7 @@ namespace FlyingGame.Bridge
 
         /// <summary>True when the model shows any crash damage: wings off, parts off, the prop bent, a fuselage bend, a bent
         /// wing panel or a lost canopy.</summary>
-        private bool ShowsDamage => _wingsDetached || _componentsDetached || _fuselageBent || _bentPanels.Count > 0 || _rigPartGone;
+        private bool ShowsDamage => _wingsDetached || _componentsDetached || _fuselageBent || _bentPanels.Count > 0 || _foldPivots.Count > 0 || _rigPartGone;
 
         private bool _componentsDetached;
         /// <summary>Self-test (AERO_SELFTEST=skins): hold these deflections (aileron, elevator, rudder rad) and this prop rpm.</summary>
@@ -509,6 +509,10 @@ namespace FlyingGame.Bridge
                 bool leftSide = comp == FlyingGame.Core.AirframeComponent.WingLeft;
                 List<Transform> tips = leftSide ? _bentTipsL : _bentTipsR;
                 TakeBentTips(leftSide ? -1f : 1f, tips);
+                // AND THE INBOARD BAY OF A WING THAT HAD FOLDED (Ty 2026-11-10's staggered failure). Its pivot hangs
+                // off the airframe root exactly as a bent tip's does, so nothing that cuts up the wing can see it
+                // either, and a folded wing that then departed would leave its own root bay drawn on the fuselage.
+                TakeFoldedBays(leftSide ? -1 : 1, tips);
                 GameObject whole = DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity, tips);
                 HideBentTipsLeftBehind(tips);
                 return whole;
@@ -554,6 +558,22 @@ namespace FlyingGame.Bridge
             // the wing parts and splits them itself, and it must find each aileron whole rather than a carrier it does
             // not know about (and DropCarried would otherwise destroy that share outright).
             foreach (FlyingGame.Core.AirframeComponent c in _tipsTaken) { _bentPanels.Remove(c); ReturnCarriedOutboard(c); DropCarried(c); }
+        }
+
+        /// <summary>
+        /// The FOLDED INBOARD BAY pivots on one side, taken off the aeroplane's books so they leave with the wing, the
+        /// same way <see cref="TakeBentTips"/> takes the bent tips. Added to the caller's list, so one pass of
+        /// <see cref="DetachStatic"/> throws tip and bay together and <see cref="HideBentTipsLeftBehind"/> covers both.
+        /// </summary>
+        private void TakeFoldedBays(int side, List<Transform> into)
+        {
+            List<Transform> mine = FoldedOn(side);
+            foreach (Transform t in mine) if (t != null) into.Add(t);
+            // The pieces stay in _foldPieces for the same reason the tips' do: they are still the handle on that
+            // geometry, and a replay reshapes them wherever they now ride.
+            foreach (var kv in new List<KeyValuePair<FlyingGame.Core.AirframeComponent, Transform>>(_foldPivots))
+                if (kv.Value != null && mine.Contains(kv.Value)) _foldPivots.Remove(kv.Key);
+            mine.Clear();
         }
 
         /// <summary>A tip that found nothing to ride — a model with no wing parts to cut, so no debris object was made at
@@ -730,15 +750,19 @@ namespace FlyingGame.Bridge
         /// whether this structure carries one, from its root-space box (lo, hi); <paramref name="at"/> gives the station
         /// and side its motion is measured at; <paramref name="label"/> only names the empties in the hierarchy.
         /// </summary>
+        /// <param name="skip">A surface this structure must NOT carry because something already carries it. A folded
+        /// wing and a bent panel both want the same ailerons (Ty 2026-11-10), and two carriers would move one aileron
+        /// twice; whichever asks second passes the first's list here. Optional.</param>
         private List<CarriedSurface> Carry(string surface, string label, System.Func<Vector3, Vector3, bool> test,
-                                           System.Func<Vector3, Vector3, (float Station, float Side)> at)
+                                           System.Func<Vector3, Vector3, (float Station, float Side)> at,
+                                           System.Func<Transform, bool> skip = null)
         {
             var list = new List<CarriedSurface>();
             if (_builder == null) return list;
             foreach (Transform t in _builder.HingedSurfaces(surface))
             {
                 if (t == null || t.parent == null || !DrawnBounds(t, out Vector3 lo, out Vector3 hi)) continue;
-                if (!test(lo, hi)) continue;
+                if (!test(lo, hi) || (skip != null && skip(t))) continue;
                 Transform parent = t.parent;
                 var go = new GameObject("Carried-" + label + "-" + t.name);
                 Transform carrier = go.transform;
@@ -870,7 +894,11 @@ namespace FlyingGame.Bridge
         /// station — negated on the left wing, which is how both tips go up for one + — and the twist a turn about −x
         /// through the flexural axis (+ = nose up).
         /// </summary>
-        private static Matrix4x4 PanelMotion(FlyingGame.Core.WingPanel p, float stationY, double bendRad)
+        /// <param name="foldRad">The wing's FOLD about its ROOT (<see cref="FlyingGame.Core.WingPanel.FoldRad"/>,
+        /// Ty 2026-11-10's staggered failure), applied OUTSIDE the station's bend — the same order
+        /// <see cref="FlyingGame.Core.WingPanel.Shape"/> puts them in, so a carried aileron lands where the skin
+        /// under it lands.</param>
+        private static Matrix4x4 PanelMotion(FlyingGame.Core.WingPanel p, float stationY, double bendRad, double foldRad = 0.0)
         {
             const float Deg = (float)(180.0 / System.Math.PI);
             float twist = (float)(p.TwistRad * p.SpanFraction(stationY));
@@ -878,14 +906,22 @@ namespace FlyingGame.Bridge
                                 new Vector3(0f, (float)-p.ChordLineZ(stationY), (float)p.FlexuralX(stationY)));
             Matrix4x4 b = About(Quaternion.AngleAxis(p.Side * (float)bendRad * Deg, Vector3.forward),
                                 new Vector3(p.Side * (float)p.BreakY, (float)-p.BreakZ, 0f));
-            return b * t;
+            if (foldRad == 0.0) return b * t;
+            Matrix4x4 f = About(Quaternion.AngleAxis(p.Side * (float)foldRad * Deg, Vector3.forward),
+                                new Vector3(p.Side * (float)p.RootY, (float)-p.BreakZ, 0f));
+            return f * b * t;
         }
 
         /// <summary>Move a bent panel's carried surfaces to the shape it is drawn at.</summary>
+        /// <remarks>The FOLD goes on the carriers ABOVE their surface and not on the ones below it. An under-surface
+        /// carrier holds the outboard share of an aileron that straddles the station, and that aileron is itself hanging
+        /// on an above-surface carrier which has already folded it (<see cref="ShowWingFold"/> gives every aileron of a
+        /// folded wing one); folding the share again would take it off the wing twice over.</remarks>
         private void PoseCarriedPanel(FlyingGame.Core.WingPanel p, double flexRad)
         {
             if (!_carried.TryGetValue(p.Component, out List<CarriedSurface> list)) return;
-            foreach (CarriedSurface c in list) PoseCarrier(c, PanelMotion(p, c.Station, p.BendRad + flexRad));
+            foreach (CarriedSurface c in list)
+                PoseCarrier(c, PanelMotion(p, c.Station, p.BendRad + flexRad, c.UnderSurface ? 0.0 : p.FoldRad));
         }
 
         /// <summary>The structure has gone: its carriers go back to identity, because what is left of the surface belongs
@@ -978,10 +1014,18 @@ namespace FlyingGame.Bridge
                 // 2026-11-09, because one rigid motion is exact outboard of the station. One that does is cut at the
                 // station and only its outboard share is carried — see CarryStraddlingAilerons.
                 bool Straddles(Vector3 lo, Vector3 hi) => Mathf.Min(lo.x * p.Side, hi.x * p.Side) < (float)p.BreakY;
+                // An aileron a FOLD already carries is left to it (Ty 2026-11-10's staggered failure): a folded wing
+                // hangs every one of its ailerons on a carrier above it, and a second carrier here would move the same
+                // aileron twice. Its fold carrier simply gains the bend as well — PoseCarriedPanel poses every
+                // above-surface carrier with the fold, the station's bend and the twist together.
                 List<CarriedSurface> carried = Carry("aileron", p.Component.ToString(),
                     (lo, hi) => Mine(lo, hi) && !Straddles(lo, hi),
-                    (lo, hi) => (Mathf.Clamp(Mathf.Abs(0.5f * (lo.x + hi.x)), (float)p.BreakY, Mathf.Max((float)p.BreakY, (float)p.TipY)), p.Side));
+                    (lo, hi) => (Mathf.Clamp(Mathf.Abs(0.5f * (lo.x + hi.x)), (float)p.BreakY, Mathf.Max((float)p.BreakY, (float)p.TipY)), p.Side),
+                    t => AlreadyCarried(p.Component, t));
                 carried.AddRange(CarryStraddlingAilerons(p, cfg, (lo, hi) => Mine(lo, hi) && Straddles(lo, hi)));
+                // MERGED, never overwritten: a fold's carriers are already in this list and it is the only handle on
+                // them, so replacing it would leave them in the hierarchy with nothing ever posing them again.
+                if (_carried.TryGetValue(p.Component, out List<CarriedSurface> beforeBend)) carried.AddRange(beforeBend);
                 _carried[p.Component] = carried;
                 foreach (GameObject part in new List<GameObject>(_builder.WingParts))
                 {
@@ -1020,6 +1064,128 @@ namespace FlyingGame.Bridge
             PosePanelPieces(p);
         }
 
+        // ---- a wing FOLDED UP about its root (Ty 2026-11-10's staggered failure) ------------------------------------
+
+        /// <summary>The pivot holding the INBOARD BAY of a folded wing — root to station, the part no bend pivot owns.</summary>
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, Transform> _foldPivots = new();
+
+        /// <summary>Is this surface already on one of <paramref name="comp"/>'s carriers?</summary>
+        private bool AlreadyCarried(FlyingGame.Core.AirframeComponent comp, Transform t) =>
+            _carried.TryGetValue(comp, out List<CarriedSurface> list) && OnCarrier(t, list);
+
+        /// <summary>
+        /// A CANTILEVER WING FOLDED UP ABOUT ITS ROOT, drawn (Ty 2026-11-10: asked whether to ship the fold's physics
+        /// now and draw it later, he chose "draw it folded and limit the aileron" — nothing may lie about the shape the
+        /// aeroplane is in).
+        ///
+        /// WHY IT IS NOT <see cref="ShowPanelBend"/> WITH A BIGGER ANGLE. A bend is a kink at the STATION and a fold is
+        /// a kink at the ROOT, so the fold moves geometry the bend never touches: the whole inboard bay between the
+        /// root and the station, which no bend pivot owns. So this cuts that bay out of the wing parts by the same
+        /// splitter the bend uses, with the cut moved to <see cref="FlyingGame.Core.WingPanel.RootY"/>, and hangs it on
+        /// a pivot of its own. The two pivots then coexist and cannot fight:
+        ///
+        ///  • the bay's vertices and the panel's are BOTH placed through <see cref="FlyingGame.Core.WingPanel.Shape"/>,
+        ///    the sim's own one function, so they agree at the station to the last bit;
+        ///  • a bay triangle is inboard of the station, where Shape's Deform is the identity, so it gets the fold
+        ///    alone — exactly right, that part of the wing is straight;
+        ///  • the two pivots are SEPARATE because a bent tip that breaks off hands its pivot to the debris
+        ///    (DetachComponentNow), and the inboard bay must not leave with a wingtip. When the whole WING goes the
+        ///    bay goes with it, through the same <see cref="TakeBentTips"/> path the bent tips use.
+        ///
+        /// THE AILERONS. A fold lifts the aileron's INBOARD end too, which a bent panel's carriers deliberately do not
+        /// (an aileron that straddles the station is cut there, and its inboard share stays on skin that has not moved —
+        /// Ty 2026-11-10, "keep both hinges attached"). So the fold carries each of this wing's ailerons WHOLE, on a
+        /// carrier above it, and that is consistent with the split rather than a replacement for it: the above-carrier
+        /// folds the whole aileron, the hinge still deflects it, and any under-carrier the bend made still bends the
+        /// outboard share on top (<see cref="PoseCarriedPanel"/> keeps the fold off the under-carriers so it is applied
+        /// once). Carriers already made by a bend are left alone and simply gain the fold in their motion.
+        /// PLACEHOLDER, as the bend is: a one-mesh model whose wing is a skinned region does not fold.
+        /// </summary>
+        public void ShowWingFold(FlyingGame.Core.WingPanel p, AircraftConfig cfg)
+        {
+            if (_builder == null) return;
+            if (_foldPieces.ContainsKey(p.Component)) { PosePanelPieces(p); return; }
+            if (_foldPivots.TryGetValue(p.Component, out Transform pivot) && pivot == null) { PosePanelPieces(p); return; }
+            var go = new GameObject("Folded-" + p.Component);
+            pivot = go.transform;
+            pivot.SetParent(transform, false);
+            pivot.localPosition = new Vector3(p.Side * (float)p.RootY, (float)-p.BreakZ, 0f);
+            pivot.localRotation = Quaternion.identity;
+            // The cut: this wing's side, outboard of the ROOT, and on a biplane this wing's own plane. TipPanelTest's
+            // own test with BreakY swapped for RootY — the panel is passed by value, so moving BreakY here changes
+            // nothing the sim or any other reader sees.
+            var atRoot = new FlyingGame.Core.WingPanel
+            {
+                Side = p.Side, Lower = p.Lower, SurfaceId = p.SurfaceId,
+                BreakY = p.RootY, BreakZ = p.BreakZ, TipY = p.TipY,
+            };
+            System.Func<Vector3, bool> test = TipPanelTest(atRoot, cfg);
+            // Every aileron of this wing and side, whole, on a carrier of its own — unless a bend already carries it.
+            float? midUp = PanelMidUp(p, cfg);
+            bool Mine(Vector3 lo, Vector3 hi) =>
+                Mathf.Min(lo.x * p.Side, hi.x * p.Side) > -0.05f
+                && Mathf.Max(lo.x * p.Side, hi.x * p.Side) > (float)p.RootY
+                && (midUp == null || (p.Lower ? 0.5f * (lo.y + hi.y) < midUp.Value : 0.5f * (lo.y + hi.y) > midUp.Value));
+            List<CarriedSurface> folded = Carry("aileron", p.Component + "-fold", Mine,
+                (lo, hi) => (Mathf.Clamp(Mathf.Abs(0.5f * (lo.x + hi.x)), (float)p.BreakY, Mathf.Max((float)p.BreakY, (float)p.TipY)), p.Side),
+                t => AlreadyCarried(p.Component, t));
+            _carried.TryGetValue(p.Component, out List<CarriedSurface> bentAlready);
+            if (bentAlready != null) folded.AddRange(bentAlready);
+            _carried[p.Component] = folded;
+            foreach (GameObject part in new List<GameObject>(_builder.WingParts))
+            {
+                if (part == null) continue;
+                foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (mf == null || mf.sharedMesh == null) continue;
+                    if (OnCarrier(mf.transform, folded) || mf.name.ToLowerInvariant().Contains("aileron")) continue;
+                    if (!_builder.IsDebrisSource(mf)) continue;
+                    // A bent panel's triangles are no longer in the wing parts — ShowPanelBend cut them onto its own
+                    // pivot — so what this finds outboard of the root is exactly the bay, whichever ran first.
+                    SplitBy(mf.sharedMesh, mf.transform, transform, test, out Mesh lost, out Mesh kept);
+                    if (lost == null) continue;
+                    AddPiece(pivot, mf.name + "-folded", lost, mf.GetComponent<Renderer>()?.sharedMaterials,
+                        pivot.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(pivot.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                    if (kept == null && !IsModelMesh(mf)) mf.gameObject.SetActive(false); else mf.sharedMesh = kept;
+                }
+            }
+            var pieces = new List<BentPiece>();
+            foreach (MeshFilter mf in pivot.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf == null || mf.sharedMesh == null || !mf.sharedMesh.isReadable) continue;
+                Matrix4x4 toRoot = transform.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                Vector3[] v = mf.sharedMesh.vertices;
+                for (int i = 0; i < v.Length; i++) v[i] = toRoot.MultiplyPoint3x4(v[i]);
+                pieces.Add(new BentPiece { Filter = mf, StraightRoot = v, RootToLocal = toRoot.inverse });
+            }
+            if (pieces.Count == 0)
+            {
+                // Nothing of this wing could be cut (a skinned region, unreadable meshes). Then nothing may move: an
+                // aileron folded on its own, off a wing that had not, is the very thing Ty saw the other way round.
+                // Only the carriers THIS fold made are undone — a bend's carriers, and the outboard shares cut onto
+                // them, are the bend's business and must survive untouched.
+                _foldPivots[p.Component] = null;    // one attempt per flight
+                foreach (CarriedSurface c in folded)
+                {
+                    if (bentAlready != null && bentAlready.Contains(c)) continue;
+                    if (c.Surface != null && c.Parent != null) c.Surface.SetParent(c.Parent, false);
+                    if (c.Carrier != null) Gone(c.Carrier.gameObject);
+                }
+                if (bentAlready != null) _carried[p.Component] = bentAlready; else _carried.Remove(p.Component);
+                Gone(go);
+                return;
+            }
+            _foldPivots[p.Component] = pivot;
+            _foldPieces[p.Component] = pieces;
+            _bentShown.Remove(p.Component);
+            FoldedOn(p.Side).Add(pivot);   // it leaves with the wing, as a bent tip does
+            PosePanelPieces(p);
+        }
+
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, List<BentPiece>> _foldPieces = new();
+        private List<Transform> FoldedOn(int side) => side < 0 ? _foldedL : _foldedR;
+        private readonly List<Transform> _foldedL = new(), _foldedR = new();
+
         /// <summary>Put this panel's pieces at the shape it is in now — every vertex from the straight wing, so the shape
         /// is drawn rather than accumulated. Skipped when the shape has not moved since it was last drawn.</summary>
         private void PosePanelPieces(FlyingGame.Core.WingPanel p)
@@ -1030,19 +1196,28 @@ namespace FlyingGame.Bridge
             // re-conjugated every frame even when the bend has not changed — otherwise the outboard share swims as the
             // stick moves (Ty 2026-11-10). The ones above their surface do not need it and do not mind it.
             PoseCarriedPanel(p, flex);
-            var shape = new Vector3((float)(p.BendRad + flex), (float)p.TwistRad, 0f);
-            if (_bentShown.TryGetValue(p.Component, out Vector3 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f && Mathf.Abs(shape.y - shown.y) < 1e-3f) return;
+            // The FOLD is part of the shape (Ty 2026-11-10), so a wing that folds further has to be redrawn: without it
+            // in the key the panel would be frozen at whatever fold it had when the bend last moved.
+            var shape = new Vector3((float)(p.BendRad + flex), (float)p.TwistRad, (float)p.FoldRad);
+            if (_bentShown.TryGetValue(p.Component, out Vector3 shown) && Mathf.Abs(shape.x - shown.x) < 1e-3f
+                && Mathf.Abs(shape.y - shown.y) < 1e-3f && Mathf.Abs(shape.z - shown.z) < 1e-3f) return;
             _bentShown[p.Component] = shape;
-            if (!_bentPieces.TryGetValue(p.Component, out List<BentPiece> list)) return;
-            foreach (BentPiece bp in list)
+            // BOTH pivots' pieces: the panel outboard of the station, and the inboard bay of a wing that has FOLDED
+            // (ShowWingFold). Every vertex goes through the same WingPanel.Shape, so the two meet at the station.
+            _bentPieces.TryGetValue(p.Component, out List<BentPiece> list);
+            _foldPieces.TryGetValue(p.Component, out List<BentPiece> foldList);
+            if (list == null && foldList == null) return;
+            foreach (BentPiece bp in Both(list, foldList))
             {
                 if (bp.Filter == null || bp.Filter.sharedMesh == null) continue;
                 var v = new Vector3[bp.StraightRoot.Length];
                 for (int i = 0; i < v.Length; i++)
                 {
-                    // Root-local x = sim y, y = up (−sim z), z = sim x.
+                    // Root-local x = sim y, y = up (−sim z), z = sim x. Shape, not Deform: the same call the STRIPS fly
+                    // (WingPanel.Shape = twist, the station's kink, then the root FOLD), so the drawn wing cannot be in
+                    // a shape the aeroplane is not flying.
                     Vector3 r = bp.StraightRoot[i];
-                    FlyingGame.Core.MathTypes.Vec3 d = p.Deform(new FlyingGame.Core.MathTypes.Vec3(r.z, r.x, -r.y), flex);
+                    FlyingGame.Core.MathTypes.Vec3 d = p.Shape(new FlyingGame.Core.MathTypes.Vec3(r.z, r.x, -r.y), flex);
                     v[i] = bp.RootToLocal.MultiplyPoint3x4(new Vector3((float)d.Y, (float)-d.Z, (float)d.X));
                 }
                 Mesh m = bp.Filter.sharedMesh;
@@ -1050,6 +1225,13 @@ namespace FlyingGame.Bridge
                 m.RecalculateNormals();
                 m.RecalculateBounds();
             }
+        }
+
+        /// <summary>The pieces of both pivots, either of which may be absent.</summary>
+        private static IEnumerable<BentPiece> Both(List<BentPiece> a, List<BentPiece> b)
+        {
+            if (a != null) foreach (BentPiece x in a) yield return x;
+            if (b != null) foreach (BentPiece x in b) yield return x;
         }
 
         /// <summary>A horizontal-tail mesh, kept with its straight vertices in the airframe root's frame.</summary>
@@ -1536,6 +1718,7 @@ namespace FlyingGame.Bridge
             _tailPieces = null; _tailShown = 0f;
             _bentBlades.Clear(); _propDiscs.Clear(); _propBentShown = false; _propBendBuilt = false;   // the bent blades went with the old propeller
             _bentTipsL.Clear(); _bentTipsR.Clear(); _tipsTaken.Clear();   // and the old aeroplane's bent tips are not this one's
+            _foldPivots.Clear(); _foldPieces.Clear(); _foldedL.Clear(); _foldedR.Clear();   // nor its folded wings
             _rigPartGone = false;
             Cockpit.Reset();
             _displays.Forget();

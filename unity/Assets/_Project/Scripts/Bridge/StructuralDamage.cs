@@ -263,14 +263,20 @@ namespace FlyingGame.Bridge
                 FlyingGame.Core.WingPanel p = panels[i];
                 FlyingGame.Sim.Replay.PanelSet rec = shape.Panels[i];
                 if (p.Component != rec.Component) continue;   // a different airframe: say nothing rather than guess
-                double bend = p.BendRad, twist = p.TwistRad, elastic = p.ElasticRad, flex = p.FlightFlexRad;
+                double bend = p.BendRad, twist = p.TwistRad, elastic = p.ElasticRad, flex = p.FlightFlexRad, fold = p.FoldRad;
                 FlyingGame.Core.PanelState state = p.State;
                 p.BendRad = rec.BendRad; p.TwistRad = rec.TwistRad; p.ElasticRad = 0.0; p.FlightFlexRad = 0.0;
+                p.FoldRad = rec.FoldRad;
                 p.State = rec.State;
+                // The FOLD of the moment being watched, before the bend, as live flight draws them (ShowWingFold owns
+                // the inboard bay and the ailerons). A fold is permanent, so there is no "unfolded" case to scrub back
+                // to within one flight; the recorded angle simply is the angle.
+                if (System.Math.Abs(rec.FoldRad) > 0.003) _visual.ShowWingFold(p, ac.Config);
                 // Straight panels still need the call once the meshes exist, or a bend from later in the flight stays
                 // on the model after the head is scrubbed back before it.
                 if (rec.State == FlyingGame.Core.PanelState.Bent || _visual.HasBentPanel(p.Component)) _visual.ShowPanelBend(p, ac.Config);
                 p.BendRad = bend; p.TwistRad = twist; p.ElasticRad = elastic; p.FlightFlexRad = flex; p.State = state;
+                p.FoldRad = fold;
             }
             _visual.ShowFuselageBend(shape.TailBendPitchRad, shape.TailBendYawRad, ac.Config, shape.EngineSagRad);
             _visual.ShowTailBend(shape.TailBendRad);
@@ -302,6 +308,15 @@ namespace FlyingGame.Bridge
             _relay?.Step(Time.deltaTime);
             ObserveTrees(ac);
             // Bent wing panels follow their shape: the plastic set and twist, and the elastic flex under a tip contact.
+            // A FOLDED WING first (Ty 2026-11-10: "draw it folded and limit the aileron"), because the fold owns the
+            // inboard bay and every aileron of that wing, and ShowPanelBend must find the carriers it has already made
+            // rather than make a second set — AirframeVisual.ShowWingFold says how the two compose.
+            if (_visual != null)
+                foreach (FlyingGame.Core.WingPanel p in ac.Panels)
+                {
+                    if (p.State == FlyingGame.Core.PanelState.Broken || System.Math.Abs(p.FoldRad) <= 0.003) continue;
+                    _visual.ShowWingFold(p, ac.Config);
+                }
             if (_visual != null)
                 foreach (FlyingGame.Core.WingPanel p in ac.Panels)
                     if (p.State == FlyingGame.Core.PanelState.Bent || System.Math.Abs(p.ElasticRad) > 0.003 || System.Math.Abs(p.FlightFlexRad) > 0.003

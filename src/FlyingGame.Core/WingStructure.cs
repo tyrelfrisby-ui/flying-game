@@ -142,6 +142,31 @@ public sealed class WingPanel
     /// <paramref name="extraBendRad"/>, the elastic flex).</summary>
     public Vec3 Deform(Vec3 p, double extraBendRad = 0.0) => Bend(Twist(p, TwistRad), BendRad + extraBendRad);
 
+    /// <summary>
+    /// Rotate a body point of this wing about its ROOT line by <paramref name="rad"/> (+ = up) — the FOLD's kink: the
+    /// same rigid turn <see cref="Bend"/> makes about the station, through <see cref="RootY"/> instead, so the WHOLE
+    /// wing goes over and not only the panel outboard of the station. Nothing inboard of the root moves.
+    /// </summary>
+    public Vec3 FoldAt(Vec3 p, double rad)
+    {
+        if (rad == 0 || System.Math.Sign(p.Y) != Side || System.Math.Abs(p.Y) < RootY) return p;
+        double dy = p.Y - Side * RootY, dz = p.Z - BreakZ, c = System.Math.Cos(rad), s = System.Math.Sin(rad);
+        return new Vec3(p.X, Side * RootY + dy * c + Side * dz * s, BreakZ + dz * c - Side * dy * s);
+    }
+
+    /// <summary>
+    /// THE WHOLE SHAPE THIS WING IS FLYING, applied to a straight-wing body point: twisted and bent about its station
+    /// (<see cref="Deform"/>, plus <paramref name="extraBendRad"/> for the flex under load), then folded about its root
+    /// (<see cref="FoldRad"/>).
+    ///
+    /// ONE FUNCTION FOR THE SIM AND FOR THE RENDERER, deliberately. The strips fly this (Sim's ShapeWingSide and
+    /// WriteStripShape) and the drawn mesh is placed vertex by vertex through this same call
+    /// (AirframeVisual.PosePanelPieces), so the aeroplane cannot be drawn in a shape it is not flying. That is the
+    /// standard Ty set on 2026-11-10, when bent wingtips were still drawn on an aeroplane that had no wings, and again
+    /// when he chose "draw it folded" over shipping the fold's physics on its own.
+    /// </summary>
+    public Vec3 Shape(Vec3 p, double extraBendRad = 0.0) => FoldAt(Deform(p, extraBendRad), FoldRad);
+
     /// <summary>The bending moment a body force at a body point puts on the station, N·m (+ = tip up).</summary>
     public double MomentUp(Vec3 at, Vec3 force)
     {
