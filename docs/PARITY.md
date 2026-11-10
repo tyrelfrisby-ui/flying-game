@@ -21,6 +21,35 @@ This is a standing rule, not a lane. `tools/check-parity.sh` measures it, and th
    refuses to build or install while it fails, unless `PARITY_OVERRIDE=1`. That override is for a Quest-only
    experiment Ty asked for, and it gets an AGENT-LOG line saying so.
 
+### A build-time ASSET subset is not a fork (2026-11-10)
+
+Rule 2 allows platform differences behind build-time flags, and rule 4 says art for both platforms comes from one GLB
+and one config. A packaging step that ships FEWER of those shared files on one platform sits inside both, and two now
+exist, each opt-in or iOS-only and each restoring the tree in `finally`:
+
+| | what it leaves out of an iOS build | where |
+|---|---|---|
+| `FLYINGGAME_TF_SLIM=1` (opt-in) | every `Resources/Models/<id>` but six types | `Core/TestFlightFleet`, `BuildScript` |
+| one livery per type (ON for iOS; `FLYINGGAME_PHONE_ALL_LIVERIES=1` opts out) | every `<id>-own*.glb` but the default livery's | `Core/PhoneLiveries`, `BuildScript` |
+
+What keeps them on the right side of the line, and what a third one would have to do too:
+
+- **nothing is authored twice and nothing is deleted.** The files are moved out of `Resources` for the length of the
+  player build (`AssetDatabase.MoveAsset`, so GUIDs, metas and imports survive) and moved back in `finally`. Mac and
+  Quest builds call `BuildScript.RestoreAnyHeldAssets()` first, so a dead iOS build can never leak into them;
+- **the subset is DERIVED from the shared code, not listed per platform.** The phone keeps exactly the GLB
+  `LiveryChoice.Resolve` returns with no override and no saved choice — the same aeroplane the headset shows by
+  default. A livery added to the picker cannot be forgotten by the packager, and the phone's default cannot drift from
+  the Quest's;
+- **the runtime agrees with the package.** The player is compiled with a scripting define under which the picker
+  offers only what shipped, so nothing can ask for a file that is not there;
+- **it is tested on both lanes.** `PhoneLiveryTests` and `TestFlightFleetTests` hold that the kept file is the loaded
+  file, that nothing but an alternate is held out, that no build has left a hold directory in the tree, and that every
+  use of the define sits behind `#if`.
+
+A platform-only GLB, a platform-only config value, or a different default aeroplane on one platform would all be
+forks, and none of that is here.
+
 ### Paths
 
 | Shared: must be on both lanes | Quest-only: allowed on the Quest lane alone |
