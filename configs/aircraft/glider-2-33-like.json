@@ -1735,5 +1735,12 @@
     "_comment": "seats[].eye is the seated pilot's EYE (owner Ty, approved 2026-10-31), body frame +x fwd, +y right, +z DOWN, measured on extended gear; the Cockpit camera sits exactly there. The PRIMARY seat is first. loading.seats[].station, loading.tanks[] and loading.baggage[] are the arms from docs/pending/loading-arm-estimates.md (Codex lane, 2026-11-01): a published TCDS/POH arm where the row is CONFIRMED, converted to this frame through that aircraft's anchor. maxKg is the published placard where the source gives one. referenceKg is UNCHANGED and still follows the 172's convention, so the reference loading reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg includes a pilot or fuel is still the open W&B decision in AGENT-LOG NEEDS YOU.",
     "_seatPlacardNote": "maxKg is a CONVENTIONAL occupant placard (250 lb, and the J-3's own authored 300 lb), not a figure read from a POH. referenceKg follows the 172's convention: the primary seat carries the pilot that mass.massKg already includes, so the reference loading still reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg really includes a pilot is the open W&B decision in AGENT-LOG NEEDS YOU.",
     "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
+  },
+  "instruments": {
+    "airspeed": {
+      "units": "mph",
+      "_unitsSource": "TY'S EXPLICIT CALL. The 2-33's own panel ASI and its FLIGHT LIMITS placards are in mph (tools/own_models/make_sgs_dials.py, FAA AFM at 1040 lb: NEVER EXCEED 98 MPH).",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
   }
 }

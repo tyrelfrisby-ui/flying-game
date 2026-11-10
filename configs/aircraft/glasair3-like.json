@@ -1468,5 +1468,12 @@
   },
   "towHook": null,
   "retractableGear": true,
-  "gearDragAreaM2": 0.1
+  "gearDragAreaM2": 0.1,
+  "instruments": {
+    "airspeed": {
+      "units": "kt",
+      "_unitsSource": "Experimental by certification but modern (1986) composite, and the builders' figures are in knots; Ty's shape put it in knots and its own panel would read knots. FLAGGED: the word 'experimental' in the rule would have said mph.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
+  }
 }

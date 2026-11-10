@@ -21,6 +21,35 @@ This is a standing rule, not a lane. `tools/check-parity.sh` measures it, and th
    refuses to build or install while it fails, unless `PARITY_OVERRIDE=1`. That override is for a Quest-only
    experiment Ty asked for, and it gets an AGENT-LOG line saying so.
 
+### A build-time ASSET subset is not a fork (2026-11-10)
+
+Rule 2 allows platform differences behind build-time flags, and rule 4 says art for both platforms comes from one GLB
+and one config. A packaging step that ships FEWER of those shared files on one platform sits inside both, and two now
+exist, each opt-in or iOS-only and each restoring the tree in `finally`:
+
+| | what it leaves out of an iOS build | where |
+|---|---|---|
+| `FLYINGGAME_TF_SLIM=1` (opt-in) | every `Resources/Models/<id>` but six types | `Core/TestFlightFleet`, `BuildScript` |
+| one livery per type (ON for iOS; `FLYINGGAME_PHONE_ALL_LIVERIES=1` opts out) | every `<id>-own*.glb` but the default livery's | `Core/PhoneLiveries`, `BuildScript` |
+
+What keeps them on the right side of the line, and what a third one would have to do too:
+
+- **nothing is authored twice and nothing is deleted.** The files are moved out of `Resources` for the length of the
+  player build (`AssetDatabase.MoveAsset`, so GUIDs, metas and imports survive) and moved back in `finally`. Mac and
+  Quest builds call `BuildScript.RestoreAnyHeldAssets()` first, so a dead iOS build can never leak into them;
+- **the subset is DERIVED from the shared code, not listed per platform.** The phone keeps exactly the GLB
+  `LiveryChoice.Resolve` returns with no override and no saved choice — the same aeroplane the headset shows by
+  default. A livery added to the picker cannot be forgotten by the packager, and the phone's default cannot drift from
+  the Quest's;
+- **the runtime agrees with the package.** The player is compiled with a scripting define under which the picker
+  offers only what shipped, so nothing can ask for a file that is not there;
+- **it is tested on both lanes.** `PhoneLiveryTests` and `TestFlightFleetTests` hold that the kept file is the loaded
+  file, that nothing but an alternate is held out, that no build has left a hold directory in the tree, and that every
+  use of the define sits behind `#if`.
+
+A platform-only GLB, a platform-only config value, or a different default aeroplane on one platform would all be
+forks, and none of that is here.
+
 ### Paths
 
 | Shared: must be on both lanes | Quest-only: allowed on the Quest lane alone |
@@ -58,12 +87,81 @@ Every commit to either lane must keep the two lanes in sync. A git hook enforces
   wait, put it in a Quest-only path or behind `#if UNITY_ANDROID`, and log it.
 - Not covered: fast-forward merges and `git reset`/`update-ref` run no commit hook. Do not move a lane's ref by hand.
 
+## The widget (Ty 2026-11-10: "Keep the aero widget in parity with the app" — "Enforce it like the others")
+
+Asked whether to enforce widget parity the way the Quest lanes are enforced, Ty said **"Enforce it like the others."**
+What follows is what that turned out to mean once the widget was actually looked at, because it is not what the phrasing
+suggests, and the difference matters: enforced the literal way, the check could never fire.
+
+**The Aero Widget is not a third target.** It is the *same* Unity project, the *same* scene
+(`Assets/Scenes/Main.unity`) and the *same* `src/` as the game. `BuildScript.BuildWidget` builds it by flipping
+PlayerSettings — product name `Aero Widget`, bundle id `com.tyrelfrisby.aerowidget`, 720 × 720, `runInBackground` — over
+the identical `ScenePath` the game build uses, and `SceneBootstrap` picks the widget at *runtime* off the bundle id
+(`AeroWidget.IsWidget`). There is no second scene, no second project, no Xcode target, no app extension and no WidgetKit
+anywhere in the repo. `docs/WIDGET.md` is the contract; `tools/deploy/widget.sh` is the whole build.
+
+**So the Quest rule's mechanism has no widget analogue.** What `check-parity.sh` measures for the Quest is *commit
+reachability between two branches*: the Quest build fell behind because the Quest lane is a separate branch that can
+lag. The widget has no branch. And the premise behind "a shared change that skips the widget" does not hold either:
+there is no widget-side copy of a config, a GLB, a physics file or a shader for a shared change to forget — the widget
+reads `unity/Assets/StreamingAssets/aircraft/` and `Resources/Models/` like the game does, and flies `FlyingGame.Core` /
+`FlyingGame.Sim` like the game does. **A path regex cannot express widget parity, because the widget shares not *some*
+paths with the app but *all* of them.** A third `SHARED_RE` arm would have been a check that could not fire, which is
+worse than no check at all: it reads green forever.
+
+**What can actually drift, and what now catches it.** Two things, and they need different instruments.
+
+1. **The widget's own files, between the two lanes** — the same failure mode as a GLB, and not hypothetical. Three of
+   the paths the widget is built from are **neutral** to the lock above (matched by neither regex, so the hook never
+   sees them): `unity/Assets/_Project/Widget/` (`WidgetAssets.asset`, `WidgetCopy.shader`), `tools/deploy/widget.sh`,
+   and `tools/native-mac/` — the last being the *source* of `unity/Assets/Plugins/macOS/AeroNative.bundle`, whose
+   committed *product* is shared. Source neutral, product locked. On 2026-11-10 `lane/claude-island-nav` and
+   `lane/claude-quest-islandnav` differed by 98 lines of `tools/native-mac/` and one line of `GameAeroPanel.cs` with
+   the parity gate green throughout.
+
+   **Check 4 of `tools/check-parity.sh` now compares the widget's surface blob against blob**, exactly as check 3 does
+   for the GLBs: `Scripts/Bridge/Widget/`, `_Project/Widget/`, `tools/deploy/widget.sh`, `tools/native-mac/` and
+   `docs/WIDGET.md`. WARN by default, **FAIL under `--strict`** — which is what `deploy-quest.sh` and the lanes run. On
+   the current pair (`lane/claude-tv-companion` / `lane/claude-quest-islandnav`) it reads `OK   widget: all 57 files
+   identical`; on the stale `island-nav` pair it names the four files above and fails `--strict`.
+
+   **Those paths were deliberately NOT added to `SHARED_RE`,** and that is the whole design decision. The `--hook`
+   block treats *every* `lane/*` branch as the iOS lane, so widening the regex would make every lane in the repo stop
+   and sync with the Quest lane before it could touch a Mac-only build script. Mac is one of the three platforms, so
+   Mac-only code belongs in the parity **report**; only code that ships to iOS and Quest belongs in the commit
+   **lock**. A hook that blocks more than the rule needs blocks everyone.
+
+2. **Game-vs-widget feature drift — still open, and no path rule can close it.** This is Ty's *earlier* rule, quoted in
+   `AeroHost.cs` ("owner rule 2026-10-09: the GAME and the WIDGET stay in PARITY — one implementation, two hosts") and
+   again in `GameAeroPanel.cs` (*"add all of the new features … from widget work to the game as well — keep game and
+   widget in parity"*); `GameAeroHost` even names its prefs namespace `aero.parity.`. The failure is a capability added
+   to `AeroWidget`/`WidgetServer` and never surfaced in `GameAeroHost`/`GameAeroPanel`. Those files sit **side by side
+   in one directory on one branch**, so no path set can distinguish "added to the widget host" from "added to both".
+   What would catch it is a **set-equality check over the capability surface the two hosts publish**: `WidgetServer`'s
+   `hello` reply already enumerates `features`, `commands`, `show` keys, `insets`, `autopilotModes`, `views`, `presets`,
+   `scenarios` and `conditions`, and `GameAeroPanel` carries the game-side switch ids; a test asserting the two sets
+   match modulo a declared exemption list, with `WidgetServer.Protocol` required to bump when the set changes, is the
+   instrument. That is a test, not a hook, and it is not built. **It needs Ty to say which reading he meant**, because
+   it is the expensive one.
+
+**Out of reach from this repo at all:** the widget's client is Glass Overlay's `shared/Widgets/AeroWidget.swift`, which
+lives in another repository. The widget↔Glass contract is `WidgetServer.Protocol` (currently 8) plus `docs/WIDGET.md`,
+and nothing here can verify the other side of it. `lane/claude-widget-idle` exists because Glass had been sending
+`{"cmd":"fps","value":30}` on every connection and the widget silently dropped it.
+
+**Two inaccuracies in this document, found while doing the above, left for the lane owner to fix rather than fixed
+here:** "It does nothing on any branch but `lane/claude-island-nav` and `lane/claude-quest-islandnav`" (above, under
+*The lock*) is no longer true — since the 2026-11-08 change that made the iOS lane default to the branch the worktree
+is on, the `--hook` block's branch filter accepts **any** `lane/*` branch, so the lock is live on all ~218 of them.
+And none of the parity apparatus (`docs/PARITY.md`, `tools/check-parity.sh`, `tools/githooks/`) exists on `main` or on
+`split-surfaces`, so in those checkouts the installed dispatcher exits 0 and there is no enforcement at all.
+
 ## How to check
 
 ```
 tools/check-parity.sh            # full report; exit 1 if the Quest lane lacks any island-nav commit
 tools/check-parity.sh --brief    # what deploy.sh prints
-tools/check-parity.sh --strict   # also fail on shared Quest-only commits and on any GLB that differs
+tools/check-parity.sh --strict   # also fail on shared Quest-only commits, any GLB that differs, any widget file that differs
 tools/check-parity.sh lane/a lane/b     # other branches (or PARITY_IOS_BRANCH / PARITY_QUEST_BRANCH)
 ```
 

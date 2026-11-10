@@ -8941,5 +8941,12 @@
    }
   ],
   "_comment": "Arms: [N41KP] weighing, front seat 1132 mm in front of the datum, rear 35 mm behind, baggage 810 mm behind; datum = wing root leading edge = body x 0 ([POH] 2.7). Max seat loads 110 kg, min front 70 kg ([POH] 2.10); baggage 10 kg ([POH] 2.6). Trim weights: up to two of 5.6 kg at 1543 mm (one) / 1560 mm (two) in front of the datum ([POH] 6.4). CG range 270-480 mm aft of datum ([POH] 2.7). No water ballast ([POH] 7.10: removable ballast is the trim weights only). Eye points are derived, not published (derivation sec. 7)."
- }
+ },
+  "instruments": {
+    "airspeed": {
+      "units": "kt",
+      "_unitsSource": "JUDGEMENT: modern glass two-seater, and its modelled panel ALREADY drives airspeed_kias (tools/own_models/grob103_cockpit.py). FLAGGED: its POH and its painted face art are in km/h; the game has no km/h unit and adding one for one type is not what was decided, so the art is left as built.",
+      "_unitsRule": "Ty 2026-11-10, asked what rule the other 27 types follow after settling five by hand, chose \"by era and category\": \"Vintage, fabric and experimental types read mph; anything certified modern or turbine reads knots.\" FlyingGame.Core.Instruments.AsiUnits carries the rule and the exceptions."
+    }
+  }
 }

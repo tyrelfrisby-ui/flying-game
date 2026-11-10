@@ -69,4 +69,21 @@ public sealed class HudInstrumentLayoutTests
         Assert.Equal(2, HudInstrumentLayout.EngineValueLines(146, 41));   // iPad mini touch band
         Assert.Equal(HudInstrumentLayout.EngineBlockHeight(1488) + HudInstrumentLayout.ValueHeight(1488), HudInstrumentLayout.EngineBlockHeight(1488, false, 2), 6);
     }
+
+    /// <summary>
+    /// Ty 2026-11-10, Pitts cockpit screenshot: "The instrument row above the touch pads in cockpit view never got
+    /// fixed. Cockpits have instruments to look at and it takes up valuable space get rid of it."
+    ///
+    /// A REPEAT report, so the rule is locked here rather than left as a branch inside AnalogGauges that nothing can
+    /// reach. Four cases, and the third is the one that matters: an aeroplane with no panel of its own still gets the
+    /// row, because cockpit view is reachable for every type (the procedural shell, any downloaded model) and a pilot
+    /// sitting in one of those would otherwise have no instruments at all.
+    /// </summary>
+    [Theory]
+    [InlineData(false, false, true)]   // outside view, no model panel      -> the row is the only instrumentation
+    [InlineData(false, true, true)]    // outside view, model has a panel   -> the panel is not visible from out here
+    [InlineData(true, false, true)]    // cockpit, procedural / no panel    -> keep it or the pilot reads nothing
+    [InlineData(true, true, false)]    // cockpit, Pitts / Extra / 172 ...  -> gone (Ty 2026-11-10)
+    public void TheFlightRowGoesOnlyWhereTheCockpitHasItsOwnInstruments(bool inCockpit, bool ownInstruments, bool shown)
+        => Assert.Equal(shown, HudInstrumentLayout.ShowFlightDials(inCockpit, ownInstruments));
 }

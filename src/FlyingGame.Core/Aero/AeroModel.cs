@@ -35,7 +35,31 @@ public static class AeroModel
         double wingZ = WingGeom(c)[1];
         return double.IsNaN(wingZ) ? 0 : c.Mass.CgVec().Z - wingZ;
     }
-    private static double[] WingGeom(AircraftConfig c) => _span.GetValue(c, cfg =>
+    // Held in a field rather than written as a method group at the call site: WingGeom is on the step's path, and a
+    // method-group conversion allocates a delegate per call on every language version before C# 11. The lambda this
+    // replaced was cached by the compiler, so this keeps the allocation behaviour exactly as it was.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]>.CreateValueCallback
+        _measureWingGeom = MeasureWingGeom;
+    private static double[] WingGeom(AircraftConfig c) => _span.GetValue(c, _measureWingGeom);
+
+    /// <summary>
+    /// THE SAME MEASUREMENT, WITHOUT THE CACHE (the model-identity diagnostic, Ty 2026-11-09).
+    ///
+    /// Every per-config geometry table in this file and in TailWake / PropJet / BiplaneCellule is a
+    /// ConditionalWeakTable keyed on the AircraftConfig OBJECT, on the standing assumption that one object is one
+    /// aeroplane for its whole life. Nothing in the loader violates that today — UnityAircraftConfigLoader
+    /// deserializes a fresh object per load and caches nothing — but if anything ever reused or re-pointed a config,
+    /// the tables would quietly keep serving the FIRST aeroplane's geometry under the second one's name, which is
+    /// precisely the shape of the bug Ty reported ("almost like it was the extra flying but the pitts livery").
+    ///
+    /// So the diagnostic reads the span twice: once through <see cref="WingSpan"/> (the table) and once through this
+    /// (the strips as authored, right now). They agree on every healthy aeroplane. If they ever disagree, the caches
+    /// are holding another aeroplane's geometry and the report says so instead of leaving it to be inferred. It
+    /// allocates and loops the strips, so it is for a diagnostic line and never for the step.
+    /// </summary>
+    public static double WingSpanUncached(AircraftConfig c) => MeasureWingGeom(c)[0];
+
+    private static double[] MeasureWingGeom(AircraftConfig cfg)
     {
         double maxY = 0, zSum = 0, aSum = 0, ySum = 0;
         foreach (SurfaceConfig sf in cfg.Surfaces)
@@ -47,7 +71,7 @@ public static class AeroModel
         // sideslip-roll distribution (see SLIP ROLL, PER STRIP in the strip loop) so that a uniformly separated wing
         // reproduces the TR-379 coefficient exactly.
         return new[] { 2 * maxY, aSum > 0 ? zSum / aSum : double.NaN, aSum > 0 ? ySum / aSum : 0.0, aSum };
-    });
+    }
 
     /// <summary>
     /// Aspect ratio of the LIFTING SYSTEM a surface belongs to (owner 2026-10-06: "I think your induced drag curve is off"):
