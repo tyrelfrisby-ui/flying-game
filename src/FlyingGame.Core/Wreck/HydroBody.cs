@@ -94,7 +94,16 @@ public static class HydroBody
 
     /// <summary>
     /// Added mass and linearised drag for the current state. The submerged part of each element feels water, the
-    /// rest air (only when <paramref name="airDrag"/> — a free piece; the aeroplane's air is AeroModel's).
+    /// rest air (only when <paramref name="airDrag"/>).
+    ///
+    /// NOTHING IN THE GAME PASSES airDrag: true ANY MORE (2026-11-10) — only DebrisAeroTests, which passes it on
+    /// purpose to measure what it used to do. It used to be the free piece's air: a per-axis |v_k|·v_k
+    /// drag at the box centre, plus the rotational damping below. Both were wrong for the thing a departed wing panel
+    /// actually is — a finite flat plate, whose normal force is ½ρ·Cd_max·A·|v|·|v_n| (1/sin α times as much at a
+    /// shallow angle) and acts at a centre of pressure that MOVES with the angle, so it can turn the piece. And the
+    /// tip-speed damping below is positive by construction, so under it nothing could ever autorotate.
+    /// <see cref="DebrisAero"/> owns the air now; this owns the water. The parameter stays because it is the honest
+    /// place to record that, and because the aeroplane's own air has always been AeroModel's and passes false for it.
     ///
     /// Rotation: an element of half-length h whose centre is r from the axis has points at r ± h; its drag moment
     /// about the axis is approximated with the speed at its tip (|v_c| + |ω|·h) and the second moment r² + h²/3 of a
