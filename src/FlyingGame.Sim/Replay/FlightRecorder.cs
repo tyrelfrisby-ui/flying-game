@@ -346,8 +346,14 @@ public sealed class FlightRecorder
         ControlDeflections da = a.Deflections, db = b.Deflections;
         var d = new ControlDeflections(L(da.AileronRad, db.AileronRad, u), L(da.ElevatorRad, db.ElevatorRad, u),
             L(da.RudderRad, db.RudderRad, u), L(da.SpoilerFraction, db.SpoilerFraction, u), L(da.FlapFraction, db.FlapFraction, u), L(da.SlatFraction, db.SlatFraction, u));
+        // EngineRunning STEPS, like the smoke switch beside it: a frame's state holds until the next. It was being left
+        // out of this call altogether, which took the constructor's default — TRUE — so every interpolated frame said the
+        // engine was running, and Sample() returns an interpolated frame for every head strictly inside the recording.
+        // A replay of a flight that ended with the engine stopped therefore reported a running engine for all of it but
+        // its two end frames, which is the sound and the thrust vector the 11-08 repair set out to fix (Ty: "No engine
+        // sound on replay").
         return new ReplayFrame(L(a.Time, b.Time, u), s, d, L(a.Throttle01, b.Throttle01, u), L(a.FlapFraction, b.FlapFraction, u),
             L(a.GearExtension, b.GearExtension, u), L(a.LoadFactorZ, b.LoadFactorZ, u), L(a.WindWorld, b.WindWorld, u), ReplaySmoke.Lerp(a.Smoke, b.Smoke, u),
-            L(a.EngineRpm, b.EngineRpm, u));
+            L(a.EngineRpm, b.EngineRpm, u), a.EngineRunning);
     }
 }

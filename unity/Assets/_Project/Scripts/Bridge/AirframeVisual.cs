@@ -101,7 +101,11 @@ namespace FlyingGame.Bridge
             if (acFx != null)
             {
                 _damageFx ??= new DamageFx(transform, acFx.Config);
-                _damageFx.Update(acFx.Damage, _driver.WorldVelocityUnity);
+                // The fire, the black smoke and the fuel stream of the moment being watched — the last of the three
+                // damage visuals that read the LIVE airframe through a replay (Ty 2026-11-10: "Add the smoke fire fuel
+                // leak fixes"). Null out of a replay, which is the live state, so a return to live needs nothing else.
+                _damageFx.Update(_driver.ReplayDamageFx ?? FlyingGame.Sim.Replay.DamageFxState.Capture(acFx.Damage),
+                                 _driver.WorldVelocityUnity);
             }
             if (_driver.Sim == null) return;
             // Belt and braces for AirframeReplaced: damage drawn for any other aeroplane than the one flying goes. While the

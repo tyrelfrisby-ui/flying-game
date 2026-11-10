@@ -126,6 +126,11 @@ namespace FlyingGame.Bridge
         /// which after a crash is bent for the whole playback.</summary>
         public FlyingGame.Sim.Replay.AirframeShape? ReplayShape { get; set; }
 
+        /// <summary>Set by a replay: the fire and the fuel leak at the frame being shown (null while flying). Without it
+        /// DamageFx reads the LIVE DamageState, which through a playback is whatever the aeroplane ended up as — so a
+        /// flight that ended alight burned from the first frame, before the round that lit it (Ty 2026-11-10).</summary>
+        public FlyingGame.Sim.Replay.DamageFxState? ReplayDamageFx { get; set; }
+
         // Shared telemetry (audio / structure / HUD / net). Safe before Spawn: null Sim → neutral values.
         public double LoadFactorG => Sim?.Aircraft?.LoadFactorZ ?? 1.0;
         public double Throttle01 => Sim?.Aircraft?.Throttle01 ?? 0.0;
