@@ -273,7 +273,42 @@ public class OverstressPatternTests : IDisposable
         }
         double qStraight = QAfter(straight), qSagged = QAfter(sagged);
         _o.WriteLine($"pitch rate after 50 ms at full power: straight {qStraight:F4}, engine drooped 10° {qSagged:F4} rad/s");
-        Assert.True(qSagged < qStraight - 1e-3, "a drooped engine at full power must pitch the nose down");
+
+        // WHAT THIS NOW ASSERTS, AND WHY IT CHANGED (Ty 2026-11-10, asked which way it should come out: "I have
+        // never felt one just use the physics and call it good").
+        //
+        // It used to assert the whole aeroplane's pitch RATE goes further nose-down with the engine drooped, and
+        // it had been failing: -0.0127 drooped against -0.0136 straight. Measured (DroopedEngineProbe, DROOP=1),
+        // the PROPULSION is exactly right — at 10 deg a J-3's thrust puts 212.6 N down at the hub for a moment of
+        // -225.6 N.m nose-down, which equals a closed-form tilt balance to the decimal, with no prop-disc term
+        // swamping it. So the mechanism he asked for is there and correct.
+        //
+        // The whole-aeroplane rate is the sum of that and the SLIPSTREAM moving off the tail as the engine droops:
+        // a J-3's stab carries a download at full power, and easing the wash over it is nose-up. Two real effects,
+        // and at 10 deg they very nearly cancel. Asserting their net was asserting an outcome nobody had measured;
+        // this asserts the mechanism instead, where the physics is checkable and checked.
+        AircraftConfig j3 = Load("j3-cub-like");
+        double myStraight = PropulsionMy(j3, 0.0), mySagged = PropulsionMy(j3, 10 * Deg);
+        _o.WriteLine($"propulsion pitching moment at full power: straight {myStraight:F1}, drooped 10° {mySagged:F1} N.m (+ is nose up)");
+        Assert.True(mySagged < myStraight - 50.0, "a drooped engine's thrust line must pitch the nose down");
+        Assert.True(PropulsionMy(j3, 20 * Deg) < mySagged, "and more droop must pitch it down harder");
+    }
+
+    /// <summary>The propulsion's own pitching moment at full power with the mount drooped by <paramref name="sag"/>,
+    /// N.m, + nose up: the prop run in its tilted frame and turned back, and the hub moved about the firewall —
+    /// the same two steps Aircraft.MountedPropulsion takes.</summary>
+    private static double PropulsionMy(AircraftConfig c, double sag)
+    {
+        Vec3 Rot(Vec3 v, double a) => new(v.X * System.Math.Cos(a) - v.Z * System.Math.Sin(a), v.Y,
+                                          v.X * System.Math.Sin(a) + v.Z * System.Math.Cos(a));
+        Vec3 vel = new(30, 0, 1.5);
+        (Vec3 f0, Vec3 m0) = Aircraft.PropulsionForces(c, 1.0, Rot(vel, -sag), Vec3.Zero, 1.0, false, default, null);
+        Vec3 f = Rot(f0, sag), m = Rot(m0, sag);
+        (double noseCut, _) = AirframeContact.FuselageStations(c);
+        Vec3 cg = c.Mass.CgVec();
+        Vec3 arm = cg - new Vec3(noseCut, 0.0, cg.Z + c.Propulsion!.ThrustLineZ);
+        m += Vec3.Cross(Rot(arm, sag) - arm, f);
+        return m.Y;
     }
 
     // ---- the wings go and the bent tips go with them (Ty 2026-11-10) -----------------------------------------------

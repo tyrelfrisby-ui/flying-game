@@ -306,7 +306,12 @@ public sealed partial class Aircraft
             // hinge covered the ground strike and silently missed the g-pull — the opposite way round from the
             // feature as it was first described. Summed here rather than read from BendRad so it cannot depend on
             // whether the panel's shape has been refreshed yet this step.
-            double bend = System.Math.Abs(w.Bending.SetRad + w.OverstressSetRad);
+            // THE MOST BENT SIDE SETS THE LIMIT. Ty 2026-11-10: "Asymmetric aerodynamic bending is shown as bent
+            // more on one side than the other with the most bent side determining the aileron limit". The two
+            // ailerons are one control — a roll is what the PAIR does — so a band that differed between them would
+            // not describe anything the stick can ask for. Each wing is drawn at its own bend; the limit is the
+            // worst of them, which is the one that binds.
+            double bend = WorstBendOfPair(w);
             if (bend <= 1e-6)
             {
                 // Straight (or straightened past measuring): no limit — and the centre STAYS captured, because the
@@ -325,6 +330,20 @@ public sealed partial class Aircraft
             for (int j = 0; j < w.AileronFixed.Length; j++)
                 if (!_deadAileronRows.Contains(w.AileronFixed[j])) ovr[w.AileronFixed[j]] = held;
         }
+    }
+
+    /// <summary>The larger permanent bend of this panel and its opposite number — the same wing on the other side
+    /// (a biplane's upper and lower stay separate, because they are separate wings).</summary>
+    private double WorstBendOfPair(WingPanel w)
+    {
+        double worst = System.Math.Abs((w.Bending?.SetRad ?? 0.0) + w.OverstressSetRad);
+        for (int i = 0; i < _panels.Count; i++)
+        {
+            WingPanel o = _panels[i];
+            if (ReferenceEquals(o, w) || o.Lower != w.Lower || o.SurfaceId != w.SurfaceId || o.Side == w.Side) continue;
+            worst = System.Math.Max(worst, System.Math.Abs((o.Bending?.SetRad ?? 0.0) + o.OverstressSetRad));
+        }
+        return worst;
     }
 
     private bool AnyPanelBent()

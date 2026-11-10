@@ -766,11 +766,19 @@ public static class LandingGear
     /// <summary>This wheel's standing toe angle in the steer sense (positive turns the wheel to the aeroplane's
     /// right): <see cref="GearConfig.ToeOutDeg"/> taken outboard, from the sign of the wheel's own y. A wheel on the
     /// centreline has none, whatever is authored, because out has no meaning there.</summary>
+    /// <summary>
+    /// A LIVE OVERRIDE ON EVERY MAIN WHEEL'S TOE, degrees out, or NaN to fly what each type authors. Ty 2026-11-10:
+    /// "make the main wheel toe in/out an easy knob to turn for all planes" — he is tuning this by feel, and a
+    /// number you can only change by rebuilding is not a knob. Negative is toe-IN.
+    /// </summary>
+    public static double ToeOutOverrideDeg = double.NaN;
+
     public static double ToeRad(GearConfig g)
     {
-        if (g.ToeOutDeg == 0.0 || g.Pos.Length < 2) return 0.0;
+        double deg = double.IsNaN(ToeOutOverrideDeg) ? g.ToeOutDeg : ToeOutOverrideDeg;
+        if (deg == 0.0 || g.Pos.Length < 2) return 0.0;
         double side = g.Pos[1] > 1e-6 ? 1.0 : g.Pos[1] < -1e-6 ? -1.0 : 0.0;
-        return side * g.ToeOutDeg * System.Math.PI / 180.0;
+        return side * deg * System.Math.PI / 180.0;
     }
 
     public static double SteerRad(GearConfig g, double rudderCmd) =>
