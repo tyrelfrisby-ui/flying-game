@@ -154,6 +154,11 @@ public sealed class WreckPiece
 /// <see cref="HydroElement.Flood"/>, so which piece sinks at once and which floats for a while falls out of its
 /// mass, its volume and its openings, never out of its name.
 ///
+/// AIR (2026-11-10): the whole of it is <see cref="DebrisAero"/>'s — the flat plate's normal force at a centre of
+/// pressure that walks with the angle, resolved into Gauss strips. That is what makes a departed panel tumble and
+/// flutter instead of falling like a stone, and it is why <see cref="HydroBody.Coefficients"/> is now asked for the
+/// water alone. Read DebrisAero for the physics and for what was wrong before.
+///
 /// Integration: fixed <see cref="Dt"/> steps, RK4 for gravity and hydrostatics, then the implicit drag/added-mass
 /// update, then ground/bed contact as impulses at the box corners — restitution <see cref="Restitution"/> above
 /// <see cref="RestitutionMinMs"/>, inelastic below it — with Coulomb friction of the surface the piece is on
@@ -189,6 +194,12 @@ public sealed class WreckSim
     public const double RestitutionMinMs = 1.0;
     /// <summary>Kinetic friction on a bed under water (mud and silt, wet), the wet end of grass/earth.</summary>
     public const double WetBedMu = 0.3;
+    /// <summary>How far a piece may turn in one RK4 stage spacing before <see cref="Dt"/> is sub-divided, rad (2.9°).
+    /// Numerics only — <see cref="DebrisAero"/>'s moment is strongly nonlinear in the angle, so a tumbling piece
+    /// needs finer stages than a falling one. A piece that is not spinning takes one sub-step.</summary>
+    public const double AttitudeStepRad = 0.05;
+    /// <summary>Cap on that sub-division, so a runaway rate cannot eat a frame.</summary>
+    public const int MaxSubSteps = 4;
     public double Time { get; private set; }
     public readonly List<WreckPiece> Pieces = new();
     private double _acc;
@@ -245,16 +256,40 @@ public sealed class WreckSim
         // The river, the tide: the piece's drag, slam and added mass are all from its velocity through the water, so a
         // floating piece is carried at the water's speed and one across a shear is turned by it (HydroBody).
         WaterCurrent.Local flow = water ? World.CurrentAround(s.Position.X, s.Position.Y, p.ReachM) : WaterCurrent.Local.None;
-        WaterCoeffs before = HydroBody.Coefficients(p.Elements, p.CgBody, s, waterUp, airDrag: true, flow);
         Vec3 gWorld = new(0, 0, p.MassKg * WaterPhysics.G);
+        double rho = Atmosphere.DensityAt(s.Position);
+        // The regional wind, sampled once per piece per step: a departed panel is carried by the wind like anything else
+        // in the air. The micro-fields (thermals, ridge and slope lift, the river's own air) are deliberately left out —
+        // they cost a terrain sample per RK4 stage and change nothing about whether a piece tumbles.
+        Vec3 windWorld = Atmosphere.SteadyWindAt(s.Position);
         (Vec3, Vec3) Forces(RigidBodyState st)
         {
             (Vec3 f, Vec3 m) = HydroBody.Hydrostatics(p.Elements, p.CgBody, st, waterUp);
-            return (f + st.Attitude.Conjugate().Rotate(gWorld), m);
+            Quat qi = st.Attitude.Conjugate();
+            (Vec3 fa, Vec3 ma) = DebrisAero.Forces(p.Elements, p.CgBody, st, rho, waterUp, qi.Rotate(windWorld));
+            return (f + fa + qi.Rotate(gWorld), m + ma);
         }
-        RigidBodyState after = RigidBody6DOF.IntegrateRK4(s, dt, mp, Forces);
-        WaterCoeffs now = HydroBody.Coefficients(p.Elements, p.CgBody, after, waterUp, airDrag: true, flow);
-        s = HydroBody.Correct(s, after, p.MassKg, p.Inertia, before, now, dt);
+        // A tumbling piece turns 9° in a 5 ms step at the rates the plate moment reaches (30 rad/s on a wing panel at
+        // 150 kt), and the moment is strongly nonlinear in the angle, so the RK4 stage spacing is sub-divided until the
+        // attitude moves no more than AttitudeStepRad. Numerics, not physics: a piece that is not spinning takes one
+        // sub-step and integrates exactly as it did before.
+        int sub = System.Math.Clamp((int)System.Math.Ceiling(s.Rates.Length * dt / AttitudeStepRad), 1, MaxSubSteps);
+        double hh = dt / sub;
+        for (int i = 0; i < sub; i++)
+        {
+            // THE AIR IS NOT HydroBody's ANY MORE (2026-11-10). Its air share was a per-axis |v_k|·v_k drag at the box
+            // centre plus a tip-speed rotational damping — a law 1/sin α too small for a plate, acting at a point that
+            // can turn nothing, against a damping positive by construction. Nothing there could tumble. The air, all of
+            // it, is DebrisAero's now, so HydroBody is asked for the WATER alone and nothing is counted twice. In
+            // particular the old air-side RotDamping is gone, and it had to go: measured on a 1.6 × 5 m panel released
+            // edge-on at 150 kt with ω = 0, the new drive left on top of the old damping turns 0.93 rev in 3 s where
+            // the new air alone turns 1.45 — a third of it swallowed. The old air ALONE turns 0.00 rev, so the drive
+            // is what was missing and the damping was only in the way (DebrisAeroTests).
+            WaterCoeffs before = HydroBody.Coefficients(p.Elements, p.CgBody, s, waterUp, airDrag: false, flow);
+            RigidBodyState stepped = RigidBody6DOF.IntegrateRK4(s, hh, mp, Forces);
+            WaterCoeffs now = HydroBody.Coefficients(p.Elements, p.CgBody, stepped, waterUp, airDrag: false, flow);
+            s = HydroBody.Correct(s, stepped, p.MassKg, p.Inertia, before, now, hh);
+        }
 
         // First touch of the water: the lowest point has gone below the surface.
         Vec3 low = LowestPointOf(p, s);
