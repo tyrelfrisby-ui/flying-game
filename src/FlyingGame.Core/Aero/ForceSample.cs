@@ -16,5 +16,15 @@ public readonly struct ForceSample
 public static class ForceDebug
 {
     public static List<ForceSample>? Samples;
+
+    /// <summary>
+    /// OFF by default, and it must stay that way. When set, the models add flow DIAGNOSTICS ("tailq") that are
+    /// not forces at all — they pack scalars into the force and moment fields. Every consumer that sums
+    /// <see cref="Samples"/> buckets by <see cref="ForceSample.Kind"/> and falls through on an unknown one, so a
+    /// new diagnostic kind silently becomes a force: that is exactly how a "tailflow" record turned into a
+    /// phantom +965 ft·lb nose-up term in the Pitts' flat-spin pitch budget on 2026-11-09. Gating it means the
+    /// five probes that skip "tailflow" by name do not each need a new name added to them.
+    /// </summary>
+    public static bool FlowDiagnostics;
     public static void Add(Vec3 pos, Vec3 force, Vec3 moment, string kind) { Samples?.Add(new ForceSample(pos, force, moment, kind)); }
 }

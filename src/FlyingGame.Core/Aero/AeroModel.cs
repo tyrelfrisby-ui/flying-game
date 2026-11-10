@@ -1032,13 +1032,27 @@ public static class AeroModel
                                         : TailWake.QFactor(wakes, stripAt, vAirStrip, isVertical, surfaceIndex, strip.Chord);
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
-                if (!isWing && !isVertical && strip.PosVec().X < -1.0 && ForceDebug.Samples is not null)
+                if (!isWing && strip.PosVec().X < -1.0 && ForceDebug.Samples is not null)
                 {
                     // Tail flow for the overlay (protocol 7): the local airflow this stab strip flies in (downwash, slipstream,
                     // swirl, rotation included) as a body vector, and (α_t, ε, η_t = q_local / q_freestream).
+                    // VERTICAL SURFACES INCLUDED since 2026-11-09: the fin and rudder were excluded, so the one diagnostic
+                    // that says whether a surface has any dynamic pressure left did not cover the surface the owner reports
+                    // as weakest in a spin. `SpinAuthorityProbe` found the rudder making 0.2 °/s² of yaw at α 91 and only
+                    // 15.6 at α 30, where the elevator recovers from 1.3 to 44 — and there was no way to see why.
                     Vec3 vInf = bodyVelocity - windBody; double v2 = Math.Max(1e-6, vInf.X * vInf.X + vInf.Y * vInf.Y + vInf.Z * vInf.Z);
                     ForceDebug.Add(stripAt, new Vec3(planeSpeed * Math.Cos(alphaBase), vLocal.Y, planeSpeed * Math.Sin(alphaBase)),
                         new Vec3(alphaBase + strip.IncidenceRad, tailEps, qFactor * planeSpeed * planeSpeed / v2), "tailflow");
+                    // And the SAME η_t split into its two factors, which the single number hides and which are not
+                    // comparable between a horizontal and a vertical surface: `planeSpeed` is the flow in the strip's OWN
+                    // plane (vertical: sqrt(u²+v²), horizontal: sqrt(u²+w²)), so a fin at α 90 is legitimately edge-on and
+                    // its in-plane speed collapses for geometric reasons that are nothing to do with being blanketed.
+                    //   X = planeSpeed (m/s, in-plane)   Y = qFactor (the wake/blanketing loss alone)   Z = η_t
+                    // Mixing the two cost an hour on 2026-11-09: the fin's η_t of 0.10 against the stab's 1.44 reads like
+                    // 8x of blanketing and is mostly the edge-on geometry.
+                    if (ForceDebug.FlowDiagnostics)
+                        ForceDebug.Add(stripAt, new Vec3(planeSpeed, qFactor, qFactor * planeSpeed * planeSpeed / v2),
+                            new Vec3(isVertical ? 1 : 0, Math.Sqrt(v2), 0), "tailq");
                 }
                 if (strip.Control is not null && flowState is not null && idx < flowState.HingeQ.Length)
                 {
